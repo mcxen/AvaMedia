@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     public MainWindow() : this(new Storage()) { }
     public MainWindow(Storage storage)
     {
-        _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Application.Current!.RequestedThemeVariant=_settings.Theme=="Dark"?Avalonia.Styling.ThemeVariant.Dark:Avalonia.Styling.ThemeVariant.Light;Motion.SetReducedMotion(_settings.ReduceMotion);Engine=new(_settings);_queue=new(Engine);
+        _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=new(_settings);_queue=new(Engine);
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
         OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=job=>Dispatcher.UIThread.Post(()=>{Refresh();if(DateTime.UtcNow-_lastSave>TimeSpan.FromSeconds(1)){Save();_lastSave=DateTime.UtcNow;}});
@@ -160,8 +160,10 @@ public partial class MainWindow : Window
         try{var jobs=JsonSerializer.Deserialize<List<Job>>(await File.ReadAllTextAsync(files[0]))??[];foreach(var j in jobs){Catalog.Find(j.FeatureId);if(j.Inputs is null || j.Options is null || string.IsNullOrWhiteSpace(j.Output))throw new InvalidDataException("任务列表格式无效。");j.Id=Guid.NewGuid();if(j.State==JobState.Running)j.State=JobState.Cancelled;}foreach(var j in jobs)_jobs.Add(j);Save();Refresh();}catch(Exception ex){await Ui.Message(this,"载入失败",ex.Message);}
     }
     private void ExitClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>Close();
-    private void LightClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){Application.Current!.RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Light;_settings.Theme="Light";Save();}
-    private void DarkClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){Application.Current!.RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Dark;_settings.Theme="Dark";Save();}
+    private void SetSkin(string theme){Skin.Apply(theme);_settings.Theme=theme;Save();}
+    private void LightClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Light");
+    private void DarkClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Dark");
+    private void MacOS9Click(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("MacOS9");
     private void ChineseClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(sender is MenuItem item)item.IsChecked=true;}
     private async void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"使用说明","1. 点击左侧格式或工具，添加文件，设置参数并确定。\n2. 点击“开始”执行队列。右键任务可编辑、重试、查看日志和打开输出目录。\n3. 快速剪辑支持拖动时间轴、设置开始/结束时间、裁剪区域、速度和淡入淡出。\n4. 使用选项指定 FFmpeg / FFprobe 路径。下载需要 yt-dlp。录屏支持 Windows 桌面画面，时长可设置。\n5. PDF → DOCX/XLSX 提取文本，扫描 PDF 需要另行 OCR；不保留原始排版。\n6. ISO 复制需要光驱读取权限。DVD 转换请选择未加密 VOB 文件。\n\n更完整的能力与限制见工程 docs/FEATURES.md。");
     private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"关于 AvaMedia","AvaMedia X64 1.0.2\nAvalonia + C# 多媒体工具\n\n独立实现的客户端，界面布局参考 FormatFactory 5.10.0。\n原创代码和矢量图标采用 MIT 许可证。\n\nAvalonia: MIT · NAudio: MIT · PDFsharp: MIT · PdfPig: Apache-2.0\nFFmpeg 通过独立进程调用，许可证取决于用户配置的构建。\nyt-dlp 为可选外部工具，其打包版本还包含第三方依赖。\n\n完整版权声明见 THIRD-PARTY-NOTICES.md 和 licenses/。\nFormatFactory 名称及原产品资源归各权利人所有。");

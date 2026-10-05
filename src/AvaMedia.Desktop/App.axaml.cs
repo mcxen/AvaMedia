@@ -17,6 +17,7 @@ public sealed partial class App : Application
             MainWindow window;
             if(captureRoot is not null){var storage=new Storage(Path.Combine(captureRoot,"capture-state"));storage.SaveSettings(new(){OutputFolder=Path.GetFullPath(Path.Combine(captureRoot,"output")),NotifyComplete=false});window=new MainWindow(storage);}else window=new MainWindow();
             if(desktop.Args?.Contains("--dark")==true)RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Dark;
+            if(desktop.Args?.Contains("--macos9")==true)Skin.Apply("MacOS9");
             desktop.MainWindow = window;
             if (desktop.Args?.Contains("--capture") == true)
             {

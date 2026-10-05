@@ -1,0 +1,87 @@
+using System.Runtime.CompilerServices;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using AvaMedia.Desktop.Controls;
+
+namespace AvaMedia.Desktop;
+
+public sealed class Skin : AvaloniaObject
+{
+    public static ThemeVariant MacOS9 { get; } = new("MacOS9", ThemeVariant.Light);
+    public static readonly AttachedProperty<bool> IsEnabledProperty = AvaloniaProperty.RegisterAttached<Skin, Window, bool>("IsEnabled");
+    private static readonly ConditionalWeakTable<Window, Registration> Windows = new();
+
+    static Skin() => IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
+    {
+        if (change.NewValue is true) Windows.GetValue(window, w => new Registration(w));
+        else if (Windows.TryGetValue(window, out var registration)) { registration.Dispose(); Windows.Remove(window); }
+    });
+
+    public static bool GetIsEnabled(Window window) => window.GetValue(IsEnabledProperty);
+    public static void SetIsEnabled(Window window, bool value) => window.SetValue(IsEnabledProperty, value);
+    public static void Apply(string name)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        Application.Current!.RequestedThemeVariant = name switch { "MacOS9" => MacOS9, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+    }
+
+    private sealed class Registration : IDisposable
+    {
+        private readonly Window _window;
+        private PlatinumWindowFrame? _frame;
+        private SystemDecorations _decorations;
+        private bool _changing;
+        public Registration(Window window)
+        {
+            _window = window;
+            window.ActualThemeVariantChanged += Changed;
+            window.Opened += Changed;
+            window.Closed += Closed;
+            window.PropertyChanged += PropertyChanged;
+            Refresh();
+        }
+        private void Changed(object? sender, EventArgs e) => Refresh();
+        private void PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.Property == ContentControl.ContentProperty) Refresh();
+        }
+        private void Refresh()
+        {
+            if (_changing) return;
+            var classic = _window.ActualThemeVariant == MacOS9;
+            _window.Classes.Set("mac-os9", classic);
+            _changing = true;
+            try
+            {
+                if (_frame is not null && !ReferenceEquals(_window.Content, _frame))
+                {
+                    _frame.ReleaseContent(); _frame = null; _window.SystemDecorations = _decorations;
+                }
+                if (classic && _frame is null && _window.Content is { } content)
+                {
+                    _decorations = _window.SystemDecorations;
+                    _window.Content = null;
+                    _frame = new PlatinumWindowFrame(_window, content);
+                    _window.Content = _frame;
+                    _window.SystemDecorations = SystemDecorations.None;
+                }
+                else if (!classic && _frame is not null)
+                {
+                    var restoredContent = _frame.ReleaseContent();
+                    _window.Content = null; _window.Content = restoredContent;
+                    _window.SystemDecorations = _decorations;
+                    _frame = null;
+                }
+            }
+            finally { _changing = false; }
+        }
+        private void Closed(object? sender, EventArgs e) { Dispose(); Windows.Remove(_window); }
+        public void Dispose()
+        {
+            _window.ActualThemeVariantChanged -= Changed; _window.Opened -= Changed;
+            _window.Closed -= Closed; _window.PropertyChanged -= PropertyChanged;
+        }
+    }
+}

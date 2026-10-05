@@ -18,6 +18,8 @@ macOS 工具安装使用 `scripts/Install-MediaTools-macOS.sh`，通过已安装
 
 “去除水印”添加媒体后点击“选项 / 剪辑”；可拖动时间范围和区域框，设置边界、精度、速度及淡入淡出。播放器通过 FFmpeg 解码，Windows 声音使用 WaveOut，Mac 声音接入 AudioQueue。输出配置可选择视频/音频轨和字幕处理方式，详见 [字幕与选轨](docs/SUBTITLE-OPTIONS.md)。
 
+外观可从菜单 皮肤 → Mac OS 9 · Platinum 切换为经典 Mac 灰色立体控件与条纹标题栏，选择会保存。设计与开源说明见 [docs/MACOS9-SKIN.md](docs/MACOS9-SKIN.md)。
+
 ## 构建和验证
 
 ```powershell

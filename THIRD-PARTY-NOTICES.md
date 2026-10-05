@@ -28,3 +28,7 @@ If you choose to distribute FFmpeg yourself, preserve its actual notices and lic
 yt-dlp is an optional external tool and is not included in the release ZIP. Its source project uses the Unlicense; official bundled executable artifacts also include third-party components and their licenses. See [yt-dlp third-party notices](https://github.com/yt-dlp/yt-dlp/blob/master/THIRD_PARTY_LICENSES.txt).
 
 System fonts are read on the user's device when creating text PDFs; font files are not included in AvaMedia's distribution.
+
+## Platinum skin
+
+The Mac OS 9 skin adapts the bevel color arrangement from [classic.css](https://github.com/npjg/classic.css), copyright (c) 2019 Nathanael Gentry, MIT. Its complete license is preserved in `licenses/upstream/classic-css-MIT.txt`. Window chrome and drawing code are implemented in C#; Apple bitmap assets and font files are not bundled. Control themes extend Avalonia SimpleTheme, covered by its MIT notices above.

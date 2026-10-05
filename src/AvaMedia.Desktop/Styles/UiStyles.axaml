@@ -5,6 +5,8 @@
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="UiCanvas" Color="#FAFAFA" />
           <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiToolbar" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiStatusText" Color="#FFFFFF" />
           <SolidColorBrush x:Key="UiSurfaceRaised" Color="#F4F4F4" />
           <SolidColorBrush x:Key="UiText" Color="#202428" />
           <SolidColorBrush x:Key="UiTextSecondary" Color="#666666" />
@@ -23,6 +25,8 @@
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="UiCanvas" Color="#202020" />
           <SolidColorBrush x:Key="UiSurface" Color="#282828" />
+          <SolidColorBrush x:Key="UiToolbar" Color="#282828" />
+          <SolidColorBrush x:Key="UiStatusText" Color="#FFFFFF" />
           <SolidColorBrush x:Key="UiSurfaceRaised" Color="#303030" />
           <SolidColorBrush x:Key="UiText" Color="#F3F3F3" />
           <SolidColorBrush x:Key="UiTextSecondary" Color="#BDBDBD" />
