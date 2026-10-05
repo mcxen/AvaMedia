@@ -1,11 +1,11 @@
-param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
+param([ValidateSet('win-x64','osx-arm64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $sdk = Join-Path $taskRoot ('.tools/dotnet/dotnet' + $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { '.exe' } else { '' }))
 if (!(Test-Path -LiteralPath $sdk)) { $sdk = 'dotnet' }
 $publishRoot = Join-Path $taskRoot ('artifacts/release/' + $Version + '/' + $Runtime)
 if ($OutputDirectory) { $publishRoot = [IO.Path]::GetFullPath($OutputDirectory) }
-$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
+[string[]]$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
 & $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
