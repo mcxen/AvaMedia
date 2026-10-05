@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "generator": "Codex built-in image_gen.imagegen",
+  "created": "2026-10-05",
+  "mode": "reference-guided image generation",
+  "styleReference": "../../../../../docs/assets/feature-icons-v1-reference.png",
+  "styleAnchor": "rotate.png",
+  "transparentBackground": true,
+  "sourceHandling": "Original generated PNGs copied unchanged; display scaling and format labels are rendered by Avalonia.",
+  "assets": [
+    {
+      "kind": "video",
+      "function": "视频转换",
+      "file": "video.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: VIDEO FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, containing one dark charcoal filmstrip with cyan panels in the lower two thirds. Leave the upper quarter of the sheet empty to support an application-rendered format badge. No badge and no text should be drawn into this PNG.",
+      "sha256": "4F06F66D46B338317240F4A6B48A604EA1164C4E505FE44A67CFA6AA96BF27B0",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "formats",
+      "function": "更多视频格式",
+      "file": "formats.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: MULTIPLE VIDEO FORMATS icon. Subject: two slightly offset white and light-silver document sheets with folded top-right corners, the front sheet containing one small dark charcoal filmstrip with cyan panels in its lower half. Leave the upper quarter empty to support an application-rendered format badge. No badge and no text should be drawn into this PNG.",
+      "sha256": "5C969BF47A6A578B3087851D2EAAC61C32530460F677C8E75501E380D8CAA2BC",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "join",
+      "function": "视频合并／混流",
+      "file": "join.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: JOIN / MERGE VIDEO icon. Subject: two overlapping dark charcoal filmstrip segments with cyan blue panels joining together, one large orange plus sign between them and a small grass green musical note at upper-right. Plus sign must be clear and central. Three elements only, no document sheet.",
+      "sha256": "3A5BB047ED0DB6537D74E471C0EE6C12C3FD94A73021C29E992A706E80DF879A",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "gear",
+      "function": "视频优化",
+      "file": "gear.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: VIDEO OPTIMIZE / SETTINGS icon. Subject: one cyan-blue, dark-charcoal filmstrip and two meshing warm golden-orange gears partly overlapping its right upper corner. The large gear has a readable round hub; the small gear is secondary. Simple clean cog teeth, no text.",
+      "sha256": "A0281A10A6FD133989F296FB0B4D9F4411E307DAA9775E9C6D76FFC94D9E9C8C",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "split",
+      "function": "音视频分离",
+      "file": "split.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: EXTRACT VIDEO / AUDIO STREAMS icon. Subject: a charcoal filmstrip with cyan panels at lower-left, one cyan movie reel at upper-right with three clear silver holes, and a large grass-green musical note at lower-right. One thin green directional arrow leads from filmstrip toward reel / note to communicate extraction. No scissors and no document sheet.",
+      "sha256": "A2C0A362EF377CDE1221A50D216BDD81D37BBB462DDA99151C3058D25D2FC9B5",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "crop",
+      "function": "画面裁剪",
+      "file": "crop.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: FRAME CROP icon. Subject: a light silver square picture frame with four cyan blue crop corner handles, and a simple orange mountain / golden sun picture inside. A small unmistakable crop corner symbol in darker cyan at the bottom-right. Clearly communicate choosing a rectangular part of the picture, distinct from the scissors/clip icon. Do not draw scissors.",
+      "sha256": "3BCD2155256159A2E632A69D4ED7B496AB537CC0FE7708F3BB6C11E7FB80DC6E",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "rotate",
+      "function": "视频旋转",
+      "file": "rotate.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG application feature icon for AvaMedia desktop multimedia software, readable at 48–64 pixels. Input image is a STYLE REFERENCE ONLY showing the current original AvaMedia icon family; do not reproduce the contact sheet or any labels. Primary request: generate the VIDEO ROTATE function icon. Subject: one upright dark charcoal filmstrip frame with vivid cyan-blue panels, surrounded by one clear grass-green clockwise curved arrow with a single arrowhead. Match the reference's friendly classic desktop utility illustration style and proportions, with slightly polished subtle bevels, restrained soft highlights, crisp silhouettes, simple geometry and almost frontal view. Color palette exactly drawn from the reference: charcoal #26333D, cyan #22A3D0, green #68AE3A, light silver. Composition: a single centered icon on a square canvas, balanced large silhouette occupying about 80% of the canvas, generous clean padding, no cropping. Transparent backdrop with true alpha including all surrounding empty pixels. No text, letters, brand logos, watermarks, checkerboard pattern, background plate, app tile, additional icons or sheet. No photorealistic objects, no heavy shadows, no glossy toy look. The frame and curved arrow must remain visually distinguishable when downscaled.",
+      "sha256": "72F08F08C4918C96494CC91E370D0F6EA5AAF06611F41AD314D04A308FBEE67B",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "clip",
+      "function": "快速剪辑",
+      "file": "clip.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: QUICK VIDEO CLIP icon. Subject: a single cyan-blue and dark charcoal filmstrip behind a clear open pair of silver scissors with two coral-red handles. The scissors cross in front of the lower half of the filmstrip; recognizable silver blades, simple red handle loops. No clock, no extra filmstrips.",
+      "sha256": "36D3DA0C1CD373CCEB76BBA51DAD791BF047B24C0B8BCEC891A5B3009331B88C",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "erase",
+      "function": "去除水印",
+      "file": "erase.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: REMOVE VIDEO WATERMARK icon. Subject: a single chunky eraser angled slightly diagonally: warm coral-orange main body, blue-gray grip on top, cream-colored erasing tip at bottom. Two tiny cyan-blue disappearing pixel squares near the erasing tip convey clearing a watermark. Keep eraser dominant, simple, easily recognizable. No document sheet and no text.",
+      "sha256": "D814044864184A45C1079FC98590A9B367E39BD64B71D13938F4F1459F072ABD",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "frames",
+      "function": "提取视频帧",
+      "file": "frames.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: EXTRACT VIDEO FRAMES icon. Subject: a dark charcoal filmstrip with cyan panels at left, three light-silver bordered small image thumbnails stacked vertically at right, with simple cyan mountain silhouettes and orange sunshine. A grass-green branching arrow connects filmstrip toward the three pictures. Avoid tiny details. No document sheet and no text.",
+      "sha256": "7B43C820198F8CF16CD787E1E525A961CD37F9434B2B7B86ACF0A97969EE0BE8",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "record",
+      "function": "屏幕录制",
+      "file": "record.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: SCREEN RECORDING icon. Subject: a frontal cyan-blue player / screen window with a light-silver interior and a large cyan play triangle in the middle. A prominent round coral-red record dot with a thin white border overlaps the lower-right corner. The top bar has three simple golden controls, no lettering. No paper sheet.",
+      "sha256": "8A016E56FFE554FA572E276D2179C51B291D3A6CA5183AFB167BDA83FD866BCF",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "player",
+      "function": "视频播放器",
+      "file": "player.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: VIDEO PLAYER icon. Subject: a frontal cyan-blue media player window with a light-silver interior and a large vivid cyan-blue right-pointing play triangle centered. Tiny golden square controls on top-left of the frame and one simple cyan playback line along bottom. No record dot, no paper sheet.",
+      "sha256": "6276768152AFD6266884D5CBB74DAF291123061DED5A9A950915E9725E6EF9C7",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "download",
+      "function": "视频下载",
+      "file": "download.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: DOWNLOAD VIDEO icon. Subject: a single dark charcoal filmstrip with bright cyan blue panels on left, and a bold grass-green vertical downward arrow on the right ending above a small light-silver horizontal download tray. Arrow is the primary readable action. No paper sheet and no text.",
+      "sha256": "7FBCD53392BDC6CD0D0DD5BA824E825270EF9DE263A885B7018662BEB02060E4",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "audio",
+      "function": "音频转换",
+      "file": "audio.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: AUDIO FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, a single large grass-green musical eighth-note pair centered in the lower two thirds. Leave upper quarter empty for an application-rendered format badge. No badge and no text.",
+      "sha256": "CB6E863ADE812F5AB2145CE30CDCA3C40AF9159702CB7282CB18BCD9787AABC8",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "image",
+      "function": "图片转换",
+      "file": "image.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: IMAGE FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, one framed cyan-blue landscape thumbnail containing two simple warm orange mountain peaks and a golden sun, placed in the lower two thirds. Leave upper quarter empty for an application-rendered format badge. No badge and no text.",
+      "sha256": "F7070EBC49023083F9E2073456480FE310D31C454C652E756EF2FA60A5F37217",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "document",
+      "function": "文档转换",
+      "file": "document.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: DOCUMENT FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, four bold cyan-gray horizontal lines centered in its lower half, and one small coral-red folded-page accent at lower-right. Leave upper quarter empty for an application-rendered format badge. Only abstract horizontal lines, no actual letters or text, no badge.",
+      "sha256": "AEF7DCD93F3034D5D9FD6AD4794FED12D981075CEA57DE08F5A09378F149E922",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "archive",
+      "function": "压缩工具",
+      "file": "archive.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: ARCHIVE / ZIP UTILITIES icon. Subject: a silver optical disc with a simple round center hole, partly overlapped at right by a warm golden-orange upright archive package with one bold dark zipper and large silver zip pull. Disc should remain clearly visible. No printed text and no document sheet.",
+      "sha256": "462BEC99E329C8F9AA3EE45E88A09A7166F0131AA7626566488F6EE49FD1304A",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "disc",
+      "function": "光盘工具",
+      "file": "disc.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: OPTICAL DISC / DVD UTILITIES icon. Subject: one almost frontal silver optical disc with a strong charcoal outer edge, a clear circular center hole and hub, with three subtle broad iridescent cyan, pale-gold and light-silver sectors. Bold simple silhouette, no tiny grooves, no packaging or zipper, no text.",
+      "sha256": "756033F82ABFD6CBC147CC6B12D6AC7585832FE2448F2A30417158B91BA8DFAF",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "info",
+      "function": "媒体信息",
+      "file": "info.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: MEDIA INFORMATION icon. Subject: one vivid cyan-blue circular information button with a subtle silver outer rim and a clearly centered white lowercase information i symbol, simple rounded vertical stem and separate round dot. This standard i symbol is the ONLY permitted letter; no other text or caption. One circle only, no paper sheet.",
+      "sha256": "5D8098117A181AFDFBB2ECCA7D3360375AB97193BEAF8F047407E1672A7FB738",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "clip-list",
+      "function": "批量剪辑",
+      "file": "clip-list.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: BATCH CLIP / LIST OF CLIPS icon. Subject: a shallow cyan-blue inbox tray with a white and silver upright list card. Four thick horizontal rows on the card in warm orange, golden yellow, mint green, and cyan blue. A small silver pair of scissors with coral-red handles sits at the lower-right corner. List rows are abstract shapes only, no letters or text.",
+      "sha256": "7E0265351B8ECA89647DEB332FA6AB37E56366B9EF1DEBAF975856DC4D1E60D1",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    }
+  ]
+}

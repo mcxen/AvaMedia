@@ -33,7 +33,7 @@ public sealed class BatchVideoEntry : Observable
 /// <summary>Dedicated batch panel; does not start or change the conversion queue.</summary>
 public sealed class BatchToolsWindow : Window
 {
-    private readonly MediaEngine _engine;
+    private readonly IMediaEngine _engine;
     private readonly ObservableCollection<BatchVideoEntry> _entries = [];
     private readonly ListBox _list;
     private readonly StackPanel _importBar;
@@ -72,7 +72,7 @@ public sealed class BatchToolsWindow : Window
     private readonly string _journal;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
-    public BatchToolsWindow(MediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,string? journalPath=null)
+    public BatchToolsWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,string? journalPath=null)
     {
         _engine = engine;_journal=journalPath??System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "batch-rename.json");
         Title = "批量视频 · 重命名 / 多宫格截图";
@@ -108,16 +108,16 @@ public sealed class BatchToolsWindow : Window
         _importBar.Children.Add(Ui.Button("全选", () => { foreach (var row in _entries) row.Include = true; }));
         _importBar.Children.Add(Ui.Button("反选", () => { foreach (var row in _entries) row.Include = !row.Include; }));
         root.Children.Add(_importBar);
-        _summary = new() { Margin = new(0, 12), Foreground = Brush.Parse("#666666"), Text = "添加视频或文件夹，也可以将它们拖入此窗口。" };
+        _summary = new() { Margin = new(0, 12), Classes = { "caption" }, Text = "添加视频或文件夹，也可以将它们拖入此窗口。" };
         Grid.SetRow(_summary, 1); root.Children.Add(_summary);
 
         var body = new Grid { ColumnDefinitions = new("*,380"), ColumnSpacing = 16 };
         var filesArea = new Grid { RowDefinitions = new("26,*") };
-        var header = new Grid { ColumnDefinitions = new("34,*,*,160"), Background = Brush.Parse("#EFEFEF") };
+        var header = new Grid { ColumnDefinitions = new("34,*,*,160"), Classes = { "table-header" } };
         var h1 = Ui.Text("视频文件"); Grid.SetColumn(h1, 1); header.Children.Add(h1);
         var h2 = Ui.Text("新名称预览"); Grid.SetColumn(h2, 2); header.Children.Add(h2);
         var h3 = Ui.Text("状态"); Grid.SetColumn(h3, 3); header.Children.Add(h3); filesArea.Children.Add(header);
-        _list = new() { ItemsSource = _entries, SelectionMode = SelectionMode.Multiple, Background = Brushes.White, BorderBrush = Brush.Parse("#CCCCCC"), BorderThickness = new(1) };
+        _list = new() { ItemsSource = _entries, SelectionMode = SelectionMode.Multiple, BorderThickness = new(1) };
         _list.ItemTemplate = new FuncDataTemplate<BatchVideoEntry>((entry, _) =>
         {
             var g = new Grid { ColumnDefinitions = new("28,*,*,160"), Margin = new(0, 6), ColumnSpacing = 5 };
@@ -127,7 +127,7 @@ public sealed class BatchToolsWindow : Window
             ToolTip.SetTip(g, entry?.Path); return g;
             void Add(int column, string property)
             {
-                var t = new TextBlock { FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+                var t = new TextBlock { Classes = { "caption" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
                 t.Bind(TextBlock.TextProperty, new Binding(property)); Grid.SetColumn(t, column); g.Children.Add(t);
             }
         });
@@ -137,7 +137,7 @@ public sealed class BatchToolsWindow : Window
         _renamePanel = new() { Spacing = 9, Margin = new(9) };
         AddRow(_renamePanel, "命名模板", _pattern); AddRow(_renamePanel, "前缀", _prefix); AddRow(_renamePanel, "后缀", _suffix);
         AddRow(_renamePanel, "查找文本", _find); AddRow(_renamePanel, "替换为", _replace); AddRow(_renamePanel, "起始序号", _firstIndex); AddRow(_renamePanel, "序号位数", _digits);
-        _renamePanel.Children.Add(new TextBlock { Text = "模板可使用 {name} 原文件名、{index} 序号、{parent} 父文件夹名。保留扩展名。\n\n示例：片段_{index} → 片段_001.mp4\n\n先预览，再执行。名称冲突会阻止操作。", TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new(0, 8) });
+        _renamePanel.Children.Add(new TextBlock { Text = "模板可使用 {name} 原文件名、{index} 序号、{parent} 父文件夹名。保留扩展名。\n\n示例：片段_{index} → 片段_001.mp4\n\n先预览，再执行。名称冲突会阻止操作。", TextWrapping = TextWrapping.Wrap, Classes = { "caption" }, Margin = new(0, 8) });
         var previewRename = new Button { Content = "预览新名称", HorizontalAlignment = HorizontalAlignment.Stretch };
         previewRename.Click += async (_, _) => await PreviewRename(); _renamePanel.Children.Add(previewRename);
         _rename = new() { Content = "执行重命名", IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -152,22 +152,22 @@ public sealed class BatchToolsWindow : Window
         AddRow(_sheetPanel, "宫格预设", preset);
         AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows)); AddRow(_sheetPanel, "单格宽 / 高", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
         AddRow(_sheetPanel, "开始 / 结束秒", Pair(_start, _end)); AddRow(_sheetPanel, "图片格式", _format); _sheetPanel.Children.Add(_timestamps);
-        _sheetPanel.Children.Add(new TextBlock { Text = "均匀抽取时间区间内的视频帧，按时间顺序拼图。结束为 0 表示视频末尾。竖屏保留比例；每个视频独立输出。", FontSize = 12, TextWrapping = TextWrapping.Wrap });
+        _sheetPanel.Children.Add(new TextBlock { Text = "均匀抽取时间区间内的视频帧，按时间顺序拼图。结束为 0 表示视频末尾。竖屏保留比例；每个视频独立输出。", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
         _output = Ui.Input(outputFolder); _sheetPanel.Children.Add(Ui.Text("输出文件夹")); _sheetPanel.Children.Add(_output);
         var browse = new Button { Content = "选择输出目录…", HorizontalAlignment = HorizontalAlignment.Stretch };
         browse.Click += async (_, _) => { if (await Ui.Folder(this, "选择截图目录") is { } path) _output.Text = path; }; _sheetPanel.Children.Add(browse);
         _generate = new() { Content = "批量生成多宫格截图", HorizontalAlignment = HorizontalAlignment.Stretch };
         _generate.Click += async (_, _) => await Generate(); _sheetPanel.Children.Add(_generate);
         _preview = new() { Height = 165, Stretch = Stretch.Uniform };
-        _sheetPanel.Children.Add(new Border { Background = Brush.Parse("#222222"), Child = _preview, Margin = new(0, 5) });
+        _sheetPanel.Children.Add(new Border { Classes = { "media-preview" }, Child = _preview, Margin = new(0, 5) });
         var open = new Button { Content = "打开输出文件夹", HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => { try { var folder = System.IO.Path.GetFullPath(_output.Text ?? ""); Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); } catch (Exception ex) { await Ui.Message(this, "打开失败", ex.Message); } }; _sheetPanel.Children.Add(open);
         tabs.Items.Add(new TabItem { Header = "多宫格截图", Content = new ScrollViewer { Content = _sheetPanel } }); body.Children.Add(tabs);
         Grid.SetRow(body, 2); root.Children.Add(body);
         var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        bottom.Children.Add(_progressText); _stop = Ui.Button("停止", () => _operation?.Cancel(), 100); _stop.IsEnabled = false; Grid.SetColumn(_stop, 1); bottom.Children.Add(_stop);
-        var close = Ui.Button("关闭", Close, 100); Grid.SetColumn(close, 2); bottom.Children.Add(close); Grid.SetRow(bottom, 3); root.Children.Add(bottom); Content = root;
+        bottom.Children.Add(_progressText); _stop = Ui.DialogButton("停止", () => _operation?.Cancel()); _stop.IsEnabled = false; Grid.SetColumn(_stop, 1); bottom.Children.Add(_stop);
+        var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); bottom.Children.Add(close); Grid.SetRow(bottom, 3); root.Children.Add(bottom); Content = root;
         foreach (var box in new[] { _pattern, _prefix, _suffix, _find, _replace, _firstIndex, _digits }) box.TextChanged += (_, _) => InvalidatePlan();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _operation is null && !_renaming && !_importing ? DragDropEffects.Copy : DragDropEffects.None);
@@ -179,7 +179,7 @@ public sealed class BatchToolsWindow : Window
     private static Control Pair(Control first, Control second)
     { var grid = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 }; grid.Children.Add(first); Grid.SetColumn(second, 1); grid.Children.Add(second); return grid; }
     private static void AddRow(Panel parent, string label, Control input)
-    { var row = new Grid { ColumnDefinitions = new("115,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label, 12)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row); }
+    { var row = new Grid { ColumnDefinitions = new("115,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row); }
 
     private void AddPaths(IEnumerable<string> paths)
     {

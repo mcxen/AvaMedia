@@ -31,6 +31,6 @@ Windows 声音使用 WaveOut；macOS 声音接入系统 AudioToolbox 的 AudioQu
 ./scripts/Verify-MacPackages.ps1
 ```
 
-Mac 包检查通过 40 项：两个架构的五种关键 Mach-O 二进制、执行权限、Info.plist、工具脚本、许可和 ZIP 元数据。报告：[包检查报告](../artifacts/mac-packages-20261005-200910/report.json)。该报告明确将 `macOSRuntimeVerified` 记录为 false。
+Mac 包检查通过 64 项：两个架构的八种关键 Mach-O 二进制（含 .NET CoreCLR、hostpolicy 与 ONNX Runtime）、执行权限、Info.plist、应用 ICNS 图标、工具脚本、许可和 ZIP 元数据。报告明确将 `macOSRuntimeVerified` 记录为 false；最新发布包哈希与检查报告以根目录 TASK.md 为准。
 
 后续 Mac 真机验收需记录 OS、CPU、FFmpeg 版本，运行共同的字幕/音频/转换样例，并实测窗口、声音、定位/静音/停止、录屏权限允许与拒绝、Finder、中文文件名与字幕、系统动效、文档中文字体。Apple Silicon 和 Intel 分别保存结果；完成前不宣称双平台交付已验收。

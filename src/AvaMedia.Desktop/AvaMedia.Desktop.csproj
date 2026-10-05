@@ -2,11 +2,14 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <Version>1.0.2</Version>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/AppIcon/v2/app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <AvaloniaResource Include="Assets/FeatureIcons/v2/*.png" />
+    <AvaloniaResource Include="Assets/AppIcon/v2/app.ico" />
+    <AvaloniaResource Include="Assets/AppIcon/v2/app.png" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.22" />
     <PackageReference Include="NAudio" Version="2.2.1" />

@@ -1,4 +1,4 @@
-param([string]$Version = '1.0.2')
+param([string]$Version = '1.0.3')
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Invalid version.' }
 $taskRoot = Split-Path -Parent $PSScriptRoot
@@ -9,7 +9,7 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Push-Location -LiteralPath $taskRoot
 try {
-    $sourceFiles = & rg --files --hidden -g '!**/bin/**' -g '!**/obj/**' -g '!docs/reference/**' src tests licenses scripts docs
+    $sourceFiles = & rg --files --hidden -g '!**/bin/**' -g '!**/obj/**' -g '!docs/reference/**' src tests licenses scripts docs .github .agents
     if ($LASTEXITCODE -ne 0) { throw 'Source inventory failed.' }
     $sourceFiles += @('AvaMedia.sln','Directory.Build.props','.gitignore','.gitattributes','LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md','Start-AvaMedia.cmd','TASK.md','UISPEC.MD')
     $stream = [IO.File]::Open($archivePath, [IO.FileMode]::Create, [IO.FileAccess]::Write)

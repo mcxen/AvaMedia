@@ -157,6 +157,7 @@ Motion.SetReducedMotion(true);
 var settings = new AppSettings { ReduceMotion = true };
 var settingsWindow = new SettingsWindow(settings);
 settingsWindow.Show();
+settingsWindow.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 2;
 Pump(30);
 var checkBox = settingsWindow.GetVisualDescendants().OfType<CheckBox>()
     .Single(c => c.Content is string text && text.StartsWith("减少界面动效"));

@@ -25,11 +25,11 @@ public partial class MainWindow : Window
     private DateTime _lastSave;
     private bool _closing;
     private Task _running=Task.CompletedTask;
-    public MediaEngine Engine {get;}
+    public IMediaEngine Engine {get;}
     public MainWindow() : this(new Storage()) { }
-    public MainWindow(Storage storage)
+    public MainWindow(Storage storage, IMediaEngine? engine=null)
     {
-        _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=new(_settings);_queue=new(Engine);
+        _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
         OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=job=>Dispatcher.UIThread.Post(()=>{Refresh();if(DateTime.UtcNow-_lastSave>TimeSpan.FromSeconds(1)){Save();_lastSave=DateTime.UtcNow;}});
@@ -51,14 +51,14 @@ public partial class MainWindow : Window
         {
             if(col+f.Span>4){col=0;row++;}while(FeatureGrid.RowDefinitions.Count<=row)FeatureGrid.RowDefinitions.Add(new RowDefinition(91,GridUnitType.Pixel));
             var content=new Grid{RowDefinitions=new("*,Auto")};content.Children.Add(new FeatureIcon{Kind=f.Icon,Label=f.Format.ToUpperInvariant(),Height=64});
-            var text=new TextBlock{Text=f.Label,FontSize=13,TextWrapping=TextWrapping.Wrap,Margin=new(1,0),VerticalAlignment=VerticalAlignment.Bottom};Grid.SetRow(text,1);content.Children.Add(text);
+            var text=new TextBlock{Text=f.Label,TextWrapping=TextWrapping.Wrap,Margin=new(1,0),VerticalAlignment=VerticalAlignment.Bottom};Grid.SetRow(text,1);content.Children.Add(text);
             var tile=new Button{Content=content,Margin=new(3),Classes={"tile"}};ToolTip.SetTip(tile,f.Label);
             tile.Click+=async (_,_)=>await Configure(f);Grid.SetColumn(tile,col);Grid.SetRow(tile,row);Grid.SetColumnSpan(tile,f.Span);FeatureGrid.Children.Add(tile);col+=f.Span;if(col==4){col=0;row++;}
         }
         Categories.Children.Clear();
         foreach(var cat in Catalog.Categories.Where(c=>c!=category))
         {
-            var b=new Button{Classes={"category"}};var g=new Grid{ColumnDefinitions=new("24,*")};g.Children.Add(new TextBlock{Text=cat switch{"音频"=>"♫","图片"=>"▧","文档"=>"▤","视频"=>"▣",_=>"◉"},Foreground=Brush.Parse("#759695")});var t=Ui.Text(cat);t.HorizontalAlignment=HorizontalAlignment.Center;Grid.SetColumn(t,1);g.Children.Add(t);b.Content=g;b.Click+=(_,_)=>ShowCategory(cat);Categories.Children.Add(b);
+            var b=new Button{Classes={"category"}};var g=new Grid{ColumnDefinitions=new("24,*")};g.Children.Add(new TextBlock{Text=cat switch{"音频"=>"♫","图片"=>"▧","文档"=>"▤","视频"=>"▣",_=>"◉"},Classes={"muted-icon"}});var t=Ui.Text(cat);t.HorizontalAlignment=HorizontalAlignment.Center;Grid.SetColumn(t,1);g.Children.Add(t);b.Content=g;b.Click+=(_,_)=>ShowCategory(cat);Categories.Children.Add(b);
         }
         Motion.Reveal(FeatureGrid);
     }
@@ -66,6 +66,19 @@ public partial class MainWindow : Window
     {
         if(_queue.IsRunning && feature.Operation==Operation.Record){await Ui.Message(this,"任务正在运行","请先停止当前任务后再配置录屏。");return;}
         _last=feature;
+        if(feature.Id=="clip")
+        {
+            if(files is null)await PickQuickClipVideos();else await EditQuickClipAsync(files);
+            return;
+        }
+        if(feature.Id=="rotate")
+        {
+            var request=await new BatchRotateWindow(Engine,_settings.OutputFolder,files).ShowDialog<BatchRotateRequest?>(this);
+            if(request is null)return;
+            try{var jobs=BatchRotate.CreateJobs(request,_jobs.Select(j=>j.Output));foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
+            catch(Exception ex){await Ui.Message(this,"批量旋转参数错误",ex.Message);}
+            return;
+        }
         if(feature.Id=="crop")
         {
             var request=await new BatchCropWindow(Engine,_settings.OutputFolder,files).ShowDialog<BatchCropRequest?>(this);
@@ -78,7 +91,7 @@ public partial class MainWindow : Window
         {
             files??=await Ui.Pick(this,"打开媒体文件",false);if(files.Length>0)await Edit(files[0],new());return;
         }
-        Window dialog=feature.Id=="clip"?new QuickClipWindow(Engine,_settings.OutputFolder,files??[]):new ConvertWindow(Engine,feature,_settings.OutputFolder,files??[]);
+        Window dialog=new ConvertWindow(Engine,feature,_settings.OutputFolder,files??[]);
         var result=await dialog.ShowDialog<ConversionRequest?>(this);if(result is null)return;
         if(result.ClipInputs is not null)
         {
@@ -86,16 +99,8 @@ public partial class MainWindow : Window
             catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
             Save();Refresh();return;
         }
-        bool grouped=result.Feature.Operation is Operation.Join or Operation.Mux or Operation.AudioMix or Operation.PdfMerge or Operation.ImagesPdf or Operation.Zip or Operation.Download or Operation.Record or Operation.IsoCopy;
-        var inputs=grouped?new[]{result.Files}:result.Files.Select(f=>new[]{f});
-        foreach(var batch in inputs)
-        {
-            var f=result.Feature;bool directory=f.Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
-            var name=f.Operation==Operation.Record?"Screen-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"):f.Operation==Operation.Download?"Download-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"):Path.GetFileNameWithoutExtension(batch.FirstOrDefault()??"output");
-            var options=(!grouped && result.InputOptions is not null?result.InputOptions[Array.IndexOf(result.Files,batch[0])]:result.Options).Clone();
-            var job=new Job{FeatureId=f.Id,Inputs=batch,Options=options,InputOptions=grouped?result.InputOptions?.Select(o=>o.Clone()).ToList():null,Output=MediaEngine.UniqueOutput(result.OutputFolder,name,options.Format,_jobs.Select(j=>j.Output),directory)};
-            try{MediaEngine.Validate(job);_jobs.Add(job);}catch(Exception e){await Ui.Message(this,"参数错误",e.Message);}
-        }
+        try{foreach(var job in ConversionBatch.CreateJobs(result.Feature,result.Files,result.OutputFolder,result.Options,result.InputOptions,_jobs.Select(j=>j.Output)))_jobs.Add(job);}
+        catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
         Save();Refresh();
     }
     private void Save(){_settings.MultiThread=Multithread.IsChecked==true;_settings.NotifyComplete=Notify.IsChecked==true;_storage.SaveSettings(_settings);_storage.SaveJobs(_jobs);}
@@ -116,7 +121,11 @@ public partial class MainWindow : Window
     private void RetryClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[]){bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;j.Output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,_jobs.Select(x=>x.Output),directory);j.State=JobState.Waiting;j.Progress=0;}Save();Refresh();}
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
-    {var w=new SettingsWindow(_settings);if(await w.ShowDialog<bool>(this)){OutputPath.Text="📂 "+_settings.OutputFolder;Motion.SetReducedMotion(_settings.ReduceMotion);Save();}}
+    {
+        var w=new SettingsWindow(_settings);
+        w.Applied+=(_,_)=>{_storage.SaveSettings(_settings);OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;Motion.SetReducedMotion(_settings.ReduceMotion);};
+        await w.ShowDialog<bool>(this);
+    }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
     private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);else await Ui.Message(this,"输出文件","任务尚未生成输出。");}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
@@ -165,8 +174,8 @@ public partial class MainWindow : Window
     private void DarkClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Dark");
     private void MacOS9Click(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("MacOS9");
     private void ChineseClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(sender is MenuItem item)item.IsChecked=true;}
-    private async void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"使用说明","1. 点击左侧格式或工具，添加文件，设置参数并确定。\n2. 点击“开始”执行队列。右键任务可编辑、重试、查看日志和打开输出目录。\n3. 快速剪辑支持拖动时间轴、设置开始/结束时间、裁剪区域、速度和淡入淡出。\n4. 使用选项指定 FFmpeg / FFprobe 路径。下载需要 yt-dlp。录屏支持 Windows 桌面画面，时长可设置。\n5. PDF → DOCX/XLSX 提取文本，扫描 PDF 需要另行 OCR；不保留原始排版。\n6. ISO 复制需要光驱读取权限。DVD 转换请选择未加密 VOB 文件。\n\n更完整的能力与限制见工程 docs/FEATURES.md。");
-    private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"关于 AvaMedia","AvaMedia X64 1.0.2\nAvalonia + C# 多媒体工具\n\n独立实现的客户端，界面布局参考 FormatFactory 5.10.0。\n版权所有 © 2026 AvaMedia contributors。\n原创代码和矢量图标采用 AGPL-3.0-only 许可证。\n本程序不提供担保，可按该许可证修改和再分发。\n许可全文见 LICENSE；源码见 https://github.com/mcxen/AvaMedia。\n\nAvalonia: MIT · NAudio: MIT · PDFsharp: MIT · PdfPig: Apache-2.0\nFFmpeg 通过独立进程调用，许可证取决于用户配置的构建。\nyt-dlp 为可选外部工具，其打包版本还包含第三方依赖。\n\n完整版权声明见 THIRD-PARTY-NOTICES.md 和 licenses/。\nFormatFactory 名称及原产品资源归各权利人所有。");
+    private async void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"使用说明","1. 点击左侧格式或工具，添加文件，设置参数并确定。\n2. 点击“开始”执行队列。右键任务可编辑、重试、查看日志和打开输出目录。\n3. 快速剪辑：先选视频直接编辑，可添加多个片段、裁剪画面、旋转或识别人脸方向，再选择导出选项并加入队列。每个片段分别导出，返回编辑保留草稿。\n4. 使用选项指定 FFmpeg / FFprobe 路径。下载需要 yt-dlp。录屏支持 Windows 桌面画面，时长可设置。\n5. PDF → DOCX/XLSX 提取文本，扫描 PDF 需要另行 OCR；不保留原始排版。\n6. ISO 复制需要光驱读取权限。DVD 转换请选择未加密 VOB 文件。\n\n更完整的能力与限制见工程 docs/FEATURES.md。");
+    private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"关于 AvaMedia",$"AvaMedia {typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}\nAvalonia + C# 多媒体工具\n\n独立实现的客户端，界面布局参考 FormatFactory 5.10.0。\n版权所有 © 2026 AvaMedia contributors。\n原创代码和矢量图标采用 AGPL-3.0-only 许可证。\n本程序不提供担保，可按该许可证修改和再分发。\n许可全文见 LICENSE；源码见 https://github.com/mcxen/AvaMedia。\n\nAvalonia: MIT · NAudio: MIT · PDFsharp: MIT · PdfPig: Apache-2.0\nFFmpeg 通过独立进程调用，许可证取决于用户配置的构建。\nyt-dlp 为可选外部工具，其打包版本还包含第三方依赖。\n\n完整版权声明见 THIRD-PARTY-NOTICES.md 和 licenses/。\nFormatFactory 名称及原产品资源归各权利人所有。");
     private void DragOver(object? sender,DragEventArgs e)=>e.DragEffects=DragDropEffects.Copy;
     private async void Drop(object? sender,DragEventArgs e){var files=e.DataTransfer.TryGetFiles()?.Select(f=>f.TryGetLocalPath()).OfType<string>().Where(File.Exists).ToArray()??[];if(files.Length>0)await Configure(_last,files);}
 }

@@ -34,7 +34,7 @@
                   <StackPanel Grid.Column="1" Spacing="4">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
                     <TextBlock Text="{Binding Dimensions}" Classes="caption"/>
-                    <TextBlock Text="{Binding Status}" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Grid>
               </DataTemplate>
@@ -43,18 +43,19 @@
         </Grid>
       </Border>
       <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="8">
-        <Border Background="Black" CornerRadius="4" ClipToBounds="True">
+        <Border Background="{DynamicResource UiMediaSurface}" CornerRadius="4" ClipToBounds="True">
           <Grid x:Name="PreviewArea">
             <Image x:Name="PreviewImage" Stretch="Uniform"/>
             <controls:CropOverlay x:Name="CropLayer"/>
-            <TextBlock x:Name="PreviewStatus" Text="添加视频后可预览并拖动选区" Foreground="White"
+            <TextBlock x:Name="PreviewStatus" Text="添加视频后可预览并拖动选区" Foreground="{DynamicResource UiMediaText}"
                        TextWrapping="Wrap" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
           </Grid>
         </Border>
         <Slider Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="裁剪预览时间"/>
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <Grid Grid.Row="2" ColumnDefinitions="*,140,Auto" ColumnSpacing="8">
           <TextBlock x:Name="PreviewName" Classes="caption" Text="选择一个视频预览" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-          <Button Grid.Column="1" Content="重置为当前全画面" Click="ResetClick"/>
+          <ComboBox Grid.Column="1" x:Name="CropRatio" SelectionChanged="RatioChanged" AutomationProperties.Name="批量裁剪选区比例" ToolTip.Tip="约束新选区及四角缩放的比例"/>
+          <Button Grid.Column="2" Content="重置为当前全画面" Click="ResetClick"/>
         </Grid>
       </Grid>
     </Grid>
@@ -73,7 +74,7 @@
           <TextBlock Grid.Column="8" Text="应用方式" VerticalAlignment="Center"/>
           <ComboBox Grid.Column="9" x:Name="ModeCombo" SelectionChanged="ModeChanged" AutomationProperties.Name="裁剪区域应用方式"/>
         </Grid>
-        <TextBlock Classes="caption" Text="坐标单位为参考视频像素；拖动选区对齐到偶数像素。点击列表可检查其他视频的实际选区。" TextWrapping="Wrap"/>
+        <TextBlock Classes="caption" Text="拖动外部绘制、内部移动、四角缩放。坐标为参考视频像素并对齐到偶数；点击列表可检查实际选区。" TextWrapping="Wrap"/>
       </StackPanel>
     </Border>
     <Grid Grid.Row="3" ColumnDefinitions="Auto,130,Auto,*,Auto,Auto" ColumnSpacing="8">
@@ -86,8 +87,8 @@
     </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
       <TextBlock x:Name="ValidationText" Classes="cropValidation" Text="请添加并勾选视频" TextWrapping="Wrap" VerticalAlignment="Center"/>
-      <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" MinWidth="100"/>
-      <Button Grid.Column="2" x:Name="OkButton" Content="批量加入队列" Click="ConfirmClick" IsDefault="True" MinWidth="140" IsEnabled="False"/>
+      <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
+      <Button Grid.Column="2" x:Name="OkButton" Content="批量加入队列" Click="ConfirmClick" IsDefault="True" Classes="dialog-action" IsEnabled="False"/>
     </Grid>
   </Grid>
 </Window>

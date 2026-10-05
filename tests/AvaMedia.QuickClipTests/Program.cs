@@ -52,6 +52,42 @@ var perSource = QuickClipBatch.CreateJobs([new(input, new()), new(portrait, new(
 Check(perSource.All(j => Path.GetDirectoryName(j.Output) == root && !j.Inputs.Contains(j.Output)), "Source directory outputs can overwrite inputs.");
 var parts = QuickClipBatch.Split(new() { Start = .5, End = 3.5, Speed = 2 }, 4, 3);
 Check(parts.Count == 3 && parts[0].Start == .5 && parts[2].End == 3.5 && parts[0].End == parts[1].Start && parts[1].End == parts[2].Start && parts.All(o => o.Speed == 2), "Splits lost boundaries or filters.");
+var splitDraft = new ConversionOptions { Start = .5, End = 3.5, Speed = 2, CropX = 80, CropY = 40, CropWidth = 64, CropHeight = 40 };
+var timedParts = ClipSplit.Create(splitDraft, 4, new(ClipSplitMode.FixedDuration, SegmentSeconds: 1.2));
+Check(timedParts.Count == 3 && timedParts[0].Start == .5 && timedParts[2].End == 3.5 && Math.Abs(timedParts[2].End - timedParts[2].Start - .6) < 1e-9, "Fixed-duration split lost its remainder.");
+Check(timedParts.Zip(timedParts.Skip(1)).All(p => p.First.End == p.Second.Start) && timedParts.All(o => o.Speed == 2 && o.CropX == 80 && o.CropWidth == 64), "Fixed-duration boundaries are not contiguous or lost editing parameters.");
+timedParts[0].CropX = 0; Check(timedParts[1].CropX == 80 && splitDraft.CropX == 80, "Split segments share their caller's mutable editing draft.");
+Check(ClipSplit.Create(new() { End = .30000000000000004 }, 1, new(ClipSplitMode.FixedDuration, SegmentSeconds: .1)).Count == 3, "Floating point arithmetic produced a phantom tail segment.");
+Check(ClipSplit.Create(new() { End = .3 }, 1, new(ClipSplitMode.FixedDuration, SegmentSeconds: .3 - 1e-12)).Count == 2, "A real short remainder was discarded next to a single full segment.");
+Check(ClipSplit.ParseTime("25:01:02.125") == 90062.125 && ClipSplit.ParseTime("02:03.5") == 123.5 && ClipSplit.ParseTime(".125") == .125, "Split time parser lost hours or fractional seconds.");
+var longTime = 90062.125125;
+Check(MediaTime.Format(longTime).StartsWith("25:01:02.") && Math.Abs(ClipSplit.ParseTime(MediaTime.Format(longTime)) - longTime) < .000001, "Long video time display wraps after 24 hours or loses fractional boundaries.");
+var shortTime = .000125;
+Check(ClipSplit.ParseTime(MediaTime.Format(shortTime)) == shortTime, "Sub-millisecond split time is displayed as a zero boundary.");
+var timeEntry = new QuickClipEntry(input, new() { Start = longTime, End = longTime + shortTime });
+var conversionTimeEntry = new ConversionEntry(input, timeEntry.Options);
+Check(timeEntry.Range.Contains(MediaTime.Format(longTime)) && timeEntry.Range.Contains(MediaTime.Format(longTime + shortTime)) && conversionTimeEntry.Summary.Contains(MediaTime.Format(longTime + shortTime)) && new ClipSegmentEntry(timeEntry.Options).Summary.Contains(MediaTime.Format(longTime + shortTime)), "Quick-clip, workflow segment and conversion row summaries disagree with the editing timeline display.");
+Check(ClipSplit.ParsePoints("00:01，2.5; 00:03\n3.25").SequenceEqual([1d, 2.5, 3, 3.25]), "Split time-point separators do not support Chinese and multiline input.");
+Reject(() => ClipSplit.ParseTime("00:60:00"), "Invalid colon minute accepted.");
+Reject(() => ClipSplit.ParseTime("NaN"), "Non-finite split time accepted.");
+Reject(() => ClipSplit.ParseTime("1:2.5:3"), "Fractional hour/minute field accepted.");
+Reject(() => ClipSplit.Create(new() { End = 5 }, 4, new()), "Split silently clamps an interval beyond the source duration.");
+Reject(() => ClipSplit.Create(new() { End = double.NaN }, 4, new()), "Non-finite split interval accepted.");
+Reject(() => ClipSplit.Create(splitDraft, 4, new(ClipSplitMode.FixedDuration, SegmentSeconds: .01)), "Unbounded fixed-duration segment count accepted.");
+Reject(() => ClipSplit.Create(splitDraft, 4, new(ClipSplitMode.FixedDuration, SegmentSeconds: 3)), "A single unsplit interval accepted as fixed-duration splitting.");
+foreach (var cuts in new[] { new[] { .5, 1d }, new[] { 1d, 3.5 }, new[] { 2d, 1d }, new[] { 1d, 1d }, new[] { double.PositiveInfinity } })
+    Reject(() => ClipSplit.Create(splitDraft, 4, new(ClipSplitMode.TimePoints, TimePoints: cuts)), "Invalid or unordered time points accepted: " + string.Join(",", cuts));
+var pattern = Path.Combine(root, "分段画面.mkv");
+Check(Run("-v", "error", "-n", "-f", "lavfi", "-i", "nullsrc=size=160x90:rate=25,geq=lum='20+floor(N/25)*50+floor(X/80)*10':cb=128:cr=128", "-t", "4", "-c:v", "ffv1", pattern).ExitCode == 0, "Split pixel fixture creation failed.");
+var patternHash = SHA256.HashData(File.ReadAllBytes(pattern));
+foreach (var segment in ClipSplit.Create(splitDraft, 4, new(ClipSplitMode.FixedDuration, SegmentSeconds: 1.2)))
+{
+    var splitJob = QuickClipBatch.CreateJobs([new(pattern, QuickClipBatch.ResolveOptions(pattern, "MP4", segment))], root, settingName: "定时分割").Single();
+    engine.Execute(splitJob, _ => { }, CancellationToken.None).GetAwaiter().GetResult(); outputs.Add(splitJob.Output);
+    var splitInfo = engine.Probe(splitJob.Output).GetAwaiter().GetResult();
+    Check(splitInfo.Width == 64 && splitInfo.Height == 40 && Math.Abs(splitInfo.Duration - (segment.End - segment.Start) / 2) < .09, "Fixed-duration actual crop or speed is incorrect.");
+    CheckFrame(splitJob, segment.Start, 0, "Fixed-duration output starts with the requested source/crop pixels.");
+}
 var filtered = QuickClipBatch.ResolveOptions(input, "MKV", new() { Start = .5, End = 2.5, CropWidth = 160, CropHeight = 90 });
 Check(!filtered.CopyStreams && filtered.Format == "mkv", "MKV preset is not re-encoding.");
 var filteredJob = QuickClipBatch.CreateJobs([new(input, filtered)], root, settingName: "MKV").Single();
@@ -106,6 +142,17 @@ widthRow.Children.OfType<TextBox>().Single().Text = "160";
 Click(settings.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定")));
 Check(window.Preset == "MP4" && first.Options.Start == .5 && first.Options.End == 2.5 && second.Options.Start == 0 && first.Options.Width == 160 && second.Options.Width == 160, "Shared output settings lost timeline drafts or failed to select encoding.");
 Check(window.CreateRequest().ClipInputs!.All(i => !i.Options.CopyStreams), "Filtered requests still use stream copy.");
+var savedClip=first.Options.Clone();var invalidCrop=savedClip.Clone();invalidCrop.CropX=280;invalidCrop.CropWidth=64;invalidCrop.CropHeight=40;first.SetOptions(invalidCrop);
+var cropRejected=false;try{window.CreateRequest();}catch(ArgumentException ex){cropRejected=ex.Message.Contains("超出");}Check(cropRejected,"Quick clip submits a crop outside the selected source geometry.");first.SetOptions(savedClip);
+Click(window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "⚙ 输出配置")));
+settings=window.OwnedWindows.OfType<OptionsWindow>().Single();settings.GetVisualDescendants().OfType<TextBox>().Single(t=>t.Name=="VideoStreamIndex").Text="99";
+Click(settings.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定")));Pump(window.Ready);
+Check(window.Entries.All(e=>e.Info is null&&e.Error.Length>0),"Failed stream reload leaves stale source metadata.");
+var streamRejected=false;try{window.CreateRequest();}catch(InvalidDataException){streamRejected=true;}Check(streamRejected,"Unavailable selected video stream can be submitted.");
+Click(window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "⚙ 输出配置")));
+settings=window.OwnedWindows.OfType<OptionsWindow>().Single();settings.GetVisualDescendants().OfType<TextBox>().Single(t=>t.Name=="VideoStreamIndex").Text="0";
+Click(settings.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定")));Pump(window.Ready);
+Check(window.Entries.All(e=>e.Info is not null&&e.Error.Length==0)&&window.CreateRequest().ClipInputs!.Count==2,"Corrected video stream does not restore valid quick clip drafts.");
 // The equal-parts dialog is exercised through its buttons.
 Click(window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "分割") && ReferenceEquals(b.DataContext, first)));
 var splitter = window.OwnedWindows.Single(); splitter.GetVisualDescendants().OfType<NumericUpDown>().Single().Value = 2;
@@ -122,10 +169,68 @@ Check(window.Entries.Count == 2, "Row remove button failed.");
 Click(window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "清空列表")));
 Check(window.Entries.Count == 0 && window.FindControl<TextBlock>("EmptyText")!.IsVisible, "Clear list button failed.");
 window.Close();
+// Exercise both new split modes through the real row dialog; cancellation and invalid points preserve the row.
+Application.Current!.RequestedThemeVariant = ThemeVariant.Light; Dispatcher.UIThread.RunJobs();
+var modesWindow = new QuickClipWindow(engine, root, [pattern, portrait]); modesWindow.Show(); Pump(modesWindow.Ready);
+var modeEntry = modesWindow.Entries[0]; var untouchedEntry = modesWindow.Entries[1]; modeEntry.SetOptions(splitDraft);
+modesWindow.FindControl<ComboBox>("FormatCombo")!.SelectedItem = "MP4";
+Button SplitButton() => modesWindow.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "分割") && ReferenceEquals(b.DataContext, modeEntry));
+Click(SplitButton()); var modeDialog = modesWindow.OwnedWindows.OfType<ClipSplitWindow>().Single();
+modeDialog.GetVisualDescendants().OfType<NumericUpDown>().Single().Value = 2.5m;
+Check(!modeDialog.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定")).IsEnabled, "Fractional equal-part count accepted.");
+modeDialog.GetVisualDescendants().OfType<ComboBox>().Single().SelectedIndex = 1;
+var secondsInput = modeDialog.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "SplitSeconds");
+var splitOk = modeDialog.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定"));
+Check(!splitOk.IsEnabled, "Fixed split allows the default duration longer than the selected source range.");
+secondsInput.Text = "1.2"; Dispatcher.UIThread.RunJobs();
+Check(splitOk.IsEnabled && modeDialog.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "SplitPreview").Text!.Split(Environment.NewLine).Length == 3, "Fixed-duration preview did not update or the hidden part-count field still blocks it.");
+Capture(modeDialog, "split-duration-light.png", 620, 620);
+Click(modeDialog.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "取消")));
+Check(modesWindow.Entries.Count == 2 && ReferenceEquals(modesWindow.Entries[0], modeEntry) && modeEntry.Options.Start == .5 && modeEntry.Options.End == 3.5, "Cancelling split modifies the source row.");
+Click(SplitButton()); modeDialog = modesWindow.OwnedWindows.OfType<ClipSplitWindow>().Single();
+modeDialog.GetVisualDescendants().OfType<ComboBox>().Single().SelectedIndex = 2;
+var pointsInput = modeDialog.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "SplitPoints");
+splitOk = modeDialog.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定"));
+pointsInput.Text = "1, 1"; Dispatcher.UIThread.RunJobs();
+Check(!splitOk.IsEnabled && modeDialog.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "SplitError").Text!.Contains("递增") && modesWindow.Entries.Count == 2, "Duplicate split points do not retain the row with an inline error.");
+pointsInput.Text = "00:01\n00:02"; Dispatcher.UIThread.RunJobs();
+Check(splitOk.IsEnabled, "Corrected split points cannot be accepted.");
+Application.Current!.RequestedThemeVariant = ThemeVariant.Dark; Dispatcher.UIThread.RunJobs(); Capture(modeDialog, "split-points-dark.png", 620, 620);
+modeDialog.Width = 560; modeDialog.Height = 560; Capture(modeDialog, "split-points-minimum.png", 560, 560);
+Check(splitOk.TranslatePoint(new Point(splitOk.Bounds.Width, splitOk.Bounds.Height), modeDialog) is { } corner && corner.X <= 540 && corner.Y <= 540 && modeDialog.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "SplitPreview").Bounds.Height > 40, "Split controls or preview overflow at minimum window size.");
+Click(splitOk); Pump(modesWindow.Ready);
+Check(modesWindow.Entries.Count == 4 && ReferenceEquals(modesWindow.Entries[3], untouchedEntry), "Time-point split replaces the wrong source row.");
+var selectedParts = modesWindow.Entries.Take(3).ToArray();
+Check(selectedParts.Select(e => e.Options.Start).SequenceEqual([.5, 1, 2]) && selectedParts.Select(e => e.Options.End).SequenceEqual([1d, 2, 3.5]), "Time-point dialog lost the source timeline boundaries.");
+Check(selectedParts.All(e => e.Options.Speed == 2 && e.Options.CropX == 80 && e.Options.CropWidth == 64), "Time-point split lost per-file crop or applied speed twice.");
+var modeRequest = modesWindow.CreateRequest();
+Pump(Task.Run(() =>
+{
+    foreach (var splitJob in QuickClipBatch.CreateJobs(modeRequest.ClipInputs!.Take(3), root, settingName: "时间点分割"))
+    {
+        engine.Execute(splitJob, _ => { }, CancellationToken.None).GetAwaiter().GetResult(); outputs.Add(splitJob.Output);
+        var splitInfo = engine.Probe(splitJob.Output).GetAwaiter().GetResult();
+        Check(splitInfo.Width == 64 && splitInfo.Height == 40 && Math.Abs(splitInfo.Duration - (splitJob.Options.End - splitJob.Options.Start) / 2) < .09, "Time-point UI output has incorrect crop or speed-adjusted duration.");
+        CheckFrame(splitJob, splitJob.Options.Start, 0, "Time-point UI output starts in the correct source segment/crop.");
+        CheckFrame(splitJob, splitJob.Options.End - .04, -.06, "Time-point output includes pixels from the next excluded interval.");
+    }
+}));
+Check(SHA256.HashData(File.ReadAllBytes(pattern)).SequenceEqual(patternHash), "Splitting changes the source video bytes.");
+modesWindow.Close();
 File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { checks, outputs, packetCopyVerified = true, uiActionsVerified = true }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks} quick clip checks / {outputs.Count} actual outputs. {root}");
 
 JsonDocument PacketHashes(string path) => JsonDocument.Parse(ProcessRunner.Run(engine.FFprobe, ["-v", "error", "-select_streams", "v:0", "-show_packets", "-show_entries", "packet=data_hash", "-show_data_hash", "sha256", "-of", "json", path]).GetAwaiter().GetResult().Output);
+void Reject(Action action, string message) { try { action(); } catch (ArgumentException) { Check(true, message); return; } throw new Exception(message); }
+void CheckFrame(Job job, double sourceTime, double outputTime, string message)
+{
+    var expected = Path.Combine(root, "expected-" + Guid.NewGuid() + ".gray"); var actual = Path.Combine(root, "actual-" + Guid.NewGuid() + ".gray");
+    var o = job.Options;
+    Check(Run("-v", "error", "-n", "-ss", sourceTime.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "-i", job.Inputs[0], "-frames:v", "1", "-vf", $"crop={o.CropWidth}:{o.CropHeight}:{o.CropX}:{o.CropY}:exact=1", "-pix_fmt", "gray", "-f", "rawvideo", expected).ExitCode == 0, "Expected split frame cannot be decoded.");
+    Check(Run("-v", "error", "-n", outputTime < 0 ? "-sseof" : "-ss", outputTime.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "-i", job.Output, "-frames:v", "1", "-pix_fmt", "gray", "-f", "rawvideo", actual).ExitCode == 0, "Output split frame cannot be decoded.");
+    var a = File.ReadAllBytes(actual); var b = File.ReadAllBytes(expected);
+    Check(a.Length == o.CropWidth * o.CropHeight && b.Length == a.Length && a.Zip(b).Average(p => Math.Abs(p.First - p.Second)) < 3, message);
+}
 void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }
 void Pump(Task task) { PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
 void PumpUntil(Func<bool> done)

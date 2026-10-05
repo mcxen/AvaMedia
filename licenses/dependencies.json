@@ -3,7 +3,7 @@
   "parameters": "--include-transitive",
   "projects": [
     {
-      "path": "C:/Users/Administrator/Downloads/AvaMedia/src/AvaMedia.Desktop/AvaMedia.Desktop.csproj",
+      "path": "C:/Users/Administrator/.codex/worktrees/release-automation/AvaMedia/src/AvaMedia.Desktop/AvaMedia.Desktop.csproj",
       "frameworks": [
         {
           "framework": "net8.0",
@@ -94,6 +94,14 @@
               "resolvedVersion": "8.0.3"
             },
             {
+              "id": "Microsoft.ML.OnnxRuntime",
+              "resolvedVersion": "1.23.2"
+            },
+            {
+              "id": "Microsoft.ML.OnnxRuntime.Managed",
+              "resolvedVersion": "1.23.2"
+            },
+            {
               "id": "Microsoft.NETCore.Platforms",
               "resolvedVersion": "3.1.0"
             },
@@ -152,6 +160,14 @@
             {
               "id": "System.IO.Pipelines",
               "resolvedVersion": "8.0.0"
+            },
+            {
+              "id": "System.Memory",
+              "resolvedVersion": "4.5.5"
+            },
+            {
+              "id": "System.Numerics.Tensors",
+              "resolvedVersion": "9.0.0"
             },
             {
               "id": "System.Security.AccessControl",

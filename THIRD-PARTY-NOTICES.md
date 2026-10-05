@@ -16,6 +16,8 @@ The distribution includes the following independently licensed components. Prese
 | ANGLE Windows native assets | 2.1.25547.20250602 | Package license and included third-party notices, including BSD terms |
 | .NET 8 runtime / Microsoft libraries | versions recorded in package manifest | MIT and accompanying third-party notices |
 | Tmds.DBus.Protocol | 0.21.3 | MIT; only applicable on platforms that use it |
+| Microsoft.ML.OnnxRuntime and managed bindings | 1.23.2 | MIT and bundled third-party notices; offline CPU inference |
+| YuNet face detector | face_detection_yunet_2026may.onnx | MIT, Shiqi Yu and contributors; embedded unmodified model, attribution and SHA256 in `licenses/yunet/` |
 
 For the complete package list, versions, authors, repository links and license expressions, see `licenses/dependencies.json` and `licenses/manifest.json`. Each package folder contains its original NuGet metadata and bundled license/notice files, plus the applicable SPDX text. Native library third-party notices from the packages must also be retained; the wrapper's MIT license does not replace them.
 
@@ -32,3 +34,5 @@ System fonts are read on the user's device when creating text PDFs; font files a
 ## Platinum skin
 
 The Mac OS 9 skin adapts the bevel color arrangement from [classic.css](https://github.com/npjg/classic.css), copyright (c) 2019 Nathanael Gentry, MIT. Its complete license is preserved in `licenses/upstream/classic-css-MIT.txt`. Window chrome and drawing code are implemented in C#; Apple bitmap assets and font files are not bundled. Control themes extend Avalonia SimpleTheme, covered by its MIT notices above.
+
+Windows 安装程序由 Inno Setup 6.4.3 编译，保留其安装器版权信息和来源标识；构建工具许可证见 licenses/installer/InnoSetup-6.4.3.txt，来源 https://github.com/jrsoftware/issrc/tree/is-6_4_3。

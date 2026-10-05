@@ -1,0 +1,4 @@
+interface:
+  display_name: "AvaMedia 图标生产"
+  short_description: "生成本批次同系列功能与应用图标，完成透明素材、格式封装和项目接入"
+  default_prompt: "使用 $avamedia-icons，参考项目已确认的 v2 图标，为指定功能生成同风格图标并接入 AvaMedia。"

@@ -1,4 +1,4 @@
-param([string]$Version='1.0.2')
+param([string]$Version='1.0.3')
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 $checks=[Collections.Generic.List[string]]::new()
@@ -25,7 +25,8 @@ foreach ($runtime in @('osx-arm64','osx-x64')) {
     $archive=[IO.Compression.ZipFile]::OpenRead($path)
     try {
         $root='AvaMedia.app/Contents/'
-        foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib')) {
+        foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libcoreclr.dylib','libhostpolicy.dylib',
+            'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib')) {
             $entry=$archive.GetEntry($root+'MacOS/'+$name)
             Assert-Package ($null -ne $entry) "$runtime includes $name"
             $stream=$entry.Open()
@@ -40,6 +41,12 @@ foreach ($runtime in @('osx-arm64','osx-x64')) {
         $nodes=@($plist.plist.dict.ChildNodes)
         for ($i=0; $i -lt $nodes.Length-1; $i+=2) { $values[$nodes[$i].InnerText]=$nodes[$i+1].InnerText }
         Assert-Package ($values.CFBundleExecutable -eq 'AvaMedia.Desktop' -and $values.CFBundleShortVersionString -eq $Version) "$runtime plist matches executable and version"
+        Assert-Package ($values.CFBundleIconFile -eq 'AvaMedia.icns') "$runtime plist selects the AvaMedia application icon"
+        $iconEntry=$archive.GetEntry($root+'Resources/AvaMedia.icns')
+        Assert-Package ($null -ne $iconEntry) "$runtime includes the application ICNS"
+        $iconStream=$iconEntry.Open(); $iconHeader=[byte[]]::new(8)
+        try { $read=$iconStream.Read($iconHeader,0,8) } finally { $iconStream.Dispose() }
+        Assert-Package ($read -eq 8 -and [Text.Encoding]::ASCII.GetString($iconHeader,0,4) -eq 'icns' -and (Read-BigEndian $iconHeader 4) -eq $iconEntry.Length) "$runtime application icon has a complete ICNS header"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/scripts/Install-MediaTools-macOS.sh')) "$runtime includes the macOS tool installer"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/THIRD-PARTY-NOTICES.md')) "$runtime includes third-party notices"
     } finally { $archive.Dispose() }

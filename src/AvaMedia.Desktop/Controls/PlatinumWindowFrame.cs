@@ -17,13 +17,17 @@ public sealed class PlatinumWindowFrame : Border
     public PlatinumWindowFrame(Window window, object content)
     {
         _window = window; Name = "PlatinumWindowFrame";
-        Background = Brush.Parse("#CCCCCC"); BorderBrush = Brushes.Black; BorderThickness = new(1); Padding = new(3);
+        Classes.Add("platinum-window");
         var grid = new Grid { RowDefinitions = new("25,*") };
-        var titleBar = new Grid { ColumnDefinitions = new("25,*,52"), Background = Background, Name = "PlatinumTitleBar" };
+        var titleBar = new Grid { ColumnDefinitions = new("25,*,52"), Classes = { "platinum-titlebar" }, Name = "PlatinumTitleBar" };
         var lines = new PlatinumTitleLines(window); Grid.SetColumnSpan(lines, 3); titleBar.Children.Add(lines);
         var close = CaptionButton("□", "关闭窗口", "PlatinumClose", () => window.Close()); titleBar.Children.Add(close);
-        var title = new TextBlock { FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brushes.Black, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Padding = new(9, 0), Background = Background };
-        title.Bind(TextBlock.TextProperty, new Binding(nameof(Window.Title)) { Source = window }); Grid.SetColumn(title, 1); titleBar.Children.Add(title);
+        var title = new TextBlock { Classes = { "platinum-title" }, FontWeight = FontWeight.Bold, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        title.Bind(TextBlock.TextProperty, new Binding(nameof(Window.Title)) { Source = window });
+        var appImage = new Image { Source = ApplicationArtwork.Image, Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
+        RenderOptions.SetBitmapInterpolationMode(appImage, Avalonia.Media.Imaging.BitmapInterpolationMode.HighQuality);
+        var caption = new Border { Classes = { "platinum-caption-surface" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Children = { appImage, title } } };
+        Grid.SetColumn(caption, 1); titleBar.Children.Add(caption);
         var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 3 };
         var zoom = CaptionButton("▱", "缩放窗口", "PlatinumZoom", () => { if (window.CanResize && window.CanMaximize) window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; }, window.CanResize && window.CanMaximize);
         zoom.Bind(Button.IsEnabledProperty, new MultiBinding { Converter = Avalonia.Data.Converters.BoolConverters.And, Bindings = { new Binding(nameof(Window.CanResize)) { Source = window }, new Binding(nameof(Window.CanMaximize)) { Source = window } } }); right.Children.Add(zoom);
@@ -43,7 +47,7 @@ public sealed class PlatinumWindowFrame : Border
     }
     private static Button CaptionButton(string text, string description, string name, Action click, bool enabled = true)
     {
-        var button = new Button { Content = text, Name = name, Width = 20, Height = 19, Padding = new(0), Margin = new(0, 2), FontSize = 12, IsEnabled = enabled, Focusable = false, Classes = { "platinum-caption" } };
+        var button = new Button { Content = text, Name = name, IsEnabled = enabled, Focusable = false, Classes = { "platinum-caption" } };
         AutomationProperties.SetName(button, description); ToolTip.SetTip(button, description); button.Click += (_, _) => click(); return button;
     }
     public object? ReleaseContent() { var content = _body.Content; _body.Content = null; return content; }
@@ -58,8 +62,13 @@ public sealed class PlatinumWindowFrame : Border
     }
 }
 
-internal sealed class PlatinumTitleLines : Control
+public sealed class PlatinumTitleLines : Control
 {
+    public static readonly StyledProperty<IBrush?> DarkBrushProperty = AvaloniaProperty.Register<PlatinumTitleLines,IBrush?>(nameof(DarkBrush));
+    public static readonly StyledProperty<IBrush?> LightBrushProperty = AvaloniaProperty.Register<PlatinumTitleLines,IBrush?>(nameof(LightBrush));
+    public IBrush? DarkBrush { get => GetValue(DarkBrushProperty); set => SetValue(DarkBrushProperty,value); }
+    public IBrush? LightBrush { get => GetValue(LightBrushProperty); set => SetValue(LightBrushProperty,value); }
+    static PlatinumTitleLines() => AffectsRender<PlatinumTitleLines>(DarkBrushProperty,LightBrushProperty);
     private readonly Window _window;
     public PlatinumTitleLines(Window window) { _window = window; window.PropertyChanged += Changed; DetachedFromVisualTree += (_, _) => window.PropertyChanged -= Changed; }
     private void Changed(object? sender, AvaloniaPropertyChangedEventArgs e) { if (e.Property == Window.IsActiveProperty) InvalidateVisual(); }
@@ -68,8 +77,8 @@ internal sealed class PlatinumTitleLines : Control
         if (!_window.IsActive && _window.IsVisible) return;
         for (var y = 5.5; y < Bounds.Height - 3; y += 3)
         {
-            context.DrawLine(new Pen(Brush.Parse("#999999"), 1), new(1, y), new(Bounds.Width - 1, y));
-            context.DrawLine(new Pen(Brushes.White, 1), new(1, y + 1), new(Bounds.Width - 1, y + 1));
+            context.DrawLine(new Pen(DarkBrush, 1), new(1, y), new(Bounds.Width - 1, y));
+            context.DrawLine(new Pen(LightBrush, 1), new(1, y + 1), new(Bounds.Width - 1, y + 1));
         }
     }
 }

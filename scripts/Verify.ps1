@@ -6,8 +6,8 @@ if (!(Test-Path -LiteralPath $sdk)) { $sdk = 'dotnet' }
 $reportRoot = Join-Path $taskRoot ('artifacts/test-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
 $suites = if ($Suite -eq 'Ablation') { @('AblationTests') } else {
-    @('SmokeTests','FunctionTests','QuickClipTests','AudioOptionsTests','SubtitleTests',
-      'BatchCropTests','UiChecks','BatchTests','BatchUiTests','AblationTests','SkinTests','EditorStyleTests')
+    @('SmokeTests','FunctionTests','QuickClipTests','QuickWorkflowTests','ClipCropTests','AudioOptionsTests','SubtitleTests',
+      'BatchCropTests','BatchRotateTests','UiChecks','BatchTests','BatchUiTests','AblationTests','SkinTests','EditorStyleTests','ThemeResourceTests','SettingsTests','InterfaceTests')
 }
 $results = @()
 $status = 'failed'

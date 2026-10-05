@@ -25,6 +25,7 @@ public static class Catalog
         Add("optimize","优化","视频","mp4","gear",Operation.Optimize);
         Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
         Add("crop","画面裁剪","视频","mp4","crop");
+        Add("rotate","批量旋转","视频","mp4","rotate");
         Add("clip","快速剪辑","视频","mp4","clip");
         Add("delogo","去除水印","视频","mp4","erase");
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
@@ -62,6 +63,8 @@ public sealed class ConversionOptions
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
+    public int? ImageQuality { get; set; }
+    public int Threads { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
     public double Fps { get; set; }
@@ -137,7 +140,7 @@ public sealed class Job : Observable
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }
-public sealed record MediaInfo(double Duration, int Width, int Height, bool HasAudio, bool HasVideo, string RawJson, string VideoCodec = "", string AudioCodec = "", int AudioSampleRate = 0, int AudioChannels = 0, int VideoStreamIndex = 0, int AudioStreamIndex = 0);
+public sealed record MediaInfo(double Duration, int Width, int Height, bool HasAudio, bool HasVideo, string RawJson, string VideoCodec = "", string AudioCodec = "", int AudioSampleRate = 0, int AudioChannels = 0, int VideoStreamIndex = 0, int AudioStreamIndex = 0, double FrameRate = 0);
 public sealed class AppSettings
 {
     public string OutputFolder { get; set; } = MediaFolders.DefaultOutput;
@@ -149,4 +152,16 @@ public sealed class AppSettings
     public bool NotifyComplete { get; set; } = true;
     public bool ReduceMotion { get; set; }
     public string Theme { get; set; } = "Light";
+    public bool AutoDetectGpu { get; set; } = true;
+    public int CpuThreads { get; set; } = 8;
+    public int JpegQuality { get; set; } = 90;
+    public int WebpQuality { get; set; } = 90;
+    public AppSettings Clone() => (AppSettings)MemberwiseClone();
+    public void CopyFrom(AppSettings source)
+    {
+        OutputFolder=source.OutputFolder;FFmpegPath=source.FFmpegPath;FFprobePath=source.FFprobePath;YtDlpPath=source.YtDlpPath;
+        ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
+        ReduceMotion=source.ReduceMotion;Theme=source.Theme;AutoDetectGpu=source.AutoDetectGpu;
+        CpuThreads=source.CpuThreads;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
+    }
 }

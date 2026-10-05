@@ -20,19 +20,7 @@ public static class QuickClipBatch
     }
 
     public static IReadOnlyList<ConversionOptions> Split(ConversionOptions draft, double duration, int parts)
-    {
-        if (!double.IsFinite(duration) || duration <= 0 || parts is < 2 or > 100) throw new ArgumentException("分割需要有效时长，段数须在 2–100 之间。");
-        var end = draft.End > 0 ? Math.Min(draft.End, duration) : duration;
-        if (!double.IsFinite(draft.Start) || draft.Start < 0 || draft.Start >= end) throw new ArgumentException("分割区间无效。");
-        var length = (end - draft.Start) / parts;
-        return Enumerable.Range(0, parts).Select(i =>
-        {
-            var options = draft.Clone();
-            options.Start = draft.Start + i * length;
-            options.End = i == parts - 1 ? end : draft.Start + (i + 1) * length;
-            return options;
-        }).ToArray();
-    }
+        => ClipSplit.Create(draft, duration, new(Parts: parts));
 
     public static IReadOnlyList<Job> CreateJobs(IEnumerable<QuickClipInput> inputs, string outputFolder,
         bool outputToSource = false, string settingName = "", IEnumerable<string>? reserved = null)

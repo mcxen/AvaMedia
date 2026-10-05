@@ -10,6 +10,7 @@ $ffmpeg = Get-ChildItem -LiteralPath (Join-Path $target 'ffmpeg') -Recurse -Filt
 $audit = & $ffmpeg -version 2>&1 | Out-String
 if ($audit -match '--enable-nonfree|--enable-gpl') { throw 'Unexpected FFmpeg license configuration; review before using.' }
 $audit | Set-Content -LiteralPath (Join-Path $target 'ffmpeg-build.txt') -Encoding utf8
+Get-ChildItem -LiteralPath (Split-Path -Parent $ffmpeg) -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $target -Force }
 Get-FileHash -LiteralPath $archive,$ffmpeg -Algorithm SHA256 | Format-List | Out-String | Add-Content -LiteralPath (Join-Path $target 'ffmpeg-build.txt')
 Invoke-WebRequest -Uri 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe' -OutFile (Join-Path $target 'yt-dlp.exe')
 Write-Output "Installed external tools in $target"

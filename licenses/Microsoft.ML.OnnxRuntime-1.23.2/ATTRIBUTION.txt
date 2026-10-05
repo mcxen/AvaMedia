@@ -1,0 +1,6 @@
+Package: Microsoft.ML.OnnxRuntime 1.23.2
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: LICENSE
+Project: https://github.com/Microsoft/onnxruntime
+Repository: https://github.com/Microsoft/onnxruntime.git

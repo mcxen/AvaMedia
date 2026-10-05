@@ -4,7 +4,6 @@
         MinWidth="820" MinHeight="480" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
-    <Style Selector="Button.row-icon"><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="Padding" Value="4"/></Style>
     <Style Selector="Button.preview"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
   </Window.Styles>
   <Grid RowDefinitions="88,*,44,36,Auto,48" Margin="16">
@@ -36,7 +35,7 @@
                   </Button>
                   <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0">
                     <Grid ColumnDefinitions="80,*" Margin="8">
-                      <Grid ColumnDefinitions="30,30" RowDefinitions="30,30" ColumnSpacing="6" RowSpacing="6" VerticalAlignment="Center">
+                      <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="6" VerticalAlignment="Center">
                         <Button Classes="row-icon" Click="InfoClick" ToolTip.Tip="媒体信息" AutomationProperties.Name="媒体信息"><icons:ActionIcon Kind="info"/></Button>
                         <Button Grid.Column="1" Classes="row-icon" Click="FolderClick" ToolTip.Tip="打开源文件所在目录" AutomationProperties.Name="打开源文件所在目录"><icons:ActionIcon Kind="folder"/></Button>
                         <Button Grid.Row="1" Classes="row-icon" Click="UpClick" IsEnabled="{Binding CanMoveUp}" ToolTip.Tip="上移" AutomationProperties.Name="上移"><icons:ActionIcon Kind="up"/></Button>
@@ -51,8 +50,8 @@
                     </Grid>
                   </Border>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8" HorizontalAlignment="Right" VerticalAlignment="Center">
-                      <Button Classes="row-icon" Click="RemoveClick" ToolTip.Tip="移除此条目" AutomationProperties.Name="移除此条目"><icons:ActionIcon Kind="remove"/></Button>
-                      <Button Content="分割" Click="SplitClick" ToolTip.Tip="将当前区间等分为多段"/>
+                      <Button Classes="row-icon" Click="RemoveClick" ToolTip.Tip="移除此条目" AutomationProperties.Name="移除此条目"><icons:ActionIcon Kind="remove" Classes="danger"/></Button>
+                      <Button Content="分割" Click="SplitClick" ToolTip.Tip="按段数、时长或时间点分割当前区间"/>
                       <Button Content="选项" Click="EditEntryClick" ToolTip.Tip="此文件的剪辑、裁剪和选项"/>
                     </StackPanel>
                 </Grid>
@@ -74,12 +73,12 @@
     <Grid Grid.Row="4" ColumnDefinitions="88,*,40" Margin="0,4,0,0">
       <TextBlock Text="输出文件夹" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="1" x:Name="OutputCombo" AutomationProperties.Name="输出文件夹"/>
-      <Button Grid.Column="2" Click="BrowseOutputClick" Margin="8,0,0,0" Padding="4" ToolTip.Tip="选择输出文件夹" AutomationProperties.Name="选择输出文件夹"><icons:ActionIcon Kind="folder" Width="20" Height="20"/></Button>
+      <Button Grid.Column="2" Click="BrowseOutputClick" Margin="8,0,0,0" Padding="4" ToolTip.Tip="选择输出文件夹" AutomationProperties.Name="选择输出文件夹"><icons:ActionIcon Kind="folder"/></Button>
     </Grid>
-    <Grid Grid.Row="5" ColumnDefinitions="*,112,128" Margin="0,8,0,0">
+    <Grid Grid.Row="5" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
       <TextBlock x:Name="ModeNote" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,16,0"/>
-      <Button Grid.Column="1" Content="取消" Click="CancelClick" Margin="0,0,12,0" VerticalAlignment="Center"/>
-      <Button Grid.Column="2" x:Name="OkButton" Content="✓ 确定" Click="ConfirmClick" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" Content="取消" Classes="dialog-action" Click="CancelClick" Margin="0,0,12,0" VerticalAlignment="Center"/>
+      <Button Grid.Column="2" x:Name="OkButton" Content="确定" Classes="dialog-action" Click="ConfirmClick" VerticalAlignment="Center"/>
     </Grid>
   </Grid>
 </Window>

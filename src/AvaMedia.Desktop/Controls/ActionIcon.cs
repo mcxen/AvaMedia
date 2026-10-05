@@ -9,16 +9,16 @@ public sealed class ActionIcon : Control
 {
     public static readonly StyledProperty<string> KindProperty = AvaloniaProperty.Register<ActionIcon, string>(nameof(Kind), "info");
     public string Kind { get => GetValue(KindProperty); set => SetValue(KindProperty, value); }
-    public static readonly StyledProperty<IBrush?> ForegroundProperty = AvaloniaProperty.Register<ActionIcon, IBrush?>(nameof(Foreground), Brush.Parse("#159DD5"));
+    public static readonly StyledProperty<IBrush?> ForegroundProperty = AvaloniaProperty.Register<ActionIcon, IBrush?>(nameof(Foreground));
     public IBrush? Foreground { get => GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
-    public ActionIcon() { Width = 20; Height = 20; }
-    static ActionIcon() => AffectsRender<ActionIcon>(KindProperty, ForegroundProperty);
+    public static readonly StyledProperty<IBrush?> ContrastBrushProperty = AvaloniaProperty.Register<ActionIcon, IBrush?>(nameof(ContrastBrush));
+    public IBrush? ContrastBrush { get => GetValue(ContrastBrushProperty); set => SetValue(ContrastBrushProperty, value); }
+    static ActionIcon() => AffectsRender<ActionIcon>(KindProperty, ForegroundProperty, ContrastBrushProperty);
     public override void Render(DrawingContext context)
     {
         var scale = Math.Min(Bounds.Width, Bounds.Height) / 24;
         using var transform = context.PushTransform(Matrix.CreateScale(scale, scale) * Matrix.CreateTranslation((Bounds.Width - 24 * scale) / 2, (Bounds.Height - 24 * scale) / 2));
-        var blue = Brush.Parse("#159DD5"); var orange = Brush.Parse("#ECA026");
-        var pen = new Pen(Kind is "up" or "down" ? orange : blue, 2.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        var pen = new Pen(Foreground, 2.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         var actionPen = new Pen(Foreground, 2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         if (Kind is "play" or "pause" or "stop")
         {
@@ -43,8 +43,7 @@ public sealed class ActionIcon : Control
         }
         else if (Kind == "folder")
         {
-            context.DrawGeometry(Brush.Parse("#FFD061"), new Pen(Brush.Parse("#C29024"), 1), Geometry.Parse("M 2,6 L 9,6 L 11,9 L 22,9 L 21,21 L 2,21 Z"));
-            context.DrawGeometry(Brush.Parse("#FFE6A6"), null, Geometry.Parse("M 4,5 L 9,5 L 11,8 L 20,8 L 20,10 L 4,10 Z"));
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 2,6 L 9,6 L 11,9 L 22,9 L 21,21 L 2,21 Z M 4,5 L 9,5 L 11,8 L 20,8"));
         }
         else if (Kind is "up" or "down")
         {
@@ -54,14 +53,40 @@ public sealed class ActionIcon : Control
         }
         else if (Kind == "remove")
         {
-            context.DrawEllipse(Brush.Parse("#E56854"), null, new(12, 12), 9, 9);
-            context.DrawLine(new Pen(Brushes.White, 2.5, lineCap: PenLineCap.Round), new(7, 12), new(17, 12));
+            context.DrawEllipse(Foreground, null, new(12, 12), 9, 9);
+            context.DrawLine(new Pen(ContrastBrush, 2.5, lineCap: PenLineCap.Round), new(7, 12), new(17, 12));
+        }
+        else if (Kind == "clear")
+        {
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 6,6 L 18,18 M 18,6 L 6,18"));
+        }
+        else if (Kind == "list")
+        {
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 4,5 L 20,5 M 4,12 L 20,12 M 4,19 L 20,19"));
+        }
+        else if (Kind == "gear")
+        {
+            context.DrawEllipse(null, actionPen, new(12,12), 6, 6);
+            context.DrawEllipse(null, actionPen, new(12,12), 2, 2);
+            for (var i = 0; i < 8; i++)
+            {
+                var angle = i * Math.PI / 4;
+                context.DrawLine(actionPen, new(12 + 6 * Math.Cos(angle),12 + 6 * Math.Sin(angle)), new(12 + 9 * Math.Cos(angle),12 + 9 * Math.Sin(angle)));
+            }
+        }
+        else if (Kind == "check")
+        {
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 4,12 L 9,17 L 20,6"));
+        }
+        else if (Kind is "reset" or "cancel")
+        {
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 7,5 L 3,9 L 7,13 M 3,9 L 14,9 Q 21,9 21,16 Q 21,21 14,21"));
         }
         else
         {
-            context.DrawRectangle(blue, null, new Rect(3, 3, 18, 18), 2, 2);
-            context.DrawEllipse(Brushes.White, null, new(12, 7), 1.3, 1.3);
-            context.DrawLine(new Pen(Brushes.White, 2.5, lineCap: PenLineCap.Round), new(12, 11), new(12, 17));
+            context.DrawRectangle(Foreground, null, new Rect(3, 3, 18, 18), 2, 2);
+            context.DrawEllipse(ContrastBrush, null, new(12, 7), 1.3, 1.3);
+            context.DrawLine(new Pen(ContrastBrush, 2.5, lineCap: PenLineCap.Round), new(12, 11), new(12, 17));
         }
     }
 }

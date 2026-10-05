@@ -7,7 +7,7 @@ internal static class MediaFilters
         var filters = new List<string>();
         if (trim && (o.Start > 0 || o.End > 0)) filters.Add($"trim=start={MediaEngine.Number(o.Start)}" + (o.End > 0 ? ":end=" + MediaEngine.Number(o.End) : "") + ",setpts=PTS-STARTPTS");
         if (o.DelogoWidth > 0) filters.Add($"split[{prefix}original][{prefix}patch];[{prefix}patch]crop={o.DelogoWidth}:{o.DelogoHeight}:{o.DelogoX}:{o.DelogoY},gblur=sigma=20[{prefix}blurred];[{prefix}original][{prefix}blurred]overlay={o.DelogoX}:{o.DelogoY}");
-        if (o.CropWidth > 0) filters.Add($"crop={o.CropWidth}:{o.CropHeight}:{o.CropX}:{o.CropY}");
+        if (o.CropWidth > 0) filters.Add($"crop={o.CropWidth}:{o.CropHeight}:{o.CropX}:{o.CropY}:exact=1");
         if (o.Width > 0 || o.Height > 0) filters.Add($"scale={(o.Width > 0 ? o.Width : -2)}:{(o.Height > 0 ? o.Height : -2)}");
         if (o.Rotation == 90) filters.Add("transpose=1"); else if (o.Rotation == 180) filters.Add("hflip,vflip"); else if (o.Rotation == 270) filters.Add("transpose=2");
         if (o.Flip) filters.Add("hflip");

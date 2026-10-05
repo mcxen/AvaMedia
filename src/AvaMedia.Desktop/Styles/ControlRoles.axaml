@@ -1,0 +1,73 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <!-- Business views choose a role; skin resources supply its appearance and metrics. -->
+  <Style Selector="Button.field-action"><Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/></Style>
+  <Style Selector="Button.dialog-action">
+    <Setter Property="Width" Value="{DynamicResource UiDialogActionWidth}"/>
+    <Setter Property="Height" Value="{DynamicResource UiDialogActionHeight}"/>
+    <Setter Property="MinHeight" Value="{DynamicResource UiDialogActionHeight}"/>
+    <Setter Property="Padding" Value="{DynamicResource UiDialogActionPadding}"/>
+  </Style>
+  <Style Selector="Button.step, Button.row-icon">
+    <Setter Property="Width" Value="{DynamicResource UiFieldHeight}"/>
+    <Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/>
+    <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
+  </Style>
+  <Style Selector="Button.transport">
+    <Setter Property="Width" Value="{DynamicResource UiTransportSize}"/>
+    <Setter Property="Height" Value="{DynamicResource UiTransportSize}"/>
+    <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
+  </Style>
+  <Style Selector="Button.media-action"><Setter Property="Background" Value="{DynamicResource UiHover}"/><Setter Property="BorderBrush" Value="{DynamicResource UiTileBorder}"/></Style>
+  <Style Selector="TextBlock.time">
+    <Setter Property="FontFamily" Value="{DynamicResource UiNumericFont}"/>
+    <Setter Property="FontSize" Value="{DynamicResource UiTimeFontSize}"/>
+    <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="TextBox.time">
+    <Setter Property="FontFamily" Value="{DynamicResource UiNumericFont}"/>
+    <Setter Property="FontSize" Value="{DynamicResource UiTimeFontSize}"/>
+    <Setter Property="Width" Value="{DynamicResource UiTimeFieldWidth}"/>
+    <Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/>
+    <Setter Property="TextAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="TextBox.numeric, TextBox.log"><Setter Property="FontFamily" Value="{DynamicResource UiNumericFont}"/></Style>
+  <Style Selector="TextBlock.body"><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/></Style>
+  <Style Selector="TextBlock.heading"><Setter Property="FontSize" Value="{DynamicResource UiFontHeading}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style Selector="TextBlock.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+  <Style Selector="TextBlock.muted-icon"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+  <Style Selector="Grid.table-header"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
+  <Style Selector="Border.media-preview"><Setter Property="Background" Value="{DynamicResource UiMediaSurface}"/></Style>
+  <Style Selector="Grid.media-preview"><Setter Property="Background" Value="{DynamicResource UiMediaSurface}"/></Style>
+  <Style Selector="TextBlock.media-status"><Setter Property="Foreground" Value="{DynamicResource UiMediaText}"/></Style>
+  <Style Selector="controls|ActionIcon">
+    <Setter Property="Width" Value="{DynamicResource UiIconSize}"/><Setter Property="Height" Value="{DynamicResource UiIconSize}"/>
+    <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/><Setter Property="ContrastBrush" Value="{DynamicResource UiAccentText}"/>
+  </Style>
+  <Style Selector="Button.transport controls|ActionIcon, Button.tool controls|ActionIcon"><Setter Property="Width" Value="{DynamicResource UiIconLarge}"/><Setter Property="Height" Value="{DynamicResource UiIconLarge}"/></Style>
+  <Style Selector="Button.step controls|ActionIcon"><Setter Property="Width" Value="{DynamicResource UiIconSmall}"/><Setter Property="Height" Value="{DynamicResource UiIconSmall}"/></Style>
+  <Style Selector="controls|ActionIcon.danger"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+  <Style Selector="controls|ActionIcon.success"><Setter Property="Foreground" Value="{DynamicResource UiSuccess}"/></Style>
+  <Style Selector="controls|RangeBar">
+    <Setter Property="Height" Value="{DynamicResource UiRangeHeight}"/>
+    <Setter Property="TrackBrush" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/>
+    <Setter Property="SelectionBrush" Value="{DynamicResource UiAccent}"/><Setter Property="HandleBrush" Value="{DynamicResource UiSurface}"/>
+    <Setter Property="GripBrush" Value="{DynamicResource UiAccent}"/>
+  </Style>
+  <Style Selector="controls|CropOverlay">
+    <Setter Property="ShadeBrush" Value="{DynamicResource UiCropShade}"/><Setter Property="SelectionBrush" Value="{DynamicResource UiCropSelection}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiCropBorder}"/><Setter Property="HandleBrush" Value="{DynamicResource UiMediaText}"/>
+  </Style>
+  <Style Selector="controls|PlatinumBevel">
+    <Setter Property="LightBrush" Value="{DynamicResource UiBevelLight}"/><Setter Property="MidLightBrush" Value="{DynamicResource UiBevelMidLight}"/>
+    <Setter Property="MidDarkBrush" Value="{DynamicResource UiBevelMidDark}"/><Setter Property="DarkBrush" Value="{DynamicResource UiBevelDark}"/>
+    <Setter Property="FocusBrush" Value="{DynamicResource UiAccent}"/>
+  </Style>
+  <Style Selector="Window.settings Border.settingSection">
+    <Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
+    <Setter Property="BorderThickness" Value="1"/><Setter Property="MinHeight" Value="{DynamicResource UiSettingSectionHeight}"/>
+    <Setter Property="Padding" Value="{DynamicResource UiSectionPadding}"/>
+  </Style>
+  <Style Selector="Window.settings TextBlock.settingError"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+  <Style Selector="Window.settings NumericUpDown"><Setter Property="FormatString" Value="0"/></Style>
+</Styles>

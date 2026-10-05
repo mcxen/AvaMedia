@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+    <ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" />
+  </ItemGroup>
+  <ItemGroup><None Update="Fixtures/astronaut.png" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

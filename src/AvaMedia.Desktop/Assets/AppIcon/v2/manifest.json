@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "generator": "Codex built-in image_gen.imagegen",
+  "created": "2026-10-05",
+  "mode": "reference-guided image generation",
+  "transparentBackground": true,
+  "styleReferences": [
+    "../../../../../docs/assets/feature-icons-v2-preview.png",
+    "../../FeatureIcons/v2/rotate.png"
+  ],
+  "file": "app.png",
+  "prompt": "Use case: logo-brand.\nAsset type: ONE transparent application icon for AvaMedia, a classic desktop multimedia converter and editor. This is the application's identity icon for an executable, taskbar, window caption and macOS Dock.\nInput images: Image 1 is the approved AvaMedia feature-icon contact sheet, showing the color palette and classic desktop utility illustration style. Image 2 is the approved rotate icon, showing the restrained bevels, crisp charcoal edges and simple subtle highlights. These are style references only. Create one fresh application mark, not a sheet or a copy of a feature icon.\nSubject: one compact dark charcoal film-frame with a vivid cyan-blue inner panel. A single large warm golden-orange right-pointing play triangle is centered in the blue panel. Two simple silver sprocket holes on each side identify the film frame. One thick grass-green conversion arrow curls around the lower-right corner of the frame, with one clear arrowhead, integrating naturally into the overall compact silhouette.\nComposition: centered, almost frontal, one bold coherent mark occupying about 85% of a square canvas, balanced 8–10% clear padding. The play triangle remains dominant. Thick outlines, few large shapes, strong contrast, recognizable at 16, 24, 32 and 48 pixels. Keep the arrow compact and secondary, with no tiny inner details.\nStyle: same friendly polished classic desktop icon family as the references; restrained highlights and gentle bevels, smooth edges, no dramatic 3D perspective.\nPalette: charcoal #26333D, cyan #22A3D0, grass green #68AE3A, golden orange #F6AB32, light silver #E6F0F6.\nBackdrop: true alpha transparency, with completely transparent surrounding empty pixels and transparent corners.\nAvoid: text, initials, letters, logos from other products, watermarks, checkerboard pattern, opaque square backdrop, app-tile plate, extra media objects, music notes, document sheets, duplicate arrows, contact sheets, heavy drop shadows, photorealism or toy gloss.",
+  "purpose": "AvaMedia executable, window caption, taskbar and application bundle",
+  "derivatives": {
+    "ico": "app.ico",
+    "icns": "app.icns",
+    "packagingScript": "../../../../../.agents/skills/avamedia-icons/scripts/Export-AppIcon.ps1",
+    "icoSizes": [
+      16,
+      20,
+      24,
+      32,
+      40,
+      48,
+      64,
+      128,
+      256
+    ],
+    "icnsTypes": [
+      "icp4",
+      "icp5",
+      "icp6",
+      "ic07",
+      "ic08",
+      "ic09",
+      "ic10",
+      "ic11",
+      "ic12",
+      "ic13",
+      "ic14"
+    ]
+  },
+  "sha256": "1D19A91EF442855BEF7B862D0DBDDB903B9703CF25322652614DAF5ACD263859",
+  "pixelWidth": 1254,
+  "pixelHeight": 1254
+}

@@ -4,6 +4,14 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
+    private async void BatchRotateClick(object? sender, RoutedEventArgs e)
+    {
+        var selected=JobList.SelectedItems?.Cast<Job>().SelectMany(job=>job.Inputs)
+            .Where(path=>File.Exists(path) && QuickClipBatch.VideoExtensions.Contains(System.IO.Path.GetExtension(path).TrimStart('.')))
+            .Distinct(BatchVideoTools.PathComparer).ToArray()??[];
+        await Configure(Catalog.Find("rotate"),selected);
+    }
+
     private async void BatchCropClick(object? sender, RoutedEventArgs e)
     {
         var selected=JobList.SelectedItems?.Cast<Job>().SelectMany(job=>job.Inputs)

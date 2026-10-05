@@ -1,5 +1,5 @@
 namespace AvaMedia.Core;
-public sealed class QueueService(MediaEngine engine)
+public sealed class QueueService(IJobExecutor engine)
 {
     private CancellationTokenSource? _cts;
     public bool IsRunning => _cts is not null;

@@ -22,6 +22,23 @@
           <SolidColorBrush x:Key="UiSuccess" Color="#24613A"/>
           <SolidColorBrush x:Key="UiWarning" Color="#795314"/>
           <SolidColorBrush x:Key="UiDanger" Color="#A32820"/>
+          <SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiSelection" Color="#C7CDE0"/>
+          <SolidColorBrush x:Key="UiSelectionText" Color="#111111"/>
+          <SolidColorBrush x:Key="UiMediaSurface" Color="#000000"/>
+          <SolidColorBrush x:Key="UiMediaText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiMediaOverlay" Color="#CC202020"/>
+          <SolidColorBrush x:Key="UiCropShade" Color="#66000000"/>
+          <SolidColorBrush x:Key="UiCropSelection" Color="#19B5BED7"/>
+          <SolidColorBrush x:Key="UiCropBorder" Color="#B5BED7"/>
+          <SolidColorBrush x:Key="UiBevelLight" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiBevelMidLight" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="UiBevelMidDark" Color="#AAAAAA"/>
+          <SolidColorBrush x:Key="UiBevelDark" Color="#777777"/>
+          <SolidColorBrush x:Key="UiChromeBorder" Color="#000000"/>
+          <BoxShadows x:Key="UiInsetShadow">inset 1 1 0 0 #777777, inset -1 -1 0 0 #FFFFFF</BoxShadows>
+          <BoxShadows x:Key="UiRaisedShadow">inset 1 1 0 0 #FFFFFF, inset -1 -1 0 0 #777777</BoxShadows>
+          <FontFamily x:Key="UiFont">Tahoma, Lucida Grande, Microsoft YaHei UI, Arial</FontFamily>
           <SolidColorBrush x:Key="ThemeForegroundBrush" Color="#111111"/>
           <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="ThemeControlLowBrush" Color="#DDDDDD"/>
@@ -45,14 +62,14 @@
     </ResourceDictionary>
   </Styles.Resources>
   <Style Selector="Window"><Setter Property="local:Skin.IsEnabled" Value="True"/></Style>
-  <Style Selector="Window.mac-os9"><Setter Property="FontFamily" Value="Tahoma, Lucida Grande, Microsoft YaHei UI, Arial"/><Setter Property="UseLayoutRounding" Value="True"/></Style>
+  <Style Selector="Window.mac-os9"><Setter Property="UseLayoutRounding" Value="True"/></Style>
   <Style Selector="Window.mac-os9 Button"><Setter Property="CornerRadius" Value="2"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Theme" Value="{DynamicResource PlatinumButtonTheme}"/></Style>
   <Style Selector="Window.mac-os9 Button.tool"><Setter Property="BorderThickness" Value="2"/><Setter Property="Margin" Value="1,0"/></Style>
   <Style Selector="Window.mac-os9 Button.category"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
   <Style Selector="Window.mac-os9 Button.tile"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
   <Style Selector="Window.mac-os9 Button.tile:pressed"><Setter Property="RenderTransform" Value="scale(1)"/></Style>
   <Style Selector="Window.mac-os9 Button /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Transitions" Value="{x:Null}"/></Style>
-  <Style Selector="Window.mac-os9 TextBox"><Setter Property="CornerRadius" Value="0"/><Setter Property="Background" Value="White"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Theme" Value="{DynamicResource PlatinumTextBoxTheme}"/></Style>
+  <Style Selector="Window.mac-os9 TextBox"><Setter Property="CornerRadius" Value="0"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Theme" Value="{DynamicResource PlatinumTextBoxTheme}"/></Style>
   <Style Selector="Window.mac-os9 ComboBox"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Theme" Value="{DynamicResource PlatinumComboBoxTheme}"/></Style>
   <Style Selector="Window.mac-os9 CheckBox"><Setter Property="Theme" Value="{DynamicResource PlatinumCheckBoxTheme}"/></Style>
   <Style Selector="Window.mac-os9 TabItem"><Setter Property="Theme" Value="{DynamicResource PlatinumTabItemTheme}"/></Style>
@@ -61,5 +78,12 @@
   <Style Selector="Window.mac-os9 ProgressBar"><Setter Property="Theme" Value="{DynamicResource PlatinumProgressBarTheme}"/></Style>
   <Style Selector="Window.mac-os9 Menu"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
   <Style Selector="Window.mac-os9 MenuItem"><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
-  <Style Selector="Window.mac-os9 ListBoxItem:selected"><Setter Property="Background" Value="#C7CDE0"/><Setter Property="Foreground" Value="#111111"/></Style>
+  <Style Selector="Window.mac-os9 ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="controls|PlatinumWindowFrame.platinum-window"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="BorderBrush" Value="{DynamicResource UiChromeBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="3"/></Style>
+  <Style Selector="Grid.platinum-titlebar"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
+  <Style Selector="Border.platinum-caption-surface"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
+  <Style Selector="Border.platinum-caption-surface"><Setter Property="Padding" Value="5,0"/></Style>
+  <Style Selector="TextBlock.platinum-title"><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="Padding" Value="9,0"/></Style>
+  <Style Selector="Button.platinum-caption"><Setter Property="Width" Value="20"/><Setter Property="Height" Value="19"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,2"/><Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/></Style>
+  <Style Selector="controls|PlatinumTitleLines"><Setter Property="DarkBrush" Value="{DynamicResource UiDivider}"/><Setter Property="LightBrush" Value="{DynamicResource UiBevelLight}"/></Style>
 </Styles>

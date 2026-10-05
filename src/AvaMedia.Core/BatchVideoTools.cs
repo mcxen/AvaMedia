@@ -149,7 +149,7 @@ public static class BatchVideoTools
             throw new ArgumentException("结束时间必须晚于开始时间；结束为 0 表示视频末尾。");
     }
 
-    public static async Task<string[]> GenerateContactSheets(MediaEngine engine, string input, string outputFolder, ContactSheetOptions options, IProgress<ContactSheetProgress>? progress = null, CancellationToken ct = default)
+    public static async Task<string[]> GenerateContactSheets(IMediaEngine engine, string input, string outputFolder, ContactSheetOptions options, IProgress<ContactSheetProgress>? progress = null, CancellationToken ct = default)
     {
         ValidateContactSheet(options);
         var info = await engine.Probe(input, ct);

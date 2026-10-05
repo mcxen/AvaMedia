@@ -11,14 +11,7 @@ public static class BatchCrop
 {
     public static void ValidateArea(CropArea area, MediaInfo media)
     {
-        if (!media.HasVideo || media.Width < 2 || media.Height < 2)
-            throw new ArgumentException("文件不包含可裁剪的视频画面。");
-        if (area.X < 0 || area.Y < 0 || area.Width < 2 || area.Height < 2)
-            throw new ArgumentException("裁剪坐标不能为负，宽度和高度至少为 2 像素。");
-        if ((area.X | area.Y | area.Width | area.Height) % 2 != 0)
-            throw new ArgumentException("裁剪 X、Y、宽度和高度须为偶数像素。");
-        if ((long)area.X + area.Width > media.Width || (long)area.Y + area.Height > media.Height)
-            throw new ArgumentException($"裁剪区域超出 {media.Width} × {media.Height} 画面。");
+        CropGeometry.Validate(area,media);
     }
 
     public static CropArea Resolve(CropArea area, MediaInfo reference, MediaInfo target, BatchCropMode mode)
@@ -72,8 +65,8 @@ public static class BatchCrop
             try
             {
                 var options = ResolveOptions(request.Area, request.Reference, input.Info, request.Mode, request.Options);
-                MediaEngine.Validate(new() { FeatureId = "crop", Inputs = [path], Options = options,
-                    Output = Path.Combine(folder, Path.GetFileNameWithoutExtension(path) + "_crop." + options.Format) });
+                MediaEngine.ValidateEdits(new() { FeatureId = "crop", Inputs = [path], Options = options,
+                    Output = Path.Combine(folder, Path.GetFileNameWithoutExtension(path) + "_crop." + options.Format) },[input.Info]);
                 return (Path: path, Options: options);
             }
             catch (ArgumentException ex) { throw new ArgumentException(Path.GetFileName(path) + "：" + ex.Message, ex); }

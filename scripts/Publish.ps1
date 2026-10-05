@@ -1,10 +1,11 @@
-param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.2')
+param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.3', [string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $sdk = Join-Path $taskRoot ('.tools/dotnet/dotnet' + $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { '.exe' } else { '' }))
 if (!(Test-Path -LiteralPath $sdk)) { $sdk = 'dotnet' }
 $publishRoot = Join-Path $taskRoot ('artifacts/release/' + $Version + '/' + $Runtime)
-& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot -p:DebugType=None -p:DebugSymbols=false --verbosity minimal
+if ($OutputDirectory) { $publishRoot = [IO.Path]::GetFullPath($OutputDirectory) }
+& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
 $runtimePackages = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget/packages' }
@@ -14,11 +15,12 @@ if (Test-Path -LiteralPath $runtimePack) {
     New-Item -ItemType Directory -Path $runtimeNotices -Force | Out-Null
     Get-ChildItem -LiteralPath $runtimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $runtimeNotices -Force }
 }
-foreach ($name in @('LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
+foreach ($name in @('LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'licenses') -Destination $publishRoot -Recurse -Force
 $publishDocs = Join-Path $publishRoot 'docs'
 New-Item -ItemType Directory -Path $publishDocs -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $taskRoot 'docs') -Filter '*.md' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $publishDocs -Force }
+if (Test-Path -LiteralPath (Join-Path $taskRoot 'docs/assets')) { Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/assets') -Destination $publishDocs -Recurse -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'scripts') -Destination $publishRoot -Recurse -Force
 $zip = Join-Path $taskRoot ('artifacts/AvaMedia-' + $Version + '-' + $Runtime + '.zip')
 if ($Runtime.StartsWith('osx-')) {
@@ -27,11 +29,17 @@ if ($Runtime.StartsWith('osx-')) {
     $nativeRoot = Join-Path $bundle 'Contents/MacOS'
     $resources = Join-Path $bundle 'Contents/Resources'
     New-Item -ItemType Directory -Path $nativeRoot,$resources -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $taskRoot 'src/AvaMedia.Desktop/Assets/AppIcon/v2/app.icns') -Destination (Join-Path $resources 'AvaMedia.icns') -Force
     Get-ChildItem -LiteralPath $publishRoot -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Force }
+    Get-ChildItem -LiteralPath $publishRoot -Directory | Where-Object { $_.Name -notin @('licenses','docs','scripts') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Recurse -Force }
     foreach ($directory in @('licenses','docs','scripts')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
-    foreach ($name in @('LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
+    foreach ($name in @('LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
     $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw).Replace('__VERSION__',$Version)
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+        & /usr/bin/codesign --force --deep --sign - $bundle
+        if ($LASTEXITCODE -ne 0) { throw 'Ad-hoc application signing failed.' }
+    }
     # ZIP stores Unix permission bits even when assembled on Windows.
     Add-Type -AssemblyName System.IO.Compression
     $archiveStream = [IO.File]::Open($zip,[IO.FileMode]::Create,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)

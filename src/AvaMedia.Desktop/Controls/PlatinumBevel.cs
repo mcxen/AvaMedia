@@ -17,9 +17,19 @@ public sealed class PlatinumBevel : Decorator
     public bool IsPressed { get => GetValue(IsPressedProperty); set => SetValue(IsPressedProperty, value); }
     public bool IsInset { get => GetValue(IsInsetProperty); set => SetValue(IsInsetProperty, value); }
     public bool IsFocusedFace { get => GetValue(IsFocusedFaceProperty); set => SetValue(IsFocusedFaceProperty, value); }
+    public static readonly StyledProperty<IBrush?> LightBrushProperty = AvaloniaProperty.Register<PlatinumBevel, IBrush?>(nameof(LightBrush));
+    public static readonly StyledProperty<IBrush?> MidLightBrushProperty = AvaloniaProperty.Register<PlatinumBevel, IBrush?>(nameof(MidLightBrush));
+    public static readonly StyledProperty<IBrush?> MidDarkBrushProperty = AvaloniaProperty.Register<PlatinumBevel, IBrush?>(nameof(MidDarkBrush));
+    public static readonly StyledProperty<IBrush?> DarkBrushProperty = AvaloniaProperty.Register<PlatinumBevel, IBrush?>(nameof(DarkBrush));
+    public static readonly StyledProperty<IBrush?> FocusBrushProperty = AvaloniaProperty.Register<PlatinumBevel, IBrush?>(nameof(FocusBrush));
+    public IBrush? LightBrush { get => GetValue(LightBrushProperty); set => SetValue(LightBrushProperty,value); }
+    public IBrush? MidLightBrush { get => GetValue(MidLightBrushProperty); set => SetValue(MidLightBrushProperty,value); }
+    public IBrush? MidDarkBrush { get => GetValue(MidDarkBrushProperty); set => SetValue(MidDarkBrushProperty,value); }
+    public IBrush? DarkBrush { get => GetValue(DarkBrushProperty); set => SetValue(DarkBrushProperty,value); }
+    public IBrush? FocusBrush { get => GetValue(FocusBrushProperty); set => SetValue(FocusBrushProperty,value); }
     static PlatinumBevel()
     {
-        AffectsRender<PlatinumBevel>(BackgroundProperty, IsPressedProperty, IsInsetProperty, IsFocusedFaceProperty);
+        AffectsRender<PlatinumBevel>(BackgroundProperty, IsPressedProperty, IsInsetProperty, IsFocusedFaceProperty,LightBrushProperty,MidLightBrushProperty,MidDarkBrushProperty,DarkBrushProperty,FocusBrushProperty);
         AffectsMeasure<PlatinumBevel>(BorderThicknessProperty);
     }
     protected override Size MeasureOverride(Size availableSize)
@@ -33,18 +43,17 @@ public sealed class PlatinumBevel : Decorator
         Child?.Arrange(new Rect(finalSize).Deflate(Padding + BorderThickness));
         return finalSize;
     }
-    private static readonly IBrush Light = Brush.Parse("#FFFFFF"), MidLight = Brush.Parse("#DDDDDD"), MidDark = Brush.Parse("#AAAAAA"), Dark = Brush.Parse("#777777");
     public override void Render(DrawingContext context)
     {
         base.Render(context);
         context.DrawRectangle(Background, null, new Rect(Bounds.Size));
         if (Bounds.Width < 6 || Bounds.Height < 6) return;
         var inset = IsPressed || IsInset;
-        Edge(context, 0, inset ? Dark : Light, inset ? Light : Dark);
-        Edge(context, 1, inset ? MidDark : MidLight, inset ? MidLight : MidDark);
-        if (IsFocusedFace) context.DrawRectangle(null, new Pen(Brush.Parse("#3D4E80"), 1), new Rect(2.5, 2.5, Bounds.Width - 5, Bounds.Height - 5));
+        Edge(context, 0, inset ? DarkBrush : LightBrush, inset ? LightBrush : DarkBrush);
+        Edge(context, 1, inset ? MidDarkBrush : MidLightBrush, inset ? MidLightBrush : MidDarkBrush);
+        if (IsFocusedFace) context.DrawRectangle(null, new Pen(FocusBrush, 1), new Rect(2.5, 2.5, Bounds.Width - 5, Bounds.Height - 5));
     }
-    private void Edge(DrawingContext context, int inset, IBrush topLeft, IBrush bottomRight)
+    private void Edge(DrawingContext context, int inset, IBrush? topLeft, IBrush? bottomRight)
     {
         var x = inset + .5; var right = Bounds.Width - inset - .5; var bottom = Bounds.Height - inset - .5;
         var light = new Pen(topLeft, 1); var dark = new Pen(bottomRight, 1);

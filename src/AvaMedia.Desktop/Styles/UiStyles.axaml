@@ -21,6 +21,20 @@
           <SolidColorBrush x:Key="UiSuccess" Color="#107C41" />
           <SolidColorBrush x:Key="UiWarning" Color="#8A5700" />
           <SolidColorBrush x:Key="UiDanger" Color="#B42318" />
+          <SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiSelection" Color="#D7EAFB" />
+          <SolidColorBrush x:Key="UiSelectionText" Color="#202428" />
+          <SolidColorBrush x:Key="UiMediaSurface" Color="#000000" />
+          <SolidColorBrush x:Key="UiMediaText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiMediaOverlay" Color="#CC202020" />
+          <SolidColorBrush x:Key="UiCropShade" Color="#66000000" />
+          <SolidColorBrush x:Key="UiCropSelection" Color="#190078D4" />
+          <SolidColorBrush x:Key="UiCropBorder" Color="#60CDFF" />
+          <SolidColorBrush x:Key="UiBevelLight" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiBevelMidLight" Color="#DDDDDD" />
+          <SolidColorBrush x:Key="UiBevelMidDark" Color="#AAAAAA" />
+          <SolidColorBrush x:Key="UiBevelDark" Color="#777777" />
+          <FontFamily x:Key="UiFont">Microsoft YaHei UI, Segoe UI</FontFamily>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="UiCanvas" Color="#202020" />
@@ -41,16 +55,28 @@
           <SolidColorBrush x:Key="UiSuccess" Color="#76D69C" />
           <SolidColorBrush x:Key="UiWarning" Color="#F2C66D" />
           <SolidColorBrush x:Key="UiDanger" Color="#FFB4AB" />
+          <SolidColorBrush x:Key="UiAccentText" Color="#202020" />
+          <SolidColorBrush x:Key="UiSelection" Color="#244C66" />
+          <SolidColorBrush x:Key="UiSelectionText" Color="#F3F3F3" />
+          <SolidColorBrush x:Key="UiMediaSurface" Color="#000000" />
+          <SolidColorBrush x:Key="UiMediaText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiMediaOverlay" Color="#CC202020" />
+          <SolidColorBrush x:Key="UiCropShade" Color="#66000000" />
+          <SolidColorBrush x:Key="UiCropSelection" Color="#1960CDFF" />
+          <SolidColorBrush x:Key="UiCropBorder" Color="#60CDFF" />
+          <SolidColorBrush x:Key="UiBevelLight" Color="#727272" />
+          <SolidColorBrush x:Key="UiBevelMidLight" Color="#515151" />
+          <SolidColorBrush x:Key="UiBevelMidDark" Color="#303030" />
+          <SolidColorBrush x:Key="UiBevelDark" Color="#191919" />
+          <FontFamily x:Key="UiFont">Microsoft YaHei UI, Segoe UI</FontFamily>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
-      <FontFamily x:Key="UiFont">Microsoft YaHei UI, Segoe UI</FontFamily>
       <x:Double x:Key="UiFontBody">13</x:Double>
       <x:Double x:Key="UiFontCaption">12</x:Double>
       <x:Double x:Key="UiFontTitle">18</x:Double>
       <CornerRadius x:Key="UiControlRadius">4</CornerRadius>
       <Thickness x:Key="UiButtonPadding">10,5</Thickness>
       <Thickness x:Key="UiInputPadding">6,4</Thickness>
-      <x:Double x:Key="UiInputMinHeight">28</x:Double>
       <FontFamily x:Key="UiNumericFont">Consolas, Menlo, DejaVu Sans Mono</FontFamily>
       <x:Double x:Key="UiFieldHeight">32</x:Double>
       <x:Double x:Key="UiTimeFontSize">14</x:Double>
@@ -58,22 +84,44 @@
       <x:Double x:Key="UiTransportSize">40</x:Double>
       <x:Double x:Key="UiDialogActionHeight">36</x:Double>
       <x:Double x:Key="UiDialogActionWidth">168</x:Double>
+      <x:Double x:Key="UiFontHeading">22</x:Double>
+      <x:Double x:Key="UiFontBrand">24</x:Double>
+      <x:Double x:Key="UiIconSize">20</x:Double>
+      <x:Double x:Key="UiIconSmall">16</x:Double>
+      <x:Double x:Key="UiIconLarge">24</x:Double>
+      <x:Double x:Key="UiRangeHeight">28</x:Double>
+      <x:Double x:Key="UiTransportRowHeight">56</x:Double>
+      <x:Double x:Key="UiEditorDetailsWidth">264</x:Double>
+      <x:Double x:Key="UiFieldLabelWidth">80</x:Double>
+      <x:Double x:Key="UiCoordinateWidth">100</x:Double>
+      <x:Double x:Key="UiSpacingSmall">8</x:Double>
+      <x:Double x:Key="UiSpacingMedium">12</x:Double>
+      <x:Double x:Key="UiSpacingLarge">24</x:Double>
+      <Thickness x:Key="UiCompactButtonPadding">6</Thickness>
+      <Thickness x:Key="UiDialogActionPadding">12,4</Thickness>
+      <Thickness x:Key="UiPagePadding">12</Thickness>
+      <Thickness x:Key="UiDialogPadding">20</Thickness>
+      <Thickness x:Key="UiSectionPadding">16</Thickness>
+      <x:Double x:Key="UiSettingSectionHeight">90</x:Double>
+      <x:Double x:Key="UiCategoryHeight">24</x:Double>
     </ResourceDictionary>
   </Styles.Resources>
   <Style Selector="Window">
-    <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
-    <Setter Property="FontSize" Value="{StaticResource UiFontBody}" />
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource UiFontBody}" />
     <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="Background" Value="{DynamicResource UiCanvas}" />
     <Setter Property="local:Motion.IsEnabled" Value="True" />
   </Style>
   <Style Selector="Button">
-    <Setter Property="CornerRadius" Value="{StaticResource UiControlRadius}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}" />
     <Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}" />
     <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="Padding" Value="{StaticResource UiButtonPadding}" />
+    <Setter Property="Padding" Value="{DynamicResource UiButtonPadding}" />
+    <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
+    <Setter Property="FontSize" Value="{DynamicResource UiFontBody}" />
   </Style>
   <!-- SimpleTheme changes the presenter directly; state styles must target it too. -->
   <Style Selector="Button:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -107,26 +155,44 @@
     <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}" />
     <Setter Property="Background" Value="{DynamicResource UiSurface}" />
     <Setter Property="Padding" Value="5,1" />
-    <Setter Property="Height" Value="24" />
+    <Setter Property="Height" Value="{DynamicResource UiCategoryHeight}" />
+    <Setter Property="MinHeight" Value="{DynamicResource UiCategoryHeight}" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
   </Style>
   <Style Selector="TextBox">
-    <Setter Property="CornerRadius" Value="{StaticResource UiControlRadius}" />
-    <Setter Property="MinHeight" Value="{StaticResource UiInputMinHeight}" />
-    <Setter Property="Padding" Value="{StaticResource UiInputPadding}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}" />
+    <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
+    <Setter Property="Padding" Value="{DynamicResource UiInputPadding}" />
+    <Setter Property="Foreground" Value="{DynamicResource UiText}" />
+    <Setter Property="Background" Value="{DynamicResource UiSurface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />
   </Style>
   <Style Selector="ComboBox">
-    <Setter Property="MinHeight" Value="{StaticResource UiInputMinHeight}" />
+    <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
     <Setter Property="Padding" Value="6,3" />
     <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Foreground" Value="{DynamicResource UiText}" />
+    <Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />
   </Style>
   <Style Selector="TabItem"><Setter Property="Padding" Value="12,6" /></Style>
   <Style Selector="TextBlock.caption">
-    <Setter Property="FontSize" Value="{StaticResource UiFontCaption}" />
+    <Setter Property="FontSize" Value="{DynamicResource UiFontCaption}" />
     <Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}" />
   </Style>
   <Style Selector="TextBlock.title">
-    <Setter Property="FontSize" Value="{StaticResource UiFontTitle}" />
+    <Setter Property="FontSize" Value="{DynamicResource UiFontTitle}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
+  <Style Selector="NumericUpDown">
+    <Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/><Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/>
+    <Setter Property="Padding" Value="{DynamicResource UiInputPadding}"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <!-- SimpleTheme's template sets Margin=4. Both state selectors override template
+       priority so the shared field height leaves room for a complete text line. -->
+  <Style Selector="NumericUpDown:not(:disabled) /template/ TextBox#PART_TextBox, NumericUpDown:disabled /template/ TextBox#PART_TextBox"><Setter Property="MinHeight" Value="0"/><Setter Property="Margin" Value="0"/></Style>
+  <Style Selector="ListBox"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/></Style>
+  <Style Selector="ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
 </Styles>

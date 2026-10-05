@@ -112,6 +112,10 @@ Point PixelPoint(double x, double y)
     var p = new Point((layer.Bounds.Width - layer.SourceWidth * scale) / 2 + x * scale, (layer.Bounds.Height - layer.SourceHeight * scale) / 2 + y * scale);
     return layer.TranslatePoint(p, window)!.Value;
 }
+window.FindControl<ComboBox>("CropRatio")!.SelectedItem="1:1";
+window.MouseDown(PixelPoint(20.1,20.1),MouseButton.Left);window.MouseMove(PixelPoint(100.1,60.1));window.MouseUp(PixelPoint(100.1,60.1),MouseButton.Left);Dispatcher.UIThread.RunJobs();
+Check(window.Area==new CropArea(20,20,40,40),"Batch drawing does not honor the same square ratio as the per-file editor.");
+Click(window.GetVisualDescendants().OfType<Button>().Single(b=>Equals(b.Content,"重置为当前全画面")));
 window.MouseDown(PixelPoint(32.1, 20.1), MouseButton.Left);
 window.MouseMove(PixelPoint(160.1, 120.1));
 window.MouseUp(PixelPoint(160.1, 120.1), MouseButton.Left); Dispatcher.UIThread.RunJobs();
@@ -148,7 +152,7 @@ Application.Current.RequestedThemeVariant = ThemeVariant.Dark; Dispatcher.UIThre
 Capture(window, "batch-crop-dark.png");
 Check(window.FindControl<TextBlock>("ValidationText")!.Foreground is SolidColorBrush { Color.R: > 220 }, "Feedback does not update to dark theme.");
 window.Width = 940; window.Height = 640; Capture(window, "batch-crop-minimum.png", 940, 640);
-Check(new Control[] { ok, mode, window.FindControl<NumericUpDown>("CropWidthInput")!, window.FindControl<TextBox>("OutputInput")! }.All(c => c.Bounds.Width > 20 && c.TranslatePoint(new Point(c.Bounds.Width, c.Bounds.Height), window) is { } p && p.X <= 924.5 && p.Y <= 624.5), "Minimum size hides/overflows controls.");
+Check(new Control[] { ok, mode, window.FindControl<ComboBox>("CropRatio")!, window.FindControl<NumericUpDown>("CropWidthInput")!, window.FindControl<TextBox>("OutputInput")! }.All(c => c.Bounds.Width > 20 && c.TranslatePoint(new Point(c.Bounds.Width, c.Bounds.Height), window) is { } p && p.X <= 924.5 && p.Y <= 624.5), "Minimum size hides/overflows controls.");
 list.SelectedIndex = 3;
 Click(window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "移除选中")));
 Check(window.Entries.Count == 3 && window.Entries.All(e => e.Path != corrupt), "Remove selected did not remove invalid row.");

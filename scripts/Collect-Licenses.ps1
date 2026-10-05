@@ -21,7 +21,7 @@ foreach ($package in $packages) {
     $destination = Join-Path $licenseRoot ($id + '-' + $version)
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
     Copy-Item -LiteralPath $nuspec.FullName -Destination $destination
-    $licenseFiles = Get-ChildItem -LiteralPath $packageDir -Recurse -File | Where-Object { $_.Name -match '(?i)^(license|licence|notice|third.party.notices|copyright)' }
+    $licenseFiles = Get-ChildItem -LiteralPath $packageDir -Recurse -File | Where-Object { $_.Name -match '(?i)^(license|licence|notice|third.?party.?notices|copyright)' }
     foreach ($file in $licenseFiles) { Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $destination $file.Name) -Force }
     $type = [string]$info.license.type; $terms = [string]$info.license.'#text'
     if ($type -eq 'expression') {
@@ -34,6 +34,12 @@ foreach ($package in $packages) {
         $source = Join-Path $packageDir $terms
         if (!(Test-Path -LiteralPath $source)) { throw "Missing license for $id" }
         Copy-Item -LiteralPath $source -Destination (Join-Path $destination 'PACKAGE-LICENSE.txt')
+    }
+    elseif ($id -eq 'System.Memory' -and $version -eq '4.5.5' -and $info.licenseUrl -eq 'https://github.com/dotnet/corefx/blob/master/LICENSE.TXT') {
+        # This older transitive ONNX dependency predates NuGet license expressions.
+        # Its exact nuspec points to the upstream CoreFX MIT license, reviewed here.
+        $terms = 'MIT'
+        Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/dotnet/corefx/master/LICENSE.TXT' -OutFile (Join-Path $destination 'PACKAGE-LICENSE.txt')
     }
     else { throw "Review license manually: $id" }
     @("Package: $id $version", "Authors: $($info.authors)", "Copyright: $($info.copyright)", "License: $terms", "Project: $($info.projectUrl)", "Repository: $($info.repository.url)") | Set-Content -LiteralPath (Join-Path $destination 'ATTRIBUTION.txt') -Encoding utf8

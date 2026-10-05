@@ -1,9 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 
 namespace AvaMedia.Desktop.Controls;
-// Original vector illustrations; no FormatFactory artwork is imported.
+// Generated artwork follows our original icon family; vector illustrations remain the fallback.
 public sealed class FeatureIcon : Control
 {
     public static readonly StyledProperty<string> KindProperty=AvaloniaProperty.Register<FeatureIcon,string>(nameof(Kind),"video");
@@ -11,6 +12,7 @@ public sealed class FeatureIcon : Control
     public string Kind{get=>GetValue(KindProperty);set=>SetValue(KindProperty,value);}
     public string Label{get=>GetValue(LabelProperty);set=>SetValue(LabelProperty,value);}
     static FeatureIcon(){AffectsRender<FeatureIcon>(KindProperty,LabelProperty);}
+    public FeatureIcon()=>RenderOptions.SetBitmapInterpolationMode(this,BitmapInterpolationMode.HighQuality);
     public override void Render(DrawingContext c)
     {
         var scale=Math.Min(Bounds.Width/92,Bounds.Height/80);using var transform=c.PushTransform(Matrix.CreateScale(scale,scale)*Matrix.CreateTranslation((Bounds.Width-92*scale)/2,(Bounds.Height-80*scale)/2));
@@ -18,6 +20,18 @@ public sealed class FeatureIcon : Control
         void R(double x,double y,double w,double h,string color,double radius=0)=>c.DrawRectangle(B(color),null,new Rect(x,y,w,h),radius,radius);
         void L(double x,double y,double xx,double yy,string color,double thickness=3)=>c.DrawLine(new Pen(B(color),thickness),new(x,y),new(xx,yy));
         void T(string text,double x,double y,double size,string color,bool bold=false)=>c.DrawText(new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI",FontStyle.Normal,bold?FontWeight.Bold:FontWeight.Normal),size,B(color)),new(x,y));
+        if (FeatureIconAssets.Get(Kind) is { } artwork)
+        {
+            c.DrawImage(artwork, new Rect(6,0,80,80));
+            if (Kind is "video" or "formats" or "audio" or "image" or "document")
+            {
+                var label = Label.ToUpperInvariant();
+                var color = label switch { "MKV"=>"#545451", "GIF"=>"#37B37E", "WEBM"=>"#686A5E", _=>Kind=="audio"?"#8BB839":Kind=="image"?"#23AD88":Kind=="document"?"#D16B58":"#507CAE" };
+                R(7,7,Math.Max(45,label.Length*8+10),21,color,2);
+                T(label,12,8,13,"#FFFFFF",true);
+            }
+            return;
+        }
         void Film(double x,double y,double w=44,double h=45)
         {
             R(x,y,w,h,"#26333D",2);R(x+8,y+4,w-16,h-8,"#22A3D0",1);
@@ -44,6 +58,12 @@ public sealed class FeatureIcon : Control
         }
         else if(Kind=="join") {Film(6,12);Film(25,26);T("+",54,24,32,"#FF9B28",true);T("♫",72,10,43,"#63B923",true);}
         else if(Kind=="split") {Film(3,30,32,35);c.DrawEllipse(blue,null,new Point(62,21),18,18);for(int i=0;i<4;i++){double a=i*Math.PI/2;c.DrawEllipse(Brushes.White,null,new Point(62+Math.Cos(a)*9,21+Math.Sin(a)*9),4,4);}T("♫",38,28,43,"#6CAF27",true);}
+        else if(Kind=="rotate")
+        {
+            Film(27,19,37,42);
+            c.DrawGeometry(null,new Pen(B("#68AE3A"),5),Geometry.Parse("M 18,52 A 29,29 0 1 1 75,29"));
+            c.DrawGeometry(B("#68AE3A"),null,Geometry.Parse("M 62,28 L 78,40 L 85,21 Z"));
+        }
         else if(Kind is "crop" or "clip")
         {
             if(Kind=="clip")Film(19,8,51,43);else{c.DrawRectangle(null,new Pen(B("#A9B3BA"),2),new Rect(15,6,61,60));for(int i=0;i<4;i++)R(i%2==0?12:73,i<2?3:63,6,6,"#72BADF");}

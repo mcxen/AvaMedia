@@ -30,9 +30,24 @@ public sealed partial class App : Application
                     var clipIndex = Array.IndexOf(desktop.Args, "--quick-clip");
                     if (clipIndex >= 0 && desktop.Args.Length > clipIndex + 1)
                     {
-                        var clip = new QuickClipWindow(window.Engine, Path.Combine(root,"output"), [desktop.Args[clipIndex + 1]]);
-                        clip.Show(window); await clip.Ready; await Task.Delay(300);
-                        await Capture(clip, Path.Combine(root,"quick-clip.png")); clip.Close();
+                        var clip = new EditorWindow(window.Engine, desktop.Args[clipIndex + 1], new(), "quick-workflow");
+                        clip.SetWorkflowStep(1,1);clip.Show(window);await clip.Ready;await Task.Delay(300);
+                        await Capture(clip,Path.Combine(root,"quick-clip.png"));var edit=clip.ReadClipEdit();clip.Close();
+                        var export = new ClipExportWindow([edit],Path.Combine(root,"output"));export.Show(window);await Task.Delay(200);
+                        await Capture(export,Path.Combine(root,"quick-clip-export.png"));export.Close();
+                    }
+                    var rotateIndex = Array.IndexOf(desktop.Args, "--batch-rotate");
+                    if (rotateIndex >= 0 && desktop.Args.Length > rotateIndex + 1)
+                    {
+                        var rotate = new BatchRotateWindow(window.Engine, Path.Combine(root, "output"), [desktop.Args[rotateIndex + 1]]);
+                        rotate.Show(window); await rotate.Ready;
+                        if (desktop.Args.Contains("--detect-orientation")) await rotate.DetectDirectionsAsync();
+                        await Task.Delay(300);
+                        await Capture(rotate, Path.Combine(root, "batch-rotate.png"));
+                        await File.WriteAllTextAsync(Path.Combine(root, "orientation-verification.json"),
+                            System.Text.Json.JsonSerializer.Serialize(rotate.Entries.Select(e => new { e.Name, e.Rotation, e.Detection, e.Error }),
+                                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                        rotate.Close();
                     }
                     var index = Array.IndexOf(desktop.Args, "--editor");
                     if (index >= 0 && desktop.Args.Length > index + 1)

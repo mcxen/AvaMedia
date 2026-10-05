@@ -160,6 +160,22 @@
     "repository": "https://github.com/dotnet/runtime"
   },
   {
+    "package": "Microsoft.ML.OnnxRuntime",
+    "version": "1.23.2",
+    "license": "LICENSE",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/Microsoft/onnxruntime.git"
+  },
+  {
+    "package": "Microsoft.ML.OnnxRuntime.Managed",
+    "version": "1.23.2",
+    "license": "LICENSE.txt",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/microsoft/onnxruntime"
+  },
+  {
     "package": "Microsoft.NETCore.Platforms",
     "version": "3.1.0",
     "license": "MIT",
@@ -274,6 +290,22 @@
   {
     "package": "System.IO.Pipelines",
     "version": "8.0.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
+  },
+  {
+    "package": "System.Memory",
+    "version": "4.5.5",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": ""
+  },
+  {
+    "package": "System.Numerics.Tensors",
+    "version": "9.0.0",
     "license": "MIT",
     "authors": "Microsoft",
     "copyright": "© Microsoft Corporation. All rights reserved.",

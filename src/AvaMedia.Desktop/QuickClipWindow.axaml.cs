@@ -19,6 +19,7 @@ public sealed class QuickClipEntry : Observable
     public ConversionOptions Options { get; private set; }
     public MediaInfo? Info { get; internal set; }
     public Task Ready { get; internal set; } = Task.CompletedTask;
+    internal int LoadRevision { get; set; }
     private Bitmap? _thumbnail;
     public Bitmap? Thumbnail { get => _thumbnail; internal set => Set(ref _thumbnail, value); }
     private string _details = "正在读取媒体信息…";
@@ -32,13 +33,13 @@ public sealed class QuickClipEntry : Observable
     public string Range => $"剪辑区间  {Time(Options.Start)} → {(Options.End > 0 ? Time(Options.End) : "结尾")}";
     public QuickClipEntry(string path, ConversionOptions options) { Path = path; Options = options.Clone(); }
     public void SetOptions(ConversionOptions options) { Options = options.Clone(); Raise(nameof(Range)); }
-    internal static string Time(double seconds) => TimeSpan.FromSeconds(seconds).ToString(@"hh\:mm\:ss\.fff");
+    internal static string Time(double seconds) => MediaTime.Format(seconds);
 }
 
 public sealed partial class QuickClipWindow : Window
 {
     public const string SourceDirectory = "输出至源文件目录";
-    private readonly MediaEngine _engine;
+    private readonly IMediaEngine _engine;
     private readonly ObservableCollection<QuickClipEntry> _entries = [];
     private readonly ObservableCollection<string> _folders;
     private readonly CancellationTokenSource _stop = new();
@@ -50,7 +51,7 @@ public sealed partial class QuickClipWindow : Window
     public string Preset => FormatCombo.SelectedItem as string ?? "Fast Copy";
 
     public QuickClipWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder, []) { }
-    public QuickClipWindow(MediaEngine engine, string outputFolder, string[] files)
+    public QuickClipWindow(IMediaEngine engine, string outputFolder, string[] files)
     {
         InitializeComponent(); _engine = engine;
         _folders = new([System.IO.Path.GetFullPath(outputFolder), SourceDirectory]);
@@ -79,20 +80,21 @@ public sealed partial class QuickClipWindow : Window
 
     private async Task LoadEntry(QuickClipEntry entry)
     {
-        var acquired = false;
+        var acquired = false;var revision=++entry.LoadRevision;var options=entry.Options.Clone();
+        entry.Info=null;entry.Error="";entry.Details="正在读取媒体信息…";entry.PreviewStatus="读取中…";
         try
         {
             await _loadSlots.WaitAsync(_stop.Token); acquired = true;
-            var info = await _engine.Probe(entry.Path, _stop.Token,entry.Options.VideoStreamIndex,entry.Options.AudioStreamIndex);
+            var info = await _engine.Probe(entry.Path, _stop.Token,options.VideoStreamIndex,options.AudioStreamIndex);
             if (!info.HasVideo) throw new InvalidDataException("此文件不包含视频画面。");
             var ratio = (double)info.Width / Math.Max(1, info.Height);
             var width = Math.Clamp((int)Math.Round(88 * ratio), 1, 124);
             var height = Math.Clamp((int)Math.Round(124 / Math.Max(.001, ratio)), 1, 88);
-            var bytes = await _engine.Thumbnail(entry.Path, Math.Min(entry.Options.Start, Math.Max(0, info.Duration - .04)), width, height, _stop.Token,videoStreamIndex:entry.Options.VideoStreamIndex);
+            var bytes = await _engine.Thumbnail(entry.Path, Math.Min(options.Start, info.Duration), width, height, _stop.Token,videoStreamIndex:options.VideoStreamIndex,endExclusive:info.Duration>0&&options.Start>=info.Duration);
             using var stream = new MemoryStream(bytes); var bitmap = new Bitmap(stream);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (_closed || !_entries.Contains(entry)) { bitmap.Dispose(); return; }
+                if (_closed || revision!=entry.LoadRevision || !_entries.Contains(entry)) { bitmap.Dispose(); return; }
                 entry.Info = info; entry.Error = ""; entry.Thumbnail?.Dispose(); entry.Thumbnail = bitmap; entry.PreviewStatus = "";
                 entry.Details = $"{QuickClipEntry.Time(info.Duration)}  ·  {info.Width} × {info.Height}  ·  {info.VideoCodec} / {(info.HasAudio ? info.AudioCodec : "无音轨")}  ·  {new FileInfo(entry.Path).Length / 1048576d:0.00} MB";
             });
@@ -102,8 +104,8 @@ public sealed partial class QuickClipWindow : Window
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (_closed || !_entries.Contains(entry)) return;
-                entry.Error = ex.Message; entry.Details = "无法读取：" + ex.Message; entry.PreviewStatus = "预览不可用";
+                if (_closed || revision!=entry.LoadRevision || !_entries.Contains(entry)) return;
+                entry.Info=null;entry.Thumbnail?.Dispose();entry.Thumbnail=null;entry.Error = ex.Message; entry.Details = "无法读取：" + ex.Message; entry.PreviewStatus = "预览不可用";
             });
         }
         finally { if (acquired) _loadSlots.Release(); }
@@ -217,8 +219,12 @@ public sealed partial class QuickClipWindow : Window
     public void SplitEntry(QuickClipEntry entry, int parts)
     {
         if (entry.Info is null) throw new InvalidOperationException("请等待媒体信息读取完成。");
-        var index = _entries.IndexOf(entry); if (index < 0) return;
         var options = QuickClipBatch.Split(entry.Options, entry.Info.Duration, parts);
+        ReplaceWithSegments(entry, options);
+    }
+    private void ReplaceWithSegments(QuickClipEntry entry, IReadOnlyList<ConversionOptions> options)
+    {
+        var index = _entries.IndexOf(entry); if (index < 0) return;
         _entries.RemoveAt(index); entry.Thumbnail?.Dispose();
         foreach (var draft in options)
         {
@@ -229,15 +235,10 @@ public sealed partial class QuickClipWindow : Window
     private async void SplitClick(object? sender, RoutedEventArgs e)
     {
         if (Entry(sender) is not { } entry) return; await entry.Ready;
+        if (_closed || !_entries.Contains(entry)) return;
         if (entry.Info is null) { await Ui.Message(this, "分割失败", entry.Error); return; }
-        var dialog = new Window { Title = "分割", Width = 400, Height = 240, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var area = new StackPanel { Spacing = 16, Margin = new Thickness(20) };
-        area.Children.Add(Ui.Text("将当前剪辑区间等分为多段"));
-        var count = new NumericUpDown { Minimum = 2, Maximum = 100, Increment = 1, Value = 2, FormatString = "0" }; area.Children.Add(count);
-        area.Children.Add(new TextBlock { Text = "每段分别加入队列。Fast Copy 边界可能受关键帧影响。", TextWrapping = Avalonia.Media.TextWrapping.Wrap, Classes = { "caption" } });
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
-        buttons.Children.Add(Ui.Button("取消", () => dialog.Close(0))); buttons.Children.Add(Ui.Button("确定", () => dialog.Close((int)(count.Value ?? 2)))); area.Children.Add(buttons); dialog.Content = area;
-        var parts = await dialog.ShowDialog<int>(this); if (parts > 0) SplitEntry(entry, parts);
+        var options = await new ClipSplitWindow(entry.Options, entry.Info.Duration).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
+        if (!_closed && options is not null) ReplaceWithSegments(entry, options);
     }
 
     public ConversionRequest CreateRequest()
@@ -249,8 +250,8 @@ public sealed partial class QuickClipWindow : Window
             if (!entry.Ready.IsCompleted) throw new InvalidOperationException("请等待媒体信息读取完成。");
             if (entry.Info is null) throw new InvalidDataException(entry.Name + "：" + entry.Error);
             var options = QuickClipBatch.ResolveOptions(entry.Path, Preset, entry.Options);
-            if (options.Start >= entry.Info.Duration || options.End > entry.Info.Duration + .001) throw new ArgumentException(entry.Name + "：剪辑区间超出媒体时长。");
-            MediaEngine.Validate(new() { FeatureId = "clip", Inputs = [entry.Path], Options = options, Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-validation-" + Guid.NewGuid() + "." + options.Format) });
+            try{MediaEngine.ValidateEdits(new() { FeatureId = "clip", Inputs = [entry.Path], Options = options, Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-validation-" + Guid.NewGuid() + "." + options.Format) },[entry.Info]);}
+            catch(ArgumentException ex){throw new ArgumentException(entry.Name+"："+ex.Message,ex);}
             items.Add(new(entry.Path, options));
         }
         var output = OutputCombo.SelectedItem as string ?? _folders[0];

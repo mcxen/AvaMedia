@@ -28,7 +28,7 @@ public sealed partial class BatchCropWindow : Window
 {
     public const string PixelMode = "同一像素区域";
     public const string RelativeMode = "按画面比例";
-    private readonly MediaEngine _engine;
+    private readonly IMediaEngine _engine;
     private readonly ObservableCollection<BatchCropEntry> _entries = [];
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _loadSlots = new(2);
@@ -46,11 +46,12 @@ public sealed partial class BatchCropWindow : Window
     public Task Ready => WaitForReady();
 
     public BatchCropWindow() : this(new MediaEngine(new()),new AppSettings().OutputFolder) { }
-    public BatchCropWindow(MediaEngine engine, string outputFolder, IEnumerable<string>? files = null)
+    public BatchCropWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null)
     {
         InitializeComponent(); _engine = engine;
         FileList.ItemsSource = _entries;
         ModeCombo.ItemsSource = new[] { PixelMode, RelativeMode }; ModeCombo.SelectedIndex = 0;
+        CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;
         FormatCombo.ItemsSource = new[] { "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
         foreach (var input in new[] { CropXInput, CropYInput, CropWidthInput, CropHeightInput })
@@ -247,6 +248,7 @@ public sealed partial class BatchCropWindow : Window
             }
         }
         CropLayer.InvalidateVisual();
+        ApplyRatio();
     }
 
     public BatchCropRequest CreateRequest()
@@ -259,8 +261,8 @@ public sealed partial class BatchCropWindow : Window
             if (entry.Error is not null) throw new ArgumentException(entry.Name + "：" + entry.Error);
             if (entry.Info is null) throw new ArgumentException("视频信息正在读取，请稍候。");
             var options = BatchCrop.ResolveOptions(Area, _reference.Info, entry.Info, Mode, _options);
-            MediaEngine.Validate(new() { FeatureId = "crop", Inputs = [entry.Path], Options = options,
-                Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-crop-" + Guid.NewGuid() + "." + options.Format) });
+            MediaEngine.ValidateEdits(new() { FeatureId = "crop", Inputs = [entry.Path], Options = options,
+                Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-crop-" + Guid.NewGuid() + "." + options.Format) },[entry.Info]);
         }
         if (string.IsNullOrWhiteSpace(OutputInput.Text)) throw new ArgumentException("请选择输出目录。");
         return new(included.Select(e => new BatchCropInput(e.Path, e.Info!)).ToArray(), Area, _reference.Info,
@@ -311,7 +313,13 @@ public sealed partial class BatchCropWindow : Window
         RefreshValidation();
     }
     private void ResetClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
-    { if (_active is not null) SetReferenceToFull(_active); }
+    { CropRatio.SelectedIndex=0;if (_active is not null) SetReferenceToFull(_active); }
+    private void RatioChanged(object? sender, SelectionChangedEventArgs args) => ApplyRatio();
+    private void ApplyRatio()
+    {
+        if(CropLayer is null)return;
+        CropLayer.AspectRatio=CropRatio.SelectedIndex switch{1=>_active?.Info is {Height:>0} media?(double)media.Width/media.Height:0,2=>16d/9,3=>4d/3,4=>1,5=>9d/16,_=>0};
+    }
     private void ModeChanged(object? sender, SelectionChangedEventArgs args) => RefreshValidation();
     private void FormatChanged(object? sender, SelectionChangedEventArgs args)
     {
