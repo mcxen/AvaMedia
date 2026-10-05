@@ -1,0 +1,348 @@
+using System.Diagnostics;
+using System.Text.Json;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using AvaMedia.Core;
+
+namespace AvaMedia.Desktop;
+
+public partial class PlayerWindow : Window
+{
+    private readonly IMediaEngine _engine;
+    private readonly Func<IMediaEngine, string, IPlaybackSession> _factory;
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly DispatcherTimer _chromeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private readonly DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private CancellationTokenSource? _load, _seek;
+    private IPlaybackSession? _player;
+    private Bitmap? _still;
+    private MediaInfo? _info;
+    private readonly Stopwatch _opening = new();
+    private TaskCompletionSource _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private string[] _playlist = [];
+    private int _fileIndex, _revision, _seekGeneration;
+    private bool _updating, _closed, _muted, _playIntent, _pendingSeek;
+    private double _position, _speed = 1, _lastSpeed = 1;
+    private WindowState _windowedState;
+    private readonly double[] _speeds = [.25, .5, .75, 1, 1.25, 1.5, 2, 3, 4];
+    public string CurrentPath { get; private set; } = "";
+    public string PlaybackError { get; private set; } = "";
+    public double SourcePosition => _position;
+    public double PlaybackSpeed => _speed;
+    public bool IsPlaying => _player?.IsPlaying == true;
+    public bool IsPaused => _player?.IsPaused == true;
+    public double FirstFrameLatencyMs { get; private set; }
+    public DateTimeOffset? FirstFrameUtc { get; private set; }
+    public Task Ready { get; private set; } = Task.CompletedTask;
+    public Task CommandReady { get; private set; } = Task.CompletedTask;
+    public Task FirstFrameReady => _firstFrame.Task;
+
+    public PlayerWindow() : this(new MediaEngine(new())) { }
+    public PlayerWindow(IMediaEngine engine, IEnumerable<string>? files = null, Func<IMediaEngine, string, IPlaybackSession>? factory = null)
+    {
+        InitializeComponent(); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p));
+        _playlist = files?.Select(Path.GetFullPath).Distinct().ToArray() ?? [];
+        PlayerSeek.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && !_updating && _info is not null) CommandReady = SeekAsync(PlayerSeek.Value); };
+        PlayerVolume.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && _player is not null) { _player.Volume = (float)(PlayerVolume.Value / 100); Notice($"音量 {PlayerVolume.Value:0}%"); } };
+        HeaderBar.PointerPressed += (_, e) =>
+        {
+            if (e.Source is Control source && (source is Button || source.GetVisualAncestors().Any(a => a is Button))) return;
+            if (!e.GetCurrentPoint(HeaderBar).Properties.IsLeftButtonPressed) return;
+            if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            else BeginMoveDrag(e);
+        };
+        VideoArea.ContextRequested += (_, e) => { var menu = BuildMenu(); menu.Open(VideoArea); e.Handled = true; };
+        AddHandler(KeyDownEvent, KeyPressed, RoutingStrategies.Tunnel);
+        VideoArea.PointerPressed += (_, e) => { if (e.GetCurrentPoint(VideoArea).Properties.IsLeftButtonPressed && e.ClickCount == 2) { ToggleFullscreen(); e.Handled = true; } };
+        VideoArea.PointerWheelChanged += (_, e) => { PlayerVolume.Value = Math.Clamp(PlayerVolume.Value + e.Delta.Y * 5, 0, 100); e.Handled = true; };
+        PointerMoved += (_, _) => ShowChrome();
+        _chromeTimer.Tick += (_, _) => { _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen && !ShortcutHelp.IsVisible) { ControlsBar.IsVisible = false; Cursor = new(StandardCursorType.None); } };
+        _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); PlayerOsd.IsVisible = false; };
+        ActualThemeVariantChanged += (_, _) => ShowChrome();
+        PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) ShowChrome(); if (e.Property == BoundsProperty) PlayerVolume.IsVisible = Bounds.Width >= 900; };
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
+        AddHandler(DragDrop.DropEvent, (_, e) => { var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToArray(); if (paths?.Length > 0) { _playlist = paths; _fileIndex = 0; Ready = OpenAsync(paths[0]); } });
+        Opened += (_, _) => { if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
+        Closed += (_, _) =>
+        {
+            _closed = true; _revision++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel();
+            _player?.Dispose(); VideoImage.Source = null; _still?.Dispose(); _firstFrame.TrySetCanceled();
+            _load?.Dispose(); _seek?.Dispose(); _lifetime.Dispose();
+        };
+        RefreshTransport(); RefreshPlaylist(); ShowChrome();
+    }
+
+    public Task OpenAsync(string path)
+        => StartOpen(path, 0, 0, 0, true);
+    private Task StartOpen(string path, int video, int audio, double position, bool playing)
+    {
+        _load?.Cancel(); _load?.Dispose(); _seek?.Cancel();
+        _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _seekGeneration++; _pendingSeek = false;
+        var revision = ++_revision;
+        var index = Array.IndexOf(_playlist, Path.GetFullPath(path));
+        if (index >= 0) _fileIndex = index; else { _playlist = [Path.GetFullPath(path)]; _fileIndex = 0; }
+        RefreshPlaylist();
+        _firstFrame.TrySetCanceled(); _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FirstFrameUtc = null; FirstFrameLatencyMs = 0; _opening.Restart();
+        return Ready = OpenCore(Path.GetFullPath(path), revision, _load.Token, video, audio, position, playing);
+    }
+    private async Task OpenCore(string path, int revision, CancellationToken token, int video, int audio, double position, bool playing)
+    {
+        try
+        {
+            var old = _player; _player = null; _info = null; RefreshTransport();
+            if (old is not null) { await old.Stop(); old.Dispose(); }
+            if (!Current(revision)) return;
+            CurrentPath = path; Title = Path.GetFileName(path) + " — AvaMedia 播放器"; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
+            PlaybackError = ""; PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; VideoImage.Source = null; _still?.Dispose(); _still = null;
+            var info = await _engine.Probe(path, token, video, audio); token.ThrowIfCancellationRequested();
+            if (!Current(revision)) return;
+            if (info.Duration <= 0 || !info.HasVideo && !info.HasAudio) throw new InvalidDataException("该文件没有可播放的音视频轨。");
+            _info = info; var player = _factory(_engine, path); _player = player;
+            _playIntent = playing;
+            player.Configure(info); player.Speed = _speed; player.Volume = (float)(PlayerVolume.Value / 100); player.Muted = _muted;
+            player.Updated += position =>
+            {
+                if (!Current(revision) || !ReferenceEquals(player, _player) || _pendingSeek) return;
+                SetPosition(position);
+                if (info.HasVideo) { VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); PlayerStatus.IsVisible = false; }
+                else { PlayerStatus.Text = "音频播放"; }
+                MarkFirstFrame();
+            };
+            player.Error += message => { if (Current(revision)) { PlaybackError = message; Notice(message); } };
+            player.Finished += () => { if (Current(revision)) CommandReady = Ended(player); };
+            _updating = true; PlayerSeek.Maximum = info.Duration; _updating = false;
+            PlayerTotal.Text = EditorTime.Format(info.Duration); SetPosition(Math.Clamp(position, 0, Math.Max(0, info.Duration - .001)));
+            await player.Play(_position, info.HasVideo, info.Duration); if (!playing) player.Pause(); token.ThrowIfCancellationRequested();
+            if (!Current(revision)) return;
+            RefreshTransport(); Notice($"{info.Width} × {info.Height} · {MediaEngine.Number(info.FrameRate)} fps");
+            await player.FirstFrame.WaitAsync(token); if (!Current(revision)) return; MarkFirstFrame();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!Current(revision)) return;
+            PlaybackError = ex.Message; PlayerStatus.Text = "播放失败：" + ex.Message; PlayerStatus.IsVisible = true;
+            _firstFrame.TrySetException(ex); RefreshTransport();
+        }
+    }
+    private void MarkFirstFrame()
+    {
+        if (_firstFrame.Task.IsCompleted) return;
+        FirstFrameUtc = DateTimeOffset.UtcNow; FirstFrameLatencyMs = _opening.Elapsed.TotalMilliseconds; _firstFrame.TrySetResult();
+    }
+    private bool Current(int revision) => !_closed && revision == _revision;
+    private async Task Ended(IPlaybackSession player)
+    {
+        await player.Stop();
+        if (_closed || !ReferenceEquals(_player, player)) return;
+        _playIntent = false;
+        RefreshTransport();
+        if (_fileIndex + 1 < _playlist.Length && string.IsNullOrEmpty(PlaybackError)) await ChangeFile(1);
+        else Notice(string.IsNullOrEmpty(PlaybackError) ? "播放结束" : PlaybackError);
+    }
+    private void SetPosition(double position)
+    {
+        _position = Math.Clamp(position, 0, _info?.Duration ?? 0);
+        _updating = true; PlayerSeek.Value = _position; _updating = false; PlayerTime.Text = EditorTime.Format(_position);
+    }
+    private void Notice(string message) { PlayerNotice.Text = message; PlayerOsd.IsVisible = true; _noticeTimer.Stop(); _noticeTimer.Start(); }
+    private void RefreshTransport()
+    {
+        var playing = _info is not null && _playIntent;
+        PlayerPlayIcon.Kind = playing ? "pause" : "play";
+        Avalonia.Automation.AutomationProperties.SetName(PlayerPlayButton, playing ? "暂停" : "播放");
+        ToolTip.SetTip(PlayerPlayButton, playing ? "暂停（Space）" : "播放（Space）");
+        PlayerPlayButton.IsEnabled = PlayerStopButton.IsEnabled = PlayerSeek.IsEnabled = _info is not null;
+        PlayerMuteButton.IsEnabled = _info?.HasAudio == true;
+        PreviousFileButton.IsEnabled = _fileIndex > 0;
+        NextFileButton.IsEnabled = _fileIndex + 1 < _playlist.Length;
+    }
+    public async Task TogglePlaybackAsync()
+    {
+        if (_player is not { } player || _info is not { } info) return;
+        _seek?.Cancel(); _seekGeneration++; _pendingSeek = false;
+        _playIntent = !_playIntent;
+        if (!_playIntent) player.Pause();
+        else if (player.IsPaused) player.Resume();
+        else { if (_position >= info.Duration - .001) SetPosition(0); await player.Play(_position, info.HasVideo, info.Duration); }
+        RefreshTransport();
+    }
+    public async Task SeekAsync(double seconds, bool? resume = null)
+    {
+        if (_player is not { } player || _info is not { } info) return;
+        var playing = resume ?? _playIntent; var revision = _revision;
+        _playIntent = playing; var generation = ++_seekGeneration; _pendingSeek = true;
+        _seek?.Cancel(); _seek?.Dispose(); _seek = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var token = _seek.Token;
+        var position = Math.Clamp(seconds, 0, Math.Max(0, info.Duration - (info.FrameRate > 0 ? 1 / info.FrameRate : .001)));
+        SetPosition(position);
+        try
+        {
+            await Task.Delay(60, token); await player.Stop(); token.ThrowIfCancellationRequested();
+            if (!Current(revision)) return;
+            player.Speed = _speed;
+            if (playing) await player.Play(position, info.HasVideo, info.Duration);
+            else if (info.HasVideo)
+            {
+                var data = await _engine.Thumbnail(CurrentPath, position, 1280, 720, token, pad: false, videoStreamIndex: info.VideoStreamIndex);
+                token.ThrowIfCancellationRequested(); if (!Current(revision)) return;
+                using var stream = new MemoryStream(data); var frame = new Bitmap(stream);
+                VideoImage.Source = frame; _still?.Dispose(); _still = frame; PlayerStatus.IsVisible = false;
+            }
+            token.ThrowIfCancellationRequested(); _pendingSeek = false; RefreshTransport();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (Current(revision)) { PlaybackError = ex.Message; Notice(ex.Message); } }
+        finally { if (generation == _seekGeneration) _pendingSeek = false; }
+    }
+    public async Task SetSpeedAsync(double speed)
+    {
+        _speed = Math.Clamp(Math.Round(speed, 2), .25, 4);
+        PlayerSpeed.Content = MediaEngine.Number(_speed) + "×";
+        if (_player is { HasSession: true }) await SeekAsync(_position, _playIntent);
+        else if (_player is not null) _player.Speed = _speed;
+        Notice($"速度 {MediaEngine.Number(_speed)}×");
+    }
+    public async Task ExecuteAsync(PlayerCommand command)
+    {
+        ShowChrome();
+        switch (command)
+        {
+            case PlayerCommand.TogglePlayback: await TogglePlaybackAsync(); break;
+            case PlayerCommand.ToggleFullscreen: ToggleFullscreen(); break;
+            case PlayerCommand.ExitFullscreen: if (WindowState == WindowState.FullScreen) ToggleFullscreen(); break;
+            case PlayerCommand.Back5: await SeekAsync(_position - 5); break;
+            case PlayerCommand.Forward5: await SeekAsync(_position + 5); break;
+            case PlayerCommand.Back30: await SeekAsync(_position - 30); break;
+            case PlayerCommand.Forward30: await SeekAsync(_position + 30); break;
+            case PlayerCommand.Back60: await SeekAsync(_position - 60); break;
+            case PlayerCommand.Forward60: await SeekAsync(_position + 60); break;
+            case PlayerCommand.VolumeUp: PlayerVolume.Value = Math.Min(100, PlayerVolume.Value + 5); break;
+            case PlayerCommand.VolumeDown: PlayerVolume.Value = Math.Max(0, PlayerVolume.Value - 5); break;
+            case PlayerCommand.Mute:
+                if (_player is null) break;
+                _muted = !_player.Muted; _player.Muted = _muted; PlayerMuteIcon.Kind = _player.Muted ? "muted" : "speaker";
+                Avalonia.Automation.AutomationProperties.SetName(PlayerMuteButton, _player.Muted ? "取消静音" : "静音"); Notice(_player.Muted ? "静音" : "取消静音"); break;
+            case PlayerCommand.Slower: await SetSpeedAsync(_speed - .1); break;
+            case PlayerCommand.Faster: await SetSpeedAsync(_speed + .1); break;
+            case PlayerCommand.NormalSpeed:
+                var next = Math.Abs(_speed - 1) < .001 ? _lastSpeed : 1;
+                if (Math.Abs(_speed - 1) > .001) _lastSpeed = _speed;
+                await SetSpeedAsync(next); break;
+            case PlayerCommand.PreviousFrame: case PlayerCommand.NextFrame:
+                if (_info?.HasVideo != true) break;
+                _playIntent = false; _player?.Pause();
+                var frame = await _engine.AdjacentFrameTime(CurrentPath, _position, command == PlayerCommand.PreviousFrame ? -1 : 1, _lifetime.Token, _info.VideoStreamIndex);
+                await SeekAsync(frame, false); break;
+            case PlayerCommand.Restart: await SeekAsync(0); break;
+            case PlayerCommand.PreviousFile: await ChangeFile(-1); break;
+            case PlayerCommand.NextFile: await ChangeFile(1); break;
+            case PlayerCommand.Open: await Pick(); break;
+            case PlayerCommand.Stop: await SeekAsync(0, false); break;
+            case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; break;
+            case PlayerCommand.Playlist: TogglePlaylist(); break;
+            case PlayerCommand.Settings: BuildMenu().Open(PlayerSettingsButton); break;
+        }
+    }
+    private void KeyPressed(object? sender, KeyEventArgs e)
+    {
+        if (e.Source is Control control && (control is TextBox or ComboBox || control.GetVisualAncestors().Any(a => a is TextBox or ComboBox))) return;
+        if (PlayerShortcuts.Resolve(e.Key, e.KeyModifiers) is not { } command) return;
+        e.Handled = true; CommandReady = Handle(command);
+        async Task Handle(PlayerCommand action)
+        { try { await ExecuteAsync(action); } catch (OperationCanceledException) { } catch (Exception ex) { if (!_closed) Notice(ex.Message); } }
+    }
+    public void ToggleFullscreen()
+    {
+        if (WindowState == WindowState.FullScreen) WindowState = _windowedState;
+        else { _windowedState = WindowState; WindowState = WindowState.FullScreen; }
+        Avalonia.Automation.AutomationProperties.SetName(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
+        ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏（Enter / Esc）" : "全屏（Enter / 双击画面）");
+        ShowChrome();
+    }
+    private void ShowChrome()
+    { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && ActualThemeVariant != Skin.MacOS9; ControlsBar.IsVisible = true; Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
+    private async Task Pick()
+    {
+        var paths = await Ui.Pick(this, "打开视频 / 音频", true);
+        if (paths.Length == 0 || _closed) return;
+        _playlist = paths; _fileIndex = 0; await OpenAsync(paths[0]);
+    }
+    private Task ChangeFile(int delta)
+    { var index = _fileIndex + delta; if (index < 0 || index >= _playlist.Length) return Task.CompletedTask; _fileIndex = index; return OpenAsync(_playlist[index]); }
+    private void RefreshPlaylist() { PlaylistList.ItemsSource = _playlist.Select(Path.GetFileName).ToArray(); PlaylistList.SelectedIndex = _fileIndex; }
+    private void TogglePlaylist() { PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible; }
+    private void PlaylistDoubleTapped(object? sender, RoutedEventArgs e)
+    { if (PlaylistList.SelectedIndex >= 0 && PlaylistList.SelectedIndex < _playlist.Length) CommandReady = OpenAsync(_playlist[PlaylistList.SelectedIndex]); }
+    private ContextMenu SpeedMenu()
+    {
+        var menu = new ContextMenu();
+        menu.ItemsSource = _speeds.Append(_speed).Distinct().Order().Select(speed =>
+        {
+            var item = new MenuItem { Header = MediaEngine.Number(speed) + "×", ToggleType = MenuItemToggleType.Radio, IsChecked = Math.Abs(speed - _speed) < .001 };
+            item.Click += (_, _) => CommandReady = SetSpeedAsync(speed); return item;
+        }).ToArray();
+        return menu;
+    }
+    internal ContextMenu BuildMenu()
+    {
+        MenuItem Command(string title, PlayerCommand command, KeyGesture? key = null)
+        { var item = new MenuItem { Header = title, InputGesture = key }; item.Click += (_, _) => CommandReady = ExecuteAsync(command); return item; }
+        List<object> items = [Command("打开文件…", PlayerCommand.Open, new(Key.F3)), new Separator(),
+            Command(_playIntent ? "暂停" : "播放", PlayerCommand.TogglePlayback, new(Key.Space)), Command("停止", PlayerCommand.Stop, new(Key.F4)),
+            Command("上一文件", PlayerCommand.PreviousFile, new(Key.PageUp)), Command("下一文件", PlayerCommand.NextFile, new(Key.PageDown)),
+            new MenuItem { Header = "播放速度", ItemsSource = SpeedMenu().ItemsSource }, Command(_muted ? "取消静音" : "静音", PlayerCommand.Mute, new(Key.M))];
+        if (_info is { } info)
+        {
+            using var json = JsonDocument.Parse(info.RawJson);
+            foreach (var type in new[] { "video", "audio" })
+            {
+                var streams = json.RootElement.GetProperty("streams").EnumerateArray().Where(s => s.GetProperty("codec_type").GetString() == type).ToArray();
+                if (streams.Length <= 1) continue;
+                var choices = streams.Select((stream, index) =>
+                {
+                    var codec = stream.GetProperty("codec_name").GetString();
+                    var item = new MenuItem { Header = $"{index + 1}: {codec}", ToggleType = MenuItemToggleType.Radio, IsChecked = index == (type == "video" ? info.VideoStreamIndex : info.AudioStreamIndex) };
+                    item.Click += (_, _) => CommandReady = StartOpen(CurrentPath, type == "video" ? index : info.VideoStreamIndex, type == "audio" ? index : info.AudioStreamIndex, _position, _playIntent);
+                    return item;
+                }).ToArray();
+                items.Add(new MenuItem { Header = type == "video" ? "视频轨" : "音频轨", ItemsSource = choices });
+            }
+        }
+        var uniform = new MenuItem { Header = "保持画面比例", ToggleType = MenuItemToggleType.Radio, IsChecked = VideoImage.Stretch == Stretch.Uniform };
+        uniform.Click += (_, _) => VideoImage.Stretch = Stretch.Uniform;
+        var fill = new MenuItem { Header = "拉伸填满", ToggleType = MenuItemToggleType.Radio, IsChecked = VideoImage.Stretch == Stretch.Fill };
+        fill.Click += (_, _) => VideoImage.Stretch = Stretch.Fill;
+        items.Add(new MenuItem { Header = "画面比例", ItemsSource = new[] { uniform, fill } });
+        items.Add(new Separator()); items.Add(Command("全屏 / 窗口", PlayerCommand.ToggleFullscreen, new(Key.Enter)));
+        items.Add(Command("播放列表", PlayerCommand.Playlist, new(Key.F6))); items.Add(Command("快捷键", PlayerCommand.Help, new(Key.F1)));
+        var properties = new MenuItem { Header = "媒体信息", IsEnabled = _info is not null };
+        properties.Click += (_, _) => { if (_info is { } info) CommandReady = Ui.Message(this, "媒体信息", $"{Path.GetFileName(CurrentPath)}\n时长：{EditorTime.Format(info.Duration)}\n画面：{info.Width} × {info.Height}\n视频：{info.VideoCodec} · {MediaEngine.Number(info.FrameRate)} fps\n音频：{info.AudioCodec} · {info.AudioSampleRate} Hz · {info.AudioChannels} 声道"); };
+        items.Add(properties);
+        var close = new MenuItem { Header = "关闭" }; close.Click += (_, _) => Close(); items.Add(close);
+        return new ContextMenu { ItemsSource = items };
+    }
+    private void MenuClick(object? sender, RoutedEventArgs e) => BuildMenu().Open(PlayerMenuButton);
+    private void SpeedClick(object? sender, RoutedEventArgs e) => SpeedMenu().Open(PlayerSpeed);
+    private void SettingsClick(object? sender, RoutedEventArgs e) => BuildMenu().Open(PlayerSettingsButton);
+    private void PlaylistClick(object? sender, RoutedEventArgs e) => TogglePlaylist();
+    private void MinimizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void MaximizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void CloseClick(object? sender, RoutedEventArgs e) => Close();
+    private void OpenClick(object? sender, RoutedEventArgs e) => CommandReady = Pick();
+    private void PlayClick(object? sender, RoutedEventArgs e) => CommandReady = TogglePlaybackAsync();
+    private void StopClick(object? sender, RoutedEventArgs e) => CommandReady = ExecuteAsync(PlayerCommand.Stop);
+    private void MuteClick(object? sender, RoutedEventArgs e) => CommandReady = ExecuteAsync(PlayerCommand.Mute);
+    private void PreviousClick(object? sender, RoutedEventArgs e) => CommandReady = ChangeFile(-1);
+    private void NextClick(object? sender, RoutedEventArgs e) => CommandReady = ChangeFile(1);
+    private void FullscreenClick(object? sender, RoutedEventArgs e) => ToggleFullscreen();
+}

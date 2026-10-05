@@ -79,7 +79,7 @@ public partial class EditorWindow : Window
         try
         {
             _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_player.SetStreams(_options.VideoStreamIndex,_options.AudioStreamIndex);
-            var oldPreview=PreviewImage.Source as Bitmap;PreviewImage.Source=null;if(oldPreview!=_player.Frame)oldPreview?.Dispose();if(_info.HasVideo)_player.SetVideoSize(_info.Width,_info.Height);
+            var oldPreview=PreviewImage.Source as Bitmap;PreviewImage.Source=null;if(oldPreview!=_player.Frame)oldPreview?.Dispose();_player.Configure(_info);
             TrimBar.Duration=Math.Max(0,_info.Duration);if(_options.End==0)_options.End=TrimBar.Duration;_updating=true;SeekBar.Maximum=Math.Max(0,_info.Duration);SetPosition(double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,SeekBar.Maximum):0);TotalTime.Text=ShortTime(_info.Duration);UpdateTimes();
             CropLayer.SourceWidth=Math.Max(1,_info.Width);CropLayer.SourceHeight=Math.Max(1,_info.Height);ApplyRatio();
             CropLayer.PixelStep=MediaEngine.IsImage(_options.Format)?1:2;
@@ -160,6 +160,8 @@ public partial class EditorWindow : Window
     private void PlayClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_playbackReady=TogglePlayback();
     private async Task TogglePlayback()
     {
+        if (_player.IsPlaying) { _player.Pause(); SetPlaybackButton(false); return; }
+        if (_player.IsPaused) { _player.Resume(); SetPlaybackButton(true); return; }
         if(_info is null||_playBusy)return;var wasPlaying=_player.IsPlaying;var (revision,token)=BeginPreview();_playBusy=true;
         try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);if(wasPlaying)return;await _audioReady.WaitAsync(token);if(!CurrentPreview(revision))return;if(_position>=_info.Duration-.04)SetPosition(0);_playRevision=revision;await _player.Play(_position,_info.HasVideo,_info.Duration);if(CurrentPreview(revision))SetPlaybackButton(true);}
         catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text="播放失败："+ex.Message;PreviewStatus.IsVisible=true;}}finally{_playBusy=false;}

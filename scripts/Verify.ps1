@@ -7,7 +7,7 @@ $reportRoot = Join-Path $taskRoot ('artifacts/test-' + (Get-Date -Format 'yyyyMM
 New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
 $suites = if ($Suite -eq 'Ablation') { @('AblationTests') } else {
     @('SmokeTests','FunctionTests','QuickClipTests','QuickWorkflowTests','ClipCropTests','AudioOptionsTests','SubtitleTests',
-      'BatchCropTests','BatchRotateTests','UiChecks','BatchTests','BatchUiTests','AblationTests','SkinTests','EditorStyleTests','ThemeResourceTests','SettingsTests','InterfaceTests','ProgressTests')
+      'BatchCropTests','BatchRotateTests','UiChecks','BatchTests','BatchUiTests','AblationTests','SkinTests','EditorStyleTests','ThemeResourceTests','SettingsTests','InterfaceTests','PlayerTests','ProgressTests')
 }
 $results = @()
 $status = 'failed'

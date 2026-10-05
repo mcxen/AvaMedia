@@ -7,5 +7,6 @@
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Platinum.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ControlRoles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/EditorStyles.axaml" />
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/PlayerStyles.axaml" />
   </Application.Styles>
 </Application>

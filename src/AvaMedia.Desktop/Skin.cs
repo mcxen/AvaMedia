@@ -45,12 +45,12 @@ public sealed class Skin : AvaloniaObject
         private void Changed(object? sender, EventArgs e) => Refresh();
         private void PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
-            if (e.Property == ContentControl.ContentProperty) Refresh();
+            if (e.Property == ContentControl.ContentProperty || e.Property == Window.WindowStateProperty) Refresh();
         }
         private void Refresh()
         {
             if (_changing) return;
-            var classic = _window.ActualThemeVariant == MacOS9;
+            var classic = _window.ActualThemeVariant == MacOS9 && _window.WindowState != WindowState.FullScreen;
             _window.Classes.Set("mac-os9", classic);
             _changing = true;
             try

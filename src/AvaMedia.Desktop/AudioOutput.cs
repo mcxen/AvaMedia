@@ -7,22 +7,24 @@ internal interface IAudioOutput : IDisposable
 {
     float Volume { set; }
     void Play();
+    void Pause();
     void Stop();
 }
 
 internal static class AudioOutput
 {
-    public static IAudioOutput Create(WaveFileReader reader, Action<string> error) =>
+    public static IAudioOutput Create(IWaveProvider reader, Action<string> error) =>
         OperatingSystem.IsMacOS() ? new MacAudioOutput(reader,error) :
         OperatingSystem.IsWindows() ? new WindowsAudioOutput(reader) :
         throw new PlatformNotSupportedException("声音预览支持 Windows 和 macOS。");
 
     private sealed class WindowsAudioOutput : IAudioOutput
     {
-        private readonly WaveOutEvent _output=new();
-        public WindowsAudioOutput(WaveFileReader reader){try{_output.Init(reader);}catch{_output.Dispose();throw;}}
+        private readonly WaveOutEvent _output=new() { DesiredLatency=60, NumberOfBuffers=3 };
+        public WindowsAudioOutput(IWaveProvider reader){try{_output.Init(reader);}catch{_output.Dispose();throw;}}
         public float Volume { set=>_output.Volume=value; }
         public void Play()=>_output.Play();
+        public void Pause()=>_output.Pause();
         public void Stop()=>_output.Stop();
         public void Dispose()=>_output.Dispose();
     }
@@ -32,19 +34,19 @@ internal static class AudioOutput
 internal sealed class MacAudioOutput : IAudioOutput
 {
     private const string Library="/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox";
-    private readonly WaveFileReader _reader;
+    private readonly IWaveProvider _reader;
     private readonly Action<string> _error;
     private readonly QueueCallback _callback;
     private readonly object _sync=new();
     private readonly byte[] _samples;
     private IntPtr _queue;
     private bool _stopped;
-    public MacAudioOutput(WaveFileReader reader,Action<string> error)
+    public MacAudioOutput(IWaveProvider reader,Action<string> error)
     {
         _reader=reader;_error=error;_callback=Fill;
         var wave=reader.WaveFormat;
         if(wave.Encoding!=WaveFormatEncoding.Pcm || wave.BitsPerSample!=16)throw new ArgumentException("macOS 预览需要交错的 16 位 PCM。");
-        _samples=new byte[wave.AverageBytesPerSecond/10/wave.BlockAlign*wave.BlockAlign];
+        _samples=new byte[wave.AverageBytesPerSecond/50/wave.BlockAlign*wave.BlockAlign];
         var format=new StreamDescription{SampleRate=wave.SampleRate,FormatId=0x6c70636d,FormatFlags=12,BytesPerPacket=(uint)wave.BlockAlign,FramesPerPacket=1,BytesPerFrame=(uint)wave.BlockAlign,ChannelsPerFrame=(uint)wave.Channels,BitsPerChannel=16};
         Check(AudioQueueNewOutput(ref format,_callback,IntPtr.Zero,IntPtr.Zero,IntPtr.Zero,0,out _queue),"创建音频队列");
         try
@@ -55,6 +57,7 @@ internal sealed class MacAudioOutput : IAudioOutput
     }
     public float Volume { set { if(_queue!=IntPtr.Zero)Check(AudioQueueSetParameter(_queue,1,Math.Clamp(value,0,1)),"设置音量"); } }
     public void Play(){if(_queue!=IntPtr.Zero)Check(AudioQueueStart(_queue,IntPtr.Zero),"播放声音");}
+    public void Pause(){if(_queue!=IntPtr.Zero)Check(AudioQueuePause(_queue),"暂停声音");}
     public void Stop()
     {
         lock(_sync)_stopped=true;
@@ -110,6 +113,7 @@ internal sealed class MacAudioOutput : IAudioOutput
     [DllImport(Library,CallingConvention=CallingConvention.Cdecl)]private static extern int AudioQueueEnqueueBuffer(IntPtr queue,IntPtr buffer,uint descriptions,IntPtr packets);
     [DllImport(Library,CallingConvention=CallingConvention.Cdecl)]private static extern int AudioQueueSetParameter(IntPtr queue,uint parameter,float value);
     [DllImport(Library,CallingConvention=CallingConvention.Cdecl)]private static extern int AudioQueueStart(IntPtr queue,IntPtr time);
+    [DllImport(Library,CallingConvention=CallingConvention.Cdecl)]private static extern int AudioQueuePause(IntPtr queue);
     [DllImport(Library,CallingConvention=CallingConvention.Cdecl)]private static extern int AudioQueueStop(IntPtr queue,[MarshalAs(UnmanagedType.I1)]bool immediate);
     [DllImport(Library,CallingConvention=CallingConvention.Cdecl)]private static extern int AudioQueueDispose(IntPtr queue,[MarshalAs(UnmanagedType.I1)]bool immediate);
 }

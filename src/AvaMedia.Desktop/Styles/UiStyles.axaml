@@ -82,6 +82,13 @@
       <x:Double x:Key="UiTimeFontSize">14</x:Double>
       <x:Double x:Key="UiTimeFieldWidth">168</x:Double>
       <x:Double x:Key="UiTransportSize">40</x:Double>
+      <x:Double x:Key="UiPlayerButtonSize">32</x:Double>
+      <x:Double x:Key="UiPlayerSpeedWidth">48</x:Double>
+      <x:Double x:Key="UiPlayerTimelineHeight">16</x:Double>
+      <x:Double x:Key="UiPlayerVolumeWidth">80</x:Double>
+      <x:Double x:Key="UiPlayerPlaylistWidth">264</x:Double>
+      <Thickness x:Key="UiPlayerInlinePadding">8,0</Thickness>
+      <Thickness x:Key="UiPlayerBarPadding">8,0,8,4</Thickness>
       <x:Double x:Key="UiDialogActionHeight">36</x:Double>
       <x:Double x:Key="UiDialogActionWidth">168</x:Double>
       <x:Double x:Key="UiFontHeading">22</x:Double>

@@ -90,7 +90,7 @@ public partial class MainWindow : Window
         }
         if(feature.Operation==Operation.Player)
         {
-            files??=await Ui.Pick(this,"打开媒体文件",false);if(files.Length>0)await Edit(files[0],new());return;
+            files??=await Ui.Pick(this,"打开媒体文件",true);if(files.Length>0)new PlayerWindow(Engine,files).Show(this);return;
         }
         Window dialog=new ConvertWindow(Engine,feature,_settings.OutputFolder,files??[]);
         var result=await dialog.ShowDialog<ConversionRequest?>(this);if(result is null)return;

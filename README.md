@@ -108,3 +108,11 @@ git push origin v1.0.5
 版权所有 © 2026 AvaMedia contributors。原创代码、测试、文档和原创图标采用 **AGPL-3.0-only**；见 [LICENSE](LICENSE) 与 [COPYRIGHT](COPYRIGHT)。依赖、方向模型和安装器声明见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md)、`licenses/` 及资产说明。
 
 未导入 FormatFactory 的专有 DLL、图标或品牌素材。FFmpeg 许可取决于实际构建；客户端通过独立进程调用，成品不附带这些外部工具。技术与协议调研见 [RESEARCH](docs/RESEARCH.md)。
+
+## 视频播放器
+
+独立播放器采用 PotPlayer 布局和常用快捷键，支持连续播放、全屏、倍速、音量、选轨与逐帧定位。视频与声音流式解码，暂停复用会话；Windows 发布使用 ReadyToRun。操作与冷启动测量见 [播放器说明](docs/PLAYER.md)。
+
+![播放器 Dark](docs/assets/player-dark.png)
+
+![播放器 Mac OS 9](docs/assets/player-macos9.png)

@@ -26,6 +26,19 @@ public sealed class ActionIcon : Control
             else if (Kind == "stop") context.DrawRectangle(Foreground, null, new Rect(5,5,14,14));
             else { context.DrawRectangle(Foreground, null, new Rect(6,4,4,16)); context.DrawRectangle(Foreground, null, new Rect(14,4,4,16)); }
         }
+        else if (Kind is "menu" or "fullscreen" or "window" or "previous" or "next" or "eject")
+        {
+            var shape = Kind switch
+            {
+                "menu" => "M 4,6 L 20,6 M 4,12 L 20,12 M 4,18 L 20,18",
+                "fullscreen" => "M 9,3 L 3,3 L 3,9 M 15,3 L 21,3 L 21,9 M 3,15 L 3,21 L 9,21 M 15,21 L 21,21 L 21,15",
+                "window" => "M 4,4 L 20,4 L 20,20 L 4,20 Z",
+                "previous" => "M 5,4 L 5,20 M 19,5 L 8,12 L 19,19 Z",
+                "next" => "M 19,4 L 19,20 M 5,5 L 16,12 L 5,19 Z",
+                _ => "M 4,15 L 12,5 L 20,15 Z M 4,20 L 20,20"
+            };
+            context.DrawGeometry(null, actionPen, Geometry.Parse(shape));
+        }
         else if (Kind is "backward" or "forward")
         {
             var shape = Kind == "backward" ? "M 12,5 L 5,12 L 12,19 M 20,5 L 13,12 L 20,19" : "M 4,5 L 11,12 L 4,19 M 12,5 L 19,12 L 12,19";

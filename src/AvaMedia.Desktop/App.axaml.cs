@@ -13,6 +13,42 @@ public sealed partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            var args = desktop.Args ?? [];
+            if (!args.Contains("--capture") && (args.Contains("--play") || args.Any(File.Exists)))
+            {
+                var settings = new Storage().LoadSettings();
+                Skin.Apply(args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : settings.Theme);
+                Motion.SetReducedMotion(settings.ReduceMotion);
+                var files = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal) && File.Exists(a)).ToArray();
+                var engine = new MediaEngine(settings);
+                var player = new PlayerWindow(engine, files);
+                desktop.MainWindow = player;
+                var benchmark = Array.IndexOf(args, "--player-benchmark");
+                if (benchmark >= 0 && benchmark + 1 < args.Length)
+                {
+                    var root = Path.GetFullPath(args[benchmark + 1]);
+                    player.Opened += async (_, _) =>
+                    {
+                        var opened = DateTimeOffset.UtcNow;
+                        try
+                        {
+                            await player.Ready;
+                            Directory.CreateDirectory(root);
+                            await File.WriteAllTextAsync(Path.Combine(root, "startup.json"), System.Text.Json.JsonSerializer.Serialize(new
+                            {
+                                processMainUtc = Program.StartedUtc, windowOpenedUtc = opened, firstFrameUtc = player.FirstFrameUtc,
+                                openToFirstFrameMs = player.FirstFrameLatencyMs, source = player.CurrentPath, ffmpeg = engine.FFmpeg, error = player.PlaybackError
+                            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                            await Task.Delay(150);
+                            await Capture(player, Path.Combine(root, "player.png"));
+                            player.Close(); desktop.Shutdown(string.IsNullOrEmpty(player.PlaybackError) ? 0 : 1);
+                        }
+                        catch (Exception ex) { Directory.CreateDirectory(root); await File.WriteAllTextAsync(Path.Combine(root, "error.txt"), ex.ToString()); player.Close(); desktop.Shutdown(1); }
+                    };
+                }
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
             var captureRoot=desktop.Args?.Contains("--capture")==true?desktop.Args.SkipWhile(a=>a!="--capture").Skip(1).FirstOrDefault()??"artifacts":null;
             MainWindow window;
             if(captureRoot is not null){var storage=new Storage(Path.Combine(captureRoot,"capture-state"));storage.SaveSettings(new(){OutputFolder=Path.GetFullPath(Path.Combine(captureRoot,"output")),NotifyComplete=false});window=new MainWindow(storage);}else window=new MainWindow();
@@ -27,6 +63,12 @@ public sealed partial class App : Application
                     var root = captureRoot!;
                     Directory.CreateDirectory(root);
                     await Capture(window, Path.Combine(root, "main.png"));
+                    if (desktop.Args.Contains("--download"))
+                    {
+                        var download = new DownloadWindow(new(),Path.Combine(root,"output"));
+                        download.Show(window);await Task.Delay(500);
+                        await Capture(download,Path.Combine(root,"download.png"));download.Close();
+                    }
                     var clipIndex = Array.IndexOf(desktop.Args, "--quick-clip");
                     if (clipIndex >= 0 && desktop.Args.Length > clipIndex + 1)
                     {

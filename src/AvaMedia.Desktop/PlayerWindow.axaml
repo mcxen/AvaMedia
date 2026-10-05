@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.PlayerWindow" Classes="player"
+        Width="1100" Height="720" MinWidth="760" MinHeight="460" SystemDecorations="None" WindowStartupLocation="CenterOwner" Title="AvaMedia 播放器">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <Border x:Name="HeaderBar" Classes="player-titlebar" Background="{DynamicResource UiToolbar}">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button x:Name="PlayerMenuButton" Classes="player-transport" Click="MenuClick" ToolTip.Tip="播放器菜单" AutomationProperties.Name="播放器菜单"><local:ActionIcon Kind="menu"/></Button>
+        <TextBlock Grid.Column="1" x:Name="FileName" Text="AvaMedia 播放器" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="{DynamicResource UiPlayerInlinePadding}"/>
+        <StackPanel Grid.Column="2" Orientation="Horizontal">
+          <Button Classes="player-transport" Click="MinimizeClick" ToolTip.Tip="最小化" AutomationProperties.Name="最小化"><local:ActionIcon Kind="minus"/></Button>
+          <Button Classes="player-transport" Click="MaximizeClick" ToolTip.Tip="最大化 / 还原" AutomationProperties.Name="最大化"><local:ActionIcon Kind="window"/></Button>
+          <Button Classes="player-transport" Click="CloseClick" ToolTip.Tip="关闭" AutomationProperties.Name="关闭"><local:ActionIcon Kind="clear"/></Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+      <Grid x:Name="VideoArea" Background="{DynamicResource UiMediaSurface}" ClipToBounds="True">
+        <Image x:Name="VideoImage" Stretch="Uniform"/>
+        <TextBlock x:Name="PlayerStatus" Text="AvaMedia&#10;拖入媒体文件，或按 F3 打开" Foreground="{DynamicResource UiMediaText}" TextAlignment="Center" TextWrapping="Wrap"
+                   Margin="{DynamicResource UiSectionPadding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border x:Name="PlayerOsd" IsVisible="False" Background="{DynamicResource UiMediaOverlay}" Padding="{DynamicResource UiCompactButtonPadding}" Margin="{DynamicResource UiPagePadding}" HorizontalAlignment="Left" VerticalAlignment="Top">
+          <TextBlock x:Name="PlayerNotice" Foreground="{DynamicResource UiMediaText}" TextWrapping="Wrap"/>
+        </Border>
+        <Border x:Name="ShortcutHelp" IsVisible="False" Background="{DynamicResource UiMediaOverlay}" Padding="{DynamicResource UiSectionPadding}" Margin="{DynamicResource UiPagePadding}" VerticalAlignment="Bottom">
+          <TextBlock Foreground="{DynamicResource UiMediaText}" Text="Space 播放/暂停 · Enter 全屏 · Esc 退出全屏 · ←/→ 5秒 · Shift+←/→ 30秒 · Ctrl+←/→ 60秒&#10;↑/↓ 音量 · M 静音 · X/C 减速/加速 · Z 正常/上次速度 · D/F 前/后一帧 · Backspace 起点&#10;Page Up/Down 上一/下一文件 · F3/Ctrl+O 打开 · F4 停止 · F5 播放设置 · F6 播放列表 · F1 快捷键" TextWrapping="Wrap"/>
+        </Border>
+      </Grid>
+      <Border Grid.Column="1" x:Name="PlaylistPanel" IsVisible="False" Width="{DynamicResource UiPlayerPlaylistWidth}" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <Grid ColumnDefinitions="*,Auto" Margin="{DynamicResource UiPlayerInlinePadding}">
+            <TextBlock Text="播放列表" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="隐藏播放列表" AutomationProperties.Name="隐藏播放列表"><local:ActionIcon Kind="clear"/></Button>
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="PlaylistList" DoubleTapped="PlaylistDoubleTapped" AutomationProperties.Name="播放列表"/>
+          <Button Grid.Row="2" Classes="field-action" Content="打开文件…" Click="OpenClick"/>
+        </Grid>
+      </Border>
+    </Grid>
+    <Grid Grid.Row="2" x:Name="ControlsBar" RowDefinitions="Auto,Auto" Background="{DynamicResource UiToolbar}">
+      <Slider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
+      <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiPlayerBarPadding}">
+        <StackPanel Orientation="Horizontal">
+          <Button x:Name="PlayerPlayButton" Classes="player-transport" Click="PlayClick" ToolTip.Tip="播放 / 暂停（Space）" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayerPlayIcon" Kind="play"/></Button>
+          <Button x:Name="PlayerStopButton" Classes="player-transport" Click="StopClick" ToolTip.Tip="停止（F4）" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop"/></Button>
+          <Button x:Name="PreviousFileButton" Classes="player-transport" Click="PreviousClick" ToolTip.Tip="上一文件（Page Up）" AutomationProperties.Name="上一文件"><local:ActionIcon Kind="previous"/></Button>
+          <Button x:Name="NextFileButton" Classes="player-transport" Click="NextClick" ToolTip.Tip="下一文件（Page Down）" AutomationProperties.Name="下一文件"><local:ActionIcon Kind="next"/></Button>
+          <Button x:Name="PlayerOpenButton" Classes="player-transport" Click="OpenClick" ToolTip.Tip="打开文件（F3）" AutomationProperties.Name="打开文件"><local:ActionIcon Kind="eject"/></Button>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="{DynamicResource UiPlayerInlinePadding}" VerticalAlignment="Center">
+          <TextBlock x:Name="PlayerTime" Classes="time" Text="00:00:00.000"/><TextBlock Classes="time" Text=" / "/><TextBlock x:Name="PlayerTotal" Classes="time" Text="00:00:00.000"/>
+        </StackPanel>
+        <Button Grid.Column="3" x:Name="PlayerMuteButton" Classes="player-transport" Click="MuteClick" ToolTip.Tip="静音（M）" AutomationProperties.Name="静音"><local:ActionIcon x:Name="PlayerMuteIcon" Kind="speaker"/></Button>
+        <Slider Grid.Column="4" x:Name="PlayerVolume" Minimum="0" Maximum="100" Value="100" Width="{DynamicResource UiPlayerVolumeWidth}" AutomationProperties.Name="音量"/>
+        <Button Grid.Column="5" x:Name="PlayerSpeed" Classes="player-transport player-speed" Content="1×" Click="SpeedClick" ToolTip.Tip="播放速度（X / C / Z）" AutomationProperties.Name="播放速度"/>
+        <Button Grid.Column="6" x:Name="PlayerSettingsButton" Classes="player-transport" Click="SettingsClick" ToolTip.Tip="播放设置（F5）" AutomationProperties.Name="播放设置"><local:ActionIcon Kind="gear"/></Button>
+        <Button Grid.Column="7" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表（F6）" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>
+        <Button Grid.Column="8" x:Name="FullscreenButton" Classes="player-transport" Click="FullscreenClick" ToolTip.Tip="全屏（Enter / 双击画面）" AutomationProperties.Name="全屏"><local:ActionIcon x:Name="FullscreenIcon" Kind="fullscreen"/></Button>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

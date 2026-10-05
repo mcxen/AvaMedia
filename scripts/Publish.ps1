@@ -5,7 +5,8 @@ $sdk = Join-Path $taskRoot ('.tools/dotnet/dotnet' + $(if ($IsWindows -or $env:O
 if (!(Test-Path -LiteralPath $sdk)) { $sdk = 'dotnet' }
 $publishRoot = Join-Path $taskRoot ('artifacts/release/' + $Version + '/' + $Runtime)
 if ($OutputDirectory) { $publishRoot = [IO.Path]::GetFullPath($OutputDirectory) }
-& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false --verbosity minimal
+$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
+& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
 $runtimePackages = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget/packages' }
