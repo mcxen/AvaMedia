@@ -1,0 +1,33 @@
+{
+  "version": "1.0.2-platinum",
+  "verifiedDate": "2026-10-05",
+  "platform": "Windows x64",
+  "codeRevision": "6ea090d06fa80da6557989ee01fccf8e30694df3",
+  "verificationWorkingTreeDirty": false,
+  "verification": {
+    "status": "passed",
+    "regressionSuites": 11,
+    "skinChecks": 30,
+    "mediaAblationComparisons": 18,
+    "mediaAblationChecks": 35,
+    "mediaAblationOutputs": 20,
+    "nativePreviewDecodedFrames": 20,
+    "publishedClientLaunch": "passed",
+    "classicCssLicenseTextPreserved": true,
+    "report": "artifacts/platinum-6ea090d/test-20261005-213313/summary.json",
+    "skinReport": "artifacts/platinum-6ea090d/skins-20261005-213346/report.json",
+    "nativePreviewReport": "artifacts/platinum-6ea090d/platinum-native/ui-verification.json"
+  },
+  "packages": [
+    {
+      "path": "artifacts/AvaMedia-1.0.2-platinum-win-x64.zip",
+      "sha256": "9EA711EE52E7792E84784DE510DDA4E30A957483FDE23A58823916C304D6FA2F"
+    },
+    {
+      "path": "artifacts/AvaMedia-1.0.2-platinum-source.zip",
+      "sha256": "D731C6104A89546119A3792799BDF80A592692DCE817373BDF24994BBACEA5F7"
+    }
+  ],
+  "runtimePackageLicenseCount": 39,
+  "externalToolsBundled": false
+}

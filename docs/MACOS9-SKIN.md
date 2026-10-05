@@ -25,3 +25,7 @@
 ```
 
 输出 `artifacts/skins-*/report.json` 与主窗口、配置窗口、组件的 PNG。验证切换与恢复、持久化、实际控件状态、焦点与按下效果、弹窗、页签，以及标题栏按钮。启动参数 `--macos9` 可用于原生窗口的隔离截图验收。
+
+2026-10-05 在干净的 Git 提交 `6ea090d` 上通过 11 套回归，其中包含 30 项皮肤交互检查、18 组媒体消融对照（35 项检查 / 20 个输出）。同时启动原生播放器，验证实际解码、剪辑区间、缩略图与裁剪控件；最终独立运行 Windows 发行包并生成主窗口截图。
+
+验收记录与截图在 `artifacts/platinum-6ea090d/`。Windows 客户端在 `artifacts/release/1.0.2-platinum/win-x64/AvaMedia.Desktop.exe`，便携包和对应 Git 源码分别是 `artifacts/AvaMedia-1.0.2-platinum-win-x64.zip` 与 `artifacts/AvaMedia-1.0.2-platinum-source.zip`。哈希和验证提交见 [发行记录](releases/1.0.2-platinum.json)。
