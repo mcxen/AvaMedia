@@ -24,8 +24,8 @@ internal static class QueueListChecks
         {
             new() { Inputs = [video], Output = Path.Combine(root,"导出.mp4"), Options = new() { Start = .4, End = 1.4, Width = 640, Height = 360, VideoCodec = "libx264" } },
             new() { FeatureId = "rotate", Inputs = [portrait], Output = Path.Combine(root,"竖屏.mp4"), State = JobState.Running, Progress = 42, Options = new() { Rotation = 90 } },
-            new() { Inputs = [video], Output = video, State = JobState.Completed },
-            new() { Inputs = [Path.Combine(root,"不存在.mp4")], Output = Path.Combine(root,"失败.mp4"), State = JobState.Failed, Error = "无法读取源文件，请检查文件位置。" },
+            new() { Inputs = [video], Output = video, State = JobState.Completed, Progress = 100 },
+            new() { Inputs = [Path.Combine(root,"不存在.mp4")], Output = Path.Combine(root,"失败.mp4"), State = JobState.Failed, Progress = 35, Error = "无法读取源文件，请检查文件位置。" },
             new() { FeatureId = "text-pdf", Inputs = [document], Output = Path.Combine(root,"说明.pdf") }
         };
         var store = new Storage(Path.Combine(root,"state"));
@@ -45,12 +45,19 @@ internal static class QueueListChecks
         check(first.Details.CodecSummary.Contains("48 kHz") && first.Details.FileSummary.Contains("KB"), "Codec, audio sample rate and file size are read from the source");
         check(first.Details.SettingsSummary.Contains("H.264") && first.Details.SettingsSummary.Contains("640 × 360") && first.Details.SettingsSummary.Contains("截取"), "Output summary includes encoding, resolution and clip range");
         check(first.Details.SourceTip.Contains(video) && first.Details.OutputName == "导出.mp4", "Full paths remain available in tooltips while rows show short filenames");
-        check(second.GetVisualDescendants().OfType<ProgressBar>().Single().IsVisible && !first.GetVisualDescendants().OfType<ProgressBar>().Single().IsVisible, "Only running tasks show a progress bar");
+        check(rows.All(r => r.GetVisualDescendants().OfType<ProgressBar>().Single().IsVisible), "Every task state keeps a visible progress bar");
+        check(first.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 0 && second.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 42, "Waiting and running rows display their actual progress");
         check(!second.Details!.StateDetail.Contains("42.0%") && second.Details.StateText.Contains("42.0%"), "The status percentage appears only once in each task row");
+        actual[1].Progress = 75; pump(20);
+        check(second.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 75, "Progress updates move the existing row's bar immediately");
+        actual[1].State = JobState.Cancelled; pump(20);
+        check(second.GetVisualDescendants().OfType<ProgressBar>().Single() is { IsVisible: true, Value: 75 }, "Stopped rows retain their last progress");
         var done = rows.Single(r => ReferenceEquals(r.Details?.Job,actual[2]));
         check(done.Details!.StateText.Contains("已完成") && done.Details.StateText.Contains("KB"), "Completed rows show the actual output size");
+        check(done.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 100, "Completed rows keep a full progress bar");
         var failed = rows.Single(r => ReferenceEquals(r.Details?.Job,actual[3]));
         check(failed.Details!.Cover is null && failed.Details.StateDetail.Contains("无法读取") && failed.Details.MediaSummary.Contains("缺失"), "Missing files use the fallback icon and display the actionable failure reason");
+        check(failed.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 35, "Failed rows retain their last progress");
         check(rows.Single(r => ReferenceEquals(r.Details?.Job,actual[4])).Details!.MediaSummary == "文件任务", "Document tasks do not launch media probing");
         actual[0].Inputs = [video, portrait]; pump(20);
         check(first.Details.Name.Contains("+1") && first.Details.MediaSummary.StartsWith("首个：") && first.Details.FileSummary.Contains("2 个文件"), "Multi-input rows identify the first media and total file count");

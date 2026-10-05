@@ -26,7 +26,7 @@
     <StackPanel Grid.Column="2" Spacing="4" Margin="7,2" VerticalAlignment="Center">
       <TextBlock Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
       <TextBlock Text="{Binding SettingsSummary}" TextWrapping="Wrap" MaxHeight="36" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
-      <ProgressBar Value="{Binding Job.Progress}" Maximum="100" Height="6" IsVisible="{Binding IsRunning}"/>
+      <ProgressBar Value="{Binding Job.Progress}" Maximum="100" Height="10"/>
       <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}"/>
       <TextBlock Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="36" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
     </StackPanel>
