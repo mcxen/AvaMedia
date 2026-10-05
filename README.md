@@ -4,6 +4,18 @@ Avalonia 11.3.22 + C# / .NET 8 桌面多媒体客户端。经典布局和剪辑�
 
 ## 运行
 
+安装 .NET 8 SDK 后，从源码启动：
+
+```sh
+git clone https://github.com/mcxen/AvaMedia.git
+cd AvaMedia
+dotnet restore AvaMedia.sln
+dotnet build AvaMedia.sln -c Release
+dotnet run --project src/AvaMedia.Desktop -c Release
+```
+
+Windows 可运行 `powershell -File scripts/Install-MediaTools.ps1` 安装独立媒体工具；macOS 使用 `bash scripts/Install-MediaTools-macOS.sh`。工具安装与平台说明见 [docs/PLATFORMS.md](docs/PLATFORMS.md)。
+
 本机 Windows x64 成品：`artifacts/release/1.0.2/win-x64/AvaMedia.Desktop.exe`，也可双击 `Start-AvaMedia.cmd`。macOS Apple Silicon / Intel 的 `.app` 预览包分别在 `artifacts/AvaMedia-1.0.2-osx-arm64.zip` 和 `artifacts/AvaMedia-1.0.2-osx-x64.zip`。包均包含运行时；Mac 平台代码和交叉发布已完成，真机启动与媒体能力尚待验收。说明见 [docs/PLATFORMS.md](docs/PLATFORMS.md)。
 
 转换引擎使用外部 FFmpeg / FFprobe；下载使用可选 yt-dlp。本工作区已在 `.tools` 配置独立 LGPL FFmpeg 和 yt-dlp，可以直接运行。成品 ZIP 不包含这些外部工具。移到另一台电脑后，可运行 `scripts/Install-MediaTools.ps1` 安装工具到独立目录，或在“选项”里指定已安装的工具路径。也可设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP` 环境变量。
@@ -21,6 +33,15 @@ macOS 工具安装使用 `scripts/Install-MediaTools-macOS.sh`，通过已安装
 外观可从菜单 皮肤 → Mac OS 9 · Platinum 切换为经典 Mac 灰色立体控件与条纹标题栏，选择会保存。设计与开源说明见 [docs/MACOS9-SKIN.md](docs/MACOS9-SKIN.md)。
 
 ## 构建和验证
+
+克隆后的标准验证命令：
+
+```powershell
+dotnet run --project tests/AvaMedia.SkinTests -c Release
+powershell -File scripts/Verify.ps1
+```
+
+下面的 .tools 命令适用于已在工程内配置本地 SDK 的开发环境。
 
 ```powershell
 & .\.tools\dotnet\dotnet.exe build AvaMedia.sln -c Release
@@ -49,6 +70,6 @@ Git 管理和统一验证入口见 [docs/GIT-WORKFLOW.md](docs/GIT-WORKFLOW.md)�
 
 ## 许可证
 
-原创代码与图标采用 MIT。依赖声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)、`licenses/` 和自动生成的 `licenses/dependencies.json`。
+版权所有 © 2026 AvaMedia contributors。原创代码、测试、文档与矢量图标采用 **AGPL-3.0-only**，许可全文见 [LICENSE](LICENSE)，版权说明见 [COPYRIGHT](COPYRIGHT)。依赖声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)、`licenses/` 和自动生成的 `licenses/dependencies.json`。
 
 FFmpeg 没有被链接到客户端或打包进成品；不同构建可能适用 LGPL/GPL 或不可再分发条款。当前开发构建不启用 GPL / nonfree，且启用 version3，须按其实际 LGPL 版本处理。发布自带引擎的安装包时应提供**精确对应的源代码、构建配置、修改说明及所有组件版权许可**，不能仅附上项目首页。完整要求参考 FFmpeg 官方法律说明。

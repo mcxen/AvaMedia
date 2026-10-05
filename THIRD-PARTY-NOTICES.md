@@ -1,6 +1,6 @@
 # Third-party notices
 
-The original AvaMedia application code and vector artwork are MIT licensed; see `LICENSE`. The original FormatFactory application, name and artwork remain the property of their respective rights holders. AvaMedia does not redistribute its proprietary DLLs or artwork.
+Copyright (c) 2026 AvaMedia contributors. The original AvaMedia application code and vector artwork are licensed under AGPL-3.0-only; see `LICENSE` and `COPYRIGHT`. Third-party components retain the licenses stated below. The original FormatFactory application, name and artwork remain the property of their respective rights holders. AvaMedia does not redistribute its proprietary DLLs or artwork.
 
 The distribution includes the following independently licensed components. Preserve this file and the entire `licenses` directory when redistributing it.
 

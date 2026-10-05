@@ -1,0 +1,8 @@
+Copyright (c) 2026 AvaMedia contributors
+SPDX-License-Identifier: AGPL-3.0-only
+
+AvaMedia's original application code, tests, documentation, and vector artwork
+are licensed under version 3 only of the GNU Affero General Public License.
+The program is distributed without any warranty; see LICENSE for the terms.
+Third-party components retain their own licenses and copyright notices;
+see THIRD-PARTY-NOTICES.md and licenses/.

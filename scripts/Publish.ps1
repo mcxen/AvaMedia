@@ -14,7 +14,7 @@ if (Test-Path -LiteralPath $runtimePack) {
     New-Item -ItemType Directory -Path $runtimeNotices -Force | Out-Null
     Get-ChildItem -LiteralPath $runtimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $runtimeNotices -Force }
 }
-foreach ($name in @('LICENSE','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
+foreach ($name in @('LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'licenses') -Destination $publishRoot -Recurse -Force
 $publishDocs = Join-Path $publishRoot 'docs'
 New-Item -ItemType Directory -Path $publishDocs -Force | Out-Null
@@ -29,7 +29,7 @@ if ($Runtime.StartsWith('osx-')) {
     New-Item -ItemType Directory -Path $nativeRoot,$resources -Force | Out-Null
     Get-ChildItem -LiteralPath $publishRoot -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Force }
     foreach ($directory in @('licenses','docs','scripts')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
-    foreach ($name in @('LICENSE','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
+    foreach ($name in @('LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
     $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw).Replace('__VERSION__',$Version)
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
     # ZIP stores Unix permission bits even when assembled on Windows.
