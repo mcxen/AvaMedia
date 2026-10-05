@@ -35,8 +35,8 @@
   </ControlTheme>
   <ControlTheme x:Key="PlatinumSliderTheme" TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}">
     <Style Selector="^ /template/ Border#TrackBackground"><Setter Property="Background" Value="#999999"/><Setter Property="BorderBrush" Value="#777777"/><Setter Property="BorderThickness" Value="1"/></Style>
-    <Style Selector="^:horizontal /template/ Thumb#thumb /template/ Ellipse"><Setter Property="Fill" Value="#BBBBBB"/><Setter Property="Stroke" Value="#444444"/><Setter Property="StrokeThickness" Value="1"/></Style>
-    <Style Selector="^:vertical /template/ Thumb#thumb /template/ Ellipse"><Setter Property="Fill" Value="#BBBBBB"/><Setter Property="Stroke" Value="#444444"/><Setter Property="StrokeThickness" Value="1"/></Style>
+    <Style Selector="^:horizontal /template/ Thumb#thumb"><Setter Property="Template"><ControlTemplate><controls:PlatinumBevel Width="14" Height="18" Background="#BBBBBB" BorderThickness="2"><TextBlock Text="│" FontSize="10" Foreground="#777777" HorizontalAlignment="Center" VerticalAlignment="Center"/></controls:PlatinumBevel></ControlTemplate></Setter></Style>
+    <Style Selector="^:vertical /template/ Thumb#thumb"><Setter Property="Template"><ControlTemplate><controls:PlatinumBevel Width="18" Height="14" Background="#BBBBBB" BorderThickness="2"><TextBlock Text="─" FontSize="10" Foreground="#777777" HorizontalAlignment="Center" VerticalAlignment="Center"/></controls:PlatinumBevel></ControlTemplate></Setter></Style>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumProgressBarTheme" TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
     <Style Selector="^ /template/ Border"><Setter Property="CornerRadius" Value="0"/></Style>

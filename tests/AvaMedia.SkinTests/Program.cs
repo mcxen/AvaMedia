@@ -38,7 +38,7 @@ Check(window.Content is PlatinumWindowFrame && window.SystemDecorations == Syste
 Check(Color(window.Background) == "#ffcccccc", "Platinum palette resolves through the custom theme variant");
 Check(button.GetVisualDescendants().OfType<PlatinumBevel>().Any(), "Buttons use the shared vector bevel template");
 Check(checkbox.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single(p => p.Name == "checkMark").Stroke is not null, "The checked box uses a classic cross mark");
-Check(Color(slider.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Ellipse>().Single().Fill) == "#ffbbbbbb", "The slider thumb inherits the Platinum control theme");
+Check(Color(slider.GetVisualDescendants().OfType<PlatinumBevel>().Single().Background) == "#ffbbbbbb", "The slider thumb inherits the Platinum control theme");
 Check(input.Text == "中文路径与参数 / Input" && combo.SelectedIndex == 0 && checkbox.IsChecked == true, "Skin switching retains control state");
 var face = button.GetVisualDescendants().OfType<PlatinumBevel>().Single();
 button.Focus(NavigationMethod.Tab); Pump(); Check(face.IsFocusedFace, "Keyboard focus has an immediate visible bezel");
