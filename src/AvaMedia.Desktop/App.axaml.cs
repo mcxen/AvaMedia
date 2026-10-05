@@ -63,6 +63,13 @@ public sealed partial class App : Application
                     var root = captureRoot!;
                     Directory.CreateDirectory(root);
                     await Capture(window, Path.Combine(root, "main.png"));
+                    if(desktop.Args.Contains("--download"))await CaptureDownloadAsync(window,root);
+                    if (desktop.Args.Contains("--download"))
+                    {
+                        var download = new DownloadWindow(new(),Path.Combine(root,"output"));
+                        download.Show(window);await Task.Delay(500);
+                        await Capture(download,Path.Combine(root,"download.png"));download.Close();
+                    }
                     var clipIndex = Array.IndexOf(desktop.Args, "--quick-clip");
                     if (clipIndex >= 0 && desktop.Args.Length > clipIndex + 1)
                     {
