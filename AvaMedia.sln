@@ -1,0 +1,85 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F57E7693-3789-4BD4-9AC8-0CC92CC5513B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.Core", "src\AvaMedia.Core\AvaMedia.Core.csproj", "{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3CA29308-9F64-434B-97AE-C4BA52A1B482}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.SmokeTests", "tests\AvaMedia.SmokeTests\AvaMedia.SmokeTests.csproj", "{46939A9D-F38F-4C66-BA65-C3519FF26E75}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.Desktop", "src\AvaMedia.Desktop\AvaMedia.Desktop.csproj", "{4FF49E49-980C-4A1A-B7FA-7384A3400CCB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.UiChecks", "tests\AvaMedia.UiChecks\AvaMedia.UiChecks.csproj", "{B08A1165-37ED-4217-8CF3-F050329CBE41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.QuickClipTests", "tests\AvaMedia.QuickClipTests\AvaMedia.QuickClipTests.csproj", "{66CA9647-51C9-497F-A2DC-005ABD50BF2F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.AudioOptionsTests", "tests\AvaMedia.AudioOptionsTests\AvaMedia.AudioOptionsTests.csproj", "{834121F3-CBCD-429B-B8A0-9AC1BE658546}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.FunctionTests", "tests\AvaMedia.FunctionTests\AvaMedia.FunctionTests.csproj", "{A17F4DD5-0D59-4CBA-AA63-19E32AB31CC5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.SubtitleTests", "tests\AvaMedia.SubtitleTests\AvaMedia.SubtitleTests.csproj", "{6DF8C253-390C-45E5-B6D9-9A5187F89BD0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.BatchCropTests", "tests\AvaMedia.BatchCropTests\AvaMedia.BatchCropTests.csproj", "{A1D413D4-D43D-4871-9D53-0D04216BB6D0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{46939A9D-F38F-4C66-BA65-C3519FF26E75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46939A9D-F38F-4C66-BA65-C3519FF26E75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46939A9D-F38F-4C66-BA65-C3519FF26E75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46939A9D-F38F-4C66-BA65-C3519FF26E75}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4FF49E49-980C-4A1A-B7FA-7384A3400CCB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4FF49E49-980C-4A1A-B7FA-7384A3400CCB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4FF49E49-980C-4A1A-B7FA-7384A3400CCB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4FF49E49-980C-4A1A-B7FA-7384A3400CCB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B08A1165-37ED-4217-8CF3-F050329CBE41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B08A1165-37ED-4217-8CF3-F050329CBE41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B08A1165-37ED-4217-8CF3-F050329CBE41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B08A1165-37ED-4217-8CF3-F050329CBE41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{66CA9647-51C9-497F-A2DC-005ABD50BF2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66CA9647-51C9-497F-A2DC-005ABD50BF2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66CA9647-51C9-497F-A2DC-005ABD50BF2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66CA9647-51C9-497F-A2DC-005ABD50BF2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{834121F3-CBCD-429B-B8A0-9AC1BE658546}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{834121F3-CBCD-429B-B8A0-9AC1BE658546}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{834121F3-CBCD-429B-B8A0-9AC1BE658546}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{834121F3-CBCD-429B-B8A0-9AC1BE658546}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A17F4DD5-0D59-4CBA-AA63-19E32AB31CC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A17F4DD5-0D59-4CBA-AA63-19E32AB31CC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A17F4DD5-0D59-4CBA-AA63-19E32AB31CC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A17F4DD5-0D59-4CBA-AA63-19E32AB31CC5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DF8C253-390C-45E5-B6D9-9A5187F89BD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DF8C253-390C-45E5-B6D9-9A5187F89BD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DF8C253-390C-45E5-B6D9-9A5187F89BD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DF8C253-390C-45E5-B6D9-9A5187F89BD0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1D413D4-D43D-4871-9D53-0D04216BB6D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1D413D4-D43D-4871-9D53-0D04216BB6D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1D413D4-D43D-4871-9D53-0D04216BB6D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1D413D4-D43D-4871-9D53-0D04216BB6D0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1} = {F57E7693-3789-4BD4-9AC8-0CC92CC5513B}
+		{46939A9D-F38F-4C66-BA65-C3519FF26E75} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+		{4FF49E49-980C-4A1A-B7FA-7384A3400CCB} = {F57E7693-3789-4BD4-9AC8-0CC92CC5513B}
+		{B08A1165-37ED-4217-8CF3-F050329CBE41} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+		{66CA9647-51C9-497F-A2DC-005ABD50BF2F} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+		{834121F3-CBCD-429B-B8A0-9AC1BE658546} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+		{A17F4DD5-0D59-4CBA-AA63-19E32AB31CC5} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+		{6DF8C253-390C-45E5-B6D9-9A5187F89BD0} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+		{A1D413D4-D43D-4871-9D53-0D04216BB6D0} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
+	EndGlobalSection
+EndGlobal

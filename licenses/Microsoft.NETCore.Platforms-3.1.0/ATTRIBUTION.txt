@@ -1,0 +1,6 @@
+Package: Microsoft.NETCore.Platforms 3.1.0
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: MIT
+Project: https://github.com/dotnet/corefx
+Repository: 

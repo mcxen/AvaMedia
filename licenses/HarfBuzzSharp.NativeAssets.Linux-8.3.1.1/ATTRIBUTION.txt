@@ -1,0 +1,6 @@
+Package: HarfBuzzSharp.NativeAssets.Linux 8.3.1.1
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: MIT
+Project: https://go.microsoft.com/fwlink/?linkid=868515
+Repository: https://go.microsoft.com/fwlink/?linkid=868515

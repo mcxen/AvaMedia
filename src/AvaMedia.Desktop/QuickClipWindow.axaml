@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:AvaMedia.Desktop" xmlns:icons="using:AvaMedia.Desktop.Controls"
+        x:Class="AvaMedia.Desktop.QuickClipWindow" Title="快速剪辑" Width="1000" Height="700"
+        MinWidth="820" MinHeight="480" WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+    <Style Selector="Button.row-icon"><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="Padding" Value="4"/></Style>
+    <Style Selector="Button.preview"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
+  </Window.Styles>
+  <Grid RowDefinitions="88,*,44,36,Auto,48" Margin="16">
+    <Grid ColumnDefinitions="80,88,144,*,144" Margin="0,0,0,12">
+      <icons:FeatureIcon Kind="clip-list" Width="64" Height="64"/>
+      <TextBlock Grid.Column="1" Text="输出格式" VerticalAlignment="Center"/>
+      <ComboBox Grid.Column="2" x:Name="FormatCombo" AutomationProperties.Name="输出格式" VerticalAlignment="Center" SelectionChanged="FormatChanged"/>
+      <TextBlock Grid.Column="3" x:Name="PresetName" Text="FastCopy" Margin="24,0" VerticalAlignment="Center" Classes="caption"/>
+      <Button Grid.Column="4" Content="⚙ 输出配置" Click="OutputSettingsClick" VerticalAlignment="Center"/>
+    </Grid>
+    <Border Grid.Row="1" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Background="{DynamicResource UiSurface}">
+      <Grid RowDefinitions="30,*">
+        <Border BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,0,1" Background="{DynamicResource UiSurfaceRaised}">
+          <Grid ColumnDefinitions="144,*,168">
+            <TextBlock Text="预览" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0"><TextBlock Text="文件信息" Margin="12,0" VerticalAlignment="Center"/></Border>
+          </Grid>
+        </Border>
+        <ListBox Grid.Row="1" x:Name="FileList" SelectionMode="Single" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="快速剪辑文件列表">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="local:QuickClipEntry">
+              <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="144,*,168" MinHeight="104">
+                  <Button Classes="preview" Click="EditEntryClick" ToolTip.Tip="预览 / 剪辑此文件" AutomationProperties.Name="预览并编辑此文件" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <Grid Margin="8">
+                      <TextBlock Text="{Binding PreviewStatus}" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                      <Image Source="{Binding Thumbnail}" Width="128" Height="88" Stretch="Uniform"/>
+                    </Grid>
+                  </Button>
+                  <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0">
+                    <Grid ColumnDefinitions="80,*" Margin="8">
+                      <Grid ColumnDefinitions="30,30" RowDefinitions="30,30" ColumnSpacing="6" RowSpacing="6" VerticalAlignment="Center">
+                        <Button Classes="row-icon" Click="InfoClick" ToolTip.Tip="媒体信息" AutomationProperties.Name="媒体信息"><icons:ActionIcon Kind="info"/></Button>
+                        <Button Grid.Column="1" Classes="row-icon" Click="FolderClick" ToolTip.Tip="打开源文件所在目录" AutomationProperties.Name="打开源文件所在目录"><icons:ActionIcon Kind="folder"/></Button>
+                        <Button Grid.Row="1" Classes="row-icon" Click="UpClick" IsEnabled="{Binding CanMoveUp}" ToolTip.Tip="上移" AutomationProperties.Name="上移"><icons:ActionIcon Kind="up"/></Button>
+                        <Button Grid.Row="1" Grid.Column="1" Classes="row-icon" Click="DownClick" IsEnabled="{Binding CanMoveDown}" ToolTip.Tip="下移" AutomationProperties.Name="下移"><icons:ActionIcon Kind="down"/></Button>
+                      </Grid>
+                    <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock Text="{Binding Path}" Classes="caption" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock Text="{Binding Details}" Classes="caption" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Details}"/>
+                      <TextBlock Text="{Binding Range}" Classes="caption" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    </Grid>
+                  </Border>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                      <Button Classes="row-icon" Click="RemoveClick" ToolTip.Tip="移除此条目" AutomationProperties.Name="移除此条目"><icons:ActionIcon Kind="remove"/></Button>
+                      <Button Content="分割" Click="SplitClick" ToolTip.Tip="将当前区间等分为多段"/>
+                      <Button Content="选项" Click="EditEntryClick" ToolTip.Tip="此文件的剪辑、裁剪和选项"/>
+                    </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Grid.Row="1" x:Name="EmptyText" Text="添加文件开始剪辑" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,8,0,0">
+      <Button Content="按名称排序" Click="SortClick"/>
+      <Button Grid.Column="1" Content="清空列表" Click="ClearClick" Margin="8,0"/>
+      <TextBlock Grid.Column="2" x:Name="CountText" Classes="caption" VerticalAlignment="Center" Margin="8,0"/>
+      <Button Grid.Column="3" Content="添加文件夹…" Click="AddFolderClick" Margin="0,0,8,0"/>
+      <Button Grid.Column="4" Content="添加文件…" Click="AddFilesClick"/>
+    </Grid>
+    <CheckBox Grid.Row="3" x:Name="AppendSetting" Content="添加设置名称 [FastCopy]" VerticalAlignment="Center"/>
+    <Grid Grid.Row="4" ColumnDefinitions="88,*,40" Margin="0,4,0,0">
+      <TextBlock Text="输出文件夹" VerticalAlignment="Center"/>
+      <ComboBox Grid.Column="1" x:Name="OutputCombo" AutomationProperties.Name="输出文件夹"/>
+      <Button Grid.Column="2" Click="BrowseOutputClick" Margin="8,0,0,0" Padding="4" ToolTip.Tip="选择输出文件夹" AutomationProperties.Name="选择输出文件夹"><icons:ActionIcon Kind="folder" Width="20" Height="20"/></Button>
+    </Grid>
+    <Grid Grid.Row="5" ColumnDefinitions="*,112,128" Margin="0,8,0,0">
+      <TextBlock x:Name="ModeNote" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,16,0"/>
+      <Button Grid.Column="1" Content="取消" Click="CancelClick" Margin="0,0,12,0" VerticalAlignment="Center"/>
+      <Button Grid.Column="2" x:Name="OkButton" Content="✓ 确定" Click="ConfirmClick" VerticalAlignment="Center"/>
+    </Grid>
+  </Grid>
+</Window>

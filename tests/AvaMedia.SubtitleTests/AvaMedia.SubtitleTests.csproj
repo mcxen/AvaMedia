@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <PropertyGroup Condition="'$(CoreOnly)' == 'true'"><DefineConstants>$(DefineConstants);CORE_ONLY</DefineConstants></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/AvaMedia.Core/AvaMedia.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(CoreOnly)' != 'true'">
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+    <ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" />
+  </ItemGroup>
+</Project>

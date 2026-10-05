@@ -1,0 +1,6 @@
+Package: PDFsharp 6.2.4
+Authors: PDFsharp Team
+Copyright: © 2026 empira
+License: MIT
+Project: https://docs.pdfsharp.net/
+Repository: https://github.com/empira/PDFsharp

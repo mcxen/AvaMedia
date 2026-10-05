@@ -1,0 +1,6 @@
+Package: PdfPig 0.1.13
+Authors: UglyToad
+Copyright: 
+License: Apache-2.0
+Project: https://github.com/UglyToad/PdfPig
+Repository: https://github.com/UglyToad/PdfPig

@@ -1,0 +1,6 @@
+Package: Avalonia.Win32 11.3.22
+Authors: Avalonia Team
+Copyright: Copyright 2013-2026 © The AvaloniaUI Project
+License: MIT
+Project: https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link
+Repository: https://github.com/AvaloniaUI/Avalonia/
