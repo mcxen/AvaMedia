@@ -3,7 +3,7 @@
   "parameters": "--include-transitive",
   "projects": [
     {
-      "path": "C:/Users/Administrator/Downloads/AvaMedia/artifacts/snapshots/AvaMedia-1.0.2-final/src/AvaMedia.Desktop/AvaMedia.Desktop.csproj",
+      "path": "C:/Users/Administrator/Downloads/AvaMedia/src/AvaMedia.Desktop/AvaMedia.Desktop.csproj",
       "frameworks": [
         {
           "framework": "net8.0",

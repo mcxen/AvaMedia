@@ -45,5 +45,30 @@ if ($Runtime.StartsWith('osx-')) {
             $entry.ExternalAttributes = [int]($mode -shl 16)
         }
     } finally { $archive.Dispose(); $archiveStream.Dispose() }
+    # Windows ZipArchive records the Windows creator OS. Mark central-directory
+    # entries as Unix so macOS extractors honor the stored execute permissions.
+    $zipStream = [IO.File]::Open($zip,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+    try {
+        $tailLength = [int][Math]::Min($zipStream.Length,65557)
+        $tail = [byte[]]::new($tailLength)
+        $zipStream.Position = $zipStream.Length - $tailLength
+        $null = $zipStream.Read($tail,0,$tailLength)
+        $end = -1
+        for ($offset=$tailLength-22; $offset -ge 0; $offset--) {
+            if ([BitConverter]::ToUInt32($tail,$offset) -eq 0x06054b50 -and $offset+22+[BitConverter]::ToUInt16($tail,$offset+20) -eq $tailLength) { $end=$offset; break }
+        }
+        if ($end -lt 0) { throw 'ZIP central directory was not found.' }
+        $count = [BitConverter]::ToUInt16($tail,$end+10)
+        $zipStream.Position = [BitConverter]::ToUInt32($tail,$end+16)
+        for ($entryIndex=0; $entryIndex -lt $count; $entryIndex++) {
+            $position = $zipStream.Position
+            $header = [byte[]]::new(46)
+            $null = $zipStream.Read($header,0,46)
+            if ([BitConverter]::ToUInt32($header,0) -ne 0x02014b50) { throw 'Invalid ZIP central directory entry.' }
+            $zipStream.Position = $position+5
+            $zipStream.WriteByte(3)
+            $zipStream.Position = $position+46+[BitConverter]::ToUInt16($header,28)+[BitConverter]::ToUInt16($header,30)+[BitConverter]::ToUInt16($header,32)
+        }
+    } finally { $zipStream.Dispose() }
 } else { Compress-Archive -Path (Join-Path $publishRoot '*') -DestinationPath $zip -Force }
 Write-Output $zip

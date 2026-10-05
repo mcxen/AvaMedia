@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -38,6 +37,7 @@ public sealed partial class BatchCropWindow : Window
     private BatchCropEntry? _active;
     private BatchCropEntry? _reference;
     private ConversionOptions _options = new();
+    private int _mediaRevision;
     private bool _updating;
     private bool _closed;
     public IReadOnlyList<BatchCropEntry> Entries => _entries;
@@ -61,7 +61,6 @@ public sealed partial class BatchCropWindow : Window
                 _previewReady = LoadPreview(_active, true);
         };
         OutputInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) RefreshValidation(); };
-        OutputInput.TextChanged += (_, _) => RefreshValidation();
         CropLayer.Changed += rect =>
         {
             if (_active?.Info is null) return;
@@ -112,15 +111,16 @@ public sealed partial class BatchCropWindow : Window
     private async Task LoadEntry(BatchCropEntry entry)
     {
         var token = _lifetime.Token; var acquired = false;
+        var revision = _mediaRevision; var videoIndex = _options.VideoStreamIndex; var audioIndex = _options.AudioStreamIndex;
         try
         {
             await _loadSlots.WaitAsync(token); acquired = true;
-            var info = await _engine.Probe(entry.Path, token);
+            var info = await _engine.Probe(entry.Path, token, videoIndex, audioIndex);
             if (!info.HasVideo || info.Width < 2 || info.Height < 2 || info.Duration <= 0)
                 throw new InvalidDataException("文件不包含可裁剪的视频画面。");
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (_closed || !_entries.Contains(entry)) return;
+                if (_closed || revision != _mediaRevision || !_entries.Contains(entry)) return;
                 entry.Loaded(info);
                 if (_active == entry)
                 {
@@ -135,7 +135,7 @@ public sealed partial class BatchCropWindow : Window
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (_closed || !_entries.Contains(entry)) return;
+                if (_closed || revision != _mediaRevision || !_entries.Contains(entry)) return;
                 entry.Error = ex.Message;
                 if (_active == entry) { PreviewStatus.Text = "无法读取视频：" + ex.Message; PreviewStatus.IsVisible = true; }
                 RefreshValidation();
@@ -163,9 +163,10 @@ public sealed partial class BatchCropWindow : Window
         {
             if (debounce) await Task.Delay(120, token);
             if (entry.Info is null) return;
-            var bytes = await _engine.Thumbnail(entry.Path, seconds, 960, 540, token, pad: false);
+            var bytes = await _engine.Thumbnail(entry.Path, seconds, 960, 540, token, pad: false, videoStreamIndex: entry.Info.VideoStreamIndex);
             token.ThrowIfCancellationRequested();
-            var bitmap = new Bitmap(new MemoryStream(bytes));
+            using var stream = new MemoryStream(bytes);
+            var bitmap = new Bitmap(stream);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (_closed || token.IsCancellationRequested || _active != entry) { bitmap.Dispose(); return; }
@@ -224,7 +225,7 @@ public sealed partial class BatchCropWindow : Window
         }
         var outputValid = !string.IsNullOrWhiteSpace(OutputInput.Text);
         OkButton.IsEnabled = included.Length > 0 && invalid == 0 && pending == 0 && outputValid;
-        ValidationText.Foreground = invalid > 0 ? this.FindResource("UiDanger") as IBrush : this.FindResource("UiText") as IBrush;
+        ValidationText.Classes.Set("error", invalid > 0);
         ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? $"正在读取 {pending} 个视频…"
             : invalid > 0 ? $"{invalid} 个视频无法使用此选区，请调整选区、切换比例模式或取消勾选。"
             : !outputValid ? "请选择输出目录" : $"共同选区将应用于 {included.Length} 个视频。源文件保持原样。";
@@ -322,12 +323,23 @@ public sealed partial class BatchCropWindow : Window
     private async void OptionsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
         var result = await new OptionsWindow(_options, copyStreamsMode: false).ShowDialog<ConversionOptions?>(this);
-        if (result is not null) { _options = result; RefreshValidation(); }
+        if (result is null) return;
+        var videoChanged = result.VideoStreamIndex != _options.VideoStreamIndex;
+        var streamsChanged = videoChanged || result.AudioStreamIndex != _options.AudioStreamIndex;
+        _options = result;
+        if (streamsChanged)
+        {
+            _mediaRevision++; if (videoChanged) _reference = null; _previewCancellation?.Cancel();
+            (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
+            PreviewStatus.Text = "正在读取所选媒体轨…"; PreviewStatus.IsVisible = true; CropLayer.Enabled = false;
+            foreach (var entry in _entries) { entry.Info = null; entry.Error = null; entry.Ready = LoadEntry(entry); }
+        }
+        RefreshValidation();
     }
     private void CancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => Close(null);
     private void ConfirmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
         try { Close(CreateRequest()); }
-        catch (Exception ex) { ValidationText.Text = ex.Message; ValidationText.Foreground = this.FindResource("UiDanger") as IBrush; }
+        catch (Exception ex) { ValidationText.Text = ex.Message; ValidationText.Classes.Set("error", true); }
     }
 }

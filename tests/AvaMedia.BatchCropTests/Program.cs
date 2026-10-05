@@ -5,6 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -17,7 +19,7 @@ var root = Path.GetFullPath("artifacts/batch-crop-" + DateTime.Now.ToString("yyy
 Directory.CreateDirectory(root);
 var engine = new MediaEngine(new()); var checks = 0; var outputs = new List<string>();
 void Check(bool value, string message) { if (!value) throw new Exception(message); checks++; }
-ProcessResult Run(params string[] args) => ProcessRunner.Run(engine.FFmpeg, args).GetAwaiter().GetResult();
+ProcessResult Run(params string[] args) => Task.Run(() => ProcessRunner.Run(engine.FFmpeg, args)).GetAwaiter().GetResult();
 string Fixture(string name, int width, int height, bool audio)
 {
     var path = Path.Combine(root, name + ".mp4");
@@ -102,6 +104,7 @@ var mode = window.FindControl<ComboBox>("ModeCombo")!;
 var ok = window.FindControl<Button>("OkButton")!;
 var layer = window.FindControl<CropOverlay>("CropLayer")!;
 Capture(window, "batch-crop-light.png");
+Check(window.FindControl<TextBlock>("ValidationText")!.Foreground is SolidColorBrush { Color.A: > 0 }, "Validation feedback is invisible.");
 Check(layer.Enabled && layer.Bounds.Width > 0, "Drawing surface not enabled.");
 Point PixelPoint(double x, double y)
 {
@@ -123,6 +126,7 @@ Check(window.Area == new CropArea(32, 20, 128, 100) && layer.Enabled, "Seeking r
 list.SelectedIndex = 0; Pump(window.Ready);
 mode.SelectedItem = BatchCropWindow.PixelMode; window.SetArea(area);
 Check(!ok.IsEnabled && window.Entries[2].Status.Contains("超出"), "Pixel bounds failure is not shown/blocking.");
+Check(window.FindControl<TextBlock>("ValidationText")!.Classes.Contains("error"), "Invalid batch has no error style.");
 mode.SelectedItem = BatchCropWindow.RelativeMode;
 Check(ok.IsEnabled && window.Entries.All(e => e.Status.StartsWith("选区")), "Relative mode cannot recover mixed-size batch.");
 window.Entries[2].Include = false;
@@ -142,6 +146,7 @@ Check(!ok.IsEnabled, "Empty output folder accepted by UI."); window.FindControl<
 Capture(window, "batch-crop-light.png");
 Application.Current.RequestedThemeVariant = ThemeVariant.Dark; Dispatcher.UIThread.RunJobs();
 Capture(window, "batch-crop-dark.png");
+Check(window.FindControl<TextBlock>("ValidationText")!.Foreground is SolidColorBrush { Color.R: > 220 }, "Feedback does not update to dark theme.");
 window.Width = 940; window.Height = 640; Capture(window, "batch-crop-minimum.png", 940, 640);
 Check(new Control[] { ok, mode, window.FindControl<NumericUpDown>("CropWidthInput")!, window.FindControl<TextBox>("OutputInput")! }.All(c => c.Bounds.Width > 20 && c.TranslatePoint(new Point(c.Bounds.Width, c.Bounds.Height), window) is { } p && p.X <= 924.5 && p.Y <= 624.5), "Minimum size hides/overflows controls.");
 list.SelectedIndex = 3;
@@ -159,15 +164,52 @@ Check(dialog.Result is { Inputs.Count: 2, Area.X: 160 } && !confirm.IsVisible, "
 var cancel = new BatchCropWindow(engine, root, [small]); var cancelDialog = cancel.ShowDialog<BatchCropRequest?>(owner);
 Click(cancel.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "取消"))); Pump(cancelDialog);
 Check(cancelDialog.Result is null && !cancel.IsVisible, "Cancel submitted a batch."); owner.Close();
+
+// A second video stream must use the same geometry in preview, validation and encoding.
+var multi = Path.Combine(root, "多视频轨.mkv");
+Check(Run("-v", "error", "-n", "-i", small, "-i", portrait, "-map", "0:v", "-map", "1:v", "-map", "0:a", "-c", "copy", multi).ExitCode == 0, "Multistream fixture failed.");
+var streamWindow = new BatchCropWindow(engine, root, [multi]); streamWindow.Show(); Pump(streamWindow.Ready);
+Click(streamWindow.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "输出配置…")));
+var optionsWindow = streamWindow.OwnedWindows.OfType<OptionsWindow>().Single();
+optionsWindow.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "VideoStreamIndex").Text = "1";
+Click(optionsWindow.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "确定"))); Pump(streamWindow.Ready);
+Check(streamWindow.Entries[0].Info is { Width: 180, Height: 320, VideoStreamIndex: 1 } && streamWindow.Area == new CropArea(0, 0, 180, 320), "Changing video stream uses stale media geometry.");
+streamWindow.SetArea(new(90, 20, 90, 100));
+var streamJob = BatchCrop.CreateJobs(streamWindow.CreateRequest()).Single();
+Pump(engine.Execute(streamJob, _ => { }, CancellationToken.None)); outputs.Add(streamJob.Output);
+var streamProbe = engine.Probe(streamJob.Output); Pump(streamProbe); var streamInfo = streamProbe.Result;
+Check(streamInfo.Width == 90 && streamInfo.Height == 100 && streamJob.Options.VideoStreamIndex == 1, "Crop encoded the wrong video stream.");
+streamWindow.Close();
+
+// Exercise the actual main-window entry, queue submission, persistence and Start action.
+var state = new Storage(Path.Combine(root, "isolated-state"));
+state.SaveSettings(new() { OutputFolder = Path.Combine(root, "main-queue"), ReduceMotion = true, NotifyComplete = false });
+var main = new MainWindow(state); main.Show();
+var cropMenu = main.GetLogicalDescendants().OfType<MenuItem>().Single(m => Equals(m.Header, "视频批量裁剪…"));
+cropMenu.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Dispatcher.UIThread.RunJobs();
+var batch = main.OwnedWindows.OfType<BatchCropWindow>().Single(); batch.AddFiles([small, large]); Pump(batch.Ready); batch.SetArea(area);
+Click(batch.FindControl<Button>("OkButton")!);
+var queue = main.FindControl<ListBox>("JobList")!.Items.Cast<Job>().ToArray();
+Check(queue.Length == 2 && queue.All(j => j.FeatureId == "crop" && j.Options.CropX == 160 && j.State == JobState.Waiting), "Main window did not queue shared crop jobs.");
+Check(state.LoadJobs().Count == 2, "Shared crop queue was not saved.");
+Click(main.FindControl<Button>("StartButton")!);
+PumpUntil(() => queue.All(j => j.State is JobState.Completed or JobState.Failed));
+Check(queue.All(j => j.State == JobState.Completed), "Main Start failed to execute crop queue.");
+foreach (var job in queue) { outputs.Add(job.Output); var probe = engine.Probe(job.Output); Pump(probe); var result = probe.Result; Check(result.Width == 160 && result.Height == 100, "Main queue output dimensions incorrect."); }
+main.Close();
 File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { checks, outputs, sourceHashesVerified = true, cropOffsetsVerified = true, uiPointerAndDialogsVerified = true }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks} batch crop checks / {outputs.Count} actual outputs. {root}");
 
 void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }
 void Pump(Task task)
 {
+    PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult();
+}
+void PumpUntil(Func<bool> done)
+{
     var deadline = DateTime.UtcNow.AddSeconds(25);
-    while (!task.IsCompleted) { Dispatcher.UIThread.RunJobs(); if (DateTime.UtcNow > deadline) throw new TimeoutException("UI action timed out."); Thread.Sleep(5); }
-    Dispatcher.UIThread.RunJobs(); task.GetAwaiter().GetResult();
+    while (!done()) { Dispatcher.UIThread.RunJobs(); if (DateTime.UtcNow > deadline) throw new TimeoutException("UI action timed out."); Thread.Sleep(5); }
+    Dispatcher.UIThread.RunJobs();
 }
 void Capture(Window target, string name, int width = 1200, int height = 800)
 {

@@ -22,6 +22,7 @@ public static class SubtitleOptions
             throw new ArgumentException("字幕语言使用三字母代码，例如 zho、eng。");
         var mode = Mode(o);
         if (mode == SubtitleMode.None) return;
+        if (mode == SubtitleMode.BurnIn && MediaEngine.IsAudio(o.Format)) throw new ArgumentException("纯音频输出不能烧录字幕，请关闭字幕处理。");
         if (mode == SubtitleMode.ExternalTrack && string.IsNullOrWhiteSpace(o.Subtitle)) throw new ArgumentException("请选择要附加的字幕文件。");
         if (mode is SubtitleMode.BurnIn or SubtitleMode.ExternalTrack && !string.IsNullOrWhiteSpace(o.Subtitle) && !File.Exists(o.Subtitle))
             throw new FileNotFoundException("字幕文件不存在", o.Subtitle);
@@ -41,7 +42,7 @@ public static class SubtitleOptions
         if (tracks.Length == 0 || o.SubtitleStreamIndex >= tracks.Length) throw new ArgumentException("源文件不包含所选字幕轨。");
         if (mode == SubtitleMode.BurnIn && tracks[Math.Max(0, o.SubtitleStreamIndex)].GetProperty("codec_name").GetString() is "hdmv_pgs_subtitle" or "dvd_subtitle" or "dvb_subtitle")
             throw new ArgumentException("此位图字幕轨不能通过文本字幕滤镜烧录，请保留到 MKV 字幕轨。");
-        if (o.Format != "mkv" && tracks.Where((_, i) => o.SubtitleStreamIndex < 0 || i == o.SubtitleStreamIndex).Any(s => s.GetProperty("codec_name").GetString() is "hdmv_pgs_subtitle" or "dvd_subtitle" or "dvb_subtitle"))
+        if (mode == SubtitleMode.Preserve && o.Format != "mkv" && tracks.Where((_, i) => o.SubtitleStreamIndex < 0 || i == o.SubtitleStreamIndex).Any(s => s.GetProperty("codec_name").GetString() is "hdmv_pgs_subtitle" or "dvd_subtitle" or "dvb_subtitle"))
             throw new ArgumentException("位图字幕需保留到 MKV，不能转为此容器的文本字幕轨。");
     }
 

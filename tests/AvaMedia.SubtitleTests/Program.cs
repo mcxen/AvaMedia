@@ -72,8 +72,10 @@ Check(Energy(join.Output,.2)<.2&&Energy(join.Output,1)>.4&&Energy(join.Output,3)
 Check(Reject(new(){CopyStreams=true,SubtitleMode=SubtitleMode.BurnIn}),"Stream copy rejects source subtitle burn-in before encoding");
 Check(Reject(new(){Format="avi",SubtitleMode=SubtitleMode.Preserve}),"Unsupported soft-subtitle containers are rejected");
 Check(Reject(new(){Speed=2,SubtitleMode=SubtitleMode.Preserve}),"Unsynchronized soft-subtitle speed changes are rejected explicitly");
+Check(Reject(new(){Format="wav",SubtitleMode=SubtitleMode.BurnIn}),"Audio-only output rejects meaningless subtitle burn-in");
 Check(Reject(new(){SubtitleFont="Arial,FontSize=200"})&&Reject(new(){SubtitleColor="white"})&&Reject(new(){AudioStreamIndex=-1}),"Invalid styles and track indices are rejected");
 var absent=false;try{Convert(new(){SubtitleMode=SubtitleMode.Preserve,SubtitleStreamIndex=4},"invalid");}catch(ArgumentException){absent=true;}Check(absent&&!File.Exists(Path.Combine(root,"invalid.mp4")),"Missing subtitle selection fails without creating output");
+var externalAbsent=false;try{Convert(new(){SubtitleMode=SubtitleMode.BurnIn,Subtitle=second,SubtitleStreamIndex=4},"invalid-external");}catch(ArgumentException){externalAbsent=true;}Check(externalAbsent&&!File.Exists(Path.Combine(root,"invalid-external.mp4")),"External burn-in validates its subtitle index before creating output");
 var invalidAudio=false;try{engine.Probe(multi,audioStreamIndex:4).GetAwaiter().GetResult();}catch(ArgumentException){invalidAudio=true;}Check(invalidAudio,"Missing audio selection fails during probing");
 var thumbs=engine.Thumbnail(multi,2,160,90,videoStreamIndex:1).GetAwaiter().GetResult();var other=engine.Thumbnail(multi,2,160,90).GetAwaiter().GetResult();Check(!thumbs.SequenceEqual(other),"Thumbnail generation follows video selection");
 #if !CORE_ONLY

@@ -5,6 +5,8 @@
   <Window.Styles>
     <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
     <Style Selector="NumericUpDown"><Setter Property="MinHeight" Value="28"/></Style>
+    <Style Selector="TextBlock.cropValidation"><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+    <Style Selector="TextBlock.cropValidation.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
   </Window.Styles>
   <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="16" RowSpacing="12">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -83,7 +85,7 @@
       <Button Grid.Column="5" Content="输出配置…" Click="OptionsClick"/>
     </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="ValidationText" Text="请添加并勾选视频" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <TextBlock x:Name="ValidationText" Classes="cropValidation" Text="请添加并勾选视频" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" MinWidth="100"/>
       <Button Grid.Column="2" x:Name="OkButton" Content="批量加入队列" Click="ConfirmClick" IsDefault="True" MinWidth="140" IsEnabled="False"/>
     </Grid>

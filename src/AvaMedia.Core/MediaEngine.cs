@@ -163,10 +163,10 @@ public sealed class MediaEngine
             if(job.InputOptions is not null)SubtitleOptions.ValidateSource(edit,infos[^1]);
         }
         if(infos.Count>0)SubtitleOptions.ValidateSource(job.Options,infos[0]);
-        if(SubtitleOptions.Mode(job.Options)==SubtitleMode.ExternalTrack)
+        if(SubtitleOptions.Mode(job.Options) is SubtitleMode.ExternalTrack or SubtitleMode.BurnIn && !string.IsNullOrWhiteSpace(job.Options.Subtitle))
         {
             var sub=await Probe(job.Options.Subtitle,ct);
-            var selected=job.Options.Clone();selected.SubtitleMode=SubtitleMode.Preserve;SubtitleOptions.ValidateSource(selected,sub);
+            var selected=job.Options.Clone();selected.Subtitle="";selected.SubtitleMode=SubtitleOptions.Mode(job.Options)==SubtitleMode.ExternalTrack?SubtitleMode.Preserve:SubtitleMode.BurnIn;SubtitleOptions.ValidateSource(selected,sub);
         }
         if(infos.Count>0)
         {
