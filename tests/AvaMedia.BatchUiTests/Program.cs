@@ -11,9 +11,16 @@ using AvaMedia.Core;
 using AvaMedia.Desktop;
 
 AppBuilder.Configure<BatchTestApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
-var output = Path.GetFullPath("artifacts/batch-ui"); Directory.CreateDirectory(output);
-var fixture = args.FirstOrDefault() ?? throw new ArgumentException("Pass a generated fixture video.");
-var window = new BatchToolsWindow(new MediaEngine(new()), output, [fixture]) { FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 13 };
+var output = Path.GetFullPath("artifacts/batch-ui-" + DateTime.Now.ToString("yyyyMMdd-HHmmss")); Directory.CreateDirectory(output);
+var engine = new MediaEngine(new());
+var fixture = args.FirstOrDefault();
+if (fixture is null)
+{
+    fixture = Path.Combine(output, "fixture.mkv");
+    var generated = ProcessRunner.Run(engine.FFmpeg, ["-v", "error", "-n", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25", "-t", "1", "-c:v", "ffv1", fixture]).GetAwaiter().GetResult();
+    if (generated.ExitCode != 0) throw new InvalidOperationException(generated.Error);
+}
+var window = new BatchToolsWindow(engine, output, [fixture], Path.Combine(output, "rename-journal.json")) { FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 13 };
 window.Show(); Dispatcher.UIThread.RunJobs();
 var preview = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "预览新名称"));
 preview.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();

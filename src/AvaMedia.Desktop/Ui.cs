@@ -24,11 +24,4 @@ internal static class Ui
         grid.Children.Add(new TextBox{Text=message,IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Stretch});
         var close=Button("确定",()=>w.Close(),120);close.HorizontalAlignment=HorizontalAlignment.Right;close.Margin=new(0,14,0,0);Grid.SetRow(close,1);grid.Children.Add(close);w.Content=grid;await w.ShowDialog(owner);
     }
-    public static async Task<bool> Confirm(Window owner,string title,string text)
-    {
-        var w=new Window{Title=title,Width=460,Height=180,WindowStartupLocation=WindowStartupLocation.CenterOwner,CanResize=false};
-        var p=new StackPanel{Margin=new(20),Spacing=22};p.Children.Add(new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap});
-        var row=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=10};
-        row.Children.Add(Button("取消",()=>w.Close(false),100));row.Children.Add(Button("确定",()=>w.Close(true),100));p.Children.Add(row);w.Content=p;return await w.ShowDialog<bool>(owner);
-    }
 }
