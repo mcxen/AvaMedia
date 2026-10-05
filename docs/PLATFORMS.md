@@ -1,12 +1,12 @@
 # Windows 与 macOS
 
-维护日期：2026-10-06。[v1.0.4 Release](https://github.com/mcxen/AvaMedia/releases/tag/v1.0.4) 已完成 Windows 全部 18 套测试、安装、原生启动和卸载验证；macOS 两个架构已在对应 GitHub runner 上完成接口、皮肤与发布应用原生启动验证。设备声音、录屏权限、Retina 与 Finder 交互仍需设备验收。记录见 [1.0.4 验收记录](releases/1.0.4-verified.json)。
+维护日期：2026-10-06。[v1.0.5 Release](https://github.com/mcxen/AvaMedia/releases/tag/v1.0.5) 已完成 Windows 全部 18 套测试、安装、原生启动和卸载验证；macOS 两个架构已在对应 GitHub runner 上完成接口、皮肤与发布应用原生启动验证。设备声音、录屏权限、Retina 与 Finder 交互仍需设备验收。记录见 [1.0.5 验收记录](releases/1.0.5-verified.json)。
 
 ## 应用包
 
-- Windows x64：`AvaMedia-1.0.4-win-x64-setup.exe` 每用户安装，或 ZIP 解压运行 `AvaMedia.Desktop.exe`。
-- Apple Silicon：`AvaMedia-1.0.4-osx-arm64.pkg` / `.dmg` / `.zip`，包含 `AvaMedia.app`。
-- Intel Mac：`AvaMedia-1.0.4-osx-x64.pkg` / `.dmg` / `.zip`，包含 `AvaMedia.app`。
+- Windows x64：`AvaMedia-1.0.5-win-x64-setup.exe` 每用户安装，或 ZIP 解压运行 `AvaMedia.Desktop.exe`。
+- Apple Silicon：`AvaMedia-1.0.5-osx-arm64.pkg` / `.dmg` / `.zip`，包含 `AvaMedia.app`。
+- Intel Mac：`AvaMedia-1.0.5-osx-x64.pkg` / `.dmg` / `.zip`，包含 `AvaMedia.app`。
 
 应用包含 .NET 运行时，不要求用户安装开发 SDK。macOS 包含原生 apphost、Avalonia/Skia/HarfBuzz dylib、Info.plist、许可与说明；ZIP 保存 Unix 创建平台和执行权限。构建方式依据 [Avalonia macOS 部署说明](https://docs.avaloniaui.net/docs/deployment/macos)。Mac 包使用 ad-hoc 签名，尚未进行 Developer ID 签名和公证；初次安装的系统放行和最低系统版本仍需设备验收。
 
@@ -31,6 +31,6 @@ Windows 声音使用 WaveOut；macOS 声音接入系统 AudioToolbox 的 AudioQu
 ./scripts/Verify-MacPackages.ps1
 ```
 
-Mac 包检查通过 64 项：两个架构的八种关键 Mach-O 二进制（含 .NET CoreCLR、hostpolicy 与 ONNX Runtime）、执行权限、Info.plist、应用 ICNS 图标、工具脚本、许可和 ZIP 元数据。该脚本只检查归档，原生运行验证由 [Release 工作流](https://github.com/mcxen/AvaMedia/actions/runs/37343702640) 在两种架构 runner 完成。发布包哈希和验证范围保存在 [验收记录](releases/1.0.4-verified.json)。
+Mac 包检查通过 64 项：两个架构的八种关键 Mach-O 二进制（含 .NET CoreCLR、hostpolicy 与 ONNX Runtime）、执行权限、Info.plist、应用 ICNS 图标、工具脚本、许可和 ZIP 元数据。该脚本只检查归档，原生运行验证由 [Release 工作流](https://github.com/mcxen/AvaMedia/actions/runs/37384638311) 在两种架构 runner 完成。发布包哈希和验证范围保存在 [验收记录](releases/1.0.5-verified.json)。
 
 后续 Mac 真机验收需记录 OS、CPU、FFmpeg 版本，运行共同的字幕/音频/转换样例，并实测窗口、声音、定位/静音/停止、录屏权限允许与拒绝、Finder、中文文件名与字幕、系统动效、文档中文字体。Apple Silicon 和 Intel 分别保存结果；完成前不宣称双平台交付已验收。

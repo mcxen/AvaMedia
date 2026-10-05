@@ -1,0 +1,99 @@
+{
+  "version": "1.0.5",
+  "gitRevision": "0f10aa8cfab79172c11022a7dbfcd6587a1bbcf8",
+  "tag": "v1.0.5",
+  "publishedAt": "2026-10-05T22:54:51Z",
+  "releaseUrl": "https://github.com/mcxen/AvaMedia/releases/tag/v1.0.5",
+  "workflowUrl": "https://github.com/mcxen/AvaMedia/actions/runs/37384638311",
+  "ciUrl": "https://github.com/mcxen/AvaMedia/actions/runs/37384638260",
+  "workflowStatus": "success",
+  "windows": {
+    "suites": 18,
+    "workingTreeDirty": false,
+    "installation": true,
+    "nativeStartup": true,
+    "uninstallation": true
+  },
+  "macOS": {
+    "runtimes": [
+      "osx-arm64",
+      "osx-x64"
+    ],
+    "nativeStartup": true,
+    "interfacesAndSkins": true,
+    "archiveChecks": 64,
+    "developerIdSigned": false,
+    "notarized": false,
+    "deviceAudioAndRecordingVerified": false
+  },
+  "assets": [
+    {
+      "name": "AvaMedia-1.0.5-osx-arm64.dmg",
+      "bytes": 80155165,
+      "sha256": "64223920dacbc4f668a835c21ebd2ea90c3a1213b0d0233e1bf2eae8fd01a46c",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-osx-arm64.dmg"
+    },
+    {
+      "name": "AvaMedia-1.0.5-osx-arm64.pkg",
+      "bytes": 71407964,
+      "sha256": "18c5a01da21795dd547931d41cdc2753fc1ed870c2e0b95ea26afba2acf23f50",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-osx-arm64.pkg"
+    },
+    {
+      "name": "AvaMedia-1.0.5-osx-arm64.zip",
+      "bytes": 73461872,
+      "sha256": "dbf0a2a079fb95a4bab3f67bf17ee6411721405768e6c754545689b9b966d357",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-osx-arm64.zip"
+    },
+    {
+      "name": "AvaMedia-1.0.5-osx-x64.dmg",
+      "bytes": 83286085,
+      "sha256": "31e8a6582fbf41b7abf965426e2108b54c45a793aab5529a3bc088cf055be447",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-osx-x64.dmg"
+    },
+    {
+      "name": "AvaMedia-1.0.5-osx-x64.pkg",
+      "bytes": 74716525,
+      "sha256": "f668bbf4d5be04595ed876deb07cb6db747ae0161fea0bba10d1cfc46ecfa201",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-osx-x64.pkg"
+    },
+    {
+      "name": "AvaMedia-1.0.5-osx-x64.zip",
+      "bytes": 76747905,
+      "sha256": "0fa827b65e8ef835938c83fa5a3157b059b0c2db411f134fa63caff49891d6e8",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-osx-x64.zip"
+    },
+    {
+      "name": "AvaMedia-1.0.5-source.zip",
+      "bytes": 20153836,
+      "sha256": "b8394971bc8582c9953fe81958a400a0c4ee550e670eadf368ad32063b095006",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-source.zip"
+    },
+    {
+      "name": "AvaMedia-1.0.5-win-x64-setup.exe",
+      "bytes": 52669024,
+      "sha256": "aa3fb094bf666bbc43628021a2ba44e978fcd0a6b7abfa4fe325d7b84f2c196e",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-win-x64-setup.exe"
+    },
+    {
+      "name": "AvaMedia-1.0.5-win-x64.zip",
+      "bytes": 68847848,
+      "sha256": "0f23855220a071bb87ecd423cd1239f30f5c423919368fd89cd8317a43840a71",
+      "url": "https://github.com/mcxen/AvaMedia/releases/download/v1.0.5/AvaMedia-1.0.5-win-x64.zip"
+    }
+  ],
+  "windowsMediaTools": {
+    "variant": "win64-lgpl-shared",
+    "runtimeBytes": 161176064,
+    "capabilityListsUnchanged": [
+      "encoders",
+      "decoders",
+      "filters",
+      "formats",
+      "protocols",
+      "devices"
+    ],
+    "ffplayInstalled": false,
+    "temporaryExtractionRemoved": true
+  }
+}
