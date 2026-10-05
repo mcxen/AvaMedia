@@ -84,7 +84,7 @@ Click(window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Conten
 var editor = window.OwnedWindows.OfType<EditorWindow>().Single(); Pump(editor.Ready);
 editor.FindControl<TextBox>("StartTime")!.Text = "00:00:00.500";
 editor.FindControl<TextBox>("EndTime")!.Text = "00:00:02.500";
-Click(editor.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "✓ 确定")));
+Click(editor.FindControl<Button>("ConfirmButton")!);
 PumpUntil(() => !editor.IsVisible); Pump(window.Ready);
 Check(first.Options.Start == .5 && first.Options.End == 2.5 && second.Options.Start == 0 && second.Options.End == 0 && window.Preset == "Fast Copy", "Editing one file affected another or changed Fast Copy.");
 window.FindControl<ComboBox>("OutputCombo")!.SelectedItem = QuickClipWindow.SourceDirectory;
