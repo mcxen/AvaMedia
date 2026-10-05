@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private bool _closing;
     private Task _running=Task.CompletedTask;
     public IMediaEngine Engine {get;}
+    internal event Action? JobDisplayChanged;
     public MainWindow() : this(new Storage()) { }
     public MainWindow(Storage storage, IMediaEngine? engine=null)
     {
@@ -108,6 +109,7 @@ public partial class MainWindow : Window
     {
         StartButton.IsEnabled=!_queue.IsRunning && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
         SummaryText.Text=_jobs.Count==0?"":$"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}";
+        JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -142,7 +144,7 @@ public partial class MainWindow : Window
     }
     private async void EditSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j)await EditJob(j);}
     private async void PreviewClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){e.Handled=true;if(sender is Control {DataContext:Job job})await EditJob(job);}
-    private async Task EditJob(Job j)
+    internal async Task EditJob(Job j)
     {
         var feature=Catalog.Find(j.FeatureId);
         if(j.State==JobState.Running)return;

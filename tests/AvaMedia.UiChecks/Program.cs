@@ -208,6 +208,7 @@ storage.SaveSettings(settings);
 Check(storage.LoadSettings().ReduceMotion, "Reduced-motion preference survives settings serialization");
 File.WriteAllText(Path.Combine(output, "isolated-settings", "settings.json"), "{}");
 Check(!storage.LoadSettings().ReduceMotion, "Legacy settings without the new field remain compatible");
+QueueListChecks.Run(output, Check, Pump);
 File.WriteAllText(Path.Combine(output, "results.json"), JsonSerializer.Serialize(new { results.Count, allowedBySystem, results },
     new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"UI checks complete: {results.Count} results. {output}");
