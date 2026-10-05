@@ -31,6 +31,8 @@ try {
     if (!$stagePath.StartsWith($targetPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Temporary extraction path escaped the tools directory.' }
     Remove-Item -LiteralPath $stagePath -Recurse -Force
 }
-Invoke-WebRequest -Uri 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe' -OutFile (Join-Path $target 'yt-dlp.exe')
+if (!(Test-Path -LiteralPath (Join-Path $target 'download-tools.json'))) {
+    & (Join-Path $PSScriptRoot 'Bundle-DownloadTools.ps1') -Runtime win-x64 -Destination $target
+}
 Write-Output "Installed external tools in $target"
 Write-Output 'Review actual FFmpeg/yt-dlp component licenses before redistributing these tools.'

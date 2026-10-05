@@ -25,6 +25,6 @@ git push origin v1.0.5
 
 macOS 上发布相应架构后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的录制权限与音频设备仍需验收。
 
-外部 FFmpeg / FFprobe / yt-dlp 不随安装包再分发。Windows 开始菜单提供工具安装入口，安装至应用 `tools` 目录；macOS 使用 Homebrew 或设置外部路径。依赖和安装器许可保存在 `licenses/`。
+新构建内置官方 yt-dlp 2026.08.19 和 Deno 2.9.7，固定版本、核对 SHA256、保留许可证与来源清单。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 开始菜单提供工具安装入口，安装至应用 `tools` 目录；macOS 使用 Homebrew 或设置外部路径。依赖和安装器许可保存在 `licenses/`。
 
 参考：[GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)、[Inno 编译参数](https://jrsoftware.org/ishelp/topic_compilercmdline.htm)、[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)。

@@ -61,6 +61,7 @@ public static class Catalog
 }
 public sealed class ConversionOptions
 {
+    public DownloadOptions? Download { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
@@ -118,6 +119,10 @@ public sealed class ConversionOptions
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
 public sealed class Job : Observable
 {
+    private string _downloadTitle="";
+    public string DownloadTitle { get=>_downloadTitle; set { if(Set(ref _downloadTitle,value))Raise(nameof(Name)); } }
+    private string _progressDetail="";
+    public string ProgressDetail { get=>_progressDetail; set { if(Set(ref _progressDetail,value))Raise(nameof(Status)); } }
     private ProgressEstimate? _estimate;
     [JsonIgnore]
     public ProgressEstimate? Estimate { get=>_estimate; set { if(Set(ref _estimate,value)){Raise(nameof(RemainingTimeText));Raise(nameof(Status));} } }
@@ -139,11 +144,11 @@ public sealed class Job : Observable
     public double Progress { get=>_progress; set {if(Set(ref _progress,value)) Raise(nameof(Status));} }
     public string Error { get; set; } = "";
     public string Log { get; set; } = "";
-    public string Name => string.Join(" + ", Inputs.Select(Path.GetFileName));
+    public string Name => string.IsNullOrWhiteSpace(DownloadTitle)?string.Join(" + ", Inputs.Select(Path.GetFileName)):DownloadTitle;
     public string Source => string.Join(Environment.NewLine, Inputs);
     public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {Output}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"转换中  {Progress:0.0}%"+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成",JobState.Failed=>"失败 · 双击查看日志",_=>"已停止"};
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成",JobState.Failed=>"失败 · 双击查看日志",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

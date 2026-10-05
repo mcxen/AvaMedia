@@ -19,6 +19,7 @@ public sealed class MediaEngine : IMediaEngine
         var env=Environment.GetEnvironmentVariable("AVAMEDIA_"+tool.ToUpperInvariant());
         if(!string.IsNullOrWhiteSpace(env) && File.Exists(env)) return env;
         var name=tool+(OperatingSystem.IsWindows()?".exe":"");
+        var bundled=Path.Combine(AppContext.BaseDirectory,"tools",name);if(File.Exists(bundled))return bundled;
         if(OperatingSystem.IsMacOS())foreach(var folder in new[]{Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","Resources","tools")),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Library","Application Support","AvaMedia","tools"),"/opt/homebrew/bin","/usr/local/bin"}){var candidate=Path.Combine(folder,name);if(File.Exists(candidate))return candidate;}
         foreach(var root in new[]{AppContext.BaseDirectory,Environment.CurrentDirectory})
         {
@@ -134,7 +135,7 @@ public sealed class MediaEngine : IMediaEngine
         if((o.DelogoWidth>0)!=(o.DelogoHeight>0)) throw new ArgumentException("水印区域宽度和高度必须同时设置。");
         if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
         if(feature.Operation==Operation.Record && (!(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) || o.RecordSeconds<=0)) throw new ArgumentException("录屏支持 Windows 和 macOS，且时长必须大于零。");
-        if(feature.Operation==Operation.Download && (!Uri.TryCreate(job.Inputs[0],UriKind.Absolute,out var uri) || uri.Scheme is not ("https" or "http"))) throw new ArgumentException("请输入有效的 HTTP / HTTPS 链接。");
+        if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
         ValidateEncodingOptions(o);
@@ -238,10 +239,7 @@ public sealed class MediaEngine : IMediaEngine
         if(f.Operation==Operation.Info) {var info=await Probe(job.Inputs[0],ct);await File.WriteAllTextAsync(job.Output,info.RawJson,ct);progress(100);return;}
         if(f.Operation==Operation.Download)
         {
-            var executable=Resolve(Settings.YtDlpPath,"yt-dlp");
-            var r=await ProcessRunner.Run(executable,["--no-playlist","--no-overwrites","--newline","--no-config","--ffmpeg-location",Path.GetDirectoryName(FFmpeg)!,"--merge-output-format","mp4","--remux-video","mp4","-o",job.Output,"--",job.Inputs[0]],ct,line=>
-            { var m=System.Text.RegularExpressions.Regex.Match(line,@"(\d+(?:\.\d+)?)%");if(m.Success)progress(double.Parse(m.Groups[1].Value,CultureInfo.InvariantCulture));});
-            job.Log=r.Output+"\n"+r.Error;if(r.ExitCode!=0)throw new InvalidOperationException(r.Error);progress(100);return;
+            await new YtDlpDownloadService(Settings).ExecuteAsync(job,progress,ct);return;
         }
         var infos=new List<MediaInfo>();
         if(f.Operation!=Operation.Record)for(int i=0;i<job.Inputs.Length;i++)

@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     {
         if(_queue.IsRunning && feature.Operation==Operation.Record){await Ui.Message(this,"任务正在运行","请先停止当前任务后再配置录屏。");return;}
         _last=feature;
+        if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}
         if(feature.Id=="clip")
         {
             if(files is null)await PickQuickClipVideos();else await EditQuickClipAsync(files);

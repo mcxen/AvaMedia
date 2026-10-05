@@ -49,6 +49,15 @@ foreach ($runtime in @('osx-arm64','osx-x64')) {
         Assert-Package ($read -eq 8 -and [Text.Encoding]::ASCII.GetString($iconHeader,0,4) -eq 'icns' -and (Read-BigEndian $iconHeader 4) -eq $iconEntry.Length) "$runtime application icon has a complete ICNS header"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/scripts/Install-MediaTools-macOS.sh')) "$runtime includes the macOS tool installer"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/THIRD-PARTY-NOTICES.md')) "$runtime includes third-party notices"
+        foreach ($tool in @('yt-dlp','deno')) {
+            $entry=$archive.GetEntry($root+'MacOS/tools/'+$tool)
+            Assert-Package ($null -ne $entry) "$runtime includes bundled $tool"
+            $stream=$entry.Open()
+            try { $header=[byte[]]::new(512); $null=$stream.Read($header,0,512) } finally { $stream.Dispose() }
+            Assert-Package ((Get-MachArchitectures $header) -contains $expected) "$runtime $tool contains the target Mach-O architecture"
+            Assert-Package (((($entry.ExternalAttributes -shr 16) -band 511) -band 73) -eq 73) "$runtime $tool carries Unix execute permissions"
+        }
+        Assert-Package ($null -ne $archive.GetEntry($root+'MacOS/tools/download-tools.json')) "$runtime includes pinned downloader manifest"
     } finally { $archive.Dispose() }
     $bytes=[IO.File]::ReadAllBytes($path)
     $end=-1

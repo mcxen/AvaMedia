@@ -27,7 +27,7 @@ FFmpeg and FFprobe are invoked as external, replaceable processes. The AvaMedia 
 
 If you choose to distribute FFmpeg yourself, preserve its actual notices and license texts and provide the complete corresponding source for the precise binaries, build configuration, changes and external libraries, in accordance with their licenses. A link to a floating project homepage is not a substitute for corresponding source. A build with `--enable-nonfree` must not be included in the release.
 
-yt-dlp is an optional external tool and is not included in the release ZIP. Its source project uses the Unlicense; official bundled executable artifacts also include third-party components and their licenses. See [yt-dlp third-party notices](https://github.com/yt-dlp/yt-dlp/blob/master/THIRD_PARTY_LICENSES.txt).
+New builds bundle the official yt-dlp 2026.08.19 and Deno 2.9.7 executables as separate, replaceable processes in `tools/`. yt-dlp source uses the Unlicense; the executable includes independently licensed Python dependencies and EJS components. The exact upstream license and third-party notices are retained in `licenses/download-tools/`. Deno is MIT licensed and includes V8 and other independently licensed components; its upstream notices, dependency lock and source references are retained in the same directory. Versions, release URLs and SHA256 are recorded in `tools/download-tools.json`. See [yt-dlp third-party notices](https://github.com/yt-dlp/yt-dlp/blob/2026.08.19/THIRD_PARTY_LICENSES.txt) and [Deno source](https://github.com/denoland/deno/tree/v2.9.7).
 
 System fonts are read on the user's device when creating text PDFs; font files are not included in AvaMedia's distribution.
 
