@@ -82,8 +82,8 @@ dotnet run --project src/AvaMedia.Desktop -c Release
 
 ```powershell
 pwsh -File scripts/Verify.ps1
-pwsh -File scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.3
-pwsh -File scripts/Package-Windows.ps1 -Version 1.0.3
+pwsh -File scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.4
+pwsh -File scripts/Package-Windows.ps1 -Version 1.0.4
 ```
 
 验证覆盖真实输出、剪辑、字幕、批量处理、方向识别、交互、三套皮肤、设置、接口替换与消融。测试自行生成媒体，不需要用户视频。录制权限和音频设备按实际系统配置工作；macOS 用户设备媒体能力需结合设备验收。
@@ -95,8 +95,8 @@ pwsh -File scripts/Package-Windows.ps1 -Version 1.0.3
 推送 `vMAJOR.MINOR.PATCH` tag 后，[Release 工作流](.github/workflows/release.yml) 自动验证、构建安装包、生成源码与校验清单并上传 GitHub Release。Windows 验证安装、原生启动和卸载；Mac 包在对应架构 runner 构建并验证启动。
 
 ```sh
-git tag -a v1.0.3 -m "AvaMedia 1.0.3"
-git push origin v1.0.3
+git tag -a v1.0.4 -m "AvaMedia 1.0.4"
+git push origin v1.0.4
 ```
 
 流程见 [RELEASE](docs/RELEASE.md)，Git 管理见 [GIT-WORKFLOW](docs/GIT-WORKFLOW.md)，18 组媒体消融见 [ABLATION](docs/ABLATION.md)。

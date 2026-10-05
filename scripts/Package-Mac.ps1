@@ -1,4 +1,4 @@
-param([ValidateSet('osx-arm64','osx-x64')][string]$Runtime, [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.3')
+param([ValidateSet('osx-arm64','osx-x64')][string]$Runtime, [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.4')
 $ErrorActionPreference = 'Stop'
 if (![Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) { throw 'macOS is required to generate PKG and DMG files.' }
 $taskRoot = Split-Path -Parent $PSScriptRoot

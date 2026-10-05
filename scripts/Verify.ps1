@@ -30,7 +30,7 @@ try {
         $output | Set-Content -LiteralPath (Join-Path $reportRoot $log) -Encoding utf8
         $results += [pscustomobject]@{ suite=$name; exitCode=$exitCode; seconds=$timer.Elapsed.TotalSeconds; log=$log }
         Write-Output ($name + ': ' + ($output | Select-Object -Last 1))
-        if ($exitCode -ne 0) { throw ($name + ' failed; see ' + $log) }
+        if ($exitCode -ne 0) { $output | Select-Object -Last 20 | Write-Output; throw ($name + ' failed; see ' + $log) }
     }
     $status = 'passed'
 } finally {
