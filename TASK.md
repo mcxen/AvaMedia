@@ -1,6 +1,6 @@
 # AvaMedia 界面与操作逻辑记录
 
-维护日期：2026-10-05（Asia/Shanghai）。参考软件：FormatFactory X64 5.10.0。当前重点按用户最新指令调整为所有视频剪辑、裁剪的操作与输出一致性；字幕扩展暂停，macOS / Windows 要求保持。剪辑、裁剪、当前入口与发布更新见第 9.4–9.8 节。
+维护日期：2026-10-06（Asia/Shanghai）。参考软件：FormatFactory X64 5.10.0。当前重点按用户最新指令调整为所有视频剪辑、裁剪的操作与输出一致性；字幕扩展暂停，macOS / Windows 要求保持。剪辑、裁剪、当前入口、预计剩余时间与发布更新见第 9.4–9.9 节。
 
 本文件用于持续整理参考界面、操作状态、AvaMedia 当前实现和待办。最初记录对应观察与整理，未修改应用代码；用户后续补充文件列表截图后的实现与验证见第 8 节，不将原软件尚未实测的行为当作已确认事实。
 
@@ -492,3 +492,19 @@ Release 构建通过，0 警告、0 错误。`scripts/Verify.ps1 -Suite All` 已
 发布程序集的实际报告：[剪辑/裁剪 74 项 / 9 输出](artifacts/clip-crop-20261005-235609/report.json)、[工作流 61 项 / 3 输出](artifacts/quick-workflow-20261005-235721/report.json)、[旧列表/分割 119 项 / 11 输出](artifacts/quick-clip-20261005-235643/report.json)、[批量裁剪 83 项 / 8 输出](artifacts/batch-crop-20261005-235649/report.json)。界面证据：[剪辑浅色](artifacts/clip-crop-20261005-235609/editor-clip-light.png)、[裁剪浅色](artifacts/clip-crop-20261005-235609/editor-crop-light.png)、[裁剪深色](artifacts/clip-crop-20261005-235609/editor-crop-dark.png)、[1000×730 最小窗口](artifacts/clip-crop-20261005-235609/editor-minimum.png)。
 
 发布验证：[Mac 包 64 项](artifacts/mac-packages-20261005-235322/report.json)、[三平台包哈希与 Windows 架构](artifacts/video-editing-release-20261005-2348/report.json)、[编辑器样式 161 项](artifacts/editor-style-20261005-235816/report.json)、[Release 构建日志](artifacts/video-editing-release-20261005-2348/build.log)。第 9.7 节的包哈希是此前历史记录；同名 ZIP 本节刷新后以最新报告为准。完整目标继续保留第 9.2 节的所有未完成范围，字幕扩展保持暂停。
+
+### 9.9 转换任务的动态预计剩余时间（2026-10-06）
+
+用户要求修复转换耗时预估。当前实现依据 AvaMedia 的实际进度回报与运行耗时估算；FormatFactory 的内部估算算法尚未通过源码核对，不将其当作已确认的一致行为。
+
+- [x] 任务列表显示“预计剩余 HH:MM:SS”；各并行任务独立采样。输出媒体时长与处理剩余时间分别计算，底部继续显示已耗时。
+- [x] 使用单调时钟与最近 15 秒的进度增量估算。启动采样不足 2 秒显示“估算中”；连续 5 秒无进度显示“进度暂未更新”；达到 99.9% 后显示“正在收尾”。每秒刷新也能检测引擎完全停止回报的情况。
+- [x] 编码器回退、进度回退和重试清空旧采样；完成、失败或停止清除倒计时，终态拒绝晚返回的进度回调。运行时估算不写入队列文件。
+- [x] 下载任务保留下载引擎自己的剩余时间，避免重复追加转换估算。尚未取得并发名额的任务保持等待状态。
+- [x] 限制任务行在列表可见宽度内布局，长路径省略、状态允许换行；浅色、深色和 1050 像素最小主窗口中倒计时可见。
+- [x] Windows 剩余时间专项通过 38 项，含真实 FFmpeg 的剪辑、裁剪、变速与普通转换，共 2 个实际输出。候选源码副本的全部 19 个已集成测试套件通过，Release 构建为 0 警告、0 错误。
+- [ ] macOS Apple Silicon 真机计时、进度停滞与任务列表仍待验收；估算器和队列使用两端共享的 .NET 实现，当前运行验证来自 Windows。
+
+操作规则与公式见 [PROGRESS-ESTIMATE.md](docs/PROGRESS-ESTIMATE.md)。剩余时间会随画面复杂度、滤镜、编码器与资源竞争而修正，不代表精确完成时刻。视频剪辑、裁剪的完整对照工作继续按第 9.2 节维护，字幕扩展保持暂停。
+
+验证：[完整回归 19 套](artifacts/progress-candidate-20261006/artifacts/test-20261006-073227/summary.json)、[剩余时间 38 项 / 2 输出](artifacts/progress-candidate-20261006/artifacts/progress-20261006-073355/report.json)、[Release 构建](artifacts/progress-candidate-20261006/artifacts/test-20261006-073227/build.log)。界面证据：[浅色](artifacts/progress-candidate-20261006/artifacts/progress-20261006-073355/eta-light.png)、[深色](artifacts/progress-candidate-20261006/artifacts/progress-20261006-073355/eta-dark.png)、[最小主窗口](artifacts/progress-candidate-20261006/artifacts/progress-20261006-073355/eta-minimum.png)。验证使用仅包含本次修复的 Git 暂存源码副本，保留共享工作区其他未提交修改。

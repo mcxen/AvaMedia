@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace AvaMedia.Core;
 public abstract class Observable : INotifyPropertyChanged
@@ -117,6 +118,11 @@ public sealed class ConversionOptions
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
 public sealed class Job : Observable
 {
+    private ProgressEstimate? _estimate;
+    [JsonIgnore]
+    public ProgressEstimate? Estimate { get=>_estimate; set { if(Set(ref _estimate,value)){Raise(nameof(RemainingTimeText));Raise(nameof(Status));} } }
+    [JsonIgnore]
+    public string RemainingTimeText => State==JobState.Running ? Estimate?.Text??"" : "";
     public Guid Id { get; set; } = Guid.NewGuid();
     private string _featureId="mp4";
     public string FeatureId { get=>_featureId;set{if(Set(ref _featureId,value))Raise(nameof(Target));} }
@@ -128,7 +134,7 @@ public sealed class Job : Observable
     public List<ConversionOptions>? InputOptions { get; set; }
     public double Duration { get; set; }
     private JobState _state;
-    public JobState State { get=>_state; set {if(Set(ref _state,value)) {Raise(nameof(Status));Raise(nameof(CanRetry));}} }
+    public JobState State { get=>_state; set {if(Set(ref _state,value)) {if(value!=JobState.Running)Estimate=null;Raise(nameof(Status));Raise(nameof(RemainingTimeText));Raise(nameof(CanRetry));}} }
     private double _progress;
     public double Progress { get=>_progress; set {if(Set(ref _progress,value)) Raise(nameof(Status));} }
     public string Error { get; set; } = "";
@@ -136,7 +142,8 @@ public sealed class Job : Observable
     public string Name => string.Join(" + ", Inputs.Select(Path.GetFileName));
     public string Source => string.Join(Environment.NewLine, Inputs);
     public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {Output}";
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"转换中  {Progress:0.0}%",JobState.Completed=>"完成",JobState.Failed=>"失败 · 双击查看日志",_=>"已停止"};
+    [JsonIgnore]
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"转换中  {Progress:0.0}%"+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成",JobState.Failed=>"失败 · 双击查看日志",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

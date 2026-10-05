@@ -31,11 +31,12 @@
       <GridSplitter Grid.Column="1" Background="{DynamicResource UiDivider}" ResizeDirection="Columns"/>
       <Grid Grid.Column="2" RowDefinitions="25,*">
         <Border BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}"><Grid ColumnDefinitions="108,*,*"><TextBlock Text="预览" HorizontalAlignment="Center"/><Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0"><TextBlock Text="来源" HorizontalAlignment="Center"/></Border><TextBlock Grid.Column="2" Text="输出 / 转换状态" HorizontalAlignment="Center"/></Grid></Border>
-        <ListBox Grid.Row="1" x:Name="JobList" Background="{DynamicResource UiSurface}" BorderThickness="1,0,1,1" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" DoubleTapped="JobDoubleClick" SelectionChanged="JobSelectionChanged">
+        <ListBox Grid.Row="1" x:Name="JobList" Background="{DynamicResource UiSurface}" BorderThickness="1,0,1,1" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" DoubleTapped="JobDoubleClick" SelectionChanged="JobSelectionChanged">
+          <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
           <ListBox.ItemTemplate><DataTemplate><Grid ColumnDefinitions="96,*,*" MinHeight="86" Margin="3,5">
             <Button Classes="media-action" Margin="0,0,8,0" Click="PreviewClick"><StackPanel VerticalAlignment="Center"><local:ActionIcon Kind="play" HorizontalAlignment="Center"/><TextBlock Text="预览 / 编辑" FontSize="{DynamicResource UiFontCaption}" HorizontalAlignment="Center"/></StackPanel></Button>
             <StackPanel Grid.Column="1" Spacing="5" Margin="7,2"><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/><TextBlock Text="{Binding Source}" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}" TextTrimming="CharacterEllipsis" MaxHeight="38" ToolTip.Tip="{Binding Source}"/></StackPanel>
-            <StackPanel Grid.Column="2" Spacing="6" Margin="7,2"><TextBlock Text="{Binding Target}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" ToolTip.Tip="{Binding Output}"/><ProgressBar Value="{Binding Progress}" Maximum="100" Height="10"/><TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}"/></StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6" Margin="7,2"><TextBlock Text="{Binding Target}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" ToolTip.Tip="{Binding Output}"/><ProgressBar Value="{Binding Progress}" Maximum="100" Height="10"/><TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}" TextWrapping="Wrap"/></StackPanel>
           </Grid></DataTemplate></ListBox.ItemTemplate>
           <ListBox.ContextMenu><ContextMenu><MenuItem Header="播放 / 编辑" Click="EditSelectedClick"/><MenuItem Header="打开输出文件" Click="OpenSelectedClick"/><MenuItem Header="打开输出目录" Click="RevealClick"/><MenuItem Header="重试任务" Click="RetryClick"/><MenuItem Header="查看日志" Click="LogClick"/><MenuItem Header="移除任务" Click="RemoveClick"/></ContextMenu></ListBox.ContextMenu>
         </ListBox>
@@ -50,4 +51,3 @@
     </Grid></Border>
   </Grid>
 </Window>
-

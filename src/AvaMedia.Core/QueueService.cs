@@ -1,6 +1,7 @@
 namespace AvaMedia.Core;
-public sealed class QueueService(IJobExecutor engine)
+public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider=null)
 {
+    private readonly TimeProvider _time=timeProvider??TimeProvider.System;
     private CancellationTokenSource? _cts;
     public bool IsRunning => _cts is not null;
     public event Action<Job>? Changed;
@@ -14,14 +15,29 @@ public sealed class QueueService(IJobExecutor engine)
             await Task.WhenAll(snapshot.Select(async job=>
             {
                 try {await semaphore.WaitAsync(token);} catch(OperationCanceledException){return;}
+                var progressGate=new object();var active=true;
+                var estimator=new ProgressEstimator();var started=_time.GetTimestamp();
+                void Publish(double value)
+                {
+                    lock(progressGate)
+                    {
+                        if(!active || token.IsCancellationRequested || !double.IsFinite(value))return;
+                        job.Progress=Math.Clamp(value,0,100);
+                        if(job.FeatureId!="download")job.Estimate=estimator.Update(job.Progress,_time.GetElapsedTime(started));
+                        Changed?.Invoke(job);
+                    }
+                }
+                void Finish(JobState state,string error="")
+                {lock(progressGate){active=false;job.Error=error;job.Estimate=null;if(state==JobState.Completed)job.Progress=100;job.State=state;}}
                 try
                 {
-                    job.State=JobState.Running;job.Error="";Changed?.Invoke(job);
-                    await engine.Execute(job,p=>{job.Progress=p;Changed?.Invoke(job);},token);
-                    job.State=JobState.Completed;
+                    job.Progress=0;job.Estimate=null;job.State=JobState.Running;job.Error="";Publish(0);
+                    using var timer=_time.CreateTimer(_=>{lock(progressGate)Publish(job.Progress);},null,TimeSpan.FromSeconds(1),TimeSpan.FromSeconds(1));
+                    await engine.Execute(job,Publish,token);
+                    token.ThrowIfCancellationRequested();Finish(JobState.Completed);
                 }
-                catch(OperationCanceledException){job.State=JobState.Cancelled;job.Error="用户停止了任务。";}
-                catch(Exception e){job.State=JobState.Failed;job.Error=e.Message;}
+                catch(OperationCanceledException){Finish(JobState.Cancelled,"用户停止了任务。");}
+                catch(Exception e){Finish(JobState.Failed,e.Message);}
                 finally {Changed?.Invoke(job);semaphore.Release();}
             }));
         }
