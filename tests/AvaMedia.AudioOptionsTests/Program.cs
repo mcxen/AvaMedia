@@ -74,7 +74,7 @@ Check(Reject(new(){Format="wav",KeepAllAudioStreams=true}),"Single-track contain
 var shaped=Wave("amplitude-steps",2,t=>(t<1?.1:.6)*Math.Sin(2*Math.PI*440*t));
 var original=Samples(shaped,"original");
 var reversed=Convert(shaped,new(){Format="wav",ReverseAudio=true},"reversed","audio-wav");var reversedSamples=Samples(reversed.Output,"reversed-result");
-Check(reversedSamples.SequenceEqual(original.Reverse()),"Audio reverse reverses every PCM sample exactly");
+Check(reversedSamples.SequenceEqual(Enumerable.Reverse(original)),"Audio reverse reverses every PCM sample exactly");
 var trimReverse=Convert(shaped,new(){Format="wav",Start=.25,End=1.25,ReverseAudio=true},"trim-reversed","audio-wav");
 var trimmed=Samples(trimReverse.Output,"trimmed-reverse-result");
 Check(trimmed.SequenceEqual(original.Skip(11025).Take(44100).Reverse()),"Reverse applies only to the selected interval, not the remaining source tail");

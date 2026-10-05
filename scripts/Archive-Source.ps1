@@ -11,7 +11,7 @@ Push-Location -LiteralPath $taskRoot
 try {
     $sourceFiles = & rg --files --hidden -g '!**/bin/**' -g '!**/obj/**' -g '!docs/reference/**' src tests licenses scripts docs .github .agents
     if ($LASTEXITCODE -ne 0) { throw 'Source inventory failed.' }
-    $sourceFiles += @('AvaMedia.sln','Directory.Build.props','.gitignore','.gitattributes','LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md','Start-AvaMedia.cmd','TASK.md','UISPEC.MD')
+    $sourceFiles += @('AvaMedia.sln','Directory.Build.props','global.json','.gitignore','.gitattributes','LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md','Start-AvaMedia.cmd','TASK.md','UISPEC.MD')
     $stream = [IO.File]::Open($archivePath, [IO.FileMode]::Create, [IO.FileAccess]::Write)
     $archive = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Create)
     try {
