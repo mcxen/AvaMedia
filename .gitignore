@@ -4,3 +4,8 @@
 artifacts/
 .vs/
 *.user
+*.suo
+.idea/
+.DS_Store
+TestResults/
+docs/reference/
