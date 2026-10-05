@@ -13,7 +13,7 @@ using AvaMedia.Desktop.Controls;
 
 var root = Path.GetFullPath("artifacts/editor-style-" + DateTime.Now.ToString("yyyyMMdd-HHmmss")); Directory.CreateDirectory(root);
 var source = Path.Combine(root, "sample.mp4");
-var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("AVAMEDIA_FFMPEG") ?? "ffmpeg") { UseShellExecute = false, CreateNoWindow = true };
+var start = new ProcessStartInfo(MediaEngine.Resolve("", "ffmpeg")) { UseShellExecute = false, CreateNoWindow = true };
 foreach (var argument in new[] { "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=30", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "3", "-c:v", "mpeg4", "-c:a", "aac", "-y", source }) start.ArgumentList.Add(argument);
 using (var process = Process.Start(start)!) { await process.WaitForExitAsync(); if (process.ExitCode != 0) throw new Exception("Media fixture failed."); }
 AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
