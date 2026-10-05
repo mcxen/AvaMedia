@@ -1,0 +1,6 @@
+Package: MicroCom.Runtime 0.11.0
+Authors: MicroCom.Runtime
+Copyright: Copyright 2021 © Nikita Tsukanov
+License: MIT
+Project: 
+Repository: https://github.com/kekekeks/MicroCom

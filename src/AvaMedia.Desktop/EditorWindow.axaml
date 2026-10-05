@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Width="1400" Height="980" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
+  <Grid Margin="10" RowDefinitions="*,30,48,*,66">
+    <Grid x:Name="PreviewArea" Background="Black" MinHeight="250">
+      <Image x:Name="PreviewImage" Stretch="Uniform"/>
+      <local:CropOverlay x:Name="CropLayer"/>
+      <TextBlock x:Name="PreviewStatus" Text="正在读取媒体…" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Grid>
+    <Slider Grid.Row="1" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" Margin="0,1"/>
+    <Grid Grid.Row="2" ColumnDefinitions="140,*,160">
+      <TextBlock x:Name="CurrentTime" Text="00:00" FontSize="18" VerticalAlignment="Center"/>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+        <Button Classes="tool" Content="≪" FontSize="31" Foreground="#119FE0" Click="BackwardClick"/>
+        <Button Classes="tool" x:Name="PlayButton" Content="▶" FontSize="31" Foreground="#119FE0" Click="PlayClick"/>
+        <Button Classes="tool" Content="■" FontSize="31" Foreground="#119FE0" Click="StopClick"/>
+        <Button Classes="tool" Content="≫" FontSize="31" Foreground="#119FE0" Click="ForwardClick"/>
+      </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" VerticalAlignment="Center"><Button x:Name="SoundButton" Classes="tool" Content="♫" FontSize="25" Foreground="#119FE0" Click="SoundClick"/><TextBlock x:Name="TotalTime" Text="00:00" FontSize="18" VerticalAlignment="Center"/></StackPanel>
+    </Grid>
+    <TabControl Grid.Row="3" x:Name="EditTabs" SelectionChanged="TabChanged">
+      <TabItem Header="✂ 剪辑">
+        <Grid RowDefinitions="32,44,36,*,34" ColumnDefinitions="*,*,190" Margin="2,8">
+          <local:RangeBar x:Name="TrimBar" Grid.ColumnSpan="3"/>
+          <Button x:Name="SetStartButton" Grid.Row="1" Margin="38,8,42,3" Content="|❮ 开始时间" Click="SetStartClick"/>
+          <Button x:Name="SetEndButton" Grid.Row="1" Grid.Column="1" Margin="38,8,42,3" Content="❯| 结束时间" Click="SetEndClick"/>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20"><Button Content="−" Foreground="#119FE0" Click="StartMinus"/><TextBox x:Name="StartTime" Text="00:00:00.000" Width="148" TextAlignment="Center" LostFocus="TimeEdited"/><Button Content="+" Foreground="#119FE0" Click="StartPlus"/></StackPanel>
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20"><Button Content="−" Foreground="#119FE0" Click="EndMinus"/><TextBox x:Name="EndTime" Text="00:00:00.000" Width="148" TextAlignment="Center" LostFocus="TimeEdited"/><Button Content="+" Foreground="#119FE0" Click="EndPlus"/></StackPanel>
+          <Border Grid.Row="3" Background="Black" Margin="38,8,42,6"><Image x:Name="StartImage" Stretch="Uniform"/></Border>
+          <Border Grid.Row="3" Grid.Column="1" Background="Black" Margin="38,8,42,6"><Image x:Name="EndImage" Stretch="Uniform"/></Border>
+          <Grid Grid.Row="4" Margin="38,0,42,0" ColumnDefinitions="*,100"><TextBlock Text="淡入效果" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FadeInCombo"/></Grid>
+          <Grid Grid.Row="4" Grid.Column="1" Margin="38,0,42,0" ColumnDefinitions="*,100"><TextBlock Text="淡出效果" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FadeOutCombo"/></Grid>
+          <StackPanel Grid.Row="1" Grid.Column="2" Grid.RowSpan="4" Spacing="12" Margin="8,9,0,0">
+            <Grid ColumnDefinitions="75,*"><TextBlock Text="持续时间" VerticalAlignment="Center"/><TextBlock x:Name="SelectionDuration" Grid.Column="1" VerticalAlignment="Center"/></Grid>
+            <Grid ColumnDefinitions="75,*"><TextBlock Text="精度" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="PrecisionCombo"/></Grid>
+            <Grid ColumnDefinitions="75,*"><TextBlock Text="速度" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="SpeedCombo"/></Grid>
+          </StackPanel>
+        </Grid>
+      </TabItem>
+      <TabItem Header="✂ 画面裁剪">
+        <StackPanel Spacing="16" Margin="28,25"><TextBlock Text="在上方画面拖动选择裁剪区域。坐标以源视频像素为单位。"/>
+          <StackPanel Orientation="Horizontal" Spacing="14"><TextBlock Text="X" VerticalAlignment="Center"/><TextBox x:Name="CropX" Width="100" Text="0"/><TextBlock Text="Y" VerticalAlignment="Center"/><TextBox x:Name="CropY" Width="100" Text="0"/><TextBlock Text="宽度" VerticalAlignment="Center"/><TextBox x:Name="CropWidth" Width="100" Text="0"/><TextBlock Text="高度" VerticalAlignment="Center"/><TextBox x:Name="CropHeight" Width="100" Text="0"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="16"><Button Content="应用坐标" Click="ApplyCropClick"/><Button Content="重置选区" Click="ResetCropClick"/></StackPanel>
+          <CheckBox x:Name="DelogoMode" Content="将选区用于去除水印" IsCheckedChanged="DelogoChanged"/>
+          <TextBlock Text="使用模糊处理选区。" Foreground="#777777"/>
+        </StackPanel>
+      </TabItem>
+      <TabItem Header="⚙ 选项">
+        <StackPanel Spacing="18" Margin="28"><TextBlock x:Name="MediaDescription" TextWrapping="Wrap"/><Button Content="输出配置…" HorizontalAlignment="Left" Click="OptionsClick"/><TextBlock x:Name="AudioStatus" Text="预览音频正在准备…" Foreground="#666666"/><TextBlock Text="预览始终显示原媒体；剪辑、速度、裁剪与淡入淡出在输出时生效。"/></StackPanel>
+      </TabItem>
+    </TabControl>
+    <Grid Grid.Row="4" ColumnDefinitions="*,*" Margin="0,20,0,10"><Button Grid.Column="0" Content="↶ 取消" Width="180" HorizontalAlignment="Center" Click="CancelClick"/><Button Grid.Column="1" Content="✓ 确定" Width="180" HorizontalAlignment="Center" Click="ConfirmClick"/></Grid>
+  </Grid>
+</Window>

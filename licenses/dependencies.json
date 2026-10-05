@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "parameters": "--include-transitive",
+  "projects": [
+    {
+      "path": "C:/Users/Administrator/Downloads/AvaMedia/src/AvaMedia.Desktop/AvaMedia.Desktop.csproj",
+      "frameworks": [
+        {
+          "framework": "net8.0",
+          "topLevelPackages": [
+            {
+              "id": "Avalonia.Desktop",
+              "requestedVersion": "11.3.22",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.Themes.Simple",
+              "requestedVersion": "11.3.22",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "NAudio",
+              "requestedVersion": "2.2.1",
+              "resolvedVersion": "2.2.1"
+            }
+          ],
+          "transitivePackages": [
+            {
+              "id": "Avalonia",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.Angle.Windows.Natives",
+              "resolvedVersion": "2.1.25547.20250602"
+            },
+            {
+              "id": "Avalonia.BuildServices",
+              "resolvedVersion": "11.3.2"
+            },
+            {
+              "id": "Avalonia.FreeDesktop",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.Native",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.Remote.Protocol",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.Skia",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.Win32",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "Avalonia.X11",
+              "resolvedVersion": "11.3.22"
+            },
+            {
+              "id": "HarfBuzzSharp",
+              "resolvedVersion": "8.3.1.1"
+            },
+            {
+              "id": "HarfBuzzSharp.NativeAssets.Linux",
+              "resolvedVersion": "8.3.1.1"
+            },
+            {
+              "id": "HarfBuzzSharp.NativeAssets.macOS",
+              "resolvedVersion": "8.3.1.1"
+            },
+            {
+              "id": "HarfBuzzSharp.NativeAssets.WebAssembly",
+              "resolvedVersion": "8.3.1.1"
+            },
+            {
+              "id": "HarfBuzzSharp.NativeAssets.Win32",
+              "resolvedVersion": "8.3.1.1"
+            },
+            {
+              "id": "MicroCom.Runtime",
+              "resolvedVersion": "0.11.0"
+            },
+            {
+              "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+              "resolvedVersion": "8.0.2"
+            },
+            {
+              "id": "Microsoft.Extensions.Logging.Abstractions",
+              "resolvedVersion": "8.0.3"
+            },
+            {
+              "id": "Microsoft.NETCore.Platforms",
+              "resolvedVersion": "3.1.0"
+            },
+            {
+              "id": "Microsoft.Win32.Registry",
+              "resolvedVersion": "4.7.0"
+            },
+            {
+              "id": "NAudio.Asio",
+              "resolvedVersion": "2.2.1"
+            },
+            {
+              "id": "NAudio.Core",
+              "resolvedVersion": "2.2.1"
+            },
+            {
+              "id": "NAudio.Midi",
+              "resolvedVersion": "2.2.1"
+            },
+            {
+              "id": "NAudio.Wasapi",
+              "resolvedVersion": "2.2.1"
+            },
+            {
+              "id": "NAudio.WinMM",
+              "resolvedVersion": "2.2.1"
+            },
+            {
+              "id": "PdfPig",
+              "resolvedVersion": "0.1.13"
+            },
+            {
+              "id": "PDFsharp",
+              "resolvedVersion": "6.2.4"
+            },
+            {
+              "id": "SkiaSharp",
+              "resolvedVersion": "2.88.9"
+            },
+            {
+              "id": "SkiaSharp.NativeAssets.Linux",
+              "resolvedVersion": "2.88.9"
+            },
+            {
+              "id": "SkiaSharp.NativeAssets.macOS",
+              "resolvedVersion": "2.88.9"
+            },
+            {
+              "id": "SkiaSharp.NativeAssets.WebAssembly",
+              "resolvedVersion": "2.88.9"
+            },
+            {
+              "id": "SkiaSharp.NativeAssets.Win32",
+              "resolvedVersion": "2.88.9"
+            },
+            {
+              "id": "System.IO.Pipelines",
+              "resolvedVersion": "8.0.0"
+            },
+            {
+              "id": "System.Security.AccessControl",
+              "resolvedVersion": "4.7.0"
+            },
+            {
+              "id": "System.Security.Cryptography.Pkcs",
+              "resolvedVersion": "8.0.1"
+            },
+            {
+              "id": "System.Security.Principal.Windows",
+              "resolvedVersion": "4.7.0"
+            },
+            {
+              "id": "Tmds.DBus.Protocol",
+              "resolvedVersion": "0.21.3"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+  <Styles.Resources>
+    <sys:TimeSpan x:Key="MotionFast">0:0:0.120</sys:TimeSpan>
+    <sys:TimeSpan x:Key="MotionNavigate">0:0:0.160</sys:TimeSpan>
+    <sys:TimeSpan x:Key="MotionEnter">0:0:0.180</sys:TimeSpan>
+  </Styles.Resources>
+  <Style Selector="Window.motion-enabled Button">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.motion-enabled Button /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+        <BrushTransition Property="BorderBrush" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <!-- Keyboard focus must be visible immediately; only the background may fade. -->
+  <Style Selector="Window.motion-enabled Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.motion-enabled Button.tile">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.motion-enabled Button.tile:not(:disabled):pressed">
+    <Setter Property="RenderTransform" Value="scale(0.985)" />
+  </Style>
+</Styles>

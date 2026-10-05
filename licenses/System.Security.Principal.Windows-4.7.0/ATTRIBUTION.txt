@@ -1,0 +1,6 @@
+Package: System.Security.Principal.Windows 4.7.0
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: MIT
+Project: https://github.com/dotnet/corefx
+Repository: 

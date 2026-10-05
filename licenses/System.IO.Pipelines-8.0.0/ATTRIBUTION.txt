@@ -1,0 +1,6 @@
+Package: System.IO.Pipelines 8.0.0
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: MIT
+Project: https://dot.net/
+Repository: https://github.com/dotnet/runtime

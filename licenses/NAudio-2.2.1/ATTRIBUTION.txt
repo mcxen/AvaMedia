@@ -1,0 +1,6 @@
+Package: NAudio 2.2.1
+Authors: Mark Heath & Contributors
+Copyright: © Mark Heath 2023
+License: license.txt
+Project: https://github.com/naudio/NAudio
+Repository: https://github.com/naudio/NAudio

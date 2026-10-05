@@ -1,0 +1,6 @@
+Package: Microsoft.Extensions.DependencyInjection.Abstractions 8.0.2
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: MIT
+Project: https://dot.net/
+Repository: https://github.com/dotnet/runtime

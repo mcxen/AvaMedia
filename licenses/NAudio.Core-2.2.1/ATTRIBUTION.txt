@@ -1,0 +1,6 @@
+Package: NAudio.Core 2.2.1
+Authors: Mark Heath
+Copyright: © Mark Heath 2023
+License: MIT
+Project: https://github.com/naudio/NAudio
+Repository: https://github.com/naudio/NAudio

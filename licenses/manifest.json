@@ -1,0 +1,314 @@
+[
+  {
+    "package": "Avalonia.Desktop",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.Themes.Simple",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "NAudio",
+    "version": "2.2.1",
+    "license": "license.txt",
+    "authors": "Mark Heath & Contributors",
+    "copyright": "© Mark Heath 2023",
+    "repository": "https://github.com/naudio/NAudio"
+  },
+  {
+    "package": "Avalonia",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.Angle.Windows.Natives",
+    "version": "2.1.25547.20250602",
+    "license": "LICENSE",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2025 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/angle/"
+  },
+  {
+    "package": "Avalonia.BuildServices",
+    "version": "11.3.2",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2023-2025 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia.BuildServices"
+  },
+  {
+    "package": "Avalonia.FreeDesktop",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.Native",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.Remote.Protocol",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.Skia",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.Win32",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "Avalonia.X11",
+    "version": "11.3.22",
+    "license": "MIT",
+    "authors": "Avalonia Team",
+    "copyright": "Copyright 2013-2026 © The AvaloniaUI Project",
+    "repository": "https://github.com/AvaloniaUI/Avalonia/"
+  },
+  {
+    "package": "HarfBuzzSharp",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://go.microsoft.com/fwlink/?linkid=868515"
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.Linux",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://go.microsoft.com/fwlink/?linkid=868515"
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.macOS",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://go.microsoft.com/fwlink/?linkid=868515"
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.WebAssembly",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://go.microsoft.com/fwlink/?linkid=868515"
+  },
+  {
+    "package": "HarfBuzzSharp.NativeAssets.Win32",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://go.microsoft.com/fwlink/?linkid=868515"
+  },
+  {
+    "package": "MicroCom.Runtime",
+    "version": "0.11.0",
+    "license": "MIT",
+    "authors": "MicroCom.Runtime",
+    "copyright": "Copyright 2021 © Nikita Tsukanov",
+    "repository": "https://github.com/kekekeks/MicroCom"
+  },
+  {
+    "package": "Microsoft.Extensions.DependencyInjection.Abstractions",
+    "version": "8.0.2",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
+  },
+  {
+    "package": "Microsoft.Extensions.Logging.Abstractions",
+    "version": "8.0.3",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
+  },
+  {
+    "package": "Microsoft.NETCore.Platforms",
+    "version": "3.1.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": ""
+  },
+  {
+    "package": "Microsoft.Win32.Registry",
+    "version": "4.7.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": ""
+  },
+  {
+    "package": "NAudio.Asio",
+    "version": "2.2.1",
+    "license": "MIT",
+    "authors": "Mark Heath",
+    "copyright": "© Mark Heath 2023",
+    "repository": "https://github.com/naudio/NAudio"
+  },
+  {
+    "package": "NAudio.Core",
+    "version": "2.2.1",
+    "license": "MIT",
+    "authors": "Mark Heath",
+    "copyright": "© Mark Heath 2023",
+    "repository": "https://github.com/naudio/NAudio"
+  },
+  {
+    "package": "NAudio.Midi",
+    "version": "2.2.1",
+    "license": "MIT",
+    "authors": "Mark Heath",
+    "copyright": "© Mark Heath 2023",
+    "repository": "https://github.com/naudio/NAudio"
+  },
+  {
+    "package": "NAudio.Wasapi",
+    "version": "2.2.1",
+    "license": "MIT",
+    "authors": "Mark Heath",
+    "copyright": "© Mark Heath 2023",
+    "repository": "https://github.com/naudio/NAudio"
+  },
+  {
+    "package": "NAudio.WinMM",
+    "version": "2.2.1",
+    "license": "MIT",
+    "authors": "NAudio.WinMM",
+    "copyright": "© Mark Heath 2023",
+    "repository": "https://github.com/naudio/NAudio"
+  },
+  {
+    "package": "PdfPig",
+    "version": "0.1.13",
+    "license": "Apache-2.0",
+    "authors": "UglyToad",
+    "copyright": "",
+    "repository": "https://github.com/UglyToad/PdfPig"
+  },
+  {
+    "package": "PDFsharp",
+    "version": "6.2.4",
+    "license": "MIT",
+    "authors": "PDFsharp Team",
+    "copyright": "© 2026 empira",
+    "repository": "https://github.com/empira/PDFsharp"
+  },
+  {
+    "package": "SkiaSharp",
+    "version": "2.88.9",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/mono/SkiaSharp"
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.Linux",
+    "version": "2.88.9",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/mono/SkiaSharp"
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.macOS",
+    "version": "2.88.9",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/mono/SkiaSharp"
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.WebAssembly",
+    "version": "2.88.9",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/mono/SkiaSharp"
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.Win32",
+    "version": "2.88.9",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/mono/SkiaSharp"
+  },
+  {
+    "package": "System.IO.Pipelines",
+    "version": "8.0.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
+  },
+  {
+    "package": "System.Security.AccessControl",
+    "version": "4.7.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": ""
+  },
+  {
+    "package": "System.Security.Cryptography.Pkcs",
+    "version": "8.0.1",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
+  },
+  {
+    "package": "System.Security.Principal.Windows",
+    "version": "4.7.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": ""
+  },
+  {
+    "package": "Tmds.DBus.Protocol",
+    "version": "0.21.3",
+    "license": "MIT",
+    "authors": "Tom Deseyn",
+    "copyright": "Tom Deseyn",
+    "repository": "https://github.com/tmds/Tmds.DBus.git"
+  }
+]

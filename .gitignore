@@ -1,0 +1,11 @@
+.tools/
+**/bin/
+**/obj/
+artifacts/
+.vs/
+*.user
+*.suo
+.idea/
+.DS_Store
+TestResults/
+docs/reference/

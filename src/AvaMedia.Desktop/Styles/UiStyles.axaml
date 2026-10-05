@@ -1,0 +1,125 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="UiCanvas" Color="#FAFAFA" />
+          <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiToolbar" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiStatusText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiSurfaceRaised" Color="#F4F4F4" />
+          <SolidColorBrush x:Key="UiText" Color="#202428" />
+          <SolidColorBrush x:Key="UiTextSecondary" Color="#666666" />
+          <SolidColorBrush x:Key="UiBorder" Color="#B9B9B9" />
+          <SolidColorBrush x:Key="UiDivider" Color="#DDDDDD" />
+          <SolidColorBrush x:Key="UiTileBorder" Color="#D8D8D8" />
+          <SolidColorBrush x:Key="UiHover" Color="#E8F3FE" />
+          <SolidColorBrush x:Key="UiPressed" Color="#D7EAFB" />
+          <SolidColorBrush x:Key="UiAccent" Color="#0078D4" />
+          <SolidColorBrush x:Key="UiAccentBorder" Color="#46A8DE" />
+          <SolidColorBrush x:Key="UiStatusSurface" Color="#595959" />
+          <SolidColorBrush x:Key="UiSuccess" Color="#107C41" />
+          <SolidColorBrush x:Key="UiWarning" Color="#8A5700" />
+          <SolidColorBrush x:Key="UiDanger" Color="#B42318" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="UiCanvas" Color="#202020" />
+          <SolidColorBrush x:Key="UiSurface" Color="#282828" />
+          <SolidColorBrush x:Key="UiToolbar" Color="#282828" />
+          <SolidColorBrush x:Key="UiStatusText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiSurfaceRaised" Color="#303030" />
+          <SolidColorBrush x:Key="UiText" Color="#F3F3F3" />
+          <SolidColorBrush x:Key="UiTextSecondary" Color="#BDBDBD" />
+          <SolidColorBrush x:Key="UiBorder" Color="#727272" />
+          <SolidColorBrush x:Key="UiDivider" Color="#454545" />
+          <SolidColorBrush x:Key="UiTileBorder" Color="#515151" />
+          <SolidColorBrush x:Key="UiHover" Color="#193B52" />
+          <SolidColorBrush x:Key="UiPressed" Color="#244C66" />
+          <SolidColorBrush x:Key="UiAccent" Color="#60CDFF" />
+          <SolidColorBrush x:Key="UiAccentBorder" Color="#60CDFF" />
+          <SolidColorBrush x:Key="UiStatusSurface" Color="#191919" />
+          <SolidColorBrush x:Key="UiSuccess" Color="#76D69C" />
+          <SolidColorBrush x:Key="UiWarning" Color="#F2C66D" />
+          <SolidColorBrush x:Key="UiDanger" Color="#FFB4AB" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <FontFamily x:Key="UiFont">Microsoft YaHei UI, Segoe UI</FontFamily>
+      <x:Double x:Key="UiFontBody">13</x:Double>
+      <x:Double x:Key="UiFontCaption">12</x:Double>
+      <x:Double x:Key="UiFontTitle">18</x:Double>
+      <CornerRadius x:Key="UiControlRadius">4</CornerRadius>
+      <Thickness x:Key="UiButtonPadding">10,5</Thickness>
+      <Thickness x:Key="UiInputPadding">6,4</Thickness>
+      <x:Double x:Key="UiInputMinHeight">28</x:Double>
+    </ResourceDictionary>
+  </Styles.Resources>
+  <Style Selector="Window">
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+    <Setter Property="FontSize" Value="{StaticResource UiFontBody}" />
+    <Setter Property="Foreground" Value="{DynamicResource UiText}" />
+    <Setter Property="Background" Value="{DynamicResource UiCanvas}" />
+    <Setter Property="local:Motion.IsEnabled" Value="True" />
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="{StaticResource UiControlRadius}" />
+    <Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}" />
+    <Setter Property="Foreground" Value="{DynamicResource UiText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="{StaticResource UiButtonPadding}" />
+  </Style>
+  <!-- SimpleTheme changes the presenter directly; state styles must target it too. -->
+  <Style Selector="Button:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource UiHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}" />
+  </Style>
+  <Style Selector="Button:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource UiPressed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}" />
+  </Style>
+  <Style Selector="Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}" />
+  </Style>
+  <Style Selector="Button.tool">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Button.tile">
+    <Setter Property="Background" Value="{DynamicResource UiCanvas}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiTileBorder}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Padding" Value="4" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+  </Style>
+  <Style Selector="Button.category">
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}" />
+    <Setter Property="Background" Value="{DynamicResource UiSurface}" />
+    <Setter Property="Padding" Value="5,1" />
+    <Setter Property="Height" Value="24" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="TextBox">
+    <Setter Property="CornerRadius" Value="{StaticResource UiControlRadius}" />
+    <Setter Property="MinHeight" Value="{StaticResource UiInputMinHeight}" />
+    <Setter Property="Padding" Value="{StaticResource UiInputPadding}" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="MinHeight" Value="{StaticResource UiInputMinHeight}" />
+    <Setter Property="Padding" Value="6,3" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="TabItem"><Setter Property="Padding" Value="12,6" /></Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="{StaticResource UiFontCaption}" />
+    <Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}" />
+  </Style>
+  <Style Selector="TextBlock.title">
+    <Setter Property="FontSize" Value="{StaticResource UiFontTitle}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+</Styles>

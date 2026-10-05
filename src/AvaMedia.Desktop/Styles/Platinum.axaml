@@ -1,0 +1,65 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+          <ResourceDictionary.MergedDictionaries><ResourceInclude Source="avares://AvaMedia.Desktop/Styles/PlatinumControls.axaml"/></ResourceDictionary.MergedDictionaries>
+          <SolidColorBrush x:Key="UiCanvas" Color="#CCCCCC"/>
+          <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiToolbar" Color="#CCCCCC"/>
+          <SolidColorBrush x:Key="UiStatusText" Color="#111111"/>
+          <SolidColorBrush x:Key="UiSurfaceRaised" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="UiText" Color="#111111"/>
+          <SolidColorBrush x:Key="UiTextSecondary" Color="#555555"/>
+          <SolidColorBrush x:Key="UiBorder" Color="#777777"/>
+          <SolidColorBrush x:Key="UiDivider" Color="#999999"/>
+          <SolidColorBrush x:Key="UiTileBorder" Color="#777777"/>
+          <SolidColorBrush x:Key="UiHover" Color="#EEEEEE"/>
+          <SolidColorBrush x:Key="UiPressed" Color="#BBBBBB"/>
+          <SolidColorBrush x:Key="UiAccent" Color="#3D4E80"/>
+          <SolidColorBrush x:Key="UiAccentBorder" Color="#444444"/>
+          <SolidColorBrush x:Key="UiStatusSurface" Color="#BBBBBB"/>
+          <SolidColorBrush x:Key="UiSuccess" Color="#24613A"/>
+          <SolidColorBrush x:Key="UiWarning" Color="#795314"/>
+          <SolidColorBrush x:Key="UiDanger" Color="#A32820"/>
+          <SolidColorBrush x:Key="ThemeForegroundBrush" Color="#111111"/>
+          <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="#CCCCCC"/>
+          <SolidColorBrush x:Key="ThemeControlLowBrush" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="ThemeControlMidBrush" Color="#BBBBBB"/>
+          <SolidColorBrush x:Key="ThemeControlHighBrush" Color="#AAAAAA"/>
+          <SolidColorBrush x:Key="ThemeControlMidHighBrush" Color="#999999"/>
+          <SolidColorBrush x:Key="ThemeControlVeryHighBrush" Color="#777777"/>
+          <SolidColorBrush x:Key="ThemeControlHighlightMidBrush" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="ThemeForegroundLowBrush" Color="#555555"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush" Color="#3D4E80"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush2" Color="#B5BED7"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush3" Color="#C7CDE0"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush4" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="ThemeBorderLowBrush" Color="#AAAAAA"/>
+          <SolidColorBrush x:Key="ThemeBorderMidBrush" Color="#777777"/>
+          <SolidColorBrush x:Key="ThemeBorderHighBrush" Color="#333333"/>
+          <SolidColorBrush x:Key="HighlightBrush" Color="#3D4E80"/>
+          <SolidColorBrush x:Key="HighlightForegroundBrush" Color="#FFFFFF"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+  <Style Selector="Window"><Setter Property="local:Skin.IsEnabled" Value="True"/></Style>
+  <Style Selector="Window.mac-os9"><Setter Property="FontFamily" Value="Tahoma, Lucida Grande, Microsoft YaHei UI, Arial"/><Setter Property="UseLayoutRounding" Value="True"/></Style>
+  <Style Selector="Window.mac-os9 Button"><Setter Property="CornerRadius" Value="2"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Theme" Value="{DynamicResource PlatinumButtonTheme}"/></Style>
+  <Style Selector="Window.mac-os9 Button.tool"><Setter Property="BorderThickness" Value="2"/><Setter Property="Margin" Value="1,0"/></Style>
+  <Style Selector="Window.mac-os9 Button.category"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
+  <Style Selector="Window.mac-os9 Button.tile"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
+  <Style Selector="Window.mac-os9 Button.tile:pressed"><Setter Property="RenderTransform" Value="scale(1)"/></Style>
+  <Style Selector="Window.mac-os9 Button /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Transitions" Value="{x:Null}"/></Style>
+  <Style Selector="Window.mac-os9 TextBox"><Setter Property="CornerRadius" Value="0"/><Setter Property="Background" Value="White"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Theme" Value="{DynamicResource PlatinumTextBoxTheme}"/></Style>
+  <Style Selector="Window.mac-os9 ComboBox"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Theme" Value="{DynamicResource PlatinumComboBoxTheme}"/></Style>
+  <Style Selector="Window.mac-os9 CheckBox"><Setter Property="Theme" Value="{DynamicResource PlatinumCheckBoxTheme}"/></Style>
+  <Style Selector="Window.mac-os9 TabItem"><Setter Property="Theme" Value="{DynamicResource PlatinumTabItemTheme}"/></Style>
+  <Style Selector="Window.mac-os9 ScrollBar"><Setter Property="Theme" Value="{DynamicResource PlatinumScrollBarTheme}"/></Style>
+  <Style Selector="Window.mac-os9 Slider"><Setter Property="Theme" Value="{DynamicResource PlatinumSliderTheme}"/></Style>
+  <Style Selector="Window.mac-os9 ProgressBar"><Setter Property="Theme" Value="{DynamicResource PlatinumProgressBarTheme}"/></Style>
+  <Style Selector="Window.mac-os9 Menu"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
+  <Style Selector="Window.mac-os9 MenuItem"><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+  <Style Selector="Window.mac-os9 ListBoxItem:selected"><Setter Property="Background" Value="#C7CDE0"/><Setter Property="Foreground" Value="#111111"/></Style>
+</Styles>

@@ -1,0 +1,6 @@
+Package: Avalonia.BuildServices 11.3.2
+Authors: Avalonia Team
+Copyright: Copyright 2023-2025 © The AvaloniaUI Project
+License: MIT
+Project: https://avaloniaui.net/
+Repository: https://github.com/AvaloniaUI/Avalonia.BuildServices

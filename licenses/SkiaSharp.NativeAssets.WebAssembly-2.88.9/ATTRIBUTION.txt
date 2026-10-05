@@ -1,0 +1,6 @@
+Package: SkiaSharp.NativeAssets.WebAssembly 2.88.9
+Authors: Microsoft
+Copyright: © Microsoft Corporation. All rights reserved.
+License: MIT
+Project: https://go.microsoft.com/fwlink/?linkid=868515
+Repository: https://github.com/mono/SkiaSharp
