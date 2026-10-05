@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.BatchUiTests", "te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.SkinTests", "tests\AvaMedia.SkinTests\AvaMedia.SkinTests.csproj", "{0AFA0E19-D431-462F-A737-A6F52CF5138F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvaMedia.EditorStyleTests", "tests\AvaMedia.EditorStyleTests\AvaMedia.EditorStyleTests.csproj", "{8DEAAB33-3D4E-4C00-81C6-99AA59268AE6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,6 +44,10 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8DEAAB33-3D4E-4C00-81C6-99AA59268AE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DEAAB33-3D4E-4C00-81C6-99AA59268AE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DEAAB33-3D4E-4C00-81C6-99AA59268AE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DEAAB33-3D4E-4C00-81C6-99AA59268AE6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -96,6 +102,7 @@ Global
 		{0AFA0E19-D431-462F-A737-A6F52CF5138F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{8DEAAB33-3D4E-4C00-81C6-99AA59268AE6} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
 		{262190D8-1710-4730-8BD2-D3AEB1BE4CD1} = {F57E7693-3789-4BD4-9AC8-0CC92CC5513B}
 		{46939A9D-F38F-4C66-BA65-C3519FF26E75} = {3CA29308-9F64-434B-97AE-C4BA52A1B482}
 		{4FF49E49-980C-4A1A-B7FA-7384A3400CCB} = {F57E7693-3789-4BD4-9AC8-0CC92CC5513B}

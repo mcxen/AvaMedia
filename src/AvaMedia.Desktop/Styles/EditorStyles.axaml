@@ -1,0 +1,48 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Metrics belong to the component role and are shared by every skin. -->
+  <Style Selector="Window.editor TextBox, Window.editor ComboBox, Window.editor Button">
+    <Setter Property="MinHeight" Value="{StaticResource UiFieldHeight}"/>
+    <Setter Property="FontSize" Value="{StaticResource UiFontBody}"/>
+  </Style>
+  <Style Selector="Window.editor TextBox">
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Window.editor ComboBox">
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Window.editor Button">
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Window.editor TextBox, Window.editor ComboBox, Window.editor Button.field-action">
+    <Setter Property="Height" Value="{StaticResource UiFieldHeight}"/>
+  </Style>
+  <Style Selector="Window.editor TextBlock.time">
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiNumericFont}"/>
+    <Setter Property="FontSize" Value="{StaticResource UiTimeFontSize}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Window.editor TextBox.time">
+    <Setter Property="FontFamily" Value="{StaticResource UiNumericFont}"/>
+    <Setter Property="FontSize" Value="{StaticResource UiTimeFontSize}"/>
+    <Setter Property="Width" Value="{StaticResource UiTimeFieldWidth}"/>
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="Padding" Value="6,4"/>
+  </Style>
+  <Style Selector="Window.editor Button.step">
+    <Setter Property="Width" Value="{StaticResource UiFieldHeight}"/>
+    <Setter Property="Height" Value="{StaticResource UiFieldHeight}"/>
+    <Setter Property="Padding" Value="6"/>
+  </Style>
+  <Style Selector="Window.editor Button.transport">
+    <Setter Property="Width" Value="{StaticResource UiTransportSize}"/>
+    <Setter Property="Height" Value="{StaticResource UiTransportSize}"/>
+    <Setter Property="Padding" Value="6"/>
+  </Style>
+  <Style Selector="Window.editor Button.dialog-action">
+    <Setter Property="Width" Value="{StaticResource UiDialogActionWidth}"/>
+    <Setter Property="Height" Value="{StaticResource UiDialogActionHeight}"/>
+    <Setter Property="MinHeight" Value="{StaticResource UiDialogActionHeight}"/>
+    <Setter Property="Padding" Value="12,4"/>
+  </Style>
+</Styles>

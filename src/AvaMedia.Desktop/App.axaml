@@ -4,5 +4,6 @@
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/UiStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Motion.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Platinum.axaml" />
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/EditorStyles.axaml" />
   </Application.Styles>
 </Application>
