@@ -1,4 +1,4 @@
-param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.4')
+param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5')
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $proof = Join-Path $taskRoot 'artifacts/installer-verification'

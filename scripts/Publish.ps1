@@ -1,4 +1,4 @@
-param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.4', [string]$OutputDirectory)
+param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $sdk = Join-Path $taskRoot ('.tools/dotnet/dotnet' + $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { '.exe' } else { '' }))

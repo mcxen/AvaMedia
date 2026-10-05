@@ -1,4 +1,4 @@
-param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.4', [string]$PublishDirectory, [string]$Compiler)
+param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$PublishDirectory, [string]$Compiler)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 if (!$PublishDirectory) { $PublishDirectory = Join-Path $taskRoot "artifacts/release/$Version/win-x64" }

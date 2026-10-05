@@ -1,4 +1,4 @@
-param([string]$Version='1.0.4')
+param([string]$Version='1.0.5')
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 $checks=[Collections.Generic.List[string]]::new()

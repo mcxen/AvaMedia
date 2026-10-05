@@ -1,0 +1,126 @@
+{
+  "measuredOn": "2026-10-06",
+  "unit": "bytes",
+  "formatFactory": {
+    "version": "N-104384-g374f2ac370",
+    "shared": true,
+    "enableSmall": true,
+    "runtimeBytes": 46958232,
+    "ffmpegBytes": 312984
+  },
+  "static": {
+    "version": "N-127197-gf0c2c00a62-20261004",
+    "ffmpegBytes": 138234368,
+    "ffprobeBytes": 138023424,
+    "ffplayBytes": 141764096,
+    "pairBytes": 276257792,
+    "binBytes": 418021888,
+    "downloadBytes": 177707829
+  },
+  "shared": {
+    "version": "N-127203-ga35c879992-20261005",
+    "downloadBytes": 79466525,
+    "installation": {
+      "source": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip",
+      "archiveSha256": "dcf406fc9594c3b2f64c7a3e2a823a5f8e31186933bfcd1ad02747ddf15e205e",
+      "runtimeBytes": 161176064.0,
+      "files": [
+        {
+          "name": "avcodec-63.dll",
+          "bytes": 91893248,
+          "sha256": "052a80daf0b69859f7eb2082b3deb2d0c60e29e0d3a624de92208cad3d10910a"
+        },
+        {
+          "name": "avdevice-63.dll",
+          "bytes": 4948480,
+          "sha256": "bb1c3e3b9f0fd940805d77d63819d40b67642d88505ec87c94d55223e3372782"
+        },
+        {
+          "name": "avfilter-12.dll",
+          "bytes": 31667200,
+          "sha256": "698c6cbb9a690277e488e88e38cfa66702df151d8713877996569e9f90ea85ab"
+        },
+        {
+          "name": "avformat-63.dll",
+          "bytes": 25714688,
+          "sha256": "7ec327ce42eee8416e83985bf1f2710bff5c3c7cff3aafc9c7f9d2cb33b95b59"
+        },
+        {
+          "name": "avutil-61.dll",
+          "bytes": 3035136,
+          "sha256": "f4fe501a1d7597f9df228b79deb509208b454a8439d8f533ecaccbc2e465cc7c"
+        },
+        {
+          "name": "ffmpeg.exe",
+          "bytes": 553472,
+          "sha256": "256ad876eee584130c8ca0728b0a51c8df1da011361090db25df3c2c0d61e234"
+        },
+        {
+          "name": "ffprobe.exe",
+          "bytes": 231936,
+          "sha256": "91b1bef4e8e2bf181bbc0bf7f309b35113fc0f5ad983a867fe9bb9c60d77fab5"
+        },
+        {
+          "name": "swresample-7.dll",
+          "bytes": 739840,
+          "sha256": "bbfb99c21141532dc45ef8e5ab611956e6c12c696ed6401cbc445f68b053c132"
+        },
+        {
+          "name": "swscale-10.dll",
+          "bytes": 2392064,
+          "sha256": "511c26072693c1c02f2bdd0f2892ebc539ffa219c86a8d2f5deba5912ed411c9"
+        }
+      ]
+    }
+  },
+  "capabilities": [
+    {
+      "category": "encoders",
+      "staticLines": 240,
+      "sharedLines": 240,
+      "identical": true,
+      "differences": []
+    },
+    {
+      "category": "decoders",
+      "staticLines": 551,
+      "sharedLines": 551,
+      "identical": true,
+      "differences": []
+    },
+    {
+      "category": "filters",
+      "staticLines": 545,
+      "sharedLines": 545,
+      "identical": true,
+      "differences": []
+    },
+    {
+      "category": "formats",
+      "staticLines": 431,
+      "sharedLines": 431,
+      "identical": true,
+      "differences": []
+    },
+    {
+      "category": "protocols",
+      "staticLines": 78,
+      "sharedLines": 78,
+      "identical": true,
+      "differences": []
+    },
+    {
+      "category": "devices",
+      "staticLines": 9,
+      "sharedLines": 9,
+      "identical": true,
+      "differences": []
+    }
+  ],
+  "functionalVerification": {
+    "suites": 18,
+    "status": "passed",
+    "sourceCommit": "f2dd7c64704a32dd62abf6740d081a17847f8650",
+    "workingTreeDirty": true
+  }
+}

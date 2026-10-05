@@ -10,17 +10,17 @@ CI 在 main 推送和 Pull Request 时执行完整 Windows 验证。Release 工�
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 
 ```sh
-git tag -a v1.0.4 -m "AvaMedia 1.0.4"
+git tag -a v1.0.5 -m "AvaMedia 1.0.5"
 git push origin main
-git push origin v1.0.4
+git push origin v1.0.5
 ```
 
 版本统一传入 MSBuild、安装器、Info.plist 和文件名。源码默认版本位于 `Directory.Build.props`。
 
 ```powershell
-./scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.4
-./scripts/Package-Windows.ps1 -Version 1.0.4
-./scripts/Verify-WindowsInstaller.ps1 -Version 1.0.4
+./scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.5
+./scripts/Package-Windows.ps1 -Version 1.0.5
+./scripts/Verify-WindowsInstaller.ps1 -Version 1.0.5
 ```
 
 macOS 上发布相应架构后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的录制权限与音频设备仍需验收。

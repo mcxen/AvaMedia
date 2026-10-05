@@ -24,6 +24,8 @@ FFmpeg / FFprobe 是独立媒体引擎，yt-dlp 是可选下载工具，均需�
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-MediaTools.ps1 -Destination tools
 ```
 
+Windows 工具安装采用共享 DLL 构建，ffmpeg 与 ffprobe 共用媒体库，仅安装所需运行文件并清理下载缓存。当前运行文件约 153.71 MiB，比原静态程序组合减少 41.7%；与格式工厂的实测比较及验证见 [FFmpeg 体积说明](docs/FFMPEG-SIZE.md)。
+
 macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装 Homebrew 工具。也可在“选项 → 外部工具”指定路径，或设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP`。详见 [平台与工具配置](docs/PLATFORMS.md)。
 
 ## 界面
@@ -82,8 +84,8 @@ dotnet run --project src/AvaMedia.Desktop -c Release
 
 ```powershell
 pwsh -File scripts/Verify.ps1
-pwsh -File scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.4
-pwsh -File scripts/Package-Windows.ps1 -Version 1.0.4
+pwsh -File scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.5
+pwsh -File scripts/Package-Windows.ps1 -Version 1.0.5
 ```
 
 验证覆盖真实输出、剪辑、字幕、批量处理、方向识别、交互、三套皮肤、设置、接口替换与消融。测试自行生成媒体，不需要用户视频。录制权限和音频设备按实际系统配置工作；macOS 用户设备媒体能力需结合设备验收。
@@ -95,8 +97,8 @@ pwsh -File scripts/Package-Windows.ps1 -Version 1.0.4
 推送 `vMAJOR.MINOR.PATCH` tag 后，[Release 工作流](.github/workflows/release.yml) 自动验证、构建安装包、生成源码与校验清单并上传 GitHub Release。Windows 验证安装、原生启动和卸载；Mac 包在对应架构 runner 构建并验证启动。
 
 ```sh
-git tag -a v1.0.4 -m "AvaMedia 1.0.4"
-git push origin v1.0.4
+git tag -a v1.0.5 -m "AvaMedia 1.0.5"
+git push origin v1.0.5
 ```
 
 流程见 [RELEASE](docs/RELEASE.md)，Git 管理见 [GIT-WORKFLOW](docs/GIT-WORKFLOW.md)，18 组媒体消融见 [ABLATION](docs/ABLATION.md)。

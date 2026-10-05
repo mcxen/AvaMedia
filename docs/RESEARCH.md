@@ -22,7 +22,7 @@
 | PDF 合并、拆分、图片 / 文本生成 PDF | PDFsharp 6.2.4 | MIT；系统字体在用户机器上加载，没有分发字体文件 |
 | PDF 文字提取 | PdfPig 0.1.13 | Apache-2.0；附许可证与适用 NOTICE |
 | 视频网站下载 | 外部 yt-dlp | 项目源代码为 Unlicense；官方打包可执行文件包含其他许可组件；成品不内置它 |
-| ZIP、SHA256、队列持久化、DOCX/XLSX 文本容器 | .NET 与独立 C# | .NET 版权声明；客户端原创 MIT |
+| ZIP、SHA256、队列持久化、DOCX/XLSX 文本容器 | .NET 与独立 C# | .NET 版权声明；客户端原创 AGPL-3.0-only |
 
 来源：[Avalonia 许可](https://github.com/AvaloniaUI/Avalonia/blob/main/licence.md)、[FFmpeg 官方法律说明](https://ffmpeg.org/legal.html)、[FFmpeg 滤镜文档](https://ffmpeg.org/ffmpeg-filters.html)、[PDFsharp 许可](https://github.com/empira/PDFsharp/blob/master/LICENSE)、[PdfPig 许可](https://github.com/UglyToad/PdfPig/blob/master/LICENSE)、[NAudio 许可](https://github.com/naudio/NAudio/blob/release/2.x/license.txt)、[yt-dlp 第三方许可](https://github.com/yt-dlp/yt-dlp/blob/master/THIRD_PARTY_LICENSES.txt)。
 
@@ -35,6 +35,8 @@ FormatFactory 官网 EULA 只说明其使用了部分 LGPL 模块；免费使用
 原安装目录中的 FFmpeg：`N-104384-g374f2ac370`，配置包含 `--enable-gpl --enable-version3 --enable-nonfree`。该文件及配套 DLL 没有被复制到客户端，也没有用于功能验证。
 
 开发验证改用 BtbN 独立 `win64-lgpl` 构建：`N-127197-gf0c2c00a62-20261004`，配置启用 version3，禁用 libx264/libx265，不启用 gpl/nonfree。FFmpeg 的版本、完整配置与 SHA256 保存在 `artifacts/engine-audit.txt`。BtbN 的构建脚本许可不代表其所有输出组件均是 MIT。
+
+2026-10-06 改用 `win64-lgpl-shared`，避免 ffmpeg 与 ffprobe 重复静态链接媒体库。格式工厂采用共享库和 `--enable-small`，其 FFmpeg 运行文件约 44.78 MiB；本项目新工具运行文件约 153.71 MiB，能力列表一致且 18 套功能测试通过。详见 [体积比较](FFMPEG-SIZE.md)。
 
 来源：[BtbN 构建说明](https://github.com/BtbN/FFmpeg-Builds)。
 
