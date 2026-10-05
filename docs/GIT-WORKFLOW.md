@@ -7,9 +7,9 @@
 ## 日常修改
 
 1. 用 `git status --short` 与 `git diff` 检查修改，按功能提交明确的文件路径。
-2. 运行 `./scripts/Verify.ps1`。它构建解决方案并执行全部 11 个已集成测试套件，输出日志、源码提交号和工作区是否存在未提交改动。
+2. 运行 `./scripts/Verify.ps1`。它构建解决方案并执行全部 18 个已集成测试套件，输出日志、源码提交号和工作区是否存在未提交改动。
 3. 用 `git diff --cached` 复核内容，再提交。功能实现、行为修复、格式整理和验证工具分别提交。
-4. 发布标签指向通过验收的提交；运行结果与发布包保存在 `artifacts/`，通过提交号及哈希关联。
+4. 发布标签指向通过验收的提交；推送 `vMAJOR.MINOR.PATCH` 自动触发 [Release 工作流](RELEASE.md)，构建安装包、源码与校验清单并发布。运行结果与本地包保存在 `artifacts/`，通过提交号及哈希关联。
 
 单独复现消融：`./scripts/Verify.ps1 -Suite Ablation`。测试说明和已测结果见 [ABLATION.md](ABLATION.md)。
 
