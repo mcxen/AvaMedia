@@ -2,6 +2,8 @@
 
 从主窗口“皮肤 → Mac OS 9 · Platinum”切换。选择随设置保存，重启后恢复；已打开的窗口和后续弹窗同步切换。浅色、深色和 Platinum 共用业务控件及数据。
 
+主窗口按用户要求排列为“标题栏 → 操作工具栏 → 菜单栏 → 任务区”。换回浅色或深色时恢复原来的菜单位置。切换模板时只释放实际被替换的弹出菜单容器，保留仍在使用的菜单树。
+
 ## 界面基础
 
 - `Skin.MacOS9` 是继承 Light 的 Avalonia ThemeVariant。`Platinum.axaml` 定义灰阶、文字、选中、工具栏和状态栏资源，`PlatinumControls.axaml` 定义控件主题。

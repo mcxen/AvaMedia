@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls">
   <Styles.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
@@ -110,9 +110,14 @@
       <Thickness x:Key="UiDialogPadding">20</Thickness>
       <Thickness x:Key="UiSectionPadding">16</Thickness>
       <x:Double x:Key="UiSettingSectionHeight">90</x:Double>
+      <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
+      <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
+      <x:Double x:Key="UiMenuBarHeight">25</x:Double>
+      <x:Double x:Key="UiToolbarHeight">55</x:Double>
       <x:Double x:Key="UiCategoryHeight">32</x:Double>
     </ResourceDictionary>
   </Styles.Resources>
+  <Style Selector="Menu, MenuItem, ContextMenu"><Setter Property="controls:MenuTemplateLifetime.IsEnabled" Value="True"/></Style>
   <Style Selector="Window">
     <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
     <Setter Property="FontSize" Value="{DynamicResource UiFontBody}" />
