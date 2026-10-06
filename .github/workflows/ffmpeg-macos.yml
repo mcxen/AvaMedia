@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'scripts/macos/**'
+      - 'scripts/legacy-video-capabilities.json'
       - 'scripts/Install-MediaTools-macOS.sh'
       - 'src/AvaMedia.Core/BatchVideoTools.cs'
       - '.github/workflows/ffmpeg-macos.yml'
   pull_request:
     paths:
       - 'scripts/macos/**'
+      - 'scripts/legacy-video-capabilities.json'
       - 'scripts/Install-MediaTools-macOS.sh'
       - 'src/AvaMedia.Core/BatchVideoTools.cs'
       - '.github/workflows/ffmpeg-macos.yml'
@@ -31,7 +33,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Install build tools
-        run: brew install cmake meson ninja pkgconf autoconf automake libtool
+        run: brew install cmake meson ninja pkgconf autoconf automake libtool help2man
       - name: Build and verify ARM64 QuickJS for macOS 13.4
         id: quickjs
         shell: pwsh

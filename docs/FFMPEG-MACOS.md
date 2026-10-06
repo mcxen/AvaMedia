@@ -27,9 +27,11 @@ zimg 固定上游 `release-3.0.6` 源码归档及 SHA256。静态构建使用 ma
 在 Apple Silicon macOS 上安装 Xcode 命令行工具和 Python 3.12+，然后执行：
 
 ```sh
-brew install cmake meson ninja pkgconf autoconf automake libtool
+brew install cmake meson ninja pkgconf autoconf automake libtool help2man
 python3 scripts/macos/Build-FFmpeg.py
 ```
+
+`help2man` 用于 FriBidi 的 Autotools 构建生成手册页，仅作为构建工具；两个 macOS 工作流均安装它，运行包不附带。上游规则见 [FriBidi 1.0.17 的 Makefile](https://github.com/fribidi/fribidi/blob/v1.0.17/bin/Makefile.am)。
 
 产物位于 `artifacts/`：
 

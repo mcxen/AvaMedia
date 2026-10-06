@@ -192,7 +192,7 @@ streamWindow.Close();
 var state = new Storage(Path.Combine(root, "isolated-state"));
 state.SaveSettings(new() { OutputFolder = Path.Combine(root, "main-queue"), ReduceMotion = true, NotifyComplete = false });
 var main = new MainWindow(state); main.Show();
-var cropMenu = main.GetLogicalDescendants().OfType<MenuItem>().Single(m => Equals(m.Header, "视频批量裁剪…"));
+var cropMenu = main.FindControl<MenuItem>("BatchCropMenuItem")!;
 cropMenu.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Dispatcher.UIThread.RunJobs();
 var batch = main.OwnedWindows.OfType<BatchCropWindow>().Single(); batch.AddFiles([small, large]); Pump(batch.Ready); batch.SetArea(area);
 Click(batch.FindControl<Button>("OkButton")!);

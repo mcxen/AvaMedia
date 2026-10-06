@@ -9,6 +9,8 @@ CI 在 main 推送和 Pull Request 时执行完整 Windows 验证。Release 工�
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 
+2026-10-06 的 [v1.1.8 发布失败日志](https://github.com/mcxen/AvaMedia/actions/runs/37453172312) 有两个独立失败点：Windows `FunctionTests` 按已移除的“批量”菜单标题查找入口，现改用 `BatchCropMenuItem` 控件名称；macOS FriBidi 构建缺少 `help2man`，Release 和独立 FFmpeg 工作流现均安装该工具。旧 tag 保留原提交，重跑旧记录仍使用原工作流与源码；这些修复随后续版本 tag 生效。
+
 ```sh
 git tag -a v1.0.5 -m "AvaMedia 1.0.5"
 git push origin main
