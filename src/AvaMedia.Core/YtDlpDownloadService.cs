@@ -111,7 +111,9 @@ public sealed class YtDlpDownloadService : IVideoDownloadService
         if (cookiePath.Length > 0) args.AddRange(["--cookies", cookiePath]);
         else if (options.CookieBrowser.Length > 0) args.AddRange(["--cookies-from-browser", options.CookieBrowser]);
         if (options.Proxy.Length > 0) args.AddRange(["--proxy", options.Proxy]);
-        try { args.AddRange(["--js-runtimes", "deno:" + MediaEngine.Resolve("", "deno")]); }
+        // Clear yt-dlp's default Deno runtime so an installed Deno cannot take precedence.
+        args.Add("--no-js-runtimes");
+        try { args.AddRange(["--js-runtimes", "quickjs:" + MediaEngine.Resolve("", "qjs")]); }
         catch (FileNotFoundException) { /* yt-dlp can still handle sites not requiring JavaScript. */ }
         return args;
     }

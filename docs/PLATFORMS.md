@@ -12,7 +12,7 @@
 
 ## 工具与平台行为
 
-新构建内置官方 yt-dlp 和 Deno，用户配置与环境变量优先，内置 tools 优先于 Homebrew 和 PATH。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 使用 `scripts/Install-MediaTools.ps1`。macOS 安装好 Homebrew 后，在终端运行应用资源中的 `scripts/Install-MediaTools-macOS.sh`；它安装 FFmpeg 与 yt-dlp，并在 `~/Library/Application Support/AvaMedia/tools` 创建链接。Homebrew 所选 FFmpeg 配置可能与 Windows 开发用的 LGPL 构建不同，应以实际构建信息为准。
+新构建内置官方 yt-dlp 和 QuickJS-NG，用户配置与环境变量优先，内置 tools 优先于 Homebrew 和 PATH。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 使用 `scripts/Install-MediaTools.ps1`。macOS 安装好 Homebrew 后，在终端运行应用资源中的 `scripts/Install-MediaTools-macOS.sh`；它安装 FFmpeg 与 yt-dlp，并在 `~/Library/Application Support/AvaMedia/tools` 创建链接。Homebrew 所选 FFmpeg 配置可能与 Windows 开发用的 LGPL 构建不同，应以实际构建信息为准。
 
 工具查找支持配置路径、环境变量、Mac 应用资源的 tools、用户工具目录、Homebrew 的 `/opt/homebrew/bin` 或 `/usr/local/bin`、项目工具目录和 PATH。Finder 启动应用时也可找到 Homebrew 工具。
 

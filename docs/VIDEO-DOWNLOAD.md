@@ -18,7 +18,7 @@
 
 | 平台 | 使用方式与限制 |
 |---|---|
-| YouTube | 单视频和播放列表；电脑须能访问视频服务，必要时设置代理；部分视频要求登录或验证。内置 Deno 为 yt-dlp 的 YouTube JavaScript 解析提供运行时。 |
+| YouTube | 单视频和播放列表；电脑须能访问视频服务，必要时设置代理；部分视频要求登录或验证。内置 QuickJS-NG 为 yt-dlp 的 YouTube JavaScript 解析提供运行时。 |
 | 哔哩哔哩 | 视频页、分享短链和分P；可用清晰度取决于登录账号的观看权限。 |
 | 抖音 | 粘贴视频分享链接；站点可能要求新的浏览器登录态或验证。 |
 | 小红书 | 视频笔记，保留完整分享链接中的 xsec_token 等签名参数；图文笔记不在此流程中。 |
@@ -35,9 +35,11 @@
 
 ## 打包与验证
 
-Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 Deno 2.9.7，固定版本、验证上游 SHA256，记录来源、版本、文件尺寸与摘要至 `tools/download-tools.json`；许可证随 `licenses/download-tools/` 分发。无需另行安装 yt-dlp、Python 或 JavaScript 运行时。媒体合并、封装与音频提取仍使用已配置的 FFmpeg / FFprobe。
+Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 QuickJS-NG 0.17.0，固定版本、验证上游 SHA256，记录来源、版本、文件尺寸与摘要至 `tools/download-tools.json`；许可证随 `licenses/download-tools/` 分发。无需另行安装 yt-dlp、Python 或 JavaScript 运行时。媒体合并、封装与音频提取仍使用已配置的 FFmpeg / FFprobe。
 
 `scripts/Bundle-DownloadTools.ps1` 可单独准备开发工具；`scripts/Publish.ps1` 自动执行。用户指定的 yt-dlp 路径继续优先，官方构建包含 EJS 脚本，不启用远程脚本组件。
+
+只打包 `qjs` / `qjs.exe` 运行器，不包含 JavaScript 编译器、SDK 或 Deno。解析和下载均先传入 `--no-js-runtimes` 清除 yt-dlp 默认运行时，再使用 `--js-runtimes quickjs:绝对路径`；系统里已有的 Deno 不会优先执行。采用 QuickJS-NG 0.17.0，满足官方建议的 0.12.0 及以上版本；官方 yt-dlp 已包含配套 EJS 脚本。Windows 原始运行器约 2.05 MiB，macOS ARM64 约 1.26 MiB。重用发布目录及 Windows 覆盖安装时清理旧 Deno 执行文件、专属许可证和许可证收集脚本。
 
 专项入口：`tests/AvaMedia.DownloadTests`。覆盖分享文本、签名链接、播放列表、参数校验、设置持久化、文件名冲突、日志脱敏、Cookie 副本清理、停止 / 重试、字幕及确认后入队。使用真实 yt-dlp 对本机 HTTP 视频下载，FFmpeg 实际生成 MP4 / MKV / MP3 / M4A，并检查媒体流和时长；三套皮肤渲染默认与最小窗口。公网平台测试单独记录，不作为离线测试的必经条件。
 

@@ -5,11 +5,11 @@ $toolRoot=[IO.Path]::GetFullPath($Destination)
 $cache=Join-Path $taskRoot '.tools/download-bundle'
 New-Item -ItemType Directory -Path $toolRoot,$cache -Force | Out-Null
 $ytVersion='2026.08.19'
-$denoVersion='2.9.7'
+$quickJsVersion='0.17.0'
 $ytAsset=if($Runtime -eq 'win-x64'){'yt-dlp.exe'}else{'yt-dlp_macos'}
 $ytHash=if($Runtime -eq 'win-x64'){'66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a'}else{'0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202'}
-$denoAsset=switch($Runtime){'win-x64'{'deno-x86_64-pc-windows-msvc.zip'}'osx-arm64'{'deno-aarch64-apple-darwin.zip'}'osx-x64'{'deno-x86_64-apple-darwin.zip'}}
-$denoHash=switch($Runtime){'win-x64'{'a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238'}'osx-arm64'{'5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c'}'osx-x64'{'95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a'}}
+$quickJsAsset=switch($Runtime){'win-x64'{'qjs-windows-x86_64.exe'}'osx-arm64'{'qjs-darwin-arm64'}'osx-x64'{'qjs-darwin-x86_64'}}
+$quickJsHash=switch($Runtime){'win-x64'{'2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77'}'osx-arm64'{'8be3ddfe3397d2e692e4e1e8972ee9d032a0a580505d2f8b4ea528cf1b651c11'}'osx-x64'{'9e5e101b4fd13cda3204222ca9f8be35412c41dcdef3745829633b7a67245412'}}
 function Get-CheckedAsset([string]$Url,[string]$Path,[string]$Hash) {
     if(!(Test-Path -LiteralPath $Path) -or (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Hash) {
         Invoke-WebRequest -Uri $Url -OutFile $Path
@@ -19,12 +19,17 @@ function Get-CheckedAsset([string]$Url,[string]$Path,[string]$Hash) {
 }
 $ytUrl="https://github.com/yt-dlp/yt-dlp/releases/download/$ytVersion/$ytAsset"
 $yt=Get-CheckedAsset $ytUrl (Join-Path $cache "$ytVersion-$ytAsset") $ytHash
-$archiveUrl="https://github.com/denoland/deno/releases/download/v$denoVersion/$denoAsset"
-$archive=Get-CheckedAsset $archiveUrl (Join-Path $cache "$denoVersion-$denoAsset") $denoHash
+$quickJsUrl="https://github.com/quickjs-ng/quickjs/releases/download/v$quickJsVersion/$quickJsAsset"
+$quickJs=Get-CheckedAsset $quickJsUrl (Join-Path $cache "$quickJsVersion-$quickJsAsset") $quickJsHash
 $ytName=if($Runtime -eq 'win-x64'){'yt-dlp.exe'}else{'yt-dlp'}
-$denoName=if($Runtime -eq 'win-x64'){'deno.exe'}else{'deno'}
+$quickJsName=if($Runtime -eq 'win-x64'){'qjs.exe'}else{'qjs'}
 Copy-Item -LiteralPath $yt -Destination (Join-Path $toolRoot $ytName) -Force
-Expand-Archive -LiteralPath $archive -DestinationPath $toolRoot -Force
+Copy-Item -LiteralPath $quickJs -Destination (Join-Path $toolRoot $quickJsName) -Force
+# Only the runner is shipped; no compiler, SDK or full JavaScript platform.
+foreach($legacy in @('deno.exe','deno')) {
+    $path=Join-Path $toolRoot $legacy
+    if(Test-Path -LiteralPath $path -PathType Leaf){Remove-Item -LiteralPath $path -Force}
+}
 $noticeRoot=Join-Path $taskRoot 'licenses/download-tools'
 New-Item -ItemType Directory -Path $noticeRoot -Force | Out-Null
 foreach($file in @('LICENSE','THIRD_PARTY_LICENSES.txt')) {
@@ -32,17 +37,12 @@ foreach($file in @('LICENSE','THIRD_PARTY_LICENSES.txt')) {
     $target=Join-Path $noticeRoot "yt-dlp-$ytVersion-$noticeName"
     if(!(Test-Path -LiteralPath $target)){Invoke-WebRequest -Uri "https://raw.githubusercontent.com/yt-dlp/yt-dlp/$ytVersion/$file" -OutFile $target}
 }
-$denoLicense=Join-Path $noticeRoot "deno-$denoVersion-LICENSE.txt"
-if(!(Test-Path -LiteralPath $denoLicense)){Invoke-WebRequest -Uri "https://raw.githubusercontent.com/denoland/deno/v$denoVersion/LICENSE.md" -OutFile $denoLicense}
-$denoLock=Join-Path $noticeRoot "deno-$denoVersion-Cargo.lock"
-if(!(Test-Path -LiteralPath $denoLock)){Invoke-WebRequest -Uri "https://raw.githubusercontent.com/denoland/deno/v$denoVersion/Cargo.lock" -OutFile $denoLock}
-$denoNotices=Join-Path $noticeRoot "deno-$denoVersion-THIRD-PARTY-NOTICES.txt"
 $sourceNotices=@{
-    'deno-v8-15.0.245.4-LICENSE.txt'='https://raw.githubusercontent.com/v8/v8/15.0.245.4/LICENSE'
-    'deno-rusty-v8-150.4.0-LICENSE.txt'='https://raw.githubusercontent.com/denoland/rusty_v8/v150.4.0/LICENSE'
-    'deno-node-types-LICENSE.txt'="https://raw.githubusercontent.com/denoland/deno/v$denoVersion/cli/tsc/dts/node/LICENSE"
-    'deno-undici-LICENSE.txt'="https://raw.githubusercontent.com/denoland/deno/v$denoVersion/cli/tsc/dts/node/undici/LICENSE"
-    'deno-typescript-6.0.3-LICENSE.txt'='https://raw.githubusercontent.com/microsoft/TypeScript/v6.0.3/LICENSE.txt'
+    "quickjs-ng-$quickJsVersion-LICENSE.txt"="https://raw.githubusercontent.com/quickjs-ng/quickjs/v$quickJsVersion/LICENSE"
+    'quickjs-ng-mimalloc-LICENSE.txt'='https://raw.githubusercontent.com/microsoft/mimalloc/v3.0.10/LICENSE'
+    'quickjs-ng-mingw-w64-COPYING.txt'='https://raw.githubusercontent.com/mingw-w64/mingw-w64/v13.0.0/COPYING'
+    'quickjs-ng-gcc-COPYING.RUNTIME.txt'='https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.2.0/COPYING.RUNTIME'
+    'quickjs-ng-gcc-COPYING3.txt'='https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.2.0/COPYING3'
 }
 foreach($entry in $sourceNotices.GetEnumerator()) {
     $target=Join-Path $noticeRoot $entry.Key
@@ -50,21 +50,16 @@ foreach($entry in $sourceNotices.GetEnumerator()) {
 }
 $native=($Runtime -eq 'win-x64' -and $env:OS -eq 'Windows_NT') -or ($Runtime.StartsWith('osx-') -and [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX))
 if($native) {
-    if($Runtime.StartsWith('osx-')){& chmod +x (Join-Path $toolRoot $ytName) (Join-Path $toolRoot $denoName)}
-    $denoActual=(& (Join-Path $toolRoot $denoName) --version | Out-String).Trim()
-    if($LASTEXITCODE -ne 0 -or !$denoActual.StartsWith("deno $denoVersion ")){throw 'Bundled Deno failed version verification.'}
-    if(!(Test-Path -LiteralPath $denoNotices)) {
-        & (Join-Path $toolRoot $denoName) run --allow-read=$denoLock --allow-write=$denoNotices --allow-net=static.crates.io (Join-Path $PSScriptRoot 'Collect-DenoLicenses.js') $denoLock $denoNotices
-        if($LASTEXITCODE -ne 0){throw 'Collecting Deno dependency notices failed.'}
-    }
+    if($Runtime.StartsWith('osx-')){& chmod +x (Join-Path $toolRoot $ytName) (Join-Path $toolRoot $quickJsName)}
+    $quickJsActual=(& (Join-Path $toolRoot $quickJsName) --version | Out-String).Trim()
+    if($LASTEXITCODE -ne 0 -or $quickJsActual -ne $quickJsVersion){throw 'Bundled QuickJS-NG failed version verification.'}
     $ytActual=(& (Join-Path $toolRoot $ytName) --version | Out-String).Trim()
     if($LASTEXITCODE -ne 0 -or $ytActual -ne $ytVersion){throw 'Bundled yt-dlp failed version verification.'}
 }
-if(!(Test-Path -LiteralPath $denoNotices)){throw 'Deno dependency notices are required before cross-publishing.'}
-$files=@($ytName,$denoName | ForEach-Object {
+$files=@($ytName,$quickJsName | ForEach-Object {
     $path=Join-Path $toolRoot $_
     [ordered]@{name=$_;bytes=(Get-Item -LiteralPath $path).Length;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()}
 })
-[ordered]@{runtime=$Runtime;ytDlpVersion=$ytVersion;denoVersion=$denoVersion;ytDlpSource=$ytUrl;denoSource=$archiveUrl;denoArchiveSha256=$denoHash;hashStage='upstream-before-app-signing';files=$files} |
+[ordered]@{runtime=$Runtime;ytDlpVersion=$ytVersion;quickJsVersion=$quickJsVersion;jsRuntime='quickjs';ytDlpSource=$ytUrl;quickJsSource=$quickJsUrl;quickJsSha256=$quickJsHash;hashStage='upstream-before-app-signing';files=$files} |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $toolRoot 'download-tools.json') -Encoding utf8
-Write-Output "Bundled yt-dlp $ytVersion and Deno $denoVersion ($Runtime), verified SHA256."
+Write-Output "Bundled yt-dlp $ytVersion and QuickJS-NG $quickJsVersion ($Runtime), verified SHA256."

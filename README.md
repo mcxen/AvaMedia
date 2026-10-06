@@ -18,7 +18,7 @@
 
 Release 同时提供源码 ZIP 和 `SHA256SUMS.txt`。macOS 包采用 ad-hoc 签名，尚未经过 Developer ID 签名和公证；初次启动可能需要在系统隐私与安全性中允许打开。
 
-新构建包含 yt-dlp 和 YouTube 解析所需 Deno，无需安装 Python。FFmpeg / FFprobe 是独立媒体引擎；Windows 安装后可从开始菜单运行 **Install media tools**，或在程序目录执行：
+新构建包含 yt-dlp 和 YouTube 解析所需 QuickJS-NG，无需安装 Python。FFmpeg / FFprobe 是独立媒体引擎；Windows 安装后可从开始菜单运行 **Install media tools**，或在程序目录执行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-MediaTools.ps1 -Destination tools
@@ -57,7 +57,7 @@ macOS 已包含下载工具；使用 `bash scripts/Install-MediaTools-macOS.sh` 
 - **预览与编辑**：实际帧定位、区间播放、结束边界帧、选区移动 / 缩放、比例锁定、键盘微调、旋转、镜像、速度和淡入淡出。
 - **批量裁剪与旋转**：共享像素或比例选区，逐文件调整，本地人脸方向识别，对照原画面和处理后预览。
 - **合并、混流与字幕**：逐输入保留编辑参数，支持视频 / 音轨选择、字幕烧录与独立字幕轨配置。
-- **视频下载**：分享文本与批量链接解析、YouTube 播放列表 / B站分P、多画质、视频 / 音频、字幕、登录态与代理；内置 yt-dlp 和 Deno，停止后可重试续传。平台要求与验证见 [视频下载](docs/VIDEO-DOWNLOAD.md)。
+- **视频下载**：分享文本与批量链接解析、YouTube 播放列表 / B站分P、多画质、视频 / 音频、字幕、登录态与代理；内置 yt-dlp 和 QuickJS-NG，停止后可重试续传。平台要求与验证见 [视频下载](docs/VIDEO-DOWNLOAD.md)。
 - **任务与工具**：并行队列、停止、重试、日志、拖放、恢复和导入导出；PDF、归档、导出帧、录屏与下载入口。
 - **高级设置**：真实硬件编码测试、GPU 自动选择与回退、线程、图片质量、减少动效和外部工具配置。
 

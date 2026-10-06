@@ -49,7 +49,7 @@ foreach ($runtime in @('osx-arm64','osx-x64')) {
         Assert-Package ($read -eq 8 -and [Text.Encoding]::ASCII.GetString($iconHeader,0,4) -eq 'icns' -and (Read-BigEndian $iconHeader 4) -eq $iconEntry.Length) "$runtime application icon has a complete ICNS header"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/scripts/Install-MediaTools-macOS.sh')) "$runtime includes the macOS tool installer"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/THIRD-PARTY-NOTICES.md')) "$runtime includes third-party notices"
-        foreach ($tool in @('yt-dlp','deno')) {
+        foreach ($tool in @('yt-dlp','qjs')) {
             $entry=$archive.GetEntry($root+'MacOS/tools/'+$tool)
             Assert-Package ($null -ne $entry) "$runtime includes bundled $tool"
             $stream=$entry.Open()
