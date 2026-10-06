@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "generator": "Codex built-in image_gen.imagegen",
+  "created": "2026-10-06",
+  "mode": "reference-guided image generation",
+  "family": "macos9",
+  "styleAnchor": "rotate.png",
+  "transparentBackground": true,
+  "sourceHandling": "Original generated PNGs copied unchanged. Avalonia renders target format labels.",
+  "assets": [
+    {
+      "kind": "pdf-merge",
+      "function": "PDF 合并",
+      "file": "pdf-merge.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF document MERGE: two overlapping silver-white document sheets with folded upper-right corners, a bold orange PLUS centered in front of the overlap and one larger single resulting white document at lower-right. Three simple page silhouettes with dark red abstract document markings (not letters). Convey many pages combined into one. No film strips, reels or music notes.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-b65b5968-6478-49b3-85a2-a7918bf564e5.png",
+      "sha256": "3B0C09C6D7F19EADDBF299DBE6425601784DD8ED25546009EB2EB4CC10B17417",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-split",
+      "function": "PDF 拆分",
+      "file": "pdf-split.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF document SPLIT: one silver-white document sheet at upper-center and two small separate resulting document sheets at lower-left and lower-right, linked by a clear green forked arrow pointing OUTWARD from the original to the two pages. Dark-red abstract page markings (not letters). Few large shapes, no scissors, film strips, reels or music notes.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-e007979c-3b4b-41a5-bd56-1f44baf9c4b4.png",
+      "sha256": "130697187B8CF7E9C2FA47204113C4AE5F86EDC5DED90F310DAB3016D8DB6B9D",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-text",
+      "function": "PDF → TXT",
+      "file": "pdf-text.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to plain TEXT document conversion: smaller source document at upper-left with red abstract page mark, a green arrow pointing lower-right into a large front white page with four simple dark charcoal horizontal text bars. The large page has a small folded upper-right corner. Leave the top-left quarter of the canvas free for the app-rendered TXT badge; do not draw the badge. No letters, table grid, picture, films or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-00165500-1e2f-40fd-b433-3f14dd11b2af.png",
+      "sha256": "C2543EF44C7B669C4DC1642590F671FB1FE24424F85A5CE1844B8D2EC4BF1720",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-docx",
+      "function": "PDF → DOCX",
+      "file": "pdf-docx.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to WORD PROCESSING document conversion: smaller source page at upper-left with red abstract document marking, one large green arrow toward a front white document page at lower-right. Front page contains two cyan-blue structured paragraphs represented by horizontal bars and a simple blue page header rule. Folded corner. Leave top-left quarter free for the app-rendered DOCX badge; no badge, letters, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-7643bd05-9bc5-4e67-8e80-9db7a6e3777d.png",
+      "sha256": "EB0E15266221B8AABA489493A1875CCF8660E635064AF17EEA141035FC95528F",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-xlsx",
+      "function": "PDF → XLSX",
+      "file": "pdf-xlsx.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to SPREADSHEET conversion: smaller white source document at upper-left with a red abstract marking, clear green arrow toward a large front silver-white sheet at lower-right containing an unmistakable GREEN table grid with three columns and three rows, darker green top header band. Folded corner. Leave top-left quarter free for app-rendered XLSX badge. No letters, text, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-2e392b1e-69cb-4fb8-83e4-cf3a75bdcc76.png",
+      "sha256": "381E252CB6FFDD44697D081DFA0B37B91D2F1D6FEE23499DF65CE00D48526AF6",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "text-pdf",
+      "function": "TXT → PDF",
+      "file": "text-pdf.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: Plain text to PDF document creation: smaller rear source sheet at upper-left containing dark charcoal horizontal text bars, a green arrow toward a large silver-white front fixed-layout page at lower-right containing a prominent RED outlined page inset and two muted red paragraph bars. Folded corner. Leave top-left quarter free for app-rendered PDF badge. No badge, letters, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-7e7ff152-4a38-4841-b429-d5d53c5369ce.png",
+      "sha256": "7C97DC7963506F2BBD1A6D6E5571F3B9C2F17067988EA7CA650EB76BC66E3403",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "zip",
+      "function": "压缩 ZIP",
+      "file": "zip.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: CREATE COMPRESSED ZIP ARCHIVE: two small white file sheets on the left, a large GREEN arrow clearly pointing RIGHT INTO a compact GOLDEN-YELLOW rectangular archive file on the right. Archive has a vertical SILVER ZIPPER with three large black zipper teeth and a zipper pull. Few bold shapes. This is a file archive, NOT a compact disc or DVD. No discs, music, film, folders with text, letters or labels.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-280e81dc-45bc-4a69-836d-97dbd78d6d6e.png",
+      "sha256": "A74565A2DFD886136D1FA5DE0F3473DE7D52C6072ABCDFB33E51C1CF781AD644",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "unzip",
+      "function": "解压 ZIP",
+      "file": "unzip.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: EXTRACT ZIP ARCHIVE: GOLDEN-YELLOW rectangular archive file with vertical SILVER ZIPPER on the left, one large GREEN arrow clearly pointing RIGHT OUT from the archive toward two WHITE document sheets and an OPEN SILVER FILE FOLDER on the right. Archive zipper pull visibly lowered/open. Convey files emerging out of archive. No compact discs, DVDs, music, film, letters, text or labels.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-33fa8953-e9c5-4534-a58c-7bfef497a15c.png",
+      "sha256": "5607D6E3BFF10EB332795C3CA2946833595B4B22B4618385EBE16BEEDA622664",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    }
+  ]
+}

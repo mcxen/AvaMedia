@@ -12,7 +12,14 @@ public sealed class FeatureIcon : Control
     public string Kind{get=>GetValue(KindProperty);set=>SetValue(KindProperty,value);}
     public string Label{get=>GetValue(LabelProperty);set=>SetValue(LabelProperty,value);}
     static FeatureIcon(){AffectsRender<FeatureIcon>(KindProperty,LabelProperty);}
-    public FeatureIcon()=>RenderOptions.SetBitmapInterpolationMode(this,BitmapInterpolationMode.HighQuality);
+    public FeatureIcon()
+    {
+        RenderOptions.SetBitmapInterpolationMode(this,BitmapInterpolationMode.HighQuality);
+        ActualThemeVariantChanged += (_, _) =>
+        {
+            if (DocumentIconAssets.IsSupported(Kind)) InvalidateVisual();
+        };
+    }
     public override void Render(DrawingContext c)
     {
         var scale=Math.Min(Bounds.Width/92,Bounds.Height/80);using var transform=c.PushTransform(Matrix.CreateScale(scale,scale)*Matrix.CreateTranslation((Bounds.Width-92*scale)/2,(Bounds.Height-80*scale)/2));
@@ -20,10 +27,17 @@ public sealed class FeatureIcon : Control
         void R(double x,double y,double w,double h,string color,double radius=0)=>c.DrawRectangle(B(color),null,new Rect(x,y,w,h),radius,radius);
         void L(double x,double y,double xx,double yy,string color,double thickness=3)=>c.DrawLine(new Pen(B(color),thickness),new(x,y),new(xx,yy));
         void T(string text,double x,double y,double size,string color,bool bold=false)=>c.DrawText(new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI",FontStyle.Normal,bold?FontWeight.Bold:FontWeight.Normal),size,B(color)),new(x,y));
-        if (FeatureIconAssets.Get(Kind) is { } artwork)
+        if ((DocumentIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9) ?? FeatureIconAssets.Get(Kind)) is { } artwork)
         {
             c.DrawImage(artwork, new Rect(6,0,80,80));
-            if (Kind is "video" or "formats" or "audio" or "image" or "document")
+            if (Kind is "pdf-text" or "pdf-docx" or "pdf-xlsx" or "text-pdf")
+            {
+                var target = Label.ToUpperInvariant();
+                var color = target switch { "XLSX" => "#579A48", "DOCX" => "#507CAE", "PDF" => "#D16B58", _ => "#535A60" };
+                R(39,39,Math.Max(34,target.Length*6.5+10),15,color,1);
+                T(target,44,40,11,"#FFFFFF",true);
+            }
+            else if (Kind is "video" or "formats" or "audio" or "image" or "document")
             {
                 var label = Label.ToUpperInvariant();
                 var color = label switch { "MKV"=>"#545451", "GIF"=>"#37B37E", "WEBM"=>"#686A5E", _=>Kind=="audio"?"#8BB839":Kind=="image"?"#23AD88":Kind=="document"?"#D16B58":"#507CAE" };

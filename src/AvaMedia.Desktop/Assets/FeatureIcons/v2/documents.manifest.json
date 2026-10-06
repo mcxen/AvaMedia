@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "generator": "Codex built-in image_gen.imagegen",
+  "created": "2026-10-06",
+  "mode": "reference-guided image generation",
+  "family": "v2",
+  "styleAnchor": "rotate.png",
+  "transparentBackground": true,
+  "sourceHandling": "Original generated PNGs copied unchanged. Avalonia renders target format labels.",
+  "assets": [
+    {
+      "kind": "pdf-merge",
+      "function": "PDF 合并",
+      "file": "pdf-merge.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF document MERGE: two overlapping silver-white document sheets with folded upper-right corners, a bold orange PLUS centered in front of the overlap and one larger single resulting white document at lower-right. Three simple page silhouettes with dark red abstract document markings (not letters). Convey many pages combined into one. No film strips, reels or music notes.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-a55695b0-f62d-4a52-921b-42b597232b42.png",
+      "sha256": "11467DEA7E90DE05CE0E5D080856F8543512B6513DC1F013F9D58F25F90DD8B4",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-split",
+      "function": "PDF 拆分",
+      "file": "pdf-split.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF document SPLIT: one silver-white document sheet at upper-center and two small separate resulting document sheets at lower-left and lower-right, linked by a clear green forked arrow pointing OUTWARD from the original to the two pages. Dark-red abstract page markings (not letters). Few large shapes, no scissors, film strips, reels or music notes.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-1bab63fe-3a13-4840-92eb-265a9e9b41ff.png",
+      "sha256": "878C6FB44CAD7A0AC27507CBC1A8757E89950655679DCBC7285DEF161616339D",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-text",
+      "function": "PDF → TXT",
+      "file": "pdf-text.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to plain TEXT document conversion: smaller source document at upper-left with red abstract page mark, a green arrow pointing lower-right into a large front white page with four simple dark charcoal horizontal text bars. The large page has a small folded upper-right corner. Leave the top-left quarter of the canvas free for the app-rendered TXT badge; do not draw the badge. No letters, table grid, picture, films or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-bb8fb097-4262-4513-bc39-8c688f1603d0.png",
+      "sha256": "35085F844C3B7EF75932CE3E753B4129D3AF68AFA570D9B9C3C28507A931FDC2",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-docx",
+      "function": "PDF → DOCX",
+      "file": "pdf-docx.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to WORD PROCESSING document conversion: smaller source page at upper-left with red abstract document marking, one large green arrow toward a front white document page at lower-right. Front page contains two cyan-blue structured paragraphs represented by horizontal bars and a simple blue page header rule. Folded corner. Leave top-left quarter free for the app-rendered DOCX badge; no badge, letters, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-444d8c45-4b89-4552-b37a-148370e78115.png",
+      "sha256": "12AF85E68357CA637A3847AA68A9FA8AB9F09764BF60092FDFD08D5D194869CD",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-xlsx",
+      "function": "PDF → XLSX",
+      "file": "pdf-xlsx.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to SPREADSHEET conversion: smaller white source document at upper-left with a red abstract marking, clear green arrow toward a large front silver-white sheet at lower-right containing an unmistakable GREEN table grid with three columns and three rows, darker green top header band. Folded corner. Leave top-left quarter free for app-rendered XLSX badge. No letters, text, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-4dec53c1-ee31-4a67-8db6-aeb654620d08.png",
+      "sha256": "44D09C00F515080D05C44FCBE7FDAD3FF3A3A9069231082BB90D7DFCC84521DC",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "text-pdf",
+      "function": "TXT → PDF",
+      "file": "text-pdf.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: Plain text to PDF document creation: smaller rear source sheet at upper-left containing dark charcoal horizontal text bars, a green arrow toward a large silver-white front fixed-layout page at lower-right containing a prominent RED outlined page inset and two muted red paragraph bars. Folded corner. Leave top-left quarter free for app-rendered PDF badge. No badge, letters, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-fe1e5ad1-a5cb-46e7-99ce-145b5c982d97.png",
+      "sha256": "CAC18556B26818A8FE755A764C3A03EE2F302D9FD752CF1554733BD9CC88F18F",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "zip",
+      "function": "压缩 ZIP",
+      "file": "zip.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: CREATE COMPRESSED ZIP ARCHIVE: two small white file sheets on the left, a large GREEN arrow clearly pointing RIGHT INTO a compact GOLDEN-YELLOW rectangular archive file on the right. Archive has a vertical SILVER ZIPPER with three large black zipper teeth and a zipper pull. Few bold shapes. This is a file archive, NOT a compact disc or DVD. No discs, music, film, folders with text, letters or labels.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-22a8199a-0479-4184-bdd1-7ce4414bd2ca.png",
+      "sha256": "906CB6F70F89677ADC4724D40791482D5D956185D6E52C9423D12A5241C4A454",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "unzip",
+      "function": "解压 ZIP",
+      "file": "unzip.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved v2 rotate PNG, STYLE REFERENCE ONLY. Match its classic utility icon family: frontal silhouette, charcoal #26333D edges, silver-white #E6F0F6 pages, cyan #22A3D0, grass green #68AE3A arrows, golden orange #F6AB32 and coral red accents. Restrained bevels, crisp contours and subtle edge highlights. No dramatic perspective, toy plastic, heavy shadow, app tile or photorealism. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: EXTRACT ZIP ARCHIVE: GOLDEN-YELLOW rectangular archive file with vertical SILVER ZIPPER on the left, one large GREEN arrow clearly pointing RIGHT OUT from the archive toward two WHITE document sheets and an OPEN SILVER FILE FOLDER on the right. Archive zipper pull visibly lowered/open. Convey files emerging out of archive. No compact discs, DVDs, music, film, letters, text or labels.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-e0eac429-0d68-482b-aaba-9ab22af04970.png",
+      "sha256": "79E8C1DC2D63FD7A2468BE730144E816E12E3074AE4D678DB4830546152F2C04",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    }
+  ]
+}
