@@ -20,7 +20,7 @@ public sealed class MediaFileRouter : IMediaFileRouter
     {
         var extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
         if (QuickClipBatch.VideoExtensions.Contains(extension)) return MediaFileKind.Video;
-        if (extension is "jpg" or "jpeg" or "png" or "webp" or "bmp" or "tif" or "tiff" or "gif" or "ico" or "avif") return MediaFileKind.Image;
+        if (MediaEngine.IsImage(extension) || extension == "gif") return MediaFileKind.Image;
         if (extension is "mp3" or "flac" or "wav" or "m4a" or "ogg" or "aac" or "ac3" or "wma" or "opus" or "aiff" or "aif" or "alac") return MediaFileKind.Audio;
         if (extension is "pdf" or "txt" or "md" or "docx" or "xlsx" or "pptx" or "csv") return MediaFileKind.Document;
         return MediaFileKind.Other;

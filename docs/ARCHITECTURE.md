@@ -14,6 +14,8 @@
 
 生产实现为 `MediaEngine`。主窗口接受可选 `IMediaEngine`，其余业务窗口通过构造参数依赖接口；Windows 与 macOS 音频分别使用 WaveOut 和 AudioQueue。静态的参数校验、格式判断和文件命名仍作为纯业务规则，不增加转发接口。`PlayerWindow` 通过会话工厂使用 `IPlaybackSession`，生产会话 `Playback` 使用 FFmpeg 流式解码，也被剪辑器复用；无需让窗口依赖 FFmpeg 进程生命周期。实现与键位见 [播放器](PLAYER.md)。
 
+HEIC 仍通过 `IImageCompressor` 与 `IMediaPreview` 接入窗口。Core 内部的 `HeifImage` 从 FFprobe 选择静态主图，识别完整 Tile Grid、方向、位深及单块派生图裁剪，统一供预览、编码、转换与 PDF 使用。`AppleImageIO` 仅在 macOS 延迟加载系统框架，以 SafeHandle 管理原生资源，后台读取信息并按请求尺寸下采样；窗口不直接调用原生 API。图片压缩窗口只缓存当前原图位图，不缓存整个文件夹。详见 [HEIC](HEIC.md)。
+
 界面采用 Avalonia 样式、语义资源与组件角色抽象：`UiStyles.axaml` 定义资源，`ControlRoles.axaml` 定义角色，`EditorStyles.axaml` 定义编辑器对齐，`Platinum*.axaml` 实现经典外观。窗口复用同一组角色；设计约束见 [UISPEC.MD](../UISPEC.MD)。
 
 `PresentationVisible` 控制视频像素交付，隐藏 / 最小化时保持媒体时钟和音频，恢复窗口沿用当前解码会话。BGRA 使用池化帧缓冲，连续行跨度一次复制，非连续跨度按行处理；窗口的时间文字与滑块最多每秒刷新十次，画面按源帧率呈现。

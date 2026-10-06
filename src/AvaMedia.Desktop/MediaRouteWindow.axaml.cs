@@ -242,16 +242,28 @@ public partial class MediaRouteWindow : Window
             timeout.CancelAfter(TimeSpan.FromSeconds(8));
             if (entry.Source.Kind == MediaFileKind.Image)
             {
-                try { preview = await Task.Run(() => { using var stream = File.OpenRead(entry.Source.Path); return Bitmap.DecodeToWidth(stream, 320); }, timeout.Token); }
-                catch (Exception error) when (error is not OperationCanceledException)
-                { using var stream = new MemoryStream(await _engine.Thumbnail(entry.Source.Path, 0, 320, 260, timeout.Token, false)); preview = new Bitmap(stream); }
+                var extension = Path.GetExtension(entry.Source.Path).ToLowerInvariant();
+                if (extension is ".heic" or ".heif" || OperatingSystem.IsMacOS() && extension is ".jpg" or ".jpeg" or ".png" or ".tif" or ".tiff")
+                {
+                    var bytesPreview = await _engine.Thumbnail(entry.Source.Path, 0, 320, 260, timeout.Token, false);
+                    preview = await Task.Run(() => { using var stream = new MemoryStream(bytesPreview); return new Bitmap(stream); }, timeout.Token);
+                }
+                else
+                {
+                    try { preview = await Task.Run(() => { using var stream = File.OpenRead(entry.Source.Path); return Bitmap.DecodeToWidth(stream, 320); }, timeout.Token); }
+                    catch (Exception error) when (error is not OperationCanceledException)
+                    {
+                        var bytesPreview = await _engine.Thumbnail(entry.Source.Path, 0, 320, 260, timeout.Token, false);
+                        preview = await Task.Run(() => { using var stream = new MemoryStream(bytesPreview); return new Bitmap(stream); }, timeout.Token);
+                    }
+                }
             }
             else if (entry.Source.Kind == MediaFileKind.Video)
             {
                 var info = await _engine.Probe(entry.Source.Path, timeout.Token);
                 detail = $"{info.Width} × {info.Height} · {MediaTime.Format(info.Duration)}";
-                using var stream = new MemoryStream(await _engine.Thumbnail(entry.Source.Path, Math.Min(1, Math.Max(0, info.Duration / 3)), 320, 180, timeout.Token));
-                preview = new Bitmap(stream);
+                var frame = await _engine.Thumbnail(entry.Source.Path, Math.Min(1, Math.Max(0, info.Duration / 3)), 320, 180, timeout.Token);
+                preview = await Task.Run(() => { using var stream = new MemoryStream(frame); return new Bitmap(stream); }, timeout.Token);
             }
         }
         catch (OperationCanceledException) { unavailable = true; }

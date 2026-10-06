@@ -36,6 +36,8 @@ New builds bundle the official yt-dlp 2026.08.19 and QuickJS-NG 0.17.0 executabl
 
 System fonts are read on the user's device when creating text PDFs; font files are not included in AvaMedia's distribution.
 
+On macOS, HEIC and supported photo previews use the device's [Apple ImageIO](https://developer.apple.com/documentation/imageio) and CoreFoundation system frameworks. These frameworks are not redistributed. HEIC encoding/conversion to JPEG, PNG or WebP uses the existing external FFmpeg build and its applicable licenses. [libheif](https://github.com/strukturag/libheif) and [SDWebImage](https://github.com/SDWebImage/SDWebImage) were reviewed as implementation references; neither their source nor binaries are incorporated. The new AvaMedia integration is original AGPL-3.0-only code.
+
 ## Platinum skin
 
 The Mac OS 9 skin adapts the bevel color arrangement from [classic.css](https://github.com/npjg/classic.css), copyright (c) 2019 Nathanael Gentry, MIT. Its complete license is preserved in `licenses/upstream/classic-css-MIT.txt`. Window chrome and drawing code are implemented in C#; Apple bitmap assets and font files are not bundled. Control themes extend Avalonia SimpleTheme, covered by its MIT notices above.

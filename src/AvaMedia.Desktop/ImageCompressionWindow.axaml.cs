@@ -43,6 +43,7 @@ public sealed partial class ImageCompressionWindow : Window
     private Task _previewTask = Task.CompletedTask, _batchTask = Task.CompletedTask;
     private bool _initializing = true, _busy, _closed;
     private Bitmap? _sourceBitmap, _resultBitmap;
+    private ImageCompressionEntry? _displayedEntry;
     private ImageCompressionEntry? Active => FileList.SelectedItem as ImageCompressionEntry;
     public Task Ready => Task.WhenAll(_entries.Select(entry => entry.Ready).Append(_previewTask));
 
@@ -94,7 +95,7 @@ public sealed partial class ImageCompressionWindow : Window
             _inspections.Add(entry.Ready);
         }
         if (FileList.SelectedItem is null && _entries.Count > 0) FileList.SelectedIndex = 0;
-        if (skipped > 0) StatusText.Text = Localization.Format($"跳过 {skipped} 项；支持静态 JPEG、PNG、WebP 和 BMP。");
+        if (skipped > 0) StatusText.Text = Localization.Format($"跳过 {skipped} 项；支持静态 HEIC / HEIF、JPEG、PNG、WebP 和 BMP。");
         RefreshControls();
     }
     private async Task InspectAsync(ImageCompressionEntry entry)
@@ -244,18 +245,23 @@ public sealed partial class ImageCompressionWindow : Window
         try
         {
             var result = entry.Result;
-            var oriented = entry.Source.HasOrientation ?
+            var existing = _sourceBitmap;
+            var reuse = existing is not null && ReferenceEquals(entry, _displayedEntry);
+            var decodedSource = !reuse && (entry.Source.HasOrientation || Path.GetExtension(entry.Path).ToLowerInvariant() is ".heic" or ".heif") ?
                 await _preview.Thumbnail(entry.Path, 0, entry.Source.Width, entry.Source.Height, token, pad: false) : null;
             var images = await Task.Run(() =>
             {
-                using var decoded = oriented is null ? null : new MemoryStream(oriented);
-                var source = decoded is null ? new Bitmap(entry.Path) : new Bitmap(decoded);
+                using var decoded = decodedSource is null ? null : new MemoryStream(decodedSource);
+                var source = reuse ? null : decoded is null ? new Bitmap(entry.Path) : new Bitmap(decoded);
                 try { return (Source: source, Result: result is null ? null : new Bitmap(result.Path)); }
-                catch { source.Dispose(); throw; }
+                catch { source?.Dispose(); throw; }
             }, token);
-            if (_closed || token.IsCancellationRequested || !ReferenceEquals(entry, Active) || !ReferenceEquals(result, entry.Result))
-            { images.Source.Dispose(); images.Result?.Dispose(); return; }
-            DisposeImages(); _sourceBitmap = images.Source; _resultBitmap = images.Result;
+            if (_closed || token.IsCancellationRequested || !ReferenceEquals(entry, Active) || !ReferenceEquals(result, entry.Result) ||
+                reuse && !ReferenceEquals(existing, _sourceBitmap))
+            { images.Source?.Dispose(); images.Result?.Dispose(); return; }
+            if (images.Source is not null) { DisposeImages(); _sourceBitmap = images.Source; _displayedEntry = entry; }
+            else { Comparison.Result = null; _resultBitmap?.Dispose(); }
+            _resultBitmap = images.Result;
             Comparison.Source = _sourceBitmap; Comparison.Result = _resultBitmap;
             BeforeText.Text = Localization.Format($"压缩前 · {ImageCompression.Bytes(entry.Source.Bytes)}\n{entry.Source.Width} × {entry.Source.Height}");
             AfterText.Text = result is null ? Localization.Text("压缩后 · 尚未预览") : Localization.Format($"压缩后 · {ImageCompression.Bytes(result.OutputBytes)}\n{result.Width} × {result.Height}");
@@ -310,7 +316,7 @@ public sealed partial class ImageCompressionWindow : Window
     private async void AddClick(object? sender, RoutedEventArgs args)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择要压缩的图片"), AllowMultiple = true,
-            FileTypeFilter = [new FilePickerFileType(Localization.Text("静态图片")) { Patterns = ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp"] }] });
+            FileTypeFilter = [new FilePickerFileType(Localization.Text("静态图片")) { Patterns = ["*.heic", "*.heif", "*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp"] }] });
         if (!_closed) AddFiles(files.Select(file => file.TryGetLocalPath()).OfType<string>());
     }
     private async void AddFolderClick(object? sender, RoutedEventArgs args)
@@ -334,7 +340,7 @@ public sealed partial class ImageCompressionWindow : Window
         try { if (File.Exists(path)) File.Delete(path); }
         catch (IOException) { /* A decoder can still be reading; window cleanup removes the cache. */ }
     }
-    private void DisposeImages() { Comparison.Source = Comparison.Result = null; _sourceBitmap?.Dispose(); _resultBitmap?.Dispose(); _sourceBitmap = _resultBitmap = null; }
+    private void DisposeImages() { Comparison.Source = Comparison.Result = null; _sourceBitmap?.Dispose(); _resultBitmap?.Dispose(); _sourceBitmap = _resultBitmap = null; _displayedEntry = null; }
     private async Task CleanupAsync()
     {
         _closed = true; _lifetime.Cancel(); _previewCancellation?.Cancel(); _batchCancellation?.Cancel(); DisposeImages();

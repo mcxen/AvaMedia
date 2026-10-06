@@ -19,7 +19,7 @@ public sealed record ImageCompressionOptions
 }
 
 public sealed record ImageCompressionSource(string Path, long Bytes, int Width, int Height, int BitDepth = 8,
-    string PixelFormat = "rgba", bool HasOrientation = false);
+    string PixelFormat = "rgba", bool HasOrientation = false, string InputSpecifier = "v:0", string PreFilter = "");
 public sealed record ImageCompressionResult(string Path, long SourceBytes, long OutputBytes, int Width, int Height)
 {
     public bool IsSmaller => OutputBytes < SourceBytes;
@@ -38,7 +38,7 @@ public interface IImageCompressor
 
 public static class ImageCompression
 {
-    public static bool Supports(string path) => Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".bmp";
+    public static bool Supports(string path) => Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".bmp" or ".heic" or ".heif";
     public static (int Width, int Height) Size(ImageCompressionSource source, ImageCompressionOptions options)
     {
         var longest = Math.Max(source.Width, source.Height);
@@ -56,7 +56,7 @@ public static class ImageCompression
         var inputs = request.Inputs.Select(Path.GetFullPath).Distinct(comparer).ToArray();
         foreach (var input in inputs)
         {
-            if (!Supports(input)) throw new ArgumentException("支持静态 JPEG、PNG、WebP 和 BMP 图片。");
+            if (!Supports(input)) throw new ArgumentException("支持静态 HEIC / HEIF、JPEG、PNG、WebP 和 BMP 图片。");
             if (!File.Exists(input)) throw new FileNotFoundException("图片不存在。", input);
         }
         var used = new HashSet<string>(reserved ?? [], comparer);
@@ -78,8 +78,11 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
 {
     public async Task<ImageCompressionSource> InspectAsync(string path, CancellationToken cancellationToken = default)
     {
-        if (!ImageCompression.Supports(path)) throw new ArgumentException("支持静态 JPEG、PNG、WebP 和 BMP 图片。");
-        var info = await engine.Probe(path, cancellationToken);
+        if (!ImageCompression.Supports(path)) throw new ArgumentException("支持静态 HEIC / HEIF、JPEG、PNG、WebP 和 BMP 图片。");
+        if (HeifImage.Supports(path))
+            return OperatingSystem.IsMacOS() ? await AppleImageIO.InspectAsync(path, cancellationToken).ConfigureAwait(false) :
+                await InspectHeifAsync(path, cancellationToken).ConfigureAwait(false);
+        var info = await engine.Probe(path, cancellationToken).ConfigureAwait(false);
         if (!info.HasVideo || info.HasAudio || info.VideoCodec is not ("mjpeg" or "png" or "webp" or "bmp") || info.Width < 1 || info.Height < 1)
             throw new InvalidDataException("文件不是支持的静态图片；动画图片请使用对应格式转换。");
         if (HasAnimation(path)) throw new InvalidDataException("这是动画图片，压缩功能不会丢弃动画帧；请使用动画格式转换。");
@@ -101,7 +104,7 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         {
             // JPEG EXIF orientation belongs to the decoded frame, not necessarily the stream.
             var frameInfo = await ProcessRunner.Run(engine.FFprobe,
-                ["-v", "error", "-select_streams", "v:0", "-show_frames", "-show_entries", "frame=width,height:frame_side_data=rotation", "-of", "json", path], cancellationToken);
+                ["-v", "error", "-select_streams", "v:0", "-show_frames", "-show_entries", "frame=width,height:frame_side_data=rotation", "-of", "json", path], cancellationToken).ConfigureAwait(false);
             if (frameInfo.ExitCode != 0) throw new InvalidDataException(frameInfo.Error);
             using var frameJson = JsonDocument.Parse(frameInfo.Output);
             if (frameJson.RootElement.TryGetProperty("frames", out var frames) && frames.GetArrayLength() > 0 &&
@@ -117,13 +120,24 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         return new(Path.GetFullPath(path), new FileInfo(path).Length, width, height, bitDepth, pixelFormat, hasOrientation);
     }
 
+    private async Task<ImageCompressionSource> InspectHeifAsync(string path, CancellationToken token)
+    {
+        var info = await engine.Probe(path, token).ConfigureAwait(false);
+        using var json = JsonDocument.Parse(info.RawJson);
+        var primary = HeifImage.Read(json.RootElement);
+        if (primary.Width < 1 || primary.Height < 1 || info.HasAudio) throw new InvalidDataException("HEIC / HEIF 主图无效。");
+        return new(Path.GetFullPath(path), new FileInfo(path).Length, primary.Width, primary.Height,
+            primary.BitDepth, primary.PixelFormat, primary.HasOrientation, primary.Specifier, primary.PreFilter);
+    }
+
     public async Task<ImageCompressionResult> CompressAsync(string input, string output, ImageCompressionOptions options,
         CancellationToken cancellationToken = default, bool keepLargerPreview = false)
     {
         options.Validate();
-        var source = await InspectAsync(input, cancellationToken);
+        var source = HeifImage.Supports(input) ? await InspectHeifAsync(input, cancellationToken).ConfigureAwait(false) :
+            await InspectAsync(input, cancellationToken).ConfigureAwait(false);
         if (source.BitDepth > 8 && options.Lossless && options.Format == "webp")
-            throw new ArgumentException("WebP 无损编码不能保留 16 位通道，请选择 PNG 无损输出。");
+            throw new ArgumentException("WebP 无损编码不能保留高于 8 位的通道，请选择 PNG 无损输出。");
         output = Path.GetFullPath(output);
         if (string.Equals(source.Path, output, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("压缩输出不能覆盖原图。");
@@ -137,7 +151,7 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         try
         {
             var args = Arguments(source, size, temporary, options);
-            var encoded = await ProcessRunner.Run(engine.FFmpeg, args, cancellationToken);
+            var encoded = await ProcessRunner.Run(engine.FFmpeg, args, cancellationToken).ConfigureAwait(false);
             if (encoded.ExitCode != 0) throw new InvalidOperationException("图片编码失败：" + encoded.Error);
             var length = new FileInfo(temporary).Length;
             if (length == 0) throw new InvalidDataException("图片编码没有生成有效文件。");
@@ -154,19 +168,23 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
     private static List<string> Arguments(ImageCompressionSource source, (int Width, int Height) size,
         string output, ImageCompressionOptions options)
     {
-        List<string> args = ["-hide_banner", "-v", "error", "-n", "-i", source.Path];
+        List<string> args = ["-hide_banner", "-v", "error", "-nostdin", "-n", "-filter_complex_threads", "1"];
+        if (source.PreFilter.Length > 0) args.Add("-noautorotate");
+        args.AddRange(["-i", source.Path]);
+        var prefix = source.PreFilter.Length > 0 ? source.PreFilter + "," : "";
         var resized = size.Width != source.Width || size.Height != source.Height;
         var scale = resized ? $",scale={size.Width}:{size.Height}:flags=lanczos" : "";
         if (options.Format == "jpg")
         {
             // Explicit white compositing keeps transparent input from becoming black JPEG pixels.
-            args.AddRange(["-filter_complex_threads", "1", "-filter_complex",
-                $"[0:v:0]format=rgba,split[fg][base];[base]lutrgb=r=255:g=255:b=255:a=255[bg];[bg][fg]overlay=shortest=1:format=auto{scale},format=yuvj444p[out]", "-map", "[out]"]);
+            args.AddRange(["-filter_complex",
+                $"[0:{source.InputSpecifier}]{prefix}format=rgba,split[fg][base];[base]lutrgb=r=255:g=255:b=255:a=255[bg];[bg][fg]overlay=shortest=1:format=auto{scale},format=yuvj444p[out]", "-map", "[out]"]);
         }
         else
         {
             var pixels = options.Format == "webp" ? "bgra" : PngPixels(source, resized);
-            args.AddRange(["-map", "0:v:0", "-vf", $"format={pixels}{scale}", "-filter_threads", "1"]);
+            HeifImage.AppendVideo(args, HeifImage.Map(source.InputSpecifier), $"{prefix}format={pixels}{scale}");
+            args.AddRange(["-filter_threads", "1"]);
         }
         args.AddRange(["-an", "-sn", "-dn", "-frames:v", "1", "-map_metadata", "-1", "-threads", "2"]);
         if (options.Format == "jpg") args.AddRange(["-c:v", "mjpeg", "-q:v", MediaEngine.Number(2 + (100 - options.Quality) * 29d / 99)]);

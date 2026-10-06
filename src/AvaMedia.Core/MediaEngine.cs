@@ -35,7 +35,10 @@ public sealed class MediaEngine : IMediaEngine
     }
     public async Task<MediaInfo> Probe(string path,CancellationToken ct=default,int videoStreamIndex=0,int audioStreamIndex=0)
     {
-        var r=await ProcessRunner.Run(FFprobe,["-v","error","-show_format","-show_streams","-show_chapters","-of","json",path],ct,maximumOutputChars:int.MaxValue).ConfigureAwait(false);
+        List<string> probeArgs=["-v","error","-show_format","-show_streams","-show_chapters"];
+        if(HeifImage.Supports(path))probeArgs.Add("-show_stream_groups");
+        probeArgs.AddRange(["-of","json",path]);
+        var r=await ProcessRunner.Run(FFprobe,probeArgs,ct,maximumOutputChars:int.MaxValue).ConfigureAwait(false);
         if(r.ExitCode!=0) throw new InvalidDataException(r.Error);
         using var json=JsonDocument.Parse(r.Output);var root=json.RootElement;
         var streams=root.GetProperty("streams").EnumerateArray().ToArray();
@@ -49,6 +52,11 @@ public sealed class MediaEngine : IMediaEngine
         int width=video.ValueKind==JsonValueKind.Undefined?0:video.GetProperty("width").GetInt32(),height=video.ValueKind==JsonValueKind.Undefined?0:video.GetProperty("height").GetInt32();
         if(video.ValueKind!=JsonValueKind.Undefined && video.TryGetProperty("side_data_list",out var sideData))
             foreach(var side in sideData.EnumerateArray())if(side.TryGetProperty("rotation",out var rotation) && Math.Abs(rotation.GetDouble())%180==90)(width,height)=(height,width);
+        if(HeifImage.Supports(path))
+        {
+            var primary=HeifImage.Read(root);width=primary.Width;height=primary.Height;
+            videoStreamIndex=primary.VideoIndex;video=videos[videoStreamIndex];
+        }
         int rate=0,channels=0;if(audio.ValueKind!=JsonValueKind.Undefined){if(audio.TryGetProperty("sample_rate",out var sample))int.TryParse(sample.GetString(),out rate);if(audio.TryGetProperty("channels",out var ch))channels=ch.GetInt32();}
         var frameRate=0d;
         if(video.ValueKind!=JsonValueKind.Undefined && video.TryGetProperty("avg_frame_rate",out var fps))
@@ -61,6 +69,7 @@ public sealed class MediaEngine : IMediaEngine
     }
     public async Task<byte[]> Thumbnail(string input,double seconds,int width=640,int height=360,CancellationToken ct=default,bool pad=true,int videoStreamIndex=0,bool endExclusive=false)
     {
+        if(!pad && AppleImageIO.Supports(input))return await AppleImageIO.ThumbnailAsync(input,width,height,ct).ConfigureAwait(false);
         if(endExclusive && seconds>0)
         {
             var media=await Probe(input,ct,videoStreamIndex);var origin=TimelineOrigin(media);
@@ -77,8 +86,18 @@ public sealed class MediaEngine : IMediaEngine
             seconds=Math.Max(0,last.Value-.000001);
         }
         var from=Math.Max(0,seconds);
-        List<string> args=["-v","error","-ss",Number(from)];
-        args.AddRange(["-i",input,"-map",$"0:v:{videoStreamIndex}","-frames:v","1","-vf",$"scale={width}:{height}:force_original_aspect_ratio=decrease"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""),"-f","image2pipe","-c:v","png","pipe:1"]);
+        var map=$"0:v:{videoStreamIndex}";
+        var prefix="";
+        List<string> args=["-v","error","-nostdin","-filter_complex_threads","1"];
+        if(HeifImage.Supports(input))
+        {
+            var primary=HeifImage.Parse((await Probe(input,ct).ConfigureAwait(false)).RawJson);map=primary.Map();
+            if(primary.PreFilter.Length>0){args.Add("-noautorotate");prefix=primary.PreFilter+",";}
+        }
+        else args.AddRange(["-ss",Number(from)]);
+        args.AddRange(["-i",input]);
+        HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
+        args.AddRange(["-frames:v","1","-f","image2pipe","-c:v","png","pipe:1"]);
         using var p=await ProcessRunner.StartAsync(FFmpeg,args,ct).ConfigureAwait(false);
         using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
         var error=p.StandardError.ReadToEndAsync();using var output=new MemoryStream();
@@ -118,7 +137,7 @@ public sealed class MediaEngine : IMediaEngine
         return times.ToArray();
     }
     public static bool IsAudio(string format) => new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}.Contains(format);
-    public static bool IsImage(string format) => new[]{"jpg","png","webp","bmp","tiff","ico","avif"}.Contains(format);
+    public static bool IsImage(string format) => format is "jpg" or "jpeg" or "png" or "webp" or "bmp" or "tif" or "tiff" or "ico" or "avif" or "heic" or "heif";
     public static void Validate(Job job)
     {
         var feature=Catalog.Find(job.FeatureId);var o=job.Options;
@@ -208,7 +227,22 @@ public sealed class MediaEngine : IMediaEngine
                 {
                     if(Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png"){inputs.Add(path);continue;}
                     var png=Path.Combine(Path.GetTempPath(),"AvaMedia-pdf-"+Guid.NewGuid()+".png");temporary.Add(png);
-                    var converted=await ProcessRunner.Run(FFmpeg,["-v","error","-n","-i",path,"-frames:v","1","-c:v","png",png],ct);if(converted.ExitCode!=0)throw new InvalidDataException(converted.Error);inputs.Add(png);
+                    if(HeifImage.Supports(path) && AppleImageIO.Supports(path))
+                    {
+                        var photo=await AppleImageIO.InspectAsync(path,ct).ConfigureAwait(false);
+                        await File.WriteAllBytesAsync(png,await AppleImageIO.ThumbnailAsync(path,photo.Width,photo.Height,ct).ConfigureAwait(false),ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var primary=HeifImage.Supports(path)?HeifImage.Parse((await Probe(path,ct).ConfigureAwait(false)).RawJson):null;
+                        List<string> args=["-v","error","-nostdin","-n","-filter_complex_threads","1"];
+                        if(primary?.PreFilter.Length>0)args.Add("-noautorotate");args.AddRange(["-i",path]);
+                        HeifImage.AppendVideo(args,primary?.Map()??"0:v:0",primary?.PreFilter is {Length:>0} filter?filter:"null");
+                        args.AddRange(["-frames:v","1","-c:v","png",png]);
+                        var converted=await ProcessRunner.Run(FFmpeg,args,ct).ConfigureAwait(false);
+                        if(converted.ExitCode!=0)throw new InvalidDataException(converted.Error);
+                    }
+                    inputs.Add(png);
                 }
                 var documentJob=new Job{FeatureId=job.FeatureId,Inputs=inputs.ToArray(),Output=job.Output,Options=job.Options};await Task.Run(()=>DocumentEngine.Execute(documentJob,progress,ct),ct);
             }
@@ -369,6 +403,8 @@ public sealed class MediaEngine : IMediaEngine
         if(o.Threads>0)a.AddRange(["-filter_threads",o.Threads.ToString(),"-filter_complex_threads",o.Threads.ToString()]);
         var combined=f.Operation==Operation.AudioMix || f.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null) || f.Operation==Operation.Mux && job.InputOptions is not null;
         var videoFilters=MediaFilters.Video(o,job.Duration,"out",combined,job.Inputs.FirstOrDefault());var audioFilters=MediaFilters.Audio(o,job.Duration,combined);
+        var image=HeifImage.Supports(job.Inputs[0])?HeifImage.Parse(infos[0].RawJson):null;
+        if(image?.PreFilter.Length>0)videoFilters.Insert(0,image.PreFilter);
         var compressionColor=o.VideoCompression is not null?VideoCompressionColor.Inspect(infos[0]):null;
         if(compressionColor is not null)videoFilters.InsertRange(0,compressionColor.Filters());
         for(var inputIndex=0;inputIndex<job.Inputs.Length;inputIndex++)
@@ -376,6 +412,7 @@ public sealed class MediaEngine : IMediaEngine
             if(!combined && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);
             if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);
             if(hardwareDecoding?.TryGetValue(inputIndex,out var decoding)==true)a.AddRange(decoding.InputArguments);
+            if(inputIndex==0 && image?.PreFilter.Length>0)a.Add("-noautorotate");
             a.AddRange(["-i",job.Inputs[inputIndex]]);
         }
         if(SubtitleOptions.Mode(o)==SubtitleMode.ExternalTrack){if(o.Start>0)a.AddRange(["-ss",Number(o.Start)]);a.AddRange(["-i",o.Subtitle]);}
@@ -443,7 +480,13 @@ public sealed class MediaEngine : IMediaEngine
         else if(f.Operation==Operation.SplitVideo) a.AddRange(["-map",$"0:v:{o.VideoStreamIndex}","-an"]);
         else
         {
-            if(!IsAudio(o.Format))a.AddRange(["-map",$"0:v:{o.VideoStreamIndex}?"]);else a.Add("-vn");
+            if(!IsAudio(o.Format))
+            {
+                var map=image?.Map() ?? $"0:v:{o.VideoStreamIndex}?";
+                if(map.StartsWith('['))a.AddRange(["-filter_complex",$"{map}null[vout]","-map","[vout]"]);
+                else a.AddRange(["-map",map]);
+            }
+            else a.Add("-vn");
             if(!o.Mute && !IsImage(o.Format) && o.Format!="gif" && f.Operation!=Operation.Frames)a.AddRange(["-map",o.KeepAllAudioStreams?"0:a?":$"0:a:{o.AudioStreamIndex}?"]);
         }
         if(o.CopyStreams && f.Id=="clip")a.AddRange(["-avoid_negative_ts","make_zero"]);

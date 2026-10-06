@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 
 ENCODERS = "mpeg4 mpeg2video flv wmv2 libx264 libx265 libvpx-vp9 libaom-av1 libwebp png mjpeg bmp tiff gif libmp3lame libvorbis libopus aac alac flac ac3 mp2 wmav2 pcm_s16le pcm_s24le pcm_f32le pcm_s16be pcm_s24be h264_videotoolbox hevc_videotoolbox".split()
-FILTERS = "scale pad crop transpose hflip vflip trim setpts fade split gblur overlay subtitles ass drawtext fps palettegen paletteuse setsar concat tile amix aformat aresample anullsrc anull atrim asetpts areverse afftdn atempo volume aecho afade testsrc2 sine".split()
+FILTERS = "scale pad crop transpose hflip vflip trim setpts fade split gblur overlay xstack subtitles ass drawtext fps palettegen paletteuse setsar concat tile amix aformat aresample anullsrc anull atrim asetpts areverse afftdn atempo volume aecho afade testsrc2 sine".split()
 MUXERS = "mp4 mov matroska webm avi asf mpeg flv mpegts gif image2 image2pipe avif ico mp3 flac wav ipod ogg adts ac3 opus aiff null rawvideo".split()
 
 

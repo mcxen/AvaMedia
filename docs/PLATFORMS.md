@@ -20,6 +20,8 @@
 
 工具查找支持配置路径、环境变量、Mac 应用资源的 tools、用户工具目录、Homebrew 的 `/opt/homebrew/bin` 或 `/usr/local/bin`、项目工具目录和 PATH。Finder 启动应用时也可找到 Homebrew 工具。
 
+HEIC / HEIF 可进入图片路由、压缩、转换、缩放 / 旋转与图片合成 PDF。macOS 信息读取及不填边的 HEIC / JPEG / PNG / TIFF 预览使用系统 ImageIO，无需启动媒体进程；压缩编码仍由 FFmpeg 完成。分块 HEIC 需要 FFprobe 的 stream_groups 信息与 FFmpeg 8.1 系列的 Tile Grid 合成能力（含 `xstack`），定制 ARM64 引擎固定 8.1.3 并检查该滤镜，Windows 安装脚本使用含这些能力的当前构建。自行指定旧引擎时需升级到支持上述能力的版本。当前 Windows 主机只完成源码编译和静态检查，ImageIO 的真实运行与 Apple Silicon 性能仍待实机验证；实现见 [HEIC](HEIC.md)。
+
 Windows 声音使用 WaveOut；macOS 声音接入系统 AudioToolbox 的 AudioQueue，读取共享的 16 位 PCM 缓存。轨道选择、定位、静音与停止使用同一套播放流程，音频设备错误会显示在预览中。实现依据 [Apple Audio Queue Services](https://developer.apple.com/documentation/audiotoolbox/audio-queue-services)；Mac 听感、停止回调及音画同步尚待真机验证。
 
 当前开发版已移除屏幕录制功能及采集代码；Mac 应用不再声明摄像头与麦克风采集权限。
