@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using System.Globalization;
 using AvaMedia.Core;
 
@@ -44,9 +45,9 @@ public sealed partial class SettingsWindow : Window
         var draft = _settings.Clone();
         draft.OutputFolder = OutputInput.Text?.Trim() ?? "";
         draft.FFmpegPath = FfmpegInput.Text?.Trim() ?? ""; draft.FFprobePath = FfprobeInput.Text?.Trim() ?? "";
-        draft.YtDlpPath = YtdlpInput.Text?.Trim() ?? ""; draft.ParallelJobs = Number(ParallelInput);
-        draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput);
-        draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput); draft.WebpQuality = Number(WebpQualityInput);
+        draft.YtDlpPath = YtdlpInput.Text?.Trim() ?? ""; draft.ParallelJobs = Number(ParallelInput, "同时执行任务数");
+        draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput, "每个任务的线程数");
+        draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput, "JPEG 质量"); draft.WebpQuality = Number(WebpQualityInput, "WebP 质量");
         draft.NotifyComplete = NotifyInput.IsChecked == true; draft.ReduceMotion = ReducedMotionInput.IsChecked == true;
         draft.OutputToSource = OutputToSourceInput.IsChecked == true; draft.AddSettingName = AddSettingNameInput.IsChecked == true;
         draft.ShutdownOnComplete = ShutdownInput.IsChecked == true; draft.OpenOutputFolderOnComplete = OpenOutputInput.IsChecked == true;
@@ -56,10 +57,14 @@ public sealed partial class SettingsWindow : Window
         draft.CloseToTray = CloseToTrayInput.IsChecked == true;
         SettingsPolicy.Validate(draft); draft.OutputFolder = Path.GetFullPath(draft.OutputFolder); return draft;
     }
-    private static int Number(NumericUpDown input)
+    private int Number(NumericUpDown input, string label)
     {
         if (!decimal.TryParse(input.Text,NumberStyles.Integer,input.NumberFormat,out var value) || value<input.Minimum || value>input.Maximum)
-            throw new ArgumentException($"请输入 {input.Minimum} 到 {input.Maximum} 之间的整数设置值。");
+        {
+            SettingsTabs.SelectedItem = input.GetLogicalAncestors().OfType<TabItem>().First();
+            input.Focus();
+            throw new ArgumentException($"{label}：请输入 {input.Minimum} 到 {input.Maximum} 之间的整数。");
+        }
         return decimal.ToInt32(value);
     }
     private void Populate(AppSettings source)
@@ -76,7 +81,7 @@ public sealed partial class SettingsWindow : Window
         ErrorSoundInput.IsChecked = source.PlayErrorSound; ContextMenuInput.IsChecked = source.SystemContextMenu;
         TrayInput.IsChecked = source.MinimizeToTray; CheckUpdatesInput.IsChecked = source.CheckForUpdates;
         CloseToTrayInput.IsChecked = source.CloseToTray;
-        RuntimeInfo.Text = $"AvaMedia · .NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}\n\n设备资源共享：未集成服务 SDK，不会启动共享进程。";
+        RuntimeInfo.Text = $"AvaMedia · .NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}";
         StatusText.IsVisible = false; _initializing = false;
     }
     private void MarkDirty() { if (!_initializing) { ApplyButton.IsEnabled = !_values.Select(value=>value()).SequenceEqual(_appliedValues); StatusText.IsVisible = false; } }

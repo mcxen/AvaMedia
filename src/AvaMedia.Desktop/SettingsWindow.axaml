@@ -1,88 +1,136 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:icons="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.SettingsWindow"
-        Title="选项" Width="926" Height="800" MinWidth="780" MinHeight="640"
+        x:Class="AvaMedia.Desktop.SettingsWindow"
+        Title="选项" Width="880" Height="660" MinWidth="780" MinHeight="600"
         Classes="settings" WindowStartupLocation="CenterOwner">
-  <Grid RowDefinitions="*,Auto,Auto" Margin="16,16,16,24" RowSpacing="4">
+  <Window.Styles>
+    <Style Selector="Border.settingSection"><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="12"/></Style>
+    <Style Selector="Border.settingsPage"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="16"/></Style>
+    <Style Selector="TextBlock.settingsHeading"><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="NumericUpDown"><Setter Property="Width" Value="96"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
+    <Style Selector="Button.settingsBrowse"><Setter Property="Width" Value="144"/></Style>
+  </Window.Styles>
+  <Grid RowDefinitions="*,Auto,Auto" Margin="16" RowSpacing="8">
     <TabControl x:Name="SettingsTabs" SelectedIndex="0">
       <TabControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></TabControl.ItemsPanel>
-      <TabItem>
-        <TabItem.Header><StackPanel Orientation="Horizontal" Spacing="6"><icons:SettingsIcon Kind="gear" Width="34" Height="34"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
-        <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
+      <TabItem x:Name="GeneralTab" Header="常规">
+        <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="13">
-              <StackPanel Spacing="6"><TextBlock Text="输出文件夹"/>
-                <Border Classes="settingSection"><StackPanel Spacing="8">
-                  <Grid ColumnDefinitions="*,130" ColumnSpacing="12"><TextBox x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/><Button Grid.Column="1" x:Name="OutputBrowseButton" Content="改变…" Click="OutputBrowseClick"/></Grid>
-                  <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录"/>
-                  <CheckBox x:Name="AddSettingNameInput" Content="添加设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。"/>
-                </StackPanel></Border>
+            <StackPanel Spacing="16">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="文件保存"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="默认输出文件夹" VerticalAlignment="Center"/>
+                      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/>
+                      <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick"/>
+                    </Grid>
+                    <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载和录屏仍使用默认输出文件夹。"/>
+                    <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。"/>
+                  </StackPanel>
+                </Border>
               </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="转换完成后"/>
-                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                  <CheckBox x:Name="ShutdownInput" Content="关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。"/>
-                  <CheckBox Grid.Column="1" x:Name="OpenOutputInput" Content="打开输出文件夹"/>
-                </Grid></Border>
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="任务完成"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <CheckBox x:Name="NotifyInput" Content="显示完成提示弹窗" ToolTip.Tip="前台显示完成弹窗；托盘后台运行时保留完成摘要，不自动恢复窗口。"/>
+                    <CheckBox x:Name="OpenOutputInput" Content="打开输出文件夹"/>
+                    <CheckBox x:Name="ShutdownInput" Content="全部成功后关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。"/>
+                  </StackPanel>
+                </Border>
               </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="界面音效"/>
-                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
-                  <CheckBox x:Name="OperationSoundInput" Content="普通操作"/>
-                  <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成通知"/>
-                  <CheckBox Grid.Row="1" x:Name="ErrorSoundInput" Content="错误通知"/>
-                  <CheckBox Grid.Row="1" Grid.Column="1" x:Name="NotifyInput" Content="显示完成摘要" ToolTip.Tip="前台显示完成弹窗；托盘后台运行时保留完成摘要，不自动恢复窗口。"/>
-                </Grid></Border>
+              <TextBlock Classes="caption" Text="保存位置和文件名设置用于新建任务。" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </TabItem>
+      <TabItem x:Name="ConversionTab" Header="转换">
+        <Border Classes="settingsPage">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="硬件加速"/>
+                <Border Classes="settingSection">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <CheckBox x:Name="AutoGpuInput" Content="自动适配 GPU" ToolTip.Tip="按平台、可用硬件、输出格式和源视频编码自动选择；解码或编码不可用时自动回退。"/>
+                    <Button Grid.Column="1" x:Name="HardwareTestButton" Classes="field-action settingsBrowse" Content="查看 GPU 能力" Click="HardwareTestClick"/>
+                  </Grid>
+                </Border>
               </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="系统"/>
-                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="10">
-                  <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
-                  <CheckBox Grid.Column="1" x:Name="CheckUpdatesInput" Content="检测新版本"/>
-                  <CheckBox Grid.Row="1" x:Name="TrayInput" Content="最小化到系统托盘"/>
-                  <Button Grid.Row="1" Grid.Column="1" x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" HorizontalAlignment="Left"/>
-                  <CheckBox Grid.Row="2" Grid.ColumnSpan="2" x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换、下载和录屏任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
-                </Grid></Border>
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="任务与线程"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                      <TextBlock Text="同时执行任务数" VerticalAlignment="Center"/>
+                      <NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–8 个任务" VerticalAlignment="Center"/>
+                    </Grid>
+                    <CheckBox x:Name="MultithreadInput" Content="使用多线程转码"/>
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                      <TextBlock Text="每个任务的线程数" VerticalAlignment="Center"/>
+                      <NumericUpDown Grid.Column="1" x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" AutomationProperties.Name="多线程数量"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–16；关闭多线程时使用 1" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </Grid>
+                    <TextBlock Classes="caption" Text="同时执行任务数控制队列并发；线程数用于每个转换任务。" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="默认图片质量"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                      <TextBlock Text="JPEG 质量" VerticalAlignment="Center"/>
+                      <NumericUpDown Grid.Column="1" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPEG 质量"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100；越高越清晰" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                      <TextBlock Text="WebP 质量" VerticalAlignment="Center"/>
+                      <NumericUpDown Grid.Column="1" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP 质量"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100；越高越清晰" VerticalAlignment="Center"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
               </StackPanel>
             </StackPanel>
           </ScrollViewer>
         </Border>
       </TabItem>
-      <TabItem>
-        <TabItem.Header><StackPanel Orientation="Horizontal" Spacing="6"><icons:SettingsIcon Kind="badge" Width="34" Height="34"/><TextBlock Text="高级" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
-        <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16,16,16,6">
+      <TabItem x:Name="SystemTab" Header="系统">
+        <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="11">
-              <StackPanel Spacing="6"><TextBlock Text="GPU"/>
-                <Border Classes="settingSection"><Grid ColumnDefinitions="52,Auto,*,175" VerticalAlignment="Center">
-                  <icons:SettingsIcon Kind="gpu" Width="44" Height="44" HorizontalAlignment="Left"/>
-                  <CheckBox Grid.Column="1" x:Name="AutoGpuInput" Content="自动检测"/>
-                  <Button Grid.Column="3" x:Name="HardwareTestButton" Classes="field-action" Click="HardwareTestClick"><Grid ColumnDefinitions="24,*"><icons:ActionIcon Kind="gear"/><TextBlock Grid.Column="1" Text="HA Test" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button>
-                </Grid></Border>
+            <StackPanel Spacing="16">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="后台与系统入口"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换、下载和录屏任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
+                    <CheckBox x:Name="TrayInput" Content="最小化时缩小到托盘"/>
+                    <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
+                  </StackPanel>
+                </Border>
               </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="系统"/>
-                <Border Classes="settingSection"><StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                  <icons:SettingsIcon Kind="cpu" Width="44" Height="44" Margin="0,0,0,0"/>
-                  <CheckBox x:Name="MultithreadInput" Content="使用多线程"/>
-                  <NumericUpDown x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" Width="60" Margin="8,0,0,0" AutomationProperties.Name="多线程数量"/>
-                  <TextBlock Text="[1 - 16]" VerticalAlignment="Center"/>
-                </StackPanel></Border>
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="界面与音效"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效（立即显示状态变化）"/>
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+                      <CheckBox x:Name="OperationSoundInput" Content="操作音效"/>
+                      <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成音效"/>
+                      <CheckBox Grid.Column="2" x:Name="ErrorSoundInput" Content="错误音效"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
               </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="配置"/>
-                <Border Classes="settingSection"><Button x:Name="ResetButton" Classes="field-action" Click="ResetClick" Width="{DynamicResource UiDialogActionWidth}" HorizontalAlignment="Left" VerticalAlignment="Center"><Grid ColumnDefinitions="24,*"><icons:ActionIcon Kind="reset"/><TextBlock Grid.Column="1" Text="重设" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button></Border>
-              </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="照片"/>
-                <Border Classes="settingSection"><Grid ColumnDefinitions="52,Auto,70,*,52,Auto,70" ColumnSpacing="8" VerticalAlignment="Center">
-                  <icons:SettingsIcon Kind="jpg" Width="44" Height="48"/>
-                  <TextBlock Grid.Column="1" Text="JPG Quality" VerticalAlignment="Center"/>
-                  <NumericUpDown Grid.Column="2" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPG Quality"/>
-                  <icons:SettingsIcon Grid.Column="4" Kind="webp" Width="44" Height="48"/>
-                  <TextBlock Grid.Column="5" Text="WebP Quality" VerticalAlignment="Center"/>
-                  <NumericUpDown Grid.Column="6" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP Quality"/>
-                </Grid></Border>
-              </StackPanel>
-              <StackPanel Spacing="6"><TextBlock Text="白金功能"/>
-                <Border Classes="settingSection" ToolTip.Tip="未集成 Bright Data 设备资源共享服务，因此此项不可用。">
-                  <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
-                    <icons:SettingsIcon Kind="share" Width="44" Height="44"/>
-                    <CheckBox Grid.Column="1" x:Name="ResourceSharingInput" Content="share device resources (brightdata.com)" IsChecked="False" IsEnabled="False" AutomationProperties.Name="设备资源共享未接入"/>
-                    <TextBlock Grid.Column="2" Text="brightdata" Foreground="{DynamicResource UiAccent}" FontSize="{DynamicResource UiFontBrand}" FontWeight="Bold" VerticalAlignment="Center"/>
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="版本更新"/>
+                <Border Classes="settingSection">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <CheckBox x:Name="CheckUpdatesInput" Content="启动时检查新版本"/>
+                    <Button Grid.Column="1" x:Name="CheckUpdatesButton" Classes="field-action settingsBrowse" Content="立即检查" Click="CheckUpdatesClick"/>
                   </Grid>
                 </Border>
               </StackPanel>
@@ -90,30 +138,48 @@
           </ScrollViewer>
         </Border>
       </TabItem>
-      <TabItem>
-        <TabItem.Header><StackPanel Orientation="Horizontal" Spacing="6"><icons:SettingsIcon Kind="internal" Width="34" Height="34"/><TextBlock Text="内部" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
-        <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel Spacing="20">
-            <Grid ColumnDefinitions="200,80,*" ColumnSpacing="8"><TextBlock Text="同时执行任务数" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/><TextBlock Grid.Column="2" Text="[1 - 8]" VerticalAlignment="Center"/></Grid>
-            <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效（立即显示状态变化）"/>
-            <TextBlock Classes="caption" Text="高级页的线程数控制每个转换进程的编码与滤镜线程；这里控制同时执行的任务数量。" TextWrapping="Wrap"/>
-            <TextBlock Text="外部工具" Margin="0,12,0,0"/>
-            <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="FFmpeg" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="FfmpegInput" AutomationProperties.Name="FFmpeg 路径"/><Button Grid.Column="2" Content="浏览…" Click="FfmpegBrowseClick"/></Grid>
-            <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="FFprobe" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="FfprobeInput" AutomationProperties.Name="FFprobe 路径"/><Button Grid.Column="2" Content="浏览…" Click="FfprobeBrowseClick"/></Grid>
-            <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="yt-dlp (下载)" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="YtdlpInput" AutomationProperties.Name="yt-dlp 路径"/><Button Grid.Column="2" Content="浏览…" Click="YtdlpBrowseClick"/></Grid>
-            <TextBlock Classes="caption" Text="工具路径留空时自动查找已安装工具和 PATH。" TextWrapping="Wrap"/>
-            <TextBlock Text="运行信息" Margin="0,12,0,0"/>
-            <TextBox x:Name="RuntimeInfo" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="180"/>
-          </StackPanel></ScrollViewer>
+      <TabItem x:Name="ToolsTab" Header="工具">
+        <Border Classes="settingsPage">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="外部工具路径"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="FFmpeg" VerticalAlignment="Center"/>
+                      <TextBox Grid.Column="1" x:Name="FfmpegInput" Watermark="自动查找" AutomationProperties.Name="FFmpeg 路径"/>
+                      <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfmpegBrowseClick"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="FFprobe" VerticalAlignment="Center"/>
+                      <TextBox Grid.Column="1" x:Name="FfprobeInput" Watermark="自动查找" AutomationProperties.Name="FFprobe 路径"/>
+                      <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfprobeBrowseClick"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="yt-dlp（下载）" VerticalAlignment="Center"/>
+                      <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径"/>
+                      <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="YtdlpBrowseClick"/>
+                    </Grid>
+                    <TextBlock Classes="caption" Text="路径留空即可，应用会自动查找已安装工具和 PATH。" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="运行信息"/>
+                <TextBox x:Name="RuntimeInfo" Classes="log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="144"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
         </Border>
       </TabItem>
     </TabControl>
     <TextBlock Grid.Row="1" x:Name="StatusText" Classes="settingError" IsVisible="False" TextWrapping="Wrap"/>
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Margin="0,16,0,0">
-      <Button x:Name="DefaultButton" Classes="dialog-action" Click="ResetClick"><Grid ColumnDefinitions="24,*"><icons:ActionIcon Kind="reset"/><TextBlock Grid.Column="1" Text="默认" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button>
-      <Button Grid.Column="2" x:Name="CancelButton" Classes="dialog-action" Click="CancelClick" IsCancel="True"><Grid ColumnDefinitions="24,*"><icons:ActionIcon Kind="cancel"/><TextBlock Grid.Column="1" Text="取消" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button>
-      <Button Grid.Column="3" x:Name="ApplyButton" Classes="dialog-action" Click="ApplyClick" IsEnabled="False"><Grid ColumnDefinitions="24,*"><icons:ActionIcon Kind="check"/><TextBlock Grid.Column="1" Text="应用" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button>
-      <Button Grid.Column="4" x:Name="OkButton" Classes="dialog-action" Click="OkClick" IsDefault="True"><Grid ColumnDefinitions="24,*"><icons:ActionIcon Kind="check"/><TextBlock Grid.Column="1" Text="确定" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Button>
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Margin="0,8,0,0">
+      <Button x:Name="DefaultButton" Classes="dialog-action" Content="恢复默认" Click="ResetClick" ToolTip.Tip="恢复选项默认值；点击应用或确定后保存。"/>
+      <Button Grid.Column="2" x:Name="CancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
+      <Button Grid.Column="3" x:Name="ApplyButton" Classes="dialog-action" Content="应用" Click="ApplyClick" IsEnabled="False"/>
+      <Button Grid.Column="4" x:Name="OkButton" Classes="dialog-action" Content="确定" Click="OkClick" IsDefault="True"/>
     </Grid>
   </Grid>
 </Window>

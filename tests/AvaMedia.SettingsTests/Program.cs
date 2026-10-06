@@ -157,7 +157,6 @@ var window = new SettingsWindow(saved); window.Show(); Dispatcher.UIThread.RunJo
 Check(window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex == 0 && window.FindControl<Button>("ApplyButton")!.IsEnabled == false, "Options tab and clean Apply state are not the initial view.");
 window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex=1;Dispatcher.UIThread.RunJobs();
 Capture(window, "settings-advanced-light.png", 926, 800);
-Check(window.FindControl<CheckBox>("ResourceSharingInput") is { IsEnabled: false, IsChecked: false }, "Unavailable sharing service pretends to work.");
 window.FindControl<CheckBox>("AutoGpuInput")!.IsChecked=false;window.FindControl<CheckBox>("AutoGpuInput")!.IsChecked=true;
 Check(!window.FindControl<Button>("ApplyButton")!.IsEnabled,"Reverting a checkbox leaves a false unsaved-change state.");
 var threadInput=window.FindControl<NumericUpDown>("ThreadsInput")!;threadInput.Value=12;threadInput.Value=8;
@@ -176,14 +175,14 @@ Check(saved.CpuThreads == 16 && window.IsVisible && !window.FindControl<Button>(
 window.FindControl<NumericUpDown>("ThreadsInput")!.Value = 4;
 Click(window.FindControl<Button>("CancelButton")!);
 Check(saved.CpuThreads == 16 && !window.IsVisible, "Cancel changed the previously applied value.");
-window = new SettingsWindow(saved); window.Show(); Click(window.FindControl<Button>("ResetButton")!);
+window = new SettingsWindow(saved); window.Show(); Click(window.FindControl<Button>("DefaultButton")!);
 Check(window.ReadSettings().CpuThreads == 8 && window.ReadSettings().JpegQuality == 90 && saved.CpuThreads == 16, "Reset does not remain a draft.");
 window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 0;
 window.FindControl<TextBox>("OutputInput")!.Text = ""; Click(window.FindControl<Button>("OkButton")!);
 Check(window.IsVisible && window.FindControl<TextBlock>("StatusText")!.IsVisible && saved.CpuThreads == 16, "Invalid settings partially committed.");
 window.FindControl<TextBox>("OutputInput")!.Text = root;
 Capture(window, "settings-options.png", 926, 800);
-window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 2;
+window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 3;
 Capture(window, "settings-internal.png", 926, 800);
 window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 1;
 Click(window.FindControl<Button>("HardwareTestButton")!);
