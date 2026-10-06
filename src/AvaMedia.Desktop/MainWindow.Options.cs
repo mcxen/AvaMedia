@@ -12,6 +12,7 @@ public partial class MainWindow
     private CancellationTokenSource? _completionCancellation;
     private AppSettings _appliedSettings = new();
     private bool _trayEnabled;
+    private bool _startupOptionsInitialized;
     internal Task CompletionActions { get; private set; } = Task.CompletedTask;
 
     private void InitializeOptions()
@@ -27,18 +28,26 @@ public partial class MainWindow
         { if (_settings.PlayOperationSound) _optionServices.PlaySound(UiSound.Operation); }, Avalonia.Interactivity.RoutingStrategies.Bubble);
         Opened += async (_, _) =>
         {
-            try
+            if (_startupOptionsInitialized) return;
+            _startupOptionsInitialized = true;
+            var failures = new List<string>();
+            if (_settings.SystemContextMenu)
+                try { _optionServices.SetContextMenu(true); }
+                catch (Exception ex) { failures.Add("系统菜单未能启用：" + ex.Message); }
+            if (_settings.MinimizeToTray && _optionServices.CanUseTray)
+                try { SetTray(true); }
+                catch (Exception ex) { failures.Add("托盘未能启用：" + ex.Message); }
+            if (failures.Count > 0 && !_closing) SummaryText.Text = string.Join("；", failures);
+            if (_settings.CheckForUpdates && Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
             {
-                if (_settings.SystemContextMenu) _optionServices.SetContextMenu(true);
-                if (_settings.MinimizeToTray && _optionServices.CanUseTray) SetTray(true);
-                if (_settings.CheckForUpdates && Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
+                try
                 {
                     var update = await _optionServices.CheckUpdatesAsync(_optionLifetime.Token);
-                    if (update.HasUpdate && !_closing && IsVisible) await new UpdateWindow(update).ShowDialog(this);
+                    if (update.CheckSucceeded && update.HasUpdate && !_closing && IsVisible) await new UpdateWindow(update).ShowDialog(this);
                 }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { System.Diagnostics.Trace.TraceWarning("自动检查更新失败：{0}", ex.Message); }
             }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { if (!_closing) SummaryText.Text = "系统选项未生效：" + ex.Message; }
         };
         Closed += (_, _) => { _optionLifetime.Cancel(); _completionCancellation?.Cancel(); _optionServices.Dispose(); _optionLifetime.Dispose(); };
     }

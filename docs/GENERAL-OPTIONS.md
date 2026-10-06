@@ -27,6 +27,8 @@ Windows 系统菜单写入 `HKCU\Software\Classes\*\shell\AvaMedia.Convert`，�
 
 托盘使用 Avalonia 的原生托盘及原生菜单；框架提供 Windows 与 macOS 入口，macOS 点击图标显示菜单。[Avalonia TrayIcon](https://docs.avaloniaui.net/controls/navigation/trayicon)
 
-版本检查仅请求本项目的公开正式发布信息，比较版本号，不下载安装程序。更新页仅接受本项目的 GitHub Release 地址；网络失败可再次手动检查。[GitHub Releases API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
+版本检查仅请求本项目的公开正式发布信息，比较版本号，不下载安装程序。更新页仅接受本项目的 GitHub Release 地址。[GitHub Releases API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
+
+自动检查失败或被限流时不占用主窗口任务摘要，不显示“系统选项未生效”，也不阻止系统菜单与托盘分别启用。启动初始化只执行一次，托盘恢复不重复检查。成功结果在本次应用进程内缓存 5 分钟；限流按服务返回的恢复时间或 `Retry-After` 暂停请求，至少等待 1 分钟；网络失败和超时等待 1 分钟。手动检查会说明暂时无法检查或何时可重试，不将失败显示为“已是最新版本”。取消关闭仍终止请求。限流处理依据 [GitHub REST API 限流规则](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)。
 
 当前编译与运行记录来自 Windows。Finder 工作流文件可在 Windows 生成和检查，但 macOS 的 Finder 注册、菜单栏托盘、实际提示音与关机权限仍需真机验收。关机调用遵循操作系统对未保存应用和权限的处理。

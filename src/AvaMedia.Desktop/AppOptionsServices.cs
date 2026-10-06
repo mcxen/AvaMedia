@@ -23,7 +23,9 @@ public interface IAppOptionsServices : IDisposable
 public sealed class AppOptionsServices : IAppOptionsServices
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(12) };
+    private readonly ReleaseUpdateClient _updates;
     private TrayIcon? _tray;
+    public AppOptionsServices() => _updates = new(_http);
     public bool CanUseTray => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime &&
         (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS());
     public bool CanUseContextMenu => (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) && File.Exists(Executable);
@@ -63,7 +65,7 @@ public sealed class AppOptionsServices : IAppOptionsServices
                 : throw new PlatformNotSupportedException("当前平台不支持自动关机。");
         if (result.ExitCode != 0) throw new IOException("系统未能关机：" + result.Error);
     }
-    public Task<UpdateResult> CheckUpdatesAsync(CancellationToken ct) => new ReleaseUpdateClient(_http)
+    public Task<UpdateResult> CheckUpdatesAsync(CancellationToken ct) => _updates
         .CheckAsync(typeof(AppOptionsServices).Assembly.GetName().Version ?? new Version(1, 0, 0), ct);
     public void Dispose() { DisposeTray(); _http.Dispose(); }
 }
