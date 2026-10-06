@@ -139,7 +139,7 @@ def build_dependency(name, source, prefix, work, env, jobs, log):
     elif name == "libass":
         autotools("--disable-fontconfig", "--enable-coretext", "--enable-libunibreak")
     elif name == "lame":
-        autotools("--disable-frontend")
+        autotools("--disable-frontend", "--disable-decoder")
     elif name == "opus":
         autotools("--disable-extra-programs", "--disable-doc")
     elif name == "zimg":

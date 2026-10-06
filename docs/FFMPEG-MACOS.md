@@ -20,6 +20,8 @@ FFmpeg 自身采用共享库；所需第三方库静态编入对应媒体库。�
 
 未引入客户端没有使用的 VMAF、libplacebo、SDL、ICU、Cairo、GLib 或额外 AV1 编码器。HarfBuzz 的字体子集、GPU 和工具组件关闭；保留文字整形。保留 CPU 检测和 ARM 优化指令，避免只适用于构建机器。`--enable-small` / `-Os` 偏向体积；实际耗时记录在客户端消融报告中。
 
+LAME 4.0 仅构建 MP3 编码库，显式关闭命令行前端和其默认的外部 mpg123 解码器（`--disable-frontend --disable-decoder`）；MP3 解码由 FFmpeg 内置组件承担，无需新增 mpg123 依赖。
+
 zimg 固定上游 `release-3.0.6` 源码归档及 SHA256。静态构建使用 macOS 的 libc++（`STL_LIBS=-lc++`），关闭示例及测试程序。WTFPL v2 许可证原文随组件声明保留，精确源归档纳入对应源码包。客户端压缩的 HDR → SDR 行为见 [视频压缩](VIDEO-COMPRESSION.md)。
 
 ## 构建与安装
