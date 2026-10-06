@@ -26,10 +26,6 @@ $quickJsName=if($Runtime -eq 'win-x64'){'qjs.exe'}else{'qjs'}
 Copy-Item -LiteralPath $yt -Destination (Join-Path $toolRoot $ytName) -Force
 Copy-Item -LiteralPath $quickJs -Destination (Join-Path $toolRoot $quickJsName) -Force
 # Only the runner is shipped; no compiler, SDK or full JavaScript platform.
-foreach($legacy in @('deno.exe','deno')) {
-    $path=Join-Path $toolRoot $legacy
-    if(Test-Path -LiteralPath $path -PathType Leaf){Remove-Item -LiteralPath $path -Force}
-}
 $noticeRoot=Join-Path $taskRoot 'licenses/download-tools'
 New-Item -ItemType Directory -Path $noticeRoot -Force | Out-Null
 foreach($file in @('LICENSE','THIRD_PARTY_LICENSES.txt')) {

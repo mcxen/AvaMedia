@@ -39,7 +39,9 @@ Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 Qu
 
 `scripts/Bundle-DownloadTools.ps1` 可单独准备开发工具；`scripts/Publish.ps1` 自动执行。用户指定的 yt-dlp 路径继续优先，官方构建包含 EJS 脚本，不启用远程脚本组件。
 
-只打包 `qjs` / `qjs.exe` 运行器，不包含 JavaScript 编译器、SDK 或 Deno。解析和下载均先传入 `--no-js-runtimes` 清除 yt-dlp 默认运行时，再使用 `--js-runtimes quickjs:绝对路径`；系统里已有的 Deno 不会优先执行。采用 QuickJS-NG 0.17.0，满足官方建议的 0.12.0 及以上版本；官方 yt-dlp 已包含配套 EJS 脚本。Windows 原始运行器约 2.05 MiB，macOS ARM64 约 1.26 MiB。重用发布目录及 Windows 覆盖安装时清理旧 Deno 执行文件、专属许可证和许可证收集脚本。
+只打包 `qjs` / `qjs.exe` 运行器，不包含 JavaScript 编译器、SDK 或 Deno。解析和下载均先传入 `--no-js-runtimes` 清除 yt-dlp 默认运行时，再使用 `--js-runtimes quickjs:绝对路径`；系统里已有的 Deno 不会优先执行。采用 QuickJS-NG 0.17.0，满足官方建议的 0.12.0 及以上版本；官方 yt-dlp 已包含配套 EJS 脚本。Windows 原始运行器约 2.05 MiB，macOS ARM64 约 1.26 MiB。当前仍为开发版，直接使用当前运行器和清单；不维护旧运行器清理、旧安装升级或迁移分支。发布使用空输出目录，避免混入其它构建的文件。
+
+2026-10-06 的 Windows 本地 QuickJS 预览包：安装包 74.54 MiB、ZIP 92.52 MiB、解包目录 172.30 MiB；包含自带 .NET、yt-dlp 和 QuickJS-NG，FFmpeg / FFprobe 仍独立配置。运行器替换完成相关编译、脚本静态检查及安装器编译，未重新执行下载功能回归。这是本地构建记录，不是后续版本的固定体积承诺。
 
 专项入口：`tests/AvaMedia.DownloadTests`。覆盖分享文本、签名链接、播放列表、参数校验、设置持久化、文件名冲突、日志脱敏、Cookie 副本清理、停止 / 重试、字幕及确认后入队。使用真实 yt-dlp 对本机 HTTP 视频下载，FFmpeg 实际生成 MP4 / MKV / MP3 / M4A，并检查媒体流和时长；三套皮肤渲染默认与最小窗口。公网平台测试单独记录，不作为离线测试的必经条件。
 

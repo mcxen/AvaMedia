@@ -1,20 +1,20 @@
 param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
-function Remove-LegacyDownloadFiles([string]$Root) {
-    foreach ($relative in @('tools/deno.exe','tools/deno','scripts/Collect-DenoLicenses.js')) {
-        $path=Join-Path $Root $relative
-        if(Test-Path -LiteralPath $path -PathType Leaf){Remove-Item -LiteralPath $path -Force}
-    }
-    $notices=Join-Path $Root 'licenses/download-tools'
-    if(Test-Path -LiteralPath $notices -PathType Container) {
-        Get-ChildItem -LiteralPath $notices -File -Filter 'deno-*' | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+function Assert-EmptyPublishDirectory([string]$Path) {
+    if((Test-Path -LiteralPath $Path) -and (Get-ChildItem -LiteralPath $Path -Force | Select-Object -First 1)) {
+        throw "发布目录必须为空，请使用新的输出目录：$Path"
     }
 }
 $sdk = Join-Path $taskRoot ('.tools/dotnet/dotnet' + $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { '.exe' } else { '' }))
 if (!(Test-Path -LiteralPath $sdk)) { $sdk = 'dotnet' }
 $publishRoot = Join-Path $taskRoot ('artifacts/release/' + $Version + '/' + $Runtime)
 if ($OutputDirectory) { $publishRoot = [IO.Path]::GetFullPath($OutputDirectory) }
+Assert-EmptyPublishDirectory $publishRoot
+if ($Runtime.StartsWith('osx-')) {
+    $bundleRoot = $publishRoot + '-bundle'
+    Assert-EmptyPublishDirectory $bundleRoot
+}
 [string[]]$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
 & $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
@@ -34,11 +34,9 @@ New-Item -ItemType Directory -Path $publishDocs -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $taskRoot 'docs') -Filter '*.md' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $publishDocs -Force }
 if (Test-Path -LiteralPath (Join-Path $taskRoot 'docs/assets')) { Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/assets') -Destination $publishDocs -Recurse -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'scripts') -Destination $publishRoot -Recurse -Force
-Remove-LegacyDownloadFiles $publishRoot
 $zip = Join-Path $taskRoot ('artifacts/AvaMedia-' + $Version + '-' + $Runtime + '.zip')
 New-Item -ItemType Directory -Path (Split-Path -Parent $zip) -Force | Out-Null
 if ($Runtime.StartsWith('osx-')) {
-    $bundleRoot = Join-Path $taskRoot ('artifacts/release/' + $Version + '/' + $Runtime + '-bundle')
     $bundle = Join-Path $bundleRoot 'AvaMedia.app'
     $nativeRoot = Join-Path $bundle 'Contents/MacOS'
     $resources = Join-Path $bundle 'Contents/Resources'
@@ -48,8 +46,6 @@ if ($Runtime.StartsWith('osx-')) {
     Get-ChildItem -LiteralPath $publishRoot -Directory | Where-Object { $_.Name -notin @('licenses','docs','scripts') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Recurse -Force }
     foreach ($directory in @('licenses','docs','scripts')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
     foreach ($name in @('LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
-    Remove-LegacyDownloadFiles $nativeRoot
-    Remove-LegacyDownloadFiles $resources
     $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw).Replace('__VERSION__',$Version)
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
     if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {

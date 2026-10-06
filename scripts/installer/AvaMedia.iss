@@ -40,11 +40,6 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-[InstallDelete]
-Type: files; Name: "{app}\tools\deno.exe"
-Type: files; Name: "{app}\licenses\download-tools\deno-*"
-Type: files; Name: "{app}\scripts\Collect-DenoLicenses.js"
-
 [Icons]
 Name: "{group}\AvaMedia"; Filename: "{app}\AvaMedia.Desktop.exe"
 Name: "{group}\Install media tools"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\Install-MediaTools.ps1"" -Destination ""{app}\tools"""; WorkingDir: "{app}"
