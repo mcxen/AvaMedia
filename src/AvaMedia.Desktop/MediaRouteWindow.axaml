@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.MediaRouteWindow"
+        Classes="file-router" Title="文件路由" Width="1140" Height="780" MinWidth="980" MinHeight="620"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="Button.route-card">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="MinHeight" Value="110"/>
+      <Setter Property="Padding" Value="12"/>
+      <Setter Property="Background" Value="{DynamicResource UiSurface}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/>
+    </Style>
+    <Style Selector="Button.route-card.active">
+      <Setter Property="Background" Value="{DynamicResource UiHover}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
+    </Style>
+    <Style Selector="Button.route-card:focus-visible">
+      <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
+      <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+  </Window.Styles>
+  <Grid Margin="22" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="heading" Text="文件到位，选择下一步"/>
+        <TextBlock Classes="caption" Text="按文件类型找到合适的工具。点击卡片，即可进入编辑。" TextWrapping="Wrap"/>
+      </StackPanel>
+      <Button Grid.Column="1" Content="继续添加文件…" Click="AddClick" VerticalAlignment="Center"/>
+    </Grid>
+    <Grid Grid.Row="1" ColumnDefinitions="310,100,*">
+      <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1"
+              CornerRadius="{DynamicResource UiControlRadius}">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10" Margin="14">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="输入文件" FontWeight="SemiBold"/>
+            <TextBlock x:Name="SourceCount" Grid.Column="1" Classes="caption"/>
+          </Grid>
+          <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <TextBlock Classes="caption" Text="快速勾选"/>
+            <ComboBox x:Name="KindPicker" Grid.Column="1" AutomationProperties.Name="快速勾选文件类型"/>
+          </Grid>
+          <ListBox x:Name="SourceList" Grid.Row="2" Background="Transparent" BorderThickness="0" AutomationProperties.Name="输入文件预览"/>
+          <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBlock Classes="caption" Text="可继续拖入，重复文件自动去重。" TextWrapping="Wrap"/>
+            <Button Grid.Column="1" Content="取消勾选" Click="DeselectClick" Classes="field-action"/>
+          </Grid>
+        </Grid>
+      </Border>
+      <Grid Grid.Column="1">
+        <controls:MediaRouteFlow x:Name="RouteFlow" LineBrush="{DynamicResource UiDivider}"
+                                AccentBrush="{DynamicResource UiAccent}" SurfaceBrush="{DynamicResource UiSurface}"/>
+        <TextBlock Text="路由" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,70,0,0"/>
+      </Grid>
+      <Grid Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="选择工具" FontWeight="SemiBold"/>
+          <TextBlock x:Name="RouteCount" Grid.Column="1" Classes="caption"/>
+        </Grid>
+        <ScrollViewer x:Name="RouteScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+          <Grid x:Name="RouteGrid" ColumnDefinitions="*,*" ColumnSpacing="10" RowSpacing="10"/>
+        </ScrollViewer>
+        <TextBlock x:Name="EmptyText" Grid.Row="1" Text="勾选左侧文件，查看可用工具。" Classes="caption"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False" TextWrapping="Wrap"/>
+      </Grid>
+    </Grid>
+    <Border Grid.Row="2" BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock x:Name="DestinationTitle" FontWeight="SemiBold"/>
+          <TextBlock x:Name="DestinationSummary" Classes="caption" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Button Grid.Column="1" Content="取消" IsCancel="True" Classes="dialog-action" Click="CancelClick"/>
+        <Button x:Name="OpenButton" Grid.Column="2" Content="进入工具" IsDefault="True" Classes="dialog-action primary" Click="OpenClick"/>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>
