@@ -22,6 +22,14 @@
 | 哔哩哔哩 | 视频页、分享短链和分P；可用清晰度取决于登录账号的观看权限。 |
 | 抖音 | 粘贴视频分享链接；站点可能要求新的浏览器登录态或验证。 |
 | 小红书 | 视频笔记，保留完整分享链接中的 xsec_token 等签名参数；图文笔记不在此流程中。 |
+| Bunkr | `/f/`、`/v/` 单视频与 `/a/` 相册；勾选“展开播放列表 / 分P / 相册”后逐项选择视频。相册解析保留数字文件 ID，开始下载或停止后重试时重新请求签名，不保存过期 CDN 地址。浏览器网络模拟由内置 yt-dlp 提供；自定义引擎须包含 curl_cffi。 |
+| Pixeldrain | `/u/` 单视频、`/l/` 文件列表以及对应的 `/api/file/`、`/api/list/` 链接；`#item=0` 选择列表第一项，其他序号也从 0 开始。勾选展开后列出视频，跳过图片、音频和压缩包。站点验证码、传输额度和并发限制会显示为错误提示。 |
+
+Bunkr 和 Pixeldrain 提供原始文件画质，不按“最高画质”降采样；仍可选择 MP4 / MKV 封装或 MP3 / M4A 音频提取。站点未提供字幕时不会生成字幕。单次列表最多显示 100 个视频；任务保存成员页面链接，不保存签名直链。代理、明确选择的浏览器登录态或 cookies.txt，以及停止 / 重试续传沿用同一下载流程。
+
+`IVideoDownloadService` 定义界面解析入口，`IVideoDownloadProvider` 补充路由匹配和任务执行，`VideoDownloadService` 在解析与下载时使用同一套有序路由：Bunkr、Pixeldrain、通用 yt-dlp。专用站点失败时返回本站错误，避免静默转交通用解析。新服务可实现该接口并加入路由；界面及任务模型不依赖站点实现。
+
+专用解析器位于 `src/AvaMedia.Core/DownloadPlugins/`，独立实现并随客户端复制到 `download-plugins/`，通过明确的插件目录和 extractor 名称加载，不需要安装 Python 或额外下载插件。请求经过 yt-dlp 网络层，保留 Cookie、代理及 Bunkr 浏览器网络模拟。Bunkr 协议参考 [BunkrDownloader 的 API 实现](https://github.com/Lysagxra/BunkrDownloader/blob/main/src/crawlers/api_utils.py)和[相册解析](https://github.com/Lysagxra/BunkrDownloader/blob/main/src/crawlers/crawler_utils.py)；Pixeldrain 使用[官方 API](https://pixeldrain.com/api)，不绕过验证码或账户限额。
 
 窗口对网络不可达、登录要求、浏览器 Cookie 解密、格式不可用和不支持的链接分别提供说明。Chrome / Edge 登录态读取受系统加密机制影响，失败时可尝试 Firefox 或 cookies.txt。正在直播的视频不加入此下载流程。网站规则与访问状态变化时仍可能失败，内置引擎不等于全部视频可下载。
 

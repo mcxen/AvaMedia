@@ -266,7 +266,7 @@ public sealed class MediaEngine : IMediaEngine
         if(f.Operation==Operation.Info) {var info=await Probe(job.Inputs[0],ct);await File.WriteAllTextAsync(job.Output,info.RawJson,ct);progress(100);return;}
         if(f.Operation==Operation.Download)
         {
-            await new YtDlpDownloadService(Settings).ExecuteAsync(job,progress,ct);return;
+            await new VideoDownloadService(Settings).ExecuteAsync(job,progress,ct);return;
         }
         if(f.Operation==Operation.ImageCompress)
         {

@@ -1445,5 +1445,22 @@
   "传输已中断，请重新上传。": "Transfer interrupted. Please upload again.",
   "接收失败，请检查电脑可用空间与目录权限后重试。": "Reception failed. Check available disk space and folder permissions, then retry.",
   "接收大小与文件大小不一致。": "Received size does not match the file size.",
-  "文件尚未完整接收，请重新上传。": "File was not fully received. Please upload again."
+  "文件尚未完整接收，请重新上传。": "File was not fully received. Please upload again.",
+  "YouTube   ·   哔哩哔哩   ·   抖音   ·   小红书   ·   Bunkr   ·   Pixeldrain": "YouTube   ·   Bilibili   ·   Douyin   ·   Xiaohongshu   ·   Bunkr   ·   Pixeldrain",
+  "解析后显示标题、作者和时长。播放列表、分P、相册和文件列表可以展开，逐项选择需要的视频。": "Resolve titles, authors and durations. Expand playlists, multi-part videos, albums and file lists to select individual videos.",
+  "展开播放列表 / 分P / 相册": "Expand playlist / parts / album",
+  "Bunkr：支持单个视频和相册，勾选展开相册后可逐项选择视频。下载使用原文件画质，签名链接在开始下载时刷新。": "Bunkr: Single videos and albums are supported. Expand albums to select individual videos. Downloads use original quality; signed links refresh when downloading starts.",
+  "Pixeldrain：支持单个视频和文件列表，保留 #item 参数可选择列表中的单项。下载使用原文件画质；限额或验证要求由站点决定。": "Pixeldrain: Single videos and file lists are supported. Keep #item to select an individual entry. Downloads use original quality; limits and verification are set by the site.",
+  "至少需要一个下载服务。": "At least one download provider is required.",
+  "没有支持此链接的下载服务。": "No download provider supports this link.",
+  "缺少随应用提供的站点解析器，请重新安装应用。": "The bundled site extractors are missing. Please reinstall the application.",
+  "这是播放列表、分P、相册或文件列表，请勾选“展开播放列表 / 分P / 相册”后重新解析。": "This is a playlist, multi-part video, album or file list. Enable \"Expand playlist / parts / album\" and resolve again.",
+  "当前下载引擎缺少 Bunkr 所需的浏览器网络支持，请使用应用内置 yt-dlp。": "This download engine lacks the browser networking support required by Bunkr. Use the bundled yt-dlp.",
+  "Pixeldrain 要求网页验证或账号权限，请先在浏览器打开此文件完成验证，再使用登录态重试。": "Pixeldrain requires web verification or account access. Open this file in your browser, complete verification, then retry with your login session.",
+  "Pixeldrain 的传输、下载次数或并发限额已达到，请等待限制解除或检查账号额度。": "A Pixeldrain transfer, download or connection limit was reached. Wait for the limit to reset or check your account quota.",
+  "此文件不是受支持的视频，请选择视频文件；图片、音频和压缩包不在此流程中。": "This file is not a supported video. Select a video file; images, audio files and archives are outside this workflow.",
+  "相册或文件列表中没有找到可下载视频。": "No downloadable videos were found in this album or file list.",
+  "文件列表的 #item 序号无效，请复制有效的单项链接或展开整个文件列表。": "The #item index is invalid. Copy a valid entry link or expand the entire file list.",
+  "文件或列表已失效、被移除或不可访问，请检查原始链接。": "The file or list expired, was removed or is inaccessible. Check the original link.",
+  "请使用 Bunkr 的视频页或相册链接，或 Pixeldrain 的 /u/ 单文件、/l/ 文件列表链接。": "Use a Bunkr video or album link, or a Pixeldrain /u/ file or /l/ list link."
 }

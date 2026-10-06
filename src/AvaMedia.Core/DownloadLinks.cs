@@ -25,7 +25,9 @@ public static class DownloadLinks
         if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") ||
             string.IsNullOrWhiteSpace(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo))
             throw new ArgumentException("请输入有效 HTTP / HTTPS 视频链接，链接中不能包含账号密码。");
-        return uri.GetLeftPart(UriPartial.Path) + uri.Query;
+        // File-host fragments select a list member or carry a Bunkr numeric file ID.
+        var fragment = Platform(url) is "Bunkr" or "Pixeldrain" ? uri.Fragment : "";
+        return uri.GetLeftPart(UriPartial.Path) + uri.Query + fragment;
     }
 
     public static string Platform(string url)
@@ -36,6 +38,8 @@ public static class DownloadLinks
         if (Host("bilibili.com") || Host("b23.tv")) return "哔哩哔哩";
         if (Host("douyin.com") || Host("iesdouyin.com")) return "抖音";
         if (Host("xiaohongshu.com") || Host("xhslink.com")) return "小红书";
+        if (Regex.IsMatch(uri.Host, @"^(?:www\.)?bunkr\.[a-z0-9-]+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) return "Bunkr";
+        if (uri.Host.Equals("pixeldrain.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.pixeldrain.com", StringComparison.OrdinalIgnoreCase)) return "Pixeldrain";
         return "其他网站";
     }
 

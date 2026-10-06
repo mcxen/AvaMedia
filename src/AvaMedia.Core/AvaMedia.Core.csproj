@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets/face_detection_yunet_2026may.onnx" LogicalName="AvaMedia.Core.YuNet.onnx" />
+    <None Update="DownloadPlugins/avamedia/yt_dlp_plugins/extractor/*.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="download-plugins/avamedia/yt_dlp_plugins/extractor/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
