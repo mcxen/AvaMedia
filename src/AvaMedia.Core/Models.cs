@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, Optimize, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Record, Info, Hash, Player, IsoCopy }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Record, Info, Hash, Player, IsoCopy }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -20,10 +20,9 @@ public static class Catalog
     {
         List<Feature> f = [];
         void Add(string id, string text, string cat, string ext, string icon, Operation op = Operation.Convert, int span = 1) => f.Add(new(id,text,cat,ext,icon,op,span));
-        foreach(var x in new[]{("mp4","MP4"),("mkv","MKV"),("gif","GIF"),("webm","WebM")}) Add(x.Item1,"→ "+x.Item2,"视频",x.Item1,"video");
+        Add("mp4","格式转换","视频","mp4","video",Operation.Convert,2);
+        Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress,2);
         Add("join","视频合并 & 混流","视频","mp4","join",Operation.Join,2);
-        Add("other","→ AVI FLV\nMOV Etc…","视频","avi","formats");
-        Add("optimize","优化","视频","mp4","gear",Operation.Optimize);
         Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
         Add("crop","画面裁剪","视频","mp4","crop");
         Add("rotate","批量旋转","视频","mp4","rotate");
@@ -62,9 +61,11 @@ public static class Catalog
 public sealed class ConversionOptions
 {
     public DownloadOptions? Download { get; set; }
+    public VideoCompressionOptions? VideoCompression { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
+    public int VideoBitrate { get; set; }
     public int? ImageQuality { get; set; }
     public int Threads { get; set; }
     public int Width { get; set; }

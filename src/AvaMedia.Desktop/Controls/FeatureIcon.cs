@@ -34,7 +34,7 @@ public sealed class FeatureIcon : Control
                 R(39,39,Math.Max(34,target.Length*6.5+10),15,color,1);
                 T(target,44,40,11,"#FFFFFF",true);
             }
-            else if (Kind is "video" or "formats" or "audio" or "image" or "document")
+            else if (Label.Length > 0 && Kind is ("video" or "formats" or "audio" or "image" or "document"))
             {
                 var label = Label.ToUpperInvariant();
                 var color = label switch { "MKV"=>"#545451", "GIF"=>"#37B37E", "WEBM"=>"#686A5E", _=>Kind=="audio"?"#8BB839":Kind=="image"?"#23AD88":Kind=="document"?"#D16B58":"#507CAE" };
@@ -55,7 +55,7 @@ public sealed class FeatureIcon : Control
             R(22,4,52,68,"#CCCCCC",2);R(20,2,52,68,"#FFFFFF",2);c.DrawRectangle(null,new Pen(B("#A6AAAD"),1),new Rect(20,2,52,68),2,2);
             c.DrawGeometry(B("#EDF0F2"),new Pen(B("#A6AAAD"),1),Geometry.Parse("M 58,2 L 72,16 L 58,16 Z"));
             var color=Label.ToUpperInvariant() switch{"MKV"=>"#545451","GIF"=>"#37B37E","WEBM"=>"#686A5E",_=>Kind=="audio"?"#8BB839":Kind=="image"?"#23AD88":Kind=="document"?"#D16B58":"#507CAE"};
-            R(7,7,Math.Max(45,Label.Length*8+10),21,color,1);T(Label.ToUpperInvariant(),12,8,13,"#FFFFFF",true);
+            if(Label.Length>0){R(7,7,Math.Max(45,Label.Length*8+10),21,color,1);T(Label.ToUpperInvariant(),12,8,13,"#FFFFFF",true);}
             if(Kind=="audio")T("♫",29,27,38,"#6EA52B",true);
             else if(Kind=="document"){for(int i=0;i<4;i++)R(29,35+i*7,32-i*2,2,"#A7BAC6");}
             else if(Kind=="image" || Label=="GIF"){R(27,34,37,27,"#183955");c.DrawGeometry(B("#F29741"),null,Geometry.Parse("M 27,58 L 40,42 L 48,50 L 55,40 L 64,60 Z"));c.DrawEllipse(B("#FCD46D"),null,new Point(55,40),4,4);}

@@ -78,7 +78,7 @@ if(HardwareAcceleration.SelectCodec("mp4",hardware) is { } supportedCodec)
     Check(gpuJob.Log.Contains(supportedCodec) && engine.Probe(gpuJob.Output).GetAwaiter().GetResult().Width==320,"Available GPU was not used for automatic encoding.");
     foreach(var format in new[]{"flv","ts","m4v"})
     {
-        var extended=new Job{FeatureId="other",Inputs=[video],Options=new(){Format=format},Output=Path.Combine(root,"actual-gpu."+format)};
+        var extended=new Job{FeatureId="mp4",Inputs=[video],Options=new(){Format=format},Output=Path.Combine(root,"actual-gpu."+format)};
         actualGpu.Execute(extended,_=>{},CancellationToken.None).GetAwaiter().GetResult();outputs.Add(extended.Output);
         Check(engine.Probe(extended.Output).GetAwaiter().GetResult() is {VideoCodec:"h264",Width:320} && extended.Log.Contains("使用硬件编码"),"GPU container extension failed: "+format);
     }

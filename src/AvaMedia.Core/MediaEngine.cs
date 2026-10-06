@@ -136,6 +136,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
         if(feature.Operation==Operation.Record && (!(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) || o.RecordSeconds<=0)) throw new ArgumentException("录屏支持 Windows 和 macOS，且时长必须大于零。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
+        if(feature.Operation==Operation.VideoCompress)VideoCompression.ValidateJob(job);
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
         ValidateEncodingOptions(o);
@@ -262,6 +263,12 @@ public sealed class MediaEngine : IMediaEngine
         }
         job.Duration=ValidateEdits(job,infos);
         var effective=SettingsPolicy.Resolve(job.Options,Settings);
+        VideoCompressionPlan? compressionPlan=null;
+        if(f.Operation==Operation.VideoCompress)
+        {
+            compressionPlan=VideoCompression.Plan(new FileInfo(job.Inputs[0]).Length,infos[0],job.Options.VideoCompression??new());
+            effective=VideoCompression.Resolve(effective,infos[0],compressionPlan);
+        }
         string? sourceEncoderListing=null;
         if(effective.PreserveSourceAttributes)
         {
@@ -271,11 +278,13 @@ public sealed class MediaEngine : IMediaEngine
         }
         var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions,Options=effective,Output=job.Output,Duration=job.Duration};
         IReadOnlyList<string> hardware=[];
-        if(Settings.AutoDetectGpu && !effective.CopyStreams && effective.VideoCodec=="自动" &&
+        if(Settings.AutoDetectGpu && effective.VideoCompression?.PreferGpu!=false && !effective.CopyStreams && effective.VideoCodec=="自动" &&
             (f.Operation==Operation.Record || infos.Any(i=>i.HasVideo)) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
             hardware=HardwareAcceleration.Candidates(effective.Format,await _hardwareTest(FFmpeg,ct),infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"");
         var explicitHardware=!effective.CopyStreams && HardwareTranscoding.Backend(effective.VideoCodec) is not null;
         if(explicitHardware)hardware=[effective.VideoCodec];
+        if(effective.VideoCompression is {} compression)
+            hardware=hardware.Where(codec=>HardwareTranscoding.VideoFormat(compression.Codec)==HardwareTranscoding.Encoder(codec)?.Format).ToArray();
         if(effective.PreserveSourceAttributes)
             hardware=hardware.Where(codec=>SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex)).ToArray();
         ProcessResult? result=null;var hardwareLog=new StringBuilder();
@@ -303,6 +312,11 @@ public sealed class MediaEngine : IMediaEngine
         {
             if(hardware.Count>0)hardwareLog.AppendLine("可用硬件编码器均失败，回退软件编码。");
             effective.VideoCodec=effective.PreserveSourceAttributes?SourceVideoExport.Encoder(infos[0],sourceEncoderListing!):job.Options.VideoCodec;
+            if(effective.VideoCompression is {} fallbackCompression)
+            {
+                var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
+                effective.VideoCodec=VideoCompression.SoftwareEncoder(fallbackCompression.Codec,encoders.Output+encoders.Error);
+            }
             job.ProgressDetail=effective.VideoCodec=="自动"?"软件自动编码":"软件编码 · "+effective.VideoCodec;
             if(effective.PreserveSourceAttributes)hardwareLog.AppendLine("使用软件编码 "+effective.VideoCodec+"。");
             progress(0);effectiveJob.Output=job.Output;result=await Encode(effectiveJob,null);
@@ -310,6 +324,13 @@ public sealed class MediaEngine : IMediaEngine
         var completed=result!;
         job.Log=hardwareLog+completed.Error;
         if(completed.ExitCode!=0) throw new InvalidOperationException(f.Operation==Operation.Record && OperatingSystem.IsMacOS()?ScreenCapture.MacPermissionMessage(completed.Error):completed.Error);
+        if(compressionPlan is not null)
+        {
+            var outputBytes=new FileInfo(job.Output).Length;
+            var saved=(1-(double)outputBytes/compressionPlan.SourceBytes)*100;
+            job.ProgressDetail=outputBytes<compressionPlan.SourceBytes?$"节省 {saved:0.#}%":"输出未缩小";
+            job.Log+=$"\n视频压缩：原视频 {compressionPlan.SourceBytes} B，目标 {compressionPlan.TargetBytes} B，实际 {outputBytes} B；节省 {saved:0.#}%。";
+        }
         progress(100);
         async Task<ProcessResult> EncodeWithDecoding(Job draft)
         {
@@ -457,7 +478,8 @@ public sealed class MediaEngine : IMediaEngine
                 string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video",_=>"mpeg4"}:o.VideoCodec;
                 a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":"nv12")]);
                 if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec=="libx265") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
-                if(codec is "mpeg4" or "wmv2" or "flv" or "mpeg2video")a.AddRange(["-q:v",Number(Math.Clamp(o.Quality/4d,2,12))]);
+                if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o.VideoBitrate));
+                else if(codec is "mpeg4" or "wmv2" or "flv" or "mpeg2video")a.AddRange(["-q:v",Number(Math.Clamp(o.Quality/4d,2,12))]);
                 else if(codec=="libvpx-vp9")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-deadline","good","-cpu-used","4"]);
                 else if(codec is "libx264" or "libx265")a.AddRange(["-crf",o.Quality.ToString(),"-preset","medium"]);
                 else if(codec=="libaom-av1")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-cpu-used","6"]);

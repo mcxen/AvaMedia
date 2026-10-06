@@ -33,7 +33,7 @@ public sealed class ConvertWindow : Window
         Title=feature.Label.Replace("\n"," ");Width=830;Height=620;MinWidth=650;MinHeight=440;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, feature.Icon);
         Closed+=(_,_)=>_lifetime.Cancel();
-        _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index))));_options=initialOptions?.Clone()??new(){Format=feature.Format};if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";if(feature.Operation==Operation.Optimize)_options.Quality=32;}
+        _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index))));_options=initialOptions?.Clone()??new(){Format=feature.Format};if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";}
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto,Auto"),Margin=new(18)};
         var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature),_options.Format);formats.Width=130;
         top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);
@@ -128,5 +128,5 @@ public sealed class ConvertWindow : Window
             finally{_preparing=false;if(IsVisible){ok.IsEnabled=true;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;}}
         };buttons.Children.Add(ok);Grid.SetRow(buttons,5);panel.Children.Add(buttons);Content=panel;
     }
-    private static IEnumerable<string> GetFormats(Feature f)=>f.Id=="other"?["avi","flv","mov","wmv","mpg","ts","mkv","mp4"]:f.Operation is Operation.Join or Operation.Mux or Operation.Optimize && f.Category=="视频"?["mp4","mkv","webm","avi","mov"]:f.Id=="split"?["m4a","mp3","flac","wav","aac","ogg"]:[f.Format];
+    private static IEnumerable<string> GetFormats(Feature f)=>f.Id=="mp4"?["mp4","mkv","mov","webm","avi","flv","wmv","mpg","ts","gif"]:f.Operation is Operation.Join or Operation.Mux && f.Category=="视频"?["mp4","mkv","webm","avi","mov"]:f.Id=="split"?["m4a","mp3","flac","wav","aac","ogg"]:[f.Format];
 }

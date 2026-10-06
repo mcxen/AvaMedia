@@ -59,7 +59,7 @@ public partial class MainWindow
             while (FeatureGrid.RowDefinitions.Count <= row)
                 FeatureGrid.RowDefinitions.Add(new RowDefinition(FeatureRowHeight, GridUnitType.Pixel));
             var content = new Grid { RowDefinitions = new("*,Auto") };
-            var icon = new FeatureIcon { Kind = feature.Icon, Label = feature.Format.ToUpperInvariant() };
+            var icon = new FeatureIcon { Kind = feature.Icon, Label = feature.Id == "mp4" ? "" : feature.Format.ToUpperInvariant() };
             icon.Bind(HeightProperty, new DynamicResourceExtension("UiFeatureIconHeight"));
             content.Children.Add(icon);
             var text = new TextBlock

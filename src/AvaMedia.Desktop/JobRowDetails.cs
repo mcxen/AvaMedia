@@ -64,6 +64,14 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             var o = Job.Options;
             var label = feature.Label.StartsWith('→') ? o.Format.ToUpperInvariant() : feature.Label.Replace("\n", " ");
             var parts = new List<string> { label };
+            if (o.VideoCompression is { } videoCompression)
+            {
+                parts.Add(videoCompression.Mode == VideoCompressionMode.Percentage
+                    ? Localization.Format($"目标 {videoCompression.Percentage:0.#}%") : Localization.Format($"目标 {videoCompression.TargetMegabytes:0.##} MB"));
+                parts.Add(videoCompression.Codec == "hevc" ? "HEVC" : "H.264");
+                parts.Add(videoCompression.Format.ToUpperInvariant());
+                return Localization.Join(" · ", parts);
+            }
             if (feature.Operation == Operation.Download)
             {
                 parts.Add(o.Format.ToUpperInvariant());
@@ -97,7 +105,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     {
         JobState.Waiting => "等待开始",
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
-        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize }.Where(s=>s.Length>0)),
+        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         _ => "已停止"
     };
