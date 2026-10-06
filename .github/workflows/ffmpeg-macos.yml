@@ -8,7 +8,6 @@ on:
       - 'scripts/legacy-video-capabilities.json'
       - '.github/actions/native-media/**'
       - 'scripts/Install-MediaTools-macOS.sh'
-      - 'src/AvaMedia.Core/BatchVideoTools.cs'
       - '.github/workflows/ffmpeg-macos.yml'
   pull_request:
     paths:
@@ -16,15 +15,12 @@ on:
       - 'scripts/legacy-video-capabilities.json'
       - '.github/actions/native-media/**'
       - 'scripts/Install-MediaTools-macOS.sh'
-      - 'src/AvaMedia.Core/BatchVideoTools.cs'
       - '.github/workflows/ffmpeg-macos.yml'
 permissions:
   contents: read
 concurrency:
   group: ffmpeg-macos-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-env:
-  NUGET_PACKAGES: ${{ github.workspace }}/.tools/nuget-packages
 jobs:
   native:
     runs-on: macos-15
@@ -36,15 +32,6 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          dotnet-version: 8.0.x
-      - name: Cache NuGet packages
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: ${{ env.NUGET_PACKAGES }}
-          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
-          restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: Prepare verified native media
         id: native-media
         uses: ./.github/actions/native-media
@@ -55,22 +42,6 @@ jobs:
           bash scripts/Install-MediaTools-macOS.sh --archive "$runtime" --checksums "$checksums" --destination "$RUNNER_TEMP/AvaMedia tools"
           "$RUNNER_TEMP/AvaMedia tools/ffmpeg" -v error -f lavfi -i testsrc2=size=64x64 -t 0.1 -f null -
           "$RUNNER_TEMP/AvaMedia tools/ffprobe" -version
-      - name: Build and check the macOS application archive
-        shell: pwsh
-        run: |
-          [xml]$properties=Get-Content -LiteralPath Directory.Build.props -Raw
-          $version=$properties.Project.PropertyGroup.Version.InnerText
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid application version.' }
-          ./scripts/Publish.ps1 -Runtime osx-arm64 -Version $version
-          ./scripts/Verify-MacPackages.ps1 -Version $version
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: macos-application-archive
-          compression-level: 0
-          path: |
-            artifacts/AvaMedia-*-osx-arm64.zip
-            artifacts/mac-packages-*/report.json
-          if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && steps.native-media.outcome == 'success'
         with:

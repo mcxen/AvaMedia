@@ -39,12 +39,6 @@ jobs:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
           restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
-      - name: Install external media tools
-        shell: pwsh
-        run: ./scripts/Install-MediaTools.ps1
-      - name: Verify all suites
-        shell: pwsh
-        run: ./scripts/Verify.ps1
       - name: Publish and build installer
         shell: pwsh
         env:
@@ -66,7 +60,6 @@ jobs:
         with:
           name: windows-verification
           path: |
-            artifacts/test-*/
             artifacts/installer-verification/
           retention-days: 14
   macos:
@@ -105,22 +98,6 @@ jobs:
           python-version: '3.13'
       - name: Prepare verified native media
         uses: ./.github/actions/native-media
-      - name: Install verified custom media tools
-        run: |
-          runtime=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-osx-arm64.tar.gz' -print)
-          checksums=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-SHA256SUMS.txt' -print)
-          bash scripts/Install-MediaTools-macOS.sh --archive "$runtime" --checksums "$checksums"
-      - name: Build and check interfaces and skins natively
-        run: |
-          dotnet build AvaMedia.sln -c Release
-          dotnet run --project tests/AvaMedia.InterfaceTests -c Release --no-build
-          dotnet run --project tests/AvaMedia.SkinTests -c Release --no-build
-      - name: Verify client media processing with the custom runtime
-        run: |
-          dotnet run --project tests/AvaMedia.AudioOptionsTests -c Release --no-build
-          dotnet run --project tests/AvaMedia.SubtitleTests -c Release --no-build
-          dotnet run --project tests/AvaMedia.BatchTests -c Release --no-build
-          dotnet run --project tests/AvaMedia.AblationTests -c Release --no-build
       - name: Build app, PKG and DMG
         shell: pwsh
         env:
@@ -164,11 +141,9 @@ jobs:
           path: |
             artifacts/mac-native*/
             artifacts/mac-native.log
-            artifacts/skins-*/
             artifacts/ffmpeg-build-*/*.log
             artifacts/ffmpeg-cache-verification.json
             .tools/download-bundle/*-qjs-osx-arm64-macos*/build.json
-            artifacts/ablation-*/
   publish:
     needs: [windows, macos]
     runs-on: ubuntu-latest

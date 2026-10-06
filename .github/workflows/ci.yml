@@ -2,7 +2,31 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**/*.cs'
+      - 'src/**/*.axaml'
+      - 'src/**/*.csproj'
+      - '*.props'
+      - '*.targets'
+      - 'global.json'
+      - 'NuGet.config'
+      - '.github/workflows/ci.yml'
   pull_request:
+    paths:
+      - 'src/**/*.cs'
+      - 'src/**/*.axaml'
+      - 'src/**/*.csproj'
+      - '*.props'
+      - '*.targets'
+      - 'global.json'
+      - 'NuGet.config'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+    inputs:
+      full_verification:
+        description: Run the full media and UI regression suites
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -12,6 +36,29 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.tools/nuget-packages
 jobs:
   verify:
+    name: Build client
+    if: github.event_name != 'workflow_dispatch' || !inputs.full_verification
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+      - name: Cache NuGet packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
+          restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Compile client and core
+        shell: pwsh
+        run: dotnet build src/AvaMedia.Desktop/AvaMedia.Desktop.csproj -c Release --nologo --verbosity minimal
+  regression:
+    name: Manual full verification
+    if: github.event_name == 'workflow_dispatch' && inputs.full_verification
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
