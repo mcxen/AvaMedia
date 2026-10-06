@@ -151,7 +151,9 @@ public partial class MediaRouteWindow : Window
         var arrow = Ui.Text("→"); arrow.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("UiFontTitle")); Grid.SetColumn(arrow, 2); body.Children.Add(arrow);
         button.Content = body;
         button.PointerEntered += (_, _) => ActivateRoute(route);
+        button.PointerExited += (_, _) => UpdateFlowTarget();
         button.GotFocus += (_, _) => ActivateRoute(route);
+        button.LostFocus += (_, _) => UpdateFlowTarget();
         button.Click += (_, _) => OpenRoute(route);
         ToolTip.SetTip(button, Localization.Text(route.Enabled ? route.Description : route.DisabledReason));
         return button;
@@ -176,8 +178,21 @@ public partial class MediaRouteWindow : Window
     }
     private void UpdateFlowTarget()
     {
+        if (_closed) return;
+        var viewport = RouteScroll.TranslatePoint(new(0, 0), RouteFlow);
+        var ports = new List<MediaRoutePort>();
+        if (viewport is { } origin)
+            foreach (var item in _cards)
+            {
+                if (item.Button.TranslatePoint(new(0, 0), RouteFlow) is not { } position) continue;
+                var top = Math.Max(position.Y, origin.Y);
+                var bottom = Math.Min(position.Y + item.Button.Bounds.Height, origin.Y + RouteScroll.Bounds.Height);
+                if (bottom - top > 8) ports.Add(new(item.Route.Feature.Id, new(position.X - 4, (top + bottom) / 2)));
+            }
+        if (!RouteFlow.Ports.SequenceEqual(ports)) RouteFlow.Ports = ports;
         var card = _cards.FirstOrDefault(card => card.Route == _active).Button;
-        RouteFlow.TargetY = card?.TranslatePoint(new(0, card.Bounds.Height / 2), RouteFlow)?.Y ?? double.NaN;
+        RouteFlow.ActiveKey = _active?.Feature.Id ?? "";
+        RouteFlow.Highlighted = card is { IsEnabled: true } && (card.IsPointerOver || card.IsFocused);
     }
     private void OpenRoute(MediaRouteOption route)
     { if (!_closed && route.Enabled) Close(new MediaRouteRequest(route.Feature.Id, route.Files)); }

@@ -53,11 +53,10 @@
           </Grid>
         </Grid>
       </Border>
-      <Grid Grid.Column="1">
-        <controls:MediaRouteFlow x:Name="RouteFlow" LineBrush="{DynamicResource UiDivider}"
-                                AccentBrush="{DynamicResource UiAccent}" SurfaceBrush="{DynamicResource UiSurface}"/>
-        <TextBlock Text="路由" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,70,0,0"/>
-      </Grid>
+      <controls:MediaRouteFlow Grid.Column="1" Grid.ColumnSpan="2" x:Name="RouteFlow" LineBrush="{DynamicResource UiDivider}"
+                              ActivateDuration="{StaticResource MotionNavigate}" FadeDuration="{StaticResource MotionFast}"
+                              AccentBrush="{DynamicResource UiAccent}" SurfaceBrush="{DynamicResource UiSurface}"/>
+      <TextBlock Grid.Column="1" Text="路由" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,70,0,0"/>
       <Grid Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Text="选择工具" FontWeight="SemiBold"/>
