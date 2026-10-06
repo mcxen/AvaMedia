@@ -3,11 +3,17 @@ using System.Text.RegularExpressions;
 
 namespace AvaMedia.Core;
 
-public enum VideoCompressionMode { Percentage, TargetSize }
+public enum VideoCompressionMode { Automatic, Quality, Bitrate, Percentage, TargetSize }
+public enum VideoCompressionPreset { High, Balanced, Small }
+public enum VideoEncodingSpeed { Fast, Balanced, Slow }
 
 public sealed record VideoCompressionOptions
 {
     public VideoCompressionMode Mode { get; init; }
+    public VideoCompressionPreset Preset { get; init; } = VideoCompressionPreset.Balanced;
+    public int Quality { get; init; } = 23;
+    public int VideoBitrate { get; init; } = 4000;
+    public VideoEncodingSpeed Speed { get; init; } = VideoEncodingSpeed.Balanced;
     public double Percentage { get; init; } = 60;
     public double TargetMegabytes { get; init; } = 50;
     public string Format { get; init; } = "mp4";
@@ -20,7 +26,10 @@ public sealed record VideoCompressionOptions
 
     public void Validate()
     {
-        if (!Enum.IsDefined(Mode)) throw new ArgumentException("请选择压缩目标模式。");
+        if (!Enum.IsDefined(Mode) || !Enum.IsDefined(Preset) || !Enum.IsDefined(Speed))
+            throw new ArgumentException("请选择有效的压缩模式、画质档位与速度。");
+        if (Quality is < 1 or > 51) throw new ArgumentException("质量值须在 1–51 之间，数值越小画质越高。");
+        if (VideoBitrate is < 64 or > 200000) throw new ArgumentException("视频码率须在 64–200000 kbps 之间。");
         if (!double.IsFinite(Percentage) || Percentage is < 5 or > 95)
             throw new ArgumentException("目标体积百分比须在 5–95 之间。");
         if (!double.IsFinite(TargetMegabytes) || TargetMegabytes is < .1 or > 1000000)
@@ -33,38 +42,64 @@ public sealed record VideoCompressionOptions
     }
 }
 
-public sealed record VideoCompressionPlan(long SourceBytes, long TargetBytes, long EstimatedBytes,
-    int VideoBitrate, int AudioBitrate, int Width, int Height, double FrameRate);
+public sealed record VideoCompressionPlan(long SourceBytes, long? TargetBytes, long? EstimatedBytes,
+    int VideoBitrate, int AudioBitrate, int Width, int Height, double FrameRate, bool QualityDriven, int Quality);
 
 /// <summary>One size budget and encoder policy shared by the dialog and queued execution.</summary>
 public static class VideoCompression
 {
-    public static VideoCompressionPlan Plan(long sourceBytes, MediaInfo source, VideoCompressionOptions options)
+    public static bool UsesQuality(VideoCompressionMode mode) => mode is VideoCompressionMode.Automatic or VideoCompressionMode.Quality;
+
+    public static VideoCompressionOptions ApplyPreset(VideoCompressionOptions options, VideoCompressionPreset preset) => preset switch
+    {
+        VideoCompressionPreset.High => options with { Mode = VideoCompressionMode.Automatic, Preset = preset,
+            Quality = 20, MaxDimension = 0, MaxFrameRate = 0, AudioBitrate = 192, Speed = VideoEncodingSpeed.Slow },
+        VideoCompressionPreset.Balanced => options with { Mode = VideoCompressionMode.Automatic, Preset = preset,
+            Quality = 23, MaxDimension = 1920, MaxFrameRate = 30, AudioBitrate = 128, Speed = VideoEncodingSpeed.Balanced },
+        VideoCompressionPreset.Small => options with { Mode = VideoCompressionMode.Automatic, Preset = preset,
+            Quality = 28, MaxDimension = 1280, MaxFrameRate = 30, AudioBitrate = 96, Speed = VideoEncodingSpeed.Fast },
+        _ => throw new ArgumentException("请选择有效的画质档位。")
+    };
+
+    public static VideoCompressionOptions Effective(VideoCompressionOptions options)
     {
         options.Validate();
+        return options.Mode == VideoCompressionMode.Automatic ? ApplyPreset(options, options.Preset) : options;
+    }
+
+    public static VideoCompressionPlan Plan(long sourceBytes, MediaInfo source, VideoCompressionOptions options)
+    {
+        options = Effective(options);
         if (!source.HasVideo || !double.IsFinite(source.Duration) || source.Duration <= 0 || source.Width < 2 || source.Height < 2)
             throw new ArgumentException("源文件须包含有有效时长的视频画面。");
         if (sourceBytes <= 0) throw new ArgumentException("无法读取源视频体积。");
-        var target = options.Mode == VideoCompressionMode.Percentage
-            ? sourceBytes * options.Percentage / 100 : options.TargetMegabytes * 1000000;
-        if (target >= sourceBytes) throw new ArgumentException("目标体积须小于源视频；请减小目标 MB 或改用百分比。");
-        // Reserve 3% for container overhead. The UI calls this an estimate, not an exact size guarantee.
         var audio = source.HasAudio && options.KeepAudio ? options.AudioBitrate : 0;
-        var video = Math.Floor(target * .97 * 8 / source.Duration / 1000 - audio);
-        if (video < 64) throw new ArgumentException("目标体积过小，无法分配视频码率；请增大目标或移除声音。");
-        if (video > 200000) throw new ArgumentException("目标码率过高，请降低目标体积。");
         var factor = options.MaxDimension == 0 ? 1 : Math.Min(1, options.MaxDimension / (double)Math.Max(source.Width, source.Height));
         var width = Math.Max(2, (int)Math.Floor(source.Width * factor / 2) * 2);
         var height = Math.Max(2, (int)Math.Floor(source.Height * factor / 2) * 2);
         var fps = options.MaxFrameRate > 0 && double.IsFinite(source.FrameRate) && source.FrameRate > 0
             ? Math.Min(options.MaxFrameRate, source.FrameRate) : 0;
-        return new(sourceBytes, (long)Math.Floor(target),
-            (long)Math.Ceiling((video + audio) * 1000 / 8 * source.Duration / .97), (int)video, audio, width, height, fps);
+        if (UsesQuality(options.Mode))
+            return new(sourceBytes, null, null, 0, audio, width, height, fps, true, options.Quality);
+
+        // Size and bitrate modes share one budget; quality modes never fabricate a size estimate.
+        double? target = options.Mode switch
+        {
+            VideoCompressionMode.Percentage => sourceBytes * options.Percentage / 100,
+            VideoCompressionMode.TargetSize => options.TargetMegabytes * 1000000,
+            _ => null
+        };
+        if (target >= sourceBytes) throw new ArgumentException("目标体积须小于源视频；请减小目标 MB 或改用百分比。");
+        var video = target is { } bytes ? Math.Floor(bytes * .97 * 8 / source.Duration / 1000 - audio) : options.VideoBitrate;
+        if (video < 64) throw new ArgumentException("目标体积过小，无法分配视频码率；请增大目标或移除声音。");
+        if (video > 200000) throw new ArgumentException("目标码率过高，请降低目标体积。");
+        return new(sourceBytes, target is { } size ? (long)Math.Floor(size) : null,
+            (long)Math.Ceiling((video + audio) * 1000 / 8 * source.Duration / .97), (int)video, audio, width, height, fps, false, options.Quality);
     }
 
     public static ConversionOptions CreateOptions(VideoCompressionOptions options)
     {
-        options.Validate();
+        options = Effective(options);
         return new() { Format = options.Format, VideoCompression = options, AudioBitrate = options.AudioBitrate,
             Mute = !options.KeepAudio, KeepMetadata = false, AudioCodec = "aac" };
     }
@@ -72,9 +107,10 @@ public static class VideoCompression
     public static ConversionOptions Resolve(ConversionOptions options, MediaInfo source, VideoCompressionPlan plan)
     {
         var result = options.Clone();
-        result.VideoCompression ??= new();
+        result.VideoCompression = Effective(result.VideoCompression ?? new());
         result.Width = plan.Width; result.Height = plan.Height; result.Fps = plan.FrameRate;
         result.VideoBitrate = plan.VideoBitrate; result.Mute = plan.AudioBitrate == 0;
+        result.Quality = plan.Quality;
         result.AudioBitrate = result.VideoCompression.AudioBitrate;
         result.AudioCodec = "aac"; result.SampleRate = 48000;
         result.AudioChannels = source.AudioChannels > 2 ? 2 : 0;
@@ -94,25 +130,52 @@ public static class VideoCompression
             throw new ArgumentException("视频压缩使用独立压缩参数；剪辑与轨道编辑请使用快速剪辑。");
     }
 
-    public static string SoftwareEncoder(string codec, string listing)
+    public static string SoftwareEncoder(string codec, string listing, int width, int height)
     {
         var available = Regex.Matches(listing, @"(?m)^\s*V[A-Z\.]{5}\s+(\S+)")
             .Select(match => match.Groups[1].Value).ToHashSet(StringComparer.Ordinal);
         var candidates = codec == "hevc" ? new[] { "libx265", "libkvazaar" } : ["libx264", "libopenh264"];
-        return candidates.FirstOrDefault(available.Contains)
+        var encoder = candidates.FirstOrDefault(available.Contains)
             ?? throw new InvalidOperationException("当前 FFmpeg 缺少所选压缩编码器；请选择 H.264 或安装对应编码器。");
+        if (encoder == "libkvazaar" && (width % 8 != 0 || height % 8 != 0))
+            throw new ArgumentException("当前 HEVC 软件编码器要求宽高为 8 的倍数；请选择 H.264 或使用可用的 GPU 编码。");
+        return encoder;
     }
 
-    public static IReadOnlyList<string> EncodingArguments(string codec, int bitrate)
+    public static IReadOnlyList<string> EncodingArguments(string codec, ConversionOptions options)
     {
+        var spec = Effective(options.VideoCompression ?? new());
+        var speed = spec.Speed switch { VideoEncodingSpeed.Fast => "fast", VideoEncodingSpeed.Slow => "slow", _ => "medium" };
+        List<string> arguments = [];
+        if (codec is "libx264" or "libx265" || codec.EndsWith("_qsv", StringComparison.Ordinal))
+            arguments.AddRange(["-preset", speed]);
+        else if (codec.EndsWith("_nvenc", StringComparison.Ordinal))
+            arguments.AddRange(["-preset", spec.Speed switch { VideoEncodingSpeed.Fast => "p3", VideoEncodingSpeed.Slow => "p7", _ => "p5" }]);
+        else if (codec.EndsWith("_amf", StringComparison.Ordinal))
+            arguments.AddRange(["-quality", spec.Speed switch { VideoEncodingSpeed.Fast => "speed", VideoEncodingSpeed.Slow => "quality", _ => "balanced" }]);
+        else if (codec.EndsWith("_videotoolbox", StringComparison.Ordinal))
+            arguments.AddRange(["-allow_sw", "0", "-realtime", "0", "-prio_speed", spec.Speed == VideoEncodingSpeed.Fast ? "1" : "0"]);
+
+        if (UsesQuality(spec.Mode))
+        {
+            var quality = spec.Quality.ToString(CultureInfo.InvariantCulture);
+            if (codec is "libx264" or "libx265") arguments.AddRange(["-crf", quality]);
+            else if (codec == "libopenh264") arguments.AddRange(["-rc_mode", "quality", "-qmin", quality, "-qmax", quality]);
+            else if (codec == "libkvazaar") arguments.AddRange(["-b:v", "0", "-kvazaar-params", "preset=" + speed + ",qp=" + quality]);
+            else if (codec.EndsWith("_nvenc", StringComparison.Ordinal)) arguments.AddRange(["-tune", "hq", "-rc", "vbr", "-cq", quality, "-b:v", "0"]);
+            else if (codec.EndsWith("_qsv", StringComparison.Ordinal)) arguments.AddRange(["-q:v", quality]);
+            else if (codec.EndsWith("_amf", StringComparison.Ordinal)) arguments.AddRange(["-rc", "cqp", "-qp_i", quality, "-qp_p", quality]);
+            else if (codec.EndsWith("_videotoolbox", StringComparison.Ordinal)) arguments.AddRange(["-q:v", MediaEngine.Number(100 - (spec.Quality - 1) * 99d / 50)]);
+            else throw new ArgumentException("当前编码器不支持所选画质控制。");
+            return arguments;
+        }
+        var bitrate = options.VideoBitrate;
         if (bitrate is < 64 or > 200000) throw new ArgumentException("压缩视频码率无效。");
         var rate = bitrate.ToString(CultureInfo.InvariantCulture) + "k";
-        List<string> arguments = ["-b:v", rate, "-maxrate", rate, "-bufsize", (bitrate * 2).ToString(CultureInfo.InvariantCulture) + "k"];
-        if (codec.EndsWith("_nvenc", StringComparison.Ordinal)) arguments.AddRange(["-preset", "p5", "-rc", "vbr"]);
-        else if (codec.EndsWith("_amf", StringComparison.Ordinal)) arguments.AddRange(["-quality", "balanced", "-rc", "vbr_peak"]);
-        else if (codec.EndsWith("_qsv", StringComparison.Ordinal)) arguments.AddRange(["-preset", "medium"]);
-        else if (codec.EndsWith("_videotoolbox", StringComparison.Ordinal)) arguments.AddRange(["-allow_sw", "0", "-realtime", "0"]);
-        else if (codec is "libx264" or "libx265") arguments.AddRange(["-preset", "medium"]);
+        arguments.AddRange(["-b:v", rate, "-maxrate", rate, "-bufsize", (bitrate * 2).ToString(CultureInfo.InvariantCulture) + "k"]);
+        if (codec.EndsWith("_nvenc", StringComparison.Ordinal)) arguments.AddRange(["-rc", "vbr"]);
+        else if (codec.EndsWith("_amf", StringComparison.Ordinal)) arguments.AddRange(["-rc", "vbr_peak"]);
+        else if (codec == "libkvazaar") arguments.AddRange(["-kvazaar-params", "preset=" + speed]);
         else if (codec == "libopenh264") arguments.AddRange(["-rc_mode", "bitrate"]);
         return arguments;
     }

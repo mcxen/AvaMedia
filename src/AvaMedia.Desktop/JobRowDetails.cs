@@ -66,8 +66,15 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             var parts = new List<string> { label };
             if (o.VideoCompression is { } videoCompression)
             {
-                parts.Add(videoCompression.Mode == VideoCompressionMode.Percentage
-                    ? Localization.Format($"目标 {videoCompression.Percentage:0.#}%") : Localization.Format($"目标 {videoCompression.TargetMegabytes:0.##} MB"));
+                parts.Add(videoCompression.Mode switch
+                {
+                    VideoCompressionMode.Automatic => Localization.Join(" · ", ["自动档", videoCompression.Preset switch
+                        { VideoCompressionPreset.High => "高 · 画质优先", VideoCompressionPreset.Small => "低 · 体积优先", _ => "中 · 均衡（推荐）" }]),
+                    VideoCompressionMode.Quality => Localization.Format($"质量 {videoCompression.Quality}"),
+                    VideoCompressionMode.Bitrate => Localization.Format($"视频 {videoCompression.VideoBitrate} kbps"),
+                    VideoCompressionMode.Percentage => Localization.Format($"目标 {videoCompression.Percentage:0.#}%"),
+                    _ => Localization.Format($"目标 {videoCompression.TargetMegabytes:0.##} MB")
+                });
                 parts.Add(videoCompression.Codec == "hevc" ? "HEVC" : "H.264");
                 parts.Add(videoCompression.Format.ToUpperInvariant());
                 return Localization.Join(" · ", parts);

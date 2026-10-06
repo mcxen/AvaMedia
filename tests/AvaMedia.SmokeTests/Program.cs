@@ -24,7 +24,7 @@ async Task<Job> Run(string id,string[]? inputs=null,ConversionOptions? options=n
 }
 foreach(var id in new[]{"mp4","crop","audio-clip","audio-mp3","audio-flac","audio-wav","audio-m4a","audio-ogg","audio-opus","audio-ac3","audio-aac","audio-wma","audio-aiff","image-jpg","image-png","image-webp","image-bmp","image-tiff","image-ico","image-avif","image-gif","image-tools"})await Run(id);
 foreach(var format in new[]{"mkv","webm","gif","avi","flv","mov","wmv","mpg","ts"})await Run("mp4",options:new(){Format=format});
-await Run("video-compress",options:VideoCompression.CreateOptions(new(){Percentage=95,KeepAudio=false,MaxDimension=0}));
+await Run("video-compress",options:VideoCompression.CreateOptions(new(){Mode=VideoCompressionMode.Percentage,Percentage=95,KeepAudio=false,MaxDimension=0}));
 var clipped=await Run("clip",options:new(){Start=.4,End=2.4,CropX=20,CropY=20,CropWidth=200,CropHeight=100,Width=160,Speed=2,FadeIn=.1,FadeOut=.1});var clipInfo=await engine.Probe(clipped.Output);Check(clipInfo.Width==160 && clipInfo.Height==80 && clipInfo.Duration is >.85 and <1.2,"剪辑时长 / 裁剪尺寸错误");
 var rotated=await Run("rotate",options:new(){CropX=20,CropY=20,CropWidth=200,CropHeight=100,Rotation=90});var rotatedInfo=await engine.Probe(rotated.Output);Check(rotatedInfo.Width==100&&rotatedInfo.Height==200&&rotatedInfo.HasAudio,"裁剪后旋转的尺寸或音轨错误");
 await Run("delogo",options:new(){DelogoX=20,DelogoY=20,DelogoWidth=60,DelogoHeight=40});

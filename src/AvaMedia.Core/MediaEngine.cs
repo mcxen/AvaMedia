@@ -324,7 +324,7 @@ public sealed class MediaEngine : IMediaEngine
             if(effective.VideoCompression is {} fallbackCompression)
             {
                 var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
-                effective.VideoCodec=VideoCompression.SoftwareEncoder(fallbackCompression.Codec,encoders.Output+encoders.Error);
+                effective.VideoCodec=VideoCompression.SoftwareEncoder(fallbackCompression.Codec,encoders.Output+encoders.Error,effective.Width,effective.Height);
             }
             job.ProgressDetail=effective.VideoCodec=="自动"?"软件自动编码":"软件编码 · "+effective.VideoCodec;
             if(effective.PreserveSourceAttributes)hardwareLog.AppendLine("使用软件编码 "+effective.VideoCodec+"。");
@@ -338,7 +338,8 @@ public sealed class MediaEngine : IMediaEngine
             var outputBytes=new FileInfo(job.Output).Length;
             var saved=(1-(double)outputBytes/compressionPlan.SourceBytes)*100;
             job.ProgressDetail=outputBytes<compressionPlan.SourceBytes?$"节省 {saved:0.#}%":"输出未缩小";
-            job.Log+=$"\n视频压缩：原视频 {compressionPlan.SourceBytes} B，目标 {compressionPlan.TargetBytes} B，实际 {outputBytes} B；节省 {saved:0.#}%。";
+            var intent=compressionPlan.QualityDriven?$"质量档 {compressionPlan.Quality}，体积由内容决定":compressionPlan.TargetBytes is {} target?$"目标 {target} B":$"视频码率 {compressionPlan.VideoBitrate} kbps";
+            job.Log+=$"\n视频压缩：原视频 {compressionPlan.SourceBytes} B，{intent}，实际 {outputBytes} B；节省 {saved:0.#}%。";
         }
         progress(100);
         async Task<ProcessResult> EncodeWithDecoding(Job draft)
@@ -487,7 +488,7 @@ public sealed class MediaEngine : IMediaEngine
                 string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video",_=>"mpeg4"}:o.VideoCodec;
                 a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":"nv12")]);
                 if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec=="libx265") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
-                if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o.VideoBitrate));
+                if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o));
                 else if(codec is "mpeg4" or "wmv2" or "flv" or "mpeg2video")a.AddRange(["-q:v",Number(Math.Clamp(o.Quality/4d,2,12))]);
                 else if(codec=="libvpx-vp9")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-deadline","good","-cpu-used","4"]);
                 else if(codec is "libx264" or "libx265")a.AddRange(["-crf",o.Quality.ToString(),"-preset","medium"]);
