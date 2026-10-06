@@ -21,15 +21,11 @@
 
 Release 同时提供源码 ZIP 和 `SHA256SUMS.txt`。macOS 包采用 ad-hoc 签名，尚未经过 Developer ID 签名和公证；初次启动可能需要在系统隐私与安全性中允许打开。
 
-新构建包含 yt-dlp 和 YouTube 解析所需 QuickJS-NG，无需安装 Python。FFmpeg / FFprobe 是独立媒体引擎；Windows 安装后可从开始菜单运行 **Install media tools**，或在程序目录执行：
+新安装包与便携版内置 FFmpeg / FFprobe 8.1.3、yt-dlp 和 QuickJS-NG。安装或解压后即可使用视频播放、转换、压缩与下载，无需另装媒体引擎、Python 或开发 SDK。
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-MediaTools.ps1 -Destination tools
-```
+Windows 的两个媒体程序共用 DLL；macOS 的运行库位于应用内部。两平台从固定源码构建所需引擎，保留 x264 / x265、字幕、HDR 转 SDR 和平台硬件接口；不附带 ffplay、头文件或静态开发库。源码归档和校验清单保存在同一 Release，普通用户只需下载安装包。
 
-Windows 工具安装采用共享 DLL 构建，ffmpeg 与 ffprobe 共用媒体库，仅安装所需运行文件并清理下载缓存。当前运行文件约 153.71 MiB，比原静态程序组合减少 41.7%；与格式工厂的实测比较及验证见 [FFmpeg 体积说明](docs/FFMPEG-SIZE.md)。
-
-macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装定制 ARM64 FFmpeg，核对下载清单并清理临时文件；应用已包含下载工具。定制引擎按现有功能配置依赖，作为独立运行包提供对应源码，构建与原生验证说明见 [macOS FFmpeg](docs/FFMPEG-MACOS.md)。也可在“选项 → 外部工具”指定路径，或设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP`。详见 [平台与工具配置](docs/PLATFORMS.md)。
+默认路径留空即可使用内置工具，也可在“选项 → 工具”选择自定义引擎，或设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP`。打包方式见 [自动发布](docs/RELEASE.md) 与 [macOS FFmpeg](docs/FFMPEG-MACOS.md)。
 
 ## 界面
 
@@ -124,7 +120,7 @@ git push origin v1.0.5
 
 版权所有 © 2026 AvaMedia contributors。原创代码、测试、文档和原创图标采用 **AGPL-3.0-only**；见 [LICENSE](LICENSE) 与 [COPYRIGHT](COPYRIGHT)。依赖、方向模型和安装器声明见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md)、`licenses/` 及资产说明。
 
-未导入 FormatFactory 的专有 DLL、图标或品牌素材。FFmpeg 许可取决于实际构建；客户端通过独立进程调用，成品不附带这些外部工具。技术与协议调研见 [RESEARCH](docs/RESEARCH.md)。
+未导入 FormatFactory 的专有 DLL、图标或品牌素材。内置 FFmpeg 通过独立进程调用，包含 x264 / x265，采用 GPL-3.0-or-later；对应源码和构建配方随 Release 提供，各组件许可证随安装包保留。AvaMedia 原创代码仍采用 AGPL-3.0-only。技术与协议调研见 [RESEARCH](docs/RESEARCH.md)。
 
 ## 视频播放器
 

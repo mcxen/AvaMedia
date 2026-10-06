@@ -4,9 +4,9 @@
 
 Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
-1. Windows 和 macOS 并行发布客户端；`Publish.ps1` 执行各平台所需的 Release 编译，不再事先编译完整解决方案或执行全量测试。
+1. Windows 媒体引擎与 macOS 并行准备；Windows 从固定源码交叉构建 x64 FFmpeg，macOS 复用或构建验证过的 ARM64 引擎。`Publish.ps1` 执行各平台所需的客户端 Release 编译，并把对应引擎及动态库复制进应用 `tools`。
 2. 发布包含 .NET 运行时的 Windows x64 ZIP；以固定版本 Inno Setup 6.4.3 生成每用户安装程序，实际验证安装、版本、原生启动、许可证和卸载。
-3. 在 Apple Silicon runner 复用或构建验证过的 FFmpeg 与对应源码、QuickJS，构建 macOS ARM64 应用 ZIP、PKG 与 DMG，并启动发布后的客户端确认原生启动。Windows 失败不会跳过 macOS 打包；两者均通过后才发布。
+3. 在 Apple Silicon runner 构建包含 FFmpeg、FFprobe、动态库及 QuickJS 的 macOS ARM64 应用 ZIP、PKG 与 DMG，检查包内引擎加载并启动客户端。Windows 安装检查核对内置引擎文件哈希及版本。Windows 失败不会跳过 macOS 打包；两者均通过后才发布。
 4. 检查 Mac ARM64 ZIP 的 Mach-O 架构和 Unix 执行权限，生成对应源码 ZIP、SHA256SUMS.txt，自动创建 GitHub Release 并上传。
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
@@ -41,6 +41,6 @@ git push origin v1.0.5
 
 macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64，应用声明最低 macOS 13.4，与 ONNX Runtime 的 Mach-O 部署版本一致；归档检查会核对原生库与下载工具的最低版本。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的音频设备仍需验收。
 
-新构建将官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定版本并核对 SHA256，附来源清单和许可证。Windows 使用官方 QuickJS 运行器；Mac 从固定源码构建同版本 ARM64 运行器，部署目标 13.4，并检查系统依赖和实际 JavaScript 执行，避免官方二进制要求 macOS 26。Mac ZIP 保留工具执行权限。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 开始菜单提供工具安装入口，安装至应用 `tools` 目录；macOS 定制 FFmpeg 作为独立运行包和对应源码归档上传同一 Release，并附校验清单，应用附带安装脚本。Windows 工具采用 LGPL 构建，macOS 定制工具包含 x264 / x265，采用 GPL-3.0-or-later；详见 [macOS FFmpeg](FFMPEG-MACOS.md)。依赖和安装器许可保存在 `licenses/`，下载打包与验证见 [视频下载](VIDEO-DOWNLOAD.md)。
+新构建将 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定来源并核对 SHA256，附版本清单和许可证。用户安装后无需执行媒体工具安装脚本。Windows 使用共享 DLL，引擎从 Linux 的 MinGW-w64 POSIX 工具链按固定源码构建；Mac 使用 ARM64 dylib，相对加载路径保留在应用内部，ZIP 保留工具执行权限。Windows 和 Mac 引擎包含 x264 / x265，均采用 GPL-3.0-or-later；对应源码归档上传同一 Release。详见 [macOS FFmpeg](FFMPEG-MACOS.md) 与 `scripts/windows/`。依赖和安装器许可保存在 `licenses/`，下载工具说明见 [视频下载](VIDEO-DOWNLOAD.md)。
 
 参考：[GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)、[Inno 编译参数](https://jrsoftware.org/ishelp/topic_compilercmdline.htm)、[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)。

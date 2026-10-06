@@ -35,7 +35,7 @@
 
 ## 打包与验证
 
-Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 QuickJS-NG 0.17.0。Windows 使用固定哈希的官方运行器；Mac 从固定 SHA256 的同版本源码构建 ARM64 运行器，指定 macOS 13.4 部署目标，不使用最低要求 macOS 26 的官方 Mac 二进制。来源、版本、构建信息、文件尺寸与摘要记录在 `tools/download-tools.json`；许可证随 `licenses/download-tools/` 分发。无需另行安装 yt-dlp、Python 或 JavaScript 运行时。媒体合并、封装与音频提取仍使用已配置的 FFmpeg / FFprobe。
+Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 QuickJS-NG 0.17.0。Windows 使用固定哈希的官方运行器；Mac 从固定 SHA256 的同版本源码构建 ARM64 运行器，指定 macOS 13.4 部署目标，不使用最低要求 macOS 26 的官方 Mac 二进制。来源、版本、构建信息、文件尺寸与摘要记录在 `tools/download-tools.json`；许可证随 `licenses/download-tools/` 分发。无需另行安装 yt-dlp、Python 或 JavaScript 运行时。媒体合并、封装与音频提取默认使用安装包内置的 FFmpeg / FFprobe，也可在选项中指定自定义路径。
 
 `scripts/Bundle-DownloadTools.ps1` 可单独准备开发工具；`scripts/Publish.ps1` 自动执行。用户指定的 yt-dlp 路径继续优先，官方构建包含 EJS 脚本，不启用远程脚本组件。
 

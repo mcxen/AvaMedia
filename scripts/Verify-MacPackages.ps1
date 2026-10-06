@@ -100,13 +100,21 @@ foreach ($runtime in @('osx-arm64')) {
         Assert-Package ($read -eq 8 -and [Text.Encoding]::ASCII.GetString($iconHeader,0,4) -eq 'icns' -and (Read-BigEndian $iconHeader 4) -eq $iconEntry.Length) "$runtime application icon has a complete ICNS header"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/scripts/Install-MediaTools-macOS.sh')) "$runtime includes the macOS tool installer"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/THIRD-PARTY-NOTICES.md')) "$runtime includes third-party notices"
-        foreach ($tool in @('yt-dlp','qjs')) {
+        foreach ($tool in @('yt-dlp','qjs','ffmpeg','ffprobe')) {
             $entry=$archive.GetEntry($root+'MacOS/tools/'+$tool)
             Assert-Package ($null -ne $entry) "$runtime includes bundled $tool"
             $header=Read-ArchiveBytes $entry
             Assert-Package ((Get-MachArchitectures $header) -contains $expected) "$runtime $tool contains the target Mach-O architecture"
             Assert-Package ((Get-MachMinimumVersion $header $expected) -le [version]::new($minimum.Major,$minimum.Minor,0)) "$runtime $tool supports the declared macOS minimum"
             Assert-Package (((($entry.ExternalAttributes -shr 16) -band 511) -band 73) -eq 73) "$runtime $tool carries Unix execute permissions"
+        }
+        Assert-Package ($null -ne $archive.GetEntry($root+'MacOS/tools/ffmpeg-bundle.json')) "$runtime includes bundled FFmpeg manifest"
+        Assert-Package ($null -ne $archive.GetEntry($root+'Resources/licenses/media-tools/osx-arm64/NOTICE.txt')) "$runtime includes bundled FFmpeg notices"
+        foreach($entry in $archive.Entries | Where-Object { $_.FullName.StartsWith($root+'MacOS/tools/lib/') -and $_.FullName.EndsWith('.dylib') }){
+            $header=Read-ArchiveBytes $entry
+            Assert-Package ((Get-MachArchitectures $header) -contains $expected) "$runtime $($entry.Name) is a target media library"
+            Assert-Package ((Get-MachMinimumVersion $header $expected) -le [version]::new($minimum.Major,$minimum.Minor,0)) "$runtime $($entry.Name) supports the declared macOS minimum"
+            Assert-Package (((($entry.ExternalAttributes -shr 16) -band 511) -band 73) -eq 73) "$runtime $($entry.Name) carries Unix execute permissions"
         }
         Assert-Package ($null -ne $archive.GetEntry($root+'MacOS/tools/download-tools.json')) "$runtime includes pinned downloader manifest"
         $reader=[IO.StreamReader]::new($archive.GetEntry($root+'MacOS/tools/download-tools.json').Open())

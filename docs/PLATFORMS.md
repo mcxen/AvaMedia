@@ -16,7 +16,7 @@
 
 ## 工具与平台行为
 
-新构建内置官方 yt-dlp 和 QuickJS-NG（Windows x64 / macOS ARM64），保持用户指定工具路径优先。FFmpeg / FFprobe 是独立媒体引擎，Windows 使用 `scripts/Install-MediaTools.ps1`。macOS 在终端运行应用资源中的 `scripts/Install-MediaTools-macOS.sh`，下载并核对定制 ARM64 FFmpeg 运行包，在 `~/Library/Application Support/AvaMedia/tools` 创建链接；安装 FFmpeg 无需 Homebrew。定制运行包和对应源码独立发布，见 [macOS FFmpeg 配方与验证](FFMPEG-MACOS.md)。旧 v1.0.5 包仍使用原有外部工具配置。
+新构建在 Windows x64 和 macOS ARM64 安装包、应用 ZIP 中内置 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 和 QuickJS-NG。配置留空时直接使用应用 `tools` 中的引擎，无需再次安装；用户指定路径和环境变量仍优先。引擎及动态库、版本清单、组件许可证一并打包，对应源码随同一 Release 发布。见 [macOS FFmpeg 配方与验证](FFMPEG-MACOS.md) 和 [自动发布](RELEASE.md)。
 
 工具查找支持配置路径、环境变量、Mac 应用资源的 tools、用户工具目录、Homebrew 的 `/opt/homebrew/bin` 或 `/usr/local/bin`、项目工具目录和 PATH。Finder 启动应用时也可找到 Homebrew 工具。
 

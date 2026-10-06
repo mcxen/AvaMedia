@@ -22,6 +22,7 @@ if ($Runtime.StartsWith('osx-')) {
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
 & (Join-Path $PSScriptRoot 'Bundle-DownloadTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
+& (Join-Path $PSScriptRoot 'Bundle-MediaTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
 $runtimePackages = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget/packages' }
 $runtimePack = Join-Path $runtimePackages ('microsoft.netcore.app.runtime.' + $Runtime)
 if (Test-Path -LiteralPath $runtimePack) {
@@ -57,7 +58,7 @@ if ($Runtime.StartsWith('osx-')) {
     $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw -Encoding UTF8).Replace('__VERSION__',$Version).Replace('__CHINESE_NAME__',[Security.SecurityElement]::Escape($appBrand.ChineseName))
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
     if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
-        foreach ($tool in @('yt-dlp','qjs')) { & chmod +x (Join-Path $nativeRoot ('tools/'+$tool)) }
+        foreach ($tool in @('yt-dlp','qjs','ffmpeg','ffprobe')) { & chmod +x (Join-Path $nativeRoot ('tools/'+$tool)) }
         & /usr/bin/codesign --force --deep --sign - $bundle
         if ($LASTEXITCODE -ne 0) { throw 'Ad-hoc application signing failed.' }
     }
@@ -69,7 +70,7 @@ if ($Runtime.StartsWith('osx-')) {
         Get-ChildItem -LiteralPath $bundle -Recurse -File | ForEach-Object {
             $relative = [IO.Path]::GetRelativePath($bundleRoot,$_.FullName).Replace('\','/')
             $entry = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,$_.FullName,$relative,[IO.Compression.CompressionLevel]::Optimal)
-            $executable = $_.Name -in @('AvaMedia.Desktop','yt-dlp','qjs','createdump') -or $_.Extension -eq '.dylib' -or $_.Extension -eq '.sh'
+            $executable = $_.Name -in @('AvaMedia.Desktop','yt-dlp','qjs','ffmpeg','ffprobe','createdump') -or $_.Extension -eq '.dylib' -or $_.Extension -eq '.sh'
             $mode = if ($executable) { 33261 } else { 33188 } # regular file: 0755 / 0644
             $entry.ExternalAttributes = [int]($mode -shl 16)
         }

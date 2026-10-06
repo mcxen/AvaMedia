@@ -10,7 +10,7 @@ $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRE
 if ($process.ExitCode -ne 0) { throw 'Installer execution failed.' }
 $exe = Join-Path $target 'AvaMedia.Desktop.exe'
 if (!(Test-Path -LiteralPath $exe) -or (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Installed executable/version mismatch.' }
-foreach ($name in @('LICENSE','COPYRIGHT','THIRD-PARTY-NOTICES.md','scripts/Install-MediaTools.ps1','AvaMedia.Core.dll','tools/yt-dlp.exe','tools/qjs.exe','tools/download-tools.json')) { if (!(Test-Path -LiteralPath (Join-Path $target $name))) { throw "Installed $name is missing." } }
+foreach ($name in @('LICENSE','COPYRIGHT','THIRD-PARTY-NOTICES.md','AvaMedia.Core.dll','tools/yt-dlp.exe','tools/qjs.exe','tools/download-tools.json','tools/ffmpeg.exe','tools/ffprobe.exe','tools/ffmpeg-bundle.json','licenses/media-tools/win-x64/NOTICE.txt')) { if (!(Test-Path -LiteralPath (Join-Path $target $name))) { throw "Installed $name is missing." } }
 $manifest=Get-Content -LiteralPath (Join-Path $target 'tools/download-tools.json') -Raw | ConvertFrom-Json
 foreach($tool in $manifest.files) {
     $path=Join-Path $target ('tools/'+$tool.name)
@@ -20,11 +20,20 @@ $ytVersion=(& (Join-Path $target 'tools/yt-dlp.exe') --version | Out-String).Tri
 if($LASTEXITCODE -ne 0 -or $ytVersion -ne $manifest.ytDlpVersion){throw 'Installed yt-dlp version verification failed.'}
 $quickJsVersion=(& (Join-Path $target 'tools/qjs.exe') --version | Out-String).Trim()
 if($LASTEXITCODE -ne 0 -or $quickJsVersion -ne $manifest.quickJsVersion){throw 'Installed QuickJS-NG version verification failed.'}
+$media=Get-Content -LiteralPath (Join-Path $target 'tools/ffmpeg-bundle.json') -Raw | ConvertFrom-Json
+foreach($item in $media.files){
+    $path=Join-Path $target ('tools/'+$item.name)
+    if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256){throw "Installed media file checksum mismatch: $($item.name)"}
+}
+foreach($tool in @('ffmpeg','ffprobe')){
+    $mediaVersion=& (Join-Path $target "tools/$tool.exe") -version | Out-String
+    if($LASTEXITCODE -ne 0 -or $mediaVersion -notmatch ([regex]::Escape("$tool version "+$media.version))){throw "Installed $tool cannot load its bundled libraries."}
+}
 $capture = Join-Path $proof 'capture'
 $process = Start-Process -FilePath $exe -ArgumentList @('--capture',('"'+$capture+'"'),'--download') -WindowStyle Hidden -PassThru
 if (!$process.WaitForExit(30000)) { $process.Kill(); throw 'Installed client startup timed out.' }
 if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath (Join-Path $capture 'main.png')) -or !(Test-Path -LiteralPath (Join-Path $capture 'download.png'))) { throw 'Installed client failed its native startup/download capture.' }
 $uninstall = Start-Process -FilePath (Join-Path $target 'unins000.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -WindowStyle Hidden -PassThru -Wait
 if ($uninstall.ExitCode -ne 0 -or (Test-Path -LiteralPath $exe)) { throw 'Installer uninstall check failed.' }
-@{ version=$Version; installation=$true; nativeStartup=$true; nativeDownloadWindow=$true; ytDlpVersion=$manifest.ytDlpVersion; quickJsVersion=$manifest.quickJsVersion; toolHashesVerified=$true; uninstallation=$true } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $proof 'report.json') -Encoding utf8
+@{ version=$Version; installation=$true; nativeStartup=$true; nativeDownloadWindow=$true; ytDlpVersion=$manifest.ytDlpVersion; quickJsVersion=$manifest.quickJsVersion; ffmpegVersion=$media.version; bundledMediaVerified=$true; toolHashesVerified=$true; uninstallation=$true } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $proof 'report.json') -Encoding utf8
 Write-Output 'Verified Windows installation, native startup, version, licenses and uninstall.'

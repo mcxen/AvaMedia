@@ -45,7 +45,7 @@ libvorbis 使用其 [上游 CMake 配方](https://github.com/xiph/vorbis/blob/v1
 - `AvaMedia-FFmpeg-8.1.3-source.tar.gz`：精确对应的源码、依赖、锁文件和重建配方。
 - `AvaMedia-FFmpeg-8.1.3-SHA256SUMS.txt`：两个归档的校验清单。
 
-本地运行包安装：
+应用的 PKG、DMG 和便携 ZIP 已内置此运行包，普通用户安装应用即可使用。下面的独立安装命令供开发或指定外部媒体工具目录时使用：
 
 ```sh
 bash scripts/Install-MediaTools-macOS.sh \
@@ -71,6 +71,6 @@ Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避�
 
 ## 许可证
 
-此定制运行包包含 x264 / x265，使用 `--enable-gpl --enable-version3`，按 **GPL-3.0-or-later** 交付；未启用 nonfree。Windows 的独立 LGPL 工具方案不变。AvaMedia 应用及构建脚本仍采用 AGPL-3.0-only，运行包源码归档同时保留各依赖的原始源码、版权声明和重建所需脚本。系统字体不随包再分发。
+此定制运行包包含 x264 / x265，使用 `--enable-gpl --enable-version3`，按 **GPL-3.0-or-later** 交付；未启用 nonfree。Windows 安装包也内置同版本的 GPL 媒体引擎，其 MinGW 构建配方与额外依赖见 [Windows 配方](../scripts/windows/Build-FFmpeg.py)。AvaMedia 应用及构建脚本仍采用 AGPL-3.0-only，两平台分别提供精确对应的源码归档、依赖版权声明和重建脚本。系统字体不随包再分发。
 
 配置与许可依据：[FFmpeg 构建脚本](https://github.com/FFmpeg/FFmpeg/blob/n8.1.3/configure)、[FFmpeg 许可说明](https://ffmpeg.org/legal.html)、[libass 字体支持](https://github.com/libass/libass)、[HarfBuzz 配置](https://github.com/harfbuzz/harfbuzz/blob/14.5.1/meson.options)。
