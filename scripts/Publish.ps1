@@ -1,6 +1,8 @@
-param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
+param([ValidateSet('win-x64','osx-arm64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Branding.ps1')
+$appBrand = Get-AppBrand
 function Assert-EmptyPublishDirectory([string]$Path) {
     if((Test-Path -LiteralPath $Path) -and (Get-ChildItem -LiteralPath $Path -Force | Select-Object -First 1)) {
         throw "发布目录必须为空，请使用新的输出目录：$Path"
@@ -27,7 +29,7 @@ if (Test-Path -LiteralPath $runtimePack) {
     New-Item -ItemType Directory -Path $runtimeNotices -Force | Out-Null
     Get-ChildItem -LiteralPath $runtimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $runtimeNotices -Force }
 }
-foreach ($name in @('LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
+foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'licenses') -Destination $publishRoot -Recurse -Force
 $publishDocs = Join-Path $publishRoot 'docs'
 New-Item -ItemType Directory -Path $publishDocs -Force | Out-Null
@@ -37,7 +39,7 @@ Copy-Item -LiteralPath (Join-Path $taskRoot 'scripts') -Destination $publishRoot
 $zip = Join-Path $taskRoot ('artifacts/AvaMedia-' + $Version + '-' + $Runtime + '.zip')
 New-Item -ItemType Directory -Path (Split-Path -Parent $zip) -Force | Out-Null
 if ($Runtime.StartsWith('osx-')) {
-    $bundle = Join-Path $bundleRoot 'AvaMedia.app'
+    $bundle = Join-Path $bundleRoot $appBrand.MacBundleName
     $nativeRoot = Join-Path $bundle 'Contents/MacOS'
     $resources = Join-Path $bundle 'Contents/Resources'
     New-Item -ItemType Directory -Path $nativeRoot,$resources -Force | Out-Null
@@ -45,8 +47,8 @@ if ($Runtime.StartsWith('osx-')) {
     Get-ChildItem -LiteralPath $publishRoot -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Force }
     Get-ChildItem -LiteralPath $publishRoot -Directory | Where-Object { $_.Name -notin @('licenses','docs','scripts') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Recurse -Force }
     foreach ($directory in @('licenses','docs','scripts')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
-    foreach ($name in @('LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
-    $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw).Replace('__VERSION__',$Version)
+    foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
+    $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw -Encoding UTF8).Replace('__VERSION__',$Version).Replace('__CHINESE_NAME__',[Security.SecurityElement]::Escape($appBrand.ChineseName))
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
     if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
         foreach ($tool in @('yt-dlp','qjs')) { & chmod +x (Join-Path $nativeRoot ('tools/'+$tool)) }

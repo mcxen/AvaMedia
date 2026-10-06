@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Xml.Linq;
 using Microsoft.Win32;
+using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
@@ -11,12 +12,12 @@ public static class SystemContextMenu
     public static string WindowsCommand(string executable) => "\"" + Path.GetFullPath(executable) + "\" --convert \"%1\"";
     public static void Set(bool enabled, string executable)
     {
-        if (enabled && !File.Exists(executable)) throw new FileNotFoundException("请先安装 AvaMedia，再启用系统菜单。", executable);
+        if (enabled && !File.Exists(executable)) throw new FileNotFoundException("请先安装" + AppIdentity.ChineseName + "，再启用系统菜单。", executable);
         if (OperatingSystem.IsWindows())
         {
             if (!enabled) { Registry.CurrentUser.DeleteSubKeyTree(RegistryPath, false); return; }
             using var key = Registry.CurrentUser.CreateSubKey(RegistryPath);
-            key.SetValue("", "用 AvaMedia 转换"); key.SetValue("Icon", Path.GetFullPath(executable));
+            key.SetValue("", AppIdentity.ConvertMenuLabel); key.SetValue("Icon", Path.GetFullPath(executable));
             key.SetValue("MultiSelectModel", "Single");
             using var command = key.CreateSubKey("command"); command.SetValue("", WindowsCommand(executable));
         }
@@ -60,11 +61,11 @@ public static class SystemContextMenu
         new XElement("plist", new XAttribute("version", "1.0"), dict)).ToString();
     public static string MacInfo()
     {
-        var service = Dict(Pair("NSMenuItem", Dict(Pair("default", String("用 AvaMedia 转换")))),
+        var service = Dict(Pair("NSMenuItem", Dict(Pair("default", String(AppIdentity.ConvertMenuLabel)))),
             Pair("NSMessage", String("runWorkflowAsService")),
             Pair("NSRequiredContext", Dict(Pair("NSApplicationIdentifier", String("com.apple.finder")))),
             Pair("NSSendFileTypes", Array(String("public.item"))), Pair("NSSendTypes", Array(String("NSFilenamesPboardType"))));
-        return Plist(Dict(Pair("CFBundleIdentifier", String(ServiceId)), Pair("CFBundleName", String("AvaMedia Convert")), Pair("NSServices", Array(service))));
+        return Plist(Dict(Pair("CFBundleIdentifier", String(ServiceId)), Pair("CFBundleName", String(AppIdentity.ChineseName)), Pair("CFBundleDisplayName", String(AppIdentity.ChineseName)), Pair("NSServices", Array(service))));
     }
     public static string MacScript(string executable)
     {

@@ -56,10 +56,10 @@ foreach (var (path, size) in new[] { (landscape, "320x180"), (portrait, "180x320
 var output = Path.Combine(root, "输出");
 var grid = await BatchVideoTools.GenerateContactSheets(engine, landscape, output, new(CellWidth: 160, CellHeight: 90, Format: "png"));
 var info = await engine.Probe(grid[0]);
-Check(grid.Length == 1 && info.Width == 516 && info.Height == 306, "3x3 timestamped PNG dimensions");
+Check(grid.Length == 1 && info.Width == 480 && info.Height == 270, "3x3 timestamped PNG has no gutters or outer border");
 var grids = await BatchVideoTools.GenerateContactSheets(engine, portrait, output, new(Columns: 2, Rows: 2, CellWidth: 160, CellHeight: 90, SheetsPerVideo: 2, Format: "jpg", StartSeconds: .2, EndSeconds: 2.8));
 var portraitInfo = await engine.Probe(grids[0]);
-Check(grids.Length == 2 && portraitInfo.Width == 350 && portraitInfo.Height == 210, "portrait padding and multiple 2x2 JPG sheets");
+Check(grids.Length == 2 && portraitInfo.Width == 180 && portraitInfo.Height == 320, "portrait automatically uses 90x160 cells in multiple 2x2 JPG sheets");
 var duplicateGrid = await BatchVideoTools.GenerateContactSheets(engine, landscape, output, new(CellWidth: 160, CellHeight: 90, Format: "png", Timestamps: false));
 Check(grid[0] != duplicateGrid[0] && File.Exists(grid[0]) && File.Exists(duplicateGrid[0]), "duplicate screenshot names do not overwrite");
 var shortClip = Path.Combine(root, "very-short.mp4");

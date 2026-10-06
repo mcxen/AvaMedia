@@ -1,0 +1,396 @@
+{
+  "schema": 1,
+  "generator": "Codex built-in image_gen.imagegen",
+  "created": "2026-10-06",
+  "mode": "reference-guided image generation",
+  "skin": "MacOS9",
+  "styleAnchor": "rotate.png",
+  "transparentBackground": true,
+  "sourceHandling": "Original generated PNGs copied unchanged. Display scaling and format labels are rendered by Avalonia.",
+  "assets": [
+    {
+      "kind": "video",
+      "function": "视频转换",
+      "file": "video.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: VIDEO FORMAT CONVERSION icon. Subject: a tall white and Platinum silver-gray document sheet with a folded top-right corner, containing one dark charcoal filmstrip with medium blue panels in the lower two thirds. Leave the upper quarter of the sheet empty to support an application-rendered format badge. No badge and no text should be drawn into this PNG.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-4a1caf45-5105-41ed-a763-44f0295256fe.png",
+      "sha256": "AA0A1FFB5FF44667EBFF0EBD894F1725FA102AF385A109572ED5FEFFAEABEF59",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "formats",
+      "function": "更多视频格式",
+      "file": "formats.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: MULTIPLE VIDEO FORMATS icon. Subject: two slightly offset white and Platinum silver-gray document sheets with folded top-right corners, the front sheet containing one small dark charcoal filmstrip with medium blue panels in its lower half. Leave the upper quarter empty to support an application-rendered format badge. No badge and no text should be drawn into this PNG.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-3944bf3c-6d8f-4d9f-86fc-69254c5f707f.png",
+      "sha256": "58EAD148C18A8BF52C4C8A2B2C875F4E4AC4FF3032FB0B01271C446E07D12488",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "join",
+      "function": "视频合并／混流",
+      "file": "join.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: JOIN / MERGE VIDEO icon. Subject: two overlapping dark charcoal filmstrip segments with medium blue blue panels joining together, one large orange plus sign between them and a small grass green musical note at upper-right. Plus sign must be clear and central. Three elements only, no document sheet.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-7b9796f8-c622-4cda-a985-0caeea030568.png",
+      "sha256": "263253C9CB5DD29C2485ECB22E931870226AC5B51926867932FEDB18029C05AE",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "gear",
+      "function": "视频优化",
+      "file": "gear.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: VIDEO OPTIMIZE / SETTINGS icon. Subject: one medium blue-blue, dark-charcoal filmstrip and two meshing muted golden-orange gears partly overlapping its right upper corner. The large gear has a readable round hub; the small gear is secondary. Simple clean cog teeth, no text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-d24017c6-d875-482d-947b-68cd0f4e42a5.png",
+      "sha256": "00FB7485C3EEF22751E60CD3F1D6D9C908C802845F3837DBEA9DABB130B3A39F",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "split",
+      "function": "音视频分离",
+      "file": "split.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: EXTRACT VIDEO / AUDIO STREAMS icon. Subject: a charcoal filmstrip with medium blue panels at lower-left, one medium blue movie reel at upper-right with three clear silver holes, and a large grass-green musical note at lower-right. One thin green directional arrow leads from filmstrip toward reel / note to communicate extraction. No scissors and no document sheet.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-76cf54f0-a6c1-4a18-ac75-7859a6651fd1.png",
+      "sha256": "ACAF9D7584B2A1916332B0A49CD484A217ADB30C207AA9FCF127FC821B2D9D59",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "crop",
+      "function": "画面裁剪",
+      "file": "crop.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: FRAME CROP icon. Subject: a light silver square picture frame with four medium blue blue crop corner handles, and a simple orange mountain / golden sun picture inside. A small unmistakable crop corner symbol in darker medium blue at the bottom-right. Clearly communicate choosing a rectangular part of the picture, distinct from the scissors/clip icon. Do not draw scissors.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-d3c1aef4-bf61-4cfd-9554-8f29fb9da08b.png",
+      "sha256": "C8BB01F618A23D58D912DFCFC21FA8106DFAA4A5A815024F068C4A9A3FBBE0E7",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "rotate",
+      "function": "视频旋转",
+      "file": "rotate.png",
+      "prompt": "Use case: stylized-concept.\nAsset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the application's existing Platinum gray interface: UI context and scale reference only. Input image 2 is the currently approved rotate symbol: semantic reference only. Generate an independent new artwork variant suited to the gray classic Macintosh interface.\nPrimary request: a ROTATE VIDEO icon, a compact upright black-and-silver filmstrip with two blue frames, surrounded across the upper and right side by one unmistakable clockwise green curved arrow.\nStyle/medium: authentic-feeling late-1990s hand-pixelled desktop utility artwork, designed on a small 48 by 48 pixel logical grid and shown as a clean enlarged pixel-art illustration. Hard square pixel steps, one-pixel black/dark-gray contour on the logical grid, limited palette, simple white edge highlights and sparse flat two-tone shading. The film has square sprocket holes. The arrow is broad and its triangular head points clockwise downward at the right, no crossing or multiple arrowheads.\nPalette: black and neutral Platinum silver-gray body, muted medium blue film panels, muted medium green arrow. Keep colors clear on #CCCCCC gray. The recognizable silhouette is more important than decorative detail.\nComposition: one centered icon filling about 80% of a square canvas with consistent transparent padding. Pixel steps should remain crisp and deliberate at small 32–48 pixel display. Do not include a separate backing plate.\nBackground: actual alpha transparency everywhere outside the symbol, including open areas inside the arrow.\nConstraints: original software artwork, no Apple logo or copied OS system icon. No text, labels, letters, watermark, screenshot, contact sheet, opaque background, checkerboard drawn into the image, smooth vector curves, glossy plastic, photorealism, blur, gradients, soft shadows, or modern rounded app tile. Exactly one icon.",
+      "references": [
+        "../../../../../docs/assets/feature-icons-macos9-ui-reference.png",
+        "../v2/rotate.png"
+      ],
+      "sourceFile": "exec-5f1a6f0a-5e81-4c40-8d15-4f602628fba1.png",
+      "sha256": "02F949356117A6303459EA8B4F405F8906554F5F71E70EA43B88FBFEAB89C6D7",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "clip",
+      "function": "快速剪辑",
+      "file": "clip.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: QUICK VIDEO CLIP icon. Subject: a single medium blue-blue and dark charcoal filmstrip behind a clear open pair of silver scissors with two coral-red handles. The scissors cross in front of the lower half of the filmstrip; recognizable silver blades, simple red handle loops. No clock, no extra filmstrips.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-81ef1014-29c7-470e-8b1b-cffa6a8c261f.png",
+      "sha256": "220A4699BF10B70FF1B9239303E55DFC60C0EDC0504AD48ABD933E8366E7B74F",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "erase",
+      "function": "去除水印",
+      "file": "erase.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: REMOVE VIDEO WATERMARK icon. Subject: a single chunky eraser angled slightly diagonally: warm coral-orange main body, blue-gray grip on top, cream-colored erasing tip at bottom. Two tiny medium blue-blue disappearing pixel squares near the erasing tip convey clearing a watermark. Keep eraser dominant, simple, easily recognizable. No document sheet and no text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-4661e226-5007-46bb-a223-ad2272bce173.png",
+      "sha256": "F5BDAC5E0DAAF15CA742C0A5DC8D1BC5BAC97FD642F93E46D72D91001D60B2B3",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "frames",
+      "function": "提取视频帧",
+      "file": "frames.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: EXTRACT VIDEO FRAMES icon. Subject: a dark charcoal filmstrip with medium blue panels at left, three Platinum silver-gray bordered small image thumbnails stacked vertically at right, with simple medium blue mountain silhouettes and orange sunshine. A grass-green branching arrow connects filmstrip toward the three pictures. Avoid tiny details. No document sheet and no text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-3e6278b9-e84c-4d9e-8a15-af7778b2d478.png",
+      "sha256": "28F799727FBCB8E08CDE16B8453679804D3781E3703A56A0D3B29B0DE5E25B3A",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "record",
+      "function": "屏幕录制",
+      "file": "record.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: SCREEN RECORDING icon. Subject: a frontal medium blue-blue player / screen window with a Platinum silver-gray interior and a large medium blue play triangle in the middle. A prominent round coral-red record dot with a thin white border overlaps the lower-right corner. The top bar has three simple golden controls, no lettering. No paper sheet. Use a neutral silver-gray Platinum window frame with a thin striped gray title bar, tiny square classic window controls; blue play triangle stays prominent.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-876e3c9f-ef04-470c-bf1e-52f7c09f1110.png",
+      "sha256": "C7923F96E2F27FD6B5BDEE4549D9E76C95B544FCB56859ED045AB41C00384018",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "player",
+      "function": "视频播放器",
+      "file": "player.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: VIDEO PLAYER icon. Subject: a frontal medium blue-blue media player window with a Platinum silver-gray interior and a large clear medium blue-blue right-pointing play triangle centered. Tiny golden square controls on top-left of the frame and one simple medium blue playback line along bottom. No record dot, no paper sheet. Use a neutral silver-gray Platinum window frame with a thin striped gray title bar, tiny square classic window controls; blue play triangle stays prominent.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-4ac022d4-954b-4692-891e-54f13700913e.png",
+      "sha256": "7B9F38850985707BB23200013ECD16ED8D16F18296B60EE7BE6E68FEC0B4D02C",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "download",
+      "function": "视频下载",
+      "file": "download.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: DOWNLOAD VIDEO icon. Subject: a single dark charcoal filmstrip with bright medium blue blue panels on left, and a bold grass-green vertical downward arrow on the right ending above a small Platinum silver-gray horizontal download tray. Arrow is the primary readable action. No paper sheet and no text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-e8cdbd78-e8e6-44df-9c0a-e593a685eb6f.png",
+      "sha256": "51A1DEDECA43CA7033C59B36AC6CF627FBF0D952A08903B708CF488B162BE240",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "audio",
+      "function": "音频转换",
+      "file": "audio.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: AUDIO FORMAT CONVERSION icon. Subject: a tall white and Platinum silver-gray document sheet with a folded top-right corner, a single large grass-green musical eighth-note pair centered in the lower two thirds. Leave upper quarter empty for an application-rendered format badge. No badge and no text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-a4f19e26-a59a-49ba-9b92-8e175b7d50df.png",
+      "sha256": "F2A950003CFAD2B7EF75D31DA5228BF4DDDF0891336E6E26541F2C06801F9B8B",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "image",
+      "function": "图片转换",
+      "file": "image.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: IMAGE FORMAT CONVERSION icon. Subject: a tall white and Platinum silver-gray document sheet with a folded top-right corner, one framed medium blue-blue landscape thumbnail containing two simple warm orange mountain peaks and a golden sun, placed in the lower two thirds. Leave upper quarter empty for an application-rendered format badge. No badge and no text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-eecd65d8-b579-4c1f-aa45-4f8fbe275b54.png",
+      "sha256": "AFBC99BE6F0FF8D431E2744F2C2B819D4D51FF1675F30052852BE567E89D133D",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "document",
+      "function": "文档转换",
+      "file": "document.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: DOCUMENT FORMAT CONVERSION icon. Subject: a tall white and Platinum silver-gray document sheet with a folded top-right corner, four bold medium blue-gray horizontal lines centered in its lower half, and one small coral-red folded-page accent at lower-right. Leave upper quarter empty for an application-rendered format badge. Only abstract horizontal lines, no actual letters or text, no badge.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-8eb87097-3a5c-4e7b-a456-bdc320c5dda0.png",
+      "sha256": "1713035239D21F3E9ABEC0A17FEBEE2BA1469188DB126D374BF7D8D0E030D057",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "archive",
+      "function": "压缩工具",
+      "file": "archive.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: ARCHIVE / ZIP UTILITIES icon. Subject: a silver optical disc with a simple round center hole, partly overlapped at right by a muted golden-orange upright archive package with one bold dark zipper and large silver zip pull. Disc should remain clearly visible. No printed text and no document sheet. All curved disc edges use deliberate stair-step pixel contours; disc sheen is represented by just three flat broad tonal regions, not gradients.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-864337f3-ebc0-47ff-8543-eddfd5396b94.png",
+      "sha256": "A01EB0D1E24D04F6E1B7A3C128CEE47B452AC7374F3B9A27E5BFEAB52C8F938F",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "disc",
+      "function": "光盘工具",
+      "file": "disc.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: OPTICAL DISC / DVD UTILITIES icon. Subject: one almost frontal silver optical disc with a strong charcoal outer edge, a clear circular center hole and hub, with three subtle broad iridescent medium blue, pale-gold and Platinum silver-gray sectors. Bold simple silhouette, no tiny grooves, no packaging or zipper, no text. All curved disc edges use deliberate stair-step pixel contours; disc sheen is represented by just three flat broad tonal regions, not gradients.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-e4583fb7-dddb-485e-93dc-e6264601a9de.png",
+      "sha256": "314C7F68ABD237C30D8FDE58D4E72B6EB649FE40AC0BB61D6428FFA31145D2DE",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "info",
+      "function": "媒体信息",
+      "file": "info.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: MEDIA INFORMATION icon. Subject: one clear medium blue-blue circular information button with a subtle silver outer rim and a clearly centered white lowercase information i symbol, simple rounded vertical stem and separate round dot. This standard i symbol is the ONLY permitted letter; no other text or caption. One circle only, no paper sheet.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-1b1cfce4-2b3a-4012-99c3-4901ac96db31.png",
+      "sha256": "DC669293482B2BA1B312C65958BC908C0AA1CD040ED8360DA264BFBC527727E5",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "clip-list",
+      "function": "批量剪辑",
+      "file": "clip-list.png",
+      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: BATCH CLIP / LIST OF CLIPS icon. Subject: a shallow medium blue-blue inbox tray with a white and silver upright list card. Four thick horizontal rows on the card in warm orange, golden yellow, mint green, and medium blue blue. A small silver pair of scissors with coral-red handles sits at the lower-right corner. List rows are abstract shapes only, no letters or text.",
+      "references": [
+        "rotate.png",
+        "../../../../../docs/assets/feature-icons-v2-preview.png"
+      ],
+      "sourceFile": "exec-1a0f7d05-97a8-4bd4-a6f4-a3d40208e16a.png",
+      "sha256": "FDD4CDB0E44CBA698F7606C2348275CAD01617C2D7BDFDCBB448F3FF0ABD0CE6",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-merge",
+      "function": "PDF 合并",
+      "file": "pdf-merge.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF document MERGE: two overlapping silver-white document sheets with folded upper-right corners, a bold orange PLUS centered in front of the overlap and one larger single resulting white document at lower-right. Three simple page silhouettes with dark red abstract document markings (not letters). Convey many pages combined into one. No film strips, reels or music notes.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-b65b5968-6478-49b3-85a2-a7918bf564e5.png",
+      "sha256": "3B0C09C6D7F19EADDBF299DBE6425601784DD8ED25546009EB2EB4CC10B17417",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-split",
+      "function": "PDF 拆分",
+      "file": "pdf-split.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF document SPLIT: one silver-white document sheet at upper-center and two small separate resulting document sheets at lower-left and lower-right, linked by a clear green forked arrow pointing OUTWARD from the original to the two pages. Dark-red abstract page markings (not letters). Few large shapes, no scissors, film strips, reels or music notes.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-e007979c-3b4b-41a5-bd56-1f44baf9c4b4.png",
+      "sha256": "130697187B8CF7E9C2FA47204113C4AE5F86EDC5DED90F310DAB3016D8DB6B9D",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-text",
+      "function": "PDF → TXT",
+      "file": "pdf-text.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to plain TEXT document conversion: smaller source document at upper-left with red abstract page mark, a green arrow pointing lower-right into a large front white page with four simple dark charcoal horizontal text bars. The large page has a small folded upper-right corner. Leave the top-left quarter of the canvas free for the app-rendered TXT badge; do not draw the badge. No letters, table grid, picture, films or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-00165500-1e2f-40fd-b433-3f14dd11b2af.png",
+      "sha256": "C2543EF44C7B669C4DC1642590F671FB1FE24424F85A5CE1844B8D2EC4BF1720",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-docx",
+      "function": "PDF → DOCX",
+      "file": "pdf-docx.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to WORD PROCESSING document conversion: smaller source page at upper-left with red abstract document marking, one large green arrow toward a front white document page at lower-right. Front page contains two cyan-blue structured paragraphs represented by horizontal bars and a simple blue page header rule. Folded corner. Leave top-left quarter free for the app-rendered DOCX badge; no badge, letters, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-7643bd05-9bc5-4e67-8e80-9db7a6e3777d.png",
+      "sha256": "EB0E15266221B8AABA489493A1875CCF8660E635064AF17EEA141035FC95528F",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "pdf-xlsx",
+      "function": "PDF → XLSX",
+      "file": "pdf-xlsx.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: PDF to SPREADSHEET conversion: smaller white source document at upper-left with a red abstract marking, clear green arrow toward a large front silver-white sheet at lower-right containing an unmistakable GREEN table grid with three columns and three rows, darker green top header band. Folded corner. Leave top-left quarter free for app-rendered XLSX badge. No letters, text, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-2e392b1e-69cb-4fb8-83e4-cf3a75bdcc76.png",
+      "sha256": "381E252CB6FFDD44697D081DFA0B37B91D2F1D6FEE23499DF65CE00D48526AF6",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "text-pdf",
+      "function": "TXT → PDF",
+      "file": "text-pdf.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: Plain text to PDF document creation: smaller rear source sheet at upper-left containing dark charcoal horizontal text bars, a green arrow toward a large silver-white front fixed-layout page at lower-right containing a prominent RED outlined page inset and two muted red paragraph bars. Folded corner. Leave top-left quarter free for app-rendered PDF badge. No badge, letters, film or music.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-7e7ff152-4a38-4841-b429-d5d53c5369ce.png",
+      "sha256": "7C97DC7963506F2BBD1A6D6E5571F3B9C2F17067988EA7CA650EB76BC66E3403",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "zip",
+      "function": "压缩 ZIP",
+      "file": "zip.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: CREATE COMPRESSED ZIP ARCHIVE: two small white file sheets on the left, a large GREEN arrow clearly pointing RIGHT INTO a compact GOLDEN-YELLOW rectangular archive file on the right. Archive has a vertical SILVER ZIPPER with three large black zipper teeth and a zipper pull. Few bold shapes. This is a file archive, NOT a compact disc or DVD. No discs, music, film, folders with text, letters or labels.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-280e81dc-45bc-4a69-836d-97dbd78d6d6e.png",
+      "sha256": "A74565A2DFD886136D1FA5DE0F3473DE7D52C6072ABCDFB33E51C1CF781AD644",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    },
+    {
+      "kind": "unzip",
+      "function": "解压 ZIP",
+      "file": "unzip.png",
+      "prompt": "Use case: stylized-concept. Generate exactly ONE original transparent PNG feature icon for AvaMedia desktop software. Input image 1 is the approved Mac OS 9 rotate PNG, STYLE REFERENCE ONLY. Match its independent late-1990s hand-pixelled Platinum utility family: build on a 48 by 48 logical pixel grid, enlarged crisp square pixel steps, near-black one-logical-pixel outlines, neutral silver-white pages, medium blue accents, medium grass-green arrows, orange action marks, red PDF accents. Few broad two-tone shaded regions with restrained white edge highlights. Almost frontal, crisp hard squared contours, no smooth modern vector curves, blur, soft shadow, gradients or rounded app tiles. Optimize for 48–64 px display: bold simple silhouette, few large parts, clear direction, balanced visual weight, centered icon occupying about 80% of a square canvas with generous clear padding. True alpha transparency in ALL empty background areas and gaps. No opaque background, painted checkerboard, contact sheet, logo, text, letters, labels or watermark. Replace the reference's FILM subject completely with the requested DOCUMENT or ARCHIVE subject; retain only its style and palette. Primary request: EXTRACT ZIP ARCHIVE: GOLDEN-YELLOW rectangular archive file with vertical SILVER ZIPPER on the left, one large GREEN arrow clearly pointing RIGHT OUT from the archive toward two WHITE document sheets and an OPEN SILVER FILE FOLDER on the right. Archive zipper pull visibly lowered/open. Convey files emerging out of archive. No compact discs, DVDs, music, film, letters, text or labels.",
+      "references": [
+        "rotate.png"
+      ],
+      "sourceFile": "exec-33fa8953-e9c5-4534-a58c-7bfef497a15c.png",
+      "sha256": "5607D6E3BFF10EB332795C3CA2946833595B4B22B4618385EBE16BEEDA622664",
+      "pixelWidth": 1254,
+      "pixelHeight": 1254
+    }
+  ]
+}

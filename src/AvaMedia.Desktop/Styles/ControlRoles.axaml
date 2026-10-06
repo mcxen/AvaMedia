@@ -62,6 +62,7 @@
     <Setter Property="LightBrush" Value="{DynamicResource UiBevelLight}"/><Setter Property="MidLightBrush" Value="{DynamicResource UiBevelMidLight}"/>
     <Setter Property="MidDarkBrush" Value="{DynamicResource UiBevelMidDark}"/><Setter Property="DarkBrush" Value="{DynamicResource UiBevelDark}"/>
     <Setter Property="FocusBrush" Value="{DynamicResource UiAccent}"/>
+    <Setter Property="OutlineBrush" Value="{DynamicResource UiChromeBorder}"/>
   </Style>
   <Style Selector="Window.settings Border.settingSection">
     <Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>

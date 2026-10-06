@@ -1,8 +1,10 @@
-param([ValidateSet('osx-arm64','osx-x64')][string]$Runtime, [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5')
+param([ValidateSet('osx-arm64')][string]$Runtime = 'osx-arm64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5')
 $ErrorActionPreference = 'Stop'
 if (![Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) { throw 'macOS is required to generate PKG and DMG files.' }
 $taskRoot = Split-Path -Parent $PSScriptRoot
-$bundle = Join-Path $taskRoot "artifacts/release/$Version/$Runtime-bundle/AvaMedia.app"
+. (Join-Path $PSScriptRoot 'Branding.ps1')
+$appBrand = Get-AppBrand
+$bundle = Join-Path (Join-Path $taskRoot "artifacts/release/$Version/$Runtime-bundle") $appBrand.MacBundleName
 if (!(Test-Path -LiteralPath $bundle)) { throw 'Publish the macOS application first.' }
 & /usr/bin/codesign --force --deep --sign - $bundle
 if ($LASTEXITCODE -ne 0) { throw 'Ad-hoc application signing failed.' }
@@ -14,5 +16,5 @@ New-Item -ItemType Directory -Path $stage -Force | Out-Null
 Copy-Item -LiteralPath $bundle -Destination $stage -Recurse -Force
 & /bin/ln -s /Applications (Join-Path $stage 'Applications')
 if ($LASTEXITCODE -ne 0) { throw 'DMG Applications shortcut failed.' }
-& /usr/bin/hdiutil create -volname "AvaMedia $Version" -srcfolder $stage -format UDZO (Join-Path $taskRoot "artifacts/AvaMedia-$Version-$Runtime.dmg")
+& /usr/bin/hdiutil create -volname "$($appBrand.ChineseName) $Version" -srcfolder $stage -format UDZO (Join-Path $taskRoot "artifacts/AvaMedia-$Version-$Runtime.dmg")
 if ($LASTEXITCODE -ne 0) { throw 'DMG build failed.' }

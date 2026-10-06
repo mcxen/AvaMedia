@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
@@ -22,6 +25,35 @@ void Pump() { Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRende
 void Capture(Window window, string name) { Pump(); window.CaptureRenderedFrame()!.Save(Path.Combine(root, name + ".png")); }
 void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(); }
 string Color(IBrush? brush) => brush is ISolidColorBrush color ? color.Color.ToString() : "";
+// Compare each control's actual artwork while its containing window stays open.
+var iconKinds = Catalog.All.Select(f => f.Icon).Append("clip-list").Distinct().ToArray();
+Check(iconKinds.All(kind => AssetLoader.Exists(new Uri($"avares://AvaMedia.Desktop/Assets/FeatureIcons/macos9/{kind}.png"))), "Mac OS 9 embeds artwork for every functional icon kind");
+var iconControls = iconKinds.Select(kind => new FeatureIcon { Kind = kind, Width = 92, Height = 80 }).ToArray();
+var iconPanel = new WrapPanel { Width = 460 };
+foreach (var icon in iconControls) iconPanel.Children.Add(icon);
+var iconWindow = new Window { Content = iconPanel, Width = 500, Height = 400 };
+Skin.Apply("Light"); iconWindow.Show(); Pump();
+string ArtworkHash(FeatureIcon icon)
+{
+    using var bitmap = new RenderTargetBitmap(new PixelSize(92,80), new Vector(96,96));
+    bitmap.Render(icon);
+    using var stream = new MemoryStream(); bitmap.Save(stream);
+    return Convert.ToHexString(SHA256.HashData(stream.ToArray()));
+}
+var normalArtwork = iconControls.Select(ArtworkHash).ToArray();
+Skin.Apply("MacOS9"); Pump();
+for (var i = 0; i < iconControls.Length; i++)
+    Check(iconControls[i].ActualThemeVariant == Skin.MacOS9 && ArtworkHash(iconControls[i]) != normalArtwork[i], $"An existing {iconKinds[i]} icon switches to independent Mac OS 9 artwork");
+var classicRotate = ArtworkHash(iconControls.Single(icon => icon.Kind == "rotate"));
+var childIcon = new FeatureIcon { Kind = "rotate", Width = 92, Height = 80 };
+var iconChild = new Window { Content = childIcon, Width = 140, Height = 140 };
+iconChild.Show(iconWindow); Pump();
+Check(childIcon.ActualThemeVariant == Skin.MacOS9 && ArtworkHash(childIcon) == classicRotate, "A newly opened child window uses the same Mac OS 9 artwork");
+Skin.Apply("Dark"); Pump();
+Check(iconControls.Select(ArtworkHash).SequenceEqual(normalArtwork), "Switching to Dark restores all original icons without stale Mac OS 9 cache entries");
+Skin.Apply("Light"); Pump();
+Check(iconControls.Select(ArtworkHash).SequenceEqual(normalArtwork), "Switching to Light restores all original icons");
+iconChild.Close(); iconWindow.Close();
 var button = new Button { Content = "转换 Convert", Width = 170 };
 var input = new TextBox { Text = "中文路径与参数 / Input" };
 var combo = new ComboBox { ItemsSource = new[] { "MP4", "MKV", "WebM" }, SelectedIndex = 0 };

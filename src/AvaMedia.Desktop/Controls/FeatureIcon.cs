@@ -15,10 +15,7 @@ public sealed class FeatureIcon : Control
     public FeatureIcon()
     {
         RenderOptions.SetBitmapInterpolationMode(this,BitmapInterpolationMode.HighQuality);
-        ActualThemeVariantChanged += (_, _) =>
-        {
-            if (DocumentIconAssets.IsSupported(Kind)) InvalidateVisual();
-        };
+        ActualThemeVariantChanged += (_, _) => InvalidateVisual();
     }
     public override void Render(DrawingContext c)
     {
@@ -27,7 +24,7 @@ public sealed class FeatureIcon : Control
         void R(double x,double y,double w,double h,string color,double radius=0)=>c.DrawRectangle(B(color),null,new Rect(x,y,w,h),radius,radius);
         void L(double x,double y,double xx,double yy,string color,double thickness=3)=>c.DrawLine(new Pen(B(color),thickness),new(x,y),new(xx,yy));
         void T(string text,double x,double y,double size,string color,bool bold=false)=>c.DrawText(new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI",FontStyle.Normal,bold?FontWeight.Bold:FontWeight.Normal),size,B(color)),new(x,y));
-        if ((DocumentIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9) ?? FeatureIconAssets.Get(Kind)) is { } artwork)
+        if ((DocumentIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9) ?? FeatureIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9)) is { } artwork)
         {
             c.DrawImage(artwork, new Rect(6,0,80,80));
             if (Kind is "pdf-text" or "pdf-docx" or "pdf-xlsx" or "text-pdf")

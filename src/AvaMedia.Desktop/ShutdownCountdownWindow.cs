@@ -20,5 +20,5 @@ public sealed class ShutdownCountdownWindow : Window
         Opened += (_, _) => _timer.Start(); Closed += (_, _) => _timer.Stop(); UpdateText();
     }
     internal void Tick() { if (--_remaining <= 0) Close(true); else UpdateText(); }
-    private void UpdateText() => _message.Text = $"本次任务已全部成功。电脑将在 {_remaining} 秒后关闭。\n可以取消关机，继续使用电脑。";
+    private void UpdateText() => Localization.SetText(_message, $"本次任务已全部成功。电脑将在 {_remaining} 秒后关闭。\n可以取消关机，继续使用电脑。");
 }

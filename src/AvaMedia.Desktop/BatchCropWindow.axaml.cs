@@ -77,7 +77,7 @@ public sealed partial class BatchCropWindow : Window
         AddHandler(DragDrop.DropEvent, (_, args) =>
         {
             var skipped = AddFiles(args.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []);
-            if (skipped.Count > 0) ValidationText.Text = $"已跳过 {skipped.Count} 个非视频或不存在的文件。";
+            if (skipped.Count > 0) Localization.SetText(ValidationText,$"已跳过 {skipped.Count} 个非视频或不存在的文件。");
         });
         Closed += (_, _) =>
         {
@@ -141,7 +141,7 @@ public sealed partial class BatchCropWindow : Window
             {
                 if (_closed || revision != _mediaRevision || !_entries.Contains(entry)) return;
                 entry.Error = ex.Message;
-                if (_active == entry) { PreviewStatus.Text = "无法读取视频：" + ex.Message; PreviewStatus.IsVisible = true; }
+                if (_active == entry) { PreviewStatus.Text = Localization.Format($"无法读取视频：{ex.Message}"); PreviewStatus.IsVisible = true; }
                 RefreshValidation();
             });
         }
@@ -183,7 +183,7 @@ public sealed partial class BatchCropWindow : Window
         catch (Exception ex)
         {
             if (!_closed && !token.IsCancellationRequested && _active == entry)
-            { PreviewStatus.Text = "预览失败：" + ex.Message; PreviewStatus.IsVisible = true; CropLayer.Enabled = false; }
+            { PreviewStatus.Text = Localization.Format($"预览失败：{ex.Message}"); PreviewStatus.IsVisible = true; CropLayer.Enabled = false; }
         }
         finally
         {
@@ -211,28 +211,28 @@ public sealed partial class BatchCropWindow : Window
     {
         if (ListSummary is null || _closed) return;
         var included = _entries.Where(e => e.Include).ToArray(); var invalid = 0; var pending = 0;
-        ListSummary.Text = $"{_entries.Count} 个视频 · 勾选 {included.Length} 个";
+        Localization.SetText(ListSummary,$"{_entries.Count} 个视频 · 勾选 {included.Length} 个");
         ReferenceText.Text = _reference?.Info is { } reference
-            ? $"选区参考：{_reference.Name}（{reference.Width} × {reference.Height} 像素）" : "选区参考：请选择一个已读取的视频";
+            ? Localization.Format($"选区参考：{_reference.Name}（{reference.Width} × {reference.Height} 像素）") : "选区参考：请选择一个已读取的视频";
         foreach (var entry in _entries)
         {
             if (!entry.Include) { entry.Status = "不处理"; continue; }
-            if (entry.Error is not null) { entry.Status = "读取失败：" + entry.Error; invalid++; continue; }
+            if (entry.Error is not null) { entry.Status = Localization.Format($"读取失败：{entry.Error}"); invalid++; continue; }
             if (entry.Info is null) { entry.Status = "正在读取…"; pending++; continue; }
             try
             {
                 if (_reference?.Info is null) throw new ArgumentException("请选择已读取的视频作为选区参考。");
                 var options = BatchCrop.ResolveOptions(Area, _reference.Info, entry.Info, Mode, _options, entry.Path);
-                entry.Status = $"选区 {options.CropX},{options.CropY} · {options.CropWidth} × {options.CropHeight} · {options.Format.ToUpperInvariant()}";
+                entry.Status = Localization.Format($"选区 {options.CropX},{options.CropY} · {options.CropWidth} × {options.CropHeight} · {options.Format.ToUpperInvariant()}");
             }
-            catch (ArgumentException ex) { entry.Status = "不可裁剪：" + ex.Message; invalid++; }
+            catch (ArgumentException ex) { entry.Status = Localization.Format($"不可裁剪：{ex.Message}"); invalid++; }
         }
         var outputValid = !string.IsNullOrWhiteSpace(OutputInput.Text);
         OkButton.IsEnabled = included.Length > 0 && invalid == 0 && pending == 0 && outputValid;
         ValidationText.Classes.Set("error", invalid > 0);
-        ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? $"正在读取 {pending} 个视频…"
-            : invalid > 0 ? $"{invalid} 个视频无法使用此选区，请调整选区、切换比例模式或取消勾选。"
-            : !outputValid ? "请选择输出目录" : $"共同选区将应用于 {included.Length} 个视频。源文件保持原样。";
+        ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
+            : invalid > 0 ? Localization.Format($"{invalid} 个视频无法使用此选区，请调整选区、切换比例模式或取消勾选。")
+            : !outputValid ? "请选择输出目录" : Localization.Format($"共同选区将应用于 {included.Length} 个视频。源文件保持原样。");
         CropLayer.Enabled = false;
         if (_active?.Info is { } active && _reference?.Info is not null && PreviewImage.Source is not null && !PreviewStatus.IsVisible)
         {
@@ -280,10 +280,10 @@ public sealed partial class BatchCropWindow : Window
 
     private async void AddClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = "选择多个视频", AllowMultiple = true,
-            FileTypeFilter = [new FilePickerFileType("视频") { Patterns = QuickClipBatch.VideoExtensions.Select(e => "*." + e).ToArray() }, FilePickerFileTypes.All] });
+        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择多个视频"), AllowMultiple = true,
+            FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(e => "*." + e).ToArray() }, FilePickerFileTypes.All] });
         var skipped = AddFiles(files.Select(f => f.TryGetLocalPath()).OfType<string>());
-        if (skipped.Count > 0) ValidationText.Text = $"已跳过 {skipped.Count} 个非视频或不存在的文件。";
+        if (skipped.Count > 0) Localization.SetText(ValidationText,$"已跳过 {skipped.Count} 个非视频或不存在的文件。");
     }
     private void RemoveClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
@@ -306,7 +306,7 @@ public sealed partial class BatchCropWindow : Window
         _active = args.AddedItems.OfType<BatchCropEntry>().LastOrDefault() ?? FileList.SelectedItem as BatchCropEntry;
         if (_active is null) { ClearPreview(); return; }
         _previewCancellation?.Cancel(); (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
-        CropLayer.Enabled = false; PreviewStatus.Text = _active.Error is { } error ? "无法读取视频：" + error : "正在读取预览…"; PreviewStatus.IsVisible = true;
+        CropLayer.Enabled = false; PreviewStatus.Text = _active.Error is { } error ? Localization.Format($"无法读取视频：{error}") : "正在读取预览…"; PreviewStatus.IsVisible = true;
         PreviewName.Text = _active.Name; PrepareSeek(_active);
         if (_active.Info is not null)
         {

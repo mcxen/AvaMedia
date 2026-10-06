@@ -4,8 +4,8 @@ CI 在 main 推送和 Pull Request 时执行完整 Windows 验证。Release 工�
 
 1. Windows 全部测试，包括实际媒体输出、消融、编辑器、皮肤、设置和接口。
 2. 发布包含 .NET 运行时的 Windows x64 ZIP；以固定版本 Inno Setup 6.4.3 生成每用户安装程序，实际验证安装、版本、原生启动、许可证和卸载。
-3. 在 Apple Silicon / Intel runner 分别验证接口和皮肤，构建应用 ZIP、PKG 与 DMG，并启动发布后的客户端生成原生截图。
-4. 检查两个 Mac ZIP 的 Mach-O 架构和 Unix 执行权限，生成对应源码 ZIP、SHA256SUMS.txt，自动创建 GitHub Release 并上传。
+3. 在 Apple Silicon runner 构建并验证定制 FFmpeg 与对应源码，运行客户端音频、字幕、批量和消融测试；验证接口和皮肤，仅构建 macOS ARM64 应用 ZIP、PKG 与 DMG，并启动发布后的客户端生成原生截图。
+4. 检查 Mac ARM64 ZIP 的 Mach-O 架构和 Unix 执行权限，生成对应源码 ZIP、SHA256SUMS.txt，自动创建 GitHub Release 并上传。
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 
@@ -23,8 +23,8 @@ git push origin v1.0.5
 ./scripts/Verify-WindowsInstaller.ps1 -Version 1.0.5
 ```
 
-macOS 上发布相应架构后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的录制权限与音频设备仍需验收。
+macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的录制权限与音频设备仍需验收。
 
-新构建内置官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0，固定版本、核对 SHA256、保留许可证与来源清单。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 开始菜单提供工具安装入口，安装至应用 `tools` 目录；macOS 使用 Homebrew 或设置外部路径。依赖和安装器许可保存在 `licenses/`。
+新构建将官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定版本并核对 SHA256，附来源清单和许可证；Mac ZIP 保留工具执行权限。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 开始菜单提供工具安装入口，安装至应用 `tools` 目录；macOS 定制 FFmpeg 作为独立运行包和对应源码归档上传同一 Release，并附校验清单，应用附带安装脚本。Windows 工具采用 LGPL 构建，macOS 定制工具包含 x264 / x265，采用 GPL-3.0-or-later；详见 [macOS FFmpeg](FFMPEG-MACOS.md)。依赖和安装器许可保存在 `licenses/`，下载打包与验证见 [视频下载](VIDEO-DOWNLOAD.md)。
 
 参考：[GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)、[Inno 编译参数](https://jrsoftware.org/ishelp/topic_compilercmdline.htm)、[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)。

@@ -68,10 +68,8 @@ jobs:
         include:
           - runner: macos-15
             runtime: osx-arm64
-          - runner: macos-15-intel
-            runtime: osx-x64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -79,11 +77,29 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Build and verify custom ARM64 FFmpeg
+        run: |
+          brew install cmake meson ninja pkgconf autoconf automake libtool
+          python3 scripts/macos/Build-FFmpeg.py
+      - name: Install verified custom media tools
+        run: |
+          runtime=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-osx-arm64.tar.gz' -print)
+          checksums=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-SHA256SUMS.txt' -print)
+          bash scripts/Install-MediaTools-macOS.sh --archive "$runtime" --checksums "$checksums"
       - name: Build and check interfaces and skins natively
         run: |
           dotnet build AvaMedia.sln -c Release
           dotnet run --project tests/AvaMedia.InterfaceTests -c Release --no-build
           dotnet run --project tests/AvaMedia.SkinTests -c Release --no-build
+      - name: Verify client media processing with the custom runtime
+        run: |
+          dotnet run --project tests/AvaMedia.AudioOptionsTests -c Release --no-build
+          dotnet run --project tests/AvaMedia.SubtitleTests -c Release --no-build
+          dotnet run --project tests/AvaMedia.BatchTests -c Release --no-build
+          dotnet run --project tests/AvaMedia.AblationTests -c Release --no-build
       - name: Build app, PKG and DMG
         shell: pwsh
         env:
@@ -98,7 +114,8 @@ jobs:
           RELEASE_VERSION: ${{ needs.windows.outputs.version }}
           RELEASE_RUNTIME: ${{ matrix.runtime }}
         run: |
-          app="artifacts/release/$RELEASE_VERSION/$RELEASE_RUNTIME-bundle/AvaMedia.app/Contents/MacOS/AvaMedia.Desktop"
+          bundles=(artifacts/release/"$RELEASE_VERSION"/"$RELEASE_RUNTIME-bundle"/*.app)
+          app="${bundles[0]}/Contents/MacOS/AvaMedia.Desktop"
           "$app" --capture artifacts/mac-native > artifacts/mac-native.log 2>&1 &
           process=$!
           for attempt in $(seq 1 30); do
@@ -112,9 +129,10 @@ jobs:
         with:
           name: release-${{ matrix.runtime }}
           path: |
-            artifacts/AvaMedia-*.zip
-            artifacts/AvaMedia-*.pkg
-            artifacts/AvaMedia-*.dmg
+            artifacts/AvaMedia-*-${{ matrix.runtime }}.zip
+            artifacts/AvaMedia-*-${{ matrix.runtime }}.pkg
+            artifacts/AvaMedia-*-${{ matrix.runtime }}.dmg
+            artifacts/AvaMedia-FFmpeg-*
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -124,6 +142,8 @@ jobs:
             artifacts/mac-native*/
             artifacts/mac-native.log
             artifacts/skins-*/
+            artifacts/ffmpeg-build-*/*.log
+            artifacts/ablation-*/
   publish:
     needs: [windows, macos]
     runs-on: ubuntu-latest

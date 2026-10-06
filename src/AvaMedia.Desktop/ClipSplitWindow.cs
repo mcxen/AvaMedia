@@ -32,10 +32,10 @@ public sealed class ClipSplitWindow : Window
         _mode.Name = "SplitMode";
         var grid = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto,Auto"), Margin = new Thickness(20), RowSpacing = 12 };
         var end = draft.End > 0 ? draft.End : duration;
-        grid.Children.Add(new TextBlock { Text = $"当前源视频区间：{Time(draft.Start)} – {Time(end)}\n切点使用源视频时间；速度 {draft.Speed:0.###}× 在分段后应用。", TextWrapping = TextWrapping.Wrap });
+        var description = Ui.FormattedText($"当前源视频区间：{Time(draft.Start)} – {Time(end)}\n切点使用源视频时间；速度 {draft.Speed:0.###}× 在分段后应用。"); description.TextWrapping = TextWrapping.Wrap; grid.Children.Add(description);
         var modeRow = new Grid { ColumnDefinitions = new("100,*") }; modeRow.Children.Add(Ui.Text("分割方式"));
         Grid.SetColumn(_mode, 1); modeRow.Children.Add(_mode); Grid.SetRow(modeRow, 1); grid.Children.Add(modeRow);
-        _partsPanel.Children.Add(Ui.Text($"段数（2–{ClipSplit.MaximumSegments}）")); _partsPanel.Children.Add(_parts);
+        _partsPanel.Children.Add(Ui.FormattedText($"段数（2–{ClipSplit.MaximumSegments}）")); _partsPanel.Children.Add(_parts);
         _secondsPanel.Children.Add(Ui.Text("每段时长（源视频时间；最后一段保留余数）")); _secondsPanel.Children.Add(_seconds);
         _pointsPanel.Children.Add(Ui.Text("时间点（在当前区间内按顺序输入，逗号或换行分隔）")); _pointsPanel.Children.Add(_points);
         var fields = new StackPanel { Spacing = 6 }; fields.Children.Add(_partsPanel); fields.Children.Add(_secondsPanel); fields.Children.Add(_pointsPanel);
@@ -69,8 +69,8 @@ public sealed class ClipSplitWindow : Window
                 mode == ClipSplitMode.TimePoints ? ClipSplit.ParsePoints(_points.Text) : null);
             _segments = ClipSplit.Create(_draft, _duration, settings);
             if (!double.IsFinite(_draft.Speed) || _draft.Speed <= 0) throw new ArgumentException("速度无效，请先修正此文件的编辑参数。");
-            _preview.Text = string.Join(Environment.NewLine, _segments.Select((s, i) =>
-                $"{i + 1:00}    {Time(s.Start)} → {Time(s.End)}    输出 {MediaEngine.Number((s.End - s.Start) / s.Speed)} 秒"));
+            _preview.Text = Localization.Join(Environment.NewLine, _segments.Select((s, i) =>
+                Localization.Format($"{i + 1:00}    {Time(s.Start)} → {Time(s.End)}    输出 {MediaEngine.Number((s.End - s.Start) / s.Speed)} 秒")));
             _error.Text = ""; _confirm.IsEnabled = true;
         }
         catch (ArgumentException ex)

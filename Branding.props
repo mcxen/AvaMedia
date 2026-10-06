@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <ProductChineseName>天池万象转换</ProductChineseName>
+    <ProductEnglishName>AvaMedia</ProductEnglishName>
+    <ProductDisplayName>$(ProductChineseName) · $(ProductEnglishName)</ProductDisplayName>
+    <Product>$(ProductDisplayName)</Product>
+    <AssemblyTitle>$(ProductDisplayName)</AssemblyTitle>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="ProductChineseName" Value="$(ProductChineseName)" />
+    <AssemblyMetadata Include="ProductEnglishName" Value="$(ProductEnglishName)" />
+  </ItemGroup>
+</Project>

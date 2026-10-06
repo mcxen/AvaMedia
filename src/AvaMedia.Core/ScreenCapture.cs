@@ -23,5 +23,5 @@ public static class ScreenCapture
         if(!Regex.IsMatch(o.RecordSource,@"^\d+:none$"))throw new ArgumentException("macOS 录屏需选定 AVFoundation 屏幕设备索引。");
         return ["-f","avfoundation","-framerate",MediaEngine.Number(o.Fps>0?o.Fps:25),"-pixel_format","bgra","-capture_cursor","1","-i",o.RecordSource,"-t",MediaEngine.Number(o.RecordSeconds)];
     }
-    public static string MacPermissionMessage(string error) => "macOS 屏幕采集失败。请检查“系统设置 → 隐私与安全性 → 屏幕与系统音频录制”中的 AvaMedia 或所配置 FFmpeg 进程权限，授权后重启应用。\n\n"+error;
+    public static string MacPermissionMessage(string error) => "macOS 屏幕采集失败。请检查“系统设置 → 隐私与安全性 → 屏幕与系统音频录制”中的"+AppIdentity.ChineseName+"或所配置 FFmpeg 进程权限，授权后重启应用。\n\n"+error;
 }

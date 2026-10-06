@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Threading;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
@@ -56,12 +57,11 @@ public partial class MainWindow
         {
             if (column + feature.Span > 4) { column = 0; row++; }
             while (FeatureGrid.RowDefinitions.Count <= row)
-                FeatureGrid.RowDefinitions.Add(new RowDefinition(91, GridUnitType.Pixel));
+                FeatureGrid.RowDefinitions.Add(new RowDefinition(FeatureRowHeight, GridUnitType.Pixel));
             var content = new Grid { RowDefinitions = new("*,Auto") };
-            content.Children.Add(new FeatureIcon
-            {
-                Kind = feature.Icon, Label = feature.Format.ToUpperInvariant(), Height = 64
-            });
+            var icon = new FeatureIcon { Kind = feature.Icon, Label = feature.Format.ToUpperInvariant() };
+            icon.Bind(HeightProperty, new DynamicResourceExtension("UiFeatureIconHeight"));
+            content.Children.Add(icon);
             var text = new TextBlock
             {
                 Text = feature.Label, TextWrapping = TextWrapping.Wrap,
@@ -88,6 +88,12 @@ public partial class MainWindow
             FeatureScroll.Offset = _categoryOffsets.GetValueOrDefault(category);
         }, DispatcherPriority.Loaded);
         Motion.Reveal(FeatureGrid);
+    }
+
+    private double FeatureRowHeight => ActualThemeVariant == Skin.MacOS9 ? 74 : 91;
+    private void RefreshFeatureMetrics()
+    {
+        foreach (var row in FeatureGrid.RowDefinitions) row.Height = new GridLength(FeatureRowHeight);
     }
 
     private void CollapseCategory()

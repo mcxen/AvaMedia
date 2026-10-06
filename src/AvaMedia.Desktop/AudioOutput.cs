@@ -91,7 +91,7 @@ internal sealed class MacAudioOutput : IAudioOutput
             Check(AudioQueueEnqueueBuffer(queue,buffer,0,IntPtr.Zero),"提交声音缓冲");
         }
     }
-    private static void Check(int status,string action){if(status!=0)throw new IOException($"macOS {action}失败 (Core Audio {status})。");}
+    private static void Check(int status,string action){if(status!=0)throw new IOException(Localization.Format($"macOS {action}失败 (Core Audio {status})。"));}
     [StructLayout(LayoutKind.Sequential)]private struct StreamDescription
     {
         public double SampleRate;

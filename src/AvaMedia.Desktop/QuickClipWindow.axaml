@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop" xmlns:icons="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.QuickClipWindow" Title="快速剪辑" Width="1000" Height="700"
         MinWidth="820" MinHeight="480" WindowStartupLocation="CenterOwner">
@@ -42,8 +42,8 @@
                         <Button Grid.Row="1" Grid.Column="1" Classes="row-icon" Click="DownClick" IsEnabled="{Binding CanMoveDown}" ToolTip.Tip="下移" AutomationProperties.Name="下移"><icons:ActionIcon Kind="down"/></Button>
                       </Grid>
                     <StackPanel Grid.Column="1" Spacing="4" Margin="0,0,8,0" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
-                      <TextBlock Text="{Binding Path}" Classes="caption" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Path}" Classes="caption" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
                       <TextBlock Text="{Binding Details}" Classes="caption" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Details}"/>
                       <TextBlock Text="{Binding Range}" Classes="caption" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>

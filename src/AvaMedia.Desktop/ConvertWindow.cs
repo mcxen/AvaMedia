@@ -8,6 +8,7 @@ using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Styling;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 public sealed record ConversionRequest(Feature Feature,string[] Files,string OutputFolder,ConversionOptions Options,
@@ -17,7 +18,7 @@ public sealed class ConversionEntry(string path,ConversionOptions? options=null)
     public string Path { get; }=path;
     public ConversionOptions? Options { get; private set; }=options?.Clone();
     public void SetOptions(ConversionOptions options){Options=options.Clone();Raise(nameof(Summary));}
-    public string Summary=>Options is {} option?$"区间 {Time(option.Start)} → {(option.End>0?Time(option.End):"结尾")}"+(option.CropWidth>0?$" · 裁剪 {option.CropX},{option.CropY} {option.CropWidth} × {option.CropHeight}":"")+(option.Speed!=1?$" · {MediaEngine.Number(option.Speed)}×":""):"完整源文件";
+    public string Summary=>Options is {} option?Localization.Join(" · ", new[] { Localization.Format($"区间 {Time(option.Start)} → {(option.End>0?Time(option.End):Localization.Text("结尾"))}"), option.CropWidth>0?Localization.Format($"裁剪 {option.CropX},{option.CropY} {option.CropWidth} × {option.CropHeight}"):"", option.Speed!=1?$"{MediaEngine.Number(option.Speed)}×":"" }.Where(s=>s.Length>0)):"完整源文件";
     private static string Time(double seconds)=>MediaTime.Format(seconds);
     public override string ToString()=>Path;
 }
@@ -30,6 +31,7 @@ public sealed class ConvertWindow : Window
     public ConvertWindow(IMediaEngine engine,Feature feature,string outputFolder,string[] files,ConversionOptions? initialOptions=null,IReadOnlyList<ConversionOptions>? inputOptions=null)
     {
         Title=feature.Label.Replace("\n"," ");Width=830;Height=620;MinWidth=650;MinHeight=440;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        WindowArtwork.SetKind(this, feature.Icon);
         Closed+=(_,_)=>_lifetime.Cancel();
         _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index))));_options=initialOptions?.Clone()??new(){Format=feature.Format};if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";if(feature.Operation==Operation.Optimize)_options.Quality=32;}
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto,Auto"),Margin=new(18)};
@@ -46,7 +48,7 @@ public sealed class ConvertWindow : Window
         var mode=Ui.Combo(["视频合并","混流：视频 + 音频"],"视频合并");if(feature.Id=="join"){mode.Width=200;top.Children.Add(mode);}panel.Children.Add(top);
         var toolbar=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10,Margin=new(0,15,0,10)};
         var list=new ListBox{ItemsSource=_entries,SelectionMode=SelectionMode.Multiple,BorderThickness=new(1)};
-        list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{var row=new StackPanel{Spacing=4,Margin=new(2,4)};var pathText=new TextBlock{Text=entry?.Path,TextTrimming=TextTrimming.CharacterEllipsis};ToolTip.SetTip(pathText,entry?.Path);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"}};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));row.Children.Add(summary);}return row;});
+        list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{var row=new StackPanel{Spacing=4,Margin=new(2,4)};var pathText=new TextBlock{Text=entry?.Path,TextTrimming=TextTrimming.CharacterEllipsis};Localization.SetIsUserText(pathText,true);ToolTip.SetTip(pathText,entry?.Path);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"}};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));row.Children.Add(summary);}return row;});
         var add=new Button{Content="添加文件…"};add.Click+=async(_,_)=>{foreach(var path in await Ui.Pick(this,"添加文件"))_entries.Add(new(path));};toolbar.Children.Add(add);
         var folder=new Button{Content="添加文件夹…"};folder.Click+=async(_,_)=>{if(await Ui.Folder(this,"添加文件夹") is {} path){foreach(var file in Directory.EnumerateFiles(path))_entries.Add(new(file));}};toolbar.Children.Add(folder);
         toolbar.Children.Add(Ui.Button("移除",()=>{foreach(var x in list.SelectedItems?.Cast<ConversionEntry>().ToArray()??[])_entries.Remove(x);}));
@@ -78,7 +80,7 @@ public sealed class ConvertWindow : Window
                         try{var devices=await ProcessRunner.Run(engine.FFmpeg,["-hide_banner","-f","avfoundation","-list_devices","true","-i",""]);var screens=ScreenCapture.MacScreens(devices.Error);recordScreen.ItemsSource=new[]{"自动屏幕"}.Concat(screens.Select(s=>$"{s.Index}:none | {s.Name}")).ToArray();recordScreen.SelectedIndex=0;if(screens.Count==0)await Ui.Message(this,"未找到屏幕",ScreenCapture.MacPermissionMessage(devices.Error));}catch(Exception ex){await Ui.Message(this,"屏幕列表读取失败",ex.Message);}
                     };
                 }
-                area.Children.Add(new TextBlock{Text="确定后加入队列，点击主窗口“开始”录制屏幕。\n当前录制画面，不包含系统声音。停止会保留已生成的片段。"+(OperatingSystem.IsMacOS()?"\n首次录制需授予屏幕录制权限，授权后重启应用。":""),TextWrapping=TextWrapping.Wrap});
+                area.Children.Add(new TextBlock{Text=Localization.Join("\n",new[]{"确定后加入队列，点击主窗口“开始”录制屏幕。\n当前录制画面，不包含系统声音。停止会保留已生成的片段。",OperatingSystem.IsMacOS()?"首次录制需授予屏幕录制权限，授权后重启应用。":""}.Where(s=>s.Length>0)),TextWrapping=TextWrapping.Wrap});
             }
             else {area.Children.Add(Ui.Text(OperatingSystem.IsMacOS()?"光驱原始设备路径，例如 /dev/rdisk2":"光驱盘符或原始设备路径，例如 D:"));area.Children.Add(special);area.Children.Add(new TextBlock{Text="逐字节复制可读数据光盘为 ISO。需要本机读取权限，不处理加密。",TextWrapping=TextWrapping.Wrap});}
             Grid.SetRow(area,2);panel.Children.Add(area);

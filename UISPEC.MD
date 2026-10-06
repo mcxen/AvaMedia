@@ -4,6 +4,24 @@
 
 本文是 AvaMedia 通用界面规范，适用于主窗口、转换、输出配置、设置、媒体编辑及后续工具窗口。新增控件应遵循本文；已有控件按下述实现状态逐步统一。示例与资源名称均以本仓库为准。
 
+### 产品名称
+
+中文名称为 **天池万象转换**，英文项目名为 **AvaMedia**。名称统一定义在根目录 `Branding.props`，客户端通过 `AppIdentity` 使用构建时的程序集元数据，发布脚本通过 `scripts/Branding.ps1` 读取同一配置。浅色、深色及 Mac OS 9 皮肤共用这套名称。
+
+主窗口显示“天池万象转换 · AvaMedia”及实际程序集版本；播放器、关于窗口、托盘和系统右键菜单使用同一中文名称。Windows 安装器、快捷方式和卸载入口同步使用中文名；macOS 的应用显示名与 `.app` 文件名统一为中文名。仓库、命名空间、可执行文件、配置目录和发布资产文件名使用 AvaMedia。
+
+### 界面语言
+
+提供 `zh-CN`、`en-US` 与 `system`（默认）三种偏好。首次启动跟随系统：中文环境用简体中文，其他环境用 English；主窗口“语言 / Language”菜单可实时切换，选择保存在 `AppSettings.Language`。语言独立于皮肤，已打开窗口及之后打开的窗口使用同一选择。英文界面的应用名使用 AvaMedia，中文界面使用天池万象转换；安装包的固定产品名保持品牌配置。
+
+`Localization/Strings.en-US.json` 维护中文原文到英文文案的资源。`Localization` 只处理显示属性，使用 `SetCurrentValue` 保留原有绑定；中文原文和模板参数保留用于语言切换。菜单、按钮、标题、只读说明、提示、无障碍名称与任务摘要共用该层，原生文件选择器和托盘使用同一资源入口。
+
+翻译必须匹配完整资源键，禁止根据前缀、后缀、关键词或任意片段推断整句译文。未知完整文案保持原文并补齐资源，不能生成“Show 完成提示弹窗”等混合文字。动态文案使用 `Localization.Format` / `SetText` 等明确参数模板；独立语义短句通过 `Localization.Join` 组合，选项标签参数显式使用 `Localization.Key`。参数中的文件名、路径、URL 和用户文字保留原值；原始模板、数值格式与参数必须在控件重新套用皮肤或中英文往返切换后保留。
+
+新增或改动文案须核对受影响页面的整句资源与参数位置。编译通过只证明代码和 XAML 可构建，不能作为翻译覆盖完整的结论；报告检查范围，不把部分窗口、初始状态或单套皮肤的结果当成全部界面。仅在用户要求界面检查时，按其范围检查实际文字、菜单、提示和语言切换，不扩展到无关媒体测试。
+
+可编辑文本、文件名、下载标题和路径属于用户数据，不翻译。文件列表和播放器文件名应声明 `Localization.IsUserText="True"`；模板中的参数保持原值。下拉框仅翻译显示文字，`ItemsSource`、`SelectedItem`、编码器、队列和导出参数继续使用原始语义值。新增文案应同步维护英文资源；长句允许换行，技术日志与媒体元数据保留原始内容。
+
 ## 1. 调研结论与设计方向
 
 Avalonia 是跨平台 UI 框架，其视觉由主题、资源、样式和控件模板共同决定。官方提供 `SimpleTheme` 与 `FluentTheme`：前者适合定制，后者提供受 Microsoft Fluent 启发的控件外观，并支持 Compact 密度。[Simple Theme](https://v11.docs.avaloniaui.net/docs/basics/user-interface/styling/themes/simple/)、[Fluent Theme](https://v11.docs.avaloniaui.net/docs/basics/user-interface/styling/themes/fluent/)
@@ -362,7 +380,9 @@ Motion.SetReducedMotion(settings.ReduceMotion);
 
 `SettingsWindow.axaml` 保留截图的经典表单结构：默认客户区 926×800、最小 780×640。正文继承皮肤字体与 `UiFontBody`，字段复用 `UiFieldHeight`，分组使用 `UiSettingSectionHeight` 最小高度并允许内容展开。标签页使用当前皮肤的 TabItem 模板；操作按钮复用 `ActionIcon` 与 `dialog-action` / `field-action`，GPU、CPU 和格式插画使用原创 `SettingsIcon`。
 
-窗口继续使用 `UiCanvas` / `UiSurface` / `UiSurfaceRaised` / `UiBorder` / `UiDivider` / `UiText` 等动态语义资源、基础键盘焦点和全局减少动效。正文纵向滚动，底部默认 / 取消 / 应用 / 确定固定；错误使用可换行文字和 `UiDanger`。HA Test 是真实可取消任务，运行期间禁用重复入口；关闭弹窗后重新启用。
+窗口继续使用 `UiCanvas` / `UiSurface` / `UiSurfaceRaised` / `UiBorder` / `UiDivider` / `UiText` 等动态语义资源、基础键盘焦点和全局减少动效。正文纵向滚动，底部默认 / 取消 / 应用 / 确定固定；错误使用可换行文字和 `UiDanger`。「查看 GPU 能力」是真实可取消任务，运行期间禁用重复入口；关闭弹窗后重新启用。
+
+GPU 分组默认勾选「自动适配 GPU」，输出编码器默认「自动」。按系统、可用硬件、容器和源视频编码选择后端，不增加必须手选的显卡或驱动表单；Tooltip 简述自动回退。能力窗口仅显示本平台后端，详细原因保留在日志与 Tooltip。三套皮肤继续复用现有字段和按钮尺寸。
 
 未接入的第三方设备资源共享保留禁用状态及原因说明，不能用可操作开关表示不存在的能力。设置修改为草稿，应用立即提交并同步 Motion，取消只丢弃后续未应用修改；输入恢复原值时应用按钮恢复禁用，非法数值文字必须阻止提交。专项检查覆盖浅 / 深主题、最小尺寸、应用与取消、无效输入、保存失败、硬件检测生命周期和真实输出；114 项检查通过。具体功能、参考范围与像素一致性的限制见 [docs/SETTINGS.md](docs/SETTINGS.md)。
 

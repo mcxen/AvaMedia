@@ -9,8 +9,8 @@ public partial class MainWindow
     {
         var files=await StorageProvider.OpenFilePickerAsync(new()
         {
-            Title="快速剪辑 · 选择要编辑的视频",AllowMultiple=true,
-            FileTypeFilter=[new FilePickerFileType("视频文件"){Patterns=QuickClipBatch.VideoExtensions.Select(e=>"*."+e).ToArray()},FilePickerFileTypes.All]
+            Title = Localization.Text("快速剪辑 · 选择要编辑的视频"),AllowMultiple=true,
+            FileTypeFilter=[new FilePickerFileType(Localization.Text("视频文件")){Patterns=QuickClipBatch.VideoExtensions.Select(e=>"*."+e).ToArray()},FilePickerFileTypes.All]
         });
         await EditQuickClipAsync(files.Select(f=>f.TryGetLocalPath()).OfType<string>());
     }

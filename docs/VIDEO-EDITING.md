@@ -42,6 +42,8 @@ Fast Copy 的真实切点受源文件关键帧和容器限制。需要任意帧�
 
 单文件、批量和执行引擎共用 `CropGeometry` 校验。批量草稿全部有效后才分配任务；源文件与已有输出不覆盖。单文件可同时保留时间区间和画面区域。
 
+“原格式 / 原属性”导出对 `yuvj420p` 等全范围像素格式使用对应的 `yuv420p` 等布局，并显式保留全范围和原有色彩标记，避免严格像素格式选择阻止编码器所需的转换。使用 libkvazaar 时，对未满足 8 像素对齐的裁剪尺寸在编码内部复制边缘像素，并通过 HEVC 的可见画面窗口排除对齐区域；保留用户选定的可见尺寸，不增加可见黑边。实现依据 [FFmpeg 像素格式说明](https://ffmpeg.org/ffmpeg.html#Advanced-Video-options) 和 [HEVC metadata 滤镜](https://ffmpeg.org/ffmpeg-bitstream-filters.html#hevc_005fmetadata)。
+
 ## 合并、混流与普通转换
 
 每个列表项都有独立草稿，同一源文件可以重复加入并选取不同片段。上移、下移和移除作用于列表项；列表显示该项的区间、裁剪区域和速度。普通转换对每项生成独立输出，合并按当前顺序连接各输入编辑后的时间轴。
@@ -56,4 +58,4 @@ Fast Copy 的真实切点受源文件关键帧和容器限制。需要任意帧�
 
 `tests/AvaMedia.ClipCropTests` 验证帧边界、可变帧率、时间戳偏移、移动与四角缩放、键盘操作、输入错误、区间播放、重复源片段、合并解码顺序、混流独立 copy 的包哈希、组合输出与源文件哈希。预览检查先解码真实帧，再故意延迟交付，验证新定位、输入区间与关闭操作不会被旧结果覆盖；另有短画面、长音轨样例验证播放终点。`tests/AvaMedia.BatchCropTests` 验证比例映射、多轨尺寸、队列入口与真实输出。`tests/AvaMedia.QuickClipTests` 验证文件隔离、分割、流复制和公共配置。
 
-这些流程共用跨平台核心与 Avalonia 控件，发布目标为 Windows x64、macOS Apple Silicon、macOS Intel。当前媒体输出与控件验证在 Windows 运行；Mac 真机操作、播放和输出仍需验证。最新报告与剩余核对项以根目录 TASK.md 为准。
+这些流程共用跨平台核心与 Avalonia 控件，后续发布目标为 Windows x64、macOS Apple Silicon（ARM64）。当前媒体输出与控件验证在 Windows 运行；Mac 真机操作、播放和输出仍需验证。最新报告与剩余核对项以根目录 TASK.md 为准。

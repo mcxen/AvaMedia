@@ -1,0 +1,50 @@
+name: macOS ARM64 FFmpeg
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/macos/**'
+      - 'scripts/Install-MediaTools-macOS.sh'
+      - 'src/AvaMedia.Core/BatchVideoTools.cs'
+      - '.github/workflows/ffmpeg-macos.yml'
+  pull_request:
+    paths:
+      - 'scripts/macos/**'
+      - 'scripts/Install-MediaTools-macOS.sh'
+      - 'src/AvaMedia.Core/BatchVideoTools.cs'
+      - '.github/workflows/ffmpeg-macos.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Install build tools
+        run: brew install cmake meson ninja pkgconf autoconf automake libtool
+      - name: Build and verify the custom runtime
+        run: python3 scripts/macos/Build-FFmpeg.py
+      - name: Install into a directory containing spaces and verify relocation
+        run: |
+          runtime=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-osx-arm64.tar.gz' -print)
+          checksums=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-SHA256SUMS.txt' -print)
+          bash scripts/Install-MediaTools-macOS.sh --archive "$runtime" --checksums "$checksums" --destination "$RUNNER_TEMP/AvaMedia tools"
+          "$RUNNER_TEMP/AvaMedia tools/ffmpeg" -v error -f lavfi -i testsrc2=size=64x64 -t 0.1 -f null -
+          "$RUNNER_TEMP/AvaMedia tools/ffprobe" -version
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ffmpeg-osx-arm64
+          path: artifacts/AvaMedia-FFmpeg-*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ffmpeg-build-logs
+          path: artifacts/ffmpeg-build-*/*.log

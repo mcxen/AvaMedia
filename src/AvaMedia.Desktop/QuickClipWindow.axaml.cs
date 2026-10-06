@@ -30,7 +30,7 @@ public sealed class QuickClipEntry : Observable
     private bool _up, _down;
     public bool CanMoveUp { get => _up; internal set => Set(ref _up, value); }
     public bool CanMoveDown { get => _down; internal set => Set(ref _down, value); }
-    public string Range => $"剪辑区间  {Time(Options.Start)} → {(Options.End > 0 ? Time(Options.End) : "结尾")}";
+    public string Range => Localization.Format($"剪辑区间  {Time(Options.Start)} → {(Options.End > 0 ? Time(Options.End) : Localization.Text("结尾"))}");
     public QuickClipEntry(string path, ConversionOptions options) { Path = path; Options = options.Clone(); }
     public void SetOptions(ConversionOptions options) { Options = options.Clone(); Raise(nameof(Range)); }
     internal static string Time(double seconds) => MediaTime.Format(seconds);
@@ -96,7 +96,7 @@ public sealed partial class QuickClipWindow : Window
             {
                 if (_closed || revision!=entry.LoadRevision || !_entries.Contains(entry)) { bitmap.Dispose(); return; }
                 entry.Info = info; entry.Error = ""; entry.Thumbnail?.Dispose(); entry.Thumbnail = bitmap; entry.PreviewStatus = "";
-                entry.Details = $"{QuickClipEntry.Time(info.Duration)}  ·  {info.Width} × {info.Height}  ·  {info.VideoCodec} / {(info.HasAudio ? info.AudioCodec : "无音轨")}  ·  {new FileInfo(entry.Path).Length / 1048576d:0.00} MB";
+                entry.Details = Localization.Format($"{QuickClipEntry.Time(info.Duration)}  ·  {info.Width} × {info.Height}  ·  {info.VideoCodec} / {(info.HasAudio ? info.AudioCodec : Localization.Text("无音轨"))}  ·  {new FileInfo(entry.Path).Length / 1048576d:0.00} MB");
             });
         }
         catch (OperationCanceledException) { }
@@ -105,7 +105,7 @@ public sealed partial class QuickClipWindow : Window
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (_closed || revision!=entry.LoadRevision || !_entries.Contains(entry)) return;
-                entry.Info=null;entry.Thumbnail?.Dispose();entry.Thumbnail=null;entry.Error = ex.Message; entry.Details = "无法读取：" + ex.Message; entry.PreviewStatus = "预览不可用";
+                entry.Info=null;entry.Thumbnail?.Dispose();entry.Thumbnail=null;entry.Error = ex.Message; entry.Details = Localization.Format($"无法读取：{ex.Message}"); entry.PreviewStatus = "预览不可用";
             });
         }
         finally { if (acquired) _loadSlots.Release(); }
@@ -127,7 +127,7 @@ public sealed partial class QuickClipWindow : Window
     private void UpdateOrder()
     {
         for (int i = 0; i < _entries.Count; i++) { _entries[i].CanMoveUp = i > 0; _entries[i].CanMoveDown = i < _entries.Count - 1; }
-        EmptyText.IsVisible = _entries.Count == 0; CountText.Text = $"{_entries.Count} 个文件 / 片段";
+        EmptyText.IsVisible = _entries.Count == 0; Localization.SetText(CountText,$"{_entries.Count} 个文件 / 片段");
     }
     private static QuickClipEntry? Entry(object? sender) => (sender as Control)?.DataContext as QuickClipEntry;
     private void UpClick(object? sender, RoutedEventArgs e) { if (Entry(sender) is { } item) MoveEntry(item, -1); }
@@ -141,14 +141,14 @@ public sealed partial class QuickClipWindow : Window
     {
         if (PresetName is null || AppendSetting is null || ModeNote is null) return;
         PresetName.Text = Preset == "Fast Copy" ? "FastCopy" : Preset;
-        AppendSetting.Content = $"添加设置名称 [{PresetName.Text}]";
-        ModeNote.Text = Preset == "Fast Copy" ? "Fast Copy 保留源格式和编码，复制首个视频及音轨；剪辑起点受关键帧限制。" : $"输出 {Preset} 并重新编码，可应用精确剪辑、裁剪、速度和淡入淡出。";
+        Localization.SetContent(AppendSetting,$"添加设置名称 [{PresetName.Text}]");
+        ModeNote.Text = Preset == "Fast Copy" ? "Fast Copy 保留源格式和编码，复制首个视频及音轨；剪辑起点受关键帧限制。" : Localization.Format($"输出 {Preset} 并重新编码，可应用精确剪辑、裁剪、速度和淡入淡出。");
     }
 
     private async void AddFilesClick(object? sender, RoutedEventArgs e)
     {
         var skipped = AddFiles(await Ui.Pick(this, "添加视频文件"));
-        if (skipped.Count > 0) await Ui.Message(this, "未添加的文件", "仅添加支持的视频文件。\n\n" + string.Join("\n", skipped));
+        if (skipped.Count > 0) await Ui.Message(this, "未添加的文件", Localization.Format($"仅添加支持的视频文件。\n\n{string.Join("\n", skipped)}"));
     }
     private async void AddFolderClick(object? sender, RoutedEventArgs e)
     {
@@ -178,7 +178,7 @@ public sealed partial class QuickClipWindow : Window
     private async void InfoClick(object? sender, RoutedEventArgs e)
     {
         if (Entry(sender) is not { } entry) return; await entry.Ready;
-        await Ui.Message(this, "媒体信息 · " + entry.Name, entry.Path + "\n\n" + entry.Details + "\n" + entry.Range + "\n\n" + (entry.Info?.RawJson ?? entry.Error));
+        await Ui.Message(this, Localization.Format($"媒体信息 · {entry.Name}"), entry.Path + "\n\n" + entry.Details + "\n" + entry.Range + "\n\n" + (entry.Info?.RawJson ?? entry.Error));
     }
     private async void EditEntryClick(object? sender, RoutedEventArgs e)
     {

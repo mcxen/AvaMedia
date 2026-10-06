@@ -1,6 +1,12 @@
 #ifndef AppVersion
   #define AppVersion "1.0.5"
 #endif
+#ifndef AppChineseName
+  #error AppChineseName is required
+#endif
+#ifndef AppDisplayName
+  #error AppDisplayName is required
+#endif
 #ifndef PublishDir
   #error PublishDir is required
 #endif
@@ -10,14 +16,14 @@
 
 [Setup]
 AppId={{957F8776-D499-4687-B2CE-36041338AD68}
-AppName=AvaMedia
+AppName={#AppDisplayName}
 AppVersion={#AppVersion}
 AppPublisher=AvaMedia contributors
 AppPublisherURL=https://github.com/mcxen/AvaMedia
 AppSupportURL=https://github.com/mcxen/AvaMedia/issues
 AppUpdatesURL=https://github.com/mcxen/AvaMedia/releases
 DefaultDirName={localappdata}\Programs\AvaMedia
-DefaultGroupName=AvaMedia
+DefaultGroupName={#AppChineseName}
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -41,10 +47,10 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\AvaMedia"; Filename: "{app}\AvaMedia.Desktop.exe"
+Name: "{group}\{#AppChineseName}"; Filename: "{app}\AvaMedia.Desktop.exe"
 Name: "{group}\Install media tools"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\Install-MediaTools.ps1"" -Destination ""{app}\tools"""; WorkingDir: "{app}"
-Name: "{group}\Uninstall AvaMedia"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\AvaMedia"; Filename: "{app}\AvaMedia.Desktop.exe"; Tasks: desktopicon
+Name: "{group}\卸载 {#AppChineseName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#AppChineseName}"; Filename: "{app}\AvaMedia.Desktop.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\AvaMedia.Desktop.exe"; Description: "Launch AvaMedia"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\AvaMedia.Desktop.exe"; Description: "启动 {#AppChineseName}"; Flags: nowait postinstall skipifsilent

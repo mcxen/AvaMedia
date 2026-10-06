@@ -21,7 +21,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public string PreviewTip => IsRunning ? "任务正在运行" : Catalog.Find(Job.FeatureId).Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || Job.FeatureId == "download" || Job.State == JobState.Failed ? "查看任务详情" : "预览 / 编辑";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
-    public string Name => Job.FeatureId == "download" ? Job.Name : Job.Inputs.Length == 0 ? Catalog.Find(Job.FeatureId).Label.Replace("\n", " ") : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? $"  +{Job.Inputs.Length - 1} 个文件" : "");
+    public string Name => Job.FeatureId == "download" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
     public string OutputName => Path.GetFileName(Job.Output.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     public string FileSummary => _fileSummary;
     public string MediaSummary
@@ -34,7 +34,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             if (_media.HasVideo && _media.Width > 0 && _media.Height > 0) parts.Add($"{_media.Width} × {_media.Height}");
             if (_media.HasVideo && _media.FrameRate > 0 && _media.Duration > 0) parts.Add(Number(_media.FrameRate) + " fps");
             if (parts.Count == 0) parts.Add("媒体信息已读取");
-            return (Job.Inputs.Length > 1 ? "首个：" : "") + string.Join(" · ", parts);
+            return Job.Inputs.Length > 1 ? Localization.Format($"首个：{Localization.Join(" · ", parts)}") : Localization.Join(" · ", parts);
         }
     }
     public string CodecSummary
@@ -48,10 +48,10 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             {
                 parts.Add(Codec(_media.AudioCodec));
                 if (_media.AudioSampleRate > 0) parts.Add(Number(_media.AudioSampleRate / 1000d) + " kHz");
-                if (_media.AudioChannels > 0) parts.Add(_media.AudioChannels switch { 1 => "单声道", 2 => "立体声", _ => $"{_media.AudioChannels} 声道" });
+                if (_media.AudioChannels > 0) parts.Add(_media.AudioChannels switch { 1 => "单声道", 2 => "立体声", _ => Localization.Format($"{_media.AudioChannels} 声道") });
             }
             else if (_media.HasVideo && _media.Duration > 0) parts.Add("无音轨");
-            return string.Join(" · ", parts.Where(p => p.Length > 0));
+            return Localization.Join(" · ", parts.Where(p => p.Length > 0));
         }
     }
     public bool HasCodecSummary => CodecSummary.Length > 0;
@@ -71,33 +71,33 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             else if (feature.Category is "视频" or "音频" or "图片")
             {
                 if (!label.Equals(o.Format, StringComparison.OrdinalIgnoreCase)) parts.Add(o.Format.ToUpperInvariant());
-                if (feature.Operation == Operation.Frames) parts.Add($"每 {Number(o.FrameInterval)} 秒一帧");
-                else if (o.LosslessRotation is { } direction) parts.Add($"Fast Copy · 方向标记 {direction}°");
+                if (feature.Operation == Operation.Frames) parts.Add(Localization.Format($"每 {Number(o.FrameInterval)} 秒一帧"));
+                else if (o.LosslessRotation is { } direction) parts.Add(Localization.Format($"Fast Copy · 方向标记 {direction}°"));
                 else if (o.PreserveSourceAttributes) parts.Add("原视频编码 · 其他轨道直拷");
                 else if (o.CopyStreams) parts.Add("直接复制流");
                 else
                 {
                     if (!MediaEngine.IsAudio(o.Format) && !MediaEngine.IsImage(o.Format)) parts.Add(o.VideoCodec == "自动" ? "自动编码" : Codec(o.VideoCodec));
-                    if (o.Width > 0 || o.Height > 0) parts.Add($"{(o.Width > 0 ? o.Width.ToString() : "自动")} × {(o.Height > 0 ? o.Height.ToString() : "自动")}");
+                    if (o.Width > 0 || o.Height > 0) parts.Add(Localization.Format($"{(o.Width > 0 ? o.Width.ToString() : Localization.Text("自动"))} × {(o.Height > 0 ? o.Height.ToString() : Localization.Text("自动"))}"));
                     if (o.Fps > 0) parts.Add(Number(o.Fps) + " fps");
                     if (o.Format is not ("flac" or "wav" or "aiff") && MediaEngine.IsAudio(o.Format)) parts.Add(o.AudioBitrate + " kbps");
                 }
-                if (o.Start > 0 || o.End > 0) parts.Add($"截取 {Time(o.Start, true)}–{(o.End > 0 ? Time(o.End, true) : "结尾")}");
-                if (o.Speed != 1) parts.Add(Number(o.Speed) + "× 速度");
-                if (o.Rotation != 0) parts.Add($"旋转 {o.Rotation}°");
-                if (o.CropWidth > 0) parts.Add($"裁剪 {o.CropWidth} × {o.CropHeight}");
+                if (o.Start > 0 || o.End > 0) parts.Add(Localization.Format($"截取 {Time(o.Start, true)}–{(o.End > 0 ? Time(o.End, true) : Localization.Text("结尾"))}"));
+                if (o.Speed != 1) parts.Add(Localization.Format($"{Number(o.Speed)}× 速度"));
+                if (o.Rotation != 0) parts.Add(Localization.Format($"旋转 {o.Rotation}°"));
+                if (o.CropWidth > 0) parts.Add(Localization.Format($"裁剪 {o.CropWidth} × {o.CropHeight}"));
                 if (o.Mute && !MediaEngine.IsImage(o.Format)) parts.Add("静音");
                 if (o.SubtitleMode == SubtitleMode.BurnIn) parts.Add("烧录字幕");
                 if (Job.InputOptions?.Count > 0) parts.Add("逐文件编辑");
             }
-            return string.Join(" · ", parts);
+            return Localization.Join(" · ", parts);
         }
     }
     public string StateText => Job.State switch
     {
         JobState.Waiting => "等待开始",
-        JobState.Running => (Job.FeatureId == "download" ? "下载中" : "处理中") + $"  {Job.Progress:0.0}%",
-        JobState.Completed => "已完成" + (_outputSize.Length > 0 ? " · " + _outputSize : ""),
+        JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
+        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         _ => "已停止"
     };
@@ -114,8 +114,8 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         var local = Job.Inputs.Where(p => !Uri.TryCreate(p, UriKind.Absolute, out var uri) || uri.IsFile).ToArray();
         var sizes = local.Select(FileSize).ToArray();
         _fileSummary = Job.Inputs.Length == 0 ? "录制任务" : local.Length == 0 ? "在线来源" :
-            (Job.Inputs.Length > 1 ? $"{Job.Inputs.Length} 个文件 · " : Extension.Length > 0 ? Extension + " · " : "") +
-            (sizes.All(s => s >= 0) ? Size(sizes.Sum()) : "大小未知");
+            Localization.Join(" · ", new[] { Job.Inputs.Length > 1 ? Localization.Format($"{Job.Inputs.Length} 个文件") : Extension,
+                sizes.All(s => s >= 0) ? Size(sizes.Sum()) : "大小未知" }.Where(s=>s.Length>0));
         _outputSize = Job.State == JobState.Completed && FileSize(Job.Output) is >= 0 and var size ? Size(size) : "";
         Raise(string.Empty);
     }

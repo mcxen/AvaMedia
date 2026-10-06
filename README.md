@@ -1,10 +1,10 @@
-# AvaMedia
+# 天池万象转换 · AvaMedia
 
 [![CI](https://github.com/mcxen/AvaMedia/actions/workflows/ci.yml/badge.svg)](https://github.com/mcxen/AvaMedia/actions/workflows/ci.yml)
 [![Release](https://github.com/mcxen/AvaMedia/actions/workflows/release.yml/badge.svg)](https://github.com/mcxen/AvaMedia/actions/workflows/release.yml)
 [![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
 
-使用 **Avalonia 11.3.22、C# 和 .NET 8** 开发的开源桌面多媒体客户端，支持 Windows 与 macOS。经典布局和编辑流程参考 FormatFactory X64 5.10.0；代码、控件和图标独立实现，采用 AGPL-3.0-only。
+**天池万象转换（AvaMedia）** 使用 **Avalonia 11.3.22、C# 和 .NET 8** 开发，是支持 Windows 与 macOS 的开源桌面多媒体客户端。经典布局和编辑流程参考 FormatFactory X64 5.10.0；代码、控件和图标独立实现，采用 AGPL-3.0-only。
 
 ## 下载与安装
 
@@ -14,7 +14,10 @@
 | --- | --- | --- |
 | Windows x64 | `AvaMedia-版本-win-x64-setup.exe`，每用户安装、快捷方式与卸载 | `AvaMedia-版本-win-x64.zip` |
 | macOS Apple Silicon | `AvaMedia-版本-osx-arm64.pkg` / `.dmg` | `AvaMedia-版本-osx-arm64.zip` |
-| macOS Intel | `AvaMedia-版本-osx-x64.pkg` / `.dmg` | `AvaMedia-版本-osx-x64.zip` |
+
+后续 macOS 发布仅提供 Apple Silicon（ARM64）版本。
+
+客户端、Windows 快捷方式和 macOS 应用使用中文名“天池万象转换”；macOS 应用文件名为 `天池万象转换.app`。GitHub 仓库、可执行文件和发布压缩包继续使用 AvaMedia。品牌配置统一维护在 [`Branding.props`](Branding.props)。
 
 Release 同时提供源码 ZIP 和 `SHA256SUMS.txt`。macOS 包采用 ad-hoc 签名，尚未经过 Developer ID 签名和公证；初次启动可能需要在系统隐私与安全性中允许打开。
 
@@ -26,7 +29,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-MediaTools.p
 
 Windows 工具安装采用共享 DLL 构建，ffmpeg 与 ffprobe 共用媒体库，仅安装所需运行文件并清理下载缓存。当前运行文件约 153.71 MiB，比原静态程序组合减少 41.7%；与格式工厂的实测比较及验证见 [FFmpeg 体积说明](docs/FFMPEG-SIZE.md)。
 
-macOS 已包含下载工具；使用 `bash scripts/Install-MediaTools-macOS.sh` 安装媒体引擎。也可在“选项 → 外部工具”指定路径，或设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP`。详见 [平台与工具配置](docs/PLATFORMS.md)。
+macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装定制 ARM64 FFmpeg，核对下载清单并清理临时文件；应用已包含下载工具。定制引擎按现有功能配置依赖，作为独立运行包提供对应源码，构建与原生验证说明见 [macOS FFmpeg](docs/FFMPEG-MACOS.md)。也可在“选项 → 外部工具”指定路径，或设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP`。详见 [平台与工具配置](docs/PLATFORMS.md)。
 
 ## 界面
 
@@ -52,6 +55,7 @@ macOS 已包含下载工具；使用 `bash scripts/Install-MediaTools-macOS.sh` 
 
 ## 功能
 
+- **中英文界面**：“语言 / Language”菜单提供简体中文、English 和跟随系统，实时切换并保存偏好；浅色、深色和 Mac OS 9 皮肤共用语言资源。
 - **媒体转换**：音视频、图片及其他容器；尺寸、编码、质量、帧率、采样率、声道和预设可配置。
 - **快速剪辑**：选择视频直接编辑，多文件、多片段、按段数 / 时长 / 时间点分割，最后统一配置导出，每个片段分别输出。
 - **预览与编辑**：实际帧定位、区间播放、结束边界帧、选区移动 / 缩放、比例锁定、键盘微调、旋转、镜像、速度和淡入淡出。
@@ -59,7 +63,7 @@ macOS 已包含下载工具；使用 `bash scripts/Install-MediaTools-macOS.sh` 
 - **合并、混流与字幕**：逐输入保留编辑参数，支持视频 / 音轨选择、字幕烧录与独立字幕轨配置。
 - **视频下载**：分享文本与批量链接解析、YouTube 播放列表 / B站分P、多画质、视频 / 音频、字幕、登录态与代理；内置 yt-dlp 和 QuickJS-NG，停止后可重试续传。平台要求与验证见 [视频下载](docs/VIDEO-DOWNLOAD.md)。
 - **任务与工具**：并行队列、停止、重试、日志、拖放、恢复和导入导出；PDF、归档、导出帧、录屏与下载入口。
-- **高级设置**：真实硬件编码测试、GPU 自动选择与回退、线程、图片质量、减少动效和外部工具配置。
+- **高级设置**：[自动 GPU 转码](docs/GPU-TRANSCODING.md)，适配 Apple M 系列、NVIDIA RTX、Intel 核显 / Arc、AMD，自动匹配编码与解码路径并分级回退；另提供线程、图片质量、减少动效和外部工具配置。
 
 使用流程：选择功能 → 添加媒体 → 配置或编辑 → 加入队列 → 开始。快速剪辑返回编辑保留草稿，取消不加入任务；Fast Copy 受关键帧限制，包含滤镜时需重新编码。水印区域采用模糊处理，PDF → Office 提取文本。详见 [功能与验证](docs/FEATURES.md)。
 
@@ -93,9 +97,11 @@ pwsh -File scripts/Package-Windows.ps1 -Version 1.0.5
 
 开发者可用 `AvaMedia.Desktop --capture <目录> --editor <视频> --verify-ui` 捕获实际界面并验证解码，`--quick-clip <视频>` 捕获编辑器和导出页，`--dark` / `--macos9` 切换皮肤。图标资产和提示词保存在 `Assets`，同系列维护见 [$avamedia-icons](.agents/skills/avamedia-icons/SKILL.md)。
 
+“皮肤 → Mac OS 9 · Platinum” 使用独立生成的 20 款透明功能图标，覆盖全部 54 个功能入口，并在已打开窗口和新子窗口中随皮肤切换。素材、完整提示词和哈希保存在 [`Assets/FeatureIcons/macos9`](src/AvaMedia.Desktop/Assets/FeatureIcons/macos9/README.md)；浅色、深色皮肤继续使用 v2 系列。[$avamedia-icons](.agents/skills/avamedia-icons/SKILL.md) 支持维护这两套风格。
+
 ## 自动发布
 
-推送 `vMAJOR.MINOR.PATCH` tag 后，[Release 工作流](.github/workflows/release.yml) 自动验证、构建安装包、生成源码与校验清单并上传 GitHub Release。Windows 验证安装、原生启动和卸载；Mac 包在对应架构 runner 构建并验证启动。
+推送 `vMAJOR.MINOR.PATCH` tag 后，[Release 工作流](.github/workflows/release.yml) 自动验证、构建安装包、生成源码与校验清单并上传 GitHub Release。Windows 验证安装、原生启动和卸载；Mac ARM64 包在 Apple Silicon runner 构建并验证启动。
 
 ```sh
 git tag -a v1.0.5 -m "AvaMedia 1.0.5"

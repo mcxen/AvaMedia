@@ -85,8 +85,8 @@ public sealed class BatchToolsWindow : Window
         {
             var files = await StorageProvider.OpenFilePickerAsync(new()
             {
-                Title = "选择多个视频", AllowMultiple = true,
-                FileTypeFilter = [new FilePickerFileType("视频") { Patterns = ["*.mp4", "*.mkv", "*.mov", "*.avi", "*.webm", "*.wmv", "*.flv", "*.mpg", "*.mpeg", "*.m4v", "*.ts", "*.mts", "*.m2ts", "*.vob", "*.3gp", "*.ogv", "*.asf"] }, FilePickerFileTypes.All]
+                Title = Localization.Text("选择多个视频"), AllowMultiple = true,
+                FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = ["*.mp4", "*.mkv", "*.mov", "*.avi", "*.webm", "*.wmv", "*.flv", "*.mpg", "*.mpeg", "*.m4v", "*.ts", "*.mts", "*.m2ts", "*.vob", "*.3gp", "*.ogv", "*.asf"] }, FilePickerFileTypes.All]
             });
             AddPaths(files.Select(f => f.TryGetLocalPath()).OfType<string>());
         };
@@ -94,7 +94,7 @@ public sealed class BatchToolsWindow : Window
         var addFolders = new Button { Content = "添加文件夹…" };
         addFolders.Click += async (_, _) =>
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = "选择视频文件夹", AllowMultiple = true });
+            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = Localization.Text("选择视频文件夹"), AllowMultiple = true });
             await AddFolders(folders.Select(f => f.TryGetLocalPath()).OfType<string>());
         };
         _importBar.Children.Add(addFolders);
@@ -128,6 +128,7 @@ public sealed class BatchToolsWindow : Window
             void Add(int column, string property)
             {
                 var t = new TextBlock { Classes = { "caption" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+                if (property is nameof(BatchVideoEntry.Name) or nameof(BatchVideoEntry.NewName)) Localization.SetIsUserText(t, true);
                 t.Bind(TextBlock.TextProperty, new Binding(property)); Grid.SetColumn(t, column); g.Children.Add(t);
             }
         });
@@ -150,9 +151,9 @@ public sealed class BatchToolsWindow : Window
         var preset = Ui.Combo(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], "3 × 3");
         preset.SelectionChanged += (_, _) => { if (preset.SelectedItem is string value && value != "自定义") { var p = value.Split('×'); _columns.Text = p[0].Trim(); _rows.Text = p[1].Trim(); } };
         AddRow(_sheetPanel, "宫格预设", preset);
-        AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows)); AddRow(_sheetPanel, "单格宽 / 高", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
+        AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows)); AddRow(_sheetPanel, "长边 / 短边上限", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
         AddRow(_sheetPanel, "开始 / 结束秒", Pair(_start, _end)); AddRow(_sheetPanel, "图片格式", _format); _sheetPanel.Children.Add(_timestamps);
-        _sheetPanel.Children.Add(new TextBlock { Text = "均匀抽取时间区间内的视频帧，按时间顺序拼图。结束为 0 表示视频末尾。竖屏保留比例；每个视频独立输出。", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
+        _sheetPanel.Children.Add(new TextBlock { Text = "横屏、竖屏按原始显示比例自动适配格子尺寸，无补黑边、无外框或格子间隔。320 / 180 上限下，16:9 为 320×180，9:16 为 180×320。结束为 0 表示视频末尾；每个视频独立输出。", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
         _output = Ui.Input(outputFolder); _sheetPanel.Children.Add(Ui.Text("输出文件夹")); _sheetPanel.Children.Add(_output);
         var browse = new Button { Content = "选择输出目录…", HorizontalAlignment = HorizontalAlignment.Stretch };
         browse.Click += async (_, _) => { if (await Ui.Folder(this, "选择截图目录") is { } path) _output.Text = path; }; _sheetPanel.Children.Add(browse);
@@ -163,6 +164,7 @@ public sealed class BatchToolsWindow : Window
         var open = new Button { Content = "打开输出文件夹", HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => { try { var folder = System.IO.Path.GetFullPath(_output.Text ?? ""); Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); } catch (Exception ex) { await Ui.Message(this, "打开失败", ex.Message); } }; _sheetPanel.Children.Add(open);
         tabs.Items.Add(new TabItem { Header = "多宫格截图", Content = new ScrollViewer { Content = _sheetPanel } }); body.Children.Add(tabs);
+        tabs.SelectionChanged += (_, _) => Controls.WindowArtwork.SetKind(this, tabs.SelectedIndex == 1 ? "frames" : "gear");
         Grid.SetRow(body, 2); root.Children.Add(body);
         var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -193,7 +195,7 @@ public sealed class BatchToolsWindow : Window
             }
             InvalidatePlan();
         }
-        catch (Exception ex) { _progressText.Text = "导入失败：" + ex.Message; }
+        catch (Exception ex) { _progressText.Text = Localization.Format($"导入失败：{ex.Message}"); }
     }
     private async Task AddFolders(IEnumerable<string> paths)
     {
@@ -207,7 +209,7 @@ public sealed class BatchToolsWindow : Window
     {
         _renamePlan = null; if (_rename is not null) _rename.IsEnabled = false;
         foreach (var row in _entries) row.NewName = "";
-        _summary.Text = $"{_entries.Count} 个视频，已勾选 {_entries.Count(e => e.Include)} 个。重命名与截图只处理勾选项。";
+        Localization.SetText(_summary,$"{_entries.Count} 个视频，已勾选 {_entries.Count(e => e.Include)} 个。重命名与截图只处理勾选项。");
     }
     private async Task PreviewRename()
     {
@@ -226,14 +228,14 @@ public sealed class BatchToolsWindow : Window
     {
         if (_renamePlan is null) return; var plan = _renamePlan;
         SetBusy(true); _renaming = true;
-        try { var result = await Task.Run(() => BatchVideoTools.ApplyRename(plan, _journal)); UpdatePaths(result); _progressText.Text = $"已重命名 {result.Length} 个视频。"; }
+        try { var result = await Task.Run(() => BatchVideoTools.ApplyRename(plan, _journal)); UpdatePaths(result); Localization.SetText(_progressText,$"已重命名 {result.Length} 个视频。"); }
         catch (Exception ex) { await Ui.Message(this, "重命名失败", ex.Message); }
         finally { _renaming = false; SetBusy(false); InvalidatePlan(); _undo.IsEnabled = File.Exists(_journal); }
     }
     private async Task UndoRename()
     {
         SetBusy(true); _renaming = true;
-        try { var result = await Task.Run(() => BatchVideoTools.UndoRename(_journal)); UpdatePaths(result); _progressText.Text = $"已还原 {result.Length} 个文件名。"; _undo.IsEnabled = false; }
+        try { var result = await Task.Run(() => BatchVideoTools.UndoRename(_journal)); UpdatePaths(result); Localization.SetText(_progressText,$"已还原 {result.Length} 个文件名。"); _undo.IsEnabled = false; }
         catch (Exception ex) { await Ui.Message(this, "撤销失败", ex.Message); }
         finally { _renaming = false; SetBusy(false); InvalidatePlan(); }
     }
@@ -259,25 +261,25 @@ public sealed class BatchToolsWindow : Window
             for (var i = 0; i < selected.Length; i++)
             {
                 token.ThrowIfCancellationRequested(); var entry = selected[i]; entry.Status = "正在抽帧…";
-                var progress = new Progress<ContactSheetProgress>(p => { if (!_closed) { entry.Status = $"生成中 {p.Percent:0}%"; _progressText.Text = $"{entry.Name} · {p.Message}"; } });
+                var progress = new Progress<ContactSheetProgress>(p => { if (!_closed) { entry.Status = Localization.Format($"生成中 {p.Percent:0}%"); _progressText.Text = $"{entry.Name} · {p.Message}"; } });
                 try
                 {
                     var outputs = await BatchVideoTools.GenerateContactSheets(_engine, entry.Path, folder, options, progress, token);
-                    if (_closed) return; entry.LastSheet = outputs.LastOrDefault(); entry.Status = $"已生成 {outputs.Length} 张"; success++;
+                    if (_closed) return; entry.LastSheet = outputs.LastOrDefault(); entry.Status = Localization.Format($"已生成 {outputs.Length} 张"); success++;
                     if (entry.LastSheet is { } path) ShowPreview(path);
                 }
                 catch (OperationCanceledException) { if (!_closed) entry.Status = "已停止"; throw; }
-                catch (Exception ex) { if (!_closed) { entry.Status = "失败：" + ex.Message; ToolTip.SetTip(_list, ex.Message); } failed++; }
+                catch (Exception ex) { if (!_closed) { entry.Status = Localization.Format($"失败：{ex.Message}"); ToolTip.SetTip(_list, ex.Message); } failed++; }
             }
-            if (!_closed) _progressText.Text = $"批量截图完成：成功 {success} 个视频，失败 {failed} 个。";
+            if (!_closed) Localization.SetText(_progressText,$"批量截图完成：成功 {success} 个视频，失败 {failed} 个。");
         }
-        catch (OperationCanceledException) { if (!_closed) _progressText.Text = $"已停止。已完成 {success} 个视频，生成的图片已保留。"; }
+        catch (OperationCanceledException) { if (!_closed) Localization.SetText(_progressText,$"已停止。已完成 {success} 个视频，生成的图片已保留。"); }
         finally { _operation.Dispose(); _operation = null; if (!_closed) { SetBusy(false); _stop.IsEnabled = false; } }
     }
     private void ShowPreview(string path)
     {
         try { var old = _preview.Source as Bitmap; using var stream = File.OpenRead(path); _preview.Source = Bitmap.DecodeToWidth(stream, 700); old?.Dispose(); }
-        catch (Exception ex) { _progressText.Text = "图片预览失败：" + ex.Message; }
+        catch (Exception ex) { _progressText.Text = Localization.Format($"图片预览失败：{ex.Message}"); }
     }
     private void SetBusy(bool busy) { _importBar.IsEnabled = !busy; _renamePanel.IsEnabled = !busy; _sheetPanel.IsEnabled = !busy; _list.IsEnabled = !busy; _generate.IsEnabled = !busy; }
     private static int Integer(TextBox input) => int.Parse(input.Text ?? "", CultureInfo.InvariantCulture);

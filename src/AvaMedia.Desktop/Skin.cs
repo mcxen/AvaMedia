@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Styling;
+using Avalonia.Media;
 using Avalonia.Threading;
 using AvaMedia.Desktop.Controls;
 
@@ -21,6 +22,8 @@ public sealed class Skin : AvaloniaObject
 
     public static bool GetIsEnabled(Window window) => window.GetValue(IsEnabledProperty);
     public static void SetIsEnabled(Window window, bool value) => window.SetValue(IsEnabledProperty, value);
+    public static void ToggleShade(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.ToggleShade(); }
+    public static void Zoom(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.Zoom(); }
     public static void Apply(string name)
     {
         Dispatcher.UIThread.VerifyAccess();
@@ -32,10 +35,13 @@ public sealed class Skin : AvaloniaObject
         private readonly Window _window;
         private PlatinumWindowFrame? _frame;
         private SystemDecorations _decorations;
+        private readonly TextRenderingMode _textMode;
         private bool _changing;
         public Registration(Window window)
         {
             _window = window;
+            _textMode = RenderOptions.GetTextRenderingMode(window);
+            WindowArtwork.Enable(window);
             window.ActualThemeVariantChanged += Changed;
             window.Opened += Changed;
             window.Closed += Closed;
@@ -43,6 +49,8 @@ public sealed class Skin : AvaloniaObject
             Refresh();
         }
         private void Changed(object? sender, EventArgs e) => Refresh();
+        public void ToggleShade() => _frame?.ToggleShade();
+        public void Zoom() => _frame?.Zoom();
         private void PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
             if (e.Property == ContentControl.ContentProperty || e.Property == Window.WindowStateProperty) Refresh();
@@ -50,8 +58,10 @@ public sealed class Skin : AvaloniaObject
         private void Refresh()
         {
             if (_changing) return;
-            var classic = _window.ActualThemeVariant == MacOS9 && _window.WindowState != WindowState.FullScreen;
-            _window.Classes.Set("mac-os9", classic);
+            var platinum = _window.ActualThemeVariant == MacOS9;
+            var classic = platinum && _window.WindowState != WindowState.FullScreen;
+            _window.Classes.Set("mac-os9", platinum);
+            RenderOptions.SetTextRenderingMode(_window, platinum ? TextRenderingMode.Alias : _textMode);
             _changing = true;
             try
             {

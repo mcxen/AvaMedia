@@ -164,6 +164,8 @@ public sealed class MediaEngine : IMediaEngine
     public static void ValidateEncodingOptions(ConversionOptions o)
     {
         SourceVideoExport.ValidateOptions(o);
+        if(!o.CopyStreams && HardwareTranscoding.Encoder(o.VideoCodec) is {} hardwareEncoder && !HardwareTranscoding.Compatible(o.Format,hardwareEncoder.Format))
+            throw new ArgumentException("所选硬件编码器与输出格式不兼容，请使用自动编码或选择兼容格式。");
         if(o.Threads is <0 or >16)throw new ArgumentException("编码线程数必须在 0 到 16 之间。");
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
         SubtitleOptions.Validate(o);
@@ -271,12 +273,15 @@ public sealed class MediaEngine : IMediaEngine
         IReadOnlyList<string> hardware=[];
         if(Settings.AutoDetectGpu && !effective.CopyStreams && effective.VideoCodec=="自动" &&
             (f.Operation==Operation.Record || infos.Any(i=>i.HasVideo)) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
-            hardware=HardwareAcceleration.Candidates(effective.Format,await _hardwareTest(FFmpeg,ct));
+            hardware=HardwareAcceleration.Candidates(effective.Format,await _hardwareTest(FFmpeg,ct),infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"");
+        var explicitHardware=!effective.CopyStreams && HardwareTranscoding.Backend(effective.VideoCodec) is not null;
+        if(explicitHardware)hardware=[effective.VideoCodec];
         if(effective.PreserveSourceAttributes)
             hardware=hardware.Where(codec=>SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex)).ToArray();
         ProcessResult? result=null;var hardwareLog=new StringBuilder();
         if(effective.PreserveSourceAttributes && hardware.Count==0)
             hardwareLog.AppendLine(Settings.AutoDetectGpu?"没有可用且能保留源编码、位深与色度采样的 GPU 编码器，使用原编码的软件实现。":"自动 GPU 已关闭，使用原编码的软件实现。");
+        var failedDecoders=new HashSet<string>(StringComparer.Ordinal);
         foreach(var codec in hardware)
         {
             ct.ThrowIfCancellationRequested();
@@ -284,36 +289,56 @@ public sealed class MediaEngine : IMediaEngine
             try
             {
                 job.ProgressDetail="GPU 编码 · "+codec;progress(0);
-                effective.VideoCodec=codec;effectiveJob.Output=temporary;result=await Encode(effectiveJob);
-                if(result.ExitCode==0){File.Move(temporary,job.Output);hardwareLog.AppendLine("使用硬件编码 "+codec+"。");break;}
+                effective.VideoCodec=codec;effectiveJob.Output=temporary;result=await EncodeWithDecoding(effectiveJob);
+                if(result.ExitCode==0){File.Move(temporary,job.Output);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;}
                 else
                 {
-                    hardwareLog.AppendLine($"自动硬件编码 {codec} 失败，尝试其他可用编码器。").AppendLine(result.Error);
+                    hardwareLog.AppendLine(explicitHardware?$"指定硬件编码 {codec} 失败。":$"自动硬件编码 {codec} 失败，尝试其他可用编码器。").AppendLine(result.Error);
                     job.Log=hardwareLog.ToString();progress(0);
                 }
             }
             finally{if(File.Exists(temporary))File.Delete(temporary);}
         }
-        if(result is null || result.ExitCode!=0)
+        if(!explicitHardware && (result is null || result.ExitCode!=0))
         {
             if(hardware.Count>0)hardwareLog.AppendLine("可用硬件编码器均失败，回退软件编码。");
             effective.VideoCodec=effective.PreserveSourceAttributes?SourceVideoExport.Encoder(infos[0],sourceEncoderListing!):job.Options.VideoCodec;
             job.ProgressDetail=effective.VideoCodec=="自动"?"软件自动编码":"软件编码 · "+effective.VideoCodec;
             if(effective.PreserveSourceAttributes)hardwareLog.AppendLine("使用软件编码 "+effective.VideoCodec+"。");
-            progress(0);effectiveJob.Output=job.Output;result=await Encode(effectiveJob);
+            progress(0);effectiveJob.Output=job.Output;result=await Encode(effectiveJob,null);
         }
-        job.Log=hardwareLog+result.Error;
-        if(result.ExitCode!=0) throw new InvalidOperationException(f.Operation==Operation.Record && OperatingSystem.IsMacOS()?ScreenCapture.MacPermissionMessage(result.Error):result.Error);
+        var completed=result!;
+        job.Log=hardwareLog+completed.Error;
+        if(completed.ExitCode!=0) throw new InvalidOperationException(f.Operation==Operation.Record && OperatingSystem.IsMacOS()?ScreenCapture.MacPermissionMessage(completed.Error):completed.Error);
         progress(100);
-        Task<ProcessResult> Encode(Job draft)=>ProcessRunner.Run(FFmpeg,BuildArguments(draft,infos),ct,line=>
+        async Task<ProcessResult> EncodeWithDecoding(Job draft)
+        {
+            var plans=HardwareTranscoding.DecodePlans(draft,infos).Where(plan=>!failedDecoders.Contains(plan.Value.Method)).ToDictionary(plan=>plan.Key,plan=>plan.Value);
+            var encoded=await Encode(draft,plans);
+            if(encoded.ExitCode!=0 && plans.Count>0)
+            {
+                foreach(var method in plans.Values.Select(plan=>plan.Method))failedDecoders.Add(method);
+                hardwareLog.AppendLine("硬件解码链路失败，保留当前硬件编码器并改用软件解码。").AppendLine(encoded.Error);
+                if(File.Exists(draft.Output))File.Delete(draft.Output);
+                progress(0);encoded=await Encode(draft,null);
+                if(encoded.ExitCode==0)hardwareLog.AppendLine("使用软件解码与硬件编码。");
+            }
+            else if(encoded.ExitCode==0 && plans.Count>0)
+                hardwareLog.AppendLine("已请求硬件解码："+string.Join("、",plans.Values.Select(plan=>plan.Method).Distinct())+"；"+
+                    (plans.Values.Any(plan=>plan.EncoderPixelFormat is not null)?"画面直接传入硬件编码器。":"画面下载后使用现有滤镜与硬件编码器。"));
+            return encoded;
+        }
+        Task<ProcessResult> Encode(Job draft,IReadOnlyDictionary<int,HardwareDecodePlan>? decoding)=>ProcessRunner.Run(FFmpeg,BuildArguments(draft,infos,decoding),ct,line=>
         {
             if(line.StartsWith("out_time_us=") && long.TryParse(line[12..],out var us) && job.Duration>0)progress(Math.Clamp(us/1000000d/job.Duration*100,0,99.9));
         });
     }
-    public static List<string> BuildArguments(Job job,IReadOnlyList<MediaInfo> infos)
+    public static List<string> BuildArguments(Job job,IReadOnlyList<MediaInfo> infos,IReadOnlyDictionary<int,HardwareDecodePlan>? hardwareDecoding=null)
     {
         if(job.Options.PreserveSourceAttributes || job.Options.LosslessRotation is not null)return SourceVideoGpu.BuildArguments(job,infos);
         var f=Catalog.Find(job.FeatureId);var o=job.Options;List<string> a=["-hide_banner","-nostdin","-n","-progress","pipe:1","-nostats"];
+        var hardwareBackend=o.CopyStreams?null:HardwareTranscoding.Backend(o.VideoCodec);
+        if(hardwareBackend is not null)a.AddRange(hardwareBackend.InitializationArguments);
         if(f.Operation==Operation.Mux && job.InputOptions?.ElementAtOrDefault(1)?.Mute==true){o=o.Clone();o.Mute=true;}
         if(o.Threads>0)a.AddRange(["-filter_threads",o.Threads.ToString(),"-filter_complex_threads",o.Threads.ToString()]);
         var combined=f.Operation==Operation.AudioMix || f.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null) || f.Operation==Operation.Mux && job.InputOptions is not null;
@@ -321,7 +346,13 @@ public sealed class MediaEngine : IMediaEngine
         if(f.Operation==Operation.Record){if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);a.AddRange(ScreenCapture.InputArguments(o,OperatingSystem.IsMacOS()));}
         else
         {
-            foreach(var path in job.Inputs){if(!combined && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);a.AddRange(["-i",path]);}
+            for(var inputIndex=0;inputIndex<job.Inputs.Length;inputIndex++)
+            {
+                if(!combined && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);
+                if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);
+                if(hardwareDecoding?.TryGetValue(inputIndex,out var decoding)==true)a.AddRange(decoding.InputArguments);
+                a.AddRange(["-i",job.Inputs[inputIndex]]);
+            }
             if(SubtitleOptions.Mode(o)==SubtitleMode.ExternalTrack){if(o.Start>0)a.AddRange(["-ss",Number(o.Start)]);a.AddRange(["-i",o.Subtitle]);}
             if(o.End>0) a.AddRange(["-t",Number((o.End-o.Start)/o.Speed)]);
         }
@@ -424,15 +455,14 @@ public sealed class MediaEngine : IMediaEngine
             if(!IsAudio(o.Format))
             {
                 string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video",_=>"mpeg4"}:o.VideoCodec;
-                a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt","yuv420p"]);
+                a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":"nv12")]);
                 if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec=="libx265") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
                 if(codec is "mpeg4" or "wmv2" or "flv" or "mpeg2video")a.AddRange(["-q:v",Number(Math.Clamp(o.Quality/4d,2,12))]);
                 else if(codec=="libvpx-vp9")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-deadline","good","-cpu-used","4"]);
                 else if(codec is "libx264" or "libx265")a.AddRange(["-crf",o.Quality.ToString(),"-preset","medium"]);
                 else if(codec=="libaom-av1")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-cpu-used","6"]);
-                else if(codec.EndsWith("_nvenc"))a.AddRange(["-rc","vbr","-cq",Math.Min(51,o.Quality).ToString(),"-b:v","0"]);
-                else if(codec.EndsWith("_qsv"))a.AddRange(["-global_quality",Math.Min(51,o.Quality).ToString()]);
-                else if(codec.EndsWith("_amf"))a.AddRange(["-rc","cqp","-qp_i",Math.Min(51,o.Quality).ToString(),"-qp_p",Math.Min(51,o.Quality).ToString()]);
+                else if(hardwareBackend is not null && HardwareTranscoding.Encoder(codec) is {} selectedEncoder)
+                    a.AddRange(hardwareBackend.EncodingArguments(selectedEncoder,HardwareTranscoding.Context(o,infos,f.Operation==Operation.Record)));
                 else if(codec=="h264_mf")a.AddRange(["-rate_control","quality","-quality",Math.Clamp(100-o.Quality*100/63,1,100).ToString()]);
                 if(o.Fps>0)a.AddRange(["-r",Number(o.Fps)]);
             }

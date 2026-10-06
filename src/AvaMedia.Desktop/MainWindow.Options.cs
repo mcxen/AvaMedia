@@ -18,6 +18,7 @@ public partial class MainWindow
     private void InitializeOptions()
     {
         _appliedSettings = _settings.Clone();
+        Notify.IsCheckedChanged += (_, _) => _settings.NotifyComplete = Notify.IsChecked == true;
         InitializeBackground();
         AddHandler(Button.ClickEvent, (_, _) =>
         { if (_settings.PlayOperationSound) _optionServices.PlaySound(UiSound.Operation); }, Avalonia.Interactivity.RoutingStrategies.Bubble);
@@ -30,11 +31,11 @@ public partial class MainWindow
             var failures = new List<string>();
             if (_settings.SystemContextMenu)
                 try { _optionServices.SetContextMenu(true); }
-                catch (Exception ex) { failures.Add("系统菜单未能启用：" + ex.Message); }
+                catch (Exception ex) { failures.Add(Localization.Format($"系统菜单未能启用：{ex.Message}")); }
             if (!IsCaptureSession && WantsTray(_settings) && _optionServices.CanUseTray)
                 try { SetTray(true); }
-                catch (Exception ex) { failures.Add("托盘未能启用：" + ex.Message); }
-            if (failures.Count > 0 && !_closing) SummaryText.Text = string.Join("；", failures);
+                catch (Exception ex) { failures.Add(Localization.Format($"托盘未能启用：{ex.Message}")); }
+            if (failures.Count > 0 && !_closing) SummaryText.Text = Localization.Join("；", failures);
             if (_settings.CheckForUpdates && Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
             {
                 try

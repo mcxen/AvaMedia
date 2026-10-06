@@ -13,9 +13,9 @@ public sealed class ClipSegmentEntry : Observable
     public ClipSegmentEntry(ConversionOptions options) => _options=options.Clone();
     public ConversionOptions Options { get=>_options; set { _options=value.Clone();Raise(nameof(Summary)); } }
     public int Number { get=>_number; set { _number=value;Raise(nameof(Summary)); } }
-    public string Summary => $"片段 {Number}   ·   {Stamp(_options.Start)} → {(_options.End>0?Stamp(_options.End):"视频结尾")}   ·   {MediaEngine.Number(_options.Speed)}×\n"+
-        (_options.CropWidth>0?$"裁剪 {_options.CropX},{_options.CropY} / {_options.CropWidth}×{_options.CropHeight}   ·   ":"完整画面   ·   ")+
-        BatchRotate.Direction(_options.Rotation)+(_options.Flip?"   ·   水平镜像":"");
+    public string Summary => Localization.Join("\n", new[] {
+        Localization.Format($"片段 {Number}   ·   {Stamp(_options.Start)} → {(_options.End>0?Stamp(_options.End):Localization.Text("视频结尾"))}   ·   {MediaEngine.Number(_options.Speed)}×"),
+        Localization.Join("   ·   ", new[] { _options.CropWidth>0?Localization.Format($"裁剪 {_options.CropX},{_options.CropY} / {_options.CropWidth}×{_options.CropHeight}"):"完整画面", BatchRotate.Direction(_options.Rotation), _options.Flip?"水平镜像":"" }.Where(s=>s.Length>0)) });
     private static string Stamp(double seconds)=>MediaTime.Format(seconds);
 }
 
@@ -54,7 +54,7 @@ public partial class EditorWindow
 
     public void SetWorkflowStep(int current,int total)
     {
-        Title=$"快速剪辑 · 编辑 {current}/{total} · {Path.GetFileName(_path)}";
+        Localization.SetTitle(this,$"快速剪辑 · 编辑 {current}/{total} · {Path.GetFileName(_path)}");
         ConfirmButton.Content=current<total?"下一个视频 →":"下一步：导出选项 →";
     }
 
@@ -66,7 +66,7 @@ public partial class EditorWindow
     private void RefreshSegments()
     {
         for(var i=0;i<_segments.Count;i++)_segments[i].Number=i+1;
-        SegmentCount.Text=_segments.Count==0?"当前区间导出 1 个片段":$"{_segments.Count} 个片段分别导出";
+        SegmentCount.Text=_segments.Count==0?"当前区间导出 1 个片段":Localization.Format($"{_segments.Count} 个片段分别导出");
         RemoveSegmentButton.IsEnabled=_activeSegment is not null && _segments.Count>1;
         SegmentUpButton.IsEnabled=_activeSegment is not null && _segments.IndexOf(_activeSegment)>0;
         SegmentDownButton.IsEnabled=_activeSegment is not null && _segments.IndexOf(_activeSegment)<_segments.Count-1;
@@ -173,7 +173,7 @@ public partial class EditorWindow
     {
         if(!QuickWorkflow || _updating || DirectionCombo.SelectedIndex<0)return;
         _options.Rotation=DirectionCombo.SelectedIndex*90;UpdateDirectionPreview();
-        if(_directionResult is not null)DirectionStatus.Text=$"识别建议：{_directionResult.Description}；当前片段：{BatchRotate.Direction(_options.Rotation)}\n{_directionResult.Reason}";
+        if(_directionResult is not null)Localization.SetText(DirectionStatus,$"识别建议：{Localization.Key(_directionResult.Description)}；当前片段：{Localization.Key(BatchRotate.Direction(_options.Rotation))}\n{Localization.OrientationReason(_directionResult)}");
     }
     private void MirrorChanged(object? sender,RoutedEventArgs e)
     {
@@ -195,14 +195,14 @@ public partial class EditorWindow
         DirectionStatus.Text="正在分析视频人脸方向…";
         try
         {
-            var progress=new Progress<OrientationDetectionProgress>(p=>{if(!_closed && !cancellation.IsCancellationRequested)DirectionStatus.Text=$"正在分析 {p.CompletedFrames}/{p.TotalFrames} 帧…";});
+            var progress=new Progress<OrientationDetectionProgress>(p=>{if(!_closed && !cancellation.IsCancellationRequested)Localization.SetText(DirectionStatus,$"正在分析 {p.CompletedFrames}/{p.TotalFrames} 帧…");});
             var result=await _directionDetector.DetectAsync(_path,_info,progress,cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();if(_closed)return;
             _directionResult=result;ApplyDirectionButton.IsEnabled=result.IsCertain;
-            DirectionStatus.Text=$"{(result.IsCertain?"建议："+result.Description:"无法确定方向")}\n{result.Reason}";
+            DirectionStatus.Text=Localization.Join("\n", new[] { result.IsCertain ? Localization.Format($"建议：{Localization.Key(result.Description)}") : "无法确定方向", Localization.OrientationReason(result) });
         }
         catch(OperationCanceledException){if(!_closed)DirectionStatus.Text="已取消识别，可继续手动选择方向。";}
-        catch(Exception ex){if(!_closed)DirectionStatus.Text="方向识别失败："+ex.Message;}
+        catch(Exception ex){if(!_closed)DirectionStatus.Text=Localization.Format($"方向识别失败：{ex.Message}");}
         finally
         {
             if(ReferenceEquals(_directionCancellation,cancellation))_directionCancellation=null;
@@ -215,6 +215,6 @@ public partial class EditorWindow
     {
         if(_directionResult?.Rotation is not (0 or 90 or 180 or 270))return;
         _options.Rotation=_directionResult.Rotation.Value;SyncDirectionControls();
-        DirectionStatus.Text=$"已应用到当前片段：{_directionResult.Description}\n{_directionResult.Reason}";
+        Localization.SetText(DirectionStatus,$"已应用到当前片段：{Localization.Key(_directionResult.Description)}\n{Localization.OrientationReason(_directionResult)}");
     }
 }

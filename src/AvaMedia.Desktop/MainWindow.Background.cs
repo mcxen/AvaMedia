@@ -96,7 +96,7 @@ public partial class MainWindow
     private void BackgroundTick()
     {
         if (_closing) return;
-        if (_backgroundWindowVisible) ElapsedText.Text = "耗时: " + _elapsed.Elapsed.ToString(@"hh\:mm\:ss");
+        if (_backgroundWindowVisible) Localization.SetText(ElapsedText, $"耗时: {_elapsed.Elapsed.ToString(@"hh\:mm\:ss")}");
         DrainQueueChanges();
     }
     private void ConfigureTaskTray()
@@ -126,8 +126,8 @@ public partial class MainWindow
         var active = _jobs.Where(j => j.State == JobState.Running).ToArray();
         var completed = _jobs.Count(j => j.State == JobState.Completed); var failed = _jobs.Count(j => j.State == JobState.Failed);
         var summary = _closing ? "正在退出…" : _queue.IsRunning
-            ? $"处理中 {active.Length} 个 · {(active.Length > 0 ? active.Average(j => j.Progress) : 0):0}% · 等待 {waiting} 个"
-            : $"等待 {waiting} 个 · 完成 {completed} 个 · 失败 {failed} 个";
+            ? Localization.Format($"处理中 {active.Length} 个 · {(active.Length > 0 ? active.Average(j => j.Progress) : 0):0}% · 等待 {waiting} 个")
+            : Localization.Format($"等待 {waiting} 个 · 完成 {completed} 个 · 失败 {failed} 个");
         tray.UpdateTaskState(new(summary, !_closing && !_queue.IsRunning && waiting > 0, !_closing && _queue.IsRunning, _lastCompletion is not null, !IsVisible));
     }
     private async Task StartQueueAsync()
@@ -147,5 +147,5 @@ public partial class MainWindow
         RestoreFromTray(); await Ui.Message(this, "任务结果", CompletionMessage(completion));
     }
     private static string CompletionMessage(QueueCompletion completion) =>
-        $"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。\n\n输出目录：\n" + string.Join("\n", completion.OutputFolders);
+        Localization.Format($"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。\n\n输出目录：\n{string.Join("\n", completion.OutputFolders)}");
 }

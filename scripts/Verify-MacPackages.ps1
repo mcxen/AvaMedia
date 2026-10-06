@@ -1,6 +1,8 @@
 param([string]$Version='1.0.5')
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Branding.ps1')
+$appBrand=Get-AppBrand
 $checks=[Collections.Generic.List[string]]::new()
 function Assert-Package($Condition,[string]$Message) {
     if (!$Condition) { throw $Message }
@@ -19,12 +21,12 @@ function Get-MachArchitectures([byte[]]$Bytes) {
     return @(for ($i=0; $i -lt $count; $i++) { Read-BigEndian $Bytes (8+$i*$step) })
 }
 $packages=@()
-foreach ($runtime in @('osx-arm64','osx-x64')) {
+foreach ($runtime in @('osx-arm64')) {
     $path=Join-Path $taskRoot "artifacts/AvaMedia-$Version-$runtime.zip"
-    $expected=if ($runtime -eq 'osx-arm64') { 0x100000c } else { 0x1000007 }
+    $expected=0x100000c
     $archive=[IO.Compression.ZipFile]::OpenRead($path)
     try {
-        $root='AvaMedia.app/Contents/'
+        $root=$appBrand.MacBundleName+'/Contents/'
         foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libcoreclr.dylib','libhostpolicy.dylib',
             'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib')) {
             $entry=$archive.GetEntry($root+'MacOS/'+$name)

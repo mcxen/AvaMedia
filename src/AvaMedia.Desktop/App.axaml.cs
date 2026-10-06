@@ -8,7 +8,11 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop;
 public sealed partial class App : Application
 {
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        Localization.Apply(new Storage().LoadSettings().Language);
+        AvaloniaXamlLoader.Load(this);
+    }
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -17,6 +21,7 @@ public sealed partial class App : Application
             if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
             {
                 var settings = new Storage().LoadSettings();
+                Localization.Apply(settings.Language);
                 Skin.Apply(args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : settings.Theme);
                 Motion.SetReducedMotion(settings.ReduceMotion);
                 var files = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal) && File.Exists(a)).ToArray();

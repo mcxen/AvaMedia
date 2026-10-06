@@ -45,14 +45,24 @@ public sealed class CategoryHeader : Button
         Grid.SetColumn(chevron, 2);
         content.Children.Add(chevron);
         Content = content;
+        ActualThemeVariantChanged += (_, _) => UpdateChevron();
         ToolTip.SetTip(this, category);
         AutomationProperties.SetLabeledBy(this, title);
         PropertyChanged += (_, change) =>
         {
             if (change.Property != IsExpandedProperty) return;
             Classes.Set("expanded", IsExpanded);
-            chevron.Data = IsExpanded ? OpenChevron : ClosedChevron;
+            UpdateChevron();
         };
+        void UpdateChevron()
+        {
+            var classic = ActualThemeVariant == Skin.MacOS9;
+            chevron.Data = classic ? Geometry.Parse(IsExpanded ? "M 1,3 L 11,3 L 6,9 Z" : "M 3,1 L 9,6 L 3,11 Z") : IsExpanded ? OpenChevron : ClosedChevron;
+            chevron.StrokeThickness = classic ? 0 : 1.5;
+            if (classic) chevron.Bind(Path.FillProperty, new DynamicResourceExtension("UiText"));
+            else chevron.ClearValue(Path.FillProperty);
+            RenderOptions.SetEdgeMode(chevron, classic ? EdgeMode.Aliased : EdgeMode.Unspecified);
+        }
     }
 
     protected override AutomationPeer OnCreateAutomationPeer() => new CategoryHeaderPeer(this);

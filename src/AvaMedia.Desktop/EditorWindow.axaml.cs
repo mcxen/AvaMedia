@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 public partial class EditorWindow : Window
@@ -60,6 +61,7 @@ public partial class EditorWindow : Window
     public EditorWindow(IMediaEngine engine,string path,ConversionOptions options,string mode="", IReadOnlyList<ConversionOptions>? segments=null, IVideoOrientationDetector? orientationDetector=null, IMediaPreview? previewFrames=null)
     {
         InitializeComponent();_engine=engine;_previewFrames=previewFrames??engine;_path=path;_mode=mode;_options=options.Clone();_player=new(engine,path);Title=path;RefreshOptionControls();PlayButton.IsEnabled=false;SoundButton.IsEnabled=false;
+        WindowArtwork.SetKind(this, Catalog.All.FirstOrDefault(f => f.Id == mode)?.Icon ?? (mode == "input-audio" ? "audio" : "clip"));
         InitializeQuickWorkflow(segments,orientationDetector);
         PrecisionCombo.ItemsSource=new[]{"0.01 s","0.1 s","1 s","1 帧"};PrecisionCombo.SelectedIndex=1;PrecisionCombo.SelectionChanged+=(_,_)=>TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;
         CropRatio.ItemsSource=new[]{"自由选区","原画面比例","16:9","4:3","1:1","9:16"};CropRatio.SelectedIndex=0;
@@ -84,18 +86,18 @@ public partial class EditorWindow : Window
             CropLayer.SourceWidth=Math.Max(1,_info.Width);CropLayer.SourceHeight=Math.Max(1,_info.Height);ApplyRatio();
             CropLayer.PixelStep=MediaEngine.IsImage(_options.Format)?1:2;
             CropX.Text=_options.CropX.ToString();CropY.Text=_options.CropY.ToString();CropWidth.Text=(_options.CropWidth>0?_options.CropWidth:_info.Width).ToString();CropHeight.Text=(_options.CropHeight>0?_options.CropHeight:_info.Height).ToString();UpdateCropLayer();
-            MediaDescription.Text=$"{Path.GetFileName(_path)}\n时长: {TimeText(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}";
+            Localization.SetText(MediaDescription,$"{Path.GetFileName(_path)}\n时长: {TimeText(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}");
             if(_info.HasVideo){_previewReady=Frame(PreviewImage,_options.Start,_lifetime.Token);await _previewReady;_thumbnailsReady=Thumbnails(_lifetime.Token);await _thumbnailsReady;PreviewStatus.IsVisible=false;}else PreviewStatus.Text="♫ 音频预览";
             SoundButton.IsEnabled=_info.HasAudio;PlayButton.IsEnabled=_info.Duration>0;((TabItem)EditTabs.Items[0]!).IsVisible=_info.Duration>0;((TabItem)EditTabs.Items[1]!).IsVisible=_info.HasVideo&&!AudioEditing;if(_info.Duration<=0)EditTabs.SelectedIndex=1;
             if(_info.HasAudio)_audioReady=PrepareAudio();else AudioStatus.Text="此文件不含音轨";
             ValidateInputs();TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;_ready.TrySetResult();await _audioReady;
             async Task PrepareAudio()
             {
-                try{await _player.PrepareAudio(_lifetime.Token);if(!_closed)AudioStatus.Text="音频预览已就绪";}catch(OperationCanceledException){}catch(Exception e){if(!_closed)AudioStatus.Text="音频预览不可用: "+e.Message;}
+                try{await _player.PrepareAudio(_lifetime.Token);if(!_closed)AudioStatus.Text="音频预览已就绪";}catch(OperationCanceledException){}catch(Exception e){if(!_closed)AudioStatus.Text=Localization.Format($"音频预览不可用: {e.Message}");}
             }
         }
         catch(OperationCanceledException){_ready.TrySetResult();}
-        catch(Exception e){PreviewStatus.Text="媒体读取失败："+e.Message;_ready.TrySetResult();if(!_closed)await Ui.Message(this,"媒体读取失败",e.Message);}
+        catch(Exception e){PreviewStatus.Text=Localization.Format($"媒体读取失败：{e.Message}");_ready.TrySetResult();if(!_closed)await Ui.Message(this,"媒体读取失败",e.Message);}
     }
     private async Task Frame(Image target,double seconds,CancellationToken ct,bool endExclusive=false,int? revision=null,int? thumbnailRevision=null)
     {
@@ -123,7 +125,7 @@ public partial class EditorWindow : Window
     private Task Thumbnails(CancellationToken ct)=>Thumbnails(_options.Clone(),++_thumbnailRevision,ct);
     private async Task Thumbnails(ConversionOptions options,int revision,CancellationToken ct)
     {if(_info?.HasVideo==true){await Frame(StartImage,options.Start,ct,thumbnailRevision:revision);await Frame(EndImage,options.End,ct,endExclusive:options.End>0,thumbnailRevision:revision);}}
-    private void ScheduleThumbs(){_thumbs?.Cancel();_thumbs?.Dispose();_thumbs=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_thumbs.Token;var revision=++_thumbnailRevision;var options=_options.Clone();async Task Run(){try{await Task.Delay(180,token);await Thumbnails(options,revision,token);}catch(OperationCanceledException){}catch(Exception e){if(!_closed&&revision==_thumbnailRevision){PreviewStatus.Text="边界预览失败："+e.Message;PreviewStatus.IsVisible=true;}}}_thumbnailsReady=Run();}
+    private void ScheduleThumbs(){_thumbs?.Cancel();_thumbs?.Dispose();_thumbs=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_thumbs.Token;var revision=++_thumbnailRevision;var options=_options.Clone();async Task Run(){try{await Task.Delay(180,token);await Thumbnails(options,revision,token);}catch(OperationCanceledException){}catch(Exception e){if(!_closed&&revision==_thumbnailRevision){PreviewStatus.Text=Localization.Format($"边界预览失败：{e.Message}");PreviewStatus.IsVisible=true;}}}_thumbnailsReady=Run();}
     private void UpdateTimes(){_updating=true;StartTime.Text=TimeText(_options.Start);EndTime.Text=TimeText(_options.End);_updating=false;SelectionDuration.Text=TimeText(Math.Max(0,_options.End-_options.Start));OutputDuration.Text=TimeText(Math.Max(0,_options.End-_options.Start)/_options.Speed);TrimBar.Start=double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,TrimBar.Duration):0;TrimBar.End=double.IsFinite(_options.End)?Math.Clamp(_options.End,TrimBar.Start,TrimBar.Duration):TrimBar.Duration;TrimBar.InvalidateVisual();ValidateInputs();}
     private void SetPlaybackButton(bool playing)
     {
@@ -151,7 +153,7 @@ public partial class EditorWindow : Window
             if(_closed || token.IsCancellationRequested || start && value>=range.End || !start && value<=range.Start)return;
             _options.Start=start?value:range.Start;_options.End=start?range.End:value;UpdateTimes();ScheduleThumbs();
         }
-        catch(OperationCanceledException){}catch(ArgumentException){ValidateInputs();}catch(Exception ex){if(!_closed){PreviewStatus.Text="逐帧定位失败："+ex.Message;PreviewStatus.IsVisible=true;}}
+        catch(OperationCanceledException){}catch(ArgumentException){ValidateInputs();}catch(Exception ex){if(!_closed){PreviewStatus.Text=Localization.Format($"逐帧定位失败：{ex.Message}");PreviewStatus.IsVisible=true;}}
     }
     private void SetStartClick(object? s,Avalonia.Interactivity.RoutedEventArgs e)=>ShiftStart(_position-_options.Start);
     private void SetEndClick(object? s,Avalonia.Interactivity.RoutedEventArgs e)=>ShiftEnd(_position-_options.End);
@@ -164,20 +166,20 @@ public partial class EditorWindow : Window
         if (_player.IsPaused) { _player.Resume(); SetPlaybackButton(true); return; }
         if(_info is null||_playBusy)return;var wasPlaying=_player.IsPlaying;var (revision,token)=BeginPreview();_playBusy=true;
         try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);if(wasPlaying)return;await _audioReady.WaitAsync(token);if(!CurrentPreview(revision))return;if(_position>=_info.Duration-.04)SetPosition(0);_playRevision=revision;await _player.Play(_position,_info.HasVideo,_info.Duration);if(CurrentPreview(revision))SetPlaybackButton(true);}
-        catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text="播放失败："+ex.Message;PreviewStatus.IsVisible=true;}}finally{_playBusy=false;}
+        catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text=Localization.Format($"播放失败：{ex.Message}");PreviewStatus.IsVisible=true;}}finally{_playBusy=false;}
     }
     private void PlaySelectionClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_playbackReady=PlaySelection();
     private async Task PlaySelection()
     {
         if(_info is null||_playBusy)return;_playBusy=true;var revision=_previewRevision;
         try{var (start,end)=ReadTimes();_options.Start=start;_options.End=end;UpdateTimes();ScheduleThumbs();var request=BeginPreview();revision=request.Revision;await _player.Stop();request.Token.ThrowIfCancellationRequested();await _audioReady.WaitAsync(request.Token);if(!CurrentPreview(revision))return;SetPosition(start);_previewEnd=end;_playRevision=revision;await _player.Play(start,_info.HasVideo,end);if(CurrentPreview(revision))SetPlaybackButton(true);}
-        catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text="区间预览失败："+ex.Message;PreviewStatus.IsVisible=true;}}finally{_playBusy=false;}
+        catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text=Localization.Format($"区间预览失败：{ex.Message}");PreviewStatus.IsVisible=true;}}finally{_playBusy=false;}
     }
     private async Task FinishSelection(double end,int revision)
     {
         if(!CurrentPreview(revision))return;_stoppingSelection=true;var token=_seek?.Token??_lifetime.Token;
         try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;_previewEnd=null;_playRevision=-1;SetPlaybackButton(false);SetPosition(end);await Frame(PreviewImage,end,token,true,revision);}
-        catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text="区间预览失败："+ex.Message;PreviewStatus.IsVisible=true;}}finally{if(CurrentPreview(revision))_stoppingSelection=false;}
+        catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text=Localization.Format($"区间预览失败：{ex.Message}");PreviewStatus.IsVisible=true;}}finally{if(CurrentPreview(revision))_stoppingSelection=false;}
     }
     private async Task FinishPlayback(int revision)
     {try{await _player.Stop();if(!CurrentPreview(revision))return;_playRevision=-1;SetPlaybackButton(false);SetPosition(_info?.Duration??0);}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text=ex.Message;PreviewStatus.IsVisible=true;}}}
@@ -190,7 +192,7 @@ public partial class EditorWindow : Window
         if(PrecisionCombo.SelectedIndex!=3 || !_info.HasVideo){SeekBar.Value=Math.Clamp(SeekBar.Value+direction*Precision,0,SeekBar.Maximum);return;}
         _frameStep?.Cancel();_frameStep?.Dispose();_frameStep=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_frameStep.Token;
         try{var position=await _previewFrames.AdjacentFrameTime(_path,SeekBar.Value,direction,token,_options.VideoStreamIndex);if(!_closed&&!token.IsCancellationRequested)SeekBar.Value=position;}
-        catch(OperationCanceledException){}catch(Exception ex){if(!_closed){PreviewStatus.Text="逐帧定位失败："+ex.Message;PreviewStatus.IsVisible=true;}}
+        catch(OperationCanceledException){}catch(Exception ex){if(!_closed){PreviewStatus.Text=Localization.Format($"逐帧定位失败：{ex.Message}");PreviewStatus.IsVisible=true;}}
     }
     private void SoundClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){_player.Muted=!_player.Muted;SoundIcon.Kind=_player.Muted?"muted":"speaker";ToolTip.SetTip(SoundButton,_player.Muted?"取消静音":"静音");Avalonia.Automation.AutomationProperties.SetName(SoundButton,_player.Muted?"取消静音":"静音");}
     private void TabChanged(object? sender,SelectionChangedEventArgs e)

@@ -61,7 +61,7 @@ public partial class DownloadWindow : Window
             try
             {
                 var path=MediaEngine.Resolve(settings.YtDlpPath,"yt-dlp");var version=await ProcessRunner.Run(path,["--version"],_lifetime.Token);
-                if(!_closed)EngineStatus.Text="yt-dlp "+(version.ExitCode==0?version.Output.Trim():"不可用");
+                if(!_closed)EngineStatus.Text=Localization.Format($"yt-dlp {(version.ExitCode==0?version.Output.Trim():"不可用")}");
             }
             catch(OperationCanceledException){}catch(Exception){if(!_closed)EngineStatus.Text="下载引擎未安装";}
         };
@@ -101,7 +101,7 @@ public partial class DownloadWindow : Window
             var seen=new HashSet<string>(_entries.Where(e=>e.Video is not null).Select(e=>e.Video!.Url),StringComparer.Ordinal);
             for(var i=0;i<urls.Count;i++)
             {
-                token.ThrowIfCancellationRequested();InspectStatus.Text=$"正在解析 {i+1}/{urls.Count} · {DownloadLinks.Platform(urls[i])}";
+                token.ThrowIfCancellationRequested();Localization.SetText(InspectStatus,$"正在解析 {i+1}/{urls.Count} · {DownloadLinks.Platform(urls[i])}");
                 var pending=new DownloadEntry(urls[i]);AddEntry(pending);
                 try
                 {
@@ -119,7 +119,7 @@ public partial class DownloadWindow : Window
                 RefreshSelection();
                 if(_entries.Count>=100){truncated|=i<urls.Count-1;break;}
             }
-            InspectStatus.Text=$"解析完成 · {_entries.Count(e=>e.IsReady)} 个视频"+(truncated?" · 已限制为前 100 项":"");
+            InspectStatus.Text=Localization.Join(" · ", new[] { Localization.Format($"解析完成 · {_entries.Count(e=>e.IsReady)} 个视频"), truncated ? "已限制为前 100 项" : "" }.Where(s=>s.Length>0));
         }
         catch(OperationCanceledException){if(!_closed)InspectStatus.Text="解析已取消，已完成的视频仍可加入队列。";}
         finally{_inspection.Dispose();_inspection=null;if(!_closed){SetBusy(false);RefreshSelection();}}
@@ -136,7 +136,7 @@ public partial class DownloadWindow : Window
     {
         if(SelectionSummary is null)return;
         var ready=_entries.Count(e=>e.IsReady);var selected=_entries.Count(e=>e.IsChecked&&e.IsReady);var errors=_entries.Count(e=>e.HasError);
-        SelectionSummary.Text=$"选中 {selected}/{ready} 个视频"+(errors>0?$" · {errors} 项未能解析":"")+"。加入队列后，主窗口“开始”执行。";
+        SelectionSummary.Text=Localization.Format($"选中 {selected}/{ready} 个视频{(errors>0?Localization.Format($" · {errors} 项未能解析"):"")}。加入队列后，主窗口“开始”执行。");
         EmptyState.IsVisible=_entries.Count==0;_checking=true;SelectAllCheck.IsChecked=ready>0&&selected==ready;_checking=false;
         AddDownloadsButton.IsEnabled=!_busy&&selected>0&&!string.IsNullOrWhiteSpace(DownloadFolder.Text);
         RetryFailedButton.IsEnabled=!_busy&&errors>0;
@@ -156,14 +156,14 @@ public partial class DownloadWindow : Window
     private void NetworkSettingsClick(object? sender,RoutedEventArgs e){CookieSource.BringIntoView();CookieSource.Focus();}
     private async void CookieFileClick(object? sender,RoutedEventArgs e)
     {
-        var files=await StorageProvider.OpenFilePickerAsync(new(){Title="选择 Netscape 格式 cookies.txt",AllowMultiple=false,FileTypeFilter=[new("Cookies 文本"){Patterns=["*.txt"]}]});
+        var files=await StorageProvider.OpenFilePickerAsync(new(){Title = Localization.Text("选择 Netscape 格式 cookies.txt"),AllowMultiple=false,FileTypeFilter=[new(Localization.Text("Cookies 文本")){Patterns=["*.txt"]}]});
         if(files.FirstOrDefault()?.TryGetLocalPath() is {} path)CookieFileInput.Text=path;
     }
     private async void BrowseFolderClick(object? sender,RoutedEventArgs e){if(await Ui.Folder(this,"选择下载保存位置") is {} folder)DownloadFolder.Text=folder;}
     private async void PasteClick(object? sender,RoutedEventArgs e)
     {
         try{if(Clipboard is {} clipboard){using var data=await clipboard.TryGetDataAsync();if(data is not null && await data.TryGetTextAsync() is {} text)LinksInput.Text=text;}}
-        catch(Exception ex){DownloadError.Text="无法读取剪贴板："+ex.Message;}
+        catch(Exception ex){DownloadError.Text=Localization.Format($"无法读取剪贴板：{ex.Message}");}
     }
     private void DropLinks(object? sender,DragEventArgs e){if(!_busy && e.DataTransfer.TryGetText() is {} text){LinksInput.Text=text;e.Handled=true;}}
     private void CancelInspectClick(object? sender,RoutedEventArgs e)=>_inspection?.Cancel();

@@ -25,7 +25,7 @@ public sealed partial class AppOptionsServices : IAppOptionsServices
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(12) };
     private readonly ReleaseUpdateClient _updates;
     private TrayIcon? _tray;
-    public AppOptionsServices() => _updates = new(_http);
+    public AppOptionsServices() { _updates = new(_http); Localization.Changed += LanguageChanged; }
     public bool CanUseTray => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime &&
         (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS());
     public bool CanUseContextMenu => (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) && File.Exists(Executable);
@@ -39,11 +39,16 @@ public sealed partial class AppOptionsServices : IAppOptionsServices
         if (_tray is not null) return;
         var menu = CreateTaskTrayMenu(restore, exit);
         using var icon = AssetLoader.Open(new Uri("avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.ico"));
-        _tray = new() { Icon = new WindowIcon(icon), Menu = menu, ToolTipText = "AvaMedia", IsVisible = true };
+        _tray = new() { Icon = new WindowIcon(icon), Menu = menu, ToolTipText = AppIdentity.DisplayName, IsVisible = true };
         if (_tray.NativeMenuExporter is null) { _tray.Dispose(); _tray = null; throw new PlatformNotSupportedException("当前环境不提供系统托盘。"); }
+        UpdateBackgroundLanguage(Localization.Text, AppIdentity.DisplayName);
         _tray.Clicked += (_, _) => restore();
         var icons = TrayIcon.GetIcons(Application.Current!) ?? new TrayIcons();
         icons.Add(_tray); TrayIcon.SetIcons(Application.Current!, icons);
+    }
+    private void LanguageChanged(object? sender, EventArgs e)
+    {
+        UpdateBackgroundLanguage(Localization.Text, AppIdentity.DisplayName);
     }
     private void DisposeTray()
     {
@@ -65,5 +70,5 @@ public sealed partial class AppOptionsServices : IAppOptionsServices
     }
     public Task<UpdateResult> CheckUpdatesAsync(CancellationToken ct) => _updates
         .CheckAsync(typeof(AppOptionsServices).Assembly.GetName().Version ?? new Version(1, 0, 0), ct);
-    public void Dispose() { DisposeTray(); _http.Dispose(); }
+    public void Dispose() { Localization.Changed -= LanguageChanged; DisposeTray(); _http.Dispose(); }
 }

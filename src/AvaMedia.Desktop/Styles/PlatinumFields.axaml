@@ -1,0 +1,70 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <!-- Editable/selectable parts preserve Avalonia SimpleTheme's MIT behavior. -->
+  <ControlTheme x:Key="PlatinumDropArrowTheme" TargetType="ToggleButton">
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="Width" Value="20"/>
+    <Setter Property="Template"><ControlTemplate><controls:PlatinumBevel Name="ArrowFace" Background="{DynamicResource UiSurfaceRaised}" BorderThickness="2"><Path Data="M 0,0 L 8,0 L 4,4 Z" Fill="Black" HorizontalAlignment="Center" VerticalAlignment="Center"/></controls:PlatinumBevel></ControlTemplate></Setter>
+    <Style Selector="^:checked /template/ controls|PlatinumBevel#ArrowFace"><Setter Property="IsPressed" Value="True"/></Style>
+    <Style Selector="^:pressed /template/ controls|PlatinumBevel#ArrowFace"><Setter Property="IsPressed" Value="True"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.5"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumComboBoxItemTheme" TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="6,1"/><Setter Property="MinHeight" Value="18"/>
+    <Setter Property="Foreground" Value="Black"/><Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Template"><ControlTemplate><ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" VerticalContentAlignment="Center"/></ControlTemplate></Setter>
+    <Style Selector="^:pointerover, ^:selected, ^:selected:focus, ^:selected:pointerover, ^:selected:focus:pointerover"><Setter Property="Foreground" Value="White"/><Setter Property="Background" Value="{DynamicResource UiMenuSelection}"/></Style>
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter, ^:selected /template/ ContentPresenter#PART_ContentPresenter, ^:selected:focus /template/ ContentPresenter#PART_ContentPresenter, ^:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ^:selected:focus:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiMenuSelection}"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumComboBoxTheme" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+    <Setter Property="ItemContainerTheme" Value="{StaticResource PlatinumComboBoxItemTheme}"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid ColumnDefinitions="*,20">
+          <controls:PlatinumBevel Background="{TemplateBinding Background}" BorderThickness="2" Padding="{TemplateBinding Padding}">
+            <Panel>
+              <TextBlock Text="{TemplateBinding PlaceholderText}" Foreground="{TemplateBinding PlaceholderForeground}" VerticalAlignment="Center">
+                <TextBlock.IsVisible><MultiBinding Converter="{x:Static BoolConverters.And}"><Binding Path="SelectionBoxItem" RelativeSource="{RelativeSource TemplatedParent}" Converter="{x:Static ObjectConverters.IsNull}"/><Binding Path="!IsEditable" RelativeSource="{RelativeSource TemplatedParent}"/></MultiBinding></TextBlock.IsVisible>
+              </TextBlock>
+              <ContentControl Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center" IsVisible="{TemplateBinding IsEditable, Converter={x:Static BoolConverters.Not}}"/>
+              <TextBox Name="PART_EditableTextBox" Background="Transparent" BorderThickness="0" Padding="0" MinHeight="0" Text="{TemplateBinding Text, Mode=TwoWay}" IsVisible="{TemplateBinding IsEditable}"/>
+            </Panel>
+          </controls:PlatinumBevel>
+          <ToggleButton Name="toggle" Grid.Column="1" Theme="{StaticResource PlatinumDropArrowTheme}" ClickMode="Press" IsChecked="{TemplateBinding IsDropDownOpen, Mode=TwoWay}"/>
+          <Popup Name="PART_Popup" MinWidth="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}" IsLightDismissEnabled="True" IsOpen="{TemplateBinding IsDropDownOpen, Mode=TwoWay}" PlacementTarget="{TemplateBinding}" InheritsTransform="True">
+            <Border Margin="0,0,3,3"><Border Background="{DynamicResource UiMenuSurface}" BorderBrush="Black" BorderThickness="1" BoxShadow="{DynamicResource UiMenuShadow}">
+              <ScrollViewer HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}" IsDeferredScrollingEnabled="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}" ScrollViewer.IsScrollChainingEnabled="False"><ItemsPresenter Name="PART_ItemsPresenter" Margin="0,1" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+            </Border></Border>
+          </Popup>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumCheckBoxTheme" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+    <Setter Property="MinHeight" Value="18"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="14,*" ColumnSpacing="6" Background="Transparent">
+      <controls:PlatinumGlyph Name="ChoiceMark" Kind="check" Width="14" Height="14" VerticalAlignment="Center" IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}"/>
+      <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" RecognizesAccessKey="True" VerticalContentAlignment="Center"/>
+    </Grid></ControlTemplate></Setter>
+    <Style Selector="^:disabled /template/ controls|PlatinumGlyph#ChoiceMark"><Setter Property="IsActive" Value="False"/></Style>
+    <Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumRadioButtonTheme" TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+    <Setter Property="MinHeight" Value="18"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="14,*" ColumnSpacing="6" Background="Transparent">
+      <controls:PlatinumGlyph Name="ChoiceMark" Kind="radio" Width="14" Height="14" VerticalAlignment="Center" IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}"/>
+      <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" RecognizesAccessKey="True" VerticalContentAlignment="Center"/>
+    </Grid></ControlTemplate></Setter>
+    <Style Selector="^:disabled /template/ controls|PlatinumGlyph#ChoiceMark"><Setter Property="IsActive" Value="False"/></Style>
+    <Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumButtonSpinnerTheme" TargetType="ButtonSpinner" BasedOn="{StaticResource {x:Type ButtonSpinner}}">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Style Selector="^ /template/ Border"><Setter Property="CornerRadius" Value="0"/><Setter Property="BoxShadow" Value="{DynamicResource UiInsetShadow}"/></Style>
+    <Style Selector="^ /template/ RepeatButton"><Setter Property="Template"><ControlTemplate><controls:PlatinumBevel Background="{DynamicResource UiSurfaceRaised}" BorderThickness="2"><ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/></controls:PlatinumBevel></ControlTemplate></Setter><Setter Property="Foreground" Value="Black"/><Setter Property="Width" Value="16"/><Setter Property="Padding" Value="0"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumNumericUpDownTheme" TargetType="NumericUpDown" BasedOn="{StaticResource {x:Type NumericUpDown}}">
+    <Setter Property="Padding" Value="3,0"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="Black"/><Setter Property="Background" Value="White"/>
+    <Style Selector="^ /template/ ButtonSpinner#PART_Spinner"><Setter Property="Theme" Value="{StaticResource PlatinumButtonSpinnerTheme}"/></Style>
+    <Style Selector="^ /template/ TextBox#PART_TextBox"><Setter Property="Theme" Value="{StaticResource {x:Type TextBox}}"/><Setter Property="Margin" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="3,0"/><Setter Property="BorderThickness" Value="0"/></Style>
+  </ControlTheme>
+</ResourceDictionary>

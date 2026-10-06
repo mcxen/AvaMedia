@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.Controls.JobRowView">
+<UserControl xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.Controls.JobRowView">
   <UserControl.Styles>
     <Style Selector="TextBlock.queue-state"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
     <Style Selector="TextBlock.queue-state.running"><Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
@@ -18,13 +18,13 @@
       </Grid>
     </Button>
     <StackPanel Grid.Column="1" Spacing="4" Margin="7,2" VerticalAlignment="Center" ToolTip.Tip="{Binding SourceTip}">
-      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+      <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
       <TextBlock Text="{Binding MediaSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
       <TextBlock Text="{Binding CodecSummary}" IsVisible="{Binding HasCodecSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
       <TextBlock Text="{Binding FileSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
     </StackPanel>
     <StackPanel Grid.Column="2" Spacing="4" Margin="7,2" VerticalAlignment="Center">
-      <TextBlock Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
+      <TextBlock i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
       <TextBlock Text="{Binding SettingsSummary}" TextWrapping="Wrap" MaxHeight="36" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
       <ProgressBar Value="{Binding Job.Progress}" Maximum="100" Height="10"/>
       <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}"/>

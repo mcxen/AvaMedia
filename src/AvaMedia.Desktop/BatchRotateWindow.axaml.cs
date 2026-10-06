@@ -24,6 +24,7 @@ public sealed class BatchRotateEntry(string path) : Observable
     public VideoOrientationResult? Detection { get; internal set; }
     internal bool IsDetecting { get; set; }
     internal string? DetectionMessage { get; set; }
+    internal OrientationDetectionProgress? DetectionProgress { get; set; }
     internal Task Ready { get; set; } = Task.CompletedTask;
     internal void Loaded(MediaInfo info) { Info = info; Raise(nameof(Dimensions)); }
 }
@@ -123,7 +124,7 @@ public sealed partial class BatchRotateWindow : Window
             {
                 if (_closed || !_entries.Contains(entry)) return;
                 entry.Error = ex.Message;
-                if (_active == entry) { PreviewStatus.Text = "无法读取视频：" + ex.Message; PreviewStatus.IsVisible = true; }
+                if (_active == entry) { PreviewStatus.Text = Localization.Format($"无法读取视频：{ex.Message}"); PreviewStatus.IsVisible = true; }
                 RefreshValidation();
             });
         }
@@ -161,7 +162,7 @@ public sealed partial class BatchRotateWindow : Window
         catch (Exception ex)
         {
             if (!_closed && !token.IsCancellationRequested && _active == entry)
-            { PreviewStatus.Text = "预览失败：" + ex.Message; PreviewStatus.IsVisible = true; }
+            { PreviewStatus.Text = Localization.Format($"预览失败：{ex.Message}"); PreviewStatus.IsVisible = true; }
         }
         finally
         {
@@ -185,28 +186,29 @@ public sealed partial class BatchRotateWindow : Window
         _syncingDirection = false;
         DirectionLabel.Text = PerFile ? "当前视频" : "旋转方向";
         _rotation.Angle = activeRotation ?? 0;
-        ResultDescription.Text = activeRotation is { } angle ? "旋转后 · " + BatchRotate.Direction(angle) : "旋转后 · 请手动指定方向";
+        ResultDescription.Text = activeRotation is { } angle ? Localization.Format($"旋转后 · {Localization.Key(BatchRotate.Direction(angle))}") : "旋转后 · 请手动指定方向";
         if (_active?.Info is { } active)
         { var size = BatchRotate.OutputSize(active, activeRotation ?? 0); ResultDescription.Text += $" · {size.Width} × {size.Height}"; }
         var included = _entries.Where(e => e.Include).ToArray(); var invalid = 0; var pending = 0; var unresolved = 0; var changed = 0; var skipped = 0;
-        ListSummary.Text = $"{_entries.Count} 个视频 · 勾选 {included.Length} 个";
+        Localization.SetText(ListSummary,$"{_entries.Count} 个视频 · 勾选 {included.Length} 个");
         foreach (var entry in _entries)
         {
             if (!entry.Include) { entry.Status = "不处理"; continue; }
-            if (entry.Error is not null) { entry.Status = "读取失败：" + entry.Error; invalid++; continue; }
+            if (entry.Error is not null) { entry.Status = Localization.Format($"读取失败：{entry.Error}"); invalid++; continue; }
             if (entry.Info is null) { entry.Status = "正在读取…"; pending++; continue; }
-            if (entry.IsDetecting) { entry.Status = entry.DetectionMessage ?? "正在检测方向…"; continue; }
+            if (entry.IsDetecting) { entry.Status = entry.DetectionProgress is { } progress
+                ? Localization.Format($"正在检测 {progress.CompletedFrames}/{progress.TotalFrames} 帧…") : entry.DetectionMessage ?? "正在检测方向…"; continue; }
             var correction = EffectiveRotation(entry);
-            if (correction is null) { entry.Status = "无法确定 · " + (entry.DetectionMessage ?? entry.Detection?.Reason ?? "请手动指定方向。"); unresolved++; continue; }
+            if (correction is null) { entry.Status = Localization.Format($"无法确定 · {(entry.DetectionMessage ?? entry.Detection?.Reason ?? "请手动指定方向。")}"); unresolved++; continue; }
             try
             {
                 var export = BatchRotate.ResolveOptions(entry.Info, correction.Value, Format, entry.Path); var size = BatchRotate.OutputSize(entry.Info, correction.Value);
                 if (correction == 0) { entry.Status = "无需旋转 · 跳过"; skipped++; }
-                else { entry.Status = $"{BatchRotate.Direction(correction.Value)} → {size.Width} × {size.Height} · {export.Format.ToUpperInvariant()}"; changed++; }
+                else { entry.Status = Localization.Format($"{Localization.Key(BatchRotate.Direction(correction.Value))} → {size.Width} × {size.Height} · {export.Format.ToUpperInvariant()}"); changed++; }
                 if (PerFile && entry.Detection is { IsCertain: true } result)
-                    entry.Status += $" · 自动判断（{(result.Reliability == OrientationReliability.High ? "高" : "中")}可靠度） · {result.Reason}";
+                    entry.Status = Localization.Join(" · ", new[] { entry.Status, Localization.Format($"自动判断（{Localization.Key(result.Reliability == OrientationReliability.High ? "高" : "中")}可靠度）"), Localization.OrientationReason(result) });
             }
-            catch (ArgumentException ex) { entry.Status = "不可旋转：" + ex.Message; invalid++; }
+            catch (ArgumentException ex) { entry.Status = Localization.Format($"不可旋转：{ex.Message}"); invalid++; }
         }
         var outputValid = !string.IsNullOrWhiteSpace(OutputInput.Text);
         ExportHint.Text = Format == SourceVideoExport.FastRotation ? SourceVideoExport.FastHint : Format == SourceVideoExport.Original ? SourceVideoExport.OriginalHint : "按所选格式重新编码视频和音频。";
@@ -216,12 +218,12 @@ public sealed partial class BatchRotateWindow : Window
         AddButton.IsEnabled = RemoveButton.IsEnabled = SelectAllButton.IsEnabled = ModeCombo.IsEnabled = !_detecting;
         DirectionCombo.IsEnabled = !_detecting && (!PerFile || _active?.Info is not null);
         ValidationText.Classes.Set("error", invalid > 0 || unresolved > 0);
-        ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? $"正在读取 {pending} 个视频…"
+        ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
             : _detecting ? "正在自动检测方向，可以预览画面或停止检测。"
-            : invalid > 0 ? $"{invalid} 个视频无法处理，请移除或取消勾选。"
-            : unresolved > 0 ? $"{unresolved} 个视频方向无法确定，请逐个指定方向或取消勾选。"
+            : invalid > 0 ? Localization.Format($"{invalid} 个视频无法处理，请移除或取消勾选。")
+            : unresolved > 0 ? Localization.Format($"{unresolved} 个视频方向无法确定，请逐个指定方向或取消勾选。")
             : !outputValid ? "请选择输出目录" : changed == 0 ? "勾选的视频均无需旋转，不会创建输出任务。"
-            : $"{changed} 个视频将按各自方向旋转，{skipped} 个无需旋转而跳过。源文件保持原样。";
+            : Localization.Format($"{changed} 个视频将按各自方向旋转，{skipped} 个无需旋转而跳过。源文件保持原样。");
     }
 
     private int? EffectiveRotation(BatchRotateEntry entry) => PerFile ? entry.Rotation : _sharedRotation;
@@ -253,12 +255,12 @@ public sealed partial class BatchRotateWindow : Window
                 cancellation.Token.ThrowIfCancellationRequested();
                 var entry = targets[index]; entry.IsDetecting = true;
                 entry.DetectionMessage = "正在检测方向…";
-                DetectionStatus.Text = $"正在检测 {index + 1}/{targets.Length}：{entry.Name}";
+                Localization.SetText(DetectionStatus,$"正在检测 {index + 1}/{targets.Length}：{entry.Name}");
                 RefreshValidation();
                 var progress = new Progress<OrientationDetectionProgress>(p =>
                 {
                     if (_closed || !ReferenceEquals(_detectionCancellation, cancellation) || cancellation.IsCancellationRequested || !entry.IsDetecting) return;
-                    entry.DetectionMessage = $"正在检测 {p.CompletedFrames}/{p.TotalFrames} 帧…";
+                    entry.DetectionProgress = p; entry.DetectionMessage = $"正在检测 {p.CompletedFrames}/{p.TotalFrames} 帧…";
                     RefreshValidation();
                 });
                 try
@@ -268,13 +270,13 @@ public sealed partial class BatchRotateWindow : Window
                     entry.Detection = result; entry.Rotation = result.Rotation; entry.DetectionMessage = null;
                 }
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { throw; }
-                catch (Exception ex) { entry.DetectionMessage = "检测失败：" + ex.Message + " 请手动选择方向。"; }
+                catch (Exception ex) { entry.DetectionMessage = $"检测失败：{ex.Message} 请手动选择方向。"; }
                 finally { entry.IsDetecting = false; }
                 RefreshValidation();
             }
             var certain = targets.Count(e => e.Rotation is not null);
             var unchanged = targets.Count(e => e.Rotation == 0);
-            DetectionStatus.Text = $"检测完成：{certain} 个已确定（{unchanged} 个无需旋转），{targets.Length - certain} 个需手动检查。请对比预览。";
+            Localization.SetText(DetectionStatus,$"检测完成：{certain} 个已确定（{unchanged} 个无需旋转），{targets.Length - certain} 个需手动检查。请对比预览。");
         }
         catch (OperationCanceledException) { if (!_closed) DetectionStatus.Text = "检测已停止，已完成的结果保留；其余视频请手动选择方向或重新检测。"; }
         finally
@@ -302,7 +304,7 @@ public sealed partial class BatchRotateWindow : Window
         {
             if (entry.Error is not null) throw new ArgumentException(entry.Name + "：" + entry.Error);
             if (entry.Info is null) throw new ArgumentException("视频信息正在读取，请稍候。");
-            var angle = EffectiveRotation(entry) ?? throw new ArgumentException(entry.Name + "：方向无法确定，请手动选择。");
+            var angle = EffectiveRotation(entry) ?? throw new ArgumentException(Localization.Format($"{entry.Name}：方向无法确定，请手动选择。"));
             var options = BatchRotate.ResolveOptions(entry.Info, angle, Format, entry.Path);
             MediaEngine.Validate(new() { FeatureId = "rotate", Inputs = [entry.Path], Options = options,
                 Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-rotate-" + Guid.NewGuid() + "." + options.Format) });
@@ -325,19 +327,19 @@ public sealed partial class BatchRotateWindow : Window
         if (_active is not null)
         {
             PreviewName.Text = _active.Name; PrepareSeek(_active);
-            PreviewStatus.Text = _active.Error is { } error ? "无法读取视频：" + error : "正在读取预览…";
+            PreviewStatus.Text = _active.Error is { } error ? Localization.Format($"无法读取视频：{error}") : "正在读取预览…";
             if (_active.Info is not null) _previewReady = LoadPreview(_active);
         }
         RefreshValidation();
     }
     private async void AddClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = "选择多个视频", AllowMultiple = true,
-            FileTypeFilter = [new FilePickerFileType("视频") { Patterns = QuickClipBatch.VideoExtensions.Select(e => "*." + e).ToArray() }, FilePickerFileTypes.All] });
+        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择多个视频"), AllowMultiple = true,
+            FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(e => "*." + e).ToArray() }, FilePickerFileTypes.All] });
         ReportSkipped(AddFiles(files.Select(f => f.TryGetLocalPath()).OfType<string>()));
     }
     private void ReportSkipped(IReadOnlyList<string> skipped)
-    { if (skipped.Count > 0) ValidationText.Text = $"已跳过 {skipped.Count} 个非视频或不存在的文件。"; }
+    { if (skipped.Count > 0) Localization.SetText(ValidationText,$"已跳过 {skipped.Count} 个非视频或不存在的文件。"); }
     private void RemoveClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
         foreach (var entry in FileList.SelectedItems?.Cast<BatchRotateEntry>().ToArray() ?? []) _entries.Remove(entry);

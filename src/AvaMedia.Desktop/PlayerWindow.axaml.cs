@@ -57,9 +57,10 @@ public partial class PlayerWindow : Window
         InitializeComponent(); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p));
         _folderScanner = folderScanner ?? new VideoFolderScanner();
         _recycleBin = recycleBin ?? new RecycleBin(); _preferences = preferences ?? new Storage(); ConfirmDeletion = _preferences.LoadSettings().ConfirmPlayerDeletion;
+        Localization.Changed += LanguageChanged;
         SetFiles(files ?? []);
         PlayerSeek.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && !_updating && _info is not null) CommandReady = SeekAsync(PlayerSeek.Value); };
-        PlayerVolume.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && _player is not null) { _player.Volume = (float)(PlayerVolume.Value / 100); Notice($"音量 {PlayerVolume.Value:0}%"); } };
+        PlayerVolume.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && _player is not null) { _player.Volume = (float)(PlayerVolume.Value / 100); NoticeFormatted($"音量 {PlayerVolume.Value:0}%"); } };
         HeaderBar.PointerPressed += (_, e) =>
         {
             if (e.Source is Control source && (source is Button || source.GetVisualAncestors().Any(a => a is Button))) return;
@@ -82,11 +83,18 @@ public partial class PlayerWindow : Window
         Opened += (_, _) => { if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
         Closed += (_, _) =>
         {
+            Localization.Changed -= LanguageChanged;
             _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel();
             _player?.Dispose(); VideoImage.Source = null; _still?.Dispose(); _firstFrame.TrySetCanceled();
             _load?.Dispose(); _seek?.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
         };
         RefreshTransport(); RefreshPlaylist(); ShowChrome();
+    }
+
+    private void LanguageChanged(object? sender, EventArgs e)
+    {
+        Title = CurrentPath.Length == 0 ? AppIdentity.PlayerTitle : Path.GetFileName(CurrentPath) + " — " + AppIdentity.PlayerTitle;
+        if (CurrentPath.Length == 0) { FileName.Text = AppIdentity.PlayerTitle; PlayerStatus.Text = AppIdentity.PlayerWelcome; }
     }
 
     public Task OpenAsync(string path)
@@ -113,7 +121,7 @@ public partial class PlayerWindow : Window
             var old = _player; _player = null; _info = null; RefreshTransport();
             if (old is not null) { await old.Stop(); old.Dispose(); }
             if (!Current(revision)) return;
-            CurrentPath = path; Title = Path.GetFileName(path) + " — AvaMedia 播放器"; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
+            CurrentPath = path; Title = Path.GetFileName(path) + " — " + AppIdentity.PlayerTitle; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
             PlaybackError = ""; PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; VideoImage.Source = null; _still?.Dispose(); _still = null;
             var info = await _engine.Probe(path, token, video, audio); token.ThrowIfCancellationRequested();
             if (!Current(revision)) return;
@@ -127,7 +135,7 @@ public partial class PlayerWindow : Window
                 SetPosition(position);
                 if (info.HasVideo) { VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); PlayerStatus.IsVisible = false; }
                 else { PlayerStatus.Text = "音频播放"; }
-                MarkFirstFrame();
+                RefreshCapture(); MarkFirstFrame();
             };
             player.Error += message => { if (Current(revision)) { PlaybackError = message; Notice(message); } };
             player.Finished += () => { if (Current(revision)) CommandReady = Ended(player); };
@@ -142,7 +150,7 @@ public partial class PlayerWindow : Window
         catch (Exception ex)
         {
             if (!Current(revision)) return;
-            PlaybackError = ex.Message; PlayerStatus.Text = "播放失败：" + ex.Message; PlayerStatus.IsVisible = true;
+            PlaybackError = ex.Message; PlayerStatus.Text = Localization.Format($"播放失败：{ex.Message}"); PlayerStatus.IsVisible = true;
             _firstFrame.TrySetException(ex); RefreshTransport();
         }
     }
@@ -169,7 +177,9 @@ public partial class PlayerWindow : Window
         _position = Math.Clamp(position, 0, _info?.Duration ?? 0);
         _updating = true; PlayerSeek.Value = _position; _updating = false; PlayerTime.Text = EditorTime.Format(_position);
     }
-    private void Notice(string message) { PlayerNotice.Text = message; PlayerOsd.IsVisible = true; _noticeTimer.Stop(); _noticeTimer.Start(); }
+    private void Notice(string message) { PlayerNotice.Text = message; ShowNotice(); }
+    private void NoticeFormatted(FormattableString message) { Localization.SetText(PlayerNotice, message); ShowNotice(); }
+    private void ShowNotice() { PlayerOsd.IsVisible = true; _noticeTimer.Stop(); _noticeTimer.Start(); }
     private void RefreshTransport()
     {
         var playing = _info is not null && _playIntent;
@@ -181,6 +191,7 @@ public partial class PlayerWindow : Window
         PreviousFileButton.IsEnabled = !_deleting && _fileIndex > 0;
         NextFileButton.IsEnabled = !_deleting && _fileIndex + 1 < _playlist.Length;
         PlayerOpenButton.IsEnabled = PlaylistList.IsEnabled = !_deleting;
+        RefreshCapture();
     }
     public async Task TogglePlaybackAsync()
     {
@@ -199,6 +210,7 @@ public partial class PlayerWindow : Window
         if (_player is not { } player || _info is not { } info) return;
         var playing = resume ?? _playIntent; var revision = _revision;
         _playIntent = playing; var generation = ++_seekGeneration; _pendingSeek = true;
+        RefreshCapture();
         _seek?.Cancel(); _seek?.Dispose(); _seek = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         var token = _seek.Token;
         var position = Math.Clamp(seconds, 0, Math.Max(0, info.Duration - (info.FrameRate > 0 ? 1 / info.FrameRate : .001)));
@@ -220,7 +232,7 @@ public partial class PlayerWindow : Window
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (Current(revision)) { PlaybackError = ex.Message; Notice(ex.Message); } }
-        finally { if (generation == _seekGeneration) _pendingSeek = false; }
+        finally { if (generation == _seekGeneration) { _pendingSeek = false; if (!_closed) RefreshCapture(); } }
     }
     public async Task SetSpeedAsync(double speed)
     {
@@ -228,7 +240,7 @@ public partial class PlayerWindow : Window
         PlayerSpeed.Content = MediaEngine.Number(_speed) + "×";
         if (_player is { HasSession: true }) await SeekAsync(_position, _playIntent);
         else if (_player is not null) _player.Speed = _speed;
-        Notice($"速度 {MediaEngine.Number(_speed)}×");
+        NoticeFormatted($"速度 {MediaEngine.Number(_speed)}×");
     }
     public async Task ExecuteAsync(PlayerCommand command)
     {
@@ -270,6 +282,7 @@ public partial class PlayerWindow : Window
             case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; break;
             case PlayerCommand.Playlist: TogglePlaylist(); break;
             case PlayerCommand.Settings: BuildMenu().Open(PlayerSettingsButton); break;
+            case PlayerCommand.CaptureFrame: await CaptureFrameAsync(); break;
             case PlayerCommand.DeleteFile: await DeleteCurrentAsync(); break;
         }
     }
@@ -315,16 +328,16 @@ public partial class PlayerWindow : Window
             _explicitFiles = _explicitFiles.Where(p => !VideoFolderScanner.PathComparer.Equals(p, path)).ToArray();
             _player?.Dispose(); _player = null; _info = null; _playIntent = false;
             VideoImage.Source = null; _still?.Dispose(); _still = null;
-            PlaylistStatus.Text = $"{_playlist.Length} 个文件";
+            Localization.SetText(PlaylistStatus,$"{_playlist.Length} 个文件");
             if (_playlist.Length > 0)
             {
                 _fileIndex = Math.Min(index, _playlist.Length - 1); await StartOpen(_playlist[_fileIndex], 0, 0, 0, true, allowDeleting: true);
-                Notice("已移入回收站：" + Path.GetFileName(path));
+                Notice(Localization.Format($"已移入回收站：{Path.GetFileName(path)}"));
             }
             else
             {
                 CurrentPath = ""; PlaybackError = ""; _fileIndex = 0; _loadedFolder = null; SetPosition(0); PlayerTotal.Text = EditorTime.Format(0);
-                FileName.Text = Title = "AvaMedia 播放器"; PlayerStatus.Text = "已移入回收站\n拖入媒体文件，或按 F3 打开"; PlayerStatus.IsVisible = true;
+                FileName.Text = Title = AppIdentity.PlayerTitle; PlayerStatus.Text = "已移入回收站\n拖入媒体文件，或按 F3 打开"; PlayerStatus.IsVisible = true;
                 ToolTip.SetTip(FileName, null);
                 RefreshPlaylist(); PlaylistStatus.Text = "0 个文件";
             }
@@ -335,7 +348,7 @@ public partial class PlayerWindow : Window
             if (!_closed)
             {
                 if (_player is not null && _info is not null) await StartOpen(path, _info.VideoStreamIndex, _info.AudioStreamIndex, position, playing, allowDeleting: true);
-                Notice("移入回收站失败：" + ex.Message);
+                Notice(Localization.Format($"移入回收站失败：{ex.Message}"));
             }
         }
         finally { _deleting = false; if (!_closed) RefreshTransport(); }
@@ -345,7 +358,8 @@ public partial class PlayerWindow : Window
         var dialog = new Window { Title = "移入回收站", Width = 520, Height = 280, MinWidth = 420, MinHeight = 240, WindowStartupLocation = WindowStartupLocation.CenterOwner, CanResize = false };
         var body = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), RowSpacing = 12, Margin = new(18) };
         body.Children.Add(new TextBlock { Text = "将原始文件移入回收站？", TextWrapping = TextWrapping.Wrap });
-        var file = new ScrollViewer { Content = new TextBlock { Text = path, TextWrapping = TextWrapping.Wrap } }; Grid.SetRow(file, 1); body.Children.Add(file);
+        var fileText = new TextBlock { Text = path, TextWrapping = TextWrapping.Wrap }; Localization.SetIsUserText(fileText, true);
+        var file = new ScrollViewer { Content = fileText }; Grid.SetRow(file, 1); body.Children.Add(file);
         var remember = new CheckBox { Content = "以后直接进回收站，不再确认" }; Grid.SetRow(remember, 2); body.Children.Add(remember);
         var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Spacing = 12 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
@@ -387,11 +401,11 @@ public partial class PlayerWindow : Window
             _fileIndex = Array.FindIndex(_playlist, p => VideoFolderScanner.PathComparer.Equals(p, CurrentPath));
             _loadedFolder = directory;
             RefreshPlaylist(); RefreshTransport();
-            PlaylistStatus.Text = $"{_playlist.Length} 个文件";
+            Localization.SetText(PlaylistStatus,$"{_playlist.Length} 个文件");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        { if (!_closed && generation == _folderGeneration) PlaylistStatus.Text = "目录加载失败：" + ex.Message; }
+        { if (!_closed && generation == _folderGeneration) PlaylistStatus.Text = Localization.Format($"目录加载失败：{ex.Message}"); }
     }
     private void RefreshPlaylist() { PlaylistList.ItemsSource = _playlist.Select(Path.GetFileName).ToArray(); PlaylistList.SelectedIndex = _fileIndex; }
     private void TogglePlaylist() { PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible; }
@@ -437,13 +451,15 @@ public partial class PlayerWindow : Window
         var fill = new MenuItem { Header = "拉伸填满", ToggleType = MenuItemToggleType.Radio, IsChecked = VideoImage.Stretch == Stretch.Fill };
         fill.Click += (_, _) => VideoImage.Stretch = Stretch.Fill;
         items.Add(new MenuItem { Header = "画面比例", ItemsSource = new[] { uniform, fill } });
+        var capture = Command("截取当前帧（保存到视频目录）", PlayerCommand.CaptureFrame, new(Key.E, OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control));
+        capture.IsEnabled = CanCaptureFrame; items.Add(capture);
         items.Add(new Separator()); items.Add(Command("全屏 / 窗口", PlayerCommand.ToggleFullscreen, new(Key.Enter)));
         var delete = Command("删除原始文件到回收站", PlayerCommand.DeleteFile, new(Key.Delete)); delete.IsEnabled = !_deleting && !string.IsNullOrEmpty(CurrentPath); items.Add(delete);
         var confirmDeletion = new MenuItem { Header = "删除到回收站前确认", ToggleType = MenuItemToggleType.CheckBox, IsChecked = ConfirmDeletion };
         confirmDeletion.Click += (_, _) => SetConfirmDeletion(confirmDeletion.IsChecked); items.Add(confirmDeletion);
         items.Add(Command("播放列表", PlayerCommand.Playlist, new(Key.F6))); items.Add(Command("快捷键", PlayerCommand.Help, new(Key.F1)));
         var properties = new MenuItem { Header = "媒体信息", IsEnabled = _info is not null };
-        properties.Click += (_, _) => { if (_info is { } info) CommandReady = Ui.Message(this, "媒体信息", $"{Path.GetFileName(CurrentPath)}\n时长：{EditorTime.Format(info.Duration)}\n画面：{info.Width} × {info.Height}\n视频：{info.VideoCodec} · {MediaEngine.Number(info.FrameRate)} fps\n音频：{info.AudioCodec} · {info.AudioSampleRate} Hz · {info.AudioChannels} 声道"); };
+        properties.Click += (_, _) => { if (_info is { } info) CommandReady = Ui.MessageFormatted(this, "媒体信息", $"{Path.GetFileName(CurrentPath)}\n时长：{EditorTime.Format(info.Duration)}\n画面：{info.Width} × {info.Height}\n视频：{info.VideoCodec} · {MediaEngine.Number(info.FrameRate)} fps\n音频：{info.AudioCodec} · {info.AudioSampleRate} Hz · {info.AudioChannels} 声道"); };
         items.Add(properties);
         var close = new MenuItem { Header = "关闭" }; close.Click += (_, _) => Close(); items.Add(close);
         return new ContextMenu { ItemsSource = items };
@@ -456,6 +472,7 @@ public partial class PlayerWindow : Window
     private void MaximizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void CloseClick(object? sender, RoutedEventArgs e) => Close();
     private void OpenClick(object? sender, RoutedEventArgs e) => CommandReady = Pick();
+    private void CaptureClick(object? sender, RoutedEventArgs e) => CommandReady = CaptureFrameAsync();
     private void PlayClick(object? sender, RoutedEventArgs e) => CommandReady = TogglePlaybackAsync();
     private void StopClick(object? sender, RoutedEventArgs e) => CommandReady = ExecuteAsync(PlayerCommand.Stop);
     private void MuteClick(object? sender, RoutedEventArgs e) => CommandReady = ExecuteAsync(PlayerCommand.Mute);

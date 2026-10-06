@@ -52,7 +52,7 @@ public sealed class Motion : AvaloniaObject
             && SystemParametersInfo(0x1042, 0, out var enabled, 0) && !enabled;
         var allowMotion = !_userReducedMotion && !_systemReducedMotion;
         foreach (var window in OpenWindows)
-            window.Classes.Set("motion-enabled", allowMotion);
+            window.Classes.Set("motion-enabled", allowMotion && window.ActualThemeVariant != Skin.MacOS9);
         if (!allowMotion)
             foreach (var animation in Animations.Values.ToArray())
                 animation.Cancel();
@@ -61,6 +61,7 @@ public sealed class Motion : AvaloniaObject
     public static void Reveal(Control control, string durationResource = "MotionNavigate")
     {
         Dispatcher.UIThread.VerifyAccess();
+        if (control.ActualThemeVariant == Skin.MacOS9) { Cancel(control); return; }
         if (TopLevel.GetTopLevel(control) is not Window window
             || !window.IsVisible || !control.IsVisible || !window.Classes.Contains("motion-enabled"))
             return;
@@ -125,6 +126,7 @@ public sealed class Motion : AvaloniaObject
             window.Activated += Activated;
             window.Closed += Closed;
             window.PropertyChanged += VisibilityChanged;
+            window.ActualThemeVariantChanged += ThemeChanged;
             if (window.IsVisible) Opened(window, EventArgs.Empty);
         }
         private void Opened(object? sender, EventArgs args)
@@ -134,6 +136,8 @@ public sealed class Motion : AvaloniaObject
             if (_window.Content is Control content) Reveal(content, "MotionEnter");
         }
         private void Activated(object? sender, EventArgs args) => RefreshPreferences();
+        private void ThemeChanged(object? sender, EventArgs args)
+        { RefreshPreferences(); if (_window.ActualThemeVariant == Skin.MacOS9) CancelWindowAnimations(); }
         private void Closed(object? sender, EventArgs args) => Dispose();
         private void VisibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
         {
@@ -151,6 +155,7 @@ public sealed class Motion : AvaloniaObject
             _window.Activated -= Activated;
             _window.Closed -= Closed;
             _window.PropertyChanged -= VisibilityChanged;
+            _window.ActualThemeVariantChanged -= ThemeChanged;
             OpenWindows.Remove(_window);
             _window.Classes.Remove("motion-enabled");
             CancelWindowAnimations();

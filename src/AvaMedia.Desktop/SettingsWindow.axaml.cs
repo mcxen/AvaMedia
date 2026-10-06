@@ -22,6 +22,7 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow(AppSettings settings, IAppOptionsServices? services = null)
     {
         InitializeComponent(); _settings = settings; _services = services ?? new AppOptionsServices(); _ownsServices = services is null;
+        Localization.Changed += LanguageChanged;
         Populate(settings);
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
@@ -36,7 +37,7 @@ public sealed partial class SettingsWindow : Window
         ContextMenuInput.Content = OperatingSystem.IsMacOS() ? "添加到 Finder 快速操作" : "添加到系统上下文菜单";
         ToolTip.SetTip(ContextMenuInput, OperatingSystem.IsMacOS() ? "安装到当前用户的 Finder 服务；可在系统设置的扩展中管理。" : "添加当前用户的资源管理器菜单；Windows 11 可能位于“显示更多选项”。");
         if (!_services.CanUseTray) { ToolTip.SetTip(TrayInput, "当前环境不提供系统托盘，使用正常窗口最小化。"); ToolTip.SetTip(CloseToTrayInput, "当前环境不提供系统托盘，关闭窗口会退出应用。"); }
-        Closed += (_, _) => { _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
+        Closed += (_, _) => { Localization.Changed -= LanguageChanged; _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
         AddHandler(Button.ClickEvent,(_,_)=>{if(_settings.PlayOperationSound)_services.PlaySound(UiSound.Operation);},RoutingStrategies.Bubble);
     }
 
@@ -63,7 +64,7 @@ public sealed partial class SettingsWindow : Window
         {
             SettingsTabs.SelectedItem = input.GetLogicalAncestors().OfType<TabItem>().First();
             input.Focus();
-            throw new ArgumentException($"{label}：请输入 {input.Minimum} 到 {input.Maximum} 之间的整数。");
+            throw new ArgumentException(Localization.Format($"{Localization.Key(label)}：请输入 {input.Minimum} 到 {input.Maximum} 之间的整数。"));
         }
         return decimal.ToInt32(value);
     }
@@ -81,9 +82,11 @@ public sealed partial class SettingsWindow : Window
         ErrorSoundInput.IsChecked = source.PlayErrorSound; ContextMenuInput.IsChecked = source.SystemContextMenu;
         TrayInput.IsChecked = source.MinimizeToTray; CheckUpdatesInput.IsChecked = source.CheckForUpdates;
         CloseToTrayInput.IsChecked = source.CloseToTray;
-        RuntimeInfo.Text = $"AvaMedia · .NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}";
+        RuntimeInfo.Text = RuntimeDescription;
         StatusText.IsVisible = false; _initializing = false;
     }
+    private static string RuntimeDescription => Localization.Format($"{AppIdentity.WindowTitle}\n.NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}");
+    private void LanguageChanged(object? sender, EventArgs e) => RuntimeInfo.Text = RuntimeDescription;
     private void MarkDirty() { if (!_initializing) { ApplyButton.IsEnabled = !_values.Select(value=>value()).SequenceEqual(_appliedValues); StatusText.IsVisible = false; } }
     private bool ApplyDraft()
     {
@@ -99,7 +102,7 @@ public sealed partial class SettingsWindow : Window
     private void ApplyClick(object? sender, RoutedEventArgs args) => ApplyDraft();
     private void OkClick(object? sender, RoutedEventArgs args) { if (ApplyDraft()) Close(true); }
     private void CancelClick(object? sender, RoutedEventArgs args) => Close(_applied);
-    private void ResetClick(object? sender, RoutedEventArgs args) { Populate(new AppSettings { Theme = _settings.Theme }); MarkDirty(); }
+    private void ResetClick(object? sender, RoutedEventArgs args) { Populate(new AppSettings { Theme = _settings.Theme, Language = _settings.Language }); MarkDirty(); }
     private async void HardwareTestClick(object? sender, RoutedEventArgs args)
     {
         HardwareTestButton.IsEnabled = false;
@@ -116,7 +119,7 @@ public sealed partial class SettingsWindow : Window
         CheckUpdatesButton.IsEnabled = false;
         try { var result = await _services.CheckUpdatesAsync(_lifetime.Token); if (IsVisible) await new UpdateWindow(result).ShowDialog(this); }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (IsVisible) { StatusText.Text = "版本检查失败：" + ex.Message; StatusText.IsVisible = true; } }
+        catch (Exception ex) { if (IsVisible) { StatusText.Text = Localization.Format($"版本检查失败：{ex.Message}"); StatusText.IsVisible = true; } }
         finally { if (IsVisible) CheckUpdatesButton.IsEnabled = true; }
     }
 }

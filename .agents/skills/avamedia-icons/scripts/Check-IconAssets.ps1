@@ -31,11 +31,25 @@ function Check-PngFile([string]$path,[string]$label,[string]$sha256) {
 }
 $manifest = Get-Content -LiteralPath (Join-Path $featureRoot 'manifest.json') -Raw | ConvertFrom-Json
 $loader = Get-Content -LiteralPath (Join-Path $taskRoot 'src/AvaMedia.Desktop/Controls/FeatureIconAssets.cs') -Raw
-$allowedKinds = @([regex]::Matches($loader,'"([a-z][a-z-]*)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+$kindBlock = [regex]::Match($loader,'(?s)HashSet<string> Kinds.*?\{(.*?)\};').Groups[1].Value
+Assert-Icon (![string]::IsNullOrWhiteSpace($kindBlock)) 'The loader declares its allowed icon kinds'
+$allowedKinds = @([regex]::Matches($kindBlock,'"([a-z][a-z-]*)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
 Assert-Icon ($allowedKinds.Count -eq $manifest.assets.Count) 'The functional icon manifest and loader cover the same number of kinds'
 foreach ($asset in $manifest.assets) {
     Assert-Icon ($allowedKinds -contains $asset.kind) "$($asset.kind) is registered in the loader"
     Check-PngFile (Join-Path $featureRoot $asset.file) $asset.kind $asset.sha256
+}
+$classicRoot = Join-Path $taskRoot 'src/AvaMedia.Desktop/Assets/FeatureIcons/macos9'
+$classicKinds = 0
+if (Test-Path -LiteralPath $classicRoot) {
+    $classicManifest = Get-Content -LiteralPath (Join-Path $classicRoot 'manifest.json') -Raw | ConvertFrom-Json
+    $classicKinds = $classicManifest.assets.Count
+    Assert-Icon ($classicKinds -eq $allowedKinds.Count) 'Mac OS 9 covers every functional icon kind'
+    Assert-Icon (@($classicManifest.assets.kind | Select-Object -Unique).Count -eq $classicKinds) 'Mac OS 9 has no duplicate icon kinds'
+    foreach ($asset in $classicManifest.assets) {
+        Assert-Icon ($allowedKinds -contains $asset.kind) "Mac OS 9 $($asset.kind) is registered in the loader"
+        Check-PngFile (Join-Path $classicRoot $asset.file) "Mac OS 9 $($asset.kind)" $asset.sha256
+    }
 }
 $appManifest = Get-Content -LiteralPath (Join-Path $appRoot 'manifest.json') -Raw | ConvertFrom-Json
 Check-PngFile (Join-Path $appRoot $appManifest.file) 'Application icon source' $appManifest.sha256
@@ -70,4 +84,4 @@ foreach($size in @(16,32,128,256,512)) {
         Assert-Png ([IO.File]::ReadAllBytes($path)) 0 $pixels "iconset $size$suffix"
     }
 }
-[pscustomobject]@{status='passed';functionalKinds=$manifest.assets.Count;icoSizes=$sizes;icnsTypes=$types;checks=$checks.Count;results=$checks.ToArray()}
+[pscustomobject]@{status='passed';functionalKinds=$manifest.assets.Count;macos9Kinds=$classicKinds;icoSizes=$sizes;icnsTypes=$types;checks=$checks.Count;results=$checks.ToArray()}

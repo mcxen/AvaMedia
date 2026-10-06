@@ -177,6 +177,7 @@ public sealed class AppSettings
     public bool NotifyComplete { get; set; } = true;
     public bool ReduceMotion { get; set; }
     public string Theme { get; set; } = "Light";
+    public string Language { get; set; } = "system";
     public bool ConfirmPlayerDeletion { get; set; }
     public bool AutoDetectGpu { get; set; } = true;
     public int CpuThreads { get; set; } = 8;
@@ -191,7 +192,7 @@ public sealed class AppSettings
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
         CloseToTray=source.CloseToTray;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
-        ReduceMotion=source.ReduceMotion;Theme=source.Theme;AutoDetectGpu=source.AutoDetectGpu;
+        ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         CpuThreads=source.CpuThreads;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
     }

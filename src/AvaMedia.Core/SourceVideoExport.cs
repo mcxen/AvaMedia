@@ -64,6 +64,10 @@ public static class SourceVideoExport
         using var json = JsonDocument.Parse(media.RawJson);
         var video = json.RootElement.GetProperty("streams").EnumerateArray().Where(s => s.GetProperty("codec_type").GetString() == "video").ElementAt(options.VideoStreamIndex);
         var pixels = video.TryGetProperty("pix_fmt", out var pixelValue) ? pixelValue.GetString() : null;
+        // yuvj* has the same layout as yuv* plus a full-range color tag.
+        // Encoders such as libkvazaar accept the canonical layout, not its yuvj alias.
+        var fullRangeAlias = pixels is "yuvj420p" or "yuvj422p" or "yuvj444p" or "yuvj440p" or "yuvj411p";
+        var outputPixels = fullRangeAlias ? "yuv" + pixels![4..] : pixels;
         var asymmetricChroma = pixels is not null && Regex.IsMatch(pixels, @"^yuva?j?4(22|11|40)p");
         List<string> arguments = ["-hide_banner", "-nostdin", "-n", "-progress", "pipe:1", "-nostats"];
         if (options.LosslessRotation is { } clockwise)
@@ -106,13 +110,34 @@ public static class SourceVideoExport
                     filters.AddRange(["scale=iw:ih", "format=" + pixels]);
                 }
             }
+            // Strict pixel-format selection disables automatic filter conversions,
+            // so normalize explicitly without resizing or compressing the sample range.
+            if (fullRangeAlias) filters.AddRange(["scale=iw:ih:in_range=full:out_range=full", "format=" + outputPixels]);
+            if (options.VideoCodec == "libkvazaar")
+            {
+                var (width, height) = OutputSize(media, options);
+                if ((width | height) % 2 != 0) throw new ArgumentException("当前 HEVC 编码器要求画面宽高为偶数，请调整输出尺寸。");
+                var right = (8 - width % 8) % 8;
+                var bottom = (8 - height % 8) % 8;
+                if (right != 0 || bottom != 0)
+                {
+                    // Kvazaar requires 8-pixel alignment. Repeat edge pixels only
+                    // outside the requested image, then exclude them in the HEVC SPS.
+                    filters.AddRange([$"pad={width + right}:{height + bottom}:0:0", $"fillborders=right={right}:bottom={bottom}:mode=smear"]);
+                    arguments.AddRange(["-bsf" + stream, $"hevc_metadata=width={width}:height={height}"]);
+                }
+            }
             if (filters.Count > 0) arguments.AddRange(["-filter" + stream, string.Join(",", filters)]);
-            if (pixels is not null) arguments.AddRange(["-pix_fmt" + stream, "+" + pixels]);
+            if (outputPixels is not null) arguments.AddRange(["-pix_fmt" + stream, "+" + outputPixels]);
             if (video.TryGetProperty("bit_rate", out var rate) && long.TryParse(rate.GetString(), out var bitrate) && bitrate > 0)
                 arguments.AddRange(["-b" + stream, bitrate.ToString(CultureInfo.InvariantCulture)]);
+            if (fullRangeAlias) arguments.AddRange(["-color_range" + stream, "pc"]);
             foreach (var field in new[] { "color_range", "color_space", "color_transfer", "color_primaries", "chroma_location" })
+            {
+                if (fullRangeAlias && field == "color_range") continue;
                 if (video.TryGetProperty(field, out var value) && value.GetString() is { } text && text is not ("unknown" or "unspecified"))
                     arguments.AddRange(["-" + (field == "color_space" ? "colorspace" : field == "chroma_location" ? "chroma_sample_location" : field == "color_transfer" ? "color_trc" : field) + stream, text]);
+            }
             if (media.VideoCodec == "prores" && video.TryGetProperty("profile", out var profile))
             {
                 var number = profile.GetString() switch { "Proxy" => 0, "LT" => 1, "Standard" => 2, "HQ" => 3, "4444" => 4, "XQ" => 5, _ => -1 };
@@ -123,6 +148,21 @@ public static class SourceVideoExport
         }
         if (options.Format == "m4v") arguments.AddRange(["-f", "mp4"]);
         arguments.Add(job.Output); return arguments;
+    }
+    private static (int Width, int Height) OutputSize(MediaInfo media, ConversionOptions options)
+    {
+        var width = options.CropWidth > 0 ? options.CropWidth : media.Width;
+        var height = options.CropHeight > 0 ? options.CropHeight : media.Height;
+        if (width <= 0 || height <= 0) throw new ArgumentException("无法读取原视频画面尺寸。");
+        if (options.Width > 0 || options.Height > 0)
+        {
+            // Match scale's -2 dimension: nearest even size, with ties rounded up.
+            var scaledWidth = options.Width > 0 ? options.Width : checked((int)Math.Round(options.Height * (double)width / height / 2, MidpointRounding.AwayFromZero) * 2);
+            var scaledHeight = options.Height > 0 ? options.Height : checked((int)Math.Round(options.Width * (double)height / width / 2, MidpointRounding.AwayFromZero) * 2);
+            width = scaledWidth; height = scaledHeight;
+        }
+        if (width <= 0 || height <= 0) throw new ArgumentException("缩放后的画面尺寸必须大于零。");
+        return options.Rotation is 90 or 270 ? (height, width) : (width, height);
     }
     private static double Rotation(JsonElement video)
     {
