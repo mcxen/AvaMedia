@@ -98,7 +98,8 @@ def main():
             output(work / ("audio." + extension), "-vn", "-c:a", codec)
         for extension, codec in (("png", "png"), ("jpg", "mjpeg"), ("bmp", "bmp"),
                                  ("tiff", "tiff"), ("webp", "libwebp"), ("ico", "png")):
-            output(work / ("image." + extension), "-an", "-frames:v", "1", "-vf", "scale=64:64", "-c:v", codec)
+            pixel_format = ["-pix_fmt", "rgba"] if extension == "ico" else []
+            output(work / ("image." + extension), "-an", "-frames:v", "1", "-vf", "scale=64:64", "-c:v", codec, *pixel_format)
         output(work / "image.avif", "-an", "-frames:v", "1", "-c:v", "libaom-av1", "-still-picture", "1", "-cpu-used", "8")
         output(work / "animation.gif", "-an", "-filter_complex", "split[a][b];[a]palettegen[p];[b][p]paletteuse")
         output(work / "edits.mp4", "-vf", "crop=100:80:2:2,transpose=1,hflip,scale=64:80,fade=t=in:d=0.2,setpts=PTS/1.2",
