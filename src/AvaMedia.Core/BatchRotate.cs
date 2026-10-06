@@ -1,7 +1,7 @@
 namespace AvaMedia.Core;
 
 public sealed record BatchRotateInput(string Path, MediaInfo Info, int? Rotation = null);
-public sealed record BatchRotateRequest(IReadOnlyList<BatchRotateInput> Inputs, int Rotation, string Format, string OutputFolder);
+public sealed record BatchRotateRequest(IReadOnlyList<BatchRotateInput> Inputs, int Rotation, string Format, string OutputFolder, bool? OutputToSource=null, string? SettingName=null);
 
 /// <summary>Validates the complete batch, then creates independent jobs for videos that need rotation.</summary>
 public static class BatchRotate

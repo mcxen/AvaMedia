@@ -7,6 +7,7 @@
       <TextBlock x:Name="FormatNote" Classes="caption" TextWrapping="Wrap"/>
       <Grid ColumnDefinitions="110,*,Auto" ColumnSpacing="12"><TextBlock Text="保存位置" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="ExportFolder"/><Button Grid.Column="2" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick"/></Grid>
       <CheckBox x:Name="OutputToSource" Content="保存到各视频所在文件夹" IsCheckedChanged="OutputLocationChanged"/>
+      <CheckBox x:Name="AddSettingName" Content="添加设置名称"/>
     </StackPanel>
     <TextBlock Grid.Row="3" x:Name="ExportError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12"><Button x:Name="BackToEditingButton" Content="← 返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入导出队列" Classes="primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>

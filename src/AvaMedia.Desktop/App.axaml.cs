@@ -14,7 +14,7 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
-            if (!args.Contains("--capture") && (args.Contains("--play") || args.Any(File.Exists)))
+            if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
             {
                 var settings = new Storage().LoadSettings();
                 Skin.Apply(args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : settings.Theme);
@@ -55,6 +55,7 @@ public sealed partial class App : Application
             if(desktop.Args?.Contains("--dark")==true)RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Dark;
             if(desktop.Args?.Contains("--macos9")==true)Skin.Apply("MacOS9");
             desktop.MainWindow = window;
+            if (args.Contains("--convert")) window.Opened += async (_, _) => await window.ImportForConversionAsync(args);
             if (desktop.Args?.Contains("--capture") == true)
             {
                 window.Opened += async (_, _) =>

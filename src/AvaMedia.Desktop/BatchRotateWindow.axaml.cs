@@ -62,6 +62,9 @@ public sealed partial class BatchRotateWindow : Window
         DirectionCombo.ItemsSource = new[] { BatchRotate.Direction(90), BatchRotate.Direction(270), BatchRotate.Direction(180), BatchRotate.Direction(0) }; DirectionCombo.SelectedIndex = 0;
         FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, SourceVideoExport.FastRotation, "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
+        SourceOutputInput.IsChecked=engine.Settings.OutputToSource;SettingNameInput.IsChecked=engine.Settings.AddSettingName;
+        SourceOutputInput.IsCheckedChanged+=(_,_)=>{OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;RefreshValidation();};
+        OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;
         OutputInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) RefreshValidation(); };
         PreviewSeek.PropertyChanged += (_, args) =>
         {
@@ -307,7 +310,7 @@ public sealed partial class BatchRotateWindow : Window
         var inputs = included.Where(e => EffectiveRotation(e) != 0)
             .Select(e => new BatchRotateInput(e.Path, e.Info!, PerFile ? e.Rotation : null)).ToArray();
         if (inputs.Length == 0) throw new ArgumentException("勾选的视频均无需旋转。");
-        return new(inputs, PerFile ? 0 : _sharedRotation, Format, System.IO.Path.GetFullPath(OutputInput.Text!));
+        return new(inputs, PerFile ? 0 : _sharedRotation, Format, System.IO.Path.GetFullPath(OutputInput.Text!),SourceOutputInput.IsChecked==true,SettingNameInput.IsChecked==true?Format.ToUpperInvariant():"");
     }
 
     private void ClearPreview()

@@ -54,6 +54,9 @@ public sealed partial class BatchCropWindow : Window
         CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;
         FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
+        SourceOutputInput.IsChecked=engine.Settings.OutputToSource;SettingNameInput.IsChecked=engine.Settings.AddSettingName;
+        SourceOutputInput.IsCheckedChanged+=(_,_)=>{OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;RefreshValidation();};
+        OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;
         foreach (var input in new[] { CropXInput, CropYInput, CropWidthInput, CropHeightInput })
             input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty && !_updating) RefreshValidation(); };
         PreviewSeek.PropertyChanged += (_, args) =>
@@ -266,7 +269,7 @@ public sealed partial class BatchCropWindow : Window
         }
         if (string.IsNullOrWhiteSpace(OutputInput.Text)) throw new ArgumentException("请选择输出目录。");
         return new(included.Select(e => new BatchCropInput(e.Path, e.Info!)).ToArray(), Area, _reference.Info,
-            Mode, _options.Clone(), System.IO.Path.GetFullPath(OutputInput.Text));
+            Mode, _options.Clone(), System.IO.Path.GetFullPath(OutputInput.Text),SourceOutputInput.IsChecked==true,SettingNameInput.IsChecked==true?_options.Format.ToUpperInvariant():"");
     }
 
     private static int Integer(NumericUpDown control)

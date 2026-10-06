@@ -3,21 +3,42 @@
         Title="选项" Width="926" Height="800" MinWidth="780" MinHeight="640"
         Classes="settings" WindowStartupLocation="CenterOwner">
   <Grid RowDefinitions="*,Auto,Auto" Margin="16,16,16,24" RowSpacing="4">
-    <TabControl x:Name="SettingsTabs" SelectedIndex="1">
+    <TabControl x:Name="SettingsTabs" SelectedIndex="0">
       <TabControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></TabControl.ItemsPanel>
       <TabItem>
         <TabItem.Header><StackPanel Orientation="Horizontal" Spacing="6"><icons:SettingsIcon Kind="gear" Width="34" Height="34"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></TabItem.Header>
         <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="18">
-              <TextBlock Text="输出"/>
-              <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="输出文件夹" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/><Button Grid.Column="2" Content="浏览…" Click="OutputBrowseClick"/></Grid>
-              <CheckBox x:Name="NotifyInput" Content="转换完成后通知"/>
-              <TextBlock Text="外部工具" Margin="0,12,0,0"/>
-              <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="FFmpeg" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="FfmpegInput" AutomationProperties.Name="FFmpeg 路径"/><Button Grid.Column="2" Content="浏览…" Click="FfmpegBrowseClick"/></Grid>
-              <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="FFprobe" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="FfprobeInput" AutomationProperties.Name="FFprobe 路径"/><Button Grid.Column="2" Content="浏览…" Click="FfprobeBrowseClick"/></Grid>
-              <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="yt-dlp (下载)" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="YtdlpInput" AutomationProperties.Name="yt-dlp 路径"/><Button Grid.Column="2" Content="浏览…" Click="YtdlpBrowseClick"/></Grid>
-              <TextBlock Classes="caption" Text="工具路径留空时，自动查找环境变量、工程 .tools 和 PATH。" TextWrapping="Wrap"/>
+            <StackPanel Spacing="13">
+              <StackPanel Spacing="6"><TextBlock Text="输出文件夹"/>
+                <Border Classes="settingSection"><StackPanel Spacing="8">
+                  <Grid ColumnDefinitions="*,130" ColumnSpacing="12"><TextBox x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/><Button Grid.Column="1" x:Name="OutputBrowseButton" Content="改变…" Click="OutputBrowseClick"/></Grid>
+                  <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录"/>
+                  <CheckBox x:Name="AddSettingNameInput" Content="添加设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。"/>
+                </StackPanel></Border>
+              </StackPanel>
+              <StackPanel Spacing="6"><TextBlock Text="转换完成后"/>
+                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                  <CheckBox x:Name="ShutdownInput" Content="关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。"/>
+                  <CheckBox Grid.Column="1" x:Name="OpenOutputInput" Content="打开输出文件夹"/>
+                </Grid></Border>
+              </StackPanel>
+              <StackPanel Spacing="6"><TextBlock Text="界面音效"/>
+                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
+                  <CheckBox x:Name="OperationSoundInput" Content="普通操作"/>
+                  <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成通知"/>
+                  <CheckBox Grid.Row="1" x:Name="ErrorSoundInput" Content="错误通知"/>
+                  <CheckBox Grid.Row="1" Grid.Column="1" x:Name="NotifyInput" Content="显示完成摘要"/>
+                </Grid></Border>
+              </StackPanel>
+              <StackPanel Spacing="6"><TextBlock Text="系统"/>
+                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
+                  <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
+                  <CheckBox Grid.Column="1" x:Name="CheckUpdatesInput" Content="检测新版本"/>
+                  <CheckBox Grid.Row="1" x:Name="TrayInput" Content="最小化到系统托盘"/>
+                  <Button Grid.Row="1" Grid.Column="1" x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" HorizontalAlignment="Left"/>
+                </Grid></Border>
+              </StackPanel>
             </StackPanel>
           </ScrollViewer>
         </Border>
@@ -75,6 +96,11 @@
             <Grid ColumnDefinitions="200,80,*" ColumnSpacing="8"><TextBlock Text="同时执行任务数" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/><TextBlock Grid.Column="2" Text="[1 - 8]" VerticalAlignment="Center"/></Grid>
             <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效（立即显示状态变化）"/>
             <TextBlock Classes="caption" Text="高级页的线程数控制每个转换进程的编码与滤镜线程；这里控制同时执行的任务数量。" TextWrapping="Wrap"/>
+            <TextBlock Text="外部工具" Margin="0,12,0,0"/>
+            <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="FFmpeg" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="FfmpegInput" AutomationProperties.Name="FFmpeg 路径"/><Button Grid.Column="2" Content="浏览…" Click="FfmpegBrowseClick"/></Grid>
+            <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="FFprobe" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="FfprobeInput" AutomationProperties.Name="FFprobe 路径"/><Button Grid.Column="2" Content="浏览…" Click="FfprobeBrowseClick"/></Grid>
+            <Grid ColumnDefinitions="135,*,90" ColumnSpacing="8"><TextBlock Text="yt-dlp (下载)" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="YtdlpInput" AutomationProperties.Name="yt-dlp 路径"/><Button Grid.Column="2" Content="浏览…" Click="YtdlpBrowseClick"/></Grid>
+            <TextBlock Classes="caption" Text="工具路径留空时自动查找已安装工具和 PATH。" TextWrapping="Wrap"/>
             <TextBlock Text="运行信息" Margin="0,12,0,0"/>
             <TextBox x:Name="RuntimeInfo" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="180"/>
           </StackPanel></ScrollViewer>

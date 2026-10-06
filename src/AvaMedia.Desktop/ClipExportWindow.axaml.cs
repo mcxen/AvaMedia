@@ -4,7 +4,7 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options);
+public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false);
 public sealed record ClipExportDecision(bool BackToEditing,ClipExportState State,ConversionRequest? Request=null);
 
 public partial class ClipExportWindow : Window
@@ -21,19 +21,20 @@ public partial class ClipExportWindow : Window
         ExportSummary.Text=$"{_edits.Length} 个视频 · {_edits.Sum(e=>e.Segments.Count)} 个片段，分别生成文件。确认后进入队列，点击主窗口“开始”执行。";
         ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.Segments.Select((segment,i)=>Path.GetFileName(edit.Path)+"\n"+new ClipSegmentEntry(segment){Number=i+1}.Summary)).ToArray();
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
+        AddSettingName.IsChecked=state?.AddSettingName??false;
         FormatCombo.ItemsSource=new[]{"MP4","MKV","Fast Copy"};FormatCombo.SelectedItem=state?.Preset??"MP4";
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
     private string Preset=>FormatCombo.SelectedItem as string??"MP4";
-    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone());
+    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true);
     public ConversionRequest CreateRequest()
     {
         var state=ReadState();
         if(!state.OutputToSource && string.IsNullOrWhiteSpace(state.Folder))throw new ArgumentException("请选择保存位置。");
         if(!state.OutputToSource)_=Path.GetFullPath(state.Folder);
         var inputs=QuickClipWorkflow.PrepareExports(_edits,state.Preset,state.Options);
-        return new(Catalog.Find("clip"),_edits.Select(e=>e.Path).ToArray(),state.Folder,state.Options.Clone(),inputs,state.OutputToSource);
+        return new(Catalog.Find("clip"),_edits.Select(e=>e.Path).ToArray(),state.Folder,state.Options.Clone(),inputs,state.OutputToSource,state.AddSettingName?(state.Preset=="Fast Copy"?"FastCopy":state.Preset):"");
     }
     private void ValidateExport()
     {

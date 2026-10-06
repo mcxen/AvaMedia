@@ -28,10 +28,12 @@ public partial class MainWindow : Window
     public IMediaEngine Engine {get;}
     internal event Action? JobDisplayChanged;
     public MainWindow() : this(new Storage()) { }
-    public MainWindow(Storage storage, IMediaEngine? engine=null)
+    public MainWindow(Storage storage, IMediaEngine? engine=null, IAppOptionsServices? optionServices=null)
     {
+        _optionServices=optionServices??new AppOptionsServices();
         _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
+        InitializeOptions();
         OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=job=>Dispatcher.UIThread.Post(()=>{Refresh();if(DateTime.UtcNow-_lastSave>TimeSpan.FromSeconds(1)){Save();_lastSave=DateTime.UtcNow;}});
         _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>ElapsedText.Text="耗时: "+_elapsed.Elapsed.ToString(@"hh\:mm\:ss");_timer.Start();
@@ -40,8 +42,9 @@ public partial class MainWindow : Window
         Closing+=async (_,e)=>
         {
             if(_closing)return;
+            _completionCancellation?.Cancel();
             if(_queue.IsRunning){e.Cancel=true;_closing=true;_queue.Stop();await _running;Save();_timer.Stop();Close();}
-            else {Save();_timer.Stop();}
+            else {_closing=true;Save();_timer.Stop();}
         };
     }
     private void ShowCategory(string category)
@@ -77,7 +80,7 @@ public partial class MainWindow : Window
         {
             var request=await new BatchRotateWindow(Engine,_settings.OutputFolder,files).ShowDialog<BatchRotateRequest?>(this);
             if(request is null)return;
-            try{var jobs=BatchRotate.CreateJobs(request,_jobs.Select(j=>j.Output));foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
+            try{var jobs=BatchRotate.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
             catch(Exception ex){await Ui.Message(this,"批量旋转参数错误",ex.Message);}
             return;
         }
@@ -85,7 +88,7 @@ public partial class MainWindow : Window
         {
             var request=await new BatchCropWindow(Engine,_settings.OutputFolder,files).ShowDialog<BatchCropRequest?>(this);
             if(request is null)return;
-            try{var jobs=BatchCrop.CreateJobs(request,_jobs.Select(j=>j.Output));foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
+            try{var jobs=BatchCrop.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
             catch(Exception ex){await Ui.Message(this,"批量裁剪参数错误",ex.Message);}
             return;
         }
@@ -101,7 +104,7 @@ public partial class MainWindow : Window
             catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
             Save();Refresh();return;
         }
-        try{foreach(var job in ConversionBatch.CreateJobs(result.Feature,result.Files,result.OutputFolder,result.Options,result.InputOptions,_jobs.Select(j=>j.Output)))_jobs.Add(job);}
+        try{var jobs=ConversionBatch.CreateJobs(result.Feature,result.Files,result.OutputFolder,result.Options,result.InputOptions,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),result.OutputToSource,result.SettingName);foreach(var job in jobs)_jobs.Add(job);}
         catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
         Save();Refresh();
     }
@@ -114,8 +117,9 @@ public partial class MainWindow : Window
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if(_queue.IsRunning)return;Save();_elapsed.Restart();_running=_queue.Run(_jobs,_settings.MultiThread?_settings.ParallelJobs:1);Refresh();await _running;_elapsed.Stop();Save();Refresh();
-        if(!_closing && _settings.NotifyComplete && _jobs.Count>0 && _jobs.All(j=>j.State is JobState.Completed or JobState.Failed)) await Ui.Message(this,"转换完成",$"成功 {_jobs.Count(j=>j.State==JobState.Completed)} 个，失败 {_jobs.Count(j=>j.State==JobState.Failed)} 个。\n\n输出目录：{_settings.OutputFolder}");
+        if(_queue.IsRunning)return;var batch=_jobs.Where(j=>j.State==JobState.Waiting).ToArray();if(batch.Length==0)return;
+        _completionCancellation?.Cancel();Save();_elapsed.Restart();_running=_queue.Run(batch,_settings.MultiThread?_settings.ParallelJobs:1);Refresh();await _running;_elapsed.Stop();Save();Refresh();
+        CompletionActions=FinishQueueOptionsAsync(batch,_settings.Clone());await CompletionActions;
     }
     private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_queue.Stop();
     private async void AddClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Configure(_last);
@@ -125,8 +129,9 @@ public partial class MainWindow : Window
     {foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[]){bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;j.Output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,_jobs.Select(x=>x.Output),directory);j.State=JobState.Waiting;j.Progress=0;}Save();Refresh();}
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var w=new SettingsWindow(_settings);
-        w.Applied+=(_,_)=>{_storage.SaveSettings(_settings);OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;Motion.SetReducedMotion(_settings.ReduceMotion);};
+        _appliedSettings=_settings.Clone();
+        var w=new SettingsWindow(_settings,_optionServices);
+        w.Applied+=(_,_)=>ApplyOptions();
         await w.ShowDialog<bool>(this);
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}

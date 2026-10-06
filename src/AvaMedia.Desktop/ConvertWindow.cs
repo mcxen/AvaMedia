@@ -83,8 +83,13 @@ public sealed class ConvertWindow : Window
             else {area.Children.Add(Ui.Text(OperatingSystem.IsMacOS()?"光驱原始设备路径，例如 /dev/rdisk2":"光驱盘符或原始设备路径，例如 D:"));area.Children.Add(special);area.Children.Add(new TextBlock{Text="逐字节复制可读数据光盘为 ISO。需要本机读取权限，不处理加密。",TextWrapping=TextWrapping.Wrap});}
             Grid.SetRow(area,2);panel.Children.Add(area);
         }
-        var output=new Grid{ColumnDefinitions=new("95,*,90"),Margin=new(0,14,0,6)};var outputBox=Ui.Input(outputFolder);output.Children.Add(Ui.Text("输出文件夹"));Grid.SetColumn(outputBox,1);output.Children.Add(outputBox);
+        var output=new Grid{ColumnDefinitions=new("95,*,90"),RowDefinitions=new("Auto,Auto"),RowSpacing=6,Margin=new(0,14,0,6)};var outputBox=Ui.Input(outputFolder);outputBox.Name="ConversionOutputFolder";output.Children.Add(Ui.Text("输出文件夹"));Grid.SetColumn(outputBox,1);output.Children.Add(outputBox);
         var browse=new Button{Content="浏览…",Margin=new(10,0,0,0)};browse.Click+=async(_,_)=>{if(await Ui.Folder(this,"选择输出目录") is {} path)outputBox.Text=path;};Grid.SetColumn(browse,2);output.Children.Add(browse);Grid.SetRow(output,3);panel.Children.Add(output);
+        var outputFlags=new StackPanel{Orientation=Orientation.Horizontal,Spacing=18};
+        var sourceFolder=new CheckBox{Name="ConversionOutputToSource",Content="输出至源文件目录",IsChecked=initialOptions is null&&engine.Settings.OutputToSource,IsEnabled=feature.Operation is not (Operation.Record or Operation.Download or Operation.IsoCopy)};
+        var addName=new CheckBox{Name="ConversionAddSettingName",Content="添加设置名称",IsChecked=initialOptions is null&&engine.Settings.AddSettingName};
+        sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
+        outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;outputFlags.Children.Add(sourceFolder);outputFlags.Children.Add(addName);Grid.SetRow(outputFlags,1);Grid.SetColumnSpan(outputFlags,3);output.Children.Add(outputFlags);
         var note=new TextBlock{Classes={"caption"},TextWrapping=TextWrapping.Wrap,Margin=new(0,8)};
         note.Text=feature.Operation switch{Operation.Join=>"按列表顺序合并。每个文件可独立剪辑。",Operation.SplitAudio=>"提取音轨。",Operation.Frames=>"按设置的间隔导出 PNG 帧。",_=>"确定后加入主窗口队列。"};Grid.SetRow(note,4);panel.Children.Add(note);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=16,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(0,12,0,0)};
@@ -114,7 +119,7 @@ public sealed class ConvertWindow : Window
                     }
                     if(ConversionBatch.IsGrouped(selected))MediaEngine.ValidateEdits(candidate,infos);
                 }
-                _lifetime.Token.ThrowIfCancellationRequested();Close(new ConversionRequest(selected,inputs,folderPath,candidate.Options,InputOptions:edits));
+                _lifetime.Token.ThrowIfCancellationRequested();Close(new ConversionRequest(selected,inputs,folderPath,candidate.Options,OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits));
             }
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)await Ui.Message(this,"参数错误",ex.Message);}

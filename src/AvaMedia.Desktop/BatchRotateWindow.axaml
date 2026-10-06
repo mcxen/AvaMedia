@@ -80,13 +80,14 @@
         <TextBlock x:Name="DetectionStatus" Classes="caption" Text="根据人脸判断当前画面的朝向；无人脸或方向不一致时，需要手动选择。无需旋转的视频会跳过。" TextWrapping="Wrap"/>
       </StackPanel>
     </Border>
-    <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,200,Auto,*,Auto" ColumnSpacing="8" RowSpacing="6">
+    <Grid Grid.Row="3" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,200,Auto,*,Auto" ColumnSpacing="8" RowSpacing="6">
       <TextBlock Text="输出格式" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="1" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="旋转输出格式"/>
       <TextBlock Grid.Column="2" Text="输出文件夹" VerticalAlignment="Center" Margin="8,0,0,0"/>
       <TextBox Grid.Column="3" x:Name="OutputInput" AutomationProperties.Name="批量旋转输出文件夹"/>
-      <Button Grid.Column="4" Content="浏览…" Click="BrowseClick"/>
-      <TextBlock Grid.Row="1" Grid.ColumnSpan="5" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
+      <Button Grid.Column="4" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick"/>
+      <TextBlock Grid.Row="2" Grid.ColumnSpan="5" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
+      <StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" Spacing="18"><CheckBox x:Name="SourceOutputInput" Content="输出至源文件目录"/><CheckBox x:Name="SettingNameInput" Content="添加设置名称"/></StackPanel>
     </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
       <TextBlock x:Name="ValidationText" Classes="rotateValidation" Text="请添加并勾选视频" TextWrapping="Wrap" VerticalAlignment="Center"/>

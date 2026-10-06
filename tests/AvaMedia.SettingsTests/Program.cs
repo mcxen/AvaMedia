@@ -154,7 +154,8 @@ foreach(var format in new[]{"jpg","webp"})
 }
 var saved = new AppSettings { OutputFolder = root, ReduceMotion = true };
 var window = new SettingsWindow(saved); window.Show(); Dispatcher.UIThread.RunJobs();
-Check(window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex == 1 && window.FindControl<Button>("ApplyButton")!.IsEnabled == false, "Initial advanced/apply state differs from reference.");
+Check(window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex == 0 && window.FindControl<Button>("ApplyButton")!.IsEnabled == false, "Options tab and clean Apply state are not the initial view.");
+window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex=1;Dispatcher.UIThread.RunJobs();
 Capture(window, "settings-advanced-light.png", 926, 800);
 Check(window.FindControl<CheckBox>("ResourceSharingInput") is { IsEnabled: false, IsChecked: false }, "Unavailable sharing service pretends to work.");
 window.FindControl<CheckBox>("AutoGpuInput")!.IsChecked=false;window.FindControl<CheckBox>("AutoGpuInput")!.IsChecked=true;
@@ -214,7 +215,7 @@ var failedSettings=new AppSettings{OutputFolder=root,ReduceMotion=true};var fail
 failedWindow.Applied+=(_,_)=>throw new IOException("Settings save failed.");failedWindow.Show();failedWindow.FindControl<NumericUpDown>("ThreadsInput")!.Value=12;
 Click(failedWindow.FindControl<Button>("ApplyButton")!);
 Check(failedSettings.CpuThreads==8 && failedWindow.FindControl<TextBlock>("StatusText")!.IsVisible && failedWindow.FindControl<Button>("ApplyButton")!.IsEnabled,"A failed save commits settings or loses the draft.");failedWindow.Close();
-File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { checks, outputs, hardwareSupported = hardware.Count(r => r.Supported), resourceSharingIntegrated = false, visualScope = "Reference advanced tab and HA Test dialog; other tabs preserve app settings." }, new JsonSerializerOptions { WriteIndented = true }));
+File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { checks, outputs, hardwareSupported = hardware.Count(r => r.Supported), resourceSharingIntegrated = false, visualScope = "General options, advanced tab and HA Test dialog." }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks} settings checks / {outputs.Count} actual outputs. {root}");
 
 void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }

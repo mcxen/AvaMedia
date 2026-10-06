@@ -4,7 +4,7 @@ public enum BatchCropMode { Pixels, Relative }
 public sealed record CropArea(int X, int Y, int Width, int Height);
 public sealed record BatchCropInput(string Path, MediaInfo Info);
 public sealed record BatchCropRequest(IReadOnlyList<BatchCropInput> Inputs, CropArea Area,
-    MediaInfo Reference, BatchCropMode Mode, ConversionOptions Options, string OutputFolder);
+    MediaInfo Reference, BatchCropMode Mode, ConversionOptions Options, string OutputFolder, bool? OutputToSource=null, string? SettingName=null);
 
 /// <summary>Resolves one shared region and validates a complete batch before creating jobs.</summary>
 public static class BatchCrop

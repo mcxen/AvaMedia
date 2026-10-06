@@ -77,14 +77,15 @@
         <TextBlock Classes="caption" Text="拖动外部绘制、内部移动、四角缩放。坐标为参考视频像素并对齐到偶数；点击列表可检查实际选区。" TextWrapping="Wrap"/>
       </StackPanel>
     </Border>
-    <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,160,Auto,*,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+    <Grid Grid.Row="3" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,160,Auto,*,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
       <TextBlock Text="输出格式" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="1" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="裁剪输出格式"/>
       <TextBlock Grid.Column="2" Text="输出文件夹" VerticalAlignment="Center" Margin="8,0,0,0"/>
       <TextBox Grid.Column="3" x:Name="OutputInput" AutomationProperties.Name="批量裁剪输出文件夹"/>
-      <Button Grid.Column="4" Content="浏览…" Click="BrowseClick"/>
+      <Button Grid.Column="4" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick"/>
       <Button Grid.Column="5" x:Name="OutputOptionsButton" Content="输出配置…" Click="OptionsClick"/>
-      <TextBlock Grid.Row="1" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
+      <TextBlock Grid.Row="2" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
+      <StackPanel Grid.Row="1" Grid.ColumnSpan="6" Orientation="Horizontal" Spacing="18"><CheckBox x:Name="SourceOutputInput" Content="输出至源文件目录"/><CheckBox x:Name="SettingNameInput" Content="添加设置名称"/></StackPanel>
     </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
       <TextBlock x:Name="ValidationText" Classes="cropValidation" Text="请添加并勾选视频" TextWrapping="Wrap" VerticalAlignment="Center"/>

@@ -158,6 +158,16 @@ public sealed record MediaInfo(double Duration, int Width, int Height, bool HasA
 public sealed class AppSettings
 {
     public string OutputFolder { get; set; } = MediaFolders.DefaultOutput;
+    public bool OutputToSource { get; set; }
+    public bool AddSettingName { get; set; }
+    public bool OpenOutputFolderOnComplete { get; set; }
+    public bool ShutdownOnComplete { get; set; }
+    public bool PlayOperationSound { get; set; }
+    public bool PlayCompleteSound { get; set; } = true;
+    public bool PlayErrorSound { get; set; } = true;
+    public bool SystemContextMenu { get; set; }
+    public bool MinimizeToTray { get; set; }
+    public bool CheckForUpdates { get; set; } = true;
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
     public string YtDlpPath { get; set; } = "";
@@ -175,6 +185,9 @@ public sealed class AppSettings
     public void CopyFrom(AppSettings source)
     {
         OutputFolder=source.OutputFolder;FFmpegPath=source.FFmpegPath;FFprobePath=source.FFprobePath;YtDlpPath=source.YtDlpPath;
+        OutputToSource=source.OutputToSource;AddSettingName=source.AddSettingName;OpenOutputFolderOnComplete=source.OpenOutputFolderOnComplete;
+        ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;
+        PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
