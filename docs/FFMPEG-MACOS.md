@@ -22,6 +22,8 @@ FFmpeg 自身采用共享库；所需第三方库静态编入对应媒体库。�
 
 LAME 4.0 仅构建 MP3 编码库，显式关闭命令行前端和其默认的外部 mpg123 解码器（`--disable-frontend --disable-decoder`）；MP3 解码由 FFmpeg 内置组件承担，无需新增 mpg123 依赖。
 
+FFmpeg 显式使用 `--extra-libs=-liconv` 链接 macOS 系统字符编码转换库。关闭自动依赖探测时，上游配置只探测 libc，不会补齐 Darwin 的独立 libiconv；此参数保留字幕编码转换能力，运行包无需附带第三方 iconv。
+
 zimg 固定上游 `release-3.0.6` 源码归档及 SHA256。静态构建使用 macOS 的 libc++（`STL_LIBS=-lc++`），关闭示例及测试程序。WTFPL v2 许可证原文随组件声明保留，精确源归档纳入对应源码包。客户端压缩的 HDR → SDR 行为见 [视频压缩](VIDEO-COMPRESSION.md)。
 
 ## 构建与安装

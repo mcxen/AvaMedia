@@ -302,6 +302,9 @@ def main():
                "--enable-libaom", "--enable-libvpx", "--enable-libwebp", "--enable-libmp3lame",
                "--enable-libopus", "--enable-libvorbis", "--enable-libx264", "--enable-libx265", "--enable-libzimg",
                "--pkg-config-flags=--static", "--install-name-dir=@rpath",
+               # With autodetection disabled, FFmpeg probes iconv in libc and skips -liconv.
+               # Darwin provides these subtitle conversion symbols in its system libiconv.
+               "--extra-libs=-liconv",
                f"--extra-cflags=-I{prefix}/include", f"--extra-ldflags=-L{prefix}/lib -Wl,-headerpad_max_install_names"]
     print("Building FFmpeg", flush=True)
     run(["./configure", *options], extracted["ffmpeg"], env, work / "ffmpeg.log")
