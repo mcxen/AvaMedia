@@ -13,9 +13,9 @@ public partial class MainWindow
         return jobs;
     }
 
-    private async Task ConfigureVideoCompressionAsync(string[]? files)
+    private async Task ConfigureVideoCompressionAsync(string[]? files, VideoCompressionOptions? options = null)
     {
-        var request = await new VideoCompressionWindow(Engine, _settings.OutputFolder, files ?? [])
+        var request = await new VideoCompressionWindow(Engine, _settings.OutputFolder, files ?? [], options)
             .ShowDialog<VideoCompressionRequest?>(this);
         if (request is null) return;
         try

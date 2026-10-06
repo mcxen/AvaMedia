@@ -9,12 +9,13 @@ The distribution includes the following independently licensed components. Prese
 | Avalonia and SimpleTheme | 11.3.22 | MIT, AvaloniaUI OÜ |
 | MicroCom.Runtime | 0.11.0 | MIT |
 | NAudio and associated modules | 2.2.1 | MIT, Mark Heath and contributors |
+| QRCoder | 1.8.0 | MIT, Raffael Herrmann and contributors; local QR code generation |
 | PDFsharp | 6.2.4 | MIT, empira Software GmbH |
 | PdfPig | 0.1.13 | Apache-2.0, UglyToad and contributors |
 | SkiaSharp | 2.88.9 | MIT; bundled Skia and dependencies have their own notices |
 | HarfBuzzSharp | 8.3.1.1 | MIT bindings; bundled HarfBuzz has its own notices |
 | ANGLE Windows native assets | 2.1.25547.20250602 | Package license and included third-party notices, including BSD terms |
-| .NET 8 runtime / Microsoft libraries | versions recorded in package manifest | MIT and accompanying third-party notices |
+| .NET 8 and ASP.NET Core runtime / Microsoft libraries | versions recorded in package manifest | MIT and accompanying third-party notices |
 | Tmds.DBus.Protocol | 0.21.3 | MIT; only applicable on platforms that use it |
 | Microsoft.ML.OnnxRuntime and managed bindings | 1.23.2 | MIT and bundled third-party notices; offline CPU inference |
 | YuNet face detector | face_detection_yunet_2026may.onnx | MIT, Shiqi Yu and contributors; embedded unmodified model, attribution and SHA256 in `licenses/yunet/` |

@@ -22,6 +22,11 @@
               "id": "NAudio",
               "requestedVersion": "2.2.1",
               "resolvedVersion": "2.2.1"
+            },
+            {
+              "id": "QRCoder",
+              "requestedVersion": "1.8.0",
+              "resolvedVersion": "1.8.0"
             }
           ],
           "transitivePackages": [
@@ -110,6 +115,10 @@
               "resolvedVersion": "4.7.0"
             },
             {
+              "id": "Microsoft.Win32.SystemEvents",
+              "resolvedVersion": "6.0.0"
+            },
+            {
               "id": "NAudio.Asio",
               "resolvedVersion": "2.2.1"
             },
@@ -156,6 +165,10 @@
             {
               "id": "SkiaSharp.NativeAssets.Win32",
               "resolvedVersion": "2.88.9"
+            },
+            {
+              "id": "System.Drawing.Common",
+              "resolvedVersion": "6.0.0"
             },
             {
               "id": "System.IO.Pipelines",

@@ -62,6 +62,11 @@ public sealed class ActionIcon : Control
             context.DrawLine(actionPen, new(5,12), new(19,12));
             if (Kind == "plus") context.DrawLine(actionPen, new(12,5), new(12,19));
         }
+        else if (Kind == "wifi")
+        {
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 2,7 Q 12,-1 22,7 M 5,11 Q 12,5 19,11 M 8,15 Q 12,11 16,15"));
+            context.DrawEllipse(Foreground, null, new(12, 19), 1.8, 1.8);
+        }
         else if (Kind == "folder")
         {
             context.DrawGeometry(null, actionPen, Geometry.Parse("M 2,6 L 9,6 L 11,9 L 22,9 L 21,21 L 2,21 Z M 4,5 L 9,5 L 11,8 L 20,8"));
@@ -143,6 +148,7 @@ public sealed class ActionIcon : Control
             "camera" => "M 2,5 L 5,5 L 6,3 L 10,3 L 11,5 L 14,5 L 14,13 L 2,13 Z",
             "speaker" or "muted" => "M 2,6 L 5,6 L 8,3 L 8,13 L 5,10 L 2,10 Z",
             "folder" => "M 1,4 L 6,4 L 8,6 L 15,6 L 14,14 L 1,14 Z",
+            "wifi" => "M 1,5 L 4,3 L 12,3 L 15,5 M 4,8 L 6,6 L 10,6 L 12,8 M 6,11 L 8,9 L 10,11 M 8,13 L 8,14",
             "gear" => "M 6,1 L 10,1 L 10,3 L 12,4 L 14,3 L 15,6 L 13,7 L 13,9 L 15,10 L 14,13 L 12,12 L 10,13 L 10,15 L 6,15 L 6,13 L 4,12 L 2,13 L 1,10 L 3,9 L 3,7 L 1,6 L 2,3 L 4,4 L 6,3 Z",
             _ => "M 2,2 L 14,2 L 14,14 L 2,14 Z M 8,6 L 8,12 M 8,3 L 8,4"
         };

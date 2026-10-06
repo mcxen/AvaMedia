@@ -29,6 +29,12 @@ if (Test-Path -LiteralPath $runtimePack) {
     New-Item -ItemType Directory -Path $runtimeNotices -Force | Out-Null
     Get-ChildItem -LiteralPath $runtimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $runtimeNotices -Force }
 }
+$aspnetRuntimePack = Join-Path $runtimePackages ('microsoft.aspnetcore.app.runtime.' + $Runtime)
+if (Test-Path -LiteralPath $aspnetRuntimePack) {
+    $aspnetNotices = Join-Path $taskRoot 'licenses/aspnetcore-runtime'
+    New-Item -ItemType Directory -Path $aspnetNotices -Force | Out-Null
+    Get-ChildItem -LiteralPath $aspnetRuntimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $aspnetNotices -Force }
+}
 foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'licenses') -Destination $publishRoot -Recurse -Force
 $publishDocs = Join-Path $publishRoot 'docs'

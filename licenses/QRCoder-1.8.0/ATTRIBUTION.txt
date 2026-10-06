@@ -1,0 +1,6 @@
+Package: QRCoder 1.8.0
+Authors: Raffael Herrmann, Shane Krueger
+Copyright: Copyright © 2013-2025 Raffael Herrmann. Copyright © 2024-2025 Shane Krueger. All rights reserved.
+License: MIT
+Project:
+Repository: https://github.com/Shane32/QRCoder

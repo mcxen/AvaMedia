@@ -2,6 +2,7 @@
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}" Background="{DynamicResource UiMenuSurface}">
       <MenuItem Header="文件"><MenuItem Header="添加文件…" Click="AddClick"/><Separator/><MenuItem Header="保存任务列表…" Click="ExportQueueClick"/><MenuItem Header="载入任务列表…" Click="ImportQueueClick"/><Separator/><MenuItem Header="退出" Click="ExitClick"/></MenuItem>
+      <MenuItem Header="WiFi 传文件" Click="WifiTransferClick"/>
       <MenuItem Header="编辑"><MenuItem Header="偏好设置…" Click="SettingsClick"/></MenuItem>
       <MenuItem Header="显示">
         <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/></MenuItem>
@@ -15,6 +16,7 @@
       <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="{DynamicResource UiToolbarPadding}">
         <Button Classes="tool" Click="OutputClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="folder"/><TextBlock Text="输出文件夹" VerticalAlignment="Center"/></StackPanel></Button>
         <Button Classes="tool" Click="SettingsClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="gear"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></Button>
+        <Button Classes="tool" Click="WifiTransferClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="wifi"/><TextBlock Text="WiFi 传文件" VerticalAlignment="Center"/></StackPanel></Button>
         <Border Background="{DynamicResource UiDivider}" Width="1" Height="{DynamicResource UiToolbarSeparatorHeight}" Margin="5,0"/>
         <Button x:Name="RemoveButton" Classes="tool" Click="RemoveClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="remove" Classes="danger"/><TextBlock Text="移除" VerticalAlignment="Center"/></StackPanel></Button>
         <Button x:Name="ClearButton" Classes="tool" Click="ClearClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="clear" Classes="danger"/><TextBlock Text="清空列表" VerticalAlignment="Center"/></StackPanel></Button>

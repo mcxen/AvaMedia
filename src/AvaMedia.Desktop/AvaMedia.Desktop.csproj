@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Localization/Strings.en-US.json" LogicalName="AvaMedia.Desktop.Strings.en-US.json" WithCulture="false" />
+    <EmbeddedResource Include="WifiTransfer/index.html" LogicalName="AvaMedia.Desktop.WifiTransfer.html" />
     <AvaloniaResource Include="Assets/FeatureIcons/v2/*.png" />
     <AvaloniaResource Include="Assets/FeatureIcons/macos9/*.png" Exclude="Assets/FeatureIcons/macos9/pdf-*.png;Assets/FeatureIcons/macos9/text-pdf.png;Assets/FeatureIcons/macos9/zip.png;Assets/FeatureIcons/macos9/unzip.png" />
     <AvaloniaResource Include="Assets/FeatureIcons/macos9/pdf-*.png;Assets/FeatureIcons/macos9/text-pdf.png;Assets/FeatureIcons/macos9/zip.png;Assets/FeatureIcons/macos9/unzip.png" />
@@ -17,6 +18,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.22" />
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../AvaMedia.Core/AvaMedia.Core.csproj" />
   </ItemGroup>
 </Project>

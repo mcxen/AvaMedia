@@ -24,6 +24,14 @@
     "repository": "https://github.com/naudio/NAudio"
   },
   {
+    "package": "QRCoder",
+    "version": "1.8.0",
+    "license": "MIT",
+    "authors": "Raffael Herrmann, Shane Krueger",
+    "copyright": "Copyright © 2013-2025 Raffael Herrmann. Copyright © 2024-2025 Shane Krueger. All rights reserved.",
+    "repository": "https://github.com/Shane32/QRCoder"
+  },
+  {
     "package": "Avalonia",
     "version": "11.3.22",
     "license": "MIT",
@@ -192,6 +200,14 @@
     "repository": ""
   },
   {
+    "package": "Microsoft.Win32.SystemEvents",
+    "version": "6.0.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
+  },
+  {
     "package": "NAudio.Asio",
     "version": "2.2.1",
     "license": "MIT",
@@ -286,6 +302,14 @@
     "authors": "Microsoft",
     "copyright": "© Microsoft Corporation. All rights reserved.",
     "repository": "https://github.com/mono/SkiaSharp"
+  },
+  {
+    "package": "System.Drawing.Common",
+    "version": "6.0.0",
+    "license": "MIT",
+    "authors": "Microsoft",
+    "copyright": "© Microsoft Corporation. All rights reserved.",
+    "repository": "https://github.com/dotnet/runtime"
   },
   {
     "package": "System.IO.Pipelines",
