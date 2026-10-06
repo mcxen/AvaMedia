@@ -34,6 +34,7 @@ public sealed partial class SettingsWindow : Window
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         _appliedValues=_values.Select(value=>value()).ToArray();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
+        PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows();
         ContextMenuInput.Content = OperatingSystem.IsMacOS() ? "添加到 Finder 快速操作" : "添加到系统上下文菜单";
         ToolTip.SetTip(ContextMenuInput, OperatingSystem.IsMacOS() ? "安装到当前用户的 Finder 服务；可在系统设置的扩展中管理。" : "添加当前用户的资源管理器菜单；Windows 11 可能位于“显示更多选项”。");
         if (!_services.CanUseTray) { ToolTip.SetTip(TrayInput, "当前环境不提供系统托盘，使用正常窗口最小化。"); ToolTip.SetTip(CloseToTrayInput, "当前环境不提供系统托盘，关闭窗口会退出应用。"); }
@@ -122,4 +123,18 @@ public sealed partial class SettingsWindow : Window
         catch (Exception ex) { if (IsVisible) { StatusText.Text = Localization.Format($"版本检查失败：{ex.Message}"); StatusText.IsVisible = true; } }
         finally { if (IsVisible) CheckUpdatesButton.IsEnabled = true; }
     }
+    private async void RegisterPlayerClick(object? sender, RoutedEventArgs args)
+    {
+        RegisterPlayerButton.IsEnabled = false;
+        try
+        {
+            var executable = SystemPlayerIntegration.ExecutablePath;
+            await Task.Run(() => SystemPlayerIntegration.RegisterWindows(executable), _lifetime.Token);
+            if (IsVisible) { StatusText.Text = Localization.Text("已注册播放器，可在文件打开方式中选择。"); StatusText.IsVisible = true; }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (IsVisible) { StatusText.Text = ex.Message; StatusText.IsVisible = true; } }
+        finally { if (IsVisible) RegisterPlayerButton.IsEnabled = true; }
+    }
+    private void DefaultPlayerClick(object? sender, RoutedEventArgs args) => SystemPlayerIntegration.OpenDefaultApps();
 }

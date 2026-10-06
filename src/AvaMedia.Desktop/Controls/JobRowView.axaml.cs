@@ -15,6 +15,8 @@ public partial class JobRowView : UserControl
     private JobRowDetails? _details;
     private CancellationTokenSource? _load;
     private PreviewKey? _key;
+    private int _refreshPosted, _fullRefresh;
+    private Task _previewReady = Task.CompletedTask;
     public Task Ready { get; private set; } = Task.CompletedTask;
     public JobRowDetails? Details => _details;
     public JobRowView()
@@ -35,34 +37,43 @@ public partial class JobRowView : UserControl
         _owner.JobDisplayChanged += Refresh;
         Refresh();
     }
-    private void JobChanged(object? sender, PropertyChangedEventArgs e) => Dispatcher.UIThread.Post(() =>
+    private void JobChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (ReferenceEquals(sender, _details?.Job)) Refresh();
-    });
+        if (e.PropertyName is not (nameof(Job.Progress) or nameof(Job.Status) or nameof(Job.ProgressDetail)
+            or nameof(Job.Estimate) or nameof(Job.RemainingTimeText))) Interlocked.Exchange(ref _fullRefresh, 1);
+        if (Interlocked.Exchange(ref _refreshPosted, 1) != 0) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            Interlocked.Exchange(ref _refreshPosted, 0);
+            var full = Interlocked.Exchange(ref _fullRefresh, 0) != 0;
+            if (!ReferenceEquals(sender, _details?.Job)) return;
+            if (full) Refresh(); else _details?.RefreshProgress();
+        });
+    }
     private void Refresh()
     {
         if (_details is null || _owner is null) return;
         _details.Refresh();
+        Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
         var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
-        long modified = 0;
-        try { if (File.Exists(path)) modified = File.GetLastWriteTimeUtc(path).Ticks; } catch (IOException) { }
-        var key = new PreviewKey(path, modified, o.VideoStreamIndex, o.AudioStreamIndex, o.Start, o.End, _owner.Engine.Settings.FFmpegPath, _owner.Engine.Settings.FFprobePath);
+        var key = new PreviewKey(path, o.VideoStreamIndex, o.AudioStreamIndex, o.Start, o.End, _owner.Engine.Settings.FFmpegPath, _owner.Engine.Settings.FFprobePath);
         if (key == _key) return;
         _key = key;
         _load?.Cancel(); _load = null;
+        _previewReady = Task.CompletedTask; Ready = _details.MetadataReady;
         _details.SetMedia(null, "");
         var feature = Catalog.Find(job.FeatureId);
         if (path.Length == 0) { _details.SetMedia(null, job.FeatureId == "download" ? "下载完成后读取媒体信息" : "等待生成媒体"); return; }
-        if (!File.Exists(path)) { _details.SetMedia(null, "源文件缺失或不可访问"); return; }
         var extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
         if (feature.Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || !(QuickClipBatch.VideoExtensions.Contains(extension) || MediaEngine.IsAudio(extension) || MediaEngine.IsImage(extension) || extension is "jpeg" or "tif" or "gif"))
         { _details.SetMedia(null, "文件任务"); return; }
         _details.SetMedia(null, "正在读取媒体信息…");
         _load = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        Ready = LoadAsync(_details, _owner.Engine, key, _load);
+        _previewReady = LoadAsync(_details, _owner.Engine, key, _load);
+        Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
     }
     private async Task LoadAsync(JobRowDetails details, IMediaEngine engine, PreviewKey key, CancellationTokenSource cancellation)
     {
@@ -72,6 +83,8 @@ public partial class JobRowView : UserControl
         try
         {
             await PreviewSlots.WaitAsync(token); acquired = true;
+            if (!await Task.Run(() => File.Exists(key.Path), token))
+            { if (ReferenceEquals(details, _details)) details.SetMedia(null, "源文件缺失或不可访问"); return; }
             media = await engine.Probe(key.Path, token, key.Video, key.Audio);
             byte[]? cover = null;
             if (media.HasVideo)
@@ -103,10 +116,11 @@ public partial class JobRowView : UserControl
     private void Release()
     {
         _load?.Cancel(); _load = null; _key = null;
+        _previewReady = Task.CompletedTask;
         if (_owner is not null) _owner.JobDisplayChanged -= Refresh;
         if (_details is not null) _details.Job.PropertyChanged -= JobChanged;
         RowRoot.DataContext = null;
         _details?.Dispose(); _details = null; _owner = null;
     }
-    private sealed record PreviewKey(string Path, long Modified, int Video, int Audio, double Start, double End, string FFmpeg, string FFprobe);
+    private sealed record PreviewKey(string Path, int Video, int Audio, double Start, double End, string FFmpeg, string FFprobe);
 }

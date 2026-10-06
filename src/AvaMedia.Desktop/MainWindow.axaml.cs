@@ -25,6 +25,8 @@ public partial class MainWindow : Window
     private DateTime _lastSave;
     private bool _closing;
     private Task _running=Task.CompletedTask;
+    private Task _queueSave=Task.CompletedTask;
+    public Task PersistenceReady => _queueSave;
     public IMediaEngine Engine {get;}
     internal event Action? JobDisplayChanged;
     public MainWindow() : this(new Storage()) { }
@@ -86,14 +88,23 @@ public partial class MainWindow : Window
         catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
         Save();Refresh();
     }
-    private void Save(){_settings.MultiThread=Multithread.IsChecked==true;_settings.NotifyComplete=Notify.IsChecked==true;_storage.SaveSettings(_settings);_storage.SaveJobs(_jobs);}
-    private void Refresh()
+    private void Save()
+    {
+        _settings.MultiThread=Multithread.IsChecked==true;_settings.NotifyComplete=Notify.IsChecked==true;
+        _storage.SaveSettings(_settings); _queueSave=_storage.SaveJobsAsync(_jobs); _=ObserveQueueSaveAsync(_queueSave);
+    }
+    private async Task ObserveQueueSaveAsync(Task save)
+    {
+        try { await save; }
+        catch (Exception ex) { System.Diagnostics.Trace.TraceError("Queue persistence: " + ex); if (!_closing) SummaryText.Text=Localization.Format($"任务列表保存失败：{ex.Message}"); }
+    }
+    private void Refresh(bool refreshRows=true)
     {
         RefreshTaskState();
         if (_startupOptionsInitialized && !_backgroundWindowVisible) return;
         StartButton.IsEnabled=!_queue.IsRunning && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
-        JobDisplayChanged?.Invoke();
+        if(refreshRows)JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
         => await StartQueueAsync();

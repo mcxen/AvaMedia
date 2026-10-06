@@ -9,6 +9,7 @@ public interface IPlaybackSession : IDisposable
     bool IsPlaying { get; }
     bool IsPaused { get; }
     bool HasSession { get; }
+    bool PresentationVisible { get; set; }
     float Volume { get; set; }
     bool Muted { get; set; }
     double Speed { get; set; }

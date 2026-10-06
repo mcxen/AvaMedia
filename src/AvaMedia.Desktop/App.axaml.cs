@@ -22,7 +22,7 @@ public sealed partial class App : Application
             {
                 var settings = new Storage().LoadSettings();
                 Localization.Apply(settings.Language);
-                Skin.Apply(args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : settings.Theme);
+                Skin.Apply(args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : args.Contains("--light") ? "Light" : settings.Theme);
                 Motion.SetReducedMotion(settings.ReduceMotion);
                 var files = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal) && File.Exists(a)).ToArray();
                 var engine = new MediaEngine(settings);
@@ -45,7 +45,7 @@ public sealed partial class App : Application
                                 openToFirstFrameMs = player.FirstFrameLatencyMs, source = player.CurrentPath, ffmpeg = engine.FFmpeg, error = player.PlaybackError
                             }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
                             await Task.Delay(150);
-                            await Capture(player, Path.Combine(root, "player.png"));
+                            if (!args.Contains("--player-benchmark-no-capture")) await Capture(player, Path.Combine(root, "player.png"));
                             player.Close(); desktop.Shutdown(string.IsNullOrEmpty(player.PlaybackError) ? 0 : 1);
                         }
                         catch (Exception ex) { Directory.CreateDirectory(root); await File.WriteAllTextAsync(Path.Combine(root, "error.txt"), ex.ToString()); player.Close(); desktop.Shutdown(1); }

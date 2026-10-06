@@ -12,6 +12,13 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     private Bitmap? _cover;
     private string _fileSummary = "";
     private string _outputSize = "";
+    private string[]? _sizeInputs;
+    private string _sizeOutput = "";
+    private long? _inputBytes;
+    private long _outputBytes = -1;
+    private CancellationTokenSource? _metadata;
+    private bool _disposed;
+    public Task MetadataReady { get; private set; } = Task.CompletedTask;
     public Job Job { get; } = job;
     public Bitmap? Cover => _cover;
     public bool HasCover => Cover is not null;
@@ -132,13 +139,48 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool HasStateDetail => StateDetail.Length > 0;
     public void Refresh()
     {
+        if (_disposed) return;
+        var output = Job.State == JobState.Completed ? Job.Output : "";
+        if (!ReferenceEquals(_sizeInputs, Job.Inputs) || _sizeOutput != output)
+        {
+            _sizeInputs = Job.Inputs; _sizeOutput = output;
+            _inputBytes = null; _outputBytes = -1;
+            _metadata?.Cancel();
+            var cancellation = new CancellationTokenSource(); _metadata = cancellation;
+            MetadataReady = ReadSizesAsync(Job.Inputs.ToArray(), output, cancellation);
+        }
         var local = Job.Inputs.Where(p => !Uri.TryCreate(p, UriKind.Absolute, out var uri) || uri.IsFile).ToArray();
-        var sizes = local.Select(FileSize).ToArray();
         _fileSummary = Job.Inputs.Length == 0 ? "未指定源文件" : local.Length == 0 ? "在线来源" :
             Localization.Join(" · ", new[] { Job.Inputs.Length > 1 ? Localization.Format($"{Job.Inputs.Length} 个文件") : Extension,
-                sizes.All(s => s >= 0) ? Size(sizes.Sum()) : "大小未知" }.Where(s=>s.Length>0));
-        _outputSize = Job.State == JobState.Completed && FileSize(Job.Output) is >= 0 and var size ? Size(size) : "";
+                _inputBytes is { } total ? Size(total) : "大小未知" }.Where(s=>s.Length>0));
+        _outputSize = Job.State == JobState.Completed && _outputBytes >= 0 ? Size(_outputBytes) : "";
         Raise(string.Empty);
+    }
+    internal void RefreshProgress()
+    { Raise(nameof(StateText)); Raise(nameof(StateDetail)); Raise(nameof(HasStateDetail)); }
+    private async Task ReadSizesAsync(string[] inputs, string output, CancellationTokenSource cancellation)
+    {
+        var token = cancellation.Token;
+        try
+        {
+            var sizes = await Task.Run(() =>
+            {
+                long? total = 0;
+                foreach (var path in inputs)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && !uri.IsFile) continue;
+                    var size = FileSize(path);
+                    total = size < 0 || total is null ? null : total + size;
+                }
+                token.ThrowIfCancellationRequested();
+                return (Input: total, Output: output.Length > 0 ? FileSize(output) : -1);
+            }, token);
+            if (_disposed || token.IsCancellationRequested || !ReferenceEquals(_metadata, cancellation)) return;
+            _inputBytes = sizes.Input; _outputBytes = sizes.Output; Refresh();
+        }
+        catch (OperationCanceledException) { }
+        finally { if (ReferenceEquals(_metadata, cancellation)) _metadata = null; cancellation.Dispose(); }
     }
     internal void SetMedia(MediaInfo? media, string inspection, byte[]? cover = null)
     {
@@ -149,7 +191,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         Raise(string.Empty);
         previous?.Dispose();
     }
-    public void Dispose() { var cover = _cover; _cover = null; Raise(nameof(Cover)); cover?.Dispose(); }
+    public void Dispose() { _disposed = true; _metadata?.Cancel(); var cover = _cover; _cover = null; Raise(nameof(Cover)); cover?.Dispose(); }
     private static long FileSize(string path) { try { var file = new FileInfo(path); return file.Exists ? file.Length : -1; } catch { return -1; } }
     private static string Size(long bytes)
     {

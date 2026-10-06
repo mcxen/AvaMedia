@@ -35,6 +35,8 @@ public partial class PlayerWindow : Window
     private int _fileIndex, _revision, _seekGeneration;
     private bool _updating, _closed, _muted, _playIntent, _pendingSeek, _deleting;
     private double _position, _speed = 1, _lastSpeed = 1;
+    private long _positionPublished;
+    private string[]? _displayedPlaylist;
     private WindowState _windowedState;
     private readonly double[] _speeds = [.25, .5, .75, 1, 1.25, 1.5, 2, 3, 4];
     public string CurrentPath { get; private set; } = "";
@@ -76,7 +78,13 @@ public partial class PlayerWindow : Window
         _chromeTimer.Tick += (_, _) => { _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen && !ShortcutHelp.IsVisible) { ControlsBar.IsVisible = false; Cursor = new(StandardCursorType.None); } };
         _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); PlayerOsd.IsVisible = false; };
         ActualThemeVariantChanged += (_, _) => ShowChrome();
-        PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) ShowChrome(); if (e.Property == BoundsProperty) PlayerVolume.IsVisible = Bounds.Width >= 900; };
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == WindowStateProperty) ShowChrome();
+            if (e.Property == WindowStateProperty || e.Property == IsVisibleProperty)
+                if (_player is not null) _player.PresentationVisible = IsVisible && WindowState != WindowState.Minimized;
+            if (e.Property == BoundsProperty) PlayerVolume.IsVisible = Bounds.Width >= 900;
+        };
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, (_, e) => { if (_deleting || _closed) return; var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToArray(); if (paths?.Length > 0) { SetFiles(paths); Ready = OpenAsync(_playlist[0]); } });
@@ -129,11 +137,12 @@ public partial class PlayerWindow : Window
             _info = info; var player = _factory(_engine, path); _player = player;
             _playIntent = playing;
             player.Configure(info); player.Speed = _speed; player.Volume = (float)(PlayerVolume.Value / 100); player.Muted = _muted;
+            player.PresentationVisible = IsVisible && WindowState != WindowState.Minimized;
             player.Updated += position =>
             {
                 if (!Current(revision) || !ReferenceEquals(player, _player) || _pendingSeek) return;
-                SetPosition(position);
-                if (info.HasVideo) { VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); PlayerStatus.IsVisible = false; }
+                SetPosition(position, false);
+                if (info.HasVideo) { if (!ReferenceEquals(VideoImage.Source, player.Frame)) VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); PlayerStatus.IsVisible = false; }
                 else { PlayerStatus.Text = "音频播放"; }
                 RefreshCapture(); MarkFirstFrame();
             };
@@ -172,9 +181,12 @@ public partial class PlayerWindow : Window
         if (_fileIndex + 1 < _playlist.Length && string.IsNullOrEmpty(PlaybackError)) await ChangeFile(1);
         else Notice(string.IsNullOrEmpty(PlaybackError) ? "播放结束" : PlaybackError);
     }
-    private void SetPosition(double position)
+    private void SetPosition(double position, bool immediate = true)
     {
         _position = Math.Clamp(position, 0, _info?.Duration ?? 0);
+        var now = Stopwatch.GetTimestamp();
+        if (!immediate && (!ControlsBar.IsVisible || now - _positionPublished < Stopwatch.Frequency / 10)) return;
+        _positionPublished = now;
         _updating = true; PlayerSeek.Value = _position; _updating = false; PlayerTime.Text = EditorTime.Format(_position);
     }
     private void Notice(string message) { PlayerNotice.Text = message; ShowNotice(); }
@@ -199,7 +211,7 @@ public partial class PlayerWindow : Window
         if (_player is not { } player || _info is not { } info) return;
         _seek?.Cancel(); _seekGeneration++; _pendingSeek = false;
         _playIntent = !_playIntent;
-        if (!_playIntent) player.Pause();
+        if (!_playIntent) { player.Pause(); SetPosition(_position); }
         else if (player.IsPaused) player.Resume();
         else { if (_position >= info.Duration - .001) SetPosition(0); await player.Play(_position, info.HasVideo, info.Duration); }
         RefreshTransport();
@@ -225,7 +237,8 @@ public partial class PlayerWindow : Window
             {
                 var data = await _engine.Thumbnail(CurrentPath, position, 1280, 720, token, pad: false, videoStreamIndex: info.VideoStreamIndex);
                 token.ThrowIfCancellationRequested(); if (!Current(revision)) return;
-                using var stream = new MemoryStream(data); var frame = new Bitmap(stream);
+                var frame = await Task.Run(() => { using var stream = new MemoryStream(data); return new Bitmap(stream); }, token);
+                if (token.IsCancellationRequested || !Current(revision)) { frame.Dispose(); token.ThrowIfCancellationRequested(); return; }
                 VideoImage.Source = frame; _still?.Dispose(); _still = frame; PlayerStatus.IsVisible = false;
             }
             token.ThrowIfCancellationRequested(); _pendingSeek = false; RefreshTransport();
@@ -303,7 +316,7 @@ public partial class PlayerWindow : Window
         ShowChrome();
     }
     private void ShowChrome()
-    { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && ActualThemeVariant != Skin.MacOS9; ControlsBar.IsVisible = true; Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
+    { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && ActualThemeVariant != Skin.MacOS9; ControlsBar.IsVisible = true; SetPosition(_position); Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
     public void SetConfirmDeletion(bool value)
     { var settings = _preferences.LoadSettings(); settings.ConfirmPlayerDeletion = value; _preferences.SaveSettings(settings); ConfirmDeletion = value; }
     public async Task DeleteCurrentAsync()
@@ -407,7 +420,12 @@ public partial class PlayerWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { if (!_closed && generation == _folderGeneration) PlaylistStatus.Text = Localization.Format($"目录加载失败：{ex.Message}"); }
     }
-    private void RefreshPlaylist() { PlaylistList.ItemsSource = _playlist.Select(Path.GetFileName).ToArray(); PlaylistList.SelectedIndex = _fileIndex; }
+    private void RefreshPlaylist()
+    {
+        if (!ReferenceEquals(_displayedPlaylist, _playlist))
+        { PlaylistList.ItemsSource = _playlist.Select(Path.GetFileName).ToArray(); _displayedPlaylist = _playlist; }
+        PlaylistList.SelectedIndex = _fileIndex;
+    }
     private void TogglePlaylist() { PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible; }
     private void PlaylistDoubleTapped(object? sender, RoutedEventArgs e)
     { if (PlaylistList.SelectedIndex >= 0 && PlaylistList.SelectedIndex < _playlist.Length) CommandReady = OpenAsync(_playlist[PlaylistList.SelectedIndex]); }

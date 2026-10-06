@@ -20,6 +20,8 @@ for ($run = 1; $run -le $Runs; $run++) {
     $info.ArgumentList.Add($mediaPath)
     $info.ArgumentList.Add('--player-benchmark')
     $info.ArgumentList.Add($folder)
+    $info.ArgumentList.Add('--player-benchmark-no-capture')
+    if ($Skin -eq 'Light') { $info.ArgumentList.Add('--light') }
     if ($Skin -eq 'Dark') { $info.ArgumentList.Add('--dark') }
     if ($Skin -eq 'MacOS9') { $info.ArgumentList.Add('--macos9') }
     $process = [Diagnostics.Process]::Start($info)

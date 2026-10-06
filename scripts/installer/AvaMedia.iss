@@ -42,15 +42,22 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
+Name: "playerdesktopicon"; Description: "Create a Tianchi Player desktop shortcut"; Flags: unchecked
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppChineseName}"; Filename: "{app}\AvaMedia.Desktop.exe"
+Name: "{group}\天池播放器"; Filename: "{app}\AvaMedia.Desktop.exe"; Parameters: "--play"
 Name: "{group}\Install media tools"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\Install-MediaTools.ps1"" -Destination ""{app}\tools"""; WorkingDir: "{app}"
 Name: "{group}\卸载 {#AppChineseName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppChineseName}"; Filename: "{app}\AvaMedia.Desktop.exe"; Tasks: desktopicon
+Name: "{autodesktop}\天池播放器"; Filename: "{app}\AvaMedia.Desktop.exe"; Parameters: "--play"; Tasks: playerdesktopicon
 
 [Run]
+Filename: "{app}\AvaMedia.Desktop.exe"; Parameters: "--register-player"; Flags: runhidden waituntilterminated
 Filename: "{app}\AvaMedia.Desktop.exe"; Description: "启动 {#AppChineseName}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{app}\AvaMedia.Desktop.exe"; Parameters: "--unregister-player"; Flags: runhidden waituntilterminated; RunOnceId: "UnregisterTianchiPlayer"

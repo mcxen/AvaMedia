@@ -14,6 +14,7 @@ public partial class MainWindow
     private Task? _exitTask;
     private WindowState _restoreState = WindowState.Normal;
     private QueueCompletion? _lastCompletion;
+    private long _lastQueueUiRefresh;
     private bool IsCaptureSession => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
         desktop.Args?.Contains("--capture") == true;
     private static bool WantsTray(AppSettings settings) => settings.MinimizeToTray || settings.CloseToTray;
@@ -68,7 +69,7 @@ public partial class MainWindow
         _closing = true; RefreshTaskState(); _completionCancellation?.Cancel(); _queue.Stop();
         try
         {
-            await _running; Save(); _optionLifetime.Cancel(); _timer.Stop(); _exitFinished = true; Close();
+            await _running; Save(); await _queueSave; _optionLifetime.Cancel(); _timer.Stop(); _exitFinished = true; Close();
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
                 ReferenceEquals(desktop.MainWindow, this) && desktop.Windows.Count > 0) desktop.Shutdown();
         }
@@ -89,8 +90,10 @@ public partial class MainWindow
     private void DrainQueueChanges()
     {
         Interlocked.Exchange(ref _refreshPosted, 0);
+        var now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_backgroundWindowVisible && now - _lastQueueUiRefresh < System.Diagnostics.Stopwatch.Frequency / 10) return;
         if (_closing || Interlocked.Exchange(ref _queueDirty, 0) == 0) return;
-        Refresh();
+        _lastQueueUiRefresh = now; Refresh(false);
         if (DateTime.UtcNow - _lastSave > TimeSpan.FromSeconds(1)) { Save(); _lastSave = DateTime.UtcNow; }
     }
     private void BackgroundTick()

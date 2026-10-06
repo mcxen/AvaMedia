@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -36,7 +35,7 @@ public sealed class MediaEngine : IMediaEngine
     }
     public async Task<MediaInfo> Probe(string path,CancellationToken ct=default,int videoStreamIndex=0,int audioStreamIndex=0)
     {
-        var r=await ProcessRunner.Run(FFprobe,["-v","error","-show_format","-show_streams","-show_chapters","-of","json",path],ct);
+        var r=await ProcessRunner.Run(FFprobe,["-v","error","-show_format","-show_streams","-show_chapters","-of","json",path],ct,maximumOutputChars:int.MaxValue).ConfigureAwait(false);
         if(r.ExitCode!=0) throw new InvalidDataException(r.Error);
         using var json=JsonDocument.Parse(r.Output);var root=json.RootElement;
         var streams=root.GetProperty("streams").EnumerateArray().ToArray();
@@ -80,7 +79,7 @@ public sealed class MediaEngine : IMediaEngine
         var from=Math.Max(0,seconds);
         List<string> args=["-v","error","-ss",Number(from)];
         args.AddRange(["-i",input,"-map",$"0:v:{videoStreamIndex}","-frames:v","1","-vf",$"scale={width}:{height}:force_original_aspect_ratio=decrease"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""),"-f","image2pipe","-c:v","png","pipe:1"]);
-        using var p=ProcessRunner.Start(FFmpeg,args);
+        using var p=await ProcessRunner.StartAsync(FFmpeg,args,ct).ConfigureAwait(false);
         using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
         var error=p.StandardError.ReadToEndAsync();using var output=new MemoryStream();
         await p.StandardOutput.BaseStream.CopyToAsync(output,ct);await p.WaitForExitAsync(ct);
@@ -219,7 +218,7 @@ public sealed class MediaEngine : IMediaEngine
         if(f.Operation is Operation.PdfMerge or Operation.PdfSplit or Operation.PdfText or Operation.PdfDocx or Operation.PdfXlsx or Operation.TextPdf or Operation.Zip or Operation.Unzip) {await Task.Run(()=>DocumentEngine.Execute(job,progress,ct),ct);return;}
         if(f.Operation==Operation.Hash)
         {
-            var lines=new List<string>();foreach(var path in job.Inputs) {ct.ThrowIfCancellationRequested();await using var stream=File.OpenRead(path);lines.Add($"{Convert.ToHexString(await SHA256.HashDataAsync(stream,ct))}  {Path.GetFileName(path)}");}
+            var lines=await FileHashing.Sha256Async(job.Inputs,progress,ct);
             await File.WriteAllLinesAsync(job.Output,lines,ct);progress(100);return;
         }
         if(f.Operation==Operation.IsoCopy)

@@ -5,6 +5,7 @@ using Avalonia.Styling;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AvaMedia.Desktop.Controls;
+using Avalonia.Markup.Xaml.Styling;
 
 namespace AvaMedia.Desktop;
 
@@ -27,7 +28,15 @@ public sealed class Skin : AvaloniaObject
     public static void Apply(string name)
     {
         Dispatcher.UIThread.VerifyAccess();
+        if (name == "MacOS9") EnsureClassicStyles();
         Application.Current!.RequestedThemeVariant = name switch { "MacOS9" => MacOS9, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+    }
+    private static void EnsureClassicStyles()
+    {
+        var app = Application.Current!;
+        var source = new Uri("avares://AvaMedia.Desktop/Styles/Platinum.axaml");
+        if (app.Styles.OfType<StyleInclude>().Any(style => style.Source == source)) return;
+        app.Styles.Add(new StyleInclude(source) { Source = source });
     }
 
     private sealed class Registration : IDisposable
@@ -59,6 +68,7 @@ public sealed class Skin : AvaloniaObject
         {
             if (_changing) return;
             var platinum = _window.ActualThemeVariant == MacOS9;
+            if (platinum) EnsureClassicStyles();
             var classic = platinum && _window.WindowState != WindowState.FullScreen;
             _window.Classes.Set("mac-os9", platinum);
             RenderOptions.SetTextRenderingMode(_window, platinum ? TextRenderingMode.Alias : _textMode);

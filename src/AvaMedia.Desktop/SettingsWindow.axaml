@@ -109,6 +109,10 @@
                     <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换和下载任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
                     <CheckBox x:Name="TrayInput" Content="最小化时缩小到托盘"/>
                     <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
+                    <Grid x:Name="PlayerIntegrationRow" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <Button x:Name="RegisterPlayerButton" Content="注册天池播放器" Click="RegisterPlayerClick" Classes="field-action"/>
+                      <Button Grid.Column="1" Content="选择默认播放器" Click="DefaultPlayerClick" Classes="field-action"/>
+                    </Grid>
                   </StackPanel>
                 </Border>
               </StackPanel>

@@ -18,15 +18,15 @@ public sealed class VideoFolderScanner : IVideoFolderScanner
 
     public Task<IReadOnlyList<string>> ScanAsync(string directory, CancellationToken token) => Task.Run<IReadOnlyList<string>>(() =>
     {
-        var videos = new List<string>();
+        var videos = new List<(string Path, string Name)>();
         foreach (var file in Directory.EnumerateFiles(directory, "*", new EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = 0 }))
         {
             token.ThrowIfCancellationRequested();
-            if (IsVideoFile(file)) videos.Add(Path.GetFullPath(file));
+            if (IsVideoFile(file)) videos.Add((Path.GetFullPath(file), Path.GetFileName(file)));
         }
-        videos.Sort((left, right) => CompareNames(Path.GetFileName(left), Path.GetFileName(right)));
+        videos.Sort((left, right) => CompareNames(left.Name, right.Name));
         token.ThrowIfCancellationRequested();
-        return videos;
+        return videos.Select(video => video.Path).ToArray();
     }, token);
 
     // Numeric runs make episode 2 precede episode 10 without parsing or overflowing integers.

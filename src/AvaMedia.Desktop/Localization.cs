@@ -107,13 +107,15 @@ public sealed class Localization : AvaloniaObject
     {
         private readonly Control _control;
         private readonly Dictionary<AvaloniaProperty, object> _source = [];
+        private readonly HashSet<AvaloniaProperty> _properties;
         private bool _writing;
         private bool _disposed;
         public Registration(Control control)
         {
             _control = control;
+            _properties = Properties(control).ToHashSet();
             control.PropertyChanged += PropertyChanged;
-            foreach (var property in Properties(control)) Capture(property);
+            foreach (var property in _properties) Capture(property);
         }
         private static IEnumerable<AvaloniaProperty> Properties(Control control)
         {
@@ -137,11 +139,15 @@ public sealed class Localization : AvaloniaObject
             if (change.Property == IsUserTextProperty) { Refresh(); return; }
             if (change.Property == TextBox.IsReadOnlyProperty)
             {
-                if (_control is TextBox { IsReadOnly: true }) Capture(TextBox.TextProperty);
-                else if (_source.Remove(TextBox.TextProperty, out var original)) _control.SetCurrentValue(TextBox.TextProperty, original is string text ? text : Render(original));
+                if (_control is TextBox { IsReadOnly: true }) { _properties.Add(TextBox.TextProperty); Capture(TextBox.TextProperty); }
+                else
+                {
+                    _properties.Remove(TextBox.TextProperty);
+                    if (_source.Remove(TextBox.TextProperty, out var original)) _control.SetCurrentValue(TextBox.TextProperty, original is string text ? text : Render(original));
+                }
                 return;
             }
-            if (Properties(_control).Contains(change.Property)) Capture(change.Property);
+            if (_properties.Contains(change.Property)) Capture(change.Property);
         }
         private void Capture(AvaloniaProperty property)
         {

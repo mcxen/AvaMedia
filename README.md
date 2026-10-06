@@ -66,11 +66,14 @@ macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装定制 ARM64 FFmpe
 - **合并、混流与字幕**：逐输入保留编辑参数，支持视频 / 音轨选择、字幕烧录与独立字幕轨配置。
 - **视频下载**：分享文本与批量链接解析、YouTube 播放列表 / B站分P、多画质、视频 / 音频、字幕、登录态与代理；内置 yt-dlp 和 QuickJS-NG，停止后可重试续传。平台要求与验证见 [视频下载](docs/VIDEO-DOWNLOAD.md)。
 - **任务与工具**：并行队列、停止、重试、日志、拖放、恢复和导入导出；PDF、归档、导出帧与下载入口。
+- **天池播放器**：独立窗口、PotPlayer 常用键位、后台目录播放列表；Windows 新安装器提供独立开始菜单入口并注册视频 / 音频“打开方式”，便携版可在选项的系统页注册。见 [播放器](docs/PLAYER.md)。
 - **高级设置**：[自动 GPU 转码](docs/GPU-TRANSCODING.md)，适配 Apple M 系列、NVIDIA RTX、Intel 核显 / Arc、AMD，自动匹配编码与解码路径并分级回退；另提供线程、图片质量、减少动效和外部工具配置。
 
 使用流程：选择功能 → 添加媒体 → 配置或编辑 → 加入队列 → 开始。快速剪辑返回编辑保留草稿，取消不加入任务；Fast Copy 受关键帧限制，包含滤镜时需重新编码。水印区域采用模糊处理，PDF → Office 提取文本。详见 [功能与验证](docs/FEATURES.md)。
 
 专项说明：[快速剪辑](docs/QUICK-CLIP.md) · [视频编辑](docs/VIDEO-EDITING.md) · [批量裁剪](docs/BATCH-CROP.md) · [批量旋转](docs/BATCH-ROTATE.md) · [字幕与选轨](docs/SUBTITLE-OPTIONS.md) · [高级设置](docs/SETTINGS.md)。
+
+播放器大文件测量包括真实 5.23 GB 4K 视频、1080p60 与两小时 PCM 音频，并记录启动、CPU、分配、定位及 UI 调度；测试方法与本机前后数据见 [性能记录](docs/PLAYER-PERFORMANCE.md)。
 
 ## 接口与架构
 

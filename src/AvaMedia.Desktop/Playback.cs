@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Buffers;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -20,6 +21,7 @@ internal sealed class Playback : IPlaybackSession
     private float _volume = 1;
     private int _videoStreamIndex, _audioStreamIndex, _startedProcesses;
     private double _frameRate = 25;
+    private volatile bool _presentationVisible = true;
 
     public WriteableBitmap Frame { get; private set; } = new(new PixelSize(2, 2), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
     public event Action<double>? Updated;
@@ -32,6 +34,7 @@ internal sealed class Playback : IPlaybackSession
     public int StartedProcesses => _startedProcesses;
     public long DecodedAudioBytes { get; private set; }
     public int PeakAudioBufferBytes { get; private set; }
+    public bool PresentationVisible { get => _presentationVisible; set => _presentationVisible = value; }
     public double Speed { get; set; } = 1;
     public Task FirstFrame => _session?.FirstFrame.Task ?? Task.CompletedTask;
     public bool Muted { get => _muted; set { _muted = value; ApplyVolume(); } }
@@ -106,33 +109,44 @@ internal sealed class Playback : IPlaybackSession
                     "-pix_fmt", "bgra", "-t", MediaEngine.Number(session.End - session.Start), "-threads", "1", "-f", "rawvideo", "pipe:1"]);
                 using var registration = token.Register(() => Kill(process));
                 var errors = process.StandardError.ReadToEndAsync();
-                var data = new byte[size.Width * size.Height * 4];
+                var frameBytes = size.Width * size.Height * 4;
+                var data = ArrayPool<byte>.Shared.Rent(frameBytes);
                 var index = 0L;
-                while (await ReadBlock(process.StandardOutput.BaseStream, data, token) == data.Length)
+                try
                 {
-                    var position = session.Start + index++ / fps;
-                    if (position >= session.End) break;
-                    if (index == 1)
-                        try { await session.AudioReady.Task.WaitAsync(TimeSpan.FromMilliseconds(250), token); } catch (TimeoutException) { }
-                    if (index > 1) await WaitPosition(session, position, token);
-                    // Drop late frames instead of stretching playback when decoding cannot keep up.
-                    if (index > 1 && session.Position - position > .12 * session.Speed) continue;
-                    var shown = false;
-                    while (!shown)
+                    while (await ReadBlock(process.StandardOutput.BaseStream, data.AsMemory(0, frameBytes), token) == frameBytes)
                     {
-                        if (index > 1) await session.WaitRunning(token);
-                        shown = await Dispatcher.UIThread.InvokeAsync(() =>
+                        var position = session.Start + index++ / fps;
+                        if (position >= session.End) break;
+                        if (index == 1)
+                            try { await session.AudioReady.Task.WaitAsync(TimeSpan.FromMilliseconds(250), token); } catch (TimeoutException) { }
+                        if (index > 1) await WaitPosition(session, position, token);
+                        // Drop late frames instead of stretching playback when decoding cannot keep up.
+                        if (index > 1 && session.Position - position > .12 * session.Speed) continue;
+                        if (index > 1 && !PresentationVisible) continue;
+                        var shown = false;
+                        while (!shown)
                         {
-                            if (!Current(session)) return true;
-                            if (session.Paused && index > 1) return false;
-                            session.StartClock();
-                            using (var buffer = Frame.Lock())
-                                for (var row = 0; row < size.Height; row++) Marshal.Copy(data, row * size.Width * 4, buffer.Address + row * buffer.RowBytes, size.Width * 4);
-                            DecodedFrames++; Updated?.Invoke(position); session.FirstFrame.TrySetResult();
-                            return true;
-                        });
+                            if (index > 1) await session.WaitRunning(token);
+                            shown = await Dispatcher.UIThread.InvokeAsync(() =>
+                            {
+                                if (!Current(session)) return true;
+                                if (index > 1 && !PresentationVisible) return true;
+                                if (session.Paused && index > 1) return false;
+                                session.StartClock();
+                                using (var buffer = Frame.Lock())
+                                {
+                                    var stride = size.Width * 4;
+                                    if (buffer.RowBytes == stride) Marshal.Copy(data, 0, buffer.Address, frameBytes);
+                                    else for (var row = 0; row < size.Height; row++) Marshal.Copy(data, row * stride, buffer.Address + row * buffer.RowBytes, stride);
+                                }
+                                DecodedFrames++; Updated?.Invoke(position); session.FirstFrame.TrySetResult();
+                                return true;
+                            });
+                        }
                     }
                 }
+                finally { ArrayPool<byte>.Shared.Return(data); }
                 await process.WaitForExitAsync(token);
                 var error = await errors;
                 if (process.ExitCode != 0) throw new IOException(error);
@@ -148,7 +162,7 @@ internal sealed class Playback : IPlaybackSession
             while (session.Position < session.End)
             {
                 await session.WaitRunning(token);
-                await Task.Delay(20, token);
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(.1, Math.Max(.001, (session.End - session.Position) / session.Speed))), token);
                 await Dispatcher.UIThread.InvokeAsync(() => { if (Current(session) && !session.Paused) Updated?.Invoke(session.Position); });
             }
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -218,10 +232,10 @@ internal sealed class Playback : IPlaybackSession
     private Process Start(string executable, string[] arguments) { Interlocked.Increment(ref _startedProcesses); return ProcessRunner.Start(executable, arguments); }
     private bool Current(Session session) => !_disposed && ReferenceEquals(_session, session) && !session.Cancellation.IsCancellationRequested;
     private static void Kill(Process process) { try { process.Kill(true); } catch (InvalidOperationException) { } }
-    private static async Task<int> ReadBlock(Stream stream, byte[] data, CancellationToken token)
+    private static async Task<int> ReadBlock(Stream stream, Memory<byte> data, CancellationToken token)
     {
         var offset = 0;
-        while (offset < data.Length) { var count = await stream.ReadAsync(data.AsMemory(offset), token); if (count == 0) break; offset += count; }
+        while (offset < data.Length) { var count = await stream.ReadAsync(data[offset..], token); if (count == 0) break; offset += count; }
         return offset;
     }
     private static string Tempo(double speed)

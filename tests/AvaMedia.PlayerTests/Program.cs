@@ -11,6 +11,9 @@ using AvaMedia.Core;
 using AvaMedia.Desktop;
 using NAudio.Wave;
 
+if (args.Contains("--performance")) { await PlayerPerformanceChecks.Run(args); return; }
+if (args.Contains("--details")) { ProjectDetailChecks.Run(); return; }
+
 var root = Path.GetFullPath("artifacts/player-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 Directory.CreateDirectory(root);
 var engine = new MediaEngine(new());
@@ -33,6 +36,7 @@ void Wait(Func<bool> value) { var timer = Stopwatch.StartNew(); while (!value() 
 void Complete(Task task) { Wait(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
 void Advance(int ms) { var watch = Stopwatch.StartNew(); while (watch.ElapsedMilliseconds < ms) { Pump(); Thread.Sleep(2); } }
 T Find<T>(Window window, string name) where T : Control => window.FindControl<T>(name)!;
+double Metric(Control control, string key) => control.TryFindResource(key, control.ActualThemeVariant, out var value) && value is double metric ? metric : throw new Exception("Missing player metric: " + key);
 void Key(Window window, Avalonia.Input.Key key, KeyModifiers modifiers = KeyModifiers.None)
 { window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers, Source = window }); Pump(); }
 var outputs = new List<MeasuredAudio>();
@@ -52,6 +56,11 @@ Check(decoder.IsPaused && position == paused && decoder.DecodedFrames == frames 
 var resume = Stopwatch.StartNew(); decoder.Resume(); Wait(() => decoder.DecodedFrames > frames);
 Check(decoder.StartedProcesses == 2 && resume.ElapsedMilliseconds < 300, "Resume reuses both decoders and publishes promptly");
 timings.Add(new { operation = "resume", milliseconds = resume.Elapsed.TotalMilliseconds });
+decoder.PresentationVisible = false; Advance(30); var hiddenFrames = decoder.DecodedFrames; var hiddenAudio = outputs[0].ReadBytes;
+Advance(200);
+Check(decoder.DecodedFrames == hiddenFrames && outputs[0].ReadBytes > hiddenAudio, "Hidden video suppresses pixel transfers while streaming audio continues");
+decoder.PresentationVisible = true; Wait(() => decoder.DecodedFrames > hiddenFrames);
+Check(decoder.StartedProcesses == 2, "Restoring video resumes presentation without restarting either decoder");
 decoder.Volume = .4f; Check(outputs[0].Volume == .4f, "Volume reaches the output device");
 decoder.Muted = true; Check(outputs[0].Volume == 0, "Mute keeps decoding while silencing the output");
 decoder.Muted = false; Check(outputs[0].Volume == .4f, "Unmute restores the chosen volume");
@@ -106,12 +115,13 @@ foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
             var control = Find<Control>(window, name); var point = control.TranslatePoint(default, window)!.Value;
             Check(point.Y >= 0 && point.Y + control.Bounds.Height <= window.Bounds.Height + 1 && point.X >= 0 && point.X + control.Bounds.Width <= window.Bounds.Width + 1, skin + " " + size.Item3 + ": " + name + " is visible");
         }
-        Check(Find<Button>(window, "PlayerPlayButton").Bounds.Size == new Size(32, 32) && Find<TextBlock>(window, "PlayerTime").FontSize == 14, skin + " " + size.Item3 + ": transport and time metrics follow UISPEC");
+        var transportSize = Metric(window, "UiPlayerButtonSize");
+        Check(Find<Button>(window, "PlayerPlayButton").Bounds.Size == new Size(transportSize, transportSize) && Find<TextBlock>(window, "PlayerTime").FontSize == Metric(window, "UiTimeFontSize"), skin + " " + size.Item3 + ": transport and time metrics follow shared theme roles");
         var row = Find<Button>(window, "PlayerPlayButton").TranslatePoint(default, window)!.Value.Y;
         Check(Math.Abs(Find<Button>(window, "PlayerMuteButton").TranslatePoint(default, window)!.Value.Y - row) < 1 && Find<Button>(window, "PlayerPlayButton").TranslatePoint(default, window)!.Value.X < Find<TextBlock>(window, "PlayerTime").TranslatePoint(default, window)!.Value.X, skin + " " + size.Item3 + ": PotPlayer layout puts transport left, time next, volume right on one bottom row");
         var timeCenter = Find<TextBlock>(window, "PlayerTime").TranslatePoint(new Point(0, Find<TextBlock>(window, "PlayerTime").Bounds.Height / 2), window)!.Value.Y;
-        Check(Math.Abs(timeCenter - row - 16) < 1, skin + " " + size.Item3 + ": time text shares the control row center");
-        window.CaptureRenderedFrame()!.Save(Path.Combine(root, skin + "-" + size.Item3 + ".png"));
+        Check(Math.Abs(timeCenter - row - transportSize / 2) < 1, skin + " " + size.Item3 + ": time text shares the control row center");
+        if (args.Contains("--capture")) window.CaptureRenderedFrame()!.Save(Path.Combine(root, skin + "-" + size.Item3 + ".png"));
     }
     var oldSeek = window.SeekAsync(2); var latestSeek = window.SeekAsync(4); Complete(Task.WhenAll(oldSeek, latestSeek));
     Check(window.SourcePosition == 4, skin + ": rapid seek requests keep the most recent position");

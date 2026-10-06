@@ -1389,5 +1389,9 @@
   "查看编码、时长、尺寸与轨道": "Inspect codecs, duration, dimensions and tracks",
   "解压到独立文件夹": "Extract into a separate folder",
   "把选中文件打包到压缩文件": "Pack selected files into a ZIP archive",
-  "计算 SHA256 校验值": "Calculate SHA256 checksums"
+  "计算 SHA256 校验值": "Calculate SHA256 checksums",
+  "注册天池播放器": "Register Tianchi Player",
+  "选择默认播放器": "Choose default player",
+  "已注册播放器，可在文件打开方式中选择。": "Player registered. Choose it from Open with.",
+  "任务列表保存失败：{0}": "Could not save the task queue: {0}"
 }
