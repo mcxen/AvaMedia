@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "runtime": "win-x64",
+  "sharedSources": "../macos/ffmpeg-sources.lock.json",
+  "sources": [
+    {"name":"zlib","version":"1.3.2","kind":"archive","url":"https://zlib.net/fossils/zlib-1.3.2.tar.gz","sha256":"bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"},
+    {"name":"bzip2","version":"1.0.8","kind":"archive","url":"https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz","sha256":"ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"},
+    {"name":"libiconv","version":"1.18","kind":"archive","url":"https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz","mirrors":["https://mirrors.kernel.org/gnu/libiconv/libiconv-1.18.tar.gz"],"sha256":"3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8"},
+    {"name":"nv-codec-headers","version":"13.1.15.0","kind":"archive","url":"https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/0a6fba9a2820628b8103464f4c8753ee05838baa","sha256":"1d2070546de622fd6074a99d4b283e727988b7c3624ef85f97b88962264314d2"},
+    {"name":"AMF","version":"1.5.3","kind":"archive","url":"https://codeload.github.com/GPUOpen-LibrariesAndSDKs/AMF/tar.gz/6277e353fd625121a8f627b1d0540323ef372a49","sha256":"b4c489025e1e0da9890ac7134252604a9b9c9f314a6048393d46826294e77d09"},
+    {"name":"libvpl","version":"674d015bcb294bc39fa276e99a652ea045423e82","kind":"archive","url":"https://codeload.github.com/intel/libvpl/tar.gz/674d015bcb294bc39fa276e99a652ea045423e82","sha256":"9d5d3c221b9d41468e04add6855cf5eec6df06dae7be649f84e1f846c98e38fb"}
+  ]
+}

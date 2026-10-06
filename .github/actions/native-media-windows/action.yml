@@ -1,0 +1,32 @@
+name: Build Windows media runtime
+description: Build the pinned shared FFmpeg engine and corresponding sources for Windows x64.
+runs:
+  using: composite
+  steps:
+    - name: Restore compiled Windows media
+      id: cache
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: artifacts/AvaMedia-FFmpeg-*-win-x64*
+        key: windows-media-v1-ubuntu24-mingw-x64-${{ hashFiles('scripts/windows/**', 'scripts/macos/Build-FFmpeg.py', 'scripts/macos/ffmpeg-sources.lock.json', '.github/actions/native-media-windows/action.yml', 'LICENSE', 'COPYRIGHT') }}
+    - name: Install cross compiler and build tools
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build meson pkgconf autoconf automake libtool help2man nasm gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
+    - name: Build Windows FFmpeg and sources
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: python3 scripts/windows/Build-FFmpeg.py
+    - name: Verify cached archive checksums
+      shell: bash
+      run: |
+        cd artifacts
+        sha256sum --check AvaMedia-FFmpeg-*-win-x64-SHA256SUMS.txt
+    - name: Save compiled Windows media
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: artifacts/AvaMedia-FFmpeg-*-win-x64*
+        key: ${{ steps.cache.outputs.cache-primary-key }}

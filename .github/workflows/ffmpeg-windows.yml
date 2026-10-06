@@ -1,0 +1,36 @@
+name: Windows FFmpeg
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/windows/**'
+      - 'scripts/macos/Build-FFmpeg.py'
+      - 'scripts/macos/ffmpeg-sources.lock.json'
+      - '.github/actions/native-media-windows/**'
+      - '.github/workflows/ffmpeg-windows.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ffmpeg-windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/native-media-windows
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ffmpeg-win-x64
+          compression-level: 0
+          path: artifacts/AvaMedia-FFmpeg-*-win-x64*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ffmpeg-windows-build-logs
+          path: artifacts/ffmpeg-win-build-*/*.log
