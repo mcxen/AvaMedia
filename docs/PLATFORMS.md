@@ -4,6 +4,8 @@
 
 后续 macOS 发布仅提供 Apple Silicon（ARM64），使用 ARM64 runner 完成构建与启动验证。v1.0.5 的两个架构包和验收记录保留为历史结果。
 
+当前应用最低系统版本声明为 **macOS 13.4**：打包的 ONNX Runtime 1.23.2 ARM64 原生库在 `LC_BUILD_VERSION` 中要求 13.4；.NET、Avalonia、Skia 与 HarfBuzz 组件要求 11.0，独立 FFmpeg 配方的部署目标为 12.0。QuickJS 官方 ARM64 二进制要求 macOS 26，已改为从同版本固定源码构建、指定 13.4 部署目标。归档检查同时核对组件和下载工具的实际部署版本，避免旧系统在加载人脸识别或解析下载链接时暴露依赖错误。此声明与配方仍须通过原生构建，macOS 13.4 的完整设备运行仍需验收。
+
 ## v1.0.5 应用包
 
 - Windows x64：`AvaMedia-1.0.5-win-x64-setup.exe` 每用户安装，或 ZIP 解压运行 `AvaMedia.Desktop.exe`。

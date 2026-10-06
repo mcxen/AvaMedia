@@ -35,11 +35,13 @@
 
 ## 打包与验证
 
-Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 QuickJS-NG 0.17.0，固定版本、验证上游 SHA256，记录来源、版本、文件尺寸与摘要至 `tools/download-tools.json`；许可证随 `licenses/download-tools/` 分发。无需另行安装 yt-dlp、Python 或 JavaScript 运行时。媒体合并、封装与音频提取仍使用已配置的 FFmpeg / FFprobe。
+Windows x64 和 macOS ARM64 的发布目录包含官方 yt-dlp 2026.08.19 与 QuickJS-NG 0.17.0。Windows 使用固定哈希的官方运行器；Mac 从固定 SHA256 的同版本源码构建 ARM64 运行器，指定 macOS 13.4 部署目标，不使用最低要求 macOS 26 的官方 Mac 二进制。来源、版本、构建信息、文件尺寸与摘要记录在 `tools/download-tools.json`；许可证随 `licenses/download-tools/` 分发。无需另行安装 yt-dlp、Python 或 JavaScript 运行时。媒体合并、封装与音频提取仍使用已配置的 FFmpeg / FFprobe。
 
 `scripts/Bundle-DownloadTools.ps1` 可单独准备开发工具；`scripts/Publish.ps1` 自动执行。用户指定的 yt-dlp 路径继续优先，官方构建包含 EJS 脚本，不启用远程脚本组件。
 
-只打包 `qjs` / `qjs.exe` 运行器，不包含 JavaScript 编译器、SDK 或 Deno。解析和下载均先传入 `--no-js-runtimes` 清除 yt-dlp 默认运行时，再使用 `--js-runtimes quickjs:绝对路径`；系统里已有的 Deno 不会优先执行。采用 QuickJS-NG 0.17.0，满足官方建议的 0.12.0 及以上版本；官方 yt-dlp 已包含配套 EJS 脚本。Windows 原始运行器约 2.05 MiB，macOS ARM64 约 1.26 MiB。当前仍为开发版，直接使用当前运行器和清单；不维护旧运行器清理、旧安装升级或迁移分支。发布使用空输出目录，避免混入其它构建的文件。
+只打包 `qjs` / `qjs.exe` 运行器，不包含 JavaScript 编译器、SDK 或 Deno。解析和下载均先传入 `--no-js-runtimes` 清除 yt-dlp 默认运行时，再使用 `--js-runtimes quickjs:绝对路径`；系统里已有的 Deno 不会优先执行。采用 QuickJS-NG 0.17.0，满足官方建议的 0.12.0 及以上版本；官方 yt-dlp 已包含配套 EJS 脚本。Windows 原始运行器约 2.05 MiB；Mac 使用 MinSizeRel 构建并去除调试符号、关闭额外分配器，尺寸以原生构建的 `build.json` 为准。当前仍为开发版，直接使用当前运行器和清单；不维护旧运行器清理、旧安装升级或迁移分支。发布使用空输出目录，避免混入其它构建的文件。
+
+Mac 发布须在 ARM64 Mac 上安装 CMake 后执行 `scripts/Publish.ps1`。`scripts/macos/Build-QuickJS.ps1` 核对源码哈希，检查生成文件的 ARM64 架构、部署版本、系统动态库、签名和版本，并实际执行 Promise 示例；`-SourceOnly` 可在其它平台校验源码。原生工作流保存运行器和构建清单，归档检查再次核对最低系统版本。不能在 Windows 上用官方 Mac 运行器替代此构建。
 
 2026-10-06 的 Windows 本地 QuickJS 预览包：安装包 74.54 MiB、ZIP 92.52 MiB、解包目录 172.30 MiB；包含自带 .NET、yt-dlp 和 QuickJS-NG，FFmpeg / FFprobe 仍独立配置。运行器替换完成相关编译、脚本静态检查及安装器编译，未重新执行下载功能回归。这是本地构建记录，不是后续版本的固定体积承诺。
 

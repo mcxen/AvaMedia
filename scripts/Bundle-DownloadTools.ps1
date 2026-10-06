@@ -1,4 +1,4 @@
-param([ValidateSet('win-x64','osx-arm64','osx-x64')][string]$Runtime='win-x64', [Parameter(Mandatory)][string]$Destination)
+param([ValidateSet('win-x64','osx-arm64')][string]$Runtime='win-x64', [Parameter(Mandatory)][string]$Destination)
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 $toolRoot=[IO.Path]::GetFullPath($Destination)
@@ -8,8 +8,6 @@ $ytVersion='2026.08.19'
 $quickJsVersion='0.17.0'
 $ytAsset=if($Runtime -eq 'win-x64'){'yt-dlp.exe'}else{'yt-dlp_macos'}
 $ytHash=if($Runtime -eq 'win-x64'){'66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a'}else{'0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202'}
-$quickJsAsset=switch($Runtime){'win-x64'{'qjs-windows-x86_64.exe'}'osx-arm64'{'qjs-darwin-arm64'}'osx-x64'{'qjs-darwin-x86_64'}}
-$quickJsHash=switch($Runtime){'win-x64'{'2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77'}'osx-arm64'{'8be3ddfe3397d2e692e4e1e8972ee9d032a0a580505d2f8b4ea528cf1b651c11'}'osx-x64'{'9e5e101b4fd13cda3204222ca9f8be35412c41dcdef3745829633b7a67245412'}}
 function Get-CheckedAsset([string]$Url,[string]$Path,[string]$Hash) {
     if(!(Test-Path -LiteralPath $Path) -or (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Hash) {
         Invoke-WebRequest -Uri $Url -OutFile $Path
@@ -19,8 +17,19 @@ function Get-CheckedAsset([string]$Url,[string]$Path,[string]$Hash) {
 }
 $ytUrl="https://github.com/yt-dlp/yt-dlp/releases/download/$ytVersion/$ytAsset"
 $yt=Get-CheckedAsset $ytUrl (Join-Path $cache "$ytVersion-$ytAsset") $ytHash
-$quickJsUrl="https://github.com/quickjs-ng/quickjs/releases/download/v$quickJsVersion/$quickJsAsset"
-$quickJs=Get-CheckedAsset $quickJsUrl (Join-Path $cache "$quickJsVersion-$quickJsAsset") $quickJsHash
+$quickJsBuild=$null
+if($Runtime -eq 'osx-arm64') {
+    $quickJs=& (Join-Path $PSScriptRoot 'macos/Build-QuickJS.ps1')
+    $quickJsBuild=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $quickJs) 'build.json') -Raw | ConvertFrom-Json
+    if($quickJsBuild.version -ne $quickJsVersion){throw 'QuickJS recipe version mismatch.'}
+    $quickJsUrl=$quickJsBuild.source
+    $quickJsHash=$quickJsBuild.sha256
+} else {
+    $quickJsAsset='qjs-windows-x86_64.exe'
+    $quickJsHash='2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77'
+    $quickJsUrl="https://github.com/quickjs-ng/quickjs/releases/download/v$quickJsVersion/$quickJsAsset"
+    $quickJs=Get-CheckedAsset $quickJsUrl (Join-Path $cache "$quickJsVersion-$quickJsAsset") $quickJsHash
+}
 $ytName=if($Runtime -eq 'win-x64'){'yt-dlp.exe'}else{'yt-dlp'}
 $quickJsName=if($Runtime -eq 'win-x64'){'qjs.exe'}else{'qjs'}
 Copy-Item -LiteralPath $yt -Destination (Join-Path $toolRoot $ytName) -Force
@@ -56,6 +65,6 @@ $files=@($ytName,$quickJsName | ForEach-Object {
     $path=Join-Path $toolRoot $_
     [ordered]@{name=$_;bytes=(Get-Item -LiteralPath $path).Length;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()}
 })
-[ordered]@{runtime=$Runtime;ytDlpVersion=$ytVersion;quickJsVersion=$quickJsVersion;jsRuntime='quickjs';ytDlpSource=$ytUrl;quickJsSource=$quickJsUrl;quickJsSha256=$quickJsHash;hashStage='upstream-before-app-signing';files=$files} |
+[ordered]@{runtime=$Runtime;ytDlpVersion=$ytVersion;quickJsVersion=$quickJsVersion;jsRuntime='quickjs';ytDlpSource=$ytUrl;quickJsSource=$quickJsUrl;quickJsSha256=$quickJsHash;quickJsBuild=$quickJsBuild;hashStage='before-app-signing';files=$files} |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $toolRoot 'download-tools.json') -Encoding utf8
 Write-Output "Bundled yt-dlp $ytVersion and QuickJS-NG $quickJsVersion ($Runtime), verified SHA256."

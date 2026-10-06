@@ -1,0 +1,8 @@
+{
+  "version": "0.17.0",
+  "url": "https://codeload.github.com/quickjs-ng/quickjs/tar.gz/refs/tags/v0.17.0",
+  "sha256": "559bc4c420475e55c7ab4510adbc562f55d7524d75e8e89d79ce4bb02f5687d9",
+  "architecture": "arm64",
+  "deploymentTarget": "13.4",
+  "license": "MIT"
+}
