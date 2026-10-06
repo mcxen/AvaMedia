@@ -1,0 +1,41 @@
+name: Prepare macOS native media
+description: Reuse verified ARM64 FFmpeg, corresponding sources and QuickJS across CI and releases.
+runs:
+  using: composite
+  steps:
+    - name: Identify native toolchain
+      id: toolchain
+      shell: bash
+      run: |
+        fingerprint=$( { xcrun clang --version; xcrun --show-sdk-version; } | shasum -a 256 | cut -d ' ' -f 1)
+        printf 'fingerprint=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
+    - name: Restore verified native media
+      id: cache
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: |
+          artifacts/AvaMedia-FFmpeg-*
+          .tools/download-bundle/*-qjs-osx-arm64-macos*/
+          .tools/download-bundle/*-quickjs-source.tar.gz
+        key: native-media-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('scripts/macos/**', 'scripts/legacy-video-capabilities.json', '.github/actions/native-media/action.yml', 'LICENSE', 'COPYRIGHT') }}
+    - name: Install native build tools on cache miss
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: '1'
+      run: brew install cmake meson ninja pkgconf autoconf automake libtool help2man
+    - name: Build or verify ARM64 QuickJS
+      shell: pwsh
+      run: ./scripts/macos/Build-QuickJS.ps1
+    - name: Build or verify ARM64 FFmpeg and corresponding sources
+      shell: bash
+      run: python3 scripts/macos/Build-FFmpeg.py --reuse-built
+    - name: Save verified native media before client checks
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: |
+          artifacts/AvaMedia-FFmpeg-*
+          .tools/download-bundle/*-qjs-osx-arm64-macos*/
+          .tools/download-bundle/*-quickjs-source.tar.gz
+        key: ${{ steps.cache.outputs.cache-primary-key }}

@@ -6,6 +6,7 @@ on:
     paths:
       - 'scripts/macos/**'
       - 'scripts/legacy-video-capabilities.json'
+      - '.github/actions/native-media/**'
       - 'scripts/Install-MediaTools-macOS.sh'
       - 'src/AvaMedia.Core/BatchVideoTools.cs'
       - '.github/workflows/ffmpeg-macos.yml'
@@ -13,11 +14,17 @@ on:
     paths:
       - 'scripts/macos/**'
       - 'scripts/legacy-video-capabilities.json'
+      - '.github/actions/native-media/**'
       - 'scripts/Install-MediaTools-macOS.sh'
       - 'src/AvaMedia.Core/BatchVideoTools.cs'
       - '.github/workflows/ffmpeg-macos.yml'
 permissions:
   contents: read
+concurrency:
+  group: ffmpeg-macos-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.tools/nuget-packages
 jobs:
   native:
     runs-on: macos-15
@@ -32,14 +39,15 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
-      - name: Install build tools
-        run: brew install cmake meson ninja pkgconf autoconf automake libtool help2man
-      - name: Build and verify ARM64 QuickJS for macOS 13.4
-        id: quickjs
-        shell: pwsh
-        run: ./scripts/macos/Build-QuickJS.ps1
-      - name: Build and verify the custom runtime
-        run: python3 scripts/macos/Build-FFmpeg.py
+      - name: Cache NuGet packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
+          restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare verified native media
+        id: native-media
+        uses: ./.github/actions/native-media
       - name: Install into a directory containing spaces and verify relocation
         run: |
           runtime=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-osx-arm64.tar.gz' -print)
@@ -58,12 +66,13 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-application-archive
+          compression-level: 0
           path: |
             artifacts/AvaMedia-*-osx-arm64.zip
             artifacts/mac-packages-*/report.json
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && steps.quickjs.outcome == 'success'
+        if: always() && steps.native-media.outcome == 'success'
         with:
           name: quickjs-osx-arm64
           path: .tools/download-bundle/*-qjs-osx-arm64-macos*/
@@ -72,10 +81,13 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ffmpeg-osx-arm64
+          compression-level: 0
           path: artifacts/AvaMedia-FFmpeg-*
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: ffmpeg-build-logs
-          path: artifacts/ffmpeg-build-*/*.log
+          path: |
+            artifacts/ffmpeg-build-*/*.log
+            artifacts/ffmpeg-cache-verification.json

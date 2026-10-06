@@ -228,15 +228,43 @@ def package_runtime(prefix, bundle, extracted, source_lock):
     (bundle / "build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
+def reuse_archives(output, source_lock):
+    base = "AvaMedia-FFmpeg-" + source_lock["ffmpegVersion"]
+    archives = [output / (base + suffix) for suffix in ("-osx-arm64.tar.gz", "-source.tar.gz")]
+    checksums = output / (base + "-SHA256SUMS.txt")
+    if not checksums.is_file() or not all(path.is_file() for path in archives):
+        return False
+    expected = dict((name, digest) for digest, name in
+                    (line.split() for line in checksums.read_text(encoding="utf-8").splitlines()))
+    for path in archives:
+        if sha256(path) != expected.get(path.name):
+            raise RuntimeError(f"Cached archive checksum mismatch: {path.name}")
+    with tempfile.TemporaryDirectory(prefix="ffmpeg-cache-", dir=output) as temporary:
+        with tarfile.open(archives[0]) as archive:
+            archive.extractall(temporary, filter="data")
+        bundle = Path(temporary) / (base + "-osx-arm64")
+        manifest = json.loads((bundle / "build.json").read_text(encoding="utf-8"))
+        if manifest["recipeSha256"] != sha256(__file__) or manifest["sourceLockSha256"] != sha256(LOCK):
+            raise RuntimeError("Cached FFmpeg does not match the current recipe and sources")
+        run([sys.executable, HERE / "Verify-FFmpeg.py", bundle,
+             "--report", output / "ffmpeg-cache-verification.json"])
+    print("Reused verified FFmpeg runtime and corresponding source archives", flush=True)
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=HERE.parent.parent / "artifacts")
     parser.add_argument("--source-root", type=Path, default=HERE.parent.parent / ".tools/mac-ffmpeg-sources")
     parser.add_argument("--fetch-only", action="store_true", help="Verify pinned sources without compiling")
+    parser.add_argument("--reuse-built", action="store_true", help="Verify and reuse matching existing runtime/source archives")
     args = parser.parse_args()
     source_lock = json.loads(LOCK.read_text(encoding="utf-8"))
     if not args.fetch_only and (sys.platform != "darwin" or platform.machine() != "arm64"):
         parser.error("Native macOS ARM64 is required; use --fetch-only to audit sources elsewhere")
+    output = args.output.resolve()
+    if args.reuse_built and not args.fetch_only and reuse_archives(output, source_lock):
+        return
     source_root = args.source_root.resolve()
     source_root.mkdir(parents=True, exist_ok=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -247,7 +275,6 @@ def main():
     for tool in ("clang", "cmake", "ninja", "meson", "pkg-config", "autoreconf", "automake", "make", "lipo", "codesign"):
         if not shutil.which(tool):
             parser.error(f"Missing build tool: {tool}")
-    output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="ffmpeg-build-", dir=output))
     prefix = work / "dependencies"

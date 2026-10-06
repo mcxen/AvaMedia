@@ -9,6 +9,8 @@ permissions:
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.tools/nuget-packages
 jobs:
   windows:
     runs-on: windows-latest
@@ -31,6 +33,12 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
+      - name: Cache NuGet packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
+          restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: Install external media tools
         shell: pwsh
         run: ./scripts/Install-MediaTools.ps1
@@ -48,6 +56,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-win-x64
+          compression-level: 0
           path: |
             artifacts/AvaMedia-*-win-x64.zip
             artifacts/AvaMedia-*-win-x64-setup.exe
@@ -55,7 +64,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: release-verification
+          name: windows-verification
           path: |
             artifacts/test-*/
             artifacts/installer-verification/
@@ -85,16 +94,17 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
+      - name: Cache NuGet packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
+          restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Install native build tools
-        run: brew install cmake meson ninja pkgconf autoconf automake libtool help2man
-      - name: Build and verify ARM64 QuickJS for macOS 13.4
-        shell: pwsh
-        run: ./scripts/macos/Build-QuickJS.ps1
-      - name: Build and verify custom ARM64 FFmpeg
-        run: python3 scripts/macos/Build-FFmpeg.py
+      - name: Prepare verified native media
+        uses: ./.github/actions/native-media
       - name: Install verified custom media tools
         run: |
           runtime=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-osx-arm64.tar.gz' -print)
@@ -139,6 +149,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-${{ matrix.runtime }}
+          compression-level: 0
           path: |
             artifacts/AvaMedia-*-${{ matrix.runtime }}.zip
             artifacts/AvaMedia-*-${{ matrix.runtime }}.pkg
@@ -155,6 +166,7 @@ jobs:
             artifacts/mac-native.log
             artifacts/skins-*/
             artifacts/ffmpeg-build-*/*.log
+            artifacts/ffmpeg-cache-verification.json
             .tools/download-bundle/*-qjs-osx-arm64-macos*/build.json
             artifacts/ablation-*/
   publish:

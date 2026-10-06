@@ -11,6 +11,14 @@ CI 在 main 推送和 Pull Request 时执行完整 Windows 验证。Release 工�
 
 2026-10-06 的 [v1.1.8 发布失败日志](https://github.com/mcxen/AvaMedia/actions/runs/37453172312) 有两个独立失败点：Windows `FunctionTests` 按已移除的“批量”菜单标题查找入口，现改用 `BatchCropMenuItem` 控件名称；macOS FriBidi 构建缺少 `help2man`，Release 和独立 FFmpeg 工作流现均安装该工具。旧 tag 保留原提交，重跑旧记录仍使用原工作流与源码；这些修复随后续版本 tag 生效。
 
+## 发布提速
+
+Release 和独立 macOS 工作流共用 `native-media` action，缓存验证通过的 FFmpeg 运行包、精确对应的源码包、校验清单及 QuickJS。缓存按 ARM64、Clang / SDK、源码锁文件、构建与验证脚本、能力清单和许可证内容精确匹配；普通客户端修改与版本号变更可以复用，相关输入变化则重建。不使用模糊匹配的原生运行包。缓存命中后仍核对两个 FFmpeg 归档的 SHA256、配方与源码锁哈希，重新执行原有原生媒体验证及 QuickJS 检查；客户端、安装器和发布检查保留。运行包与对应源码在原生验证成功后立即写入缓存，后续客户端失败不会丢失它们。默认分支的缓存可被 tag 工作流读取，首次构建或缓存淘汰时仍需完整编译。依据 [GitHub Cache 文档](https://github.com/actions/cache#cache-scopes)。
+
+各构建 job 缓存 NuGet 下载包，仍由正常 restore / build 解析当前依赖；不缓存客户端 `bin`、`obj` 或测试通过结果。日常 CI 与独立 macOS 工作流取消同一分支被新提交替代的旧运行；Release 按 tag 保留。ZIP、安装器及 FFmpeg 压缩包上传设置 `compression-level: 0`，避免二次压缩；验证日志单独保存，发布 job 只下载成品。依据 [Artifact 压缩说明](https://github.com/actions/upload-artifact#altering-compressions-level-speed-v-size)。
+
+这次同时处理后续日志中的阻塞：libvorbis 使用上游 CMake / Ninja 库构建，避开旧 Darwin Autotools 的 `-force_cpusubtype_ALL`；QuickClip 的中文参考测试显式选择中文，偏好设置入口按控件名称定位。未在本地运行媒体回归或 macOS 构建，也未测量新流程总耗时；实际节省时间以缓存命中的 Actions 步骤耗时为准。
+
 ```sh
 git tag -a v1.0.5 -m "AvaMedia 1.0.5"
 git push origin main

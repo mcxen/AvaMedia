@@ -33,6 +33,8 @@ python3 scripts/macos/Build-FFmpeg.py
 
 `help2man` 用于 FriBidi 的 Autotools 构建生成手册页，仅作为构建工具；两个 macOS 工作流均安装它，运行包不附带。上游规则见 [FriBidi 1.0.17 的 Makefile](https://github.com/fribidi/fribidi/blob/v1.0.17/bin/Makefile.am)。
 
+libvorbis 使用其 [上游 CMake 配方](https://github.com/xiph/vorbis/blob/v1.3.7/CMakeLists.txt) 与 Ninja 构建静态库，显式链接本配方生成的 libogg，不执行旧 Autotools Darwin 链接参数或额外测试程序。CI / Release 通过共同 action 缓存已验证运行包及对应源码，命中后仍执行完整原生验证；本地可使用 `python3 scripts/macos/Build-FFmpeg.py --reuse-built` 复用当前目录中匹配的归档。缓存规则见 [发布提速](RELEASE.md#发布提速)。
+
 产物位于 `artifacts/`：
 
 - `AvaMedia-FFmpeg-8.1.3-osx-arm64.tar.gz`：独立媒体运行包。

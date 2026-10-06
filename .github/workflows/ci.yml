@@ -5,6 +5,11 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.tools/nuget-packages
 jobs:
   verify:
     runs-on: windows-latest
@@ -16,6 +21,12 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
+      - name: Cache NuGet packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
+          restore-keys: nuget-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: Install external media tools
         shell: pwsh
         run: ./scripts/Install-MediaTools.ps1
