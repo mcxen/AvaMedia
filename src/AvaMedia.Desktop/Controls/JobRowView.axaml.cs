@@ -35,6 +35,7 @@ public partial class JobRowView : UserControl
         RowRoot.DataContext = _details;
         job.PropertyChanged += JobChanged;
         _owner.JobDisplayChanged += Refresh;
+        _owner.JobPresentationChanged += PresentationChanged;
         Refresh();
     }
     private void JobChanged(object? sender, PropertyChangedEventArgs e)
@@ -53,6 +54,7 @@ public partial class JobRowView : UserControl
     private void Refresh()
     {
         if (_details is null || _owner is null) return;
+        if (!_owner.IsQueuePresentationVisible) { SuspendPreview(); return; }
         _details.Refresh();
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
@@ -113,11 +115,19 @@ public partial class JobRowView : UserControl
     }
     private async void CoverClick(object? sender, RoutedEventArgs e)
     { e.Handled = true; if (_owner is not null && _details is not null) await _owner.EditJob(_details.Job); }
+    private void PresentationChanged(bool visible) { if (visible) Refresh(); else SuspendPreview(); }
+    private void SuspendPreview()
+    {
+        var loading = _load; _load = null; loading?.Cancel(); _key = null;
+        _previewReady = Task.CompletedTask; Ready = _details?.MetadataReady ?? Task.CompletedTask;
+        _details?.ReleaseCover();
+    }
     private void Release()
     {
         _load?.Cancel(); _load = null; _key = null;
         _previewReady = Task.CompletedTask;
-        if (_owner is not null) _owner.JobDisplayChanged -= Refresh;
+        if (_owner is not null)
+        { _owner.JobDisplayChanged -= Refresh; _owner.JobPresentationChanged -= PresentationChanged; }
         if (_details is not null) _details.Job.PropertyChanged -= JobChanged;
         RowRoot.DataContext = null;
         _details?.Dispose(); _details = null; _owner = null;

@@ -15,6 +15,7 @@ public partial class MainWindow
     private WindowState _restoreState = WindowState.Normal;
     private QueueCompletion? _lastCompletion;
     private long _lastQueueUiRefresh;
+    private long _displayedElapsedSecond = -1;
     private bool IsCaptureSession => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
         desktop.Args?.Contains("--capture") == true;
     private static bool WantsTray(AppSettings settings) => settings.MinimizeToTray || settings.CloseToTray;
@@ -27,12 +28,12 @@ public partial class MainWindow
             {
                 if (WindowState != WindowState.Minimized) _restoreState = WindowState;
                 else if (_trayEnabled && _settings.MinimizeToTray) MoveToBackground();
-                _backgroundWindowVisible = IsVisible && WindowState != WindowState.Minimized;
-                if (_backgroundWindowVisible && !_closing) { Refresh(); DrainQueueChanges(); }
             }
-            if (e.Property == IsVisibleProperty)
+            if (e.Property == IsVisibleProperty || e.Property == WindowStateProperty)
             {
-                _backgroundWindowVisible = IsVisible && WindowState != WindowState.Minimized;
+                var visible = IsQueuePresentationVisible;
+                if (_backgroundWindowVisible != visible)
+                { _backgroundWindowVisible = visible; JobPresentationChanged?.Invoke(visible); }
                 if (_backgroundWindowVisible && !_closing) { Refresh(); DrainQueueChanges(); }
             }
         };
@@ -100,8 +101,16 @@ public partial class MainWindow
     private void BackgroundTick()
     {
         if (_closing) return;
-        if (_backgroundWindowVisible) Localization.SetText(ElapsedText, $"耗时: {_elapsed.Elapsed.ToString(@"hh\:mm\:ss")}");
+        if (_backgroundWindowVisible) UpdateElapsed();
         DrainQueueChanges();
+    }
+    private void UpdateElapsed()
+    {
+        var elapsed = _elapsed.Elapsed;
+        var second = elapsed.Ticks / TimeSpan.TicksPerSecond;
+        if (_displayedElapsedSecond == second) return;
+        _displayedElapsedSecond = second;
+        Localization.SetText(ElapsedText, $"耗时: {elapsed.ToString(@"hh\:mm\:ss")}");
     }
     private void ConfigureTaskTray()
     {
@@ -139,9 +148,15 @@ public partial class MainWindow
         if (_closing || _queue.IsRunning) return;
         var batch = _jobs.Where(j => j.State == JobState.Waiting).ToArray(); if (batch.Length == 0) return;
         _completionCancellation?.Cancel(); _lastCompletion = null; Save(); _elapsed.Restart();
-        _running = _queue.Run(batch, _settings.MultiThread ? _settings.ParallelJobs : 1); Refresh();
-        await _running; _elapsed.Stop();
+        _timer.Start();
+        try
+        {
+            _running = _queue.Run(batch, _settings.MultiThread ? _settings.ParallelJobs : 1); Refresh();
+            await _running;
+        }
+        finally { _elapsed.Stop(); _timer.Stop(); _running = Task.CompletedTask; }
         if (_closing) return;
+        Interlocked.Exchange(ref _queueDirty, 0);
         Save(); _lastCompletion = QueueCompletion.From(batch); Refresh();
         CompletionActions = FinishQueueOptionsAsync(batch, _settings.Clone()); await CompletionActions;
     }

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Buffers;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -17,6 +16,7 @@ internal sealed class Playback : IPlaybackSession
     private readonly Func<IWaveProvider, Action<string>, IAudioOutput> _createAudio;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Session? _session;
+    private byte[]? _frameBuffer;
     private bool _disposed, _hasAudio, _muted;
     private float _volume = 1;
     private int _videoStreamIndex, _audioStreamIndex, _startedProcesses;
@@ -110,7 +110,9 @@ internal sealed class Playback : IPlaybackSession
                 using var registration = token.Register(() => Kill(process));
                 var errors = process.StandardError.ReadToEndAsync();
                 var frameBytes = size.Width * size.Height * 4;
-                var data = ArrayPool<byte>.Shared.Rent(frameBytes);
+                var data = _frameBuffer is { } cached && cached.Length == frameBytes
+                    ? cached : GC.AllocateUninitializedArray<byte>(frameBytes);
+                _frameBuffer = null;
                 var index = 0L;
                 try
                 {
@@ -146,7 +148,7 @@ internal sealed class Playback : IPlaybackSession
                         }
                     }
                 }
-                finally { ArrayPool<byte>.Shared.Return(data); }
+                finally { if (!_disposed) _frameBuffer = data; }
                 await process.WaitForExitAsync(token);
                 var error = await errors;
                 if (process.ExitCode != 0) throw new IOException(error);
@@ -257,7 +259,9 @@ internal sealed class Playback : IPlaybackSession
     }
     public async Task Stop()
     {
-        await _gate.WaitAsync(); try { await StopCore(); } finally { _gate.Release(); }
+        await _gate.WaitAsync();
+        try { await StopCore(); _frameBuffer = null; }
+        finally { _gate.Release(); }
     }
     private async Task StopCore()
     {
@@ -270,7 +274,7 @@ internal sealed class Playback : IPlaybackSession
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _session?.Cancellation.Cancel(); _ = Release();
+        _disposed = true; _frameBuffer = null; _session?.Cancellation.Cancel(); _ = Release();
         async Task Release() { await Stop(); Frame.Dispose(); }
     }
 

@@ -24,6 +24,7 @@ public sealed class Localization : AvaloniaObject
     private sealed record TextSource(object Value);
     private sealed record LabelKey(string Value);
     private static readonly List<WeakReference<Registration>> Live = [];
+    private static int _registrationsSinceSweep;
     private static readonly Dictionary<string, string> English = LoadEnglish();
     public static event EventHandler? Changed;
 
@@ -42,7 +43,11 @@ public sealed class Localization : AvaloniaObject
     public static bool GetIsUserText(Control control) => control.GetValue(IsUserTextProperty);
     public static void SetIsUserText(Control control, bool value) => control.SetValue(IsUserTextProperty, value);
     private static Registration Register(Control control) => Registrations.GetValue(control, target =>
-    { var registration = new Registration(target); Live.Add(new(registration)); return registration; });
+    {
+        if (++_registrationsSinceSweep >= 256)
+        { Live.RemoveAll(reference => !reference.TryGetTarget(out var registration) || registration.IsDisposed); _registrationsSinceSweep = 0; }
+        var registration = new Registration(target); Live.Add(new(registration)); return registration;
+    });
 
     public static void Apply(string preference)
     {
@@ -110,6 +115,7 @@ public sealed class Localization : AvaloniaObject
         private readonly HashSet<AvaloniaProperty> _properties;
         private bool _writing;
         private bool _disposed;
+        public bool IsDisposed => _disposed;
         public Registration(Control control)
         {
             _control = control;

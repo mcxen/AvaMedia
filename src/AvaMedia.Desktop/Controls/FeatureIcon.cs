@@ -7,6 +7,9 @@ namespace AvaMedia.Desktop.Controls;
 // Generated artwork follows our original icon family; vector illustrations remain the fallback.
 public sealed class FeatureIcon : Control
 {
+    private FeatureIconAssets.Lease? _artwork;
+    private (string Kind, bool Classic, int Width)? _artworkKey;
+    private TopLevel? _topLevel;
     public static readonly StyledProperty<string> KindProperty=AvaloniaProperty.Register<FeatureIcon,string>(nameof(Kind),"video");
     public static readonly StyledProperty<string> LabelProperty=AvaloniaProperty.Register<FeatureIcon,string>(nameof(Label),"MP4");
     public string Kind{get=>GetValue(KindProperty);set=>SetValue(KindProperty,value);}
@@ -15,24 +18,52 @@ public sealed class FeatureIcon : Control
     public FeatureIcon()
     {
         RenderOptions.SetBitmapInterpolationMode(this,BitmapInterpolationMode.HighQuality);
-        ActualThemeVariantChanged += (_, _) => InvalidateVisual();
+        ActualThemeVariantChanged += ScalingOrThemeChanged;
+        AttachedToVisualTree += (_, _) =>
+        {
+            _topLevel = TopLevel.GetTopLevel(this);
+            if (_topLevel is not null) _topLevel.ScalingChanged += ScalingOrThemeChanged;
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            if (_topLevel is not null) _topLevel.ScalingChanged -= ScalingOrThemeChanged;
+            _topLevel = null; ReleaseArtwork();
+        };
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == KindProperty || e.Property == IsVisibleProperty && !IsVisible) ReleaseArtwork();
+        };
+    }
+    private void ScalingOrThemeChanged(object? sender, EventArgs e) { ReleaseArtwork(); InvalidateVisual(); }
+    private void ReleaseArtwork() { _artwork?.Dispose(); _artwork = null; _artworkKey = null; }
+    private Bitmap? Artwork(string kind, double width)
+    {
+        var key = (Kind: kind, Classic: ActualThemeVariant == Skin.MacOS9, Width: FeatureIconAssets.PixelWidth(width * (_topLevel?.RenderScaling ?? 1)));
+        if (_artworkKey != key)
+        {
+            var next = FeatureIconAssets.Acquire(key.Kind, key.Classic, key.Width);
+            ReleaseArtwork(); _artwork = next; _artworkKey = key;
+        }
+        return _artwork?.Bitmap;
     }
     public override void Render(DrawingContext c)
     {
-        var scale=Math.Min(Bounds.Width/92,Bounds.Height/80);using var transform=c.PushTransform(Matrix.CreateScale(scale,scale)*Matrix.CreateTranslation((Bounds.Width-92*scale)/2,(Bounds.Height-80*scale)/2));
+        var scale=Math.Min(Bounds.Width/92,Bounds.Height/80);
+        if (scale <= 0) return;
+        using var transform=c.PushTransform(Matrix.CreateScale(scale,scale)*Matrix.CreateTranslation((Bounds.Width-92*scale)/2,(Bounds.Height-80*scale)/2));
         IBrush B(string color)=>Brush.Parse(color);var dark=new Pen(B("#4A535A"),2);var blue=B("#139DD9");
         void R(double x,double y,double w,double h,string color,double radius=0)=>c.DrawRectangle(B(color),null,new Rect(x,y,w,h),radius,radius);
         void L(double x,double y,double xx,double yy,string color,double thickness=3)=>c.DrawLine(new Pen(B(color),thickness),new(x,y),new(xx,yy));
         void T(string text,double x,double y,double size,string color,bool bold=false)=>c.DrawText(new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI",FontStyle.Normal,bold?FontWeight.Bold:FontWeight.Normal),size,B(color)),new(x,y));
         if (Kind == "image-compress")
         {
-            if (FeatureIconAssets.Get("image", ActualThemeVariant == Skin.MacOS9) is { } picture) c.DrawImage(picture, new Rect(16,0,64,64));
+            if (Artwork("image", 64 * scale) is { } picture) c.DrawImage(picture, new Rect(16,0,64,64));
             R(4,44,29,29,"#E2E4E6",2);c.DrawRectangle(null,dark,new Rect(4,44,29,29),2,2);
             var green=new Pen(B("#23AD88"),3);
             c.DrawGeometry(null,green,Geometry.Parse("M 7,49 L 15,57 M 9,57 L 15,57 L 15,51 M 29,69 L 21,61 M 21,67 L 21,61 L 27,61"));
             return;
         }
-        if ((DocumentIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9) ?? FeatureIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9)) is { } artwork)
+        if (Artwork(Kind, 80 * scale) is { } artwork)
         {
             c.DrawImage(artwork, new Rect(6,0,80,80));
             if (Kind is "pdf-text" or "pdf-docx" or "pdf-xlsx" or "text-pdf")

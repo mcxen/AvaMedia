@@ -184,14 +184,20 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     }
     internal void SetMedia(MediaInfo? media, string inspection, byte[]? cover = null)
     {
-        _media = media; _inspection = inspection;
+        // Queue summaries never need the full probe JSON (which may contain thousands of chapters).
+        _media = media is null ? null : media with { RawJson = "" }; _inspection = inspection;
         var previous = _cover;
         using var stream = cover is { Length: > 0 } ? new MemoryStream(cover) : null;
         _cover = stream is not null ? new Bitmap(stream) : null;
         Raise(string.Empty);
         previous?.Dispose();
     }
-    public void Dispose() { _disposed = true; _metadata?.Cancel(); var cover = _cover; _cover = null; Raise(nameof(Cover)); cover?.Dispose(); }
+    internal void ReleaseCover()
+    {
+        var cover = _cover; _cover = null;
+        Raise(nameof(Cover)); Raise(nameof(HasCover)); Raise(nameof(NoCover)); cover?.Dispose();
+    }
+    public void Dispose() { _disposed = true; _metadata?.Cancel(); _media = null; ReleaseCover(); }
     private static long FileSize(string path) { try { var file = new FileInfo(path); return file.Exists ? file.Length : -1; } catch { return -1; } }
     private static string Size(long bytes)
     {

@@ -29,6 +29,8 @@ public partial class MainWindow : Window
     public Task PersistenceReady => _queueSave;
     public IMediaEngine Engine {get;}
     internal event Action? JobDisplayChanged;
+    internal event Action<bool>? JobPresentationChanged;
+    internal bool IsQueuePresentationVisible => IsVisible && WindowState != WindowState.Minimized && !_closing;
     public MainWindow() : this(new Storage()) { }
     public MainWindow(Storage storage, IMediaEngine? engine=null, IAppOptionsServices? optionServices=null)
     {
@@ -40,7 +42,7 @@ public partial class MainWindow : Window
         InitializeOptions();
         OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=QueueJobChanged;
-        _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();_timer.Start();
+        _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();
         ShowCategory(_category);Refresh();
         InitializePlatinumPresentation();
         DragDrop.SetAllowDrop(this,true);AddHandler(DragDrop.DropEvent,Drop);AddHandler(DragDrop.DragOverEvent,DragOver);
@@ -102,6 +104,7 @@ public partial class MainWindow : Window
     {
         RefreshTaskState();
         if (_startupOptionsInitialized && !_backgroundWindowVisible) return;
+        UpdateElapsed();
         StartButton.IsEnabled=!_queue.IsRunning && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
         if(refreshRows)JobDisplayChanged?.Invoke();

@@ -11,7 +11,7 @@ public sealed class WindowArtwork : AvaloniaObject
     public static readonly AttachedProperty<string> KindProperty = AvaloniaProperty.RegisterAttached<WindowArtwork, Window, string>("Kind", "");
     public static readonly AttachedProperty<Bitmap?> ImageProperty = AvaloniaProperty.RegisterAttached<WindowArtwork, Window, Bitmap?>("Image");
     private static readonly ConditionalWeakTable<Window, Registration> Windows = new();
-    private static readonly Dictionary<(string Kind, bool Classic), WindowIcon> Icons = new();
+    private static readonly ConditionalWeakTable<Bitmap, WindowIcon> Icons = new();
 
     static WindowArtwork() => KindProperty.Changed.AddClassHandler<Window>((window, _) => Attach(window).Refresh());
 
@@ -46,12 +46,15 @@ public sealed class WindowArtwork : AvaloniaObject
     {
         private readonly Window _window;
         private bool _customIcon;
+        private FeatureIconAssets.Lease? _artwork;
+        private (string Kind, bool Classic, int Width)? _artworkKey;
 
         public Registration(Window window)
         {
             _window = window;
             window.ActualThemeVariantChanged += Changed;
             window.Opened += Changed;
+            window.ScalingChanged += Changed;
             window.Closed += Closed;
             Refresh();
         }
@@ -60,13 +63,14 @@ public sealed class WindowArtwork : AvaloniaObject
         {
             var kind = EffectiveKind(_window);
             var classic = _window.ActualThemeVariant == Skin.MacOS9;
-            var artwork = FeatureIconAssets.Get(kind, classic);
-            _window.SetValue(ImageProperty, artwork ?? ApplicationArtwork.Image);
+            var key = (kind, classic, FeatureIconAssets.PixelWidth(Math.Max(64, 32 * _window.RenderScaling)));
+            var previous = _artwork;
+            if (_artworkKey != key) { _artwork = FeatureIconAssets.Acquire(kind, classic, key.Item3); _artworkKey = key; }
+            var artwork = _artwork?.Bitmap;
+            _window.SetValue(ImageProperty, classic ? artwork ?? ApplicationArtwork.Image : null);
             if (artwork is not null)
             {
-                var key = (kind, classic);
-                if (!Icons.TryGetValue(key, out var icon)) Icons[key] = icon = new WindowIcon(artwork);
-                _window.Icon = icon;
+                _window.Icon = Icons.GetValue(artwork, image => new WindowIcon(image));
                 _customIcon = true;
             }
             else if (_customIcon)
@@ -74,6 +78,7 @@ public sealed class WindowArtwork : AvaloniaObject
                 _window.ClearValue(Window.IconProperty);
                 _customIcon = false;
             }
+            if (!ReferenceEquals(previous, _artwork)) previous?.Dispose();
         }
 
         private void Changed(object? sender, EventArgs e) => Refresh();
@@ -81,7 +86,11 @@ public sealed class WindowArtwork : AvaloniaObject
         {
             _window.ActualThemeVariantChanged -= Changed;
             _window.Opened -= Changed;
+            _window.ScalingChanged -= Changed;
             _window.Closed -= Closed;
+            _window.ClearValue(ImageProperty);
+            if (_customIcon) _window.ClearValue(Window.IconProperty);
+            _artwork?.Dispose(); _artwork = null;
             Windows.Remove(_window);
         }
     }
