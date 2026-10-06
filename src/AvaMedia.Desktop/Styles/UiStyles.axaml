@@ -115,6 +115,7 @@
       <x:Double x:Key="UiMenuBarHeight">25</x:Double>
       <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
       <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
+      <x:Boolean x:Key="UiWindowShadeEnabled">False</x:Boolean>
       <x:Double x:Key="UiToolbarHeight">55</x:Double>
       <x:Double x:Key="UiStatusBarHeight">26</x:Double>
       <x:Double x:Key="UiTableHeaderHeight">25</x:Double>

@@ -1,11 +1,14 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}" Background="{DynamicResource UiMenuSurface}">
-      <MenuItem Header="任务"><MenuItem Header="添加文件…" Click="AddClick"/><MenuItem Header="开始" Click="StartClick"/><MenuItem Header="停止" Click="StopClick"/><Separator/><MenuItem Header="保存任务列表…" Click="ExportQueueClick"/><MenuItem Header="载入任务列表…" Click="ImportQueueClick"/><Separator/><MenuItem Header="退出" Click="ExitClick"/></MenuItem>
-      <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/></MenuItem>
-      <MenuItem Header="语言"><MenuItem x:Name="SystemLanguageItem" Header="跟随系统" Click="SystemLanguageClick"/><Separator/><MenuItem x:Name="ChineseLanguageItem" Header="简体中文" Click="ChineseClick"/><MenuItem x:Name="EnglishLanguageItem" Header="English" Click="EnglishClick"/></MenuItem>
-      <MenuItem Header="选项" Click="SettingsClick"/>
-      <MenuItem Header="批量"><MenuItem Header="视频批量裁剪…" Click="BatchCropClick"/><MenuItem Header="视频批量旋转…" Click="BatchRotateClick"/><MenuItem Header="视频重命名 / 多宫格截图…" Click="BatchToolsClick"/></MenuItem>
+      <MenuItem Header="文件"><MenuItem Header="添加文件…" Click="AddClick"/><Separator/><MenuItem Header="保存任务列表…" Click="ExportQueueClick"/><MenuItem Header="载入任务列表…" Click="ImportQueueClick"/><Separator/><MenuItem Header="退出" Click="ExitClick"/></MenuItem>
+      <MenuItem Header="编辑"><MenuItem Header="偏好设置…" Click="SettingsClick"/></MenuItem>
+      <MenuItem Header="显示">
+        <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/></MenuItem>
+        <MenuItem Header="语言"><MenuItem x:Name="SystemLanguageItem" Header="跟随系统" Click="SystemLanguageClick"/><Separator/><MenuItem x:Name="ChineseLanguageItem" Header="简体中文" Click="ChineseClick"/><MenuItem x:Name="EnglishLanguageItem" Header="English" Click="EnglishClick"/></MenuItem>
+      </MenuItem>
+      <MenuItem Header="转换"><MenuItem Header="开始" Click="StartClick"/><MenuItem Header="停止" Click="StopClick"/><Separator/><MenuItem Header="视频批量裁剪…" Click="BatchCropClick"/><MenuItem Header="视频批量旋转…" Click="BatchRotateClick"/><MenuItem Header="视频重命名 / 多宫格截图…" Click="BatchToolsClick"/></MenuItem>
+      <MenuItem Header="窗口"><MenuItem Header="缩放窗口" Click="ZoomWindowClick"/><MenuItem Header="收起 / 展开标题栏" IsEnabled="{DynamicResource UiWindowShadeEnabled}" Click="ShadeWindowClick"/><Separator/><MenuItem Header="最小化窗口" Click="MinimizeWindowClick"/></MenuItem>
       <MenuItem Header="帮助"><MenuItem Header="功能与使用说明" Click="HelpClick"/><MenuItem Header="关于 / 开源许可证" Click="AboutClick"/></MenuItem>
     </Menu>
     <Border Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1" Background="{DynamicResource UiToolbar}">
