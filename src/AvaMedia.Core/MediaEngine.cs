@@ -137,6 +137,7 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.Record && (!(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) || o.RecordSeconds<=0)) throw new ArgumentException("录屏支持 Windows 和 macOS，且时长必须大于零。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
         if(feature.Operation==Operation.VideoCompress)VideoCompression.ValidateJob(job);
+        if(feature.Operation==Operation.ImageCompress){if(job.Inputs.Length!=1)throw new ArgumentException("每个图片压缩任务处理一张图片。");(o.ImageCompression??new ImageCompressionOptions{Format=o.Format}).Validate();}
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
         ValidateEncodingOptions(o);
@@ -245,6 +246,14 @@ public sealed class MediaEngine : IMediaEngine
         if(f.Operation==Operation.Download)
         {
             await new YtDlpDownloadService(Settings).ExecuteAsync(job,progress,ct);return;
+        }
+        if(f.Operation==Operation.ImageCompress)
+        {
+            progress(0);
+            var imageResult=await new FfmpegImageCompressor(this).CompressAsync(job.Inputs[0],job.Output,
+                job.Options.ImageCompression??new ImageCompressionOptions{Format=job.Options.Format},ct);
+            job.Log=$"原图 {imageResult.SourceBytes} B → 压缩后 {imageResult.OutputBytes} B；节省 {imageResult.SavedPercent:0.##}%；{imageResult.Width} × {imageResult.Height}。";
+            job.ProgressDetail=$"节省 {imageResult.SavedPercent:0.##}%";progress(100);return;
         }
         var infos=new List<MediaInfo>();
         if(f.Operation!=Operation.Record)for(int i=0;i<job.Inputs.Length;i++)

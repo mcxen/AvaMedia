@@ -60,6 +60,7 @@ macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装定制 ARM64 FFmpe
 - **快速剪辑**：选择视频直接编辑，多文件、多片段、按段数 / 时长 / 时间点分割，最后统一配置导出，每个片段分别输出。
 - **预览与编辑**：实际帧定位、区间播放、结束边界帧、选区移动 / 缩放、比例锁定、键盘微调、旋转、镜像、速度和淡入淡出。
 - **批量裁剪与旋转**：共享像素或比例选区，逐文件调整，本地人脸方向识别，对照原画面和处理后预览。
+- **图片压缩**：JPEG / WebP / PNG 实际编码，批量勾选、质量方案与尺寸上限；滑动 / 并排对比、1:1 像素查看，显示真实体积，仅保存实际变小的结果并保留原图。见 [图片压缩](docs/IMAGE-COMPRESSION.md)。
 - **合并、混流与字幕**：逐输入保留编辑参数，支持视频 / 音轨选择、字幕烧录与独立字幕轨配置。
 - **视频下载**：分享文本与批量链接解析、YouTube 播放列表 / B站分P、多画质、视频 / 音频、字幕、登录态与代理；内置 yt-dlp 和 QuickJS-NG，停止后可重试续传。平台要求与验证见 [视频下载](docs/VIDEO-DOWNLOAD.md)。
 - **任务与工具**：并行队列、停止、重试、日志、拖放、恢复和导入导出；PDF、归档、导出帧、录屏与下载入口。
@@ -72,6 +73,8 @@ macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装定制 ARM64 FFmpe
 ## 接口与架构
 
 `AvaMedia.Core` 不依赖 Avalonia，负责模型、校验、任务计划和媒体处理；`AvaMedia.Desktop` 负责窗口、主题、预览呈现与平台音频。
+
+图片压缩通过 `IImageCompressor` 提供探测和真实编码，窗口预览与队列输出共用 `FfmpegImageCompressor`。
 
 业务窗口依赖 `IMediaEngine`，队列仅依赖 `IJobExecutor`。预览、方向识别和音频输出分别使用 `IMediaPreview`、`IVideoOrientationDetector` 和 `IAudioOutput`。接口已接入生产调用方并支持测试替换；具体依赖和实现边界见 [ARCHITECTURE](docs/ARCHITECTURE.md)。
 

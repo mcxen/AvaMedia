@@ -5,6 +5,7 @@
 | 接口 | 职责 | 实际调用方 |
 | --- | --- | --- |
 | `IJobExecutor` | 任务执行、真实进度和取消 | `QueueService` |
+| `IImageCompressor` | 静态图片探测、实际编码、真实体积与尺寸、停止和防覆盖 | 图片压缩窗口和队列执行器，共用 `FfmpegImageCompressor` |
 | `IMediaPreview` | 缩略图、结束边界帧、相邻帧时间 | 编辑器，可独立注入帧预览实现 |
 | `IMediaEngine` | 继承执行与预览契约，提供探测、设置与工具路径 | 主窗口、编辑器、转换、播放器和批量工具 |
 | `IVideoOrientationDetector` | 方向建议、证据、进度与取消 | 编辑器方向页、批量旋转 |

@@ -49,6 +49,7 @@ public partial class MainWindow : Window
         _last=feature;
         if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}
         if(feature.Operation==Operation.VideoCompress){await ConfigureVideoCompressionAsync(files);return;}
+        if(feature.Operation==Operation.ImageCompress){await ConfigureImageCompressionAsync(files);return;}
         if(feature.Id=="clip")
         {
             if(files is null)await PickQuickClipVideos();else await EditQuickClipAsync(files);
@@ -130,6 +131,8 @@ public partial class MainWindow : Window
     {
         var feature=Catalog.Find(j.FeatureId);
         if(j.State==JobState.Running)return;
+        if(feature.Operation==Operation.ImageCompress && j.Inputs.Length>0 && File.Exists(j.Inputs[0]))
+        {await ConfigureImageCompressionAsync(j.Inputs,j.Options.ImageCompression,j);return;}
         if(j.State==JobState.Failed || j.Inputs.Length==0 || !File.Exists(j.Inputs[0]) || feature.Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || feature.Operation is Operation.Info or Operation.Hash or Operation.Download or Operation.IsoCopy)
         {await Ui.Message(this,"任务详情",j.Source+"\n\n"+j.Output+"\n\n"+j.Error+"\n"+j.Log);return;}
         if(feature.Operation==Operation.VideoCompress){await EditVideoCompressionAsync(j);return;}

@@ -1,0 +1,109 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls"
+        x:Class="AvaMedia.Desktop.ImageCompressionWindow" Title="图片压缩" Width="1280" Height="820"
+        MinWidth="1080" MinHeight="660" WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+    <Style Selector="TextBlock.compressionError"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+    <Style Selector="Border.compressionPanel"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="12"/></Style>
+    <Style Selector="controls|ImageCompareView"><Setter Property="Surface" Value="{DynamicResource UiSurface}"/><Setter Property="Checker" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Accent" Value="{DynamicResource UiAccent}"/></Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="12">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel Spacing="4"><TextBlock Classes="title" Text="图片压缩"/><TextBlock Classes="caption" Text="先看实际体积和画质，再批量保存。"/></StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button x:Name="AddButton" Content="添加图片…" Click="AddClick"/>
+        <Button x:Name="FolderButton" Content="添加文件夹…" Click="AddFolderClick"/>
+        <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
+      </StackPanel>
+    </Grid>
+    <Grid Grid.Row="1" ColumnDefinitions="248,*,260" ColumnSpacing="12">
+      <Border Classes="compressionPanel" Padding="0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <TextBlock x:Name="ListSummary" Text="拖入图片或添加文件夹" Margin="12,10" TextWrapping="Wrap"/>
+          <ListBox Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionChanged="FileSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="待压缩图片">
+            <ListBox.ItemTemplate><DataTemplate DataType="local:ImageCompressionEntry">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,6">
+                <CheckBox IsChecked="{Binding Include, Mode=TwoWay}" IsEnabled="{Binding CanInclude}" AutomationProperties.Name="是否压缩这张图片"/>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock local:Localization.IsUserText="True" Text="{Binding Name}" ToolTip.Tip="{Binding Path}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding SourceDescription}" Classes="caption" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
+                </StackPanel>
+              </Grid>
+            </DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+          <Button Grid.Row="2" x:Name="SelectAllButton" Content="勾选全部" Click="SelectAllClick" Margin="8"/>
+        </Grid>
+      </Border>
+      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+          <TextBlock x:Name="BeforeText" Text="压缩前" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <TextBlock Grid.Column="1" x:Name="AfterText" Text="压缩后" FontWeight="SemiBold" TextWrapping="Wrap" HorizontalAlignment="Right"/>
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" ClipToBounds="True">
+          <controls:ImageCompareView x:Name="Comparison" Split="{Binding #CompareSlider.Value, Mode=TwoWay}" AutomationProperties.Name="原图与实际压缩结果对比"/>
+        </Border>
+        <Slider Grid.Row="2" x:Name="CompareSlider" Minimum="0" Maximum="1" Value="0.5" SmallChange="0.02" LargeChange="0.1" AutomationProperties.Name="前后对比位置"/>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+          <CheckBox x:Name="SideBySideInput" Content="并排对比"/>
+          <Button Grid.Column="1" Classes="step" Content="−" Click="ZoomOutClick" AutomationProperties.Name="缩小预览"/>
+          <Button Grid.Column="2" Classes="step" Content="+" Click="ZoomInClick" AutomationProperties.Name="放大预览"/>
+          <Button Grid.Column="3" Content="1:1" Click="ActualSizeClick" AutomationProperties.Name="按原图像素查看"/>
+          <Button Grid.Column="4" Content="适应窗口" Click="ResetViewClick"/>
+        </Grid>
+        <TextBlock Grid.Row="4" x:Name="ComparisonHint" Classes="caption" Text="拖动中线对比 · 滚轮缩放 · 放大后拖动平移" TextWrapping="Wrap"/>
+      </Grid>
+      <Border Grid.Column="2" Classes="compressionPanel">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="12">
+            <StackPanel x:Name="SettingsPanel" Spacing="10">
+              <TextBlock Text="压缩设置" FontWeight="SemiBold"/>
+              <TextBlock Text="快速方案"/>
+              <ComboBox x:Name="PresetCombo" SelectedIndex="0" SelectionChanged="PresetChanged">
+                <ComboBoxItem><TextBlock Text="平衡（推荐）"/></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="更小体积"/></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="优先画质"/></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="无损 WebP"/></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="自定义"/></ComboBoxItem>
+              </ComboBox>
+              <TextBlock Text="输出格式"/>
+              <ComboBox x:Name="FormatCombo" SelectedIndex="0" SelectionChanged="ParametersChanged">
+                <ComboBoxItem Tag="webp"><TextBlock Text="WebP（推荐，支持透明）"/></ComboBoxItem>
+                <ComboBoxItem Tag="jpg"><TextBlock Text="JPEG（透明区域填白）"/></ComboBoxItem>
+                <ComboBoxItem Tag="png"><TextBlock Text="PNG（无损）"/></ComboBoxItem>
+              </ComboBox>
+              <CheckBox x:Name="LosslessInput" Content="WebP 无损编码"/>
+              <Grid ColumnDefinitions="*,96" ColumnSpacing="8">
+                <TextBlock x:Name="QualityLabel" Text="质量（1–100）" VerticalAlignment="Center"/>
+                <NumericUpDown Grid.Column="1" x:Name="QualityInput" Minimum="1" Maximum="100" Increment="1" Value="82" FormatString="0" AutomationProperties.Name="图片压缩质量"/>
+              </Grid>
+              <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="调整压缩质量"/>
+              <TextBlock x:Name="FormatHint" Classes="caption" TextWrapping="Wrap"/>
+              <CheckBox x:Name="ResizeInput" Content="缩小最长边"/>
+              <NumericUpDown x:Name="EdgeInput" Minimum="1" Maximum="32768" Increment="1" Value="1920" FormatString="0" AutomationProperties.Name="压缩后最大边长"/>
+              <TextBlock Classes="caption" Text="只缩小，不放大。输出移除拍摄元数据。" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button x:Name="PreviewAllButton" Content="实际压缩预览全部" Click="PreviewAllClick"/>
+            <Button x:Name="CancelPreviewButton" Content="停止预览" Click="CancelPreviewClick" IsVisible="False"/>
+            <TextBlock x:Name="BatchSummary" Classes="caption" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+      <TextBlock Text="保存到" VerticalAlignment="Center"/>
+      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="压缩图片保存文件夹"/>
+      <Button Grid.Column="2" x:Name="BrowseButton" Classes="field-action" Content="浏览…" Click="BrowseClick"/>
+      <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="20">
+        <CheckBox x:Name="SourceFolderInput" Content="输出至源文件目录"/>
+        <CheckBox x:Name="StartInput" Content="加入后开始等待任务" IsChecked="True"/>
+      </StackPanel>
+    </Grid>
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+      <StackPanel Spacing="4"><TextBlock x:Name="StatusText" Text="请添加图片" TextWrapping="Wrap"/><TextBlock Classes="caption" Text="保留原图；只保存实际变小的文件。"/></StackPanel>
+      <Button Grid.Column="1" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
+      <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" Content="压缩并加入队列" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+    </Grid>
+  </Grid>
+</Window>

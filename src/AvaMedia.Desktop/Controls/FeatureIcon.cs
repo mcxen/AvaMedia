@@ -24,6 +24,14 @@ public sealed class FeatureIcon : Control
         void R(double x,double y,double w,double h,string color,double radius=0)=>c.DrawRectangle(B(color),null,new Rect(x,y,w,h),radius,radius);
         void L(double x,double y,double xx,double yy,string color,double thickness=3)=>c.DrawLine(new Pen(B(color),thickness),new(x,y),new(xx,yy));
         void T(string text,double x,double y,double size,string color,bool bold=false)=>c.DrawText(new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI",FontStyle.Normal,bold?FontWeight.Bold:FontWeight.Normal),size,B(color)),new(x,y));
+        if (Kind == "image-compress")
+        {
+            if (FeatureIconAssets.Get("image", ActualThemeVariant == Skin.MacOS9) is { } picture) c.DrawImage(picture, new Rect(16,0,64,64));
+            R(4,44,29,29,"#E2E4E6",2);c.DrawRectangle(null,dark,new Rect(4,44,29,29),2,2);
+            var green=new Pen(B("#23AD88"),3);
+            c.DrawGeometry(null,green,Geometry.Parse("M 7,49 L 15,57 M 9,57 L 15,57 L 15,51 M 29,69 L 21,61 M 21,67 L 21,61 L 27,61"));
+            return;
+        }
         if ((DocumentIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9) ?? FeatureIconAssets.Get(Kind, ActualThemeVariant == Skin.MacOS9)) is { } artwork)
         {
             c.DrawImage(artwork, new Rect(6,0,80,80));

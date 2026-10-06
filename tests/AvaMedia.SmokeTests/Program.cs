@@ -43,6 +43,7 @@ var pdfText=await Run("pdf-text",[pdf.Output]);Check((await File.ReadAllTextAsyn
 foreach(var id in new[]{"pdf-docx","pdf-xlsx"}){var office=await Run(id,[pdf.Output]);using var zip=ZipFile.OpenRead(office.Output);foreach(var e in zip.Entries.Where(e=>e.FullName.EndsWith(".xml") || e.FullName.EndsWith(".rels"))){using var stream=e.Open();XDocument.Load(stream);checks++;}}
 var image=results.Select(o=>JsonSerializer.SerializeToElement(o)).First(o=>o.GetProperty("id").GetString()=="image-jpg").GetProperty("output").GetString()!;await Run("images-pdf",[image]);
 var allImages=results.Select(o=>JsonSerializer.SerializeToElement(o)).Where(o=>o.GetProperty("id").GetString()!.StartsWith("image-")).Select(o=>o.GetProperty("output").GetString()!).ToArray();var imagePdf=await Run("images-pdf",allImages);using(var doc=PdfReader.Open(imagePdf.Output,PdfDocumentOpenMode.Import))Check(doc.PageCount==allImages.Length,"图片格式转 PDF 页数错误");
+await Run("image-compress",[allImages.First(path=>Path.GetExtension(path)==".bmp")]);
 var iso=await Run("iso",[text]);Check(File.ReadAllBytes(iso.Output).SequenceEqual(File.ReadAllBytes(text)),"ISO 原始数据复制错误");
 var zipped=await Run("zip",[input,text]);var unzipped=await Run("unzip",[zipped.Output],folder:true);Check(Directory.GetFiles(unzipped.Output).Length==2,"ZIP 提取失败");
 var hostile=Path.Combine(root,"hostile.zip");using(var zip=ZipFile.Open(hostile,ZipArchiveMode.Create)){using var w=new StreamWriter(zip.CreateEntry("../escape.txt").Open());w.Write("unsafe");}

@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Record, Info, Hash, Player, IsoCopy }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Record, Info, Hash, Player, IsoCopy, ImageCompress }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -37,6 +37,7 @@ public static class Catalog
         Add("audio-mix","音频混合","音频","mp3","audio",Operation.AudioMix);
         Add("audio-clip","音频剪辑","音频","mp3","clip");
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
+        Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
         Add("image-tools","缩放 / 旋转","图片","png","crop");
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
         Add("pdf-merge","PDF 合并","文档","pdf","pdf-merge",Operation.PdfMerge);
@@ -62,6 +63,7 @@ public sealed class ConversionOptions
 {
     public DownloadOptions? Download { get; set; }
     public VideoCompressionOptions? VideoCompression { get; set; }
+    public ImageCompressionOptions? ImageCompression { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
