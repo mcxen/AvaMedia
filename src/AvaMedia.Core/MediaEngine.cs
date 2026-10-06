@@ -187,6 +187,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.Threads is <0 or >16)throw new ArgumentException("编码线程数必须在 0 到 16 之间。");
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
         SubtitleOptions.Validate(o);
+        VideoFormats.ValidateMobileOutput(o);
         foreach(var fade in new[]{o.AudioFadeIn,o.AudioFadeOut})if(fade is {} value && (!double.IsFinite(value) || value<0))throw new ArgumentException("音频淡入淡出时长必须为有限的非负数。");
         if(o.SampleRate<0 || o.SampleRate>192000 || o.SampleRate is >0 and <8000 || o.AudioChannels<0 || o.AudioChannels>8)throw new ArgumentException("采样率或声道超出允许范围。");
         if(o.CopyStreams && HasFilters(o))throw new ArgumentException("流复制不能同时使用画面或音频滤镜，请选择 MP4 / MKV 重新编码，或关闭流复制。");
@@ -538,7 +539,7 @@ public sealed class MediaEngine : IMediaEngine
             }
             string ac=o.AudioCodec=="自动"?o.Format switch {"mp3"=>"libmp3lame","flac"=>"flac","wav"=>"pcm_s16le","aiff"=>"pcm_s16be","ogg"=>"libvorbis","opus" or "webm"=>"libopus","ac3"=>"ac3","wma" or "wmv"=>"wmav2","mpg"=>"mp2",_=>"aac"}:o.AudioCodec;
             if(!o.Mute && f.Operation!=Operation.SplitVideo){a.AddRange(["-c:a",ac]);if(ac!="copy"){if(ac is not ("flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))a.AddRange(["-b:a",o.AudioBitrate+"k"]);if(ac=="libopus" || o.SampleRate>0)a.AddRange(["-ar",(ac=="libopus"?48000:o.SampleRate).ToString()]);if(o.AudioChannels>0)a.AddRange(["-ac",o.AudioChannels.ToString()]);}}
-            if(o.Format is "mp4" or "mov" or "m4v" or "m4a") a.AddRange(["-movflags","+faststart"]);
+            if(o.Format is "mp4" or "mov" or "m4v" or "m4a" or "3gp" or "3g2") a.AddRange(["-movflags","+faststart"]);
             if(o.Format=="m4v")a.AddRange(["-f","mp4"]);
         }
         if(o.Threads>0 && !o.CopyStreams)a.AddRange(["-threads",o.Threads.ToString()]);

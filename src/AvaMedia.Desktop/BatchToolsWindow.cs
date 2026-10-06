@@ -86,7 +86,7 @@ public sealed class BatchToolsWindow : Window
             var files = await StorageProvider.OpenFilePickerAsync(new()
             {
                 Title = Localization.Text("选择多个视频"), AllowMultiple = true,
-                FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = ["*.mp4", "*.mkv", "*.mov", "*.avi", "*.webm", "*.wmv", "*.flv", "*.mpg", "*.mpeg", "*.m4v", "*.ts", "*.mts", "*.m2ts", "*.vob", "*.3gp", "*.ogv", "*.asf"] }, FilePickerFileTypes.All]
+                FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = VideoFormats.InputExtensions.Select(extension => "*." + extension).ToArray() }, FilePickerFileTypes.All]
             });
             AddPaths(files.Select(f => f.TryGetLocalPath()).OfType<string>());
         };

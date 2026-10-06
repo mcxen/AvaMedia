@@ -6,8 +6,7 @@ public sealed record QuickClipInput(string Path, ConversionOptions Options);
 public static class QuickClipBatch
 {
     public static string[] Presets { get; } = ["Fast Copy", "MP4", "MKV"];
-    public static IReadOnlySet<string> VideoExtensions { get; } = new HashSet<string>(
-        ["mp4", "mkv", "mov", "webm", "avi", "flv", "wmv", "mpg", "mpeg", "ts", "mts", "m2ts", "m4v", "vob", "3gp", "3g2", "ogv", "asf"], StringComparer.OrdinalIgnoreCase);
+    public static IReadOnlySet<string> VideoExtensions => VideoFormats.InputExtensions;
 
     public static ConversionOptions ResolveOptions(string path, string preset, ConversionOptions draft)
     {
@@ -15,7 +14,7 @@ public static class QuickClipBatch
         var options = draft.Clone();
         options.CopyStreams = preset == "Fast Copy";
         options.Format = options.CopyStreams ? System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant() : preset.ToLowerInvariant();
-        if (options.CopyStreams && !VideoExtensions.Contains(options.Format)) throw new ArgumentException("Fast Copy 不支持此文件的容器，请选择 MP4 或 MKV。");
+        if (options.CopyStreams && !VideoFormats.OriginalOutputExtensions.Contains(options.Format)) throw new ArgumentException("Fast Copy 不支持此文件的容器，请选择 MP4 或 MKV。");
         return options;
     }
 

@@ -45,6 +45,7 @@ public static class HardwareTranscoding
         "ts" or "mts" or "m2ts" => format is HardwareVideoFormat.H264 or HardwareVideoFormat.Hevc,
         "mkv" => true,
         "avi" or "flv" => format == HardwareVideoFormat.H264,
+        "3gp" or "3g2" => format == HardwareVideoFormat.H264,
         "webm" => format is HardwareVideoFormat.Av1 or HardwareVideoFormat.Vp9,
         _ => false
     };

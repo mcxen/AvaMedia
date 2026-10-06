@@ -16,6 +16,8 @@
 
 HEIC 仍通过 `IImageCompressor` 与 `IMediaPreview` 接入窗口。Core 内部的 `HeifImage` 从 FFprobe 选择静态主图，识别完整 Tile Grid、方向、位深及单块派生图裁剪，统一供预览、编码、转换与 PDF 使用。`AppleImageIO` 仅在 macOS 延迟加载系统框架，以 SafeHandle 管理原生资源，后台读取信息并按请求尺寸下采样；窗口不直接调用原生 API。图片压缩窗口只缓存当前原图位图，不缓存整个文件夹。详见 [HEIC](HEIC.md)。
 
+`VideoFormats` 集中维护视频输入分类，播放器目录扫描、工具路由、剪辑、压缩、批量工具与 Windows 打开方式注册共用不可变集合；可原格式导出的容器单独维护，避免把输入支持当成输出支持。3GP / 3G2 的编码选择与校验沿用现有转换接口；Windows 安装与 macOS 构建验证共用 `scripts/legacy-video-capabilities.json` 声明的原生解码、解复用和输出能力。Mac 对应源码包包含该声明，可重建相同检查。见 [旧视频支持](LEGACY-VIDEO.md)。
+
 界面采用 Avalonia 样式、语义资源与组件角色抽象：`UiStyles.axaml` 定义资源，`ControlRoles.axaml` 定义角色，`EditorStyles.axaml` 定义编辑器对齐，`Platinum*.axaml` 实现经典外观。窗口复用同一组角色；设计约束见 [UISPEC.MD](../UISPEC.MD)。
 
 `PresentationVisible` 控制视频像素交付，隐藏 / 最小化时保持媒体时钟和音频，恢复窗口沿用当前解码会话。BGRA 使用池化帧缓冲，连续行跨度一次复制，非连续跨度按行处理；窗口的时间文字与滑块最多每秒刷新十次，画面按源帧率呈现。

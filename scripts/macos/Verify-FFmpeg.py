@@ -11,6 +11,7 @@ import tempfile
 ENCODERS = "mpeg4 mpeg2video flv wmv2 libx264 libx265 libvpx-vp9 libaom-av1 libwebp png mjpeg bmp tiff gif libmp3lame libvorbis libopus aac alac flac ac3 mp2 wmav2 pcm_s16le pcm_s24le pcm_f32le pcm_s16be pcm_s24be h264_videotoolbox hevc_videotoolbox".split()
 FILTERS = "scale pad crop transpose hflip vflip trim setpts fade split gblur overlay xstack subtitles ass drawtext fps palettegen paletteuse setsar concat tile amix aformat aresample anullsrc anull atrim asetpts areverse afftdn atempo volume aecho afade testsrc2 sine".split()
 MUXERS = "mp4 mov matroska webm avi asf mpeg flv mpegts gif image2 image2pipe avif ico mp3 flac wav ipod ogg adts ac3 opus aiff null rawvideo".split()
+LEGACY = json.loads((Path(__file__).resolve().parents[1] / "legacy-video-capabilities.json").read_text(encoding="utf-8"))
 
 
 def main():
@@ -59,9 +60,11 @@ def main():
     check("--enable-gpl" in build and "--enable-version3" in build and "--enable-nonfree" not in build,
           "Declared GPL runtime without nonfree components")
     capabilities = {}
-    for name, required in (("encoders", ENCODERS), ("filters", FILTERS), ("muxers", MUXERS)):
+    for name, required in (("encoders", ENCODERS), ("filters", FILTERS), ("muxers", MUXERS),
+                           ("decoders", []), ("demuxers", [])):
         capabilities[name] = sorted(listing("-" + name))
-        check(not (missing := set(required) - set(capabilities[name])), name + " covers client: " + ", ".join(sorted(missing)))
+        check(not (missing := (set(required) | set(LEGACY.get(name, []))) - set(capabilities[name])),
+              name + " covers client: " + ", ".join(sorted(missing)))
     capabilities["devices"] = sorted(listing("-devices"))
     check("avfoundation" not in capabilities["devices"], "Unused AVFoundation capture device is excluded")
     protocols = set(invoke(ffmpeg, "-hide_banner", "-protocols").split())

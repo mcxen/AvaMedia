@@ -57,6 +57,7 @@ macOS 使用 `bash scripts/Install-MediaTools-macOS.sh` 安装定制 ARM64 FFmpe
 
 - **中英文界面**：“语言 / Language”菜单提供简体中文、English 和跟随系统，实时切换并保存偏好；浅色、深色和 Mac OS 9 皮肤共用语言资源。
 - **媒体转换**：音视频、图片及其他容器；尺寸、编码、质量、帧率、采样率、声道和预设可配置。
+- **旧视频格式**：3GP / 3G2、RM / RMVB、AVI / DivX、WMV / ASF、FLV / F4V、旧 QuickTime、VCD / DVD、DV、AMV、NSV 等可导入播放器、剪辑与压缩；转换窗口提供 3GP / 3G2 输出，默认 MPEG-4 + AAC。见 [旧视频支持](docs/LEGACY-VIDEO.md)。
 - **拖入即选工具**：视频、图片、音频与文档自动分类，左侧真实缩略图，右侧工具卡片与流动连线；混合批次注明接收 / 跳过数量，点击直接带入编辑。见 [文件路由](docs/MEDIA-ROUTING.md)。
 - **WiFi 传文件**：顶部开启局域网收发，手机扫码通过网页上传照片、MOV 视频及文件，接收后导入转换或高画质压缩；电脑也可分享文件给手机下载。见 [WiFi 传文件](docs/WIFI-TRANSFER.md)。
 - **视频压缩**：自动画质档、手动质量 / 码率与目标体积；支持苹果 MOV / M4V / MP4、HEVC 和 ProRes 输入，iPhone HLG / Dolby Vision 转 SDR，输出 MP4 / MOV / M4V / MKV。见 [视频压缩](docs/VIDEO-COMPRESSION.md)。

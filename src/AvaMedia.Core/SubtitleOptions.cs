@@ -28,7 +28,7 @@ public static class SubtitleOptions
             throw new FileNotFoundException("字幕文件不存在", o.Subtitle);
         if (mode is SubtitleMode.Preserve or SubtitleMode.ExternalTrack)
         {
-            if (o.Format is not ("mkv" or "mp4" or "mov" or "m4v" or "webm")) throw new ArgumentException("独立字幕轨需要 MKV、MP4、MOV、M4V 或 WebM 容器。");
+            if (o.Format is not ("mkv" or "mp4" or "mov" or "m4v" or "webm" or "3gp" or "3g2")) throw new ArgumentException("独立字幕轨需要 MKV、MP4、MOV、M4V、WebM、3GP 或 3G2 容器。");
             if (o.Speed != 1) throw new ArgumentException("独立字幕轨暂不支持变速。请选择烧录字幕，使字幕随画面一起变速。");
         }
     }
@@ -66,7 +66,7 @@ public static class SubtitleOptions
         if (mode is not (SubtitleMode.Preserve or SubtitleMode.ExternalTrack)) { args.Add("-sn"); return; }
         var input = mode == SubtitleMode.ExternalTrack ? externalInput : 0;
         args.AddRange(["-map", o.SubtitleStreamIndex < 0 ? $"{input}:s" : $"{input}:s:{o.SubtitleStreamIndex}"]);
-        args.AddRange(["-c:s", o.Format is "mp4" or "mov" or "m4v" ? "mov_text" : o.Format == "webm" ? "webvtt" : "copy"]);
+        args.AddRange(["-c:s", o.Format is "mp4" or "mov" or "m4v" or "3gp" or "3g2" ? "mov_text" : o.Format == "webm" ? "webvtt" : "copy"]);
         if (o.SubtitleLanguage.Length > 0) args.AddRange(["-metadata:s:s", "language=" + o.SubtitleLanguage.ToLowerInvariant()]);
     }
 

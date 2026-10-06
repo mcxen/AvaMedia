@@ -95,7 +95,7 @@ public sealed class OptionsWindow : Window
             }
             if(!outputOnly)Number(audio,"音量 (%)",_draft.Volume*100,(o,v)=>o.Volume=v/100,false,0,1000);
             if(!audioOnly && !outputOnly)Check(audio,"音频","禁用音频",_draft.Mute,(o,v)=>o.Mute=v);
-            if(!input && _allowAllAudioStreams && _format is "mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "ts" or "ogg")Check(audio,"保留所有源输入流 (音频)","保留全部音轨",_draft.KeepAllAudioStreams,(o,v)=>o.KeepAllAudioStreams=v);
+            if(!input && _allowAllAudioStreams && _format is "mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "ts" or "ogg" or "3gp" or "3g2")Check(audio,"保留所有源输入流 (音频)","保留全部音轨",_draft.KeepAllAudioStreams,(o,v)=>o.KeepAllAudioStreams=v);
             if(!outputOnly)
             {
             if(audioOnly)Number(audio,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);
@@ -147,11 +147,11 @@ public sealed class OptionsWindow : Window
     {
         "mp3"=>["自动","libmp3lame"],"flac"=>["自动","flac"],"wav"=>["自动","pcm_s16le","pcm_s24le","pcm_f32le"],"aiff"=>["自动","pcm_s16be","pcm_s24be"],
         "ogg"=>["自动","libvorbis"],"opus"=>["自动","libopus"],"webm"=>["自动","libopus","libvorbis"],"aac"=>["自动","aac"],"m4a"=>["自动","aac","alac"],"ac3"=>["自动","ac3"],"wma" or "wmv"=>["自动","wmav2"],"mpg"=>["自动","mp2"],
-        "flv"=>["自动","aac","libmp3lame"],"avi"=>["自动","aac","libmp3lame","pcm_s16le"],"ts"=>["自动","aac","libmp3lame","mp2"],"mkv"=>["自动","aac","libmp3lame","flac","libvorbis","libopus","pcm_s16le"],_=>["自动","aac","libmp3lame","alac"]
+        "3gp" or "3g2"=>["自动","aac"],"flv"=>["自动","aac","libmp3lame"],"avi"=>["自动","aac","libmp3lame","pcm_s16le"],"ts"=>["自动","aac","libmp3lame","mp2"],"mkv"=>["自动","aac","libmp3lame","flac","libvorbis","libopus","pcm_s16le"],_=>["自动","aac","libmp3lame","alac"]
     };
     private static string[] VideoCodecs(string format)
     {
-        string[] software=format switch{"webm"=>["自动","libvpx-vp9","libaom-av1"],"wmv"=>["自动","wmv2"],"mpg"=>["自动","mpeg2video"],"flv"=>["自动","flv","h264_mf","libx264"],"avi"=>["自动","mpeg4","h264_mf","libx264"],_=>["自动","mpeg4","h264_mf","libvpx-vp9","libaom-av1","libx264","libx265"]};
+        string[] software=format switch{"3gp" or "3g2"=>["自动","mpeg4","h264_mf","libx264"],"webm"=>["自动","libvpx-vp9","libaom-av1"],"wmv"=>["自动","wmv2"],"mpg"=>["自动","mpeg2video"],"flv"=>["自动","flv","h264_mf","libx264"],"avi"=>["自动","mpeg4","h264_mf","libx264"],_=>["自动","mpeg4","h264_mf","libvpx-vp9","libaom-av1","libx264","libx265"]};
         return [..software,..HardwareAcceleration.CompatibleCodecs(format)];
     }
     private static void Add(Panel panel,string label,Control control){var row=new Grid{ColumnDefinitions=new("230,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}

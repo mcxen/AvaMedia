@@ -10,12 +10,11 @@ public static class SystemPlayerIntegration
     private const string ProgId = "AvaMedia.Player.Media";
     private const string Capabilities = @"Software\AvaMedia\Player\Capabilities";
     public static string ExecutablePath => Path.Combine(AppContext.BaseDirectory, "AvaMedia.Desktop.exe");
-    public static IReadOnlyList<string> Extensions { get; } = Array.AsReadOnly(new[]
+    public static IReadOnlyList<string> Extensions { get; } = Array.AsReadOnly(VideoFormats.InputExtensions
+        .Order(StringComparer.Ordinal).Select(extension => "." + extension).Concat(new[]
     {
-        ".mp4", ".mkv", ".mov", ".m4v", ".avi", ".webm", ".wmv", ".mpg", ".mpeg",
-        ".ts", ".mts", ".m2ts", ".mxf", ".vob", ".3gp", ".3g2", ".asf", ".rm", ".rmvb", ".divx", ".f4v", ".ogv",
         ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".aiff", ".ac3", ".wma"
-    });
+    }).ToArray());
     public static string OpenCommand(string executable) => "\"" + Path.GetFullPath(executable) + "\" --play \"%1\"";
 
     public static void RegisterWindows(string executable, RegistryKey? root = null)

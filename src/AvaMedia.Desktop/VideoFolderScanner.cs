@@ -1,3 +1,5 @@
+using AvaMedia.Core;
+
 namespace AvaMedia.Desktop;
 
 public interface IVideoFolderScanner
@@ -8,13 +10,7 @@ public interface IVideoFolderScanner
 public sealed class VideoFolderScanner : IVideoFolderScanner
 {
     internal static readonly StringComparer PathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".flv", ".m4v", ".mpg", ".mpeg",
-        ".ts", ".mts", ".m2ts", ".vob", ".ogv", ".3gp", ".3g2", ".asf", ".rm", ".rmvb", ".divx", ".f4v", ".mxf"
-    };
-
-    internal static bool IsVideoFile(string path) => Extensions.Contains(Path.GetExtension(path));
+    internal static bool IsVideoFile(string path) => VideoFormats.IsVideo(path);
 
     public Task<IReadOnlyList<string>> ScanAsync(string directory, CancellationToken token) => Task.Run<IReadOnlyList<string>>(() =>
     {

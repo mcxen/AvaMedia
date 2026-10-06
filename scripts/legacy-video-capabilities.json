@@ -1,0 +1,12 @@
+{
+  "decoders": [
+    "h263", "h264", "mpeg4", "msmpeg4v1", "msmpeg4v2", "msmpeg4", "aac", "mp2", "mp3", "amrnb", "amrwb", "qcelp",
+    "rv10", "rv20", "rv30", "rv40", "real_144", "real_288", "cook", "sipr",
+    "wmv1", "wmv2", "wmv3", "vc1", "wmav1", "wmav2", "wmapro", "wmavoice",
+    "flv", "vp6f", "vp6a", "svq1", "svq3", "cinepak", "qdm2",
+    "mpeg1video", "mpeg2video", "dvvideo", "mjpeg", "amv", "adpcm_ima_amv", "flic"
+  ],
+  "demuxers": ["mov", "avi", "asf", "rm", "mpeg", "mpegvideo", "mpegts", "flv", "dv", "mjpeg", "nsv", "flic"],
+  "encoders": ["mpeg4", "aac"],
+  "muxers": ["3gp", "3g2"]
+}

@@ -289,6 +289,7 @@ def main():
         else:
             shutil.copy2(path, target)
     shutil.copytree(HERE, sources_package / "scripts/macos", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copy2(HERE.parent / "legacy-video-capabilities.json", sources_package / "scripts/legacy-video-capabilities.json")
     shutil.copy2(HERE.parent.parent / "LICENSE", sources_package / "LICENSE")
     shutil.copy2(HERE.parent.parent / "COPYRIGHT", sources_package / "COPYRIGHT")
     (sources_package / "configure-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")

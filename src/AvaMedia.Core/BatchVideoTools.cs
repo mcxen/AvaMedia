@@ -13,8 +13,6 @@ public sealed record ContactSheetProgress(string Input, int Sheet, double Percen
 public static class BatchVideoTools
 {
     public static StringComparer PathComparer { get; } = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
-    { ".mp4", ".mkv", ".mov", ".avi", ".webm", ".wmv", ".flv", ".mpg", ".mpeg", ".m4v", ".ts", ".mts", ".m2ts", ".vob", ".3gp", ".ogv", ".asf" };
 
     public static string[] CollectVideos(IEnumerable<string> paths, bool recursive)
     {
@@ -24,7 +22,7 @@ public static class BatchVideoTools
             var path = Path.GetFullPath(input);
             if (File.Exists(path))
             {
-                if (VideoExtensions.Contains(Path.GetExtension(path))) result.Add(path);
+                if (VideoFormats.IsVideo(path)) result.Add(path);
             }
             else if (Directory.Exists(path))
             {
@@ -35,7 +33,7 @@ public static class BatchVideoTools
                     AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System | FileAttributes.Hidden
                 };
                 foreach (var file in Directory.EnumerateFiles(path, "*", enumeration))
-                    if (VideoExtensions.Contains(Path.GetExtension(file))) result.Add(Path.GetFullPath(file));
+                    if (VideoFormats.IsVideo(file)) result.Add(Path.GetFullPath(file));
             }
         }
         return result.OrderBy(p => p, PathComparer).ToArray();

@@ -13,6 +13,14 @@ try {
     $ffmpeg = Get-ChildItem -LiteralPath (Join-Path $stage 'extracted') -Recurse -Filter ffmpeg.exe | Select-Object -First 1 -ExpandProperty FullName
     $audit = & $ffmpeg -version 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0 -or $audit -notmatch '--enable-shared' -or $audit -match '--enable-nonfree|--enable-gpl') { throw 'Unexpected FFmpeg shared build or license configuration.' }
+    $legacy = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'legacy-video-capabilities.json') | ConvertFrom-Json
+    foreach ($kind in @('decoders','demuxers','encoders','muxers')) {
+        $listing = & $ffmpeg -hide_banner "-$kind" 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "Cannot read FFmpeg $kind." }
+        $available = @([regex]::Matches($listing, '(?m)^\s*[A-Z\.]+\s+(\S+)\s') | ForEach-Object { $_.Groups[1].Value -split ',' })
+        $missing = @($legacy.$kind | Where-Object { $_ -notin $available })
+        if ($missing.Count) { throw "FFmpeg is missing required legacy video ${kind}: $($missing -join ', ')." }
+    }
     $files = @(Get-ChildItem -LiteralPath (Split-Path -Parent $ffmpeg) -File | Where-Object { $_.Name -in @('ffmpeg.exe','ffprobe.exe') -or $_.Extension -eq '.dll' })
     $files | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $target -Force }
     $audit | Set-Content -LiteralPath (Join-Path $target 'ffmpeg-build.txt') -Encoding utf8

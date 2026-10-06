@@ -14,7 +14,7 @@ public static class SourceVideoExport
     {
         if (selection is not (Original or FastRotation)) return selection;
         var format = Path.GetExtension(path ?? "").TrimStart('.').ToLowerInvariant();
-        if (!QuickClipBatch.VideoExtensions.Contains(format)) throw new ArgumentException("无法确定原视频容器，请选择输出格式。");
+        if (!VideoFormats.OriginalOutputExtensions.Contains(format)) throw new ArgumentException("此源容器暂不支持原格式导出，请选择 MP4 或 MKV。");
         if (selection == FastRotation && format is not ("mov" or "mp4" or "m4v")) throw new ArgumentException("方向标记 Fast Copy 支持 MOV、MP4、M4V；此文件请选择原属性画面旋转。");
         return format;
     }
