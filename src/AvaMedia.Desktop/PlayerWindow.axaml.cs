@@ -91,9 +91,9 @@ public partial class PlayerWindow : Window
 
     public Task OpenAsync(string path)
         => StartOpen(path, 0, 0, 0, true);
-    private Task StartOpen(string path, int video, int audio, double position, bool playing)
+    private Task StartOpen(string path, int video, int audio, double position, bool playing, bool allowDeleting = false)
     {
-        if (_deleting || _closed) return Task.CompletedTask;
+        if (_closed || _deleting && !allowDeleting) return Task.CompletedTask;
         _load?.Cancel(); _load?.Dispose(); _seek?.Cancel();
         _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _seekGeneration++; _pendingSeek = false;
@@ -160,7 +160,7 @@ public partial class PlayerWindow : Window
         RefreshTransport();
         if (_deleting) return;
         if (_fileIndex + 1 >= _playlist.Length) await PlaylistReady;
-        if (_closed || !ReferenceEquals(_player, player)) return;
+        if (_closed || _deleting || !ReferenceEquals(_player, player)) return;
         if (_fileIndex + 1 < _playlist.Length && string.IsNullOrEmpty(PlaybackError)) await ChangeFile(1);
         else Notice(string.IsNullOrEmpty(PlaybackError) ? "播放结束" : PlaybackError);
     }
@@ -315,16 +315,17 @@ public partial class PlayerWindow : Window
             _explicitFiles = _explicitFiles.Where(p => !VideoFolderScanner.PathComparer.Equals(p, path)).ToArray();
             _player?.Dispose(); _player = null; _info = null; _playIntent = false;
             VideoImage.Source = null; _still?.Dispose(); _still = null;
-            _deleting = false;
+            PlaylistStatus.Text = $"{_playlist.Length} 个文件";
             if (_playlist.Length > 0)
             {
-                _fileIndex = Math.Min(index, _playlist.Length - 1); await OpenAsync(_playlist[_fileIndex]);
+                _fileIndex = Math.Min(index, _playlist.Length - 1); await StartOpen(_playlist[_fileIndex], 0, 0, 0, true, allowDeleting: true);
                 Notice("已移入回收站：" + Path.GetFileName(path));
             }
             else
             {
-                CurrentPath = ""; _fileIndex = 0; _loadedFolder = null; SetPosition(0); PlayerTotal.Text = EditorTime.Format(0);
+                CurrentPath = ""; PlaybackError = ""; _fileIndex = 0; _loadedFolder = null; SetPosition(0); PlayerTotal.Text = EditorTime.Format(0);
                 FileName.Text = Title = "AvaMedia 播放器"; PlayerStatus.Text = "已移入回收站\n拖入媒体文件，或按 F3 打开"; PlayerStatus.IsVisible = true;
+                ToolTip.SetTip(FileName, null);
                 RefreshPlaylist(); PlaylistStatus.Text = "0 个文件";
             }
         }
@@ -333,8 +334,7 @@ public partial class PlayerWindow : Window
         {
             if (!_closed)
             {
-                _deleting = false;
-                if (_player is not null && _info is not null) await StartOpen(path, _info.VideoStreamIndex, _info.AudioStreamIndex, position, playing);
+                if (_player is not null && _info is not null) await StartOpen(path, _info.VideoStreamIndex, _info.AudioStreamIndex, position, playing, allowDeleting: true);
                 Notice("移入回收站失败：" + ex.Message);
             }
         }
@@ -359,7 +359,7 @@ public partial class PlayerWindow : Window
         SetFiles(paths); await OpenAsync(_playlist[0]);
     }
     private Task ChangeFile(int delta)
-    { var index = _fileIndex + delta; if (index < 0 || index >= _playlist.Length) return Task.CompletedTask; _fileIndex = index; return OpenAsync(_playlist[index]); }
+    { if (_deleting) return Task.CompletedTask; var index = _fileIndex + delta; if (index < 0 || index >= _playlist.Length) return Task.CompletedTask; _fileIndex = index; return OpenAsync(_playlist[index]); }
     private void SetFiles(IEnumerable<string> files)
     { _explicitFiles = files.Select(Path.GetFullPath).Distinct(VideoFolderScanner.PathComparer).ToArray(); _playlist = _explicitFiles; _fileIndex = 0; _loadedFolder = null; }
     private void StartFolderLoad(string path, Task firstFrame)
