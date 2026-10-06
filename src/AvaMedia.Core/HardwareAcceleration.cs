@@ -53,7 +53,7 @@ public static class HardwareAcceleration
                         var backend = HardwareTranscoding.Backend(encoder.Codec)!;
                         var test = await ProcessRunner.Run(file, ["-hide_banner", "-v", "error", "-nostdin", ..backend.InitializationArguments, "-f", "lavfi", "-i",
                             "color=c=black:s=1280x720:r=25", "-frames:v", "3", "-an", "-c:v", encoder.Codec,
-                            "-pix_fmt", "nv12", ..backend.EncodingArguments(encoder, new(23, 1280, 720, 25, false)), "-f", "null", "-"], timeout.Token).ConfigureAwait(false);
+                            "-pix_fmt", "nv12", ..backend.EncodingArguments(encoder, new(23, 1280, 720, 25)), "-f", "null", "-"], timeout.Token).ConfigureAwait(false);
                         result = new(encoder.Name, encoder.Codec, test.ExitCode == 0,
                             test.ExitCode == 0 ? "已成功编码 3 帧测试画面。" : test.Error.Trim());
                     }

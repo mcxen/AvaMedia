@@ -25,7 +25,7 @@
                       <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/>
                       <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick"/>
                     </Grid>
-                    <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载和录屏仍使用默认输出文件夹。"/>
+                    <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载仍使用默认输出文件夹。"/>
                     <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。"/>
                   </StackPanel>
                 </Border>
@@ -106,7 +106,7 @@
                 <TextBlock Classes="settingsHeading" Text="后台与系统入口"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
-                    <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换、下载和录屏任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
+                    <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换和下载任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
                     <CheckBox x:Name="TrayInput" Content="最小化时缩小到托盘"/>
                     <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
                   </StackPanel>

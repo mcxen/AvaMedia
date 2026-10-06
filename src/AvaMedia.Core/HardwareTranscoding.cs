@@ -6,7 +6,7 @@ namespace AvaMedia.Core;
 public enum HardwareBackendKind { VideoToolbox, Nvenc, QuickSync, Amf }
 public enum HardwareVideoFormat { H264, Hevc, Av1, Vp9 }
 
-public sealed record HardwareEncodingContext(int Quality, int Width, int Height, double FrameRate, bool Recording);
+public sealed record HardwareEncodingContext(int Quality, int Width, int Height, double FrameRate);
 public sealed record HardwareDecodePlan(string Method, IReadOnlyList<string> InputArguments, string? EncoderPixelFormat = null);
 
 public interface IHardwareTranscodingBackend
@@ -49,19 +49,19 @@ public static class HardwareTranscoding
         _ => false
     };
 
-    public static HardwareEncodingContext Context(ConversionOptions options, IReadOnlyList<MediaInfo> inputs, bool recording)
+    public static HardwareEncodingContext Context(ConversionOptions options, IReadOnlyList<MediaInfo> inputs)
     {
         var input = inputs.FirstOrDefault(info => info.HasVideo);
         return new(options.Quality, options.Width > 0 ? options.Width : input?.Width ?? 1920,
             options.Height > 0 ? options.Height : input?.Height ?? 1080,
-            options.Fps > 0 ? options.Fps : input?.FrameRate > 0 ? input.FrameRate : 30, recording);
+            options.Fps > 0 ? options.Fps : input?.FrameRate > 0 ? input.FrameRate : 30);
     }
 
     public static IReadOnlyDictionary<int, HardwareDecodePlan> DecodePlans(Job job, IReadOnlyList<MediaInfo> inputs)
     {
         var backend = Backend(job.Options.VideoCodec);
         if (backend is null || !backend.IsAvailableOnPlatform || job.Options.CopyStreams || job.Options.PreserveSourceAttributes ||
-            job.Options.LosslessRotation is not null || Catalog.Find(job.FeatureId).Operation == Operation.Record)
+            job.Options.LosslessRotation is not null)
             return new Dictionary<int, HardwareDecodePlan>();
 
         var operation = Catalog.Find(job.FeatureId).Operation;
@@ -125,7 +125,7 @@ internal sealed class VideoToolboxBackend : HardwareTranscodingBackend
         [new("Apple H.264", "h264_videotoolbox", HardwareVideoFormat.H264), new("Apple HEVC", "hevc_videotoolbox", HardwareVideoFormat.Hevc)]);
     public override IReadOnlyList<string> EncodingArguments(HardwareEncoder encoder, HardwareEncodingContext context)
     {
-        List<string> arguments = ["-allow_sw", "0", "-realtime", context.Recording ? "1" : "0"];
+        List<string> arguments = ["-allow_sw", "0", "-realtime", "0"];
         if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
             arguments.AddRange(["-q:v", MediaEngine.Number(100 - (Math.Clamp(context.Quality, 1, 63) - 1) * 99d / 62)]);
         else
@@ -149,7 +149,7 @@ internal sealed class NvencBackend : HardwareTranscodingBackend
     public override IReadOnlyList<HardwareEncoder> Encoders { get; } = Array.AsReadOnly<HardwareEncoder>(
         [new("NVIDIA H.264", "h264_nvenc", HardwareVideoFormat.H264), new("NVIDIA HEVC", "hevc_nvenc", HardwareVideoFormat.Hevc), new("NVIDIA AV1", "av1_nvenc", HardwareVideoFormat.Av1)]);
     public override IReadOnlyList<string> EncodingArguments(HardwareEncoder encoder, HardwareEncodingContext context) =>
-        ["-preset", context.Recording ? "p3" : "p4", "-tune", context.Recording ? "ll" : "hq", "-rc", "vbr",
+        ["-preset", "p4", "-tune", "hq", "-rc", "vbr",
             "-cq", Qp(context.Quality, encoder.Format == HardwareVideoFormat.Av1 ? 63 : 51), "-b:v", "0"];
     public override HardwareDecodePlan? Decoding(MediaInfo input, bool keepHardwareFrames) => HardwareTranscoding.VideoFormat(input.VideoCodec) is null
         ? null : new("cuda", DecodeArguments("cuda", input, keepHardwareFrames ? "cuda" : TransferFormat(input)), keepHardwareFrames ? "cuda" : null);
@@ -168,7 +168,7 @@ internal sealed class QuickSyncBackend : HardwareTranscodingBackend
     {
         var quality = encoder.Format == HardwareVideoFormat.Av1 ? Qp((int)Math.Round(Math.Clamp(context.Quality, 1, 63) * 255d / 63), 255) : Qp(context.Quality);
         // -q:v sets both QSCALE and FF_QP2LAMBDA units, which QSV requires for CQP.
-        return ["-preset", context.Recording ? "fast" : "medium", "-q:v", quality];
+        return ["-preset", "medium", "-q:v", quality];
     }
     public override HardwareDecodePlan? Decoding(MediaInfo input, bool keepHardwareFrames)
     {
@@ -190,7 +190,7 @@ internal sealed class AmfBackend : HardwareTranscodingBackend
     public override IReadOnlyList<string> EncodingArguments(HardwareEncoder encoder, HardwareEncodingContext context)
     {
         var quality = encoder.Format == HardwareVideoFormat.Av1 ? Qp((int)Math.Round(Math.Clamp(context.Quality, 1, 63) * 255d / 63), 255) : Qp(context.Quality);
-        return ["-quality", context.Recording ? "speed" : "balanced", "-rc", "cqp", "-qp_i", quality, "-qp_p", quality];
+        return ["-quality", "balanced", "-rc", "cqp", "-qp_i", quality, "-qp_p", quality];
     }
     public override HardwareDecodePlan? Decoding(MediaInfo input, bool keepHardwareFrames) =>
         !OperatingSystem.IsWindows() || HardwareTranscoding.VideoFormat(input.VideoCodec) is null

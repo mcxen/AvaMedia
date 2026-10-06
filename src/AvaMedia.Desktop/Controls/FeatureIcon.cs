@@ -90,7 +90,7 @@ public sealed class FeatureIcon : Control
         }
         else if(Kind=="erase") {using var rot=c.PushTransform(Matrix.CreateRotation(0.55)*Matrix.CreateTranslation(43,-8));R(5,22,21,49,"#F36E36",3);R(5,17,21,19,"#63859C",3);R(5,61,21,10,"#FFE1B9",2);} 
         else if(Kind=="frames") {Film(3,25,29,37);for(int i=0;i<3;i++){R(45,5+i*23,37,19,"#446985");c.DrawGeometry(B(i==1?"#F7943B":"#A3D8EC"),null,Geometry.Parse($"M 46,{21+i*23} L 58,{9+i*23} L 71,{20+i*23} Z"));}L(33,41,43,26,"#62B22F",2);L(33,41,43,41,"#62B22F",2);L(33,41,43,58,"#62B22F",2);}
-        else if(Kind is "player" or "record") {R(12,8,68,54,"#36A9E4",2);R(17,13,58,43,"#E3F4FF");for(int i=0;i<6;i++)R(18+i*10,9,5,3,"#FEC353");Play(38,23,22);if(Kind=="record")c.DrawEllipse(B("#F26453"),Brushes.White is {}?new Pen(Brushes.White,2):null,new Point(68,55),12,12);}
+        else if(Kind=="player") {R(12,8,68,54,"#36A9E4",2);R(17,13,58,43,"#E3F4FF");for(int i=0;i<6;i++)R(18+i*10,9,5,3,"#FEC353");Play(38,23,22);}
         else if(Kind=="download") {Film(10,20,49,42);L(70,17,70,50,"#5FB134",5);L(59,40,70,51,"#5FB134",5);L(81,40,70,51,"#5FB134",5);}
         else if(Kind is "disc" or "archive") {c.DrawEllipse(B("#DCE2E6"),dark,new Point(43,37),30,30);c.DrawEllipse(Brushes.White,dark,new Point(43,37),9,9);L(43,8,43,26,"#FAFAFA",8);if(Kind=="archive"){R(53,15,24,49,"#E3B757",2);for(int i=0;i<7;i++)R(61,17+i*6,6,4,"#705C30");}}
         else if(Kind=="info") {c.DrawEllipse(blue,null,new Point(46,36),28,28);T("i",39,9,45,"#FFFFFF",true);}

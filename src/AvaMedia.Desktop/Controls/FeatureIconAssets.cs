@@ -10,7 +10,7 @@ internal static class FeatureIconAssets
     private static readonly HashSet<string> Kinds = new(StringComparer.Ordinal)
     {
         "video", "formats", "join", "gear", "split", "crop", "rotate", "clip", "erase", "frames",
-        "record", "player", "download", "audio", "image", "document", "archive", "disc", "info", "clip-list",
+        "player", "download", "audio", "image", "document", "archive", "disc", "info", "clip-list",
         "pdf-merge", "pdf-split", "pdf-text", "pdf-docx", "pdf-xlsx", "text-pdf", "zip", "unzip"
     };
 

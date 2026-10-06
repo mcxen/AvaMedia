@@ -123,18 +123,17 @@ public sealed class MediaEngine : IMediaEngine
     public static void Validate(Job job)
     {
         var feature=Catalog.Find(job.FeatureId);var o=job.Options;
-        if(job.Inputs.Length==0 && feature.Operation!=Operation.Record) throw new ArgumentException("请添加文件。");
-        if(feature.Operation is not (Operation.Record or Operation.Download or Operation.IsoCopy)) foreach(var path in job.Inputs) if(!File.Exists(path)) throw new FileNotFoundException("源文件不存在",path);
+        if(job.Inputs.Length==0) throw new ArgumentException("请添加文件。");
+        if(feature.Operation is not (Operation.Download or Operation.IsoCopy)) foreach(var path in job.Inputs) if(!File.Exists(path)) throw new FileNotFoundException("源文件不存在",path);
         if(string.IsNullOrWhiteSpace(job.Output)) throw new ArgumentException("输出路径不能为空。");
-        if(feature.Operation is not (Operation.Download or Operation.Record or Operation.IsoCopy) && job.Inputs.Any(p=>string.Equals(Path.GetFullPath(p),Path.GetFullPath(job.Output),OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal))) throw new ArgumentException("输出不能覆盖源文件。");
-        if(!double.IsFinite(o.Start) || !double.IsFinite(o.End) || !double.IsFinite(o.Speed) || !double.IsFinite(o.Volume) || !double.IsFinite(o.Fps) || !double.IsFinite(o.FadeIn) || !double.IsFinite(o.FadeOut) || !double.IsFinite(o.FrameInterval) || !double.IsFinite(o.RecordSeconds))throw new ArgumentException("参数必须是有限数值。");
+        if(feature.Operation is not (Operation.Download or Operation.IsoCopy) && job.Inputs.Any(p=>string.Equals(Path.GetFullPath(p),Path.GetFullPath(job.Output),OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal))) throw new ArgumentException("输出不能覆盖源文件。");
+        if(!double.IsFinite(o.Start) || !double.IsFinite(o.End) || !double.IsFinite(o.Speed) || !double.IsFinite(o.Volume) || !double.IsFinite(o.Fps) || !double.IsFinite(o.FadeIn) || !double.IsFinite(o.FadeOut) || !double.IsFinite(o.FrameInterval))throw new ArgumentException("参数必须是有限数值。");
         if(o.Start<0 || o.End<0 || (o.End>0 && o.End<=o.Start)) throw new ArgumentException("结束时间必须晚于开始时间。");
         if(o.Speed is <0.25 or >4) throw new ArgumentException("速度必须在 0.25 到 4 倍之间。");
         if(o.CropWidth<0 || o.CropHeight<0 || o.CropX<0 || o.CropY<0 || o.Width<0 || o.Height<0 || o.DelogoX<0 || o.DelogoY<0 || o.DelogoWidth<0 || o.DelogoHeight<0) throw new ArgumentException("尺寸及坐标不能小于零。");
         if((o.CropWidth>0)!=(o.CropHeight>0)) throw new ArgumentException("裁剪宽度和高度必须同时设置。");
         if((o.DelogoWidth>0)!=(o.DelogoHeight>0)) throw new ArgumentException("水印区域宽度和高度必须同时设置。");
         if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
-        if(feature.Operation==Operation.Record && (!(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) || o.RecordSeconds<=0)) throw new ArgumentException("录屏支持 Windows 和 macOS，且时长必须大于零。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
         if(feature.Operation==Operation.VideoCompress)VideoCompression.ValidateJob(job);
         if(feature.Operation==Operation.ImageCompress){if(job.Inputs.Length!=1)throw new ArgumentException("每个图片压缩任务处理一张图片。");(o.ImageCompression??new ImageCompressionOptions{Format=o.Format}).Validate();}
@@ -147,7 +146,7 @@ public sealed class MediaEngine : IMediaEngine
             if(job.InputOptions.Count!=job.Inputs.Length)throw new ArgumentException("输入文件与独立参数数量不一致。");
             for(int index=0;index<job.Inputs.Length;index++)Validate(new(){FeatureId="mp4",Inputs=[job.Inputs[index]],Output=job.Output,Options=job.InputOptions[index]});
         }
-        if(SubtitleOptions.Mode(o) is SubtitleMode.Preserve or SubtitleMode.ExternalTrack && feature.Operation is Operation.Join or Operation.AudioMix or Operation.Record)throw new ArgumentException("合并、混音和录制暂不支持输出独立字幕轨；视频合并可在每个输入中烧录字幕。");
+        if(SubtitleOptions.Mode(o) is SubtitleMode.Preserve or SubtitleMode.ExternalTrack && feature.Operation is Operation.Join or Operation.AudioMix)throw new ArgumentException("合并和混音暂不支持输出独立字幕轨；视频合并可在每个输入中烧录字幕。");
         if(feature.Operation==Operation.Join && job.Inputs.Length>1 && SubtitleOptions.Mode(o)==SubtitleMode.BurnIn && string.IsNullOrWhiteSpace(o.Subtitle))throw new ArgumentException("源字幕需在每个合并输入的选项中分别选择烧录。");
         if(o.CopyStreams && (feature.Operation==Operation.AudioMix || feature.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null)))throw new ArgumentException("合并编辑和混音需要重新编码。");
         if((o.VideoCodec=="copy" || o.AudioCodec=="copy") && (feature.Operation==Operation.AudioMix || feature.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null)))throw new ArgumentException("合并编辑和混音的输出编码器需要重新编码，不能选择 copy。");
@@ -157,7 +156,6 @@ public sealed class MediaEngine : IMediaEngine
             if((o.CopyStreams || o.VideoCodec=="copy") && (outputTrim || video.Start>0 || video.End>0 || HasVideoFilters(video)))throw new ArgumentException("混流的视频输入或输出区间需要画面处理，请选择视频编码器。");
             if(!o.Mute && !audio.Mute && (o.CopyStreams || o.AudioCodec=="copy") && (outputTrim || audio.Start>0 || audio.End>0 || HasAudioFilters(audio)))throw new ArgumentException("混流的音频输入或输出区间需要音频处理，请选择音频编码器。");
         }
-        if(feature.Operation==Operation.Record && (o.CopyStreams || o.VideoCodec=="copy"))throw new ArgumentException("屏幕采集需要视频编码器，不能直接复制原始画面流。");
         if(o.KeepAllAudioStreams && feature.Operation is Operation.Join or Operation.AudioMix or Operation.SplitVideo)throw new ArgumentException("当前合并、混音和视频流提取不支持保留独立的所有音频流。");
     }
     public static bool HasVideoFilters(ConversionOptions o) => o.CropWidth>0 || o.DelogoWidth>0 || o.Speed!=1 || o.Width>0 || o.Height>0 || o.Fps>0 || o.Rotation!=0 || o.Flip || o.FadeIn>0 || o.FadeOut>0 || SubtitleOptions.Mode(o)==SubtitleMode.BurnIn;
@@ -181,7 +179,6 @@ public sealed class MediaEngine : IMediaEngine
     public static double ValidateEdits(Job job,IReadOnlyList<MediaInfo> infos)
     {
         Validate(job);var feature=Catalog.Find(job.FeatureId);var options=job.Options;
-        if(feature.Operation==Operation.Record)return options.RecordSeconds;
         if(infos.Count!=job.Inputs.Length || infos.Count==0)throw new ArgumentException("媒体信息与输入文件数量不一致。");
         var lengths=new List<double>();
         for(int index=0;index<infos.Count;index++)
@@ -201,16 +198,6 @@ public sealed class MediaEngine : IMediaEngine
     public async Task Execute(Job job,Action<double> progress,CancellationToken ct)
     {
         Validate(job);var f=Catalog.Find(job.FeatureId);
-        if(f.Operation==Operation.Record && OperatingSystem.IsMacOS())
-        {
-            var devices=await ProcessRunner.Run(FFmpeg,["-hide_banner","-f","avfoundation","-list_devices","true","-i",""],ct);
-            var screens=ScreenCapture.MacScreens(devices.Error);
-            if(screens.Count==0)throw new InvalidOperationException(ScreenCapture.MacPermissionMessage("未找到 AVFoundation 屏幕设备。\n"+devices.Error));
-            var selected=job.Options.RecordSource;
-            if(selected=="desktop")selected=screens[0].Index+":none";
-            if(!screens.Any(s=>selected==s.Index+":none"))throw new ArgumentException("所选屏幕设备不可用。请重新选择或使用自动屏幕。");
-            var resolved=job.Options.Clone();resolved.RecordSource=selected;job.Options=resolved;
-        }
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         if(File.Exists(job.Output) || Directory.Exists(job.Output)) throw new IOException("输出已存在，请重试以生成新的名称。");
         if(f.Operation==Operation.ImagesPdf)
@@ -256,7 +243,7 @@ public sealed class MediaEngine : IMediaEngine
             job.ProgressDetail=$"节省 {imageResult.SavedPercent:0.##}%";progress(100);return;
         }
         var infos=new List<MediaInfo>();
-        if(f.Operation!=Operation.Record)for(int i=0;i<job.Inputs.Length;i++)
+        for(int i=0;i<job.Inputs.Length;i++)
         {
             var edit=job.InputOptions?.ElementAtOrDefault(i)??job.Options;
             var vi=f.Operation==Operation.Mux && i==1?0:edit.VideoStreamIndex;
@@ -296,7 +283,7 @@ public sealed class MediaEngine : IMediaEngine
         var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions,Options=effective,Output=job.Output,Duration=job.Duration};
         IReadOnlyList<string> hardware=[];
         if(Settings.AutoDetectGpu && effective.VideoCompression?.PreferGpu!=false && !effective.CopyStreams && effective.VideoCodec=="自动" &&
-            (f.Operation==Operation.Record || infos.Any(i=>i.HasVideo)) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
+            infos.Any(i=>i.HasVideo) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
             hardware=HardwareAcceleration.Candidates(effective.Format,await _hardwareTest(FFmpeg,ct),infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"");
         var explicitHardware=!effective.CopyStreams && HardwareTranscoding.Backend(effective.VideoCodec) is not null;
         if(explicitHardware)hardware=[effective.VideoCodec];
@@ -340,7 +327,7 @@ public sealed class MediaEngine : IMediaEngine
         }
         var completed=result!;
         job.Log=hardwareLog+completed.Error;
-        if(completed.ExitCode!=0) throw new InvalidOperationException(f.Operation==Operation.Record && OperatingSystem.IsMacOS()?ScreenCapture.MacPermissionMessage(completed.Error):completed.Error);
+        if(completed.ExitCode!=0) throw new InvalidOperationException(completed.Error);
         if(compressionPlan is not null)
         {
             var outputBytes=new FileInfo(job.Output).Length;
@@ -385,19 +372,15 @@ public sealed class MediaEngine : IMediaEngine
         var videoFilters=MediaFilters.Video(o,job.Duration,"out",combined,job.Inputs.FirstOrDefault());var audioFilters=MediaFilters.Audio(o,job.Duration,combined);
         var compressionColor=o.VideoCompression is not null?VideoCompressionColor.Inspect(infos[0]):null;
         if(compressionColor is not null)videoFilters.InsertRange(0,compressionColor.Filters());
-        if(f.Operation==Operation.Record){if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);a.AddRange(ScreenCapture.InputArguments(o,OperatingSystem.IsMacOS()));}
-        else
+        for(var inputIndex=0;inputIndex<job.Inputs.Length;inputIndex++)
         {
-            for(var inputIndex=0;inputIndex<job.Inputs.Length;inputIndex++)
-            {
-                if(!combined && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);
-                if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);
-                if(hardwareDecoding?.TryGetValue(inputIndex,out var decoding)==true)a.AddRange(decoding.InputArguments);
-                a.AddRange(["-i",job.Inputs[inputIndex]]);
-            }
-            if(SubtitleOptions.Mode(o)==SubtitleMode.ExternalTrack){if(o.Start>0)a.AddRange(["-ss",Number(o.Start)]);a.AddRange(["-i",o.Subtitle]);}
-            if(o.End>0) a.AddRange(["-t",Number((o.End-o.Start)/o.Speed)]);
+            if(!combined && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);
+            if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);
+            if(hardwareDecoding?.TryGetValue(inputIndex,out var decoding)==true)a.AddRange(decoding.InputArguments);
+            a.AddRange(["-i",job.Inputs[inputIndex]]);
         }
+        if(SubtitleOptions.Mode(o)==SubtitleMode.ExternalTrack){if(o.Start>0)a.AddRange(["-ss",Number(o.Start)]);a.AddRange(["-i",o.Subtitle]);}
+        if(o.End>0) a.AddRange(["-t",Number((o.End-o.Start)/o.Speed)]);
         if(f.Operation==Operation.Join && combined)
         {
             bool audioOnly=IsAudio(o.Format),withAudio=!o.Mute;var graph=new StringBuilder();var parts=new StringBuilder();
@@ -507,13 +490,13 @@ public sealed class MediaEngine : IMediaEngine
                 else if(codec is "libx264" or "libx265")a.AddRange(["-crf",o.Quality.ToString(),"-preset","medium"]);
                 else if(codec=="libaom-av1")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-cpu-used","6"]);
                 else if(hardwareBackend is not null && HardwareTranscoding.Encoder(codec) is {} selectedEncoder)
-                    a.AddRange(hardwareBackend.EncodingArguments(selectedEncoder,HardwareTranscoding.Context(o,infos,f.Operation==Operation.Record)));
+                    a.AddRange(hardwareBackend.EncodingArguments(selectedEncoder,HardwareTranscoding.Context(o,infos)));
                 else if(codec=="h264_mf")a.AddRange(["-rate_control","quality","-quality",Math.Clamp(100-o.Quality*100/63,1,100).ToString()]);
                 if(o.Fps>0)a.AddRange(["-r",Number(o.Fps)]);
             }
             string ac=o.AudioCodec=="自动"?o.Format switch {"mp3"=>"libmp3lame","flac"=>"flac","wav"=>"pcm_s16le","aiff"=>"pcm_s16be","ogg"=>"libvorbis","opus" or "webm"=>"libopus","ac3"=>"ac3","wma" or "wmv"=>"wmav2","mpg"=>"mp2",_=>"aac"}:o.AudioCodec;
             if(!o.Mute && f.Operation!=Operation.SplitVideo){a.AddRange(["-c:a",ac]);if(ac!="copy"){if(ac is not ("flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))a.AddRange(["-b:a",o.AudioBitrate+"k"]);if(ac=="libopus" || o.SampleRate>0)a.AddRange(["-ar",(ac=="libopus"?48000:o.SampleRate).ToString()]);if(o.AudioChannels>0)a.AddRange(["-ac",o.AudioChannels.ToString()]);}}
-            if(o.Format is "mp4" or "mov" or "m4v" or "m4a") a.AddRange(["-movflags",f.Operation==Operation.Record?"frag_keyframe+empty_moov":"+faststart"]);
+            if(o.Format is "mp4" or "mov" or "m4v" or "m4a") a.AddRange(["-movflags","+faststart"]);
             if(o.Format=="m4v")a.AddRange(["-f","mp4"]);
         }
         if(o.Threads>0 && !o.CopyStreams)a.AddRange(["-threads",o.Threads.ToString()]);

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
@@ -37,11 +36,11 @@ public sealed class ConvertWindow : Window
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto,Auto"),Margin=new(18)};
         var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature),_options.Format);formats.Width=130;
         top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);
-        var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation is Operation.Record or Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
+        var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
         var media=feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id=="repair";
         var setting=new Button{Content="输出配置",MinWidth=130,IsVisible=media};setting.Click+=async(_,_)=>
         {
-            _options.Format=(string?)formats.SelectedItem??feature.Format;var dialog=new OptionsWindow(_options,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix or Operation.Record),imageQualityDefault:_options.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality);var changed=await dialog.ShowDialog<ConversionOptions?>(this);
+            _options.Format=(string?)formats.SelectedItem??feature.Format;var dialog=new OptionsWindow(_options,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:_options.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality);var changed=await dialog.ShowDialog<ConversionOptions?>(this);
             if(changed is not null){_options=changed;if(feature.Operation is not (Operation.Join or Operation.AudioMix or Operation.Mux))foreach(var entry in _entries.Where(e=>e.Options is not null)){var old=entry.Options!;var next=changed.Clone();next.Start=old.Start;next.End=old.End;next.CropX=old.CropX;next.CropY=old.CropY;next.CropWidth=old.CropWidth;next.CropHeight=old.CropHeight;next.DelogoX=old.DelogoX;next.DelogoY=old.DelogoY;next.DelogoWidth=old.DelogoWidth;next.DelogoHeight=old.DelogoHeight;entry.SetOptions(next);}}
         };top.Children.Add(setting);
         formats.SelectionChanged+=(_,_)=>{var format=(string?)formats.SelectedItem??feature.Format;if(format!=_options.Format){_options.Format=format;_options.VideoCodec=_options.AudioCodec="自动";foreach(var entry in _entries.Where(e=>e.Options is not null)){var option=entry.Options!.Clone();option.Format=format;option.VideoCodec=option.AudioCodec="自动";entry.SetOptions(option);}}};
@@ -64,31 +63,19 @@ public sealed class ConvertWindow : Window
         };
         if(media && feature.Operation!=Operation.ImagesPdf)toolbar.Children.Add(edit);
         Grid.SetRow(toolbar,1);panel.Children.Add(toolbar);Grid.SetRow(list,2);panel.Children.Add(list);
-        var special=Ui.Input();var recordDuration=Ui.Input("30");var recordScreen=Ui.Combo(["自动屏幕"],"自动屏幕");
-        if(feature.Operation is Operation.Download or Operation.Record or Operation.IsoCopy)
+        var special=Ui.Input();
+        if(feature.Operation is Operation.Download or Operation.IsoCopy)
         {
-            list.IsVisible=false;toolbar.IsVisible=false;setting.IsVisible=feature.Operation==Operation.Record;
+            list.IsVisible=false;toolbar.IsVisible=false;setting.IsVisible=false;
             var area=new StackPanel{Spacing=16,Margin=new(0,30,0,0)};
             if(feature.Operation==Operation.Download){area.Children.Add(Ui.Text("视频地址 (HTTP / HTTPS)"));area.Children.Add(special);area.Children.Add(Ui.Text("通过已配置的 yt-dlp 下载，输出 MP4。"));}
-            else if(feature.Operation==Operation.Record)
-            {
-                area.Children.Add(Ui.Text(OperatingSystem.IsMacOS()?"屏幕录像 · macOS 屏幕":"屏幕录像 · Windows 桌面"));area.Children.Add(Ui.Text("录制时长 (秒)"));area.Children.Add(recordDuration);
-                if(OperatingSystem.IsMacOS())
-                {
-                    area.Children.Add(recordScreen);var refresh=new Button{Content="刷新可录制屏幕"};area.Children.Add(refresh);refresh.Click+=async(_,_)=>
-                    {
-                        try{var devices=await ProcessRunner.Run(engine.FFmpeg,["-hide_banner","-f","avfoundation","-list_devices","true","-i",""]);var screens=ScreenCapture.MacScreens(devices.Error);recordScreen.ItemsSource=new[]{"自动屏幕"}.Concat(screens.Select(s=>$"{s.Index}:none | {s.Name}")).ToArray();recordScreen.SelectedIndex=0;if(screens.Count==0)await Ui.Message(this,"未找到屏幕",ScreenCapture.MacPermissionMessage(devices.Error));}catch(Exception ex){await Ui.Message(this,"屏幕列表读取失败",ex.Message);}
-                    };
-                }
-                area.Children.Add(new TextBlock{Text=Localization.Join("\n",new[]{"确定后加入队列，点击主窗口“开始”录制屏幕。\n当前录制画面，不包含系统声音。停止会保留已生成的片段。",OperatingSystem.IsMacOS()?"首次录制需授予屏幕录制权限，授权后重启应用。":""}.Where(s=>s.Length>0)),TextWrapping=TextWrapping.Wrap});
-            }
             else {area.Children.Add(Ui.Text(OperatingSystem.IsMacOS()?"光驱原始设备路径，例如 /dev/rdisk2":"光驱盘符或原始设备路径，例如 D:"));area.Children.Add(special);area.Children.Add(new TextBlock{Text="逐字节复制可读数据光盘为 ISO。需要本机读取权限，不处理加密。",TextWrapping=TextWrapping.Wrap});}
             Grid.SetRow(area,2);panel.Children.Add(area);
         }
         var output=new Grid{ColumnDefinitions=new("95,*,90"),RowDefinitions=new("Auto,Auto"),RowSpacing=6,Margin=new(0,14,0,6)};var outputBox=Ui.Input(outputFolder);outputBox.Name="ConversionOutputFolder";output.Children.Add(Ui.Text("输出文件夹"));Grid.SetColumn(outputBox,1);output.Children.Add(outputBox);
         var browse=new Button{Content="浏览…",Margin=new(10,0,0,0)};browse.Click+=async(_,_)=>{if(await Ui.Folder(this,"选择输出目录") is {} path)outputBox.Text=path;};Grid.SetColumn(browse,2);output.Children.Add(browse);Grid.SetRow(output,3);panel.Children.Add(output);
         var outputFlags=new StackPanel{Orientation=Orientation.Horizontal,Spacing=18};
-        var sourceFolder=new CheckBox{Name="ConversionOutputToSource",Content="输出至源文件目录",IsChecked=initialOptions is null&&engine.Settings.OutputToSource,IsEnabled=feature.Operation is not (Operation.Record or Operation.Download or Operation.IsoCopy)};
+        var sourceFolder=new CheckBox{Name="ConversionOutputToSource",Content="输出至源文件目录",IsChecked=initialOptions is null&&engine.Settings.OutputToSource,IsEnabled=feature.Operation is not (Operation.Download or Operation.IsoCopy)};
         var addName=new CheckBox{Name="ConversionAddSettingName",Content="添加设置名称",IsChecked=initialOptions is null&&engine.Settings.AddSettingName};
         sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
         outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;outputFlags.Children.Add(sourceFolder);outputFlags.Children.Add(addName);Grid.SetRow(outputFlags,1);Grid.SetColumnSpan(outputFlags,3);output.Children.Add(outputFlags);
@@ -103,13 +90,12 @@ public sealed class ConvertWindow : Window
                 _options.Format=(string?)formats.SelectedItem??feature.Format;var selected=feature;string[] inputs=_entries.Select(entry=>entry.Path).ToArray();
                 if(feature.Id=="join" && mode.SelectedIndex==1)selected=Catalog.Find("mux");
                 if(feature.Operation is Operation.Download or Operation.IsoCopy)inputs=[special.Text??""];
-                if(feature.Operation==Operation.Record){inputs=[];_options.RecordSeconds=double.Parse(recordDuration.Text??"",CultureInfo.InvariantCulture);if(OperatingSystem.IsMacOS())_options.RecordSource=recordScreen.SelectedIndex<=0?"desktop":((string)recordScreen.SelectedItem!).Split('|')[0].Trim();}
                 var folderPath=Path.GetFullPath(outputBox.Text??"");var name=Path.Combine(folderPath,"validation."+(_options.Format.Length>0?_options.Format:"out"));
                 var perInput=_entries.Select(entry=>{var option=entry.Options?.Clone()??(selected.Operation is Operation.Join or Operation.AudioMix or Operation.Mux?new ConversionOptions():_options.Clone());option.Format=_options.Format;return option;}).ToArray();
                 var edits=_entries.Any(entry=>entry.Options is not null)?perInput:null;
                 var candidate=new Job{FeatureId=selected.Id,Inputs=inputs,Output=name,Options=_options.Clone(),InputOptions=ConversionBatch.IsGrouped(selected)?edits?.ToList():null};
                 MediaEngine.Validate(candidate);
-                if(media && selected.Operation is not (Operation.Record or Operation.Download or Operation.IsoCopy or Operation.ImagesPdf))
+                if(media && selected.Operation is not (Operation.Download or Operation.IsoCopy or Operation.ImagesPdf))
                 {
                     var infos=new List<MediaInfo>();
                     for(int index=0;index<inputs.Length;index++)

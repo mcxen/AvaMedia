@@ -149,20 +149,6 @@
       "pixelHeight": 1254
     },
     {
-      "kind": "record",
-      "function": "屏幕录制",
-      "file": "record.png",
-      "prompt": "Use case: stylized-concept. Asset type: ONE original transparent PNG feature icon for the Mac OS 9 / Platinum skin of AvaMedia.\nInput image 1 is the new Mac OS 9 rotate icon and defines this independent set's pixel-art contour, scale, highlights and palette. Input image 2 is the older feature-icon sheet: meanings of symbols only, do not copy its smooth modern illustration style or labels.\nMatch reference 1 as a coherent late-1990s hand-pixelled desktop utility family. Design on a small 48 by 48 pixel logical grid, displayed as an enlarged clean pixel-art illustration. Hard square pixel steps, one logical pixel near-black/dark-gray outlines, restrained white edge highlights, few broad flat two-tone shaded regions. Almost frontal, square film sprocket holes, crisp readable shapes. Neutral Platinum silver-gray, medium blue panels, medium green notes/arrows, muted golden-orange gears/play controls, coral-red scissors handles/record dot when appropriate. Favor reference 1's squared edges and gray body over the older sheet's cyan body and rounded glossy bevels. Single centered illustration filling about 80% of square canvas, balanced with rotate icon, generous transparent padding. Clear at 32–48 pixels on #CCCCCC gray.\nTrue alpha transparency around the whole symbol and in empty spaces. Original artwork, no Apple logo or copied system icon. No letters or text (except standard lowercase i for information), labels, watermark, screenshot, contact sheet, opaque background, background plate, drawn checkerboard, modern rounded app tile, photorealism, blur, smooth vector curves, gradients, or soft shadows. Exactly ONE icon.\nPrimary request: SCREEN RECORDING icon. Subject: a frontal medium blue-blue player / screen window with a Platinum silver-gray interior and a large medium blue play triangle in the middle. A prominent round coral-red record dot with a thin white border overlaps the lower-right corner. The top bar has three simple golden controls, no lettering. No paper sheet. Use a neutral silver-gray Platinum window frame with a thin striped gray title bar, tiny square classic window controls; blue play triangle stays prominent.",
-      "references": [
-        "rotate.png",
-        "../../../../../docs/assets/feature-icons-v2-preview.png"
-      ],
-      "sourceFile": "exec-876e3c9f-ef04-470c-bf1e-52f7c09f1110.png",
-      "sha256": "C7923F96E2F27FD6B5BDEE4549D9E76C95B544FCB56859ED045AB41C00384018",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
-    },
-    {
       "kind": "player",
       "function": "视频播放器",
       "file": "player.png",

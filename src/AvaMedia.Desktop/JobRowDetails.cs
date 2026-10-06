@@ -134,7 +134,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     {
         var local = Job.Inputs.Where(p => !Uri.TryCreate(p, UriKind.Absolute, out var uri) || uri.IsFile).ToArray();
         var sizes = local.Select(FileSize).ToArray();
-        _fileSummary = Job.Inputs.Length == 0 ? "录制任务" : local.Length == 0 ? "在线来源" :
+        _fileSummary = Job.Inputs.Length == 0 ? "未指定源文件" : local.Length == 0 ? "在线来源" :
             Localization.Join(" · ", new[] { Job.Inputs.Length > 1 ? Localization.Format($"{Job.Inputs.Length} 个文件") : Extension,
                 sizes.All(s => s >= 0) ? Size(sizes.Sum()) : "大小未知" }.Where(s=>s.Length>0));
         _outputSize = Job.State == JobState.Completed && FileSize(Job.Output) is >= 0 and var size ? Size(size) : "";

@@ -99,15 +99,6 @@
       "pixelHeight": 1254
     },
     {
-      "kind": "record",
-      "function": "屏幕录制",
-      "file": "record.png",
-      "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: SCREEN RECORDING icon. Subject: a frontal cyan-blue player / screen window with a light-silver interior and a large cyan play triangle in the middle. A prominent round coral-red record dot with a thin white border overlaps the lower-right corner. The top bar has three simple golden controls, no lettering. No paper sheet.",
-      "sha256": "8A016E56FFE554FA572E276D2179C51B291D3A6CA5183AFB167BDA83FD866BCF",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
-    },
-    {
       "kind": "player",
       "function": "视频播放器",
       "file": "player.png",

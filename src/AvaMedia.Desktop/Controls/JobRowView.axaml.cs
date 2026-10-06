@@ -45,7 +45,7 @@ public partial class JobRowView : UserControl
         _details.Refresh();
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
-        var path = job.FeatureId is "download" or "record" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
+        var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
         long modified = 0;
         try { if (File.Exists(path)) modified = File.GetLastWriteTimeUtc(path).Ticks; } catch (IOException) { }

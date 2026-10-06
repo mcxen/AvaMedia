@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Record, Info, Hash, Player, IsoCopy, ImageCompress }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Hash, Player, IsoCopy, ImageCompress }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -29,7 +29,6 @@ public static class Catalog
         Add("clip","快速剪辑","视频","mp4","clip");
         Add("delogo","去除水印","视频","mp4","erase");
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
-        Add("record","屏幕录像","视频","mp4","record",Operation.Record);
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
         Add("download","视频下载","视频","mp4","download",Operation.Download);
         foreach(var x in new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}) Add("audio-"+x,"→ "+x.ToUpperInvariant(),"音频",x,"audio");
@@ -117,8 +116,6 @@ public sealed class ConversionOptions
     public string SubtitleColor { get; set; } = "#FFFFFF";
     public int SubtitleAlignment { get; set; } = 2;
     public int SubtitleMargin { get; set; } = 20;
-    public string RecordSource { get; set; } = "desktop";
-    public double RecordSeconds { get; set; } = 30;
     public ConversionOptions Clone() => (ConversionOptions)MemberwiseClone();
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
