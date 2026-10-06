@@ -47,25 +47,6 @@ public partial class MainWindow : Window
             else {_closing=true;Save();_timer.Stop();}
         };
     }
-    private void ShowCategory(string category)
-    {
-        _category=category;CategoryTitle.Text=category;CategoryGlyph.Text=category switch{"视频"=>"▣","音频"=>"♫","图片"=>"▧","文档"=>"▤",_=>"◉"};
-        FeatureGrid.Children.Clear();FeatureGrid.RowDefinitions.Clear();int col=0,row=0;
-        foreach(var f in Catalog.All.Where(f=>f.Category==category))
-        {
-            if(col+f.Span>4){col=0;row++;}while(FeatureGrid.RowDefinitions.Count<=row)FeatureGrid.RowDefinitions.Add(new RowDefinition(91,GridUnitType.Pixel));
-            var content=new Grid{RowDefinitions=new("*,Auto")};content.Children.Add(new FeatureIcon{Kind=f.Icon,Label=f.Format.ToUpperInvariant(),Height=64});
-            var text=new TextBlock{Text=f.Label,TextWrapping=TextWrapping.Wrap,Margin=new(1,0),VerticalAlignment=VerticalAlignment.Bottom};Grid.SetRow(text,1);content.Children.Add(text);
-            var tile=new Button{Content=content,Margin=new(3),Classes={"tile"}};ToolTip.SetTip(tile,f.Label);
-            tile.Click+=async (_,_)=>await Configure(f);Grid.SetColumn(tile,col);Grid.SetRow(tile,row);Grid.SetColumnSpan(tile,f.Span);FeatureGrid.Children.Add(tile);col+=f.Span;if(col==4){col=0;row++;}
-        }
-        Categories.Children.Clear();
-        foreach(var cat in Catalog.Categories.Where(c=>c!=category))
-        {
-            var b=new Button{Classes={"category"}};var g=new Grid{ColumnDefinitions=new("24,*")};g.Children.Add(new TextBlock{Text=cat switch{"音频"=>"♫","图片"=>"▧","文档"=>"▤","视频"=>"▣",_=>"◉"},Classes={"muted-icon"}});var t=Ui.Text(cat);t.HorizontalAlignment=HorizontalAlignment.Center;Grid.SetColumn(t,1);g.Children.Add(t);b.Content=g;b.Click+=(_,_)=>ShowCategory(cat);Categories.Children.Add(b);
-        }
-        Motion.Reveal(FeatureGrid);
-    }
     private async Task Configure(Feature feature,string[]? files=null)
     {
         if(_queue.IsRunning && feature.Operation==Operation.Record){await Ui.Message(this,"任务正在运行","请先停止当前任务后再配置录屏。");return;}

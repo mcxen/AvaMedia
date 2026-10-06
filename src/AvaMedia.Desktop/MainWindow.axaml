@@ -22,10 +22,10 @@
     </Border>
     <Grid Grid.Row="2" ColumnDefinitions="425,4,*">
       <Border Grid.Column="0" Background="{DynamicResource UiCanvas}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
-        <Grid RowDefinitions="24,*,Auto">
-          <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1"><Grid ColumnDefinitions="28,*"><TextBlock x:Name="CategoryGlyph" Text="▣" Margin="5,1" Foreground="{DynamicResource UiTextSecondary}"/><TextBlock x:Name="CategoryTitle" Grid.Column="1" Text="视频" HorizontalAlignment="Center"/></Grid></Border>
-          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"><Grid x:Name="FeatureGrid" Margin="12,12,22,12" ColumnDefinitions="*,*,*,*"/></ScrollViewer>
-          <StackPanel Grid.Row="2" x:Name="Categories"/>
+        <Grid x:Name="Categories">
+          <ScrollViewer x:Name="FeatureScroll" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="FeatureGrid" Margin="12" ColumnDefinitions="*,*,*,*"/>
+          </ScrollViewer>
         </Grid>
       </Border>
       <GridSplitter Grid.Column="1" Background="{DynamicResource UiDivider}" ResizeDirection="Columns"/>

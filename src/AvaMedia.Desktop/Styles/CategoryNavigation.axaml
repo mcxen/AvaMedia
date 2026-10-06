@@ -1,0 +1,18 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Button.category">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.category.expanded">
+    <Setter Property="Background" Value="{DynamicResource UiPressed}"/>
+  </Style>
+  <Style Selector="Button.category.expanded /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource UiPressed}"/>
+  </Style>
+  <Style Selector="Button.category.expanded:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource UiHover}"/>
+  </Style>
+  <Style Selector="Button.category.expanded:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource UiPressed}"/>
+  </Style>
+</Styles>

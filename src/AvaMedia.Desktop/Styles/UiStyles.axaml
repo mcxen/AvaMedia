@@ -110,7 +110,7 @@
       <Thickness x:Key="UiDialogPadding">20</Thickness>
       <Thickness x:Key="UiSectionPadding">16</Thickness>
       <x:Double x:Key="UiSettingSectionHeight">90</x:Double>
-      <x:Double x:Key="UiCategoryHeight">24</x:Double>
+      <x:Double x:Key="UiCategoryHeight">32</x:Double>
     </ResourceDictionary>
   </Styles.Resources>
   <Style Selector="Window">
@@ -161,7 +161,7 @@
     <Setter Property="BorderThickness" Value="0,1,0,0" />
     <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}" />
     <Setter Property="Background" Value="{DynamicResource UiSurface}" />
-    <Setter Property="Padding" Value="5,1" />
+    <Setter Property="Padding" Value="8,4" />
     <Setter Property="Height" Value="{DynamicResource UiCategoryHeight}" />
     <Setter Property="MinHeight" Value="{DynamicResource UiCategoryHeight}" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />

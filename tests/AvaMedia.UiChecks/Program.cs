@@ -182,7 +182,7 @@ main.CaptureRenderedFrame()?.Save(Path.Combine(output, "main-dark.png"));
 var mainMenu = main.GetVisualDescendants().OfType<Menu>().First();
 Check(ColorOf(mainMenu.Background) == "#ff282828", "Main window surfaces follow the dark application theme");
 var grid = main.FindControl<Grid>("FeatureGrid")!;
-var categories = main.FindControl<StackPanel>("Categories")!;
+var categories = main.FindControl<Grid>("Categories")!;
 // Enable only the isolated test window's animations to exercise quick navigation.
 main.Classes.Add("motion-enabled");
 foreach (var category in new[] { "音频", "图片", "文档", "视频" })
@@ -193,7 +193,7 @@ foreach (var category in new[] { "音频", "图片", "文档", "视频" })
     Pump(10);
 }
 Pump(200);
-Check(main.FindControl<TextBlock>("CategoryTitle")!.Text == "视频" && grid.Children.Count > 0,
+Check(categories.Children.OfType<AvaMedia.Desktop.Controls.CategoryHeader>().Single(header => header.IsExpanded).GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "视频") && grid.Children.Count > 0,
     "Rapid category navigation leaves the latest category and content visible");
 Check(Math.Abs(grid.Opacity - 1) < 0.001, "Rapid category navigation settles at full opacity");
 Application.Current!.RequestedThemeVariant = ThemeVariant.Light;
