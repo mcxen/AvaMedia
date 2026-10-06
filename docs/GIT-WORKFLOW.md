@@ -12,6 +12,8 @@
 
 ## 日常修改
 
+日常开发统一在 `main` 上继续，不因普通功能修改额外创建开发分支；仅在用户明确要求时创建分支。机器人自动创建的优化分支合入后清理。
+
 1. 用 `git status --short` 与 `git diff` 检查修改，按功能提交明确的文件路径。
 2. 以本地构建、运行和验证为准，运行 `./scripts/Verify.ps1`。它构建解决方案并执行全部已集成测试套件，输出日志、源码提交号和工作区是否存在未提交改动。CI 在后台执行，不等待或持续轮询 CI。
 3. 用 `git diff --cached` 复核内容，再提交。功能实现、行为修复、格式整理和验证工具分别提交。
@@ -23,11 +25,11 @@
 
 ## 协作与备份
 
-并行修改时只暂存自己的明确路径，保留其他未提交改动；避免对共享工作区执行 `reset --hard`、`clean` 或强制覆盖。需要长时间独立开发时使用分支与独立 worktree。
+并行修改时只暂存自己的明确路径，保留其他未提交改动；避免对共享工作区执行 `reset --hard`、`clean` 或强制覆盖。需要隔离处理合并时可使用临时分离 HEAD 的 worktree，完成后清理，不额外创建开发分支。
 
 公开仓库为 [mcxen/AvaMedia](https://github.com/mcxen/AvaMedia)，origin 使用 HTTPS。main 对应已验收代码，当前项目许可证为 AGPL-3.0-only。提交和标签的离线备份可用：
 
-首次公开历史从已经统一许可证的源代码树建立。此前本地开发历史保存在 `archive/pre-public-agpl` 分支及离线 bundle 中，早期本地验收标签保留；公开仓库只推送 main 和明确选定的公开验收标签。
+首个公开版本仍由 `v1.0.2-agpl` 固定。公开前的本地开发历史已接入 `main`，合入时保留当前代码树；原归档分支已清理，早期验收标签保留原提交。合并前的完整引用备份保存在本地 `artifacts/branch-backups/`；日常只推送 `main` 和明确选定的版本标签。
 
 ```powershell
 git bundle create artifacts/AvaMedia-history.bundle --all
