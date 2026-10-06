@@ -39,7 +39,7 @@
 
 ## 验证
 
-2026-10-06 的菜单位置调整通过受影响桌面项目编译与隔离界面检查：主窗口菜单位于操作工具栏下方，所有主菜单和皮肤子菜单正常展开；在弹出菜单打开时往返切换浅色、深色和 Platinum，菜单仍保持连接并恢复相应位置；标题栏收起与恢复正常。记录在 `artifacts/platinum-menu-audit/audit.log`，新版程序在 `artifacts/platinum-menu-below-toolbar/win-x64/`，`Start-AvaMedia.cmd` 指向这一版。下面的截图与回归记录属于旧版本，不作为本次验收证据。
+2026-10-06 按用户修正统一了菜单顺序和层级。桌面项目编译与隔离界面检查通过：三个皮肤均采用同一组菜单对象和六个主菜单，菜单位于控制栏上方；Platinum 标题栏位于菜单上方；“显示 → 皮肤 / 语言”保持同一入口，皮肤菜单切换、设置保存和再次展开正常。记录与截图在 `artifacts/common-menu-audit/`，新版程序在 `artifacts/common-menus-20261006/win-x64/`，`Start-AvaMedia.cmd` 指向这一版。下面的截图与回归记录属于旧版本，不作为本次验收证据。
 
 ```powershell
 ./.tools/dotnet/dotnet.exe run --project tests/AvaMedia.SkinTests -c Release
