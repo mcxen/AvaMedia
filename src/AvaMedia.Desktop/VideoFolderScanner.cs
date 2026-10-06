@@ -14,13 +14,15 @@ public sealed class VideoFolderScanner : IVideoFolderScanner
         ".ts", ".mts", ".m2ts", ".vob", ".ogv", ".3gp", ".3g2", ".asf", ".rm", ".rmvb", ".divx", ".f4v", ".mxf"
     };
 
+    internal static bool IsVideoFile(string path) => Extensions.Contains(Path.GetExtension(path));
+
     public Task<IReadOnlyList<string>> ScanAsync(string directory, CancellationToken token) => Task.Run<IReadOnlyList<string>>(() =>
     {
         var videos = new List<string>();
         foreach (var file in Directory.EnumerateFiles(directory, "*", new EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = 0 }))
         {
             token.ThrowIfCancellationRequested();
-            if (Extensions.Contains(Path.GetExtension(file))) videos.Add(Path.GetFullPath(file));
+            if (IsVideoFile(file)) videos.Add(Path.GetFullPath(file));
         }
         videos.Sort((left, right) => CompareNames(Path.GetFileName(left), Path.GetFileName(right)));
         token.ThrowIfCancellationRequested();

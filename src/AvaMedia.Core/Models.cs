@@ -31,7 +31,7 @@ public static class Catalog
         Add("delogo","去除水印","视频","mp4","erase");
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
         Add("record","屏幕录像","视频","mp4","record",Operation.Record);
-        Add("player","格式播放器","视频","","player",Operation.Player);
+        Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
         Add("download","视频下载","视频","mp4","download",Operation.Download);
         foreach(var x in new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}) Add("audio-"+x,"→ "+x.ToUpperInvariant(),"音频",x,"audio");
         Add("audio-join","音频合并","音频","mp3","join",Operation.Join);
