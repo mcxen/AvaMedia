@@ -74,20 +74,22 @@ def dependency(name, source, prefix, work, env, jobs):
             stream.write("\nLibs.private: -lstdc++\n")
     elif name == "freetype":
         autotools("--without-harfbuzz", "--without-bzip2", "--without-png", "--without-brotli", "--with-zlib")
-    elif name == "harfbuzz":
+    elif name in {"harfbuzz", "fribidi"}:
         cross_file = work / "mingw.ini"
         cross_file.write_text("[binaries]\nc = '" + env["CC"] + "'\ncpp = '" + env["CXX"] +
                               "'\nar = '" + env["AR"] + "'\nstrip = '" + CROSS + "strip'\n"
                               "pkg-config = 'pkg-config'\n[host_machine]\nsystem = 'windows'\n"
                               "cpu_family = 'x86_64'\ncpu = 'x86_64'\nendian = 'little'\n")
-        build = work / "harfbuzz-meson"
+        build = work / (name + "-meson")
+        options = (["-Dbin=false", "-Dtests=false", "-Ddocs=false"] if name == "fribidi" else
+                   ["-Dcoretext=disabled", "-Dfreetype=enabled", "-Dglib=disabled", "-Dgobject=disabled",
+                    "-Dcairo=disabled", "-Dicu=disabled", "-Dgraphite2=disabled", "-Dintrospection=disabled",
+                    "-Dtests=disabled", "-Ddocs=disabled", "-Dutilities=disabled", "-Dchafa=disabled",
+                    "-Dpng=disabled", "-Dzlib=disabled", "-Dsubset=disabled", "-Draster=disabled",
+                    "-Dvector=disabled", "-Dgpu=disabled", "-Dgpu_demo=disabled"])
         invoke("meson", "setup", build, source, "--cross-file", cross_file,
                f"--prefix={prefix}", "--libdir=lib", "--default-library=static", "--buildtype=minsize",
-               "-Db_staticpic=true", "-Dcoretext=disabled", "-Dfreetype=enabled", "-Dglib=disabled",
-               "-Dgobject=disabled", "-Dcairo=disabled", "-Dicu=disabled", "-Dgraphite2=disabled",
-               "-Dintrospection=disabled", "-Dtests=disabled", "-Ddocs=disabled", "-Dutilities=disabled",
-               "-Dchafa=disabled", "-Dpng=disabled", "-Dzlib=disabled", "-Dsubset=disabled",
-               "-Draster=disabled", "-Dvector=disabled", "-Dgpu=disabled", "-Dgpu_demo=disabled")
+               "-Db_staticpic=true", *options)
         invoke("meson", "compile", "-C", build, "-j", jobs)
         invoke("meson", "install", "-C", build)
     elif name == "libass":
@@ -100,7 +102,7 @@ def dependency(name, source, prefix, work, env, jobs):
         autotools("--disable-testapp", "--disable-example", "--disable-unit-test", "STL_LIBS=-lstdc++")
     elif name == "libvorbis":
         cmake(f"-DOGG_INCLUDE_DIR={prefix}/include", f"-DOGG_LIBRARY={prefix}/lib/libogg.a")
-    elif name in {"fribidi", "libunibreak", "libogg"}:
+    elif name in {"libunibreak", "libogg"}:
         autotools()
     elif name == "libvpx":
         invoke("./configure", f"--prefix={prefix}", "--target=x86_64-win64-gcc", "--as=nasm",
@@ -147,7 +149,8 @@ def main():
         (prefix / folder).mkdir(parents=True)
     env = os.environ.copy()
     env.update(CC=CROSS + "gcc", CXX=CROSS + "g++", AR=CROSS + "ar", RANLIB=CROSS + "ranlib",
-               CROSS=CROSS, CHOST="x86_64-w64-mingw32", CFLAGS="-Os", CXXFLAGS="-Os",
+               CROSS=CROSS, CHOST="x86_64-w64-mingw32", CC_FOR_BUILD="gcc", CXX_FOR_BUILD="g++",
+               CFLAGS="-Os", CXXFLAGS="-Os",
                CPPFLAGS=f"-I{prefix}/include", LDFLAGS=f"-L{prefix}/lib -static",
                PKG_CONFIG_LIBDIR=f"{prefix}/lib/pkgconfig:{prefix}/share/pkgconfig",
                PKG_CONFIG_PATH="", SOURCE_DATE_EPOCH="0")
