@@ -25,16 +25,16 @@ public sealed partial class SettingsWindow : Window
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
         foreach (var input in new[] { AutoGpuInput, MultithreadInput, NotifyInput, ReducedMotionInput, OutputToSourceInput, AddSettingNameInput,
-            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CheckUpdatesInput })
+            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput })
         { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
         foreach (var input in new[] { ThreadsInput, JpegQualityInput, WebpQualityInput, ParallelInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         _appliedValues=_values.Select(value=>value()).ToArray();
-        ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = _services.CanUseTray;
+        ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
         ContextMenuInput.Content = OperatingSystem.IsMacOS() ? "添加到 Finder 快速操作" : "添加到系统上下文菜单";
         ToolTip.SetTip(ContextMenuInput, OperatingSystem.IsMacOS() ? "安装到当前用户的 Finder 服务；可在系统设置的扩展中管理。" : "添加当前用户的资源管理器菜单；Windows 11 可能位于“显示更多选项”。");
-        if (!_services.CanUseTray) ToolTip.SetTip(TrayInput, "当前环境不提供系统托盘，使用正常窗口最小化。");
+        if (!_services.CanUseTray) { ToolTip.SetTip(TrayInput, "当前环境不提供系统托盘，使用正常窗口最小化。"); ToolTip.SetTip(CloseToTrayInput, "当前环境不提供系统托盘，关闭窗口会退出应用。"); }
         Closed += (_, _) => { _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
         AddHandler(Button.ClickEvent,(_,_)=>{if(_settings.PlayOperationSound)_services.PlaySound(UiSound.Operation);},RoutingStrategies.Bubble);
     }
@@ -53,6 +53,7 @@ public sealed partial class SettingsWindow : Window
         draft.PlayOperationSound = OperationSoundInput.IsChecked == true; draft.PlayCompleteSound = CompleteSoundInput.IsChecked == true;
         draft.PlayErrorSound = ErrorSoundInput.IsChecked == true; draft.SystemContextMenu = ContextMenuInput.IsChecked == true;
         draft.MinimizeToTray = TrayInput.IsChecked == true; draft.CheckForUpdates = CheckUpdatesInput.IsChecked == true;
+        draft.CloseToTray = CloseToTrayInput.IsChecked == true;
         SettingsPolicy.Validate(draft); draft.OutputFolder = Path.GetFullPath(draft.OutputFolder); return draft;
     }
     private static int Number(NumericUpDown input)
@@ -74,6 +75,7 @@ public sealed partial class SettingsWindow : Window
         OperationSoundInput.IsChecked = source.PlayOperationSound; CompleteSoundInput.IsChecked = source.PlayCompleteSound;
         ErrorSoundInput.IsChecked = source.PlayErrorSound; ContextMenuInput.IsChecked = source.SystemContextMenu;
         TrayInput.IsChecked = source.MinimizeToTray; CheckUpdatesInput.IsChecked = source.CheckForUpdates;
+        CloseToTrayInput.IsChecked = source.CloseToTray;
         RuntimeInfo.Text = $"AvaMedia · .NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}\n\n设备资源共享：未集成服务 SDK，不会启动共享进程。";
         StatusText.IsVisible = false; _initializing = false;
     }

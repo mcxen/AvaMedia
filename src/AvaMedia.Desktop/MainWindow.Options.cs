@@ -18,10 +18,7 @@ public partial class MainWindow
     private void InitializeOptions()
     {
         _appliedSettings = _settings.Clone();
-        PropertyChanged += (_, e) =>
-        {
-            if (e.Property == WindowStateProperty && WindowState == WindowState.Minimized && _trayEnabled) Hide();
-        };
+        InitializeBackground();
         AddHandler(Button.ClickEvent, (_, _) =>
         { if (_settings.PlayOperationSound) _optionServices.PlaySound(UiSound.Operation); }, Avalonia.Interactivity.RoutingStrategies.Bubble);
         AddHandler(MenuItem.ClickEvent, (_, _) =>
@@ -34,7 +31,7 @@ public partial class MainWindow
             if (_settings.SystemContextMenu)
                 try { _optionServices.SetContextMenu(true); }
                 catch (Exception ex) { failures.Add("系统菜单未能启用：" + ex.Message); }
-            if (_settings.MinimizeToTray && _optionServices.CanUseTray)
+            if (!IsCaptureSession && WantsTray(_settings) && _optionServices.CanUseTray)
                 try { SetTray(true); }
                 catch (Exception ex) { failures.Add("托盘未能启用：" + ex.Message); }
             if (failures.Count > 0 && !_closing) SummaryText.Text = string.Join("；", failures);
@@ -53,10 +50,12 @@ public partial class MainWindow
     }
     private void SetTray(bool enabled)
     {
-        _optionServices.SetTray(enabled, RestoreFromTray, () => Close()); _trayEnabled = enabled;
+        enabled = enabled && !IsCaptureSession;
+        _optionServices.SetTray(enabled, RestoreFromTray, RequestExit); _trayEnabled = enabled;
+        if (enabled) ConfigureTaskTray();
         if (!enabled && !IsVisible) RestoreFromTray();
     }
-    internal void RestoreFromTray() { Show(); WindowState = WindowState.Normal; Activate(); }
+    internal void RestoreFromTray() => RestoreBackgroundWindow();
 
     private void ApplyOptions()
     {
@@ -64,7 +63,7 @@ public partial class MainWindow
         try
         {
             if (_settings.SystemContextMenu != prior.SystemContextMenu) _optionServices.SetContextMenu(_settings.SystemContextMenu);
-            if (_settings.MinimizeToTray != prior.MinimizeToTray) SetTray(_settings.MinimizeToTray);
+            if (WantsTray(_settings) != WantsTray(prior)) SetTray(WantsTray(_settings));
             _storage.SaveSettings(_settings);
         }
         catch
@@ -72,7 +71,7 @@ public partial class MainWindow
             try
             {
                 if (_settings.SystemContextMenu != prior.SystemContextMenu) _optionServices.SetContextMenu(prior.SystemContextMenu);
-                if (_settings.MinimizeToTray != prior.MinimizeToTray) SetTray(prior.MinimizeToTray);
+                if (WantsTray(_settings) != WantsTray(prior)) SetTray(WantsTray(prior));
             }
             finally { _settings.CopyFrom(prior); }
             throw;
@@ -94,7 +93,7 @@ public partial class MainWindow
             else if (completion.AllSucceeded && preferences.PlayCompleteSound) _optionServices.PlaySound(UiSound.Complete);
             if (preferences.OpenOutputFolderOnComplete)
                 foreach (var folder in completion.OutputFolders) _optionServices.OpenFolder(folder);
-            if (completion.AllSucceeded && preferences.ShutdownOnComplete)
+            if (completion.AllSucceeded && preferences.ShutdownOnComplete && !_jobs.Any(j => j.State is JobState.Waiting or JobState.Running))
             {
                 RestoreFromTray();
                 var countdown = new ShutdownCountdownWindow();
@@ -102,10 +101,9 @@ public partial class MainWindow
                 if (await countdown.ShowDialog<bool>(this) && !token.IsCancellationRequested) await _optionServices.ShutdownAsync(token);
                 return;
             }
-            if (preferences.NotifyComplete && !token.IsCancellationRequested)
+            if (preferences.NotifyComplete && !token.IsCancellationRequested && IsVisible)
             {
-                RestoreFromTray();
-                await Ui.Message(this, "转换完成", $"成功 {completion.Completed} 个，失败 {completion.Failed} 个。\n\n输出目录：\n" + string.Join("\n", completion.OutputFolders));
+                await Ui.Message(this, "转换完成", CompletionMessage(completion));
             }
         }
         catch (OperationCanceledException) { }

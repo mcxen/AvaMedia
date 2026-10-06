@@ -1,0 +1,149 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
+using AvaMedia.Core;
+
+namespace AvaMedia.Desktop;
+
+public partial class MainWindow
+{
+    private volatile bool _backgroundWindowVisible;
+    private int _queueDirty, _refreshPosted;
+    private bool _exitRequested, _exitFinished;
+    private Task? _exitTask;
+    private WindowState _restoreState = WindowState.Normal;
+    private QueueCompletion? _lastCompletion;
+    private bool IsCaptureSession => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+        desktop.Args?.Contains("--capture") == true;
+    private static bool WantsTray(AppSettings settings) => settings.MinimizeToTray || settings.CloseToTray;
+
+    private void InitializeBackground()
+    {
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == WindowStateProperty)
+            {
+                if (WindowState != WindowState.Minimized) _restoreState = WindowState;
+                else if (_trayEnabled && _settings.MinimizeToTray) MoveToBackground();
+            }
+            if (e.Property == IsVisibleProperty)
+            {
+                _backgroundWindowVisible = IsVisible;
+                if (IsVisible && !_closing) { Refresh(); DrainQueueChanges(); }
+            }
+        };
+        Closing += BackgroundClosing;
+    }
+    internal void MoveToBackground()
+    {
+        if (_closing || !_trayEnabled || IsCaptureSession) return;
+        if (WindowState != WindowState.Minimized) _restoreState = WindowState;
+        ShowInTaskbar = false; Hide(); Save(); RefreshTaskState();
+    }
+    internal void RestoreBackgroundWindow()
+    {
+        if (_closing) return;
+        ShowInTaskbar = true; WindowState = _restoreState; Show(); Activate(); Refresh();
+    }
+    private void BackgroundClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_exitFinished) return;
+        e.Cancel = true;
+        if (_closing) return;
+        if (!_exitRequested && !IsCaptureSession && _settings.CloseToTray && _trayEnabled &&
+            e.CloseReason is WindowCloseReason.WindowClosing or WindowCloseReason.Undefined)
+        { MoveToBackground(); return; }
+        RequestExit();
+    }
+    internal void RequestExit()
+    {
+        _exitRequested = true;
+        if (_exitTask is not { IsCompleted: false }) _exitTask = ExitBackgroundAsync();
+    }
+    private async Task ExitBackgroundAsync()
+    {
+        _closing = true; RefreshTaskState(); _completionCancellation?.Cancel(); _queue.Stop();
+        try
+        {
+            await _running; Save(); _optionLifetime.Cancel(); _timer.Stop(); _exitFinished = true; Close();
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
+                ReferenceEquals(desktop.MainWindow, this) && desktop.Windows.Count > 0) desktop.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            _closing = false; _exitRequested = false; _exitTask = null;
+            RestoreBackgroundWindow(); await Ui.Message(this, "退出失败", ex.Message);
+        }
+    }
+
+    // Collapse decoder progress bursts into one queued UI update. Hidden windows update once per second.
+    private void QueueJobChanged(Job job)
+    {
+        Interlocked.Exchange(ref _queueDirty, 1);
+        if (!_backgroundWindowVisible || _closing || Interlocked.CompareExchange(ref _refreshPosted, 1, 0) != 0) return;
+        Dispatcher.UIThread.Post(DrainQueueChanges, DispatcherPriority.Background);
+    }
+    private void DrainQueueChanges()
+    {
+        Interlocked.Exchange(ref _refreshPosted, 0);
+        if (_closing || Interlocked.Exchange(ref _queueDirty, 0) == 0) return;
+        Refresh();
+        if (DateTime.UtcNow - _lastSave > TimeSpan.FromSeconds(1)) { Save(); _lastSave = DateTime.UtcNow; }
+    }
+    private void BackgroundTick()
+    {
+        if (_closing) return;
+        if (IsVisible) ElapsedText.Text = "耗时: " + _elapsed.Elapsed.ToString(@"hh\:mm\:ss");
+        DrainQueueChanges();
+    }
+    private void ConfigureTaskTray()
+    {
+        if (_optionServices is not IBackgroundTaskTray tray) return;
+        tray.SetTaskActions(new(() => _ = InvokeTrayActionAsync(StartQueueAsync), () => _queue.Stop(),
+            () => _ = InvokeTrayActionAsync(OpenBackgroundOutputAsync), () => _ = InvokeTrayActionAsync(ShowLastCompletionAsync), MoveToBackground));
+        RefreshTaskState();
+    }
+    private async Task InvokeTrayActionAsync(Func<Task> action)
+    {
+        try { await action(); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (!_closing) { RestoreFromTray(); await Ui.Message(this, "托盘操作失败", ex.Message); } }
+    }
+    private Task OpenBackgroundOutputAsync()
+    {
+        var folders = _lastCompletion?.OutputFolders;
+        if (folders?.Count > 0) foreach (var folder in folders) _optionServices.OpenFolder(folder);
+        else { Directory.CreateDirectory(_settings.OutputFolder); _optionServices.OpenFolder(_settings.OutputFolder); }
+        return Task.CompletedTask;
+    }
+    private void RefreshTaskState()
+    {
+        if (!_trayEnabled || _optionServices is not IBackgroundTaskTray tray) return;
+        var waiting = _jobs.Count(j => j.State == JobState.Waiting);
+        var active = _jobs.Where(j => j.State == JobState.Running).ToArray();
+        var completed = _jobs.Count(j => j.State == JobState.Completed); var failed = _jobs.Count(j => j.State == JobState.Failed);
+        var summary = _closing ? "正在退出…" : _queue.IsRunning
+            ? $"处理中 {active.Length} 个 · {(active.Length > 0 ? active.Average(j => j.Progress) : 0):0}% · 等待 {waiting} 个"
+            : $"等待 {waiting} 个 · 完成 {completed} 个 · 失败 {failed} 个";
+        tray.UpdateTaskState(new(summary, !_closing && !_queue.IsRunning && waiting > 0, !_closing && _queue.IsRunning, _lastCompletion is not null, !IsVisible));
+    }
+    private async Task StartQueueAsync()
+    {
+        if (_closing || _queue.IsRunning) return;
+        var batch = _jobs.Where(j => j.State == JobState.Waiting).ToArray(); if (batch.Length == 0) return;
+        _completionCancellation?.Cancel(); _lastCompletion = null; Save(); _elapsed.Restart();
+        _running = _queue.Run(batch, _settings.MultiThread ? _settings.ParallelJobs : 1); Refresh();
+        await _running; _elapsed.Stop();
+        if (_closing) return;
+        Save(); _lastCompletion = QueueCompletion.From(batch); Refresh();
+        CompletionActions = FinishQueueOptionsAsync(batch, _settings.Clone()); await CompletionActions;
+    }
+    private async Task ShowLastCompletionAsync()
+    {
+        if (_closing || _lastCompletion is not { } completion) return;
+        RestoreFromTray(); await Ui.Message(this, "任务结果", CompletionMessage(completion));
+    }
+    private static string CompletionMessage(QueueCompletion completion) =>
+        $"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。\n\n输出目录：\n" + string.Join("\n", completion.OutputFolders);
+}

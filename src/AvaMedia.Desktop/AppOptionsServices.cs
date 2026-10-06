@@ -20,7 +20,7 @@ public interface IAppOptionsServices : IDisposable
     Task<UpdateResult> CheckUpdatesAsync(CancellationToken ct);
 }
 
-public sealed class AppOptionsServices : IAppOptionsServices
+public sealed partial class AppOptionsServices : IAppOptionsServices
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(12) };
     private readonly ReleaseUpdateClient _updates;
@@ -37,12 +37,10 @@ public sealed class AppOptionsServices : IAppOptionsServices
         if (!enabled) { DisposeTray(); return; }
         if (!CanUseTray) throw new PlatformNotSupportedException("当前环境不提供系统托盘。窗口仍会正常最小化。");
         if (_tray is not null) return;
-        var menu = new NativeMenu();
-        var show = new NativeMenuItem("显示 AvaMedia"); show.Click += (_, _) => restore();
-        var quit = new NativeMenuItem("退出"); quit.Click += (_, _) => exit();
-        menu.Items.Add(show); menu.Items.Add(new NativeMenuItemSeparator()); menu.Items.Add(quit);
+        var menu = CreateTaskTrayMenu(restore, exit);
         using var icon = AssetLoader.Open(new Uri("avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.ico"));
         _tray = new() { Icon = new WindowIcon(icon), Menu = menu, ToolTipText = "AvaMedia", IsVisible = true };
+        if (_tray.NativeMenuExporter is null) { _tray.Dispose(); _tray = null; throw new PlatformNotSupportedException("当前环境不提供系统托盘。"); }
         _tray.Clicked += (_, _) => restore();
         var icons = TrayIcon.GetIcons(Application.Current!) ?? new TrayIcons();
         icons.Add(_tray); TrayIcon.SetIcons(Application.Current!, icons);

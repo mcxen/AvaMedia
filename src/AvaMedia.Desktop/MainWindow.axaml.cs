@@ -35,17 +35,10 @@ public partial class MainWindow : Window
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
         InitializeOptions();
         OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
-        _queue.Changed+=job=>Dispatcher.UIThread.Post(()=>{Refresh();if(DateTime.UtcNow-_lastSave>TimeSpan.FromSeconds(1)){Save();_lastSave=DateTime.UtcNow;}});
-        _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>ElapsedText.Text="耗时: "+_elapsed.Elapsed.ToString(@"hh\:mm\:ss");_timer.Start();
+        _queue.Changed+=QueueJobChanged;
+        _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();_timer.Start();
         ShowCategory(_category);Refresh();
         DragDrop.SetAllowDrop(this,true);AddHandler(DragDrop.DropEvent,Drop);AddHandler(DragDrop.DragOverEvent,DragOver);
-        Closing+=async (_,e)=>
-        {
-            if(_closing)return;
-            _completionCancellation?.Cancel();
-            if(_queue.IsRunning){e.Cancel=true;_closing=true;_queue.Stop();await _running;Save();_timer.Stop();Close();}
-            else {_closing=true;Save();_timer.Stop();}
-        };
     }
     private async Task Configure(Feature feature,string[]? files=null)
     {
@@ -92,16 +85,14 @@ public partial class MainWindow : Window
     private void Save(){_settings.MultiThread=Multithread.IsChecked==true;_settings.NotifyComplete=Notify.IsChecked==true;_storage.SaveSettings(_settings);_storage.SaveJobs(_jobs);}
     private void Refresh()
     {
+        RefreshTaskState();
+        if (_startupOptionsInitialized && !IsVisible) return;
         StartButton.IsEnabled=!_queue.IsRunning && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
         SummaryText.Text=_jobs.Count==0?"":$"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}";
         JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if(_queue.IsRunning)return;var batch=_jobs.Where(j=>j.State==JobState.Waiting).ToArray();if(batch.Length==0)return;
-        _completionCancellation?.Cancel();Save();_elapsed.Restart();_running=_queue.Run(batch,_settings.MultiThread?_settings.ParallelJobs:1);Refresh();await _running;_elapsed.Stop();Save();Refresh();
-        CompletionActions=FinishQueueOptionsAsync(batch,_settings.Clone());await CompletionActions;
-    }
+        => await StartQueueAsync();
     private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_queue.Stop();
     private async void AddClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Configure(_last);
     private void RemoveClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(_queue.IsRunning)return;foreach(var j in JobList.SelectedItems?.Cast<Job>().ToArray()??[])_jobs.Remove(j);Save();Refresh();}
@@ -157,7 +148,7 @@ public partial class MainWindow : Window
         var files=await Ui.Pick(this,"载入任务列表",false);if(files.Length==0)return;
         try{var jobs=JsonSerializer.Deserialize<List<Job>>(await File.ReadAllTextAsync(files[0]))??[];foreach(var j in jobs){Catalog.Find(j.FeatureId);if(j.Inputs is null || j.Options is null || string.IsNullOrWhiteSpace(j.Output))throw new InvalidDataException("任务列表格式无效。");j.Id=Guid.NewGuid();if(j.State==JobState.Running)j.State=JobState.Cancelled;}foreach(var j in jobs)_jobs.Add(j);Save();Refresh();}catch(Exception ex){await Ui.Message(this,"载入失败",ex.Message);}
     }
-    private void ExitClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>Close();
+    private void ExitClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>RequestExit();
     private void SetSkin(string theme){Skin.Apply(theme);_settings.Theme=theme;Save();}
     private void LightClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Light");
     private void DarkClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Dark");

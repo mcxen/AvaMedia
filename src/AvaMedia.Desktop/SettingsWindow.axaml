@@ -28,15 +28,16 @@
                   <CheckBox x:Name="OperationSoundInput" Content="普通操作"/>
                   <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成通知"/>
                   <CheckBox Grid.Row="1" x:Name="ErrorSoundInput" Content="错误通知"/>
-                  <CheckBox Grid.Row="1" Grid.Column="1" x:Name="NotifyInput" Content="显示完成摘要"/>
+                  <CheckBox Grid.Row="1" Grid.Column="1" x:Name="NotifyInput" Content="显示完成摘要" ToolTip.Tip="前台显示完成弹窗；托盘后台运行时保留完成摘要，不自动恢复窗口。"/>
                 </Grid></Border>
               </StackPanel>
               <StackPanel Spacing="6"><TextBlock Text="系统"/>
-                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
+                <Border Classes="settingSection"><Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="10">
                   <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
                   <CheckBox Grid.Column="1" x:Name="CheckUpdatesInput" Content="检测新版本"/>
                   <CheckBox Grid.Row="1" x:Name="TrayInput" Content="最小化到系统托盘"/>
                   <Button Grid.Row="1" Grid.Column="1" x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" HorizontalAlignment="Left"/>
+                  <CheckBox Grid.Row="2" Grid.ColumnSpan="2" x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换、下载和录屏任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
                 </Grid></Border>
               </StackPanel>
             </StackPanel>

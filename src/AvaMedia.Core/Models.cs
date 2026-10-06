@@ -167,6 +167,7 @@ public sealed class AppSettings
     public bool PlayErrorSound { get; set; } = true;
     public bool SystemContextMenu { get; set; }
     public bool MinimizeToTray { get; set; }
+    public bool CloseToTray { get; set; } = true;
     public bool CheckForUpdates { get; set; } = true;
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
@@ -188,6 +189,7 @@ public sealed class AppSettings
         OutputToSource=source.OutputToSource;AddSettingName=source.AddSettingName;OpenOutputFolderOnComplete=source.OpenOutputFolderOnComplete;
         ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
+        CloseToTray=source.CloseToTray;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
