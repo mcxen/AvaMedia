@@ -142,6 +142,8 @@ def build_dependency(name, source, prefix, work, env, jobs, log):
         autotools("--disable-frontend")
     elif name == "opus":
         autotools("--disable-extra-programs", "--disable-doc")
+    elif name == "zimg":
+        autotools("--disable-testapp", "--disable-example", "--disable-unit-test", "STL_LIBS=-lc++")
     elif name in {"fribidi", "libunibreak", "libogg", "libvorbis"}:
         autotools()
     elif name == "libvpx":
@@ -267,7 +269,7 @@ def main():
                "--enable-securetransport", "--enable-videotoolbox", "--enable-audiotoolbox", "--enable-avfoundation",
                "--enable-libass", "--enable-libfreetype", "--enable-libharfbuzz", "--enable-libfribidi",
                "--enable-libaom", "--enable-libvpx", "--enable-libwebp", "--enable-libmp3lame",
-               "--enable-libopus", "--enable-libvorbis", "--enable-libx264", "--enable-libx265",
+               "--enable-libopus", "--enable-libvorbis", "--enable-libx264", "--enable-libx265", "--enable-libzimg",
                "--pkg-config-flags=--static", "--install-name-dir=@rpath",
                f"--extra-cflags=-I{prefix}/include", f"--extra-ldflags=-L{prefix}/lib -Wl,-headerpad_max_install_names"]
     print("Building FFmpeg", flush=True)

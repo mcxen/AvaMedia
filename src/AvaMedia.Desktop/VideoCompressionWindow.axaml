@@ -5,6 +5,7 @@
     <StackPanel Spacing="4">
       <TextBlock Classes="title" Text="批量压缩视频"/>
       <TextBlock Classes="caption" Text="先选自动档，或手动设置质量、码率与目标体积，再加入导出队列。" TextWrapping="Wrap"/>
+      <TextBlock Classes="caption" Text="支持苹果 MOV / M4V / MP4、HEVC 与 ProRes；HDR 视频自动转换为 SDR。" TextWrapping="Wrap"/>
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="*,360" ColumnSpacing="12">
       <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}">
@@ -21,6 +22,7 @@
                 <StackPanel Spacing="4" Margin="4,8">
                   <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
                   <TextBlock Classes="caption" Text="{Binding SourceSummary}" TextWrapping="Wrap"/>
+                  <TextBlock Classes="caption" Text="{Binding ColorSummary}" IsVisible="{Binding HasColorChange}" TextWrapping="Wrap"/>
                   <TextBlock Text="{Binding PlanSummary}" TextWrapping="Wrap"/>
                   <TextBlock Classes="caption" Text="{Binding Warning}" IsVisible="{Binding HasWarning}" TextWrapping="Wrap"/>
                   <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>

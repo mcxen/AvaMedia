@@ -273,10 +273,18 @@ public sealed class MediaEngine : IMediaEngine
         job.Duration=ValidateEdits(job,infos);
         var effective=SettingsPolicy.Resolve(job.Options,Settings);
         VideoCompressionPlan? compressionPlan=null;
+        VideoCompressionColor? compressionColor=null;
         if(f.Operation==Operation.VideoCompress)
         {
             compressionPlan=VideoCompression.Plan(new FileInfo(job.Inputs[0]).Length,infos[0],job.Options.VideoCompression??new());
             effective=VideoCompression.Resolve(effective,infos[0],compressionPlan);
+            compressionColor=VideoCompressionColor.Inspect(infos[0]);
+            if(compressionColor.ToneMap)
+            {
+                var filters=await ProcessRunner.Run(FFmpeg,["-hide_banner","-filters"],ct);
+                if(filters.ExitCode!=0)throw new InvalidOperationException("无法读取 HDR 压缩所需的滤镜。"+filters.Error);
+                compressionColor.ValidateFilters(filters.Output+filters.Error);
+            }
         }
         string? sourceEncoderListing=null;
         if(effective.PreserveSourceAttributes)
@@ -340,6 +348,7 @@ public sealed class MediaEngine : IMediaEngine
             job.ProgressDetail=outputBytes<compressionPlan.SourceBytes?$"节省 {saved:0.#}%":"输出未缩小";
             var intent=compressionPlan.QualityDriven?$"质量档 {compressionPlan.Quality}，体积由内容决定":compressionPlan.TargetBytes is {} target?$"目标 {target} B":$"视频码率 {compressionPlan.VideoBitrate} kbps";
             job.Log+=$"\n视频压缩：原视频 {compressionPlan.SourceBytes} B，{intent}，实际 {outputBytes} B；节省 {saved:0.#}%。";
+            if(compressionColor?.ToneMap==true)job.Log+=$"\n{compressionColor.SourceLabel} → SDR（BT.709）：浮点色调映射，输出 8 位；不保留 HDR / Dolby Vision 动态元数据。";
         }
         progress(100);
         async Task<ProcessResult> EncodeWithDecoding(Job draft)
@@ -374,6 +383,8 @@ public sealed class MediaEngine : IMediaEngine
         if(o.Threads>0)a.AddRange(["-filter_threads",o.Threads.ToString(),"-filter_complex_threads",o.Threads.ToString()]);
         var combined=f.Operation==Operation.AudioMix || f.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null) || f.Operation==Operation.Mux && job.InputOptions is not null;
         var videoFilters=MediaFilters.Video(o,job.Duration,"out",combined,job.Inputs.FirstOrDefault());var audioFilters=MediaFilters.Audio(o,job.Duration,combined);
+        var compressionColor=o.VideoCompression is not null?VideoCompressionColor.Inspect(infos[0]):null;
+        if(compressionColor is not null)videoFilters.InsertRange(0,compressionColor.Filters());
         if(f.Operation==Operation.Record){if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);a.AddRange(ScreenCapture.InputArguments(o,OperatingSystem.IsMacOS()));}
         else
         {
@@ -487,7 +498,9 @@ public sealed class MediaEngine : IMediaEngine
             {
                 string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video",_=>"mpeg4"}:o.VideoCodec;
                 a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":"nv12")]);
-                if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec=="libx265") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
+                if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec is "libx265" or "libkvazaar") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
+                if(o.VideoCompression is not null)a.AddRange(["-metadata:s:v:0","rotate=0"]);
+                if(compressionColor?.ToneMap==true)a.AddRange(["-colorspace","bt709","-color_trc","bt709","-color_primaries","bt709","-color_range","tv"]);
                 if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o));
                 else if(codec is "mpeg4" or "wmv2" or "flv" or "mpeg2video")a.AddRange(["-q:v",Number(Math.Clamp(o.Quality/4d,2,12))]);
                 else if(codec=="libvpx-vp9")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-deadline","good","-cpu-used","4"]);
@@ -500,7 +513,7 @@ public sealed class MediaEngine : IMediaEngine
             }
             string ac=o.AudioCodec=="自动"?o.Format switch {"mp3"=>"libmp3lame","flac"=>"flac","wav"=>"pcm_s16le","aiff"=>"pcm_s16be","ogg"=>"libvorbis","opus" or "webm"=>"libopus","ac3"=>"ac3","wma" or "wmv"=>"wmav2","mpg"=>"mp2",_=>"aac"}:o.AudioCodec;
             if(!o.Mute && f.Operation!=Operation.SplitVideo){a.AddRange(["-c:a",ac]);if(ac!="copy"){if(ac is not ("flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))a.AddRange(["-b:a",o.AudioBitrate+"k"]);if(ac=="libopus" || o.SampleRate>0)a.AddRange(["-ar",(ac=="libopus"?48000:o.SampleRate).ToString()]);if(o.AudioChannels>0)a.AddRange(["-ac",o.AudioChannels.ToString()]);}}
-            if(o.Format is "mp4" or "mov" or "m4a") a.AddRange(["-movflags",f.Operation==Operation.Record?"frag_keyframe+empty_moov":"+faststart"]);
+            if(o.Format is "mp4" or "mov" or "m4v" or "m4a") a.AddRange(["-movflags",f.Operation==Operation.Record?"frag_keyframe+empty_moov":"+faststart"]);
             if(o.Format=="m4v")a.AddRange(["-f","mp4"]);
         }
         if(o.Threads>0 && !o.CopyStreams)a.AddRange(["-threads",o.Threads.ToString()]);

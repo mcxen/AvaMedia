@@ -34,8 +34,8 @@ public sealed record VideoCompressionOptions
             throw new ArgumentException("目标体积百分比须在 5–95 之间。");
         if (!double.IsFinite(TargetMegabytes) || TargetMegabytes is < .1 or > 1000000)
             throw new ArgumentException("目标体积须在 0.1–1000000 MB 之间。");
-        if (Format is not ("mp4" or "mkv") || Codec is not ("h264" or "hevc"))
-            throw new ArgumentException("视频压缩支持 MP4 / MKV 和 H.264 / HEVC。");
+        if (Format is not ("mp4" or "mov" or "m4v" or "mkv") || Codec is not ("h264" or "hevc"))
+            throw new ArgumentException("视频压缩支持 MP4 / MOV / M4V / MKV 和 H.264 / HEVC。");
         if (MaxDimension is not (0 or 1920 or 1280 or 854) || MaxFrameRate is not (0 or 30 or 24))
             throw new ArgumentException("请选择有效的分辨率与帧率上限。");
         if (AudioBitrate is not (64 or 96 or 128 or 192)) throw new ArgumentException("请选择有效的音频码率。");

@@ -24,12 +24,22 @@
 
 - 按原体积百分比：5–95%，默认 60%，即目标为原文件的 60%；快捷档为轻量 80%、均衡 60%、更小 40%。
 - 按目标 MB：为每个视频设置同一个目标体积，MB 按 1,000,000 字节计算。目标必须小于各自的原文件；已有很小的视频应移除或改用百分比。
-- MP4 / MKV，H.264 / HEVC；默认 MP4、H.264。软件回退缺少所选编码器时显示原因，可选择 H.264 或安装对应 FFmpeg 编码器。
+- MP4 / MOV / M4V / MKV，H.264 / HEVC；默认 MP4、H.264。软件回退缺少所选编码器时显示原因，可选择 H.264 或安装对应 FFmpeg 编码器。
 - 分辨率保持原值或限制最长边为 1920 / 1280 / 854。保留比例并向下取偶数尺寸，不放大源视频。
 - 保持原帧率或限制为 30 / 24 fps，不提高已知源帧率；源帧率无法确定时保持原值。
 - 可保留或移除声音；保留时 AAC 使用 64 / 96 / 128 / 192 kbps，默认 128。只导出首个音轨，多声道最多下混为双声道。字幕、附件和额外音轨不导出；画面剪辑和轨道编辑仍使用快速剪辑。
 
 窗口显示每个文件的时长、尺寸、原体积与输出尺寸。质量模式显示生效质量，码率和体积模式显示预计体积与视频码率；批次汇总也遵循这一差别。手动码率预计输出不小于源文件时显示提醒，允许用户按明确码率导出。读取失败、无有效视频画面、体积目标过小或不小于原体积时，显示逐行原因并阻止整个批次入队。
+
+## 苹果视频
+
+支持 iPhone、iPad、Mac 常见的 MOV、M4V、MP4 输入，包括 H.264、HEVC / H.265（含 10 位）和 ProRes。由 FFmpeg 解码，不依赖 Windows 的付费 HEVC 扩展。ProRes 输入重新编码为所选 H.264 / HEVC，压缩输出不保留 ProRes、透明通道或其编辑母版特性。选 MP4 + H.264 便于跨设备播放；MOV 为 QuickTime 容器，M4V 使用 MP4 封装。HEVC 在这些 Apple 容器中统一写入 `hvc1`，并将索引前置（faststart）。FFmpeg 按源显示矩阵旋转画面，压缩结果清零旋转标签，避免竖屏重复旋转。
+
+压缩输出采用 8 位 SDR。检测到 HLG（`arib-std-b67`）或 PQ（`smpte2084`）时，先通过 zscale 线性化为浮点 RGB，转换 BT.709 色域、用 mobius 做色调映射，最后抖动量化为 8 位并明确写入 BT.709 / limited-range 标记；不能直接把 HDR 像素当 SDR 编码。iPhone Dolby Vision Profile 8、兼容标识 4 使用标准 HLG 基础层，缺失 transfer 标记时从配置记录识别。压缩后删除旧 HDR / Dolby Vision 帧侧数据，不声称保留或重建 Dolby Vision 动态元数据；逐文件列表和任务日志明确显示 HDR → SDR。
+
+此路径需要 FFmpeg 的 `zscale`、`tonemap`、`sidedata` 滤镜，执行前读取能力清单，缺少时显示具体原因。macOS 配方固定 zimg 3.0.6 并启用 `--enable-libzimg`；Windows 可替换引擎须包含这些滤镜。Dolby Vision Profile 5 的非标准色彩基础层及无法识别的 Dolby Vision 基础层不会按普通 HDR 导出；HDR 保留输出、Apple Log LUT 和受 DRM 保护的视频未实现。
+
+依据 [Apple 的 HEVC 格式说明](https://support.apple.com/en-us/116944)、[Apple 的 iPhone HDR / Dolby Vision 技术文档](https://developer.apple.com/av-foundation/Incorporating-HDR-video-with-Dolby-Vision-into-your-apps.pdf) 与 [FFmpeg zscale / tonemap 文档](https://ffmpeg.org/ffmpeg-filters.html#tonemap)。本次检查仅为受影响项目编译、滤镜能力静态清单和构建配置语法，尚未运行苹果源视频的实际编码验证。
 
 ## 编码与结果
 

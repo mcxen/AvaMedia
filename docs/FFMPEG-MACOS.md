@@ -1,6 +1,6 @@
 # macOS ARM64 定制 FFmpeg
 
-构建配方锁定 FFmpeg 8.1.3 和 14 个依赖的源码版本；压缩包校验 SHA256，Git 源码核对完整提交号。配置见 [源码锁文件](../scripts/macos/ffmpeg-sources.lock.json)。仅生成 ARM64 运行包，所有依赖从源码构建，不链接 Homebrew 的运行库。
+构建配方锁定 FFmpeg 8.1.3 和 15 个依赖的源码版本；压缩包校验 SHA256，Git 源码核对完整提交号。配置见 [源码锁文件](../scripts/macos/ffmpeg-sources.lock.json)。仅生成 ARM64 运行包，所有依赖从源码构建，不链接 Homebrew 的运行库。
 
 FreeType 从官方 SourceForge 发行镜像下载，Savannah 作为备用；两者使用同一固定 SHA256。下载设置连接和总耗时上限，连接失败后尝试备用地址；校验不一致则立即失败。来源依据 [FreeType 下载说明](https://freetype.org/download.html)。
 
@@ -11,6 +11,7 @@ FFmpeg 自身采用共享库；所需第三方库静态编入对应媒体库。�
 | 能力 | 实现 |
 | --- | --- |
 | H.264 / HEVC 软件编码 | x264、x265 |
+| 苹果 HLG / PQ / Dolby Vision 基础层转 SDR | zimg 3.0.6 提供 zscale，配合 tonemap、sidedata；启用 `--enable-libzimg` |
 | AV1、AVIF、VP8 / VP9、WebP | libaom、libvpx、libwebp |
 | MP3、Opus、Vorbis | LAME、Opus、libogg / libvorbis |
 | 字幕烧录、中文与文字叠加 | libass、FreeType、HarfBuzz、FriBidi、libunibreak；字幕字体来自 CoreText，多宫格时间戳直接读取系统字体 |
@@ -18,6 +19,8 @@ FFmpeg 自身采用共享库；所需第三方库静态编入对应媒体库。�
 | HTTPS | 系统 Secure Transport |
 
 未引入客户端没有使用的 VMAF、libplacebo、SDL、ICU、Cairo、GLib 或额外 AV1 编码器。HarfBuzz 的字体子集、GPU 和工具组件关闭；保留文字整形。保留 CPU 检测和 ARM 优化指令，避免只适用于构建机器。`--enable-small` / `-Os` 偏向体积；实际耗时记录在客户端消融报告中。
+
+zimg 固定上游 `release-3.0.6` 源码归档及 SHA256。静态构建使用 macOS 的 libc++（`STL_LIBS=-lc++`），关闭示例及测试程序。WTFPL v2 许可证原文随组件声明保留，精确源归档纳入对应源码包。客户端压缩的 HDR → SDR 行为见 [视频压缩](VIDEO-COMPRESSION.md)。
 
 ## 构建与安装
 

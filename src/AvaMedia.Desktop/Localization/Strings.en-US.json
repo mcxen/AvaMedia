@@ -1149,7 +1149,6 @@
   "优先 GPU 编码": "Prefer GPU encoding",
   "遵循全局 GPU 选项；硬件编码失败后自动回退 CPU。": "Follows the global GPU setting; falls back to CPU if hardware encoding fails.",
   "预估并非精确大小保证。目标越小，画质损失越明显；分辨率与帧率只降低，不放大。": "Estimates are not exact size guarantees. Smaller targets reduce quality; resolution and frame rate are never increased.",
-  "源视频：{0} · {1} × {2} · {3} MB": "Source: {0} · {1} × {2} · {3} MB",
   "预计 {0} MB · {1} × {2} · 视频 {3} kbps": "Estimated {0} MB · {1} × {2} · Video {3} kbps",
   "{0} 个视频 · 原体积 {1} MB · 预计 {2} MB": "{0} videos · Original {1} MB · Estimated {2} MB",
   "添加一个或多个视频开始压缩。": "Add one or more videos to start.",
@@ -1171,7 +1170,6 @@
   "请选择压缩目标模式。": "Select a compression target mode.",
   "目标体积百分比须在 5–95 之间。": "Target size percentage must be between 5 and 95.",
   "目标体积须在 0.1–1000000 MB 之间。": "Target size must be between 0.1 and 1000000 MB.",
-  "视频压缩支持 MP4 / MKV 和 H.264 / HEVC。": "Video compression supports MP4 / MKV and H.264 / HEVC.",
   "请选择有效的分辨率与帧率上限。": "Select valid resolution and frame rate limits.",
   "请选择有效的音频码率。": "Select a valid audio bitrate.",
   "源文件须包含有有效时长的视频画面。": "The source must contain video with a valid duration.",
@@ -1316,5 +1314,14 @@
   "音频 {0} kbps（源视频有声音时）": "Audio {0} kbps (if the source has audio)",
   "移除声音": "Remove audio",
   "输出：{0} · {1}": "Output: {0} · {1}",
-  "当前 HEVC 软件编码器要求宽高为 8 的倍数；请选择 H.264 或使用可用的 GPU 编码。": "The HEVC software encoder requires dimensions divisible by 8. Select H.264 or use an available GPU encoder."
+  "当前 HEVC 软件编码器要求宽高为 8 的倍数；请选择 H.264 或使用可用的 GPU 编码。": "The HEVC software encoder requires dimensions divisible by 8. Select H.264 or use an available GPU encoder.",
+  "视频压缩支持 MP4 / MOV / M4V / MKV 和 H.264 / HEVC。": "Video compression supports MP4 / MOV / M4V / MKV with H.264 / HEVC.",
+  "支持苹果 MOV / M4V / MP4、HEVC 与 ProRes；HDR 视频自动转换为 SDR。": "Supports Apple MOV / M4V / MP4, HEVC and ProRes inputs; HDR videos are automatically converted to SDR.",
+  "MOV（QuickTime）": "MOV (QuickTime)",
+  "M4V（Apple 视频）": "M4V (Apple video)",
+  "源视频：{0} · {1} × {2} · {3} MB · {4}": "Source: {0} · {1} × {2} · {3} MB · {4}",
+  "{0} → SDR（BT.709）；不保留 HDR 动态元数据。": "{0} → SDR (BT.709); HDR dynamic metadata is not retained.",
+  "此 Dolby Vision Profile 5 视频不能按普通 HDR 压缩；请先转换为 HLG、PQ 或 SDR 视频。": "Dolby Vision Profile 5 cannot be compressed as standard HDR; convert it to HLG, PQ or SDR first.",
+  "Dolby Vision 视频缺少可识别的基础层色彩信息；请先转换为 HLG、PQ 或 SDR 视频。": "The Dolby Vision base-layer color information is unrecognized; convert it to HLG, PQ or SDR first.",
+  "HDR 视频压缩需要带 zscale、tonemap、sidedata 的 FFmpeg；请安装完整媒体引擎。": "HDR compression requires FFmpeg with zscale, tonemap and sidedata; install a complete media engine."
 }

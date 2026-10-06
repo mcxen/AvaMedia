@@ -15,6 +15,7 @@ public sealed class VideoCompressionEntry(string path) : Observable
     public string Name => System.IO.Path.GetFileName(Path);
     public long Bytes { get; set; }
     public MediaInfo? Info { get; set; }
+    public VideoCompressionColor? Color { get; set; }
     public bool Loading { get; set; } = true;
     public string InspectionError { get; set; } = "";
     public VideoCompressionPlan? Plan { get; set; }
@@ -24,8 +25,10 @@ public sealed class VideoCompressionEntry(string path) : Observable
         ? Localization.Text("预计输出不小于源视频；可降低码率或分辨率。") : "";
     public bool HasWarning => Warning.Length > 0;
     public string SourceSummary => Info is { } source
-        ? Localization.Format($"源视频：{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {Bytes / 1000000d:0.##} MB")
+        ? Localization.Format($"源视频：{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {Bytes / 1000000d:0.##} MB · {source.VideoCodec.ToUpperInvariant()}")
         : Loading ? Localization.Text("正在读取媒体信息…") : "";
+    public bool HasColorChange => Color?.ToneMap == true;
+    public string ColorSummary => HasColorChange ? Localization.Format($"{Color!.SourceLabel} → SDR（BT.709）；不保留 HDR 动态元数据。") : "";
     public string PlanSummary => Plan is not { } plan ? "" : plan.QualityDriven
         ? Localization.Format($"画质优先 · 质量 {plan.Quality} · {plan.Width} × {plan.Height} · 体积由内容决定")
         : Localization.Format($"预计 {plan.EstimatedBytes!.Value / 1000000d:0.##} MB · {plan.Width} × {plan.Height} · 视频 {plan.VideoBitrate} kbps");
@@ -41,6 +44,7 @@ public partial class VideoCompressionWindow : Window
     private bool _closed;
     private bool _updatingControls;
     private static readonly int[] CommonBitrates = [0, 500, 1000, 2000, 4000, 8000, 12000, 20000];
+    private static readonly string[] Formats = ["mp4", "mov", "m4v", "mkv"];
 
     public VideoCompressionWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null)
@@ -53,7 +57,7 @@ public partial class VideoCompressionWindow : Window
         SpeedInput.ItemsSource = new[] { "快 · 更快完成", "中 · 均衡速度", "慢 · 压缩效率优先" };
         BitratePresetInput.ItemsSource = new[] { "自定义码率", "500 kbps", "1000 kbps（1 Mbps）", "2000 kbps（2 Mbps）",
             "4000 kbps（4 Mbps）", "8000 kbps（8 Mbps）", "12000 kbps（12 Mbps）", "20000 kbps（20 Mbps）" };
-        FormatInput.ItemsSource = new[] { "MP4", "MKV" };
+        FormatInput.ItemsSource = new[] { "MP4", "MOV（QuickTime）", "M4V（Apple 视频）", "MKV" };
         CodecInput.ItemsSource = new[] { "H.264（兼容性优先）", "HEVC（H.265）" };
         ResolutionInput.ItemsSource = new[] { "保持原分辨率", "最长边 1920", "最长边 1280", "最长边 854" };
         FrameRateInput.ItemsSource = new[] { "保持原帧率", "不超过 30 fps", "不超过 24 fps" };
@@ -62,7 +66,7 @@ public partial class VideoCompressionWindow : Window
         PresetInput.SelectedIndex = (int)options.Preset; SpeedInput.SelectedIndex = (int)options.Speed;
         QualityInput.Value = options.Quality; BitrateInput.Value = options.VideoBitrate;
         BitratePresetInput.SelectedIndex = Math.Max(0, Array.IndexOf(CommonBitrates, options.VideoBitrate));
-        FormatInput.SelectedIndex = options.Format == "mkv" ? 1 : 0;
+        FormatInput.SelectedIndex = Array.IndexOf(Formats, options.Format);
         CodecInput.SelectedIndex = options.Codec == "hevc" ? 1 : 0;
         ResolutionInput.SelectedIndex = Array.IndexOf(new[] { 0, 1920, 1280, 854 }, options.MaxDimension);
         FrameRateInput.SelectedIndex = Array.IndexOf(new[] { 0, 30, 24 }, options.MaxFrameRate);
@@ -146,7 +150,7 @@ public partial class VideoCompressionWindow : Window
             VideoBitrate = (int)Number(BitrateInput, 4000, mode == VideoCompressionMode.Bitrate, true),
             Percentage = (double)Number(PercentageInput, 60, mode == VideoCompressionMode.Percentage),
             TargetMegabytes = (double)Number(SizeInput, 50, mode == VideoCompressionMode.TargetSize),
-            Format = FormatInput.SelectedIndex == 1 ? "mkv" : "mp4", Codec = CodecInput.SelectedIndex == 1 ? "hevc" : "h264",
+            Format = Formats[FormatInput.SelectedIndex], Codec = CodecInput.SelectedIndex == 1 ? "hevc" : "h264",
             MaxDimension = new[] { 0, 1920, 1280, 854 }[ResolutionInput.SelectedIndex],
             MaxFrameRate = new[] { 0, 30, 24 }[FrameRateInput.SelectedIndex],
             AudioBitrate = new[] { 64, 96, 128, 192 }[AudioInput.SelectedIndex],
@@ -178,6 +182,7 @@ public partial class VideoCompressionWindow : Window
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(30));
             entry.Info = await _engine.Probe(entry.Path, timeout.Token);
+            entry.Color = VideoCompressionColor.Inspect(entry.Info);
         }
         catch (OperationCanceledException) { entry.InspectionError = "媒体读取超时或已取消。"; }
         catch (Exception exception) { entry.InspectionError = exception.Message; }
@@ -206,7 +211,7 @@ public partial class VideoCompressionWindow : Window
             2 => "最长边 1280 · 不超过 30 fps · 质量 28 · 快速",
             _ => "最长边 1920 · 不超过 30 fps · 质量 23 · 中速"
         }, KeepAudioInput.IsChecked == true ? Localization.Format($"音频 {preset.AudioBitrate} kbps（源视频有声音时）") : "移除声音"]);
-        OutputSummary.Text = Localization.Format($"输出：{(FormatInput.SelectedIndex == 1 ? "MKV" : "MP4")} · {(CodecInput.SelectedIndex == 1 ? "HEVC" : "H.264")}");
+        OutputSummary.Text = Localization.Format($"输出：{(FormatInput.SelectedIndex >= 0 ? Formats[FormatInput.SelectedIndex].ToUpperInvariant() : "")} · {(CodecInput.SelectedIndex == 1 ? "HEVC" : "H.264")}");
         ModeDescription.Text = Localization.Text(VideoCompression.UsesQuality(mode)
             ? "按画质控制编码；体积由画面内容决定，可能大于原文件。分辨率与帧率只降低，不放大。"
             : "按码率或体积预算编码；预计大小不作精确保证，画质随码率变化。分辨率与帧率只降低，不放大。");
