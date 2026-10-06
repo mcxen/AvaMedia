@@ -1,4 +1,8 @@
-## 开发中（v1.1.8 之后）
+## v1.1.9
+
+修复 macOS ARM64 媒体工具构建：LAME 关闭未使用的 mpg123 解码器，FFmpeg 显式链接系统 libiconv，ICO 的 PNG 输出验证使用 RGBA。完整原生 CI 通过 225 项检查和 27 个真实媒体输出，运行包二进制合计 27.34 MiB，带空格目录安装与产物上传通过。
+
+Release 与原生工具工作流共用精确匹配的已验证缓存，复用 FFmpeg、对应源码和 QuickJS；安装包上传省去二次压缩，Windows 与 macOS 并行构建。日常 CI 编译客户端，发布流程检查安装包与原生启动。
 
 统一播放器、拖入路由、快速剪辑、压缩、批量工具和 Windows 打开方式的视频输入名单，补齐 3GP / 3G2 别名、RM / RMVB、DivX、旧 QuickTime、VCD / DVD、DV、AMV、NSV 与 FLI / FLC。输入与原格式导出名单分开维护；不能原格式导出的输入可以转为 MP4 / MKV。
 
