@@ -63,7 +63,7 @@ def main():
         capabilities[name] = sorted(listing("-" + name))
         check(not (missing := set(required) - set(capabilities[name])), name + " covers client: " + ", ".join(sorted(missing)))
     capabilities["devices"] = sorted(listing("-devices"))
-    check("avfoundation" in capabilities["devices"], "AVFoundation screen capture is compiled")
+    check("avfoundation" not in capabilities["devices"], "Unused AVFoundation capture device is excluded")
     protocols = set(invoke(ffmpeg, "-hide_banner", "-protocols").split())
     check({"file", "pipe", "http", "https", "tcp", "udp"} <= protocols, "Local and network protocols are present")
     with tempfile.TemporaryDirectory(prefix="avamedia-ffmpeg-verify-") as temporary:

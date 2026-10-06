@@ -116,13 +116,6 @@ var skippedCalls=0;var disabledEngine=new MediaEngine(new(){AutoDetectGpu=false}
 var software=new Job{FeatureId="mp4",Inputs=[video],Output=Path.Combine(root,"gpu-disabled.mp4")};
 disabledEngine.Execute(software,_=>{},CancellationToken.None).GetAwaiter().GetResult();outputs.Add(software.Output);
 Check(skippedCalls==0 && engine.Probe(software.Output).GetAwaiter().GetResult().VideoCodec=="mpeg4","Disabling GPU auto-detection still uses GPU.");
-if(OperatingSystem.IsWindows())
-{
-    var recordCalls=0;var recordEngine=new MediaEngine(new(),(_,_)=>{recordCalls++;return Task.FromResult<IReadOnlyList<HardwareEncoderResult>>([new("Recording fallback fixture","h264_nvenc",true,"Exercise fallback even on a runner without a GPU.")]);});
-    var record=new Job{FeatureId="record",Options=new(){RecordSeconds=.1,RecordSource="window=AvaMedia-Settings-Missing-"+Guid.NewGuid()},Output=Path.Combine(root,"missing-record.mp4")};
-    try{recordEngine.Execute(record,_=>{},CancellationToken.None).GetAwaiter().GetResult();throw new Exception("Nonexistent recording window unexpectedly worked.");}catch(InvalidOperationException){ }
-    Check(recordCalls==1 && record.Log.Contains("回退软件编码") && !Directory.EnumerateFiles(root,".AvaMedia-gpu-*").Any(),"Recording skipped GPU policy or leaked temporary files after capture failure.");
-}
 
 AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 Motion.SetReducedMotion(true); Application.Current!.RequestedThemeVariant = ThemeVariant.Light;

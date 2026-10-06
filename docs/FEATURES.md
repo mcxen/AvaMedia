@@ -6,7 +6,7 @@
 |---|---|---|
 | 主窗口 | 菜单、工具栏、六类功能、4 列格式按钮、合并宽按钮、任务列表、状态栏 | 布局按用户截图重建，图标为原创矢量；窗口可缩放 |
 | 队列 | 多文件、多任务并行、进度、停止、重试、自动保存、导入导出、日志、文件拖放 | 队列恢复与失败隔离通过测试；输出防覆盖 |
-| 选项设置 | 参考高级页、Apple / NVIDIA / Intel / AMD 自动 GPU 编解码适配、按平台与源编码选择、解码和编码分级回退、录屏硬件编码、1–16 线程、JPG / WebP 默认质量、立即应用与草稿取消 | 既有设置检查见 [SETTINGS.md](SETTINGS.md)；新增 GPU 适配仅完成编译与静态检查，能力范围见 [GPU-TRANSCODING.md](GPU-TRANSCODING.md)；资源共享未接入 |
+| 选项设置 | 参考高级页、Apple / NVIDIA / Intel / AMD 自动 GPU 编解码适配、按平台与源编码选择、解码和编码分级回退、1–16 线程、JPG / WebP 默认质量、立即应用与草稿取消 | 既有设置检查见 [SETTINGS.md](SETTINGS.md)；新增 GPU 适配仅完成编译与静态检查，能力范围见 [GPU-TRANSCODING.md](GPU-TRANSCODING.md)；资源共享未接入 |
 | 视频格式转换 | 单一入口选择 MP4、MKV、WebM、AVI、FLV、MOV、WMV、MPG、TS、GIF | 格式输出已有验证；本次合并入口仅完成编译和静态检查 |
 | 音频 | MP3、FLAC、WAV、M4A、OGG、AAC、AC3、WMA、Opus、AIFF | 10 类均生成实际输出 |
 | 音频输出配置 | 独立音视频 copy、采样率/声道、全部音轨保留、百分比音量、独立音频淡入淡出、回声、FFT 降噪、区间反向 | 32 项实际输出与界面检查通过；实现和限制见 [AUDIO-OPTIONS.md](AUDIO-OPTIONS.md)，macOS 真机尚未验收 |
@@ -23,7 +23,6 @@
 | 修复 | 流复制重新封装、元数据保留开关 | 修复不是损坏媒体保证恢复 |
 | 导出帧 | 按间隔生成 PNG 序列 | 3 秒 / 1 秒间隔输出 3 帧；4 秒 / 0.5 秒间隔输出 8 帧 |
 | 天池播放器 | 窗口内视频、声音、选轨、定位、逐步前后、停止、静音；任务右键播放已完成的输出视频，多选组成播放列表 | 播放引擎已有 Windows 实际解码验证；本次输出播放入口仅通过编译检查，未运行功能回归；Mac AudioQueue 真机声音与同步待验收 |
-| 录屏 | Windows gdigrab / macOS AVFoundation、设置帧率与时长、停止 | Windows 可读片段已验证；Mac 设备选择/权限提示已接入，实际录屏待验收；暂不含系统声音 |
 | 下载 | 内置 yt-dlp / QuickJS-NG，分享文本、批量解析、播放列表 / 分P、画质、音频、字幕、登录态、代理、续传、进度与日志 | 下载专项生成 MP4 / MKV / MP3 / M4A 四种真实输出并验证；公网站点与账号限制见 [视频下载](VIDEO-DOWNLOAD.md) |
 | PDF | 合并、按页拆分、TXT、DOCX、XLSX 文本提取、TXT/PDF、图片/PDF | 页数、文本与 Office 容器 XML 通过检查；8 种图片格式均可转 PDF |
 | 压缩 | ZIP 压缩、解压 | 重复文件名去重、越界路径拒绝通过测试；RAR/7z 未实现 |
@@ -41,7 +40,7 @@
 
 ## 验证记录
 
-`tests/AvaMedia.SmokeTests` 生成实际测试素材，检查媒体探测、输出尺寸/时长、图像/音轨、不同规格合并、录屏、下载、文档页数和文本、ZIP 越界、源文件防覆盖、队列恢复和取消。验证报告位于 `artifacts/verification-*/report.json`。
+`tests/AvaMedia.SmokeTests` 生成实际测试素材，检查媒体探测、输出尺寸/时长、图像/音轨、不同规格合并、下载、文档页数和文本、ZIP 越界、源文件防覆盖、队列恢复和取消。验证报告位于 `artifacts/verification-*/report.json`。
 
 1.0.2 覆盖 52 个转换入口、59 个通用输出；39 项功能专项生成 19 个输出，检查合并、混流、音频参数、字幕、预设、逐文件编辑和批量操作。发布版 UI 记录位于 `artifacts/ui-final-1.0.2/`，包含主窗口、快速剪辑、编辑器 PNG 与实际解码 20 帧的 `ui-verification.json`。
 

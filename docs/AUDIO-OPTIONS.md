@@ -28,4 +28,4 @@
 
 2026-10-05 Windows 验证：32 项专项检查通过；快速剪辑回归 48 项通过；通用转换回归 75 项通过。实际报告分别位于 `artifacts/audio-options-20261005-192824/report.json`、`artifacts/quick-clip-20261005-192843/report.json`、`artifacts/verification-20261005-192728/report.json`。浅深色输出配置 PNG 位于音频专项报告目录，已人工查看布局。
 
-这些参数处理位于共享 C# / FFmpeg 引擎，未引入平台专属滤镜依赖。本轮只有 Windows 实测证据；后续已接入 Mac AudioQueue 与 AVFoundation 后端并交叉发布两个架构应用包，但 macOS 真机验收仍未完成。平台说明见 [PLATFORMS.md](PLATFORMS.md)，不能将上述检查直接视为双平台支持完成。
+这些参数处理位于共享 C# / FFmpeg 引擎，未引入平台专属滤镜依赖。本轮只有 Windows 实测证据；后续已接入 Mac AudioQueue 音频后端并交叉发布两个架构应用包，但 macOS 真机验收仍未完成。平台说明见 [PLATFORMS.md](PLATFORMS.md)，不能将上述检查直接视为双平台支持完成。

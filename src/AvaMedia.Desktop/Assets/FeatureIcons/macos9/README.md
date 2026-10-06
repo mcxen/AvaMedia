@@ -16,7 +16,6 @@
 | clip.png | 快速剪辑 |
 | erase.png | 去除水印 |
 | frames.png | 提取视频帧 |
-| record.png | 屏幕录制 |
 | player.png | 视频播放器 |
 | download.png | 视频下载 |
 | audio.png | 音频转换 |

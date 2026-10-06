@@ -266,7 +266,7 @@ def main():
                "--enable-shared", "--disable-static", "--enable-small", "--disable-debug", "--disable-doc",
                "--disable-ffplay", "--disable-autodetect", "--enable-gpl", "--enable-version3",
                "--enable-pthreads", "--enable-neon", "--enable-zlib", "--enable-bzlib", "--enable-iconv",
-               "--enable-securetransport", "--enable-videotoolbox", "--enable-audiotoolbox", "--enable-avfoundation",
+               "--enable-securetransport", "--enable-videotoolbox", "--enable-audiotoolbox", "--disable-avfoundation",
                "--enable-libass", "--enable-libfreetype", "--enable-libharfbuzz", "--enable-libfribidi",
                "--enable-libaom", "--enable-libvpx", "--enable-libwebp", "--enable-libmp3lame",
                "--enable-libopus", "--enable-libvorbis", "--enable-libx264", "--enable-libx265", "--enable-libzimg",

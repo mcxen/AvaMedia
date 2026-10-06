@@ -23,7 +23,7 @@ git push origin v1.0.5
 ./scripts/Verify-WindowsInstaller.ps1 -Version 1.0.5
 ```
 
-macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64，应用声明最低 macOS 13.4，与 ONNX Runtime 的 Mach-O 部署版本一致；归档检查会核对原生库与下载工具的最低版本。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的录制权限与音频设备仍需验收。
+macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64，应用声明最低 macOS 13.4，与 ONNX Runtime 的 Mach-O 部署版本一致；归档检查会核对原生库与下载工具的最低版本。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的音频设备仍需验收。
 
 新构建将官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定版本并核对 SHA256，附来源清单和许可证。Windows 使用官方 QuickJS 运行器；Mac 从固定源码构建同版本 ARM64 运行器，部署目标 13.4，并检查系统依赖和实际 JavaScript 执行，避免官方二进制要求 macOS 26。Mac ZIP 保留工具执行权限。FFmpeg / FFprobe 继续作为独立媒体引擎。Windows 开始菜单提供工具安装入口，安装至应用 `tools` 目录；macOS 定制 FFmpeg 作为独立运行包和对应源码归档上传同一 Release，并附校验清单，应用附带安装脚本。Windows 工具采用 LGPL 构建，macOS 定制工具包含 x264 / x265，采用 GPL-3.0-or-later；详见 [macOS FFmpeg](FFMPEG-MACOS.md)。依赖和安装器许可保存在 `licenses/`，下载打包与验证见 [视频下载](VIDEO-DOWNLOAD.md)。
 

@@ -51,8 +51,6 @@ bool blocked=false;try{await Run("unzip",[hostile],folder:true);}catch(InvalidDa
 bool validation=false;try{MediaEngine.Validate(new(){Inputs=[input],Output=input});}catch(ArgumentException){validation=true;}Check(validation,"源文件覆盖未被拒绝");
 var storage=new Storage(Path.Combine(root,"state"));var resumable=new Job{Inputs=[input],State=JobState.Running};storage.SaveJobs([resumable]);Check(storage.LoadJobs()[0].State==JobState.Cancelled,"中断队列没有恢复为可重试状态");
 var running=new Job{Inputs=[input],Output=Path.Combine(root,"queue.mp4")};var failing=new Job{Inputs=["missing.mp4"],Output=Path.Combine(root,"missing-out.mp4")};var queue=new QueueService(engine);await queue.Run([running,failing],2);Check(running.State==JobState.Completed && failing.State==JobState.Failed,"队列不能隔离失败任务");
-var longRecord=new Job{FeatureId="record",Options=new(){RecordSeconds=30},Output=Path.Combine(root,"cancel-record.mp4")};var stopQueue=new QueueService(engine);var recordTask=stopQueue.Run([longRecord],1);await Task.Delay(700);stopQueue.Stop();await recordTask;Check(longRecord.State==JobState.Cancelled,"停止任务未生效");
-var recorded=await Run("record",[],new(){RecordSeconds=.6,Fps=10});Check((await engine.Probe(recorded.Output)).HasVideo,"录屏没有产生可读视频");
 using(var listener=new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback,0))
 {
     listener.Start();var port=((System.Net.IPEndPoint)listener.LocalEndpoint).Port;using var serverStop=new CancellationTokenSource();var bytes=await File.ReadAllBytesAsync(input);

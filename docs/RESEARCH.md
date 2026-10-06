@@ -17,7 +17,7 @@
 | 能力 | 组件 / 实现 | 许可与复用方式 |
 |---|---|---|
 | 跨平台窗口、布局、控件 | Avalonia 11.3.22 | MIT；保留版权与许可 |
-| 转码、探测、缩略图、播放解码、录屏、滤镜 | 外部 FFmpeg / FFprobe | 独立进程 `ArgumentList`；用户可替换；按实际构建的 LGPL/GPL 条款处理 |
+| 转码、探测、缩略图、播放解码、滤镜 | 外部 FFmpeg / FFprobe | 独立进程 `ArgumentList`；用户可替换；按实际构建的 LGPL/GPL 条款处理 |
 | Windows 预览声音 | NAudio 2.2.1 | MIT；保留许可 |
 | PDF 合并、拆分、图片 / 文本生成 PDF | PDFsharp 6.2.4 | MIT；系统字体在用户机器上加载，没有分发字体文件 |
 | PDF 文字提取 | PdfPig 0.1.13 | Apache-2.0；附许可证与适用 NOTICE |

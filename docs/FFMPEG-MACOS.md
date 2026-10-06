@@ -15,7 +15,7 @@ FFmpeg 自身采用共享库；所需第三方库静态编入对应媒体库。�
 | AV1、AVIF、VP8 / VP9、WebP | libaom、libvpx、libwebp |
 | MP3、Opus、Vorbis | LAME、Opus、libogg / libvorbis |
 | 字幕烧录、中文与文字叠加 | libass、FreeType、HarfBuzz、FriBidi、libunibreak；字幕字体来自 CoreText，多宫格时间戳直接读取系统字体 |
-| 硬件编解码、音频与录屏入口 | VideoToolbox、AudioToolbox、AVFoundation |
+| 硬件编解码与音频 | VideoToolbox、AudioToolbox |
 | HTTPS | 系统 Secure Transport |
 
 未引入客户端没有使用的 VMAF、libplacebo、SDL、ICU、Cairo、GLib 或额外 AV1 编码器。HarfBuzz 的字体子集、GPU 和工具组件关闭；保留文字整形。保留 CPU 检测和 ARM 优化指令，避免只适用于构建机器。`--enable-small` / `-Os` 偏向体积；实际耗时记录在客户端消融报告中。
@@ -53,11 +53,11 @@ bash scripts/Install-MediaTools-macOS.sh \
 
 Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避免 Windows 测试失败后完全跳过 Mac 验证。最终 Release 仍要求两个平台都通过。
 
-原生检查覆盖单一 ARM64 架构、动态库相对路径、签名、文件哈希、编码器 / 滤镜 / 容器 / 协议和 AVFoundation 入口，实际编码与解码 27 个输出，比较字幕和时间戳的真实像素。Release 另运行客户端音频、字幕、批量工具和消融测试。独立工作流还把归档安装到带空格的新目录，验证运行库与原构建目录无关。
+原生检查覆盖单一 ARM64 架构、动态库相对路径、签名、文件哈希、编码器 / 滤镜 / 容器 / 协议；不包含 AVFoundation 采集设备。实际编码与解码 27 个输出，比较字幕和时间戳的真实像素。Release 另运行客户端音频、字幕、批量工具和消融测试。独立工作流还把归档安装到带空格的新目录，验证运行库与原构建目录无关。
 
 独立工作流同时从固定源码构建 QuickJS，并按 `Directory.Build.props` 的开发版本原生发布应用 ZIP、检查完整归档；产物分别保存在 `quickjs-osx-arm64`、`ffmpeg-osx-arm64` 与 `macos-application-archive`。它不会创建 GitHub Release。
 
-本地已完成 15 项源码校验、工作流与脚本语法检查、客户端构建，以及批量工具 28 项、音频选项 32 项、字幕 32 项和消融 35 项回归。当前开发环境为 Windows，尚未完成定制运行包的 macOS 原生构建；实际体积、原生输出和耗时以首次 ARM64 构建的 `build.json`、`verification.json` 与日志为准。录屏权限和硬件设备能力按实际设备验收。
+本地已完成 15 项源码校验、工作流与脚本语法检查、客户端构建，以及批量工具 28 项、音频选项 32 项、字幕 32 项和消融 35 项回归。当前开发环境为 Windows，尚未完成定制运行包的 macOS 原生构建；实际体积、原生输出和耗时以首次 ARM64 构建的 `build.json`、`verification.json` 与日志为准。硬件设备能力按实际设备验收。
 
 ## 许可证
 

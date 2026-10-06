@@ -13,6 +13,4 @@
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>__CHINESE_NAME__在您选择录音来源后需要访问麦克风。</string>
-  <key>NSCameraUsageDescription</key><string>__CHINESE_NAME__在您选择视频采集来源后需要访问摄像头。</string>
 </dict></plist>
