@@ -59,13 +59,15 @@ bash scripts/Install-MediaTools-macOS.sh \
 
 [原生构建工作流](../.github/workflows/ffmpeg-macos.yml) 在相关源码变更、Pull Request 或手动触发时运行。tag 的 [Release 工作流](../.github/workflows/release.yml) 同样先构建与验证，再上传运行包、对应源码和清单。
 
-Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避免 Windows 测试失败后完全跳过 Mac 验证。最终 Release 仍要求两个平台都通过。
+Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避免 Windows 打包失败后完全跳过 Mac 验证。最终 Release 仍要求两个平台都通过。
 
-原生检查覆盖单一 ARM64 架构、动态库相对路径、签名、文件哈希、编码器 / 滤镜 / 容器 / 协议；不包含 AVFoundation 采集设备。实际编码与解码 27 个输出，比较字幕和时间戳的真实像素。Release 另运行客户端音频、字幕、批量工具和消融测试。独立工作流还把归档安装到带空格的新目录，验证运行库与原构建目录无关。
+原生检查覆盖单一 ARM64 架构、动态库相对路径、签名、文件哈希、编码器 / 滤镜 / 容器 / 协议；不包含 AVFoundation 采集设备。实际编码与解码 27 个输出，比较字幕和时间戳的真实像素。独立工作流还把归档安装到带空格的新目录，验证运行库与原构建目录无关。Release 另检查客户端原生启动、应用归档和安装包，不运行客户端媒体全量回归。
 
-独立工作流同时从固定源码构建 QuickJS，并按 `Directory.Build.props` 的开发版本原生发布应用 ZIP、检查完整归档；产物分别保存在 `quickjs-osx-arm64`、`ffmpeg-osx-arm64` 与 `macos-application-archive`。它不会创建 GitHub Release。
+独立工作流同时从固定源码构建 QuickJS，产物保存在 `quickjs-osx-arm64` 与 `ffmpeg-osx-arm64`，诊断日志保存在 `ffmpeg-build-logs`。它只处理媒体工具，不编译客户端或创建 GitHub Release；应用 ZIP、PKG、DMG 由 Release 工作流负责。
 
-本地已完成 15 项源码校验、工作流与脚本语法检查、客户端构建，以及批量工具 28 项、音频选项 32 项、字幕 32 项和消融 35 项回归。当前开发环境为 Windows，尚未完成定制运行包的 macOS 原生构建；实际体积、原生输出和耗时以首次 ARM64 构建的 `build.json`、`verification.json` 与日志为准。硬件设备能力按实际设备验收。
+2026-10-06 的 [ARM64 原生 CI](https://github.com/mcxen/AvaMedia/actions/runs/37471073518) 在提交 `18b61fc` 全部通过，冷构建 job 用时 8 分 55 秒。验证日志记录 `PASS 225 native checks; 27 real outputs`，包括 ICO 的 PNG / RGBA 输出、字幕和时间戳绘制；带空格目录安装验证及产物上传也通过。媒体二进制合计 27.34 MiB，运行包、对应源码及 QuickJS 已保存为精确匹配的缓存；缓存命中的耗时另以后续运行记录为准。
+
+这次 Windows 本地只检查了修改脚本的 Python 语法与 Git 差异，没有运行媒体回归。原生检查由上述 Apple Silicon CI 执行，硬件设备能力仍按实际设备验收。
 
 ## 许可证
 

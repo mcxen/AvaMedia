@@ -13,6 +13,8 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 2026-10-06 的 [v1.1.8 发布失败日志](https://github.com/mcxen/AvaMedia/actions/runs/37453172312) 有两个独立失败点：Windows `FunctionTests` 按已移除的“批量”菜单标题查找入口，现改用 `BatchCropMenuItem` 控件名称；macOS FriBidi 构建缺少 `help2man`，Release 和独立 FFmpeg 工作流现均安装该工具。旧 tag 保留原提交，重跑旧记录仍使用原工作流与源码；这些修复随后续版本 tag 生效。
 
+后续原生 CI 的三个阻塞已修复：LAME 4.0 编码库关闭不需要的 mpg123 解码器；FFmpeg 显式链接 macOS 系统 libiconv；ICO 输出验证指定 PNG 所需的 RGBA 像素格式。[提交 18b61fc 的完整原生 CI](https://github.com/mcxen/AvaMedia/actions/runs/37471073518) 已通过，包含 225 项检查、27 个真实媒体输出、归档安装及上传，原生缓存保存成功。[Windows 客户端 CI](https://github.com/mcxen/AvaMedia/actions/runs/37459158475) 也已通过；这次仅修改 macOS 构建与验证脚本。该记录验证媒体工具工作流，尚未发布新的客户端 Release。
+
 ## 发布提速
 
 Release 和独立 macOS 工作流共用 `native-media` action，缓存验证通过的 FFmpeg 运行包、精确对应的源码包、校验清单及 QuickJS。缓存按 ARM64、Clang / SDK、源码锁文件、构建与验证脚本、能力清单和许可证内容精确匹配；普通客户端修改与版本号变更可以复用，相关输入变化则重建。不使用模糊匹配的原生运行包。缓存命中后仍核对两个 FFmpeg 归档的 SHA256、配方与源码锁哈希，重新执行原有原生媒体验证及 QuickJS 检查；客户端、安装器和发布检查保留。运行包与对应源码在原生验证成功后立即写入缓存，后续客户端失败不会丢失它们。默认分支的缓存可被 tag 工作流读取，首次构建或缓存淘汰时仍需完整编译。依据 [GitHub Cache 文档](https://github.com/actions/cache#cache-scopes)。
