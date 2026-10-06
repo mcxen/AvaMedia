@@ -6,7 +6,7 @@ public enum PlayerCommand
 {
     TogglePlayback, ToggleFullscreen, ExitFullscreen, Back5, Forward5, Back30, Forward30,
     Back60, Forward60, VolumeUp, VolumeDown, Mute, Slower, Faster, NormalSpeed,
-    PreviousFrame, NextFrame, Restart, PreviousFile, NextFile, Open, Stop, Help, Playlist, Settings
+    PreviousFrame, NextFrame, Restart, PreviousFile, NextFile, Open, Stop, Help, Playlist, Settings, DeleteFile
 }
 
 public static class PlayerShortcuts
@@ -38,6 +38,7 @@ public static class PlayerShortcuts
         (Key.F1, KeyModifiers.None) => PlayerCommand.Help,
         (Key.F6, KeyModifiers.None) => PlayerCommand.Playlist,
         (Key.F5, KeyModifiers.None) => PlayerCommand.Settings,
+        (Key.Delete, KeyModifiers.None) => PlayerCommand.DeleteFile,
         _ => null
     };
 }

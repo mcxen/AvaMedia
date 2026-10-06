@@ -96,7 +96,7 @@ foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
     Key(window, Avalonia.Input.Key.Escape); Check(window.WindowState != WindowState.FullScreen, skin + ": Escape exits fullscreen");
     Key(window, Avalonia.Input.Key.F1); Check(Find<Border>(window, "ShortcutHelp").IsVisible, skin + ": F1 shows the key reference");
     Key(window, Avalonia.Input.Key.F1);
-    Key(window, Avalonia.Input.Key.F6); Check(Find<Border>(window, "PlaylistPanel").IsVisible && Find<ListBox>(window, "PlaylistList").ItemCount == 2, skin + ": F6 opens the real playlist beside the picture");
+    Key(window, Avalonia.Input.Key.F6); Check(Find<Border>(window, "PlaylistPanel").IsVisible && Find<ListBox>(window, "PlaylistList").ItemCount >= 2, skin + ": F6 opens the real playlist beside the picture");
     Key(window, Avalonia.Input.Key.F6);
     foreach (var size in new[] { (1100d, 720d, "normal"), (760d, 460d, "minimum") })
     {
@@ -144,8 +144,49 @@ var bad = new PlayerWindow(engine, [Path.Combine(root, "missing.mp4")]); bad.Sho
 Check(bad.PlaybackError.Length > 0 && !bad.IsPlaying && !Find<Button>(bad, "PlayerPlayButton").IsEnabled, "An unreadable file presents an actionable error and leaves play disabled"); bad.Close();
 Check(PlayerShortcuts.Resolve(Avalonia.Input.Key.Right, KeyModifiers.Shift) == PlayerCommand.Forward30 && PlayerShortcuts.Resolve(Avalonia.Input.Key.Left, KeyModifiers.Control) == PlayerCommand.Back60, "Modified arrow keys retain PotPlayer jump intervals");
 Check(PlayerShortcuts.Resolve(Avalonia.Input.Key.C, KeyModifiers.Control) is null, "Text editing shortcuts are not converted into player commands");
+var folder = Path.Combine(root, "folder"); var otherFolder = Path.Combine(root, "other-folder");
+Directory.CreateDirectory(folder); Directory.CreateDirectory(otherFolder); Directory.CreateDirectory(Path.Combine(folder, "nested"));
+var episode2 = Path.Combine(folder, "Episode 2.MP4"); var episode10 = Path.Combine(folder, "Episode 10.mp4"); var other = Path.Combine(otherFolder, "other.mp4");
+File.Copy(source, episode2); File.Copy(next, episode10); File.Copy(source, other);
+File.Copy(source, Path.Combine(folder, "nested", "hidden.mp4")); File.Copy(longAudio, Path.Combine(folder, "audio.flac")); File.WriteAllText(Path.Combine(folder, "notes.txt"), "not video");
+var scan = new VideoFolderScanner().ScanAsync(folder, CancellationToken.None); Complete(scan);
+Check(scan.Result.SequenceEqual(new[] { episode2, episode10 }), "Folder scan includes upper-case video extensions, sorts episode numbers, and excludes audio, documents and subfolders");
+var cancelledScan = new VideoFolderScanner().ScanAsync(folder, new CancellationToken(true)); Wait(() => cancelledScan.IsCompleted);
+Check(cancelledScan.IsCanceled, "Folder enumeration supports cancellation");
+var deferred = new DeferredFolderScanner(); Playback? folderDecoder = null;
+var folderWindow = new PlayerWindow(engine, [episode2], (_, path) => folderDecoder = Create(path), deferred); folderWindow.Show(); Complete(folderWindow.Ready);
+Wait(() => deferred.Requests.Count == 1);
+Check(folderWindow.IsPlaying && !folderWindow.PlaylistReady.IsCompleted && deferred.Requests[0].Directory == folder, "First-frame playback finishes while folder enumeration is still pending in the background");
+Complete(folderWindow.TogglePlaybackAsync()); Complete(folderWindow.SeekAsync(2, false)); var priorProcesses = folderDecoder!.StartedProcesses;
+deferred.Requests[0].Result.SetResult(new[] { episode2, episode10, episode10 }); Complete(folderWindow.PlaylistReady);
+Check(Find<ListBox>(folderWindow, "PlaylistList").ItemCount == 2 && folderWindow.CurrentPath == episode2 && folderWindow.SourcePosition == 2 && folderDecoder.StartedProcesses == priorProcesses && !folderWindow.IsPlaying,
+    "Folder results deduplicate entries and preserve the current file, position, pause state and decoder");
+Complete(folderWindow.ExecuteAsync(PlayerCommand.NextFile));
+Check(folderWindow.CurrentPath == episode10 && folderWindow.IsPlaying && deferred.Requests.Count == 1, "Next-file navigation uses the background folder list without rescanning the same directory");
+folderWindow.Close(); Pump();
+var staleScanner = new DeferredFolderScanner();
+var staleWindow = new PlayerWindow(engine, [episode2], (_, path) => Create(path), staleScanner); staleWindow.Show(); Complete(staleWindow.Ready); Wait(() => staleScanner.Requests.Count == 1);
+var abandoned = staleWindow.PlaylistReady; Complete(staleWindow.OpenAsync(other)); Wait(() => staleScanner.Requests.Count == 2);
+staleScanner.Requests[0].Result.SetResult(new[] { episode2, episode10 }); Complete(abandoned);
+Check(staleScanner.Requests[0].Token.IsCancellationRequested && Find<ListBox>(staleWindow, "PlaylistList").ItemCount == 1 && staleWindow.CurrentPath == other,
+    "Switching folders cancels the old enumeration and discards late results");
+staleScanner.Requests[1].Result.SetResult(new[] { other }); Complete(staleWindow.PlaylistReady);
+Check(Find<ListBox>(staleWindow, "PlaylistList").SelectedIndex == 0 && staleWindow.CurrentPath == other, "Only the current folder result becomes the active playlist");
+Complete(staleWindow.OpenAsync(episode2)); Wait(() => staleScanner.Requests.Count == 3); var closingList = staleWindow.PlaylistReady;
+staleWindow.Close(); staleScanner.Requests[2].Result.SetResult(new[] { episode2, episode10 }); Complete(closingList);
+Check(staleScanner.Requests[2].Token.IsCancellationRequested && !staleWindow.IsVisible, "Closing the player cancels folder work and prevents late UI updates");
 File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { checks = checks.Count, results = checks, timings }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"Verified {checks.Count} player checks. {root}");
+
+sealed class DeferredFolderScanner : IVideoFolderScanner
+{
+    public List<(string Directory, CancellationToken Token, TaskCompletionSource<IReadOnlyList<string>> Result)> Requests { get; } = [];
+    public Task<IReadOnlyList<string>> ScanAsync(string directory, CancellationToken token)
+    {
+        var result = new TaskCompletionSource<IReadOnlyList<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Requests.Add((directory, token, result)); return result.Task;
+    }
+}
 
 sealed class MeasuredAudio : IAudioOutput
 {

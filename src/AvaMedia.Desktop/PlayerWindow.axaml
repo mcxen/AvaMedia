@@ -32,7 +32,10 @@
             <Button Grid.Column="1" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="隐藏播放列表" AutomationProperties.Name="隐藏播放列表"><local:ActionIcon Kind="clear"/></Button>
           </Grid>
           <ListBox Grid.Row="1" x:Name="PlaylistList" DoubleTapped="PlaylistDoubleTapped" AutomationProperties.Name="播放列表"/>
-          <Button Grid.Row="2" Classes="field-action" Content="打开文件…" Click="OpenClick"/>
+          <StackPanel Grid.Row="2">
+            <TextBlock x:Name="PlaylistStatus" Text="0 个文件" TextWrapping="Wrap" Margin="{DynamicResource UiPlayerInlinePadding}"/>
+            <Button Classes="field-action" Content="打开文件…" Click="OpenClick"/>
+          </StackPanel>
         </Grid>
       </Border>
     </Grid>

@@ -2,6 +2,8 @@
 
 “格式播放器”打开独立播放窗口。启动参数 `AvaMedia.Desktop.exe --play "视频.mp4"` 或直接传入文件路径，也直接进入播放器；多文件按输入顺序连续播放。打开多个文件或拖入文件可替换播放列表。
 
+首帧播放后，后台异步加载当前文件夹的全部视频，按文件名自然排序（第 2 集在第 10 集之前），不递归扫描子目录。单文件打开后选中当前文件；显式打开多个文件时保留输入顺序，再补入同目录视频并去重。扫描不探测每个文件、不重启当前解码器，也不改变播放位置或暂停状态。同目录切换复用列表，切换目录或关闭窗口取消旧扫描，迟到结果不会覆盖新列表。加载状态显示在播放列表底部。
+
 布局参考 [PotPlayer 官方界面](https://potplayer.tv/)：顶部紧凑标题栏，中间等比画面，底部时间轴与单行控制栏。播放、停止、上一项、下一项和打开位于左侧，随后是当前位置 / 总时长；右侧为音量、速度、设置、播放列表和全屏。右键打开功能菜单，播放列表在画面右侧展开。全屏闲置两秒隐藏控制栏，移动指针恢复。
 
 Light、Dark、Mac OS 9 使用相同布局和组件指标；Mac OS 9 使用现有 Platinum 标题栏。菜单可选择真实音视频轨、播放速度和画面比例，也可查看媒体信息。紧凑窗口收起音量滑块，音量快捷键和静音仍可用。没有复用 PotPlayer 的图标、皮肤文件或代码。
@@ -19,8 +21,13 @@ Light、Dark、Mac OS 9 使用相同布局和组件指标；Mac OS 9 使用现�
 | Page Up / Page Down | 上一 / 下一文件 |
 | F3 / Ctrl+O（Mac 可用 Cmd+O） | 打开媒体文件 |
 | F5；F6；F1 | 播放设置菜单；播放列表；快捷键说明 |
+| Delete | 删除当前原始文件到系统回收站 / 废纸篓 |
 
 以上是本客户端支持的常用 PotPlayer 式键位，其他键位没有接管。文本输入保留编辑快捷键。双击画面切换全屏，画面上滚轮调节音量。
+
+右键菜单“删除原始文件到回收站”与 Delete 执行同一操作。默认直接移入系统回收站；勾选“删除到回收站前确认”可恢复确认窗口，偏好会保存到客户端设置。确认窗口也可勾选“以后直接进回收站，不再确认”。操作先释放当前文件的解码占用，成功后移除列表项并播放下一项，删除末项时播放前一项；最后一个文件删除后回到空播放器。失败保留原列表并恢复原播放位置和状态，显示实际错误。
+
+`IRecycleBin` 隔离系统文件操作：Windows 使用 Shell `IFileOperation` 的 `FOFX_RECYCLEONDELETE`，macOS 使用 Foundation `NSFileManager.trashItemAtURL`。没有永久删除菜单或永久删除的回退。接口参考：[Microsoft Shell 标志](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifileoperation-setoperationflags)、[Apple 废纸篓接口](https://developer.apple.com/documentation/foundation/filemanager/trashitem(at:resultingitemurl:))。
 
 ## 启动与播放
 

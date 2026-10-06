@@ -166,6 +166,7 @@ public sealed class AppSettings
     public bool NotifyComplete { get; set; } = true;
     public bool ReduceMotion { get; set; }
     public string Theme { get; set; } = "Light";
+    public bool ConfirmPlayerDeletion { get; set; }
     public bool AutoDetectGpu { get; set; } = true;
     public int CpuThreads { get; set; } = 8;
     public int JpegQuality { get; set; } = 90;
@@ -176,6 +177,7 @@ public sealed class AppSettings
         OutputFolder=source.OutputFolder;FFmpegPath=source.FFmpegPath;FFprobePath=source.FFprobePath;YtDlpPath=source.YtDlpPath;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;AutoDetectGpu=source.AutoDetectGpu;
+        ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         CpuThreads=source.CpuThreads;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
     }
 }
