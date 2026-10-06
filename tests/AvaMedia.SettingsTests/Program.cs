@@ -194,7 +194,7 @@ Check(!cancelledTest.IsVisible, "Closing HA Test did not cancel cleanly.");
 var mainState = new Storage(Path.Combine(root, "main-state")); mainState.SaveSettings(new() { OutputFolder = root, ReduceMotion = true, NotifyComplete = false });
 mainState.SaveJobs([]);var queueFile=Path.Combine(root,"main-state","queue.json");var queueModified=File.GetLastWriteTimeUtc(queueFile);
 var main = new MainWindow(mainState); main.Show();
-main.GetLogicalDescendants().OfType<MenuItem>().Single(m => Equals(m.Header, "选项")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Dispatcher.UIThread.RunJobs();
+main.FindControl<MenuItem>("SettingsMenuItem")!.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Dispatcher.UIThread.RunJobs();
 var settingsDialog = main.OwnedWindows.OfType<SettingsWindow>().Single();
 settingsDialog.FindControl<CheckBox>("MultithreadInput")!.IsChecked = false;
 settingsDialog.FindControl<NumericUpDown>("JpegQualityInput")!.Value = 72;

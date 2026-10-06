@@ -144,7 +144,11 @@ def build_dependency(name, source, prefix, work, env, jobs, log):
         autotools("--disable-extra-programs", "--disable-doc")
     elif name == "zimg":
         autotools("--disable-testapp", "--disable-example", "--disable-unit-test", "STL_LIBS=-lc++")
-    elif name in {"fribidi", "libunibreak", "libogg", "libvorbis"}:
+    elif name == "libvorbis":
+        # The old Autotools Darwin recipe passes removed Apple linker flags.
+        # Upstream CMake builds just the libraries against our pinned libogg.
+        cmake(f"-DOGG_INCLUDE_DIR={prefix}/include", f"-DOGG_LIBRARY={prefix}/lib/libogg.a")
+    elif name in {"fribidi", "libunibreak", "libogg"}:
         autotools()
     elif name == "libvpx":
         invoke("./configure", f"--prefix={prefix}", "--target=arm64-darwin20-gcc",
@@ -295,7 +299,7 @@ def main():
     (sources_package / "configure-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
     (sources_package / "README.txt").write_text(
         "Rebuild on macOS ARM64 with Xcode command-line tools and Python 3.12+:\n"
-        "brew install cmake meson ninja pkgconf autoconf automake libtool\n"
+        "brew install cmake meson ninja pkgconf autoconf automake libtool help2man\n"
         "python3 scripts/macos/Build-FFmpeg.py --source-root sources --output artifacts\n"
         "AvaMedia build scripts: AGPL-3.0-only, see LICENSE.\n"
         "FFmpeg and dependency sources retain their original licenses within each source archive/repository.\n"

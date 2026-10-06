@@ -100,6 +100,7 @@ Check(rejected, "Fast Copy accepted filters.");
 Check(SHA256.HashData(File.ReadAllBytes(input)).SequenceEqual(originalHash), "Source media changed.");
 
 AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
+Localization.Apply("zh-CN"); // This suite locates and captures the Chinese reference labels.
 Motion.SetReducedMotion(true);
 var window = new QuickClipWindow(engine, root, [input, portrait]); window.Show(); Pump(window.Ready);
 Check(window.Entries.All(e => e.Thumbnail is not null && e.Info is not null), "Row thumbnails did not load.");

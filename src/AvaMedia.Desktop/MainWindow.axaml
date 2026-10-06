@@ -3,7 +3,7 @@
     <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}" Background="{DynamicResource UiMenuSurface}">
       <MenuItem Header="文件"><MenuItem Header="添加文件…" Click="AddClick"/><Separator/><MenuItem Header="保存任务列表…" Click="ExportQueueClick"/><MenuItem Header="载入任务列表…" Click="ImportQueueClick"/><Separator/><MenuItem Header="退出" Click="ExitClick"/></MenuItem>
       <MenuItem Header="WiFi 传文件" Click="WifiTransferClick"/>
-      <MenuItem Header="编辑"><MenuItem Header="偏好设置…" Click="SettingsClick"/></MenuItem>
+      <MenuItem Header="编辑"><MenuItem x:Name="SettingsMenuItem" Header="偏好设置…" Click="SettingsClick"/></MenuItem>
       <MenuItem Header="显示">
         <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/></MenuItem>
         <MenuItem Header="语言"><MenuItem x:Name="SystemLanguageItem" Header="跟随系统" Click="SystemLanguageClick"/><Separator/><MenuItem x:Name="ChineseLanguageItem" Header="简体中文" Click="ChineseClick"/><MenuItem x:Name="EnglishLanguageItem" Header="English" Click="EnglishClick"/></MenuItem>
