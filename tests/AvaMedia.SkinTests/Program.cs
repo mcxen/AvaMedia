@@ -95,9 +95,9 @@ var state = new Storage(Path.Combine(root, "isolated-state")); state.SaveSetting
 var main = new MainWindow(state); main.Show(); Pump();
 Check(main.Content is PlatinumWindowFrame && main.ActualThemeVariant == Skin.MacOS9, "A saved Mac OS 9 skin is restored at startup");
 Capture(main, "main-macos9");
-var item = main.GetVisualDescendants().OfType<Menu>().First().Items.OfType<MenuItem>().Single(i => Equals(i.Header, "显示")).Items.OfType<MenuItem>().Single(i => Equals(i.Header, "皮肤")).Items.OfType<MenuItem>().Single(i => Equals(i.Header, "深色"));
+var item = main.GetVisualDescendants().OfType<Menu>().First().Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("显示"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("皮肤"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("深色")));
 item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Pump(); Check(state.LoadSettings().Theme == "Dark", "The skin menu saves the selected theme");
-main.GetVisualDescendants().OfType<Menu>().First().Items.OfType<MenuItem>().Single(i => Equals(i.Header, "显示")).Items.OfType<MenuItem>().Single(i => Equals(i.Header, "皮肤")).Items.OfType<MenuItem>().Single(i => Equals(i.Header, "Mac OS 9 · Platinum")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Pump();
+main.GetVisualDescendants().OfType<Menu>().First().Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("显示"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("皮肤"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, "Mac OS 9 · Platinum")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Pump();
 Check(state.LoadSettings().Theme == "MacOS9" && main.Content is PlatinumWindowFrame, "The Mac OS 9 menu action changes and persists the skin");
 var frame = (PlatinumWindowFrame)main.Content!;
 var zoom = frame.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "PlatinumZoom"); Click(zoom); Check(main.WindowState == WindowState.Maximized, "The custom zoom button maximizes the window"); Click(zoom); Check(main.WindowState == WindowState.Normal, "The custom zoom button restores the window");

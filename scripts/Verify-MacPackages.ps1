@@ -20,6 +20,53 @@ function Get-MachArchitectures([byte[]]$Bytes) {
     $step=if ($magic -eq 3405691583) { 32 } else { 20 }
     return @(for ($i=0; $i -lt $count; $i++) { Read-BigEndian $Bytes (8+$i*$step) })
 }
+function Get-MachMinimumVersion([byte[]]$Bytes,[uint32]$Architecture) {
+    $start=0
+    $magic=Read-BigEndian $Bytes 0
+    if ($magic -eq 3405691582 -or $magic -eq 3405691583) {
+        $count=Read-BigEndian $Bytes 4
+        $step=if ($magic -eq 3405691583) { 32 } else { 20 }
+        $found=$false
+        for ($i=0; $i -lt $count; $i++) {
+            $position=8+$i*$step
+            if ((Read-BigEndian $Bytes $position) -eq $Architecture) {
+                if ($step -eq 32) {
+                    if ((Read-BigEndian $Bytes ($position+8)) -ne 0) { throw 'Mach-O slice exceeds supported archive size.' }
+                    $start=Read-BigEndian $Bytes ($position+12)
+                } else { $start=Read-BigEndian $Bytes ($position+8) }
+                $found=$true
+                break
+            }
+        }
+        if (!$found) { throw 'Target Mach-O architecture is absent.' }
+    }
+    if ($start+32 -gt $Bytes.Length -or [BitConverter]::ToUInt32($Bytes,$start) -ne 4277009103 -or
+        [BitConverter]::ToUInt32($Bytes,$start+4) -ne $Architecture) { throw 'Expected a target 64-bit Mach-O header.' }
+    $count=[BitConverter]::ToUInt32($Bytes,$start+16)
+    $end=$start+32+[BitConverter]::ToUInt32($Bytes,$start+20)
+    if ($end -gt $Bytes.Length) { throw 'Truncated Mach-O load commands.' }
+    $position=$start+32
+    for ($i=0; $i -lt $count; $i++) {
+        if ($position+8 -gt $end) { throw 'Truncated Mach-O load command.' }
+        $command=[BitConverter]::ToUInt32($Bytes,$position)
+        $size=[BitConverter]::ToUInt32($Bytes,$position+4)
+        if ($size -lt 8 -or $position+$size -gt $end) { throw 'Invalid Mach-O load command size.' }
+        if ($command -eq 0x32 -or $command -eq 0x24) {
+            $offset=if ($command -eq 0x32) { 12 } else { 8 }
+            if ($size -lt $offset+4) { throw 'Truncated Mach-O deployment version.' }
+            if ($command -eq 0x32 -and [BitConverter]::ToUInt32($Bytes,$position+8) -ne 1) { throw 'Expected macOS deployment platform.' }
+            $value=[BitConverter]::ToUInt32($Bytes,$position+$offset)
+            return [version]::new(($value -shr 16),(($value -shr 8) -band 255),($value -band 255))
+        }
+        $position+=$size
+    }
+    throw 'Mach-O deployment version is absent.'
+}
+function Read-ArchiveBytes($Entry) {
+    $stream=$Entry.Open()
+    $buffer=[IO.MemoryStream]::new()
+    try { $stream.CopyTo($buffer); return ,$buffer.ToArray() } finally { $stream.Dispose(); $buffer.Dispose() }
+}
 $packages=@()
 foreach ($runtime in @('osx-arm64')) {
     $path=Join-Path $taskRoot "artifacts/AvaMedia-$Version-$runtime.zip"
@@ -27,21 +74,23 @@ foreach ($runtime in @('osx-arm64')) {
     $archive=[IO.Compression.ZipFile]::OpenRead($path)
     try {
         $root=$appBrand.MacBundleName+'/Contents/'
-        foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libcoreclr.dylib','libhostpolicy.dylib',
-            'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib')) {
-            $entry=$archive.GetEntry($root+'MacOS/'+$name)
-            Assert-Package ($null -ne $entry) "$runtime includes $name"
-            $stream=$entry.Open()
-            try { $header=[byte[]]::new(512); $null=$stream.Read($header,0,512) } finally { $stream.Dispose() }
-            Assert-Package ((Get-MachArchitectures $header) -contains $expected) "$runtime $name contains the target Mach-O architecture"
-            $mode=($entry.ExternalAttributes -shr 16) -band 511
-            Assert-Package (($mode -band 73) -eq 73) "$runtime $name carries Unix execute permissions"
-        }
         $reader=[IO.StreamReader]::new($archive.GetEntry($root+'Info.plist').Open())
         try { [xml]$plist=$reader.ReadToEnd() } finally { $reader.Dispose() }
         $values=@{}
         $nodes=@($plist.plist.dict.ChildNodes)
         for ($i=0; $i -lt $nodes.Length-1; $i+=2) { $values[$nodes[$i].InnerText]=$nodes[$i+1].InnerText }
+        Assert-Package ($values.LSMinimumSystemVersion -eq '13.4') "$runtime declares macOS 13.4 or later"
+        $minimum=[version]$values.LSMinimumSystemVersion
+        foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libcoreclr.dylib','libhostpolicy.dylib',
+            'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib')) {
+            $entry=$archive.GetEntry($root+'MacOS/'+$name)
+            Assert-Package ($null -ne $entry) "$runtime includes $name"
+            $header=Read-ArchiveBytes $entry
+            Assert-Package ((Get-MachArchitectures $header) -contains $expected) "$runtime $name contains the target Mach-O architecture"
+            Assert-Package ((Get-MachMinimumVersion $header $expected) -le [version]::new($minimum.Major,$minimum.Minor,0)) "$runtime $name supports the declared macOS minimum"
+            $mode=($entry.ExternalAttributes -shr 16) -band 511
+            Assert-Package (($mode -band 73) -eq 73) "$runtime $name carries Unix execute permissions"
+        }
         Assert-Package ($values.CFBundleExecutable -eq 'AvaMedia.Desktop' -and $values.CFBundleShortVersionString -eq $Version) "$runtime plist matches executable and version"
         Assert-Package ($values.CFBundleIconFile -eq 'AvaMedia.icns') "$runtime plist selects the AvaMedia application icon"
         $iconEntry=$archive.GetEntry($root+'Resources/AvaMedia.icns')
@@ -54,12 +103,19 @@ foreach ($runtime in @('osx-arm64')) {
         foreach ($tool in @('yt-dlp','qjs')) {
             $entry=$archive.GetEntry($root+'MacOS/tools/'+$tool)
             Assert-Package ($null -ne $entry) "$runtime includes bundled $tool"
-            $stream=$entry.Open()
-            try { $header=[byte[]]::new(512); $null=$stream.Read($header,0,512) } finally { $stream.Dispose() }
+            $header=Read-ArchiveBytes $entry
             Assert-Package ((Get-MachArchitectures $header) -contains $expected) "$runtime $tool contains the target Mach-O architecture"
+            Assert-Package ((Get-MachMinimumVersion $header $expected) -le [version]::new($minimum.Major,$minimum.Minor,0)) "$runtime $tool supports the declared macOS minimum"
             Assert-Package (((($entry.ExternalAttributes -shr 16) -band 511) -band 73) -eq 73) "$runtime $tool carries Unix execute permissions"
         }
         Assert-Package ($null -ne $archive.GetEntry($root+'MacOS/tools/download-tools.json')) "$runtime includes pinned downloader manifest"
+        $reader=[IO.StreamReader]::new($archive.GetEntry($root+'MacOS/tools/download-tools.json').Open())
+        try { $downloader=$reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
+        $quickJsLock=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/quickjs-source.lock.json') -Raw | ConvertFrom-Json
+        Assert-Package ($downloader.quickJsBuild.version -eq $quickJsLock.version -and
+            $downloader.quickJsBuild.sourceSha256 -eq $quickJsLock.sha256 -and
+            $downloader.quickJsBuild.deploymentTarget -eq $values.LSMinimumSystemVersion -and
+            $downloader.quickJsBuild.architecture -eq 'arm64') "$runtime downloader records the pinned ARM64 QuickJS source build"
     } finally { $archive.Dispose() }
     $bytes=[IO.File]::ReadAllBytes($path)
     $end=-1

@@ -63,12 +63,23 @@ def fetch_source(source, root):
         destination.parent.mkdir(parents=True, exist_ok=True)
         if not destination.exists():
             temporary = destination.with_suffix(destination.suffix + ".part")
-            run(["curl", "--fail", "--location", "--retry", "3", "--proto", "=https",
-                 "--proto-redir", "=https", "--output", temporary, source["url"]])
-            if sha256(temporary) != source["sha256"]:
-                temporary.unlink()
-                raise RuntimeError(f"Incorrect {source['name']} source checksum")
-            temporary.replace(destination)
+            urls = [source["url"], *source.get("mirrors", [])]
+            for index, url in enumerate(urls):
+                try:
+                    run(["curl", "--fail", "--location", "--connect-timeout", "20", "--max-time", "180",
+                         "--retry", "2", "--retry-all-errors", "--retry-max-time", "90", "--proto", "=https",
+                         "--proto-redir", "=https", "--output", temporary, url])
+                except RuntimeError:
+                    temporary.unlink(missing_ok=True)
+                    if index == len(urls) - 1:
+                        raise
+                    print(f"Source unavailable: {url}; trying the pinned mirror", flush=True)
+                    continue
+                if sha256(temporary) != source["sha256"]:
+                    temporary.unlink()
+                    raise RuntimeError(f"Incorrect {source['name']} source checksum from {url}")
+                temporary.replace(destination)
+                break
         if sha256(destination) != source["sha256"]:
             raise RuntimeError(f"Incorrect cached {source['name']} source checksum")
     print(f"Verified source: {source['name']} {source['version']}", flush=True)

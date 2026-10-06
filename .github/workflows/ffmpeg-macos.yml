@@ -27,8 +27,15 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
       - name: Install build tools
         run: brew install cmake meson ninja pkgconf autoconf automake libtool
+      - name: Build and verify ARM64 QuickJS for macOS 13.4
+        id: quickjs
+        shell: pwsh
+        run: ./scripts/macos/Build-QuickJS.ps1
       - name: Build and verify the custom runtime
         run: python3 scripts/macos/Build-FFmpeg.py
       - name: Install into a directory containing spaces and verify relocation
@@ -38,6 +45,28 @@ jobs:
           bash scripts/Install-MediaTools-macOS.sh --archive "$runtime" --checksums "$checksums" --destination "$RUNNER_TEMP/AvaMedia tools"
           "$RUNNER_TEMP/AvaMedia tools/ffmpeg" -v error -f lavfi -i testsrc2=size=64x64 -t 0.1 -f null -
           "$RUNNER_TEMP/AvaMedia tools/ffprobe" -version
+      - name: Build and check the macOS application archive
+        shell: pwsh
+        run: |
+          [xml]$properties=Get-Content -LiteralPath Directory.Build.props -Raw
+          $version=$properties.Project.PropertyGroup.Version.InnerText
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid application version.' }
+          ./scripts/Publish.ps1 -Runtime osx-arm64 -Version $version
+          ./scripts/Verify-MacPackages.ps1 -Version $version
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-application-archive
+          path: |
+            artifacts/AvaMedia-*-osx-arm64.zip
+            artifacts/mac-packages-*/report.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.quickjs.outcome == 'success'
+        with:
+          name: quickjs-osx-arm64
+          path: .tools/download-bundle/*-qjs-osx-arm64-macos*/
+          if-no-files-found: error
+          include-hidden-files: true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ffmpeg-osx-arm64

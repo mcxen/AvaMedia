@@ -61,7 +61,6 @@ jobs:
             artifacts/installer-verification/
           retention-days: 14
   macos:
-    needs: windows
     strategy:
       fail-fast: false
       matrix:
@@ -74,16 +73,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Read release version
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          if ($env:RELEASE_REF_TYPE -ne 'tag' -or $env:RELEASE_TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw 'Select a vMAJOR.MINOR.PATCH tag.' }
+          "version=$($Matches[1])" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
+      - name: Install native build tools
+        run: brew install cmake meson ninja pkgconf autoconf automake libtool
+      - name: Build and verify ARM64 QuickJS for macOS 13.4
+        shell: pwsh
+        run: ./scripts/macos/Build-QuickJS.ps1
       - name: Build and verify custom ARM64 FFmpeg
-        run: |
-          brew install cmake meson ninja pkgconf autoconf automake libtool
-          python3 scripts/macos/Build-FFmpeg.py
+        run: python3 scripts/macos/Build-FFmpeg.py
       - name: Install verified custom media tools
         run: |
           runtime=$(find artifacts -maxdepth 1 -name 'AvaMedia-FFmpeg-*-osx-arm64.tar.gz' -print)
@@ -103,7 +114,7 @@ jobs:
       - name: Build app, PKG and DMG
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ needs.windows.outputs.version }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
           RELEASE_RUNTIME: ${{ matrix.runtime }}
         run: |
           ./scripts/Publish.ps1 -Runtime $env:RELEASE_RUNTIME -Version $env:RELEASE_VERSION
@@ -111,7 +122,7 @@ jobs:
       - name: Verify published app starts on macOS
         shell: bash
         env:
-          RELEASE_VERSION: ${{ needs.windows.outputs.version }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
           RELEASE_RUNTIME: ${{ matrix.runtime }}
         run: |
           bundles=(artifacts/release/"$RELEASE_VERSION"/"$RELEASE_RUNTIME-bundle"/*.app)
@@ -138,11 +149,13 @@ jobs:
         if: always()
         with:
           name: macos-proof-${{ matrix.runtime }}
+          include-hidden-files: true
           path: |
             artifacts/mac-native*/
             artifacts/mac-native.log
             artifacts/skins-*/
             artifacts/ffmpeg-build-*/*.log
+            .tools/download-bundle/*-qjs-osx-arm64-macos*/build.json
             artifacts/ablation-*/
   publish:
     needs: [windows, macos]

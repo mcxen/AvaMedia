@@ -2,6 +2,8 @@
 
 构建配方锁定 FFmpeg 8.1.3 和 14 个依赖的源码版本；压缩包校验 SHA256，Git 源码核对完整提交号。配置见 [源码锁文件](../scripts/macos/ffmpeg-sources.lock.json)。仅生成 ARM64 运行包，所有依赖从源码构建，不链接 Homebrew 的运行库。
 
+FreeType 从官方 SourceForge 发行镜像下载，Savannah 作为备用；两者使用同一固定 SHA256。下载设置连接和总耗时上限，连接失败后尝试备用地址；校验不一致则立即失败。来源依据 [FreeType 下载说明](https://freetype.org/download.html)。
+
 FFmpeg 自身采用共享库；所需第三方库静态编入对应媒体库。运行包只包含 `ffmpeg`、`ffprobe`、FFmpeg dylib、许可证、构建信息与验证报告。按 dylib 的实际 install name 保存一份文件，避免把版本别名重复复制。排除 ffplay、头文件、静态归档、开发工具和文档。
 
 保留客户端已有的容器、解码器和内置滤镜，不使用 `--disable-everything`。外部组件按实际调用配置：
@@ -46,7 +48,11 @@ bash scripts/Install-MediaTools-macOS.sh \
 
 [原生构建工作流](../.github/workflows/ffmpeg-macos.yml) 在相关源码变更、Pull Request 或手动触发时运行。tag 的 [Release 工作流](../.github/workflows/release.yml) 同样先构建与验证，再上传运行包、对应源码和清单。
 
+Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避免 Windows 测试失败后完全跳过 Mac 验证。最终 Release 仍要求两个平台都通过。
+
 原生检查覆盖单一 ARM64 架构、动态库相对路径、签名、文件哈希、编码器 / 滤镜 / 容器 / 协议和 AVFoundation 入口，实际编码与解码 27 个输出，比较字幕和时间戳的真实像素。Release 另运行客户端音频、字幕、批量工具和消融测试。独立工作流还把归档安装到带空格的新目录，验证运行库与原构建目录无关。
+
+独立工作流同时从固定源码构建 QuickJS，并按 `Directory.Build.props` 的开发版本原生发布应用 ZIP、检查完整归档；产物分别保存在 `quickjs-osx-arm64`、`ffmpeg-osx-arm64` 与 `macos-application-archive`。它不会创建 GitHub Release。
 
 本地已完成 15 项源码校验、工作流与脚本语法检查、客户端构建，以及批量工具 28 项、音频选项 32 项、字幕 32 项和消融 35 项回归。当前开发环境为 Windows，尚未完成定制运行包的 macOS 原生构建；实际体积、原生输出和耗时以首次 ARM64 构建的 `build.json`、`verification.json` 与日志为准。录屏权限和硬件设备能力按实际设备验收。
 
