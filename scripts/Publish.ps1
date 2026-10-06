@@ -43,7 +43,8 @@ New-Item -ItemType Directory -Path $publishDocs -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $taskRoot 'docs') -Filter '*.md' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $publishDocs -Force }
 if (Test-Path -LiteralPath (Join-Path $taskRoot 'docs/assets')) { Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/assets') -Destination $publishDocs -Recurse -Force }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'scripts') -Destination $publishRoot -Recurse -Force
-$zip = Join-Path $taskRoot ('artifacts/AvaMedia-' + $Version + '-' + $Runtime + '.zip')
+$zipSuffix = if ($Runtime -eq 'win-x64') { '-portable.zip' } else { '.zip' }
+$zip = Join-Path $taskRoot ('artifacts/AvaMedia-' + $Version + '-' + $Runtime + $zipSuffix)
 New-Item -ItemType Directory -Path (Split-Path -Parent $zip) -Force | Out-Null
 if ($Runtime.StartsWith('osx-')) {
     $bundle = Join-Path $bundleRoot $appBrand.MacBundleName

@@ -16,7 +16,7 @@
 
 ## 工具与平台行为
 
-新构建在 Windows x64 和 macOS ARM64 安装包、应用 ZIP 中内置 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 和 QuickJS-NG。配置留空时直接使用应用 `tools` 中的引擎，无需再次安装；用户指定路径和环境变量仍优先。引擎及动态库、版本清单、组件许可证一并打包，对应源码随同一 Release 发布。见 [macOS FFmpeg 配方与验证](FFMPEG-MACOS.md) 和 [自动发布](RELEASE.md)。
+新构建在 Windows portable / setup 和 macOS DMG 中内置 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 和 QuickJS-NG。配置留空时直接使用应用 `tools` 中的引擎，无需再次安装；用户指定路径和环境变量仍优先。引擎及动态库、版本清单、组件许可证一并打包，对应源码保存在主 Release 链接的媒体归档页。见 [macOS FFmpeg 配方与验证](FFMPEG-MACOS.md) 和 [自动发布](RELEASE.md)。
 
 工具查找支持配置路径、环境变量、Mac 应用资源的 tools、用户工具目录、Homebrew 的 `/opt/homebrew/bin` 或 `/usr/local/bin`、项目工具目录和 PATH。Finder 启动应用时也可找到 Homebrew 工具。
 

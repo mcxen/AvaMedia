@@ -10,20 +10,20 @@
 
 从 [GitHub Releases](https://github.com/mcxen/AvaMedia/releases/latest) 下载对应平台的成品。客户端包含 .NET 运行时，无需单独安装 SDK。
 
-| 平台 | 安装包 | 便携包 |
-| --- | --- | --- |
-| Windows x64 | `AvaMedia-版本-win-x64-setup.exe`，每用户安装、快捷方式与卸载 | `AvaMedia-版本-win-x64.zip` |
-| macOS Apple Silicon | `AvaMedia-版本-osx-arm64.pkg` / `.dmg` | `AvaMedia-版本-osx-arm64.zip` |
+| 平台 | 下载 |
+| --- | --- |
+| Windows x64 | `AvaMedia-版本-win-x64-portable.zip`，解压运行；`AvaMedia-版本-win-x64-setup.exe`，安装、快捷方式与卸载 |
+| macOS Apple Silicon | `AvaMedia-版本-osx-arm64.dmg`，打开后把应用拖入 Applications |
 
 后续 macOS 发布仅提供 Apple Silicon（ARM64）版本。
 
 客户端、Windows 快捷方式和 macOS 应用使用中文名“天池万象转换”；macOS 应用文件名为 `天池万象转换.app`。GitHub 仓库、可执行文件和发布压缩包继续使用 AvaMedia。品牌配置统一维护在 [`Branding.props`](Branding.props)。
 
-Release 同时提供源码 ZIP 和 `SHA256SUMS.txt`。macOS 包采用 ad-hoc 签名，尚未经过 Developer ID 签名和公证；初次启动可能需要在系统隐私与安全性中允许打开。
+主 Release 只上传以上三种成品，SHA256 校验值在版本说明中。应用源码可通过版本 tag 或 GitHub 自动生成的 Source code 下载；FFmpeg 精确对应源码和独立工具包在版本说明链接的 `media-v版本` 媒体归档页，不占用应用下载列表。macOS 包采用 ad-hoc 签名，尚未经过 Developer ID 签名和公证；初次启动可能需要在系统隐私与安全性中允许打开。
 
 新安装包与便携版内置 FFmpeg / FFprobe 8.1.3、yt-dlp 和 QuickJS-NG。安装或解压后即可使用视频播放、转换、压缩与下载，无需另装媒体引擎、Python 或开发 SDK。
 
-Windows 的两个媒体程序共用 DLL；macOS 的运行库位于应用内部。两平台从固定源码构建所需引擎，保留 x264 / x265、字幕、HDR 转 SDR 和平台硬件接口；不附带 ffplay、头文件或静态开发库。源码归档和校验清单保存在同一 Release，普通用户只需下载安装包。
+Windows 的两个媒体程序共用 DLL；macOS 的运行库位于应用内部。两平台从固定源码构建所需引擎，保留 x264 / x265、字幕、HDR 转 SDR 和平台硬件接口；不附带 ffplay、头文件或静态开发库。源码归档和校验清单保存在对应媒体归档页，普通用户只需下载安装包。
 
 默认路径留空即可使用内置工具，也可在“选项 → 工具”选择自定义引擎，或设置 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP`。打包方式见 [自动发布](docs/RELEASE.md) 与 [macOS FFmpeg](docs/FFMPEG-MACOS.md)。
 

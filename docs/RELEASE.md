@@ -5,11 +5,13 @@
 Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 1. Windows 媒体引擎与 macOS 并行准备；Windows 从固定源码交叉构建 x64 FFmpeg，macOS 复用或构建验证过的 ARM64 引擎。`Publish.ps1` 执行各平台所需的客户端 Release 编译，并把对应引擎及动态库复制进应用 `tools`。
-2. 发布包含 .NET 运行时的 Windows x64 ZIP；以固定版本 Inno Setup 6.4.3 生成每用户安装程序，实际验证安装、版本、原生启动、许可证和卸载。
-3. 在 Apple Silicon runner 构建包含 FFmpeg、FFprobe、动态库及 QuickJS 的 macOS ARM64 应用 ZIP、PKG 与 DMG，检查包内引擎加载并启动客户端。Windows 安装检查核对内置引擎文件哈希及版本。Windows 失败不会跳过 macOS 打包；两者均通过后才发布。
-4. 检查 Mac ARM64 ZIP 的 Mach-O 架构和 Unix 执行权限，生成对应源码 ZIP、SHA256SUMS.txt，自动创建 GitHub Release 并上传。
+2. 发布包含 .NET 运行时的 Windows x64 `portable.zip`；以固定版本 Inno Setup 6.4.3 生成每用户安装程序 `setup.exe`，实际验证安装、版本、原生启动、许可证和卸载。
+3. 在 Apple Silicon runner 构建包含 FFmpeg、FFprobe、动态库及 QuickJS 的 macOS ARM64 应用和 DMG，检查包内引擎加载并启动客户端。Windows 安装检查核对内置引擎文件哈希及版本。Windows 失败不会跳过 macOS 打包；两者均通过后才发布。不再生成 PKG。
+4. Mac 应用 ZIP 只用于 CI 内部的 Mach-O 架构和 Unix 权限检查，不上传到主 Release。`Publish-Release.ps1` 先发布 `media-v版本` 媒体归档，再发布主 Release；主下载列表仅有 Mac DMG、Windows portable ZIP 和 setup EXE，SHA256 写入版本说明。
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
+
+`media-v版本` 指向同一应用提交，标记为 `latest=false`；其中保留完整对应的 FFmpeg / 依赖源码、重建配方、独立运行包与校验清单。主 Release 和许可证说明直接链接该归档，确保下载二进制的用户同时可获取精确源码。应用源码使用现有 Git tag 和 GitHub 自动生成的 Source code，不再上传重复的应用 source ZIP。GitHub 自带的两条 Source code 下载项由平台生成，不能通过删除 Release assets 隐藏。
 
 2026-10-06 的 [v1.1.8 发布失败日志](https://github.com/mcxen/AvaMedia/actions/runs/37453172312) 有两个独立失败点：Windows `FunctionTests` 按已移除的“批量”菜单标题查找入口，现改用 `BatchCropMenuItem` 控件名称；macOS FriBidi 构建缺少 `help2man`，Release 和独立 FFmpeg 工作流现均安装该工具。旧 tag 保留原提交，重跑旧记录仍使用原工作流与源码；这些修复随后续版本 tag 生效。
 
@@ -39,8 +41,8 @@ git push origin v1.0.5
 ./scripts/Verify-WindowsInstaller.ps1 -Version 1.0.5
 ```
 
-macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：PKG 安装至 `/Applications`，DMG 提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64，应用声明最低 macOS 13.4，与 ONNX Runtime 的 Mach-O 部署版本一致；归档检查会核对原生库与下载工具的最低版本。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的音频设备仍需验收。
+macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：仅生成 DMG，提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64，应用声明最低 macOS 13.4，与 ONNX Runtime 的 Mach-O 部署版本一致；内部归档检查会核对原生库与下载工具的最低版本。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的音频设备仍需验收。
 
-新构建将 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定来源并核对 SHA256，附版本清单和许可证。用户安装后无需执行媒体工具安装脚本。Windows 使用共享 DLL，引擎从 Linux 的 MinGW-w64 POSIX 工具链按固定源码构建；Mac 使用 ARM64 dylib，相对加载路径保留在应用内部，ZIP 保留工具执行权限。Windows 和 Mac 引擎包含 x264 / x265，均采用 GPL-3.0-or-later；对应源码归档上传同一 Release。详见 [macOS FFmpeg](FFMPEG-MACOS.md) 与 `scripts/windows/`。依赖和安装器许可保存在 `licenses/`，下载工具说明见 [视频下载](VIDEO-DOWNLOAD.md)。
+新构建将 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定来源并核对 SHA256，附版本清单和许可证。用户安装后无需执行媒体工具安装脚本。Windows 使用共享 DLL，引擎从 Linux 的 MinGW-w64 POSIX 工具链按固定源码构建；Mac 使用 ARM64 dylib，相对加载路径保留在应用内部，内部 ZIP 保留工具执行权限。Windows 和 Mac 引擎包含 x264 / x265，均采用 GPL-3.0-or-later；对应源码归档保存在主 Release 链接的媒体归档页。详见 [macOS FFmpeg](FFMPEG-MACOS.md) 与 `scripts/windows/`。依赖和安装器许可保存在 `licenses/`，下载工具说明见 [视频下载](VIDEO-DOWNLOAD.md)。
 
 参考：[GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)、[Inno 编译参数](https://jrsoftware.org/ishelp/topic_compilercmdline.htm)、[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)。

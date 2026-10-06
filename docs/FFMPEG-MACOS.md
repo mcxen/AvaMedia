@@ -45,7 +45,7 @@ libvorbis 使用其 [上游 CMake 配方](https://github.com/xiph/vorbis/blob/v1
 - `AvaMedia-FFmpeg-8.1.3-source.tar.gz`：精确对应的源码、依赖、锁文件和重建配方。
 - `AvaMedia-FFmpeg-8.1.3-SHA256SUMS.txt`：两个归档的校验清单。
 
-应用的 PKG、DMG 和便携 ZIP 已内置此运行包，普通用户安装应用即可使用。下面的独立安装命令供开发或指定外部媒体工具目录时使用：
+新构建的 DMG 内置此运行包，普通用户安装应用即可使用。下面的独立安装命令供开发或指定外部媒体工具目录时使用：
 
 ```sh
 bash scripts/Install-MediaTools-macOS.sh \
@@ -53,17 +53,17 @@ bash scripts/Install-MediaTools-macOS.sh \
   --checksums artifacts/AvaMedia-FFmpeg-8.1.3-SHA256SUMS.txt
 ```
 
-不带参数时，从最新 AvaMedia Release 下载定制运行包并核对清单。安装至 `~/Library/Application Support/AvaMedia/tools/ffmpeg-runtime/<归档SHA256>`，程序入口通过相对链接切换；下载与解压的临时目录退出时清理。FFmpeg 安装不需要 Homebrew 或 Python；加 `--with-yt-dlp` 时另用 Homebrew 安装可选下载工具。已有的外部路径配置仍可替换媒体引擎。
+不带参数时，读取最新应用版本，再从对应 `media-v版本` 媒体归档下载定制运行包并核对清单。安装至 `~/Library/Application Support/AvaMedia/tools/ffmpeg-runtime/<归档SHA256>`，程序入口通过相对链接切换；下载与解压的临时目录退出时清理。FFmpeg 安装不需要 Homebrew 或 Python；加 `--with-yt-dlp` 时另用 Homebrew 安装可选下载工具。已有的外部路径配置仍可替换媒体引擎。
 
 ## 验证与发布
 
-[原生构建工作流](../.github/workflows/ffmpeg-macos.yml) 在相关源码变更、Pull Request 或手动触发时运行。tag 的 [Release 工作流](../.github/workflows/release.yml) 同样先构建与验证，再上传运行包、对应源码和清单。
+[原生构建工作流](../.github/workflows/ffmpeg-macos.yml) 在相关源码变更、Pull Request 或手动触发时运行。tag 的 [Release 工作流](../.github/workflows/release.yml) 同样先构建与验证，再把独立运行包、对应源码和清单上传到 `media-v版本` 媒体归档；主应用 Release 只提供 DMG 和两种 Windows 成品，并直接链接媒体源码。
 
 Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避免 Windows 打包失败后完全跳过 Mac 验证。最终 Release 仍要求两个平台都通过。
 
 原生检查覆盖单一 ARM64 架构、动态库相对路径、签名、文件哈希、编码器 / 滤镜 / 容器 / 协议；不包含 AVFoundation 采集设备。实际编码与解码 27 个输出，比较字幕和时间戳的真实像素。独立工作流还把归档安装到带空格的新目录，验证运行库与原构建目录无关。Release 另检查客户端原生启动、应用归档和安装包，不运行客户端媒体全量回归。
 
-独立工作流同时从固定源码构建 QuickJS，产物保存在 `quickjs-osx-arm64` 与 `ffmpeg-osx-arm64`，诊断日志保存在 `ffmpeg-build-logs`。它只处理媒体工具，不编译客户端或创建 GitHub Release；应用 ZIP、PKG、DMG 由 Release 工作流负责。
+独立工作流同时从固定源码构建 QuickJS，产物保存在 `quickjs-osx-arm64` 与 `ffmpeg-osx-arm64`，诊断日志保存在 `ffmpeg-build-logs`。它只处理媒体工具，不编译客户端或创建 GitHub Release；DMG 和内部验证用应用 ZIP 由 Release 工作流负责。
 
 2026-10-06 的 [ARM64 原生 CI](https://github.com/mcxen/AvaMedia/actions/runs/37471073518) 在提交 `18b61fc` 全部通过，冷构建 job 用时 8 分 55 秒。验证日志记录 `PASS 225 native checks; 27 real outputs`，包括 ICO 的 PNG / RGBA 输出、字幕和时间戳绘制；带空格目录安装验证及产物上传也通过。媒体二进制合计 27.34 MiB，运行包、对应源码及 QuickJS 已保存为精确匹配的缓存；缓存命中的耗时另以后续运行记录为准。
 

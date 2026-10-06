@@ -28,6 +28,8 @@ download() { curl --fail --location --retry 3 --proto '=https' --proto-redir '=h
 if [[ -z "$archive_path" ]]; then
   metadata="$stage/release.json"
   download 'https://api.github.com/repos/mcxen/AvaMedia/releases/latest' "$metadata"
+  release_tag=$(plutil -extract tag_name raw -o - "$metadata")
+  download "https://api.github.com/repos/mcxen/AvaMedia/releases/tags/media-$release_tag" "$metadata"
   archive_name=''
   archive_url=''
   index=0
