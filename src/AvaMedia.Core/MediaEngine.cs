@@ -260,24 +260,30 @@ public sealed class MediaEngine : IMediaEngine
         }
         job.Duration=ValidateEdits(job,infos);
         var effective=SettingsPolicy.Resolve(job.Options,Settings);
+        string? sourceEncoderListing=null;
         if(effective.PreserveSourceAttributes)
         {
             var listing=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
             if(listing.ExitCode!=0)throw new InvalidOperationException("无法读取原编码所需的编码器。"+listing.Error);
-            effective.VideoCodec=SourceVideoExport.Encoder(infos[0],listing.Output+listing.Error);
+            sourceEncoderListing=listing.Output+listing.Error;
         }
         var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions,Options=effective,Output=job.Output,Duration=job.Duration};
         IReadOnlyList<string> hardware=[];
         if(Settings.AutoDetectGpu && !effective.CopyStreams && effective.VideoCodec=="自动" &&
             (f.Operation==Operation.Record || infos.Any(i=>i.HasVideo)) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
             hardware=HardwareAcceleration.Candidates(effective.Format,await _hardwareTest(FFmpeg,ct));
+        if(effective.PreserveSourceAttributes)
+            hardware=hardware.Where(codec=>SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex)).ToArray();
         ProcessResult? result=null;var hardwareLog=new StringBuilder();
+        if(effective.PreserveSourceAttributes && hardware.Count==0)
+            hardwareLog.AppendLine(Settings.AutoDetectGpu?"没有可用且能保留源编码、位深与色度采样的 GPU 编码器，使用原编码的软件实现。":"自动 GPU 已关闭，使用原编码的软件实现。");
         foreach(var codec in hardware)
         {
             ct.ThrowIfCancellationRequested();
             var temporary=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,".AvaMedia-gpu-"+Guid.NewGuid()+Path.GetExtension(job.Output));
             try
             {
+                job.ProgressDetail="GPU 编码 · "+codec;progress(0);
                 effective.VideoCodec=codec;effectiveJob.Output=temporary;result=await Encode(effectiveJob);
                 if(result.ExitCode==0){File.Move(temporary,job.Output);hardwareLog.AppendLine("使用硬件编码 "+codec+"。");break;}
                 else
@@ -291,7 +297,10 @@ public sealed class MediaEngine : IMediaEngine
         if(result is null || result.ExitCode!=0)
         {
             if(hardware.Count>0)hardwareLog.AppendLine("可用硬件编码器均失败，回退软件编码。");
-            if(!effective.PreserveSourceAttributes)effective.VideoCodec=job.Options.VideoCodec;effectiveJob.Output=job.Output;result=await Encode(effectiveJob);
+            effective.VideoCodec=effective.PreserveSourceAttributes?SourceVideoExport.Encoder(infos[0],sourceEncoderListing!):job.Options.VideoCodec;
+            job.ProgressDetail=effective.VideoCodec=="自动"?"软件自动编码":"软件编码 · "+effective.VideoCodec;
+            if(effective.PreserveSourceAttributes)hardwareLog.AppendLine("使用软件编码 "+effective.VideoCodec+"。");
+            progress(0);effectiveJob.Output=job.Output;result=await Encode(effectiveJob);
         }
         job.Log=hardwareLog+result.Error;
         if(result.ExitCode!=0) throw new InvalidOperationException(f.Operation==Operation.Record && OperatingSystem.IsMacOS()?ScreenCapture.MacPermissionMessage(result.Error):result.Error);
@@ -303,7 +312,7 @@ public sealed class MediaEngine : IMediaEngine
     }
     public static List<string> BuildArguments(Job job,IReadOnlyList<MediaInfo> infos)
     {
-        if(job.Options.PreserveSourceAttributes || job.Options.LosslessRotation is not null)return SourceVideoExport.BuildArguments(job,infos);
+        if(job.Options.PreserveSourceAttributes || job.Options.LosslessRotation is not null)return SourceVideoGpu.BuildArguments(job,infos);
         var f=Catalog.Find(job.FeatureId);var o=job.Options;List<string> a=["-hide_banner","-nostdin","-n","-progress","pipe:1","-nostats"];
         if(f.Operation==Operation.Mux && job.InputOptions?.ElementAtOrDefault(1)?.Mute==true){o=o.Clone();o.Mute=true;}
         if(o.Threads>0)a.AddRange(["-filter_threads",o.Threads.ToString(),"-filter_complex_threads",o.Threads.ToString()]);
