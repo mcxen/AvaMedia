@@ -93,11 +93,29 @@ var sameName = Path.Combine(duplicateFolder, Path.GetFileName(wide)); File.Copy(
 Check(BatchRotate.CreateJobs(Request(folder: root) with { Inputs = [new(wide, infos[wide]), new(sameName, infos[wide])] }).Select(j => j.Output).Distinct().Count() == 2, "Same filenames collide.");
 
 outputs.AddRange(OrientationChecks.Run(engine, root, wide, Check).GetAwaiter().GetResult());
+outputs.AddRange(SourceVideoExportChecks.Run(engine, root, wide, tagged, Check).GetAwaiter().GetResult());
 AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 Motion.SetReducedMotion(true); Application.Current!.RequestedThemeVariant = ThemeVariant.Light;
+var mixed = new BatchRotateWindow(engine, root, [Path.Combine(root, "原属性 双音轨字幕.mov"), wide]); mixed.Show(); Pump(mixed.Ready);
+var mixedJobs = BatchRotate.CreateJobs(mixed.CreateRequest());
+Check(mixedJobs.Select(j => j.Options.Format).SequenceEqual(new[] { "mov", "mp4" }) && mixed.Entries[0].Status.EndsWith("MOV") && mixed.Entries[1].Status.EndsWith("MP4"),
+    "Mixed-container UI does not preserve each video's original format.");
+mixed.FindControl<ComboBox>("FormatCombo")!.SelectedItem = SourceVideoExport.FastRotation;
+mixed.AddFiles([Path.Combine(root, "unsupported.mkv")]); Pump(mixed.Ready);
+Check(!mixed.FindControl<Button>("OkButton")!.IsEnabled && mixed.Entries.Last().Status.Contains("Fast Copy"), "Unsupported Fast Copy format is silently queued.");
+mixed.Entries.Last().Include = false;
+Check(mixed.FindControl<Button>("OkButton")!.IsEnabled, "Unchecked unsupported format blocks Fast Copy batch.");
+mixed.Close();
 var window = new BatchRotateWindow(engine, root, sources); window.Show(); Pump(window.Ready);
 var direction = window.FindControl<ComboBox>("DirectionCombo")!; var list = window.FindControl<ListBox>("FileList")!; var ok = window.FindControl<Button>("OkButton")!;
 Check(window.Rotation == 90 && ok.IsEnabled && window.Entries.All(e => e.Info is not null), "Initial batch direction/readiness incorrect.");
+Check(window.CreateRequest().Format == SourceVideoExport.Original && window.FindControl<TextBlock>("ExportHint")!.Text == SourceVideoExport.OriginalHint,
+    "Rotation does not default to original container/attributes.");
+window.FindControl<ComboBox>("FormatCombo")!.SelectedItem = SourceVideoExport.FastRotation;
+Check(ok.IsEnabled && window.FindControl<TextBlock>("ExportHint")!.Text == SourceVideoExport.FastHint && BatchRotate.CreateJobs(window.CreateRequest()).All(j => j.Options.LosslessRotation == 90 && j.Options.CopyStreams),
+    "Fast Copy selection does not reach queue options or explain compatibility.");
+Capture(window, "batch-rotate-fastcopy.png");
+window.FindControl<ComboBox>("FormatCombo")!.SelectedItem = SourceVideoExport.Original;
 Check(ReferenceEquals(window.FindControl<Image>("SourceImage")!.Source, window.FindControl<Image>("ResultImage")!.Source), "Preview does not use the same source frame.");
 foreach (var angle in new[] { 90, 270, 180 })
 {

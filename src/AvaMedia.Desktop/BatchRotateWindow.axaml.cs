@@ -60,7 +60,7 @@ public sealed partial class BatchRotateWindow : Window
         FileList.ItemsSource = _entries; RotationTransform.LayoutTransform = _rotation;
         ModeCombo.ItemsSource = new[] { "统一旋转", "逐个调整" }; ModeCombo.SelectedIndex = 0;
         DirectionCombo.ItemsSource = new[] { BatchRotate.Direction(90), BatchRotate.Direction(270), BatchRotate.Direction(180), BatchRotate.Direction(0) }; DirectionCombo.SelectedIndex = 0;
-        FormatCombo.ItemsSource = new[] { "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
+        FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, SourceVideoExport.FastRotation, "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
         OutputInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) RefreshValidation(); };
         PreviewSeek.PropertyChanged += (_, args) =>
@@ -197,15 +197,16 @@ public sealed partial class BatchRotateWindow : Window
             if (correction is null) { entry.Status = "无法确定 · " + (entry.DetectionMessage ?? entry.Detection?.Reason ?? "请手动指定方向。"); unresolved++; continue; }
             try
             {
-                _ = BatchRotate.ResolveOptions(entry.Info, correction.Value, Format); var size = BatchRotate.OutputSize(entry.Info, correction.Value);
+                var export = BatchRotate.ResolveOptions(entry.Info, correction.Value, Format, entry.Path); var size = BatchRotate.OutputSize(entry.Info, correction.Value);
                 if (correction == 0) { entry.Status = "无需旋转 · 跳过"; skipped++; }
-                else { entry.Status = $"{BatchRotate.Direction(correction.Value)} → {size.Width} × {size.Height}"; changed++; }
+                else { entry.Status = $"{BatchRotate.Direction(correction.Value)} → {size.Width} × {size.Height} · {export.Format.ToUpperInvariant()}"; changed++; }
                 if (PerFile && entry.Detection is { IsCertain: true } result)
                     entry.Status += $" · 自动判断（{(result.Reliability == OrientationReliability.High ? "高" : "中")}可靠度） · {result.Reason}";
             }
             catch (ArgumentException ex) { entry.Status = "不可旋转：" + ex.Message; invalid++; }
         }
         var outputValid = !string.IsNullOrWhiteSpace(OutputInput.Text);
+        ExportHint.Text = Format == SourceVideoExport.FastRotation ? SourceVideoExport.FastHint : Format == SourceVideoExport.Original ? SourceVideoExport.OriginalHint : "按所选格式重新编码视频和音频。";
         OkButton.IsEnabled = changed > 0 && invalid == 0 && unresolved == 0 && pending == 0 && outputValid && !_detecting;
         DetectButton.IsEnabled = included.Length > 0 && pending == 0 && invalid == 0 && !_detecting;
         CancelDetectionButton.IsVisible = _detecting;
@@ -299,9 +300,9 @@ public sealed partial class BatchRotateWindow : Window
             if (entry.Error is not null) throw new ArgumentException(entry.Name + "：" + entry.Error);
             if (entry.Info is null) throw new ArgumentException("视频信息正在读取，请稍候。");
             var angle = EffectiveRotation(entry) ?? throw new ArgumentException(entry.Name + "：方向无法确定，请手动选择。");
-            var options = BatchRotate.ResolveOptions(entry.Info, angle, Format);
+            var options = BatchRotate.ResolveOptions(entry.Info, angle, Format, entry.Path);
             MediaEngine.Validate(new() { FeatureId = "rotate", Inputs = [entry.Path], Options = options,
-                Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-rotate-" + Guid.NewGuid() + "." + Format) });
+                Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-rotate-" + Guid.NewGuid() + "." + options.Format) });
         }
         var inputs = included.Where(e => EffectiveRotation(e) != 0)
             .Select(e => new BatchRotateInput(e.Path, e.Info!, PerFile ? e.Rotation : null)).ToArray();

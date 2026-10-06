@@ -76,6 +76,8 @@ public sealed class ConversionOptions
     public int AudioChannels { get; set; }
     public bool Mute { get; set; }
     public bool CopyStreams { get; set; }
+    public bool PreserveSourceAttributes { get; set; }
+    public int? LosslessRotation { get; set; }
     public bool KeepAllAudioStreams { get; set; }
     public int VideoStreamIndex { get; set; }
     public int AudioStreamIndex { get; set; }

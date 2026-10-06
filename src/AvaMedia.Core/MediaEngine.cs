@@ -36,7 +36,7 @@ public sealed class MediaEngine : IMediaEngine
     }
     public async Task<MediaInfo> Probe(string path,CancellationToken ct=default,int videoStreamIndex=0,int audioStreamIndex=0)
     {
-        var r=await ProcessRunner.Run(FFprobe,["-v","error","-show_format","-show_streams","-of","json",path],ct);
+        var r=await ProcessRunner.Run(FFprobe,["-v","error","-show_format","-show_streams","-show_chapters","-of","json",path],ct);
         if(r.ExitCode!=0) throw new InvalidDataException(r.Error);
         using var json=JsonDocument.Parse(r.Output);var root=json.RootElement;
         var streams=root.GetProperty("streams").EnumerateArray().ToArray();
@@ -139,6 +139,7 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
         ValidateEncodingOptions(o);
+        SourceVideoExport.ValidateJob(job);
         if(job.InputOptions is not null)
         {
             if(job.InputOptions.Count!=job.Inputs.Length)throw new ArgumentException("输入文件与独立参数数量不一致。");
@@ -162,6 +163,7 @@ public sealed class MediaEngine : IMediaEngine
     public static bool HasFilters(ConversionOptions o) => HasVideoFilters(o) || HasAudioFilters(o);
     public static void ValidateEncodingOptions(ConversionOptions o)
     {
+        SourceVideoExport.ValidateOptions(o);
         if(o.Threads is <0 or >16)throw new ArgumentException("编码线程数必须在 0 到 16 之间。");
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
         SubtitleOptions.Validate(o);
@@ -258,6 +260,12 @@ public sealed class MediaEngine : IMediaEngine
         }
         job.Duration=ValidateEdits(job,infos);
         var effective=SettingsPolicy.Resolve(job.Options,Settings);
+        if(effective.PreserveSourceAttributes)
+        {
+            var listing=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
+            if(listing.ExitCode!=0)throw new InvalidOperationException("无法读取原编码所需的编码器。"+listing.Error);
+            effective.VideoCodec=SourceVideoExport.Encoder(infos[0],listing.Output+listing.Error);
+        }
         var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions,Options=effective,Output=job.Output,Duration=job.Duration};
         IReadOnlyList<string> hardware=[];
         if(Settings.AutoDetectGpu && !effective.CopyStreams && effective.VideoCodec=="自动" &&
@@ -283,7 +291,7 @@ public sealed class MediaEngine : IMediaEngine
         if(result is null || result.ExitCode!=0)
         {
             if(hardware.Count>0)hardwareLog.AppendLine("可用硬件编码器均失败，回退软件编码。");
-            effective.VideoCodec=job.Options.VideoCodec;effectiveJob.Output=job.Output;result=await Encode(effectiveJob);
+            if(!effective.PreserveSourceAttributes)effective.VideoCodec=job.Options.VideoCodec;effectiveJob.Output=job.Output;result=await Encode(effectiveJob);
         }
         job.Log=hardwareLog+result.Error;
         if(result.ExitCode!=0) throw new InvalidOperationException(f.Operation==Operation.Record && OperatingSystem.IsMacOS()?ScreenCapture.MacPermissionMessage(result.Error):result.Error);
@@ -295,6 +303,7 @@ public sealed class MediaEngine : IMediaEngine
     }
     public static List<string> BuildArguments(Job job,IReadOnlyList<MediaInfo> infos)
     {
+        if(job.Options.PreserveSourceAttributes || job.Options.LosslessRotation is not null)return SourceVideoExport.BuildArguments(job,infos);
         var f=Catalog.Find(job.FeatureId);var o=job.Options;List<string> a=["-hide_banner","-nostdin","-n","-progress","pipe:1","-nostats"];
         if(f.Operation==Operation.Mux && job.InputOptions?.ElementAtOrDefault(1)?.Mute==true){o=o.Clone();o.Mute=true;}
         if(o.Threads>0)a.AddRange(["-filter_threads",o.Threads.ToString(),"-filter_complex_threads",o.Threads.ToString()]);

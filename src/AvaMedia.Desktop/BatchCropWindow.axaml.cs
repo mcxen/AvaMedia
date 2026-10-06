@@ -52,7 +52,7 @@ public sealed partial class BatchCropWindow : Window
         FileList.ItemsSource = _entries;
         ModeCombo.ItemsSource = new[] { PixelMode, RelativeMode }; ModeCombo.SelectedIndex = 0;
         CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;
-        FormatCombo.ItemsSource = new[] { "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
+        FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
         foreach (var input in new[] { CropXInput, CropYInput, CropWidthInput, CropHeightInput })
             input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty && !_updating) RefreshValidation(); };
@@ -219,8 +219,8 @@ public sealed partial class BatchCropWindow : Window
             try
             {
                 if (_reference?.Info is null) throw new ArgumentException("请选择已读取的视频作为选区参考。");
-                var options = BatchCrop.ResolveOptions(Area, _reference.Info, entry.Info, Mode, _options);
-                entry.Status = $"选区 {options.CropX},{options.CropY} · {options.CropWidth} × {options.CropHeight}";
+                var options = BatchCrop.ResolveOptions(Area, _reference.Info, entry.Info, Mode, _options, entry.Path);
+                entry.Status = $"选区 {options.CropX},{options.CropY} · {options.CropWidth} × {options.CropHeight} · {options.Format.ToUpperInvariant()}";
             }
             catch (ArgumentException ex) { entry.Status = "不可裁剪：" + ex.Message; invalid++; }
         }
@@ -260,7 +260,7 @@ public sealed partial class BatchCropWindow : Window
         {
             if (entry.Error is not null) throw new ArgumentException(entry.Name + "：" + entry.Error);
             if (entry.Info is null) throw new ArgumentException("视频信息正在读取，请稍候。");
-            var options = BatchCrop.ResolveOptions(Area, _reference.Info, entry.Info, Mode, _options);
+            var options = BatchCrop.ResolveOptions(Area, _reference.Info, entry.Info, Mode, _options, entry.Path);
             MediaEngine.ValidateEdits(new() { FeatureId = "crop", Inputs = [entry.Path], Options = options,
                 Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-crop-" + Guid.NewGuid() + "." + options.Format) },[entry.Info]);
         }
@@ -324,7 +324,11 @@ public sealed partial class BatchCropWindow : Window
     private void FormatChanged(object? sender, SelectionChangedEventArgs args)
     {
         if (FormatCombo?.SelectedItem is not string format) return;
-        _options.Format = format; _options.VideoCodec = _options.AudioCodec = "自动"; RefreshValidation();
+        _options.Format = format; _options.VideoCodec = _options.AudioCodec = "自动";
+        _options.PreserveSourceAttributes = format == SourceVideoExport.Original;
+        OutputOptionsButton.IsEnabled = format != SourceVideoExport.Original;
+        ExportHint.Text = format == SourceVideoExport.Original ? SourceVideoExport.OriginalHint : "裁剪必须重新编码画面；输出配置可设置视频和音频参数。";
+        RefreshValidation();
     }
     private async void BrowseClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     { if (await Ui.Folder(this, "选择裁剪输出目录") is { } folder) OutputInput.Text = folder; }

@@ -18,12 +18,16 @@ public static class BatchRotate
         return rotation is 0 or 180 ? (info.Width, info.Height) : (info.Height, info.Width);
     }
 
-    public static ConversionOptions ResolveOptions(MediaInfo info, int rotation, string format)
+    public static ConversionOptions ResolveOptions(MediaInfo info, int rotation, string format, string? sourcePath = null)
     {
         _ = OutputSize(info, rotation);
-        if (format is not ("mp4" or "mkv" or "webm" or "mov" or "avi"))
+        var original = format == SourceVideoExport.Original;
+        var fast = format == SourceVideoExport.FastRotation;
+        format = SourceVideoExport.Format(format, sourcePath);
+        if (!original && !fast && format is not ("mp4" or "mkv" or "webm" or "mov" or "avi"))
             throw new ArgumentException("请选择 MP4、MKV、WebM、MOV 或 AVI 输出。");
-        var options = new ConversionOptions { Format = format, Rotation = rotation,
+        var options = new ConversionOptions { Format = format, Rotation = fast ? 0 : rotation,
+            PreserveSourceAttributes = original, CopyStreams = fast, LosslessRotation = fast ? rotation : null,
             VideoStreamIndex = info.VideoStreamIndex, AudioStreamIndex = info.AudioStreamIndex };
         MediaEngine.ValidateEncodingOptions(options);
         return options;
@@ -44,20 +48,20 @@ public static class BatchRotate
             try
             {
                 var angle = input.Rotation ?? request.Rotation;
-                var options = ResolveOptions(input.Info, angle, request.Format);
+                var options = ResolveOptions(input.Info, angle, request.Format, path);
                 MediaEngine.Validate(new() { FeatureId = "rotate", Inputs = [path], Options = options,
-                    Output = Path.Combine(folder, Path.GetFileNameWithoutExtension(path) + "_rotate" + angle + "." + request.Format) });
-                return (Path: path, Options: options);
+                    Output = Path.Combine(folder, Path.GetFileNameWithoutExtension(path) + "_rotate" + angle + "." + options.Format) });
+                return (Path: path, Options: options, Angle: angle);
             }
             catch (ArgumentException ex) { throw new ArgumentException(Path.GetFileName(path) + "：" + ex.Message, ex); }
         }).ToArray();
         var used = new HashSet<string>(reserved ?? [], comparison);
         foreach (var draft in drafts) used.Add(draft.Path);
         var jobs = new List<Job>();
-        foreach (var draft in drafts.Where(d => d.Options.Rotation != 0))
+        foreach (var draft in drafts.Where(d => d.Angle != 0))
         {
-            var output = MediaEngine.UniqueOutput(folder, Path.GetFileNameWithoutExtension(draft.Path) + "_rotate" + draft.Options.Rotation,
-                request.Format, used);
+            var output = MediaEngine.UniqueOutput(folder, Path.GetFileNameWithoutExtension(draft.Path) + "_rotate" + draft.Angle,
+                draft.Options.Format, used);
             jobs.Add(new() { FeatureId = "rotate", Inputs = [draft.Path], Options = draft.Options, Output = output });
             used.Add(output);
         }

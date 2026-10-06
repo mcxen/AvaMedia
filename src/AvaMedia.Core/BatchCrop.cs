@@ -34,17 +34,19 @@ public static class BatchCrop
     }
 
     public static ConversionOptions ResolveOptions(CropArea area, MediaInfo reference, MediaInfo target,
-        BatchCropMode mode, ConversionOptions defaults)
+        BatchCropMode mode, ConversionOptions defaults, string? sourcePath = null)
     {
         if (reference.VideoStreamIndex != defaults.VideoStreamIndex || target.VideoStreamIndex != defaults.VideoStreamIndex)
             throw new ArgumentException("媒体信息与所选视频轨不一致，请重新读取视频。");
         var resolved = Resolve(area, reference, target, mode);
         var options = defaults.Clone();
+        if (options.Format == SourceVideoExport.Original)
+        { options.Format = SourceVideoExport.Format(options.Format, sourcePath); options.PreserveSourceAttributes = true; }
         options.CropX = resolved.X; options.CropY = resolved.Y;
         options.CropWidth = resolved.Width; options.CropHeight = resolved.Height;
         if (options.CopyStreams || options.VideoCodec == "copy")
             throw new ArgumentException("画面裁剪需要重新编码，请关闭视频流复制。");
-        if (options.Format is not ("mp4" or "mkv" or "webm" or "mov" or "avi"))
+        if (!options.PreserveSourceAttributes && options.Format is not ("mp4" or "mkv" or "webm" or "mov" or "avi"))
             throw new ArgumentException("请选择 MP4、MKV、WebM、MOV 或 AVI 输出。");
         MediaEngine.ValidateEncodingOptions(options);
         return options;
@@ -64,7 +66,7 @@ public static class BatchCrop
             if (!unique.Add(path)) throw new ArgumentException("批量裁剪列表包含重复文件。");
             try
             {
-                var options = ResolveOptions(request.Area, request.Reference, input.Info, request.Mode, request.Options);
+                var options = ResolveOptions(request.Area, request.Reference, input.Info, request.Mode, request.Options, path);
                 MediaEngine.ValidateEdits(new() { FeatureId = "crop", Inputs = [path], Options = options,
                     Output = Path.Combine(folder, Path.GetFileNameWithoutExtension(path) + "_crop." + options.Format) },[input.Info]);
                 return (Path: path, Options: options);

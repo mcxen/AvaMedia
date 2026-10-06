@@ -173,6 +173,9 @@ Check(cancelDialog.Result is null && !cancel.IsVisible, "Cancel submitted a batc
 var multi = Path.Combine(root, "多视频轨.mkv");
 Check(Run("-v", "error", "-n", "-i", small, "-i", portrait, "-map", "0:v", "-map", "1:v", "-map", "0:a", "-c", "copy", multi).ExitCode == 0, "Multistream fixture failed.");
 var streamWindow = new BatchCropWindow(engine, root, [multi]); streamWindow.Show(); Pump(streamWindow.Ready);
+Check(streamWindow.FindControl<ComboBox>("FormatCombo")!.SelectedItem as string == SourceVideoExport.Original && !streamWindow.FindControl<Button>("OutputOptionsButton")!.IsEnabled,
+    "Crop does not default to original attributes or allows conflicting output options.");
+streamWindow.FindControl<ComboBox>("FormatCombo")!.SelectedItem = "mp4";
 Click(streamWindow.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "输出配置…")));
 var optionsWindow = streamWindow.OwnedWindows.OfType<OptionsWindow>().Single();
 optionsWindow.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "VideoStreamIndex").Text = "1";

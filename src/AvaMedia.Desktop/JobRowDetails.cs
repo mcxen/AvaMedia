@@ -72,6 +72,8 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             {
                 if (!label.Equals(o.Format, StringComparison.OrdinalIgnoreCase)) parts.Add(o.Format.ToUpperInvariant());
                 if (feature.Operation == Operation.Frames) parts.Add($"每 {Number(o.FrameInterval)} 秒一帧");
+                else if (o.LosslessRotation is { } direction) parts.Add($"Fast Copy · 方向标记 {direction}°");
+                else if (o.PreserveSourceAttributes) parts.Add("原视频编码 · 其他轨道直拷");
                 else if (o.CopyStreams) parts.Add("直接复制流");
                 else
                 {
