@@ -26,11 +26,13 @@ public partial class MainWindow
             {
                 if (WindowState != WindowState.Minimized) _restoreState = WindowState;
                 else if (_trayEnabled && _settings.MinimizeToTray) MoveToBackground();
+                _backgroundWindowVisible = IsVisible && WindowState != WindowState.Minimized;
+                if (_backgroundWindowVisible && !_closing) { Refresh(); DrainQueueChanges(); }
             }
             if (e.Property == IsVisibleProperty)
             {
-                _backgroundWindowVisible = IsVisible;
-                if (IsVisible && !_closing) { Refresh(); DrainQueueChanges(); }
+                _backgroundWindowVisible = IsVisible && WindowState != WindowState.Minimized;
+                if (_backgroundWindowVisible && !_closing) { Refresh(); DrainQueueChanges(); }
             }
         };
         Closing += BackgroundClosing;
@@ -94,7 +96,7 @@ public partial class MainWindow
     private void BackgroundTick()
     {
         if (_closing) return;
-        if (IsVisible) ElapsedText.Text = "耗时: " + _elapsed.Elapsed.ToString(@"hh\:mm\:ss");
+        if (_backgroundWindowVisible) ElapsedText.Text = "耗时: " + _elapsed.Elapsed.ToString(@"hh\:mm\:ss");
         DrainQueueChanges();
     }
     private void ConfigureTaskTray()

@@ -101,7 +101,7 @@ public partial class MainWindow
                 if (await countdown.ShowDialog<bool>(this) && !token.IsCancellationRequested) await _optionServices.ShutdownAsync(token);
                 return;
             }
-            if (preferences.NotifyComplete && !token.IsCancellationRequested && IsVisible)
+            if (preferences.NotifyComplete && !token.IsCancellationRequested && IsVisible && WindowState != WindowState.Minimized)
             {
                 await Ui.Message(this, "转换完成", CompletionMessage(completion));
             }
