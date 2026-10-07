@@ -2,7 +2,9 @@
 """Cross-build the bundled Windows media engine and its corresponding sources."""
 import argparse
 import concurrent.futures
+import hashlib
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
@@ -127,26 +129,7 @@ def dependency(name, source, prefix, work, env, jobs):
         raise RuntimeError(f"No Windows recipe for {name}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "artifacts")
-    parser.add_argument("--source-root", type=Path, default=ROOT / ".tools/ffmpeg-windows-sources")
-    args = parser.parse_args()
-    if sys.platform != "linux":
-        parser.error("Build on Linux with the MinGW-w64 POSIX toolchain")
-    source_lock = json.loads((SHARED / "ffmpeg-sources.lock.json").read_text())
-    windows_lock = json.loads((HERE / "ffmpeg-sources.lock.json").read_text())
-    sources = windows_lock["sources"] + source_lock["sources"]
-    args.output.mkdir(parents=True, exist_ok=True)
-    source_root = args.source_root.resolve()
-    source_root.mkdir(parents=True, exist_ok=True)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        cached = dict(zip((item["name"] for item in sources),
-                          executor.map(lambda item: shared.fetch_source(item, source_root), sources)))
-    work = Path(tempfile.mkdtemp(prefix="ffmpeg-win-build-", dir=args.output.resolve()))
-    prefix = work / "dependencies"
-    for folder in ("include", "lib"):
-        (prefix / folder).mkdir(parents=True)
+def dependency_environment(prefix):
     env = os.environ.copy()
     env.update(CC=CROSS + "gcc", CXX=CROSS + "g++", AR=CROSS + "ar", RANLIB=CROSS + "ranlib",
                CROSS=CROSS, CHOST="x86_64-w64-mingw32", CC_FOR_BUILD="gcc", CXX_FOR_BUILD="g++",
@@ -154,14 +137,78 @@ def main():
                CPPFLAGS=f"-I{prefix}/include", LDFLAGS=f"-L{prefix}/lib -static",
                PKG_CONFIG_LIBDIR=f"{prefix}/lib/pkgconfig:{prefix}/share/pkgconfig",
                PKG_CONFIG_PATH="", SOURCE_DATE_EPOCH="0")
+    return env
+
+
+def dependency_key(sources):
+    # A configure/logging change in FFmpeg must not discard its compiled dependencies.
+    tools = (CROSS + "gcc", CROSS + "g++", CROSS + "ld", "gcc", "cmake", "ninja",
+             "meson", "pkg-config", "nasm", "make", "autoreconf", "automake", "libtoolize")
+    inputs = {"schemaVersion": 1, "cross": CROSS,
+              "sources": [item for item in sources if item["name"] != "ffmpeg"],
+              "recipe": inspect.getsource(dependency),
+              "environment": inspect.getsource(dependency_environment),
+              "helpers": [inspect.getsource(getattr(shared, name)) for name in ("run", "fetch_source", "unpack")],
+              "toolchain": {tool: shared.run([tool, "--version"]) for tool in tools}}
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=ROOT / "artifacts")
+    parser.add_argument("--source-root", type=Path, default=ROOT / ".tools/ffmpeg-windows-sources")
+    parser.add_argument("--dependency-root", type=Path, default=ROOT / ".tools/ffmpeg-windows-dependencies")
+    parser.add_argument("--print-dependency-key", action="store_true", help="Print the exact dependency/toolchain cache key")
+    parser.add_argument("--fetch-only", action="store_true", help="Verify pinned sources without compiling")
+    parser.add_argument("--dependencies-only", action="store_true", help="Prepare dependencies before building FFmpeg")
+    args = parser.parse_args()
+    if sys.platform != "linux":
+        parser.error("Build on Linux with the MinGW-w64 POSIX toolchain")
+    source_lock = json.loads((SHARED / "ffmpeg-sources.lock.json").read_text())
+    windows_lock = json.loads((HERE / "ffmpeg-sources.lock.json").read_text())
+    sources = windows_lock["sources"] + source_lock["sources"]
+    key = dependency_key(sources)
+    if args.print_dependency_key:
+        print(key)
+        return
+    args.output.mkdir(parents=True, exist_ok=True)
+    source_root = args.source_root.resolve()
+    source_root.mkdir(parents=True, exist_ok=True)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        cached = dict(zip((item["name"] for item in sources),
+                          executor.map(lambda item: shared.fetch_source(item, source_root), sources)))
+    if args.fetch_only:
+        return
+    work = Path(tempfile.mkdtemp(prefix="ffmpeg-win-build-", dir=args.output.resolve()))
+    prefix = args.dependency_root.resolve() / key
+    dependency_manifest = prefix / "build.json"
+    identity = {"key": key, "prefix": str(prefix)}
+    reuse_dependencies = dependency_manifest.is_file()
+    if reuse_dependencies and json.loads(dependency_manifest.read_text()) != identity:
+        raise RuntimeError("Windows dependency cache identity or install path mismatch")
+    if not reuse_dependencies and prefix.exists():
+        # Incomplete builds are never reused or saved as a successful cache.
+        shutil.rmtree(prefix)
+    for folder in ("include", "lib"):
+        (prefix / folder).mkdir(parents=True, exist_ok=True)
+    env = dependency_environment(prefix)
     jobs = str(os.cpu_count() or 2)
+    if reuse_dependencies:
+        print(f"Reusing Windows dependencies: {key}", flush=True)
+        if args.dependencies_only:
+            return
     extracted = {}
     for item in sources:
         name = item["name"]
         extracted[name] = shared.unpack(item, cached[name], work / "src" / name)
-        if name != "ffmpeg":
+        if name != "ffmpeg" and not reuse_dependencies:
             print(f"Building Windows {name} {item['version']}", flush=True)
             dependency(name, extracted[name], prefix, work, env, jobs)
+    if not reuse_dependencies:
+        dependency_manifest.write_text(json.dumps(identity, indent=2) + "\n")
+    if args.dependencies_only:
+        print(f"Windows dependencies ready: {key}", flush=True)
+        return
     install = work / "ffmpeg"
     # FFmpeg otherwise applies CROSS to pkg-config too. Use the host executable
     # with PKG_CONFIG_LIBDIR above confined to our Windows dependencies.

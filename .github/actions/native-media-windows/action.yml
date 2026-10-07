@@ -15,6 +15,47 @@ runs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build meson pkgconf autoconf automake libtool help2man nasm gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
+    - name: Identify Windows dependency inputs
+      id: dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        key=$(python3 scripts/windows/Build-FFmpeg.py --print-dependency-key)
+        printf 'key=%s\n' "$key" >> "$GITHUB_OUTPUT"
+    - name: Restore pinned Windows sources
+      id: sources
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: .tools/ffmpeg-windows-sources
+        key: windows-media-sources-v1-${{ hashFiles('scripts/windows/ffmpeg-sources.lock.json', 'scripts/macos/ffmpeg-sources.lock.json') }}
+    - name: Fetch and verify pinned Windows sources
+      if: steps.cache.outputs.cache-hit != 'true' && steps.sources.outputs.cache-hit != 'true'
+      shell: bash
+      run: python3 scripts/windows/Build-FFmpeg.py --fetch-only
+    - name: Save verified Windows sources before compiling
+      if: steps.cache.outputs.cache-hit != 'true' && steps.sources.outputs.cache-hit != 'true'
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: .tools/ffmpeg-windows-sources
+        key: ${{ steps.sources.outputs.cache-primary-key }}
+    - name: Restore compiled Windows dependencies
+      id: dependency-cache
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: .tools/ffmpeg-windows-dependencies/${{ steps.dependencies.outputs.key }}
+        key: windows-media-dependencies-v1-${{ steps.dependencies.outputs.key }}
+    - name: Build Windows dependencies
+      if: steps.cache.outputs.cache-hit != 'true' && steps.dependency-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: python3 scripts/windows/Build-FFmpeg.py --dependencies-only
+    - name: Save compiled Windows dependencies before FFmpeg configuration
+      if: steps.cache.outputs.cache-hit != 'true' && steps.dependency-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: .tools/ffmpeg-windows-dependencies/${{ steps.dependencies.outputs.key }}
+        key: ${{ steps.dependency-cache.outputs.cache-primary-key }}
     - name: Build Windows FFmpeg and sources
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
