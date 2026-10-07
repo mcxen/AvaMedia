@@ -20,16 +20,20 @@ public sealed class DownloadEntry(string url) : Observable
     public bool IsReady=>_video is not null && !_video.IsLive && !HasError;
     public bool HasError=>_error.Length>0;
     public string ErrorSummary=>_error.Length>300?_error[..300]+"…":_error;
-    public string Title=>_video?.Title??DownloadLinks.Platform(Url);
-    public string DisplayUrl=>DownloadLinks.Display(Url);
-    public string Description=>_video is {} v ? v.Platform+" · "+(v.Uploader.Length>0?v.Uploader+" · ":"")+(v.Duration>0?MediaTime.Format(v.Duration):"时长待下载时确认") : HasError?"解析失败":"等待解析";
+    public string Title=>_video?.Title??DisplayUrl;
+    public string DisplayUrl=>DownloadLinks.Display(_video is { SourceUrl.Length: > 0 } v?v.SourceUrl:Url);
+    public string Detail=>Title==DisplayUrl?Title:Title+Environment.NewLine+DisplayUrl;
+    public bool HasDescription=>_video is not null;
+    public string Description=>_video is {} v
+        ? Localization.Format($"{Localization.Key(v.Platform)}{(v.Uploader.Length>0?" · "+v.Uploader:"")}{(v.Duration>0?" · "+MediaTime.Format(v.Duration):"")}")
+        : "";
     public void Complete(DownloadVideo video)
     {
         _video=video;if(video.IsLive)_error="直播暂不支持，请使用已发布的视频链接。";
         Refresh();IsChecked=IsReady;
     }
     public void Fail(string message){_error=message;IsChecked=false;Refresh();}
-    private void Refresh(){foreach(var name in new[]{nameof(IsReady),nameof(HasError),nameof(ErrorSummary),nameof(Title),nameof(Description)})Raise(name);}
+    private void Refresh(){foreach(var name in new[]{nameof(IsReady),nameof(HasError),nameof(ErrorSummary),nameof(Title),nameof(DisplayUrl),nameof(Detail),nameof(Description),nameof(HasDescription)})Raise(name);}
 }
 
 public partial class DownloadWindow : Window
@@ -55,15 +59,15 @@ public partial class DownloadWindow : Window
         DownloadList.ItemsSource=_entries;DownloadFolder.Text=folder;LinksInput.Text=string.Join(Environment.NewLine,links??[]);
         DownloadFormat.ItemsSource=new[]{"MP4 视频","MKV 视频","MP3 音频","M4A 音频"};DownloadFormat.SelectedIndex=Math.Max(0,Array.IndexOf(new[]{"mp4","mkv","mp3","m4a"},editingJob?.Options.Format??"mp4"));
         DownloadQuality.ItemsSource=_qualityHeights.Select(height=>height switch{0=>"最佳",2160=>"2160p / 4K",1440=>"1440p / 2K",_=>height+"p"}).ToArray();DownloadQuality.SelectedIndex=Array.IndexOf(_qualityHeights,options.MaxHeight);
-        DownloadSubtitles.ItemsSource=new[]{"不保存字幕","人工字幕（中文 / 英文）","人工和自动字幕（中文 / 英文）"};DownloadSubtitles.SelectedIndex=options.Subtitles?options.AutoSubtitles?2:1:0;
+        DownloadSubtitles.ItemsSource=new[]{"不保存字幕","人工字幕","含自动字幕"};DownloadSubtitles.SelectedIndex=options.Subtitles?options.AutoSubtitles?2:1:0;
         CookieSource.ItemsSource=new[]{"不读取登录态","Firefox","Chrome","Edge","Safari","Brave","cookies.txt 文件","浏览器 CDP"};CookieSource.SelectedIndex=options.UseBrowserCookies?7:options.CookieFile.Length>0?6:Math.Max(0,Array.IndexOf(new[]{"","firefox","chrome","edge","safari","brave"},options.CookieBrowser));
         BrowserEndpoint.Text=options.Browser?.Endpoint??options.CdpEndpoint;
         CookieFileInput.Text=options.CookieFile;DownloadProxy.Text=options.Proxy;SaveMetadata.IsChecked=options.Metadata;ExpandPlaylist.IsChecked=options.ExpandPlaylist;
         if(editingJob is not null)
         {
-            Title=DownloadHeading.Text="编辑下载任务";AddDownloadsButton.Content="保存修改";
-            ExpandPlaylist.IsChecked=false;ExpandPlaylist.IsVisible=PlaylistLimit.IsVisible=SelectAllCheck.IsVisible=false;
-            OutputNameLabel.IsVisible=DownloadOutputName.IsVisible=DownloadExtension.IsVisible=true;DownloadOutputFields.RowSpacing=10;
+            Title="编辑下载任务";AddDownloadsButton.Content="保存修改";
+            ExpandPlaylist.IsChecked=false;ExpandPlaylist.IsVisible=false;
+            OutputNameLabel.IsVisible=DownloadOutputName.IsVisible=DownloadExtension.IsVisible=true;
             DownloadOutputName.Text=Path.GetFileNameWithoutExtension(editingJob.Output);
             LinksInput.Text=string.Join(Environment.NewLine,editingJob.Inputs);_inspectedText=LinksInput.Text.Trim();
             if(editingJob.Inputs.FirstOrDefault() is {} url)
@@ -77,32 +81,32 @@ public partial class DownloadWindow : Window
         AutomationProperties.SetName(DownloadQuality,"下载最高画质");AutomationProperties.SetName(CookieSource,"下载登录态来源");
         AutomationProperties.SetName(DownloadProxy,"下载代理");AutomationProperties.SetName(DownloadFolder,"下载保存位置");
         AutomationProperties.SetName(DownloadOutputName,"下载文件名");
-        foreach(var control in new TextBox[]{LinksInput,DownloadFolder,DownloadProxy,CookieFileInput,DownloadOutputName})control.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)RefreshSelection();};
+        AutomationProperties.SetName(DownloadFormat,"保存内容");AutomationProperties.SetName(DownloadSubtitles,"字幕（中 / 英）");
+        AutomationProperties.SetName(BrowserEndpoint,"浏览器 CDP");AutomationProperties.SetName(CookieFileInput,"Cookie 文件");
+        foreach(var control in new TextBox[]{DownloadFolder,DownloadProxy,CookieFileInput,DownloadOutputName})control.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)RefreshSelection();};
         _autoInspect.Tick+=(_,_)=>{_autoInspect.Stop();if(!_busy&&!_closed&&!LinksUnchanged&&HasDirectLinks())_ready=InspectAsync();};
-        LinksInput.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty){_autoInspect.Stop();if(!_busy&&HasDirectLinks())_autoInspect.Start();}};
+        LinksInput.PropertyChanged+=(_,e)=>
+        {
+            if(e.Property!=TextBox.TextProperty)return;
+            _autoInspect.Stop();
+            if(!_busy){_entries.Clear();InspectStatus.Text="";SetError("");if(HasDirectLinks())_autoInspect.Start();}
+            RefreshSelection();
+        };
         DragDrop.SetAllowDrop(LinksInput,true);LinksInput.AddHandler(DragDrop.DropEvent,DropLinks);
         Closed+=(_,_)=>{_closed=true;_autoInspect.Stop();_inspection?.Cancel();_lifetime.Cancel();};
-        Opened+=async(_,_)=>
-        {
-            if(!_editing&&HasDirectLinks())_ready=InspectAsync();
-            try
-            {
-                var path=MediaEngine.Resolve(settings.YtDlpPath,"yt-dlp");var version=await ProcessRunner.Run(path,["--version"],_lifetime.Token);
-                if(!_closed)EngineStatus.Text=Localization.Format($"yt-dlp {(version.ExitCode==0?version.Output.Trim():"不可用")}");
-            }
-            catch(OperationCanceledException){}catch(Exception){if(!_closed)EngineStatus.Text="下载引擎未安装";}
-        };
-        RefreshSelection();PlatformHelp.Text=Help(editingJob?.Inputs.FirstOrDefault() is {} source?DownloadLinks.Platform(source):"YouTube");
+        Opened+=(_,_)=>{if(!_editing&&HasDirectLinks())_ready=InspectAsync();};
+        NetworkOptions.IsExpanded=CookieSource.SelectedIndex!=0||options.Proxy.Length>0||BrowserEndpoint.Text!=BrowserVideoCapture.DefaultEndpoint;
+        RefreshSelection();
     }
 
     public DownloadOptions ReadOptions()=>new()
     {
-        MaxHeight=_qualityHeights[Math.Max(0,DownloadQuality.SelectedIndex)],
+        MaxHeight=DownloadQualityPanel.IsVisible?_qualityHeights[Math.Max(0,DownloadQuality.SelectedIndex)]:0,
         ExpandPlaylist=ExpandPlaylist.IsChecked==true,
         CookieBrowser=CookieSource.SelectedIndex switch{1=>"firefox",2=>"chrome",3=>"edge",4=>"safari",5=>"brave",_=>""},
         CookieFile=CookieSource.SelectedIndex==6?CookieFileInput.Text?.Trim()??"":"",
-        Proxy=DownloadProxy.Text?.Trim()??"",Subtitles=DownloadSubtitles.SelectedIndex>0,
-        AutoSubtitles=DownloadSubtitles.SelectedIndex==2,Metadata=SaveMetadata.IsChecked==true,UseBrowserCookies=CookieSource.SelectedIndex==7,
+        Proxy=DownloadProxy.Text?.Trim()??"",Subtitles=DownloadSubtitlesPanel.IsVisible&&DownloadSubtitles.SelectedIndex>0,
+        AutoSubtitles=DownloadSubtitlesPanel.IsVisible&&DownloadSubtitles.SelectedIndex==2,Metadata=SaveMetadata.IsChecked==true,UseBrowserCookies=CookieSource.SelectedIndex==7,
         CdpEndpoint=BrowserEndpoint.Text?.Trim()??BrowserVideoCapture.DefaultEndpoint
     };
     public VideoDownloadRequest ReadRequest()
@@ -125,7 +129,11 @@ public partial class DownloadWindow : Window
         catch(ArgumentException){return false;}
     }
 
-    private void InspectClick(object? sender,RoutedEventArgs e)=>_ready=InspectAsync();
+    private void InspectClick(object? sender,RoutedEventArgs e)
+    {
+        if(_busy){_inspection?.Cancel();InspectButton.IsEnabled=false;}
+        else _ready=InspectAsync();
+    }
     private void RetryFailedClick(object? sender,RoutedEventArgs e)=>_ready=InspectAsync(retryFailed:true);
     public async Task InspectAsync(bool retryFailed=false)
     {
@@ -133,10 +141,11 @@ public partial class DownloadWindow : Window
         retryFailed&=LinksUnchanged;
         IReadOnlyList<string> urls;DownloadOptions options;
         try{urls=retryFailed?_entries.Where(e=>e.HasError).Select(e=>e.Url).Distinct(StringComparer.Ordinal).ToArray():DownloadLinks.Extract(LinksInput.Text);if(urls.Count==0)throw new ArgumentException("没有找到 HTTP / HTTPS 链接，请粘贴视频分享文本。");options=ReadOptions();options.Validate();}
-        catch(Exception ex){DownloadError.Text=ex.Message;return;}
+        catch(Exception ex){SetError(ex.Message);return;}
         var contexts=_entries.Where(entry=>entry.Video?.Browser is not null).ToDictionary(entry=>entry.Video!.Url,entry=>entry.Video!.Browser,StringComparer.Ordinal);
         _inspection=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_inspection.Token;
-        SetBusy(true);if(retryFailed){foreach(var failed in _entries.Where(e=>e.HasError).ToArray())_entries.Remove(failed);}else {_entries.Clear();_inspectedText=LinksInput.Text?.Trim()??"";}DownloadError.Text="";var truncated=false;
+        _autoInspect.Stop();
+        SetBusy(true);if(retryFailed){foreach(var failed in _entries.Where(e=>e.HasError).ToArray())_entries.Remove(failed);}else {_entries.Clear();_inspectedText=LinksInput.Text?.Trim()??"";}SetError("");var truncated=false;
         try
         {
             var seen=new HashSet<string>(_entries.Where(e=>e.Video is not null).Select(e=>e.Video!.Url),StringComparer.Ordinal);
@@ -160,7 +169,7 @@ public partial class DownloadWindow : Window
                 RefreshSelection();
                 if(_entries.Count>=100){truncated|=i<urls.Count-1;break;}
             }
-            InspectStatus.Text=Localization.Join(" · ", new[] { Localization.Format($"解析完成 · {_entries.Count(e=>e.IsReady)} 个视频"), truncated ? "已限制为前 100 项" : "" }.Where(s=>s.Length>0));
+            InspectStatus.Text=truncated?"已限制为前 100 项":"";
         }
         catch(OperationCanceledException){if(!_closed)InspectStatus.Text="解析已取消";}
         finally{_inspection.Dispose();_inspection=null;if(!_closed){SetBusy(false);RefreshSelection();}}
@@ -171,7 +180,7 @@ public partial class DownloadWindow : Window
         if(_editing && _entries.Any(e=>e.IsChecked))entry.IsChecked=false;
         entry.PropertyChanged+=(_,e)=>
         {
-            if(e.PropertyName!=nameof(DownloadEntry.IsChecked))return;
+            if(e.PropertyName!=nameof(DownloadEntry.IsChecked)||_checking)return;
             if(_editing && entry.IsChecked && !_selectingEntry)
             {
                 _selectingEntry=true;
@@ -184,38 +193,47 @@ public partial class DownloadWindow : Window
     }
     private void SetBusy(bool value)
     {
-        _busy=value;InspectButton.IsEnabled=BrowserCaptureButton.IsEnabled=PasteLinksButton.IsEnabled=ClearLinksButton.IsEnabled=LinksInput.IsEnabled=DownloadSettingsPanel.IsEnabled=DownloadList.IsEnabled=SelectAllCheck.IsEnabled=!value;
-        CancelInspectButton.IsVisible=value;RefreshSelection();
+        _busy=value;
+        BrowserCaptureButton.IsEnabled=PasteLinksButton.IsEnabled=LinksInput.IsEnabled=DownloadSettingsPanel.IsEnabled=DownloadList.IsEnabled=ExpandPlaylist.IsEnabled=!value;
+        InspectButton.Content=value?"取消解析":"解析链接";
+        RefreshSelection();
     }
     private void RefreshSelection()
     {
         if(SelectionSummary is null)return;
         var ready=_entries.Count(e=>e.IsReady);var selected=_entries.Count(e=>e.IsChecked&&e.IsReady);var errors=_entries.Count(e=>e.HasError);
-        SelectionSummary.Text=Localization.Format($"选中 {selected}/{ready} 个视频{(errors>0?Localization.Format($" · {errors} 项未能解析"):"")}");
-        EmptyState.IsVisible=_entries.Count==0;_checking=true;SelectAllCheck.IsChecked=ready>0&&selected==ready;_checking=false;
+        SelectionSummary.Text=Localization.Join(" · ",new[]
+        {
+            ready>0?Localization.Format($"选中 {selected}/{ready} 个视频"):"",
+            errors>0?Localization.Format($"{errors} 项未能解析"):""
+        }.Where(text=>text.Length>0));
+        EmptyState.IsVisible=_entries.Count==0;
+        SelectionToolbar.IsVisible=ready+errors>0;
+        SelectAllCheck.IsVisible=!_editing&&ready>1;SelectAllCheck.IsEnabled=!_busy;
+        _checking=true;SelectAllCheck.IsChecked=selected==0?false:selected==ready?true:null;_checking=false;
         AddDownloadsButton.IsEnabled=!_busy&&LinksUnchanged&&selected>0&&(!_editing || selected==1&&!string.IsNullOrWhiteSpace(DownloadOutputName.Text))&&!string.IsNullOrWhiteSpace(DownloadFolder.Text);
-        RetryFailedButton.IsEnabled=!_busy&&LinksUnchanged&&errors>0;
+        RetryFailedButton.IsVisible=!_busy&&LinksUnchanged&&errors>0;
+        InspectButton.IsEnabled=_busy?_inspection?.IsCancellationRequested==false:!string.IsNullOrWhiteSpace(LinksInput.Text);
+        ClearLinksButton.IsEnabled=!_busy&&(!string.IsNullOrWhiteSpace(LinksInput.Text)||_entries.Count>0);
         UpdateQualitySelection();
     }
-    private void SelectAllChanged(object? sender,RoutedEventArgs e){if(_checking || _busy)return;var selected=SelectAllCheck.IsChecked==true;foreach(var entry in _entries.Where(e=>e.IsReady))entry.IsChecked=selected;RefreshSelection();}
-    private void VideoSelected(object? sender,SelectionChangedEventArgs e){if(DownloadList.SelectedItem is DownloadEntry entry)PlatformHelp.Text=Help(entry.Video?.Platform??DownloadLinks.Platform(entry.Url));}
-    private static string Help(string platform)=>platform switch
+    private void SelectAllChanged(object? sender,RoutedEventArgs e)
     {
-        "YouTube"=>"YouTube：部分内容需要登录态",
-        "哔哩哔哩"=>"哔哩哔哩：画质受账号权限限制",
-        "抖音"=>"抖音：登录或验证限制需要浏览器登录态",
-        "小红书"=>"小红书：保留分享链接里的 xsec_token 等参数。当前下载视频笔记，图文笔记不在此流程中。",
-        "Bunkr"=>"Bunkr：下载原文件",
-        "Pixeldrain"=>"Pixeldrain：保留 #item 参数以选择列表单项；下载受站点限额限制",
-        "视频直链"=>"视频直链：保留原始画质",
-        "Fileditch"=>"Fileditch：自动获取媒体地址",
-        _=>"其他网站由 yt-dlp 解析。网站支持和可用画质取决于当前引擎与视频访问状态。"
-    };
+        if(_checking||_busy)return;
+        var selected=SelectAllCheck.IsChecked==true;_checking=true;
+        foreach(var entry in _entries.Where(e=>e.IsReady))entry.IsChecked=selected;
+        _checking=false;RefreshSelection();
+    }
+    private void VideoRowPressed(object? sender,PointerPressedEventArgs e)
+    {
+        if(_busy||!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed||sender is not Control{DataContext:DownloadEntry{IsReady:true} entry})return;
+        entry.IsChecked=!entry.IsChecked;e.Handled=true;
+    }
     private async void BrowserCaptureClick(object? sender,RoutedEventArgs e)
     {
         if(_busy)return;
         _autoInspect.Stop();_inspection=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        SetBusy(true);DownloadError.Text="";InspectStatus.Text="正在识别浏览器视频";
+        SetBusy(true);SetError("");InspectStatus.Text="正在识别浏览器视频";
         try
         {
             var urls=DownloadLinks.Extract(LinksInput.Text);
@@ -226,10 +244,10 @@ public partial class DownloadWindow : Window
             LinksInput.Text=string.Join(Environment.NewLine,videos.Select(video=>video.SourceUrl.Length>0?video.SourceUrl:video.Url));_inspectedText=LinksInput.Text.Trim();
             foreach(var video in videos){var entry=new DownloadEntry(video.Url);entry.Complete(video);AddEntry(entry);}
             if(CookieSource.SelectedIndex==0)CookieSource.SelectedIndex=7;
-            InspectStatus.Text=Localization.Format($"解析完成 · {_entries.Count} 个视频");
+            InspectStatus.Text="";
         }
         catch(OperationCanceledException){if(!_closed)InspectStatus.Text="解析已取消";}
-        catch(Exception ex){if(!_closed){InspectStatus.Text="";DownloadError.Text=DownloadDiagnostics.Redact(ex.Message);}}
+        catch(Exception ex){if(!_closed){InspectStatus.Text="";SetError(DownloadDiagnostics.Redact(ex.Message));}}
         finally{_inspection.Dispose();_inspection=null;if(!_closed){SetBusy(false);RefreshSelection();}}
     }
     private void FormatChanged(object? sender,SelectionChangedEventArgs e)
@@ -239,12 +257,13 @@ public partial class DownloadWindow : Window
     }
     private void UpdateQualitySelection()
     {
-        if(DownloadQuality is null)return;
+        if(DownloadQualityPanel is null||DownloadSubtitlesPanel is null)return;
         var selected=_entries.Where(entry=>entry.IsChecked&&entry.IsReady).ToArray();
-        DownloadQuality.IsEnabled=DownloadFormat.SelectedIndex<2&&(selected.Length==0||selected.Any(entry=>entry.Video!.Platform is not ("视频直链" or "Fileditch")));
+        var hasWebsiteOptions=selected.Length==0||selected.Any(entry=>entry.Video!.Platform is not ("视频直链" or "Fileditch" or "Bunkr" or "Pixeldrain"));
+        DownloadQualityPanel.IsVisible=DownloadFormat.SelectedIndex<2&&hasWebsiteOptions;
+        DownloadSubtitlesPanel.IsVisible=hasWebsiteOptions;
     }
     private void CookieSourceChanged(object? sender,SelectionChangedEventArgs e){if(CookieFilePanel is not null)CookieFilePanel.IsVisible=CookieSource.SelectedIndex==6;}
-    private void NetworkSettingsClick(object? sender,RoutedEventArgs e){CookieSource.BringIntoView();CookieSource.Focus();}
     private async void CookieFileClick(object? sender,RoutedEventArgs e)
     {
         var files=await StorageProvider.OpenFilePickerAsync(new(){Title = Localization.Text("选择 Netscape 格式 cookies.txt"),AllowMultiple=false,FileTypeFilter=[new(Localization.Text("Cookies 文本")){Patterns=["*.txt"]}]});
@@ -254,12 +273,11 @@ public partial class DownloadWindow : Window
     private async void PasteClick(object? sender,RoutedEventArgs e)
     {
         try{if(Clipboard is {} clipboard){using var data=await clipboard.TryGetDataAsync();if(data is not null && await data.TryGetTextAsync() is {} text)LinksInput.Text=text;}}
-        catch(Exception ex){DownloadError.Text=Localization.Format($"无法读取剪贴板：{ex.Message}");}
+        catch(Exception ex){SetError(Localization.Format($"无法读取剪贴板：{ex.Message}"));}
     }
     private void DropLinks(object? sender,DragEventArgs e){if(!_busy && e.DataTransfer.TryGetText() is {} text){LinksInput.Text=text;e.Handled=true;}}
-    private void CancelInspectClick(object? sender,RoutedEventArgs e)=>_inspection?.Cancel();
-    private void ClearClick(object? sender,RoutedEventArgs e){if(_busy)return;LinksInput.Text="";_entries.Clear();InspectStatus.Text="";DownloadError.Text="";RefreshSelection();}
-    private void RemoveVideoClick(object? sender,RoutedEventArgs e){if(!_busy && sender is Control{DataContext:DownloadEntry entry}){_entries.Remove(entry);RefreshSelection();}}
+    private void ClearClick(object? sender,RoutedEventArgs e){if(_busy)return;LinksInput.Text="";_entries.Clear();InspectStatus.Text="";SetError("");RefreshSelection();}
+    private void SetError(string message){DownloadError.Text=message;DownloadError.IsVisible=message.Length>0;}
     private void CancelClick(object? sender,RoutedEventArgs e)=>Close(null);
-    private void ConfirmClick(object? sender,RoutedEventArgs e){if(_busy)return;try{Close(ReadRequest());}catch(Exception ex){DownloadError.Text=ex.Message;}}
+    private void ConfirmClick(object? sender,RoutedEventArgs e){if(_busy)return;try{Close(ReadRequest());}catch(Exception ex){SetError(ex.Message);}}
 }
