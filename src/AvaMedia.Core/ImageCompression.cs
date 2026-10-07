@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text.Json;
+using SkiaSharp;
 
 namespace AvaMedia.Core;
 
@@ -145,14 +146,17 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         var folder = Path.GetDirectoryName(output)!;
         Directory.CreateDirectory(folder);
         var temporary = Path.Combine(folder, ".AvaMedia-image-" + Guid.NewGuid().ToString("N") + "." + options.Format);
+        var decoded = options.Format == "webp" ? temporary + ".png" : null;
         var size = ImageCompression.Size(source, options);
         if (options.Format == "webp" && Math.Max(size.Width, size.Height) > 16383)
             throw new ArgumentException("WebP 最长边最多 16383 像素；请缩小尺寸或选择 PNG / JPEG。");
         try
         {
-            var args = Arguments(source, size, temporary, options);
+            var args = Arguments(source, size, decoded ?? temporary, options);
             var encoded = await ProcessRunner.Run(engine.FFmpeg, args, cancellationToken).ConfigureAwait(false);
             if (encoded.ExitCode != 0) throw new InvalidOperationException("图片编码失败：" + encoded.Error);
+            if (decoded is not null)
+                await Task.Run(() => EncodeWebp(decoded, temporary, size, options, cancellationToken), cancellationToken).ConfigureAwait(false);
             var length = new FileInfo(temporary).Length;
             if (length == 0) throw new InvalidDataException("图片编码没有生成有效文件。");
             var result = new ImageCompressionResult(output, source.Bytes, length, size.Width, size.Height);
@@ -162,7 +166,27 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
             File.Move(temporary, output); // No overwrite; the original is never the destination.
             return result;
         }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        finally
+        {
+            try { if (File.Exists(temporary)) File.Delete(temporary); }
+            finally { if (decoded is not null && File.Exists(decoded)) File.Delete(decoded); }
+        }
+    }
+
+    private static void EncodeWebp(string decoded, string output, (int Width, int Height) size,
+        ImageCompressionOptions options, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        // Keep straight alpha, including RGB values in translucent pixels, for lossless encoding.
+        using var bitmap = SKBitmap.Decode(decoded, new SKImageInfo(size.Width, size.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul))
+            ?? throw new InvalidDataException("无法读取 WebP 编码所需的图片。");
+        using var pixels = bitmap.PeekPixels();
+        using var data = pixels.Encode(new SKWebpEncoderOptions(
+            options.Lossless ? SKWebpEncoderCompression.Lossless : SKWebpEncoderCompression.Lossy, options.Quality))
+            ?? throw new InvalidOperationException("WebP 图片编码失败。");
+        token.ThrowIfCancellationRequested();
+        using var stream = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        data.SaveTo(stream);
     }
 
     private static List<string> Arguments(ImageCompressionSource source, (int Width, int Height) size,
@@ -182,15 +206,15 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         }
         else
         {
-            var pixels = options.Format == "webp" ? "bgra" : PngPixels(source, resized);
+            var pixels = options.Format == "webp" ? "rgba" : PngPixels(source, resized);
             HeifImage.AppendVideo(args, HeifImage.Map(source.InputSpecifier), $"{prefix}format={pixels}{scale}");
             args.AddRange(["-filter_threads", "1"]);
         }
         args.AddRange(["-an", "-sn", "-dn", "-frames:v", "1", "-map_metadata", "-1", "-threads", "2"]);
         if (options.Format == "jpg") args.AddRange(["-c:v", "mjpeg", "-q:v", MediaEngine.Number(2 + (100 - options.Quality) * 29d / 99)]);
         else if (options.Format == "png") args.AddRange(["-c:v", "png", "-compression_level", "9", "-pred", "mixed"]);
-        else args.AddRange(["-c:v", "libwebp", "-lossless", options.Lossless ? "1" : "0", "-compression_level", "6",
-            "-quality", options.Quality.ToString(System.Globalization.CultureInfo.InvariantCulture), "-q:v", options.Quality.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+        // FFmpeg handles orientation and scaling; the bundled Skia encoder writes static WebP.
+        else args.AddRange(["-c:v", "png", "-compression_level", "1"]);
         args.Add(output);
         return args;
     }
