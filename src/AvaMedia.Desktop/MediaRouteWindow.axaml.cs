@@ -72,8 +72,8 @@ public partial class MediaRouteWindow : Window
         RouteScroll.ScrollChanged += (_, _) => UpdateFlowTarget();
         LayoutUpdated += (_, _) => UpdateFlowTarget();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Tunnel);
-        AddHandler(DragDrop.DropEvent, (_, e) => { e.Handled = true; AddFiles(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); }, RoutingStrategies.Tunnel);
+        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(DragDrop.DropEvent, (_, e) => { e.Handled = true; AddFiles(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); }, RoutingStrategies.Bubble, handledEventsToo: true);
         Localization.Changed += LanguageChanged;
         Closed += (_, _) =>
         {

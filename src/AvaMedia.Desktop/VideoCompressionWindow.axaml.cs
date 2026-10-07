@@ -56,12 +56,12 @@ public partial class VideoCompressionWindow : Window
         SourceList.ItemsSource = _entries;
         var options = VideoCompression.Effective(initial ?? new());
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = !_closed && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Tunnel);
+        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = !_closed && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
             e.Handled = true;
             if (!_closed) await AddFilesAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>().Where(File.Exists) ?? []);
-        }, RoutingStrategies.Tunnel);
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         ModeInput.ItemsSource = new[] { "自动档（推荐）", "手动质量（画质优先）", "手动码率（体积可估）", "按原体积百分比", "按目标 MB" };
         PresetInput.ItemsSource = new[] { "高 · 画质优先", "中 · 均衡（推荐）", "低 · 体积优先" };
         SpeedInput.ItemsSource = new[] { "快 · 更快完成", "中 · 均衡速度", "慢 · 压缩效率优先" };

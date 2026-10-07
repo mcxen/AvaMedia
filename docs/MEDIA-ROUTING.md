@@ -12,4 +12,6 @@
 
 `IMediaFileRouter` / `MediaFileRouter` 负责扩展名分类、可用工具、匹配文件、数量要求与混流顺序。`MediaRouteWindow` 负责选择和预览；`MainWindow.RouteFilesAsync` 取得请求后调用现有 `Configure`，不另写一套导出逻辑。类型识别不是对内容有效性的保证，实际格式和编码能力仍由对应工具校验。
 
+窗口拖放处理监听 `RoutingStrategies.Bubble`，并设置 `handledEventsToo: true`，接收拖入子控件的文件。[Avalonia 的 `DragOver` 与 `Drop` 事件仅注册了冒泡路由](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Base/Input/DragDrop.cs)，不能用 `Tunnel` 监听；该约定也用于视频压缩与格式转换窗口的文件追加。
+
 本次按仓库约定只检查受影响项目编译及语言配置语法，未运行拖放功能回归或截图验收。

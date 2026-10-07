@@ -56,14 +56,14 @@ public sealed class ConvertWindow : Window
         if(feature.Operation is not (Operation.Download or Operation.IsoCopy))
         {
             DragDrop.SetAllowDrop(this,true);
-            AddHandler(DragDrop.DragOverEvent,(_,e)=>{e.DragEffects=!_preparing && e.DataTransfer.TryGetFiles() is not null?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;},RoutingStrategies.Tunnel);
+            AddHandler(DragDrop.DragOverEvent,(_,e)=>{e.DragEffects=!_preparing && e.DataTransfer.TryGetFiles() is not null?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;},RoutingStrategies.Bubble,handledEventsToo:true);
             AddHandler(DragDrop.DropEvent,(_,e)=>
             {
                 e.Handled=true;if(_preparing)return;
                 var known=_entries.Select(entry=>Path.GetFullPath(entry.Path)).ToHashSet(VideoFolderScanner.PathComparer);
                 foreach(var path in e.DataTransfer.TryGetFiles()?.Select(file=>file.TryGetLocalPath()).OfType<string>().Where(File.Exists).Select(Path.GetFullPath).Where(known.Add)??[])
                     _entries.Add(new(path));
-            },RoutingStrategies.Tunnel);
+            },RoutingStrategies.Bubble,handledEventsToo:true);
         }
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(18)};
         var sourceOutput=feature.Id is "crop" or "rotate";
