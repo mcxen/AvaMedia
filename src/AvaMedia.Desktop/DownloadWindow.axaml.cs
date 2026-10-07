@@ -44,7 +44,7 @@ public partial class DownloadWindow : Window
     public DownloadWindow() : this(new(),MediaFolders.DefaultOutput) { }
     public DownloadWindow(AppSettings settings,string folder,IEnumerable<string>? links=null,IVideoDownloadService? service=null)
     {
-        InitializeComponent();_service=service??new YtDlpDownloadService(settings);
+        InitializeComponent();_service=service??new VideoDownloadService(settings);
         DownloadList.ItemsSource=_entries;DownloadFolder.Text=folder;LinksInput.Text=string.Join(Environment.NewLine,links??[]);
         DownloadFormat.ItemsSource=new[]{"MP4 视频","MKV 视频","MP3 音频","M4A 音频"};DownloadFormat.SelectedIndex=0;
         DownloadQuality.ItemsSource=new[]{"最佳","2160p / 4K","1440p / 2K","1080p","720p","480p","360p"};DownloadQuality.SelectedIndex=3;
@@ -149,6 +149,8 @@ public partial class DownloadWindow : Window
         "哔哩哔哩"=>"哔哩哔哩：分享短链可解析；分P可展开。高画质依赖账号可观看的清晰度。",
         "抖音"=>"抖音：使用视频分享链接。遇到登录或验证提示，请使用已登录浏览器的登录态。",
         "小红书"=>"小红书：保留分享链接里的 xsec_token 等参数。当前下载视频笔记，图文笔记不在此流程中。",
+        "Bunkr"=>"Bunkr：支持单个视频和相册，勾选展开相册后可逐项选择视频。下载使用原文件画质，签名链接在开始下载时刷新。",
+        "Pixeldrain"=>"Pixeldrain：支持单个视频和文件列表，保留 #item 参数可选择列表中的单项。下载使用原文件画质；限额或验证要求由站点决定。",
         _=>"其他网站由 yt-dlp 解析。网站支持和可用画质取决于当前引擎与视频访问状态。"
     };
     private void FormatChanged(object? sender,SelectionChangedEventArgs e){if(DownloadQuality is not null)DownloadQuality.IsEnabled=DownloadFormat.SelectedIndex<2;}
