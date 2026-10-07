@@ -219,18 +219,13 @@ summary,
 }
 h1 {
   margin-block: 29px 24px;
-  font-size: clamp(48px, 5.4vw, 77px);
+  font-size: clamp(42px, 4.4vw, 64px);
   line-height: 1.15;
   letter-spacing: -0.065em;
   font-weight: 750;
 }
 .hero-line {
   display: block;
-}
-html[lang="en"] h1 {
-  font-size: clamp(52px, 5.5vw, 79px);
-  line-height: 1.04;
-  letter-spacing: -0.075em;
 }
 .hero-description {
   max-width: 350px;
@@ -254,55 +249,6 @@ html[lang="en"] h1 {
 .hero-art {
   position: relative;
   isolation: isolate;
-  padding: 76px 6px 64px;
-}
-.hero-art::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 25px -18px 16px;
-  background: #e8ebdf;
-  border-radius: 50% 50% 15% 15%;
-}
-.format-row {
-  position: absolute;
-  z-index: 2;
-  top: -4px;
-  left: 12%;
-  display: flex;
-  gap: 20px;
-}
-.format-file {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 79px;
-  height: 101px;
-  padding: 15px 13px;
-  border: 1px solid rgb(0 0 0 / 7%);
-  border-radius: 8px 18px 8px 8px;
-  box-shadow: 0 8px 12px -10px rgb(0 0 0 / 25%);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-}
-.format-file:first-child {
-  transform: rotate(-12deg) translateY(13px);
-}
-.format-file:nth-child(2) {
-  transform: rotate(3deg);
-}
-.format-file:last-child {
-  transform: rotate(13deg) translateY(19px);
-}
-.blue {
-  background: #c4dce6;
-}
-.yellow {
-  background: #e9dbac;
-}
-.pink {
-  background: #e1c7c3;
 }
 .hero-window {
   position: relative;
@@ -311,8 +257,6 @@ html[lang="en"] h1 {
   background: #212221;
   border: 1px solid #424640;
   border-radius: 10px;
-  box-shadow: 0 32px 36px -28px rgb(30 35 25 / 50%);
-  transform: rotate(-2deg);
 }
 .window-bar {
   display: flex;
@@ -333,61 +277,8 @@ html[lang="en"] h1 {
   background: #656960;
   border-radius: 50%;
 }
-.window-mark {
-  font-size: 12px;
-}
 .hero-screen {
   width: 100%;
-}
-.output-ticket {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: absolute;
-  z-index: 4;
-  bottom: 0;
-  right: -4px;
-  min-width: 268px;
-  padding: 20px 22px;
-  background: var(--lime);
-  border-radius: 8px;
-  transform: rotate(3deg);
-  box-shadow: 0 10px 30px -24px #3e4c27;
-}
-.ticket-symbol {
-  font-size: 32px;
-  font-weight: 300;
-}
-.ticket-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 10px;
-}
-.output-ticket strong {
-  font-size: 12px;
-  letter-spacing: 1px;
-}
-.output-ticket strong span {
-  margin-inline: 4px;
-  opacity: 0.4;
-}
-.ticket-check {
-  display: grid;
-  place-items: center;
-  margin-left: auto;
-  width: 25px;
-  height: 25px;
-  border: 1px solid #718846;
-  border-radius: 50%;
-  font-size: 12px;
-}
-.art-caption {
-  position: absolute;
-  bottom: 12px;
-  left: 15px;
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: #6f7564;
 }
 .media-strip {
   display: flex;
@@ -423,9 +314,6 @@ h2 {
   letter-spacing: -0.045em;
   line-height: 1.3;
   text-wrap: balance;
-}
-.muted {
-  color: #898c80;
 }
 .section-intro {
   margin-top: 20px;
@@ -1036,34 +924,7 @@ dialog > p {
     border-radius: 5px;
   }
 }
-@media (min-width: 901px) and (prefers-reduced-motion: no-preference) {
-  .hero-window {
-    animation: window-arrive 700ms var(--ease) both;
-  }
-  .output-ticket {
-    animation: ticket-arrive 700ms 140ms var(--ease) both;
-  }
-  @keyframes window-arrive {
-    from {
-      opacity: 0;
-      transform: translateY(22px) rotate(0deg);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) rotate(-2deg);
-    }
-  }
-  @keyframes ticket-arrive {
-    from {
-      opacity: 0;
-      transform: translateY(18px) rotate(0deg);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) rotate(3deg);
-    }
-  }
-}
+
 @media (min-width: 1600px) {
   .hero {
     padding-block: 130px;
@@ -1086,21 +947,6 @@ dialog > p {
   .hero-actions {
     gap: 16px;
     flex-wrap: wrap;
-  }
-  .hero-art {
-    padding-block: 64px;
-  }
-  .format-file {
-    width: 68px;
-    height: 86px;
-    padding: 12px;
-  }
-  .output-ticket {
-    min-width: 248px;
-    padding: 18px;
-  }
-  .hero-art::before {
-    inset-inline: -4px;
   }
   .feature-card {
     padding: 24px;
@@ -1130,10 +976,7 @@ dialog > p {
     max-width: 650px;
   }
   h1 {
-    font-size: 72px;
-  }
-  html[lang="en"] h1 {
-    font-size: 80px;
+    font-size: 64px;
   }
   .hero-description {
     max-width: 460px;
@@ -1142,12 +985,6 @@ dialog > p {
     max-width: 650px;
     width: 100%;
     margin-inline: auto;
-  }
-  .format-row {
-    top: -10px;
-  }
-  .hero-art::before {
-    inset: -7px 0 24px;
   }
   .feature-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1212,11 +1049,8 @@ dialog > p {
     gap: 64px;
   }
   h1 {
-    font-size: clamp(48px, 13vw, 68px);
+    font-size: clamp(40px, 10.5vw, 56px);
     margin-block: 23px 20px;
-  }
-  html[lang="en"] h1 {
-    font-size: clamp(53px, 14vw, 76px);
   }
   .hero-description {
     font-size: 14px;
@@ -1237,49 +1071,10 @@ dialog > p {
   .hero-note {
     font-size: 10px;
   }
-  .hero-art {
-    padding: 58px 0 72px;
-  }
-  .format-row {
-    left: 12%;
-    gap: 17px;
-  }
-  .format-file {
-    width: 60px;
-    height: 76px;
-    padding: 10px;
-    font-size: 10px;
-  }
-  .format-file .icon {
-    width: 17px;
-    height: 17px;
-  }
   .window-bar {
     height: 26px;
     font-size: 8px;
     padding-inline: 9px;
-  }
-  .output-ticket {
-    right: 2px;
-    bottom: 2px;
-    min-width: 222px;
-    padding: 15px;
-    gap: 12px;
-  }
-  .output-ticket strong {
-    font-size: 10px;
-  }
-  .ticket-label {
-    font-size: 9px;
-  }
-  .ticket-symbol {
-    font-size: 26px;
-  }
-  .art-caption {
-    left: 2px;
-    bottom: 16px;
-    font-size: 7px;
-    letter-spacing: 1px;
   }
   .media-strip {
     gap: 13px;

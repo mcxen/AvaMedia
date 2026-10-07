@@ -8,13 +8,13 @@
       name="description"
       content="AvaMedia 天池万象转换：Windows 与 macOS 开源媒体工具。视频转换、压缩、剪辑、播放、下载，以及图片和 PDF 处理。"
     />
-    <meta property="og:title" content="AvaMedia · 你的媒体，一站打理" />
+    <meta property="og:title" content="AvaMedia · 开源媒体工具" />
     <meta
       property="og:description"
-      content="转换、压缩、剪辑、播放、下载。在同一个桌面搞定。"
+      content="Windows 与 macOS 开源媒体工具，支持视频、音频、图片和 PDF 处理。"
     />
     <meta property="og:type" content="website" />
-    <title>AvaMedia · 你的媒体，一站打理</title>
+    <title>AvaMedia · 开源媒体工具</title>
     <link rel="icon" type="image/png" href="/media/app-32.png" />
     <link rel="stylesheet" href="/src/style.css" />
     <script type="module" src="/src/main.js"></script>
@@ -110,27 +110,28 @@
         <div class="hero-copy">
           <p class="eyebrow">
             <span class="live-dot"></span
-            ><span data-i18n="heroEyebrow">开源 · Windows & macOS</span>
+            ><span data-i18n="heroEyebrow">Windows x64 · macOS ARM64</span>
           </p>
           <h1 id="hero-title">
-            <span data-i18n="heroLine1">你的媒体，</span
-            ><span class="hero-line" data-i18n="heroLine2">一站打理。</span>
+            <span data-i18n="heroLine1">AvaMedia</span
+            ><span class="hero-line" data-i18n="heroLine2">桌面媒体工具</span>
           </h1>
           <p class="hero-description" data-i18n="heroDescription">
-            视频、音频、图片、PDF。从转换到剪辑，在同一个桌面搞定。
+            开源媒体工具，支持视频转换、压缩、剪辑、播放和下载，以及音频、图片和
+            PDF 处理。
           </p>
           <div class="hero-actions">
             <a class="button dark" href="#download"
-              ><span data-i18n="heroDownload">获取 AvaMedia</span
+              ><span data-i18n="heroDownload">下载 AvaMedia</span
               ><svg class="icon"><use href="#download-icon" /></svg
             ></a>
             <a class="text-link" href="#workspace"
-              ><span data-i18n="heroExplore">看看工作区</span
+              ><span data-i18n="heroExplore">查看界面</span
               ><svg class="icon"><use href="#arrow" /></svg
             ></a>
           </div>
           <p class="hero-note" data-i18n="heroNote">
-            本地媒体处理。开源代码。内置媒体引擎。
+            内置 FFmpeg / FFprobe、yt-dlp 与 QuickJS-NG。
           </p>
         </div>
         <div
@@ -138,23 +139,11 @@
           aria-label="AvaMedia 快速剪辑界面"
           data-i18n-aria="heroArtLabel"
         >
-          <div class="format-row" aria-hidden="true">
-            <span class="format-file blue"
-              ><svg class="icon"><use href="#video-icon" /></svg>MOV</span
-            >
-            <span class="format-file yellow"
-              ><svg class="icon"><use href="#image-icon" /></svg>HEIC</span
-            >
-            <span class="format-file pink"
-              ><svg class="icon"><use href="#audio-icon" /></svg>WAV</span
-            >
-          </div>
           <div class="hero-window">
             <div class="window-bar">
               <span class="window-dots" aria-hidden="true"
                 ><i></i><i></i><i></i></span
-              ><span data-i18n="heroWindow">快速剪辑 · AvaMedia</span
-              ><span class="window-mark">↗</span>
+              ><span data-i18n="heroWindow">快速剪辑 · AvaMedia</span>
             </div>
             <img
               class="hero-screen"
@@ -166,16 +155,6 @@
               data-i18n-alt="editorAlt"
             />
           </div>
-          <div class="output-ticket">
-            <span class="ticket-symbol" aria-hidden="true">↳</span>
-            <div>
-              <span class="ticket-label" data-i18n="heroOutput"
-                >准备好，下一个作品。</span
-              ><strong>MP4 <span>·</span> WEBM <span>·</span> MKV</strong>
-            </div>
-            <span class="ticket-check" aria-hidden="true">✓</span>
-          </div>
-          <span class="art-caption">DROP. EDIT. DONE.</span>
         </div>
       </section>
       <div
@@ -186,7 +165,7 @@
         <span>VIDEO</span><span class="strip-cross">+</span><span>AUDIO</span
         ><span class="strip-cross">+</span><span>IMAGE</span
         ><span class="strip-cross">+</span><span>PDF</span
-        ><span class="strip-end" data-i18n="stripEnd">一个工作区。</span>
+        ><span class="strip-end" data-i18n="stripEnd">支持批量处理</span>
       </div>
 
       <section
@@ -195,17 +174,8 @@
         aria-labelledby="features-title"
       >
         <div class="section-heading reveal">
-          <p class="eyebrow" data-i18n="featuresEyebrow">01 / 媒体工具箱</p>
-          <h2 id="features-title">
-            <span data-i18n="featuresLine1">常用的事，</span><br /><span
-              class="muted"
-              data-i18n="featuresLine2"
-              >一次装齐。</span
-            >
-          </h2>
-          <p class="section-intro" data-i18n="featuresIntro">
-            给日常媒体工作，少一点来回切换。
-          </p>
+          <p class="eyebrow" data-i18n="featuresEyebrow">01 / 功能</p>
+          <h2 id="features-title" data-i18n="featuresTitle">主要功能</h2>
         </div>
         <div class="feature-grid">
           <article class="feature-card reveal">
@@ -213,7 +183,7 @@
               <svg class="feature-icon"><use href="#video-icon" /></svg
               ><span>01</span>
             </div>
-            <h3 data-i18n="videoTitle">转换与压缩</h3>
+            <h3 data-i18n="videoTitle">视频转换与压缩</h3>
             <p data-i18n="videoText">
               按画质、码率或目标体积处理视频。支持硬件转码，以及 iPhone HDR 转
               SDR。
@@ -229,7 +199,7 @@
             </div>
             <h3 data-i18n="editTitle">剪辑与批量处理</h3>
             <p data-i18n="editText">
-              裁剪、旋转、变速、分割与多片段导出。多个文件，也能一起处理。
+              支持裁剪、旋转、变速、分割和多片段导出，可批量处理多个文件。
             </p>
             <div class="tags">
               <span data-i18n="editTag1">多片段</span
@@ -241,7 +211,7 @@
               <svg class="feature-icon"><use href="#audio-icon" /></svg
               ><span>03</span>
             </div>
-            <h3 data-i18n="audioTitle">音轨与字幕</h3>
+            <h3 data-i18n="audioTitle">音轨与字幕处理</h3>
             <p data-i18n="audioText">
               提取音频、合并音视频、保留多音轨。调整声道和音量，烧录或封装字幕。
             </p>
@@ -256,7 +226,7 @@
               <svg class="feature-icon"><use href="#image-icon" /></svg
               ><span>04</span>
             </div>
-            <h3 data-i18n="imageTitle">图片轻一点</h3>
+            <h3 data-i18n="imageTitle">图片转换与压缩</h3>
             <p data-i18n="imageText">
               转换 HEIC，压缩 JPEG、WebP 和
               PNG。对比实际编码体积，只保存变小的结果，保留原图。
@@ -271,9 +241,9 @@
               <svg class="feature-icon"><use href="#pdf-icon" /></svg
               ><span>05</span>
             </div>
-            <h3 data-i18n="pdfTitle">PDF 整理台</h3>
+            <h3 data-i18n="pdfTitle">PDF 处理</h3>
             <p data-i18n="pdfText">
-              预览、选页、排序、旋转、拆分与合并。把图片和文字整理成 PDF。
+              支持页面预览、选页、排序、旋转、拆分和合并，以及图片和文字转 PDF。
             </p>
             <div class="tags">
               <span data-i18n="pdfTag1">页面预览</span
@@ -306,14 +276,12 @@
         <div class="shell">
           <div class="workspace-heading reveal">
             <div>
-              <p class="eyebrow" data-i18n="workspaceEyebrow">
-                02 / 看见工作区
-              </p>
-              <h2 id="workspace-title" data-i18n="workspaceTitle">
-                工具多。桌面，依然清楚。
-              </h2>
+              <p class="eyebrow" data-i18n="workspaceEyebrow">02 / 界面</p>
+              <h2 id="workspace-title" data-i18n="workspaceTitle">界面截图</h2>
             </div>
-            <p data-i18n="workspaceIntro">熟悉的桌面操作，配上你喜欢的外观。</p>
+            <p data-i18n="workspaceIntro">
+              提供 Light、Dark 和 Mac OS 9 Platinum 三套皮肤。
+            </p>
           </div>
           <div
             class="gallery-tabs"
@@ -415,7 +383,7 @@
               aria-live="polite"
               data-i18n="mainCaption"
             >
-              工具分类、任务队列、进度与日志，都在主工作区。
+              主工作区包含工具分类、任务队列、进度和日志。
             </p>
             <span data-i18n="screenshotNote">真实客户端截图 · 中文界面</span>
           </div>
@@ -424,12 +392,10 @@
 
       <section class="section shell flow-section" aria-labelledby="flow-title">
         <div class="section-heading reveal">
-          <p class="eyebrow" data-i18n="flowEyebrow">03 / 从文件到成品</p>
-          <h2 id="flow-title" data-i18n="flowTitle">
-            交给队列。继续做你的事。
-          </h2>
+          <p class="eyebrow" data-i18n="flowEyebrow">03 / 任务队列</p>
+          <h2 id="flow-title" data-i18n="flowTitle">使用流程</h2>
           <p class="section-intro" data-i18n="flowIntro">
-            一次设置，多项处理。随时查看进度、编辑参数或重试。
+            任务队列支持并行处理、进度查看、参数编辑和失败重试。
           </p>
         </div>
         <ol class="flow-grid">
@@ -438,9 +404,9 @@
               <span>MOV</span><span>JPG</span><span>PDF</span>
             </div>
             <span class="step-number">01</span>
-            <h3 data-i18n="step1Title">把文件放进来</h3>
+            <h3 data-i18n="step1Title">添加文件</h3>
             <p data-i18n="step1Text">
-              拖入文件，按媒体类型选择工具；也可以先选功能再添加文件。
+              拖入文件后按媒体类型选择工具，或先选择功能再添加文件。
             </p>
           </li>
           <li class="flow-card reveal">
@@ -448,9 +414,9 @@
               <span><i></i></span><span><i></i></span><span><i></i></span>
             </div>
             <span class="step-number">02</span>
-            <h3 data-i18n="step2Title">调到刚刚好</h3>
+            <h3 data-i18n="step2Title">设置参数</h3>
             <p data-i18n="step2Text">
-              设定格式、画质与片段，选择保存位置，再加入任务队列。
+              设置格式、画质、片段和保存位置，然后加入任务队列。
             </p>
           </li>
           <li class="flow-card reveal">
@@ -459,7 +425,7 @@
               ><span><i>⋯</i><b></b></span>
             </div>
             <span class="step-number">03</span>
-            <h3 data-i18n="step3Title">让队列接着做</h3>
+            <h3 data-i18n="step3Title">执行任务</h3>
             <p data-i18n="step3Text">
               并行处理多个任务，查看日志，停止、调整参数或重试失败项目。
             </p>
@@ -469,9 +435,9 @@
           <article>
             <span class="extra-symbol" aria-hidden="true">⌨</span>
             <div>
-              <h3 data-i18n="playerTitle">播放，也顺手。</h3>
+              <h3 data-i18n="playerTitle">天池播放器</h3>
               <p data-i18n="playerText">
-                独立播放器。全屏、倍速、逐帧定位与截图，配合熟悉的快捷键。
+                支持全屏、倍速、选轨、逐帧定位和截图，提供播放列表与快捷键。
               </p>
               <div class="shortcuts">
                 <kbd>Space</kbd><kbd>← →</kbd><kbd>F6</kbd>
@@ -481,9 +447,9 @@
           <article>
             <span class="extra-symbol" aria-hidden="true">↗</span>
             <div>
-              <h3 data-i18n="wifiTitle">手机里的文件，传过来。</h3>
+              <h3 data-i18n="wifiTitle">WiFi 传文件</h3>
               <p data-i18n="wifiText">
-                同一 WiFi 下，手机扫码用浏览器上传。电脑也能分享文件给手机下载。
+                同一局域网内，手机扫码后通过浏览器上传文件，也可下载电脑分享的文件。
               </p>
               <span class="extra-note" data-i18n="wifiNote"
                 >无需在手机上安装应用</span
@@ -507,13 +473,10 @@
               loading="lazy"
               alt=""
             />
-            <p class="eyebrow" data-i18n="downloadEyebrow">
-              把工具箱，带回桌面。
-            </p>
             <h2 id="download-title" data-i18n="downloadHeading">
-              开始你的下一个作品。
+              下载 AvaMedia
             </h2>
-            <p data-i18n="downloadIntro">开源桌面应用，内置所需媒体引擎。</p>
+            <p data-i18n="downloadIntro">选择对应系统的安装包。</p>
             <a
               id="release-label"
               class="release-label"
@@ -581,8 +544,7 @@
         aria-labelledby="faq-title"
       >
         <div>
-          <p class="eyebrow" data-i18n="faqEyebrow">还有几件小事</p>
-          <h2 id="faq-title" data-i18n="faqHeading">开始之前。</h2>
+          <h2 id="faq-title" data-i18n="faqHeading">常见问题</h2>
           <a
             class="text-link"
             href="https://github.com/mcxen/AvaMedia#readme"
@@ -596,8 +558,7 @@
           <details>
             <summary data-i18n="faqFreeQ">AvaMedia 是开源的吗？</summary>
             <p data-i18n="faqFreeA">
-              是。原创代码采用 AGPL-3.0-only 许可证，可以在 GitHub
-              查看源码、报告问题与参与开发。
+              原创代码采用 AGPL-3.0-only 许可证，源码和问题反馈入口位于 GitHub。
             </p>
           </details>
           <details>
@@ -637,7 +598,9 @@
     </main>
     <footer class="footer shell">
       <div class="footer-brand">
-        AvaMedia<span data-i18n="footerTagline">把媒体处理，留在桌面。</span>
+        AvaMedia<span data-i18n="footerTagline"
+          >Windows 与 macOS 开源媒体工具</span
+        >
       </div>
       <div class="footer-links">
         <a

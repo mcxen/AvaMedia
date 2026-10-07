@@ -4,42 +4,39 @@ const english = {
   navLabel: "Main navigation",
   navFeatures: "Features",
   navWorkspace: "Workspace",
-  navDownload: "Get the app",
-  heroEyebrow: "OPEN SOURCE · WINDOWS & macOS",
-  heroLine1: "Your media.",
-  heroLine2: "Sorted.",
+  navDownload: "Download",
+  heroEyebrow: "Windows x64 · macOS ARM64",
+  heroLine1: "AvaMedia",
+  heroLine2: "Media toolkit",
   heroDescription:
-    "Video, audio, images and PDFs. Convert, compress and edit in one desktop workspace.",
-  heroDownload: "Get AvaMedia",
-  heroExplore: "Explore the workspace",
-  heroNote: "Local media processing. Open source. Engines included.",
+    "Open-source tools for video conversion, compression, editing, playback and downloads, plus audio, image and PDF processing.",
+  heroDownload: "Download AvaMedia",
+  heroExplore: "View screenshots",
+  heroNote: "Includes FFmpeg / FFprobe, yt-dlp and QuickJS-NG.",
   heroArtLabel: "AvaMedia Quick Clip interface",
   heroWindow: "Quick Clip · AvaMedia",
-  heroOutput: "Ready for your next creation.",
   mediaLabel: "Media categories",
-  stripEnd: "One workspace.",
-  featuresEyebrow: "01 / THE MEDIA TOOLKIT",
-  featuresLine1: "Everyday tools.",
-  featuresLine2: "All together.",
-  featuresIntro: "Less switching between apps. More getting things done.",
-  videoTitle: "Convert & compress",
+  stripEnd: "Batch processing",
+  featuresEyebrow: "01 / FEATURES",
+  featuresTitle: "Features",
+  videoTitle: "Video conversion & compression",
   videoText:
     "Choose quality, bitrate or target size. Use hardware transcoding and convert iPhone HDR to SDR.",
   editTitle: "Edit & batch process",
   editText:
-    "Crop, rotate, change speed, split and export multiple clips. Work on several files at once.",
+    "Crop, rotate, change playback speed, split videos and export multiple clips. Process multiple files in batches.",
   editTag1: "MULTIPLE CLIPS",
   editTag2: "BATCH CROP",
-  audioTitle: "Tracks & subtitles",
+  audioTitle: "Audio tracks & subtitles",
   audioText:
     "Extract audio, mux video and keep multiple tracks. Adjust channels and volume. Burn in or mux subtitles.",
   audioTag1: "TRACKS",
   audioTag2: "MUX",
   audioTag3: "SUBTITLES",
-  imageTitle: "Lighter images",
+  imageTitle: "Image conversion & compression",
   imageText:
     "Convert HEIC. Compress JPEG, WebP and PNG. Compare encoded sizes, save only smaller results and keep originals.",
-  pdfTitle: "A home for your PDFs",
+  pdfTitle: "PDF processing",
   pdfText:
     "Preview, select, reorder, rotate, split and merge pages. Turn images and text into a PDF.",
   pdfTag1: "PAGE PREVIEWS",
@@ -50,9 +47,9 @@ const english = {
     "Paste shared text or a batch of links. Choose quality, video, audio and subtitles. Download playlists and retry failures.",
   downloadTag1: "BATCH URLS",
   downloadTag2: "PLAYLISTS",
-  workspaceEyebrow: "02 / MEET YOUR WORKSPACE",
-  workspaceTitle: "More tools. A clearer desktop.",
-  workspaceIntro: "Familiar desktop controls, with a look that feels like you.",
+  workspaceEyebrow: "02 / INTERFACE",
+  workspaceTitle: "App screenshots",
+  workspaceIntro: "Light, Dark and Mac OS 9 Platinum themes.",
   galleryLabel: "App screenshots",
   tabMain: "Main workspace",
   tabEditor: "Quick Clip",
@@ -69,55 +66,52 @@ const english = {
     "Tianchi Player with its video area, timeline and compact playback controls",
   classicAlt: "AvaMedia main workspace with the Mac OS 9 Platinum skin",
   mainCaption:
-    "Tool categories, queued jobs, progress and logs in one main workspace.",
+    "The main workspace contains tool categories, the task queue, progress and logs.",
   editorCaption:
-    "Preview and edit clips first. Choose export settings when you are ready.",
+    "Preview and edit clips, then set export options. Each clip is exported as a separate file.",
   downloadCaption:
     "Parse links, pick quality, audio and subtitles, then add downloads to the queue.",
   playerCaption:
-    "A separate player with fullscreen, playback speed, frame stepping and familiar shortcuts.",
-  classicCaption:
-    "Mac OS 9 Platinum. A different look for the same media toolkit.",
+    "A separate player with fullscreen, playback speed, frame stepping and keyboard shortcuts.",
+  classicCaption: "The main workspace with the Mac OS 9 Platinum theme.",
   screenshotNote: "Actual client screenshots · Chinese interface",
-  flowEyebrow: "03 / FROM FILE TO FINISH",
-  flowTitle: "Let the queue take it from here.",
+  flowEyebrow: "03 / TASK QUEUE",
+  flowTitle: "How to use AvaMedia",
   flowIntro:
-    "Set up your jobs, then keep going. Check progress, edit settings or retry at any time.",
-  step1Title: "Bring your files",
+    "The task queue supports parallel processing, progress tracking, parameter editing and retries.",
+  step1Title: "Add files",
   step1Text:
-    "Drop files to find tools for each media type. Or pick a tool, then add files.",
-  step2Title: "Make it yours",
+    "Drop files to select tools for their media type, or select a tool and add files.",
+  step2Title: "Set parameters",
   step2Text:
     "Choose format, quality and clips. Pick a destination and add your jobs to the queue.",
-  step3Title: "Leave it to the queue",
+  step3Title: "Run tasks",
   step3Text:
     "Process jobs in parallel. Read logs, stop a job, edit its settings or retry failed items.",
-  playerTitle: "Playback feels familiar.",
+  playerTitle: "Tianchi Player",
   playerText:
-    "A separate player. Fullscreen, speed controls, frame stepping and snapshots, with familiar keyboard shortcuts.",
-  wifiTitle: "Bring files from your phone.",
+    "Supports fullscreen, playback speed, track selection, frame stepping and snapshots, with playlists and keyboard shortcuts.",
+  wifiTitle: "WiFi file transfer",
   wifiText:
-    "On the same WiFi, scan a QR code to upload in your phone’s browser. Share PC files back to your phone, too.",
+    "On the same local network, scan a QR code to upload files in your phone’s browser or download files shared by the computer.",
   wifiNote: "No phone app needed",
-  downloadEyebrow: "TAKE THE TOOLKIT TO YOUR DESKTOP.",
-  downloadHeading: "On to your next creation.",
-  downloadIntro: "An open-source desktop app. Media engines included.",
+  downloadHeading: "Download AvaMedia",
+  downloadIntro: "Select the package for your operating system.",
   releaseFallback: "View the latest release ↗",
   recommended: "For your current device",
   windowsDetails: "x64 · Installer & portable edition",
   windowsDownload: "Download for Windows",
-  portableDownload: "Get the portable ZIP",
+  portableDownload: "Download portable ZIP",
   macDetails: "Apple Silicon · ARM64 · macOS 13.4+",
   macDownload: "Download macOS DMG",
   macHelp: "First-time installation",
   downloadFootnote:
     "Under active development. Checksums and media-engine sources are in the release notes.",
-  faqEyebrow: "A FEW SMALL DETAILS",
-  faqHeading: "Before you begin.",
+  faqHeading: "Frequently asked questions",
   readDocs: "Read the documentation",
   faqFreeQ: "Is AvaMedia open source?",
   faqFreeA:
-    "Yes. Original code uses the AGPL-3.0-only license. Browse the source, report issues and contribute on GitHub.",
+    "Original code uses the AGPL-3.0-only license. The source code and issue tracker are on GitHub.",
   faqEnginesQ: "Do I need to install media engines?",
   faqEnginesA:
     "Release packages include the .NET runtime, FFmpeg / FFprobe, yt-dlp and QuickJS-NG. No separate SDK, Python or media engine installation is required.",
@@ -129,7 +123,7 @@ const english = {
     "Fast Copy clip starts depend on keyframes. HEIC compression processes the primary still image. PDF text extraction does not reconstruct the original layout. Downloads depend on websites, accounts and network conditions. See the feature notes for scope and verification status.",
   featureNotes: "Read the feature notes ↗",
   issues: "Report an issue ↗",
-  footerTagline: "Keep your media work on your desktop.",
+  footerTagline: "Open-source media tools for Windows and macOS",
   closeScreenshot: "Close full-size screenshot",
 };
 
@@ -175,10 +169,10 @@ const chinese = {
   downloadAlt: "视频下载的链接解析、画质、字幕与登录选项",
   playerAlt: "天池播放器：视频画面、时间轴与紧凑播放控制栏",
   classicAlt: "AvaMedia Mac OS 9 Platinum 皮肤的主工作区",
-  editorCaption: "先预览、编辑片段，再统一配置导出。每个片段生成独立文件。",
-  downloadCaption: "解析链接，选择画质、音视频与字幕，把下载交给任务队列。",
+  editorCaption: "预览和编辑片段后设置导出参数，每个片段生成独立文件。",
+  downloadCaption: "解析链接后选择画质、音视频与字幕，再加入任务队列。",
   playerCaption: "独立播放窗口。全屏、倍速、逐帧定位与常用快捷键。",
-  classicCaption: "Mac OS 9 · Platinum。换一种外观，还是熟悉的媒体工具箱。",
+  classicCaption: "使用 Mac OS 9 Platinum 皮肤的主工作区。",
 };
 english.tabClassic = "Mac OS 9";
 
@@ -245,8 +239,8 @@ function setLanguage(next, persist = false) {
   );
   document.title =
     language === "en"
-      ? "AvaMedia · Your media. Sorted."
-      : "AvaMedia · 你的媒体，一站打理";
+      ? "AvaMedia · Open-source media toolkit"
+      : "AvaMedia · 开源媒体工具";
   document.querySelector('meta[property="og:title"]').content = document.title;
   const summary =
     language === "en"

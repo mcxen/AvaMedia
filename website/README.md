@@ -27,9 +27,11 @@ npm run preview
 - 下载入口默认指向 GitHub 最新 Release。JavaScript 从公开 Release API 解析 Windows 安装版、便携 ZIP 和 macOS DMG；只接受本仓库已上传的安装包 URL。请求超时、限流或离线时保留发布页入口，不绑定旧版本号。
 - 无分析脚本、外部字体或视频依赖。页面唯一的外部数据请求是公开 GitHub Release 元数据。
 
-## 设计参考
+## 设计与文案
 
-参考 Prompt Motion 的 [Photo print app launch film](https://prompt-motion.com/twoclipping-221cab)：暖白画布、黑色产品界面、文件到输出的连续叙事。将这个方向用于网页首屏、截图展示和处理流程；没有复制参考视频、文字或素材。交互使用原生 tab / dialog / details，支持键盘导航与减少动态效果偏好。
+页面使用暖白背景和实际软件截图。交互使用原生 tab / dialog / details，支持键盘导航与减少动态效果偏好。
+
+文案直接描述功能、操作、支持的平台和安装方式。禁止使用“不是……而是……”式对比、宣传口号、拟人化表达和空泛承诺。中英文执行相同约定。栏目标题使用“主要功能”“界面截图”“使用流程”“下载 AvaMedia”等明确名称。
 
 按根目录 `AGENTS.md`，本页默认只做相关生产构建与静态检查，不自行运行浏览器功能回归、截图或性能测试。
 
