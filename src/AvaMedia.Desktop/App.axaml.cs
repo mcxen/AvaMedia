@@ -33,6 +33,7 @@ public sealed partial class App : Application
                 var engine = new MediaEngine(settings);
                 var player = new PlayerWindow(engine, files);
                 desktop.MainWindow = player;
+                InitializeModelInstallation(desktop, player, args);
                 var benchmark = Array.IndexOf(args, "--player-benchmark");
                 if (benchmark >= 0 && benchmark + 1 < args.Length)
                 {
@@ -65,6 +66,7 @@ public sealed partial class App : Application
             if(desktop.Args?.Contains("--dark")==true)RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Dark;
             if(desktop.Args?.Contains("--macos9")==true)Skin.Apply("MacOS9");
             desktop.MainWindow = window;
+            InitializeModelInstallation(desktop, window, args);
             if (args.Contains("--convert")) window.Opened += async (_, _) => await window.ImportForConversionAsync(args);
             if (desktop.Args?.Contains("--capture") == true)
             {

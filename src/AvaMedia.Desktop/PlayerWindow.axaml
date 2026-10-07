@@ -39,7 +39,7 @@
         </Grid>
       </Border>
     </Grid>
-    <Grid Grid.Row="2" x:Name="ControlsBar" RowDefinitions="Auto,Auto" Background="{DynamicResource UiToolbar}">
+    <Grid Grid.Row="2" x:Name="ControlsBar" RowDefinitions="Auto,Auto,Auto" Background="{DynamicResource UiToolbar}">
       <Slider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
       <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiPlayerBarPadding}">
         <StackPanel Orientation="Horizontal">
@@ -60,6 +60,7 @@
         <Button Grid.Column="7" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表（F6）" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>
         <Button Grid.Column="8" x:Name="FullscreenButton" Classes="player-transport" Click="FullscreenClick" ToolTip.Tip="全屏（Enter / 双击画面）" AutomationProperties.Name="全屏"><local:ActionIcon x:Name="FullscreenIcon" Kind="fullscreen"/></Button>
       </Grid>
+      <local:ModelInstallationNotice Grid.Row="2"/>
     </Grid>
   </Grid>
 </Window>

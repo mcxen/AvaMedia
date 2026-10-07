@@ -1,0 +1,9 @@
+Model: inpainting_lama_2025jan.onnx (OpenCV quantized LaMa ONNX export)
+Authors: LaMa authors, Samsung Research, and OpenCV contributors
+Source: https://huggingface.co/opencv/inpainting_lama
+Download: https://huggingface.co/opencv/inpainting_lama/resolve/main/inpainting_lama_2025jan.onnx
+Fallback: https://lz.qaiu.top/parser?url=https://share.feijipan.com/s/zwwYN8FN
+SHA256: 7df918ac3921d3daf0aae1d219776cf0dc4e4935f035af81841b40adcf74fdf2
+Size: 92591623 bytes
+License: Apache-2.0 (see LICENSE in this directory)
+The unmodified model is downloaded separately into the user's AvaMedia/models data directory.

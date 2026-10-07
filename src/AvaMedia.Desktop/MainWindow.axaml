@@ -67,12 +67,15 @@
         </ListBox>
       </Grid>
     </Grid>
-    <Border Grid.Row="3" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
+    <StackPanel Grid.Row="3">
+    <local:ModelInstallationNotice/>
+    <Border Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
       <TextBlock i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
       <TextBlock x:Name="ElapsedText" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Text="耗时: 00:00:00" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Margin="10,0"/>
       <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成弹窗" ToolTip.Tip="与选项页“转换完成后”的弹窗开关同步。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
     </Grid></Border>
+    </StackPanel>
   </Grid>
 </Window>

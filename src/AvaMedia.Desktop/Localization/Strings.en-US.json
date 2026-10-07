@@ -1545,5 +1545,7 @@
   "PDF 已加密，请先解除密码保护。": "This PDF is encrypted. Remove password protection first.",
   "无法打开 PDF，请检查文件是否完整。": "Cannot open the PDF. Check that the file is complete.",
   "页码超出范围，请重新载入文档。": "Page number is out of range. Reload the document.",
-  "体积未减小，保留原文档。": "Size did not decrease; the original document was kept."
+  "体积未减小，保留原文档。": "Size did not decrease; the original document was kept.",
+  "图片修复模型安装失败，请检查网络后重试。": "Image repair model installation failed. Check your network and retry.",
+  "正在安装图片修复模型… {0}%": "Installing image repair model… {0}%"
 }
