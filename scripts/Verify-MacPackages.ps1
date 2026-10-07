@@ -81,7 +81,7 @@ foreach ($runtime in @('osx-arm64')) {
         for ($i=0; $i -lt $nodes.Length-1; $i+=2) { $values[$nodes[$i].InnerText]=$nodes[$i+1].InnerText }
         Assert-Package ($values.LSMinimumSystemVersion -eq '13.4') "$runtime declares macOS 13.4 or later"
         $minimum=[version]$values.LSMinimumSystemVersion
-        foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libcoreclr.dylib','libhostpolicy.dylib',
+        foreach ($name in @('AvaMedia.Desktop',
             'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib','libpdfium.dylib')) {
             $entry=$archive.GetEntry($root+'MacOS/'+$name)
             Assert-Package ($null -ne $entry) "$runtime includes $name"
@@ -92,6 +92,7 @@ foreach ($runtime in @('osx-arm64')) {
             Assert-Package (($mode -band 73) -eq 73) "$runtime $name carries Unix execute permissions"
         }
         Assert-Package ($values.CFBundleExecutable -eq 'AvaMedia.Desktop' -and $values.CFBundleShortVersionString -eq $Version) "$runtime plist matches executable and version"
+        Assert-Package ($null -ne $archive.GetEntry($root+'MacOS/runtime-bootstrap.json')) "$runtime includes runtime download metadata"
         Assert-Package ($values.CFBundleIconFile -eq 'AvaMedia.icns') "$runtime plist selects the AvaMedia application icon"
         $iconEntry=$archive.GetEntry($root+'Resources/AvaMedia.icns')
         Assert-Package ($null -ne $iconEntry) "$runtime includes the application ICNS"

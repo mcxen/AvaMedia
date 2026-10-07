@@ -18,8 +18,10 @@ if ($Runtime.StartsWith('osx-')) {
     Assert-EmptyPublishDirectory $bundleRoot
 }
 [string[]]$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
-& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained true -o $publishRoot "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
+& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained false -o $publishRoot "-p:Version=$Version" -p:UseAppHost=false -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
+& (Join-Path $PSScriptRoot 'Build-Bootstrap.ps1') -Runtime $Runtime -Version $Version -OutputDirectory $publishRoot
+& (Join-Path $PSScriptRoot 'Prepare-Runtime.ps1') -Runtime $Runtime -PublishDirectory $publishRoot
 & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
 & (Join-Path $PSScriptRoot 'Bundle-DownloadTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
 & (Join-Path $PSScriptRoot 'Bundle-MediaTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')

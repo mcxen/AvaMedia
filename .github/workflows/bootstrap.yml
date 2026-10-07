@@ -1,0 +1,46 @@
+name: Native bootstrap
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/AvaMedia.Bootstrap/**'
+      - 'src/AvaMedia.Desktop/app.manifest'
+      - 'scripts/Build-Bootstrap.ps1'
+      - 'scripts/Branding.ps1'
+      - 'Branding.props'
+      - '.github/workflows/bootstrap.yml'
+  pull_request:
+    paths:
+      - 'src/AvaMedia.Bootstrap/**'
+      - 'src/AvaMedia.Desktop/app.manifest'
+      - 'scripts/Build-Bootstrap.ps1'
+      - 'scripts/Branding.ps1'
+      - 'Branding.props'
+      - '.github/workflows/bootstrap.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bootstrap-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  compile:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            runtime: win-x64
+          - runner: macos-15
+            runtime: osx-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compile bootstrap
+        shell: pwsh
+        env:
+          BOOTSTRAP_RUNTIME: ${{ matrix.runtime }}
+        run: ./scripts/Build-Bootstrap.ps1 -Runtime $env:BOOTSTRAP_RUNTIME -OutputDirectory artifacts/bootstrap-build

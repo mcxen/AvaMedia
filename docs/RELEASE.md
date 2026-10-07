@@ -5,9 +5,13 @@
 Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 1. Windows 媒体引擎与 macOS 并行准备；Windows 从固定源码交叉构建 x64 FFmpeg，macOS 复用或构建验证过的 ARM64 引擎。`Publish.ps1` 执行各平台所需的客户端 Release 编译，并把对应引擎及动态库复制进应用 `tools`。
-2. 发布包含 .NET 运行时的 Windows x64 `portable.zip`；以固定版本 Inno Setup 6.4.3 生成每用户安装程序 `setup.exe`，实际验证安装、版本、原生启动、许可证和卸载。
+2. 发布不包含 .NET 的 Windows x64 `portable.zip`；以固定版本 Inno Setup 6.4.3 生成每用户安装程序 `setup.exe`，实际验证安装、版本、原生启动、许可证和卸载。Windows 与 macOS 均使用独立原生启动器；缺少完整 .NET 8 时提供“安装运行时”按钮，完成后自动进入软件。
 3. 在 Apple Silicon runner 构建包含 FFmpeg、FFprobe、动态库及 QuickJS 的 macOS ARM64 应用和 DMG，检查包内引擎加载并启动客户端。Windows 安装检查核对内置引擎文件哈希及版本。Windows 失败不会跳过 macOS 打包；两者均通过后才发布。不再生成 PKG。
 4. Mac 应用 ZIP 只用于 CI 内部的 Mach-O 架构和 Unix 权限检查，不上传到主 Release。`Publish-Release.ps1` 先发布 `media-v版本` 媒体归档，再发布主 Release；主下载列表仅有 Mac DMG、Windows portable ZIP 和 setup EXE，SHA256 写入版本说明。
+
+`Build-Bootstrap.ps1` 编译 Windows x64 C / macOS ARM64 Cocoa 启动器，不依赖 .NET 8；主程序采用 framework-dependent 发布。启动器通过官方 hostfxr API 按应用的 runtimeconfig 检查运行时版本、架构及 .NET / ASP.NET Core 两个框架，保持原有进程名、参数、播放器和更新入口。
+
+`Prepare-Runtime.ps1` 在打包时从 Microsoft 官方 .NET 8 发布元数据中固定稳定版下载地址及 SHA512，保存为 `runtime-bootstrap.json`。首次安装只下载官方归档，不下载或执行远程脚本；Windows 使用系统 PowerShell 解压，macOS 使用系统 tar。运行时先在临时目录完成下载、校验与 hostfxr 检查，再原子移动到当前用户的 `AvaMedia/runtimes` 缓存。下载失败可重试；多个首次启动窗口共用安装锁。Windows 缓存位于 `%LOCALAPPDATA%\AvaMedia\runtimes`，Mac 位于 `~/Library/Application Support/AvaMedia/runtimes`。程序也检查环境变量和标准系统 .NET 安装目录，完整的现有运行时可离线启动；首次安装需要网络。
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 

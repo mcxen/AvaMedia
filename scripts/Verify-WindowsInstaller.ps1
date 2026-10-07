@@ -10,7 +10,7 @@ $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRE
 if ($process.ExitCode -ne 0) { throw 'Installer execution failed.' }
 $exe = Join-Path $target 'AvaMedia.Desktop.exe'
 if (!(Test-Path -LiteralPath $exe) -or (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Installed executable/version mismatch.' }
-foreach ($name in @('LICENSE','COPYRIGHT','THIRD-PARTY-NOTICES.md','AvaMedia.Core.dll','pdfium.dll','tools/yt-dlp.exe','tools/qjs.exe','tools/download-tools.json','tools/ffmpeg.exe','tools/ffprobe.exe','tools/ffmpeg-bundle.json','licenses/media-tools/win-x64/NOTICE.txt')) { if (!(Test-Path -LiteralPath (Join-Path $target $name))) { throw "Installed $name is missing." } }
+foreach ($name in @('LICENSE','COPYRIGHT','THIRD-PARTY-NOTICES.md','AvaMedia.Core.dll','Install-Runtime.ps1','runtime-bootstrap.json','pdfium.dll','tools/yt-dlp.exe','tools/qjs.exe','tools/download-tools.json','tools/ffmpeg.exe','tools/ffprobe.exe','tools/ffmpeg-bundle.json','licenses/media-tools/win-x64/NOTICE.txt')) { if (!(Test-Path -LiteralPath (Join-Path $target $name))) { throw "Installed $name is missing." } }
 $manifest=Get-Content -LiteralPath (Join-Path $target 'tools/download-tools.json') -Raw | ConvertFrom-Json
 foreach($tool in $manifest.files) {
     $path=Join-Path $target ('tools/'+$tool.name)
