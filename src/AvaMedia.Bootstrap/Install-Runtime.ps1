@@ -36,6 +36,8 @@ try {
     # A damaged completed cache can be replaced; active compatible caches are reused above.
     if (Test-Path -LiteralPath $target) { $target += '-' + [Guid]::NewGuid().ToString('N') }
     [IO.Directory]::Move($content, $target)
+    $record = Start-Process -FilePath $Application -ArgumentList @('--bootstrap-record-root', ('"' + $target + '"')) -PassThru -Wait
+    if ($record.ExitCode -ne 0) { throw '无法保存运行时安装信息。' }
     if (Test-Path -LiteralPath $ErrorFile) { Remove-Item -LiteralPath $ErrorFile -Force }
 } catch {
     [IO.File]::WriteAllText($ErrorFile, $_.Exception.Message, [Text.UTF8Encoding]::new($false))

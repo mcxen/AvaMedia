@@ -13,6 +13,22 @@ static wchar_t root[AM_PATH], log_path[AM_PATH];
 static PROCESS_INFORMATION installer;
 static DWORD install_status;
 
+static int read_recorded_runtime(void) {
+    DWORD size = sizeof(root);
+    return RegGetValueW(HKEY_CURRENT_USER, L"Software\\AvaMedia\\Runtime", L"win-x64",
+        RRF_RT_REG_SZ, NULL, root, &size) == ERROR_SUCCESS && root[0];
+}
+
+static int record_runtime(const wchar_t *path) {
+    HKEY key;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\AvaMedia\\Runtime", 0, NULL, 0,
+        KEY_SET_VALUE, NULL, &key, NULL) != ERROR_SUCCESS) return 0;
+    DWORD size = (DWORD)((wcslen(path) + 1) * sizeof(wchar_t));
+    LSTATUS status = RegSetValueExW(key, L"win-x64", 0, REG_SZ, (const BYTE *)path, size);
+    RegCloseKey(key);
+    return status == ERROR_SUCCESS;
+}
+
 static int find_runtime(void) {
     if (am_find_private_runtime(cache, config, root)) return 1;
     const wchar_t *variables[] = {L"DOTNET_ROOT_X64", L"DOTNET_ROOT"};
@@ -110,9 +126,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR command_line, 
     wchar_t local[AM_PATH];
     if (FAILED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, local)) || !am_join(cache, local, L"AvaMedia/runtimes")) return 1;
     am_join(log_path, cache, L"install-error.txt");
-    int available = find_runtime();
-    if (argc == 2 && !wcscmp(argv[1], L"--bootstrap-check")) return available ? 0 : 1;
+    if (argc == 3 && !wcscmp(argv[1], L"--bootstrap-record-root")) return record_runtime(argv[2]) ? 0 : 1;
     if (argc == 2 && !wcscmp(argv[1], L"--unregister-player")) { unregister_player(); return 0; }
+    // A recorded installation goes straight to the normal runtime loader. No preflight probe.
+    int available = read_recorded_runtime();
+    if (!available) {
+        available = find_runtime();
+        if (available && !record_runtime(root)) {
+            MessageBoxW(NULL, L"无法保存运行时安装信息。", L"天池万象转换", MB_OK | MB_ICONERROR);
+            return 1;
+        }
+    }
+    if (argc == 2 && !wcscmp(argv[1], L"--bootstrap-check")) return available ? 0 : 1;
     // Installer maintenance must never show an installation prompt.
     if (!available && argc == 2 && !wcscmp(argv[1], L"--register-player")) return 0;
     if (!available) {
@@ -139,7 +164,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR command_line, 
             install_status = 1;
             HRESULT status = TaskDialogIndirect(&progress, NULL, NULL, NULL);
             if (installer.hProcess) { WaitForSingleObject(installer.hProcess, INFINITE); GetExitCodeProcess(installer.hProcess, &install_status); CloseHandle(installer.hProcess); CloseHandle(installer.hThread); installer.hProcess = NULL; }
-            available = SUCCEEDED(status) && install_status == 0 && find_runtime();
+            available = SUCCEEDED(status) && install_status == 0 && read_recorded_runtime();
             if (!available) { wcscpy(error, L"下载或安装失败，请检查网络后重试。"); read_error(error, 4096); }
         }
     }

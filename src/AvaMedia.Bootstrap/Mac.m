@@ -6,6 +6,18 @@
 #include "Host.h"
 
 static NSString *applicationPath, *applicationBase, *runtimeConfig, *runtimeBase;
+static NSString *recordedRuntime(void) {
+    NSString *path = [runtimeBase stringByAppendingPathComponent:@"runtime-root-osx-arm64.txt"];
+    NSString *root = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    return root.length ? root : nil;
+}
+
+static BOOL recordRuntime(NSString *root, NSError **error) {
+    if (![NSFileManager.defaultManager createDirectoryAtPath:runtimeBase withIntermediateDirectories:YES attributes:nil error:error]) return NO;
+    NSString *path = [runtimeBase stringByAppendingPathComponent:@"runtime-root-osx-arm64.txt"];
+    return [root writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:error];
+}
+
 static NSString *findRuntime(void) {
     char result[AM_PATH];
     if (am_find_private_runtime(runtimeBase.fileSystemRepresentation, runtimeConfig.fileSystemRepresentation, result))
@@ -113,7 +125,9 @@ static NSError *failure(NSString *message) {
             [self update:@"正在等待另一窗口完成安装…"]; usleep(200000);
         }
         // Another first-launch window may have completed the installation while we waited.
-        result = findRuntime(); if (result) return result;
+        result = recordedRuntime(); if (result) return result;
+        result = findRuntime();
+        if (result) return recordRuntime(result, error) ? result : nil;
         NSData *data = [NSData dataWithContentsOfFile:[applicationBase stringByAppendingPathComponent:@"runtime-bootstrap.json"] options:0 error:error];
         if (!data) return nil;
         NSDictionary *manifest = [NSJSONSerialization JSONObjectWithData:data options:0 error:error];
@@ -148,6 +162,7 @@ static NSError *failure(NSString *message) {
         NSString *name = [NSString stringWithFormat:@"%@-%@-%@", manifest[@"version"], manifest[@"rid"], NSUUID.UUID.UUIDString];
         result = [runtimeBase stringByAppendingPathComponent:name];
         if (![manager moveItemAtPath:content toPath:result error:error]) return nil;
+        if (!recordRuntime(result, error)) return nil;
     } @finally {
         if (stage) [manager removeItemAtPath:stage error:nil];
         flock(lock, LOCK_UN); close(lock);
@@ -184,7 +199,12 @@ int main(int argc, const char **argv) {
         runtimeBase = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/AvaMedia/runtimes"];
         if (argc == 3 && strcmp(argv[1], "--bootstrap-check-root") == 0)
             return am_runtime_usable(argv[2], runtimeConfig.fileSystemRepresentation) ? 0 : 1;
-        NSString *runtime = findRuntime();
+        // Only an unconfigured installation discovers/probes runtimes. Later launches load the saved root.
+        NSString *runtime = recordedRuntime();
+        if (!runtime) {
+            runtime = findRuntime();
+            if (runtime && !recordRuntime(runtime, nil)) return 1;
+        }
         if (argc == 2 && strcmp(argv[1], "--bootstrap-check") == 0) return runtime ? 0 : 1;
         NSMutableArray<NSString *> *arguments = [NSMutableArray arrayWithObject:[applicationBase stringByAppendingPathComponent:@"AvaMedia.Desktop.dll"]];
         for (int i = 1; i < argc; i++) [arguments addObject:[NSString stringWithUTF8String:argv[i]]];

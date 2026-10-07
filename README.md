@@ -24,7 +24,7 @@
 
 macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；该最低版本的完整设备验收状态见 [平台说明](docs/PLATFORMS.md)。应用采用 ad-hoc 签名，尚未进行 Developer ID 签名和公证，首次启动可能需要在系统“隐私与安全性”中允许打开。
 
-新构建内置 **FFmpeg / FFprobe、yt-dlp 和 QuickJS-NG**。首次启动若缺少 .NET 8，点击“安装运行时”即可下载、校验并安装所需的 .NET 与 ASP.NET Core，完成后自动进入软件；已有完整运行时则直接启动。运行时安装在当前用户目录，无需管理员权限，也无需安装 SDK 或 Python。各版本 SHA256 与对应媒体工具源码归档链接位于 Release 说明中。
+新构建内置 **FFmpeg / FFprobe、yt-dlp 和 QuickJS-NG**。首次启动若缺少 .NET 8，点击“安装运行时”即可下载、校验并安装所需的 .NET 与 ASP.NET Core，完成后自动进入软件；已有完整运行时则直接启动。安装或首次配置成功后保存运行时位置，后续直接加载进入软件，不再重复预检。运行时安装在当前用户目录，无需管理员权限，也无需安装 SDK 或 Python。各版本 SHA256 与对应媒体工具源码归档链接位于 Release 说明中。
 
 当前开发构建首次正常启动时会在后台下载并校验 LaMa 模型，其他功能可继续使用；缓存有效时不重复下载。LaMa 修复推理和编辑入口尚未接入，见 [模型安装](docs/MODEL-INSTALLATION.md)。
 
