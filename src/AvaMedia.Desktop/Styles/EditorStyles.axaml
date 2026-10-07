@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- Editor layout uses the shared role metrics; every value can be overridden by a skin. -->
-  <Style Selector="Window.editor TextBox, Window.editor ComboBox, Window.editor Button:not(.platinum-caption)">
+  <Style Selector="Window.editor TextBox, Window.editor ComboBox, Window.editor Button:not(.platinum-caption):not(.dialog-action)">
     <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}"/>
     <Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
   </Style>
@@ -38,11 +38,5 @@
     <Setter Property="Width" Value="{DynamicResource UiTransportSize}"/>
     <Setter Property="Height" Value="{DynamicResource UiTransportSize}"/>
     <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
-  </Style>
-  <Style Selector="Window.editor Button.dialog-action">
-    <Setter Property="Width" Value="{DynamicResource UiDialogActionWidth}"/>
-    <Setter Property="Height" Value="{DynamicResource UiDialogActionHeight}"/>
-    <Setter Property="MinHeight" Value="{DynamicResource UiDialogActionHeight}"/>
-    <Setter Property="Padding" Value="{DynamicResource UiDialogActionPadding}"/>
   </Style>
 </Styles>

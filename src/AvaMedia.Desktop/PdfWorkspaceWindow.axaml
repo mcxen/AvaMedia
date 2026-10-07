@@ -2,17 +2,16 @@
         x:Class="AvaMedia.Desktop.PdfWorkspaceWindow" Width="1260" Height="840" MinWidth="1020" MinHeight="680" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="Border.pdf-card"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/></Style>
-    <Style Selector="Border.pdf-card.active"><Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}"/><Setter Property="BorderThickness" Value="2"/></Style>
+    <Style Selector="Border.pdf-card.active"><Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}"/><Setter Property="BorderThickness" Value="1"/></Style>
     <Style Selector="Border.pdf-card.cut"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
     <Style Selector="Button.pdf-effect"><Setter Property="Padding" Value="6"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="BorderThickness" Value="1"/></Style>
     <Style Selector="Button.pdf-effect.active"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}"/></Style>
     <Style Selector="controls|ImageCompareView"><Setter Property="Surface" Value="{DynamicResource UiSurface}"/><Setter Property="Checker" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Accent" Value="{DynamicResource UiAccent}"/></Style>
   </Window.Styles>
-  <Grid Margin="18" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
-    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-      <TextBlock x:Name="WorkspaceTitle" Classes="title" VerticalAlignment="Center"/>
-      <Button Grid.Column="1" x:Name="AddButton" Content="添加文件…" Click="AddClick"/>
-      <Button Grid.Column="2" x:Name="ClearButton" Content="清空" Click="ClearClick"/>
+  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
+    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+      <Button x:Name="AddButton" Content="添加文件…" Click="AddClick"/>
+      <Button Grid.Column="1" x:Name="ClearButton" Content="清空" Click="ClearClick"/>
     </Grid>
     <Grid Grid.Row="1" x:Name="BodyGrid" ColumnDefinitions="*,360" ColumnSpacing="14">
       <Border Background="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Padding="12">
@@ -26,10 +25,10 @@
           <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
             <Grid>
               <WrapPanel x:Name="PageBoard" Orientation="Horizontal"/>
-              <TextBlock x:Name="EmptyText" Text="添加文件" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" TextWrapping="Wrap"/>
+              <TextBlock x:Name="EmptyText" Text="尚未添加文件" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" TextWrapping="Wrap"/>
             </Grid>
           </ScrollViewer>
-          <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+          <Grid x:Name="BoardNavigation" Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
             <Button x:Name="PreviousButton" Content="上一组" Click="PreviousClick"/>
             <TextBlock Grid.Column="1" x:Name="BoardRange" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <Button Grid.Column="2" x:Name="NextButton" Content="下一组" Click="NextClick"/>
@@ -125,9 +124,9 @@
       </Grid>
     </Grid>
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-      <TextBlock Text="保存到" VerticalAlignment="Center"/>
+      <TextBlock Text="保存位置" VerticalAlignment="Center"/>
       <TextBox Grid.Column="1" x:Name="OutputFolder"/>
-      <Button Grid.Column="2" Content="浏览…" Click="BrowseClick"/>
+      <Button Grid.Column="2" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
       <TextBlock x:Name="StatusText" TextWrapping="Wrap" Classes="caption" VerticalAlignment="Center"/>

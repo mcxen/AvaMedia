@@ -1,6 +1,6 @@
 # AvaMedia UI 设计与 Motion 规范
 
-版本：1.2 · 更新日期：2026-10-07 · 技术基线：.NET 8 / Avalonia 11.3.22
+版本：1.2 · 更新日期：2026-10-08 · 技术基线：.NET 8 / Avalonia 11.3.22
 
 本文是 AvaMedia 通用界面规范，适用于主窗口、转换、输出配置、设置、媒体编辑及后续工具窗口。新增控件应遵循本文；已有控件按下述实现状态逐步统一。示例与资源名称均以本仓库为准。
 
@@ -150,7 +150,7 @@ Fluent 建议通过有目的、自然、一致的动效解释界面变化，并�
 | `Button.tool` | 透明背景、无常驻边框、`8,3` 内边距；工具栏动作 |
 | `Button.tile` | canvas 表面、2 DIP 边框、4 DIP 内边距；功能入口 |
 | `Button.category` | surface 表面、顶部分隔线、高度 32、`8,4` 内边距；整行可展开 / 收起，右侧矢量箭头表示状态 |
-| 主操作（目标） | 同一对话框只突出一个，例如“确定”或“开始”；独立语义类实现后统一采用 |
+| 主操作 | 同一对话框只突出一个，使用 `primary dialog-action`；宽度随文案，最小宽度与高度由共享资源决定 |
 | 危险操作（目标） | 动作文字明确；必要时确认；不能与普通操作共用无区别的图标 |
 
 | 状态 | 必须表现 |
@@ -383,7 +383,7 @@ Motion.SetReducedMotion(settings.ReduceMotion);
 
 `SettingsWindow.axaml` 保留截图的经典表单结构：默认客户区 926×800、最小 780×640。正文继承皮肤字体与 `UiFontBody`，字段复用 `UiFieldHeight`，分组使用 `UiSettingSectionHeight` 最小高度并允许内容展开。标签页使用当前皮肤的 TabItem 模板；操作按钮复用 `ActionIcon` 与 `dialog-action` / `field-action`，GPU、CPU 和格式插画使用原创 `SettingsIcon`。
 
-窗口继续使用 `UiCanvas` / `UiSurface` / `UiSurfaceRaised` / `UiBorder` / `UiDivider` / `UiText` 等动态语义资源、基础键盘焦点和全局减少动效。正文纵向滚动，底部默认 / 取消 / 应用 / 确定固定；错误使用可换行文字和 `UiDanger`。「查看 GPU 能力」是真实可取消任务，运行期间禁用重复入口；关闭弹窗后重新启用。
+窗口继续使用 `UiCanvas` / `UiSurface` / `UiSurfaceRaised` / `UiBorder` / `UiDivider` / `UiText` 等动态语义资源、基础键盘焦点和全局减少动效。正文纵向滚动，底部默认 / 取消 / 应用 / 确定固定；错误使用可换行文字和 `UiDanger`。「查看 GPU 能力」是真实可取消任务，运行期间禁用重复入口；关闭弹窗后重新启用。二级工具的逐项覆盖与统一规则见 [二级工具界面](docs/TOOL-INTERFACES.md)。
 
 GPU 分组默认勾选「自动适配 GPU」，输出编码器默认「自动」。按系统、可用硬件、容器和源视频编码选择后端，不增加必须手选的显卡或驱动表单；Tooltip 简述自动回退。能力窗口仅显示本平台后端，详细原因保留在日志与 Tooltip。三套皮肤继续复用现有字段和按钮尺寸。
 

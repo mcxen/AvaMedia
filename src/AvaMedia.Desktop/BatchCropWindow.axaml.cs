@@ -211,6 +211,7 @@ public sealed partial class BatchCropWindow : Window
     {
         if (ListSummary is null || _closed) return;
         var included = _entries.Where(e => e.Include).ToArray(); var invalid = 0; var pending = 0;
+        RemoveButton.IsEnabled=FileList.SelectedItems?.Count>0;SelectAllButton.IsVisible=_entries.Count>1;
         Localization.SetText(ListSummary,$"{_entries.Count} 个视频 · 勾选 {included.Length} 个");
         ReferenceText.Text = _reference?.Info is { } reference
             ? Localization.Format($"选区参考：{_reference.Name}（{reference.Width} × {reference.Height} 像素）") : "选区参考：请选择一个已读取的视频";
@@ -230,9 +231,9 @@ public sealed partial class BatchCropWindow : Window
         var outputValid = !string.IsNullOrWhiteSpace(OutputInput.Text);
         OkButton.IsEnabled = included.Length > 0 && invalid == 0 && pending == 0 && outputValid;
         ValidationText.Classes.Set("error", invalid > 0);
-        ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
+        ValidationText.Text = included.Length == 0 ? "" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
             : invalid > 0 ? Localization.Format($"{invalid} 个视频无法使用此选区，请调整选区、切换比例模式或取消勾选。")
-            : !outputValid ? "请选择输出目录" : Localization.Format($"已选 {included.Length} 个视频");
+            : !outputValid ? "请选择输出目录" : "";
         CropLayer.Enabled = false;
         if (_active?.Info is { } active && _reference?.Info is not null && PreviewImage.Source is not null && !PreviewStatus.IsVisible)
         {
@@ -299,10 +300,11 @@ public sealed partial class BatchCropWindow : Window
         _previewCancellation?.Cancel(); _active = null; CropLayer.Enabled = false;
         (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
         PreviewStatus.Text = "尚未选择视频"; PreviewStatus.IsVisible = true;
-        PreviewName.Text = "选择一个视频预览"; PreviewSeek.IsEnabled = false; CropLayer.InvalidateVisual();
+        PreviewName.Text = ""; PreviewSeek.IsEnabled = false; CropLayer.InvalidateVisual();
     }
     private void FileSelectionChanged(object? sender, SelectionChangedEventArgs args)
     {
+        RemoveButton.IsEnabled=FileList.SelectedItems?.Count>0;
         _active = args.AddedItems.OfType<BatchCropEntry>().LastOrDefault() ?? FileList.SelectedItem as BatchCropEntry;
         if (_active is null) { ClearPreview(); return; }
         _previewCancellation?.Cancel(); (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;

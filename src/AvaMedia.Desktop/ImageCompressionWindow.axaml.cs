@@ -169,10 +169,11 @@ public sealed partial class ImageCompressionWindow : Window
     {
         if (_initializing || _closed) return;
         var format = ((ComboBoxItem)FormatCombo.SelectedItem!).Tag!.ToString()!;
-        LosslessInput.IsEnabled = format == "webp";
+        LosslessInput.IsVisible = format == "webp";
         var qualityEnabled = format != "png" && !(format == "webp" && LosslessInput.IsChecked == true);
         QualityInput.IsEnabled = QualitySlider.IsEnabled = qualityEnabled;
-        EdgeInput.IsEnabled = ResizeInput.IsChecked == true;
+        QualityLabel.IsVisible=QualityInput.IsVisible=QualitySlider.IsVisible=qualityEnabled;
+        EdgeInput.IsVisible = ResizeInput.IsChecked == true;
         foreach (var entry in _entries) entry.CanInclude = !_busy && (_editing ? File.Exists(entry.Path) : entry.Source is not null);
         var included = _entries.Count(entry => entry.Include);
         ListSummary.Text = Localization.Format($"{_entries.Count} 张图片 · 已勾选 {included} 张");
@@ -180,8 +181,9 @@ public sealed partial class ImageCompressionWindow : Window
         RemoveButton.IsEnabled = !_busy && Active is not null;
         OutputInput.IsEnabled = BrowseButton.IsEnabled = !_busy && SourceFolderInput.IsChecked != true;
         SourceFolderInput.IsEnabled = !_busy;
-        PreviewAllButton.IsEnabled = !_busy && included > 0;
-        CancelPreviewButton.IsVisible = _busy;
+        PreviewAllButton.IsEnabled = _busy || included > 0;
+        PreviewAllButton.Content=_busy?"停止预览":"预览全部";
+        SelectAllButton.IsVisible=_entries.Count>1;
         var valid = true;
         try { _ = ReadOptions(); }
         catch (ArgumentException ex) { valid = false; StatusText.Text = ex.Message; }
@@ -192,7 +194,7 @@ public sealed partial class ImageCompressionWindow : Window
         if (_initializing || _closed) return;
         DisposeImages(); Comparison.ResetView();
         BeforeText.Text = Localization.Text("压缩前"); AfterText.Text = Localization.Text("压缩后 · 尚未预览");
-        StatusText.Text = Active is null ? Localization.Text("尚未添加图片") : Localization.Text("正在准备预览…");
+        StatusText.Text = Active is null ? "" : Localization.Text("正在准备预览…");
         RefreshControls();
         if (_busy) _ = DisplayAsync(Active, _lifetime.Token); else SchedulePreview();
     }
@@ -302,8 +304,8 @@ public sealed partial class ImageCompressionWindow : Window
         catch (Exception ex) { if (!_closed) StatusText.Text = ex.Message; return false; }
         finally { _busy = false; RefreshControls(); }
     }
-    private async void PreviewAllClick(object? sender, RoutedEventArgs args) { _batchTask = PreviewAllAsync(); await _batchTask; }
-    private void CancelPreviewClick(object? sender, RoutedEventArgs args) => _batchCancellation?.Cancel();
+    private async void PreviewAllClick(object? sender, RoutedEventArgs args)
+    { if(_busy){_batchCancellation?.Cancel();return;} _batchTask = PreviewAllAsync(); await _batchTask; }
     private async void ConfirmClick(object? sender, RoutedEventArgs args)
     {
         if (_busy || _closed) return;

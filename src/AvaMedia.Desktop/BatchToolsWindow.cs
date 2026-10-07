@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
@@ -78,9 +79,9 @@ public sealed class BatchToolsWindow : Window
     {
         _engine = engine;_journal=journalPath??System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "batch-rename.json");
         Title = screenshots ? "多宫格截图" : "视频重命名";
-        Width = 1260; Height = 860; MinWidth = 1000; MinHeight = 700;
+        Width = 1120; Height = 760; MinWidth = 920; MinHeight = 620;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(16) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(20) };
         _importBar = new() { Orientation = Orientation.Horizontal, Spacing = 10 };
         var addFiles = new Button { Content = "添加视频…" };
         addFiles.Click += async (_, _) =>
@@ -118,7 +119,7 @@ public sealed class BatchToolsWindow : Window
         var header = new Grid { ColumnDefinitions = new("28,*,*,160"), ColumnSpacing = 5, Margin = new(1, 0), Classes = { "table-header" } };
         header.Bind(MinHeightProperty, new DynamicResourceExtension("UiTableHeaderHeight"));
         var h1 = Ui.Text("视频文件"); Grid.SetColumn(h1, 1); header.Children.Add(h1);
-        var h2 = Ui.Text("新名称预览"); Grid.SetColumn(h2, 2); header.Children.Add(h2);
+        var h2 = Ui.Text("新名称预览"); Grid.SetColumn(h2, 2); if(!screenshots)header.Children.Add(h2);
         var h3 = Ui.Text("状态"); Grid.SetColumn(h3, 3); header.Children.Add(h3); filesArea.Children.Add(header);
         _list = new() { ItemsSource = _entries, SelectionMode = SelectionMode.Multiple, Padding = new(0), BorderThickness = new(1) };
         _list.Styles.Add(new Style(x => x.OfType<ListBoxItem>())
@@ -130,7 +131,8 @@ public sealed class BatchToolsWindow : Window
             var g = new Grid { ColumnDefinitions = new("28,*,*,160"), Margin = new(0, 6), ColumnSpacing = 5 };
             var check = new CheckBox { MinHeight = 22 };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(BatchVideoEntry.Include)) { Mode = BindingMode.TwoWay }); g.Children.Add(check);
-            Add(1, nameof(BatchVideoEntry.Name)); Add(2, nameof(BatchVideoEntry.NewName)); Add(3, nameof(BatchVideoEntry.Status));
+            Add(1, nameof(BatchVideoEntry.Name)); if(!screenshots)Add(2, nameof(BatchVideoEntry.NewName)); Add(3, nameof(BatchVideoEntry.Status));
+            if(screenshots)g.ColumnDefinitions[2].Width=new GridLength(0);
             ToolTip.SetTip(g, entry?.Path); return g;
             void Add(int column, string property)
             {
@@ -141,60 +143,58 @@ public sealed class BatchToolsWindow : Window
         });
         _list.SelectionChanged += (_, _) => { if (_list.SelectedItem is BatchVideoEntry entry && entry.LastSheet is { } path) ShowPreview(path); };
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); body.Children.Add(filesArea);
-        var tabs = new TabControl(); Grid.SetColumn(tabs, 1);
+        if(screenshots)header.ColumnDefinitions[2].Width=new GridLength(0);
         _renamePanel = new() { Spacing = 9, Margin = new(9) };
         AddRow(_renamePanel, "命名模板", _pattern); AddRow(_renamePanel, "前缀", _prefix); AddRow(_renamePanel, "后缀", _suffix);
         AddRow(_renamePanel, "查找文本", _find); AddRow(_renamePanel, "替换为", _replace); AddRow(_renamePanel, "起始序号", _firstIndex); AddRow(_renamePanel, "序号位数", _digits);
-        _renamePanel.Children.Add(new TextBlock { Text = "模板可使用 {name} 原文件名、{index} 序号、{parent} 父文件夹名。保留扩展名。\n\n示例：片段_{index} → 片段_001.mp4", TextWrapping = TextWrapping.Wrap, Classes = { "caption" }, Margin = new(0, 8) });
+        _renamePanel.Children.Add(Ui.Text("{name} 文件名 · {index} 序号 · {parent} 文件夹；保留扩展名。","caption"));
         var previewRename = new Button { Content = "预览新名称", HorizontalAlignment = HorizontalAlignment.Stretch };
         previewRename.Click += async (_, _) => await PreviewRename(); _renamePanel.Children.Add(previewRename);
         _rename = new() { Content = "执行重命名", IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Stretch };
-        _rename.Click += async (_, _) => await ApplyRename(); _renamePanel.Children.Add(_rename);
-        _undo = new() { Content = "撤销上一次重命名", IsEnabled = File.Exists(_journal), HorizontalAlignment = HorizontalAlignment.Stretch };
+        _rename.Click += async (_, _) => await ApplyRename();_rename.Classes.Add("primary");_rename.Classes.Add("dialog-action");
+        _undo = new() { Content = "撤销上一次重命名", IsEnabled = File.Exists(_journal), IsVisible=File.Exists(_journal), HorizontalAlignment = HorizontalAlignment.Stretch };
         _undo.Click += async (_, _) => await UndoRename(); _renamePanel.Children.Add(_undo);
-        tabs.Items.Add(new TabItem { Header = "批量重命名", Content = new ScrollViewer { Content = _renamePanel } });
 
         _sheetPanel = new() { Spacing = 9, Margin = new(9) };
         var preset = Ui.Combo(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], "3 × 3");
         preset.SelectionChanged += (_, _) => { if (preset.SelectedItem is string value && value != "自定义") { var p = value.Split('×'); _columns.Text = p[0].Trim(); _rows.Text = p[1].Trim(); } };
         AddRow(_sheetPanel, "宫格预设", preset);
-        AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows)); AddRow(_sheetPanel, "长边 / 短边上限", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
+        var customGrid=AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows));customGrid.IsVisible=false;
+        preset.SelectionChanged+=(_,_)=>customGrid.IsVisible=preset.SelectedItem as string=="自定义";
+        AddRow(_sheetPanel, "单格宽 / 高（像素）", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
         AddRow(_sheetPanel, "开始 / 结束秒", Pair(_start, _end)); AddRow(_sheetPanel, "图片格式", _format); _sheetPanel.Children.Add(_timestamps);
         _sheetPanel.Children.Add(new TextBlock { Text = "结束为 0 表示视频末尾", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
-        _output = Ui.Input(outputFolder); _sheetPanel.Children.Add(Ui.Text("输出文件夹")); _sheetPanel.Children.Add(_output);
-        var browse = new Button { Content = "选择输出目录…", HorizontalAlignment = HorizontalAlignment.Stretch };
-        browse.Click += async (_, _) => { if (await Ui.Folder(this, "选择截图目录") is { } path) _output.Text = path; }; _sheetPanel.Children.Add(browse);
-        _generate = new() { Content = "批量生成多宫格截图", HorizontalAlignment = HorizontalAlignment.Stretch };
-        _generate.Click += async (_, _) => await Generate(); _sheetPanel.Children.Add(_generate);
+        _output = Ui.Input(outputFolder);
+        var outputRow=new Grid{ColumnDefinitions=new("*,Auto"),ColumnSpacing=8};outputRow.Children.Add(_output);
+        var browse = new Button { Content = "浏览…", Classes={"field-action"} };
+        browse.Click += async (_, _) => { if (await Ui.Folder(this, "选择截图目录") is { } path) _output.Text = path; };Grid.SetColumn(browse,1);outputRow.Children.Add(browse);AddRow(_sheetPanel,"保存位置",outputRow);
+        _generate = new() { Content = "生成截图", Classes={"primary","dialog-action"} };
+        _generate.Click += async (_, _) => await Generate();
         _preview = new() { Height = 165, Stretch = Stretch.Uniform };
         _sheetPanel.Children.Add(new Border { Classes = { "media-preview" }, Child = _preview, Margin = new(0, 5) });
         var open = new Button { Content = "打开输出文件夹", HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => { try { var folder = System.IO.Path.GetFullPath(_output.Text ?? ""); Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); } catch (Exception ex) { await Ui.Message(this, "打开失败", ex.Message); } }; _sheetPanel.Children.Add(open);
-        tabs.Items.Add(new TabItem { Header = "多宫格截图", Content = new ScrollViewer { Content = _sheetPanel } }); body.Children.Add(tabs);
-        tabs.SelectionChanged += (_, _) =>
-        {
-            Title = tabs.SelectedIndex == 1 ? "多宫格截图" : "视频重命名";
-            Controls.WindowArtwork.SetKind(this, tabs.SelectedIndex == 1 ? "frames" : "gear");
-        };
+        var settings=new ScrollViewer{Content=screenshots?_sheetPanel:_renamePanel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};Grid.SetColumn(settings,1);body.Children.Add(settings);
         Grid.SetRow(body, 2); root.Children.Add(body);
-        var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
+        var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        bottom.Children.Add(_progressText); _stop = Ui.DialogButton("停止", () => _operation?.Cancel()); _stop.IsEnabled = false; Grid.SetColumn(_stop, 1); bottom.Children.Add(_stop);
-        var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); bottom.Children.Add(close); Grid.SetRow(bottom, 3); root.Children.Add(bottom); Content = root;
+        bottom.Children.Add(_progressText); _stop = Ui.DialogButton("停止", () => _operation?.Cancel()); _stop.IsEnabled = false;_stop.IsVisible=false;Grid.SetColumn(_stop, 1); bottom.Children.Add(_stop);
+        var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); bottom.Children.Add(close);
+        var execute=screenshots?_generate:_rename;execute.IsDefault=true;Grid.SetColumn(execute,3);bottom.Children.Add(execute);Grid.SetRow(bottom, 3); root.Children.Add(bottom); Content = root;
         foreach (var box in new[] { _pattern, _prefix, _suffix, _find, _replace, _firstIndex, _digits }) box.TextChanged += (_, _) => InvalidatePlan();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _operation is null && !_renaming && !_importing ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (_operation is null && !_renaming && !_importing) await AddFolders(e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); (_preview.Source as Bitmap)?.Dispose(); };
         if (initial is not null) AddPaths(initial);
-        tabs.SelectedIndex = screenshots ? 1 : 0;
+        InvalidatePlan();
         Controls.WindowArtwork.SetKind(this, screenshots ? "frames" : "gear");
     }
 
     private static Control Pair(Control first, Control second)
     { var grid = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 }; grid.Children.Add(first); Grid.SetColumn(second, 1); grid.Children.Add(second); return grid; }
-    private static void AddRow(Panel parent, string label, Control input)
-    { var row = new Grid { ColumnDefinitions = new("115,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row); }
+    private static Grid AddRow(Panel parent, string label, Control input)
+    { var row = new Grid { ColumnDefinitions = new("115,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row);return row; }
 
     private void AddPaths(IEnumerable<string> paths)
     {
@@ -222,7 +222,8 @@ public sealed class BatchToolsWindow : Window
     {
         _renamePlan = null; if (_rename is not null) _rename.IsEnabled = false;
         foreach (var row in _entries) row.NewName = "";
-        Localization.SetText(_summary,$"{_entries.Count} 个视频，已勾选 {_entries.Count(e => e.Include)} 个。重命名与截图只处理勾选项。");
+        Localization.SetText(_summary,$"{_entries.Count} 个视频 · 勾选 {_entries.Count(e => e.Include)} 个");
+        if(_generate is not null)_generate.IsEnabled=_operation is null&&!_importing&&!_renaming&&_entries.Any(entry=>entry.Include);
     }
     private async Task PreviewRename()
     {
@@ -243,14 +244,14 @@ public sealed class BatchToolsWindow : Window
         SetBusy(true); _renaming = true;
         try { var result = await Task.Run(() => BatchVideoTools.ApplyRename(plan, _journal)); UpdatePaths(result); Localization.SetText(_progressText,$"已重命名 {result.Length} 个视频。"); }
         catch (Exception ex) { await Ui.Message(this, "重命名失败", ex.Message); }
-        finally { _renaming = false; SetBusy(false); InvalidatePlan(); _undo.IsEnabled = File.Exists(_journal); }
+        finally { _renaming = false; SetBusy(false); InvalidatePlan(); _undo.IsVisible=_undo.IsEnabled = File.Exists(_journal); }
     }
     private async Task UndoRename()
     {
         SetBusy(true); _renaming = true;
         try { var result = await Task.Run(() => BatchVideoTools.UndoRename(_journal)); UpdatePaths(result); Localization.SetText(_progressText,$"已还原 {result.Length} 个文件名。"); _undo.IsEnabled = false; }
         catch (Exception ex) { await Ui.Message(this, "撤销失败", ex.Message); }
-        finally { _renaming = false; SetBusy(false); InvalidatePlan(); }
+        finally { _renaming = false; SetBusy(false); InvalidatePlan(); _undo.IsVisible=_undo.IsEnabled; }
     }
     private void UpdatePaths(IReadOnlyList<RenameItem> mappings)
     {
@@ -294,7 +295,7 @@ public sealed class BatchToolsWindow : Window
         try { var old = _preview.Source as Bitmap; using var stream = File.OpenRead(path); _preview.Source = Bitmap.DecodeToWidth(stream, 700); old?.Dispose(); }
         catch (Exception ex) { _progressText.Text = Localization.Format($"图片预览失败：{ex.Message}"); }
     }
-    private void SetBusy(bool busy) { _importBar.IsEnabled = !busy; _renamePanel.IsEnabled = !busy; _sheetPanel.IsEnabled = !busy; _list.IsEnabled = !busy; _generate.IsEnabled = !busy; }
+    private void SetBusy(bool busy) { _importBar.IsEnabled = !busy; _renamePanel.IsEnabled = !busy; _sheetPanel.IsEnabled = !busy; _list.IsEnabled = !busy; _generate.IsEnabled = !busy&&_entries.Any(entry=>entry.Include);_rename.IsEnabled=!busy&&_renamePlan?.Any(item=>item.Source!=item.Target)==true;_stop.IsVisible=busy&&_operation is not null; }
     private static int Integer(TextBox input) => int.Parse(input.Text ?? "", CultureInfo.InvariantCulture);
     private static double Number(TextBox input) => double.Parse(input.Text ?? "", CultureInfo.InvariantCulture);
 }

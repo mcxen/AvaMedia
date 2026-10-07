@@ -215,10 +215,11 @@ public sealed partial class BatchRotateWindow : Window
         OkButton.IsEnabled = changed > 0 && invalid == 0 && unresolved == 0 && pending == 0 && outputValid && !_detecting;
         DetectButton.IsEnabled = included.Length > 0 && pending == 0 && invalid == 0 && !_detecting;
         CancelDetectionButton.IsVisible = _detecting;
-        AddButton.IsEnabled = RemoveButton.IsEnabled = SelectAllButton.IsEnabled = ModeCombo.IsEnabled = !_detecting;
+        AddButton.IsEnabled = SelectAllButton.IsEnabled = ModeCombo.IsEnabled = !_detecting;
+        RemoveButton.IsEnabled=!_detecting&&FileList.SelectedItems?.Count>0;SelectAllButton.IsVisible=_entries.Count>1;
         DirectionCombo.IsEnabled = !_detecting && (!PerFile || _active?.Info is not null);
         ValidationText.Classes.Set("error", invalid > 0 || unresolved > 0);
-        ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
+        ValidationText.Text = included.Length == 0 ? "" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
             : _detecting ? "正在检测方向…"
             : invalid > 0 ? Localization.Format($"{invalid} 个视频无法处理，请移除或取消勾选。")
             : unresolved > 0 ? Localization.Format($"{unresolved} 个视频方向无法确定，请逐个指定方向或取消勾选。")
@@ -319,7 +320,7 @@ public sealed partial class BatchRotateWindow : Window
     {
         _previewCancellation?.Cancel(); DisposePreview();
         PreviewStatus.Text = "添加视频后可对比旋转前后的方向"; PreviewStatus.IsVisible = true;
-        PreviewName.Text = "选择一个视频预览"; PreviewSeek.IsEnabled = false;
+        PreviewName.Text = ""; PreviewSeek.IsEnabled = false;
     }
     private void FileSelectionChanged(object? sender, SelectionChangedEventArgs args)
     {

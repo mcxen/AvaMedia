@@ -1565,5 +1565,22 @@
   "视频来源页无效，请重新解析。": "Invalid video source page. Resolve it again.",
   "Fileditch 浏览器解析超时。请在打开的浏览器确认视频页可访问后重试。": "Fileditch browser resolution timed out. Check the video page in the opened browser and retry.",
   "未找到 Chrome / Edge，请安装浏览器或连接已启用 CDP 的浏览器。": "Chrome / Edge was not found. Install a browser or connect one with CDP enabled.",
-  "无法启动 CDP 浏览器。": "Cannot start the CDP browser."
+  "无法启动 CDP 浏览器。": "Cannot start the CDP browser.",
+  "加入队列": "Add to queue",
+  "预览全部": "Preview all",
+  "返回编辑": "Back to editing",
+  "适应窗口": "Fit to window",
+  "撤销": "Undo",
+  "音频码率": "Audio bitrate",
+  "预设名称": "Preset name",
+  "编辑选中…": "Edit selected…",
+  "生成截图": "Generate sheets",
+  "单格宽 / 高（像素）": "Cell width / height (px)",
+  "{name} 文件名 · {index} 序号 · {parent} 文件夹；保留扩展名。": "{name} file name · {index} number · {parent} folder; keep the extension.",
+  "每段时长（保留尾段）": "Segment duration (keep the remainder)",
+  "源视频时间点（逗号 / 换行）": "Source timestamps (comma / newline)",
+  "每段单独导出，保留编辑参数。Fast Copy 切点受关键帧限制。": "Export each segment separately with its edits. Fast Copy cuts follow keyframes.",
+  "源区间：{0} – {1} · {2}×": "Source range: {0} – {1} · {2}×",
+  "外部文件留空时使用源字幕；字幕轨 -1 在烧录时选第一条，在保留时选全部。": "Leave the file empty to use source subtitles; track -1 burns the first track or preserves all tracks.",
+  "仅限可信局域网；关闭传输后地址失效。": "Use a trusted local network; the address expires when transfer stops."
 }

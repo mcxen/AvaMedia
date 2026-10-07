@@ -65,15 +65,16 @@ public sealed class ConvertWindow : Window
                     _entries.Add(new(path));
             },RoutingStrategies.Bubble,handledEventsToo:true);
         }
-        var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(18)};
+        var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(20)};
         var sourceOutput=feature.Id is "crop" or "rotate";
         var initialFormat=sourceOutput?SourceVideoExport.Selection(_options):_options.Format;
         var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10,IsVisible=feature.Operation!=Operation.Unzip};
-        var formats=Ui.Combo(GetFormats(feature).Append(_options.Format).Distinct(),initialFormat);formats.Width=sourceOutput?240:130;
-        top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);
+        var formatChoices=GetFormats(feature).Append(_options.Format).Distinct().ToArray();
+        var formats=Ui.Combo(formatChoices,initialFormat);formats.MinWidth=sourceOutput?240:130;
+        if(formatChoices.Length>1){top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);}
         var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
         var media=feature.Operation!=Operation.Info && (feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id is "repair" or "crop" or "rotate");
-        var setting=new Button{Content="输出配置",MinWidth=130,IsVisible=media};setting.Click+=async(_,_)=>
+        var setting=new Button{Content="输出配置…",IsVisible=media};setting.Click+=async(_,_)=>
         {
             try
             {
@@ -114,14 +115,15 @@ public sealed class ConvertWindow : Window
         var toolbar=new WrapPanel{Orientation=Orientation.Horizontal,Margin=new(0,15,0,2)};
         var list=new ListBox{ItemsSource=_entries,SelectionMode=SelectionMode.Multiple,BorderThickness=new(1)};
         list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{var row=new StackPanel{Spacing=4,Margin=new(2,4)};var pathText=new TextBlock{Text=entry?.Path,TextTrimming=TextTrimming.CharacterEllipsis};Localization.SetIsUserText(pathText,true);ToolTip.SetTip(pathText,entry?.Path);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"}};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));row.Children.Add(summary);}return row;});
-        var add=new Button{Content="添加文件…"};add.Click+=async(_,_)=>{foreach(var path in await Ui.Pick(this,"添加文件"))_entries.Add(new(path));};toolbar.Children.Add(add);
-        var folder=new Button{Content="添加文件夹…"};folder.Click+=async(_,_)=>{if(await Ui.Folder(this,"添加文件夹") is {} path){foreach(var file in Directory.EnumerateFiles(path))_entries.Add(new(file));}};toolbar.Children.Add(folder);
-        toolbar.Children.Add(Ui.Button("移除",()=>{foreach(var x in list.SelectedItems?.Cast<ConversionEntry>().ToArray()??[])_entries.Remove(x);}));
-        toolbar.Children.Add(Ui.Button("上移",()=>{if(list.SelectedIndex>0){var index=list.SelectedIndex;_entries.Move(index,index-1);list.SelectedIndex=index-1;}}));
-        toolbar.Children.Add(Ui.Button("下移",()=>{if(list.SelectedIndex>=0 && list.SelectedIndex<_entries.Count-1){var index=list.SelectedIndex;_entries.Move(index,index+1);list.SelectedIndex=index+1;}}));
-        var edit=new Button{Content="选项 / 剪辑"};edit.Click+=async(_,_)=>
+        var add=new Button{Content="添加文件…"};add.Click+=async(_,_)=>AddPaths(await Ui.Pick(this,"添加文件"));toolbar.Children.Add(add);
+        var folder=new Button{Content="添加文件夹…"};folder.Click+=async(_,_)=>{if(await Ui.Folder(this,"添加文件夹") is {} path)AddPaths(Directory.EnumerateFiles(path));};toolbar.Children.Add(folder);
+        var remove=Ui.Button("移除选中",()=>{foreach(var x in list.SelectedItems?.Cast<ConversionEntry>().ToArray()??[])_entries.Remove(x);});toolbar.Children.Add(remove);
+        var ordered=feature.Operation is Operation.Join or Operation.Mux or Operation.AudioMix;
+        var up=Ui.Button("上移",()=>{if(list.SelectedIndex>0){var index=list.SelectedIndex;_entries.Move(index,index-1);list.SelectedIndex=index-1;}});up.IsVisible=ordered;toolbar.Children.Add(up);
+        var down=Ui.Button("下移",()=>{if(list.SelectedIndex>=0 && list.SelectedIndex<_entries.Count-1){var index=list.SelectedIndex;_entries.Move(index,index+1);list.SelectedIndex=index+1;}});down.IsVisible=ordered;toolbar.Children.Add(down);
+        var edit=new Button{Content="编辑选中…"};edit.Click+=async(_,_)=>
         {
-            if(_entries.Count==0)return;var entry=list.SelectedItem as ConversionEntry??_entries[0];var path=entry.Path;
+            if(list.SelectedItem is not ConversionEntry entry)return;var path=entry.Path;
             var inputEdit=feature.Operation is Operation.Join or Operation.AudioMix or Operation.Mux;
             try
             {
@@ -144,15 +146,15 @@ public sealed class ConvertWindow : Window
             else {area.Children.Add(Ui.Text(OperatingSystem.IsMacOS()?"光驱原始设备路径，例如 /dev/rdisk2":"光驱盘符或原始设备路径，例如 D:"));area.Children.Add(special);area.Children.Add(new TextBlock{Text="逐字节复制可读数据光盘为 ISO。需要本机读取权限，不处理加密。",TextWrapping=TextWrapping.Wrap});}
             Grid.SetRow(area,2);panel.Children.Add(area);
         }
-        var output=new Grid{ColumnDefinitions=new("95,*,90"),RowDefinitions=new("Auto,Auto"),RowSpacing=6,Margin=new(0,14,0,6)};var outputBox=Ui.Input(outputFolder);outputBox.Name="ConversionOutputFolder";output.Children.Add(Ui.Text("输出文件夹"));Grid.SetColumn(outputBox,1);output.Children.Add(outputBox);
-        var browse=new Button{Content="浏览…",Margin=new(10,0,0,0)};browse.Click+=async(_,_)=>{if(await Ui.Folder(this,"选择输出目录") is {} path)outputBox.Text=path;};Grid.SetColumn(browse,2);output.Children.Add(browse);Grid.SetRow(output,3);panel.Children.Add(output);
+        var output=new Grid{ColumnDefinitions=new("Auto,*,Auto"),RowDefinitions=new("Auto,Auto"),RowSpacing=6,Margin=new(0,14,0,6)};var outputBox=Ui.Input(outputFolder);outputBox.Name="ConversionOutputFolder";output.Children.Add(Ui.Text("保存位置"));Grid.SetColumn(outputBox,1);output.Children.Add(outputBox);
+        var browse=new Button{Content="浏览…",Classes={"field-action"},Margin=new(10,0,0,0)};browse.Click+=async(_,_)=>{if(await Ui.Folder(this,"选择输出目录") is {} path)outputBox.Text=path;};Grid.SetColumn(browse,2);output.Children.Add(browse);Grid.SetRow(output,3);panel.Children.Add(output);
         var outputFlags=new StackPanel{Orientation=Orientation.Horizontal,Spacing=18};
         var sourceFolder=new CheckBox{Name="ConversionOutputToSource",Content="输出至源文件目录",IsChecked=initialOptions is null&&engine.Settings.OutputToSource,IsEnabled=feature.Operation is not (Operation.Download or Operation.IsoCopy)};
         var addName=new CheckBox{Name="ConversionAddSettingName",Content="添加设置名称",IsChecked=initialOptions is null&&engine.Settings.AddSettingName};
         sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
         outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;outputFlags.Children.Add(sourceFolder);outputFlags.Children.Add(addName);Grid.SetRow(outputFlags,1);Grid.SetColumnSpan(outputFlags,3);output.Children.Add(outputFlags);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=16,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(0,12,0,0)};
-        buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content=editing?"保存修改":"确定",Classes={"dialog-action"}};ok.Click+=async(_,_)=>
+        buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content=editing?"保存修改":"加入队列",IsDefault=true,Classes={"primary","dialog-action"}};ok.Click+=async(_,_)=>
         {
             if(_preparing)return;_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=false;
             try
@@ -187,8 +189,22 @@ public sealed class ConvertWindow : Window
             }
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)await Ui.Message(this,"参数错误",ex.Message);}
-            finally{_preparing=false;if(IsVisible){ok.IsEnabled=true;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;}}
+            finally{_preparing=false;if(IsVisible){foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;RefreshActions();}}
         };buttons.Children.Add(ok);Grid.SetRow(buttons,4);panel.Children.Add(buttons);Content=panel;
+        _entries.CollectionChanged+=(_,_)=>RefreshActions();list.SelectionChanged+=(_,_)=>RefreshActions();special.TextChanged+=(_,_)=>RefreshActions();
+        top.IsVisible=top.Children.Any(control=>control.IsVisible);RefreshActions();
+        void AddPaths(IEnumerable<string> paths)
+        {
+            var known=_entries.Select(entry=>Path.GetFullPath(entry.Path)).ToHashSet(VideoFolderScanner.PathComparer);
+            foreach(var path in paths.Select(Path.GetFullPath).Where(File.Exists).Where(known.Add))_entries.Add(new(path));
+        }
+        void RefreshActions()
+        {
+            var selected=list.SelectedItems?.Count??0;
+            remove.IsEnabled=selected>0;edit.IsEnabled=selected==1;
+            up.IsEnabled=selected==1&&list.SelectedIndex>0;down.IsEnabled=selected==1&&list.SelectedIndex>=0&&list.SelectedIndex<_entries.Count-1;
+            ok.IsEnabled=!_preparing&&(feature.Operation is Operation.Download or Operation.IsoCopy?!string.IsNullOrWhiteSpace(special.Text):_entries.Count>0);
+        }
     }
     private static ConversionOptions SelectOutput(ConversionOptions options,Feature feature,string selection,string path)
     {

@@ -19,10 +19,10 @@ public sealed class HardwareTestWindow : Window
     {
         _configured = configured; Title = "GPU 加速能力"; Width = 580; Height = 392; MinWidth = 460; MinHeight = 300;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(14, 22, 14, 16), RowSpacing = 28 };
+        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(20), RowSpacing = 12 };
         _log = new() { Name = "HardwareLog", Classes={"log"}, IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.NoWrap, Text = "正在检测本平台的 GPU 编码能力…" };
         root.Children.Add(_log);
-        var ok = new Button { Name = "OkButton", Content = "确定", Classes={"dialog-action"}, HorizontalAlignment = HorizontalAlignment.Center, IsDefault = true, IsCancel = true };
+        var ok = new Button { Name = "OkButton", Content = "关闭", Classes={"dialog-action"}, HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true, IsCancel = true };
         ok.Click += (_, _) => Close(); Grid.SetRow(ok, 1); root.Children.Add(ok); Content = root;
         Opened += async (_, _) => await Test();
         Closed += (_, _) => { _closed = true; _lifetime.Cancel(); if (_ready.Task.IsCompleted) _lifetime.Dispose(); };

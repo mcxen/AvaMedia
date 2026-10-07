@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1400" Height="980" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="860" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
   <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto,Auto,*,Auto">
     <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="200">
       <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Fill"/></LayoutTransformControl></Viewbox>
@@ -68,7 +68,6 @@
             <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="6"/></DataTemplate></ListBox.ItemTemplate>
           </ListBox>
           <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
-            <Button x:Name="AddSegmentButton" Content="添加为新片段" Click="AddSegmentClick"/>
             <Button x:Name="SplitSegmentButton" Content="分割当前片段…" Click="SplitSegmentClick"/>
             <Button x:Name="RemoveSegmentButton" Content="删除片段" Click="RemoveSegmentClick"/>
             <Button x:Name="SegmentUpButton" Content="上移" Click="SegmentUpClick"/>
@@ -87,9 +86,9 @@
       </TabItem>
     </TabControl>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Margin="12,8">
-      <StackPanel x:Name="SegmentFooter" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" IsVisible="False"><Button Content="添加为新片段" Click="AddSegmentClick"/><TextBlock x:Name="SegmentCount" VerticalAlignment="Center"/></StackPanel>
+      <StackPanel x:Name="SegmentFooter" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" IsVisible="False"><Button x:Name="AddSegmentButton" Content="添加为新片段" Click="AddSegmentClick"/><TextBlock x:Name="SegmentCount" VerticalAlignment="Center"/></StackPanel>
       <Button Grid.Column="1" x:Name="EditorCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="2" x:Name="ConfirmButton" Classes="dialog-action" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+      <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
   </Grid>
 </Window>

@@ -2,7 +2,7 @@
   <!-- Business views choose a role; skin resources supply its appearance and metrics. -->
   <Style Selector="Button.field-action"><Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/></Style>
   <Style Selector="Button.dialog-action">
-    <Setter Property="Width" Value="{DynamicResource UiDialogActionWidth}"/>
+    <Setter Property="MinWidth" Value="{DynamicResource UiDialogActionWidth}"/>
     <Setter Property="Height" Value="{DynamicResource UiDialogActionHeight}"/>
     <Setter Property="MinHeight" Value="{DynamicResource UiDialogActionHeight}"/>
     <Setter Property="Padding" Value="{DynamicResource UiDialogActionPadding}"/>

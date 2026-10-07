@@ -19,19 +19,16 @@
     </Style>
     <Style Selector="Button.route-card:focus-visible">
       <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
-      <Setter Property="BorderThickness" Value="2"/>
+      <Setter Property="BorderThickness" Value="1"/>
     </Style>
     <Style Selector="ListBoxItem">
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="Padding" Value="0"/>
     </Style>
   </Window.Styles>
-  <Grid Margin="22" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" RowSpacing="16">
     <Grid ColumnDefinitions="*,Auto">
-      <StackPanel Spacing="6">
-        <TextBlock Classes="heading" Text="选择工具"/>
-      </StackPanel>
-      <Button Grid.Column="1" Content="继续添加文件…" Click="AddClick" VerticalAlignment="Center"/>
+      <Button Content="添加文件…" Click="AddClick" VerticalAlignment="Center"/>
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="310,100,*">
       <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1"
@@ -54,7 +51,6 @@
       <controls:MediaRouteFlow Grid.Column="1" Grid.ColumnSpan="2" x:Name="RouteFlow" LineBrush="{DynamicResource UiDivider}"
                               ActivateDuration="{StaticResource MotionNavigate}" FadeDuration="{StaticResource MotionFast}"
                               AccentBrush="{DynamicResource UiAccent}" SurfaceBrush="{DynamicResource UiSurface}"/>
-      <TextBlock Grid.Column="1" Text="路由" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,70,0,0"/>
       <Grid Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Text="选择工具" FontWeight="SemiBold"/>

@@ -10,7 +10,7 @@ internal static class Ui
     public static Button Button(string text,Action action)
     {var b=new Button{Content=text};b.Click+=(_,_)=>action();return b;}
     public static Button DialogButton(string text,Action action)
-    {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=text=="确定";button.IsCancel=text=="取消";return button;}
+    {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=text is "确定" or "保存";button.IsCancel=text is "取消" or "关闭";if(button.IsDefault)button.Classes.Add("primary");return button;}
     public static TextBlock Text(string text,string? role=null)
     {var label=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center};if(role is not null)label.Classes.Add(role);return label;}
     public static TextBlock FormattedText(FormattableString text,string? role=null)

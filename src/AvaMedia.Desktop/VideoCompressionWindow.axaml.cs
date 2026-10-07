@@ -244,7 +244,7 @@ public partial class VideoCompressionWindow : Window
             if (VideoCompression.UsesQuality(mode))
                 Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 输出体积由内容决定");
             else Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 预计 {_entries.Sum(entry => entry.Plan?.EstimatedBytes ?? 0) / 1000000d:0.##} MB");
-            ValidationText.Text = _entries.Count == 0 ? "尚未添加视频" : pending > 0 ? "正在读取…" :
+            ValidationText.Text = _entries.Count == 0 ? "" : pending > 0 ? "正在读取…" :
                 invalid > 0 ? "请调整目标或移除有错误的视频。" : "";
             ConfirmButton.IsEnabled = ready > 0 && ready == _entries.Count && pending == 0 && invalid == 0;
         }

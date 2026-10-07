@@ -79,8 +79,8 @@ public partial class PdfWorkspaceWindow : Window
     public PdfWorkspaceWindow(Feature feature, string outputFolder, IEnumerable<string>? initial = null, ConversionOptions? initialOptions = null, IMediaEngine? engine = null, bool editing = false)
     {
         _feature = feature; _engine = engine ?? new MediaEngine(new()); InitializeComponent();
-        Title = WorkspaceTitle.Text = feature.Label; OutputFolder.Text = outputFolder;
-        if (editing) { Title = WorkspaceTitle.Text = Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}"); ConfirmButton.Content = "保存修改"; }
+        Title = feature.Label; OutputFolder.Text = outputFolder;
+        if (editing) { Title = Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}"); ConfirmButton.Content = "保存修改"; }
         WindowArtwork.SetKind(this, feature.Icon);
         LayoutPanel.IsVisible = feature.Operation is Operation.TextPdf or Operation.ImagesPdf;
         SourceSizeItem.IsVisible = feature.Operation == Operation.ImagesPdf;
@@ -293,6 +293,7 @@ public partial class PdfWorkspaceWindow : Window
             card.Tag = page; PageBoard.Children.Add(card);
         }
         BoardRange.Text = _pages.Count == 0 ? "" : Localization.Format($"{_boardStart + 1}–{_boardStart + visible.Length} / {_pages.Count} 页");
+        BoardNavigation.IsVisible=_pages.Count>BoardSize;
         PreviousButton.IsEnabled = _boardStart > 0; NextButton.IsEnabled = _boardStart + BoardSize < _pages.Count;
         RefreshSummary(); Track(RenderCards(renderTargets, token));
     }

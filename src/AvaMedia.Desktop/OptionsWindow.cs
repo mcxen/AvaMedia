@@ -46,9 +46,9 @@ public sealed class OptionsWindow : Window
         {
             try
             {
-                var options=ReadOptions();var dialog=new Window{Title="保存预设",Width=380,Height=170,CanResize=false,WindowStartupLocation=WindowStartupLocation.CenterOwner};
-                var area=new StackPanel{Margin=new(20),Spacing=12};var name=Ui.Input("我的配置");area.Children.Add(name);var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8};
-                buttons.Children.Add(Ui.Button("取消",()=>dialog.Close(null)));buttons.Children.Add(Ui.Button("保存",()=>{if(!string.IsNullOrWhiteSpace(name.Text))dialog.Close(name.Text.Trim());}));area.Children.Add(buttons);dialog.Content=area;
+                var options=ReadOptions();var dialog=new Window{Title="保存预设",Width=420,Height=220,MinWidth=400,MinHeight=200,WindowStartupLocation=WindowStartupLocation.CenterOwner};
+                var area=new StackPanel{Margin=new(20),Spacing=12};var name=Ui.Input("我的配置");area.Children.Add(Ui.Text("预设名称"));area.Children.Add(name);var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8};
+                buttons.Children.Add(Ui.DialogButton("取消",()=>dialog.Close(null)));var confirm=Ui.DialogButton("保存",()=>{if(!string.IsNullOrWhiteSpace(name.Text))dialog.Close(name.Text.Trim());});buttons.Children.Add(confirm);name.TextChanged+=(_,_)=>confirm.IsEnabled=!string.IsNullOrWhiteSpace(name.Text);area.Children.Add(buttons);dialog.Content=area;
                 if(await dialog.ShowDialog<string?>(this) is {} key){_presets.SavePreset(Prefix+key,options);_draft=options;Build();}
             }catch(Exception ex){await Ui.Message(this,"保存失败",ex.Message);}
         };Grid.SetColumn(save,2);top.Children.Add(save);root.Children.Add(top);
@@ -79,7 +79,7 @@ public sealed class OptionsWindow : Window
             if(!outputOnly)
             {
                 Choice(video,"旋转角度",["0","90","180","270"],(_draft.LosslessRotation??_draft.Rotation).ToString(),(o,v)=>
-                {if(o.LosslessRotation is not null){o.LosslessRotation=int.Parse(v);o.Rotation=0;}else o.Rotation=int.Parse(v);});Check(video,"镜像","水平镜像",_draft.Flip,(o,v)=>o.Flip=v);
+                {if(o.LosslessRotation is not null){o.LosslessRotation=int.Parse(v);o.Rotation=0;}else o.Rotation=int.Parse(v);});Check(video,"水平镜像",_draft.Flip,(o,v)=>o.Flip=v);
                 if(!image && _kind!=MediaOptionsKind.Frames){Number(video,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);Fades(video);}
             }
         }
@@ -95,17 +95,16 @@ public sealed class OptionsWindow : Window
                 Choice(audio,"声道",_format is "mp3" or "wma" or "wmv"?["默认","1","2"]:["默认","1","2","6"],_draft.AudioChannels==0?"默认":_draft.AudioChannels.ToString(),(o,v)=>o.AudioChannels=v=="默认"?0:int.Parse(v));
             }
             if(!outputOnly)Number(audio,"音量 (%)",_draft.Volume*100,(o,v)=>o.Volume=v/100,false,0,1000);
-            if(!audioOnly && !outputOnly)Check(audio,"音频","禁用音频",_draft.Mute,(o,v)=>o.Mute=v);
-            if(!input && _allowAllAudioStreams && (VideoFormats.IsTransportStream(_format) || _format is "mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "ogg" or "3gp" or "3g2"))Check(audio,"保留所有源输入流 (音频)","保留全部音轨",_draft.KeepAllAudioStreams,(o,v)=>o.KeepAllAudioStreams=v);
+            if(!audioOnly && !outputOnly)Check(audio,"禁用音频",_draft.Mute,(o,v)=>o.Mute=v);
+            if(!input && _allowAllAudioStreams && (VideoFormats.IsTransportStream(_format) || _format is "mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "ogg" or "3gp" or "3g2"))Check(audio,"保留全部音轨",_draft.KeepAllAudioStreams,(o,v)=>o.KeepAllAudioStreams=v);
             if(!outputOnly)
             {
             if(audioOnly)Number(audio,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);
             Number(audio,"音频淡入时长 (秒)",_draft.AudioFadeIn??_draft.FadeIn,(o,v)=>o.AudioFadeIn=v,false,0,86400);
             Number(audio,"音频淡出时长 (秒)",_draft.AudioFadeOut??_draft.FadeOut,(o,v)=>o.AudioFadeOut=v,false,0,86400);
-            Check(audio,"回声","启用回声",_draft.Echo,(o,v)=>o.Echo=v);
-            Check(audio,"降噪","启用降噪",_draft.NoiseReduction,(o,v)=>o.NoiseReduction=v);
-            Check(audio,"反向","反向播放所选音频",_draft.ReverseAudio,(o,v)=>o.ReverseAudio=v);
-            audio.Children.Add(new TextBlock{Text="音频效果在输出时生效。反向处理会先缓存所选音频区间。",TextWrapping=Avalonia.Media.TextWrapping.Wrap,Classes={"caption"}});
+            Check(audio,"启用回声",_draft.Echo,(o,v)=>o.Echo=v);
+            Check(audio,"启用降噪",_draft.NoiseReduction,(o,v)=>o.NoiseReduction=v);
+            Check(audio,"反向播放所选音频",_draft.ReverseAudio,(o,v)=>o.ReverseAudio=v);
             }
         }
         if(!audioOnly && !image && _kind!=MediaOptionsKind.Frames && !outputOnly)
@@ -114,22 +113,31 @@ public sealed class OptionsWindow : Window
             string[] modes=input?["关闭","烧录到画面"]:["关闭","烧录到画面","保留源字幕轨","附加外部字幕轨"];
             var mode=Ui.Combo(modes,SubtitleOptions.Mode(_draft) switch{SubtitleMode.BurnIn=>modes[1],SubtitleMode.Preserve when !input=>modes[2],SubtitleMode.ExternalTrack when !input=>modes[3],_=>modes[0]});mode.Name="SubtitleModeCombo";Add(subtitle,"字幕处理",mode);
             _readers.Add(o=>o.SubtitleMode=mode.SelectedIndex switch{1=>SubtitleMode.BurnIn,2=>SubtitleMode.Preserve,3=>SubtitleMode.ExternalTrack,_=>SubtitleMode.None});
-            var box=Ui.Input(_draft.Subtitle);box.Name="SubtitlePath";var row=new Grid{ColumnDefinitions=new("*,80"),ColumnSpacing=8};row.Children.Add(box);
-            var browse=new Button{Content="浏览…"};browse.Click+=async(_,_)=>{if((await Ui.Pick(this,"选择字幕文件",false)).FirstOrDefault() is {} path){box.Text=path;if(mode.SelectedIndex==0)mode.SelectedIndex=1;}};Grid.SetColumn(browse,1);row.Children.Add(browse);Add(subtitle,"外部字幕文件",row);_readers.Add(o=>o.Subtitle=box.Text?.Trim()??"");
-            Number(subtitle,"字幕轨索引 (-1 = 默认/全部)",_draft.SubtitleStreamIndex,(o,v)=>o.SubtitleStreamIndex=(int)v,true,-1,255);
-            var language=Ui.Input(_draft.SubtitleLanguage);language.Name="SubtitleLanguage";Add(subtitle,"轨道语言 (如 zho、eng)",language);_readers.Add(o=>o.SubtitleLanguage=language.Text?.Trim()??"");
-            var font=Ui.Input(_draft.SubtitleFont);font.Name="SubtitleFont";Add(subtitle,"烧录字体 (留空 = 自动)",font);_readers.Add(o=>o.SubtitleFont=font.Text?.Trim()??"");
-            Number(subtitle,"烧录字号 (0 = 字幕默认)",_draft.SubtitleFontSize,(o,v)=>o.SubtitleFontSize=(int)v,true,0,200);
-            var color=Ui.Input(_draft.SubtitleColor);color.Name="SubtitleColor";Add(subtitle,"烧录颜色 (#RRGGBB)",color);_readers.Add(o=>o.SubtitleColor=color.Text?.Trim()??"#FFFFFF");
-            Choice(subtitle,"烧录位置",["左下","中下","右下","左中","居中","右中","左上","中上","右上"],new[]{"左下","中下","右下","左中","居中","右中","左上","中上","右上"}[_draft.SubtitleAlignment-1],(o,v)=>o.SubtitleAlignment=Array.IndexOf(new[]{"左下","中下","右下","左中","居中","右中","左上","中上","右上"},v)+1);
-            Number(subtitle,"烧录垂直边距",_draft.SubtitleMargin,(o,v)=>o.SubtitleMargin=(int)v,true,0,2000);
-            subtitle.Children.Add(new TextBlock{Text="烧录时外部文件留空可使用源字幕；-1 选择第一条。保留/附加时 -1 表示全部字幕轨。字体需已安装，样式仅用于文本字幕烧录。",TextWrapping=Avalonia.Media.TextWrapping.Wrap,Classes={"caption"}});
+            var filePanel=new StackPanel{Spacing=12};var trackPanel=new StackPanel{Spacing=12};var languagePanel=new StackPanel{Spacing=12};var burnPanel=new StackPanel{Spacing=12};
+            subtitle.Children.Add(filePanel);subtitle.Children.Add(trackPanel);subtitle.Children.Add(languagePanel);subtitle.Children.Add(burnPanel);
+            var box=Ui.Input(_draft.Subtitle);box.Name="SubtitlePath";var row=new Grid{ColumnDefinitions=new("*,Auto"),ColumnSpacing=8};row.Children.Add(box);
+            var browse=new Button{Content="浏览…",Classes={"field-action"}};browse.Click+=async(_,_)=>{if((await Ui.Pick(this,"选择字幕文件",false)).FirstOrDefault() is {} path){box.Text=path;if(mode.SelectedIndex==0)mode.SelectedIndex=1;}};Grid.SetColumn(browse,1);row.Children.Add(browse);Add(filePanel,"外部字幕文件",row);_readers.Add(o=>o.Subtitle=mode.SelectedIndex is 1 or 3?box.Text?.Trim()??"":"");
+            Number(trackPanel,"字幕轨索引 (-1 = 默认/全部)",_draft.SubtitleStreamIndex,(o,v)=>o.SubtitleStreamIndex=(int)v,true,-1,255);
+            var language=Ui.Input(_draft.SubtitleLanguage);language.Name="SubtitleLanguage";Add(languagePanel,"轨道语言 (如 zho、eng)",language);_readers.Add(o=>{if(languagePanel.IsVisible)o.SubtitleLanguage=language.Text?.Trim()??"";});
+            var font=Ui.Input(_draft.SubtitleFont);font.Name="SubtitleFont";Add(burnPanel,"烧录字体 (留空 = 自动)",font);_readers.Add(o=>{if(burnPanel.IsVisible)o.SubtitleFont=font.Text?.Trim()??"";});
+            Number(burnPanel,"烧录字号 (0 = 字幕默认)",_draft.SubtitleFontSize,(o,v)=>o.SubtitleFontSize=(int)v,true,0,200);
+            var color=Ui.Input(_draft.SubtitleColor);color.Name="SubtitleColor";Add(burnPanel,"烧录颜色 (#RRGGBB)",color);_readers.Add(o=>{if(burnPanel.IsVisible)o.SubtitleColor=color.Text?.Trim()??"#FFFFFF";});
+            Choice(burnPanel,"烧录位置",["左下","中下","右下","左中","居中","右中","左上","中上","右上"],new[]{"左下","中下","右下","左中","居中","右中","左上","中上","右上"}[_draft.SubtitleAlignment-1],(o,v)=>o.SubtitleAlignment=Array.IndexOf(new[]{"左下","中下","右下","左中","居中","右中","左上","中上","右上"},v)+1);
+            Number(burnPanel,"烧录垂直边距",_draft.SubtitleMargin,(o,v)=>o.SubtitleMargin=(int)v,true,0,2000);
+            var note=Ui.Text("外部文件留空时使用源字幕；字幕轨 -1 在烧录时选第一条，在保留时选全部。","caption");subtitle.Children.Add(note);
+            void RefreshSubtitleFields()
+            {
+                filePanel.IsVisible=mode.SelectedIndex is 1 or 3;trackPanel.IsVisible=mode.SelectedIndex is 1 or 2;
+                languagePanel.IsVisible=mode.SelectedIndex is 2 or 3;burnPanel.IsVisible=mode.SelectedIndex==1;
+                note.IsVisible=mode.SelectedIndex is 1 or 2;
+            }
+            mode.SelectionChanged+=(_,_)=>RefreshSubtitleFields();RefreshSubtitleFields();
         }
         if(!input)
         {
             var other=Page("其他");
-            if(!image && _format!="gif" && _kind is not (MediaOptionsKind.Frames or MediaOptionsKind.VideoOnly))Check(other,"编码方式",_copyMode.HasValue?"流复制 (由输出格式决定)":"流复制 (不重新编码)",_copyMode??_draft.CopyStreams,(o,v)=>o.CopyStreams=v,!_copyMode.HasValue);
-            Check(other,"元数据","保留元数据",_draft.KeepMetadata,(o,v)=>o.KeepMetadata=v);
+            if(!image && _format!="gif" && _kind is not (MediaOptionsKind.Frames or MediaOptionsKind.VideoOnly))Check(other,_copyMode.HasValue?"流复制 (由输出格式决定)":"流复制 (不重新编码)",_copyMode??_draft.CopyStreams,(o,v)=>o.CopyStreams=v,!_copyMode.HasValue);
+            Check(other,"保留元数据",_draft.KeepMetadata,(o,v)=>o.KeepMetadata=v);
             if(_kind==MediaOptionsKind.Frames)Number(other,"导出帧间隔 (秒)",_draft.FrameInterval,(o,v)=>o.FrameInterval=v,false,.01,86400);
         }
         if(!audioOnly && !outputOnly)
@@ -140,7 +148,7 @@ public sealed class OptionsWindow : Window
         }
         var footer=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=12,Margin=new(0,16,0,0)};
         footer.Children.Add(Ui.DialogButton("默认",()=>{_draft=new(){Format=_format};Build();}));footer.Children.Add(Ui.DialogButton("取消",()=>Close(null)));
-        var ok=new Button{Content="确定",Classes={"dialog-action"}};ok.Click+=async(_,_)=>{try{Close(ReadOptions());}catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}};footer.Children.Add(ok);Grid.SetRow(footer,2);root.Children.Add(footer);Content=root;
+        var ok=new Button{Content="确定",IsDefault=true,Classes={"primary","dialog-action"}};ok.Click+=async(_,_)=>{try{Close(ReadOptions());}catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}};footer.Children.Add(ok);Grid.SetRow(footer,2);root.Children.Add(footer);Content=root;
         StackPanel Page(string title){var panel=new StackPanel{Spacing=12,Margin=new(16)};tabs.Items.Add(new TabItem{Header=title,Content=new ScrollViewer{Content=panel}});return panel;}
         void Fades(StackPanel panel){Number(panel,"淡入时长 (秒)",_draft.FadeIn,(o,v)=>o.FadeIn=v,false,0,86400);Number(panel,"淡出时长 (秒)",_draft.FadeOut,(o,v)=>o.FadeOut=v,false,0,86400);}
     }
@@ -158,14 +166,14 @@ public sealed class OptionsWindow : Window
     private static void Add(Panel panel,string label,Control control){var row=new Grid{ColumnDefinitions=new("230,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}
     private void Number(Panel panel,string label,double value,Action<ConversionOptions,double> set,bool integer,double min,double max)
     {
-        var box=Ui.Input(MediaEngine.Number(value));if(label=="音量 (%)")box.Name="VolumePercent";if(label=="音频淡入时长 (秒)")box.Name="AudioFadeInInput";if(label=="音频淡出时长 (秒)")box.Name="AudioFadeOutInput";Add(panel,label,box);_readers.Add(o=>{var number=double.Parse(box.Text??"",CultureInfo.InvariantCulture);if(!double.IsFinite(number)||number<min||number>max||integer&&number!=Math.Truncate(number))throw new ArgumentException(integer ? Localization.Format($"{Localization.Key(label)}：请输入有效整数。") : Localization.Format($"{Localization.Key(label)}：请输入有效数值。"));set(o,number);});
+        var box=Ui.Input(MediaEngine.Number(value));if(label=="音量 (%)")box.Name="VolumePercent";if(label=="音频淡入时长 (秒)")box.Name="AudioFadeInInput";if(label=="音频淡出时长 (秒)")box.Name="AudioFadeOutInput";Add(panel,label,box);_readers.Add(o=>{if(!panel.IsVisible)return;var number=double.Parse(box.Text??"",CultureInfo.InvariantCulture);if(!double.IsFinite(number)||number<min||number>max||integer&&number!=Math.Truncate(number))throw new ArgumentException(integer ? Localization.Format($"{Localization.Key(label)}：请输入有效整数。") : Localization.Format($"{Localization.Key(label)}：请输入有效数值。"));set(o,number);});
         if(label.StartsWith("视频轨索引"))box.Name="VideoStreamIndex";if(label.StartsWith("音频轨索引"))box.Name="AudioStreamIndex";if(label.StartsWith("字幕轨索引"))box.Name="SubtitleStreamIndex";if(label.StartsWith("烧录字号"))box.Name="SubtitleFontSize";if(label.StartsWith("JPG Quality") || label.StartsWith("WebP Quality"))box.Name="ImageQualityInput";
     }
     private void Choice(Panel panel,string label,string[] items,string value,Action<ConversionOptions,string> set,bool enabled=true)
     {
         var control=Ui.Combo(items,value);control.IsEnabled=enabled;
         if(label=="视频编码器")control.Name="VideoCodecCombo";if(label=="音频编码器")control.Name="AudioCodecCombo";if(label=="音频采样率")control.Name="AudioSampleRateCombo";if(label=="声道")control.Name="AudioChannelsCombo";
-        Add(panel,label,control);if(enabled)_readers.Add(o=>set(o,(string)control.SelectedItem!));
+        Add(panel,label,control);if(enabled)_readers.Add(o=>{if(panel.IsVisible)set(o,(string)control.SelectedItem!);});
     }
-    private void Check(Panel panel,string label,string text,bool value,Action<ConversionOptions,bool> set,bool enabled=true){var check=new CheckBox{Content=text,IsChecked=value,IsEnabled=enabled};Add(panel,label,check);_readers.Add(o=>set(o,check.IsChecked==true));}
+    private void Check(Panel panel,string text,bool value,Action<ConversionOptions,bool> set,bool enabled=true){var check=new CheckBox{Content=text,IsChecked=value,IsEnabled=enabled};panel.Children.Add(check);_readers.Add(o=>set(o,check.IsChecked==true));}
 }

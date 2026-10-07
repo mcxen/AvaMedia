@@ -237,6 +237,7 @@ public partial class WifiTransferWindow : Window
         NetworkInput.IsEnabled = RefreshNetworkButton.IsEnabled = !_busy && !closing && _service is null;
         StartReceiveButton.IsEnabled = !_busy && !closing && _service is null && NetworkInput.SelectedItem is WifiNetwork;
         StopReceiveButton.IsEnabled = !_busy && !closing && _service is not null;
+        StartReceiveButton.IsVisible=_service is null;StopReceiveButton.IsVisible=_service is not null;
         CopyAddressButton.IsEnabled = !closing && _service is not null;
         var selected = SelectedReceived();
         ImportReceivedButton.IsEnabled = !_importing && !closing && selected.Length > 0;
