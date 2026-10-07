@@ -146,7 +146,7 @@
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="16">
-              <StackPanel Spacing="8">
+              <StackPanel x:Name="ExternalToolPaths" Spacing="8">
                 <TextBlock Classes="settingsHeading" Text="外部工具路径"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">

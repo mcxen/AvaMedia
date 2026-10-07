@@ -12,14 +12,26 @@ public sealed class MediaEngine : IMediaEngine
     public string FFmpeg => Resolve(Settings.FFmpegPath,"ffmpeg");
     public string FFprobe => Resolve(Settings.FFprobePath,"ffprobe");
     public static string Number(double n) => n.ToString("0.######",CultureInfo.InvariantCulture);
+    private static IEnumerable<string> BundledToolFolders()
+    {
+        yield return Path.Combine(AppContext.BaseDirectory,"tools");
+        if(OperatingSystem.IsMacOS())
+            yield return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","Resources","tools"));
+    }
+    public static bool UsesBundledTools => BundledToolFolders().Any(folder =>
+        File.Exists(Path.Combine(folder,"download-tools.json")) || File.Exists(Path.Combine(folder,"ffmpeg-bundle.json")));
     public static string Resolve(string configured,string tool)
     {
+        var name=tool+(OperatingSystem.IsWindows()?".exe":"");
+        foreach(var folder in BundledToolFolders())
+        {
+            var bundled=Path.Combine(folder,name);
+            if(File.Exists(bundled))return bundled;
+        }
+        if(UsesBundledTools)throw new FileNotFoundException($"应用缺少内置 {tool}，请重新安装完整版本。",name);
         if (!string.IsNullOrWhiteSpace(configured)){if(File.Exists(configured))return Path.GetFullPath(configured);throw new FileNotFoundException($"配置的 {tool} 路径不存在。",configured);}
         var env=Environment.GetEnvironmentVariable("AVAMEDIA_"+tool.ToUpperInvariant());
         if(!string.IsNullOrWhiteSpace(env) && File.Exists(env)) return env;
-        var name=tool+(OperatingSystem.IsWindows()?".exe":"");
-        var bundled=Path.Combine(AppContext.BaseDirectory,"tools",name);if(File.Exists(bundled))return bundled;
-        if(OperatingSystem.IsMacOS())foreach(var folder in new[]{Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","Resources","tools")),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Library","Application Support","AvaMedia","tools"),"/opt/homebrew/bin","/usr/local/bin"}){var candidate=Path.Combine(folder,name);if(File.Exists(candidate))return candidate;}
         foreach(var root in new[]{AppContext.BaseDirectory,Environment.CurrentDirectory})
         {
             var dir=new DirectoryInfo(root);
@@ -30,6 +42,7 @@ public sealed class MediaEngine : IMediaEngine
                 if(Directory.Exists(tools)) {var found=Directory.EnumerateFiles(tools,name,SearchOption.AllDirectories).FirstOrDefault();if(found is not null) return found;}
             }
         }
+        if(OperatingSystem.IsMacOS())foreach(var folder in new[]{"/opt/homebrew/bin","/usr/local/bin"}){var candidate=Path.Combine(folder,name);if(File.Exists(candidate))return candidate;}
         foreach(var root in (Environment.GetEnvironmentVariable("PATH")??"").Split(Path.PathSeparator)) {var file=Path.Combine(root,name);if(File.Exists(file)) return file;}
         throw new FileNotFoundException($"未找到 {tool}。请在“选项 → 外部工具”中指定路径。",name);
     }
