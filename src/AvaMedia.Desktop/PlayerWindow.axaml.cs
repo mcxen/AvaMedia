@@ -43,6 +43,7 @@ public partial class PlayerWindow : Window
     public string PlaybackError { get; private set; } = "";
     public double SourcePosition => _position;
     public double PlaybackSpeed => _speed;
+    public bool CanOpenFiles => !_closed && !_deleting;
     public bool IsPlaying => _player?.IsPlaying == true;
     public bool IsPaused => _player?.IsPaused == true;
     public bool ConfirmDeletion { get; private set; }
@@ -384,6 +385,14 @@ public partial class PlayerWindow : Window
         var paths = await Ui.Pick(this, "打开视频 / 音频", true);
         if (paths.Length == 0 || _closed || _deleting) return;
         SetFiles(paths); await OpenAsync(_playlist[0]);
+    }
+    public void OpenFiles(IEnumerable<string> files)
+    {
+        if (!CanOpenFiles) return;
+        var paths = files.Where(File.Exists).ToArray();
+        if (paths.Length == 0) return;
+        SetFiles(paths);
+        Ready = OpenAsync(_playlist[0]);
     }
     private Task ChangeFile(int delta)
     { if (_deleting) return Task.CompletedTask; var index = _fileIndex + delta; if (index < 0 || index >= _playlist.Length) return Task.CompletedTask; _fileIndex = index; return OpenAsync(_playlist[index]); }

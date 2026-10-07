@@ -58,6 +58,8 @@ if ($Runtime.StartsWith('osx-')) {
     foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
     $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw -Encoding UTF8).Replace('__VERSION__',$Version).Replace('__CHINESE_NAME__',[Security.SecurityElement]::Escape($appBrand.ChineseName))
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
+    & python3 (Join-Path $PSScriptRoot 'macos/Declare-MediaTypes.py') $bundle
+    if ($LASTEXITCODE -ne 0) { throw 'macOS media file association declaration failed.' }
     if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
         foreach ($tool in @('yt-dlp','qjs','ffmpeg','ffprobe')) { & chmod +x (Join-Path $nativeRoot ('tools/'+$tool)) }
         & /usr/bin/codesign --force --deep --sign - $bundle

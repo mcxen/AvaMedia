@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AvaMedia.Core;
 
@@ -12,6 +14,8 @@ public sealed partial class App : Application
     {
         Localization.Apply(new Storage().LoadSettings().Language);
         AvaloniaXamlLoader.Load(this);
+        if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activation)
+            activation.Activated += FilesActivated;
     }
     public override void OnFrameworkInitializationCompleted()
     {
@@ -113,6 +117,35 @@ public sealed partial class App : Application
         }
         base.OnFrameworkInitializationCompleted();
     }
+    private void FilesActivated(object? sender, ActivatedEventArgs args)
+    {
+        if (args is not FileActivatedEventArgs files) return;
+        var paths = files.Files.Select(file => file.TryGetLocalPath()).OfType<string>()
+            .Where(path => File.Exists(path) && SystemPlayerIntegration.Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            .Distinct(VideoFolderScanner.PathComparer).ToArray();
+        if (paths.Length == 0) return;
+        // Finder can deliver files during startup; defer until the desktop window exists.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
+            var player = desktop.Windows.OfType<PlayerWindow>().FirstOrDefault(window => window.CanOpenFiles);
+            if (player is null)
+            {
+                var settings = new Storage().LoadSettings();
+                player = new PlayerWindow(new MediaEngine(settings), paths);
+                player.Show();
+            }
+            else
+            {
+                player.Show();
+                player.OpenFiles(paths);
+            }
+            if (player.WindowState == Avalonia.Controls.WindowState.Minimized)
+                player.WindowState = Avalonia.Controls.WindowState.Normal;
+            player.Activate();
+        });
+    }
+
     private static Task Capture(Avalonia.Controls.Window window, string path) => Dispatcher.UIThread.InvokeAsync(() =>
     {
         using var bitmap = new RenderTargetBitmap(new PixelSize((int)window.Bounds.Width, (int)window.Bounds.Height), new Vector(96, 96));

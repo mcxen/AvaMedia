@@ -34,7 +34,12 @@ public sealed partial class SettingsWindow : Window
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         _appliedValues=_values.Select(value=>value()).ToArray();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
-        PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows();
+        PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+        if (OperatingSystem.IsMacOS())
+        {
+            RegisterPlayerButton.Content = Localization.Text("注册播放打开方式");
+            DefaultPlayerButton.Content = Localization.Text("打开应用位置");
+        }
         ContextMenuInput.Content = OperatingSystem.IsMacOS() ? "添加到 Finder 快速操作" : "添加到系统上下文菜单";
         ToolTip.SetTip(ContextMenuInput, OperatingSystem.IsMacOS() ? "安装到当前用户的 Finder 服务；可在系统设置的扩展中管理。" : "添加当前用户的资源管理器菜单；Windows 11 可能位于“显示更多选项”。");
         if (!_services.CanUseTray) { ToolTip.SetTip(TrayInput, "当前环境不提供系统托盘，使用正常窗口最小化。"); ToolTip.SetTip(CloseToTrayInput, "当前环境不提供系统托盘，关闭窗口会退出应用。"); }
@@ -131,13 +136,21 @@ public sealed partial class SettingsWindow : Window
         RegisterPlayerButton.IsEnabled = false;
         try
         {
-            var executable = SystemPlayerIntegration.ExecutablePath;
-            await Task.Run(() => SystemPlayerIntegration.RegisterWindows(executable), _lifetime.Token);
-            if (IsVisible) { StatusText.Text = Localization.Text("已注册播放器，可在文件打开方式中选择。"); StatusText.IsVisible = true; }
+            if (OperatingSystem.IsMacOS()) await SystemPlayerIntegration.RegisterMacAsync(_lifetime.Token);
+            else await Task.Run(() => SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath), _lifetime.Token);
+            if (IsVisible) { StatusText.Text = Localization.Text(OperatingSystem.IsMacOS() ? "已注册播放打开方式。" : "已注册播放器，可在文件打开方式中选择。"); StatusText.IsVisible = true; }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (IsVisible) { StatusText.Text = ex.Message; StatusText.IsVisible = true; } }
         finally { if (IsVisible) RegisterPlayerButton.IsEnabled = true; }
     }
-    private void DefaultPlayerClick(object? sender, RoutedEventArgs args) => SystemPlayerIntegration.OpenDefaultApps();
+    private async void DefaultPlayerClick(object? sender, RoutedEventArgs args)
+    {
+        try
+        {
+            if (OperatingSystem.IsMacOS()) SystemPlayerIntegration.RevealMacPlayer();
+            else SystemPlayerIntegration.OpenDefaultApps();
+        }
+        catch (Exception ex) { await Ui.Message(this, "播放器设置失败", ex.Message); }
+    }
 }

@@ -1448,5 +1448,12 @@
   "传输已关闭": "Transfer disabled",
   "文件已添加 · 传输未开启": "Files added \u00b7 Transfer disabled",
   "所有连接用户均可下载": "Available to all connected users",
-  "扫码连接": "Scan to connect"
+  "扫码连接": "Scan to connect",
+  "注册播放打开方式": "Register media playback",
+  "打开应用位置": "Show application in Finder",
+  "已注册播放打开方式。": "Registered for media playback.",
+  "请安装 macOS 应用后注册播放器。": "Install the macOS application before registering playback.",
+  "macOS 应用信息不存在。": "macOS application metadata is missing.",
+  "无法注册播放器。": "Could not register playback.",
+  "播放器设置失败": "Player settings failed"
 }

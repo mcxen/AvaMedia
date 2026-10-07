@@ -109,7 +109,7 @@
                     <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
                     <Grid x:Name="PlayerIntegrationRow" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                       <Button x:Name="RegisterPlayerButton" Content="注册天池播放器" Click="RegisterPlayerClick" Classes="field-action"/>
-                      <Button Grid.Column="1" Content="选择默认播放器" Click="DefaultPlayerClick" Classes="field-action"/>
+                      <Button x:Name="DefaultPlayerButton" Grid.Column="1" Content="选择默认播放器" Click="DefaultPlayerClick" Classes="field-action"/>
                     </Grid>
                   </StackPanel>
                 </Border>

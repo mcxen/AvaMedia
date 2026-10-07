@@ -60,6 +60,37 @@ public static class SystemPlayerIntegration
         root.DeleteSubKeyTree(@"Software\AvaMedia\Player", false);
         if (ReferenceEquals(root, Registry.CurrentUser)) NotifyShell();
     }
+    public static string MacApplicationBundlePath
+    {
+        get
+        {
+            if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
+            var bundle = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Parent;
+            if (bundle is null || !bundle.Name.EndsWith(".app", StringComparison.Ordinal))
+                throw new InvalidOperationException("请安装 macOS 应用后注册播放器。");
+            if (!File.Exists(Path.Combine(bundle.FullName, "Contents", "Info.plist")))
+                throw new FileNotFoundException("macOS 应用信息不存在。", bundle.FullName);
+            return bundle.FullName;
+        }
+    }
+    public static async Task RegisterMacAsync(CancellationToken token)
+    {
+        if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
+        var start = new ProcessStartInfo("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister")
+        { UseShellExecute = false, RedirectStandardError = true };
+        start.ArgumentList.Add("-f"); start.ArgumentList.Add(MacApplicationBundlePath);
+        using var process = Process.Start(start) ?? throw new InvalidOperationException("无法注册播放器。");
+        var error = process.StandardError.ReadToEndAsync(token);
+        await process.WaitForExitAsync(token);
+        if (process.ExitCode != 0) throw new InvalidOperationException(await error);
+        await error;
+    }
+    public static void RevealMacPlayer()
+    {
+        var start = new ProcessStartInfo("/usr/bin/open") { UseShellExecute = false };
+        start.ArgumentList.Add("-R"); start.ArgumentList.Add(MacApplicationBundlePath);
+        Process.Start(start)?.Dispose();
+    }
     public static void OpenDefaultApps()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

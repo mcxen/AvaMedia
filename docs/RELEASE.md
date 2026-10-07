@@ -17,6 +17,12 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 后续原生 CI 的三个阻塞已修复：LAME 4.0 编码库关闭不需要的 mpg123 解码器；FFmpeg 显式链接 macOS 系统 libiconv；ICO 输出验证指定 PNG 所需的 RGBA 像素格式。[提交 18b61fc 的完整原生 CI](https://github.com/mcxen/AvaMedia/actions/runs/37471073518) 已通过，包含 225 项检查、27 个真实媒体输出、归档安装及上传，原生缓存保存成功。[Windows 客户端 CI](https://github.com/mcxen/AvaMedia/actions/runs/37459158475) 也已通过；这次仅修改 macOS 构建与验证脚本。该记录验证媒体工具工作流；客户端安装包以各版本的 Release 记录为准。
 
+## macOS 文件打开方式
+
+macOS 发布在签名前运行 `macos/Declare-MediaTypes.py`，从现有视频输入和播放器音频名单生成 `CFBundleDocumentTypes`、`UTImportedTypeDeclarations`。角色为 Viewer、优先级为 Alternate，不强制更改系统默认应用。只安装“天池万象转换.app”；在 Finder 中选择它打开视频或音频时，客户端通过 Avalonia 文件激活事件进入现有天池播放器。运行中的播放器接收后续文件和多文件播放列表。
+
+如系统尚未刷新候选应用，可在选项页点击“注册播放打开方式”。设置某种文件的默认播放器仍由用户在 Finder“显示简介 → 打开方式 → 全部更改”中选择天池万象转换。
+
 ## 发布提速
 
 Release 和独立 macOS 工作流共用 `native-media` action，缓存验证通过的 FFmpeg 运行包、精确对应的源码包、校验清单及 QuickJS。缓存按 ARM64、Clang / SDK、源码锁文件、构建与验证脚本、能力清单和许可证内容精确匹配；普通客户端修改与版本号变更可以复用，相关输入变化则重建。不使用模糊匹配的原生运行包。缓存命中后仍核对两个 FFmpeg 归档的 SHA256、配方与源码锁哈希，重新执行原有原生媒体验证及 QuickJS 检查；客户端、安装器和发布检查保留。运行包与对应源码在原生验证成功后立即写入缓存，后续客户端失败不会丢失它们。默认分支的缓存可被 tag 工作流读取，首次构建或缓存淘汰时仍需完整编译。依据 [GitHub Cache 文档](https://github.com/actions/cache#cache-scopes)。
