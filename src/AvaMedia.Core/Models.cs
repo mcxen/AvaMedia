@@ -123,7 +123,7 @@ public sealed class ConversionOptions
     public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
-public sealed class Job : Observable
+public sealed partial class Job : Observable
 {
     private string _downloadTitle="";
     public string DownloadTitle { get=>_downloadTitle; set { if(Set(ref _downloadTitle,value))Raise(nameof(Name)); } }
@@ -148,8 +148,8 @@ public sealed class Job : Observable
     public JobState State { get=>_state; set {if(Set(ref _state,value)) {if(value!=JobState.Running)Estimate=null;Raise(nameof(Status));Raise(nameof(RemainingTimeText));Raise(nameof(CanRetry));}} }
     private double _progress;
     public double Progress { get=>_progress; set {if(Set(ref _progress,value)) Raise(nameof(Status));} }
-    public string Error { get; set; } = "";
-    public string Log { get; set; } = "";
+    private string _error = "";
+    public string Error { get => _error; set => _error = JobLogStore.Summarize(value); }
     public string Name => string.IsNullOrWhiteSpace(DownloadTitle)?string.Join(" + ", Inputs.Select(Path.GetFileName)):DownloadTitle;
     public string Source => string.Join(Environment.NewLine, Inputs);
     public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {Output}";

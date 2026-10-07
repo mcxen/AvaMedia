@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -129,18 +128,36 @@ public partial class MainWindow : Window
         => await StartQueueAsync();
     private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_queue.Stop();
     private async void AddClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Configure(_last);
-    private void RemoveClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(_queue.IsRunning)return;foreach(var j in JobList.SelectedItems?.Cast<Job>().ToArray()??[])_jobs.Remove(j);Save();Refresh();}
-    private void ClearClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(_queue.IsRunning)return;_jobs.Clear();Save();Refresh();}
-    private void RetryClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+    private async void RemoveClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if(_queue.IsRunning)return;
+        var removed=JobList.SelectedItems?.Cast<Job>().ToArray()??[];
+        foreach(var job in removed)_jobs.Remove(job);
+        Save();Refresh();
+        try{await _queueSave;await _storage.DeleteJobLogsAsync(removed);}
+        catch(Exception ex){await Ui.Message(this,"移除任务",ex.Message);}
+    }
+    private async void ClearClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if(_queue.IsRunning)return;
+        var removed=_jobs.ToArray();_jobs.Clear();Save();Refresh();
+        try{await _queueSave;await _storage.DeleteJobLogsAsync(removed);}
+        catch(Exception ex){await Ui.Message(this,"清空列表",ex.Message);}
+    }
+    private async void RetryClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         if(_queue.IsRunning || _editingJob is not null)return;
-        foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[])
+        try
         {
-            bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
-            j.Output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,directory?Path.GetFileName(j.Output):Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,EditingReservations(j),directory);
-            ResetTask(j);
+            foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[])
+            {
+                bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
+                var output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,directory?Path.GetFileName(j.Output):Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,EditingReservations(j),directory);
+                ResetTask(j);j.Output=output;
+            }
+            Save();Refresh();
         }
-        Save();Refresh();
+        catch(Exception ex){await Ui.Message(this,"重试任务",ex.Message);}
     }
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -153,7 +170,12 @@ public partial class MainWindow : Window
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
     private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);else await Ui.Message(this,"输出文件","任务尚未生成输出。");}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{var path=Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;Directory.CreateDirectory(path);Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
-    private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j)await Ui.Message(this,"任务日志",j.Status+"\n\n"+j.Error+"\n\n"+j.Log);}
+    private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if(JobList.SelectedItem is not Job job)return;
+        try{var log=await job.ReadLogAsync();if(!_closing)await Ui.Message(this,"任务日志",job.Status+"\n\n"+job.Error+"\n\n"+log);}
+        catch(Exception ex){if(!_closing)await Ui.Message(this,"任务日志",ex.Message);}
+    }
     private async void EditSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItems?.Count==1 && JobList.SelectedItem is Job j)await EditJob(j);}
     private async void PreviewClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){e.Handled=true;if(sender is Control {DataContext:Job job})await EditJob(job);}
     private async void JobDoubleClick(object? sender,TappedEventArgs e)
@@ -163,11 +185,16 @@ public partial class MainWindow : Window
     }
     private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e)=>Refresh();
     private async void ExportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
-    {var file=await StorageProvider.SaveFilePickerAsync(new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});if(file?.TryGetLocalPath() is {} path)await File.WriteAllTextAsync(path,JsonSerializer.Serialize(_jobs,new JsonSerializerOptions{WriteIndented=true}));}
+    {
+        var file=await StorageProvider.SaveFilePickerAsync(new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});
+        if(file?.TryGetLocalPath() is not {} path)return;
+        try{await _storage.ExportJobsAsync(path,_jobs);}
+        catch(Exception ex){await Ui.Message(this,"保存任务列表",ex.Message);}
+    }
     private async void ImportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         var files=await Ui.Pick(this,"载入任务列表",false);if(files.Length==0)return;
-        try{var jobs=JsonSerializer.Deserialize<List<Job>>(await File.ReadAllTextAsync(files[0]))??[];foreach(var j in jobs){Catalog.Find(j.FeatureId);if(j.Inputs is null || j.Options is null || string.IsNullOrWhiteSpace(j.Output))throw new InvalidDataException("任务列表格式无效。");j.Id=Guid.NewGuid();if(j.State==JobState.Running)j.State=JobState.Cancelled;}foreach(var j in jobs)_jobs.Add(j);Save();Refresh();}catch(Exception ex){await Ui.Message(this,"载入失败",ex.Message);}
+        try{var jobs=await _storage.ImportJobsAsync(files[0]);foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}catch(Exception ex){await Ui.Message(this,"载入失败",ex.Message);}
     }
     private void ExitClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>RequestExit();
     private void SetSkin(string theme){Skin.Apply(theme);_settings.Theme=theme;Save();}

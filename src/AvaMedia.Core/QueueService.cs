@@ -31,13 +31,20 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 {lock(progressGate){active=false;job.Error=error;job.Estimate=null;if(state==JobState.Completed)job.Progress=100;job.State=state;}}
                 try
                 {
-                    job.Progress=0;job.Estimate=null;job.State=JobState.Running;job.Error="";job.ProgressDetail="";Publish(0);
+                    job.Progress=0;job.Estimate=null;job.State=JobState.Running;job.Error="";job.ProgressDetail="";job.Log="";Publish(0);
                     using var timer=_time.CreateTimer(_=>{lock(progressGate)Publish(job.Progress);},null,TimeSpan.FromSeconds(1),TimeSpan.FromSeconds(1));
                     await engine.Execute(job,Publish,token);
                     token.ThrowIfCancellationRequested();Finish(JobState.Completed);
                 }
                 catch(OperationCanceledException){Finish(JobState.Cancelled,"用户停止了任务。");}
-                catch(Exception e){Finish(JobState.Failed,e.Message);}
+                catch(Exception e)
+                {
+                    var error = e.Message;
+                    try { job.AppendLog(e.ToString()); }
+                    catch(Exception logError) when(logError is IOException or UnauthorizedAccessException)
+                    { error += "\n" + logError.Message; }
+                    Finish(JobState.Failed,error);
+                }
                 finally {Changed?.Invoke(job);semaphore.Release();}
             }));
         }

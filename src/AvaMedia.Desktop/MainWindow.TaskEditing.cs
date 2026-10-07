@@ -21,7 +21,8 @@ public partial class MainWindow
 
     private static void ResetTask(Job job)
     {
-        job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.Error = job.Log = "";
+        job.Log = "";
+        job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.Error = "";
         job.State = JobState.Waiting;
     }
 

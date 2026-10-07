@@ -389,8 +389,8 @@ public sealed class MediaEngine : IMediaEngine
             var saved=(1-(double)outputBytes/compressionPlan.SourceBytes)*100;
             job.ProgressDetail=outputBytes<compressionPlan.SourceBytes?$"节省 {saved:0.#}%":"输出未缩小";
             var intent=compressionPlan.QualityDriven?$"质量档 {compressionPlan.Quality}，体积由内容决定":compressionPlan.TargetBytes is {} target?$"目标 {target} B":$"视频码率 {compressionPlan.VideoBitrate} kbps";
-            job.Log+=$"\n视频压缩：原视频 {compressionPlan.SourceBytes} B，{intent}，实际 {outputBytes} B；节省 {saved:0.#}%。";
-            if(compressionColor?.ToneMap==true)job.Log+=$"\n{compressionColor.SourceLabel} → SDR（BT.709）：浮点色调映射，输出 8 位；不保留 HDR / Dolby Vision 动态元数据。";
+            job.AppendLog($"视频压缩：原视频 {compressionPlan.SourceBytes} B，{intent}，实际 {outputBytes} B；节省 {saved:0.#}%。");
+            if(compressionColor?.ToneMap==true)job.AppendLog($"{compressionColor.SourceLabel} → SDR（BT.709）：浮点色调映射，输出 8 位；不保留 HDR / Dolby Vision 动态元数据。");
             if(outputBytes<=0)throw new InvalidOperationException("视频压缩未生成有效文件。");
             if(outputBytes>=compressionPlan.SourceBytes)
                 throw new InvalidOperationException("未能缩小：输出不小于源视频。请降低目标体积或调整压缩参数；输出文件已保留。");
