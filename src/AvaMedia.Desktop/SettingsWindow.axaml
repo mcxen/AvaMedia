@@ -130,10 +130,15 @@
               <StackPanel Spacing="8">
                 <TextBlock Classes="settingsHeading" Text="版本更新"/>
                 <Border Classes="settingSection">
-                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <CheckBox x:Name="CheckUpdatesInput" Content="启动时检查新版本"/>
-                    <Button Grid.Column="1" x:Name="CheckUpdatesButton" Classes="field-action settingsBrowse" Content="立即检查" Click="CheckUpdatesClick"/>
-                  </Grid>
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <CheckBox x:Name="CheckUpdatesInput" Content="启动时检查新版本"/>
+                      <Button Grid.Column="1" x:Name="CheckUpdatesButton" Classes="field-action settingsBrowse" Content="立即检查" Click="CheckUpdatesClick"/>
+                    </Grid>
+                    <CheckBox x:Name="AutoUpdateInput" Content="自动更新"/>
+                    <CheckBox x:Name="SilentUpdateInput" Content="静默更新"/>
+                    <TextBlock Text="更新下载完成后，在退出应用时安装" Classes="muted" TextWrapping="Wrap"/>
+                  </StackPanel>
                 </Border>
               </StackPanel>
             </StackPanel>

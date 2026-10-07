@@ -1,10 +1,15 @@
 using System.Net;
 using System.Text.Json;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace AvaMedia.Core;
 
 public sealed record UpdateResult(bool HasUpdate, string Message, Uri? ReleasePage = null,
-    bool CheckSucceeded = true, DateTimeOffset? RetryAt = null);
+    bool CheckSucceeded = true, DateTimeOffset? RetryAt = null, Version? LatestVersion = null,
+    ReleaseAsset? Asset = null);
+
+public sealed record ReleaseAsset(string Name, Uri DownloadUrl, long Size, string Sha256);
 
 public sealed class ReleaseUpdateClient(HttpClient client)
 {
@@ -69,7 +74,34 @@ public sealed class ReleaseUpdateClient(HttpClient client)
         if (!Uri.TryCreate(release.GetProperty("html_url").GetString(), UriKind.Absolute, out var page) ||
             page.Scheme != "https" || page.Host != "github.com" || page.UserInfo.Length>0 || page.Port!=443 || !page.AbsolutePath.StartsWith("/mcxen/AvaMedia/releases/tag/", StringComparison.Ordinal))
             throw new InvalidDataException("发布页面地址无效。");
-        return new(true, $"新版本 {normalizedLatest} 可用，当前版本 {normalizedCurrent}。", page);
+        var suffix = OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64
+            ? (File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe")) ? "win-x64-setup.exe" : "win-x64-portable.zip")
+            : OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64.dmg" : null;
+        ReleaseAsset? asset = null;
+        var name = $"AvaMedia-{normalizedLatest}-{suffix}";
+        if (suffix is not null && release.TryGetProperty("assets", out var assets))
+        {
+            foreach (var item in assets.EnumerateArray())
+            {
+                if (item.GetProperty("name").GetString() != name) continue;
+                if (!Uri.TryCreate(item.GetProperty("browser_download_url").GetString(), UriKind.Absolute, out var url) ||
+                    url.Scheme != "https" || url.Host != "github.com" || url.Port != 443 || url.UserInfo.Length > 0 ||
+                    url.AbsolutePath != $"/mcxen/AvaMedia/releases/download/{tag}/{name}")
+                    throw new InvalidDataException("安装包地址无效。");
+                var digest = item.TryGetProperty("digest", out var hash) ? hash.GetString() : null;
+                var sha256 = digest?.StartsWith("sha256:", StringComparison.Ordinal) == true ? digest[7..] : "";
+                if (!Regex.IsMatch(sha256, "^[a-fA-F0-9]{64}$") && release.TryGetProperty("body", out var bodyText))
+                {
+                    var match = Regex.Match(bodyText.GetString() ?? "", @"(?m)^([a-fA-F0-9]{64})[ \t]+" + Regex.Escape(name) + @"[ \t]*\r?$");
+                    sha256 = match.Success ? match.Groups[1].Value : "";
+                }
+                var size = item.GetProperty("size").GetInt64();
+                if (size > 0 && Regex.IsMatch(sha256, "^[a-fA-F0-9]{64}$")) asset = new(name, url, size, sha256);
+                break;
+            }
+        }
+        return new(true, $"新版本 {normalizedLatest} 可用，当前版本 {normalizedCurrent}。", page,
+            LatestVersion: normalizedLatest, Asset: asset);
     }
     private static UpdateResult Unavailable(string message, DateTimeOffset retryAt) =>
         new(false, message + "。转换和已保存设置不受影响。", CheckSucceeded: false, RetryAt: retryAt);

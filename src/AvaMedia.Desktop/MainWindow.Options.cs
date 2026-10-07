@@ -36,16 +36,8 @@ public partial class MainWindow
                 try { SetTray(true); }
                 catch (Exception ex) { failures.Add(Localization.Format($"托盘未能启用：{ex.Message}")); }
             if (failures.Count > 0 && !_closing) SummaryText.Text = Localization.Join("；", failures);
-            if (_settings.CheckForUpdates && Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
-            {
-                try
-                {
-                    var update = await _optionServices.CheckUpdatesAsync(_optionLifetime.Token);
-                    if (update.CheckSucceeded && update.HasUpdate && !_closing && IsVisible) await new UpdateWindow(update).ShowDialog(this);
-                }
-                catch (OperationCanceledException) { }
-                catch (Exception ex) { System.Diagnostics.Trace.TraceWarning("自动检查更新失败：{0}", ex.Message); }
-            }
+            if (!IsCaptureSession)
+                await ApplicationUpdater.Shared.StartupAsync(this, _settings, _optionServices.CheckUpdatesAsync, _optionLifetime.Token);
         };
         Closed += (_, _) => { _optionLifetime.Cancel(); _completionCancellation?.Cancel(); _optionServices.Dispose(); _optionLifetime.Dispose(); };
     }
@@ -77,6 +69,7 @@ public partial class MainWindow
             finally { _settings.CopyFrom(prior); }
             throw;
         }
+        ApplicationUpdater.Shared.PreferencesChanged(_settings);
         _appliedSettings = _settings.Clone();
         OutputPath.Text = "📂 " + _settings.OutputFolder; Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;
         Motion.SetReducedMotion(_settings.ReduceMotion);

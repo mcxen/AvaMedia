@@ -173,6 +173,8 @@ public sealed class AppSettings
     public bool MinimizeToTray { get; set; }
     public bool CloseToTray { get; set; } = true;
     public bool CheckForUpdates { get; set; } = true;
+    public bool AutoUpdate { get; set; }
+    public bool SilentUpdate { get; set; }
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
     public string YtDlpPath { get; set; } = "";
@@ -194,7 +196,7 @@ public sealed class AppSettings
         OutputToSource=source.OutputToSource;AddSettingName=source.AddSettingName;OpenOutputFolderOnComplete=source.OpenOutputFolderOnComplete;
         ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
-        CloseToTray=source.CloseToTray;
+        CloseToTray=source.CloseToTray;AutoUpdate=source.AutoUpdate;SilentUpdate=source.SilentUpdate;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;

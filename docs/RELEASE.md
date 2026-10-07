@@ -52,3 +52,11 @@ macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `script
 新构建将 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定来源并核对 SHA256，附版本清单和许可证。用户安装后无需执行媒体工具安装脚本。Windows 使用共享 DLL，引擎从 Linux 的 MinGW-w64 POSIX 工具链按固定源码构建；Mac 使用 ARM64 dylib，相对加载路径保留在应用内部，内部 ZIP 保留工具执行权限。Windows 和 Mac 引擎包含 x264 / x265，均采用 GPL-3.0-or-later；对应源码归档保存在主 Release 链接的媒体归档页。详见 [macOS FFmpeg](FFMPEG-MACOS.md) 与 `scripts/windows/`。依赖和安装器许可保存在 `licenses/`，下载工具说明见 [视频下载](VIDEO-DOWNLOAD.md)。
 
 参考：[GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)、[Inno 编译参数](https://jrsoftware.org/ishelp/topic_compilercmdline.htm)、[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)。
+
+## 应用内更新
+
+选项 → 版本更新支持启动检查、自动更新和静默更新；自动更新与静默更新默认关闭。启动检查和手动检查读取 `mcxen/AvaMedia` 的最新正式 Release，按系统架构及 Windows 安装形态选择安装包，下载后核对大小和 SHA256。SHA256 使用 Release asset digest，缺失时读取同一 Release 说明中的校验值；无校验值时仅提供发布页入口。
+
+开启自动更新会后台下载；静默更新隐藏自动检查、下载和失败提示。手动检查始终显示结果，可点击“下载更新”。准备完成后仅在整个应用正常退出时安装，下一次启动使用新版；关闭窗口缩到托盘不会安装。关闭自动更新会取消后台下载及本次自动准备的更新，不取消用户手动准备的更新。
+
+Windows 安装版使用 Inno Setup 静默安装到当前目录，便携版替换应用目录并保留相邻的 `.update-backup-标识` 原目录，避免丢失用户放在应用目录中的媒体。macOS ARM64 从 DMG 复制应用，检查版本和代码签名后替换当前 `.app`；替换失败尝试恢复原应用。应用目录必须可写，多实例未全部退出时不安装。安装失败记录在用户数据目录 `AvaMedia/Updates/install-error.txt`；非静默启动会显示失败，静默模式保留记录。更新不自动重启应用，也不会主动结束转换或播放。

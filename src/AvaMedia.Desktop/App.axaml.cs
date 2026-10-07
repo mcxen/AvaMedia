@@ -23,6 +23,7 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
+            if (!args.Contains("--capture")) desktop.Exit += (_, _) => ApplicationUpdater.Shared.InstallOnExit();
             if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
             {
                 var settings = new Storage().LoadSettings();
@@ -33,6 +34,13 @@ public sealed partial class App : Application
                 var engine = new MediaEngine(settings);
                 var player = new PlayerWindow(engine, files);
                 desktop.MainWindow = player;
+                if (!args.Contains("--player-benchmark"))
+                {
+                    var options = new AppOptionsServices();
+                    var lifetime = new CancellationTokenSource();
+                    player.Opened += async (_, _) => await ApplicationUpdater.Shared.StartupAsync(player, settings, options.CheckUpdatesAsync, lifetime.Token);
+                    player.Closed += (_, _) => { lifetime.Cancel(); options.Dispose(); };
+                }
                 InitializeModelInstallation(desktop, player, args);
                 var benchmark = Array.IndexOf(args, "--player-benchmark");
                 if (benchmark >= 0 && benchmark + 1 < args.Length)

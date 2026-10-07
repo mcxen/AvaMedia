@@ -27,11 +27,12 @@ public sealed partial class SettingsWindow : Window
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
         foreach (var input in new[] { AutoGpuInput, MultithreadInput, NotifyInput, ReducedMotionInput, OutputToSourceInput, AddSettingNameInput,
-            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput })
+            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput })
         { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
         foreach (var input in new[] { ThreadsInput, JpegQualityInput, WebpQualityInput, ParallelInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
+        AutoUpdateInput.IsCheckedChanged += (_, _) => SilentUpdateInput.IsEnabled = AutoUpdateInput.IsChecked == true;
         _appliedValues=_values.Select(value=>value()).ToArray();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
         PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
@@ -64,6 +65,7 @@ public sealed partial class SettingsWindow : Window
         draft.PlayErrorSound = ErrorSoundInput.IsChecked == true; draft.SystemContextMenu = ContextMenuInput.IsChecked == true;
         draft.MinimizeToTray = TrayInput.IsChecked == true; draft.CheckForUpdates = CheckUpdatesInput.IsChecked == true;
         draft.CloseToTray = CloseToTrayInput.IsChecked == true;
+        draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
         SettingsPolicy.Validate(draft); draft.OutputFolder = Path.GetFullPath(draft.OutputFolder); return draft;
     }
     private int Number(NumericUpDown input, string label)
@@ -91,6 +93,8 @@ public sealed partial class SettingsWindow : Window
         ErrorSoundInput.IsChecked = source.PlayErrorSound; ContextMenuInput.IsChecked = source.SystemContextMenu;
         TrayInput.IsChecked = source.MinimizeToTray; CheckUpdatesInput.IsChecked = source.CheckForUpdates;
         CloseToTrayInput.IsChecked = source.CloseToTray;
+        AutoUpdateInput.IsChecked = source.AutoUpdate; SilentUpdateInput.IsChecked = source.SilentUpdate;
+        SilentUpdateInput.IsEnabled = source.AutoUpdate;
         RuntimeInfo.Text = RuntimeDescription;
         StatusText.IsVisible = false; _initializing = false;
     }

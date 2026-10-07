@@ -7,6 +7,8 @@
     <ApplicationIcon>Assets/AppIcon/v2/app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Updates/Install.ps1" LogicalName="AvaMedia.Desktop.Updates.Install.ps1" />
+    <EmbeddedResource Include="Updates/Install.sh" LogicalName="AvaMedia.Desktop.Updates.Install.sh" />
     <EmbeddedResource Include="Localization/Strings.en-US.json" LogicalName="AvaMedia.Desktop.Strings.en-US.json" WithCulture="false" />
     <EmbeddedResource Include="WifiTransfer/index.html" LogicalName="AvaMedia.Desktop.WifiTransfer.html" />
     <AvaloniaResource Include="Assets/FeatureIcons/v2/*.png" />
