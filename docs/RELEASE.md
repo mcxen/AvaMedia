@@ -15,6 +15,8 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 
+仅修复构建工作流时，可在默认分支手动运行 Release 并填写 `release_tag`，使用当前工作流重新构建已有标签的精确源码；版本、客户端源码和媒体源码始终取该标签，发布记录引用实际检出的提交。Windows 编译显式使用 UTF-8，确保原生启动窗口的中文字符串正确。
+
 2026-10-07 核对 [v1.1.10–19](https://github.com/mcxen/AvaMedia/actions/runs/37575794689) 的失败记录，Windows 均停在 FFmpeg configure 的 `aom >= 2.0.0 not found using pkg-config`。依赖日志表明 `libaom.a` 和 `aom.pc` 已成功安装；配方未指定 pkg-config，FFmpeg 按交叉前缀选择未安装的 `x86_64-w64-mingw32-pkg-config`。配方现显式传入 `--pkg-config=pkg-config`，继续通过 `PKG_CONFIG_LIBDIR` 隔离 Windows 依赖，并将 `ffbuild/config.log` 复制到已有日志产物目录。v1.1.14–15 的 macOS Dispatcher 启动异常已由 `fdfb007` 修复，v1.1.16–19 的 macOS job 已通过。此修复只做 Python 语法检查；Windows 原生构建由后台工作流确认，旧 tag 不变，重跑旧 tag 仍使用旧配方。
 
 [v1.1.22](https://github.com/mcxen/AvaMedia/actions/runs/37577379788) 和 [v1.1.23](https://github.com/mcxen/AvaMedia/actions/runs/37577797659) 已通过 FFmpeg 配置、编译和安装，停在 DLL 打包检查的 `Unbundled Windows dependency: AVICAP32.dll`。该库是 [Windows VFW 捕获组件](https://learn.microsoft.com/en-us/windows/win32/api/vfw/nf-vfw-capcreatecapturewindowa)，已补入系统 DLL 名单；其它非系统依赖仍必须随包提供。检查现保存所有二进制的 PE 导入日志，并一次报告全部未识别依赖。[默认分支构建](https://github.com/mcxen/AvaMedia/actions/runs/37577798056) 已成功保存源码和编译依赖缓存，FFmpeg 配置及打包修复不会使该依赖缓存失效。本次修复只做 Python 语法静态检查，安装包发布仍以新 tag 的后台 Release 结果为准。
