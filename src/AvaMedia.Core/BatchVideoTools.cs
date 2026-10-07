@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using SkiaSharp;
 
 namespace AvaMedia.Core;
 
@@ -175,26 +176,13 @@ public static class BatchVideoTools
                     // Even very short/low-frame-rate clips must fill every cell: avoid seeking past their last frame.
                     var seconds = Math.Min(requested, Math.Max(0, videoDuration - Math.Max(.08, 1 / frameRate)));
                     var frame = Path.Combine(scratch, $"frame-{cell:0000}.png");
-                    // The text file avoids quoting user paths inside a filter expression.
                     // Dimensions already match display aspect, including pixel shape and autorotation.
                     // Scale to the whole cell: no letterboxing, crop, gutter or outer border.
                     var vf = $"scale={cellWidth}:{cellHeight},setsar=1";
-                    if (options.Timestamps)
-                    {
-                        var stamp = Path.Combine(scratch, $"stamp-{cell:0000}.txt");
-                        var text = TimeSpan.FromSeconds(seconds).ToString(cellWidth >= 140 ? @"hh\:mm\:ss\.fff" : @"hh\:mm\:ss");
-                        await File.WriteAllTextAsync(stamp, text, ct);
-                        var inset = Math.Min(8, Math.Min(cellWidth, cellHeight) / 8);
-                        var boxBorder = Math.Min(4, inset / 2);
-                        var fontSize = Math.Max(1, Math.Min(Math.Max(12, cellWidth / 22), Math.Min(cellHeight / 4, (cellWidth - 2 * inset - 2 * boxBorder) / text.Length)));
-                        var font = OperatingSystem.IsMacOS()
-                            ? new[] { "/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Menlo.ttc" }.FirstOrDefault(File.Exists)
-                            : null;
-                        vf += $",drawtext=" + (font is null ? "" : $"fontfile='{FilterPath(font)}':")
-                            + $"textfile='{FilterPath(stamp)}':fontsize={fontSize}:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw={boxBorder}:x=w-tw-{inset}:y=h-th-{inset}";
-                    }
                     var captured = await ProcessRunner.Run(engine.FFmpeg, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-ss", MediaEngine.Number(seconds), "-i", input, "-map", $"0:v:{info.VideoStreamIndex}", "-an", "-frames:v", "1", "-vf", vf, "-update", "1", frame], ct);
                     if (captured.ExitCode != 0 || !File.Exists(frame) || new FileInfo(frame).Length == 0) throw new InvalidOperationException("抽帧失败：" + captured.Error);
+                    if (options.Timestamps)
+                        await Task.Run(() => DrawContactSheetTimestamp(frame, seconds, ct), ct).ConfigureAwait(false);
                     progress?.Report(new(input, sheet + 1, (index + 1) * 95d / total, $"抽帧 {index + 1}/{total}"));
                 }
                 var target = MediaEngine.UniqueOutput(outputFolder, Path.GetFileNameWithoutExtension(input) + $"-grid-{options.Columns}x{options.Rows}-{sheet + 1:000}", options.Format);
@@ -258,7 +246,37 @@ public static class BatchVideoTools
         return (Math.Clamp((int)Math.Round(width * scale), 1, maxWidth), Math.Clamp((int)Math.Round(height * scale), 1, maxHeight));
     }
 
-    private static string FilterPath(string path) => path.Replace("\\", "/", StringComparison.Ordinal).Replace(":", "\\:", StringComparison.Ordinal).Replace("'", "'\\''", StringComparison.Ordinal);
+    private static void DrawContactSheetTimestamp(string frame, double seconds, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var bitmap = SKBitmap.Decode(frame) ?? throw new InvalidDataException("无法读取截图画面。");
+        using var canvas = new SKCanvas(bitmap);
+        using var typeface = SKTypeface.FromFamilyName("Arial");
+        using var textPaint = new SKPaint { Typeface = typeface, IsAntialias = true, Color = SKColors.White,
+            TextSize = Math.Min(Math.Max(12, bitmap.Width / 22), bitmap.Height / 4) };
+        var text = TimeSpan.FromSeconds(seconds).ToString(bitmap.Width >= 140 ? @"hh\:mm\:ss\.fff" : @"hh\:mm\:ss");
+        var inset = Math.Min(8, Math.Min(bitmap.Width, bitmap.Height) / 8);
+        var border = Math.Min(4, inset / 2);
+        var bounds = new SKRect();
+        textPaint.MeasureText(text, ref bounds);
+        var availableWidth = bitmap.Width - 2 * (inset + border);
+        var availableHeight = bitmap.Height - 2 * (inset + border);
+        var scale = Math.Min(1, Math.Min(availableWidth / bounds.Width, availableHeight / bounds.Height));
+        textPaint.TextSize *= scale;
+        textPaint.MeasureText(text, ref bounds);
+        var x = bitmap.Width - inset - border - bounds.Right;
+        var y = bitmap.Height - inset - border - bounds.Bottom;
+        using var background = new SKPaint { Color = new SKColor(0, 0, 0, 166) };
+        canvas.DrawRect(new SKRect(x + bounds.Left - border, y + bounds.Top - border,
+            x + bounds.Right + border, y + bounds.Bottom + border), background);
+        canvas.DrawText(text, x, y, textPaint);
+        canvas.Flush();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100) ?? throw new InvalidOperationException("截图时间戳编码失败。");
+        ct.ThrowIfCancellationRequested();
+        using var output = File.Create(frame);
+        data.SaveTo(output);
+    }
 
     private static (double Duration, double FrameRate) VideoTiming(MediaInfo info)
     {
