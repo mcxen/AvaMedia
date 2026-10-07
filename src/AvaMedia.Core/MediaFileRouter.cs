@@ -54,7 +54,7 @@ public sealed class MediaFileRouter : IMediaFileRouter
                     Add("join", "视频合并", "按文件顺序连接为一个视频", Video, 2, "请至少选择两个视频。");
                     Add("split", "提取音频", "把视频声音导出为独立音频", Video);
                     Add("frames", "导出视频帧", "按时间间隔保存画面", Video);
-                    Add("delogo", "去除水印", "选择区域并进行模糊处理", Video);
+                    Add("delogo", "去除水印", "选择区域并进行插值修复", Video);
                     Add("repair", "重新封装", "复制媒体流并更换容器", Video);
                     break;
                 case MediaFileKind.Image:

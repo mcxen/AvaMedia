@@ -6,7 +6,18 @@ internal static class MediaFilters
     {
         var filters = new List<string>();
         if (trim && (o.Start > 0 || o.End > 0)) filters.Add($"trim=start={MediaEngine.Number(o.Start)}" + (o.End > 0 ? ":end=" + MediaEngine.Number(o.End) : "") + ",setpts=PTS-STARTPTS");
-        if (o.DelogoWidth > 0) filters.Add($"split[{prefix}original][{prefix}patch];[{prefix}patch]crop={o.DelogoWidth}:{o.DelogoHeight}:{o.DelogoX}:{o.DelogoY},gblur=sigma=20[{prefix}blurred];[{prefix}original][{prefix}blurred]overlay={o.DelogoX}:{o.DelogoY}");
+        if (o.DelogoWidth > 0)
+        {
+            // delogo samples outside the selection. Extend the frame edges so corner selections fit,
+            // then overlay only the repaired region to retain the original frame dimensions.
+            var x = (long)o.DelogoX + 2;
+            var y = (long)o.DelogoY + 2;
+            filters.Add($"split[{prefix}original][{prefix}patch];[{prefix}patch]" +
+                "pad=iw+4:ih+4:2:2,fillborders=left=2:right=2:top=2:bottom=2:mode=smear," +
+                $"delogo=x={x}:y={y}:w={o.DelogoWidth}:h={o.DelogoHeight}," +
+                $"crop={o.DelogoWidth}:{o.DelogoHeight}:{x}:{y}:exact=1[{prefix}repaired];" +
+                $"[{prefix}original][{prefix}repaired]overlay={o.DelogoX}:{o.DelogoY}");
+        }
         if (o.CropWidth > 0) filters.Add($"crop={o.CropWidth}:{o.CropHeight}:{o.CropX}:{o.CropY}:exact=1");
         if (o.Width > 0 || o.Height > 0) filters.Add($"scale={(o.Width > 0 ? o.Width : -2)}:{(o.Height > 0 ? o.Height : -2)}");
         if (o.Rotation == 90) filters.Add("transpose=1"); else if (o.Rotation == 180) filters.Add("hflip,vflip"); else if (o.Rotation == 270) filters.Add("transpose=2");
