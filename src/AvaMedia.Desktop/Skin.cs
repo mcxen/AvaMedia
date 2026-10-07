@@ -24,6 +24,7 @@ public sealed class Skin : AvaloniaObject
     public static bool GetIsEnabled(Window window) => window.GetValue(IsEnabledProperty);
     public static void SetIsEnabled(Window window, bool value) => window.SetValue(IsEnabledProperty, value);
     public static void ToggleShade(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.ToggleShade(); }
+    public static void RestoreWindow(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.RestoreWindow(); }
     public static void Zoom(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.Zoom(); }
     public static void Apply(string name)
     {
@@ -59,6 +60,7 @@ public sealed class Skin : AvaloniaObject
         }
         private void Changed(object? sender, EventArgs e) => Refresh();
         public void ToggleShade() => _frame?.ToggleShade();
+        public void RestoreWindow() => _frame?.RestoreShade();
         public void Zoom() => _frame?.Zoom();
         private void PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {

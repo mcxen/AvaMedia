@@ -48,7 +48,7 @@ public partial class MainWindow
     internal void RestoreBackgroundWindow()
     {
         if (_closing) return;
-        ShowInTaskbar = true; WindowState = _restoreState; Show(); Activate(); Refresh();
+        ShowInTaskbar = true; WindowState = _restoreState; Skin.RestoreWindow(this); Show(); Activate(); Refresh();
     }
     private void BackgroundClosing(object? sender, WindowClosingEventArgs e)
     {

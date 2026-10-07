@@ -86,7 +86,7 @@ public sealed class PlatinumWindowFrame : Border
         _window.SizeToContent = SizeToContent.Manual; _window.MinHeight = 0;
         _window.Height = 21 + Padding.Top + Padding.Bottom + BorderThickness.Top + BorderThickness.Bottom;
     }
-    private void RestoreShade()
+    internal void RestoreShade()
     {
         if (!IsShaded) return;
         IsShaded = false; _body.IsVisible = true;

@@ -15,7 +15,7 @@ public sealed partial class App : Application
         Localization.Apply(new Storage().LoadSettings().Language);
         AvaloniaXamlLoader.Load(this);
         if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activation)
-            activation.Activated += FilesActivated;
+            activation.Activated += ApplicationActivated;
     }
     public override void OnFrameworkInitializationCompleted()
     {
@@ -128,6 +128,28 @@ public sealed partial class App : Application
         }
         base.OnFrameworkInitializationCompleted();
     }
+    private void ApplicationActivated(object? sender, ActivatedEventArgs args)
+    {
+        if (args.Kind == ActivationKind.Reopen)
+        {
+            // Dock reopening is separate from opening a file and must restore a hidden window.
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
+                if (desktop.MainWindow is MainWindow main) main.RestoreBackgroundWindow();
+                else if (desktop.MainWindow is { } window)
+                {
+                    if (window.WindowState == Avalonia.Controls.WindowState.Minimized)
+                        window.WindowState = Avalonia.Controls.WindowState.Normal;
+                    Skin.RestoreWindow(window);
+                    window.Show(); window.Activate();
+                }
+            });
+            return;
+        }
+        FilesActivated(sender, args);
+    }
+
     private void FilesActivated(object? sender, ActivatedEventArgs args)
     {
         if (args is not FileActivatedEventArgs files) return;
