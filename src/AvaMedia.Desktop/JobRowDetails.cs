@@ -96,7 +96,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             {
                 parts.Add(Localization.Format($"{pdf.Pages.Count} 页"));
                 if(feature.Operation==Operation.PdfSplit)parts.Add(Localization.Format($"{PdfTools.Groups(pdf).Count} 个 PDF"));
-                if(feature.Operation==Operation.PdfAge)parts.Add(Localization.Format($"做旧 {pdf.Age} · 颗粒 {pdf.Grain}"));
+                if(feature.Operation==Operation.PdfAge)parts.Add(Localization.Format($"做旧 {pdf.Age} · 折痕 {pdf.Folds} · 污渍 {pdf.Stains}"));
                 if(feature.Operation==Operation.PdfCompress)parts.Add(pdf.Rasterize?"整页压缩":"保留文字");
             }
             else if (feature.Operation == Operation.Download)

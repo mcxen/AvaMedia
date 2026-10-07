@@ -29,6 +29,17 @@ internal sealed class PdfWorkspacePage(string path, string renderPath, int input
 
 public partial class PdfWorkspaceWindow : Window
 {
+    private sealed record PaperPreset(string Label, string Paper, int Age, int Grain, int Folds, int Stains, double Skew)
+    {
+        public PdfToolOptions Options => new() { Paper = Paper, Age = Age, Grain = Grain, Folds = Folds, Stains = Stains, Skew = Skew };
+    }
+    private static readonly PaperPreset[] PaperPresets =
+    [
+        new("折痕旧纸", "warm", 25, 10, 70, 0, .1),
+        new("污渍旧纸", "sepia", 55, 20, 0, 65, .2),
+        new("折痕与污渍", "warm", 35, 15, 55, 35, .2),
+        new("黑白复印", "gray", 30, 30, 45, 25, -.3)
+    ];
     private const int BoardSize = 24;
     private readonly Feature _feature;
     private readonly IMediaEngine _engine;
@@ -42,6 +53,13 @@ public partial class PdfWorkspaceWindow : Window
     private CancellationTokenSource? _previewWork;
     private PdfWorkspacePage? _active;
     private Bitmap? _preview;
+    private Bitmap? _ageSource;
+    private byte[]? _ageSourceData;
+    private (Guid Id, int Rotation, int Edge)? _ageSourceKey;
+    private (Guid Id, int Rotation)? _agePresetKey;
+    private readonly List<(Button Button, Image Image)> _agePresetCards = [];
+    private readonly List<Bitmap> _agePresetBitmaps = [];
+    private string _paper = "warm";
     private int _boardStart;
     private bool _loading;
     private bool _ready;
@@ -51,6 +69,7 @@ public partial class PdfWorkspaceWindow : Window
     private CancellationTokenSource? _textLayoutWork;
     private readonly HashSet<Task> _work = [];
     private bool IsCompress => _feature.Operation == Operation.PdfCompress;
+    private bool IsAge => _feature.Operation == Operation.PdfAge;
     private bool IsExtraction => _feature.Operation is Operation.PdfText or Operation.PdfDocx or Operation.PdfXlsx;
     private bool IsSingleInput => IsCompress || _feature.Operation is Operation.PdfSplit or Operation.TextPdf;
     private bool CanArrange => !IsCompress;
@@ -67,24 +86,36 @@ public partial class PdfWorkspaceWindow : Window
         FontSizeRow.IsVisible = feature.Operation == Operation.TextPdf;
         PaperSizeSetting.SelectedIndex = 0;
         SplitPanel.IsVisible = feature.Operation == Operation.PdfSplit;
-        AgePanel.IsVisible = feature.Operation == Operation.PdfAge;
+        AgePanel.IsVisible = IsAge;
         CompressPanel.IsVisible = IsCompress;
         RasterSettings.IsVisible = IsCompress || AgePanel.IsVisible;
         RasterNote.IsVisible = AgePanel.IsVisible;
         ExtractionPanel.IsVisible = IsExtraction;
         SelectAllButton.IsVisible = InvertButton.IsVisible = UndoButton.IsVisible = CanArrange;
-        SplitMode.SelectedIndex = 0; PaperStyle.SelectedIndex = 0; CompressionPreset.SelectedIndex = 1;
+        SplitMode.SelectedIndex = 0; CompressionPreset.SelectedIndex = 1;
+        if (IsAge)
+        {
+            Width = 1420; Height = 900; MinWidth = 1120; MinHeight = 720;
+            BodyGrid.ColumnDefinitions = new("260,*");
+            BoardToolbar.ColumnDefinitions = new("*,*,*"); BoardToolbar.RowDefinitions = new("Auto,Auto"); BoardToolbar.RowSpacing = 8;
+            Grid.SetColumn(PageSummary,0); Grid.SetRow(PageSummary,1); Grid.SetColumnSpan(PageSummary,3);
+            DetailPane.ColumnDefinitions = new("*,288"); DetailPane.ColumnSpacing = 14; DetailPane.RowDefinitions = new("*");
+            Grid.SetRow(SettingsScroll,0); Grid.SetColumn(SettingsScroll,1);
+            PreviewPanel.RowDefinitions = new("Auto,*"); PagePreviewFrame.IsVisible = false; AgeComparisonPanel.IsVisible = true;
+            BuildAgePresets();
+        }
         if (initialOptions?.Pdf is {} saved)
         {
             PaperSizeSetting.SelectedIndex = saved.PageSize switch { "source" => 2, "letter" => 1, _ => 0 };
             LandscapeSetting.IsChecked = saved.Landscape; PageMargin.Value = saved.Margin; TextFontSize.Value = saved.FontSize;
             SplitMode.SelectedIndex = saved.ExtractAsOne ? 2 : saved.SplitEveryPage ? 1 : 0;
-            PaperStyle.SelectedIndex = saved.Paper switch { "gray" => 1, "sepia" => 2, _ => 0 };
-            AgeAmount.Value = saved.Age; GrainAmount.Value = saved.Grain; SkewAmount.Value = (decimal)saved.Skew;
+            _paper = saved.Paper;
+            AgeAmount.Value = saved.Age; GrainAmount.Value = saved.Grain; FoldAmount.Value = saved.Folds; StainAmount.Value = saved.Stains; SkewAmount.Value = (decimal)saved.Skew;
             JpegQuality.Value = saved.Quality; RasterEdge.Value = saved.LongestEdge; RasterizeSetting.IsChecked = saved.Rasterize;
         }
         if (IsCompress) CompressionPreset.SelectedIndex = (JpegQuality.Value, RasterEdge.Value) switch { (90m,2400m) => 0, (75m,1800m) => 1, (50m,1200m) => 2, _ => 3 };
         _ready = true;
+        HighlightAgePreset();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => { if (e.DataTransfer.TryGetFiles() is not null) { e.DragEffects = _loading ? DragDropEffects.None : DragDropEffects.Copy; e.Handled = true; } }, RoutingStrategies.Bubble);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
@@ -108,13 +139,13 @@ public partial class PdfWorkspaceWindow : Window
                     page.Rotation = selection.Rotation; page.BreakAfter = selection.BreakAfter; ordered.Add(page);
                 }
                 foreach (var page in _pages.Except(ordered)) { page.Included = false; ordered.Add(page); }
-                _pages.Clear(); _pages.AddRange(ordered); RebuildBoard();
+                _pages.Clear(); _pages.AddRange(ordered); RebuildBoard(); UpdatePreview();
             }
         };
         Closed += (_, _) =>
         {
             _closed = true; _lifetime.Cancel(); _boardWork?.Cancel(); _previewWork?.Cancel(); _textLayoutWork?.Cancel();
-            ClearBitmaps(); _preview?.Dispose(); _preview = null;
+            ClearBitmaps(); ClearPreview();
             // Background loaders may still finish: they own cleanup of their uncommitted temporary files.
             var temporary = _temporary.ToArray();
             _ = CleanupAsync(_work.ToArray(), temporary);
@@ -200,8 +231,8 @@ public partial class PdfWorkspaceWindow : Window
     {
         Pages = _pages.Where(p => IsCompress || p.Included).Select(p => p.Selection).ToList(),
         SplitEveryPage = SplitMode.SelectedIndex == 1, ExtractAsOne = SplitMode.SelectedIndex == 2,
-        Age = (int)(AgeAmount.Value ?? 35), Grain = (int)(GrainAmount.Value ?? 15), Skew = (double)(SkewAmount.Value ?? .2m),
-        Paper = PaperStyle.SelectedIndex switch { 1 => "gray", 2 => "sepia", _ => "warm" },
+        Age = (int)(AgeAmount.Value ?? 35), Grain = (int)(GrainAmount.Value ?? 15), Folds = (int)(FoldAmount.Value ?? 55), Stains = (int)(StainAmount.Value ?? 35), Skew = (double)(SkewAmount.Value ?? .2m),
+        Paper = _paper,
         PageSize = PaperSizeSetting.SelectedIndex switch { 1 => "letter", 2 => "source", _ => "a4" }, Landscape = LandscapeSetting.IsChecked == true, Margin = (int)(PageMargin.Value ?? 20), FontSize = (int)(TextFontSize.Value ?? 12),
         Quality = (int)(JpegQuality.Value ?? 75), LongestEdge = (int)(RasterEdge.Value ?? 1800), Rasterize = RasterizeSetting.IsChecked == true
     };
@@ -227,7 +258,7 @@ public partial class PdfWorkspaceWindow : Window
         var renderTargets = new List<(PdfWorkspacePage Page, Image Image)>();
         foreach (var page in visible)
         {
-            var card = new Border { Width = 154, Margin = new(0, 0, 10, 10), Padding = new(8), Classes = { "pdf-card" } };
+            var card = new Border { Width = IsAge ? 208 : 154, Margin = new(0, 0, 10, 10), Padding = new(8), Classes = { "pdf-card" } };
             if (page == _active) card.Classes.Add("active");
             if (page.BreakAfter) card.Classes.Add("cut");
             var content = new StackPanel { Spacing = 6 }; card.Child = content;
@@ -308,9 +339,8 @@ public partial class PdfWorkspaceWindow : Window
         return await Task.Run(() =>
         {
             using var rendered = PdfRasterizer.Render(page.RenderPath, page.Info.Number, edge, rotation, token);
-            using var processed = effect is not null && _feature.Operation == Operation.PdfAge ? PdfTools.Aged(rendered, effect, page.Info.Number, token) : rendered.Copy();
-            using var image = SKImage.FromBitmap(processed);
-            using var data = image.Encode(effect is not null && (_feature.Operation == Operation.PdfAge || effect.Rasterize) ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png, effect?.Quality ?? 100);
+            using var image = SKImage.FromBitmap(rendered);
+            using var data = image.Encode(IsCompress && effect?.Rasterize == true ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png, effect?.Quality ?? 100);
             return data.ToArray();
         }, token);
     }
@@ -320,17 +350,22 @@ public partial class PdfWorkspaceWindow : Window
     private async Task UpdatePreviewAsync()
     {
         if (!_ready || _active is not {} page || _closed) return;
-        _previewWork?.Cancel(); _previewWork = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        var token = _previewWork.Token; var options = Options();
+        _previewWork?.Cancel(); var work = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _previewWork = work;
+        var token = work.Token; var options = Options(); var rotation = page.Rotation;
+        PreviewProgress.IsVisible = true;
         try
         {
             await Task.Delay(180, token);
-            var edge = _feature.Operation == Operation.PdfAge || IsCompress && options.Rasterize ? options.LongestEdge : 900;
-            var bytes = await RenderPage(page, edge, page.Rotation, token, options);
-            token.ThrowIfCancellationRequested(); using var stream = new MemoryStream(bytes); var bitmap = new Bitmap(stream);
-            PagePreview.Source = bitmap; _preview?.Dispose(); _preview = bitmap;
+            if (IsAge) await UpdateAgePreview(page, rotation, options, token);
+            else
+            {
+                var edge = IsCompress && options.Rasterize ? options.LongestEdge : 900;
+                var bytes = await RenderPage(page, edge, rotation, token, options);
+                token.ThrowIfCancellationRequested(); var bitmap = ReadBitmap(bytes);
+                PagePreview.Source = bitmap; _preview?.Dispose(); _preview = bitmap;
+            }
             var width=page.Info.Width;var height=page.Info.Height;
-            if(page.Rotation is 90 or 270)(width,height)=(height,width);
+            if(rotation is 90 or 270)(width,height)=(height,width);
             if(_feature.Operation==Operation.ImagesPdf)(width,height)=PdfTools.PaperSize(width,height,options);
             PreviewTitle.Text = IsCompress && !options.Rasterize ? Localization.Format($"原页预览 · 第 {page.Info.Number} 页") : Localization.Format($"第 {page.Info.Number} 页 · {width:0} × {height:0} pt");
             if (IsExtraction)
@@ -345,7 +380,129 @@ public partial class PdfWorkspaceWindow : Window
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (!token.IsCancellationRequested && !_closed) StatusText.Text = ex.Message; }
+        finally
+        {
+            if (ReferenceEquals(_previewWork,work)) { _previewWork = null; PreviewProgress.IsVisible = false; }
+            work.Dispose();
+        }
     }
+
+    private async Task UpdateAgePreview(PdfWorkspacePage page, int rotation, PdfToolOptions options, CancellationToken token)
+    {
+        var key = (page.Id, rotation, options.LongestEdge);
+        var pageKey = (page.Id, rotation);
+        if (_ageSourceKey != key)
+        {
+            var bytes = await RenderPage(page,options.LongestEdge,rotation,token);
+            token.ThrowIfCancellationRequested(); var bitmap = ReadBitmap(bytes);
+            if (_ageSourceKey is not {} previous || previous.Id != page.Id || previous.Rotation != rotation)
+            {
+                AgeComparison.Result = null; _preview?.Dispose(); _preview = null; AgeComparison.ResetView();
+                ClearAgePresetBitmaps();
+            }
+            AgeComparison.Source = bitmap; _ageSource?.Dispose(); _ageSource = bitmap;
+            _ageSourceData = bytes; _ageSourceKey = key;
+        }
+        var sourceData = _ageSourceData!;
+        var makePresets = _agePresetKey != pageKey;
+        var images = await Task.Run(() =>
+        {
+            using var source = SKBitmap.Decode(sourceData) ?? throw new InvalidDataException("无法创建 PDF 预览。");
+            byte[] Encode(PdfToolOptions effect, SKBitmap input)
+            {
+                using var processed = PdfTools.Aged(input,effect,page.Info.Number,token);
+                using var image = SKImage.FromBitmap(processed); using var data = image.Encode(SKEncodedImageFormat.Jpeg,options.Quality);
+                return data.ToArray();
+            }
+            var result = Encode(options,source);
+            byte[][]? presets = null;
+            if (makePresets)
+            {
+                var scale = 320d / Math.Max(source.Width,source.Height);
+                using var small = source.Resize(new SKImageInfo(Math.Max(1,(int)(source.Width*scale)),Math.Max(1,(int)(source.Height*scale))),SKFilterQuality.High)
+                    ?? throw new InvalidDataException("无法创建 PDF 预览。");
+                presets = PaperPresets.Select(preset => Encode(preset.Options,small)).ToArray();
+            }
+            return (Result:result, Presets:presets);
+        },token);
+        token.ThrowIfCancellationRequested();
+        Bitmap? resultBitmap = null; var presetsBitmaps = new List<Bitmap>();
+        try
+        {
+            resultBitmap = ReadBitmap(images.Result);
+            if (images.Presets is not null) foreach (var bytes in images.Presets) presetsBitmaps.Add(ReadBitmap(bytes));
+            AgeComparison.Result = resultBitmap; _preview?.Dispose(); _preview = resultBitmap; resultBitmap = null;
+            if (images.Presets is not null)
+            {
+                ClearAgePresetBitmaps();
+                for (var index = 0; index < presetsBitmaps.Count; index++) _agePresetCards[index].Image.Source = presetsBitmaps[index];
+                _agePresetBitmaps.AddRange(presetsBitmaps); presetsBitmaps.Clear(); _agePresetKey = pageKey;
+            }
+        }
+        finally { resultBitmap?.Dispose(); foreach (var bitmap in presetsBitmaps) bitmap.Dispose(); }
+    }
+
+    private static Bitmap ReadBitmap(byte[] bytes) { using var stream = new MemoryStream(bytes); return new Bitmap(stream); }
+
+    private void BuildAgePresets()
+    {
+        for (var index = 0; index < PaperPresets.Length; index++)
+        {
+            var preset = PaperPresets[index];
+            var image = new Image { Stretch = Stretch.Uniform };
+            var content = new Grid { RowDefinitions = new("108,*"), RowSpacing = 6 };
+            var label = new TextBlock { Text = Localization.Text(preset.Label), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetRow(label,1); content.Children.Add(image); content.Children.Add(label);
+            var button = new Button { Content = content, Height = 164, Classes = { "pdf-effect" } };
+            Avalonia.Automation.AutomationProperties.SetName(button,Localization.Text(preset.Label));
+            button.Click += (_, _) => ApplyAgePreset(preset);
+            Grid.SetColumn(button,index%2); Grid.SetRow(button,index/2); AgePresets.Children.Add(button); _agePresetCards.Add((button,image));
+        }
+    }
+
+    private void ApplyAgePreset(PaperPreset preset)
+    {
+        _applyingPreset = true;
+        try
+        {
+            _paper = preset.Paper; AgeAmount.Value = preset.Age; GrainAmount.Value = preset.Grain;
+            FoldAmount.Value = preset.Folds; StainAmount.Value = preset.Stains; SkewAmount.Value = (decimal)preset.Skew;
+        }
+        finally { _applyingPreset = false; }
+        HighlightAgePreset(); UpdatePreview();
+    }
+
+    private void HighlightAgePreset()
+    {
+        if (!IsAge) return;
+        var options = Options();
+        for (var index = 0; index < _agePresetCards.Count; index++)
+        {
+            var preset = PaperPresets[index];
+            _agePresetCards[index].Button.Classes.Set("active",options.Paper == preset.Paper && options.Age == preset.Age && options.Grain == preset.Grain && options.Folds == preset.Folds && options.Stains == preset.Stains && Math.Abs(options.Skew-preset.Skew)<.001);
+        }
+    }
+
+    private void ClearAgePresetBitmaps()
+    {
+        foreach (var card in _agePresetCards) card.Image.Source = null;
+        foreach (var bitmap in _agePresetBitmaps) bitmap.Dispose();
+        _agePresetBitmaps.Clear(); _agePresetKey = null;
+    }
+
+    private void ClearPreview()
+    {
+        PagePreview.Source = null; AgeComparison.Source = AgeComparison.Result = null;
+        _preview?.Dispose(); _preview = null; _ageSource?.Dispose(); _ageSource = null;
+        _ageSourceData = null; _ageSourceKey = null; ClearAgePresetBitmaps(); AgeComparison.ResetView();
+    }
+
+    private void CompareModeChanged(object? sender, RoutedEventArgs e)
+    { AgeComparison.SideBySide = AgeSideBySide.IsChecked == true; AgeCompareSlider.IsVisible = !AgeComparison.SideBySide; AgeComparison.ResetView(); }
+    private void ZoomInClick(object? sender, RoutedEventArgs e) => AgeComparison.Zoom(1.25);
+    private void ZoomOutClick(object? sender, RoutedEventArgs e) => AgeComparison.Zoom(.8);
+    private void ActualSizeClick(object? sender, RoutedEventArgs e) => AgeComparison.ActualSize();
+    private void ResetViewClick(object? sender, RoutedEventArgs e) => AgeComparison.ResetView();
 
     private void AddReordering(Border card, Button handle, PdfWorkspacePage page)
     {
@@ -417,7 +574,7 @@ public partial class PdfWorkspaceWindow : Window
     {
         if (_loading) return;
         _boardWork?.Cancel(); _previewWork?.Cancel(); _pages.Clear(); _files.Clear(); _undo.Clear(); _active = null; _boardStart = 0;
-        UndoButton.IsEnabled = false; PagePreview.Source = null; _preview?.Dispose(); _preview = null; ExtractedText.Text = "";
+        UndoButton.IsEnabled = false; ClearPreview(); ExtractedText.Text = "";
         _textLayoutWork?.Cancel(); _ = CleanupAsync(_work.ToArray(), _temporary.ToArray()); _temporary.Clear(); RebuildBoard(); StatusText.Text = "";
     }
     private void SelectAllClick(object? sender, RoutedEventArgs e) { Remember(); foreach (var page in _pages) page.Included = true; RebuildBoard(); }
@@ -440,9 +597,9 @@ public partial class PdfWorkspaceWindow : Window
     }
     private void EffectChanged(object? sender, RoutedEventArgs e)
     {
-        if (!_ready) return;
-        if (IsCompress && !_applyingPreset && (sender == JpegQuality || sender == RasterEdge)) CompressionPreset.SelectedIndex = 3;
-        UpdatePreview();
+        if (!_ready || _applyingPreset) return;
+        if (IsCompress && (sender == JpegQuality || sender == RasterEdge)) CompressionPreset.SelectedIndex = 3;
+        HighlightAgePreset(); UpdatePreview();
     }
     private void CompressionPresetChanged(object? sender, SelectionChangedEventArgs e)
     {

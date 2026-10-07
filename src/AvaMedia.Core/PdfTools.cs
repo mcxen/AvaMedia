@@ -17,6 +17,8 @@ public sealed class PdfToolOptions
     public bool Rasterize { get; set; }
     public int Age { get; set; } = 35;
     public int Grain { get; set; } = 15;
+    public int Folds { get; set; } = 55;
+    public int Stains { get; set; } = 35;
     public double Skew { get; set; } = .2;
     public string Paper { get; set; } = "warm";
     public string PageSize { get; set; } = "a4";
@@ -27,7 +29,8 @@ public sealed class PdfToolOptions
     {
         Pages = [.. Pages], SplitEveryPage = SplitEveryPage, ExtractAsOne = ExtractAsOne,
         Quality = Quality, LongestEdge = LongestEdge, Rasterize = Rasterize,
-        Age = Age, Grain = Grain, Skew = Skew, Paper = Paper, PageSize = PageSize, Landscape = Landscape, Margin = Margin, FontSize = FontSize
+        Age = Age, Grain = Grain, Folds = Folds, Stains = Stains, Skew = Skew, Paper = Paper,
+        PageSize = PageSize, Landscape = Landscape, Margin = Margin, FontSize = FontSize
     };
 }
 
@@ -43,7 +46,7 @@ public static class PdfTools
         if (options.Pages.Count == 0) throw new ArgumentException("请至少选择一页。");
         if (options.Pages.Any(p => p.InputIndex < 0 || p.InputIndex >= job.Inputs.Length || p.PageNumber < 1 || p.Rotation is not (0 or 90 or 180 or 270)))
             throw new ArgumentException("PDF 页面设置无效。");
-        if (options.Quality is < 10 or > 100 || options.LongestEdge is < 600 or > 4096 || options.Age is < 0 or > 100 || options.Grain is < 0 or > 100 || !double.IsFinite(options.Skew) || Math.Abs(options.Skew) > 2 || options.Paper is not ("warm" or "gray" or "sepia") || options.PageSize is not ("source" or "a4" or "letter") || options.Margin is < 0 or > 144 || options.FontSize is < 6 or > 48)
+        if (options.Quality is < 10 or > 100 || options.LongestEdge is < 600 or > 4096 || options.Age is < 0 or > 100 || options.Grain is < 0 or > 100 || options.Folds is < 0 or > 100 || options.Stains is < 0 or > 100 || !double.IsFinite(options.Skew) || Math.Abs(options.Skew) > 2 || options.Paper is not ("warm" or "gray" or "sepia") || options.PageSize is not ("source" or "a4" or "letter") || options.Margin is < 0 or > 144 || options.FontSize is < 6 or > 48)
             throw new ArgumentException("PDF 参数超出范围。");
     }
 
@@ -172,10 +175,98 @@ public static class PdfTools
                     pixels[offset + 3] = 255;
                 }
             }
-            Marshal.Copy(pixels, 0, output.GetPixels(), pixels.Length); return output;
+            Marshal.Copy(pixels, 0, output.GetPixels(), pixels.Length);
+            using (var canvas = new SKCanvas(output))
+            {
+                // Normalized geometry follows the same page at thumbnail and export resolutions.
+                canvas.Scale(output.Width, output.Height);
+                DrawStains(canvas, options, seed, ct);
+                DrawFolds(canvas, options, seed);
+            }
+            ct.ThrowIfCancellationRequested(); return output;
         }
         catch { output.Dispose(); throw; }
         static byte Channel(double value) => (byte)Math.Clamp(value, 0, 255);
+    }
+
+    private static SKColor PaperMark(PdfToolOptions options, double opacity)
+    {
+        var alpha = (byte)Math.Clamp(opacity, 0, 255);
+        return options.Paper == "gray" ? new SKColor(95, 95, 95, alpha) : new SKColor(117, 78, 33, alpha);
+    }
+
+    private static float PaperNoise(int seed, int index)
+    {
+        var hash = unchecked((uint)(seed * 144269 + index * 374761393));
+        hash = (hash ^ (hash >> 13)) * 1274126177u;
+        return (hash & 65535) / 65535f;
+    }
+
+    private static void DrawStains(SKCanvas canvas, PdfToolOptions options, int seed, CancellationToken ct)
+    {
+        var strength = options.Stains / 100d;
+        if (strength <= 0) return;
+        SKPoint[] centers = [new(.015f,.12f), new(.99f,.36f), new(.07f,.85f), new(.8f,.98f), new(.78f,.19f), new(.56f,.68f)];
+        static SKPoint Middle(SKPoint a, SKPoint b) => new((a.X+b.X)*.5f,(a.Y+b.Y)*.5f);
+        for (var index = 0; index < centers.Length; index++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var center = centers[index] + new SKPoint((PaperNoise(seed,index*13)-.5f)*.09f, (PaperNoise(seed,index*13+1)-.5f)*.08f);
+            var radius = .075f + PaperNoise(seed,index*13+2)*.1f;
+            var opacity = strength * (index < 4 ? 1 : .45);
+            var points = new SKPoint[24];
+            for (var point = 0; point < points.Length; point++)
+            {
+                var angle = point * MathF.Tau / points.Length;
+                var distance = radius * (.86f + .08f*MathF.Sin(angle*3+index) + .06f*MathF.Cos(angle*5+seed));
+                points[point] = center + new SKPoint(MathF.Cos(angle)*distance,MathF.Sin(angle)*distance*.78f);
+            }
+            using var outline = new SKPath();
+            var start = Middle(points[^1],points[0]);
+            outline.MoveTo(start);
+            for (var point = 0; point < points.Length; point++)
+                outline.QuadTo(points[point], Middle(points[point],points[(point+1)%points.Length]));
+            outline.Close();
+            using var shader = SKShader.CreateRadialGradient(center, radius,
+                [PaperMark(options,18*opacity),PaperMark(options,32*opacity),PaperMark(options,65*opacity),PaperMark(options,0)],
+                [0,.6f,.82f,1], SKShaderTileMode.Clamp);
+            using var paint = new SKPaint { IsAntialias = true, Shader = shader, BlendMode = SKBlendMode.Multiply };
+            canvas.DrawPath(outline,paint);
+            paint.Shader = null; paint.Style = SKPaintStyle.Stroke; paint.StrokeWidth = .0015f; paint.Color = PaperMark(options,28*opacity);
+            canvas.DrawPath(outline,paint);
+            // Small uneven deposits follow the water mark rather than a uniform dotted overlay.
+            paint.Style = SKPaintStyle.Fill;
+            for (var spot = 0; spot < 24; spot++)
+            {
+                var key = 200 + index*100 + spot*3;
+                var angle = PaperNoise(seed,key)*MathF.Tau;
+                var distance = radius * MathF.Sqrt(PaperNoise(seed,key+1));
+                paint.Color = PaperMark(options,(15+PaperNoise(seed,key+2)*65)*opacity);
+                canvas.DrawCircle(center.X+MathF.Cos(angle)*distance,center.Y+MathF.Sin(angle)*distance*.78f,.0006f+PaperNoise(seed,key+2)*.0012f,paint);
+            }
+        }
+    }
+
+    private static void DrawFolds(SKCanvas canvas, PdfToolOptions options, int seed)
+    {
+        var strength = options.Folds / 100d;
+        if (strength <= 0) return;
+        var vertical = .48f + (PaperNoise(seed,1001)-.5f)*.06f;
+        var horizontal = .51f + (PaperNoise(seed,1002)-.5f)*.08f;
+        using var first = new SKPath();
+        first.MoveTo(vertical,-.02f); first.CubicTo(vertical+.004f,.33f,vertical-.006f,.67f,vertical+.002f,1.02f);
+        using var second = new SKPath();
+        second.MoveTo(-.02f,horizontal); second.CubicTo(.33f,horizontal-.004f,.67f,horizontal+.005f,1.02f,horizontal-.002f);
+        using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, BlendMode = SKBlendMode.Multiply };
+        foreach (var (path, opacity) in new[] { (first,1d),(second,.8d) })
+        {
+            // Layered soft shadow, narrow crease and offset ridge give the paper depth.
+            foreach (var (width, alpha) in new[] { (.026f,5),(.014f,9),(.006f,18),(.0014f,55) })
+            { paint.StrokeWidth = width; paint.Color = PaperMark(options,alpha*strength*opacity); canvas.DrawPath(path,paint); }
+            canvas.Save(); canvas.Translate(.002f,.0015f);
+            paint.BlendMode = SKBlendMode.Screen; paint.Color = new SKColor(255,255,255,(byte)(22*strength*opacity)); paint.StrokeWidth = .0018f;
+            canvas.DrawPath(path,paint); canvas.Restore(); paint.BlendMode = SKBlendMode.Multiply;
+        }
     }
 
     public static void Compress(Job job, Action<double> progress, CancellationToken ct)

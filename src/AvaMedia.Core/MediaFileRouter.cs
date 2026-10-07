@@ -72,7 +72,7 @@ public sealed class MediaFileRouter : IMediaFileRouter
                 case MediaFileKind.Document:
                     Add("pdf-merge", "PDF 合并", "可视化排列与合并页面", source => Extension(source, ".pdf"));
                     Add("pdf-split", "PDF 拆分", "选页、拆分点与分组", source => Extension(source, ".pdf"), maximum: 1);
-                    Add("pdf-age", "PDF 做旧", "纸色、颗粒与倾斜预览", source => Extension(source, ".pdf"));
+                    Add("pdf-age", "PDF 做旧", "折痕、污渍与原页对照", source => Extension(source, ".pdf"));
                     Add("pdf-compress", "PDF 压缩", "保留文字或整页压缩", source => Extension(source, ".pdf"), maximum: 1);
                     Add("pdf-docx", "PDF 提取为 Word", "提取文字到 DOCX", source => Extension(source, ".pdf"));
                     Add("pdf-xlsx", "PDF 提取为 Excel", "提取文字到 XLSX", source => Extension(source, ".pdf"));
