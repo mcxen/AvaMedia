@@ -240,18 +240,24 @@ def main():
     bundle = work / base
     bundle.mkdir()
     binaries = [install / "bin/ffmpeg.exe", install / "bin/ffprobe.exe", *sorted((install / "bin").glob("*.dll"))]
-    # VFW capture links AVICAP32, a Windows system component provided by Vfw32.lib.
+    # VFW capture and Schannel use Windows system components AVICAP32 and NCRYPT.
     # https://learn.microsoft.com/en-us/windows/win32/api/vfw/nf-vfw-capcreatecapturewindowa
-    system_dlls = set("advapi32 avicap32 avrt bcrypt crypt32 gdi32 kernel32 mf mfplat mfuuid msvcrt ntdll ole32 oleaut32 propsys psapi secur32 shell32 shlwapi user32 uuid version winmm ws2_32 ucrtbase".split())
+    # https://learn.microsoft.com/en-us/windows/win32/api/ncrypt/nf-ncrypt-ncryptfreeobject
+    system_dlls = set("advapi32 avicap32 avrt bcrypt crypt32 gdi32 kernel32 mf mfplat mfuuid msvcrt ncrypt ntdll ole32 oleaut32 propsys psapi secur32 shell32 shlwapi user32 uuid version winmm ws2_32 ucrtbase".split())
     names = {path.name.lower() for path in binaries}
     unbundled = []
     for binary in binaries:
         shutil.copy2(binary, bundle / binary.name)
         shared.run([CROSS + "strip", bundle / binary.name])
-        listing = shared.run([CROSS + "objdump", "-p", bundle / binary.name], log=work / "windows-imports.log")
+        listing = shared.run([CROSS + "objdump", "-p", bundle / binary.name])
+        imports = sorted(set(re.findall(r"DLL Name:\s*(\S+)", listing)), key=str.casefold)
+        file_format = re.search(r"file format (\S+)", listing)
+        with (work / "windows-imports.log").open("a") as stream:
+            stream.write(f"{binary.name}: {file_format.group(1) if file_format else 'unknown format'}\n")
+            stream.writelines(f"  DLL Name: {dll}\n" for dll in imports)
         if "pei-x86-64" not in listing:
             raise RuntimeError(f"Unexpected Windows architecture: {binary.name}")
-        for dll in re.findall(r"DLL Name:\s*(\S+)", listing):
+        for dll in imports:
             name = dll.lower()
             if name not in names and name.removesuffix(".dll") not in system_dlls and not name.startswith("api-ms-win-"):
                 unbundled.append(f"{binary.name}: {dll}")
