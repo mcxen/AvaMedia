@@ -48,16 +48,16 @@ public sealed record VideoCompressionPlan(long SourceBytes, long? TargetBytes, l
 /// <summary>One size budget and encoder policy shared by the dialog and queued execution.</summary>
 public static class VideoCompression
 {
-    public static bool UsesQuality(VideoCompressionMode mode) => mode is VideoCompressionMode.Automatic or VideoCompressionMode.Quality;
+    public static bool UsesQuality(VideoCompressionMode mode) => mode == VideoCompressionMode.Quality;
 
     public static VideoCompressionOptions ApplyPreset(VideoCompressionOptions options, VideoCompressionPreset preset) => preset switch
     {
         VideoCompressionPreset.High => options with { Mode = VideoCompressionMode.Automatic, Preset = preset,
-            Quality = 20, MaxDimension = 0, MaxFrameRate = 0, AudioBitrate = 192, Speed = VideoEncodingSpeed.Slow },
+            Percentage = 85, MaxDimension = 0, MaxFrameRate = 0, AudioBitrate = 192, Speed = VideoEncodingSpeed.Slow },
         VideoCompressionPreset.Balanced => options with { Mode = VideoCompressionMode.Automatic, Preset = preset,
-            Quality = 23, MaxDimension = 1920, MaxFrameRate = 30, AudioBitrate = 128, Speed = VideoEncodingSpeed.Balanced },
+            Percentage = 70, MaxDimension = 1920, MaxFrameRate = 30, AudioBitrate = 128, Speed = VideoEncodingSpeed.Balanced },
         VideoCompressionPreset.Small => options with { Mode = VideoCompressionMode.Automatic, Preset = preset,
-            Quality = 28, MaxDimension = 1280, MaxFrameRate = 30, AudioBitrate = 96, Speed = VideoEncodingSpeed.Fast },
+            Percentage = 50, MaxDimension = 1280, MaxFrameRate = 30, AudioBitrate = 96, Speed = VideoEncodingSpeed.Fast },
         _ => throw new ArgumentException("请选择有效的画质档位。")
     };
 
@@ -85,14 +85,31 @@ public static class VideoCompression
         // Size and bitrate modes share one budget; quality modes never fabricate a size estimate.
         double? target = options.Mode switch
         {
-            VideoCompressionMode.Percentage => sourceBytes * options.Percentage / 100,
+            VideoCompressionMode.Automatic or VideoCompressionMode.Percentage => sourceBytes * options.Percentage / 100,
             VideoCompressionMode.TargetSize => options.TargetMegabytes * 1000000,
             _ => null
         };
         if (target >= sourceBytes) throw new ArgumentException("目标体积须小于源视频；请减小目标 MB 或改用百分比。");
+        if (options.Mode == VideoCompressionMode.Automatic && audio > 0)
+        {
+            var totalBitrate = target!.Value * .97 * 8 / source.Duration / 1000;
+            // Reserve most of a small budget for the picture, without silently removing sound.
+            audio = new[] { 32, 48, 64, 96, 128, 192 }
+                .LastOrDefault(rate => rate <= audio && rate <= totalBitrate * .25, 32);
+        }
         var video = target is { } bytes ? Math.Floor(bytes * .97 * 8 / source.Duration / 1000 - audio) : options.VideoBitrate;
         if (video < 64) throw new ArgumentException("目标体积过小，无法分配视频码率；请增大目标或移除声音。");
         if (video > 200000) throw new ArgumentException("目标码率过高，请降低目标体积。");
+        if (options.Mode == VideoCompressionMode.Automatic)
+        {
+            // A spatial budget heuristic avoids spreading very low bitrates over a full-HD frame.
+            // This is a resolution policy, not a prediction of perceptual quality.
+            var encodingFps = fps > 0 ? fps : double.IsFinite(source.FrameRate) && source.FrameRate > 0 ? source.FrameRate : 30;
+            var bitsPerPixel = options.Codec == "hevc" ? .04 : .06;
+            var scale = Math.Min(1, Math.Sqrt(video * 1000 / (width * (double)height * encodingFps * bitsPerPixel)));
+            width = Math.Max(2, (int)Math.Floor(width * scale / 2) * 2);
+            height = Math.Max(2, (int)Math.Floor(height * scale / 2) * 2);
+        }
         return new(sourceBytes, target is { } size ? (long)Math.Floor(size) : null,
             (long)Math.Ceiling((video + audio) * 1000 / 8 * source.Duration / .97), (int)video, audio, width, height, fps, false, options.Quality);
     }
@@ -111,7 +128,7 @@ public static class VideoCompression
         result.Width = plan.Width; result.Height = plan.Height; result.Fps = plan.FrameRate;
         result.VideoBitrate = plan.VideoBitrate; result.Mute = plan.AudioBitrate == 0;
         result.Quality = plan.Quality;
-        result.AudioBitrate = result.VideoCompression.AudioBitrate;
+        result.AudioBitrate = plan.AudioBitrate;
         result.AudioCodec = "aac"; result.SampleRate = 48000;
         result.AudioChannels = source.AudioChannels > 2 ? 2 : 0;
         return result;

@@ -31,7 +31,7 @@ public sealed class VideoCompressionEntry(string path) : Observable
     public string ColorSummary => HasColorChange ? Localization.Format($"{Color!.SourceLabel} → SDR（BT.709）；不保留 HDR 动态元数据。") : "";
     public string PlanSummary => Plan is not { } plan ? "" : plan.QualityDriven
         ? Localization.Format($"画质优先 · 质量 {plan.Quality} · {plan.Width} × {plan.Height} · 体积由内容决定")
-        : Localization.Format($"预计 {plan.EstimatedBytes!.Value / 1000000d:0.##} MB · {plan.Width} × {plan.Height} · 视频 {plan.VideoBitrate} kbps");
+        : Localization.Format($"预计 {plan.EstimatedBytes!.Value / 1000000d:0.##} MB · {plan.Width} × {plan.Height} · 视频 {plan.VideoBitrate} kbps · 音频 {plan.AudioBitrate} kbps");
     public void Refresh() => Raise(string.Empty);
 }
 
@@ -207,14 +207,16 @@ public partial class VideoCompressionWindow : Window
         var preset = VideoCompression.ApplyPreset(new(), PresetInput.SelectedIndex < 0 ? VideoCompressionPreset.Balanced : (VideoCompressionPreset)PresetInput.SelectedIndex);
         PresetDescription.Text = Localization.Join(" · ", [PresetInput.SelectedIndex switch
         {
-            0 => "保留原尺寸与帧率 · 质量 20 · 慢速",
-            2 => "最长边 1280 · 不超过 30 fps · 质量 28 · 快速",
-            _ => "最长边 1920 · 不超过 30 fps · 质量 23 · 中速"
-        }, KeepAudioInput.IsChecked == true ? Localization.Format($"音频 {preset.AudioBitrate} kbps（源视频有声音时）") : "移除声音"]);
+            0 => "目标原体积 85% · 慢速",
+            2 => "目标原体积 50% · 快速",
+            _ => "目标原体积 70% · 中速"
+        }, KeepAudioInput.IsChecked == true ? Localization.Format($"音频最高 {preset.AudioBitrate} kbps") : "移除声音"]);
         OutputSummary.Text = Localization.Format($"输出：{(FormatInput.SelectedIndex >= 0 ? Formats[FormatInput.SelectedIndex].ToUpperInvariant() : "")} · {(CodecInput.SelectedIndex == 1 ? "HEVC" : "H.264")}");
-        ModeDescription.Text = Localization.Text(VideoCompression.UsesQuality(mode)
-            ? "按画质控制编码；体积由画面内容决定，可能大于原文件。分辨率与帧率只降低，不放大。"
-            : "按码率或体积预算编码；预计大小不作精确保证，画质随码率变化。分辨率与帧率只降低，不放大。");
+        ModeDescription.Text = Localization.Text(mode == VideoCompressionMode.Automatic
+            ? "按目标体积分配码率，低码率时自动降低分辨率与音频码率。"
+            : VideoCompression.UsesQuality(mode)
+                ? "按画质控制编码；体积由画面内容决定，可能大于原文件。分辨率与帧率只降低，不放大。"
+                : "按码率或体积预算编码；预计大小不作精确保证，画质随码率变化。分辨率与帧率只降低，不放大。");
         try
         {
             var options = ReadOptions(); options.Validate();
