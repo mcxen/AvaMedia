@@ -240,18 +240,23 @@ def main():
     bundle = work / base
     bundle.mkdir()
     binaries = [install / "bin/ffmpeg.exe", install / "bin/ffprobe.exe", *sorted((install / "bin").glob("*.dll"))]
-    system_dlls = set("advapi32 avrt bcrypt crypt32 gdi32 kernel32 mf mfplat mfuuid msvcrt ntdll ole32 oleaut32 propsys psapi secur32 shell32 shlwapi user32 uuid version winmm ws2_32 ucrtbase".split())
+    # VFW capture links AVICAP32, a Windows system component provided by Vfw32.lib.
+    # https://learn.microsoft.com/en-us/windows/win32/api/vfw/nf-vfw-capcreatecapturewindowa
+    system_dlls = set("advapi32 avicap32 avrt bcrypt crypt32 gdi32 kernel32 mf mfplat mfuuid msvcrt ntdll ole32 oleaut32 propsys psapi secur32 shell32 shlwapi user32 uuid version winmm ws2_32 ucrtbase".split())
     names = {path.name.lower() for path in binaries}
+    unbundled = []
     for binary in binaries:
         shutil.copy2(binary, bundle / binary.name)
         shared.run([CROSS + "strip", bundle / binary.name])
-        listing = shared.run([CROSS + "objdump", "-p", bundle / binary.name])
+        listing = shared.run([CROSS + "objdump", "-p", bundle / binary.name], log=work / "windows-imports.log")
         if "pei-x86-64" not in listing:
             raise RuntimeError(f"Unexpected Windows architecture: {binary.name}")
         for dll in re.findall(r"DLL Name:\s*(\S+)", listing):
             name = dll.lower()
             if name not in names and name.removesuffix(".dll") not in system_dlls and not name.startswith("api-ms-win-"):
-                raise RuntimeError(f"Unbundled Windows dependency: {dll}")
+                unbundled.append(f"{binary.name}: {dll}")
+    if unbundled:
+        raise RuntimeError("Unbundled Windows dependencies:\n" + "\n".join(sorted(set(unbundled))))
     for name, root in extracted.items():
         for path in root.rglob("*"):
             if path.is_file() and not path.is_symlink() and ".git" not in path.parts and re.match(
