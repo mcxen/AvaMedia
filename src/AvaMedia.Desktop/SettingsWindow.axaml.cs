@@ -46,8 +46,10 @@ public sealed partial class SettingsWindow : Window
     {
         var draft = _settings.Clone();
         draft.OutputFolder = OutputInput.Text?.Trim() ?? "";
-        draft.FFmpegPath = FfmpegInput.Text?.Trim() ?? ""; draft.FFprobePath = FfprobeInput.Text?.Trim() ?? "";
-        draft.YtDlpPath = YtdlpInput.Text?.Trim() ?? ""; draft.ParallelJobs = Number(ParallelInput, "同时执行任务数");
+        draft.FFmpegPath = MediaEngine.UsesBundledTools ? "" : FfmpegInput.Text?.Trim() ?? "";
+        draft.FFprobePath = MediaEngine.UsesBundledTools ? "" : FfprobeInput.Text?.Trim() ?? "";
+        draft.YtDlpPath = MediaEngine.UsesBundledTools ? "" : YtdlpInput.Text?.Trim() ?? "";
+        draft.ParallelJobs = Number(ParallelInput, "同时执行任务数");
         draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput, "每个任务的线程数");
         draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput, "JPEG 质量"); draft.WebpQuality = Number(WebpQualityInput, "WebP 质量");
         draft.NotifyComplete = NotifyInput.IsChecked == true; draft.ReduceMotion = ReducedMotionInput.IsChecked == true;
@@ -72,6 +74,7 @@ public sealed partial class SettingsWindow : Window
     private void Populate(AppSettings source)
     {
         _initializing = true;
+        ExternalToolPaths.IsVisible = !MediaEngine.UsesBundledTools;
         OutputInput.Text = source.OutputFolder; FfmpegInput.Text = source.FFmpegPath; FfprobeInput.Text = source.FFprobePath; YtdlpInput.Text = source.YtDlpPath;
         ParallelInput.Value = Math.Clamp(source.ParallelJobs, 1, 8); AutoGpuInput.IsChecked = source.AutoDetectGpu;
         MultithreadInput.IsChecked = source.MultiThread; ThreadsInput.Value = Math.Clamp(source.CpuThreads, 1, 16); ThreadsInput.IsEnabled = source.MultiThread;

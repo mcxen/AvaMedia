@@ -11,7 +11,7 @@ public static class SettingsPolicy
         if (settings.JpegQuality is < 1 or > 100 || settings.WebpQuality is < 1 or > 100)
             throw new ArgumentException("JPG / WebP Quality 必须在 1 到 100 之间。");
         foreach (var path in new[] { settings.FFmpegPath, settings.FFprobePath, settings.YtDlpPath })
-            if (!string.IsNullOrWhiteSpace(path) && !File.Exists(path)) throw new FileNotFoundException("工具路径不存在。", path);
+            if (!MediaEngine.UsesBundledTools && !string.IsNullOrWhiteSpace(path) && !File.Exists(path)) throw new FileNotFoundException("工具路径不存在。", path);
     }
 
     public static ConversionOptions Resolve(ConversionOptions source, AppSettings settings)
