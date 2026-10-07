@@ -41,6 +41,7 @@ public static class DownloadLinks
         if (Host("xiaohongshu.com") || Host("xhslink.com")) return "小红书";
         if (Regex.IsMatch(uri.Host, @"^(?:www\.)?bunkr\.[a-z0-9-]+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) return "Bunkr";
         if (uri.Host.Equals("pixeldrain.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.pixeldrain.com", StringComparison.OrdinalIgnoreCase)) return "Pixeldrain";
+        if (IsFileditchPage(url)) return "Fileditch";
         if (MediaExtension(url).Length > 0) return "视频直链";
         return "其他网站";
     }
@@ -48,6 +49,7 @@ public static class DownloadLinks
     public static string MediaExtension(string url, string mime = "")
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) return "";
+        if (IsFileditchPage(url)) return "";
         var extension = Path.GetExtension(Uri.UnescapeDataString(uri.AbsolutePath)).TrimStart('.').ToLowerInvariant();
         if (IsMediaExtension(extension)) return extension;
         return mime.Split(';')[0].Trim().ToLowerInvariant() switch
@@ -57,6 +59,10 @@ public static class DownloadLinks
             "application/dash+xml" => "mpd", _ => ""
         };
     }
+
+    public static bool IsFileditchPage(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Scheme is "http" or "https" && (uri.Host.Equals("fileditchfiles.st", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.EndsWith(".fileditchfiles.st", StringComparison.OrdinalIgnoreCase));
 
     public static bool IsMediaExtension(string extension) => extension is
         "mp4" or "mkv" or "webm" or "mov" or "m4v" or "avi" or "flv" or "wmv" or "ts" or "m2ts" or

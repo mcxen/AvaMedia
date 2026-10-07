@@ -57,7 +57,7 @@ public partial class DownloadWindow : Window
         DownloadQuality.ItemsSource=_qualityHeights.Select(height=>height switch{0=>"最佳",2160=>"2160p / 4K",1440=>"1440p / 2K",_=>height+"p"}).ToArray();DownloadQuality.SelectedIndex=Array.IndexOf(_qualityHeights,options.MaxHeight);
         DownloadSubtitles.ItemsSource=new[]{"不保存字幕","人工字幕（中文 / 英文）","人工和自动字幕（中文 / 英文）"};DownloadSubtitles.SelectedIndex=options.Subtitles?options.AutoSubtitles?2:1:0;
         CookieSource.ItemsSource=new[]{"不读取登录态","Firefox","Chrome","Edge","Safari","Brave","cookies.txt 文件","浏览器 CDP"};CookieSource.SelectedIndex=options.UseBrowserCookies?7:options.CookieFile.Length>0?6:Math.Max(0,Array.IndexOf(new[]{"","firefox","chrome","edge","safari","brave"},options.CookieBrowser));
-        if(options.Browser is {} browser)BrowserEndpoint.Text=browser.Endpoint;
+        BrowserEndpoint.Text=options.Browser?.Endpoint??options.CdpEndpoint;
         CookieFileInput.Text=options.CookieFile;DownloadProxy.Text=options.Proxy;SaveMetadata.IsChecked=options.Metadata;ExpandPlaylist.IsChecked=options.ExpandPlaylist;
         if(editingJob is not null)
         {
@@ -102,7 +102,8 @@ public partial class DownloadWindow : Window
         CookieBrowser=CookieSource.SelectedIndex switch{1=>"firefox",2=>"chrome",3=>"edge",4=>"safari",5=>"brave",_=>""},
         CookieFile=CookieSource.SelectedIndex==6?CookieFileInput.Text?.Trim()??"":"",
         Proxy=DownloadProxy.Text?.Trim()??"",Subtitles=DownloadSubtitles.SelectedIndex>0,
-        AutoSubtitles=DownloadSubtitles.SelectedIndex==2,Metadata=SaveMetadata.IsChecked==true,UseBrowserCookies=CookieSource.SelectedIndex==7
+        AutoSubtitles=DownloadSubtitles.SelectedIndex==2,Metadata=SaveMetadata.IsChecked==true,UseBrowserCookies=CookieSource.SelectedIndex==7,
+        CdpEndpoint=BrowserEndpoint.Text?.Trim()??BrowserVideoCapture.DefaultEndpoint
     };
     public VideoDownloadRequest ReadRequest()
     {
@@ -120,7 +121,7 @@ public partial class DownloadWindow : Window
     private bool LinksUnchanged=>string.Equals(LinksInput.Text?.Trim()??"",_inspectedText,StringComparison.Ordinal);
     private bool HasDirectLinks()
     {
-        try{var urls=DownloadLinks.Extract(LinksInput.Text);return urls.Count>0&&urls.All(url=>DownloadLinks.MediaExtension(url).Length>0);}
+        try{var urls=DownloadLinks.Extract(LinksInput.Text);return urls.Count>0&&urls.All(url=>DownloadLinks.IsFileditchPage(url)||DownloadLinks.MediaExtension(url).Length>0);}
         catch(ArgumentException){return false;}
     }
 
@@ -207,6 +208,7 @@ public partial class DownloadWindow : Window
         "Bunkr"=>"Bunkr：下载原文件",
         "Pixeldrain"=>"Pixeldrain：保留 #item 参数以选择列表单项；下载受站点限额限制",
         "视频直链"=>"视频直链：保留原始画质",
+        "Fileditch"=>"Fileditch：自动获取媒体地址",
         _=>"其他网站由 yt-dlp 解析。网站支持和可用画质取决于当前引擎与视频访问状态。"
     };
     private async void BrowserCaptureClick(object? sender,RoutedEventArgs e)
@@ -221,7 +223,7 @@ public partial class DownloadWindow : Window
             if(_closed)return;
             _entries.Clear();
             var videos=result.Videos;
-            LinksInput.Text=string.Join(Environment.NewLine,videos.Select(video=>video.Url));_inspectedText=LinksInput.Text.Trim();
+            LinksInput.Text=string.Join(Environment.NewLine,videos.Select(video=>video.SourceUrl.Length>0?video.SourceUrl:video.Url));_inspectedText=LinksInput.Text.Trim();
             foreach(var video in videos){var entry=new DownloadEntry(video.Url);entry.Complete(video);AddEntry(entry);}
             if(CookieSource.SelectedIndex==0)CookieSource.SelectedIndex=7;
             InspectStatus.Text=Localization.Format($"解析完成 · {_entries.Count} 个视频");
@@ -239,7 +241,7 @@ public partial class DownloadWindow : Window
     {
         if(DownloadQuality is null)return;
         var selected=_entries.Where(entry=>entry.IsChecked&&entry.IsReady).ToArray();
-        DownloadQuality.IsEnabled=DownloadFormat.SelectedIndex<2&&(selected.Length==0||selected.Any(entry=>entry.Video!.Platform!="视频直链"));
+        DownloadQuality.IsEnabled=DownloadFormat.SelectedIndex<2&&(selected.Length==0||selected.Any(entry=>entry.Video!.Platform is not ("视频直链" or "Fileditch")));
     }
     private void CookieSourceChanged(object? sender,SelectionChangedEventArgs e){if(CookieFilePanel is not null)CookieFilePanel.IsVisible=CookieSource.SelectedIndex==6;}
     private void NetworkSettingsClick(object? sender,RoutedEventArgs e){CookieSource.BringIntoView();CookieSource.Focus();}

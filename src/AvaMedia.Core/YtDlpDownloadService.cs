@@ -5,16 +5,16 @@ namespace AvaMedia.Core;
 public sealed class YtDlpDownloadService : IVideoDownloadProvider
 {
     private readonly AppSettings _settings;
-    private readonly string? _extractorKeys;
+    private readonly string? _extractorNames;
     private readonly Func<string, IReadOnlyList<string>, CancellationToken, Action<string>?, Task<ProcessResult>> _run;
     public string Name => "yt-dlp";
     public bool CanHandle(Uri url) => url.Scheme is "http" or "https";
     public YtDlpDownloadService(AppSettings settings,
         Func<string, IReadOnlyList<string>, CancellationToken, Action<string>?, Task<ProcessResult>>? runner = null,
-        string? extractorKeys = null)
+        string? extractorNames = null)
     {
         _settings = settings.Clone();
-        _extractorKeys = extractorKeys;
+        _extractorNames = extractorNames;
         _run = runner ?? ((exe, args, ct, callback) => ProcessRunner.Run(exe, args, ct, callback, 4_000_000));
     }
 
@@ -72,14 +72,17 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         static string Text(JsonElement item, string name) => item.TryGetProperty(name, out var text) && text.ValueKind == JsonValueKind.String ? text.GetString() ?? "" : "";
     }
 
-    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
+    public Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
+        => ExecuteResolvedAsync(job, job.Inputs.Single(), job.Options.Download ?? new(), progress, ct);
+
+    internal async Task ExecuteResolvedAsync(Job job, string resolvedUrl, DownloadOptions options, Action<double> progress, CancellationToken ct)
     {
-        var options = job.Options.Download ?? new();options.Validate();
-        var url = DownloadLinks.Normalize(job.Inputs.Single());
+        options.Validate();
+        var url = DownloadLinks.Normalize(resolvedUrl);
         var folder = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(job.Output))!;
         Directory.CreateDirectory(folder);
         // Resume the same request; an edited URL or download option must not reuse its old media.
-        var request = JsonSerializer.Serialize(new { Url = url, Format = job.Options.Format, Options = options });
+        var request = JsonSerializer.Serialize(new { Url = DownloadLinks.Normalize(job.Inputs.Single()), Format = job.Options.Format, Options = job.Options.Download ?? new() });
         var revision = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(request)))[..16];
         var staging = System.IO.Path.Combine(folder, ".avamedia-download-" + job.Id.ToString("N") + "-" + revision);
         Directory.CreateDirectory(staging);
@@ -115,12 +118,12 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
     private List<string> CommonArguments(DownloadOptions options, string cookiePath)
     {
         var args = new List<string> { "--ignore-config", "--no-color", "--encoding", "utf-8", "--socket-timeout", "20", "--retries", "3", "--fragment-retries", "3" };
-        if (_extractorKeys is not null)
+        if (_extractorNames is not null)
         {
             var plugins = System.IO.Path.Combine(AppContext.BaseDirectory, "download-plugins");
             if (!File.Exists(System.IO.Path.Combine(plugins, "avamedia", "yt_dlp_plugins", "extractor", "avamedia_hosts.py")))
                 throw new FileNotFoundException("缺少随应用提供的站点解析器，请重新安装应用。");
-            args.AddRange(["--no-plugin-dirs", "--plugin-dirs", plugins, "--use-extractors", _extractorKeys]);
+            args.AddRange(["--no-plugin-dirs", "--plugin-dirs", plugins, "--use-extractors", _extractorNames]);
         }
         if (cookiePath.Length > 0) args.AddRange(["--cookies", cookiePath]);
         else if (options.CookieBrowser.Length > 0) args.AddRange(["--cookies-from-browser", options.CookieBrowser]);
@@ -129,7 +132,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         {
             if (browser.Referer.Length > 0) args.AddRange(["--referer", browser.Referer]);
             if (browser.UserAgent.Length > 0) args.AddRange(["--user-agent", browser.UserAgent]);
-            if (_extractorKeys == "AvaMediaDirect") args.AddRange(["--extractor-args", "AvaMediaDirect:ext=" + browser.Extension]);
+            if (_extractorNames == "avamedia:direct") args.AddRange(["--extractor-args", "AvaMediaDirect:ext=" + browser.Extension]);
         }
         // Clear yt-dlp's default Deno runtime so an installed Deno cannot take precedence.
         args.Add("--no-js-runtimes");
@@ -148,7 +151,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         if (format is "mp3" or "m4a") args.AddRange(["--format", "ba/b", "--extract-audio", "--audio-format", format, "--audio-quality", "0"]);
         else
         {
-            var limit = _extractorKeys != "AvaMediaDirect" && options.MaxHeight > 0 ? "[height<=?" + options.MaxHeight + "]" : "";
+            var limit = _extractorNames != "avamedia:direct" && options.MaxHeight > 0 ? "[height<=?" + options.MaxHeight + "]" : "";
             var selector = format == "mp4" ? $"bv*[ext=mp4]{limit}+ba[ext=m4a]/b[ext=mp4]{limit}/bv*{limit}+ba/b{limit}" : $"bv*{limit}+ba/b{limit}";
             args.AddRange(["--format", selector, "--merge-output-format", format, "--remux-video", format]);
         }

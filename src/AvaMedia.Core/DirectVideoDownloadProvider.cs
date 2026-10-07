@@ -2,7 +2,7 @@ namespace AvaMedia.Core;
 
 public sealed class DirectVideoDownloadProvider(AppSettings settings) : IVideoDownloadProvider
 {
-    private readonly YtDlpDownloadService _engine = new(settings, extractorKeys: "AvaMediaDirect");
+    private readonly YtDlpDownloadService _engine = new(settings, extractorNames: "avamedia:direct");
     public string Name => "视频直链";
     public bool CanHandle(Uri url) => DownloadLinks.MediaExtension(url.AbsoluteUri).Length > 0;
 

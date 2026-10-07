@@ -12,8 +12,9 @@ public sealed class VideoDownloadService : IVideoDownloadService
     private readonly IReadOnlyList<IVideoDownloadProvider> _providers;
 
     public VideoDownloadService(AppSettings settings) : this([
-        new FileHostDownloadProvider(settings, "Bunkr", "AvaMediaBunkr,AvaMediaBunkrAlbum"),
-        new FileHostDownloadProvider(settings, "Pixeldrain", "AvaMediaPixeldrain,AvaMediaPixeldrainList"),
+        new FileHostDownloadProvider(settings, "Bunkr", "avamedia:bunkr,avamedia:bunkr:album"),
+        new FileHostDownloadProvider(settings, "Pixeldrain", "avamedia:pixeldrain,avamedia:pixeldrain:list"),
+        new FileditchDownloadProvider(settings),
         new DirectVideoDownloadProvider(settings),
         new YtDlpDownloadService(settings)]) { }
 
@@ -26,7 +27,7 @@ public sealed class VideoDownloadService : IVideoDownloadService
     public IVideoDownloadProvider Resolve(string url, DownloadOptions? options = null)
     {
         var uri = new Uri(DownloadLinks.Normalize(url));
-        if (options?.Browser is not null && _providers.OfType<DirectVideoDownloadProvider>().FirstOrDefault() is {} direct) return direct;
+        if (options?.Browser is not null && !DownloadLinks.IsFileditchPage(url) && _providers.OfType<DirectVideoDownloadProvider>().FirstOrDefault() is {} direct) return direct;
         return _providers.FirstOrDefault(provider => provider.CanHandle(uri))
             ?? throw new InvalidOperationException("没有支持此链接的下载服务。");
     }
@@ -43,7 +44,7 @@ public sealed class VideoDownloadService : IVideoDownloadService
         public string Name { get; }
 
         public FileHostDownloadProvider(AppSettings settings, string name, string extractors)
-        { Name = name; _engine = new YtDlpDownloadService(settings, extractorKeys: extractors); }
+        { Name = name; _engine = new YtDlpDownloadService(settings, extractorNames: extractors); }
 
         public bool CanHandle(Uri url) => DownloadLinks.Platform(url.AbsoluteUri) == Name;
         public Task<DownloadInspection> InspectAsync(string url, DownloadOptions options, CancellationToken ct = default)

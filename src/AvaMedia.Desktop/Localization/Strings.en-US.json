@@ -1578,5 +1578,12 @@
   "读取 CDP 登录态超时，请检查浏览器连接后重试。": "Reading the CDP login session timed out. Check the browser connection and retry.",
   "无法读取 CDP 登录态，请检查浏览器连接后重试。": "Cannot read the CDP login session. Check the browser connection and retry.",
   "视频服务器或 CDN 暂时不可用。可稍后重试；若浏览器能播放，请使用浏览器识别以保留来源页与请求环境。": "The video server or CDN is temporarily unavailable. Retry later, or use browser detection if playback works there.",
-  "此视频服务器需要浏览器网络支持，请使用应用内置 yt-dlp，或检查自定义引擎的 curl_cffi 依赖。": "This video server requires browser network support. Use the bundled yt-dlp or check your custom engine's curl_cffi dependency."
+  "此视频服务器需要浏览器网络支持，请使用应用内置 yt-dlp，或检查自定义引擎的 curl_cffi 依赖。": "This video server requires browser network support. Use the bundled yt-dlp or check your custom engine's curl_cffi dependency.",
+  "Fileditch：自动获取媒体地址": "Fileditch: resolve the media URL automatically",
+  "正在解析 Fileditch 媒体地址": "Resolving the Fileditch media URL",
+  "请输入 Fileditch 视频页地址。": "Enter a Fileditch video page URL.",
+  "视频来源页无效，请重新解析。": "Invalid video source page. Resolve it again.",
+  "Fileditch 浏览器解析超时。请在打开的浏览器确认视频页可访问后重试。": "Fileditch browser resolution timed out. Check the video page in the opened browser and retry.",
+  "未找到 Chrome / Edge，请安装浏览器或连接已启用 CDP 的浏览器。": "Chrome / Edge was not found. Install a browser or connect one with CDP enabled.",
+  "无法启动 CDP 浏览器。": "Cannot start the CDP browser."
 }

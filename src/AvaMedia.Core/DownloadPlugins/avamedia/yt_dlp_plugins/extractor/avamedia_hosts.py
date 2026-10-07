@@ -69,6 +69,8 @@ class AvaMediaDirectIE(InfoExtractor):
 
     def _real_extract(self, url):
         parsed = urllib.parse.urlsplit(url)
+        if parsed.hostname == 'fileditchfiles.st' or (parsed.hostname or '').endswith('.fileditchfiles.st'):
+            raise ExtractorError('Fileditch player page requires browser CDP media detection', expected=True)
         name = urllib.parse.unquote(parsed.path.rsplit('/', 1)[-1])
         video_id = hashlib.sha256(url.encode()).hexdigest()[:16]
         extension = self._configuration_arg('ext', [determine_ext(url, default_ext='mp4')])[0]
@@ -82,8 +84,6 @@ class AvaMediaDirectIE(InfoExtractor):
             # A known media URL needs no webpage/HEAD discovery request. Its GET,
             # resume, cookies, proxy and retries remain in yt-dlp's HTTP downloader.
             media = {'format_id': 'original', 'url': url, 'ext': extension}
-            if parsed.hostname == 'fileditchfiles.st' or (parsed.hostname or '').endswith('.fileditchfiles.st'):
-                media['impersonate'] = True
             formats, subtitles = [media], {}
         return {
             'id': video_id, 'title': _video_title(name) or video_id, 'webpage_url': url,

@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -47,6 +48,79 @@ public sealed class BrowserVideoCapture
         {
             throw new InvalidOperationException("无法连接浏览器 CDP。请用独立用户目录启动 Chrome / Edge，并启用 --remote-debugging-port=9222。", ex);
         }
+    }
+
+    public async Task<DownloadInspection> ResolveFileditchAsync(string url, string endpoint, CancellationToken ct, bool refresh = false)
+    {
+        url = DownloadLinks.Normalize(url);
+        if (!DownloadLinks.IsFileditchPage(url)) throw new ArgumentException("请输入 Fileditch 视频页地址。");
+        endpoint = EndpointUri(endpoint).GetLeftPart(UriPartial.Authority);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        var token = timeout.Token;
+        try
+        {
+            Target[] targets;
+            var connected = true;
+            try { targets = await TargetsAsync(endpoint, token); }
+            catch (InvalidOperationException)
+            {
+                connected = false;
+                LaunchBrowser(endpoint, url);
+                targets = [];
+            }
+            var target = targets.FirstOrDefault(t => SamePage(t.Url, url));
+            if (target is not null && refresh)
+            {
+                using var cdp = await CdpConnection.ConnectAsync(endpoint, target.Socket, token);
+                await cdp.CallAsync("Page.reload", new { ignoreCache = true }, token);
+            }
+            else if (target is null && connected)
+            {
+                using var handler = new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false };
+                using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+                using var response = await http.PutAsync(new Uri(EndpointUri(endpoint), "/json/new?" + Uri.EscapeDataString(url)), null, token);
+                response.EnsureSuccessStatusCode();
+            }
+
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    var result = await CaptureAsync(endpoint, [url], token);
+                    var video = result.Videos.FirstOrDefault(v => DownloadLinks.IsFileditchPage(v.SourceUrl));
+                    if (video is not null) return new([video]);
+                }
+                catch (InvalidOperationException) { /* The page may still be opening or completing its own browser verification. */ }
+                await Task.Delay(500, token);
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        { throw new InvalidOperationException("Fileditch 浏览器解析超时。请在打开的浏览器确认视频页可访问后重试。"); }
+    }
+
+    private static void LaunchBrowser(string endpoint, string url)
+    {
+        var candidates = OperatingSystem.IsMacOS() ? new[]
+        {
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+        } : OperatingSystem.IsWindows() ? new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "Application", "chrome.exe")
+        } : new[] { "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/microsoft-edge" };
+        var executable = candidates.FirstOrDefault(File.Exists)
+            ?? throw new InvalidOperationException("未找到 Chrome / Edge，请安装浏览器或连接已启用 CDP 的浏览器。");
+        var port = EndpointUri(endpoint).Port;
+        var profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "CDP", port.ToString());
+        Directory.CreateDirectory(profile);
+        var start = new ProcessStartInfo(executable) { UseShellExecute = false };
+        foreach (var argument in new[] { "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=" + port,
+            "--user-data-dir=" + profile, "--no-first-run", "--no-default-browser-check", url }) start.ArgumentList.Add(argument);
+        using var process = Process.Start(start) ?? throw new InvalidOperationException("无法启动 CDP 浏览器。");
     }
 
     public async Task<DownloadInspection> CaptureAsync(string endpoint, IReadOnlyList<string>? requestedUrls = null, CancellationToken ct = default)
@@ -110,7 +184,11 @@ public sealed class BrowserVideoCapture
                     context.Validate();
                     // A native browser media document's title is the filename. Preserve that filename without its extension.
                     if (SamePage(page, url)) mediaTitle = "";
-                    videos.Add(url, DirectVideoDownloadProvider.Describe(url, mediaTitle, duration, context));
+                    if (DownloadLinks.IsFileditchPage(page) && DownloadLinks.IsMediaExtension(Path.GetExtension(mediaTitle).TrimStart('.').ToLowerInvariant()))
+                        mediaTitle = Path.GetFileNameWithoutExtension(mediaTitle);
+                    var video = DirectVideoDownloadProvider.Describe(url, mediaTitle, duration, context);
+                    if (DownloadLinks.IsFileditchPage(page)) video = video with { Platform = "Fileditch", SourceUrl = DownloadLinks.Normalize(page) };
+                    videos.Add(url, video);
                 }
                 Add(page, DownloadLinks.MediaExtension(page), 0, "", Text(snapshot, "referrer"));
             }

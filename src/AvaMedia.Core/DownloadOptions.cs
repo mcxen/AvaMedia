@@ -12,6 +12,7 @@ public sealed record DownloadOptions
     public bool Metadata { get; init; } = true;
     public BrowserMediaContext? Browser { get; init; }
     public bool UseBrowserCookies { get; init; }
+    public string CdpEndpoint { get; init; } = BrowserVideoCapture.DefaultEndpoint;
 
     public void Validate()
     {
@@ -29,7 +30,7 @@ public sealed record DownloadOptions
 }
 
 public sealed record DownloadVideo(string Url, string Id, string Title, string Uploader,
-    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null);
+    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null, string SourceUrl = "");
 public sealed record DownloadInspection(IReadOnlyList<DownloadVideo> Videos, bool Truncated = false);
 public sealed record VideoDownloadRequest(IReadOnlyList<DownloadVideo> Videos, string Folder,
     string Format, DownloadOptions Options, string OutputName = "");
@@ -64,6 +65,7 @@ public static class DownloadBatch
         foreach (var video in request.Videos)
         {
             _ = DownloadLinks.Normalize(video.Url);
+            if (video.SourceUrl.Length > 0 && !DownloadLinks.IsFileditchPage(video.SourceUrl)) throw new ArgumentException("视频来源页无效，请重新解析。");
             if (video.IsLive) throw new ArgumentException("当前下载流程不支持正在进行的直播。");
         }
         var used = new HashSet<string>(reserved ?? [], OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -77,7 +79,7 @@ public static class DownloadBatch
             title = string.Concat(title.Select(c => char.IsControl(c) || "<>:\"/\\|?*".Contains(c) ? '_' : c)).Trim().TrimEnd('.');
             if (string.IsNullOrWhiteSpace(title)) title = "Video";
             if (System.Text.RegularExpressions.Regex.IsMatch(title, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) title = "_" + title;
-            var job = new Job { FeatureId = "download", Inputs = [video.Url], DownloadTitle = video.Title,
+            var job = new Job { FeatureId = "download", Inputs = [video.SourceUrl.Length > 0 ? DownloadLinks.Normalize(video.SourceUrl) : video.Url], DownloadTitle = video.Title,
                 Duration = double.IsFinite(video.Duration)?Math.Max(0,video.Duration):0,
                 Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false, Browser = video.Browser } },
                 Output = MediaEngine.UniqueOutput(request.Folder, request.OutputName.Length > 0 ? request.OutputName : title, request.Format, used) };
