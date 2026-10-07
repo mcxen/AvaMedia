@@ -89,6 +89,7 @@ dotnet run --project src/AvaMedia.Desktop -c Release --no-build
 | --- | --- |
 | [`src/AvaMedia.Core`](src/AvaMedia.Core) | 媒体模型、参数校验、任务计划、队列与媒体处理，不依赖 Avalonia |
 | [`src/AvaMedia.Desktop`](src/AvaMedia.Desktop) | 桌面窗口、语言、皮肤、预览、播放与平台集成 |
+| [`website`](website) | 中英文宣传落地页、功能与界面展示；运行与构建见 [网页说明](website/README.md) |
 | [`scripts`](scripts) / [`.github/workflows`](.github/workflows) | 媒体引擎准备、构建、打包与发布 |
 | [`tests`](tests) | 专项验证程序与测试素材 |
 

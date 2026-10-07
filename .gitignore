@@ -11,3 +11,6 @@ TestResults/
 **/__pycache__/
 *.pyc
 docs/reference/
+website/node_modules/
+website/dist/
+website/public/media/
