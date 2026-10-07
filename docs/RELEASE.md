@@ -31,7 +31,9 @@ macOS 发布在签名前运行 `macos/Declare-MediaTypes.py`，从现有视频�
 
 Release 和独立 macOS 工作流共用 `native-media` action，缓存验证通过的 FFmpeg 运行包、精确对应的源码包、校验清单及 QuickJS。缓存按 ARM64、Clang / SDK、源码锁文件、构建与验证脚本、能力清单和许可证内容精确匹配；普通客户端修改与版本号变更可以复用，相关输入变化则重建。不使用模糊匹配的原生运行包。缓存命中后仍核对两个 FFmpeg 归档的 SHA256、配方与源码锁哈希，重新执行原有原生媒体验证及 QuickJS 检查；客户端、安装器和发布检查保留。运行包与对应源码在原生验证成功后立即写入缓存，后续客户端失败不会丢失它们。默认分支的缓存可被 tag 工作流读取，首次构建或缓存淘汰时仍需完整编译。依据 [GitHub Cache 文档](https://github.com/actions/cache#cache-scopes)。
 
-客户端构建 job 缓存 NuGet 下载包，key 根据项目依赖、中央包配置、targets、NuGet 配置与 SDK 配置生成，排除只含应用版本和编译选项的 `Directory.Build.props`；版本号调整不再生成一份相同的数百 MB 缓存，正常 restore / build 仍解析当前依赖。不缓存客户端 `bin`、`obj` 或测试通过结果。Windows 原生归档由 `windows-media` job 上传一次，客户端打包 job 只上传客户端成品；最终发布 job 直接下载原生 job 的归档，避免再次上传对应源码。日常 CI 与独立 macOS 工作流取消同一分支被新提交替代的旧运行；Release 按 tag 保留。ZIP、安装器及 FFmpeg 压缩包上传设置 `compression-level: 0`，避免二次压缩；验证日志单独保存，发布 job 只下载成品。依据 [Artifact 压缩说明](https://github.com/actions/upload-artifact#altering-compressions-level-speed-v-size)。
+客户端构建 job 缓存 NuGet 下载包，key 根据项目依赖、中央包配置、targets、NuGet 配置与 SDK 配置生成，排除只含应用版本和编译选项的 `Directory.Build.props`。Windows 与 macOS 使用相同 key、相对缓存路径及 `enableCrossOsArchive`，复用默认分支 CI 保存的下载包；避免每个 tag 重复写入数百 MB 的平台缓存。正常 restore / build 仍解析当前依赖并补齐缺失的运行时包，不缓存客户端 `bin`、`obj` 或测试通过结果。依据 [跨平台缓存说明](https://github.com/actions/cache/blob/main/tips-and-workarounds.md#cross-os-cache)。
+
+Windows 原生归档由 `windows-media` job 上传一次，客户端打包 job 只上传客户端成品；最终发布 job 直接下载原生 job 的归档，避免再次上传对应源码。日常 CI 与独立 macOS 工作流取消同一分支被新提交替代的旧运行；Release 按 tag 保留。ZIP、安装器及 FFmpeg 压缩包上传设置 `compression-level: 0`，避免二次压缩；验证日志单独保存，发布 job 只下载成品。依据 [Artifact 压缩说明](https://github.com/actions/upload-artifact#altering-compressions-level-speed-v-size)。
 
 独立 FFmpeg 工作流只处理媒体工具、源码和 QuickJS；仅当原生配方、能力清单、安装脚本或自身工作流改变时自动触发，不因客户端代码改变而启动。不再安装 .NET SDK、编译或打包客户端；客户端归档、架构、安装包与启动检查由 Release 工作流负责。
 
