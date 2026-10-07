@@ -15,4 +15,12 @@ public partial class MainWindow
         }
         catch(Exception ex){await Ui.Message(this,"下载设置错误",ex.Message);}
     }
+
+    private async Task EditDownloadAsync(Job job)
+    {
+        var request=await new DownloadWindow(_settings,Path.GetDirectoryName(job.Output)!,editingJob:job)
+            .ShowDialog<VideoDownloadRequest?>(this);
+        if(request is null)return;
+        ApplyEditedJobs(job,DownloadBatch.CreateJobs(request,EditingReservations(job)));
+    }
 }

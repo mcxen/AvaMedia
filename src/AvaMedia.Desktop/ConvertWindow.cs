@@ -30,12 +30,13 @@ public sealed class ConvertWindow : Window
     private ConversionOptions _options;
     private readonly CancellationTokenSource _lifetime=new();
     private bool _preparing;
-    public ConvertWindow(IMediaEngine engine,Feature feature,string outputFolder,string[] files,ConversionOptions? initialOptions=null,IReadOnlyList<ConversionOptions>? inputOptions=null)
+    public ConvertWindow(IMediaEngine engine,Feature feature,string outputFolder,string[] files,ConversionOptions? initialOptions=null,IReadOnlyList<ConversionOptions>? inputOptions=null,bool editing=false)
     {
         Title=feature.Label.Replace("\n"," ");Width=830;Height=620;MinWidth=650;MinHeight=440;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, feature.Icon);
         Closed+=(_,_)=>_lifetime.Cancel();
         _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index))));_options=initialOptions?.Clone()??new(){Format=feature.Format};if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";}
+        if(editing)Title=Localization.Format($"编辑任务 · {Localization.Key(Title)}");
         if(feature.Operation is not (Operation.Download or Operation.IsoCopy))
         {
             DragDrop.SetAllowDrop(this,true);
@@ -49,10 +50,10 @@ public sealed class ConvertWindow : Window
             },RoutingStrategies.Tunnel);
         }
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(18)};
-        var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature),_options.Format);formats.Width=130;
+        var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature).Append(_options.Format).Distinct(),_options.Format);formats.Width=130;
         top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);
         var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
-        var media=feature.Operation!=Operation.Info && (feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id=="repair");
+        var media=feature.Operation!=Operation.Info && (feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id is "repair" or "crop" or "rotate");
         var setting=new Button{Content="输出配置",MinWidth=130,IsVisible=media};setting.Click+=async(_,_)=>
         {
             _options.Format=(string?)formats.SelectedItem??feature.Format;var dialog=new OptionsWindow(_options,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:_options.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality);var changed=await dialog.ShowDialog<ConversionOptions?>(this);
@@ -78,7 +79,7 @@ public sealed class ConvertWindow : Window
         };
         if(media && feature.Operation!=Operation.ImagesPdf)toolbar.Children.Add(edit);
         Grid.SetRow(toolbar,1);panel.Children.Add(toolbar);Grid.SetRow(list,2);panel.Children.Add(list);
-        var special=Ui.Input();
+        var special=Ui.Input(files.FirstOrDefault()??"");
         if(feature.Operation is Operation.Download or Operation.IsoCopy)
         {
             list.IsVisible=false;toolbar.IsVisible=false;setting.IsVisible=false;
@@ -95,7 +96,7 @@ public sealed class ConvertWindow : Window
         sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
         outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;outputFlags.Children.Add(sourceFolder);outputFlags.Children.Add(addName);Grid.SetRow(outputFlags,1);Grid.SetColumnSpan(outputFlags,3);output.Children.Add(outputFlags);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=16,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(0,12,0,0)};
-        buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content="确定",Classes={"dialog-action"}};ok.Click+=async(_,_)=>
+        buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content=editing?"保存修改":"确定",Classes={"dialog-action"}};ok.Click+=async(_,_)=>
         {
             if(_preparing)return;_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=false;
             try

@@ -78,8 +78,10 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         var url = DownloadLinks.Normalize(job.Inputs.Single());
         var folder = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(job.Output))!;
         Directory.CreateDirectory(folder);
-        // Stable per-job staging preserves yt-dlp .part files across stop/retry.
-        var staging = System.IO.Path.Combine(folder, ".avamedia-download-" + job.Id.ToString("N"));
+        // Resume the same request; an edited URL or download option must not reuse its old media.
+        var request = JsonSerializer.Serialize(new { Url = url, Format = job.Options.Format, Options = options });
+        var revision = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(request)))[..16];
+        var staging = System.IO.Path.Combine(folder, ".avamedia-download-" + job.Id.ToString("N") + "-" + revision);
         Directory.CreateDirectory(staging);
         using var cookies = CookieLease.Create(options);
         var args = DownloadArguments(options, job.Options.Format, System.IO.Path.Combine(staging, "media.%(ext)s"), cookies.Path).ToList();

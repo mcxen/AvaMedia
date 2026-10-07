@@ -76,10 +76,11 @@ public partial class PdfWorkspaceWindow : Window
 
     public PdfWorkspaceWindow() : this(Catalog.Find("pdf-merge"), Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)) { }
 
-    public PdfWorkspaceWindow(Feature feature, string outputFolder, IEnumerable<string>? initial = null, ConversionOptions? initialOptions = null, IMediaEngine? engine = null)
+    public PdfWorkspaceWindow(Feature feature, string outputFolder, IEnumerable<string>? initial = null, ConversionOptions? initialOptions = null, IMediaEngine? engine = null, bool editing = false)
     {
         _feature = feature; _engine = engine ?? new MediaEngine(new()); InitializeComponent();
         Title = WorkspaceTitle.Text = feature.Label; OutputFolder.Text = outputFolder;
+        if (editing) { Title = WorkspaceTitle.Text = Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}"); ConfirmButton.Content = "保存修改"; }
         WindowArtwork.SetKind(this, feature.Icon);
         LayoutPanel.IsVisible = feature.Operation is Operation.TextPdf or Operation.ImagesPdf;
         SourceSizeItem.IsVisible = feature.Operation == Operation.ImagesPdf;

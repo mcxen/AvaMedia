@@ -49,9 +49,10 @@ public partial class VideoCompressionWindow : Window
     private static readonly string[] Formats = ["mp4", "mov", "m4v", "mkv", "ts"];
 
     public VideoCompressionWindow() : this(new MediaEngine(new()), "", []) { }
-    public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null)
+    public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null, bool editing = false)
     {
         InitializeComponent(); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        if (editing) { Title = "编辑视频压缩任务"; ConfirmButton.Content = "保存修改"; }
         SourceList.ItemsSource = _entries;
         var options = VideoCompression.Effective(initial ?? new());
         DragDrop.SetAllowDrop(this, true);
@@ -83,7 +84,7 @@ public partial class VideoCompressionWindow : Window
         PercentageInput.Value = (decimal)options.Percentage; SizeInput.Value = (decimal)options.TargetMegabytes;
         KeepAudioInput.IsChecked = options.KeepAudio; GpuInput.IsChecked = options.PreferGpu;
         OutputInput.Text = outputFolder; Localization.SetIsUserText(OutputInput, true);
-        SourceFolderInput.IsChecked = engine.Settings.OutputToSource; SettingNameInput.IsChecked = engine.Settings.AddSettingName;
+        SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource; SettingNameInput.IsChecked = !editing && engine.Settings.AddSettingName;
         foreach (var combo in new[] { FormatInput, CodecInput, ResolutionInput, FrameRateInput, AudioInput, SpeedInput })
             combo.SelectionChanged += (_, _) => { if (!_updatingControls) Recalculate(); };
         ModeInput.SelectionChanged += (_, _) =>

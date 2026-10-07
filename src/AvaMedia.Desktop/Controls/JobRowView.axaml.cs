@@ -59,6 +59,7 @@ public partial class JobRowView : UserControl
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
+        CoverButton.IsEnabled = _owner.CanEditTask(job);
         var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
         var key = new PreviewKey(path, o.VideoStreamIndex, o.AudioStreamIndex, o.Start, o.End, _owner.Engine.Settings.FFmpegPath, _owner.Engine.Settings.FFprobePath);

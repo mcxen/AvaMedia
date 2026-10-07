@@ -25,7 +25,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool NoCover => !HasCover;
     public bool IsRunning => Job.State == JobState.Running;
     public bool CanPreview => !IsRunning;
-    public string PreviewTip => IsRunning ? "任务正在运行" : PdfTools.Supports(Catalog.Find(Job.FeatureId).Operation) ? "页面预览 / 调整参数" : Job.FeatureId == "image-compress" ? "压缩预览 / 调整参数" : Catalog.Find(Job.FeatureId).Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || Job.FeatureId == "download" || Job.State == JobState.Failed ? "查看任务详情" : "预览 / 编辑";
+    public string PreviewTip => IsRunning ? "任务正在运行" : "编辑任务";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
     public string Name => Job.FeatureId == "download" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");

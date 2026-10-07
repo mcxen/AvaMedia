@@ -141,11 +141,11 @@ public partial class MainWindow
         var summary = _closing ? "正在退出…" : _queue.IsRunning
             ? Localization.Format($"处理中 {active.Length} 个 · {(active.Length > 0 ? active.Average(j => j.Progress) : 0):0}% · 等待 {waiting} 个")
             : Localization.Format($"等待 {waiting} 个 · 完成 {completed} 个 · 失败 {failed} 个");
-        tray.UpdateTaskState(new(summary, !_closing && !_queue.IsRunning && waiting > 0, !_closing && _queue.IsRunning, _lastCompletion is not null, !IsVisible));
+        tray.UpdateTaskState(new(summary, !_closing && !_queue.IsRunning && _editingJob is null && waiting > 0, !_closing && _queue.IsRunning, _lastCompletion is not null, !IsVisible));
     }
     private async Task StartQueueAsync()
     {
-        if (_closing || _queue.IsRunning) return;
+        if (_closing || _queue.IsRunning || _editingJob is not null) return;
         var batch = _jobs.Where(j => j.State == JobState.Waiting).ToArray(); if (batch.Length == 0) return;
         _completionCancellation?.Cancel(); _lastCompletion = null; Save(); _elapsed.Restart();
         _timer.Start();

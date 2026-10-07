@@ -29,17 +29,12 @@ public partial class MainWindow
 
     private async Task EditVideoCompressionAsync(Job job)
     {
-        var request = await new VideoCompressionWindow(Engine, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options.VideoCompression)
+        var request = await new VideoCompressionWindow(Engine, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options.VideoCompression, editing: true)
             .ShowDialog<VideoCompressionRequest?>(this);
         if (request is null || job.State == JobState.Running) return;
         try
         {
-            var replacements = CreateCompressionJobs(request, _jobs.Select(item => item.Output));
-            var replacement = replacements[0];
-            job.Options = replacement.Options; job.Inputs = replacement.Inputs; job.Output = replacement.Output;
-            job.State = JobState.Waiting; job.Progress = 0; job.ProgressDetail = ""; job.Error = job.Log = "";
-            foreach (var additional in replacements.Skip(1)) _jobs.Add(additional);
-            Save(); Refresh();
+            ApplyEditedJobs(job, CreateCompressionJobs(request, EditingReservations(job)));
         }
         catch (Exception exception) { await Ui.Message(this, "压缩参数错误", exception.Message); }
     }

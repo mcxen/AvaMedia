@@ -3,7 +3,7 @@
   <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="16">
     <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="12">
       <local:FeatureIcon Kind="download" Width="48" Height="48"/>
-      <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="视频下载" FontSize="{DynamicResource UiFontHeading}"/></StackPanel>
+      <StackPanel Grid.Column="1" Spacing="4"><TextBlock x:Name="DownloadHeading" Text="视频下载" FontSize="{DynamicResource UiFontHeading}"/></StackPanel>
       <TextBlock Grid.Column="2" x:Name="EngineStatus" Classes="caption" VerticalAlignment="Center"/>
     </Grid>
     <Border Grid.Row="1" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
@@ -56,7 +56,7 @@
             <TextBlock Text="字幕"/><ComboBox x:Name="DownloadSubtitles"/>
             <CheckBox x:Name="SaveMetadata" Content="保留标题和作者元数据" IsChecked="True"/>
             <CheckBox x:Name="ExpandPlaylist" Content="展开播放列表 / 分P / 相册"/>
-            <TextBlock Text="最多展开 100 项" Classes="caption" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PlaylistLimit" Text="最多展开 100 项" Classes="caption" TextWrapping="Wrap"/>
             <Border Height="1" Background="{DynamicResource UiDivider}" Margin="0,4"/>
             <TextBlock Text="登录与网络" FontSize="{DynamicResource UiFontTitle}"/>
             <TextBlock Text="使用登录态"/><ComboBox x:Name="CookieSource" SelectionChanged="CookieSourceChanged"/>
@@ -68,7 +68,12 @@
         </ScrollViewer>
       </Border>
     </Grid>
-    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12"><TextBlock Text="保存位置" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="DownloadFolder"/><Button Grid.Column="2" x:Name="BrowseDownloadFolderButton" Content="浏览…" Click="BrowseFolderClick"/></Grid>
+    <Grid Grid.Row="3" x:Name="DownloadOutputFields" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+      <TextBlock Text="保存位置" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="DownloadFolder"/><Button Grid.Column="2" x:Name="BrowseDownloadFolderButton" Content="浏览…" Click="BrowseFolderClick"/>
+      <TextBlock Grid.Row="1" x:Name="OutputNameLabel" Text="文件名" VerticalAlignment="Center" IsVisible="False"/>
+      <TextBox Grid.Row="1" Grid.Column="1" x:Name="DownloadOutputName" IsVisible="False"/>
+      <TextBlock Grid.Row="1" Grid.Column="2" x:Name="DownloadExtension" VerticalAlignment="Center" IsVisible="False"/>
+    </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
       <TextBlock x:Name="DownloadError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <Button Grid.Column="1" x:Name="DownloadCancelButton" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>

@@ -16,7 +16,10 @@ public partial class MainWindow
     }
 
     private void JobContextMenuOpening(object? sender, CancelEventArgs args)
-        => PlayOutputMenu.IsEnabled = SelectedPlayableOutputs().Length > 0;
+    {
+        PlayOutputMenu.IsEnabled = SelectedPlayableOutputs().Length > 0;
+        UpdateTaskEditingActions();
+    }
 
     private async void PlayOutputSelectedClick(object? sender, RoutedEventArgs args)
     {

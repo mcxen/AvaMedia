@@ -49,16 +49,17 @@ public sealed partial class ImageCompressionWindow : Window
 
     public ImageCompressionWindow() : this(new MediaEngine(new()), MediaFolders.DefaultOutput) { }
     public ImageCompressionWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null,
-        ImageCompressionOptions? initialOptions = null, bool canStart = true, IImageCompressor? compressor = null)
+        ImageCompressionOptions? initialOptions = null, bool canStart = true, IImageCompressor? compressor = null, bool editing = false)
     {
         _compressor = compressor ?? new FfmpegImageCompressor(engine);
         _preview = engine;
         InitializeComponent();
         FileList.ItemsSource = _entries;
         OutputInput.Text = outputFolder;
-        SourceFolderInput.IsChecked = engine.Settings.OutputToSource;
-        StartInput.IsChecked = StartInput.IsEnabled = canStart;
-        if (!canStart) ToolTip.SetTip(StartInput, "已有任务正在运行；本次图片先加入等待队列。");
+        SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource;
+        StartInput.IsChecked = canStart && !editing; StartInput.IsEnabled = canStart;
+        if (editing) { Title = "编辑图片压缩任务"; ConfirmButton.Content = "保存修改"; StartInput.IsVisible = false; }
+        else if (!canStart) ToolTip.SetTip(StartInput, "已有任务正在运行；本次图片先加入等待队列。");
         if (initialOptions is { } options) SetOptions(options);
         foreach (var check in new[] { LosslessInput, ResizeInput }) check.IsCheckedChanged += (_, _) => ParametersChanged(null, null!);
         SourceFolderInput.IsCheckedChanged += (_, _) => RefreshControls();

@@ -28,7 +28,7 @@ public sealed record DownloadVideo(string Url, string Id, string Title, string U
     double Duration, string Platform, bool IsLive = false);
 public sealed record DownloadInspection(IReadOnlyList<DownloadVideo> Videos, bool Truncated = false);
 public sealed record VideoDownloadRequest(IReadOnlyList<DownloadVideo> Videos, string Folder,
-    string Format, DownloadOptions Options);
+    string Format, DownloadOptions Options, string OutputName = "");
 
 public interface IVideoDownloadService
 {
@@ -37,11 +37,25 @@ public interface IVideoDownloadService
 
 public static class DownloadBatch
 {
+    public static void ValidateOutputName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name is "." or ".." || name.EndsWith('.') ||
+            name.Any(c => char.IsControl(c) || "<>:\"/\\|?*".Contains(c)))
+            throw new ArgumentException("请输入有效文件名，不包含路径或特殊字符。");
+        if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            throw new ArgumentException("此文件名为系统保留名称，请更换。");
+    }
+
     public static IReadOnlyList<Job> CreateJobs(VideoDownloadRequest request, IEnumerable<string>? reserved = null)
     {
         request.Options.Validate();
         if (request.Format is not ("mp4" or "mkv" or "mp3" or "m4a")) throw new ArgumentException("请选择 MP4、MKV、MP3 或 M4A。");
         if (request.Videos.Count is < 1 or > 100) throw new ArgumentException("请选择 1–100 个视频。");
+        if (request.OutputName.Length > 0)
+        {
+            if (request.Videos.Count != 1) throw new ArgumentException("编辑任务时请选择一个视频。");
+            ValidateOutputName(request.OutputName);
+        }
         if (string.IsNullOrWhiteSpace(request.Folder)) throw new ArgumentException("请选择保存位置。");
         foreach (var video in request.Videos)
         {
@@ -62,7 +76,7 @@ public static class DownloadBatch
             var job = new Job { FeatureId = "download", Inputs = [video.Url], DownloadTitle = video.Title,
                 Duration = double.IsFinite(video.Duration)?Math.Max(0,video.Duration):0,
                 Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false } },
-                Output = MediaEngine.UniqueOutput(request.Folder, title, request.Format, used) };
+                Output = MediaEngine.UniqueOutput(request.Folder, request.OutputName.Length > 0 ? request.OutputName : title, request.Format, used) };
             MediaEngine.Validate(job);used.Add(job.Output);jobs.Add(job);
         }
         return jobs;

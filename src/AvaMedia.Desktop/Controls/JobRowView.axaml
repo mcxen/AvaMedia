@@ -7,7 +7,7 @@
     <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
   </UserControl.Styles>
   <Grid x:Name="RowRoot" ColumnDefinitions="140,*,*" MinHeight="108" Margin="0,6">
-    <Button x:Name="CoverButton" Classes="media-action" Padding="2" Margin="8,0,12,0" VerticalAlignment="Center" Height="80" Click="CoverClick" IsEnabled="{Binding CanPreview}" ToolTip.Tip="{Binding PreviewTip}" AutomationProperties.Name="{Binding PreviewTip}">
+    <Button x:Name="CoverButton" Classes="media-action" Padding="2" Margin="8,0,12,0" VerticalAlignment="Center" Height="80" Click="CoverClick" ToolTip.Tip="{Binding PreviewTip}" AutomationProperties.Name="{Binding PreviewTip}">
       <Grid Width="114" Height="72" ClipToBounds="True">
         <Border Background="{DynamicResource UiSurfaceRaised}"/>
         <local:FeatureIcon Kind="{Binding Icon}" Label="{Binding Extension}" Width="80" Height="64" IsVisible="{Binding NoCover}"/>

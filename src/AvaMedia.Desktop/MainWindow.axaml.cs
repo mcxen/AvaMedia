@@ -120,7 +120,8 @@ public partial class MainWindow : Window
         RefreshTaskState();
         if (_startupOptionsInitialized && !_backgroundWindowVisible) return;
         UpdateElapsed();
-        StartButton.IsEnabled=!_queue.IsRunning && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
+        StartButton.IsEnabled=!_queue.IsRunning && _editingJob is null && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
+        UpdateTaskEditingActions();
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
         if(refreshRows)JobDisplayChanged?.Invoke();
     }
@@ -131,7 +132,16 @@ public partial class MainWindow : Window
     private void RemoveClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(_queue.IsRunning)return;foreach(var j in JobList.SelectedItems?.Cast<Job>().ToArray()??[])_jobs.Remove(j);Save();Refresh();}
     private void ClearClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(_queue.IsRunning)return;_jobs.Clear();Save();Refresh();}
     private void RetryClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
-    {foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[]){bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;j.Output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,_jobs.Select(x=>x.Output),directory);j.State=JobState.Waiting;j.Progress=0;}Save();Refresh();}
+    {
+        if(_queue.IsRunning || _editingJob is not null)return;
+        foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[])
+        {
+            bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
+            j.Output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,directory?Path.GetFileName(j.Output):Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,EditingReservations(j),directory);
+            ResetTask(j);
+        }
+        Save();Refresh();
+    }
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         _appliedSettings=_settings.Clone();
@@ -144,48 +154,11 @@ public partial class MainWindow : Window
     private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);else await Ui.Message(this,"输出文件","任务尚未生成输出。");}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{var path=Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;Directory.CreateDirectory(path);Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j)await Ui.Message(this,"任务日志",j.Status+"\n\n"+j.Error+"\n\n"+j.Log);}
-    private async Task Edit(string path,ConversionOptions options,Job? job=null)
-    {
-        try
-        {
-            var w=new EditorWindow(Engine,path,options);var result=await w.ShowDialog<ConversionOptions?>(this);
-            if(result is not null && job is not null && job.State!=JobState.Running){job.Options=result;job.State=JobState.Waiting;job.Progress=0;job.Output=MediaEngine.UniqueOutput(Path.GetDirectoryName(job.Output)!,Path.GetFileNameWithoutExtension(path),result.Format,_jobs.Select(j=>j.Output));Save();Refresh();}
-        }
-        catch(Exception ex){await Ui.Message(this,"媒体打开失败",ex.Message);}
-    }
-    private async void EditSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j)await EditJob(j);}
+    private async void EditSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItems?.Count==1 && JobList.SelectedItem is Job j)await EditJob(j);}
     private async void PreviewClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){e.Handled=true;if(sender is Control {DataContext:Job job})await EditJob(job);}
-    internal async Task EditJob(Job j)
-    {
-        var feature=Catalog.Find(j.FeatureId);
-        if(j.State==JobState.Running)return;
-        if(feature.Operation==Operation.ImageCompress && j.Inputs.Length>0 && File.Exists(j.Inputs[0]))
-        {await ConfigureImageCompressionAsync(j.Inputs,j.Options.ImageCompression,j);return;}
-        if(PdfTools.Supports(feature.Operation) && j.Inputs.Length>0 && j.Inputs.All(File.Exists))
-        {
-            var pdfResult=await new PdfWorkspaceWindow(feature,Path.GetDirectoryName(j.Output)!,j.Inputs,j.Options,Engine).ShowDialog<PdfWorkspaceRequest?>(this);
-            if(pdfResult is null)return;
-            try
-            {
-                var updated=ConversionBatch.CreateJobs(feature,pdfResult.Files,pdfResult.OutputFolder,pdfResult.Options,reserved:_jobs.Select(x=>x.Output))[0];
-                j.Inputs=updated.Inputs;j.Options=updated.Options;j.Output=updated.Output;j.State=JobState.Waiting;j.Progress=0;j.Error="";j.Log="";Save();Refresh();
-            }
-            catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
-            return;
-        }
-        if(j.State==JobState.Failed || j.Inputs.Length==0 || !File.Exists(j.Inputs[0]) || feature.Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || feature.Operation is Operation.Info or Operation.Download or Operation.IsoCopy)
-        {await Ui.Message(this,"任务详情",j.Source+"\n\n"+j.Output+"\n\n"+j.Error+"\n"+j.Log);return;}
-        if(feature.Operation==Operation.VideoCompress){await EditVideoCompressionAsync(j);return;}
-        if(feature.Operation is Operation.Join or Operation.AudioMix or Operation.Mux)
-        {
-            var result=await new ConvertWindow(Engine,feature,Path.GetDirectoryName(j.Output)!,j.Inputs,j.Options,j.InputOptions).ShowDialog<ConversionRequest?>(this);
-            if(result is null)return;j.FeatureId=result.Feature.Id;j.Inputs=result.Files;j.Options=result.Options;j.InputOptions=result.InputOptions?.Select(o=>o.Clone()).ToList();j.Output=MediaEngine.UniqueOutput(result.OutputFolder,Path.GetFileNameWithoutExtension(j.Inputs[0]),j.Options.Format,_jobs.Select(x=>x.Output));j.State=JobState.Waiting;j.Progress=0;Save();Refresh();return;
-        }
-        await Edit(j.Inputs[0],j.Options,j);
-    }
     private async void JobDoubleClick(object? sender,TappedEventArgs e)
     {
-        if(JobList.SelectedItem is not Job j)return;
+        if(JobList.SelectedItems?.Count!=1 || JobList.SelectedItem is not Job j)return;
         await EditJob(j);
     }
     private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e)=>Refresh();

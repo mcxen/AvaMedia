@@ -82,6 +82,10 @@ public sealed class ActionIcon : Control
             context.DrawEllipse(Foreground, null, new(12, 12), 9, 9);
             context.DrawLine(new Pen(ContrastBrush, 2.5, lineCap: PenLineCap.Round), new(7, 12), new(17, 12));
         }
+        else if (Kind == "edit")
+        {
+            context.DrawGeometry(null, actionPen, Geometry.Parse("M 4,15 L 15,4 L 20,9 L 9,20 L 3,21 Z M 12,7 L 17,12"));
+        }
         else if (Kind == "clear")
         {
             context.DrawGeometry(null, actionPen, Geometry.Parse("M 6,6 L 18,18 M 18,6 L 6,18"));
@@ -139,6 +143,7 @@ public sealed class ActionIcon : Control
             "fullscreen" => "M 6,2 L 2,2 L 2,6 M 10,2 L 14,2 L 14,6 M 2,10 L 2,14 L 6,14 M 10,14 L 14,14 L 14,10",
             "window" => "M 2,2 L 14,2 L 14,14 L 2,14 Z M 2,5 L 14,5",
             "clear" => "M 3,3 L 13,13 M 13,3 L 3,13",
+            "edit" => "M 2,10 L 10,2 L 14,6 L 6,14 L 1,15 Z M 8,4 L 12,8",
             "plus" => "M 2,8 L 14,8 M 8,2 L 8,14",
             "minus" or "remove" => "M 2,8 L 14,8",
             "up" => "M 8,2 L 8,14 M 3,7 L 8,2 L 13,7",
