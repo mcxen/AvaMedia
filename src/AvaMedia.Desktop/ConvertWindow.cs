@@ -52,7 +52,7 @@ public sealed class ConvertWindow : Window
         var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature),_options.Format);formats.Width=130;
         top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);
         var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
-        var media=feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id=="repair";
+        var media=feature.Operation!=Operation.Info && (feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id=="repair");
         var setting=new Button{Content="输出配置",MinWidth=130,IsVisible=media};setting.Click+=async(_,_)=>
         {
             _options.Format=(string?)formats.SelectedItem??feature.Format;var dialog=new OptionsWindow(_options,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:_options.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality);var changed=await dialog.ShowDialog<ConversionOptions?>(this);

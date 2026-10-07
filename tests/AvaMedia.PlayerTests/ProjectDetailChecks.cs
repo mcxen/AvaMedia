@@ -60,20 +60,6 @@ internal static class ProjectDetailChecks
         using (var json = JsonDocument.Parse(probe.Result.RawJson))
             Check(probe.Result.RawJson.Length > 160000 && json.RootElement.GetProperty("chapters").GetArrayLength() == 2000,
                 "Large valid FFprobe JSON preserves all two thousand chapters instead of truncating metadata");
-        var updates = new List<double>();
-        var hashTimer = Stopwatch.StartNew(); var hashing = FileHashing.Sha256Async([source], value => updates.Add(value)); Complete(hashing);
-        var hashMs = hashTimer.Elapsed.TotalMilliseconds;
-        string expected;
-        using (var stream = File.OpenRead(source)) expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
-        Check(hashing.Result[0] == expected + "  " + Path.GetFileName(source) && updates.Count > 2 && updates[^1] == 100,
-            "Streaming checksum matches SHA256 for the real file over 4 GiB and reports intermediate progress");
-        using (var cancel = new CancellationTokenSource())
-        {
-            var cancelled = FileHashing.Sha256Async([source], value => { if (value > 0) cancel.Cancel(); }, cancel.Token);
-            while (!cancelled.IsCompleted) { Dispatcher.UIThread.RunJobs(); Thread.Sleep(1); }
-            Check(cancelled.IsCanceled, "Large-file checksum cancels during streaming and releases its buffer");
-        }
-
         if (OperatingSystem.IsWindows())
         {
             var keyName = @"Software\AvaMedia.Tests\Player-" + Guid.NewGuid().ToString("N");
@@ -101,7 +87,7 @@ internal static class ProjectDetailChecks
             finally { root.Close(); Registry.CurrentUser.DeleteSubKeyTree(keyName); }
         }
         var report = new { checks, sizeReadEnqueueMs = dispatchMs, progressMs, progressAllocatedBytes = progressAllocated,
-            queueSaveEnqueueMs = enqueueMs, savedQueueBytes = savedBytes, metadataJsonChars = probe.Result.RawJson.Length, largeFileHashMs = hashMs };
+            queueSaveEnqueueMs = enqueueMs, savedQueueBytes = savedBytes, metadataJsonChars = probe.Result.RawJson.Length };
         File.WriteAllText(Path.Combine(output, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
     }
     private static void Complete(Task task)

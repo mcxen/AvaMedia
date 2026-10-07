@@ -166,6 +166,7 @@ public sealed class MediaEngine : IMediaEngine
         if((o.DelogoWidth>0)!=(o.DelogoHeight>0)) throw new ArgumentException("水印区域宽度和高度必须同时设置。");
         if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
+        if(feature.Operation is Operation.PdfAge or Operation.PdfCompress || PdfTools.Supports(feature.Operation) && o.Pdf is not null)PdfTools.Validate(job);
         if(feature.Operation==Operation.VideoCompress)VideoCompression.ValidateJob(job);
         if(feature.Operation==Operation.ImageCompress){if(job.Inputs.Length!=1)throw new ArgumentException("每个图片压缩任务处理一张图片。");(o.ImageCompression??new ImageCompressionOptions{Format=o.Format}).Validate();}
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
@@ -263,11 +264,16 @@ public sealed class MediaEngine : IMediaEngine
             finally{foreach(var path in temporary)if(File.Exists(path))File.Delete(path);}
             return;
         }
-        if(f.Operation is Operation.PdfMerge or Operation.PdfSplit or Operation.PdfText or Operation.PdfDocx or Operation.PdfXlsx or Operation.TextPdf or Operation.Zip or Operation.Unzip) {await Task.Run(()=>DocumentEngine.Execute(job,progress,ct),ct);return;}
-        if(f.Operation==Operation.Hash)
+        if(f.Operation is Operation.PdfMerge or Operation.PdfSplit or Operation.PdfText or Operation.PdfDocx or Operation.PdfXlsx or Operation.TextPdf or Operation.Zip or Operation.Unzip or Operation.PdfAge or Operation.PdfCompress)
         {
-            var lines=await FileHashing.Sha256Async(job.Inputs,progress,ct);
-            await File.WriteAllLinesAsync(job.Output,lines,ct);progress(100);return;
+            await Task.Run(()=>DocumentEngine.Execute(job,progress,ct),ct);
+            if(f.Operation==Operation.PdfCompress)
+            {
+                var before=new FileInfo(job.Inputs[0]).Length;var after=new FileInfo(job.Output).Length;
+                job.ProgressDetail=after<before?$"节省 {(before-after)*100d/before:0.##}%":"体积未减小，保留原文档。";
+                job.Log=$"原文档 {before} B → 输出 {after} B。\n"+job.ProgressDetail;
+            }
+            return;
         }
         if(f.Operation==Operation.IsoCopy)
         {

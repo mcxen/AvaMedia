@@ -366,5 +366,21 @@
     "authors": "Tom Deseyn",
     "copyright": "Tom Deseyn",
     "repository": "https://github.com/tmds/Tmds.DBus.git"
+  },
+  {
+    "package": "bblanchon.PDFium.macOS",
+    "version": "157.0.8086",
+    "license": "Apache-2.0",
+    "authors": "Benoît Blanchon",
+    "copyright": "Copyright © Benoît Blanchon 2017-2025",
+    "repository": "https://github.com/bblanchon/pdfium-binaries.git"
+  },
+  {
+    "package": "bblanchon.PDFium.Win32",
+    "version": "157.0.8086",
+    "license": "Apache-2.0",
+    "authors": "Benoît Blanchon",
+    "copyright": "Copyright © Benoît Blanchon 2017-2025",
+    "repository": "https://github.com/bblanchon/pdfium-binaries.git"
   }
 ]

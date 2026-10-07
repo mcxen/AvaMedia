@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Hash, Player, IsoCopy, ImageCompress }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -41,25 +41,27 @@ public static class Catalog
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
         Add("pdf-merge","PDF 合并","文档","pdf","pdf-merge",Operation.PdfMerge);
         Add("pdf-split","PDF 拆分","文档","pdf","pdf-split",Operation.PdfSplit);
+        Add("pdf-age","PDF 做旧","文档","pdf","document",Operation.PdfAge);
+        Add("pdf-compress","PDF 压缩","文档","pdf","document",Operation.PdfCompress);
         Add("pdf-text","PDF → TXT","文档","txt","pdf-text",Operation.PdfText);
         Add("pdf-docx","PDF → DOCX","文档","docx","pdf-docx",Operation.PdfDocx);
         Add("pdf-xlsx","PDF → XLSX","文档","xlsx","pdf-xlsx",Operation.PdfXlsx);
         Add("text-pdf","TXT → PDF","文档","pdf","text-pdf",Operation.TextPdf);
-        Add("zip","压缩 ZIP","文档","zip","zip",Operation.Zip);
-        Add("unzip","解压 ZIP","文档","","unzip",Operation.Unzip);
+        Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
+        Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
         Add("dvd","DVD / VOB 转换","光驱设备\\DVD\\CD\\ISO","mp4","disc",Operation.Join);
         Add("iso","光盘 → ISO","光驱设备\\DVD\\CD\\ISO","iso","disc",Operation.IsoCopy);
-        Add("mux","视频 / 音频混流","工具集","mkv","join",Operation.Mux);
-        Add("extract-video","提取视频流","工具集","mkv","video",Operation.SplitVideo);
-        Add("info","媒体信息","工具集","json","info",Operation.Info);
-        Add("hash","文件校验 SHA256","工具集","txt","gear",Operation.Hash);
-        Add("repair","修复 / 重新封装","工具集","mkv","gear");
+        Add("mux","视频 / 音频混流","视频","mkv","join",Operation.Mux);
+        Add("extract-video","提取视频流","视频","mkv","video",Operation.SplitVideo);
+        Add("info","媒体信息","视频","json","info",Operation.Info);
+        Add("repair","修复 / 重新封装","视频","mkv","gear");
         return f;
     }
     public static Feature Find(string id) => All.First(f=>f.Id == id);
 }
 public sealed class ConversionOptions
 {
+    public PdfToolOptions? Pdf { get; set; }
     public DownloadOptions? Download { get; set; }
     public VideoCompressionOptions? VideoCompression { get; set; }
     public ImageCompressionOptions? ImageCompression { get; set; }
@@ -116,7 +118,7 @@ public sealed class ConversionOptions
     public string SubtitleColor { get; set; } = "#FFFFFF";
     public int SubtitleAlignment { get; set; } = 2;
     public int SubtitleMargin { get; set; } = 20;
-    public ConversionOptions Clone() => (ConversionOptions)MemberwiseClone();
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
 public sealed class Job : Observable

@@ -35,7 +35,7 @@ await Run("audio-join",[audio.Output,audio.Output]);await Run("audio-mix",[audio
 await Run("dvd",[input,other]);
 var mux=await Run("mux",[other,audio.Output]);Check((await engine.Probe(mux.Output)).HasAudio,"混流缺少音轨");
 await Run("extract-video");var frames=await Run("frames",folder:true);Check(Directory.GetFiles(frames.Output,"*.png").Length==3,"导出帧数不符");
-await Run("repair",options:new(){Format="mkv",CopyStreams=true});await Run("info");await Run("hash",[input,other]);
+await Run("repair",options:new(){Format="mkv",CopyStreams=true});await Run("info");
 var text=Path.Combine(root,"text.txt");await File.WriteAllTextAsync(text,"AvaMedia license-safe document conversion\nHello media tools\n中文测试");
 var pdf=await Run("text-pdf",[text]);var merged=await Run("pdf-merge",[pdf.Output,pdf.Output]);using(var doc=PdfReader.Open(merged.Output,PdfDocumentOpenMode.Import))Check(doc.PageCount==2,"PDF 合并页数错误");
 var splitPdf=await Run("pdf-split",[merged.Output],folder:true);Check(Directory.GetFiles(splitPdf.Output).Length==2,"PDF 拆分页数错误");

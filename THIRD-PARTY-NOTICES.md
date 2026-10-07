@@ -11,6 +11,7 @@ The distribution includes the following independently licensed components. Prese
 | NAudio and associated modules | 2.2.1 | MIT, Mark Heath and contributors |
 | QRCoder | 1.8.0 | MIT, Raffael Herrmann and contributors; local QR code generation |
 | PDFsharp | 6.2.4 | MIT, empira Software GmbH |
+| PDFium native binaries | 157.0.8086 / chromium 8086 | PDFium BSD and dependency notices; bblanchon packaging Apache-2.0 |
 | PdfPig | 0.1.13 | Apache-2.0, UglyToad and contributors |
 | SkiaSharp | 2.88.9 | MIT; bundled Skia and dependencies have their own notices |
 | HarfBuzzSharp | 8.3.1.1 | MIT bindings; bundled HarfBuzz has its own notices |
@@ -21,6 +22,10 @@ The distribution includes the following independently licensed components. Prese
 | YuNet face detector | face_detection_yunet_2026may.onnx | MIT, Shiqi Yu and contributors; embedded unmodified model, attribution and SHA256 in `licenses/yunet/` |
 
 For the complete package list, versions, authors, repository links and license expressions, see `licenses/dependencies.json` and `licenses/manifest.json`. Each package folder contains its original NuGet metadata and bundled license/notice files, plus the applicable SPDX text. Native library third-party notices from the packages must also be retained; the wrapper's MIT license does not replace them.
+
+PDF page previews use [PDFium](https://pdfium.googlesource.com/pdfium/) through the pinned [bblanchon NuGet packages](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8086). macOS ARM64 and Windows x64 native assets are resolved by the application RID. Full binary and component notices are retained in `licenses/pdfium/`; package metadata and Apache-2.0 terms accompany the bindings' native dependencies. AvaMedia's small C API adapter is original code.
+
+The page workspace's interaction design references [iLovePDF merge](https://www.ilovepdf.com/merge_pdf) and [split](https://www.ilovepdf.com/split_pdf). [Stirling-PDF scanner and compression tools](https://github.com/Stirling-Tools/Stirling-PDF) were reviewed as design references. Their UI assets and implementation code are not incorporated; page arrangement, image recompression and aged-paper rendering are original AvaMedia code.
 
 ## External tools
 

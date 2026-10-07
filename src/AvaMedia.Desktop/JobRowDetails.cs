@@ -25,7 +25,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool NoCover => !HasCover;
     public bool IsRunning => Job.State == JobState.Running;
     public bool CanPreview => !IsRunning;
-    public string PreviewTip => IsRunning ? "任务正在运行" : Job.FeatureId == "image-compress" ? "压缩预览 / 调整参数" : Catalog.Find(Job.FeatureId).Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || Job.FeatureId == "download" || Job.State == JobState.Failed ? "查看任务详情" : "预览 / 编辑";
+    public string PreviewTip => IsRunning ? "任务正在运行" : PdfTools.Supports(Catalog.Find(Job.FeatureId).Operation) ? "页面预览 / 调整参数" : Job.FeatureId == "image-compress" ? "压缩预览 / 调整参数" : Catalog.Find(Job.FeatureId).Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || Job.FeatureId == "download" || Job.State == JobState.Failed ? "查看任务详情" : "预览 / 编辑";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
     public string Name => Job.FeatureId == "download" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
@@ -92,6 +92,13 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
                 parts.Add(compression.Format == "png" || compression.Lossless ? "无损编码" : Localization.Format($"质量 {compression.Quality}"));
                 if (compression.MaxDimension > 0) parts.Add(Localization.Format($"最长边 {compression.MaxDimension} px"));
             }
+            else if (o.Pdf is {} pdf)
+            {
+                parts.Add(Localization.Format($"{pdf.Pages.Count} 页"));
+                if(feature.Operation==Operation.PdfSplit)parts.Add(Localization.Format($"{PdfTools.Groups(pdf).Count} 个 PDF"));
+                if(feature.Operation==Operation.PdfAge)parts.Add(Localization.Format($"做旧 {pdf.Age} · 颗粒 {pdf.Grain}"));
+                if(feature.Operation==Operation.PdfCompress)parts.Add(pdf.Rasterize?"整页压缩":"保留文字");
+            }
             else if (feature.Operation == Operation.Download)
             {
                 parts.Add(o.Format.ToUpperInvariant());
@@ -125,7 +132,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     {
         JobState.Waiting => "等待开始",
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
-        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.ImageCompression is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
+        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         _ => "已停止"
     };

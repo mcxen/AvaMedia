@@ -82,7 +82,7 @@ foreach ($runtime in @('osx-arm64')) {
         Assert-Package ($values.LSMinimumSystemVersion -eq '13.4') "$runtime declares macOS 13.4 or later"
         $minimum=[version]$values.LSMinimumSystemVersion
         foreach ($name in @('AvaMedia.Desktop','libhostfxr.dylib','libcoreclr.dylib','libhostpolicy.dylib',
-            'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib')) {
+            'libAvaloniaNative.dylib','libSkiaSharp.dylib','libHarfBuzzSharp.dylib','libonnxruntime.dylib','libpdfium.dylib')) {
             $entry=$archive.GetEntry($root+'MacOS/'+$name)
             Assert-Package ($null -ne $entry) "$runtime includes $name"
             $header=Read-ArchiveBytes $entry

@@ -11,9 +11,41 @@ using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 namespace AvaMedia.Core;
 public static class DocumentEngine
 {
+    private static readonly object FontGate = new();
     public static void Execute(Job job,Action<double> progress,CancellationToken ct)
     {
         var op=Catalog.Find(job.FeatureId).Operation;
+        if(op is Operation.PdfMerge or Operation.PdfSplit)
+        {
+            var options=job.Options.Clone();
+            if(options.Pdf is null)
+            {
+                options.Pdf=new(){SplitEveryPage=op==Operation.PdfSplit};
+                for(var index=0;index<job.Inputs.Length;index++)
+                {
+                    ct.ThrowIfCancellationRequested();using var pdf=PdfReader.Open(job.Inputs[index],PdfDocumentOpenMode.Import);
+                    options.Pdf.Pages.AddRange(Enumerable.Range(1,pdf.PageCount).Select(number=>new PdfPageSelection(index,number)));
+                }
+            }
+            PdfTools.Arrange(new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,Output=job.Output,Options=options},progress,ct);progress(100);return;
+        }
+        if(op==Operation.PdfAge){PdfTools.Rasterize(job,progress,ct);progress(100);return;}
+        if(op==Operation.PdfCompress){PdfTools.Compress(job,progress,ct);progress(100);return;}
+        if(job.Options.Pdf is not null)
+        {
+            PdfTools.Validate(job);
+            if(op==Operation.TextPdf)
+            {
+                var temporary=Path.Combine(Path.GetTempPath(),"AvaMedia-text-"+Guid.NewGuid()+".pdf");
+                try
+                {
+                    CreateTextPdf(job.Inputs[0],temporary,job.Options.Pdf,ct);
+                    PdfTools.Arrange(new Job{FeatureId=job.FeatureId,Inputs=[temporary],Output=job.Output,Options=job.Options},progress,ct);
+                }
+                finally{if(File.Exists(temporary))File.Delete(temporary);}
+                progress(100);return;
+            }
+        }
         if(op==Operation.Zip)
         {
             using var zip=ZipFile.Open(job.Output,ZipArchiveMode.Create);var used=new HashSet<string>();
@@ -31,46 +63,89 @@ public static class DocumentEngine
                 else {Directory.CreateDirectory(Path.GetDirectoryName(destination)!);entry.ExtractToFile(destination,false);}progress(++count*100d/Math.Max(1,zip.Entries.Count));
             }
         }
-        else if(op==Operation.PdfMerge)
-        {
-            using var output=new PdfDocument();foreach(var file in job.Inputs) {ct.ThrowIfCancellationRequested();using var source=PdfReader.Open(file,PdfDocumentOpenMode.Import);foreach(var page in source.Pages)output.AddPage(page);}output.Save(job.Output);
-        }
-        else if(op==Operation.PdfSplit)
-        {
-            Directory.CreateDirectory(job.Output);using var pdf=PdfReader.Open(job.Inputs[0],PdfDocumentOpenMode.Import);
-            for(int i=0;i<pdf.PageCount;i++){ct.ThrowIfCancellationRequested();using var part=new PdfDocument();part.AddPage(pdf.Pages[i]);part.Save(Path.Combine(job.Output,$"page-{i+1:0000}.pdf"));progress((i+1)*100d/pdf.PageCount);}
-        }
         else if(op==Operation.ImagesPdf)
         {
-            using var pdf=new PdfDocument();foreach(var path in job.Inputs){ct.ThrowIfCancellationRequested();using var image=XImage.FromFile(path);var page=pdf.AddPage();page.Width=XUnit.FromPoint(image.PointWidth);page.Height=XUnit.FromPoint(image.PointHeight);using var g=XGraphics.FromPdfPage(page);g.DrawImage(image,0,0,page.Width.Point,page.Height.Point);}pdf.Save(job.Output);
-        }
-        else if(op==Operation.TextPdf)
-        {
-            GlobalFontSettings.FontResolver ??= new SystemFontResolver();using var pdf=new PdfDocument();var font=new XFont("AvaMedia",11);PdfPage? page=null;XGraphics? g=null;double y=0;
-            try
+            using var pdf=new PdfDocument();
+            var pages=job.Options.Pdf?.Pages??job.Inputs.Select((_,index)=>new PdfPageSelection(index,1)).ToList();
+            foreach(var selection in pages)
             {
-                foreach(var line in File.ReadAllLines(job.Inputs[0]))
+                ct.ThrowIfCancellationRequested();using var image=XImage.FromFile(job.Inputs[selection.InputIndex]);var page=pdf.AddPage();
+                var layout=job.Options.Pdf;
+                if(layout is null)
                 {
-                    ct.ThrowIfCancellationRequested();var remaining=line;
-                    do
-                    {
-                        if(page is null || y>page.Height.Point-45){g?.Dispose();page=pdf.AddPage();g=XGraphics.FromPdfPage(page);y=45;}
-                        var count=remaining.Length;while(count>1 && g!.MeasureString(remaining[..count],font).Width>page.Width.Point-80)count--;
-                        g!.DrawString(remaining[..count],font,XBrushes.Black,new XPoint(40,y));y+=17;remaining=remaining[count..];
-                    }while(remaining.Length>0);
+                    page.Width=XUnit.FromPoint(image.PointWidth);page.Height=XUnit.FromPoint(image.PointHeight);
+                    using var graphics=XGraphics.FromPdfPage(page);graphics.DrawImage(image,0,0,page.Width.Point,page.Height.Point);
                 }
-                if(pdf.PageCount==0)pdf.AddPage();pdf.Save(job.Output);
+                else
+                {
+                    var width=image.PointWidth;var height=image.PointHeight;
+                    var rotated=selection.Rotation is 90 or 270;
+                    var size=PdfTools.PaperSize(rotated?height:width,rotated?width:height,layout);
+                    page.Width=XUnit.FromPoint(size.Width);page.Height=XUnit.FromPoint(size.Height);
+                    var scale=Math.Min((size.Width-layout.Margin*2)/(rotated?height:width),(size.Height-layout.Margin*2)/(rotated?width:height));
+                    using var graphics=XGraphics.FromPdfPage(page);graphics.TranslateTransform(size.Width/2,size.Height/2);graphics.RotateTransform(selection.Rotation);
+                    graphics.DrawImage(image,-width*scale/2,-height*scale/2,width*scale,height*scale);
+                }
             }
-            finally{g?.Dispose();}
+            PdfTools.SaveNew(pdf,job.Output,ct);
         }
+        else if(op==Operation.TextPdf) CreateTextPdf(job.Inputs[0],job.Output,null,ct);
         else
         {
-            var pages=new List<string>();using(var pdf=UglyToad.PdfPig.PdfDocument.Open(job.Inputs[0]))foreach(var page in pdf.GetPages()){ct.ThrowIfCancellationRequested();pages.Add(ContentOrderTextExtractor.GetText(page));progress(page.Number*80d/pdf.NumberOfPages);}
+            var pages=new List<string>();
+            var selections=job.Options.Pdf?.Pages;
+            var sources=new Dictionary<int,UglyToad.PdfPig.PdfDocument>();
+            try
+            {
+                if(selections is null)
+                {
+                    var pdf=UglyToad.PdfPig.PdfDocument.Open(job.Inputs[0]);sources.Add(0,pdf);
+                    selections=Enumerable.Range(1,pdf.NumberOfPages).Select(number=>new PdfPageSelection(0,number)).ToList();
+                }
+                foreach(var selection in selections)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if(!sources.TryGetValue(selection.InputIndex,out var pdf))sources.Add(selection.InputIndex,pdf=UglyToad.PdfPig.PdfDocument.Open(job.Inputs[selection.InputIndex]));
+                    pages.Add(ContentOrderTextExtractor.GetText(pdf.GetPage(selection.PageNumber)));progress(pages.Count*80d/selections.Count);
+                }
+            }
+            finally{foreach(var pdf in sources.Values)pdf.Dispose();}
             if(op==Operation.PdfText)File.WriteAllText(job.Output,string.Join("\n\f\n",pages),Encoding.UTF8);
             else if(op==Operation.PdfDocx)WriteDocx(job.Output,pages);
             else if(op==Operation.PdfXlsx)WriteXlsx(job.Output,pages);
         }
         progress(100);
+    }
+    public static void CreateTextPdf(string source,string output,PdfToolOptions? layout,CancellationToken ct)
+    {
+        layout??=new();
+        lock(FontGate)GlobalFontSettings.FontResolver??=new SystemFontResolver();
+        using var pdf=new PdfDocument();var font=new XFont("AvaMedia",layout.FontSize);
+        var size=PdfTools.PaperSize(595.28,841.89,layout);var margin=Math.Max(12,layout.Margin);
+        PdfPage? page=null;XGraphics? graphics=null;double y=0;
+        try
+        {
+            foreach(var line in File.ReadLines(source))
+            {
+                ct.ThrowIfCancellationRequested();var remaining=line;
+                do
+                {
+                    if(page is null || y>size.Height-margin)
+                    {
+                        graphics?.Dispose();page=pdf.AddPage();page.Width=XUnit.FromPoint(size.Width);page.Height=XUnit.FromPoint(size.Height);
+                        graphics=XGraphics.FromPdfPage(page);y=margin+layout.FontSize;
+                    }
+                    var count=remaining.Length;
+                    while(count>1 && graphics!.MeasureString(remaining[..count],font).Width>size.Width-margin*2)count--;
+                    if(count>0 && count<remaining.Length && char.IsHighSurrogate(remaining[count-1]))count--;
+                    if(count==0 && remaining.Length>0)count=Math.Min(2,remaining.Length);
+                    graphics!.DrawString(remaining[..count],font,XBrushes.Black,new XPoint(margin,y));y+=layout.FontSize*1.5;remaining=remaining[count..];
+                }while(remaining.Length>0);
+            }
+            if(pdf.PageCount==0){page=pdf.AddPage();page.Width=XUnit.FromPoint(size.Width);page.Height=XUnit.FromPoint(size.Height);}
+            PdfTools.SaveNew(pdf,output,ct);
+        }
+        finally{graphics?.Dispose();}
     }
     private static string Escape(string text) => SecurityElement.Escape(text)??"";
     private static void Entry(ZipArchive zip,string name,string xml){using var writer=new StreamWriter(zip.CreateEntry(name).Open(),new UTF8Encoding(false));writer.Write(xml);}
@@ -99,7 +174,7 @@ public static class DocumentEngine
         {
             var dir=Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
             foreach(var name in new[]{"msyh.ttc","simsun.ttc","arial.ttf","segoeui.ttf"}){var path=Path.Combine(dir,name);if(File.Exists(path))return ExtractFont(File.ReadAllBytes(path));}
-            foreach(var path in new[]{"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/System/Library/Fonts/Supplemental/Arial.ttf"})if(File.Exists(path))return File.ReadAllBytes(path);
+            foreach(var path in new[]{"/System/Library/Fonts/Supplemental/Arial Unicode.ttf","/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/System/Library/Fonts/Supplemental/Arial.ttf"})if(File.Exists(path))return ExtractFont(File.ReadAllBytes(path));
             throw new FileNotFoundException("未找到可用的系统字体。");
         }
         // PDFsharp consumes a single sfnt font. Windows CJK fonts are often TTC collections.

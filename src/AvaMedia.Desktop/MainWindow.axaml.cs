@@ -74,6 +74,20 @@ public partial class MainWindow : Window
             catch(Exception ex){await Ui.Message(this,"批量裁剪参数错误",ex.Message);}
             return;
         }
+        if(PdfTools.Supports(feature.Operation))
+        {
+            var pdfResult=await new PdfWorkspaceWindow(feature,_settings.OutputFolder,files,engine:Engine).ShowDialog<PdfWorkspaceRequest?>(this);
+            if(pdfResult is null)return;
+            try
+            {
+                var jobs=ConversionBatch.CreateJobs(feature,pdfResult.Files,pdfResult.OutputFolder,pdfResult.Options,reserved:_jobs.Select(j=>j.Output));
+                OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),outputToSource:false,settingName:"");
+                foreach(var job in jobs)_jobs.Add(job);
+                Save();Refresh();
+            }
+            catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
+            return;
+        }
         if(feature.Operation==Operation.Player)
         {
             files??=await Ui.Pick(this,"打开媒体文件",true);if(files.Length>0)new PlayerWindow(Engine,files).Show(this);return;
@@ -146,7 +160,19 @@ public partial class MainWindow : Window
         if(j.State==JobState.Running)return;
         if(feature.Operation==Operation.ImageCompress && j.Inputs.Length>0 && File.Exists(j.Inputs[0]))
         {await ConfigureImageCompressionAsync(j.Inputs,j.Options.ImageCompression,j);return;}
-        if(j.State==JobState.Failed || j.Inputs.Length==0 || !File.Exists(j.Inputs[0]) || feature.Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || feature.Operation is Operation.Info or Operation.Hash or Operation.Download or Operation.IsoCopy)
+        if(PdfTools.Supports(feature.Operation) && j.Inputs.Length>0 && j.Inputs.All(File.Exists))
+        {
+            var pdfResult=await new PdfWorkspaceWindow(feature,Path.GetDirectoryName(j.Output)!,j.Inputs,j.Options,Engine).ShowDialog<PdfWorkspaceRequest?>(this);
+            if(pdfResult is null)return;
+            try
+            {
+                var updated=ConversionBatch.CreateJobs(feature,pdfResult.Files,pdfResult.OutputFolder,pdfResult.Options,reserved:_jobs.Select(x=>x.Output))[0];
+                j.Inputs=updated.Inputs;j.Options=updated.Options;j.Output=updated.Output;j.State=JobState.Waiting;j.Progress=0;j.Error="";j.Log="";Save();Refresh();
+            }
+            catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
+            return;
+        }
+        if(j.State==JobState.Failed || j.Inputs.Length==0 || !File.Exists(j.Inputs[0]) || feature.Category is "文档" or "光驱设备\\DVD\\CD\\ISO" || feature.Operation is Operation.Info or Operation.Download or Operation.IsoCopy)
         {await Ui.Message(this,"任务详情",j.Source+"\n\n"+j.Output+"\n\n"+j.Error+"\n"+j.Log);return;}
         if(feature.Operation==Operation.VideoCompress){await EditVideoCompressionAsync(j);return;}
         if(feature.Operation is Operation.Join or Operation.AudioMix or Operation.Mux)

@@ -29,12 +29,12 @@ public sealed class MediaFileRouter : IMediaFileRouter
     public IReadOnlyList<MediaRouteOption> Routes(IReadOnlyList<MediaRouteSource> selected)
     {
         List<MediaRouteOption> routes = [];
-        void Add(string id, string title, string description, Func<MediaRouteSource, bool> accepts, int minimum = 1, string? requirement = null)
+        void Add(string id, string title, string description, Func<MediaRouteSource, bool> accepts, int minimum = 1, string? requirement = null, int maximum = int.MaxValue)
         {
             var files = selected.Where(accepts).Select(item => item.Path).ToArray();
             if (files.Length == 0) return;
             routes.Add(new(Catalog.Find(id), title, description, files, selected.Count - files.Length,
-                files.Length < minimum ? requirement ?? "请至少选择两个文件。" : ""));
+                files.Length > maximum ? "请选择一个文件。" : files.Length < minimum ? requirement ?? "请至少选择两个文件。" : ""));
         }
         bool Video(MediaRouteSource source) => source.Kind == MediaFileKind.Video;
         bool Image(MediaRouteSource source) => source.Kind == MediaFileKind.Image;
@@ -70,12 +70,14 @@ public sealed class MediaFileRouter : IMediaFileRouter
                     Add("audio-mix", "音频混合", "把多个声音混合到同一音轨", Audio, 2, "请至少选择两个音频。");
                     break;
                 case MediaFileKind.Document:
-                    Add("pdf-merge", "PDF 合并", "按文件顺序合并页面", source => Extension(source, ".pdf"), 2, "请至少选择两个 PDF。");
-                    Add("pdf-split", "PDF 拆分", "拆出独立页面", source => Extension(source, ".pdf"));
+                    Add("pdf-merge", "PDF 合并", "可视化排列与合并页面", source => Extension(source, ".pdf"));
+                    Add("pdf-split", "PDF 拆分", "选页、拆分点与分组", source => Extension(source, ".pdf"), maximum: 1);
+                    Add("pdf-age", "PDF 做旧", "纸色、颗粒与倾斜预览", source => Extension(source, ".pdf"));
+                    Add("pdf-compress", "PDF 压缩", "保留文字或整页压缩", source => Extension(source, ".pdf"), maximum: 1);
                     Add("pdf-docx", "PDF 提取为 Word", "提取文字到 DOCX", source => Extension(source, ".pdf"));
                     Add("pdf-xlsx", "PDF 提取为 Excel", "提取文字到 XLSX", source => Extension(source, ".pdf"));
                     Add("pdf-text", "PDF 提取文字", "保存为 TXT 文本", source => Extension(source, ".pdf"));
-                    Add("text-pdf", "文本转 PDF", "把 TXT 文本排成 PDF 页面", source => Extension(source, ".txt"));
+                    Add("text-pdf", "文本转 PDF", "把 TXT 文本排成 PDF 页面", source => Extension(source, ".txt"), maximum: 1);
                     break;
             }
         if (selected.Any(Video) && selected.Any(Audio))
@@ -88,7 +90,6 @@ public sealed class MediaFileRouter : IMediaFileRouter
         Add("info", "媒体信息", "查看编码、时长、尺寸与轨道", Media);
         Add("unzip", "解压 ZIP", "解压到独立文件夹", source => Extension(source, ".zip"));
         Add("zip", "打包 ZIP", "把选中文件打包到压缩文件", _ => true);
-        Add("hash", "文件校验", "计算 SHA256 校验值", _ => true);
         return routes;
     }
 }

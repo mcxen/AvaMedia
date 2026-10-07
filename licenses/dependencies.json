@@ -197,6 +197,14 @@
             {
               "id": "Tmds.DBus.Protocol",
               "resolvedVersion": "0.21.3"
+            },
+            {
+              "id": "bblanchon.PDFium.macOS",
+              "resolvedVersion": "157.0.8086"
+            },
+            {
+              "id": "bblanchon.PDFium.Win32",
+              "resolvedVersion": "157.0.8086"
             }
           ]
         }

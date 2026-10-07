@@ -2,7 +2,7 @@ namespace AvaMedia.Core;
 
 public static class ConversionBatch
 {
-    public static bool IsGrouped(Feature feature)=>feature.Operation is Operation.Join or Operation.Mux or Operation.AudioMix or Operation.PdfMerge or Operation.ImagesPdf or Operation.Zip or Operation.Download or Operation.IsoCopy;
+    public static bool IsGrouped(Feature feature)=>PdfTools.Supports(feature.Operation) || feature.Operation is Operation.Join or Operation.Mux or Operation.AudioMix or Operation.PdfMerge or Operation.ImagesPdf or Operation.Zip or Operation.Download or Operation.IsoCopy;
 
     public static IReadOnlyList<Job> CreateJobs(Feature feature,IReadOnlyList<string> files,string outputFolder,ConversionOptions options,IReadOnlyList<ConversionOptions>? inputOptions=null,IEnumerable<string>? reserved=null)
     {
