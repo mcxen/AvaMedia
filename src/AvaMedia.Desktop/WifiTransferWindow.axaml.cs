@@ -15,6 +15,9 @@ internal sealed class WifiReceivedEntry(WifiTransferUpdate update) : Observable
     public string Name { get; } = update.Name;
     private WifiTransferUpdate _update = update;
     public bool Complete => _update.Complete;
+    public string UserId => _update.UserId;
+    public string UserName => _update.UserName.Length > 0 ? _update.UserName : Localization.Text("未标记用户");
+    public string MediaType => WifiMediaDisplay.Type(Path);
     public bool Receiving => !Complete && _update.Error.Length == 0;
     public double Progress => _update.Total > 0 ? _update.Bytes * 100d / _update.Total : 0;
     public string Status => Complete ? Localization.Format($"已接收 · {ImageCompression.Bytes(_update.Bytes)}") :
@@ -28,13 +31,44 @@ internal sealed record WifiShareEntry(WifiSharedFile File)
 {
     public string Name => File.Name;
     public string Size => ImageCompression.Bytes(File.Bytes);
+    public string MediaType => WifiMediaDisplay.Type(File.Path);
+}
+
+internal static class WifiMediaDisplay
+{
+    private static readonly MediaFileRouter Router = new();
+    public static string Type(string path) => Localization.Text(Router.Classify(path) switch
+    {
+        MediaFileKind.Video => "视频", MediaFileKind.Image => "图片", MediaFileKind.Audio => "音频",
+        MediaFileKind.Document => "文档", _ => "文件"
+    });
+}
+
+internal sealed class WifiUserEntry(string id, string name) : Observable
+{
+    public string Id { get; } = id;
+    public string Name { get; private set; } = name;
+    public string DisplayName => Id == "*" ? Localization.Text("全部用户") : Name.Length > 0 ? Name : Localization.Text("未标记用户");
+    public string Address { get; private set; } = "";
+    public bool Online { get; private set; }
+    private int _transfers, _received;
+    public string Status => Id == "*" ? Localization.Text("查看所有用户的媒体与文件") :
+        Localization.Format($"{(_transfers > 0 ? Localization.Format($"传输中 {_transfers} 项") : Localization.Text(Online ? "在线" : "离线"))} · 已接收 {_received} 个");
+    public void Update(WifiTransferUser user)
+    { Name = user.Name; Address = user.Address; Online = user.Online; _transfers = user.Transfers; Refresh(); }
+    public void SetOffline() { Online = false; _transfers = 0; Refresh(); }
+    public void SetReceived(int count) { _received = count; Refresh(); }
+    public void Refresh() => Raise(string.Empty);
 }
 
 public partial class WifiTransferWindow : Window
 {
     private readonly Func<string[], bool, Task> _import;
     private readonly ObservableCollection<WifiReceivedEntry> _received = [];
+    private readonly ObservableCollection<WifiReceivedEntry> _visibleReceived = [];
     private readonly ObservableCollection<WifiShareEntry> _shared = [];
+    private readonly ObservableCollection<WifiUserEntry> _users = [new("*", "")];
+    private readonly Dictionary<string, WifiUserEntry> _userById = new(StringComparer.Ordinal);
     private readonly Dictionary<string, WifiReceivedEntry> _byId = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _lifetime = new();
     private WifiTransferService? _service;
@@ -48,7 +82,8 @@ public partial class WifiTransferWindow : Window
     {
         _import = import;
         InitializeComponent();
-        ReceivedList.ItemsSource = _received; SharedList.ItemsSource = _shared;
+        ReceivedList.ItemsSource = _visibleReceived; SharedList.ItemsSource = _shared;
+        UsersList.ItemsSource = _users; UsersList.SelectedIndex = 0;
         Opened += async (_, _) => await RunAsync(InitializeAsync);
         Closing += ClosingWindow;
         Localization.Changed += LanguageChanged;
@@ -57,16 +92,9 @@ public partial class WifiTransferWindow : Window
 
     private async Task InitializeAsync()
     {
-        Directory.CreateDirectory(WifiTransferService.ReceiveFolder);
-        var files = await Task.Run(() => Directory.EnumerateDirectories(WifiTransferService.ReceiveFolder)
-            .Where(directory => Guid.TryParseExact(System.IO.Path.GetFileName(directory), "N", out _))
-            .SelectMany(directory => Directory.EnumerateFiles(directory).Where(path => System.IO.Path.GetFileName(path) != ".uploading"))
-            .Select(path => new FileInfo(path)).OrderByDescending(info => info.LastWriteTimeUtc)
-            .Select(info => new WifiTransferUpdate(System.IO.Path.GetFileName(info.DirectoryName)!, info.FullName,
-                info.Name, info.Length, info.Length, Complete: true)).ToArray(), _lifetime.Token);
-        foreach (var file in files) ApplyUpdate(file);
+        var files = await Task.Run(WifiTransferService.LoadReceived, _lifetime.Token);
+        foreach (var file in files.Reverse()) ApplyUpdate(file);
         RefreshNetworks();
-        await StartAsync();
     }
 
     private void RefreshNetworks()
@@ -85,11 +113,22 @@ public partial class WifiTransferWindow : Window
         if (_service is not null || _lifetime.IsCancellationRequested) return;
         if (NetworkInput.SelectedItem is not WifiNetwork network)
         { ConnectionStatus.Text = Localization.Text("未找到局域网 IPv4 地址，请连接 WiFi 或有线网络后刷新。"); return; }
-        ConnectionStatus.Text = Localization.Text("正在开启接收…");
+        ConnectionStatus.Text = Localization.Text("正在开启传输…");
         var service = new WifiTransferService();
         service.Updated += TransferUpdated;
+        service.UsersChanged += UsersUpdated;
+        service.IdleExpired += () => Dispatcher.UIThread.Post(async () =>
+        {
+            if (_service != service || _closeReady) return;
+            await RunAsync(async () =>
+            {
+                await StopAsync();
+                ConnectionStatus.Text = Localization.Text("空闲 5 分钟，传输已自动关闭。需要时可手动开启。");
+            });
+        });
         try
         {
+            service.SetAutoClose(AutoCloseInput.IsChecked == true);
             foreach (var entry in _shared) service.AddShare(entry.File);
             await service.StartAsync(network.Address, _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested();
@@ -99,11 +138,13 @@ public partial class WifiTransferWindow : Window
             var bitmap = new Bitmap(stream);
             _qr?.Dispose(); _qr = bitmap; QrImage.Source = _qr;
             _service = service; AddressText.Text = service.Url;
-            ConnectionStatus.Text = Localization.Text("接收已开启，手机扫码后用浏览器打开。");
+            ConnectionPanel.IsExpanded = true;
+            ConnectionStatus.Text = Localization.Text("传输已开启，多位用户可同时扫码收发文件。");
         }
         catch
         {
             service.Updated -= TransferUpdated;
+            service.UsersChanged -= UsersUpdated;
             await service.DisposeAsync();
             throw;
         }
@@ -119,9 +160,11 @@ public partial class WifiTransferWindow : Window
         if (service is not null)
         {
             try { await service.DisposeAsync(); }
-            finally { service.Updated -= TransferUpdated; }
+            finally { service.Updated -= TransferUpdated; service.UsersChanged -= UsersUpdated; }
         }
-        ConnectionStatus.Text = Localization.Text("接收已停止。再次开启会生成新的扫码地址。");
+        foreach (var user in _users) user.SetOffline();
+        ConnectionPanel.IsExpanded = false;
+        ConnectionStatus.Text = Localization.Text("传输已关闭，再次开启会生成新的扫码地址。");
         RefreshControls();
     }
 
@@ -153,8 +196,37 @@ public partial class WifiTransferWindow : Window
 
     private void ApplyUpdate(WifiTransferUpdate update)
     {
+        EnsureUser(update.UserId, update.UserName);
         if (_byId.TryGetValue(update.Id, out var entry)) entry.Update(update);
-        else { entry = new(update); _byId.Add(entry.Id, entry); _received.Insert(0, entry); }
+        else
+        {
+            entry = new(update); _byId.Add(entry.Id, entry); _received.Insert(0, entry);
+            if (MatchesUser(entry)) _visibleReceived.Insert(0, entry);
+        }
+        RefreshControls();
+    }
+
+    private WifiUserEntry EnsureUser(string id, string name)
+    {
+        if (_userById.TryGetValue(id, out var user)) return user;
+        user = new(id, name); _userById.Add(id, user); _users.Add(user);
+        return user;
+    }
+
+    private void UsersUpdated(WifiTransferUser[] users) => Dispatcher.UIThread.Post(() =>
+    {
+        if (_closeReady) return;
+        foreach (var user in users) EnsureUser(user.Id, user.Name).Update(user);
+        RefreshControls();
+    });
+
+    private bool MatchesUser(WifiReceivedEntry entry) => UsersList.SelectedItem is not WifiUserEntry user ||
+        user.Id == "*" || entry.UserId == user.Id;
+
+    private void UserSelectionChanged(object? sender, SelectionChangedEventArgs args)
+    {
+        _visibleReceived.Clear();
+        foreach (var entry in _received.Where(MatchesUser)) _visibleReceived.Add(entry);
         RefreshControls();
     }
 
@@ -169,20 +241,30 @@ public partial class WifiTransferWindow : Window
         var selected = SelectedReceived();
         ImportReceivedButton.IsEnabled = !_importing && !closing && selected.Length > 0;
         CompressReceivedButton.IsEnabled = !_importing && !closing && selected.Any(VideoFolderScanner.IsVideoFile);
-        SelectReceivedButton.IsEnabled = !closing && _received.Any(entry => entry.Complete);
+        SelectReceivedButton.IsEnabled = !closing && _visibleReceived.Any(entry => entry.Complete);
         AddSharedButton.IsEnabled = !closing;
         RemoveSharedButton.IsEnabled = !closing && SharedList.SelectedItems?.Count > 0;
-        ReceiveSummary.Text = Localization.Format($"已接收 {_received.Count(entry => entry.Complete)} 个 · 传输中 {_received.Count(entry => entry.Receiving)} 个");
+        ReceiveSummary.Text = Localization.Format($"已接收 {_visibleReceived.Count(entry => entry.Complete)} 个 · 传输中 {_visibleReceived.Count(entry => entry.Receiving)} 个");
+        foreach (var user in _users) user.SetReceived(_received.Count(entry => entry.UserId == user.Id && entry.Complete));
+        UserSummary.Text = Localization.Format($"用户 {_userById.Count} 位 · 在线 {_users.Count(user => user.Online)} 位");
+        MediaHeading.Text = UsersList.SelectedItem is WifiUserEntry selectedUser && selectedUser.Id != "*" ?
+            Localization.Format($"{selectedUser.DisplayName} 的媒体与文件") : Localization.Text("全部媒体与文件");
     }
 
     private string[] SelectedReceived() => ReceivedList.SelectedItems?.OfType<WifiReceivedEntry>()
         .Where(entry => entry.Complete && File.Exists(entry.Path)).Select(entry => entry.Path).ToArray() ?? [];
 
     private void LanguageChanged(object? sender, EventArgs args)
-    { foreach (var entry in _received) entry.Refresh(); RefreshControls(); }
+    {
+        foreach (var entry in _received) entry.Refresh();
+        foreach (var user in _users) user.Refresh();
+        SharedList.ItemsSource = null; SharedList.ItemsSource = _shared;
+        RefreshControls();
+    }
     private void SelectionChanged(object? sender, SelectionChangedEventArgs args) => RefreshControls();
     private async void StartReceiveClick(object? sender, RoutedEventArgs args) => await RunAsync(StartAsync);
     private async void StopReceiveClick(object? sender, RoutedEventArgs args) => await RunAsync(StopAsync);
+    private void AutoCloseChanged(object? sender, RoutedEventArgs args) => _service?.SetAutoClose(AutoCloseInput.IsChecked == true);
     private async void RefreshNetworkClick(object? sender, RoutedEventArgs args) => await RunAsync(() => { RefreshNetworks(); return Task.CompletedTask; });
     private async void CopyAddressClick(object? sender, RoutedEventArgs args)
     {
@@ -197,7 +279,7 @@ public partial class WifiTransferWindow : Window
     private void SelectReceivedClick(object? sender, RoutedEventArgs args)
     {
         ReceivedList.SelectedItems?.Clear();
-        foreach (var entry in _received.Where(entry => entry.Complete && File.Exists(entry.Path))) ReceivedList.SelectedItems?.Add(entry);
+        foreach (var entry in _visibleReceived.Where(entry => entry.Complete && File.Exists(entry.Path))) ReceivedList.SelectedItems?.Add(entry);
     }
 
     private async void ImportReceivedClick(object? sender, RoutedEventArgs args) => await ImportAsync(false);
@@ -232,7 +314,7 @@ public partial class WifiTransferWindow : Window
                 var file = WifiTransferService.Share(path);
                 _shared.Add(new(file)); _service?.AddShare(file);
             }
-            ActivityText.Text = Localization.Text(_service is null ? "文件已添加，开启接收后手机即可下载。" : "文件已分享，手机网页可刷新下载列表。");
+            ActivityText.Text = Localization.Text(_service is null ? "文件已添加，开启传输后所有连接用户均可下载。" : "文件已分享，所有连接用户可在手机网页下载。");
         }
         catch (Exception exception) { await Ui.Message(this, "分享文件失败", exception.Message); }
     }

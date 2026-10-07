@@ -36,6 +36,8 @@
     progress { width: 100%; height: 14px; accent-color: #1769b3; }
     .download { text-decoration: none; padding: 10px 12px; flex-shrink: 0; }
     .small { padding: 6px 10px; min-height: 36px; font-size: 14px; }
+    .identity { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .identity input { font: inherit; flex: 1; min-width: 160px; min-height: 46px; padding: 10px 12px; border: 1px solid #bbccde; border-radius: 10px; }
     [hidden] { display: none !important; }
     @media (prefers-color-scheme: dark) {
       :root { background: #111b28; color: #edf4fb; }
@@ -57,6 +59,16 @@
     <h1>WiFi 传文件</h1>
     <p class="muted">手机与电脑连接同一局域网。文件直接传到电脑，无需安装手机 App。</p>
   </header>
+  <section class="card" aria-labelledby="user-title">
+    <h2 id="user-title">我的传输用户</h2>
+    <div class="identity">
+      <label for="user-name">用户名称</label>
+      <input id="user-name" maxlength="32" autocomplete="nickname" placeholder="输入姓名或设备名称">
+      <button id="save-user">保存名称</button>
+    </div>
+    <p id="user-status" class="muted" role="status" aria-live="polite">正在连接电脑…</p>
+    <p class="muted">多位用户可同时上传和下载，电脑左侧按用户查看媒体。空闲 5 分钟后可自动关闭传输，进行中的传输会保持连接。</p>
+  </section>
   <section class="card" aria-labelledby="upload-title">
     <h2 id="upload-title">发送到电脑</h2>
     <p class="muted">支持照片、视频和任意文件，单个文件最大 50 GB。</p>
@@ -77,7 +89,7 @@
   </section>
   <section class="card" aria-labelledby="download-title">
     <h2 id="download-title">从电脑下载</h2>
-    <p class="muted">在电脑的“发送到手机”区域添加文件后，这里会显示下载入口。</p>
+    <p class="muted">电脑在“发送到手机”区域添加的分享文件，所有连接用户均可下载。</p>
     <ul id="downloads" aria-label="电脑分享的文件"></ul>
     <p id="download-status" class="muted" role="status">正在连接电脑…</p>
     <button id="refresh" class="small">刷新文件列表</button>
@@ -90,6 +102,7 @@
   const get = id => document.getElementById(id);
   const selections = [];
   let busy = false, cancelled = false, currentRequest = null, refreshing = false;
+  let sessionReady = false, connecting = null;
   const maxBytes = 50 * 1024 * 1024 * 1024;
   function bytes(value) {
     if (value < 1024) return value + ' B';
@@ -99,12 +112,41 @@
     return scaled.toFixed(scaled < 10 ? 2 : 1) + ' ' + units[index];
   }
   function controls() {
+    get('save-user').disabled = busy || connecting !== null;
+    get('user-name').disabled = busy || connecting !== null;
     get('photos').disabled = get('files').disabled = busy;
-    get('upload').disabled = busy || !selections.some(item => !item.done && item.file.size <= maxBytes);
+    get('upload').disabled = busy || !sessionReady || !selections.some(item => !item.done && item.file.size <= maxBytes);
     get('clear').disabled = busy || selections.length === 0;
     get('cancel').hidden = !busy;
     get('progress').hidden = !busy;
   }
+  try { get('user-name').value = localStorage.getItem('avamedia-wifi-name') || ''; } catch { }
+  async function connect(name = get('user-name').value) {
+    if (connecting) return connecting;
+    connecting = (async () => {
+      const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(base + 'session', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }), signal: controller.signal, cache: 'no-store'
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '连接失败，请重新扫码。');
+        sessionReady = true; get('user-name').value = result.name;
+        try { localStorage.setItem('avamedia-wifi-name', result.name); } catch { }
+        get('user-status').textContent = '已连接：' + result.name + ' · 文件会归入此用户。';
+      } catch (error) {
+        get('user-status').textContent = error.name === 'AbortError' || error instanceof TypeError || error instanceof SyntaxError ?
+          '无法连接电脑，传输可能已关闭，请检查网络并重新扫码。' : error.message;
+        throw new Error(get('user-status').textContent);
+      } finally { clearTimeout(timeout); }
+    })();
+    controls();
+    try { await connecting; } finally { connecting = null; controls(); }
+  }
+  get('save-user').addEventListener('click', async () => {
+    try { await connect(); await refresh(); } catch { }
+  });
   function renderSelections() {
     get('selection').replaceChildren();
     selections.forEach(item => {
@@ -159,6 +201,7 @@
     const pending = selections.filter(item => !item.done && item.file.size <= maxBytes);
     busy = true; cancelled = false; renderSelections(); let succeeded = 0, failed = 0;
     try {
+      if (!sessionReady) await connect();
       for (let index = 0; index < pending.length && !cancelled; index++) {
         const item = pending[index]; item.error = false; item.message = '正在连接电脑…'; updateState(item);
         get('progress').value = 0; get('status').textContent = '正在上传：' + item.file.name;
@@ -169,14 +212,19 @@
       }
       get('status').textContent = cancelled ? '传输已取消。已成功上传的文件保留在电脑上。' :
         '本次完成 ' + succeeded + ' 个文件' + (failed ? '，失败 ' + failed + ' 个；点击开始上传可重试。' : '，请在电脑接收列表中导入。');
-    } finally { busy = false; renderSelections(); }
+    } catch (error) { get('status').textContent = error.message; }
+    finally { busy = false; renderSelections(); }
   });
   async function refresh() {
     if (refreshing) return;
     refreshing = true; const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 8000);
     try {
+      if (!sessionReady) await connect();
       const response = await fetch(base + 'files', { cache: 'no-store', signal: controller.signal });
-      if (!response.ok) throw new Error('电脑已停止接收或地址已失效，请重新扫码。');
+      if (!response.ok) {
+        sessionReady = false; controls();
+        throw new Error('电脑传输已关闭或地址已失效，请重新扫码。');
+      }
       const files = await response.json(); get('downloads').replaceChildren();
       for (const file of files) {
         const row = document.createElement('li'), info = document.createElement('div'); info.className = 'info';
@@ -188,6 +236,7 @@
       }
       get('download-status').textContent = files.length ? '电脑已分享 ' + files.length + ' 个文件。' : '电脑尚未添加分享文件。';
     } catch (error) {
+      sessionReady = false; controls();
       get('downloads').replaceChildren();
       get('download-status').textContent = error.message === 'Failed to fetch' || error.name === 'AbortError' ?
         '无法连接电脑，请检查同一 WiFi、电脑接收状态和防火墙，然后重新扫码。' : error.message;
