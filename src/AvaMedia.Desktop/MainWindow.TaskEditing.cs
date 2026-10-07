@@ -25,10 +25,19 @@ public partial class MainWindow
         job.State = JobState.Waiting;
     }
 
-    private void ApplyEditedJobs(Job original, IReadOnlyList<Job> replacements)
+    private void ApplyEditedJobs(Job original, IReadOnlyList<Job> replacements, bool preserveOutputName = true)
     {
         if (_closing || _queue.IsRunning || original.State == JobState.Running || !_jobs.Contains(original)) return;
         var replacement = replacements[0];
+        if (preserveOutputName && Catalog.Find(replacement.FeatureId).Operation != Operation.Download)
+        {
+            var directory = Catalog.Find(replacement.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
+            var name = directory ? Path.GetFileName(original.Output) : Path.GetFileNameWithoutExtension(original.Output);
+            var reserved = EditingReservations(original).Concat(replacements.Skip(1).Select(job => job.Output))
+                .Concat(replacements.SelectMany(job => job.Inputs));
+            replacement.Output = MediaEngine.UniqueOutput(Path.GetDirectoryName(replacement.Output)!, name, replacement.Options.Format, reserved, directory);
+            MediaEngine.Validate(replacement);
+        }
         original.FeatureId = replacement.FeatureId; original.Inputs = replacement.Inputs;
         original.Options = replacement.Options; original.InputOptions = replacement.InputOptions;
         original.Output = replacement.Output; original.DownloadTitle = replacement.DownloadTitle;
@@ -65,7 +74,7 @@ public partial class MainWindow
             var jobs = ConversionBatch.CreateJobs(result.Feature, result.Files, result.OutputFolder, result.Options,
                 result.InputOptions, EditingReservations(job));
             OutputPreferences.Apply(jobs, _settings, EditingReservations(job), result.OutputToSource, result.SettingName);
-            ApplyEditedJobs(job, jobs);
+            ApplyEditedJobs(job, jobs, preserveOutputName: result.SettingName.Length == 0);
         }
         catch (Exception exception) { await Ui.Message(this, "任务编辑失败", exception.Message); }
         finally { _editingJob = null; Refresh(); }

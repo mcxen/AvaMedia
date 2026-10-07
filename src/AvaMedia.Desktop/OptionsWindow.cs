@@ -78,7 +78,8 @@ public sealed class OptionsWindow : Window
             else if(!input && _kind!=MediaOptionsKind.Frames && (image?_format=="avif":_format!="gif"))Number(video,"质量 (值越低质量越高)",_draft.Quality,(o,v)=>o.Quality=(int)v,true,1,63);
             if(!outputOnly)
             {
-                Choice(video,"旋转角度",["0","90","180","270"],_draft.Rotation.ToString(),(o,v)=>o.Rotation=int.Parse(v));Check(video,"镜像","水平镜像",_draft.Flip,(o,v)=>o.Flip=v);
+                Choice(video,"旋转角度",["0","90","180","270"],(_draft.LosslessRotation??_draft.Rotation).ToString(),(o,v)=>
+                {if(o.LosslessRotation is not null){o.LosslessRotation=int.Parse(v);o.Rotation=0;}else o.Rotation=int.Parse(v);});Check(video,"镜像","水平镜像",_draft.Flip,(o,v)=>o.Flip=v);
                 if(!image && _kind!=MediaOptionsKind.Frames){Number(video,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);Fades(video);}
             }
         }

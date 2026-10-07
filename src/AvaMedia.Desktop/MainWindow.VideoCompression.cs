@@ -34,7 +34,7 @@ public partial class MainWindow
         if (request is null || job.State == JobState.Running) return;
         try
         {
-            ApplyEditedJobs(job, CreateCompressionJobs(request, EditingReservations(job)));
+            ApplyEditedJobs(job, CreateCompressionJobs(request, EditingReservations(job)), preserveOutputName: !request.AddSettingName);
         }
         catch (Exception exception) { await Ui.Message(this, "压缩参数错误", exception.Message); }
     }

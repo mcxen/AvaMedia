@@ -34,6 +34,7 @@ public sealed partial class ImageCompressionWindow : Window
 {
     private readonly IImageCompressor _compressor;
     private readonly IMediaPreview _preview;
+    private readonly bool _editing;
     private readonly ObservableCollection<ImageCompressionEntry> _entries = [];
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _inspectionSlots = new(2);
@@ -51,6 +52,7 @@ public sealed partial class ImageCompressionWindow : Window
     public ImageCompressionWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null,
         ImageCompressionOptions? initialOptions = null, bool canStart = true, IImageCompressor? compressor = null, bool editing = false)
     {
+        _editing = editing;
         _compressor = compressor ?? new FfmpegImageCompressor(engine);
         _preview = engine;
         InitializeComponent();
@@ -107,7 +109,7 @@ public sealed partial class ImageCompressionWindow : Window
             finally { _inspectionSlots.Release(); }
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!_closed) { entry.Error = ex.Message; entry.Include = false; } }
+        catch (Exception ex) { if (!_closed) { entry.Error = ex.Message; if (!_editing) entry.Include = false; } }
         if (!_closed) RefreshControls();
     }
     private ImageCompressionOptions ReadOptions()
@@ -171,7 +173,7 @@ public sealed partial class ImageCompressionWindow : Window
         var qualityEnabled = format != "png" && !(format == "webp" && LosslessInput.IsChecked == true);
         QualityInput.IsEnabled = QualitySlider.IsEnabled = qualityEnabled;
         EdgeInput.IsEnabled = ResizeInput.IsChecked == true;
-        foreach (var entry in _entries) entry.CanInclude = !_busy && entry.Source is not null;
+        foreach (var entry in _entries) entry.CanInclude = !_busy && (_editing ? File.Exists(entry.Path) : entry.Source is not null);
         var included = _entries.Count(entry => entry.Include);
         ListSummary.Text = Localization.Format($"{_entries.Count} 张图片 · 已勾选 {included} 张");
         SettingsPanel.IsEnabled = AddButton.IsEnabled = FolderButton.IsEnabled = SelectAllButton.IsEnabled = !_busy;
@@ -304,6 +306,25 @@ public sealed partial class ImageCompressionWindow : Window
     private void CancelPreviewClick(object? sender, RoutedEventArgs args) => _batchCancellation?.Cancel();
     private async void ConfirmClick(object? sender, RoutedEventArgs args)
     {
+        if (_busy || _closed) return;
+        if (_editing)
+        {
+            try
+            {
+                var selected = _entries.Where(entry => entry.Include).Select(entry => entry.Path).ToArray();
+                if (selected.Length == 0) throw new ArgumentException("请添加要压缩的图片。");
+                foreach (var path in selected) if (!File.Exists(path)) throw new FileNotFoundException("图片不存在。", path);
+                var request = new ImageCompressionRequest(selected, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true);
+                if (!request.OutputToSource)
+                {
+                    if (string.IsNullOrWhiteSpace(request.OutputFolder)) throw new ArgumentException("请选择保存文件夹。");
+                    _ = Path.GetFullPath(request.OutputFolder);
+                }
+                Close(request);
+            }
+            catch (Exception ex) { StatusText.Text = ex.Message; }
+            return;
+        }
         var task = PreviewAllAsync(); _batchTask = task;
         if (!await task || _closed) return;
         var inputs = _entries.Where(entry => entry.Include && entry.Result?.IsSmaller == true && entry.Error is null).Select(entry => entry.Path).ToArray();

@@ -166,6 +166,7 @@ public sealed class MediaEngine : IMediaEngine
         if((o.DelogoWidth>0)!=(o.DelogoHeight>0)) throw new ArgumentException("水印区域宽度和高度必须同时设置。");
         if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
+        if(feature.Operation==Operation.IsoCopy && (job.Inputs.Length!=1 || string.IsNullOrWhiteSpace(job.Inputs[0])))throw new ArgumentException("光盘复制任务须包含一个设备路径。");
         if(feature.Operation is Operation.PdfAge or Operation.PdfCompress || PdfTools.Supports(feature.Operation) && o.Pdf is not null)PdfTools.Validate(job);
         if(feature.Operation==Operation.VideoCompress)VideoCompression.ValidateJob(job);
         if(feature.Operation==Operation.ImageCompress){if(job.Inputs.Length!=1)throw new ArgumentException("每个图片压缩任务处理一张图片。");(o.ImageCompression??new ImageCompressionOptions{Format=o.Format}).Validate();}

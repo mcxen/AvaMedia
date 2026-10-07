@@ -669,6 +669,8 @@
   "{0} 声道": "{0} channels",
   "每 {0} 秒一帧": "One frame every {0} s",
   "Fast Copy · 方向标记 {0}°": "Fast Copy · Rotation metadata {0}°",
+  "方向标记 {0}°": "Rotation metadata {0}°",
+  "光盘复制任务须包含一个设备路径。": "A disc copy task requires one device path.",
   "{0}× 速度": "{0}× speed",
   "旋转 {0}°": "Rotate {0}°",
   "裁剪 {0} × {1}": "Crop {0} × {1}",

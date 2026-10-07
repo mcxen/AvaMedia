@@ -10,6 +10,24 @@ public static class SourceVideoExport
     public const string FastRotation = "Fast Copy（方向标记）";
     public const string OriginalHint = "沿用原容器、视频编码、帧率、像素格式和色彩标记，音轨和字幕直接复制，保留章节；画面需重新编码，码率和文件大小会变化。";
     public const string FastHint = "MOV / MP4 / M4V：只改播放方向标记，音视频和字幕直接复制，保留章节，不损失画质；播放器须支持方向标记。";
+    public static string Selection(ConversionOptions options) => options.PreserveSourceAttributes ? Original :
+        options.LosslessRotation is not null ? FastRotation : options.Format;
+
+    public static ConversionOptions WithOutput(ConversionOptions options, string selection, string path)
+    {
+        var result = options.Clone();
+        var format = Format(selection, path);
+        var original = selection == Original;
+        var fast = selection == FastRotation;
+        if (format != options.Format || original != options.PreserveSourceAttributes || fast != (options.LosslessRotation is not null))
+            result.VideoCodec = result.AudioCodec = "自动";
+        var rotation = options.LosslessRotation ?? options.Rotation;
+        result.Format = format; result.PreserveSourceAttributes = original;
+        result.LosslessRotation = fast ? rotation : null; result.Rotation = fast ? 0 : rotation;
+        if (fast || original || options.LosslessRotation is not null) result.CopyStreams = fast;
+        return result;
+    }
+
     public static string Format(string selection, string? path)
     {
         if (selection is not (Original or FastRotation)) return selection;

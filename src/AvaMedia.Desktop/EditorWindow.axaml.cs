@@ -284,7 +284,8 @@ public partial class EditorWindow : Window
         try
         {
             if(QuickWorkflow){Close(ReadClipEdit());return;}
-            var draft=ReadDraft();MediaEngine.Validate(new(){FeatureId="mp4",Inputs=[_path],Output=Path.Combine(Path.GetTempPath(),"validate-output.mp4"),Options=draft});Close(draft);
+            var draft=ReadDraft();var feature=Catalog.All.FirstOrDefault(item=>item.Id==_mode)??Catalog.Find("mp4");
+            MediaEngine.ValidateEdits(new(){FeatureId=feature.Id,Inputs=[_path],Output=Path.Combine(Path.GetTempPath(),"validate-output."+draft.Format),Options=draft},[_info!]);Close(draft);
         }
         catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
     }
