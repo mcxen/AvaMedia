@@ -202,7 +202,7 @@ public sealed partial class QuickClipWindow : Window
     }
     private async void OutputSettingsClick(object? sender, RoutedEventArgs e)
     {
-        var draft = _defaults.Clone(); draft.Format = Preset == "MKV" ? "mkv" : "mp4";
+        var draft = _defaults.Clone(); draft.Format = Preset == "Fast Copy" ? "mp4" : Preset.ToLowerInvariant();
         var changed = await new OptionsWindow(draft, Preset == "Fast Copy").ShowDialog<ConversionOptions?>(this);
         if (changed is null) return;
         SwitchForFilters(changed, _defaults); _defaults = changed.Clone();

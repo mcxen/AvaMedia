@@ -34,8 +34,8 @@ public sealed record VideoCompressionOptions
             throw new ArgumentException("目标体积百分比须在 5–95 之间。");
         if (!double.IsFinite(TargetMegabytes) || TargetMegabytes is < .1 or > 1000000)
             throw new ArgumentException("目标体积须在 0.1–1000000 MB 之间。");
-        if (Format is not ("mp4" or "mov" or "m4v" or "mkv") || Codec is not ("h264" or "hevc"))
-            throw new ArgumentException("视频压缩支持 MP4 / MOV / M4V / MKV 和 H.264 / HEVC。");
+        if (Format is not ("mp4" or "mov" or "m4v" or "mkv" or "ts") || Codec is not ("h264" or "hevc"))
+            throw new ArgumentException("视频压缩支持 MP4 / MOV / M4V / MKV / TS 和 H.264 / HEVC。");
         if (MaxDimension is not (0 or 1920 or 1280 or 854) || MaxFrameRate is not (0 or 30 or 24))
             throw new ArgumentException("请选择有效的分辨率与帧率上限。");
         if (AudioBitrate is not (64 or 96 or 128 or 192)) throw new ArgumentException("请选择有效的音频码率。");
@@ -90,14 +90,16 @@ public static class VideoCompression
             _ => null
         };
         if (target >= sourceBytes) throw new ArgumentException("目标体积须小于源视频；请减小目标 MB 或改用百分比。");
+        // TS needs extra packet/table overhead. Both budgets and displayed estimates use this heuristic.
+        var payloadRatio = VideoFormats.IsTransportStream(options.Format) ? .94 : .97;
         if (options.Mode == VideoCompressionMode.Automatic && audio > 0)
         {
-            var totalBitrate = target!.Value * .97 * 8 / source.Duration / 1000;
+            var totalBitrate = target!.Value * payloadRatio * 8 / source.Duration / 1000;
             // Reserve most of a small budget for the picture, without silently removing sound.
             audio = new[] { 32, 48, 64, 96, 128, 192 }
                 .LastOrDefault(rate => rate <= audio && rate <= totalBitrate * .25, 32);
         }
-        var video = target is { } bytes ? Math.Floor(bytes * .97 * 8 / source.Duration / 1000 - audio) : options.VideoBitrate;
+        var video = target is { } bytes ? Math.Floor(bytes * payloadRatio * 8 / source.Duration / 1000 - audio) : options.VideoBitrate;
         if (video < 64) throw new ArgumentException("目标体积过小，无法分配视频码率；请增大目标或移除声音。");
         if (video > 200000) throw new ArgumentException("目标码率过高，请降低目标体积。");
         if (options.Mode == VideoCompressionMode.Automatic)
@@ -111,7 +113,7 @@ public static class VideoCompression
             height = Math.Max(2, (int)Math.Floor(height * scale / 2) * 2);
         }
         return new(sourceBytes, target is { } size ? (long)Math.Floor(size) : null,
-            (long)Math.Ceiling((video + audio) * 1000 / 8 * source.Duration / .97), (int)video, audio, width, height, fps, false, options.Quality);
+            (long)Math.Ceiling((video + audio) * 1000 / 8 * source.Duration / payloadRatio), (int)video, audio, width, height, fps, false, options.Quality);
     }
 
     public static ConversionOptions CreateOptions(VideoCompressionOptions options)

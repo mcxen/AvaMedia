@@ -8,6 +8,7 @@
 | 队列 | 多文件、多任务并行、进度、停止、重试、自动保存、导入导出、日志、文件拖放 | 队列恢复与失败隔离通过测试；输出防覆盖 |
 | 选项设置 | 参考高级页、Apple / NVIDIA / Intel / AMD 自动 GPU 编解码适配、按平台与源编码选择、解码和编码分级回退、1–16 线程、JPG / WebP 默认质量、立即应用与草稿取消 | 既有设置检查见 [SETTINGS.md](SETTINGS.md)；新增 GPU 适配仅完成编译与静态检查，能力范围见 [GPU-TRANSCODING.md](GPU-TRANSCODING.md)；资源共享未接入 |
 | 视频格式转换 | 单一入口选择 MP4、MKV、WebM、AVI、FLV、MOV、WMV、MPG、TS、GIF | 格式输出已有验证；本次合并入口仅完成编译和静态检查 |
+| TS 视频 | TS / MTS / M2TS / M2T 共享视频导入、目录扫描、编辑预览、压缩及播放入口；转换、合并、混流、视频流提取、重新封装、快速剪辑、批量裁剪 / 旋转可选择 TS 输出 | TS 默认 H.264 / AAC，显式 MPEG-TS 封装；Fast Copy 保留源编码。当前增补仅完成编译和静态检查，未运行 TS 媒体输出或播放回归；详见 [TS 视频](TS-VIDEO.md) |
 | 音频 | MP3、FLAC、WAV、M4A、OGG、AAC、AC3、WMA、Opus、AIFF | 10 类均生成实际输出 |
 | 音频输出配置 | 独立音视频 copy、采样率/声道、全部音轨保留、百分比音量、独立音频淡入淡出、回声、FFT 降噪、区间反向 | 32 项实际输出与界面检查通过；实现和限制见 [AUDIO-OPTIONS.md](AUDIO-OPTIONS.md)，macOS 真机尚未验收 |
 | 图片 | JPG、PNG、WebP、BMP、TIFF、GIF、ICO、AVIF | 8 类均生成有效输出；ICO 支持自定义尺寸，默认 256×256 |

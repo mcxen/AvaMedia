@@ -61,7 +61,7 @@ public sealed partial class BatchRotateWindow : Window
         FileList.ItemsSource = _entries; RotationTransform.LayoutTransform = _rotation;
         ModeCombo.ItemsSource = new[] { "统一旋转", "逐个调整" }; ModeCombo.SelectedIndex = 0;
         DirectionCombo.ItemsSource = new[] { BatchRotate.Direction(90), BatchRotate.Direction(270), BatchRotate.Direction(180), BatchRotate.Direction(0) }; DirectionCombo.SelectedIndex = 0;
-        FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, SourceVideoExport.FastRotation, "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
+        FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, SourceVideoExport.FastRotation, "mp4", "mkv", "webm", "mov", "avi", "ts" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
         SourceOutputInput.IsChecked=engine.Settings.OutputToSource;SettingNameInput.IsChecked=engine.Settings.AddSettingName;
         SourceOutputInput.IsCheckedChanged+=(_,_)=>{OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;RefreshValidation();};

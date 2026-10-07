@@ -42,7 +42,7 @@ public static class HardwareTranscoding
     public static bool Compatible(string container, HardwareVideoFormat format) => container.ToLowerInvariant() switch
     {
         "mp4" or "mov" or "m4v" => format is HardwareVideoFormat.H264 or HardwareVideoFormat.Hevc or HardwareVideoFormat.Av1,
-        "ts" or "mts" or "m2ts" => format is HardwareVideoFormat.H264 or HardwareVideoFormat.Hevc,
+        "ts" or "mts" or "m2ts" or "m2t" => format is HardwareVideoFormat.H264 or HardwareVideoFormat.Hevc,
         "mkv" => true,
         "avi" or "flv" => format == HardwareVideoFormat.H264,
         "3gp" or "3g2" => format == HardwareVideoFormat.H264,

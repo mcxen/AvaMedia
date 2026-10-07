@@ -146,7 +146,7 @@ public static class SourceVideoExport
             // Pixel rotation consumes the old display matrix; avoid rotating twice on playback.
             arguments.AddRange(["-metadata:s:v:" + options.VideoStreamIndex, "rotate=0"]);
         }
-        if (options.Format == "m4v") arguments.AddRange(["-f", "mp4"]);
+        VideoFormats.AppendMuxerArguments(arguments,options.Format);
         arguments.Add(job.Output); return arguments;
     }
     private static (int Width, int Height) OutputSize(MediaInfo media, ConversionOptions options)

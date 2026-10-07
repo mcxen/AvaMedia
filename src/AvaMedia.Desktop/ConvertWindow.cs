@@ -127,5 +127,14 @@ public sealed class ConvertWindow : Window
             finally{_preparing=false;if(IsVisible){ok.IsEnabled=true;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;}}
         };buttons.Children.Add(ok);Grid.SetRow(buttons,4);panel.Children.Add(buttons);Content=panel;
     }
-    private static IEnumerable<string> GetFormats(Feature f)=>f.Id=="mp4"?["mp4","mkv","mov","webm","avi","flv","wmv","mpg","ts","3gp","3g2","gif"]:f.Operation is Operation.Join or Operation.Mux && f.Category=="视频"?["mp4","mkv","webm","avi","mov","3gp","3g2"]:f.Id=="split"?["m4a","mp3","flac","wav","aac","ogg"]:[f.Format];
+    private static IEnumerable<string> GetFormats(Feature f)=>f.Id switch
+    {
+        "mp4"=>["mp4","mkv","mov","webm","avi","flv","wmv","mpg","ts","3gp","3g2","gif"],
+        "repair"=>["mkv","mp4","mov","ts"],
+        "delogo"=>["mp4","mkv","mov","ts"],
+        "split"=>["m4a","mp3","flac","wav","aac","ogg"],
+        _ when f.Operation==Operation.SplitVideo=>["mkv","mp4","mov","ts"],
+        _ when f.Operation is Operation.Join or Operation.Mux && f.Category=="视频"=>["mp4","mkv","webm","avi","mov","ts","3gp","3g2"],
+        _=>[f.Format]
+    };
 }

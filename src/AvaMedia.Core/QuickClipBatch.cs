@@ -5,12 +5,12 @@ public sealed record QuickClipInput(string Path, ConversionOptions Options);
 /// <summary>Per-file drafts for the quick clipping dialog. Creating jobs never modifies input media.</summary>
 public static class QuickClipBatch
 {
-    public static string[] Presets { get; } = ["Fast Copy", "MP4", "MKV"];
+    public static string[] Presets { get; } = ["Fast Copy", "MP4", "MKV", "TS"];
     public static IReadOnlySet<string> VideoExtensions => VideoFormats.InputExtensions;
 
     public static ConversionOptions ResolveOptions(string path, string preset, ConversionOptions draft)
     {
-        if (!Presets.Contains(preset)) throw new ArgumentException("请选择 Fast Copy、MP4 或 MKV。");
+        if (!Presets.Contains(preset)) throw new ArgumentException("请选择 Fast Copy、MP4、MKV 或 TS。");
         var options = draft.Clone();
         options.CopyStreams = preset == "Fast Copy";
         options.Format = options.CopyStreams ? System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant() : preset.ToLowerInvariant();

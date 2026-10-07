@@ -52,7 +52,7 @@ public sealed partial class BatchCropWindow : Window
         FileList.ItemsSource = _entries;
         ModeCombo.ItemsSource = new[] { PixelMode, RelativeMode }; ModeCombo.SelectedIndex = 0;
         CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;
-        FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, "mp4", "mkv", "webm", "mov", "avi" }; FormatCombo.SelectedIndex = 0;
+        FormatCombo.ItemsSource = new[] { SourceVideoExport.Original, "mp4", "mkv", "webm", "mov", "avi", "ts" }; FormatCombo.SelectedIndex = 0;
         OutputInput.Text = outputFolder;
         SourceOutputInput.IsChecked=engine.Settings.OutputToSource;SettingNameInput.IsChecked=engine.Settings.AddSettingName;
         SourceOutputInput.IsCheckedChanged+=(_,_)=>{OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;RefreshValidation();};

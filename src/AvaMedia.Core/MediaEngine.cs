@@ -202,12 +202,13 @@ public sealed class MediaEngine : IMediaEngine
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
         SubtitleOptions.Validate(o);
         VideoFormats.ValidateMobileOutput(o);
+        VideoFormats.ValidateTransportOutput(o);
         foreach(var fade in new[]{o.AudioFadeIn,o.AudioFadeOut})if(fade is {} value && (!double.IsFinite(value) || value<0))throw new ArgumentException("音频淡入淡出时长必须为有限的非负数。");
         if(o.SampleRate<0 || o.SampleRate>192000 || o.SampleRate is >0 and <8000 || o.AudioChannels<0 || o.AudioChannels>8)throw new ArgumentException("采样率或声道超出允许范围。");
         if(o.CopyStreams && HasFilters(o))throw new ArgumentException("流复制不能同时使用画面或音频滤镜，请选择 MP4 / MKV 重新编码，或关闭流复制。");
         if(o.VideoCodec=="copy" && !o.CopyStreams && HasVideoFilters(o))throw new ArgumentException("视频 copy 不能使用画面滤镜，请选择视频编码器。");
         if((o.CopyStreams || o.AudioCodec=="copy") && !o.Mute && (HasAudioFilters(o) || o.SampleRate>0 || o.AudioChannels>0))throw new ArgumentException("音频 copy 不能使用音效、采样率或声道转换，请选择音频编码器。");
-        if(o.KeepAllAudioStreams && o.Format is not ("mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "ts" or "mts" or "m2ts" or "asf" or "wmv" or "3gp" or "3g2" or "ogg" or "ogv"))throw new ArgumentException("此输出格式不能保留多个独立音轨，请选择 MP4、MKV 等多音轨容器。");
+        if(o.KeepAllAudioStreams && !VideoFormats.IsTransportStream(o.Format) && o.Format is not ("mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "asf" or "wmv" or "3gp" or "3g2" or "ogg" or "ogv"))throw new ArgumentException("此输出格式不能保留多个独立音轨，请选择 MP4、MKV 等多音轨容器。");
     }
     public static double ValidateEdits(Job job,IReadOnlyList<MediaInfo> infos)
     {
@@ -527,7 +528,7 @@ public sealed class MediaEngine : IMediaEngine
         if(audioFilters.Count>0 && !o.Mute && infos.Any(i=>i.HasAudio) && !IsImage(o.Format) && o.Format!="gif" && f.Operation!=Operation.SplitVideo)Filters(audioFilters,"[aout]","[aedited]","-af");
         if(o.Mute || IsImage(o.Format) || o.Format=="gif" || f.Operation==Operation.Frames)a.Add("-an");
         if(!o.KeepMetadata)a.AddRange(["-map_metadata","-1"]);
-        if(o.CopyStreams){a.AddRange(["-c","copy"]);if(o.Format=="m4v")a.AddRange(["-f","mp4"]);}
+        if(o.CopyStreams)a.AddRange(["-c","copy"]);
         else if(f.Operation==Operation.Frames || IsImage(o.Format))
         {
             if(f.Operation!=Operation.Frames)a.AddRange(["-frames:v","1"]);
@@ -544,7 +545,7 @@ public sealed class MediaEngine : IMediaEngine
         {
             if(!IsAudio(o.Format))
             {
-                string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video",_=>"mpeg4"}:o.VideoCodec;
+                string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video","ts" or "mts" or "m2ts" or "m2t"=>"libx264",_=>"mpeg4"}:o.VideoCodec;
                 a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":"nv12")]);
                 if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec is "libx265" or "libkvazaar") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
                 if(o.VideoCompression is not null)a.AddRange(["-metadata:s:v:0","rotate=0"]);
@@ -562,10 +563,10 @@ public sealed class MediaEngine : IMediaEngine
             string ac=o.AudioCodec=="自动"?o.Format switch {"mp3"=>"libmp3lame","flac"=>"flac","wav"=>"pcm_s16le","aiff"=>"pcm_s16be","ogg"=>"libvorbis","opus" or "webm"=>"libopus","ac3"=>"ac3","wma" or "wmv"=>"wmav2","mpg"=>"mp2",_=>"aac"}:o.AudioCodec;
             if(!o.Mute && f.Operation!=Operation.SplitVideo){a.AddRange(["-c:a",ac]);if(ac!="copy"){if(ac is not ("flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))a.AddRange(["-b:a",o.AudioBitrate+"k"]);if(ac=="libopus" || o.SampleRate>0)a.AddRange(["-ar",(ac=="libopus"?48000:o.SampleRate).ToString()]);if(o.AudioChannels>0)a.AddRange(["-ac",o.AudioChannels.ToString()]);}}
             if(o.Format is "mp4" or "mov" or "m4v" or "m4a" or "3gp" or "3g2") a.AddRange(["-movflags","+faststart"]);
-            if(o.Format=="m4v")a.AddRange(["-f","mp4"]);
         }
         if(o.Threads>0 && !o.CopyStreams)a.AddRange(["-threads",o.Threads.ToString()]);
         SubtitleOptions.Map(a,o,job.Inputs.Length);
+        VideoFormats.AppendMuxerArguments(a,o.Format);
         a.Add(f.Operation==Operation.Frames?Path.Combine(job.Output,"frame-%06d.png"):job.Output);return a;
     }
     public static string UniqueOutput(string folder,string name,string format,IEnumerable<string>? reserved=null,bool directory=false)

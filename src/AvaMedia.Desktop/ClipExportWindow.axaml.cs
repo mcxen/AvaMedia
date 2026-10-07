@@ -22,7 +22,7 @@ public partial class ClipExportWindow : Window
         ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.Segments.Select((segment,i)=>Path.GetFileName(edit.Path)+"\n"+new ClipSegmentEntry(segment){Number=i+1}.Summary)).ToArray();
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
         AddSettingName.IsChecked=state?.AddSettingName??false;
-        FormatCombo.ItemsSource=new[]{"MP4","MKV","Fast Copy"};FormatCombo.SelectedItem=state?.Preset??"MP4";
+        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??"MP4";
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
@@ -45,7 +45,8 @@ public partial class ClipExportWindow : Window
     private void FormatChanged(object? sender,SelectionChangedEventArgs e)
     {
         if(FormatNote is null)return;
-        FormatNote.Text=Preset=="Fast Copy"?"Fast Copy 保留源容器、不重新编码，剪辑边界可能偏移至关键帧；含裁剪、旋转、速度或淡入淡出等处理时请选择 MP4 / MKV。":"MP4 / MKV 重新编码，按设置的区间精确剪辑，并应用每个片段的裁剪、旋转及其他效果。";
+        FormatNote.Text=Preset=="Fast Copy"?"Fast Copy 剪辑边界受关键帧限制。":"";
+        FormatNote.IsVisible=Preset=="Fast Copy";
         ValidateExport();
     }
     private void OutputLocationChanged(object? sender,RoutedEventArgs e){SetOutputLocation();ValidateExport();}
@@ -53,7 +54,7 @@ public partial class ClipExportWindow : Window
     private async void BrowseFolderClick(object? sender,RoutedEventArgs e){if(await Ui.Folder(this,"选择导出文件夹") is {} folder)ExportFolder.Text=folder;}
     private async void ExportOptionsClick(object? sender,RoutedEventArgs e)
     {
-        var options=_options.Clone();options.Format=Preset=="MKV"?"mkv":"mp4";
+        var options=_options.Clone();options.Format=Preset=="Fast Copy"?"mp4":Preset.ToLowerInvariant();
         if(await new OptionsWindow(options,copyStreamsMode:Preset=="Fast Copy",kind:MediaOptionsKind.ClipExport).ShowDialog<ConversionOptions?>(this) is {} result)
         {_options=result;ValidateExport();}
     }

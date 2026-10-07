@@ -50,7 +50,7 @@ public sealed class MediaFileRouter : IMediaFileRouter
                     Add("clip", "快速剪辑", "截取片段、调整速度、分段导出", Video);
                     Add("rotate", "批量旋转", "统一或逐个旋转，自动识别方向", Video);
                     Add("crop", "画面裁剪", "框选画面，共享或逐个调整", Video);
-                    Add("mp4", "视频格式转换", "MP4 / MOV / MKV 等格式与编码", Video);
+                    Add("mp4", "视频格式转换", "MP4 / MOV / MKV / TS 等格式与编码", Video);
                     Add("join", "视频合并", "按文件顺序连接为一个视频", Video, 2, "请至少选择两个视频。");
                     Add("split", "提取音频", "把视频声音导出为独立音频", Video);
                     Add("frames", "导出视频帧", "按时间间隔保存画面", Video);

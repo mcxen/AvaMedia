@@ -46,7 +46,7 @@ public partial class VideoCompressionWindow : Window
     private bool _closed;
     private bool _updatingControls;
     private static readonly int[] CommonBitrates = [0, 500, 1000, 2000, 4000, 8000, 12000, 20000];
-    private static readonly string[] Formats = ["mp4", "mov", "m4v", "mkv"];
+    private static readonly string[] Formats = ["mp4", "mov", "m4v", "mkv", "ts"];
 
     public VideoCompressionWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null)
@@ -66,7 +66,7 @@ public partial class VideoCompressionWindow : Window
         SpeedInput.ItemsSource = new[] { "快 · 更快完成", "中 · 均衡速度", "慢 · 压缩效率优先" };
         BitratePresetInput.ItemsSource = new[] { "自定义码率", "500 kbps", "1000 kbps（1 Mbps）", "2000 kbps（2 Mbps）",
             "4000 kbps（4 Mbps）", "8000 kbps（8 Mbps）", "12000 kbps（12 Mbps）", "20000 kbps（20 Mbps）" };
-        FormatInput.ItemsSource = new[] { "MP4", "MOV（QuickTime）", "M4V（Apple 视频）", "MKV" };
+        FormatInput.ItemsSource = new[] { "MP4", "MOV（QuickTime）", "M4V（Apple 视频）", "MKV", "TS（MPEG-TS）" };
         CodecInput.ItemsSource = new[] { "H.264（兼容性优先）", "HEVC（H.265）" };
         ResolutionInput.ItemsSource = new[] { "保持原分辨率", "最长边 1920", "最长边 1280", "最长边 854" };
         FrameRateInput.ItemsSource = new[] { "保持原帧率", "不超过 30 fps", "不超过 24 fps" };

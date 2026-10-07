@@ -46,8 +46,8 @@ public static class BatchCrop
         options.CropWidth = resolved.Width; options.CropHeight = resolved.Height;
         if (options.CopyStreams || options.VideoCodec == "copy")
             throw new ArgumentException("画面裁剪需要重新编码，请关闭视频流复制。");
-        if (!options.PreserveSourceAttributes && options.Format is not ("mp4" or "mkv" or "webm" or "mov" or "avi"))
-            throw new ArgumentException("请选择 MP4、MKV、WebM、MOV 或 AVI 输出。");
+        if (!options.PreserveSourceAttributes && options.Format is not ("mp4" or "mkv" or "webm" or "mov" or "avi" or "ts"))
+            throw new ArgumentException("请选择 MP4、MKV、WebM、MOV、AVI 或 TS 输出。");
         MediaEngine.ValidateEncodingOptions(options);
         return options;
     }

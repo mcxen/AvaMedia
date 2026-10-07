@@ -24,8 +24,8 @@ public static class BatchRotate
         var original = format == SourceVideoExport.Original;
         var fast = format == SourceVideoExport.FastRotation;
         format = SourceVideoExport.Format(format, sourcePath);
-        if (!original && !fast && format is not ("mp4" or "mkv" or "webm" or "mov" or "avi"))
-            throw new ArgumentException("请选择 MP4、MKV、WebM、MOV 或 AVI 输出。");
+        if (!original && !fast && format is not ("mp4" or "mkv" or "webm" or "mov" or "avi" or "ts"))
+            throw new ArgumentException("请选择 MP4、MKV、WebM、MOV、AVI 或 TS 输出。");
         var options = new ConversionOptions { Format = format, Rotation = fast ? 0 : rotation,
             PreserveSourceAttributes = original, CopyStreams = fast, LosslessRotation = fast ? rotation : null,
             VideoStreamIndex = info.VideoStreamIndex, AudioStreamIndex = info.AudioStreamIndex };
