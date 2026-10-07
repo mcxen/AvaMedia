@@ -17,8 +17,23 @@ public static class DownloadDiagnostics
     public static string Explain(string error, string url)
     {
         var lower = error.ToLowerInvariant();
-        var hint = lower.Contains("dpapi") || lower.Contains("decrypt") || lower.Contains("cookie database") || lower.Contains("could not copy")
+        var platform = DownloadLinks.Platform(url);
+        var fileHost = platform is "Bunkr" or "Pixeldrain";
+        var hint = platform == "Bunkr" && lower.Contains("impersonat")
+            ? "当前下载引擎缺少 Bunkr 所需的浏览器网络支持，请使用应用内置 yt-dlp。"
+            : platform == "Pixeldrain" && (lower.Contains("captcha") || lower.Contains("hotlink_detected"))
+            ? "Pixeldrain 要求网页验证或账号权限，请先在浏览器打开此文件完成验证，再使用登录态重试。"
+            : platform == "Pixeldrain" && (lower.Contains("limit_exceeded") || lower.Contains("max_concurrent_downloads") || lower.Contains("ip_rate_limit_reached"))
+            ? "Pixeldrain 的传输、下载次数或并发限额已达到，请等待限制解除或检查账号额度。"
+            : lower.Contains("not a video") ? "此文件不是受支持的视频，请选择视频文件；图片、音频和压缩包不在此流程中。"
+            : lower.Contains("empty video collection") ? "相册或文件列表中没有找到可下载视频。"
+            : lower.Contains("invalid list item") ? "文件列表的 #item 序号无效，请复制有效的单项链接或展开整个文件列表。"
+            : fileHost && (lower.Contains("404") || lower.Contains("not_found") || lower.Contains("unavailable_for_legal_reasons"))
+            ? "文件或列表已失效、被移除或不可访问，请检查原始链接。"
+            : lower.Contains("dpapi") || lower.Contains("decrypt") || lower.Contains("cookie database") || lower.Contains("could not copy")
             ? "无法读取浏览器登录态。可尝试关闭浏览器，改用 Firefox，或选择 Netscape 格式的 cookies.txt 后重新解析。"
+            : lower.Contains("unsupported url") && fileHost
+            ? "请使用 Bunkr 的视频页或相册链接，或 Pixeldrain 的 /u/ 单文件、/l/ 文件列表链接。"
             : lower.Contains("unsupported url") ? "当前 yt-dlp 未识别此链接。请使用视频分享链接；小红书应保留包含 xsec_token 的完整链接。"
             : lower.Contains("no video formats") && DownloadLinks.Platform(url)=="小红书" ? "未找到可下载视频。请复制含 xsec_token 的完整视频笔记分享链接，并尝试浏览器登录态；图文笔记不在此流程中。"
             : lower.Contains("sign in") || lower.Contains("login") || lower.Contains("cookies") || lower.Contains("403") || lower.Contains("verify")
@@ -27,7 +42,8 @@ public static class DownloadDiagnostics
                 ? "网络请求失败。请检查网络或代理；YouTube 需要本机能够访问其视频服务。"
             : lower.Contains("requested format") ? "所选清晰度不可用，可改为“最佳”或较低清晰度后重试。"
             : "解析或下载失败，可更换登录态、检查链接，或查看任务日志后重试。";
-        return DownloadLinks.Platform(url) + " · " + hint + "\n" + Redact(error).Trim()[..Math.Min(Redact(error).Trim().Length, 1800)];
+        var detail = Redact(error).Trim();
+        return platform + " · " + hint + "\n" + detail[..Math.Min(detail.Length, 1800)];
     }
 
     public static (double Percent, string Detail)? Progress(string line)

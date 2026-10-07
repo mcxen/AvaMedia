@@ -2,14 +2,19 @@ using System.Text.Json;
 
 namespace AvaMedia.Core;
 
-public sealed class YtDlpDownloadService : IVideoDownloadService
+public sealed class YtDlpDownloadService : IVideoDownloadProvider
 {
     private readonly AppSettings _settings;
+    private readonly string? _extractorKeys;
     private readonly Func<string, IReadOnlyList<string>, CancellationToken, Action<string>?, Task<ProcessResult>> _run;
+    public string Name => "yt-dlp";
+    public bool CanHandle(Uri url) => url.Scheme is "http" or "https";
     public YtDlpDownloadService(AppSettings settings,
-        Func<string, IReadOnlyList<string>, CancellationToken, Action<string>?, Task<ProcessResult>>? runner = null)
+        Func<string, IReadOnlyList<string>, CancellationToken, Action<string>?, Task<ProcessResult>>? runner = null,
+        string? extractorKeys = null)
     {
         _settings = settings.Clone();
+        _extractorKeys = extractorKeys;
         _run = runner ?? ((exe, args, ct, callback) => ProcessRunner.Run(exe, args, ct, callback, 4_000_000));
     }
 
@@ -27,7 +32,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadService
         if (result.ExitCode != 0) throw new InvalidOperationException(DownloadDiagnostics.Explain(result.Error, url));
         try
         {
-            if(!options.ExpandPlaylist){using var json=JsonDocument.Parse(result.Output);if(json.RootElement.TryGetProperty("entries",out var entries) && entries.ValueKind==JsonValueKind.Array)throw new InvalidDataException("这是播放列表或分P链接，请勾选“展开播放列表 / 分P”后重新解析。");}
+            if(!options.ExpandPlaylist){using var json=JsonDocument.Parse(result.Output);if(json.RootElement.TryGetProperty("entries",out var entries) && entries.ValueKind==JsonValueKind.Array)throw new InvalidDataException("这是播放列表、分P、相册或文件列表，请勾选“展开播放列表 / 分P / 相册”后重新解析。");}
             return ParseInspection(result.Output, url);
         }
         catch (JsonException) { throw new InvalidDataException("下载引擎未返回有效视频信息。请检查 yt-dlp 版本或重新解析。"); }
@@ -108,6 +113,13 @@ public sealed class YtDlpDownloadService : IVideoDownloadService
     private List<string> CommonArguments(DownloadOptions options, string cookiePath)
     {
         var args = new List<string> { "--ignore-config", "--no-color", "--encoding", "utf-8", "--socket-timeout", "20", "--retries", "3", "--fragment-retries", "3" };
+        if (_extractorKeys is not null)
+        {
+            var plugins = System.IO.Path.Combine(AppContext.BaseDirectory, "download-plugins");
+            if (!File.Exists(System.IO.Path.Combine(plugins, "avamedia", "yt_dlp_plugins", "extractor", "avamedia_hosts.py")))
+                throw new FileNotFoundException("缺少随应用提供的站点解析器，请重新安装应用。");
+            args.AddRange(["--no-plugin-dirs", "--plugin-dirs", plugins, "--use-extractors", _extractorKeys]);
+        }
         if (cookiePath.Length > 0) args.AddRange(["--cookies", cookiePath]);
         else if (options.CookieBrowser.Length > 0) args.AddRange(["--cookies-from-browser", options.CookieBrowser]);
         if (options.Proxy.Length > 0) args.AddRange(["--proxy", options.Proxy]);
