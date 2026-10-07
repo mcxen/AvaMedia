@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private async Task Configure(Feature feature,string[]? files=null)
     {
         _last=feature;
+        if(feature.Operation==Operation.BatchTools){await ConfigureBatchToolsAsync(files,feature.Id=="contact-sheet");return;}
         if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}
         if(feature.Operation==Operation.VideoCompress){await ConfigureVideoCompressionAsync(files);return;}
         if(feature.Operation==Operation.ImageCompress){await ConfigureImageCompressionAsync(files);return;}

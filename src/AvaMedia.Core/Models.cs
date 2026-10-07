@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -24,8 +24,6 @@ public static class Catalog
         Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress,2);
         Add("join","视频合并 & 混流","视频","mp4","join",Operation.Join,2);
         Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
-        Add("crop","画面裁剪","视频","mp4","crop");
-        Add("rotate","批量旋转","视频","mp4","rotate");
         Add("clip","快速剪辑","视频","mp4","clip");
         Add("delogo","去除水印","视频","mp4","erase");
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
@@ -47,6 +45,10 @@ public static class Catalog
         Add("pdf-docx","PDF → DOCX","文档","docx","pdf-docx",Operation.PdfDocx);
         Add("pdf-xlsx","PDF → XLSX","文档","xlsx","pdf-xlsx",Operation.PdfXlsx);
         Add("text-pdf","TXT → PDF","文档","pdf","text-pdf",Operation.TextPdf);
+        Add("crop","批量裁剪","工具集","mp4","crop");
+        Add("rotate","批量旋转","工具集","mp4","rotate");
+        Add("video-rename","视频重命名","工具集","","gear",Operation.BatchTools);
+        Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
         Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
         Add("dvd","DVD / VOB 转换","光驱设备\\DVD\\CD\\ISO","mp4","disc",Operation.Join);

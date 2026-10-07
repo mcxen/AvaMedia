@@ -34,6 +34,8 @@
   "分离器": "Demux",
   "画面裁剪": "Crop",
   "批量旋转": "Batch rotation",
+  "批量裁剪": "Batch crop",
+  "视频重命名": "Rename videos",
   "快速剪辑": "Quick clip",
   "去除水印": "Remove watermark",
   "导出帧": "Export frames",

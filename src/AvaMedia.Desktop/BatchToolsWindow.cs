@@ -74,10 +74,10 @@ public sealed class BatchToolsWindow : Window
     private readonly string _journal;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
-    public BatchToolsWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,string? journalPath=null)
+    public BatchToolsWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,string? journalPath=null, bool screenshots=false)
     {
         _engine = engine;_journal=journalPath??System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "batch-rename.json");
-        Title = "批量视频 · 重命名 / 多宫格截图";
+        Title = screenshots ? "多宫格截图" : "视频重命名";
         Width = 1260; Height = 860; MinWidth = 1000; MinHeight = 700;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(16) };
@@ -171,7 +171,11 @@ public sealed class BatchToolsWindow : Window
         var open = new Button { Content = "打开输出文件夹", HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => { try { var folder = System.IO.Path.GetFullPath(_output.Text ?? ""); Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); } catch (Exception ex) { await Ui.Message(this, "打开失败", ex.Message); } }; _sheetPanel.Children.Add(open);
         tabs.Items.Add(new TabItem { Header = "多宫格截图", Content = new ScrollViewer { Content = _sheetPanel } }); body.Children.Add(tabs);
-        tabs.SelectionChanged += (_, _) => Controls.WindowArtwork.SetKind(this, tabs.SelectedIndex == 1 ? "frames" : "gear");
+        tabs.SelectionChanged += (_, _) =>
+        {
+            Title = tabs.SelectedIndex == 1 ? "多宫格截图" : "视频重命名";
+            Controls.WindowArtwork.SetKind(this, tabs.SelectedIndex == 1 ? "frames" : "gear");
+        };
         Grid.SetRow(body, 2); root.Children.Add(body);
         var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -183,6 +187,8 @@ public sealed class BatchToolsWindow : Window
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (_operation is null && !_renaming && !_importing) await AddFolders(e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); (_preview.Source as Bitmap)?.Dispose(); };
         if (initial is not null) AddPaths(initial);
+        tabs.SelectedIndex = screenshots ? 1 : 0;
+        Controls.WindowArtwork.SetKind(this, screenshots ? "frames" : "gear");
     }
 
     private static Control Pair(Control first, Control second)
