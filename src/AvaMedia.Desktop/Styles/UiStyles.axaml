@@ -112,20 +112,32 @@
       <Thickness x:Key="UiDialogPadding">20</Thickness>
       <Thickness x:Key="UiSectionPadding">16</Thickness>
       <x:Double x:Key="UiSettingSectionHeight">90</x:Double>
-      <x:Double x:Key="UiMenuBarHeight">25</x:Double>
+      <x:Double x:Key="UiMenuBarHeight">32</x:Double>
       <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
       <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
       <x:Boolean x:Key="UiWindowShadeEnabled">False</x:Boolean>
       <x:Double x:Key="UiToolbarHeight">55</x:Double>
       <x:Double x:Key="UiStatusBarHeight">26</x:Double>
-      <x:Double x:Key="UiTableHeaderHeight">25</x:Double>
+      <x:Double x:Key="UiTableHeaderHeight">32</x:Double>
       <x:Double x:Key="UiToolbarSeparatorHeight">38</x:Double>
       <GridLength x:Key="UiSidebarWidth">425</GridLength>
       <x:Double x:Key="UiFeatureIconHeight">64</x:Double>
       <x:Double x:Key="UiFeatureRowHeight">91</x:Double>
       <Thickness x:Key="UiToolbarPadding">7,0</Thickness>
       <Thickness x:Key="UiStatusPadding">5,0</Thickness>
-      <ControlTheme x:Key="UiMenuTheme" TargetType="Menu" BasedOn="{StaticResource {x:Type Menu}}"/>
+      <ControlTheme x:Key="UiTopLevelMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource SimpleTopLevelMenuItem}">
+        <Setter Property="Height" Value="{DynamicResource UiMenuBarHeight}"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="12,0"/>
+        <Setter Property="ItemContainerTheme" Value="{DynamicResource UiMenuItemTheme}"/>
+        <Style Selector="^ /template/ ContentPresenter#PART_HeaderPresenter">
+          <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+      </ControlTheme>
+      <ControlTheme x:Key="UiMenuTheme" TargetType="Menu" BasedOn="{StaticResource {x:Type Menu}}">
+        <Setter Property="ItemContainerTheme" Value="{StaticResource UiTopLevelMenuItemTheme}"/>
+        <Setter Property="Padding" Value="0"/>
+      </ControlTheme>
       <ControlTheme x:Key="UiMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}"/>
       <ControlTheme x:Key="UiContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource {x:Type ContextMenu}}"/>
       <ControlTheme x:Key="UiToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource {x:Type ToolTip}}"/>
@@ -170,6 +182,8 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="8,3" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="Button.tile">
     <Setter Property="Background" Value="{DynamicResource UiCanvas}" />

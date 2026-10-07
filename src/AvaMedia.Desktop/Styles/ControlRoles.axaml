@@ -42,6 +42,7 @@
   <Style Selector="TextBlock.media-status"><Setter Property="Foreground" Value="{DynamicResource UiMediaText}"/></Style>
   <Style Selector="controls|ActionIcon">
     <Setter Property="Width" Value="{DynamicResource UiIconSize}"/><Setter Property="Height" Value="{DynamicResource UiIconSize}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/><Setter Property="ContrastBrush" Value="{DynamicResource UiAccentText}"/>
   </Style>
   <Style Selector="Button.transport controls|ActionIcon, Button.tool controls|ActionIcon"><Setter Property="Width" Value="{DynamicResource UiIconLarge}"/><Setter Property="Height" Value="{DynamicResource UiIconLarge}"/></Style>
