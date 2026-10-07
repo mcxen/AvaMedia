@@ -213,10 +213,10 @@ public partial class VideoCompressionWindow : Window
         }, KeepAudioInput.IsChecked == true ? Localization.Format($"音频最高 {preset.AudioBitrate} kbps") : "移除声音"]);
         OutputSummary.Text = Localization.Format($"输出：{(FormatInput.SelectedIndex >= 0 ? Formats[FormatInput.SelectedIndex].ToUpperInvariant() : "")} · {(CodecInput.SelectedIndex == 1 ? "HEVC" : "H.264")}");
         ModeDescription.Text = Localization.Text(mode == VideoCompressionMode.Automatic
-            ? "按目标体积分配码率，低码率时自动降低分辨率与音频码率。"
+            ? "低码率时自动降低分辨率与音频码率"
             : VideoCompression.UsesQuality(mode)
-                ? "按画质控制编码；体积由画面内容决定，可能大于原文件。分辨率与帧率只降低，不放大。"
-                : "按码率或体积预算编码；预计大小不作精确保证，画质随码率变化。分辨率与帧率只降低，不放大。");
+                ? "输出体积可能大于原文件"
+                : "输出体积为估算值");
         try
         {
             var options = ReadOptions(); options.Validate();
@@ -234,8 +234,8 @@ public partial class VideoCompressionWindow : Window
             if (VideoCompression.UsesQuality(mode))
                 Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 输出体积由内容决定");
             else Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 预计 {_entries.Sum(entry => entry.Plan?.EstimatedBytes ?? 0) / 1000000d:0.##} MB");
-            ValidationText.Text = _entries.Count == 0 ? "添加一个或多个视频开始压缩。" : pending > 0 ? "正在读取，请稍候…" :
-                invalid > 0 ? "请调整目标或移除有错误的视频。" : "每个视频独立导出，源文件不会被覆盖。";
+            ValidationText.Text = _entries.Count == 0 ? "尚未添加视频" : pending > 0 ? "正在读取…" :
+                invalid > 0 ? "请调整目标或移除有错误的视频。" : "";
             ConfirmButton.IsEnabled = ready > 0 && ready == _entries.Count && pending == 0 && invalid == 0;
         }
         catch (Exception exception)

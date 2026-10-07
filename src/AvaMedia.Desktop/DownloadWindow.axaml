@@ -3,7 +3,7 @@
   <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="16">
     <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="12">
       <local:FeatureIcon Kind="download" Width="48" Height="48"/>
-      <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="视频下载" FontSize="{DynamicResource UiFontHeading}"/><TextBlock Text="粘贴分享链接，解析后选择视频和下载选项。" Classes="caption"/></StackPanel>
+      <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="视频下载" FontSize="{DynamicResource UiFontHeading}"/></StackPanel>
       <TextBlock Grid.Column="2" x:Name="EngineStatus" Classes="caption" VerticalAlignment="Center"/>
     </Grid>
     <Border Grid.Row="1" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
@@ -41,8 +41,7 @@
               </ListBox.ItemTemplate>
             </ListBox>
             <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="350">
-              <TextBlock Text="从一个分享链接开始" FontSize="{DynamicResource UiFontTitle}" TextAlignment="Center"/>
-              <TextBlock Text="解析后显示标题、作者和时长。播放列表、分P、相册和文件列表可以展开，逐项选择需要的视频。" Classes="caption" TextWrapping="Wrap" TextAlignment="Center"/>
+              <TextBlock Text="尚无视频" FontSize="{DynamicResource UiFontTitle}" TextAlignment="Center"/>
             </StackPanel>
           </Grid>
           <TextBlock Grid.Row="2" x:Name="SelectionSummary" Classes="caption" TextWrapping="Wrap"/>
@@ -54,16 +53,15 @@
             <Grid ColumnDefinitions="*,Auto"><TextBlock Text="下载选项" FontSize="{DynamicResource UiFontTitle}" VerticalAlignment="Center"/><Button Grid.Column="1" x:Name="NetworkSettingsButton" Content="登录 / 代理" Click="NetworkSettingsClick"/></Grid>
             <TextBlock Text="保存内容"/><ComboBox x:Name="DownloadFormat" SelectionChanged="FormatChanged"/>
             <TextBlock Text="最高画质"/><ComboBox x:Name="DownloadQuality"/>
-            <TextBlock Text="源视频低于所选画质时使用原画质，不进行放大。" Classes="caption" TextWrapping="Wrap"/>
             <TextBlock Text="字幕"/><ComboBox x:Name="DownloadSubtitles"/>
             <CheckBox x:Name="SaveMetadata" Content="保留标题和作者元数据" IsChecked="True"/>
             <CheckBox x:Name="ExpandPlaylist" Content="展开播放列表 / 分P / 相册"/>
-            <TextBlock Text="每次最多展开 100 项，可取消勾选不需要的视频。" Classes="caption" TextWrapping="Wrap"/>
+            <TextBlock Text="最多展开 100 项" Classes="caption" TextWrapping="Wrap"/>
             <Border Height="1" Background="{DynamicResource UiDivider}" Margin="0,4"/>
             <TextBlock Text="登录与网络" FontSize="{DynamicResource UiFontTitle}"/>
             <TextBlock Text="使用登录态"/><ComboBox x:Name="CookieSource" SelectionChanged="CookieSourceChanged"/>
             <StackPanel x:Name="CookieFilePanel" IsVisible="False" Spacing="6"><TextBox x:Name="CookieFileInput" Watermark="Netscape 格式 cookies.txt"/><Button Content="选择 cookies.txt…" Click="CookieFileClick"/></StackPanel>
-            <TextBlock Text="仅在解析或下载时读取你选择的登录态。无法读取 Chrome / Edge 时，可改用 Firefox 或 cookies.txt。" Classes="caption" TextWrapping="Wrap"/>
+            <TextBlock Text="无法读取 Chrome / Edge 登录态时，可使用 Firefox 或 cookies.txt。" Classes="caption" TextWrapping="Wrap"/>
             <TextBlock Text="代理（可选）"/><TextBox x:Name="DownloadProxy" Watermark="http://127.0.0.1:7890"/>
             <TextBlock x:Name="PlatformHelp" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>

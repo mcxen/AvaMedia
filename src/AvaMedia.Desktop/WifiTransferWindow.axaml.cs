@@ -99,7 +99,7 @@ public partial class WifiTransferWindow : Window
             var bitmap = new Bitmap(stream);
             _qr?.Dispose(); _qr = bitmap; QrImage.Source = _qr;
             _service = service; AddressText.Text = service.Url;
-            ConnectionStatus.Text = Localization.Text("接收已开启，手机扫码后用浏览器打开。");
+            ConnectionStatus.Text = Localization.Text("接收已开启");
         }
         catch
         {
@@ -121,7 +121,7 @@ public partial class WifiTransferWindow : Window
             try { await service.DisposeAsync(); }
             finally { service.Updated -= TransferUpdated; }
         }
-        ConnectionStatus.Text = Localization.Text("接收已停止。再次开启会生成新的扫码地址。");
+        ConnectionStatus.Text = Localization.Text("接收已停止");
         RefreshControls();
     }
 
@@ -232,7 +232,7 @@ public partial class WifiTransferWindow : Window
                 var file = WifiTransferService.Share(path);
                 _shared.Add(new(file)); _service?.AddShare(file);
             }
-            ActivityText.Text = Localization.Text(_service is null ? "文件已添加，开启接收后手机即可下载。" : "文件已分享，手机网页可刷新下载列表。");
+            ActivityText.Text = Localization.Text(_service is null ? "文件已添加 · 接收未开启" : "文件已分享");
         }
         catch (Exception exception) { await Ui.Message(this, "分享文件失败", exception.Message); }
     }

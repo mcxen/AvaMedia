@@ -50,7 +50,7 @@
         </Grid>
       </TabItem>
       <TabItem Header="画面裁剪">
-        <StackPanel Spacing="{DynamicResource UiSpacingMedium}" Margin="28,16"><TextBlock Text="拖出新选区，拖动内部移动，拖动四角缩放。坐标以源视频像素为单位。" TextWrapping="Wrap"/>
+        <StackPanel Spacing="{DynamicResource UiSpacingMedium}" Margin="28,16">
           <StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}"><TextBlock Text="选区比例" VerticalAlignment="Center"/><ComboBox x:Name="CropRatio" Width="180" SelectionChanged="RatioChanged"/></StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="14"><TextBlock Text="X" VerticalAlignment="Center"/><TextBox x:Name="CropX" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="Y" VerticalAlignment="Center"/><TextBox x:Name="CropY" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="宽度" VerticalAlignment="Center"/><TextBox x:Name="CropWidth" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="高度" VerticalAlignment="Center"/><TextBox x:Name="CropHeight" Width="{DynamicResource UiCoordinateWidth}" Text="0"/></StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="16"><Button Content="应用坐标" Click="ApplyCropClick"/><Button Content="重置选区" Click="ResetCropClick"/></StackPanel>
@@ -63,28 +63,26 @@
         <StackPanel Spacing="18" Margin="28"><TextBlock x:Name="MediaDescription" TextWrapping="Wrap"/><Button x:Name="EditOptionsButton" Content="输出配置…" HorizontalAlignment="Left" Click="OptionsClick"/><TextBlock x:Name="AudioStatus" Text="预览音频正在准备…" Classes="caption"/><TextBlock x:Name="PreviewNote" Text="预览始终显示原媒体；剪辑、速度、裁剪与淡入淡出在输出时生效。" TextWrapping="Wrap"/></StackPanel>
       </TabItem>
       <TabItem x:Name="SegmentsTab" Header="片段列表" IsVisible="False">
-        <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="10">
-          <TextBlock Text="当前片段会保存你的修改。“添加为新片段”复制当前设置，随后调整新片段的区间。选择列表中的片段继续修改；每个片段单独导出。" TextWrapping="Wrap"/>
-          <ListBox Grid.Row="1" x:Name="SegmentList" SelectionChanged="SegmentChanged">
+        <Grid RowDefinitions="*,Auto,Auto" Margin="16" RowSpacing="10">
+          <ListBox x:Name="SegmentList" SelectionChanged="SegmentChanged">
             <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="6"/></DataTemplate></ListBox.ItemTemplate>
           </ListBox>
-          <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10">
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
             <Button x:Name="AddSegmentButton" Content="添加为新片段" Click="AddSegmentClick"/>
             <Button x:Name="SplitSegmentButton" Content="分割当前片段…" Click="SplitSegmentClick"/>
             <Button x:Name="RemoveSegmentButton" Content="删除片段" Click="RemoveSegmentClick"/>
             <Button x:Name="SegmentUpButton" Content="上移" Click="SegmentUpClick"/>
             <Button x:Name="SegmentDownButton" Content="下移" Click="SegmentDownClick"/>
           </StackPanel>
-          <TextBlock Grid.Row="3" x:Name="SegmentError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
+          <TextBlock Grid.Row="2" x:Name="SegmentError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
         </Grid>
       </TabItem>
       <TabItem x:Name="DirectionTab" Header="方向 / 人脸识别" IsVisible="False">
         <ScrollViewer><StackPanel Margin="24,16" Spacing="{DynamicResource UiSpacingMedium}">
-          <TextBlock Text="方向设置应用于当前片段。上方预览显示旋转和镜像后的画面。" TextWrapping="Wrap"/>
           <StackPanel Orientation="Horizontal" Spacing="16"><TextBlock Text="旋转方向" VerticalAlignment="Center"/><ComboBox x:Name="DirectionCombo" Width="220" SelectionChanged="DirectionChanged"/><CheckBox x:Name="MirrorCheck" Content="水平镜像" IsCheckedChanged="MirrorChanged"/></StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="10"><Button x:Name="DetectDirectionButton" Content="识别视频人脸方向" Click="DetectDirectionClick"/><Button x:Name="CancelDetectionButton" Content="取消识别" Click="CancelDetectionClick" IsVisible="False"/><Button x:Name="ApplyDirectionButton" Content="应用建议方向" Click="ApplyDirectionClick" IsEnabled="False"/></StackPanel>
-          <TextBlock x:Name="DirectionStatus" Text="在本地分析源视频的多个画面，以人脸朝向建议旋转角度。结果不确定时请手动选择。" TextWrapping="Wrap"/>
-          <TextBlock Text="画面裁剪以源画面坐标设置，输出时先裁剪再旋转；此方向预览显示完整源画面。" Classes="caption" TextWrapping="Wrap"/>
+          <TextBlock x:Name="DirectionStatus" Text="尚未识别方向" TextWrapping="Wrap"/>
+          <TextBlock Text="裁剪坐标基于源画面；输出时先裁剪再旋转。" Classes="caption" TextWrapping="Wrap"/>
         </StackPanel></ScrollViewer>
       </TabItem>
     </TabControl>

@@ -10,7 +10,7 @@
   </Window.Styles>
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="12">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-      <StackPanel Spacing="4"><TextBlock Classes="title" Text="图片压缩"/><TextBlock Classes="caption" Text="先看实际体积和画质，再批量保存。"/></StackPanel>
+      <TextBlock Classes="title" Text="图片压缩" VerticalAlignment="Center"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Button x:Name="AddButton" Content="添加图片…" Click="AddClick"/>
         <Button x:Name="FolderButton" Content="添加文件夹…" Click="AddFolderClick"/>
@@ -20,7 +20,7 @@
     <Grid Grid.Row="1" ColumnDefinitions="248,*,260" ColumnSpacing="12">
       <Border Classes="compressionPanel" Padding="0">
         <Grid RowDefinitions="Auto,*,Auto">
-          <TextBlock x:Name="ListSummary" Text="拖入图片或添加文件夹" Margin="12,10" TextWrapping="Wrap"/>
+          <TextBlock x:Name="ListSummary" Text="尚未添加图片" Margin="12,10" TextWrapping="Wrap"/>
           <ListBox Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionChanged="FileSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="待压缩图片">
             <ListBox.ItemTemplate><DataTemplate DataType="local:ImageCompressionEntry">
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,6">
@@ -36,7 +36,7 @@
           <Button Grid.Row="2" x:Name="SelectAllButton" Content="勾选全部" Click="SelectAllClick" Margin="8"/>
         </Grid>
       </Border>
-      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
+      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
         <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
           <TextBlock x:Name="BeforeText" Text="压缩前" FontWeight="SemiBold" TextWrapping="Wrap"/>
           <TextBlock Grid.Column="1" x:Name="AfterText" Text="压缩后" FontWeight="SemiBold" TextWrapping="Wrap" HorizontalAlignment="Right"/>
@@ -52,7 +52,6 @@
           <Button Grid.Column="3" Content="1:1" Click="ActualSizeClick" AutomationProperties.Name="按原图像素查看"/>
           <Button Grid.Column="4" Content="适应窗口" Click="ResetViewClick"/>
         </Grid>
-        <TextBlock Grid.Row="4" x:Name="ComparisonHint" Classes="caption" Text="拖动中线对比 · 滚轮缩放 · 放大后拖动平移" TextWrapping="Wrap"/>
       </Grid>
       <Border Grid.Column="2" Classes="compressionPanel">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -79,10 +78,8 @@
                 <NumericUpDown Grid.Column="1" x:Name="QualityInput" Minimum="1" Maximum="100" Increment="1" Value="82" FormatString="0" AutomationProperties.Name="图片压缩质量"/>
               </Grid>
               <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="调整压缩质量"/>
-              <TextBlock x:Name="FormatHint" Classes="caption" TextWrapping="Wrap"/>
               <CheckBox x:Name="ResizeInput" Content="缩小最长边"/>
               <NumericUpDown x:Name="EdgeInput" Minimum="1" Maximum="32768" Increment="1" Value="1920" FormatString="0" AutomationProperties.Name="压缩后最大边长"/>
-              <TextBlock Classes="caption" Text="只缩小，不放大。输出移除拍摄元数据。" TextWrapping="Wrap"/>
             </StackPanel>
             <Button x:Name="PreviewAllButton" Content="实际压缩预览全部" Click="PreviewAllClick"/>
             <Button x:Name="CancelPreviewButton" Content="停止预览" Click="CancelPreviewClick" IsVisible="False"/>
@@ -101,7 +98,7 @@
       </StackPanel>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-      <StackPanel Spacing="4"><TextBlock x:Name="StatusText" Text="请添加图片" TextWrapping="Wrap"/><TextBlock Classes="caption" Text="保留原图；只保存实际变小的文件。"/></StackPanel>
+      <TextBlock x:Name="StatusText" Text="尚未添加图片" TextWrapping="Wrap"/>
       <Button Grid.Column="1" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
       <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" Content="压缩并加入队列" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>

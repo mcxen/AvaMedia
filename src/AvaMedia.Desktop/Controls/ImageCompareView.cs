@@ -29,24 +29,23 @@ public sealed class ImageCompareView : Control
     private static readonly Cursor SplitCursor = new(StandardCursorType.SizeWestEast);
     private static readonly Cursor PanCursor = new(StandardCursorType.SizeAll);
     private static readonly Cursor DefaultCursor = new(StandardCursorType.Arrow);
-    public event Action<double>? ZoomChanged;
 
     static ImageCompareView() => AffectsRender<ImageCompareView>(SourceProperty, ResultProperty, SplitProperty, SideBySideProperty,
         SurfaceProperty, CheckerProperty, AccentProperty);
     public ImageCompareView() { Focusable = true; ClipToBounds = true; }
-    public void ResetView() { _zoom = 1; _pan = default; ZoomChanged?.Invoke(_zoom); InvalidateVisual(); }
+    public void ResetView() { _zoom = 1; _pan = default; InvalidateVisual(); }
     public void Zoom(double multiplier)
     {
         _zoom = Math.Clamp(_zoom * multiplier, .05, 32);
         if (_zoom <= 1) _pan = default;
-        ZoomChanged?.Invoke(_zoom); InvalidateVisual();
+        InvalidateVisual();
     }
     public void ActualSize()
     {
         if (Source is null || Bounds.Width <= 0 || Bounds.Height <= 0) return;
         var fit = Math.Min((SideBySide ? Bounds.Width / 2 : Bounds.Width) / Source.Size.Width, Bounds.Height / Source.Size.Height);
         _zoom = 1 / fit; _pan = default;
-        ZoomChanged?.Invoke(_zoom); InvalidateVisual();
+        InvalidateVisual();
     }
     private void Background(DrawingContext context, Rect area)
     {

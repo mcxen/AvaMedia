@@ -67,7 +67,6 @@ public sealed partial class ImageCompressionWindow : Window
         foreach (var number in new[] { QualityInput, EdgeInput }) number.PropertyChanged += (_, change) =>
         { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) ParametersChanged(null, null!); };
         OutputInput.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) RefreshControls(); };
-        Comparison.ZoomChanged += zoom => ComparisonHint.Text = Localization.Format($"相对适应窗口 {zoom:0.##}× · 拖动中线对比 · 放大后拖动平移");
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, args) => args.DragEffects = _busy ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, (_, args) =>
@@ -171,8 +170,6 @@ public sealed partial class ImageCompressionWindow : Window
         var qualityEnabled = format != "png" && !(format == "webp" && LosslessInput.IsChecked == true);
         QualityInput.IsEnabled = QualitySlider.IsEnabled = qualityEnabled;
         EdgeInput.IsEnabled = ResizeInput.IsChecked == true;
-        FormatHint.Text = Localization.Text(format == "png" ? "PNG 使用无损优化，不通过降画质压缩。" :
-            format == "webp" && LosslessInput.IsChecked == true ? "无损编码保留可见画质；缩小尺寸会改变画面。" : "质量越低体积通常越小，请结合对比选择。" );
         foreach (var entry in _entries) entry.CanInclude = !_busy && entry.Source is not null;
         var included = _entries.Count(entry => entry.Include);
         ListSummary.Text = Localization.Format($"{_entries.Count} 张图片 · 已勾选 {included} 张");
@@ -192,7 +189,7 @@ public sealed partial class ImageCompressionWindow : Window
         if (_initializing || _closed) return;
         DisposeImages(); Comparison.ResetView();
         BeforeText.Text = Localization.Text("压缩前"); AfterText.Text = Localization.Text("压缩后 · 尚未预览");
-        StatusText.Text = Active is null ? Localization.Text("请添加图片") : Localization.Text("正在准备预览…");
+        StatusText.Text = Active is null ? Localization.Text("尚未添加图片") : Localization.Text("正在准备预览…");
         RefreshControls();
         if (_busy) _ = DisplayAsync(Active, _lifetime.Token); else SchedulePreview();
     }
@@ -266,7 +263,7 @@ public sealed partial class ImageCompressionWindow : Window
             BeforeText.Text = Localization.Format($"压缩前 · {ImageCompression.Bytes(entry.Source.Bytes)}\n{entry.Source.Width} × {entry.Source.Height}");
             AfterText.Text = result is null ? Localization.Text("压缩后 · 尚未预览") : Localization.Format($"压缩后 · {ImageCompression.Bytes(result.OutputBytes)}\n{result.Width} × {result.Height}");
             StatusText.Text = result is null ? entry.Error ?? Localization.Text("正在准备预览…") : result.IsSmaller ?
-                Localization.Format($"实际编码节省 {result.SavedPercent:0.##}%；可拖动查看画质。") : Localization.Text("当前设置未压小；请降低质量、缩小尺寸或改用 WebP。");
+                Localization.Format($"节省 {result.SavedPercent:0.##}%") : Localization.Text("当前设置未减小体积");
             StatusText.Classes.Set("compressionError", result is not null && !result.IsSmaller);
         }
         catch (OperationCanceledException) { }
@@ -309,7 +306,7 @@ public sealed partial class ImageCompressionWindow : Window
         var task = PreviewAllAsync(); _batchTask = task;
         if (!await task || _closed) return;
         var inputs = _entries.Where(entry => entry.Include && entry.Result?.IsSmaller == true && entry.Error is null).Select(entry => entry.Path).ToArray();
-        if (inputs.Length == 0) { StatusText.Text = Localization.Text("没有实际变小的图片，请调整设置后再试。"); return; }
+        if (inputs.Length == 0) { StatusText.Text = Localization.Text("没有体积减小的图片"); return; }
         try { Close(new ImageCompressionRequest(inputs, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true, StartInput.IsChecked == true)); }
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }

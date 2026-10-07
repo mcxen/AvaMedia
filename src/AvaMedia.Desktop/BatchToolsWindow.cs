@@ -108,7 +108,7 @@ public sealed class BatchToolsWindow : Window
         _importBar.Children.Add(Ui.Button("全选", () => { foreach (var row in _entries) row.Include = true; }));
         _importBar.Children.Add(Ui.Button("反选", () => { foreach (var row in _entries) row.Include = !row.Include; }));
         root.Children.Add(_importBar);
-        _summary = new() { Margin = new(0, 12), Classes = { "caption" }, Text = "添加视频或文件夹，也可以将它们拖入此窗口。" };
+        _summary = new() { Margin = new(0, 12), Classes = { "caption" }, Text = "尚未添加视频" };
         Grid.SetRow(_summary, 1); root.Children.Add(_summary);
 
         var body = new Grid { ColumnDefinitions = new("*,380"), ColumnSpacing = 16 };
@@ -138,7 +138,7 @@ public sealed class BatchToolsWindow : Window
         _renamePanel = new() { Spacing = 9, Margin = new(9) };
         AddRow(_renamePanel, "命名模板", _pattern); AddRow(_renamePanel, "前缀", _prefix); AddRow(_renamePanel, "后缀", _suffix);
         AddRow(_renamePanel, "查找文本", _find); AddRow(_renamePanel, "替换为", _replace); AddRow(_renamePanel, "起始序号", _firstIndex); AddRow(_renamePanel, "序号位数", _digits);
-        _renamePanel.Children.Add(new TextBlock { Text = "模板可使用 {name} 原文件名、{index} 序号、{parent} 父文件夹名。保留扩展名。\n\n示例：片段_{index} → 片段_001.mp4\n\n先预览，再执行。名称冲突会阻止操作。", TextWrapping = TextWrapping.Wrap, Classes = { "caption" }, Margin = new(0, 8) });
+        _renamePanel.Children.Add(new TextBlock { Text = "模板可使用 {name} 原文件名、{index} 序号、{parent} 父文件夹名。保留扩展名。\n\n示例：片段_{index} → 片段_001.mp4", TextWrapping = TextWrapping.Wrap, Classes = { "caption" }, Margin = new(0, 8) });
         var previewRename = new Button { Content = "预览新名称", HorizontalAlignment = HorizontalAlignment.Stretch };
         previewRename.Click += async (_, _) => await PreviewRename(); _renamePanel.Children.Add(previewRename);
         _rename = new() { Content = "执行重命名", IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -153,7 +153,7 @@ public sealed class BatchToolsWindow : Window
         AddRow(_sheetPanel, "宫格预设", preset);
         AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows)); AddRow(_sheetPanel, "长边 / 短边上限", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
         AddRow(_sheetPanel, "开始 / 结束秒", Pair(_start, _end)); AddRow(_sheetPanel, "图片格式", _format); _sheetPanel.Children.Add(_timestamps);
-        _sheetPanel.Children.Add(new TextBlock { Text = "横屏、竖屏按原始显示比例自动适配格子尺寸，无补黑边、无外框或格子间隔。320 / 180 上限下，16:9 为 320×180，9:16 为 180×320。结束为 0 表示视频末尾；每个视频独立输出。", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
+        _sheetPanel.Children.Add(new TextBlock { Text = "结束为 0 表示视频末尾", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
         _output = Ui.Input(outputFolder); _sheetPanel.Children.Add(Ui.Text("输出文件夹")); _sheetPanel.Children.Add(_output);
         var browse = new Button { Content = "选择输出目录…", HorizontalAlignment = HorizontalAlignment.Stretch };
         browse.Click += async (_, _) => { if (await Ui.Folder(this, "选择截图目录") is { } path) _output.Text = path; }; _sheetPanel.Children.Add(browse);
@@ -220,7 +220,7 @@ public sealed class BatchToolsWindow : Window
             _renamePlan = BatchVideoTools.PreviewRename(files, rules);
             var targets = _renamePlan.ToDictionary(i => i.Source, i => System.IO.Path.GetFileName(i.Target), BatchVideoTools.PathComparer);
             foreach (var row in _entries) row.NewName = targets.GetValueOrDefault(row.Path) ?? "";
-            _rename.IsEnabled = _renamePlan.Any(i => i.Source != i.Target); _progressText.Text = "预览完成，检查新名称后点击“执行重命名”。";
+            _rename.IsEnabled = _renamePlan.Any(i => i.Source != i.Target); _progressText.Text = "预览完成";
         }
         catch (Exception ex) { InvalidatePlan(); await Ui.Message(this, "重命名预览失败", ex.Message); }
     }

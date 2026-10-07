@@ -33,7 +33,7 @@ public sealed class ConvertWindow : Window
         WindowArtwork.SetKind(this, feature.Icon);
         Closed+=(_,_)=>_lifetime.Cancel();
         _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index))));_options=initialOptions?.Clone()??new(){Format=feature.Format};if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";}
-        var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto,Auto"),Margin=new(18)};
+        var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(18)};
         var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature),_options.Format);formats.Width=130;
         top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);
         var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
@@ -79,8 +79,6 @@ public sealed class ConvertWindow : Window
         var addName=new CheckBox{Name="ConversionAddSettingName",Content="添加设置名称",IsChecked=initialOptions is null&&engine.Settings.AddSettingName};
         sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
         outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;outputFlags.Children.Add(sourceFolder);outputFlags.Children.Add(addName);Grid.SetRow(outputFlags,1);Grid.SetColumnSpan(outputFlags,3);output.Children.Add(outputFlags);
-        var note=new TextBlock{Classes={"caption"},TextWrapping=TextWrapping.Wrap,Margin=new(0,8)};
-        note.Text=feature.Operation switch{Operation.Join=>"按列表顺序合并。每个文件可独立剪辑。",Operation.SplitAudio=>"提取音轨。",Operation.Frames=>"按设置的间隔导出 PNG 帧。",_=>"确定后加入主窗口队列。"};Grid.SetRow(note,4);panel.Children.Add(note);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=16,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(0,12,0,0)};
         buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content="确定",Classes={"dialog-action"}};ok.Click+=async(_,_)=>
         {
@@ -112,7 +110,7 @@ public sealed class ConvertWindow : Window
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)await Ui.Message(this,"参数错误",ex.Message);}
             finally{_preparing=false;if(IsVisible){ok.IsEnabled=true;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;}}
-        };buttons.Children.Add(ok);Grid.SetRow(buttons,5);panel.Children.Add(buttons);Content=panel;
+        };buttons.Children.Add(ok);Grid.SetRow(buttons,4);panel.Children.Add(buttons);Content=panel;
     }
     private static IEnumerable<string> GetFormats(Feature f)=>f.Id=="mp4"?["mp4","mkv","mov","webm","avi","flv","wmv","mpg","ts","3gp","3g2","gif"]:f.Operation is Operation.Join or Operation.Mux && f.Category=="视频"?["mp4","mkv","webm","avi","mov","3gp","3g2"]:f.Id=="split"?["m4a","mp3","flac","wav","aac","ogg"]:[f.Format];
 }

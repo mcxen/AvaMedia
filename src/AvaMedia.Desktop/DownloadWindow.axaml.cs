@@ -121,7 +121,7 @@ public partial class DownloadWindow : Window
             }
             InspectStatus.Text=Localization.Join(" · ", new[] { Localization.Format($"解析完成 · {_entries.Count(e=>e.IsReady)} 个视频"), truncated ? "已限制为前 100 项" : "" }.Where(s=>s.Length>0));
         }
-        catch(OperationCanceledException){if(!_closed)InspectStatus.Text="解析已取消，已完成的视频仍可加入队列。";}
+        catch(OperationCanceledException){if(!_closed)InspectStatus.Text="解析已取消";}
         finally{_inspection.Dispose();_inspection=null;if(!_closed){SetBusy(false);RefreshSelection();}}
     }
 
@@ -136,7 +136,7 @@ public partial class DownloadWindow : Window
     {
         if(SelectionSummary is null)return;
         var ready=_entries.Count(e=>e.IsReady);var selected=_entries.Count(e=>e.IsChecked&&e.IsReady);var errors=_entries.Count(e=>e.HasError);
-        SelectionSummary.Text=Localization.Format($"选中 {selected}/{ready} 个视频{(errors>0?Localization.Format($" · {errors} 项未能解析"):"")}。加入队列后，主窗口“开始”执行。");
+        SelectionSummary.Text=Localization.Format($"选中 {selected}/{ready} 个视频{(errors>0?Localization.Format($" · {errors} 项未能解析"):"")}");
         EmptyState.IsVisible=_entries.Count==0;_checking=true;SelectAllCheck.IsChecked=ready>0&&selected==ready;_checking=false;
         AddDownloadsButton.IsEnabled=!_busy&&selected>0&&!string.IsNullOrWhiteSpace(DownloadFolder.Text);
         RetryFailedButton.IsEnabled=!_busy&&errors>0;
@@ -145,12 +145,12 @@ public partial class DownloadWindow : Window
     private void VideoSelected(object? sender,SelectionChangedEventArgs e){if(DownloadList.SelectedItem is DownloadEntry entry)PlatformHelp.Text=Help(entry.Video?.Platform??DownloadLinks.Platform(entry.Url));}
     private static string Help(string platform)=>platform switch
     {
-        "YouTube"=>"YouTube：支持单视频和播放列表；网络不可达时设置代理。部分内容需要登录态。",
-        "哔哩哔哩"=>"哔哩哔哩：分享短链可解析；分P可展开。高画质依赖账号可观看的清晰度。",
-        "抖音"=>"抖音：使用视频分享链接。遇到登录或验证提示，请使用已登录浏览器的登录态。",
+        "YouTube"=>"YouTube：部分内容需要登录态",
+        "哔哩哔哩"=>"哔哩哔哩：画质受账号权限限制",
+        "抖音"=>"抖音：登录或验证限制需要浏览器登录态",
         "小红书"=>"小红书：保留分享链接里的 xsec_token 等参数。当前下载视频笔记，图文笔记不在此流程中。",
-        "Bunkr"=>"Bunkr：支持单个视频和相册，勾选展开相册后可逐项选择视频。下载使用原文件画质，签名链接在开始下载时刷新。",
-        "Pixeldrain"=>"Pixeldrain：支持单个视频和文件列表，保留 #item 参数可选择列表中的单项。下载使用原文件画质；限额或验证要求由站点决定。",
+        "Bunkr"=>"Bunkr：下载原文件",
+        "Pixeldrain"=>"Pixeldrain：保留 #item 参数以选择列表单项；下载受站点限额限制",
         _=>"其他网站由 yt-dlp 解析。网站支持和可用画质取决于当前引擎与视频访问状态。"
     };
     private void FormatChanged(object? sender,SelectionChangedEventArgs e){if(DownloadQuality is not null)DownloadQuality.IsEnabled=DownloadFormat.SelectedIndex<2;}

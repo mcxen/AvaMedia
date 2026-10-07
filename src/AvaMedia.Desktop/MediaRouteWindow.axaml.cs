@@ -165,13 +165,13 @@ public partial class MediaRouteWindow : Window
         OpenButton.IsEnabled = route?.Enabled == true;
         RouteFlow.AcceptedCount = route?.Enabled == true ? route.Files.Length : 0;
         if (route is null)
-        { DestinationTitle.Text = Localization.Text("先勾选文件"); DestinationSummary.Text = Localization.Text("每个工具会注明接收的文件数量。"); OpenButton.Content = Localization.Text("进入工具"); }
+        { DestinationTitle.Text = Localization.Text("尚未选择文件"); DestinationSummary.Text = ""; OpenButton.Content = Localization.Text("进入工具"); }
         else
         {
             Localization.SetText(DestinationTitle, $"将打开：{Localization.Key(route.Title)}");
             DestinationSummary.Text = route.Enabled ? route.SkippedCount > 0
                 ? Localization.Format($"接收 {route.Files.Length} 项；其余 {route.SkippedCount} 项不进入此工具。")
-                : Localization.Format($"所选 {route.Files.Length} 项将直接带入编辑窗口。") : Localization.Text(route.DisabledReason);
+                : Localization.Format($"已选 {route.Files.Length} 项") : Localization.Text(route.DisabledReason);
             OpenButton.Content = Localization.Format($"进入{Localization.Key(route.Title)}");
         }
         UpdateFlowTarget();

@@ -219,11 +219,11 @@ public sealed partial class BatchRotateWindow : Window
         DirectionCombo.IsEnabled = !_detecting && (!PerFile || _active?.Info is not null);
         ValidationText.Classes.Set("error", invalid > 0 || unresolved > 0);
         ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
-            : _detecting ? "正在自动检测方向，可以预览画面或停止检测。"
+            : _detecting ? "正在检测方向…"
             : invalid > 0 ? Localization.Format($"{invalid} 个视频无法处理，请移除或取消勾选。")
             : unresolved > 0 ? Localization.Format($"{unresolved} 个视频方向无法确定，请逐个指定方向或取消勾选。")
-            : !outputValid ? "请选择输出目录" : changed == 0 ? "勾选的视频均无需旋转，不会创建输出任务。"
-            : Localization.Format($"{changed} 个视频将按各自方向旋转，{skipped} 个无需旋转而跳过。源文件保持原样。");
+            : !outputValid ? "请选择输出目录" : changed == 0 ? "所选视频均无需旋转"
+            : Localization.Format($"{changed} 个视频将按各自方向旋转，{skipped} 个跳过");
     }
 
     private int? EffectiveRotation(BatchRotateEntry entry) => PerFile ? entry.Rotation : _sharedRotation;
@@ -278,7 +278,7 @@ public sealed partial class BatchRotateWindow : Window
             var unchanged = targets.Count(e => e.Rotation == 0);
             Localization.SetText(DetectionStatus,$"检测完成：{certain} 个已确定（{unchanged} 个无需旋转），{targets.Length - certain} 个需手动检查。请对比预览。");
         }
-        catch (OperationCanceledException) { if (!_closed) DetectionStatus.Text = "检测已停止，已完成的结果保留；其余视频请手动选择方向或重新检测。"; }
+        catch (OperationCanceledException) { if (!_closed) DetectionStatus.Text = "检测已停止"; }
         finally
         {
             foreach (var entry in targets)

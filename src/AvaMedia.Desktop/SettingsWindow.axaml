@@ -40,7 +40,6 @@
                   </StackPanel>
                 </Border>
               </StackPanel>
-              <TextBlock Classes="caption" Text="保存位置和文件名设置用于新建任务。" TextWrapping="Wrap"/>
             </StackPanel>
           </ScrollViewer>
         </Border>
@@ -73,7 +72,6 @@
                       <NumericUpDown Grid.Column="1" x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" AutomationProperties.Name="多线程数量"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–16；关闭多线程时使用 1" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
-                    <TextBlock Classes="caption" Text="同时执行任务数控制队列并发；线程数用于每个转换任务。" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -84,12 +82,12 @@
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
                       <TextBlock Text="JPEG 质量" VerticalAlignment="Center"/>
                       <NumericUpDown Grid.Column="1" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPEG 质量"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100；越高越清晰" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
                       <TextBlock Text="WebP 质量" VerticalAlignment="Center"/>
                       <NumericUpDown Grid.Column="1" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP 质量"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100；越高越清晰" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center"/>
                     </Grid>
                   </StackPanel>
                 </Border>
@@ -120,7 +118,7 @@
                 <TextBlock Classes="settingsHeading" Text="界面与音效"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
-                    <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效（立即显示状态变化）"/>
+                    <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效"/>
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
                       <CheckBox x:Name="OperationSoundInput" Content="操作音效"/>
                       <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成音效"/>
@@ -165,7 +163,7 @@
                       <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="YtdlpBrowseClick"/>
                     </Grid>
-                    <TextBlock Classes="caption" Text="路径留空即可使用内置工具，也可指定自定义引擎。" TextWrapping="Wrap"/>
+                    <TextBlock Classes="caption" Text="留空使用内置工具" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Border>
               </StackPanel>

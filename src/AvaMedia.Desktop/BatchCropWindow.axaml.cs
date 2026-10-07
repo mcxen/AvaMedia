@@ -232,7 +232,7 @@ public sealed partial class BatchCropWindow : Window
         ValidationText.Classes.Set("error", invalid > 0);
         ValidationText.Text = included.Length == 0 ? "请添加并勾选视频" : pending > 0 ? Localization.Format($"正在读取 {pending} 个视频…")
             : invalid > 0 ? Localization.Format($"{invalid} 个视频无法使用此选区，请调整选区、切换比例模式或取消勾选。")
-            : !outputValid ? "请选择输出目录" : Localization.Format($"共同选区将应用于 {included.Length} 个视频。源文件保持原样。");
+            : !outputValid ? "请选择输出目录" : Localization.Format($"已选 {included.Length} 个视频");
         CropLayer.Enabled = false;
         if (_active?.Info is { } active && _reference?.Info is not null && PreviewImage.Source is not null && !PreviewStatus.IsVisible)
         {
@@ -298,7 +298,7 @@ public sealed partial class BatchCropWindow : Window
     {
         _previewCancellation?.Cancel(); _active = null; CropLayer.Enabled = false;
         (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
-        PreviewStatus.Text = "添加视频后可预览并拖动选区"; PreviewStatus.IsVisible = true;
+        PreviewStatus.Text = "尚未选择视频"; PreviewStatus.IsVisible = true;
         PreviewName.Text = "选择一个视频预览"; PreviewSeek.IsEnabled = false; CropLayer.InvalidateVisual();
     }
     private void FileSelectionChanged(object? sender, SelectionChangedEventArgs args)

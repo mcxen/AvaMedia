@@ -18,7 +18,7 @@ public partial class ClipExportWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(FormatCombo,"快速剪辑输出格式");
         Avalonia.Automation.AutomationProperties.SetName(ExportFolder,"快速剪辑保存位置");
         Avalonia.Automation.AutomationProperties.SetName(ExportSegments,"待导出的剪辑片段");
-        Localization.SetText(ExportSummary,$"{_edits.Length} 个视频 · {_edits.Sum(e=>e.Segments.Count)} 个片段，分别生成文件。确认后进入队列，点击主窗口“开始”执行。");
+        Localization.SetText(ExportSummary,$"{_edits.Length} 个视频 · {_edits.Sum(e=>e.Segments.Count)} 个片段");
         ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.Segments.Select((segment,i)=>Path.GetFileName(edit.Path)+"\n"+new ClipSegmentEntry(segment){Number=i+1}.Summary)).ToArray();
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
         AddSettingName.IsChecked=state?.AddSettingName??false;

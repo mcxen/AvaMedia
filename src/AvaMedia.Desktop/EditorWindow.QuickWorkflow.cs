@@ -38,7 +38,7 @@ public partial class EditorWindow
         _directionDetector=detector??new VideoOrientationDetector(_engine);
         SegmentsTab.IsVisible=DirectionTab.IsVisible=SegmentFooter.IsVisible=true;
         EditOptionsButton.Content="其他编辑选项…";
-        PreviewNote.Text="剪辑页可播放所选区间，裁剪页在源画面设置选区，方向页预览旋转和镜像。速度、淡入淡出及其他效果在输出时生效。";
+        PreviewNote.Text="速度、淡入淡出及其他效果仅在输出时生效。";
         ConfirmButton.Content="下一步：导出选项";
         DirectionCombo.ItemsSource=new[]{"保持原方向","顺时针 90°","旋转 180°","逆时针 90°"};
         Avalonia.Automation.AutomationProperties.SetName(DirectionCombo,"当前片段旋转方向");
@@ -201,7 +201,7 @@ public partial class EditorWindow
             _directionResult=result;ApplyDirectionButton.IsEnabled=result.IsCertain;
             DirectionStatus.Text=Localization.Join("\n", new[] { result.IsCertain ? Localization.Format($"建议：{Localization.Key(result.Description)}") : "无法确定方向", Localization.OrientationReason(result) });
         }
-        catch(OperationCanceledException){if(!_closed)DirectionStatus.Text="已取消识别，可继续手动选择方向。";}
+        catch(OperationCanceledException){if(!_closed)DirectionStatus.Text="识别已取消";}
         catch(Exception ex){if(!_closed)DirectionStatus.Text=Localization.Format($"方向识别失败：{ex.Message}");}
         finally
         {

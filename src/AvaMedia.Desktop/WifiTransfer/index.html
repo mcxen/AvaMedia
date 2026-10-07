@@ -55,11 +55,10 @@
   <header>
     <div class="eyebrow">{{APP_NAME}} · 局域网直传</div>
     <h1>WiFi 传文件</h1>
-    <p class="muted">手机与电脑连接同一局域网。文件直接传到电脑，无需安装手机 App。</p>
   </header>
   <section class="card" aria-labelledby="upload-title">
     <h2 id="upload-title">发送到电脑</h2>
-    <p class="muted">支持照片、视频和任意文件，单个文件最大 50 GB。</p>
+    <p class="muted">单个文件最大 50 GB</p>
     <div class="actions">
       <label class="picker">从相册选择<input id="photos" type="file" accept="image/*,video/*" multiple aria-label="从相册选择照片和视频"></label>
       <label class="picker">从文件选择<input id="files" type="file" multiple aria-label="从文件选择"></label>
@@ -72,12 +71,11 @@
       <button id="clear" disabled>清空列表</button>
     </div>
     <progress id="progress" max="100" value="0" hidden aria-label="当前文件上传进度"></progress>
-    <p id="status" role="status" aria-live="polite">选择文件后开始上传。</p>
-    <p class="muted">传输时保持页面在前台。上传完成后，在电脑的接收列表中选择文件，导入转换或高画质视频压缩。</p>
+    <p id="status" role="status" aria-live="polite">尚未选择文件</p>
+    <p class="muted">传输时保持页面在前台</p>
   </section>
   <section class="card" aria-labelledby="download-title">
     <h2 id="download-title">从电脑下载</h2>
-    <p class="muted">在电脑的“发送到手机”区域添加文件后，这里会显示下载入口。</p>
     <ul id="downloads" aria-label="电脑分享的文件"></ul>
     <p id="download-status" class="muted" role="status">正在连接电脑…</p>
     <button id="refresh" class="small">刷新文件列表</button>
@@ -131,7 +129,7 @@
     event.target.value = ''; renderSelections();
   }
   get('photos').addEventListener('change', select); get('files').addEventListener('change', select);
-  get('clear').addEventListener('click', () => { selections.length = 0; get('status').textContent = '选择文件后开始上传。'; renderSelections(); });
+  get('clear').addEventListener('click', () => { selections.length = 0; get('status').textContent = '尚未选择文件'; renderSelections(); });
   get('cancel').addEventListener('click', () => { cancelled = true; if (currentRequest) currentRequest.abort(); });
   function send(item, index, total) {
     return new Promise((resolve, reject) => {
@@ -168,7 +166,7 @@
         if (cancelled) break;
       }
       get('status').textContent = cancelled ? '传输已取消。已成功上传的文件保留在电脑上。' :
-        '本次完成 ' + succeeded + ' 个文件' + (failed ? '，失败 ' + failed + ' 个；点击开始上传可重试。' : '，请在电脑接收列表中导入。');
+        '本次完成 ' + succeeded + ' 个文件' + (failed ? '，失败 ' + failed + ' 个；点击开始上传可重试。' : '');
     } finally { busy = false; renderSelections(); }
   });
   async function refresh() {

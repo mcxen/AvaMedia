@@ -29,8 +29,7 @@
   <Grid Margin="22" RowDefinitions="Auto,*,Auto" RowSpacing="16">
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Spacing="6">
-        <TextBlock Classes="heading" Text="文件到位，选择下一步"/>
-        <TextBlock Classes="caption" Text="按文件类型找到合适的工具。点击卡片，即可进入编辑。" TextWrapping="Wrap"/>
+        <TextBlock Classes="heading" Text="选择工具"/>
       </StackPanel>
       <Button Grid.Column="1" Content="继续添加文件…" Click="AddClick" VerticalAlignment="Center"/>
     </Grid>
@@ -48,7 +47,6 @@
           </Grid>
           <ListBox x:Name="SourceList" Grid.Row="2" Background="Transparent" BorderThickness="0" AutomationProperties.Name="输入文件预览"/>
           <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBlock Classes="caption" Text="可继续拖入，重复文件自动去重。" TextWrapping="Wrap"/>
             <Button Grid.Column="1" Content="取消勾选" Click="DeselectClick" Classes="field-action"/>
           </Grid>
         </Grid>
@@ -65,7 +63,7 @@
         <ScrollViewer x:Name="RouteScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
           <Grid x:Name="RouteGrid" ColumnDefinitions="*,*" ColumnSpacing="10" RowSpacing="10"/>
         </ScrollViewer>
-        <TextBlock x:Name="EmptyText" Grid.Row="1" Text="勾选左侧文件，查看可用工具。" Classes="caption"
+        <TextBlock x:Name="EmptyText" Grid.Row="1" Text="尚未选择文件" Classes="caption"
                    HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False" TextWrapping="Wrap"/>
       </Grid>
     </Grid>

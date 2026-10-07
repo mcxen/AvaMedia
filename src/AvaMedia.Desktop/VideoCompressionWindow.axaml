@@ -4,8 +4,7 @@
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="12">
     <StackPanel Spacing="4">
       <TextBlock Classes="title" Text="批量压缩视频"/>
-      <TextBlock Classes="caption" Text="先选自动档，或手动设置质量、码率与目标体积，再加入导出队列。" TextWrapping="Wrap"/>
-      <TextBlock Classes="caption" Text="支持苹果 MOV / M4V / MP4、HEVC 与 ProRes；HDR 视频自动转换为 SDR。" TextWrapping="Wrap"/>
+      <TextBlock Classes="caption" Text="HDR 视频输出为 SDR" TextWrapping="Wrap"/>
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="*,360" ColumnSpacing="12">
       <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}">
@@ -51,13 +50,12 @@
                 <Button Grid.Column="1" Content="中 · 23" Click="MediumQualityClick"/>
                 <Button Grid.Column="2" Content="低 · 28" Click="LowQualityClick"/>
               </Grid>
-              <TextBlock Classes="caption" Text="数值越小画质越高、体积通常越大。不同编码器的同一数值不代表相同画质。" TextWrapping="Wrap"/>
+              <TextBlock Classes="caption" Text="数值越小，画质越高" TextWrapping="Wrap"/>
             </StackPanel>
             <StackPanel x:Name="BitrateSection" Spacing="6" IsVisible="False">
               <TextBlock Text="视频平均码率（kbps）"/>
               <NumericUpDown x:Name="BitrateInput" Minimum="64" Maximum="200000" Increment="500" Value="4000" FormatString="0" AutomationProperties.Name="视频平均码率（kbps）"/>
               <ComboBox x:Name="BitratePresetInput" AutomationProperties.Name="常用视频码率"/>
-              <TextBlock Classes="caption" Text="1000 kbps = 1 Mbps，仅指视频；音频体积另计。低码率适合配合降低分辨率。" TextWrapping="Wrap"/>
             </StackPanel>
             <StackPanel x:Name="PercentageSection" Spacing="6">
               <TextBlock Text="目标体积（原文件 %）"/>
@@ -88,9 +86,7 @@
                 <ComboBox x:Name="AudioInput" AutomationProperties.Name="音频码率"/>
                 <TextBlock Text="编码速度"/>
                 <ComboBox x:Name="SpeedInput" AutomationProperties.Name="编码速度"/>
-                <TextBlock Classes="caption" Text="慢档通常提高压缩效率；实际效果取决于编码器。自动档的尺寸、声音码率与速度由方案决定，切换手动模式可调整。" TextWrapping="Wrap"/>
                 <CheckBox x:Name="GpuInput" Content="优先 GPU 编码" IsChecked="True"/>
-                <TextBlock Classes="caption" Text="遵循全局 GPU 选项；硬件编码失败后自动回退 CPU。" TextWrapping="Wrap"/>
               </StackPanel>
             </Expander>
           </StackPanel>

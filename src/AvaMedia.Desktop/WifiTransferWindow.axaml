@@ -5,7 +5,7 @@
   <Grid Margin="18" RowDefinitions="Auto,Auto,*,Auto">
     <StackPanel Spacing="5" Margin="0,0,0,14">
       <TextBlock Text="WiFi 传文件" FontSize="22" FontWeight="SemiBold"/>
-      <TextBlock Text="手机和电脑连接同一局域网，扫码即可通过浏览器收发照片、视频和文件。" TextWrapping="Wrap"/>
+      <TextBlock Text="手机和电脑需连接同一局域网" TextWrapping="Wrap"/>
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,14">
       <TextBlock Text="网络地址" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -25,16 +25,15 @@
             <TextBlock x:Name="ConnectionStatus" Text="正在准备接收…" TextWrapping="Wrap"/>
             <TextBox x:Name="AddressText" IsReadOnly="True" TextWrapping="Wrap" MinHeight="64" i18n:Localization.IsUserText="True"/>
             <Button x:Name="CopyAddressButton" Content="复制扫码地址" Click="CopyAddressClick" HorizontalAlignment="Stretch" IsEnabled="False"/>
-            <TextBlock Text="无法连接时：选择电脑连接路由器的 WiFi / 有线地址；允许应用通过系统防火墙的专用网络，并检查路由器是否隔离设备。" TextWrapping="Wrap"/>
             <TextBlock Text="临时 HTTP 局域网传输，请在可信网络中使用。停止接收或关闭窗口后，当前地址失效。" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
       </Border>
       <TabControl Grid.Column="2">
         <TabItem Header="接收到电脑">
-          <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="10">
+          <Grid RowDefinitions="Auto,*,Auto" Margin="10">
             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-              <TextBlock x:Name="ReceiveSummary" Text="收到的文件会显示在这里。" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <TextBlock x:Name="ReceiveSummary" Text="尚未接收文件" VerticalAlignment="Center" TextWrapping="Wrap"/>
               <Button Grid.Column="1" Content="打开接收目录" Click="OpenReceiveFolderClick" Margin="10,0,0,0"/>
             </Grid>
             <ListBox x:Name="ReceivedList" Grid.Row="1" SelectionMode="Multiple" SelectionChanged="SelectionChanged"
@@ -55,13 +54,11 @@
               <Button x:Name="ImportReceivedButton" Content="导入转换" Click="ImportReceivedClick" IsEnabled="False"/>
               <Button x:Name="CompressReceivedButton" Content="高画质视频压缩" Click="CompressReceivedClick" IsEnabled="False"/>
             </StackPanel>
-            <TextBlock Grid.Row="3" Text="MOV 等视频可直接导入压缩：默认 HEVC、质量 18，保留分辨率和帧率。接近原画质不等于无损，体积由内容决定；HDR 的处理提示请在压缩窗口查看。" TextWrapping="Wrap" FontSize="12"/>
           </Grid>
         </TabItem>
         <TabItem Header="发送到手机">
-          <Grid RowDefinitions="Auto,*,Auto" Margin="10">
-            <TextBlock Text="添加文件后，手机网页中的“从电脑下载”会显示下载入口。" TextWrapping="Wrap" Margin="0,0,0,10"/>
-            <ListBox x:Name="SharedList" Grid.Row="1" SelectionMode="Multiple" SelectionChanged="SelectionChanged"
+          <Grid RowDefinitions="*,Auto" Margin="10">
+            <ListBox x:Name="SharedList" SelectionMode="Multiple" SelectionChanged="SelectionChanged"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
               <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
               <ListBox.ItemTemplate>
@@ -73,7 +70,7 @@
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
               <Button x:Name="AddSharedButton" Content="添加分享文件" Click="AddSharedClick"/>
               <Button x:Name="RemoveSharedButton" Content="取消分享" Click="RemoveSharedClick" IsEnabled="False"/>
             </StackPanel>
@@ -81,6 +78,6 @@
         </TabItem>
       </TabControl>
     </Grid>
-    <TextBlock Grid.Row="3" x:Name="ActivityText" Text="接收文件保存在本机，关闭窗口不会删除已接收的文件。" TextWrapping="Wrap" Margin="0,12,0,0"/>
+    <TextBlock Grid.Row="3" x:Name="ActivityText" Text="" TextWrapping="Wrap" Margin="0,12,0,0"/>
   </Grid>
 </Window>

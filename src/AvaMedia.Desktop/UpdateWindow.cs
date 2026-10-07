@@ -12,7 +12,6 @@ public sealed class UpdateWindow : Window
         Title = "检测新版本"; Width = 530; Height = 230; MinWidth = 400; MinHeight = 200; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var panel = new StackPanel { Margin = new(22), Spacing = 18 };
         panel.Children.Add(new TextBlock { Text = result.Message, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
-        panel.Children.Add(new TextBlock { Text = "检查只读取公开发布信息。打开发布页后可选择安装包。", Classes = { "caption" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 12 };
         var release = new Button { Name = "OpenReleaseButton", Content = "打开发布页", IsVisible = result.HasUpdate && result.ReleasePage is not null };
         release.Click += (_, _) => { if (result.ReleasePage is {} page) Process.Start(new ProcessStartInfo(page.AbsoluteUri) { UseShellExecute = true }); };
