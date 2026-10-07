@@ -163,6 +163,8 @@ def main():
             print(f"Building Windows {name} {item['version']}", flush=True)
             dependency(name, extracted[name], prefix, work, env, jobs)
     install = work / "ffmpeg"
+    # FFmpeg otherwise applies CROSS to pkg-config too. Use the host executable
+    # with PKG_CONFIG_LIBDIR above confined to our Windows dependencies.
     options = [f"--prefix={install}", "--arch=x86_64", "--target-os=mingw32", "--enable-cross-compile",
                f"--cross-prefix={CROSS}", "--enable-shared", "--disable-static", "--enable-small",
                "--disable-debug", "--disable-doc", "--disable-ffplay", "--disable-autodetect",
@@ -173,12 +175,20 @@ def main():
                "--enable-amf", "--enable-libvpl", "--enable-libass", "--enable-libfreetype",
                "--enable-libharfbuzz", "--enable-libfribidi", "--enable-libaom", "--enable-libvpx",
                "--enable-libwebp", "--enable-libmp3lame", "--enable-libopus", "--enable-libvorbis",
-               "--enable-libx264", "--enable-libx265", "--enable-libzimg", "--pkg-config-flags=--static",
+               "--enable-libx264", "--enable-libx265", "--enable-libzimg", "--pkg-config=pkg-config",
+               "--pkg-config-flags=--static",
                f"--extra-cflags=-I{prefix}/include", f"--extra-ldflags=-L{prefix}/lib -static",
                "--extra-libs=-lstdc++ -lwinpthread -liconv", "--extra-version=AvaMedia-win-x64"]
     print("Building Windows FFmpeg", flush=True)
     for command in (["./configure", *options], ["make", "-j" + jobs], ["make", "install"]):
-        shared.run(command, cwd=extracted["ffmpeg"], env=env, log=work / "ffmpeg.log")
+        try:
+            shared.run(command, cwd=extracted["ffmpeg"], env=env, log=work / "ffmpeg.log")
+        finally:
+            # Keep configure's compiler/linker diagnostics in the existing log artifact,
+            # including when configure fails before make can run.
+            config_log = extracted["ffmpeg"] / "ffbuild/config.log"
+            if config_log.is_file():
+                shutil.copy2(config_log, work / "ffmpeg-config.log")
     base = "AvaMedia-FFmpeg-" + source_lock["ffmpegVersion"] + "-win-x64"
     bundle = work / base
     bundle.mkdir()

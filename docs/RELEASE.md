@@ -11,6 +11,8 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 
+2026-10-07 核对 [v1.1.10–19](https://github.com/mcxen/AvaMedia/actions/runs/37575794689) 的失败记录，Windows 均停在 FFmpeg configure 的 `aom >= 2.0.0 not found using pkg-config`。依赖日志表明 `libaom.a` 和 `aom.pc` 已成功安装；配方未指定 pkg-config，FFmpeg 按交叉前缀选择未安装的 `x86_64-w64-mingw32-pkg-config`。配方现显式传入 `--pkg-config=pkg-config`，继续通过 `PKG_CONFIG_LIBDIR` 隔离 Windows 依赖，并将 `ffbuild/config.log` 复制到已有日志产物目录。v1.1.14–15 的 macOS Dispatcher 启动异常已由 `fdfb007` 修复，v1.1.16–19 的 macOS job 已通过。此修复只做 Python 语法检查；Windows 原生构建由后台工作流确认，旧 tag 不变，重跑旧 tag 仍使用旧配方。
+
 `media-v版本` 指向同一应用提交，标记为 `latest=false`；其中保留完整对应的 FFmpeg / 依赖源码、重建配方、独立运行包与校验清单。主 Release 和许可证说明直接链接该归档，确保下载二进制的用户同时可获取精确源码。应用源码使用现有 Git tag 和 GitHub 自动生成的 Source code，不再上传重复的应用 source ZIP。GitHub 自带的两条 Source code 下载项由平台生成，不能通过删除 Release assets 隐藏。
 
 2026-10-06 的 [v1.1.8 发布失败日志](https://github.com/mcxen/AvaMedia/actions/runs/37453172312) 有两个独立失败点：Windows `FunctionTests` 按已移除的“批量”菜单标题查找入口，现改用 `BatchCropMenuItem` 控件名称；macOS FriBidi 构建缺少 `help2man`，Release 和独立 FFmpeg 工作流现均安装该工具。旧 tag 保留原提交，重跑旧记录仍使用原工作流与源码；这些修复随后续版本 tag 生效。
