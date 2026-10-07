@@ -6,17 +6,17 @@
     <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
     <Style Selector="Button.preview"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="88,*,44,36,Auto,48" Margin="16">
-    <Grid ColumnDefinitions="80,88,144,*,144" Margin="0,0,0,12">
+  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="16" RowSpacing="8">
+    <Grid ColumnDefinitions="80,88,144,*,144" Margin="0,0,0,4">
       <icons:FeatureIcon Kind="clip-list" Width="64" Height="64"/>
-      <TextBlock Grid.Column="1" Text="输出格式" VerticalAlignment="Center"/>
+      <TextBlock Grid.Column="1" Text="输出格式" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="2" x:Name="FormatCombo" AutomationProperties.Name="输出格式" VerticalAlignment="Center" SelectionChanged="FormatChanged"/>
-      <TextBlock Grid.Column="3" x:Name="PresetName" Text="FastCopy" Margin="24,0" VerticalAlignment="Center" Classes="caption"/>
+      <TextBlock Grid.Column="3" x:Name="PresetName" Text="FastCopy" TextTrimming="CharacterEllipsis" Margin="24,0" VerticalAlignment="Center" Classes="caption"/>
       <Button Grid.Column="4" Content="⚙ 输出配置" Click="OutputSettingsClick" VerticalAlignment="Center"/>
     </Grid>
     <Border Grid.Row="1" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Background="{DynamicResource UiSurface}">
-      <Grid RowDefinitions="30,*">
-        <Border BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,0,1" Background="{DynamicResource UiSurfaceRaised}">
+      <Grid RowDefinitions="Auto,*">
+        <Border Height="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,0,1" Background="{DynamicResource UiSurfaceRaised}">
           <Grid ColumnDefinitions="144,*,168">
             <TextBlock Text="预览" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0"><TextBlock Text="文件信息" Margin="12,0" VerticalAlignment="Center"/></Border>
@@ -62,7 +62,7 @@
         <TextBlock Grid.Row="1" x:Name="EmptyText" Text="尚未添加文件" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
       </Grid>
     </Border>
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,8,0,0">
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
       <Button Content="按名称排序" Click="SortClick"/>
       <Button Grid.Column="1" Content="清空列表" Click="ClearClick" Margin="8,0"/>
       <TextBlock Grid.Column="2" x:Name="CountText" Classes="caption" VerticalAlignment="Center" Margin="8,0"/>
@@ -70,12 +70,12 @@
       <Button Grid.Column="4" Content="添加文件…" Click="AddFilesClick"/>
     </Grid>
     <CheckBox Grid.Row="3" x:Name="AppendSetting" Content="添加设置名称 [FastCopy]" VerticalAlignment="Center"/>
-    <Grid Grid.Row="4" ColumnDefinitions="88,*,40" Margin="0,4,0,0">
-      <TextBlock Text="输出文件夹" VerticalAlignment="Center"/>
+    <Grid Grid.Row="4" ColumnDefinitions="88,*,40">
+      <TextBlock Text="输出文件夹" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="1" x:Name="OutputCombo" AutomationProperties.Name="输出文件夹"/>
       <Button Grid.Column="2" Click="BrowseOutputClick" Margin="8,0,0,0" Padding="4" ToolTip.Tip="选择输出文件夹" AutomationProperties.Name="选择输出文件夹"><icons:ActionIcon Kind="folder"/></Button>
     </Grid>
-    <Grid Grid.Row="5" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+    <Grid Grid.Row="5" ColumnDefinitions="*,Auto,Auto">
       <TextBlock x:Name="ModeNote" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,16,0"/>
       <Button Grid.Column="1" Content="取消" Classes="dialog-action" Click="CancelClick" Margin="0,0,12,0" VerticalAlignment="Center"/>
       <Button Grid.Column="2" x:Name="OkButton" Content="确定" Classes="dialog-action" Click="ConfirmClick" VerticalAlignment="Center"/>

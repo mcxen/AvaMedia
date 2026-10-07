@@ -7,7 +7,7 @@
     <Style Selector="Border.settingsPage"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="16"/></Style>
     <Style Selector="TextBlock.settingsHeading"><Setter Property="FontWeight" Value="SemiBold"/></Style>
     <Style Selector="NumericUpDown"><Setter Property="Width" Value="96"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
-    <Style Selector="Button.settingsBrowse"><Setter Property="Width" Value="144"/></Style>
+    <Style Selector="Button.settingsBrowse"><Setter Property="MinWidth" Value="144"/></Style>
   </Window.Styles>
   <Grid RowDefinitions="*,Auto,Auto" Margin="16" RowSpacing="8">
     <TabControl x:Name="SettingsTabs" SelectedIndex="0">
@@ -21,7 +21,7 @@
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="默认输出文件夹" VerticalAlignment="Center"/>
+                      <TextBlock Text="默认输出文件夹" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/>
                       <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick"/>
                     </Grid>
@@ -62,13 +62,13 @@
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
-                      <TextBlock Text="同时执行任务数" VerticalAlignment="Center"/>
+                      <TextBlock Text="同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–8 个任务" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–8 个任务" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
                     <CheckBox x:Name="MultithreadInput" Content="使用多线程转码"/>
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
-                      <TextBlock Text="每个任务的线程数" VerticalAlignment="Center"/>
+                      <TextBlock Text="每个任务的线程数" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" AutomationProperties.Name="多线程数量"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–16；关闭多线程时使用 1" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
@@ -80,14 +80,14 @@
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
-                      <TextBlock Text="JPEG 质量" VerticalAlignment="Center"/>
+                      <TextBlock Text="JPEG 质量" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPEG 质量"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
-                      <TextBlock Text="WebP 质量" VerticalAlignment="Center"/>
+                      <TextBlock Text="WebP 质量" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP 质量"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
                   </StackPanel>
                 </Border>
@@ -149,17 +149,17 @@
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="FFmpeg" VerticalAlignment="Center"/>
+                      <TextBlock Text="FFmpeg" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <TextBox Grid.Column="1" x:Name="FfmpegInput" Watermark="自动查找" AutomationProperties.Name="FFmpeg 路径"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfmpegBrowseClick"/>
                     </Grid>
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="FFprobe" VerticalAlignment="Center"/>
+                      <TextBlock Text="FFprobe" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <TextBox Grid.Column="1" x:Name="FfprobeInput" Watermark="自动查找" AutomationProperties.Name="FFprobe 路径"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfprobeBrowseClick"/>
                     </Grid>
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="yt-dlp（下载）" VerticalAlignment="Center"/>
+                      <TextBlock Text="yt-dlp（下载）" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="YtdlpBrowseClick"/>
                     </Grid>

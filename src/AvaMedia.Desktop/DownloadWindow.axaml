@@ -8,7 +8,7 @@
     </Grid>
     <Border Grid.Row="1" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
       <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
-        <Grid ColumnDefinitions="*,Auto"><TextBlock Text="YouTube   ·   哔哩哔哩   ·   抖音   ·   小红书   ·   Bunkr   ·   Pixeldrain"/><Button Grid.Column="1" x:Name="PasteLinksButton" Content="粘贴分享文本" Click="PasteClick"/></Grid>
+        <Grid ColumnDefinitions="*,Auto"><TextBlock Text="YouTube   ·   哔哩哔哩   ·   抖音   ·   小红书   ·   Bunkr   ·   Pixeldrain" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/><Button Grid.Column="1" x:Name="PasteLinksButton" Content="粘贴分享文本" Click="PasteClick"/></Grid>
         <TextBox Grid.Row="1" x:Name="LinksInput" AcceptsReturn="True" Height="74" TextWrapping="Wrap" Watermark="可粘贴多个链接，也可直接粘贴抖音 / 小红书的完整分享文本。"/>
         <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="10">
           <Button x:Name="InspectButton" Content="解析链接" Click="InspectClick"/>
@@ -22,7 +22,7 @@
     <Grid Grid.Row="2" ColumnDefinitions="*,300" ColumnSpacing="20">
       <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Padding="16">
         <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
-          <Grid ColumnDefinitions="*,Auto"><TextBlock Text="待下载视频" FontSize="{DynamicResource UiFontTitle}"/><CheckBox Grid.Column="1" x:Name="SelectAllCheck" Content="全选" IsCheckedChanged="SelectAllChanged"/></Grid>
+          <Grid ColumnDefinitions="*,Auto"><TextBlock Text="待下载视频" FontSize="{DynamicResource UiFontTitle}" VerticalAlignment="Center"/><CheckBox Grid.Column="1" x:Name="SelectAllCheck" Content="全选" IsCheckedChanged="SelectAllChanged"/></Grid>
           <Grid Grid.Row="1">
             <ListBox x:Name="DownloadList" SelectionChanged="VideoSelected" BorderThickness="0">
               <ListBox.ItemTemplate>

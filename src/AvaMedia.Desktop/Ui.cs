@@ -12,7 +12,7 @@ internal static class Ui
     public static Button DialogButton(string text,Action action)
     {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=text=="确定";button.IsCancel=text=="取消";return button;}
     public static TextBlock Text(string text,string? role=null)
-    {var label=new TextBlock{Text=text,VerticalAlignment=VerticalAlignment.Center};if(role is not null)label.Classes.Add(role);return label;}
+    {var label=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center};if(role is not null)label.Classes.Add(role);return label;}
     public static TextBlock FormattedText(FormattableString text,string? role=null)
     {var label=Text("",role);Localization.SetText(label,text);return label;}
     public static TextBox Input(string value="",int width=0) => new(){Text=value,MinWidth=width,HorizontalAlignment=HorizontalAlignment.Stretch};

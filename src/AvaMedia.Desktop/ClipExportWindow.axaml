@@ -10,6 +10,6 @@
       <CheckBox x:Name="AddSettingName" Content="添加设置名称"/>
     </StackPanel>
     <TextBlock Grid.Row="3" x:Name="ExportError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12"><Button x:Name="BackToEditingButton" Content="← 返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入导出队列" Classes="primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12"><Button x:Name="BackToEditingButton" Classes="dialog-action" Content="← 返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入导出队列" Classes="primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>
   </Grid>
 </Window>

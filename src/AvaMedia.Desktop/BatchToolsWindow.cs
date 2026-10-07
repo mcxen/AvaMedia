@@ -7,6 +7,8 @@ using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using Avalonia.Styling;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
@@ -112,12 +114,17 @@ public sealed class BatchToolsWindow : Window
         Grid.SetRow(_summary, 1); root.Children.Add(_summary);
 
         var body = new Grid { ColumnDefinitions = new("*,380"), ColumnSpacing = 16 };
-        var filesArea = new Grid { RowDefinitions = new("26,*") };
-        var header = new Grid { ColumnDefinitions = new("34,*,*,160"), Classes = { "table-header" } };
+        var filesArea = new Grid { RowDefinitions = new("Auto,*") };
+        var header = new Grid { ColumnDefinitions = new("28,*,*,160"), ColumnSpacing = 5, Margin = new(1, 0), Classes = { "table-header" } };
+        header.Bind(MinHeightProperty, new DynamicResourceExtension("UiTableHeaderHeight"));
         var h1 = Ui.Text("视频文件"); Grid.SetColumn(h1, 1); header.Children.Add(h1);
         var h2 = Ui.Text("新名称预览"); Grid.SetColumn(h2, 2); header.Children.Add(h2);
         var h3 = Ui.Text("状态"); Grid.SetColumn(h3, 3); header.Children.Add(h3); filesArea.Children.Add(header);
-        _list = new() { ItemsSource = _entries, SelectionMode = SelectionMode.Multiple, BorderThickness = new(1) };
+        _list = new() { ItemsSource = _entries, SelectionMode = SelectionMode.Multiple, Padding = new(0), BorderThickness = new(1) };
+        _list.Styles.Add(new Style(x => x.OfType<ListBoxItem>())
+        {
+            Setters = { new Setter(PaddingProperty, new Thickness(0)), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) }
+        });
         _list.ItemTemplate = new FuncDataTemplate<BatchVideoEntry>((entry, _) =>
         {
             var g = new Grid { ColumnDefinitions = new("28,*,*,160"), Margin = new(0, 6), ColumnSpacing = 5 };

@@ -165,6 +165,7 @@
     <Setter Property="Padding" Value="{DynamicResource UiButtonPadding}" />
     <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
     <Setter Property="FontSize" Value="{DynamicResource UiFontBody}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <!-- SimpleTheme changes the presenter directly; state styles must target it too. -->
   <Style Selector="Button:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -204,17 +205,25 @@
     <Setter Property="MinHeight" Value="{DynamicResource UiCategoryHeight}" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
   </Style>
+  <Style Selector="CheckBox">
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
   <Style Selector="TextBox">
     <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}" />
     <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
     <Setter Property="Padding" Value="{DynamicResource UiInputPadding}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="Background" Value="{DynamicResource UiSurface}" />
     <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />
   </Style>
+  <Style Selector="TextBox[AcceptsReturn=True]">
+    <Setter Property="VerticalContentAlignment" Value="Top" />
+  </Style>
   <Style Selector="ComboBox">
     <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
     <Setter Property="Padding" Value="6,3" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="HorizontalAlignment" Value="Stretch" />
     <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}" />
