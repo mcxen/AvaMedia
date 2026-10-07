@@ -49,7 +49,7 @@ Drop files into the main window to see tools suited to videos, audio, images and
 - **Fast Copy** clip starts depend on keyframes. Filters such as cropping and image rotation require re-encoding.
 - **HEIC / HEIF** compression processes the primary still image and outputs JPEG / WebP / PNG. It does not preserve Live Photo video, depth maps or HDR gain maps.
 - **PDF → DOCX / XLSX** extracts text rather than reconstructing the original layout. PDF aging and whole-page compression rasterize pages.
-- **Watermark removal** currently blurs the selected area; it cannot recover obscured content. Remuxing does not guarantee recovery of damaged media.
+- **Watermark removal** interpolates from pixels around the selected area; it cannot reconstruct the actual obscured content. Remuxing does not guarantee recovery of damaged media.
 - Downloads depend on website, account, regional and network restrictions; see the [download notes](docs/VIDEO-DOWNLOAD.md).
 
 ## Screenshots
