@@ -53,7 +53,7 @@ public partial class MainWindow
         FeatureGrid.Children.Clear();
         FeatureGrid.RowDefinitions.Clear();
         int column = 0, row = 0;
-        foreach (var feature in Catalog.All.Where(feature => feature.Category == category))
+        foreach (var feature in Catalog.All.Where(feature => feature.Category == category && (feature.Id != "person-clip" || _settings.EnableBetaFeatures)))
         {
             if (column + feature.Span > 4) { column = 0; row++; }
             while (FeatureGrid.RowDefinitions.Count <= row)

@@ -73,6 +73,16 @@ public partial class MainWindow
         _appliedSettings = _settings.Clone();
         OutputPath.Text = "📂 " + _settings.OutputFolder; Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;
         Motion.SetReducedMotion(_settings.ReduceMotion);
+        if(prior.EnableBetaFeatures != _settings.EnableBetaFeatures)
+        {
+            if(!_settings.EnableBetaFeatures && _last.Id=="person-clip")_last=Catalog.Find("clip");
+            ShowCategory(_category);
+        }
+        if(prior.AutoDownloadRepairModel != _settings.AutoDownloadRepairModel)
+        {
+            if(_settings.AutoDownloadRepairModel)_=ModelInstallation.StartAsync();
+            else ModelInstallation.Cancel();
+        }
     }
 
     private async Task FinishQueueOptionsAsync(Job[] batch, AppSettings preferences)

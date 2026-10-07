@@ -1,0 +1,162 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Platform.Storage;
+using AvaMedia.Core;
+
+namespace AvaMedia.Desktop;
+
+public sealed class PersonClipWindow : Window
+{
+    private readonly IMediaEngine _engine;
+    private readonly AppSettings _settings;
+    private readonly Func<Window, Task> _manageModels;
+    private readonly List<string> _paths = [];
+    private readonly ListBox _files = new();
+    private readonly TextBox _results = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    private readonly NumericUpDown _fps = Number(1, 8, 2, 1);
+    private readonly NumericUpDown _threshold = Number(.1m, .9m, .35m, .05m);
+    private readonly NumericUpDown _padding = Number(0, 30, .5m, .1m);
+    private readonly NumericUpDown _gap = Number(0, 30, 1, .5m);
+    private readonly NumericUpDown _minimum = Number(0, 30, .5m, .1m);
+    private readonly CheckBox _uncertain = new() { Content = "保留不确定片段", IsChecked = true };
+    private readonly CheckBox _embedding = new() { Content = "使用 EmbeddingGemma 2 语义辅助", IsEnabled = false };
+    private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
+    private readonly TextBlock _status = Ui.Text("");
+    private readonly ProgressBar _progress = new() { Minimum = 0, Maximum = 100, IsVisible = false, Height = 6 };
+    private readonly StackPanel _parameters = new() { Spacing = 8 };
+    private readonly Button _add;
+    private readonly Button _remove;
+    private readonly Button _models;
+    private readonly Button _analyze;
+    private readonly Button _stop;
+    private readonly Button _export;
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _analysis;
+    private IReadOnlyList<ClipEditResult>? _edits;
+    private bool _closed;
+
+    public PersonClipWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? paths, Func<Window, Task> manageModels)
+    {
+        _engine = engine; _settings = settings; _manageModels = manageModels;
+        Title = "保留有人片段 · Beta"; Width = 880; Height = 740; MinWidth = 760; MinHeight = 650;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        _add = Ui.Button("添加视频…", async () => await AddFilesAsync());
+        _remove = Ui.Button("移除", () => { if (_files.SelectedIndex >= 0) { _paths.RemoveAt(_files.SelectedIndex); RefreshFiles(); InvalidateResult(); } });
+        _models = Ui.Button("模型管理…", async () =>
+        {
+            try { await _manageModels(this); if (!_settings.EnableBetaFeatures) Close(null); else await RefreshModelsAsync(); }
+            catch (Exception error) { _status.Text = error.Message; }
+        });
+        _analyze = Ui.DialogButton("分析视频", async () => await AnalyzeAsync());
+        _stop = Ui.Button("停止分析", () => _analysis?.Cancel()); _stop.IsVisible = false;
+        _export = Ui.DialogButton("编辑并导出", () => { if (_settings.EnableBetaFeatures && _edits is not null) Close(_edits); }); _export.IsEnabled = false;
+        var layout = new Grid { RowDefinitions = new("Auto,140,Auto,*,Auto,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        tools.Children.Add(_add); tools.Children.Add(_remove); tools.Children.Add(_models); layout.Children.Add(tools);
+        Grid.SetRow(_files, 1); layout.Children.Add(_files);
+        foreach (var (label, input) in new[] { ("每秒采样帧数", _fps), ("检测阈值", _threshold), ("前后保留秒数", _padding), ("合并间隔秒数", _gap), ("最短片段秒数", _minimum) })
+        {
+            var row = new Grid { ColumnDefinitions = new("160,*"), ColumnSpacing = 12 };
+            row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); _parameters.Children.Add(row);
+            input.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) InvalidateResult(); };
+        }
+        _parameters.Children.Add(_uncertain); _parameters.Children.Add(_embedding); _parameters.Children.Add(_modelStatus);
+        _uncertain.IsCheckedChanged += (_, _) => InvalidateResult(); _embedding.IsCheckedChanged += (_, _) => InvalidateResult();
+        Grid.SetRow(_parameters, 2); layout.Children.Add(_parameters);
+        Grid.SetRow(_results, 3); layout.Children.Add(_results);
+        Grid.SetRow(_progress, 4); layout.Children.Add(_progress);
+        Grid.SetRow(_status, 5); layout.Children.Add(_status);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        actions.Children.Add(_stop); actions.Children.Add(_analyze); actions.Children.Add(Ui.DialogButton("取消", () => Close(null))); actions.Children.Add(_export);
+        Grid.SetRow(actions, 6); layout.Children.Add(actions); Content = layout;
+        if (paths is not null) AddPaths(paths);
+        Opened += async (_, _) => { try { await RefreshModelsAsync(); } catch (Exception error) { if (!_closed) _status.Text = error.Message; } };
+        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
+    }
+    private static NumericUpDown Number(decimal min, decimal max, decimal value, decimal step) => new()
+        { Minimum = min, Maximum = max, Value = value, Increment = step, Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
+    private void InvalidateResult() { if (_analysis is not null) return; _edits = null; _export.IsEnabled = false; _results.Text = ""; _status.Text = ""; }
+    private void AddPaths(IEnumerable<string> paths)
+    {
+        foreach (var path in paths.Where(File.Exists))
+        {
+            if (!QuickClipBatch.VideoExtensions.Contains(Path.GetExtension(path).TrimStart('.'))) continue;
+            var full = Path.GetFullPath(path);
+            if (!_paths.Contains(full, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)) _paths.Add(full);
+        }
+        RefreshFiles(); InvalidateResult();
+    }
+    private void RefreshFiles() => _files.ItemsSource = _paths.Select(Path.GetFileName).ToArray();
+    private async Task AddFilesAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择视频"), AllowMultiple = true,
+            FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(extension => "*." + extension).ToArray() }] });
+        AddPaths(files.Select(file => file.TryGetLocalPath()).OfType<string>());
+    }
+    private async Task RefreshModelsAsync()
+    {
+        var store = new ModelStore();
+        var person = await store.IsInstalledAsync(ModelCatalog.PersonId, ct: _lifetime.Token);
+        var embedding = await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token);
+        if (_closed) return;
+        _modelStatus.Text = Localization.Text(person ? "人体检测模型已下载" : "请先在模型管理中下载 YOLOX");
+        _embedding.IsEnabled = embedding;
+        if (!embedding) _embedding.IsChecked = false;
+        _analyze.IsEnabled = person;
+    }
+    private static double Value(NumericUpDown input)
+    {
+        if (!decimal.TryParse(input.Text, System.Globalization.NumberStyles.Number, input.NumberFormat, out var value)
+            || value < input.Minimum || value > input.Maximum) throw new ArgumentException("请输入范围内的检测参数。");
+        return (double)value;
+    }
+    private async Task AnalyzeAsync()
+    {
+        if (_analysis is not null || !_settings.EnableBetaFeatures) return;
+        if (_paths.Count == 0) { _status.Text = Localization.Text("请添加视频。"); return; }
+        PersonClipOptions options;
+        try { options = new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum), _uncertain.IsChecked == true, _embedding.IsChecked == true); options.Validate(); }
+        catch (Exception error) { _status.Text = error.Message; return; }
+        InvalidateResult();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _analysis = cancellation;
+        _add.IsEnabled = _remove.IsEnabled = _models.IsEnabled = _parameters.IsEnabled = _analyze.IsEnabled = false;
+        _stop.IsVisible = _progress.IsVisible = true;
+        _progress.Value = 0;
+        try
+        {
+            var results = new List<ClipEditResult>();
+            var summaries = new List<string>();
+            for (var index = 0; index < _paths.Count; index++)
+            {
+                var current = index;
+                var progress = new Progress<PersonClipProgress>(value =>
+                {
+                    if (_closed || _analysis != cancellation) return;
+                    _progress.IsIndeterminate = value.Duration == 0;
+                    _progress.Value = (current + (value.Duration > 0 ? value.Seconds / value.Duration : 0)) * 100 / _paths.Count;
+                    _status.Text = Path.GetFileName(_paths[current]) + " · " + Localization.Text(value.Stage);
+                });
+                var result = await new PersonClipAnalysis(_engine).AnalyzeAsync(_paths[index], options, progress, cancellation.Token);
+                if (result.Segments.Count > 0) results.Add(new(result.Path, result.Info, result.Segments));
+                summaries.Add(Localization.Format($"{Path.GetFileName(result.Path)} · {result.Segments.Count} 个片段 · 保留 {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))} · 不确定 {result.UncertainFrames}/{result.SampledFrames} 帧"));
+                _results.Text = string.Join(Environment.NewLine, summaries);
+            }
+            if (_closed) return;
+            _edits = results; _export.IsEnabled = results.Count > 0;
+            _status.Text = Localization.Text(results.Count > 0 ? "分析完成" : "没有找到可保留的片段，可调整检测阈值后重试。");
+        }
+        catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("分析已停止。"); }
+        catch (Exception error) { if (!_closed) _status.Text = error.Message; }
+        finally
+        {
+            _analysis = null;
+            if (!_closed)
+            {
+                _add.IsEnabled = _remove.IsEnabled = _models.IsEnabled = _parameters.IsEnabled = _analyze.IsEnabled = true;
+                _stop.IsVisible = _progress.IsVisible = false;
+            }
+        }
+    }
+}

@@ -15,12 +15,12 @@ public partial class MainWindow
         await EditQuickClipAsync(files.Select(f=>f.TryGetLocalPath()).OfType<string>());
     }
 
-    public async Task EditQuickClipAsync(IEnumerable<string> selectedPaths)
+    public async Task EditQuickClipAsync(IEnumerable<string> selectedPaths, IReadOnlyList<ClipEditResult>? initialEdits=null, bool allowJoin=false)
     {
         var paths=selectedPaths.Select(Path.GetFullPath).Distinct(OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal).ToArray();
         if(paths.Length==0)return;
         _last=Catalog.Find("clip");
-        var edits=new ClipEditResult?[paths.Length];ClipExportState? exportState=new("MP4",_settings.OutputFolder,_settings.OutputToSource,new(),_settings.AddSettingName);
+        var edits=paths.Select(path=>initialEdits?.FirstOrDefault(edit=>edit.Path==path)).ToArray();ClipExportState? exportState=new("MP4",_settings.OutputFolder,_settings.OutputToSource,new(),_settings.AddSettingName);
         while(true)
         {
             for(var i=0;i<paths.Length;i++)
@@ -32,7 +32,7 @@ public partial class MainWindow
                 if(result is null)return;
                 edits[i]=result;
             }
-            var decision=await new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState).ShowDialog<ClipExportDecision?>(this);
+            var decision=await new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin).ShowDialog<ClipExportDecision?>(this);
             if(decision is null)return;
             exportState=decision.State;
             if(decision.BackToEditing)continue;
@@ -40,7 +40,9 @@ public partial class MainWindow
             try
             {
                 // Build the complete batch first; cancellation or invalid settings leave the queue unchanged.
-                var jobs=QuickClipBatch.CreateJobs(request.ClipInputs!,request.OutputFolder,request.OutputToSource,request.SettingName,_jobs.Select(j=>j.Output));
+                var jobs=decision.State.JoinSegments
+                    ? QuickClipWorkflow.PrepareJoinedJobs(edits.OfType<ClipEditResult>(),decision.State.Preset,decision.State.Options,request.OutputFolder,request.OutputToSource,request.SettingName,_jobs.Select(j=>j.Output))
+                    : QuickClipBatch.CreateJobs(request.ClipInputs!,request.OutputFolder,request.OutputToSource,request.SettingName,_jobs.Select(j=>j.Output));
                 foreach(var job in jobs)_jobs.Add(job);
                 Save();Refresh();
             }

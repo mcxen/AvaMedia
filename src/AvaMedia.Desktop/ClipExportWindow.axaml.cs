@@ -4,7 +4,7 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false);
+public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false,bool JoinSegments=false);
 public sealed record ClipExportDecision(bool BackToEditing,ClipExportState State,ConversionRequest? Request=null);
 
 public partial class ClipExportWindow : Window
@@ -12,7 +12,7 @@ public partial class ClipExportWindow : Window
     private readonly ClipEditResult[] _edits;
     private ConversionOptions _options;
     public ClipExportWindow() : this([],MediaFolders.DefaultOutput) { }
-    public ClipExportWindow(IEnumerable<ClipEditResult> edits,string folder,ClipExportState? state=null)
+    public ClipExportWindow(IEnumerable<ClipEditResult> edits,string folder,ClipExportState? state=null,bool allowJoin=false)
     {
         InitializeComponent();_edits=edits.ToArray();_options=state?.Options.Clone()??new();
         Avalonia.Automation.AutomationProperties.SetName(FormatCombo,"快速剪辑输出格式");
@@ -22,18 +22,21 @@ public partial class ClipExportWindow : Window
         ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.Segments.Select((segment,i)=>Path.GetFileName(edit.Path)+"\n"+new ClipSegmentEntry(segment){Number=i+1}.Summary)).ToArray();
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
         AddSettingName.IsChecked=state?.AddSettingName??false;
+        JoinSegments.IsVisible=allowJoin;JoinSegments.IsChecked=allowJoin && state?.JoinSegments==true;
+        JoinSegments.IsCheckedChanged+=(_,_)=>ValidateExport();
         FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??"MP4";
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
     private string Preset=>FormatCombo.SelectedItem as string??"MP4";
-    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true);
+    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,JoinSegments.IsVisible && JoinSegments.IsChecked==true);
     public ConversionRequest CreateRequest()
     {
         var state=ReadState();
         if(!state.OutputToSource && string.IsNullOrWhiteSpace(state.Folder))throw new ArgumentException("请选择保存位置。");
         if(!state.OutputToSource)_=Path.GetFullPath(state.Folder);
         var inputs=QuickClipWorkflow.PrepareExports(_edits,state.Preset,state.Options);
+        if(state.JoinSegments)QuickClipWorkflow.ValidateJoinedExports(_edits,state.Preset);
         return new(Catalog.Find("clip"),_edits.Select(e=>e.Path).ToArray(),state.Folder,state.Options.Clone(),inputs,state.OutputToSource,state.AddSettingName?(state.Preset=="Fast Copy"?"FastCopy":state.Preset):"");
     }
     private void ValidateExport()

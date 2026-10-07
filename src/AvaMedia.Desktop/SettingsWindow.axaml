@@ -31,6 +31,10 @@
                 </Border>
               </StackPanel>
               <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="实验功能"/>
+                <Border Classes="settingSection"><CheckBox x:Name="BetaInput" Content="开启 Beta 功能"/></Border>
+              </StackPanel>
+              <StackPanel Spacing="8">
                 <TextBlock Classes="settingsHeading" Text="任务完成"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
@@ -141,6 +145,17 @@
                   </StackPanel>
                 </Border>
               </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </TabItem>
+      <TabItem x:Name="ModelsTab" Header="模型管理">
+        <Border Classes="settingsPage">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="12">
+              <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型"/>
+              <StackPanel x:Name="ModelList" Spacing="12"/>
+              <TextBlock x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap"/>
             </StackPanel>
           </ScrollViewer>
         </Border>

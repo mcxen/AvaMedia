@@ -50,6 +50,11 @@ public partial class MainWindow : Window
     }
     private async Task Configure(Feature feature,string[]? files=null)
     {
+        if(feature.Id=="person-clip")
+        {
+            if(_settings.EnableBetaFeatures)await ConfigurePersonClipAsync(files);
+            return;
+        }
         _last=feature;
         if(feature.Operation==Operation.BatchTools){await ConfigureBatchToolsAsync(files,feature.Id=="contact-sheet");return;}
         if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}

@@ -8,16 +8,19 @@ internal static class ModelInstallation
     private static Task? _running;
     private static bool _attemptActive;
     private static int _attempt;
+    private static CancellationTokenSource? _cancellation;
     public static bool Installing { get; private set; }
     public static bool Failed { get; private set; }
     public static int Percent { get; private set; }
     public static event Action? Changed;
     public static CancellationToken Lifetime { get; set; }
+    public static void Cancel() { _cancellation?.Cancel(); Failed=false; Changed?.Invoke(); }
 
     public static Task StartAsync()
     {
         if (_running is not null) return _running;
         _attemptActive = true;
+        _cancellation = CancellationTokenSource.CreateLinkedTokenSource(Lifetime);
         return _running = InstallAsync(++_attempt);
     }
     private static async Task InstallAsync(int attempt)
@@ -32,9 +35,9 @@ internal static class ModelInstallation
                 if (Lifetime.IsCancellationRequested || !_attemptActive || attempt != _attempt) return;
                 Installing = percent < 100; Percent = percent; Changed?.Invoke();
             });
-            await Installer.EnsureInstalledAsync(progress, Lifetime);
+            await Installer.EnsureInstalledAsync(progress, _cancellation!.Token);
         }
-        catch (OperationCanceledException) when (Lifetime.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (_cancellation!.IsCancellationRequested) { Failed = false; }
         catch (Exception error)
         {
             Failed = true;
@@ -43,6 +46,7 @@ internal static class ModelInstallation
         finally
         {
             _attemptActive = false; Installing = false; _running = null;
+            _cancellation?.Dispose(); _cancellation=null;
             Changed?.Invoke();
         }
     }

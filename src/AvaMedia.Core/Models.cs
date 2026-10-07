@@ -25,6 +25,7 @@ public static class Catalog
         Add("join","视频合并 & 混流","视频","mp4","join",Operation.Join,2);
         Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
         Add("clip","快速剪辑","视频","mp4","clip");
+        Add("person-clip","保留有人片段 · Beta","视频","mp4","clip");
         Add("delogo","去除水印","视频","mp4","erase");
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
@@ -175,6 +176,8 @@ public sealed class AppSettings
     public bool CheckForUpdates { get; set; } = true;
     public bool AutoUpdate { get; set; }
     public bool SilentUpdate { get; set; }
+    public bool EnableBetaFeatures { get; set; }
+    public bool AutoDownloadRepairModel { get; set; } = true;
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
     public string YtDlpPath { get; set; } = "";
@@ -197,6 +200,7 @@ public sealed class AppSettings
         ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
         CloseToTray=source.CloseToTray;AutoUpdate=source.AutoUpdate;SilentUpdate=source.SilentUpdate;
+        EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
