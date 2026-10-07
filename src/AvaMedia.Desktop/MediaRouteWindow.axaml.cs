@@ -37,7 +37,9 @@ public sealed class MediaRouteEntry(MediaRouteSource source) : Observable
     { MediaFileKind.Video => "视频", MediaFileKind.Image => "图片", MediaFileKind.Audio => "音频", MediaFileKind.Document => "文档", _ => "其他文件" };
     internal void Loaded(long bytes, string detail, Bitmap? preview, bool unavailable)
     {
-        _preview?.Dispose(); _preview = preview; Bytes = bytes; _detail = detail; _previewUnavailable = unavailable; Refresh();
+        var old = _preview; _preview = preview; Bytes = bytes; _detail = detail; _previewUnavailable = unavailable;
+        try { Refresh(); }
+        finally { old?.Dispose(); }
     }
     internal void Refresh() => Raise(string.Empty);
     internal void DisposePreview() { var old = _preview; _preview = null; Refresh(); old?.Dispose(); }
@@ -97,16 +99,27 @@ public partial class MediaRouteWindow : Window
 
     public void AddFiles(IEnumerable<string> paths)
     {
+        try { AddFilesCore(paths); }
+        catch (Exception error)
+        {
+            AppDiagnostics.Record("Add routing files", error);
+            if (!_closed) DestinationSummary.Text = Localization.Format($"导入失败：{error.Message}");
+        }
+    }
+    private void AddFilesCore(IEnumerable<string> paths)
+    {
         if (_closed) return;
         var previousCount = _entries.Count;
         var known = _entries.Select(entry => entry.Source.Path).ToHashSet(VideoFolderScanner.PathComparer);
         var kind = SelectionKinds[Math.Max(0, KindPicker.SelectedIndex)];
+        // Normalize and classify the whole import before changing the live collection.
+        var added = paths.Where(File.Exists).Select(Path.GetFullPath).Where(known.Add)
+            .Select(path => new MediaRouteEntry(new(path, _router.Classify(path)))).ToArray();
         _updating = true;
         try
         {
-            foreach (var path in paths.Where(File.Exists).Select(Path.GetFullPath).Where(known.Add))
+            foreach (var entry in added)
             {
-                var entry = new MediaRouteEntry(new(path, _router.Classify(path)));
                 entry.Include = kind is null || entry.Source.Kind == kind;
                 entry.PropertyChanged += EntryChanged; _entries.Add(entry);
             }
@@ -211,7 +224,15 @@ public partial class MediaRouteWindow : Window
     }
     private void OpenRoute(MediaRouteOption route)
     { if (!_closed && route.Enabled) { _request = new(route.Feature.Id, route.Files); Close(_request); } }
-    private async void AddClick(object? sender, RoutedEventArgs args) => AddFiles(await Ui.Pick(this, "添加到文件路由"));
+    private async void AddClick(object? sender, RoutedEventArgs args)
+    {
+        try { AddFiles(await Ui.Pick(this, "添加到文件路由")); }
+        catch (Exception error)
+        {
+            AppDiagnostics.Record("Pick routing files", error);
+            if (!_closed) DestinationSummary.Text = Localization.Format($"导入失败：{error.Message}");
+        }
+    }
     private void DeselectClick(object? sender, RoutedEventArgs args) => SetSelection(_ => false);
     private void CancelClick(object? sender, RoutedEventArgs args) => Close();
     private void OpenClick(object? sender, RoutedEventArgs args) { if (_active is { Enabled: true } route) OpenRoute(route); }
@@ -243,8 +264,13 @@ public partial class MediaRouteWindow : Window
         var hint = new TextBlock { Classes = { "caption" }, TextWrapping = TextWrapping.Wrap };
         hint.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.PreviewHint))); Grid.SetRow(hint, single ? 3 : 2); Grid.SetColumn(hint, single ? 0 : 1); grid.Children.Add(hint);
         grid.DataContext = entry;
-        grid.AttachedToVisualTree += (_, _) => { if (!entry.Requested) { entry.Requested = true; _ = LoadPreviewAsync(entry); } };
+        grid.AttachedToVisualTree += (_, _) => { if (!entry.Requested) { entry.Requested = true; _ = ObservePreviewAsync(entry); } };
         return grid;
+    }
+    private async Task ObservePreviewAsync(MediaRouteEntry entry)
+    {
+        try { await LoadPreviewAsync(entry); }
+        catch (Exception error) { AppDiagnostics.Record("Apply routing preview", error); }
     }
     private async Task LoadPreviewAsync(MediaRouteEntry entry)
     {
@@ -282,12 +308,20 @@ public partial class MediaRouteWindow : Window
             }
         }
         catch (OperationCanceledException) { unavailable = true; }
-        catch (Exception) { unavailable = true; }
+        catch (Exception error) { AppDiagnostics.Record("Load routing preview", error); unavailable = true; }
         finally
         {
             if (acquired) _previewSlots.Release();
-            if (!_closed) { entry.Loaded(bytes, detail, preview, unavailable); preview = null; }
-            preview?.Dispose();
+            try
+            {
+                if (!_closed)
+                {
+                    // Ownership transfers before binding notifications, which can throw.
+                    var owned = preview; preview = null;
+                    entry.Loaded(bytes, detail, owned, unavailable);
+                }
+            }
+            finally { preview?.Dispose(); }
         }
     }
 }

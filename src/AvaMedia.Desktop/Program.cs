@@ -8,6 +8,7 @@ internal static class Program
     public static int Main(string[] args)
     {
         _ = StartedUtc;
+        AppDiagnostics.Initialize();
         if (args.Contains("--register-player")) { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         if (args.Contains("--unregister-player")) { SystemPlayerIntegration.UnregisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

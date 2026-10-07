@@ -9,6 +9,15 @@ public partial class MainWindow
     private MediaRouteWindow? _mediaRouteWindow;
     public async Task RouteFilesAsync(IEnumerable<string> paths)
     {
+        try { await RouteFilesCoreAsync(paths); }
+        catch (Exception error)
+        {
+            AppDiagnostics.Record("Import dropped files", error);
+            if (!_closing && IsVisible) await Ui.Message(this, "导入文件失败", error.Message);
+        }
+    }
+    private async Task RouteFilesCoreAsync(IEnumerable<string> paths)
+    {
         var files = paths.Where(File.Exists).Select(Path.GetFullPath).Distinct(VideoFolderScanner.PathComparer).ToArray();
         if (files.Length == 0) return;
         if (_mediaRouteWindow is { } existing) { existing.AddFiles(files); existing.Activate(); return; }
@@ -25,6 +34,10 @@ public partial class MainWindow
     {
         e.Handled = true;
         try { await RouteFilesAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); }
-        catch (Exception error) { await Ui.Message(this, "打开工具失败", error.Message); }
+        catch (Exception error)
+        {
+            AppDiagnostics.Record("Read dropped files", error);
+            if (!_closing && IsVisible) await Ui.Message(this, "导入文件失败", error.Message);
+        }
     }
 }
