@@ -12,9 +12,11 @@ internal static class AppDiagnostics
         {
             if (args.ExceptionObject is Exception error) Record("Unhandled exception", error);
         };
-        Dispatcher.UIThread.UnhandledException += (_, args) => Record("UI dispatcher", args.Exception);
         TaskScheduler.UnobservedTaskException += (_, args) => Record("Unobserved task", args.Exception);
     }
+
+    internal static void AttachDispatcher() =>
+        Dispatcher.UIThread.UnhandledException += (_, args) => Record("UI dispatcher", args.Exception);
 
     internal static void Record(string operation, Exception error)
     {

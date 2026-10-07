@@ -19,6 +19,7 @@ public sealed partial class App : Application
     }
     public override void OnFrameworkInitializationCompleted()
     {
+        AppDiagnostics.AttachDispatcher();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
