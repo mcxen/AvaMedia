@@ -45,7 +45,7 @@ public partial class MainWindow : Window
         _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();
         ShowCategory(_category);Refresh();
         InitializePlatinumPresentation();
-        DragDrop.SetAllowDrop(this,true);AddHandler(DragDrop.DropEvent,Drop);AddHandler(DragDrop.DragOverEvent,DragOver);
+        DragDrop.SetAllowDrop(this,true);AddHandler(DragDrop.DropEvent,Drop,Avalonia.Interactivity.RoutingStrategies.Tunnel);AddHandler(DragDrop.DragOverEvent,DragOver,Avalonia.Interactivity.RoutingStrategies.Tunnel);
     }
     private async Task Configure(Feature feature,string[]? files=null)
     {

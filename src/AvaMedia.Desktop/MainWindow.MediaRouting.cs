@@ -15,7 +15,7 @@ public partial class MainWindow
         var window = new MediaRouteWindow(Engine, files);
         _mediaRouteWindow = window;
         MediaRouteRequest? request;
-        try { request = await window.ShowDialog<MediaRouteRequest?>(this); }
+        try { request = await window.ShowForRoutingAsync(this); }
         finally { _mediaRouteWindow = null; }
         if (request is not null) await Configure(Catalog.Find(request.FeatureId), request.Files);
     }

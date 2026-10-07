@@ -2,9 +2,12 @@ using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
@@ -33,6 +36,18 @@ public sealed class ConvertWindow : Window
         WindowArtwork.SetKind(this, feature.Icon);
         Closed+=(_,_)=>_lifetime.Cancel();
         _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index))));_options=initialOptions?.Clone()??new(){Format=feature.Format};if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";}
+        if(feature.Operation is not (Operation.Download or Operation.IsoCopy))
+        {
+            DragDrop.SetAllowDrop(this,true);
+            AddHandler(DragDrop.DragOverEvent,(_,e)=>{e.DragEffects=!_preparing && e.DataTransfer.TryGetFiles() is not null?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;},RoutingStrategies.Tunnel);
+            AddHandler(DragDrop.DropEvent,(_,e)=>
+            {
+                e.Handled=true;if(_preparing)return;
+                var known=_entries.Select(entry=>Path.GetFullPath(entry.Path)).ToHashSet(VideoFolderScanner.PathComparer);
+                foreach(var path in e.DataTransfer.TryGetFiles()?.Select(file=>file.TryGetLocalPath()).OfType<string>().Where(File.Exists).Select(Path.GetFullPath).Where(known.Add)??[])
+                    _entries.Add(new(path));
+            },RoutingStrategies.Tunnel);
+        }
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(18)};
         var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10};var formats=Ui.Combo(GetFormats(feature),_options.Format);formats.Width=130;
         top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);

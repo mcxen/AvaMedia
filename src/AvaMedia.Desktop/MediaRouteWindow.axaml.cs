@@ -54,6 +54,7 @@ public partial class MediaRouteWindow : Window
     private MediaRouteOption? _active;
     private bool _updating;
     private bool _closed;
+    private MediaRouteRequest? _request;
     private static readonly MediaFileKind?[] SelectionKinds = [null, MediaFileKind.Video, MediaFileKind.Image, MediaFileKind.Audio, MediaFileKind.Document, MediaFileKind.Other];
 
     public MediaRouteWindow() : this(new MediaEngine(new()), []) { }
@@ -69,8 +70,8 @@ public partial class MediaRouteWindow : Window
         RouteScroll.ScrollChanged += (_, _) => UpdateFlowTarget();
         LayoutUpdated += (_, _) => UpdateFlowTarget();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; });
-        AddHandler(DragDrop.DropEvent, (_, e) => { e.Handled = true; AddFiles(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
+        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Tunnel);
+        AddHandler(DragDrop.DropEvent, (_, e) => { e.Handled = true; AddFiles(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); }, RoutingStrategies.Tunnel);
         Localization.Changed += LanguageChanged;
         Closed += (_, _) =>
         {
@@ -78,6 +79,20 @@ public partial class MediaRouteWindow : Window
             foreach (var entry in _entries) { entry.PropertyChanged -= EntryChanged; entry.DisposePreview(); }
         };
         AddFiles(files);
+    }
+
+    public async Task<MediaRouteRequest?> ShowForRoutingAsync(Window owner)
+    {
+        var completion = new TaskCompletionSource<MediaRouteRequest?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnClosed(object? sender, EventArgs args) => completion.TrySetResult(_request);
+        Closed += OnClosed;
+        try
+        {
+            // Keep the owner available so later drops into either window join this draft.
+            Show(owner);
+            return await completion.Task;
+        }
+        finally { Closed -= OnClosed; }
     }
 
     public void AddFiles(IEnumerable<string> paths)
@@ -195,7 +210,7 @@ public partial class MediaRouteWindow : Window
         RouteFlow.Highlighted = card is { IsEnabled: true } && (card.IsPointerOver || card.IsFocused);
     }
     private void OpenRoute(MediaRouteOption route)
-    { if (!_closed && route.Enabled) Close(new MediaRouteRequest(route.Feature.Id, route.Files)); }
+    { if (!_closed && route.Enabled) { _request = new(route.Feature.Id, route.Files); Close(_request); } }
     private async void AddClick(object? sender, RoutedEventArgs args) => AddFiles(await Ui.Pick(this, "添加到文件路由"));
     private void DeselectClick(object? sender, RoutedEventArgs args) => SetSelection(_ => false);
     private void CancelClick(object? sender, RoutedEventArgs args) => Close();
