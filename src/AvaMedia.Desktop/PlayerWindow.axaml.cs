@@ -22,7 +22,7 @@ public partial class PlayerWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _chromeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private CancellationTokenSource? _load, _seek, _folderLoad;
+    private CancellationTokenSource? _load, _seek, _folderLoad, _frameStep;
     private IPlaybackSession? _player;
     private Bitmap? _still;
     private MediaInfo? _info;
@@ -71,12 +71,17 @@ public partial class PlayerWindow : Window
             if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             else BeginMoveDrag(e);
         };
-        VideoArea.ContextRequested += (_, e) => { var menu = BuildMenu(); menu.Open(VideoArea); e.Handled = true; };
-        AddHandler(KeyDownEvent, KeyPressed, RoutingStrategies.Tunnel);
-        VideoArea.PointerPressed += (_, e) => { if (e.GetCurrentPoint(VideoArea).Properties.IsLeftButtonPressed && e.ClickCount == 2) { ToggleFullscreen(); e.Handled = true; } };
+        VideoArea.ContextRequested += (_, e) => { OpenMenu(BuildMenu(), VideoArea); e.Handled = true; };
+        InitializeKeyboard();
+        VideoArea.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(VideoArea).Properties.IsLeftButtonPressed) return;
+            VideoArea.Focus(NavigationMethod.Pointer);
+            if (e.ClickCount == 2) { ToggleFullscreen(); e.Handled = true; }
+        };
         VideoArea.PointerWheelChanged += (_, e) => { PlayerVolume.Value = Math.Clamp(PlayerVolume.Value + e.Delta.Y * 5, 0, 100); e.Handled = true; };
         PointerMoved += (_, _) => ShowChrome();
-        _chromeTimer.Tick += (_, _) => { _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen && !ShortcutHelp.IsVisible) { ControlsBar.IsVisible = false; Cursor = new(StandardCursorType.None); } };
+        _chromeTimer.Tick += (_, _) => HideChrome();
         _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); PlayerOsd.IsVisible = false; };
         ActualThemeVariantChanged += (_, _) => ShowChrome();
         PropertyChanged += (_, e) =>
@@ -89,11 +94,11 @@ public partial class PlayerWindow : Window
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, (_, e) => { if (_deleting || _closed) return; var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToArray(); if (paths?.Length > 0) { SetFiles(paths); Ready = OpenAsync(_playlist[0]); } });
-        Opened += (_, _) => { if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
+        Opened += (_, _) => { VideoArea.Focus(); if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
         Closed += (_, _) =>
         {
             Localization.Changed -= LanguageChanged;
-            _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel();
+            _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel(); CancelFrameStep();
             _player?.Dispose(); VideoImage.Source = null; _still?.Dispose(); _firstFrame.TrySetCanceled();
             _load?.Dispose(); _seek?.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
         };
@@ -111,7 +116,7 @@ public partial class PlayerWindow : Window
     private Task StartOpen(string path, int video, int audio, double position, bool playing, bool allowDeleting = false)
     {
         if (_closed || _deleting && !allowDeleting) return Task.CompletedTask;
-        _load?.Cancel(); _load?.Dispose(); _seek?.Cancel();
+        _load?.Cancel(); _load?.Dispose(); _seek?.Cancel(); CancelFrameStep();
         _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _seekGeneration++; _pendingSeek = false;
         var revision = ++_revision;
@@ -210,7 +215,7 @@ public partial class PlayerWindow : Window
     {
         if (_deleting) return;
         if (_player is not { } player || _info is not { } info) return;
-        _seek?.Cancel(); _seekGeneration++; _pendingSeek = false;
+        _seek?.Cancel(); CancelFrameStep(); _seekGeneration++; _pendingSeek = false;
         _playIntent = !_playIntent;
         if (!_playIntent) { player.Pause(); SetPosition(_position); }
         else if (player.IsPaused) player.Resume();
@@ -221,6 +226,7 @@ public partial class PlayerWindow : Window
     {
         if (_deleting) return;
         if (_player is not { } player || _info is not { } info) return;
+        CancelFrameStep();
         var playing = resume ?? _playIntent; var revision = _revision;
         _playIntent = playing; var generation = ++_seekGeneration; _pendingSeek = true;
         RefreshCapture();
@@ -264,7 +270,7 @@ public partial class PlayerWindow : Window
         {
             case PlayerCommand.TogglePlayback: await TogglePlaybackAsync(); break;
             case PlayerCommand.ToggleFullscreen: ToggleFullscreen(); break;
-            case PlayerCommand.ExitFullscreen: if (WindowState == WindowState.FullScreen) ToggleFullscreen(); break;
+            case PlayerCommand.ExitFullscreen: DismissPlayerOverlay(); break;
             case PlayerCommand.Back5: await SeekAsync(_position - 5); break;
             case PlayerCommand.Forward5: await SeekAsync(_position + 5); break;
             case PlayerCommand.Back30: await SeekAsync(_position - 30); break;
@@ -284,10 +290,7 @@ public partial class PlayerWindow : Window
                 if (Math.Abs(_speed - 1) > .001) _lastSpeed = _speed;
                 await SetSpeedAsync(next); break;
             case PlayerCommand.PreviousFrame: case PlayerCommand.NextFrame:
-                if (_info?.HasVideo != true) break;
-                _playIntent = false; _player?.Pause();
-                var frame = await _engine.AdjacentFrameTime(CurrentPath, _position, command == PlayerCommand.PreviousFrame ? -1 : 1, _lifetime.Token, _info.VideoStreamIndex);
-                await SeekAsync(frame, false); break;
+                await StepFrameAsync(command == PlayerCommand.PreviousFrame ? -1 : 1); break;
             case PlayerCommand.Restart: await SeekAsync(0); break;
             case PlayerCommand.PreviousFile: await ChangeFile(-1); break;
             case PlayerCommand.NextFile: await ChangeFile(1); break;
@@ -295,23 +298,15 @@ public partial class PlayerWindow : Window
             case PlayerCommand.Stop: await SeekAsync(0, false); break;
             case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; break;
             case PlayerCommand.Playlist: TogglePlaylist(); break;
-            case PlayerCommand.Settings: BuildMenu().Open(PlayerSettingsButton); break;
+            case PlayerCommand.Settings: OpenMenu(BuildMenu(), PlayerSettingsButton); break;
             case PlayerCommand.CaptureFrame: await CaptureFrameAsync(); break;
             case PlayerCommand.DeleteFile: await DeleteCurrentAsync(); break;
         }
     }
-    private void KeyPressed(object? sender, KeyEventArgs e)
-    {
-        if (e.Source is Control control && (control is TextBox or ComboBox || control.GetVisualAncestors().Any(a => a is TextBox or ComboBox))) return;
-        if (PlayerShortcuts.Resolve(e.Key, e.KeyModifiers) is not { } command) return;
-        e.Handled = true; CommandReady = Handle(command);
-        async Task Handle(PlayerCommand action)
-        { try { await ExecuteAsync(action); } catch (OperationCanceledException) { } catch (Exception ex) { if (!_closed) Notice(ex.Message); } }
-    }
     public void ToggleFullscreen()
     {
         if (WindowState == WindowState.FullScreen) WindowState = _windowedState;
-        else { _windowedState = WindowState; WindowState = WindowState.FullScreen; }
+        else { if (HeaderBar.IsKeyboardFocusWithin) VideoArea.Focus(); _windowedState = WindowState; WindowState = WindowState.FullScreen; }
         Avalonia.Automation.AutomationProperties.SetName(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
         ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏（Enter / Esc）" : "全屏（Enter / 双击画面）");
         ShowChrome();
@@ -333,7 +328,7 @@ public partial class PlayerWindow : Window
             await PlaylistReady.WaitAsync(token);
             if (!Current(revision)) return;
             position = _position; playing = _playIntent;
-            _folderLoad?.Cancel(); _folderGeneration++; _seek?.Cancel(); _seekGeneration++; _pendingSeek = false;
+            _folderLoad?.Cancel(); _folderGeneration++; _seek?.Cancel(); CancelFrameStep(); _seekGeneration++; _pendingSeek = false;
             if (_player is { } player) await player.Stop();
             await _recycleBin.MoveAsync(path, token);
             if (_closed) return;
@@ -435,9 +430,19 @@ public partial class PlayerWindow : Window
         { PlaylistList.ItemsSource = _playlist.Select(Path.GetFileName).ToArray(); _displayedPlaylist = _playlist; }
         PlaylistList.SelectedIndex = _fileIndex;
     }
-    private void TogglePlaylist() { PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible; }
+    private void TogglePlaylist()
+    {
+        PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible;
+        if (PlaylistPanel.IsVisible)
+        {
+            PlaylistList.ScrollIntoView(PlaylistList.SelectedIndex);
+            PlaylistList.Focus(_keyboardNavigation ? NavigationMethod.Tab : NavigationMethod.Pointer);
+        }
+        else VideoArea.Focus();
+        ShowChrome();
+    }
     private void PlaylistDoubleTapped(object? sender, RoutedEventArgs e)
-    { if (PlaylistList.SelectedIndex >= 0 && PlaylistList.SelectedIndex < _playlist.Length) CommandReady = OpenAsync(_playlist[PlaylistList.SelectedIndex]); }
+    { CommandReady = PlaySelectedFileAsync(); }
     private ContextMenu SpeedMenu()
     {
         var menu = new ContextMenu();
@@ -491,9 +496,9 @@ public partial class PlayerWindow : Window
         var close = new MenuItem { Header = "关闭" }; close.Click += (_, _) => Close(); items.Add(close);
         return new ContextMenu { ItemsSource = items };
     }
-    private void MenuClick(object? sender, RoutedEventArgs e) => BuildMenu().Open(PlayerMenuButton);
-    private void SpeedClick(object? sender, RoutedEventArgs e) => SpeedMenu().Open(PlayerSpeed);
-    private void SettingsClick(object? sender, RoutedEventArgs e) => BuildMenu().Open(PlayerSettingsButton);
+    private void MenuClick(object? sender, RoutedEventArgs e) => OpenMenu(BuildMenu(), PlayerMenuButton);
+    private void SpeedClick(object? sender, RoutedEventArgs e) => OpenMenu(SpeedMenu(), PlayerSpeed);
+    private void SettingsClick(object? sender, RoutedEventArgs e) => OpenMenu(BuildMenu(), PlayerSettingsButton);
     private void PlaylistClick(object? sender, RoutedEventArgs e) => TogglePlaylist();
     private void MinimizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void MaximizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;

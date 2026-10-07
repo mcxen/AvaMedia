@@ -14,7 +14,7 @@
       </Grid>
     </Border>
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
-      <Grid x:Name="VideoArea" Background="{DynamicResource UiMediaSurface}" ClipToBounds="True">
+      <Grid x:Name="VideoArea" Background="{DynamicResource UiMediaSurface}" ClipToBounds="True" Focusable="True" AutomationProperties.Name="播放画面">
         <Image x:Name="VideoImage" Stretch="Uniform"/>
         <TextBlock x:Name="PlayerStatus" Text="{x:Static core:AppIdentity.PlayerWelcome}" Foreground="{DynamicResource UiMediaText}" TextAlignment="Center" TextWrapping="Wrap"
                    Margin="{DynamicResource UiSectionPadding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -22,7 +22,7 @@
           <TextBlock x:Name="PlayerNotice" Foreground="{DynamicResource UiMediaText}" TextWrapping="Wrap"/>
         </Border>
         <Border x:Name="ShortcutHelp" IsVisible="False" Background="{DynamicResource UiMediaOverlay}" Padding="{DynamicResource UiSectionPadding}" Margin="{DynamicResource UiPagePadding}" VerticalAlignment="Bottom">
-          <TextBlock Foreground="{DynamicResource UiMediaText}" Text="Space 播放/暂停 · Enter 全屏 · Esc 退出全屏 · ←/→ 5秒 · Shift+←/→ 30秒 · Ctrl+←/→ 60秒&#10;↑/↓ 音量 · M 静音 · X/C 减速/加速 · Z 正常/上次速度 · D/F 前/后一帧 · Backspace 起点&#10;Page Up/Down 上一/下一文件 · F3/Ctrl+O 打开 · F4 停止 · F5 播放设置 · F6 播放列表 · F1 快捷键&#10;Ctrl+E（Mac：Cmd+E）截取当前帧，保存到视频源文件目录" TextWrapping="Wrap"/>
+          <TextBlock Foreground="{DynamicResource UiMediaText}" Text="Space 播放/暂停 · Enter/Alt+Enter 全屏 · Esc 关闭面板/退出全屏 · ←/→ 5秒 · Shift+←/→ 30秒 · Ctrl/Cmd+←/→ 60秒&#10;↑/↓ 音量 · M 静音 · X/C 减速/加速 · Z 正常/上次速度 · D/F 前/后一帧 · Backspace/Home 起点&#10;Page Up/Down 上一/下一文件 · F3/Ctrl+O/Cmd+O 打开 · F4 停止 · F5 播放设置 · F6 播放列表 · F1 快捷键&#10;Ctrl+E/Cmd+E 截取当前帧，保存到视频目录&#10;Tab/Shift+Tab 切换控件 · 播放列表：↑/↓ 选择，Enter 播放" TextWrapping="Wrap"/>
         </Border>
       </Grid>
       <Border Grid.Column="1" x:Name="PlaylistPanel" IsVisible="False" Width="{DynamicResource UiPlayerPlaylistWidth}" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0">
@@ -40,7 +40,7 @@
       </Border>
     </Grid>
     <Grid Grid.Row="2" x:Name="ControlsBar" RowDefinitions="Auto,Auto,Auto" Background="{DynamicResource UiToolbar}">
-      <Slider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
+      <Slider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" SmallChange="5" LargeChange="30" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
       <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiPlayerBarPadding}">
         <StackPanel Orientation="Horizontal">
           <Button x:Name="PlayerPlayButton" Classes="player-transport" Click="PlayClick" ToolTip.Tip="播放 / 暂停（Space）" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayerPlayIcon" Kind="play"/></Button>
@@ -54,7 +54,7 @@
           <TextBlock x:Name="PlayerTime" Classes="time" Text="00:00:00.000"/><TextBlock Classes="time" Text=" / "/><TextBlock x:Name="PlayerTotal" Classes="time" Text="00:00:00.000"/>
         </StackPanel>
         <Button Grid.Column="3" x:Name="PlayerMuteButton" Classes="player-transport" Click="MuteClick" ToolTip.Tip="静音（M）" AutomationProperties.Name="静音"><local:ActionIcon x:Name="PlayerMuteIcon" Kind="speaker"/></Button>
-        <Slider Grid.Column="4" x:Name="PlayerVolume" Minimum="0" Maximum="100" Value="100" Width="{DynamicResource UiPlayerVolumeWidth}" AutomationProperties.Name="音量"/>
+        <Slider Grid.Column="4" x:Name="PlayerVolume" Minimum="0" Maximum="100" Value="100" SmallChange="5" LargeChange="10" Width="{DynamicResource UiPlayerVolumeWidth}" AutomationProperties.Name="音量"/>
         <Button Grid.Column="5" x:Name="PlayerSpeed" Classes="player-transport player-speed" Content="1×" Click="SpeedClick" ToolTip.Tip="播放速度（X / C / Z）" AutomationProperties.Name="播放速度"/>
         <Button Grid.Column="6" x:Name="PlayerSettingsButton" Classes="player-transport" Click="SettingsClick" ToolTip.Tip="播放设置（F5）" AutomationProperties.Name="播放设置"><local:ActionIcon Kind="gear"/></Button>
         <Button Grid.Column="7" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表（F6）" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>

@@ -20,8 +20,8 @@ public static class PlayerShortcuts
         (Key.Right, KeyModifiers.None) => PlayerCommand.Forward5,
         (Key.Left, KeyModifiers.Shift) => PlayerCommand.Back30,
         (Key.Right, KeyModifiers.Shift) => PlayerCommand.Forward30,
-        (Key.Left, KeyModifiers.Control) => PlayerCommand.Back60,
-        (Key.Right, KeyModifiers.Control) => PlayerCommand.Forward60,
+        (Key.Left, KeyModifiers.Control or KeyModifiers.Meta) => PlayerCommand.Back60,
+        (Key.Right, KeyModifiers.Control or KeyModifiers.Meta) => PlayerCommand.Forward60,
         (Key.Up, KeyModifiers.None) => PlayerCommand.VolumeUp,
         (Key.Down, KeyModifiers.None) => PlayerCommand.VolumeDown,
         (Key.M, KeyModifiers.None) => PlayerCommand.Mute,
@@ -30,7 +30,7 @@ public static class PlayerShortcuts
         (Key.Z, KeyModifiers.None) => PlayerCommand.NormalSpeed,
         (Key.D, KeyModifiers.None) => PlayerCommand.PreviousFrame,
         (Key.F, KeyModifiers.None) => PlayerCommand.NextFrame,
-        (Key.Back, KeyModifiers.None) => PlayerCommand.Restart,
+        (Key.Back, KeyModifiers.None) or (Key.Home, KeyModifiers.None) => PlayerCommand.Restart,
         (Key.PageUp, KeyModifiers.None) => PlayerCommand.PreviousFile,
         (Key.PageDown, KeyModifiers.None) => PlayerCommand.NextFile,
         (Key.F3, KeyModifiers.None) or (Key.O, KeyModifiers.Control or KeyModifiers.Meta) => PlayerCommand.Open,
@@ -42,4 +42,9 @@ public static class PlayerShortcuts
         (Key.Delete, KeyModifiers.None) => PlayerCommand.DeleteFile,
         _ => null
     };
+
+    public static bool CanRepeat(PlayerCommand command) => command is
+        PlayerCommand.Back5 or PlayerCommand.Forward5 or PlayerCommand.Back30 or PlayerCommand.Forward30
+        or PlayerCommand.Back60 or PlayerCommand.Forward60 or PlayerCommand.VolumeUp or PlayerCommand.VolumeDown
+        or PlayerCommand.Slower or PlayerCommand.Faster;
 }
