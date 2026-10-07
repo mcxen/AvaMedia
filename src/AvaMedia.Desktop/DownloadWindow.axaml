@@ -10,12 +10,13 @@
       <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto"><TextBlock Text="YouTube   ·   哔哩哔哩   ·   抖音   ·   小红书   ·   Bunkr   ·   Pixeldrain" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/><Button Grid.Column="1" x:Name="PasteLinksButton" Content="粘贴分享文本" Click="PasteClick"/></Grid>
         <TextBox Grid.Row="1" x:Name="LinksInput" AcceptsReturn="True" Height="74" TextWrapping="Wrap" Watermark="可粘贴多个链接，也可直接粘贴抖音 / 小红书的完整分享文本。"/>
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="10">
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnSpacing="10">
           <Button x:Name="InspectButton" Content="解析链接" Click="InspectClick"/>
           <Button Grid.Column="1" x:Name="CancelInspectButton" Content="取消解析" Click="CancelInspectClick" IsVisible="False"/>
           <Button Grid.Column="2" x:Name="ClearLinksButton" Content="清空" Click="ClearClick"/>
           <Button Grid.Column="3" x:Name="RetryFailedButton" Content="重试失败项" Click="RetryFailedClick" IsEnabled="False"/>
-          <TextBlock Grid.Column="4" x:Name="InspectStatus" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center" Margin="8,0"/>
+          <Button Grid.Column="4" x:Name="BrowserCaptureButton" Content="从浏览器识别" Click="BrowserCaptureClick"/>
+          <TextBlock Grid.Column="5" x:Name="InspectStatus" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center" Margin="8,0"/>
         </Grid>
       </Grid>
     </Border>
@@ -63,6 +64,7 @@
             <StackPanel x:Name="CookieFilePanel" IsVisible="False" Spacing="6"><TextBox x:Name="CookieFileInput" Watermark="Netscape 格式 cookies.txt"/><Button Content="选择 cookies.txt…" Click="CookieFileClick"/></StackPanel>
             <TextBlock Text="无法读取 Chrome / Edge 登录态时，可使用 Firefox 或 cookies.txt。" Classes="caption" TextWrapping="Wrap"/>
             <TextBlock Text="代理（可选）"/><TextBox x:Name="DownloadProxy" Watermark="http://127.0.0.1:7890"/>
+            <TextBlock Text="浏览器 CDP"/><TextBox x:Name="BrowserEndpoint" Text="http://127.0.0.1:9222"/>
             <TextBlock x:Name="PlatformHelp" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>

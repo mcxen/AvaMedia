@@ -7,8 +7,9 @@ public static class DownloadLinks
     public static IReadOnlyList<string> Extract(string? text)
     {
         // Share messages often contain prose around the URL. Keep signed query strings intact.
-        var matches = Regex.Matches(text ?? "", "https?://[^\\s<>\"'，。；）】]+", RegexOptions.IgnoreCase)
-            .Select(m => m.Value.TrimEnd(')', ']', '}', ',', '.', ';', '!', '。'));
+        text = Regex.Replace(text ?? "", @"\[[^\]\r\n]*\]\((https?://[^\s<>]+)\)", "$1", RegexOptions.IgnoreCase);
+        var matches = Regex.Matches(text, "https?://[^\\s<>\"，。；）】]+", RegexOptions.IgnoreCase)
+            .Select(m => m.Value.TrimEnd(')', ']', '}', ',', '.', ';', '!', '。', '`', '\''));
         var result = new HashSet<string>(StringComparer.Ordinal);
         foreach (var match in matches) result.Add(Normalize(match));
         if (result.Count == 0 && !string.IsNullOrWhiteSpace(text))
@@ -40,8 +41,26 @@ public static class DownloadLinks
         if (Host("xiaohongshu.com") || Host("xhslink.com")) return "小红书";
         if (Regex.IsMatch(uri.Host, @"^(?:www\.)?bunkr\.[a-z0-9-]+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) return "Bunkr";
         if (uri.Host.Equals("pixeldrain.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.pixeldrain.com", StringComparison.OrdinalIgnoreCase)) return "Pixeldrain";
+        if (MediaExtension(url).Length > 0) return "视频直链";
         return "其他网站";
     }
+
+    public static string MediaExtension(string url, string mime = "")
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) return "";
+        var extension = Path.GetExtension(Uri.UnescapeDataString(uri.AbsolutePath)).TrimStart('.').ToLowerInvariant();
+        if (IsMediaExtension(extension)) return extension;
+        return mime.Split(';')[0].Trim().ToLowerInvariant() switch
+        {
+            "video/mp4" => "mp4", "video/webm" => "webm", "video/quicktime" => "mov",
+            "video/x-matroska" => "mkv", "application/vnd.apple.mpegurl" or "application/x-mpegurl" => "m3u8",
+            "application/dash+xml" => "mpd", _ => ""
+        };
+    }
+
+    public static bool IsMediaExtension(string extension) => extension is
+        "mp4" or "mkv" or "webm" or "mov" or "m4v" or "avi" or "flv" or "wmv" or "ts" or "m2ts" or
+        "mpeg" or "mpg" or "ogv" or "3gp" or "asf" or "vob" or "m3u8" or "mpd";
 
     public static string Display(string url)
     {

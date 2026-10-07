@@ -2,6 +2,7 @@
 # Protocol references: pixeldrain.com/api and Lysagxra/BunkrDownloader.
 # All network requests go through yt-dlp to retain its cookies, proxy and retries.
 import json
+import hashlib
 import re
 import urllib.parse
 from html.parser import HTMLParser
@@ -59,6 +60,35 @@ class _BunkrLinks(HTMLParser):
         attrs = dict(attrs)
         if tag == 'a' and attrs.get('href'):
             self.links.append(attrs)
+
+
+class AvaMediaDirectIE(InfoExtractor):
+    IE_NAME = 'avamedia:direct'
+    # Activated explicitly by the direct-media provider, never for ordinary pages.
+    _VALID_URL = r'https?://(?P<id>[^#]+)'
+
+    def _real_extract(self, url):
+        parsed = urllib.parse.urlsplit(url)
+        name = urllib.parse.unquote(parsed.path.rsplit('/', 1)[-1])
+        video_id = hashlib.sha256(url.encode()).hexdigest()[:16]
+        extension = self._configuration_arg('ext', [determine_ext(url, default_ext='mp4')])[0]
+        if extension not in _VIDEO_EXTENSIONS | {'m3u8', 'mpd'}:
+            raise ExtractorError('Unsupported direct video format', expected=True)
+        if extension == 'm3u8':
+            formats, subtitles = self._extract_m3u8_formats_and_subtitles(url, video_id, 'mp4')
+        elif extension == 'mpd':
+            formats, subtitles = self._extract_mpd_formats_and_subtitles(url, video_id)
+        else:
+            # A known media URL needs no webpage/HEAD discovery request. Its GET,
+            # resume, cookies, proxy and retries remain in yt-dlp's HTTP downloader.
+            media = {'format_id': 'original', 'url': url, 'ext': extension}
+            if parsed.hostname == 'fileditchfiles.st' or (parsed.hostname or '').endswith('.fileditchfiles.st'):
+                media['impersonate'] = True
+            formats, subtitles = [media], {}
+        return {
+            'id': video_id, 'title': _video_title(name) or video_id, 'webpage_url': url,
+            'formats': formats, 'subtitles': subtitles,
+        }
 
 
 class AvaMediaBunkrIE(InfoExtractor):

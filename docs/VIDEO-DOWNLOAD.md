@@ -2,6 +2,14 @@
 
 在主窗口选择“视频下载”，粘贴一个或多个视频链接，也可直接粘贴抖音、小红书的完整分享文本。点击“解析链接”后，列表显示标题、作者、时长和逐项错误；勾选视频，选择保存内容与目录，最后“加入下载队列”，在主窗口点击“开始”。解析和取消不会添加任务。
 
+MP4、WebM 等视频直链粘贴后自动解析，以文件名生成下载条目；包括 `fileditchfiles.st` 的 MP4 地址。解析阶段不请求网页或 HEAD，不因网页解析失败而阻止加入队列；下载使用随应用提供的 `AvaMediaDirect` 解析器直接交给 yt-dlp HTTP 下载器，保留原始画质、代理、续传和格式整理。Fileditch 使用内置引擎的浏览器网络模拟。自动解析只确认链接类型，文件是否可访问在实际下载时确认；HTTP 520 等服务端错误仍可能导致失败。
+
+“从浏览器识别”通过本机 CDP 读取已打开页面的 video/source、资源记录和识别期间的网络媒体响应，支持 MP4 等文件及 M3U8 / MPD。粘贴网页链接时只识别匹配页面，粘贴直链时只保留该媒体地址；输入为空时最多检查 30 个标签页、列出 100 项。识别结果自动勾选，可逐项选择并加入现有队列，不自动开始下载、不刷新页面或触发播放。
+
+CDP 默认地址为 `http://127.0.0.1:9222`，可在下载网络设置中修改，仅接受本机地址。Chrome / Edge 须已启用远程调试；例如 Mac 可执行 `open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir="$TMPDIR/AvaMedia-CDP"`，Windows 可使用 `chrome.exe --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\AvaMedia\CDP"`，然后在该独立浏览器打开视频。普通浏览器窗口未启用 CDP 时不会被接管。Chrome 要求使用独立用户目录，依据 [Chrome 远程调试说明](https://developer.chrome.com/blog/remote-debugging-port)。
+
+CDP 识别保留媒体地址、来源页、User-Agent 和本机连接信息；识别后可选择“浏览器 CDP”登录态，开始下载时通过 [Network.getCookies](https://chromedevtools.github.io/devtools-protocol/tot/Network/#method-getCookies) 只读取匹配媒体地址的 Cookie，写入临时副本，结束后移除，不写入队列或日志。不能用 Netscape 文件表达的分区 Cookie 不导出。选择“不读取登录态”、其他浏览器或 cookies.txt 时不读取 CDP Cookie。使用 CDP 登录态时须保留原标签页；链接签名过期后须重新识别。受 DRM 保护的媒体、未暴露 HTTP 来源的 blob、关闭的标签页仍不支持直接下载。
+
 ## 内容和网络设置
 
 - MP4 / MKV 视频，最高画质从 360p 到 4K，或选择最佳；源画质较低时直接使用可用画质。
@@ -27,7 +35,7 @@
 
 Bunkr 和 Pixeldrain 提供原始文件画质，不按“最高画质”降采样；仍可选择 MP4 / MKV 封装或 MP3 / M4A 音频提取。站点未提供字幕时不会生成字幕。单次列表最多显示 100 个视频；任务保存成员页面链接，不保存签名直链。代理、明确选择的浏览器登录态或 cookies.txt，以及停止 / 重试续传沿用同一下载流程。
 
-`IVideoDownloadService` 定义界面解析入口，`IVideoDownloadProvider` 补充路由匹配和任务执行，`VideoDownloadService` 在解析与下载时使用同一套有序路由：Bunkr、Pixeldrain、通用 yt-dlp。专用站点失败时返回本站错误，避免静默转交通用解析。新服务可实现该接口并加入路由；界面及任务模型不依赖站点实现。
+`IVideoDownloadService` 定义界面解析入口，`IVideoDownloadProvider` 补充路由匹配和任务执行，`VideoDownloadService` 在解析与下载时使用同一套有序路由：Bunkr、Pixeldrain、视频直链、通用 yt-dlp。CDP 已识别的媒体按直链处理。专用站点失败时返回本站错误，避免静默转交通用解析。新服务可实现该接口并加入路由；界面及任务模型不依赖站点实现。
 
 专用解析器位于 `src/AvaMedia.Core/DownloadPlugins/`，独立实现并随客户端复制到 `download-plugins/`，通过明确的插件目录和 extractor 名称加载，不需要安装 Python 或额外下载插件。请求经过 yt-dlp 网络层，保留 Cookie、代理及 Bunkr 浏览器网络模拟。Bunkr 协议参考 [BunkrDownloader 的 API 实现](https://github.com/Lysagxra/BunkrDownloader/blob/main/src/crawlers/api_utils.py)和[相册解析](https://github.com/Lysagxra/BunkrDownloader/blob/main/src/crawlers/crawler_utils.py)；Pixeldrain 使用[官方 API](https://pixeldrain.com/api)，不绕过验证码或账户限额。
 

@@ -10,9 +10,13 @@ public sealed record DownloadOptions
     public bool Subtitles { get; init; }
     public bool AutoSubtitles { get; init; }
     public bool Metadata { get; init; } = true;
+    public BrowserMediaContext? Browser { get; init; }
+    public bool UseBrowserCookies { get; init; }
 
     public void Validate()
     {
+        Browser?.Validate();
+        if (UseBrowserCookies && (CookieBrowser.Length > 0 || CookieFile.Length > 0)) throw new ArgumentException("浏览器登录态和 cookies.txt 请选择一种。");
         if (MaxHeight is < 0 or > 4320) throw new ArgumentException("清晰度须在 0–4320p 之间，0 表示最佳画质。");
         if (!new[] { "", "firefox", "chrome", "edge", "safari", "brave" }.Contains(CookieBrowser))
             throw new ArgumentException("请选择支持的浏览器登录态。");
@@ -25,7 +29,7 @@ public sealed record DownloadOptions
 }
 
 public sealed record DownloadVideo(string Url, string Id, string Title, string Uploader,
-    double Duration, string Platform, bool IsLive = false);
+    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null);
 public sealed record DownloadInspection(IReadOnlyList<DownloadVideo> Videos, bool Truncated = false);
 public sealed record VideoDownloadRequest(IReadOnlyList<DownloadVideo> Videos, string Folder,
     string Format, DownloadOptions Options, string OutputName = "");
@@ -75,7 +79,7 @@ public static class DownloadBatch
             if (System.Text.RegularExpressions.Regex.IsMatch(title, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) title = "_" + title;
             var job = new Job { FeatureId = "download", Inputs = [video.Url], DownloadTitle = video.Title,
                 Duration = double.IsFinite(video.Duration)?Math.Max(0,video.Duration):0,
-                Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false } },
+                Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false, Browser = video.Browser } },
                 Output = MediaEngine.UniqueOutput(request.Folder, request.OutputName.Length > 0 ? request.OutputName : title, request.Format, used) };
             MediaEngine.Validate(job);used.Add(job.Output);jobs.Add(job);
         }

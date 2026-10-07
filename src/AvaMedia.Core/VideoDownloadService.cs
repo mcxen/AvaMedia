@@ -14,6 +14,7 @@ public sealed class VideoDownloadService : IVideoDownloadService
     public VideoDownloadService(AppSettings settings) : this([
         new FileHostDownloadProvider(settings, "Bunkr", "AvaMediaBunkr,AvaMediaBunkrAlbum"),
         new FileHostDownloadProvider(settings, "Pixeldrain", "AvaMediaPixeldrain,AvaMediaPixeldrainList"),
+        new DirectVideoDownloadProvider(settings),
         new YtDlpDownloadService(settings)]) { }
 
     public VideoDownloadService(IEnumerable<IVideoDownloadProvider> providers)
@@ -22,18 +23,19 @@ public sealed class VideoDownloadService : IVideoDownloadService
         if (_providers.Count == 0) throw new ArgumentException("至少需要一个下载服务。", nameof(providers));
     }
 
-    public IVideoDownloadProvider Resolve(string url)
+    public IVideoDownloadProvider Resolve(string url, DownloadOptions? options = null)
     {
         var uri = new Uri(DownloadLinks.Normalize(url));
+        if (options?.Browser is not null && _providers.OfType<DirectVideoDownloadProvider>().FirstOrDefault() is {} direct) return direct;
         return _providers.FirstOrDefault(provider => provider.CanHandle(uri))
             ?? throw new InvalidOperationException("没有支持此链接的下载服务。");
     }
 
     public Task<DownloadInspection> InspectAsync(string url, DownloadOptions options, CancellationToken ct = default)
-        => Resolve(url).InspectAsync(url, options, ct);
+        => Resolve(url, options).InspectAsync(url, options, ct);
 
     public Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
-        => Resolve(job.Inputs.Single()).ExecuteAsync(job, progress, ct);
+        => Resolve(job.Inputs.Single(), job.Options.Download).ExecuteAsync(job, progress, ct);
 
     private sealed class FileHostDownloadProvider : IVideoDownloadProvider
     {

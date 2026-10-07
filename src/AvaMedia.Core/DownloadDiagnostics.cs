@@ -21,6 +21,8 @@ public static class DownloadDiagnostics
         var fileHost = platform is "Bunkr" or "Pixeldrain";
         var hint = platform == "Bunkr" && lower.Contains("impersonat")
             ? "当前下载引擎缺少 Bunkr 所需的浏览器网络支持，请使用应用内置 yt-dlp。"
+            : platform == "视频直链" && lower.Contains("impersonat")
+            ? "此视频服务器需要浏览器网络支持，请使用应用内置 yt-dlp，或检查自定义引擎的 curl_cffi 依赖。"
             : platform == "Pixeldrain" && (lower.Contains("captcha") || lower.Contains("hotlink_detected"))
             ? "Pixeldrain 要求网页验证或账号权限，请先在浏览器打开此文件完成验证，再使用登录态重试。"
             : platform == "Pixeldrain" && (lower.Contains("limit_exceeded") || lower.Contains("max_concurrent_downloads") || lower.Contains("ip_rate_limit_reached"))
@@ -38,6 +40,8 @@ public static class DownloadDiagnostics
             : lower.Contains("no video formats") && DownloadLinks.Platform(url)=="小红书" ? "未找到可下载视频。请复制含 xsec_token 的完整视频笔记分享链接，并尝试浏览器登录态；图文笔记不在此流程中。"
             : lower.Contains("sign in") || lower.Contains("login") || lower.Contains("cookies") || lower.Contains("403") || lower.Contains("verify")
                 ? "网站要求登录或验证。先在浏览器中确认该视频可播放，再选择该浏览器登录态或 cookies.txt 重试。"
+            : Regex.IsMatch(lower, @"\b(?:500|502|503|504|520|521|522|523|524)\b")
+                ? "视频服务器或 CDN 暂时不可用。可稍后重试；若浏览器能播放，请使用浏览器识别以保留来源页与请求环境。"
             : lower.Contains("timed out") || lower.Contains("unable to download") || lower.Contains("connection") || lower.Contains("resolve")
                 ? "网络请求失败。请检查网络或代理；YouTube 需要本机能够访问其视频服务。"
             : lower.Contains("requested format") ? "所选清晰度不可用，可改为“最佳”或较低清晰度后重试。"

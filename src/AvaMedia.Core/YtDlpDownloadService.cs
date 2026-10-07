@@ -21,7 +21,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
     public async Task<DownloadInspection> InspectAsync(string url, DownloadOptions options, CancellationToken ct = default)
     {
         url = DownloadLinks.Normalize(url);options.Validate();
-        using var cookies = CookieLease.Create(options);
+        using var cookies = await CookieLease.CreateAsync(options, url, ct);
         var args = CommonArguments(options, cookies.Path);
         args.AddRange(["--skip-download", "--dump-single-json", "--no-warnings", "--playlist-end", "100"]);
         if (options.ExpandPlaylist) args.AddRange(["--yes-playlist", "--flat-playlist", "--playlist-end", "100"]);
@@ -83,7 +83,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         var revision = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(request)))[..16];
         var staging = System.IO.Path.Combine(folder, ".avamedia-download-" + job.Id.ToString("N") + "-" + revision);
         Directory.CreateDirectory(staging);
-        using var cookies = CookieLease.Create(options);
+        using var cookies = await CookieLease.CreateAsync(options, url, ct);
         var args = DownloadArguments(options, job.Options.Format, System.IO.Path.Combine(staging, "media.%(ext)s"), cookies.Path).ToList();
         args.AddRange(["--ffmpeg-location", System.IO.Path.GetDirectoryName(MediaEngine.Resolve(_settings.FFmpegPath, "ffmpeg"))!, "--", url]);
         job.ProgressDetail = "连接视频服务";
@@ -125,6 +125,12 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         if (cookiePath.Length > 0) args.AddRange(["--cookies", cookiePath]);
         else if (options.CookieBrowser.Length > 0) args.AddRange(["--cookies-from-browser", options.CookieBrowser]);
         if (options.Proxy.Length > 0) args.AddRange(["--proxy", options.Proxy]);
+        if (options.Browser is {} browser)
+        {
+            if (browser.Referer.Length > 0) args.AddRange(["--referer", browser.Referer]);
+            if (browser.UserAgent.Length > 0) args.AddRange(["--user-agent", browser.UserAgent]);
+            if (_extractorKeys == "AvaMediaDirect") args.AddRange(["--extractor-args", "AvaMediaDirect:ext=" + browser.Extension]);
+        }
         // Clear yt-dlp's default Deno runtime so an installed Deno cannot take precedence.
         args.Add("--no-js-runtimes");
         try { args.AddRange(["--js-runtimes", "quickjs:" + MediaEngine.Resolve("", "qjs")]); }
@@ -142,7 +148,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         if (format is "mp3" or "m4a") args.AddRange(["--format", "ba/b", "--extract-audio", "--audio-format", format, "--audio-quality", "0"]);
         else
         {
-            var limit = options.MaxHeight > 0 ? "[height<=?" + options.MaxHeight + "]" : "";
+            var limit = _extractorKeys != "AvaMediaDirect" && options.MaxHeight > 0 ? "[height<=?" + options.MaxHeight + "]" : "";
             var selector = format == "mp4" ? $"bv*[ext=mp4]{limit}+ba[ext=m4a]/b[ext=mp4]{limit}/bv*{limit}+ba/b{limit}" : $"bv*{limit}+ba/b{limit}";
             args.AddRange(["--format", selector, "--merge-output-format", format, "--remux-video", format]);
         }
@@ -158,14 +164,23 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
     private sealed class CookieLease(string path, string? directory) : IDisposable
     {
         public string Path { get; } = path;
-        public static CookieLease Create(DownloadOptions options)
+        public static async Task<CookieLease> CreateAsync(DownloadOptions options, string url, CancellationToken ct)
         {
-            if (options.CookieFile.Length == 0) return new("", null);
+            if (options.CookieFile.Length == 0 && !options.UseBrowserCookies) return new("", null);
+            if (options.UseBrowserCookies && options.Browser is null) throw new InvalidOperationException("请先从浏览器识别视频，再使用 CDP 登录态。");
+            var browserCookies = options.CookieFile.Length == 0
+                ? await BrowserVideoCapture.ReadCookiesAsync(options.Browser!, url, ct) : null;
             var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-cookies-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             var path = System.IO.Path.Combine(directory, "cookies.txt");
-            try { File.Copy(options.CookieFile, path);return new(path, directory); }
-            catch { Directory.Delete(directory);throw; }
+            try
+            {
+                if (browserCookies is not null) await File.WriteAllTextAsync(path, browserCookies, ct);
+                else File.Copy(options.CookieFile, path);
+                return new(path, directory);
+            }
+            catch { Directory.Delete(directory, recursive: true);throw; }
         }
         public void Dispose() { if (directory is not null) Directory.Delete(directory, recursive: true); }
     }
