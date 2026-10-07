@@ -9,6 +9,11 @@ on:
         description: Existing version tag to rebuild with this workflow
         type: string
         required: false
+      windows_compile_flags:
+        description: Windows compiler flags for a build repair
+        type: string
+        required: false
+        default: /utf-8
 permissions:
   contents: read
 concurrency:
@@ -42,7 +47,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     env:
-      CL: /utf-8
+      CL: ${{ inputs.windows_compile_flags || '/utf-8' }}
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
