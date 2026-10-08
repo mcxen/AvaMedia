@@ -21,6 +21,8 @@ The distribution includes the following independently licensed components. Prese
 | Microsoft.ML.OnnxRuntime and managed bindings | 1.23.2 | MIT and bundled third-party notices; offline CPU inference |
 | YuNet face detector | face_detection_yunet_2026may.onnx | MIT, Shiqi Yu and contributors; embedded unmodified model, attribution and SHA256 in `licenses/yunet/` |
 | LaMa image inpainting model | inpainting_lama_2025jan.onnx | Apache-2.0, LaMa authors, Samsung Research and OpenCV contributors; downloaded separately, attribution and SHA256 in `licenses/lama/` |
+| Qwen3 0.6B / SmolVLM2 256M | pinned GGUF revisions | Apache-2.0, Qwen team and Hugging Face Smol Models Research; local summary weights and vision projector downloaded separately from CDN, attribution in `licenses/local-summary/` |
+| llama.cpp local summary runtime | b11476 | MIT, Georgi Gerganov and contributors; platform archives downloaded separately from CDN, license in `licenses/local-summary/` |
 
 For the complete package list, versions, authors, repository links and license expressions, see `licenses/dependencies.json` and `licenses/manifest.json`. Each package folder contains its original NuGet metadata and bundled license/notice files, plus the applicable SPDX text. Native library third-party notices from the packages must also be retained; the wrapper's MIT license does not replace them.
 

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
 
 namespace AvaMedia.Core;
 
@@ -16,6 +17,10 @@ public static class ModelCatalog
     public const string EmbeddingId = "embeddinggemma-2";
     public const string LamaId = "lama";
     public const string JoyTagId = "joytag";
+    public const string SummaryTextId = "summary-qwen3";
+    public const string SummaryVisionId = "summary-smolvlm";
+    public const string SummaryRuntimeId = "summary-runtime";
+    public static bool IncludesRuntime(string id) => id is EmbeddingId or SummaryRuntimeId;
     public const string JoyTagFile = "model.onnx";
     public const string JoyTagLabels = "top_tags.txt";
     private const string JoyTagRevision = "6b7f16331a6ccf0fdce37d5a9564715f6e772b22";
@@ -37,7 +42,7 @@ public static class ModelCatalog
             return new(SpeechModelInstaller.Id(model), model == SpeechModel.Base ? "Whisper · 标准" : "Whisper · 轻量", "自动字幕", "MIT",
                 "https://github.com/ggml-org/whisper.cpp", [new(artifact.FileName, artifact.Size, artifact.Sha256, [artifact.Url, artifact.Url + "?download=true"])]);
         }
-        return [
+        var models = new List<DownloadableModel> {
             Speech(SpeechModel.Base), Speech(SpeechModel.Tiny),
             new(JoyTagId, "JoyTag", "图片 / 视频 AI 标签 · Beta", "Apache-2.0", "https://github.com/fpgaminer/joytag",
                 [new(JoyTagFile, 366116154, "f85b7130e6e549b5b0822537007b7482e8c4c8e754c8d9a5bee08e27050e1097",
@@ -56,7 +61,17 @@ public static class ModelCatalog
                     Gemma(GemmaFile, 309855456, "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135"),
                     Gemma(ProjectorFile, 554821024, "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f")
                 }.Concat(runtime is null ? [] : new[] { runtime }).ToArray(), runtime is not null)
-        ];
+        };
+        using var stream = typeof(ModelCatalog).Assembly.GetManifestResourceStream("AvaMedia.Core.SummaryModels.json")!;
+        using var summary = JsonDocument.Parse(stream);
+        foreach (var model in summary.RootElement.GetProperty("models").EnumerateArray())
+            models.Add(new(model.GetProperty("id").GetString()!, model.GetProperty("name").GetString()!, model.GetProperty("purpose").GetString()!,
+                model.GetProperty("license").GetString()!, model.GetProperty("page").GetString()!,
+                model.GetProperty("files").EnumerateArray().Select(file => new ModelArtifact(file.GetProperty("path").GetString()!,
+                    file.GetProperty("size").GetInt64(), file.GetProperty("sha256").GetString()!, [file.GetProperty("url").GetString()!])).ToArray(), runtime is not null));
+        models.Add(new(SummaryRuntimeId, "llama.cpp · b11476", "本地视频总结推理工具", "MIT", "https://github.com/ggml-org/llama.cpp",
+            runtime is null ? [] : [runtime], runtime is not null));
+        return models;
     }
 
     private static ModelArtifact? Runtime()

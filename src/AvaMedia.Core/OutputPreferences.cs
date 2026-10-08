@@ -15,10 +15,10 @@ public static class OutputPreferences
             var folder = Path.GetDirectoryName(Path.GetFullPath(job.Output))!;
             if ((outputToSource ?? settings.OutputToSource) && job.Inputs.FirstOrDefault() is {} source && File.Exists(source))
                 folder = Path.GetDirectoryName(Path.GetFullPath(source))!;
-            var name = Path.GetFileNameWithoutExtension(job.Output);
+            var directory = Catalog.DirectoryOutput(feature.Operation);
+            var name = directory ? Path.GetFileName(job.Output) : Path.GetFileNameWithoutExtension(job.Output);
             var label = settingName ?? (settings.AddSettingName ? SettingLabel(job) : "");
             if (!string.IsNullOrWhiteSpace(label)) name += " [" + Clean(label) + "]";
-            var directory = feature.Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
             job.Output = MediaEngine.UniqueOutput(folder, name, job.Options.Format, used, directory);
             used.Add(job.Output);
         }

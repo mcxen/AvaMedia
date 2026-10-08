@@ -32,7 +32,7 @@ public partial class MainWindow
         var replacement = replacements[0];
         if (preserveOutputName && Catalog.Find(replacement.FeatureId).Operation != Operation.Download)
         {
-            var directory = Catalog.Find(replacement.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
+            var directory = Catalog.DirectoryOutput(Catalog.Find(replacement.FeatureId).Operation);
             var name = directory ? Path.GetFileName(original.Output) : Path.GetFileNameWithoutExtension(original.Output);
             var reserved = EditingReservations(original).Concat(replacements.Skip(1).Select(job => job.Output))
                 .Concat(replacements.SelectMany(job => job.Inputs));
@@ -61,6 +61,7 @@ public partial class MainWindow
             { await ConfigureImageCompressionAsync(job.Inputs, job.Options.ImageCompression, job); return; }
             if (feature.Operation == Operation.VideoCompress) { await EditVideoCompressionAsync(job); return; }
             if (feature.Operation == Operation.VideoSlim) { await ConfigureVideoSlimmingAsync(job.Inputs, job); return; }
+            if (feature.Operation == Operation.VideoSummary) { await ConfigureVideoSummaryAsync(job.Inputs, job); return; }
             if (PdfTools.Supports(feature.Operation))
             {
                 var request = await new PdfWorkspaceWindow(feature, Path.GetDirectoryName(job.Output)!, job.Inputs,

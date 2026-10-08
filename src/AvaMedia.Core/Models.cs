@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -32,6 +32,7 @@ public static class Catalog
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
         Add("download","视频下载","视频","mp4","download",Operation.Download);
         Add("auto-subtitle","自动字幕","视频","mp4","document",Operation.Transcribe);
+        Add("video-summary","视频总结","视频","","document",Operation.VideoSummary);
         Add("voice-enhance","人声增强","视频","mp4","audio");
         foreach(var x in new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}) Add("audio-"+x,"→ "+x.ToUpperInvariant(),"音频",x,"audio");
         Add("audio-join","音频合并","音频","mp3","join",Operation.Join);
@@ -68,6 +69,7 @@ public static class Catalog
     }
     public static Feature Find(string id) => All.First(f=>f.Id == id);
     public static bool IsBeta(Feature feature) => feature.Id is "person-clip" or "image-ai" or "media-ai";
+    public static bool DirectoryOutput(Operation operation) => operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip or Operation.VideoSummary;
 }
 public sealed class ConversionOptions
 {
@@ -77,6 +79,7 @@ public sealed class ConversionOptions
     public VideoSlimmingOptions? VideoSlimming { get; set; }
     public ImageCompressionOptions? ImageCompression { get; set; }
     public TranscriptionOptions? Transcription { get; set; }
+    public VideoSummaryOptions? VideoSummary { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
@@ -134,7 +137,7 @@ public sealed class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
 public sealed partial class Job : Observable

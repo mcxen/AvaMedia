@@ -61,7 +61,7 @@ public sealed class ModelStore(string? root = null)
                 if (!manifest.Any(file => file.Path == artifact.Path && file.Size == artifact.Size && file.Sha256 == artifact.Sha256)) return false;
             foreach (var file in manifest)
                 if (!await MatchesAsync(SafePath(folder, file.Path), file.Size, file.Sha256, verify, ct)) return false;
-            return id != ModelCatalog.EmbeddingId || FindRuntime(folder) is not null;
+            return !ModelCatalog.IncludesRuntime(id) || FindRuntime(folder) is not null;
         }
         catch (Exception error) when (error is IOException or JsonException or ArgumentException or UnauthorizedAccessException) { return false; }
     }
@@ -138,7 +138,7 @@ public sealed class ModelStore(string? root = null)
                 completed += artifact.Size;
                 progress?.Report(new(completed, model.DownloadSize, "下载"));
             }
-            if (id == ModelCatalog.EmbeddingId)
+            if (ModelCatalog.IncludesRuntime(id))
             {
                 progress?.Report(new(completed, model.DownloadSize, "安装推理工具"));
                 await Task.Run(() => ExtractRuntime(staging, model.Files.Last().Path, ct), ct);

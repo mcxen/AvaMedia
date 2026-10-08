@@ -21,7 +21,27 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         MediaEngine.ValidateEncodingOptions(style);
     }
 
-    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
+    public async Task<IReadOnlyList<SubtitleCue>> TranscribeAsync(Job source, TranscriptionOptions speech, int audioTrack,
+        Action<double> progress, CancellationToken ct)
+    {
+        var temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-transcript-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temporary);
+        var task = new Job { FeatureId = "auto-subtitle", Inputs = source.Inputs,
+            Output = Path.Combine(temporary, "subtitles.srt"), Options = new() { Format = "srt", Transcription = speech.Clone(), AudioStreamIndex = audioTrack } };
+        task.PropertyChanged += (_, change) =>
+        {
+            if (change.PropertyName == nameof(Job.Activity)) source.Activity = task.Activity;
+            if (change.PropertyName == nameof(Job.ProgressDetail)) source.ProgressDetail = task.ProgressDetail;
+        };
+        try
+        {
+            await ExecuteAsync(task, progress, ct, allowEmpty: true).ConfigureAwait(false);
+            return SubtitleTranscript.Parse(await File.ReadAllTextAsync(task.Output, ct).ConfigureAwait(false));
+        }
+        finally { Directory.Delete(temporary, true); }
+    }
+
+    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false)
     {
         var options = job.Options;
         var speech = options.Transcription ?? new();
@@ -143,7 +163,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 }, ct).ConfigureAwait(false);
             }
             finally { RecognitionGate.Release(); }
-            if (cues.Count == 0) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
+            if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
             if (options.Format is "srt" or "ass")
             {
                 job.ProgressDetail = "保存字幕";

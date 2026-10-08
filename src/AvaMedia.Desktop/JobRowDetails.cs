@@ -71,6 +71,15 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             var o = Job.Options;
             var label = feature.Label.StartsWith('→') ? o.Format.ToUpperInvariant() : feature.Label.Replace("\n", " ");
             var parts = new List<string> { label };
+            if (feature.Operation == Operation.VideoSummary && o.VideoSummary is { } summary)
+            {
+                if (summary.ExtractAbstract) parts.Add("摘要");
+                if (summary.SummarizeContent) parts.Add("内容总结");
+                if (summary.ExtractSubtitles) parts.Add("字幕");
+                if (summary.AnalyzeContent) parts.Add("内容分析");
+                if (summary.NeedsAi) parts.Add(summary.AnalyzeFrames ? "语音与画面" : "字幕与语音");
+                return Localization.Join(" · ", parts);
+            }
             if (o.VideoSlimming is { } slim)
             {
                 parts.Add(slim.Preset switch { VideoSlimmingPreset.Preserve => "保真", VideoSlimmingPreset.Smaller => "更小", _ => "均衡" });

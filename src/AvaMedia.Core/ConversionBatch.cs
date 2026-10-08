@@ -19,7 +19,7 @@ public static class ConversionBatch
         }
         var used=new HashSet<string>(reserved??[],OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal);
         foreach(var path in files)used.Add(path);
-        var directory=feature.Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
+        var directory=Catalog.DirectoryOutput(feature.Operation);
         foreach(var draft in drafts)
         {
             var name=feature.Operation==Operation.Download?"Download-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"):Path.GetFileNameWithoutExtension(draft.Inputs.FirstOrDefault()??"output");

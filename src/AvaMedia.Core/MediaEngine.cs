@@ -174,6 +174,7 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
         if(feature.Operation==Operation.Transcribe){SpeechSubtitleService.Validate(job);return;}
+        if(feature.Operation==Operation.VideoSummary){VideoSummaryService.Validate(job);return;}
         ValidateEncodingOptions(o);
         SourceVideoExport.ValidateJob(job);
         if(job.InputOptions is not null)
@@ -242,6 +243,8 @@ public sealed class MediaEngine : IMediaEngine
         {await new VideoSlimming(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.Transcribe)
         {await new SpeechSubtitleService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
+        if(f.Operation==Operation.VideoSummary)
+        {await new VideoSummaryService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.ImagesPdf)
         {
             var temporary=new List<string>();var inputs=new List<string>();

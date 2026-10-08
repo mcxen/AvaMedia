@@ -67,6 +67,7 @@ public partial class MainWindow : Window
         if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}
         if(feature.Operation==Operation.VideoCompress){await ConfigureVideoCompressionAsync(files);return;}
         if(feature.Operation==Operation.VideoSlim){await ConfigureVideoSlimmingAsync(files);return;}
+        if(feature.Operation==Operation.VideoSummary){await ConfigureVideoSummaryAsync(files);return;}
         if(feature.Operation==Operation.ImageCompress){await ConfigureImageCompressionAsync(files);return;}
         if(feature.Id=="clip")
         {
@@ -169,7 +170,7 @@ public partial class MainWindow : Window
         {
             foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[])
             {
-                bool directory=Catalog.Find(j.FeatureId).Operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip;
+                bool directory=Catalog.DirectoryOutput(Catalog.Find(j.FeatureId).Operation);
                 var output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,directory?Path.GetFileName(j.Output):Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,EditingReservations(j),directory);
                 ResetTask(j);j.Output=output;
             }

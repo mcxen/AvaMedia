@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Assets/SummaryModels.json" LogicalName="AvaMedia.Core.SummaryModels.json" />
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" Condition="'$(UseDirectML)' != 'true'" />
