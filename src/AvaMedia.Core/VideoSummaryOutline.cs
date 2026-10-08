@@ -3,46 +3,56 @@ using System.Text.Json;
 
 namespace AvaMedia.Core;
 
-public sealed record VideoSummaryChapter(string Title, string Text, double? Seconds);
-
-/// <summary>Model-authored reading structure; navigation only uses timestamps present in the source.</summary>
-internal sealed record VideoSummaryOutline(string[] Keywords, string[] Highlights, VideoSummaryChapter[] Chapters)
+public sealed record VideoSummaryChapter(string Title, string Text, double? Seconds)
 {
-    private sealed record Chapter(string Title, string Text, string Timestamp);
-    private sealed record Response(string[] Keywords, string[] Highlights, Chapter[] Chapters);
-    internal static readonly JsonElement Schema = JsonSerializer.Deserialize<JsonElement>("""
-        {
-          "type": "object", "additionalProperties": false,
-          "required": ["keywords", "highlights", "chapters"],
-          "properties": {
-            "keywords": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 32 } },
-            "highlights": { "type": "array", "maxItems": 5, "items": { "type": "string", "maxLength": 160 } },
-            "chapters": { "type": "array", "maxItems": 8, "items": {
-              "type": "object", "additionalProperties": false, "required": ["title", "text", "timestamp"],
-              "properties": {
-                "title": { "type": "string", "maxLength": 60 },
-                "text": { "type": "string", "maxLength": 180 },
-                "timestamp": { "type": "string", "maxLength": 24 }
-              }
-            } }
-          }
-        }
-        """);
+    public string[] EvidenceIds { get; init; } = [];
+}
 
-    internal static VideoSummaryOutline Parse(string json, IReadOnlyDictionary<string, double> sourceTimes, bool chapters)
+/// <summary>Navigation derives from cited originals, never from model-authored timestamps.</summary>
+internal sealed record VideoSummaryOutline(VideoSummaryClaim[] KeywordClaims, VideoSummaryClaim[] HighlightClaims, VideoSummaryChapter[] Chapters)
+{
+    internal string[] Keywords => KeywordClaims.Select(claim => claim.Text).ToArray();
+    internal string[] Highlights => HighlightClaims.Select(claim => claim.Text).ToArray();
+    internal static readonly JsonElement Schema = JsonSerializer.SerializeToElement(new
     {
-        var result = JsonSerializer.Deserialize<Response>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidDataException("视频总结结构无效。");
-        var items = chapters ? (result.Chapters ?? []).Take(8).Where(item => !string.IsNullOrWhiteSpace(item.Title) && !string.IsNullOrWhiteSpace(item.Text))
-            .Select(item => new VideoSummaryChapter(item.Title.Trim(), item.Text.Trim(),
-                sourceTimes.TryGetValue(item.Timestamp?.Trim() ?? "", out var seconds) ? seconds : null)).ToArray() : [];
-        // Unknown times remain readable, but never become invented playback positions.
-        if (chapters && items.Length == 0) throw new InvalidDataException("小模型没有返回有效章节，请调整分段字符数后重试。");
-        return new(Clean(result.Keywords, 8), Clean(result.Highlights, 5), items);
-    }
+        type = "object", additionalProperties = false, required = new[] { "keywords", "highlights", "chapters" },
+        properties = new
+        {
+            keywords = new { type = "array", maxItems = 8, items = VideoSummaryGrounding.ClaimSchema },
+            highlights = new { type = "array", maxItems = 5, items = VideoSummaryGrounding.ClaimSchema },
+            chapters = new { type = "array", maxItems = 8, items = new
+            {
+                type = "object", additionalProperties = false, required = new[] { "title", "text", "evidenceIds" },
+                properties = new
+                {
+                    title = new { type = "string", maxLength = 60 }, text = new { type = "string", maxLength = 240 },
+                    evidenceIds = new { type = "array", minItems = 1, maxItems = 3, items = new { type = "string", maxLength = 24 } }
+                }
+            } }
+        }
+    });
 
-    private static string[] Clean(string[]? values, int maximum) => (values ?? []).Where(value => !string.IsNullOrWhiteSpace(value))
-        .Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(maximum).ToArray();
+    internal static async Task<VideoSummaryOutline> ParseAsync(string json, VideoSummaryGrounding grounding, bool includeChapters, CancellationToken ct)
+    {
+        using var document = JsonDocument.Parse(json); var root = document.RootElement;
+        var keywords = root.GetProperty("keywords").EnumerateArray().Select(grounding.ReadClaim).OfType<VideoSummaryClaim>().Take(8).ToArray();
+        var highlights = root.GetProperty("highlights").EnumerateArray().Select(grounding.ReadClaim).OfType<VideoSummaryClaim>().Take(5).ToArray();
+        var chapters = new List<(VideoSummaryClaim Title, VideoSummaryClaim Body)>();
+        if (includeChapters)
+            foreach (var item in root.GetProperty("chapters").EnumerateArray().Take(8))
+            {
+                var body = grounding.ReadClaim(item); var title = item.GetProperty("title").GetString()?.Trim();
+                if (body is null || string.IsNullOrWhiteSpace(title)) continue;
+                chapters.Add((body with { Text = title }, body));
+            }
+        var accepted = (await grounding.ReviewAsync(keywords.Concat(highlights).Concat(chapters.SelectMany(item => new[] { item.Title, item.Body })), ct).ConfigureAwait(false))
+            .Select(VideoSummaryGrounding.Key).ToHashSet(StringComparer.Ordinal);
+        bool Keep(VideoSummaryClaim claim) => accepted.Contains(VideoSummaryGrounding.Key(claim));
+        return new(keywords.Where(Keep).ToArray(), highlights.Where(Keep).ToArray(), chapters.Where(item => Keep(item.Title) && Keep(item.Body))
+            .Select(item => new VideoSummaryChapter(item.Title.Text, item.Body.Text,
+                item.Body.EvidenceIds.Select(id => grounding.Sources[id].Start).Min()) { EvidenceIds = item.Body.EvidenceIds })
+            .OrderBy(chapter => chapter.Seconds).ToArray());
+    }
 
     internal string ChapterMarkdown()
     {
@@ -51,7 +61,7 @@ internal sealed record VideoSummaryOutline(string[] Keywords, string[] Highlight
         {
             text.Append("### ").Append(chapter.Title.Replace('\n', ' '));
             if (chapter.Seconds is { } time) text.Append(" · ").Append(MediaTime.Format(time));
-            text.Append("\n\n").Append(chapter.Text).Append("\n\n");
+            text.Append("\n\n").Append(chapter.Text).Append(" 〔").Append(string.Join("、", chapter.EvidenceIds)).Append("〕\n\n");
         }
         return text.ToString().TrimEnd();
     }

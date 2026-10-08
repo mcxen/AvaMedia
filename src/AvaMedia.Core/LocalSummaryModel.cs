@@ -9,6 +9,8 @@ using System.Text.RegularExpressions;
 
 namespace AvaMedia.Core;
 
+public sealed record SummaryModelImage(string Label, byte[] Png);
+
 /// <summary>Task-owned llama.cpp process, authenticated loopback only, disposed before switching models.</summary>
 public sealed class LocalSummaryModel : IAsyncDisposable
 {
@@ -93,12 +95,25 @@ public sealed class LocalSummaryModel : IAsyncDisposable
     }
 
     public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
-        JsonElement? schema = null)
+        JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
     {
         if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
         object content = prompt;
+        if (image is not null && images is not null) throw new ArgumentException("不能同时传入单帧和多帧。");
         if (image is not null) content = new object[] {
             new { type = "text", text = prompt }, new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(image) } } };
+        if (images is not null)
+        {
+            if (_id != ModelCatalog.SummaryVisionId || images.Count is < 1 or > 3)
+                throw new ArgumentException("画面联合分析每次需要 1–3 帧。");
+            var parts = new List<object> { new { type = "text", text = prompt } };
+            foreach (var frame in images)
+            {
+                parts.Add(new { type = "text", text = frame.Label });
+                parts.Add(new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(frame.Png) } });
+            }
+            content = parts.ToArray();
+        }
         // SmolVLM's published template is a user/assistant conversation; keep its visual instruction in user content.
         object[] messages = _id == ModelCatalog.SummaryVisionId
             ? [new { role = "user", content }]

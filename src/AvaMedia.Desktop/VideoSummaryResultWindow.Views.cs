@@ -16,18 +16,23 @@ public sealed partial class VideoSummaryResultWindow
         var overview = report.Sections.FirstOrDefault(section => section.Title == "摘要")?.Text ?? "";
         var overviewText = overview + (report.Keywords.Length > 0 ? "\n\n" + string.Join(" · ", report.Keywords) : "")
             + (report.Highlights.Length > 0 ? "\n\n" + string.Join("\n", report.Highlights.Select(point => "- " + point)) : "");
-        if (overviewText.Length > 0) _pages.Add(new("概览", overviewText.Trim(), "md", () => Overview(report, overview)));
+        if (overviewText.Length > 0) _pages.Add(new("概览", overviewText.Trim() + VideoSummaryService.EvidenceMarkdown(report,
+            report.Sections.Where(section => section.Title == "摘要").SelectMany(section => section.Claims).Concat(report.KeywordClaims).Concat(report.HighlightClaims)
+                .SelectMany(claim => claim.EvidenceIds)), "md", () => Overview(report, overview)));
         var chapters = report.Sections.FirstOrDefault(section => section.Title == "视频内容总结");
-        if (chapters is not null) _pages.Add(new("章节", chapters.Text, "md", () => Chapters(report, chapters.Text)));
+        if (chapters is not null) _pages.Add(new("章节", chapters.Text + VideoSummaryService.EvidenceMarkdown(report, report.Chapters.SelectMany(chapter => chapter.EvidenceIds)), "md", () => Chapters(report, chapters.Text)));
         var analysis = report.Sections.FirstOrDefault(section => section.Title == "内容分析");
-        if (analysis is not null) _pages.Add(new("内容分析", analysis.Text, "md", () => Reader(Card("", new SummaryDocumentView(analysis.Text)))));
+        if (analysis is not null) _pages.Add(new("内容分析", analysis.Text + VideoSummaryService.EvidenceMarkdown(report, analysis.Claims.SelectMany(claim => claim.EvidenceIds)), "md", () => Reader(Card("", ClaimDocument(report, analysis)))));
         if (report.Transcript.Count > 0)
         {
             _transcriptPage = _pages.Count;
             _pages.Add(new("字幕与逐字稿", SubtitleTranscript.Timeline(report.Transcript), "txt", () => Transcript(report)));
         }
         if (report.Frames.Count > 0) _pages.Add(new("关键画面", string.Join("\n\n", report.Frames.Select(frame =>
-            $"{MediaTime.Format(frame.Seconds)}\n{frame.Description}")), "txt", () => Frames(report)));
+            $"{frame.Id} · {MediaTime.Format(frame.Seconds)}\n{frame.Description}").Concat(report.Sequences.Select(sequence =>
+            $"{sequence.Id} · {MediaTime.Format(sequence.Start)}\n{sequence.Description} 〔{string.Join("、", sequence.FrameIds)}〕"))), "txt", () => Frames(report)));
+        if (report.Evidence.Count > 0) _pages.Add(new("证据", string.Join("\n\n", report.Evidence.Select(item =>
+            $"{item.Id} · {MediaTime.Format(item.Start)}\n{item.Text}")), "txt", () => Evidence(report)));
         if (report.SegmentNotes.Count > 0) _pages.Add(new("分段笔记", string.Join("\n\n", report.SegmentNotes), "md", () => Notes(report)));
         _pages.Add(new("结果信息", $"{report.Source}\n{report.TranscriptSource}\n{report.Language}\n" + string.Join("\n", report.Models)
             + "\n\n" + string.Join("\n", report.Limitations), "txt", () => Information(report)));
@@ -36,14 +41,18 @@ public sealed partial class VideoSummaryResultWindow
     private Control Overview(VideoSummaryReport report, string summary)
     {
         var stack = new StackPanel { Spacing = 20 };
-        if (summary.Length > 0) stack.Children.Add(Card("摘要", new SummaryDocumentView(summary)));
+        if (summary.Length > 0) stack.Children.Add(Card("摘要", ClaimDocument(report, report.Sections.First(section => section.Title == "摘要"))));
         if (report.Keywords.Length > 0)
         {
             var tags = new WrapPanel();
             foreach (var word in report.Keywords)
             {
                 var text = new SelectableTextBlock { Text = word, TextWrapping = TextWrapping.Wrap };
-                Localization.SetIsUserText(text, true); tags.Children.Add(new Border { Child = text, Classes = { "summary-chip" }, MaxWidth = 240 });
+                Localization.SetIsUserText(text, true);
+                var keyword = report.KeywordClaims.FirstOrDefault(claim => claim.Text == word);
+                if (keyword is not null) ToolTip.SetTip(text, string.Join("\n", keyword.EvidenceIds.Select(id => report.Evidence.FirstOrDefault(item => item.Id == id))
+                    .OfType<VideoSummaryEvidence>().Select(item => item.Id + " · " + MediaTime.Format(item.Start) + "\n" + item.Text)));
+                tags.Children.Add(new Border { Child = text, Classes = { "summary-chip" }, MaxWidth = 240 });
             }
             stack.Children.Add(Card("关键词", tags));
         }
@@ -55,7 +64,10 @@ public sealed partial class VideoSummaryResultWindow
                 var row = new Grid { ColumnDefinitions = new("28,*"), ColumnSpacing = 12 };
                 var number = Ui.Text((index + 1).ToString("00"), "caption"); Localization.SetIsUserText(number, true);
                 number.VerticalAlignment = VerticalAlignment.Top; number.Margin = new(0, 5, 0, 0); row.Children.Add(number);
-                var point = SummaryDocumentView.Prose(report.Highlights[index]); Grid.SetColumn(point, 1); row.Children.Add(point); points.Children.Add(row);
+                var point = new StackPanel { Spacing = 6 };
+                point.Children.Add(SummaryDocumentView.Prose(report.Highlights[index]));
+                if (index < report.HighlightClaims.Length) point.Children.Add(EvidenceLinks(report, report.HighlightClaims[index].EvidenceIds));
+                Grid.SetColumn(point, 1); row.Children.Add(point); points.Children.Add(row);
             }
             stack.Children.Add(Card("关键要点", points));
         }
@@ -76,6 +88,7 @@ public sealed partial class VideoSummaryResultWindow
             var heading = Ui.Text(chapter.Title, "title"); Localization.SetIsUserText(heading, true); top.Children.Add(heading);
             if (chapter.Seconds is { } time) { var stamp = TimeButton(time); Grid.SetColumn(stamp, 1); top.Children.Add(stamp); }
             content.Children.Add(top); content.Children.Add(new SummaryDocumentView(chapter.Text));
+            content.Children.Add(EvidenceLinks(report, chapter.EvidenceIds));
             stack.Children.Add(Card("", content));
         }
         return Reader(stack);
@@ -121,19 +134,71 @@ public sealed partial class VideoSummaryResultWindow
     private Control Frames(VideoSummaryReport report)
     {
         var stack = new StackPanel { Spacing = 16 };
-        stack.Children.Add(Ui.FormattedText($"{report.Frames.Count} 个均匀采样画面", "caption"));
+        stack.Children.Add(Ui.FormattedText($"{report.Frames.Count} 个采样画面", "caption"));
         // A single readable column lets observations wrap beside the image at every supported window size.
         foreach (var frame in report.Frames)
         {
             var row = new Grid { ColumnDefinitions = new("216,*"), ColumnSpacing = 20 };
             var image = new Image { Height = 122, Stretch = Stretch.UniformToFill };
             row.Children.Add(new Border { Child = image, Classes = { "media-preview" }, ClipToBounds = true });
-            var details = new StackPanel { Spacing = 8 }; details.Children.Add(TimeButton(frame.Seconds));
+            var details = new StackPanel { Spacing = 8 }; var stamp = TimeButton(frame.Seconds);
+            stamp.Content = frame.Id + " · " + EditorTime.Format(frame.Seconds); details.Children.Add(stamp);
             details.Children.Add(SummaryDocumentView.Prose(frame.Description)); Grid.SetColumn(details, 1); row.Children.Add(details);
             stack.Children.Add(Card("", row));
             image.AttachedToVisualTree += async (_, _) => { if (image.Source is null) await LoadImageAsync(image, frame.Image); };
         }
+        foreach (var sequence in report.Sequences)
+        {
+            var details = new StackPanel { Spacing = 8 };
+            details.Children.Add(SummaryDocumentView.Prose(sequence.Description));
+            details.Children.Add(EvidenceLinks(report, sequence.FrameIds));
+            stack.Children.Add(Card(sequence.Id, details));
+        }
         return Reader(stack);
+    }
+
+    private Control ClaimDocument(VideoSummaryReport report, VideoSummarySection section)
+    {
+        if (section.Claims.Count == 0) return new SummaryDocumentView(section.Text);
+        var stack = new StackPanel { Spacing = 16 };
+        foreach (var claim in section.Claims)
+        {
+            var row = new StackPanel { Spacing = 6 };
+            row.Children.Add(SummaryDocumentView.Prose(claim.Text)); row.Children.Add(EvidenceLinks(report, claim.EvidenceIds));
+            stack.Children.Add(row);
+        }
+        return stack;
+    }
+
+    private Control EvidenceLinks(VideoSummaryReport report, IEnumerable<string> ids)
+    {
+        var row = new WrapPanel();
+        foreach (var id in ids.Distinct(StringComparer.Ordinal))
+        {
+            var evidence = report.Evidence.FirstOrDefault(item => item.Id == id);
+            if (evidence is null) continue;
+            var button = TimeButton(evidence.Start); button.Content = id + " · " + EditorTime.Format(evidence.Start);
+            button.Margin = new(0, 0, 8, 4); ToolTip.SetTip(button, evidence.Text); row.Children.Add(button);
+        }
+        return row;
+    }
+
+    private Control Evidence(VideoSummaryReport report)
+    {
+        var list = new ListBox { ItemsSource = report.Evidence.OrderBy(item => item.Start).ThenBy(item => item.Id).ToArray(),
+            Classes = { "summary-transcript" }, Margin = new(24) };
+        ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        list.ItemTemplate = new FuncDataTemplate<VideoSummaryEvidence>((item, _) =>
+        {
+            if (item is null) return new Border();
+            var row = new Grid { ColumnDefinitions = new("168,*"), ColumnSpacing = 16, Margin = new(8, 10) };
+            var stamp = TimeButton(item.Start); stamp.Content = item.Id + " · " + EditorTime.Format(item.Start);
+            stamp.VerticalAlignment = VerticalAlignment.Top; row.Children.Add(stamp);
+            var details = new StackPanel { Spacing = 6 }; details.Children.Add(SummaryDocumentView.Prose(item.Text, formatted: false));
+            if (item.FrameIds.Length > 1) details.Children.Add(EvidenceLinks(report, item.FrameIds));
+            Grid.SetColumn(details, 1); row.Children.Add(details); return row;
+        });
+        return list;
     }
 
     private static Control Notes(VideoSummaryReport report)
