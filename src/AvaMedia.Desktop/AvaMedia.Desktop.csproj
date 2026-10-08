@@ -25,5 +25,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../AvaMedia.Core/AvaMedia.Core.csproj" />
     <EmbeddedResource Include="Browser/MediaSniffer.js" LogicalName="AvaMedia.Desktop.MediaSniffer.js" />
+    <EmbeddedResource Include="Player/avamedia-shortcuts.lua" LogicalName="AvaMedia.Desktop.Player.avamedia-shortcuts.lua" />
   </ItemGroup>
 </Project>

@@ -70,6 +70,18 @@ public partial class PlayerWindow
                     _nativeDiagnostics[name] = value;
                     if (name == "time-pos" && value.ValueKind == JsonValueKind.Number) _position = value.GetDouble();
                     if (name == "pause" && value.ValueKind is JsonValueKind.True or JsonValueKind.False) _nativePlaying = !value.GetBoolean();
+                    if (name == "speed" && value.ValueKind == JsonValueKind.Number)
+                    {
+                        var speed = value.GetDouble();
+                        if (Math.Abs(speed - 1) < .001 && Math.Abs(_speed - 1) > .001) _lastSpeed = _speed;
+                        _speed = speed; PlayerSpeed.Content = AvaMedia.Core.MediaEngine.Number(speed) + "×";
+                    }
+                    if (name == "volume" && value.ValueKind == JsonValueKind.Number) PlayerVolume.Value = value.GetDouble();
+                    if (name == "mute" && value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    {
+                        _muted = value.GetBoolean(); PlayerMuteIcon.Kind = _muted ? "muted" : "speaker";
+                        Avalonia.Automation.AutomationProperties.SetName(PlayerMuteButton, _muted ? "取消静音" : "静音");
+                    }
                     if (name == "path" && value.ValueKind == JsonValueKind.String && File.Exists(value.GetString()))
                     { CurrentPath = value.GetString()!; FileName.Text = Path.GetFileName(CurrentPath); Title = FileName.Text + " — " + AvaMedia.Core.AppIdentity.PlayerTitle; }
                 }),

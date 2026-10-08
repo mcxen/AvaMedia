@@ -16,6 +16,7 @@ public static class PlayerShortcuts
     {
         (Key.Space, KeyModifiers.None) => PlayerCommand.TogglePlayback,
         (Key.Enter, KeyModifiers.None or KeyModifiers.Alt) => PlayerCommand.ToggleFullscreen,
+        (Key.F11, KeyModifiers.None) => PlayerCommand.ToggleFullscreen,
         (Key.Escape, KeyModifiers.None) => PlayerCommand.ExitFullscreen,
         (Key.Left, KeyModifiers.None) => PlayerCommand.Back5,
         (Key.Right, KeyModifiers.None) => PlayerCommand.Forward5,

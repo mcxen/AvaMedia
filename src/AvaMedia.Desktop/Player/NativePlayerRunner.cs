@@ -20,11 +20,13 @@ internal static class NativePlayerRunner
             "--cache=yes", "--demuxer-max-bytes=128MiB", "--demuxer-max-back-bytes=32MiB", "--target-colorspace-hint=auto",
             "--tone-mapping=auto", "--hdr-compute-peak=auto", "--interpolation=no", "--deinterlace=auto",
             "--speed=" + MediaEngine.Number(speed), "--volume=" + MediaEngine.Number(volume), "--mute=" + (muted ? "yes" : "no"),
-            "--pause=" + (playing ? "no" : "yes"), "--start=" + MediaEngine.Number(position), "--screenshot-format=png"];
+            "--pause=" + (playing ? "no" : "yes"), "--start=" + MediaEngine.Number(position), "--screenshot-format=png",
+            "--screenshot-template=%x%F_截图_%wH-%wM-%wS.%wT_%04n", "--volume-max=100"];
         if (OperatingSystem.IsWindows()) args.Add("--gpu-context=d3d11");
         if (sdr) args.AddRange(["--target-colorspace-hint=no", "--target-trc=bt.1886", "--target-prim=bt.709", "--target-peak=100"]);
         if (disc is { } source)
         {
+            args.Add("--screenshot-directory=" + (Directory.Exists(source.Path) ? source.Path : Path.GetDirectoryName(source.Path)));
             args.Add((source.Kind == DiscKind.Bluray ? "--bluray-device=" : "--dvd-device=") + source.Path);
             input = source.Kind == DiscKind.Bluray ? "bd://" + (source.Title == 0 ? "longest" : source.Title.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 : "dvd://" + (source.Title == 0 ? "" : source.Title.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -35,9 +37,16 @@ internal static class NativePlayerRunner
         Action<string, JsonElement> propertyChanged, Func<CancellationToken, Task<string[]>> remainingFiles, CancellationToken ct)
     {
         var ipcName = "avamedia-" + Guid.NewGuid().ToString("N");
-        using var socketDirectory = OperatingSystem.IsWindows() ? null : new PrivateSocketDirectory(ipcName);
-        var endpoint = OperatingSystem.IsWindows() ? @"\\.\pipe\" + ipcName : Path.Combine(socketDirectory!.Path, "ipc");
-        var args = arguments.ToList(); args.Insert(0, "--input-ipc-server=" + endpoint);
+        using var sessionDirectory = new PrivateSessionDirectory(ipcName);
+        var endpoint = OperatingSystem.IsWindows() ? @"\\.\pipe\" + ipcName : Path.Combine(sessionDirectory.Path, "ipc");
+        var script = Path.Combine(sessionDirectory.Path, "avamedia-shortcuts.lua");
+        await using (var resource = typeof(NativePlayerRunner).Assembly.GetManifestResourceStream("AvaMedia.Desktop.Player.avamedia-shortcuts.lua")
+            ?? throw new InvalidOperationException("Missing native player keyboard resource."))
+        await using (var output = new FileStream(script, FileMode.CreateNew, FileAccess.Write, FileShare.None, 8192, true))
+            await resource.CopyToAsync(output, ct);
+        var args = arguments.ToList();
+        args.InsertRange(0, ["--input-ipc-server=" + endpoint, "--script=" + script,
+            "--script-opts=avamedia-shortcuts-language=" + (AppLanguage.IsChinese ? "zh" : "en")]);
         using var process = ProcessRunner.Start(executable, args);
         using var registration = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
         using var monitoring = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -83,7 +92,7 @@ internal static class NativePlayerRunner
             if (stream is null) return;
             using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
             using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
-            var properties = new[] { "time-pos", "path", "duration", "pause", "hwdec-current", "video-params", "video-out-params", "vo-drop-frame-count" };
+            var properties = new[] { "time-pos", "path", "duration", "pause", "speed", "volume", "mute", "hwdec-current", "video-params", "video-out-params", "vo-drop-frame-count" };
             for (var index = 0; index < properties.Length; index++)
                 await writer.WriteLineAsync(JsonSerializer.Serialize(new { command = new object[] { "observe_property", index + 1, properties[index] } }).AsMemory(), ct);
             var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -125,15 +134,19 @@ internal static class NativePlayerRunner
             while (retained.Count > 20) retained.Dequeue();
         }
     }
-    private sealed class PrivateSocketDirectory : IDisposable
+    private sealed class PrivateSessionDirectory : IDisposable
     {
         public string Path { get; }
-        public PrivateSocketDirectory(string name)
+        public PrivateSessionDirectory(string name)
         {
-            Path = System.IO.Path.Combine("/tmp", name); Directory.CreateDirectory(Path);
+            Path = System.IO.Path.Combine(OperatingSystem.IsWindows() ? System.IO.Path.GetTempPath() : "/tmp", name); Directory.CreateDirectory(Path);
             if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(Path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
-        public void Dispose() { try { Directory.Delete(Path, true); } catch (IOException) { } }
+        public void Dispose()
+        {
+            try { Directory.Delete(Path, true); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("Native player session cleanup", error); }
+        }
     }
     public static DiscPlayback? Detect(string path)
     {

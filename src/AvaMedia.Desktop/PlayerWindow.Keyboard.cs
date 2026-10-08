@@ -33,8 +33,16 @@ public partial class PlayerWindow
         _keyboardNavigation = true;
         ShowChrome(); // Reveal the controls before Tab navigation chooses its next target.
         var source = e.Source as Control ?? FocusManager?.GetFocusedElement() as Control;
-        if (_openMenu?.IsOpen == true || Within<TextBox>(source) || Within<ComboBox>(source)
-            || Within<NumericUpDown>(source) || Within<MenuItem>(source)) return;
+        if (_openMenu?.IsOpen == true || Within<MenuItem>(source)) return;
+        var resolved = PlayerShortcuts.Resolve(e.Key, e.KeyModifiers);
+        // Capturing the current view and F11 remain available while adjusting playback controls.
+        if (resolved == PlayerCommand.CaptureFrame || e.Key == Key.F11 && resolved == PlayerCommand.ToggleFullscreen)
+        {
+            e.Handled = true;
+            if (!repeated) CommandReady = HandleKeyboardAsync(() => ExecuteAsync(resolved.Value));
+            return;
+        }
+        if (Within<TextBox>(source) || Within<ComboBox>(source) || Within<NumericUpDown>(source)) return;
 
         if (Within<ListBox>(source))
         {
@@ -53,7 +61,7 @@ public partial class PlayerWindow
             if (repeated) e.Handled = true;
             return;
         }
-        if (PlayerShortcuts.Resolve(e.Key, e.KeyModifiers) is not { } command) return;
+        if (resolved is not { } command) return;
         e.Handled = true;
         if (repeated && !PlayerShortcuts.CanRepeat(command)) return;
         CommandReady = HandleKeyboardAsync(() => ExecuteAsync(command));
