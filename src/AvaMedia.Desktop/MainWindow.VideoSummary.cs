@@ -4,6 +4,19 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
+    internal bool CanViewSummaryResult(Job job) => !_closing && job.State == JobState.Completed
+        && Catalog.Find(job.FeatureId).Operation == Operation.VideoSummary;
+
+    internal async Task ShowSummaryResultAsync(Job job)
+    {
+        if (!CanViewSummaryResult(job)) return;
+        try { new VideoSummaryResultWindow(job.Output, Engine, job.Inputs.FirstOrDefault()).Show(this); }
+        catch (Exception error) { await Ui.Message(this, "视频总结结果", error.Message); }
+    }
+
+    private async void ViewSummaryResultClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
+    { if (JobList.SelectedItem is Job job) await ShowSummaryResultAsync(job); }
+
     private async Task ConfigureVideoSummaryAsync(string[]? files, Job? editing = null)
     {
         var window = new VideoSummaryWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,

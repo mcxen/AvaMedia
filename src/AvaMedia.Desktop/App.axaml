@@ -9,5 +9,6 @@
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/CategoryNavigation.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/EditorStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/PlayerStyles.axaml" />
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/VideoSummaryStyles.axaml" />
   </Application.Styles>
 </Application>

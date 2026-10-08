@@ -13,6 +13,7 @@ public partial class MainWindow
     {
         var enabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job job && CanEditTask(job);
         EditTaskButton.IsEnabled = EditTaskMenuItem.IsEnabled = EditTaskContextMenu.IsEnabled = enabled;
+        ViewSummaryResultMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job result && CanViewSummaryResult(result);
         RetryTaskMenu.IsEnabled = !_queue.IsRunning && _editingJob is null
             && (JobList.SelectedItems?.OfType<Job>().Any(item => item.CanRetry) ?? false);
     }

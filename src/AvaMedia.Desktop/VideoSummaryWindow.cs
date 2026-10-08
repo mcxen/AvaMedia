@@ -66,7 +66,7 @@ public sealed class VideoSummaryWindow : Window
             var results = new Button { Content = "查看结果", Classes = { "field-action" } };
             results.Click += async (_, _) =>
             {
-                try { await new VideoSummaryResultWindow(resultFolder).ShowDialog(this); }
+                try { await new VideoSummaryResultWindow(resultFolder, engine, _files.FirstOrDefault()).ShowDialog(this); }
                 catch (Exception error) { ShowError(error); }
             };
             toolbar.Children.Add(results);

@@ -92,7 +92,8 @@ public sealed class LocalSummaryModel : IAsyncDisposable
         }
     }
 
-    public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024)
+    public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
+        JsonElement? schema = null)
     {
         if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
         object content = prompt;
@@ -103,10 +104,12 @@ public sealed class LocalSummaryModel : IAsyncDisposable
             ? [new { role = "user", content }]
             : [new { role = "system", content = (object)system }, new { role = "user", content }];
         HttpResponseMessage response;
+        var request = new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
+            ["max_tokens"] = tokens, ["temperature"] = .7, ["top_p"] = .8, ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 1.5 };
+        if (schema is { } shape) request["response_format"] = new { type = "json_object", schema = shape };
         try
         {
-            response = await _client.PostAsJsonAsync("v1/chat/completions", new
-            { model = _id, messages, stream = false, max_tokens = tokens, temperature = .7, top_p = .8, top_k = 20, min_p = 0, presence_penalty = 1.5 }, ct).ConfigureAwait(false);
+            response = await _client.PostAsJsonAsync("v1/chat/completions", request, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         { throw new InvalidOperationException("本地总结超时，请减小分段字符数后重试。"); }

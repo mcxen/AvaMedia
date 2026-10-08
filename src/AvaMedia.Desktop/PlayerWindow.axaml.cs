@@ -113,6 +113,11 @@ public partial class PlayerWindow : Window
 
     public Task OpenAsync(string path)
         => StartOpen(path, 0, 0, 0, true);
+    public Task OpenAtAsync(string path, double seconds)
+    {
+        if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+        return StartOpen(path, 0, 0, seconds, true);
+    }
     private Task StartOpen(string path, int video, int audio, double position, bool playing, bool allowDeleting = false)
     {
         if (_closed || _deleting && !allowDeleting) return Task.CompletedTask;

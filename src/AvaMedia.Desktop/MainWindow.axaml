@@ -52,6 +52,7 @@
           <ListBox.ItemTemplate><DataTemplate><local:JobRowView/></DataTemplate></ListBox.ItemTemplate>
           <ListBox.ContextMenu>
             <ContextMenu Opening="JobContextMenuOpening">
+              <MenuItem x:Name="ViewSummaryResultMenu" Header="查看视频总结结果…" Click="ViewSummaryResultClick" IsEnabled="False"/>
               <MenuItem x:Name="PlayOutputMenu" Header="用天池播放器播放输出视频" Click="PlayOutputSelectedClick" IsEnabled="False" ToolTip.Tip="任务完成且输出视频存在时可播放。支持多选。">
                 <MenuItem.Icon><local:ActionIcon Kind="play"/></MenuItem.Icon>
               </MenuItem>

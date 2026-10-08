@@ -7,7 +7,13 @@ public sealed record VideoFrameObservation(double Seconds, string Description, s
 public sealed record VideoSummarySection(string Title, string Text);
 public sealed record VideoSummaryReport(string Source, double Duration, string TranscriptSource, string Language,
     string[] Models, int SubtitleCount, IReadOnlyList<VideoFrameObservation> Frames, IReadOnlyList<VideoSummarySection> Sections,
-    IReadOnlyList<string> SegmentNotes, string[] Limitations);
+    IReadOnlyList<string> SegmentNotes, string[] Limitations)
+{
+    public string[] Keywords { get; init; } = [];
+    public string[] Highlights { get; init; } = [];
+    public VideoSummaryChapter[] Chapters { get; init; } = [];
+    public IReadOnlyList<SubtitleCue> Transcript { get; init; } = [];
+}
 
 public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models = null)
 {
@@ -74,6 +80,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             if (!options.NeedsAi && cues.Count == 0) throw new InvalidDataException("没有可提取的字幕或语音。");
             progress(60);
             var notes = new List<string>(); var sections = new List<VideoSummarySection>();
+            var outline = new VideoSummaryOutline([], [], []);
             if (options.NeedsAi)
             {
                 await EnsureModelAsync(ModelCatalog.SummaryTextId, activity, ct).ConfigureAwait(false);
@@ -109,23 +116,35 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                     context = reduced;
                 }
                 var requests = new List<(string Title, string Prompt)>();
+                job.ProgressDetail = "整理要点与关键词"; activity.Stage("整理要点与关键词");
+                var structure = await textModel.CompleteAsync(system,
+                    "把视频资料整理成 JSON：keywords 为至多 8 个简短主题关键词；highlights 为至多 5 条关键事实，每条一句话，不超过 40 字。" +
+                    (options.SummarizeContent ? "chapters 按资料实际内容的顺序列出至多 8 个主要章节，每章 title 为简短标题、text 为不超过 60 字的概括、timestamp 必须原样引用资料已有时间戳；时间未知用空字符串。" : "chapters 必须为空数组。") +
+                    "不要把模型名、任务状态或未提及的内容作为关键词。不添加 JSON 之外的文字。\n分析重点：" + options.Focus + "\n\n视频资料：\n" + context,
+                    ct, tokens: 2048, schema: VideoSummaryOutline.Schema).ConfigureAwait(false);
+                var sourceTimes = cues.SelectMany(cue => new[] { cue.Start.TotalSeconds, cue.End.TotalSeconds })
+                    .Concat(frames.Select(frame => frame.Seconds)).Where(seconds => seconds >= 0 && seconds <= info.Duration)
+                    .GroupBy(MediaTime.Format).ToDictionary(group => group.Key, group => group.First());
+                outline = VideoSummaryOutline.Parse(structure, sourceTimes, options.SummarizeContent);
+                progress(82);
                 if (options.ExtractAbstract) requests.Add(("摘要", "用 3–5 句话给出视频摘要，概括主题和最主要的信息，不超过 200 字。"));
-                if (options.SummarizeContent) requests.Add(("视频内容总结", "按内容顺序列出主要章节、关键事件和结论。只引用资料中已有的时间戳；时间未知时省略。不超过 500 字。"));
-                if (options.AnalyzeContent) requests.Add(("内容分析", "分析主题、关键词、信息结构、核心观点、可执行事项及不确定之处。区分资料事实、作者观点和你的推断；未出现的事项写未提及。不超过 500 字。"));
+                if (options.AnalyzeContent) requests.Add(("内容分析", "用 Markdown 二级标题分为核心观点、信息结构、可执行事项、待复核信息。区分资料事实、作者观点和你的推断；未出现的事项写未提及。不重复关键词清单。不超过 500 字。"));
                 for (var index = 0; index < requests.Count; index++)
                 {
                     var request = requests[index]; job.ProgressDetail = request.Title; activity.Stage(request.Title);
                     var result = await textModel.CompleteAsync(system, request.Prompt + "\n分析重点：" + options.Focus + "\n\n视频资料：\n" + context, ct).ConfigureAwait(false);
-                    sections.Add(new(request.Title, result)); activity.Result(result); progress(80 + 15d * (index + 1) / requests.Count);
+                    sections.Add(new(request.Title, result)); activity.Result(result); progress(82 + 13d * (index + 1) / requests.Count);
                 }
+                if (options.SummarizeContent) sections.Insert(options.ExtractAbstract ? 1 : 0, new("视频内容总结", outline.ChapterMarkdown()));
             }
             var limitations = new List<string> { "极小本地模型的结论需复核，内容分析不构成事实核验。" };
-            if (frames.Count > 0) limitations.Add($"画面结论仅来自 {frames.Count} 个均匀采样帧，未覆盖全部视频画面。");
+            if (frames.Count > 0) limitations.Add("画面结论只依据均匀采样帧，未覆盖全部视频画面。");
             else limitations.Add("总结仅依据字幕或语音，没有分析视频画面。");
             if (cues.Count == 0) limitations.Add("未提取到字幕或语音，结果只依据采样画面；未生成字幕文件。");
             if (source == "Whisper") limitations.Add("字幕由 Whisper 自动识别，可能含有漏词或识别错误。");
             var report = new VideoSummaryReport(Path.GetFileName(job.Inputs[0]), info.Duration, source, options.OutputLanguage,
-                usedModels.ToArray(), cues.Count, frames, sections, notes, limitations.ToArray());
+                usedModels.ToArray(), cues.Count, frames, sections, notes, limitations.ToArray())
+                { Keywords = outline.Keywords, Highlights = outline.Highlights, Chapters = outline.Chapters, Transcript = cues };
             activity.Stage("保存总结"); job.ProgressDetail = "保存总结";
             if (options.ExtractSubtitles && cues.Count > 0)
             {
@@ -227,18 +246,28 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         return chunks;
     }
 
-    private static string Markdown(VideoSummaryReport report)
+    public static string Markdown(VideoSummaryReport report, bool includeImages = true)
     {
         var builder = new StringBuilder("# 视频总结\n\n");
         builder.Append("视频：").Append(report.Source.Replace("\n", " ")).Append("  \n时长：").Append(MediaTime.Format(report.Duration))
             .Append("  \n字幕来源：").Append(report.TranscriptSource).Append("  \n模型：").Append(string.Join(" / ", report.Models)).Append("\n\n");
         foreach (var section in report.Sections) builder.Append("## ").Append(section.Title).Append("\n\n").Append(section.Text).Append("\n\n");
+        if (report.Keywords.Length > 0) builder.Append("## 关键词\n\n").Append(string.Join(" · ", report.Keywords)).Append("\n\n");
+        if (report.Highlights.Length > 0)
+        {
+            builder.Append("## 关键要点\n\n");
+            foreach (var point in report.Highlights) builder.Append("- ").Append(point).Append('\n');
+            builder.Append('\n');
+        }
         if (report.Frames.Count > 0)
         {
             builder.Append("## 采样画面\n\n");
             foreach (var frame in report.Frames)
-                builder.Append("### ").Append(MediaTime.Format(frame.Seconds)).Append("\n\n![采样画面](").Append(frame.Image)
-                    .Append(")\n\n").Append(frame.Description).Append("\n\n");
+            {
+                builder.Append("### ").Append(MediaTime.Format(frame.Seconds)).Append("\n\n");
+                if (includeImages) builder.Append("![采样画面](").Append(frame.Image).Append(")\n\n");
+                builder.Append(frame.Description).Append("\n\n");
+            }
         }
         builder.Append("## 分段笔记\n\n");
         foreach (var note in report.SegmentNotes) builder.Append(note).Append("\n\n");

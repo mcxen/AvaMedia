@@ -60,6 +60,7 @@ public partial class JobRowView : UserControl
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
+        ViewResultButton.IsVisible = _owner.CanViewSummaryResult(job);
         CoverButton.IsEnabled = _owner.CanEditTask(job);
         var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
@@ -122,6 +123,8 @@ public partial class JobRowView : UserControl
     }
     private async void CoverClick(object? sender, RoutedEventArgs e)
     { e.Handled = true; if (_owner is not null && _details is not null) await _owner.EditJob(_details.Job); }
+    private async void ViewResultClick(object? sender, RoutedEventArgs e)
+    { e.Handled = true; if (_owner is not null && _details is not null) await _owner.ShowSummaryResultAsync(_details.Job); }
     private void PresentationChanged(bool visible) { if (visible) Refresh(); else SuspendPreview(); }
     private void SuspendPreview()
     {
