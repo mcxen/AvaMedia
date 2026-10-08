@@ -71,7 +71,7 @@ git push origin v1.0.5
 
 macOS 上使用 `scripts/Publish.ps1 -Runtime osx-arm64` 发布后运行 `scripts/Package-Mac.ps1`：仅生成 DMG，提供 Applications 快捷方式。后续 macOS 发布仅提供 ARM64，应用声明最低 macOS 13.4，与 ONNX Runtime 的 Mach-O 部署版本一致；内部归档检查会核对原生库与下载工具的最低版本。应用采用 ad-hoc 签名，没有 Developer ID 签名和公证；用户设备的音频设备仍需验收。
 
-新构建将 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定来源并核对 SHA256，附版本清单和许可证。用户安装后无需执行媒体工具安装脚本。Windows 使用共享 DLL，引擎从 Linux 的 MinGW-w64 POSIX 工具链按固定源码构建；Mac 使用 ARM64 dylib，相对加载路径保留在应用内部，内部 ZIP 保留工具执行权限。Windows 和 Mac 引擎包含 x264 / x265，均采用 GPL-3.0-or-later；对应源码归档保存在主 Release 链接的媒体归档页。详见 [macOS FFmpeg](FFMPEG-MACOS.md) 与 `scripts/windows/`。依赖和安装器许可保存在 `licenses/`，下载工具说明见 [视频下载](VIDEO-DOWNLOAD.md)。
+新构建将 FFmpeg / FFprobe 9.0.2、官方 yt-dlp 2026.08.19 和 QuickJS-NG 0.17.0 打包至 `tools`，固定来源并核对 SHA256，附版本清单和许可证。用户安装后无需执行媒体工具安装脚本。Windows 使用共享 DLL，引擎从 Linux 的 MinGW-w64 POSIX 工具链按固定源码构建；Mac 使用 ARM64 dylib，相对加载路径保留在应用内部，内部 ZIP 保留工具执行权限。Windows 和 Mac 引擎包含 x264 / x265，均采用 GPL-3.0-or-later；对应源码归档保存在主 Release 链接的媒体归档页。详见 [macOS FFmpeg](FFMPEG-MACOS.md) 与 `scripts/windows/`。依赖和安装器许可保存在 `licenses/`，下载工具说明见 [视频下载](VIDEO-DOWNLOAD.md)。
 
 参考：[GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)、[Inno 编译参数](https://jrsoftware.org/ishelp/topic_compilercmdline.htm)、[Inno Setup 6.4.3 许可](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt)。
 

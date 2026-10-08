@@ -276,7 +276,7 @@ def main():
                 "files": [{"name": path.name, "bytes": path.stat().st_size, "sha256": shared.sha256(path)}
                           for path in bundle.iterdir() if path.is_file()]}
     (bundle / "build.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    (bundle / "NOTICE.txt").write_text("AvaMedia FFmpeg 8.1.3 Windows runtime: GPL-3.0-or-later.\n"
+    (bundle / "NOTICE.txt").write_text(f"AvaMedia FFmpeg {source_lock['ffmpegVersion']} Windows runtime: GPL-3.0-or-later.\n"
                                       "Includes GPL x264/x265; no nonfree components.\n"
                                       "Corresponding sources and rebuild recipes accompany the AvaMedia Release.\n")
     source_package = work / (base + "-source")

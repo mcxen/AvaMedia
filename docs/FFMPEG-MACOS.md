@@ -1,6 +1,6 @@
 # macOS ARM64 定制 FFmpeg
 
-构建配方锁定 FFmpeg 8.1.3 和 15 个依赖的源码版本；压缩包校验 SHA256，Git 源码核对完整提交号。配置见 [源码锁文件](../scripts/macos/ffmpeg-sources.lock.json)。仅生成 ARM64 运行包，所有依赖从源码构建，不链接 Homebrew 的运行库。
+构建配方锁定 FFmpeg 9.0.2 和 15 个依赖的源码版本；压缩包校验 SHA256，Git 源码核对完整提交号。配置见 [源码锁文件](../scripts/macos/ffmpeg-sources.lock.json)。仅生成 ARM64 运行包，所有依赖从源码构建，不链接 Homebrew 的运行库。
 
 FreeType 从官方 SourceForge 发行镜像下载，Savannah 作为备用；两者使用同一固定 SHA256。下载设置连接和总耗时上限，连接失败后尝试备用地址；校验不一致则立即失败。来源依据 [FreeType 下载说明](https://freetype.org/download.html)。
 
@@ -41,16 +41,16 @@ libvorbis 使用其 [上游 CMake 配方](https://github.com/xiph/vorbis/blob/v1
 
 产物位于 `artifacts/`：
 
-- `AvaMedia-FFmpeg-8.1.3-osx-arm64.tar.gz`：独立媒体运行包。
-- `AvaMedia-FFmpeg-8.1.3-source.tar.gz`：精确对应的源码、依赖、锁文件和重建配方。
-- `AvaMedia-FFmpeg-8.1.3-SHA256SUMS.txt`：两个归档的校验清单。
+- `AvaMedia-FFmpeg-9.0.2-osx-arm64.tar.gz`：独立媒体运行包。
+- `AvaMedia-FFmpeg-9.0.2-source.tar.gz`：精确对应的源码、依赖、锁文件和重建配方。
+- `AvaMedia-FFmpeg-9.0.2-SHA256SUMS.txt`：两个归档的校验清单。
 
 新构建的 DMG 内置此运行包，普通用户安装应用即可使用。下面的独立安装命令供开发或指定外部媒体工具目录时使用：
 
 ```sh
 bash scripts/Install-MediaTools-macOS.sh \
-  --archive artifacts/AvaMedia-FFmpeg-8.1.3-osx-arm64.tar.gz \
-  --checksums artifacts/AvaMedia-FFmpeg-8.1.3-SHA256SUMS.txt
+  --archive artifacts/AvaMedia-FFmpeg-9.0.2-osx-arm64.tar.gz \
+  --checksums artifacts/AvaMedia-FFmpeg-9.0.2-SHA256SUMS.txt
 ```
 
 不带参数时，读取最新应用版本，再从对应 `media-v版本` 媒体归档下载定制运行包并核对清单。安装至 `~/Library/Application Support/AvaMedia/tools/ffmpeg-runtime/<归档SHA256>`，程序入口通过相对链接切换；下载与解压的临时目录退出时清理。FFmpeg 安装不需要 Homebrew 或 Python；加 `--with-yt-dlp` 时另用 Homebrew 安装可选下载工具。已有的外部路径配置仍可替换媒体引擎。
@@ -73,4 +73,4 @@ Release 的 macOS job 独立读取 tag 版本，与 Windows 并行执行，避�
 
 此定制运行包包含 x264 / x265，使用 `--enable-gpl --enable-version3`，按 **GPL-3.0-or-later** 交付；未启用 nonfree。Windows 安装包也内置同版本的 GPL 媒体引擎，其 MinGW 构建配方与额外依赖见 [Windows 配方](../scripts/windows/Build-FFmpeg.py)。AvaMedia 应用及构建脚本仍采用 AGPL-3.0-only，两平台分别提供精确对应的源码归档、依赖版权声明和重建脚本。系统字体不随包再分发。
 
-配置与许可依据：[FFmpeg 构建脚本](https://github.com/FFmpeg/FFmpeg/blob/n8.1.3/configure)、[FFmpeg 许可说明](https://ffmpeg.org/legal.html)、[libass 字体支持](https://github.com/libass/libass)、[HarfBuzz 配置](https://github.com/harfbuzz/harfbuzz/blob/14.5.1/meson.options)。
+配置与许可依据：[FFmpeg 构建脚本](https://github.com/FFmpeg/FFmpeg/blob/n9.0.2/configure)、[FFmpeg 许可说明](https://ffmpeg.org/legal.html)、[libass 字体支持](https://github.com/libass/libass)、[HarfBuzz 配置](https://github.com/harfbuzz/harfbuzz/blob/14.5.1/meson.options)。

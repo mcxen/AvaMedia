@@ -139,7 +139,11 @@ internal sealed class NotificationCenter
         && desktop.Windows.Contains(owner);
     public static Task ShowOwnerAsync(Window owner)
     {
-        if (Available(owner)) { if (owner is MainWindow main && !main.IsVisible) main.RestoreFromTray(); owner.Activate(); }
+        if (Available(owner))
+        {
+            if (!owner.IsVisible) { if (owner is MainWindow main) main.RestoreFromTray(); else owner.Show(); }
+            owner.Activate();
+        }
         return Task.CompletedTask;
     }
 }

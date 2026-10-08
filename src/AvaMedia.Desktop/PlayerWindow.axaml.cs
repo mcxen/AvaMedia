@@ -9,6 +9,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Player;
 
 namespace AvaMedia.Desktop;
 
@@ -43,9 +44,9 @@ public partial class PlayerWindow : Window
     public string PlaybackError { get; private set; } = "";
     public double SourcePosition => _position;
     public double PlaybackSpeed => _speed;
-    public bool CanOpenFiles => !_closed && !_deleting;
-    public bool IsPlaying => _player?.IsPlaying == true;
-    public bool IsPaused => _player?.IsPaused == true;
+    public bool CanOpenFiles => !_closed && !_deleting && !_nativeBusy;
+    public bool IsPlaying => _nativePlaying || _player?.IsPlaying == true;
+    public bool IsPaused => _nativeStarted && !_nativePlaying || _player?.IsPaused == true;
     public bool ConfirmDeletion { get; private set; }
     public double FirstFrameLatencyMs { get; private set; }
     public DateTimeOffset? FirstFrameUtc { get; private set; }
@@ -57,9 +58,11 @@ public partial class PlayerWindow : Window
     public PlayerWindow() : this(new MediaEngine(new())) { }
     public PlayerWindow(IMediaEngine engine, IEnumerable<string>? files = null, Func<IMediaEngine, string, IPlaybackSession>? factory = null, IVideoFolderScanner? folderScanner = null, IRecycleBin? recycleBin = null, Storage? preferences = null)
     {
-        InitializeComponent(); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p));
+        InitializeComponent(); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p) { MaximumVideoSize = new(4096, 2160) });
         _folderScanner = folderScanner ?? new VideoFolderScanner();
-        _recycleBin = recycleBin ?? new RecycleBin(); _preferences = preferences ?? new Storage(); ConfirmDeletion = _preferences.LoadSettings().ConfirmPlayerDeletion;
+        _recycleBin = recycleBin ?? new RecycleBin(); _preferences = preferences ?? new Storage();
+        var playerSettings = _preferences.LoadSettings(); ConfirmDeletion = playerSettings.ConfirmPlayerDeletion;
+        _preferNative = factory is null && playerSettings.PlayerNativeHighResolution; _nativeSdr = playerSettings.PlayerNativeSdr;
         Localization.Changed += LanguageChanged;
         SetFiles(files ?? []);
         PlayerSeek.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && !_updating && _info is not null) CommandReady = SeekAsync(PlayerSeek.Value); };
@@ -100,6 +103,7 @@ public partial class PlayerWindow : Window
             Localization.Changed -= LanguageChanged;
             _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel(); CancelFrameStep();
             _player?.Dispose(); VideoImage.Source = null; _still?.Dispose(); _firstFrame.TrySetCanceled();
+            _nativeCancellation?.Cancel();
             _load?.Dispose(); _seek?.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
         };
         RefreshTransport(); RefreshPlaylist(); ShowChrome();
@@ -120,7 +124,7 @@ public partial class PlayerWindow : Window
     }
     private Task StartOpen(string path, int video, int audio, double position, bool playing, bool allowDeleting = false)
     {
-        if (_closed || _deleting && !allowDeleting) return Task.CompletedTask;
+        if (_closed || _nativeBusy || _deleting && !allowDeleting) return Task.CompletedTask;
         _load?.Cancel(); _load?.Dispose(); _seek?.Cancel(); CancelFrameStep();
         _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _seekGeneration++; _pendingSeek = false;
@@ -129,7 +133,7 @@ public partial class PlayerWindow : Window
         if (index >= 0) _fileIndex = index; else SetFiles([path]);
         RefreshPlaylist();
         _firstFrame.TrySetCanceled(); _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        StartFolderLoad(Path.GetFullPath(path), _firstFrame.Task);
+        if (NativePlayerRunner.Detect(path) is null) StartFolderLoad(Path.GetFullPath(path), _firstFrame.Task);
         FirstFrameUtc = null; FirstFrameLatencyMs = 0; _opening.Restart();
         return Ready = OpenCore(Path.GetFullPath(path), revision, _load.Token, video, audio, position, playing);
     }
@@ -141,11 +145,14 @@ public partial class PlayerWindow : Window
             if (old is not null) { await old.Stop(); old.Dispose(); }
             if (!Current(revision)) return;
             CurrentPath = path; Title = Path.GetFileName(path) + " — " + AppIdentity.PlayerTitle; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
-            PlaybackError = ""; PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; VideoImage.Source = null; _still?.Dispose(); _still = null;
+            PlaybackError = ""; _nativeDiagnostics.Clear(); PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; VideoImage.Source = null; _still?.Dispose(); _still = null;
+            if (DetectDisc(path) is { } disc) { await PlayNativeAsync(path, disc, position, playing); return; }
             var info = await _engine.Probe(path, token, video, audio); token.ThrowIfCancellationRequested();
             if (!Current(revision)) return;
             if (info.Duration <= 0 || !info.HasVideo && !info.HasAudio) throw new InvalidDataException("该文件没有可播放的音视频轨。");
-            _info = info; var player = _factory(_engine, path); _player = player;
+            _info = info;
+            if (PreferNative(info)) { await PlayNativeAsync(path, position: position, playing: playing); return; }
+            var player = _factory(_engine, path); _player = player;
             _playIntent = playing;
             player.Configure(info); player.Speed = _speed; player.Volume = (float)(PlayerVolume.Value / 100); player.Muted = _muted;
             player.PresentationVisible = IsVisible && WindowState != WindowState.Minimized;
@@ -172,6 +179,8 @@ public partial class PlayerWindow : Window
             if (!Current(revision)) return;
             PlaybackError = ex.Message; PlayerStatus.Text = Localization.Format($"播放失败：{ex.Message}"); PlayerStatus.IsVisible = true;
             _firstFrame.TrySetException(ex); RefreshTransport();
+            Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "播放失败", ex.Message, Notifications.NotificationKind.Error,
+                [new("原生 GPU / HDR 播放…", () => PlayNativeAsync(path, NativePlayerRunner.Detect(path)), Primary: true, Enabled: () => !_closed && !_nativeBusy && NativePlayerRuntime.Supported)]));
         }
     }
     private void MarkFirstFrame()
@@ -209,7 +218,8 @@ public partial class PlayerWindow : Window
         PlayerPlayIcon.Kind = playing ? "pause" : "play";
         Avalonia.Automation.AutomationProperties.SetName(PlayerPlayButton, playing ? "暂停" : "播放");
         ToolTip.SetTip(PlayerPlayButton, playing ? "暂停（Space）" : "播放（Space）");
-        PlayerPlayButton.IsEnabled = PlayerStopButton.IsEnabled = PlayerSeek.IsEnabled = _info is not null && !_deleting;
+        PlayerPlayButton.IsEnabled = !_deleting && !_nativeBusy && (_info is not null || !string.IsNullOrEmpty(CurrentPath) && DetectDisc(CurrentPath) is not null);
+        PlayerStopButton.IsEnabled = PlayerSeek.IsEnabled = _info is not null && !_deleting && !_nativeBusy;
         PlayerMuteButton.IsEnabled = _info?.HasAudio == true;
         PreviousFileButton.IsEnabled = !_deleting && _fileIndex > 0;
         NextFileButton.IsEnabled = !_deleting && _fileIndex + 1 < _playlist.Length;
@@ -219,6 +229,8 @@ public partial class PlayerWindow : Window
     public async Task TogglePlaybackAsync()
     {
         if (_deleting) return;
+        if (_player is null && !_nativeBusy && !string.IsNullOrEmpty(CurrentPath))
+        { await StartOpen(CurrentPath, 0, 0, _info is not null && _position >= _info.Duration - .1 ? 0 : _position, true); return; }
         if (_player is not { } player || _info is not { } info) return;
         _seek?.Cancel(); CancelFrameStep(); _seekGeneration++; _pendingSeek = false;
         _playIntent = !_playIntent;
@@ -247,11 +259,9 @@ public partial class PlayerWindow : Window
             if (playing) await player.Play(position, info.HasVideo, info.Duration);
             else if (info.HasVideo)
             {
-                var data = await _engine.Thumbnail(CurrentPath, position, 1280, 720, token, pad: false, videoStreamIndex: info.VideoStreamIndex);
-                token.ThrowIfCancellationRequested(); if (!Current(revision)) return;
-                var frame = await Task.Run(() => { using var stream = new MemoryStream(data); return new Bitmap(stream); }, token);
-                if (token.IsCancellationRequested || !Current(revision)) { frame.Dispose(); token.ThrowIfCancellationRequested(); return; }
-                VideoImage.Source = frame; _still?.Dispose(); _still = frame; PlayerStatus.IsVisible = false;
+                await player.Play(position, true, info.Duration); player.Pause();
+                await player.FirstFrame.WaitAsync(token); token.ThrowIfCancellationRequested(); if (!Current(revision)) return;
+                VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); _still?.Dispose(); _still = null; PlayerStatus.IsVisible = false;
             }
             token.ThrowIfCancellationRequested(); _pendingSeek = false; RefreshTransport();
         }
@@ -389,7 +399,7 @@ public partial class PlayerWindow : Window
     public void OpenFiles(IEnumerable<string> files)
     {
         if (!CanOpenFiles) return;
-        var paths = files.Where(File.Exists).ToArray();
+        var paths = files.Where(path => File.Exists(path) || NativePlayerRunner.Detect(path) is not null).ToArray();
         if (paths.Length == 0) return;
         SetFiles(paths);
         Ready = OpenAsync(_playlist[0]);
@@ -466,6 +476,7 @@ public partial class PlayerWindow : Window
             Command(_playIntent ? "暂停" : "播放", PlayerCommand.TogglePlayback, new(Key.Space)), Command("停止", PlayerCommand.Stop, new(Key.F4)),
             Command("上一文件", PlayerCommand.PreviousFile, new(Key.PageUp)), Command("下一文件", PlayerCommand.NextFile, new(Key.PageDown)),
             new MenuItem { Header = "播放速度", ItemsSource = SpeedMenu().ItemsSource }, Command(_muted ? "取消静音" : "静音", PlayerCommand.Mute, new(Key.M))];
+        AddNativeMenu(items);
         if (_info is { } info)
         {
             using var json = JsonDocument.Parse(info.RawJson);

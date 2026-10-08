@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Player;
 using NAudio.Wave;
 
 namespace AvaMedia.Desktop;
@@ -21,6 +22,8 @@ internal sealed class Playback : IPlaybackSession
     private float _volume = 1;
     private int _videoStreamIndex, _audioStreamIndex, _startedProcesses;
     private double _frameRate = 25;
+    private PlaybackVideoProfile _videoProfile = new(new("", "", "", "", false), false, "");
+    private bool _tryHardware, _hardwareUnavailable;
     private volatile bool _presentationVisible = true;
 
     public WriteableBitmap Frame { get; private set; } = new(new PixelSize(2, 2), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
@@ -36,6 +39,7 @@ internal sealed class Playback : IPlaybackSession
     public int PeakAudioBufferBytes { get; private set; }
     public bool PresentationVisible { get => _presentationVisible; set => _presentationVisible = value; }
     public double Speed { get; set; } = 1;
+    public PixelSize MaximumVideoSize { get; set; } = new(1280, 720);
     public Task FirstFrame => _session?.FirstFrame.Task ?? Task.CompletedTask;
     public bool Muted { get => _muted; set { _muted = value; ApplyVolume(); } }
     public float Volume { get => _volume; set { _volume = Math.Clamp(value, 0, 1); ApplyVolume(); } }
@@ -47,13 +51,15 @@ internal sealed class Playback : IPlaybackSession
     public void Configure(MediaInfo info)
     {
         _hasAudio = info.HasAudio;
-        _frameRate = info.FrameRate > 0 ? Math.Min(60, info.FrameRate) : 25;
+        _frameRate = info.FrameRate > 0 ? Math.Min(240, info.FrameRate) : 25;
+        _videoProfile = PlaybackVideoProfile.Inspect(info);
+        _tryHardware = _engine is MediaEngine engine && engine.Settings.AutoDetectGpu && info.VideoCodec is "h264" or "hevc" or "av1" or "vp9";
         SetStreams(info.VideoStreamIndex, info.AudioStreamIndex);
         if (info.HasVideo) SetVideoSize(info.Width, info.Height);
     }
     public void SetVideoSize(int width, int height)
     {
-        var scale = Math.Min(1, Math.Min(1280d / Math.Max(1, width), 720d / Math.Max(1, height)));
+        var scale = Math.Min(1, Math.Min((double)MaximumVideoSize.Width / Math.Max(1, width), (double)MaximumVideoSize.Height / Math.Max(1, height)));
         var size = new PixelSize(Math.Max(2, (int)(width * scale) / 2 * 2), Math.Max(2, (int)(height * scale) / 2 * 2));
         if (Frame.PixelSize == size) return;
         var old = Frame;
@@ -104,55 +110,63 @@ internal sealed class Playback : IPlaybackSession
             if (video)
             {
                 var fps = _frameRate;
-                using var process = Start(executable, ["-v", "error", "-nostdin", "-threads", "2", "-ss", MediaEngine.Number(session.Start), "-i", _path,
-                    "-map", $"0:v:{videoIndex}", "-an", "-sn", "-filter_threads", "1", "-vf", $"fps={MediaEngine.Number(fps)}:start_time=0,scale={size.Width}:{size.Height}",
-                    "-pix_fmt", "bgra", "-t", MediaEngine.Number(session.End - session.Start), "-threads", "1", "-f", "rawvideo", "pipe:1"]);
-                using var registration = token.Register(() => Kill(process));
-                var errors = process.StandardError.ReadToEndAsync();
-                var frameBytes = size.Width * size.Height * 4;
-                var data = _frameBuffer is { } cached && cached.Length == frameBytes
-                    ? cached : GC.AllocateUninitializedArray<byte>(frameBytes);
-                _frameBuffer = null;
-                var index = 0L;
-                try
+                var hardware = _tryHardware && !_hardwareUnavailable && (OperatingSystem.IsMacOS() || OperatingSystem.IsWindows());
+                for (var attempt = 0; attempt < (hardware ? 2 : 1); attempt++)
                 {
-                    while (await ReadBlock(process.StandardOutput.BaseStream, data.AsMemory(0, frameBytes), token) == frameBytes)
+                    var arguments = new List<string> { "-v", "error", "-nostdin", "-threads", "0", "-ss", MediaEngine.Number(session.Start), "-i", _path,
+                        "-map", $"0:v:{videoIndex}", "-an", "-sn", "-filter_threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 4).ToString(), "-vf", _videoProfile.Filters(size.Width, size.Height, fps),
+                        "-pix_fmt", "bgra", "-t", MediaEngine.Number(session.End - session.Start), "-threads", "1", "-f", "rawvideo", "pipe:1" };
+                    if (hardware && attempt == 0) arguments.InsertRange(arguments.IndexOf("-i"), ["-hwaccel", OperatingSystem.IsMacOS() ? "videotoolbox" : "d3d11va"]);
+                    using var process = Start(executable, arguments.ToArray());
+                    using var registration = token.Register(() => Kill(process));
+                    var errors = process.StandardError.ReadToEndAsync();
+                    var frameBytes = size.Width * size.Height * 4;
+                    var data = _frameBuffer is { } cached && cached.Length == frameBytes
+                        ? cached : GC.AllocateUninitializedArray<byte>(frameBytes);
+                    _frameBuffer = null;
+                    var index = 0L;
+                    try
                     {
-                        var position = session.Start + index++ / fps;
-                        if (position >= session.End) break;
-                        if (index == 1)
-                            try { await session.AudioReady.Task.WaitAsync(TimeSpan.FromMilliseconds(250), token); } catch (TimeoutException) { }
-                        if (index > 1) await WaitPosition(session, position, token);
-                        // Drop late frames instead of stretching playback when decoding cannot keep up.
-                        if (index > 1 && session.Position - position > .12 * session.Speed) continue;
-                        if (index > 1 && !PresentationVisible) continue;
-                        var shown = false;
-                        while (!shown)
+                        while (await ReadBlock(process.StandardOutput.BaseStream, data.AsMemory(0, frameBytes), token) == frameBytes)
                         {
-                            if (index > 1) await session.WaitRunning(token);
-                            shown = await Dispatcher.UIThread.InvokeAsync(() =>
+                            var position = session.Start + index++ / fps;
+                            if (position >= session.End) break;
+                            if (index == 1)
+                                try { await session.AudioReady.Task.WaitAsync(TimeSpan.FromMilliseconds(120), token); } catch (TimeoutException) { }
+                            if (index > 1) await WaitPosition(session, position, token);
+                            // Drop late frames instead of stretching playback when decoding cannot keep up.
+                            if (index > 1 && session.Position - position > .12 * session.Speed) continue;
+                            if (index > 1 && !PresentationVisible) continue;
+                            var shown = false;
+                            while (!shown)
                             {
-                                if (!Current(session)) return true;
-                                if (index > 1 && !PresentationVisible) return true;
-                                if (session.Paused && index > 1) return false;
-                                session.StartClock();
-                                using (var buffer = Frame.Lock())
+                                if (index > 1) await session.WaitRunning(token);
+                                shown = await Dispatcher.UIThread.InvokeAsync(() =>
                                 {
-                                    var stride = size.Width * 4;
-                                    if (buffer.RowBytes == stride) Marshal.Copy(data, 0, buffer.Address, frameBytes);
-                                    else for (var row = 0; row < size.Height; row++) Marshal.Copy(data, row * stride, buffer.Address + row * buffer.RowBytes, stride);
-                                }
-                                DecodedFrames++; Updated?.Invoke(position); session.FirstFrame.TrySetResult();
-                                return true;
-                            });
+                                    if (!Current(session)) return true;
+                                    if (index > 1 && !PresentationVisible) return true;
+                                    if (session.Paused && index > 1) return false;
+                                    session.StartClock();
+                                    using (var buffer = Frame.Lock())
+                                    {
+                                        var stride = size.Width * 4;
+                                        if (buffer.RowBytes == stride) Marshal.Copy(data, 0, buffer.Address, frameBytes);
+                                        else for (var row = 0; row < size.Height; row++) Marshal.Copy(data, row * stride, buffer.Address + row * buffer.RowBytes, stride);
+                                    }
+                                    DecodedFrames++; Updated?.Invoke(position); session.FirstFrame.TrySetResult();
+                                    return true;
+                                });
+                            }
                         }
                     }
+                    finally { if (!_disposed) _frameBuffer = data; }
+                    await process.WaitForExitAsync(token);
+                    var error = await errors;
+                    if (process.ExitCode != 0 && index == 0 && hardware && attempt == 0) { _hardwareUnavailable = true; continue; }
+                    if (process.ExitCode != 0) throw new IOException(error);
+                    if (!session.Started) throw new InvalidDataException("视频轨没有可播放的画面。");
+                    break;
                 }
-                finally { if (!_disposed) _frameBuffer = data; }
-                await process.WaitForExitAsync(token);
-                var error = await errors;
-                if (process.ExitCode != 0) throw new IOException(error);
-                if (!session.Started) throw new InvalidDataException("视频轨没有可播放的画面。");
             }
             else
             {

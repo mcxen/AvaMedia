@@ -207,6 +207,8 @@ public sealed class AppSettings
     public string Theme { get; set; } = "Light";
     public string Language { get; set; } = "system";
     public bool ConfirmPlayerDeletion { get; set; }
+    public bool PlayerNativeHighResolution { get; set; } = true;
+    public bool PlayerNativeSdr { get; set; }
     public bool AutoDetectGpu { get; set; } = true;
     public int CpuThreads { get; set; } = 8;
     public int JpegQuality { get; set; } = 90;
@@ -223,6 +225,7 @@ public sealed class AppSettings
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
+        PlayerNativeHighResolution=source.PlayerNativeHighResolution;PlayerNativeSdr=source.PlayerNativeSdr;
         CpuThreads=source.CpuThreads;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
     }
 }
