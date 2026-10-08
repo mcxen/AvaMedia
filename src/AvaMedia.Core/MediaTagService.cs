@@ -26,13 +26,14 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
     private const int Size = 448;
     private readonly ModelStore _store = modelStore ?? new();
     public static bool Supports(string path) => new MediaFileRouter().Classify(path) is MediaFileKind.Image or MediaFileKind.Video;
-    private static readonly Dictionary<string, string[]> Aliases = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string[]> Aliases = CreateAliases();
+    private static Dictionary<string, string[]> CreateAliases()
     {
-        ["黑发"] = ["black_hair"], ["长发"] = ["long_hair"], ["黑长发"] = ["black_hair", "long_hair"],
-        ["短发"] = ["short_hair"], ["棕发"] = ["brown_hair"], ["金发"] = ["blonde_hair"],
-        ["大胸"] = ["large_breasts"], ["巨乳"] = ["huge_breasts"], ["阴毛"] = ["pubic_hair"],
-        ["阴毛可见"] = ["pubic_hair"], ["毛逼"] = ["pubic_hair"], ["裸露"] = ["nude"], ["眼镜"] = ["glasses"]
-    };
+        var aliases = WordLibraryCatalog.BuiltIns.Single(library => library.Id == "common").Entries.Where(entry => entry.Tags.Length > 0)
+            .ToDictionary(entry => entry.Label, entry => entry.Tags, StringComparer.OrdinalIgnoreCase);
+        aliases["阴毛可见"] = ["pubic_hair"]; aliases["毛逼"] = ["pubic_hair"];
+        return aliases;
+    }
 
     // JoyTag has a fixed vocabulary. Compound expressions require every tag; separate lines are alternatives.
     public static MediaTagQuery[] ParseQueries(string text, IEnumerable<string> vocabulary)

@@ -17,7 +17,7 @@ public sealed class WordLibraryWindow : Window
     private readonly WordLibraryStore _store = new();
     private readonly WordLibraryTarget? _target;
     private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly ComboBox _category = new() { MinWidth = 140 };
+    private readonly ComboBox _category = new() { MinWidth = 160, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBox _search = new() { Watermark = "搜索名称、描述或标签", HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly CheckBox _selectedOnly = new() { Content = "仅已选" };
     private readonly ListBox _list = new();
@@ -28,6 +28,11 @@ public sealed class WordLibraryWindow : Window
     private WordRow[] _rows = [];
     private bool _updating;
     public bool Applied { get; private set; }
+
+    private sealed record CategoryChoice(string Value, int Count)
+    {
+        public override string ToString() => Localization.Text(Value.Length == 0 ? "全部类别" : Value) + " · " + Count;
+    }
 
     private sealed class WordRow : Observable
     {
@@ -52,7 +57,7 @@ public sealed class WordLibraryWindow : Window
         tools.Children.Add(Ui.Button("导入…", async () => await ImportAsync()));
         tools.Children.Add(Ui.Button("导出…", async () => await ExportAsync()));
         tools.Children.Add(Ui.Button("删除词库", async () => await DeleteAsync())); root.Children.Add(tools);
-        var filters = new Grid { ColumnDefinitions = new("230,150,*,Auto"), ColumnSpacing = 8 };
+        var filters = new Grid { ColumnDefinitions = new("230,180,*,Auto"), ColumnSpacing = 8 };
         filters.Children.Add(_libraries); Grid.SetColumn(_category, 1); filters.Children.Add(_category);
         Grid.SetColumn(_search, 2); filters.Children.Add(_search); Grid.SetColumn(_selectedOnly, 3); filters.Children.Add(_selectedOnly);
         _selectedOnly.IsVisible = target is not null; Grid.SetRow(filters, 1); root.Children.Add(filters);
@@ -75,6 +80,7 @@ public sealed class WordLibraryWindow : Window
             var check = new CheckBox { IsEnabled = row.Supported, IsVisible = target is not null };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(WordRow.Selected)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);
             var label = new TextBlock { Text = row.Entry.Label, TextTrimming = TextTrimming.CharacterEllipsis };
+            ToolTip.SetTip(label, row.Entry.Label);
             Localization.SetIsUserText(label, true); Grid.SetColumn(label, 1); grid.Children.Add(label);
             var description = new TextBlock { Text = row.Entry.Category + " · " + row.Entry.Description
                 + (row.Entry.Tags.Length > 0 ? " · " + string.Join('+', row.Entry.Tags) : " · 语义匹配"),
@@ -103,12 +109,15 @@ public sealed class WordLibraryWindow : Window
         _libraries.SelectionChanged += (_, _) => RefreshRows();
         _category.SelectionChanged += (_, _) => Filter();
         _search.TextChanged += (_, _) => Filter(); _selectedOnly.IsCheckedChanged += (_, _) => Filter();
+        Localization.Changed += WordLanguageChanged;
+        Closed += (_, _) => Localization.Changed -= WordLanguageChanged;
         Opened += async (_, _) =>
         {
             try { if (target is not null) _selected.UnionWith(_store.Selection(target.Value)); Reload(); }
             catch (Exception error) { await Ui.Message(this, "词库读取失败", error.Message); }
         };
     }
+    private void WordLanguageChanged(object? sender, EventArgs args) => RefreshRows();
     private void Reload(string? id = null)
     {
         id ??= (_libraries.SelectedItem as WordLibrary)?.Id;
@@ -121,6 +130,7 @@ public sealed class WordLibraryWindow : Window
         _updating = true;
         try
         {
+            var previousCategory = (_category.SelectedItem as CategoryChoice)?.Value;
             _rows = library.Entries.Select(entry => new WordRow { Entry = entry, Key = new(library.Id, entry.Label),
                 Supported = _target is null || entry.Supports(_target.Value), Selected = _selected.Contains(new(library.Id, entry.Label)) }).ToArray();
             foreach (var row in _rows) row.PropertyChanged += (_, change) =>
@@ -129,16 +139,18 @@ public sealed class WordLibraryWindow : Window
                 if (row.Selected && row.Supported) _selected.Add(row.Key); else _selected.Remove(row.Key);
                 if (_selectedOnly.IsChecked == true) Filter(); else UpdateCount();
             };
-            _category.ItemsSource = new[] { "全部类别" }.Concat(library.Entries.Select(entry => entry.Category).Distinct()).ToArray();
-            _category.SelectedIndex = 0; _source.Text = library.Source;
+            var choices = new[] { new CategoryChoice("", library.Entries.Length) }
+                .Concat(library.Entries.GroupBy(entry => entry.Category).Select(group => new CategoryChoice(group.Key, group.Count()))).ToArray();
+            _category.ItemsSource = choices;
+            _category.SelectedItem = choices.FirstOrDefault(choice => choice.Value == previousCategory) ?? choices[0]; _source.Text = library.Source;
         }
         finally { _updating = false; }
         Filter();
     }
     private WordRow[] VisibleRows()
     {
-        var category = _category.SelectedItem as string; var search = _search.Text?.Trim() ?? "";
-        return _rows.Where(row => (category is null or "全部类别" || row.Entry.Category == category)
+        var category = (_category.SelectedItem as CategoryChoice)?.Value; var search = _search.Text?.Trim() ?? "";
+        return _rows.Where(row => (string.IsNullOrEmpty(category) || row.Entry.Category == category)
             && (_selectedOnly.IsChecked != true || row.Selected)
             && (search.Length == 0 || row.Entry.Label.Contains(search, StringComparison.OrdinalIgnoreCase)
                 || row.Entry.Description.Contains(search, StringComparison.OrdinalIgnoreCase)

@@ -14,13 +14,22 @@ public sealed record WordLibrary(string Id, string Name, string Source, WordCand
 }
 public sealed record SelectedWord(string LibraryId, string Label);
 
-public static class WordLibraryCatalog
+public static partial class WordLibraryCatalog
 {
     public const int MaximumCandidates = 20000;
-    public static readonly HashSet<string> JoyTags = ReadText("joytag.txt").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    public static readonly WordLibrary[] BuiltIns = new WordLibrary[]
+    public static readonly HashSet<string> JoyTags;
+    public static readonly WordLibrary[] BuiltIns;
+    private static readonly WordCandidate[] FeatureEntries;
+    private static readonly Dictionary<string, string> TagCategories;
+
+    static WordLibraryCatalog()
     {
+        JoyTags = ReadText("joytag.txt").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        FeatureEntries = ReadFeatureWords();
+        TagCategories = CreateTagCategories();
+        BuiltIns = new WordLibrary[]
+        {
+        new("person-features", "人物特征", "AvaMedia · 头发、身体、乳房、眼睛与面部特征", FeatureEntries),
         new("common", "常用分类", "AvaMedia · 中文名称与模型标签映射", Common()),
         new("ratings", "内容分级候选", "AvaMedia · 语义描述，需人工确认", [
             new("非NSFW", "内容分级", "An ordinary safe-for-work scene, fully clothed people, everyday objects or nature, suitable for a general audience.", []),
@@ -28,8 +37,9 @@ public static class WordLibraryCatalog
         new("open-images", "Open Images · 通用物体", "Google LLC · CC BY 4.0 · Open Images V7",
             JsonSerializer.Deserialize<WordCandidate[]>(ReadText("open-images.json"))!),
         new("joytag", "JoyTag · 完整标签", "fpgaminer / fancyfeast · Apache-2.0 · 5813 tags",
-            JoyTags.Order(StringComparer.Ordinal).Select(tag => new WordCandidate(RenameLabel(tag), "完整标签", "A photo of " + tag.Replace('_', ' ') + ".", [tag])).ToArray())
-    }.Select(library => library with { BuiltIn = true }).ToArray();
+            JoyTags.Order(StringComparer.Ordinal).Select(tag => new WordCandidate(RenameLabel(tag), TagCategory(tag), "A photo of " + tag.Replace('_', ' ') + ".", [tag])).ToArray())
+        }.Select(library => library with { BuiltIn = true }).ToArray();
+    }
 
     private static string RenameLabel(string tag)
     {
@@ -79,14 +89,7 @@ public static class WordLibraryCatalog
 景色	瀑布	waterfall
 景色	城市	city
 景色	夜景	night
-人物外观	黑发	black_hair
-人物外观	长发	long_hair
-人物外观	黑长发	black_hair+long_hair
-人物外观	短发	short_hair
-人物外观	金发	blonde_hair
-人物外观	棕发	brown_hair
-人物外观	眼镜	glasses
-人物外观	帽子	hat
+配饰	帽子	hat
 服饰	裙子	skirt
 服饰	连衣裙	dress
 服饰	衬衫	shirt
@@ -110,11 +113,6 @@ public static class WordLibraryCatalog
 物体	建筑	building
 物体	室内	indoors
 物体	室外	outdoors
-成人标签	裸露	nude
-成人标签	大胸	large_breasts
-成人标签	巨乳	huge_breasts
-成人标签	阴毛	pubic_hair
-成人标签	乳头	nipples
 成人标签	生殖器	genitals
 """;
         return text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
@@ -122,7 +120,7 @@ public static class WordLibraryCatalog
             var fields = line.Split('\t'); var tags = fields[2].Split('+');
             return new WordCandidate(fields[1], fields[0], "A photo showing " + string.Join(" and ", tags.Select(tag => tag.Replace('_', ' '))) + ".",
                 tags.All(JoyTags.Contains) ? tags : []);
-        }).ToArray();
+        }).Concat(FeatureEntries).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public static WordCandidate[] ParseText(string text)

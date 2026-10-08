@@ -227,8 +227,9 @@ public sealed partial class MediaAiWindow : Window
         entry.Status = $"{result.Backend} · {result.InferredFrames}/{result.SampledFrames}";
         if (result.FallbackReason is { } reason) entry.Status += " · " + Localization.Text("已回退 CPU") + ": " + reason;
         var threshold = Number(_threshold);
-        entry.Details = string.Join(" · ", result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
-            .Select(score => $"{score.Tag} {score.Score:0.00}"));
+        entry.Details = string.Join(Environment.NewLine, result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
+            .GroupBy(score => WordLibraryCatalog.TagCategory(score.Tag))
+            .Select(group => Localization.Text(group.Key) + " · " + string.Join(" · ", group.Select(score => $"{score.Tag} {score.Score:0.00}"))));
     }
     private void Match()
     {

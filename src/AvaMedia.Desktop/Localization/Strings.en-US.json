@@ -2089,5 +2089,14 @@
   "文件名过长，请缩短名称。": "The filename is too long. Shorten the name.",
   "图片 / 视频 · 组合规则与名称预览": "Images / Videos · Ordered rules and filename preview",
   "{0} 个文件 · 图片 {1} · 视频 {2} · 勾选 {3} 个": "{0} files · {1} images · {2} videos · {3} checked",
-  "将修改 {0} 个 · 错误 {1} 个": "{0} changes · {1} errors"
+  "将修改 {0} 个 · 错误 {1} 个": "{0} changes · {1} errors",
+  "人物特征": "Personal features",
+  "头发特征": "Hair features",
+  "身体特征": "Body features",
+  "乳房特征": "Breast features",
+  "眼睛特征": "Eye features",
+  "面部特征": "Facial features",
+  "配饰": "Accessories",
+  "其他标签": "Other tags",
+  "全部类别": "All categories"
 }
