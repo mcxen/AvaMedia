@@ -60,7 +60,7 @@ END
     if ($LASTEXITCODE -ne 0) { throw 'Windows bootstrap resources failed.' }
     Push-Location $temporary
     try {
-        & cl.exe /nologo /std:c11 /utf-8 /O2 /MT /W4 /WX /wd4191 /D_CRT_SECURE_NO_WARNINGS (Join-Path $source 'Windows.c') (Join-Path $source 'Host.c') $res "/Fe$(Join-Path $output 'AvaMedia.Desktop.exe')" /link /SUBSYSTEM:WINDOWS /MANIFEST:NO user32.lib shell32.lib advapi32.lib comctl32.lib ole32.lib
+        & cl.exe /nologo /std:c11 /utf-8 /O2 /MT /W4 /WX /wd4191 /D_CRT_SECURE_NO_WARNINGS (Join-Path $source 'Windows.c') (Join-Path $source 'Host.c') $res "/Fe$(Join-Path $output 'AvaMedia.Desktop.exe')" /link /SUBSYSTEM:WINDOWS /MANIFEST:NO user32.lib gdi32.lib shell32.lib shlwapi.lib advapi32.lib comctl32.lib ole32.lib
         if ($LASTEXITCODE -ne 0) { throw 'Windows bootstrap compilation failed.' }
     } finally { Pop-Location }
     Remove-Item -LiteralPath $temporary -Recurse -Force

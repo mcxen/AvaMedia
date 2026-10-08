@@ -11,6 +11,7 @@ internal static class Program
         AppDiagnostics.Initialize();
         if (args.Contains("--register-player")) { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         if (args.Contains("--unregister-player")) { SystemPlayerIntegration.UnregisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
+        if (!args.Contains("--capture")) FirstRunSetup.ApplyPending();
         if (OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe")) && !args.Contains("--capture"))
         {
             try { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); }

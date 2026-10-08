@@ -4,6 +4,7 @@
 #include <sys/file.h>
 #include <unistd.h>
 #include "Host.h"
+#include "SetupMac.h"
 
 static NSString *applicationPath, *applicationBase, *runtimeConfig, *runtimeBase;
 static NSString *recordedRuntime(void) {
@@ -42,6 +43,24 @@ static NSError *failure(NSString *message) {
 @property NSTextField *status;
 @property NSProgressIndicator *progress;
 @property NSButton *button;
+@property NSButton *nextButton;
+@property NSButton *backButton;
+@property NSButton *exitButton;
+@property NSTextField *heading;
+@property NSTextField *runtimePath;
+@property NSTextField *output;
+@property NSPopUpButton *language;
+@property NSButton *source;
+@property NSButton *notify;
+@property NSButton *motion;
+@property NSButton *updates;
+@property NSButton *gpu;
+@property NSMutableArray<NSMutableArray<NSView *> *> *pages;
+@property NSMutableArray<NSTextField *> *steps;
+@property NSMutableArray<SetupSkinView *> *skins;
+@property NSInteger step;
+@property NSInteger skin;
+@property BOOL busy;
 @property NSMutableArray<NSString *> *files;
 @property NSString *runtime;
 @end
@@ -57,26 +76,146 @@ static NSError *failure(NSString *message) {
 }
 - (BOOL)windowShouldClose:(NSWindow *)sender {
     (void)sender;
+    if (self.busy) return NO;
     [NSApp stopModalWithCode:NSModalResponseCancel];
     return YES;
 }
+- (NSTextField *)label:(NSString *)text frame:(NSRect)frame page:(NSInteger)page {
+    NSTextField *label = [NSTextField wrappingLabelWithString:text]; label.frame = frame;
+    [self.window.contentView addSubview:label];
+    if (page >= 0) [self.pages[page] addObject:label];
+    return label;
+}
+- (NSButton *)action:(NSString *)title frame:(NSRect)frame selector:(SEL)selector page:(NSInteger)page {
+    NSButton *button = [NSButton buttonWithTitle:title target:self action:selector]; button.frame = frame;
+    [self.window.contentView addSubview:button];
+    if (page >= 0) [self.pages[page] addObject:button];
+    return button;
+}
+- (NSButton *)check:(NSString *)title y:(CGFloat)y checked:(BOOL)checked {
+    NSButton *button = [NSButton checkboxWithTitle:title target:nil action:nil];
+    button.frame = NSMakeRect(220, y, 536, 26); button.state = checked ? NSControlStateValueOn : NSControlStateValueOff;
+    [self.window.contentView addSubview:button]; [self.pages[2] addObject:button]; return button;
+}
+- (void)refresh {
+    NSArray *names = @[@"运行环境", @"界面风格", @"使用偏好"];
+    NSArray *headings = @[@"准备运行环境", @"选择界面风格", @"设置使用偏好"];
+    self.heading.stringValue = headings[self.step];
+    for (NSInteger page = 0; page < 3; page++) {
+        for (NSView *view in self.pages[page]) view.hidden = page != self.step;
+        self.steps[page].stringValue = [NSString stringWithFormat:@"%@ %ld  %@", page == self.step ? @"●" : @"○", (long)page + 1, names[page]];
+        self.steps[page].textColor = page == self.step ? NSColor.controlAccentColor : NSColor.secondaryLabelColor;
+    }
+    self.progress.hidden = self.step != 0 || !self.busy;
+    self.nextButton.title = self.step == 2 ? @"完成并进入软件" : @"下一步";
+    self.nextButton.enabled = !self.busy && (self.step != 0 || self.runtime != nil);
+    self.backButton.enabled = !self.busy && self.step > 0;
+    self.exitButton.enabled = !self.busy;
+    self.button.enabled = !self.busy && !self.runtime;
+    [self.window standardWindowButton:NSWindowCloseButton].enabled = !self.busy;
+}
 - (void)show {
-    self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 440, 210)
-        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:NO];
-    self.window.title = @"天池万象转换"; self.window.delegate = self;
-    NSTextField *heading = [NSTextField labelWithString:@"需要安装 .NET 8 运行时"];
-    heading.font = [NSFont boldSystemFontOfSize:18]; heading.frame = NSMakeRect(24, 154, 392, 26);
-    [self.window.contentView addSubview:heading];
-    self.status = [NSTextField wrappingLabelWithString:@"安装完成后自动进入软件，无需管理员权限。"];
-    self.status.frame = NSMakeRect(24, 78, 392, 64); self.status.textColor = NSColor.secondaryLabelColor;
-    [self.window.contentView addSubview:self.status];
-    self.progress = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(24, 63, 392, 8)];
-    self.progress.style = NSProgressIndicatorStyleBar; self.progress.indeterminate = YES; self.progress.hidden = YES;
-    [self.window.contentView addSubview:self.progress];
-    self.button = [NSButton buttonWithTitle:@"安装运行时" target:self action:@selector(install:)];
-    self.button.frame = NSMakeRect(296, 20, 120, 32); self.button.keyEquivalent = @"\r";
-    [self.window.contentView addSubview:self.button];
-    [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
+    self.pages = [NSMutableArray arrayWithArray:@[[NSMutableArray array], [NSMutableArray array], [NSMutableArray array]]];
+    self.steps = [NSMutableArray array]; self.skins = [NSMutableArray array];
+    self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 800, 560)
+        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable backing:NSBackingStoreBuffered defer:NO];
+    self.window.title = @"天池万象转换 · 首次使用配置"; self.window.delegate = self;
+    [self label:@"天池万象转换" frame:NSMakeRect(24, 488, 180, 26) page:-1].font = [NSFont boldSystemFontOfSize:15];
+    [self label:@"首次使用配置" frame:NSMakeRect(24, 455, 180, 26) page:-1].textColor = NSColor.secondaryLabelColor;
+    for (int i = 0; i < 3; i++) [self.steps addObject:[self label:@"" frame:NSMakeRect(24, 380 - i * 52, 180, 30) page:-1]];
+    self.heading = [self label:@"" frame:NSMakeRect(220, 488, 536, 38) page:-1]; self.heading.font = [NSFont boldSystemFontOfSize:23];
+    self.backButton = [self action:@"上一步" frame:NSMakeRect(220, 20, 98, 34) selector:@selector(back:) page:-1];
+    self.exitButton = [self action:@"退出" frame:NSMakeRect(24, 20, 90, 34) selector:@selector(exit:) page:-1];
+    self.nextButton = [self action:@"下一步" frame:NSMakeRect(568, 20, 188, 34) selector:@selector(next:) page:-1];
+    self.nextButton.keyEquivalent = @"\r"; self.exitButton.keyEquivalent = @"\e";
+    [self label:@".NET 8 + ASP.NET Core 8" frame:NSMakeRect(220, 418, 536, 28) page:0].font = [NSFont boldSystemFontOfSize:15];
+    self.status = [self label:self.runtime ? @"✓ 运行环境已就绪" : @"需要安装运行时" frame:NSMakeRect(220, 326, 536, 66) page:0];
+    self.runtimePath = [self label:self.runtime ?: runtimeBase frame:NSMakeRect(220, 258, 536, 60) page:0];
+    self.runtimePath.textColor = NSColor.secondaryLabelColor;
+    self.button = [self action:self.runtime ? @"已安装" : @"安装运行时" frame:NSMakeRect(220, 208, 144, 34) selector:@selector(install:) page:0];
+    self.progress = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(220, 182, 536, 8)];
+    self.progress.style = NSProgressIndicatorStyleBar; self.progress.indeterminate = YES;
+    [self.window.contentView addSubview:self.progress]; [self.pages[0] addObject:self.progress];
+    [self label:@"安装到当前用户，无需管理员权限。" frame:NSMakeRect(220, 134, 536, 26) page:0].textColor = NSColor.secondaryLabelColor;
+    NSArray *tools = @[@"ffmpeg", @"ffprobe", @"yt-dlp"];
+    for (NSInteger i = 0; i < 3; i++) {
+        NSString *path = [[applicationBase stringByAppendingPathComponent:@"tools"] stringByAppendingPathComponent:tools[i]];
+        NSString *text = [NSString stringWithFormat:@"%@ · %@", tools[i], [NSFileManager.defaultManager isExecutableFileAtPath:path] ? @"内置" : @"缺失"];
+        [self label:text frame:NSMakeRect(220 + i * 180, 88, 174, 26) page:0];
+    }
+    [self label:@"内置工具缺失时，请重新安装完整版本。" frame:NSMakeRect(220, 60, 536, 24) page:0].textColor = NSColor.secondaryLabelColor;
+    [self label:@"选择下方预览，进入软件后应用该皮肤。" frame:NSMakeRect(220, 448, 536, 28) page:1].textColor = NSColor.secondaryLabelColor;
+    NSArray *skinNames = @[@"浅色", @"深色", @"Mac OS 9", @"Windows XP"];
+    for (NSInteger i = 0; i < AM_SETUP_SKIN_COUNT; i++) {
+        SetupSkinView *view = [[SetupSkinView alloc] initWithFrame:NSMakeRect(220 + (i % 2) * 274, 268 - (i / 2) * 178, 262, 164)];
+        view.skinIndex = i; view.chosen = i == self.skin; view.title = skinNames[i];
+        view.target = self; view.action = @selector(selectSkin:); view.bordered = NO;
+        view.accessibilityLabel = skinNames[i];
+        view.accessibilityValue = view.chosen ? @"已选择" : @"";
+        [self.window.contentView addSubview:view]; [self.pages[1] addObject:view]; [self.skins addObject:view];
+    }
+    [self label:@"默认输出目录" frame:NSMakeRect(220, 435, 536, 26) page:2];
+    self.output = [[NSTextField alloc] initWithFrame:NSMakeRect(220, 398, 416, 28)];
+    self.output.stringValue = [NSHomeDirectory() stringByAppendingPathComponent:@"Movies/AvaMedia"];
+    [self.window.contentView addSubview:self.output]; [self.pages[2] addObject:self.output];
+    [self action:@"选择…" frame:NSMakeRect(648, 395, 108, 34) selector:@selector(pickFolder:) page:2];
+    self.source = [self check:@"优先输出到源文件目录" y:352 checked:NO];
+    [self label:@"软件语言" frame:NSMakeRect(220, 300, 130, 26) page:2];
+    self.language = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(360, 298, 260, 30) pullsDown:NO];
+    [self.language addItemsWithTitles:@[@"跟随系统", @"简体中文", @"English"]];
+    [self.window.contentView addSubview:self.language]; [self.pages[2] addObject:self.language];
+    self.notify = [self check:@"任务完成通知" y:252 checked:YES];
+    self.gpu = [self check:@"自动检测 GPU 加速" y:212 checked:YES];
+    self.updates = [self check:@"启动时检查更新" y:172 checked:YES];
+    self.motion = [self check:@"减少界面动画" y:132 checked:NO];
+    [self label:@"这些选项也可以在软件设置中调整。" frame:NSMakeRect(220, 82, 536, 26) page:2].textColor = NSColor.secondaryLabelColor;
+    [self refresh]; [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
+}
+- (void)back:(id)sender { (void)sender; if (!self.busy && self.step > 0) { self.step--; [self refresh]; } }
+- (void)exit:(id)sender { (void)sender; if (!self.busy) [NSApp stopModalWithCode:NSModalResponseCancel]; }
+- (void)selectSkin:(SetupSkinView *)sender {
+    self.skin = sender.skinIndex;
+    for (SetupSkinView *view in self.skins) {
+        view.chosen = view.skinIndex == self.skin; view.needsDisplay = YES;
+        view.accessibilityValue = view.chosen ? @"已选择" : @"";
+    }
+}
+- (void)pickFolder:(id)sender {
+    (void)sender;
+    NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseDirectories = YES; panel.canChooseFiles = NO;
+    panel.canCreateDirectories = YES; panel.allowsMultipleSelection = NO; panel.prompt = @"选择";
+    panel.directoryURL = [NSURL fileURLWithPath:self.output.stringValue];
+    [panel beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
+        if (response == NSModalResponseOK) self.output.stringValue = panel.URL.path;
+    }];
+}
+- (BOOL)saveChoices:(NSError **)error {
+    NSString *output = self.output.stringValue;
+    if (!output.isAbsolutePath) { *error = failure(@"请选择有效的输出目录。"); return NO; }
+    NSFileManager *manager = NSFileManager.defaultManager;
+    if (![manager createDirectoryAtPath:output withIntermediateDirectories:YES attributes:nil error:error]) return NO;
+    NSString *folder = runtimeBase.stringByDeletingLastPathComponent;
+    if (![manager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:error]) return NO;
+    NSDictionary *choices = @{@"Theme":[NSString stringWithUTF8String:am_setup_skins[self.skin].key],
+        @"Language":@[@"system", @"zh-CN", @"en-US"][self.language.indexOfSelectedItem], @"OutputFolder":output,
+        @"OutputToSource":@(self.source.state == NSControlStateValueOn), @"NotifyComplete":@(self.notify.state == NSControlStateValueOn),
+        @"ReduceMotion":@(self.motion.state == NSControlStateValueOn), @"CheckForUpdates":@(self.updates.state == NSControlStateValueOn),
+        @"AutoDetectGpu":@(self.gpu.state == NSControlStateValueOn)};
+    NSData *data = [NSJSONSerialization dataWithJSONObject:choices options:0 error:error];
+    if (!data || ![data writeToFile:[folder stringByAppendingPathComponent:@"setup-pending.json"] options:NSDataWritingAtomic error:error]) return NO;
+    return [[NSData data] writeToFile:[folder stringByAppendingPathComponent:@"setup-complete"] options:NSDataWritingAtomic error:error];
+}
+- (void)next:(id)sender {
+    (void)sender;
+    if (self.busy || (self.step == 0 && !self.runtime)) return;
+    if (self.step < 2) { self.step++; [self refresh]; return; }
+    NSError *error = nil;
+    if ([self saveChoices:&error]) [NSApp stopModalWithCode:NSModalResponseOK];
+    else {
+        NSAlert *alert = [NSAlert new]; alert.messageText = @"无法保存配置";
+        alert.informativeText = error.localizedDescription ?: @"请检查输出目录和用户目录的写入权限。";
+        [alert beginSheetModalForWindow:self.window completionHandler:nil];
+    }
 }
 - (void)update:(NSString *)message {
     dispatch_async(dispatch_get_main_queue(), ^{ self.status.stringValue = message; });
@@ -171,22 +310,25 @@ static NSError *failure(NSString *message) {
 }
 - (void)install:(id)sender {
     (void)sender;
-    self.button.enabled = NO; [self.window standardWindowButton:NSWindowCloseButton].enabled = NO;
-    self.progress.hidden = NO; [self.progress startAnimation:nil]; self.status.stringValue = @"正在准备安装…";
+    if (self.busy || self.runtime) return;
+    self.busy = YES; [self refresh]; [self.progress startAnimation:nil]; self.status.stringValue = @"正在准备安装…";
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSError *error = nil;
         NSString *runtime = [self installRuntime:&error];
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (runtime) { self.runtime = runtime; [NSApp stopModalWithCode:NSModalResponseOK]; }
-            else {
+            self.busy = NO; [self.progress stopAnimation:nil];
+            if (runtime) {
+                self.runtime = runtime; self.runtimePath.stringValue = runtime;
+                self.status.stringValue = @"✓ .NET 8 和 ASP.NET Core 8 已就绪"; self.button.title = @"已安装";
+            } else {
                 self.status.stringValue = error.localizedDescription ?: @"安装失败，请重试。";
-                self.button.title = @"重试安装"; self.button.enabled = YES;
-                [self.window standardWindowButton:NSWindowCloseButton].enabled = YES;
-                [self.progress stopAnimation:nil]; self.progress.hidden = YES;
+                self.button.title = @"重试安装";
             }
+            [self refresh];
         });
     });
 }
+
 @end
 
 int main(int argc, const char **argv) {
@@ -207,10 +349,15 @@ int main(int argc, const char **argv) {
         }
         if (argc == 2 && strcmp(argv[1], "--bootstrap-check") == 0) return runtime ? 0 : 1;
         NSMutableArray<NSString *> *arguments = [NSMutableArray arrayWithObject:[applicationBase stringByAppendingPathComponent:@"AvaMedia.Desktop.dll"]];
-        for (int i = 1; i < argc; i++) [arguments addObject:[NSString stringWithUTF8String:argv[i]]];
-        if (!runtime) {
+        BOOL forceSetup = NO, capture = NO;
+        for (int i = 1; i < argc; i++) {
+            if (strcmp(argv[i], "--setup") == 0) forceSetup = YES;
+            else { [arguments addObject:[NSString stringWithUTF8String:argv[i]]]; if (strcmp(argv[i], "--capture") == 0) capture = YES; }
+        }
+        NSString *complete = [runtimeBase.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"setup-complete"];
+        if (!runtime || forceSetup || (!capture && ![NSFileManager.defaultManager fileExistsAtPath:complete])) {
             [NSApplication sharedApplication]; [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-            RuntimeInstaller *installer = [RuntimeInstaller new]; NSApp.delegate = installer;
+            RuntimeInstaller *installer = [RuntimeInstaller new]; installer.runtime = runtime; NSApp.delegate = installer;
             [NSApp finishLaunching]; [installer show];
             NSModalResponse response = [NSApp runModalForWindow:installer.window];
             [installer.window orderOut:nil]; NSApp.delegate = nil;

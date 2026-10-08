@@ -1,15 +1,19 @@
 #define UNICODE
 #define _UNICODE
 #define _WIN32_WINNT 0x0A00
+// The native wizard uses the Windows 10 1607 thread DPI APIs.
+#define NTDDI_VERSION 0x0A000002
 #include <windows.h>
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "Host.h"
 
 static wchar_t host[AM_PATH], base[AM_PATH], config[AM_PATH], cache[AM_PATH];
-static wchar_t root[AM_PATH], log_path[AM_PATH];
+static wchar_t root[AM_PATH], log_path[AM_PATH], progress_path[AM_PATH];
 static PROCESS_INFORMATION installer;
 static DWORD install_status;
 
@@ -54,30 +58,15 @@ static int start_installer(void) {
         !am_join(powershell, windows, L"System32/WindowsPowerShell/v1.0/powershell.exe") ||
         !am_join(script, base, L"Install-Runtime.ps1")) return 0;
     int length = _snwprintf(command, AM_PATH * 4,
-        L"\"%s\" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%s\" -Application \"%s\" -RuntimeBase \"%s\" -ErrorFile \"%s\"",
-        powershell, script, host, cache, log_path);
+        L"\"%s\" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%s\" -Application \"%s\" -RuntimeBase \"%s\" -ErrorFile \"%s\" -ProgressFile \"%s\"",
+        powershell, script, host, cache, log_path, progress_path);
     if (length < 0 || length >= AM_PATH * 4) return 0;
     STARTUPINFOW startup = {sizeof(startup)};
     return CreateProcessW(powershell, command, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, base, &startup, &installer);
 }
 
-static HRESULT CALLBACK install_dialog(HWND window, UINT notification, WPARAM first, LPARAM second, LONG_PTR data) {
-    (void)first; (void)second; (void)data;
-    if (notification == TDN_CREATED) {
-        ShowWindow(GetDlgItem(window, IDOK), SW_HIDE);
-        SendMessageW(window, TDM_SET_PROGRESS_BAR_MARQUEE, TRUE, 30);
-        if (!start_installer()) { install_status = GetLastError(); if (!install_status) install_status = 1; SendMessageW(window, TDM_CLICK_BUTTON, IDOK, 0); }
-    } else if (notification == TDN_TIMER && installer.hProcess && WaitForSingleObject(installer.hProcess, 0) == WAIT_OBJECT_0) {
-        GetExitCodeProcess(installer.hProcess, &install_status);
-        CloseHandle(installer.hProcess); CloseHandle(installer.hThread);
-        installer.hProcess = NULL;
-        SendMessageW(window, TDM_CLICK_BUTTON, IDOK, 0);
-    }
-    return S_OK;
-}
-
-static void read_error(wchar_t *result, int capacity) {
-    HANDLE file = CreateFileW(log_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+static void read_text_file(const wchar_t *path, wchar_t *result, int capacity) {
+    HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) return;
     char bytes[4096]; DWORD count = 0;
     if (ReadFile(file, bytes, sizeof(bytes) - 1, &count, NULL)) {
@@ -86,6 +75,8 @@ static void read_error(wchar_t *result, int capacity) {
     }
     CloseHandle(file);
 }
+static void read_error(wchar_t *result, int capacity) { read_text_file(log_path, result, capacity); }
+#include "SetupWindows.h"
 
 static void unregister_player(void) {
     HKEY classes;
@@ -126,6 +117,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR command_line, 
     wchar_t local[AM_PATH];
     if (FAILED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, local)) || !am_join(cache, local, L"AvaMedia/runtimes")) return 1;
     am_join(log_path, cache, L"install-error.txt");
+    am_join(progress_path, cache, L"install-progress.txt");
+    am_join(setup_root, local, L"AvaMedia");
+    am_join(setup_pending, setup_root, L"setup-pending.json");
+    am_join(setup_complete, setup_root, L"setup-complete");
     if (argc == 3 && !wcscmp(argv[1], L"--bootstrap-record-root")) return record_runtime(argv[2]) ? 0 : 1;
     if (argc == 2 && !wcscmp(argv[1], L"--unregister-player")) { unregister_player(); return 0; }
     // A recorded installation goes straight to the normal runtime loader. No preflight probe.
@@ -140,33 +135,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR command_line, 
     if (argc == 2 && !wcscmp(argv[1], L"--bootstrap-check")) return available ? 0 : 1;
     // Installer maintenance must never show an installation prompt.
     if (!available && argc == 2 && !wcscmp(argv[1], L"--register-player")) return 0;
-    if (!available) {
-        INITCOMMONCONTROLSEX controls = {sizeof(controls), ICC_STANDARD_CLASSES}; InitCommonControlsEx(&controls);
-        wchar_t error[4096] = {0};
-        while (!available) {
-            TASKDIALOG_BUTTON buttons[] = {{100, error[0] ? L"重试安装" : L"安装运行时"}, {IDCANCEL, L"退出"}};
-            TASKDIALOGCONFIG prompt = {sizeof(prompt)};
-            prompt.hInstance = instance; prompt.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT;
-            prompt.pszWindowTitle = L"天池万象转换";
-            prompt.pszMainInstruction = error[0] ? L"运行时安装失败" : L"需要安装 .NET 8 运行时";
-            prompt.pszContent = L"安装完成后自动进入软件，无需管理员权限。";
-            prompt.pszExpandedInformation = error[0] ? error : NULL;
-            prompt.cButtons = 2; prompt.pButtons = buttons; prompt.nDefaultButton = 100;
-            int button = IDCANCEL;
-            if (FAILED(TaskDialogIndirect(&prompt, &button, NULL, NULL)) || button != 100) return 0;
-            TASKDIALOGCONFIG progress = {sizeof(progress)};
-            progress.hInstance = instance; progress.dwFlags = TDF_SHOW_MARQUEE_PROGRESS_BAR | TDF_CALLBACK_TIMER;
-            progress.pszWindowTitle = L"天池万象转换"; progress.pszMainInstruction = L"正在安装运行时…";
-            progress.pszContent = L"正在下载并校验 Microsoft 官方运行时。";
-            progress.pfCallback = install_dialog;
-            // A hidden completion button lets the callback dismiss the progress dialog.
-            TASKDIALOG_BUTTON done = {IDOK, L"完成"}; progress.cButtons = 1; progress.pButtons = &done;
-            install_status = 1;
-            HRESULT status = TaskDialogIndirect(&progress, NULL, NULL, NULL);
-            if (installer.hProcess) { WaitForSingleObject(installer.hProcess, INFINITE); GetExitCodeProcess(installer.hProcess, &install_status); CloseHandle(installer.hProcess); CloseHandle(installer.hThread); installer.hProcess = NULL; }
-            available = SUCCEEDED(status) && install_status == 0 && read_recorded_runtime();
-            if (!available) { wcscpy(error, L"下载或安装失败，请检查网络后重试。"); read_error(error, 4096); }
-        }
+    int force_setup = 0, maintenance = 0, capture = 0;
+    for (int i = 1; i < argc; i++) {
+        if (!wcscmp(argv[i], L"--setup")) {
+            force_setup = 1;
+            for (int j = i; j + 1 < argc; j++) argv[j] = argv[j + 1];
+            argc--; i--;
+        } else if (!wcscmp(argv[i], L"--register-player")) maintenance = 1;
+        else if (!wcscmp(argv[i], L"--capture")) capture = 1;
+    }
+    if (!maintenance && (!available || force_setup || (!capture && GetFileAttributesW(setup_complete) == INVALID_FILE_ATTRIBUTES))) {
+        INITCOMMONCONTROLSEX controls = {sizeof(controls), ICC_STANDARD_CLASSES | ICC_PROGRESS_CLASS}; InitCommonControlsEx(&controls);
+        if (!run_setup(instance, available)) { LocalFree(argv); return 0; }
     }
     wchar_t dll[AM_PATH]; am_join(dll, base, L"AvaMedia.Desktop.dll");
     argv[0] = dll;
