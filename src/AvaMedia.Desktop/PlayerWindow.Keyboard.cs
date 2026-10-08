@@ -83,6 +83,7 @@ public partial class PlayerWindow
     private void DismissPlayerOverlay()
     {
         if (ShortcutHelp.IsVisible) ShortcutHelp.IsVisible = false;
+        else if (VrPanel.IsVisible) { ToggleVrPanel(); return; }
         else if (PlaylistPanel.IsVisible) { TogglePlaylist(); return; }
         else if (WindowState == WindowState.FullScreen) ToggleFullscreen();
         VideoArea.Focus();
@@ -92,7 +93,7 @@ public partial class PlayerWindow
     private void HideChrome()
     {
         _chromeTimer.Stop();
-        if (WindowState != WindowState.FullScreen || ShortcutHelp.IsVisible || PlaylistPanel.IsVisible
+        if (WindowState != WindowState.FullScreen || ShortcutHelp.IsVisible || PlaylistPanel.IsVisible || VrPanel.IsVisible || PanoramaImage.IsDragging
             || _openMenu?.IsOpen == true || _keyboardNavigation && ControlsBar.IsKeyboardFocusWithin) return;
         if (ControlsBar.IsKeyboardFocusWithin) VideoArea.Focus(NavigationMethod.Pointer);
         _chromeTimer.Stop();

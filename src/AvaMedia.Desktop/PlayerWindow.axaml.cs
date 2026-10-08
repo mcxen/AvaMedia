@@ -76,6 +76,7 @@ public partial class PlayerWindow : Window
         };
         VideoArea.ContextRequested += (_, e) => { OpenMenu(BuildMenu(), VideoArea); e.Handled = true; };
         InitializeKeyboard();
+        InitializePanorama();
         VideoArea.PointerPressed += (_, e) =>
         {
             if (!e.GetCurrentPoint(VideoArea).Properties.IsLeftButtonPressed) return;
@@ -92,7 +93,7 @@ public partial class PlayerWindow : Window
             if (e.Property == WindowStateProperty) ShowChrome();
             if (e.Property == WindowStateProperty || e.Property == IsVisibleProperty)
                 if (_player is not null) _player.PresentationVisible = IsVisible && WindowState != WindowState.Minimized;
-            if (e.Property == BoundsProperty) PlayerVolume.IsVisible = Bounds.Width >= 900;
+            if (e.Property == BoundsProperty) { PlayerVolume.IsVisible = Bounds.Width >= 900; PlayerTotalGroup.IsVisible = Bounds.Width >= 880; }
         };
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
@@ -102,7 +103,7 @@ public partial class PlayerWindow : Window
         {
             Localization.Changed -= LanguageChanged;
             _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel(); CancelFrameStep();
-            _player?.Dispose(); VideoImage.Source = null; _still?.Dispose(); _firstFrame.TrySetCanceled();
+            _player?.Dispose(); VideoImage.Source = null; PanoramaImage.Dispose(); _still?.Dispose(); _firstFrame.TrySetCanceled();
             _nativeCancellation?.Cancel();
             _load?.Dispose(); _seek?.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
         };
@@ -145,22 +146,23 @@ public partial class PlayerWindow : Window
             if (old is not null) { await old.Stop(); old.Dispose(); }
             if (!Current(revision)) return;
             CurrentPath = path; Title = Path.GetFileName(path) + " — " + AppIdentity.PlayerTitle; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
-            PlaybackError = ""; _nativeDiagnostics.Clear(); PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; VideoImage.Source = null; _still?.Dispose(); _still = null;
+            PlaybackError = ""; _nativeDiagnostics.Clear(); PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; ClearVideoFrame(); _still?.Dispose(); _still = null;
             if (DetectDisc(path) is { } disc) { await PlayNativeAsync(path, disc, position, playing); return; }
             var info = await _engine.Probe(path, token, video, audio); token.ThrowIfCancellationRequested();
             if (!Current(revision)) return;
             if (info.Duration <= 0 || !info.HasVideo && !info.HasAudio) throw new InvalidDataException("该文件没有可播放的音视频轨。");
             _info = info;
-            if (PreferNative(info)) { await PlayNativeAsync(path, position: position, playing: playing); return; }
+            RestorePanorama(path, info.HasVideo);
+            if (!Panorama.IsImmersive && PreferNative(info)) { await PlayNativeAsync(path, position: position, playing: playing); return; }
             var player = _factory(_engine, path); _player = player;
             _playIntent = playing;
-            player.Configure(info); player.Speed = _speed; player.Volume = (float)(PlayerVolume.Value / 100); player.Muted = _muted;
+            PreparePanoramaPlayback(player); player.Configure(info); player.Speed = _speed; player.Volume = (float)(PlayerVolume.Value / 100); player.Muted = _muted;
             player.PresentationVisible = IsVisible && WindowState != WindowState.Minimized;
             player.Updated += position =>
             {
                 if (!Current(revision) || !ReferenceEquals(player, _player) || _pendingSeek) return;
                 SetPosition(position, false);
-                if (info.HasVideo) { if (!ReferenceEquals(VideoImage.Source, player.Frame)) VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); PlayerStatus.IsVisible = false; }
+                if (info.HasVideo) { PresentFrame(player.Frame); PlayerStatus.IsVisible = false; }
                 else { PlayerStatus.Text = "音频播放"; }
                 RefreshCapture(); MarkFirstFrame();
             };
@@ -224,6 +226,7 @@ public partial class PlayerWindow : Window
         PreviousFileButton.IsEnabled = !_deleting && _fileIndex > 0;
         NextFileButton.IsEnabled = !_deleting && _fileIndex + 1 < _playlist.Length;
         PlayerOpenButton.IsEnabled = PlaylistList.IsEnabled = !_deleting;
+        RefreshPanoramaControls();
         RefreshCapture();
     }
     public async Task TogglePlaybackAsync()
@@ -255,13 +258,14 @@ public partial class PlayerWindow : Window
         {
             await Task.Delay(60, token); await player.Stop(); token.ThrowIfCancellationRequested();
             if (!Current(revision)) return;
+            player.Configure(info);
             player.Speed = _speed;
             if (playing) await player.Play(position, info.HasVideo, info.Duration);
             else if (info.HasVideo)
             {
                 await player.Play(position, true, info.Duration); player.Pause();
                 await player.FirstFrame.WaitAsync(token); token.ThrowIfCancellationRequested(); if (!Current(revision)) return;
-                VideoImage.Source = player.Frame; VideoImage.InvalidateVisual(); _still?.Dispose(); _still = null; PlayerStatus.IsVisible = false;
+                PresentFrame(player.Frame); _still?.Dispose(); _still = null; PlayerStatus.IsVisible = false;
             }
             token.ThrowIfCancellationRequested(); _pendingSeek = false; RefreshTransport();
         }
@@ -316,6 +320,10 @@ public partial class PlayerWindow : Window
             case PlayerCommand.Settings: OpenMenu(BuildMenu(), PlayerSettingsButton); break;
             case PlayerCommand.CaptureFrame: await CaptureFrameAsync(); break;
             case PlayerCommand.DeleteFile: await DeleteCurrentAsync(); break;
+            case PlayerCommand.VrSettings: ToggleVrPanel(); break;
+            case PlayerCommand.RecenterView: RecenterPanorama(); break;
+            case PlayerCommand.ViewLeft: case PlayerCommand.ViewRight: case PlayerCommand.ViewUp: case PlayerCommand.ViewDown:
+                ChangePanoramaView(command); break;
         }
     }
     public void ToggleFullscreen()
@@ -351,7 +359,7 @@ public partial class PlayerWindow : Window
             _playlist = _playlist.Where(p => !VideoFolderScanner.PathComparer.Equals(p, path)).ToArray();
             _explicitFiles = _explicitFiles.Where(p => !VideoFolderScanner.PathComparer.Equals(p, path)).ToArray();
             _player?.Dispose(); _player = null; _info = null; _playIntent = false;
-            VideoImage.Source = null; _still?.Dispose(); _still = null;
+            ClearVideoFrame(); _still?.Dispose(); _still = null;
             Localization.SetText(PlaylistStatus,$"{_playlist.Length} 个文件");
             if (_playlist.Length > 0)
             {
@@ -450,6 +458,7 @@ public partial class PlayerWindow : Window
         PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible;
         if (PlaylistPanel.IsVisible)
         {
+            VrPanel.IsVisible = false;
             PlaylistList.ScrollIntoView(PlaylistList.SelectedIndex);
             PlaylistList.Focus(_keyboardNavigation ? NavigationMethod.Tab : NavigationMethod.Pointer);
         }
@@ -499,6 +508,7 @@ public partial class PlayerWindow : Window
         var fill = new MenuItem { Header = "拉伸填满", ToggleType = MenuItemToggleType.Radio, IsChecked = VideoImage.Stretch == Stretch.Fill };
         fill.Click += (_, _) => VideoImage.Stretch = Stretch.Fill;
         items.Add(new MenuItem { Header = "画面比例", ItemsSource = new[] { uniform, fill } });
+        items.Add(PanoramaMenu());
         var capture = Command("截取当前帧（保存到视频目录）", PlayerCommand.CaptureFrame, new(Key.E, OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control));
         capture.IsEnabled = CanCaptureFrame; items.Add(capture);
         items.Add(new Separator()); items.Add(Command("全屏 / 窗口", PlayerCommand.ToggleFullscreen, new(Key.Enter)));

@@ -7,7 +7,7 @@ public partial class PlayerWindow
 {
     private bool _capturing;
     private bool CanCaptureFrame => !_closed && !_deleting && !_capturing && !_pendingSeek
-        && _info?.HasVideo == true && VideoImage.Source is Bitmap && !string.IsNullOrEmpty(CurrentPath);
+        && _info?.HasVideo == true && VideoImage.Source is Bitmap && (!Panorama.IsImmersive || PanoramaImage.HasFrame) && !string.IsNullOrEmpty(CurrentPath);
 
     private void RefreshCapture() => PlayerCaptureButton.IsEnabled = CanCaptureFrame;
 
@@ -24,7 +24,9 @@ public partial class PlayerWindow
         {
             using var png = new MemoryStream();
             // Freeze the displayed frame before yielding: playback can update or dispose it afterwards.
-            frame.Save(png); png.Position = 0;
+            if (Panorama.IsImmersive) PanoramaImage.SaveView(png, RenderScaling);
+            else frame.Save(png);
+            png.Position = 0;
             var output = await Task.Run(() => SaveCapturedFrame(png, source, position));
             if (Current(revision)) Notice(Localization.Format($"已保存截图：{Path.GetFileName(output)}\n{Path.GetDirectoryName(output)}"));
             return output;

@@ -1,7 +1,7 @@
 using System.Text.Json;
 
 namespace AvaMedia.Core;
-public sealed class Storage
+public sealed partial class Storage
 {
     private readonly string _root;
     private readonly JobLogStore _logs;
