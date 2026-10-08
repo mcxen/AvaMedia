@@ -54,6 +54,8 @@ public sealed class MediaFileRouter : IMediaFileRouter
                     Add("join", "视频合并", "按文件顺序连接为一个视频", Video, 2, "请至少选择两个视频。");
                     Add("split", "提取音频", "把视频声音导出为独立音频", Video);
                     Add("frames", "导出视频帧", "按时间间隔保存画面", Video);
+                    Add("auto-subtitle", "自动字幕", "识别语音并生成字幕", Video);
+                    Add("voice-enhance", "人声增强", "增强讲话并减少背景杂音", Video);
                     Add("delogo", "去除水印", "选择区域并进行插值修复", Video);
                     Add("repair", "重新封装", "复制媒体流并更换容器", Video);
                     break;
@@ -66,6 +68,8 @@ public sealed class MediaFileRouter : IMediaFileRouter
                 case MediaFileKind.Audio:
                     Add("audio-mp3", "音频格式转换", "MP3 / AAC / FLAC / WAV 等格式", Audio);
                     Add("audio-clip", "音频剪辑", "截取区间并调整音频参数", Audio);
+                    Add("audio-enhance", "人声增强", "增强讲话并减少背景杂音", Audio);
+                    Add("auto-subtitle", "语音转字幕", "识别语音并生成字幕", Audio);
                     Add("audio-join", "音频合并", "按文件顺序连接音频", Audio, 2, "请至少选择两个音频。");
                     Add("audio-mix", "音频混合", "把多个声音混合到同一音轨", Audio, 2, "请至少选择两个音频。");
                     break;

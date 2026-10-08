@@ -27,7 +27,14 @@ public static class ModelCatalog
         ModelArtifact Gemma(string name, long size, string hash) => new(name, size, hash,
             [$"https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/{GemmaRevision}/{name}"]);
         var runtime = Runtime();
+        DownloadableModel Speech(SpeechModel model)
+        {
+            var artifact = SpeechModelInstaller.Artifact(model);
+            return new(SpeechModelInstaller.Id(model), model == SpeechModel.Base ? "Whisper · 标准" : "Whisper · 轻量", "自动字幕", "MIT",
+                "https://github.com/ggml-org/whisper.cpp", [new(artifact.FileName, artifact.Size, artifact.Sha256, [artifact.Url, artifact.Url + "?download=true"])]);
+        }
         return [
+            Speech(SpeechModel.Base), Speech(SpeechModel.Tiny),
             new(LamaId, "LaMa", "图片修复", "Apache-2.0", "https://huggingface.co/opencv/inpainting_lama",
                 [new(LaMaModelInstaller.FileName, LaMaModelInstaller.FileSize, LaMaModelInstaller.Sha256,
                     [LaMaModelInstaller.HubUrl, LaMaModelInstaller.FallbackUrl])]),

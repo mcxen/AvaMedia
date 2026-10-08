@@ -103,6 +103,12 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             {
                 parts.Add(o.Format.ToUpperInvariant());
             }
+            else if (feature.Operation == Operation.Transcribe)
+            {
+                parts.Add(o.Format.ToUpperInvariant());
+                parts.Add(o.Transcription?.Model == SpeechModel.Tiny ? "轻量模型" : "标准模型");
+                if (o.Format is "mp4" or "mkv" or "ass") parts.Add(Localization.Format($"字号 {o.SubtitleFontSize}"));
+            }
             else if (feature.Category is "视频" or "音频" or "图片")
             {
                 if (!label.Equals(o.Format, StringComparison.OrdinalIgnoreCase)) parts.Add(o.Format.ToUpperInvariant());
@@ -123,6 +129,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
                 if (o.CropWidth > 0) parts.Add(Localization.Format($"裁剪 {o.CropWidth} × {o.CropHeight}"));
                 if (o.Mute && !MediaEngine.IsImage(o.Format)) parts.Add("静音");
                 if (o.SubtitleMode == SubtitleMode.BurnIn) parts.Add("烧录字幕");
+                if (o.VoiceEnhancement) parts.Add(Localization.Format($"人声增强 {o.VoiceEnhancementStrength}%"));
                 if (Job.InputOptions?.Count > 0) parts.Add("逐文件编辑");
             }
             return Localization.Join(" · ", parts);
@@ -132,7 +139,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     {
         JobState.Waiting => "等待开始",
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
-        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
+        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         _ => "已停止"
     };

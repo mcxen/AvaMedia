@@ -69,8 +69,10 @@ public partial class MainWindow
                     request.Options, reserved: EditingReservations(job));
                 ApplyEditedJobs(job, replacements); return;
             }
-            var result = await new ConvertWindow(Engine, feature, Path.GetDirectoryName(job.Output)!, job.Inputs,
-                job.Options, job.InputOptions, editing: true).ShowDialog<ConversionRequest?>(this);
+            var dialog = feature.Operation == Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance"
+                ? (Avalonia.Controls.Window)new SpeechToolsWindow(Engine, feature, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options, editing: true)
+                : new ConvertWindow(Engine, feature, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options, job.InputOptions, editing: true);
+            var result = await dialog.ShowDialog<ConversionRequest?>(this);
             if (result is null) return;
             var jobs = ConversionBatch.CreateJobs(result.Feature, result.Files, result.OutputFolder, result.Options,
                 result.InputOptions, EditingReservations(job));

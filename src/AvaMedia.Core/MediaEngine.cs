@@ -172,6 +172,7 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.ImageCompress){if(job.Inputs.Length!=1)throw new ArgumentException("每个图片压缩任务处理一张图片。");(o.ImageCompression??new ImageCompressionOptions{Format=o.Format}).Validate();}
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
+        if(feature.Operation==Operation.Transcribe){SpeechSubtitleService.Validate(job);return;}
         ValidateEncodingOptions(o);
         SourceVideoExport.ValidateJob(job);
         if(job.InputOptions is not null)
@@ -192,7 +193,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.KeepAllAudioStreams && feature.Operation is Operation.Join or Operation.AudioMix or Operation.SplitVideo)throw new ArgumentException("当前合并、混音和视频流提取不支持保留独立的所有音频流。");
     }
     public static bool HasVideoFilters(ConversionOptions o) => o.CropWidth>0 || o.DelogoWidth>0 || o.Speed!=1 || o.Width>0 || o.Height>0 || o.Fps>0 || o.Rotation!=0 || o.Flip || o.FadeIn>0 || o.FadeOut>0 || SubtitleOptions.Mode(o)==SubtitleMode.BurnIn;
-    public static bool HasAudioFilters(ConversionOptions o) => o.Speed!=1 || o.Volume!=1 || (o.AudioFadeIn??o.FadeIn)>0 || (o.AudioFadeOut??o.FadeOut)>0 || o.Echo || o.NoiseReduction || o.ReverseAudio;
+    public static bool HasAudioFilters(ConversionOptions o) => o.Speed!=1 || o.Volume!=1 || (o.AudioFadeIn??o.FadeIn)>0 || (o.AudioFadeOut??o.FadeOut)>0 || o.Echo || o.NoiseReduction || o.VoiceEnhancement || o.ReverseAudio;
     public static bool HasFilters(ConversionOptions o) => HasVideoFilters(o) || HasAudioFilters(o);
     public static void ValidateEncodingOptions(ConversionOptions o)
     {
@@ -200,6 +201,7 @@ public sealed class MediaEngine : IMediaEngine
         if(!o.CopyStreams && HardwareTranscoding.Encoder(o.VideoCodec) is {} hardwareEncoder && !HardwareTranscoding.Compatible(o.Format,hardwareEncoder.Format))
             throw new ArgumentException("所选硬件编码器与输出格式不兼容，请使用自动编码或选择兼容格式。");
         if(o.Threads is <0 or >16)throw new ArgumentException("编码线程数必须在 0 到 16 之间。");
+        if(o.VoiceEnhancementStrength is <1 or >100)throw new ArgumentException("人声增强强度必须在 1 到 100 之间。");
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
         SubtitleOptions.Validate(o);
         VideoFormats.ValidateMobileOutput(o);
@@ -235,6 +237,8 @@ public sealed class MediaEngine : IMediaEngine
         Validate(job);var f=Catalog.Find(job.FeatureId);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         if(File.Exists(job.Output) || Directory.Exists(job.Output)) throw new IOException("输出已存在，请重试以生成新的名称。");
+        if(f.Operation==Operation.Transcribe)
+        {await new SpeechSubtitleService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.ImagesPdf)
         {
             var temporary=new List<string>();var inputs=new List<string>();
@@ -307,6 +311,14 @@ public sealed class MediaEngine : IMediaEngine
             if(job.InputOptions is not null)SubtitleOptions.ValidateSource(edit,infos[^1]);
         }
         if(infos.Count>0)SubtitleOptions.ValidateSource(job.Options,infos[0]);
+        if(job.Options.VoiceEnhancement && !infos.Any(info=>info.HasAudio))throw new ArgumentException("文件没有可增强的人声音轨。");
+        if(job.Options.VoiceEnhancement || job.InputOptions?.Any(option=>option.VoiceEnhancement)==true)
+        {
+            var filters=await ProcessRunner.Run(FFmpeg,["-hide_banner","-filters"],ct).ConfigureAwait(false);
+            foreach(var name in new[]{"arnndn","highpass","loudnorm"})
+                if(filters.ExitCode!=0 || !System.Text.RegularExpressions.Regex.IsMatch(filters.Output+filters.Error,@"\b"+name+@"\b"))
+                    throw new InvalidOperationException("当前 FFmpeg 不支持人声增强，请使用应用内置版本。");
+        }
         if(SubtitleOptions.Mode(job.Options) is SubtitleMode.ExternalTrack or SubtitleMode.BurnIn && !string.IsNullOrWhiteSpace(job.Options.Subtitle))
         {
             var sub=await Probe(job.Options.Subtitle,ct);

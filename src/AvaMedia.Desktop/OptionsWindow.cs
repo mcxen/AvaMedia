@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 public enum MediaOptionsKind { Video, Audio, Image, VideoOnly, InputVideo, InputAudio, Frames, ClipEdit, ClipExport }
@@ -16,10 +17,12 @@ public sealed class OptionsWindow : Window
     private readonly int? _imageQualityDefault;
     private readonly List<Action<ConversionOptions>> _readers = [];
     private ConversionOptions _draft;
+    private SubtitleStyleEditor? _subtitleStyle;
     public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null)
     {
         Title="输出配置";Width=760;Height=660;MinWidth=550;MinHeight=420;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         _draft=options.Clone();_copyMode=copyStreamsMode;_kind=kind;_format=options.Format;_presets=presetStorage??new();_allowAllAudioStreams=allowAllAudioStreams;_imageQualityDefault=imageQualityDefault;Build();
+        Closed+=(_,_)=>_subtitleStyle?.Dispose();
     }
     public ConversionOptions ReadOptions()
     {
@@ -37,6 +40,7 @@ public sealed class OptionsWindow : Window
     private string Prefix=>_kind+"|"+_format+"|";
     private void Build()
     {
+        _subtitleStyle?.Dispose();_subtitleStyle=null;
         _readers.Clear();var root=new Grid{RowDefinitions=new("Auto,*,Auto"),Margin=new(20)};
         var top=new Grid{ColumnDefinitions=new("70,*,110"),ColumnSpacing=8,Margin=new(0,0,0,16)};top.Children.Add(Ui.Text("预设"));
         var names=_presets.LoadPresets().Keys.Where(k=>k.StartsWith(Prefix,StringComparison.Ordinal)).Select(k=>k[Prefix.Length..]).Order().ToArray();
@@ -103,7 +107,10 @@ public sealed class OptionsWindow : Window
             Number(audio,"音频淡入时长 (秒)",_draft.AudioFadeIn??_draft.FadeIn,(o,v)=>o.AudioFadeIn=v,false,0,86400);
             Number(audio,"音频淡出时长 (秒)",_draft.AudioFadeOut??_draft.FadeOut,(o,v)=>o.AudioFadeOut=v,false,0,86400);
             Check(audio,"启用回声",_draft.Echo,(o,v)=>o.Echo=v);
-            Check(audio,"启用降噪",_draft.NoiseReduction,(o,v)=>o.NoiseReduction=v);
+            var noise=Check(audio,"启用降噪",_draft.NoiseReduction,(o,v)=>o.NoiseReduction=v);
+            var voice=new VoiceEnhancementControl(_draft);audio.Children.Add(voice);_readers.Add(voice.ReadInto);
+            void RefreshNoise()=>noise.IsEnabled=voice.EnabledInput.IsChecked!=true;
+            voice.EnabledInput.IsCheckedChanged+=(_,_)=>RefreshNoise();RefreshNoise();
             Check(audio,"反向播放所选音频",_draft.ReverseAudio,(o,v)=>o.ReverseAudio=v);
             }
         }
@@ -119,11 +126,8 @@ public sealed class OptionsWindow : Window
             var browse=new Button{Content="浏览…",Classes={"field-action"}};browse.Click+=async(_,_)=>{if((await Ui.Pick(this,"选择字幕文件",false)).FirstOrDefault() is {} path){box.Text=path;if(mode.SelectedIndex==0)mode.SelectedIndex=1;}};Grid.SetColumn(browse,1);row.Children.Add(browse);Add(filePanel,"外部字幕文件",row);_readers.Add(o=>o.Subtitle=mode.SelectedIndex is 1 or 3?box.Text?.Trim()??"":"");
             Number(trackPanel,"字幕轨索引 (-1 = 默认/全部)",_draft.SubtitleStreamIndex,(o,v)=>o.SubtitleStreamIndex=(int)v,true,-1,255);
             var language=Ui.Input(_draft.SubtitleLanguage);language.Name="SubtitleLanguage";Add(languagePanel,"轨道语言 (如 zho、eng)",language);_readers.Add(o=>{if(languagePanel.IsVisible)o.SubtitleLanguage=language.Text?.Trim()??"";});
-            var font=Ui.Input(_draft.SubtitleFont);font.Name="SubtitleFont";Add(burnPanel,"烧录字体 (留空 = 自动)",font);_readers.Add(o=>{if(burnPanel.IsVisible)o.SubtitleFont=font.Text?.Trim()??"";});
-            Number(burnPanel,"烧录字号 (0 = 字幕默认)",_draft.SubtitleFontSize,(o,v)=>o.SubtitleFontSize=(int)v,true,0,200);
-            var color=Ui.Input(_draft.SubtitleColor);color.Name="SubtitleColor";Add(burnPanel,"烧录颜色 (#RRGGBB)",color);_readers.Add(o=>{if(burnPanel.IsVisible)o.SubtitleColor=color.Text?.Trim()??"#FFFFFF";});
-            Choice(burnPanel,"烧录位置",["左下","中下","右下","左中","居中","右中","左上","中上","右上"],new[]{"左下","中下","右下","左中","居中","右中","左上","中上","右上"}[_draft.SubtitleAlignment-1],(o,v)=>o.SubtitleAlignment=Array.IndexOf(new[]{"左下","中下","右下","左中","居中","右中","左上","中上","右上"},v)+1);
-            Number(burnPanel,"烧录垂直边距",_draft.SubtitleMargin,(o,v)=>o.SubtitleMargin=(int)v,true,0,2000);
+            var style=new SubtitleStyleEditor(_draft,288);_subtitleStyle=style;burnPanel.Children.Add(style);
+            _readers.Add(o=>{if(burnPanel.IsVisible)style.ReadInto(o);});
             var note=Ui.Text("外部文件留空时使用源字幕；字幕轨 -1 在烧录时选第一条，在保留时选全部。","caption");subtitle.Children.Add(note);
             void RefreshSubtitleFields()
             {
@@ -175,5 +179,5 @@ public sealed class OptionsWindow : Window
         if(label=="视频编码器")control.Name="VideoCodecCombo";if(label=="音频编码器")control.Name="AudioCodecCombo";if(label=="音频采样率")control.Name="AudioSampleRateCombo";if(label=="声道")control.Name="AudioChannelsCombo";
         Add(panel,label,control);if(enabled)_readers.Add(o=>{if(panel.IsVisible)set(o,(string)control.SelectedItem!);});
     }
-    private void Check(Panel panel,string text,bool value,Action<ConversionOptions,bool> set,bool enabled=true){var check=new CheckBox{Content=text,IsChecked=value,IsEnabled=enabled};panel.Children.Add(check);_readers.Add(o=>set(o,check.IsChecked==true));}
+    private CheckBox Check(Panel panel,string text,bool value,Action<ConversionOptions,bool> set,bool enabled=true){var check=new CheckBox{Content=text,IsChecked=value,IsEnabled=enabled};panel.Children.Add(check);_readers.Add(o=>set(o,check.IsChecked==true));return check;}
 }

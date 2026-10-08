@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -30,10 +30,13 @@ public static class Catalog
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
         Add("download","视频下载","视频","mp4","download",Operation.Download);
+        Add("auto-subtitle","自动字幕","视频","mp4","document",Operation.Transcribe);
+        Add("voice-enhance","人声增强","视频","mp4","audio");
         foreach(var x in new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}) Add("audio-"+x,"→ "+x.ToUpperInvariant(),"音频",x,"audio");
         Add("audio-join","音频合并","音频","mp3","join",Operation.Join);
         Add("audio-mix","音频混合","音频","mp3","audio",Operation.AudioMix);
         Add("audio-clip","音频剪辑","音频","mp3","clip");
+        Add("audio-enhance","人声增强","音频","wav","audio");
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
         Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
         Add("image-tools","缩放 / 旋转","图片","png","crop");
@@ -68,6 +71,7 @@ public sealed class ConversionOptions
     public DownloadOptions? Download { get; set; }
     public VideoCompressionOptions? VideoCompression { get; set; }
     public ImageCompressionOptions? ImageCompression { get; set; }
+    public TranscriptionOptions? Transcription { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
@@ -110,6 +114,8 @@ public sealed class ConversionOptions
     public double? AudioFadeOut { get; set; }
     public bool Echo { get; set; }
     public bool NoiseReduction { get; set; }
+    public bool VoiceEnhancement { get; set; }
+    public int VoiceEnhancementStrength { get; set; } = 80;
     public bool ReverseAudio { get; set; }
     public double FrameInterval { get; set; } = 1;
     public string Subtitle { get; set; } = "";
@@ -121,7 +127,7 @@ public sealed class ConversionOptions
     public string SubtitleColor { get; set; } = "#FFFFFF";
     public int SubtitleAlignment { get; set; } = 2;
     public int SubtitleMargin { get; set; } = 20;
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }
 public sealed partial class Job : Observable

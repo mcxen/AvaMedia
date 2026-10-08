@@ -42,6 +42,12 @@ New builds bundle the official yt-dlp 2026.08.19 and QuickJS-NG 0.17.0 executabl
 
 System fonts are read on the user's device when creating text PDFs; font files are not included in AvaMedia's distribution.
 
+## Speech recognition and enhancement
+
+[Whisper.net 1.9.1](https://github.com/sandrohanea/whisper.net/tree/98278acc38ae23590cdfa9859f78f089abae52a7) and its CPU native runtime wrap [whisper.cpp](https://github.com/ggml-org/whisper.cpp/tree/f24588a272ae8e23280d9c220536437164e6ed28), under MIT. Their licenses are retained in `licenses/speech/`. Publish builds keep only the requested platform's native libraries. Multilingual Whisper base-q5_1 and tiny-q5_1 weights are downloaded on demand from the maintainer's pinned [model repository](https://huggingface.co/ggerganov/whisper.cpp/tree/f281eb45af861ab5e5297d23694b7d46e090c02c), with sizes and SHA256 in `SpeechModelInstaller.Artifact`; they are managed by `ModelStore`.
+
+Speech enhancement bundles the unmodified 297,646-byte `sh.rnnn` model from [GregorR/rnnoise-models](https://github.com/GregorR/rnnoise-models/tree/3eee541a283fd3b8f81b85b1748e3b9ccbefa04d/somnolent-hogwash-2018-09-01). The author states that the model data is not subject to copyright; the original statement is preserved in `licenses/speech/rnnoise-models-README.md`. Its SHA256 is `70bb6685eb0c2a1d18e2918dca3fbfbd39317010b1802eb1b6ea73a92f3fdec0`. Processing uses the bundled FFmpeg's `arnndn`, high-pass and loudness normalization filters. System fonts used to render video subtitles are selected on the user's device and are not redistributed.
+
 On macOS, HEIC and supported photo previews use the device's [Apple ImageIO](https://developer.apple.com/documentation/imageio) and CoreFoundation system frameworks. These frameworks are not redistributed. HEIC encoding/conversion to JPEG, PNG or WebP uses the existing external FFmpeg build and its applicable licenses. [libheif](https://github.com/strukturag/libheif) and [SDWebImage](https://github.com/SDWebImage/SDWebImage) were reviewed as implementation references; neither their source nor binaries are incorporated. The new AvaMedia integration is original AGPL-3.0-only code.
 
 ## Platinum skin

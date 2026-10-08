@@ -1,0 +1,14 @@
+<Project>
+  <!-- NuGet's native package contains every desktop platform. Ship only the requested RID. -->
+  <Target Name="SelectSpeechNativeRuntime" BeforeTargets="AssignTargetPaths" Condition="'$(RuntimeIdentifier)' != ''">
+    <PropertyGroup>
+      <_SpeechNativeRid>$(RuntimeIdentifier)</_SpeechNativeRid>
+      <_SpeechNativeRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">macos-arm64</_SpeechNativeRid>
+      <_SpeechNativeRid Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macos-x64</_SpeechNativeRid>
+    </PropertyGroup>
+    <ItemGroup>
+      <_UnusedSpeechNative Include="@(None)" Condition="$([System.String]::Copy('%(None.Identity)').Contains('whisper.net.runtime')) and $([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/')) and !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/$(_SpeechNativeRid)/'))" />
+      <None Remove="@(_UnusedSpeechNative)" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -41,7 +41,13 @@ internal static class MediaFilters
         // Output -t is applied after filters: reverse must first receive only the selected interval.
         else if (o.ReverseAudio && o.End > 0) filters.Add($"atrim=duration={MediaEngine.Number(o.End - o.Start)},asetpts=PTS-STARTPTS");
         if (o.ReverseAudio) filters.Add("areverse");
-        if (o.NoiseReduction) filters.Add("afftdn=nr=12:nf=-35:tn=1");
+        if (o.VoiceEnhancement)
+        {
+            filters.Add("aresample=48000,highpass=f=70");
+            filters.Add("arnndn=m=" + SubtitleOptions.FilterValue(SpeechAssets.EnsureDenoiseModel().Replace("\\", "/")) + ":mix=" + MediaEngine.Number(o.VoiceEnhancementStrength / 100d));
+            filters.Add("loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000");
+        }
+        else if (o.NoiseReduction) filters.Add("afftdn=nr=12:nf=-35:tn=1");
         if (o.Speed != 1)
         {
             var speed = o.Speed;

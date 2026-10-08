@@ -50,14 +50,16 @@ public static class SubtitleOptions
     {
         var path = string.IsNullOrWhiteSpace(o.Subtitle) ? source : o.Subtitle;
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) throw new FileNotFoundException("请选择包含字幕的源文件或外部字幕文件", path);
-        string Value(string value) => Escape(Escape(value, "\\':"), "\\'[],;");
-        var filter = "subtitles=filename=" + Value(Path.GetFullPath(path).Replace("\\", "/"));
+        var filter = "subtitles=filename=" + FilterValue(Path.GetFullPath(path).Replace("\\", "/"));
         if (string.IsNullOrWhiteSpace(o.Subtitle) || o.SubtitleStreamIndex >= 0) filter += ":si=" + Math.Max(0, o.SubtitleStreamIndex);
         var rgb = o.SubtitleColor[1..];
-        var style = $"PrimaryColour=&H00{rgb[4..6]}{rgb[2..4]}{rgb[..2]},Alignment={o.SubtitleAlignment},MarginV={o.SubtitleMargin}";
+        // libass force_style accepts its internal SSA alignment, not ASS numpad positions.
+        var alignment = ((o.SubtitleAlignment - 1) / 3) switch { 0 => 0, 1 => 8, _ => 4 };
+        alignment += (o.SubtitleAlignment - 1) % 3 + 1;
+        var style = $"PrimaryColour=&H00{rgb[4..6]}{rgb[2..4]}{rgb[..2]},Alignment={alignment},MarginV={o.SubtitleMargin},MarginL={o.SubtitleMargin},MarginR={o.SubtitleMargin}";
         if (o.SubtitleFont.Length > 0) style += ",FontName=" + o.SubtitleFont;
         if (o.SubtitleFontSize > 0) style += ",FontSize=" + o.SubtitleFontSize;
-        return filter + ":force_style=" + Value(style);
+        return filter + ":force_style=" + FilterValue(style);
     }
 
     internal static void Map(List<string> args, ConversionOptions o, int externalInput)
@@ -70,5 +72,6 @@ public static class SubtitleOptions
         if (o.SubtitleLanguage.Length > 0) args.AddRange(["-metadata:s:s", "language=" + o.SubtitleLanguage.ToLowerInvariant()]);
     }
 
+    internal static string FilterValue(string value) => Escape(Escape(value, "\\':"), "\\'[],;");
     private static string Escape(string value, string special) => string.Concat(value.Select(c => special.Contains(c) ? "\\" + c : c.ToString()));
 }
