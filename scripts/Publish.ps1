@@ -25,6 +25,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
 & (Join-Path $PSScriptRoot 'Bundle-DownloadTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
 & (Join-Path $PSScriptRoot 'Bundle-MediaTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
+& (Join-Path $PSScriptRoot 'Prepare-SetupPreviews.ps1') -PublishDirectory $publishRoot -DotNet $sdk
 $runtimePackages = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget/packages' }
 $runtimePack = Join-Path $runtimePackages ('microsoft.netcore.app.runtime.' + $Runtime)
 if (Test-Path -LiteralPath $runtimePack) {

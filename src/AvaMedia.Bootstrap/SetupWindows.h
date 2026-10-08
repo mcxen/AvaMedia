@@ -1,13 +1,13 @@
 #include "Setup.h"
 
-enum { SETUP_NEXT = 200, SETUP_BACK, SETUP_EXIT, SETUP_INSTALL, SETUP_FOLDER, SETUP_SKIN = 220 };
+enum { SETUP_NEXT = 200, SETUP_BACK, SETUP_EXIT, SETUP_INSTALL, SETUP_FOLDER, SETUP_ZOOM, SETUP_SKIN = 220 };
 static HWND setup_window, setup_next, setup_back, setup_exit, setup_heading, setup_steps[3];
 static HWND setup_pages[3][24], setup_status, setup_progress, setup_install, setup_runtime_path;
 static HWND setup_output, setup_language, setup_source, setup_notify, setup_motion, setup_updates, setup_gpu;
 static int setup_page_counts[3], setup_step, setup_skin, setup_available, setup_busy, setup_done, setup_dpi;
 static HFONT setup_font, setup_title_font;
 static wchar_t setup_root[AM_PATH], setup_pending[AM_PATH], setup_complete[AM_PATH];
-static const wchar_t *setup_skin_names[] = {L"浅色", L"深色", L"Mac OS 9", L"Windows XP"};
+static const wchar_t *setup_skin_names[] = {L"浅色", L"深色", L"Mac OS 9 · Platinum", L"Windows XP · Luna"};
 
 static int setup_px(int value) { return MulDiv(value, setup_dpi, 96); }
 static HWND setup_control(int page, const wchar_t *type, const wchar_t *text, DWORD style,
@@ -27,54 +27,39 @@ static HWND setup_check(const wchar_t *text, int y, int checked) {
     SendMessageW(item, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
     return item;
 }
-static void setup_fill(HDC dc, int x, int y, int width, int height, unsigned int hex) {
-    RECT rect = {x, y, x + width, y + height};
-    HBRUSH brush = CreateSolidBrush(RGB((hex >> 16) & 255, (hex >> 8) & 255, hex & 255));
-    FillRect(dc, &rect, brush); DeleteObject(brush);
-}
 static void setup_text(HDC dc, const wchar_t *text, RECT rect, unsigned int hex, UINT flags) {
     SetTextColor(dc, RGB((hex >> 16) & 255, (hex >> 8) & 255, hex & 255));
     DrawTextW(dc, text, -1, &rect, flags | DT_SINGLELINE | DT_VCENTER);
 }
+#include "SetupWindowsPreview.h"
 static void setup_draw_skin(const DRAWITEMSTRUCT *draw) {
     int index = (int)draw->CtlID - SETUP_SKIN;
     if (index < 0 || index >= AM_SETUP_SKIN_COUNT) return;
-    const am_setup_skin *skin = &am_setup_skins[index];
     HDC dc = draw->hDC; RECT bounds = draw->rcItem;
     int width = bounds.right - bounds.left, height = bounds.bottom - bounds.top;
-    HGDIOBJ old = SelectObject(dc, setup_font); SetBkMode(dc, TRANSPARENT);
-    setup_fill(dc, 0, 0, width, height, setup_skin == index ? 0x0078D4 : 0xD8D8D8);
-    int edge = setup_px(2), x = setup_px(10), y = setup_px(10), w = width - 2 * x;
-    int title = setup_px(22), body = height - setup_px(51);
-    setup_fill(dc, edge, edge, width - edge * 2, height - edge * 2, 0xFFFFFF);
-    setup_fill(dc, x, y, w, body, skin->canvas);
-    setup_fill(dc, x, y, w, title, skin->title);
-    if (index == 2) {
-        for (int row = 4; row < 19; row += 3) setup_fill(dc, x + setup_px(4), y + setup_px(row), w - setup_px(8), setup_px(1), 0x999999);
-        setup_fill(dc, x + setup_px(54), y + setup_px(2), w - setup_px(108), title - setup_px(4), skin->title);
+    HGDIOBJ font = SelectObject(dc, setup_font); SetBkMode(dc, TRANSPARENT);
+    FillRect(dc, &bounds, GetSysColorBrush(COLOR_WINDOW));
+    int selected = index == setup_skin, focused = (draw->itemState & ODS_FOCUS) != 0;
+    int hovered = GetPropW(draw->hwndItem, L"AvaMedia.Hover") != NULL;
+    HPEN pen = CreatePen(PS_SOLID, setup_px(selected || focused ? 2 : 1), selected || focused ? RGB(0, 120, 212) : hovered ? RGB(165, 171, 180) : RGB(215, 220, 225));
+    HBRUSH brush = CreateSolidBrush(draw->itemState & ODS_SELECTED ? RGB(247, 249, 251) : RGB(255, 255, 255));
+    HGDIOBJ old_pen = SelectObject(dc, pen), old_brush = SelectObject(dc, brush);
+    RoundRect(dc, setup_px(2), setup_px(2), width - setup_px(2), height - setup_px(2), setup_px(16), setup_px(16));
+    SelectObject(dc, old_pen); SelectObject(dc, old_brush); DeleteObject(pen); DeleteObject(brush);
+    RECT image = {setup_px(12), setup_px(12), width - setup_px(12), height - setup_px(40)};
+    setup_draw_image(dc, index, image);
+    RECT label = {setup_px(14), height - setup_px(33), width - setup_px(38), height - setup_px(8)};
+    setup_text(dc, setup_skin_names[index], label, 0x202428, DT_LEFT | DT_END_ELLIPSIS);
+    if (selected) {
+        RECT badge = {width - setup_px(31), height - setup_px(31), width - setup_px(14), height - setup_px(14)};
+        HBRUSH fill = CreateSolidBrush(RGB(0, 120, 212));
+        old_brush = SelectObject(dc, fill); old_pen = SelectObject(dc, GetStockObject(NULL_PEN));
+        Ellipse(dc, badge.left, badge.top, badge.right, badge.bottom);
+        SelectObject(dc, old_brush); SelectObject(dc, old_pen); DeleteObject(fill);
+        setup_text(dc, L"✓", badge, 0xFFFFFF, DT_CENTER);
     }
-    RECT caption = {x, y, x + w, y + title};
-    setup_text(dc, L"天池万象转换", caption, index == 3 ? 0xFFFFFF : skin->text, DT_CENTER);
-    int top = y + title + setup_px(4), left = x + setup_px(62);
-    setup_fill(dc, x, top, setup_px(55), body - title - setup_px(4), skin->sidebar);
-    RECT sidebar = {x + setup_px(6), top, left, top + setup_px(23)};
-    setup_text(dc, L"转换", sidebar, skin->accent, DT_LEFT);
-    sidebar.top += setup_px(25); sidebar.bottom += setup_px(25);
-    setup_text(dc, L"工具集", sidebar, skin->text, DT_LEFT);
-    for (int row = 0; row < 2; row++) {
-        int row_y = top + row * setup_px(32);
-        setup_fill(dc, left, row_y, w - setup_px(68), setup_px(28), skin->surface);
-        setup_fill(dc, left + setup_px(4), row_y + setup_px(6), setup_px(16), setup_px(16), skin->accent);
-        RECT label = {left + setup_px(25), row_y, x + w - setup_px(6), row_y + setup_px(24)};
-        setup_text(dc, row ? L"音频.wav" : L"视频.mp4", label, skin->text, DT_LEFT);
-    }
-    setup_fill(dc, left, top + setup_px(69), w - setup_px(68), setup_px(4), skin->sidebar);
-    setup_fill(dc, left, top + setup_px(69), (w - setup_px(68)) * 2 / 3, setup_px(4), skin->accent);
-    RECT label = {0, height - setup_px(34), width, height - setup_px(4)};
-    wchar_t name[64]; _snwprintf(name, 64, L"%s%s", setup_skin == index ? L"✓ " : L"", setup_skin_names[index]);
-    setup_text(dc, name, label, setup_skin == index ? 0x0078D4 : 0x202428, DT_CENTER);
-    if (draw->itemState & ODS_FOCUS) { RECT focus = bounds; InflateRect(&focus, -setup_px(4), -setup_px(4)); DrawFocusRect(dc, &focus); }
-    SelectObject(dc, old);
+    if (focused) { RECT focus = bounds; InflateRect(&focus, -setup_px(6), -setup_px(6)); DrawFocusRect(dc, &focus); }
+    SelectObject(dc, font);
 }
 static void setup_show_step(void) {
     const wchar_t *headings[] = {L"准备运行环境", L"选择界面风格", L"设置使用偏好"};
@@ -169,15 +154,12 @@ static LRESULT CALLBACK setup_proc(HWND window, UINT message, WPARAM first, LPAR
     if (message == WM_COMMAND) {
         int id = LOWORD(first);
         if (id >= SETUP_SKIN && id < SETUP_SKIN + AM_SETUP_SKIN_COUNT) {
-            setup_skin = id - SETUP_SKIN;
-            for (int i = 0; i < AM_SETUP_SKIN_COUNT; i++) {
-                wchar_t name[64]; _snwprintf(name, 64, L"%s%s", i == setup_skin ? L"已选择：" : L"", setup_skin_names[i]);
-                SetWindowTextW(GetDlgItem(window, SETUP_SKIN + i), name);
-                InvalidateRect(GetDlgItem(window, SETUP_SKIN + i), NULL, TRUE);
-            }
+            setup_select_skin(id - SETUP_SKIN);
+            if (HIWORD(first) == BN_DBLCLK) setup_zoom();
         } else if (id == SETUP_EXIT) SendMessageW(window, WM_CLOSE, 0, 0);
         else if (id == SETUP_BACK && !setup_busy && setup_step > 0) { setup_step--; setup_show_step(); }
         else if (id == SETUP_FOLDER) setup_pick_folder();
+        else if (id == SETUP_ZOOM) setup_zoom();
         else if (id == SETUP_NEXT && !setup_busy && (setup_step != 0 || setup_available)) {
             if (setup_step < 2) { setup_step++; setup_show_step(); }
             else if (setup_save()) { setup_done = 1; DestroyWindow(window); }
@@ -197,6 +179,7 @@ static int run_setup(HINSTANCE instance, int available) {
     setup_available = available; setup_done = 0; setup_step = 0; setup_skin = 0;
     DPI_AWARENESS_CONTEXT previous = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
     setup_dpi = (int)GetDpiForSystem();
+    HRESULT com = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     setup_font = CreateFontW(-setup_px(13), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0, 0, 0, L"Segoe UI");
     setup_title_font = CreateFontW(-setup_px(22), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0, 0, 0, L"Segoe UI");
     WNDCLASSW type = {0}; type.lpfnWndProc = setup_proc; type.hInstance = instance;
@@ -210,7 +193,8 @@ static int run_setup(HINSTANCE instance, int available) {
         work.left + (work.right - work.left - bounds.right + bounds.left) / 2,
         work.top + (work.bottom - work.top - bounds.bottom + bounds.top) / 2,
         bounds.right - bounds.left, bounds.bottom - bounds.top, NULL, NULL, instance, NULL);
-    if (!setup_window) { DeleteObject(setup_font); DeleteObject(setup_title_font); SetThreadDpiAwarenessContext(previous); return 0; }
+    if (!setup_window) { DeleteObject(setup_font); DeleteObject(setup_title_font); SetThreadDpiAwarenessContext(previous); if (SUCCEEDED(com)) CoUninitialize(); return 0; }
+    setup_load_images();
     setup_label(-1, L"天池万象转换", 24, 36, 164, 28);
     setup_label(-1, L"首次使用配置", 24, 70, 164, 24);
     for (int i = 0; i < 3; i++) setup_steps[i] = setup_label(-1, L"", 24, 132 + i * 52, 168, 30);
@@ -233,9 +217,14 @@ static int run_setup(HINSTANCE instance, int available) {
         setup_label(0, label, 212 + i * 170, 426, 162, 28);
     }
     setup_label(0, L"内置工具缺失时，请重新安装完整版本。", 212, 462, 500, 26);
-    setup_label(1, L"选择下方预览，进入软件后应用该皮肤。", 212, 80, 516, 28);
-    for (int i = 0; i < AM_SETUP_SKIN_COUNT; i++) setup_control(1, L"BUTTON", setup_skin_names[i], BS_OWNERDRAW | WS_TABSTOP,
-        212 + (i % 2) * 264, 118 + (i / 2) * 176, 252, 164, SETUP_SKIN + i);
+    setup_label(1, L"选择皮肤，放大查看界面细节。", 212, 80, 390, 28);
+    setup_control(1, L"BUTTON", L"放大预览", BS_PUSHBUTTON | WS_TABSTOP, 616, 76, 112, 32, SETUP_ZOOM);
+    for (int i = 0; i < AM_SETUP_SKIN_COUNT; i++) {
+        HWND card = setup_control(1, L"BUTTON", setup_skin_names[i], BS_OWNERDRAW | BS_NOTIFY | WS_TABSTOP,
+            212 + (i % 2) * 264, 118 + (i / 2) * 186, 252, 174, SETUP_SKIN + i);
+        SetWindowSubclass(card, setup_card_proc, 1, 0);
+    }
+    setup_select_skin(setup_skin);
     setup_label(2, L"默认输出目录", 212, 84, 500, 24);
     wchar_t videos[AM_PATH] = {0}, output[AM_PATH];
     if (FAILED(SHGetFolderPathW(NULL, CSIDL_MYVIDEO, NULL, 0, videos))) {
@@ -258,12 +247,12 @@ static int run_setup(HINSTANCE instance, int available) {
     setup_label(2, L"这些选项也可以在软件设置中调整。", 212, 438, 500, 28);
     setup_show_step(); ShowWindow(setup_window, SW_SHOW); UpdateWindow(setup_window);
     SetFocus(!setup_available ? setup_install : setup_next);
-    HRESULT com = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     MSG message;
     while (GetMessageW(&message, NULL, 0, 0) > 0) {
         if (message.message == WM_KEYDOWN && message.wParam == VK_ESCAPE) { SendMessageW(setup_window, WM_CLOSE, 0, 0); continue; }
         if (!IsDialogMessageW(setup_window, &message)) { TranslateMessage(&message); DispatchMessageW(&message); }
     }
+    setup_free_images();
     if (SUCCEEDED(com)) CoUninitialize();
     DeleteObject(setup_font); DeleteObject(setup_title_font); SetThreadDpiAwarenessContext(previous);
     return setup_done;

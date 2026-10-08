@@ -196,6 +196,11 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         catch (OperationCanceledException) { }
         finally { if (ReferenceEquals(_metadata, cancellation)) _metadata = null; cancellation.Dispose(); }
     }
+    internal void SetAppearancePreview(MediaInfo media)
+    {
+        _fileSummary = "示例任务";
+        SetMedia(media, "");
+    }
     internal void SetMedia(MediaInfo? media, string inspection, byte[]? cover = null)
     {
         // Queue summaries never need the full probe JSON (which may contain thousands of chapters).

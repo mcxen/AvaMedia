@@ -1,58 +1,57 @@
 #include "Setup.h"
 
-static NSColor *setupColor(unsigned int hex) {
-    return [NSColor colorWithSRGBRed:((hex >> 16) & 255) / 255.0 green:((hex >> 8) & 255) / 255.0 blue:(hex & 255) / 255.0 alpha:1];
-}
-static void setupFill(NSRect rect, unsigned int hex) { [setupColor(hex) setFill]; NSRectFill(rect); }
-static void setupText(NSString *text, NSRect rect, unsigned int hex, CGFloat size, BOOL centered) {
-    NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
-    paragraph.alignment = centered ? NSTextAlignmentCenter : NSTextAlignmentLeft;
-    [text drawInRect:rect withAttributes:@{NSFontAttributeName:[NSFont systemFontOfSize:size],
-        NSForegroundColorAttributeName:setupColor(hex), NSParagraphStyleAttributeName:paragraph}];
-}
-
 @interface SetupSkinView : NSButton
 @property NSInteger skinIndex;
 @property BOOL chosen;
+@property BOOL hovered;
+@property BOOL pressed;
+@property NSImage *preview;
+@property NSTrackingArea *hoverArea;
+@property SEL previewAction;
 @end
 @implementation SetupSkinView
 - (BOOL)isFlipped { return YES; }
+- (void)updateTrackingAreas {
+    [super updateTrackingAreas];
+    if (self.hoverArea) [self removeTrackingArea:self.hoverArea];
+    self.hoverArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
+        options:NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect owner:self userInfo:nil];
+    [self addTrackingArea:self.hoverArea];
+}
+- (void)mouseEntered:(NSEvent *)event { (void)event; self.hovered = YES; self.needsDisplay = YES; }
+- (void)mouseExited:(NSEvent *)event { (void)event; self.hovered = NO; self.needsDisplay = YES; }
+- (void)mouseDown:(NSEvent *)event {
+    self.pressed = YES; self.needsDisplay = YES;
+    [super mouseDown:event];
+    self.pressed = NO; self.needsDisplay = YES;
+    if (event.clickCount == 2 && self.previewAction) [NSApp sendAction:self.previewAction to:self.target from:self];
+}
 - (void)drawRect:(NSRect)dirty {
     (void)dirty;
-    const am_setup_skin *skin = &am_setup_skins[self.skinIndex];
     NSRect bounds = NSInsetRect(self.bounds, 2, 2);
-    [NSColor.whiteColor setFill];
-    NSBezierPath *frame = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:7 yRadius:7]; [frame fill];
-    [(self.chosen ? NSColor.controlAccentColor : NSColor.separatorColor) setStroke]; frame.lineWidth = self.chosen ? 2 : 1; [frame stroke];
-    CGFloat width = self.bounds.size.width - 24, x = 12, y = 12, height = self.bounds.size.height - 54;
-    setupFill(NSMakeRect(x, y, width, height), skin->canvas);
-    NSRect title = NSMakeRect(x, y, width, 23);
-    setupFill(title, skin->title);
-    if (self.skinIndex == 3) {
-        NSGradient *gradient = [[NSGradient alloc] initWithStartingColor:setupColor(0x3593FF) endingColor:setupColor(0x003DAA)];
-        [gradient drawInRect:title angle:90];
-        setupFill(NSMakeRect(x + width - 21, y + 4, 15, 15), 0xDB4B33);
-        setupText(@"×", NSMakeRect(x + width - 21, y + 1, 15, 19), 0xFFFFFF, 14, YES);
-    } else if (self.skinIndex == 2) {
-        for (int row = 4; row < 21; row += 3) setupFill(NSMakeRect(x + 4, y + row, width - 8, 1), 0x999999);
-        setupFill(NSMakeRect(x + 51, y + 2, width - 102, 19), skin->title);
-        setupFill(NSMakeRect(x + 7, y + 5, 12, 12), 0xFFFFFF);
+    BOOL focused = self.window.firstResponder == self;
+    NSBezierPath *frame = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:8 yRadius:8];
+    [(self.pressed ? [NSColor colorWithWhite:0.97 alpha:1] : NSColor.whiteColor) setFill]; [frame fill];
+    [(self.chosen || focused ? NSColor.controlAccentColor : [NSColor colorWithWhite:self.hovered ? 0.65 : 0.84 alpha:1]) setStroke];
+    frame.lineWidth = self.chosen || focused ? 2 : 1; [frame stroke];
+    NSRect artwork = NSMakeRect(12, 12, self.bounds.size.width - 24, self.bounds.size.height - 52);
+    if (self.preview) {
+        NSSize size = self.preview.size;
+        CGFloat scale = MIN(artwork.size.width / size.width, artwork.size.height / size.height);
+        NSRect destination = NSMakeRect(artwork.origin.x + (artwork.size.width - size.width * scale) / 2,
+            artwork.origin.y + (artwork.size.height - size.height * scale) / 2, size.width * scale, size.height * scale);
+        NSGraphicsContext.currentContext.imageInterpolation = NSImageInterpolationHigh;
+        [self.preview drawInRect:destination fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1 respectFlipped:YES hints:nil];
+    } else {
+        [@"预览不可用" drawInRect:artwork withAttributes:@{NSFontAttributeName:[NSFont systemFontOfSize:13], NSForegroundColorAttributeName:NSColor.secondaryLabelColor}];
     }
-    setupText(@"天池万象转换", NSMakeRect(x + 22, y + 4, width - 44, 17), self.skinIndex == 3 ? 0xFFFFFF : skin->text, 11, YES);
-    CGFloat top = y + 27, left = x + 65;
-    setupFill(NSMakeRect(x, top, 58, height - 27), skin->sidebar);
-    setupText(@"转换", NSMakeRect(x + 8, top + 7, 48, 20), skin->accent, 11, NO);
-    setupText(@"工具集", NSMakeRect(x + 8, top + 32, 48, 20), skin->text, 11, NO);
-    for (int row = 0; row < 2; row++) {
-        CGFloat rowY = top + row * 33;
-        setupFill(NSMakeRect(left, rowY, width - 70, 28), skin->surface);
-        setupFill(NSMakeRect(left + 5, rowY + 6, 16, 16), skin->accent);
-        setupText(row ? @"音频.wav" : @"视频.mp4", NSMakeRect(left + 27, rowY + 6, width - 100, 20), skin->text, 11, NO);
+    NSArray *names = @[@"浅色", @"深色", @"Mac OS 9 · Platinum", @"Windows XP · Luna"];
+    [names[self.skinIndex] drawInRect:NSMakeRect(14, self.bounds.size.height - 32, self.bounds.size.width - 48, 22)
+        withAttributes:@{NSFontAttributeName:[NSFont systemFontOfSize:13 weight:NSFontWeightSemibold], NSForegroundColorAttributeName:NSColor.blackColor}];
+    if (self.chosen) {
+        NSRect badge = NSMakeRect(self.bounds.size.width - 31, self.bounds.size.height - 32, 17, 17);
+        [NSColor.controlAccentColor setFill]; [[NSBezierPath bezierPathWithOvalInRect:badge] fill];
+        [@"✓" drawInRect:NSInsetRect(badge, 3, 0) withAttributes:@{NSFontAttributeName:[NSFont boldSystemFontOfSize:12], NSForegroundColorAttributeName:NSColor.whiteColor}];
     }
-    setupFill(NSMakeRect(left, top + 71, width - 70, 4), skin->sidebar);
-    setupFill(NSMakeRect(left, top + 71, (width - 70) * 0.65, 4), skin->accent);
-    NSArray *names = @[@"浅色", @"深色", @"Mac OS 9", @"Windows XP"];
-    setupText(self.chosen ? [@"✓ " stringByAppendingString:names[self.skinIndex]] : names[self.skinIndex],
-        NSMakeRect(12, self.bounds.size.height - 32, width, 22), self.chosen ? 0x0078D4 : 0x202428, 13, YES);
 }
 @end

@@ -58,6 +58,10 @@ static NSError *failure(NSString *message) {
 @property NSMutableArray<NSMutableArray<NSView *> *> *pages;
 @property NSMutableArray<NSTextField *> *steps;
 @property NSMutableArray<SetupSkinView *> *skins;
+@property NSButton *previewButton;
+@property NSWindow *previewWindow;
+@property NSImageView *previewImage;
+@property NSSegmentedControl *previewSelector;
 @property NSInteger step;
 @property NSInteger skin;
 @property BOOL busy;
@@ -75,7 +79,7 @@ static NSError *failure(NSString *message) {
     [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 - (BOOL)windowShouldClose:(NSWindow *)sender {
-    (void)sender;
+    if (sender == self.previewWindow) { [self closePreview:nil]; return NO; }
     if (self.busy) return NO;
     [NSApp stopModalWithCode:NSModalResponseCancel];
     return YES;
@@ -144,16 +148,22 @@ static NSError *failure(NSString *message) {
         [self label:text frame:NSMakeRect(220 + i * 180, 88, 174, 26) page:0];
     }
     [self label:@"内置工具缺失时，请重新安装完整版本。" frame:NSMakeRect(220, 60, 536, 24) page:0].textColor = NSColor.secondaryLabelColor;
-    [self label:@"选择下方预览，进入软件后应用该皮肤。" frame:NSMakeRect(220, 448, 536, 28) page:1].textColor = NSColor.secondaryLabelColor;
+    [self label:@"选择皮肤，放大查看界面细节。" frame:NSMakeRect(220, 446, 370, 28) page:1].textColor = NSColor.secondaryLabelColor;
+    self.previewButton = [self action:@"放大预览" frame:NSMakeRect(638, 440, 118, 34) selector:@selector(zoom:) page:1];
     NSArray *skinNames = @[@"浅色", @"深色", @"Mac OS 9", @"Windows XP"];
     for (NSInteger i = 0; i < AM_SETUP_SKIN_COUNT; i++) {
-        SetupSkinView *view = [[SetupSkinView alloc] initWithFrame:NSMakeRect(220 + (i % 2) * 274, 268 - (i / 2) * 178, 262, 164)];
+        SetupSkinView *view = [[SetupSkinView alloc] initWithFrame:NSMakeRect(220 + (i % 2) * 274, 262 - (i / 2) * 184, 262, 174)];
         view.skinIndex = i; view.chosen = i == self.skin; view.title = skinNames[i];
         view.target = self; view.action = @selector(selectSkin:); view.bordered = NO;
+        view.previewAction = @selector(zoom:);
+        NSString *path = [[applicationBase stringByAppendingPathComponent:@"setup-previews"] stringByAppendingPathComponent:
+            [[NSString stringWithUTF8String:am_setup_skins[i].key] stringByAppendingString:@".png"]];
+        view.preview = [[NSImage alloc] initWithContentsOfFile:path];
         view.accessibilityLabel = skinNames[i];
         view.accessibilityValue = view.chosen ? @"已选择" : @"";
         [self.window.contentView addSubview:view]; [self.pages[1] addObject:view]; [self.skins addObject:view];
     }
+    self.previewButton.enabled = self.skins[self.skin].preview != nil;
     [self label:@"默认输出目录" frame:NSMakeRect(220, 435, 536, 26) page:2];
     self.output = [[NSTextField alloc] initWithFrame:NSMakeRect(220, 398, 416, 28)];
     self.output.stringValue = [NSHomeDirectory() stringByAppendingPathComponent:@"Movies/AvaMedia"];
@@ -179,6 +189,43 @@ static NSError *failure(NSString *message) {
         view.chosen = view.skinIndex == self.skin; view.needsDisplay = YES;
         view.accessibilityValue = view.chosen ? @"已选择" : @"";
     }
+    self.previewButton.enabled = self.skins[self.skin].preview != nil;
+}
+- (void)zoom:(id)sender {
+    (void)sender;
+    if (!self.skins[self.skin].preview || self.previewWindow) return;
+    NSRect available = self.window.screen.visibleFrame;
+    CGFloat width = MIN(1120, available.size.width - 64), height = MIN(760, available.size.height - 80);
+    self.previewWindow = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, width, height)
+        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
+    self.previewWindow.title = @"皮肤预览"; self.previewWindow.delegate = self;
+    self.previewWindow.minSize = NSMakeSize(640, 440);
+    self.previewImage = [[NSImageView alloc] initWithFrame:NSMakeRect(20, 66, width - 40, height - 86)];
+    self.previewImage.image = self.skins[self.skin].preview;
+    self.previewImage.imageScaling = NSImageScaleProportionallyUpOrDown;
+    self.previewImage.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [self.previewWindow.contentView addSubview:self.previewImage];
+    self.previewSelector = [NSSegmentedControl segmentedControlWithLabels:@[@"浅色", @"深色", @"Mac OS 9", @"Windows XP"]
+        trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(comparePreview:)];
+    self.previewSelector.frame = NSMakeRect(20, 20, 440, 30); self.previewSelector.selectedSegment = self.skin;
+    [self.previewWindow.contentView addSubview:self.previewSelector];
+    NSButton *close = [NSButton buttonWithTitle:@"完成" target:self action:@selector(closePreview:)];
+    close.frame = NSMakeRect(width - 110, 18, 90, 34); close.autoresizingMask = NSViewMinXMargin;
+    close.keyEquivalent = @"\e"; [self.previewWindow.contentView addSubview:close];
+    [self.window beginSheet:self.previewWindow completionHandler:^(NSModalResponse response) {
+        (void)response; self.previewWindow = nil; self.previewImage = nil; self.previewSelector = nil;
+    }];
+}
+- (void)comparePreview:(id)sender {
+    (void)sender;
+    NSInteger index = self.previewSelector.selectedSegment;
+    if (index < 0 || index >= AM_SETUP_SKIN_COUNT) return;
+    [self selectSkin:self.skins[index]]; self.previewImage.image = self.skins[index].preview;
+}
+- (void)closePreview:(id)sender {
+    (void)sender;
+    NSWindow *preview = self.previewWindow;
+    [self.window endSheet:preview]; [preview orderOut:nil];
 }
 - (void)pickFolder:(id)sender {
     (void)sender;

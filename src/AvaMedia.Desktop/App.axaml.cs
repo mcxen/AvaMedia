@@ -12,7 +12,7 @@ public sealed partial class App : Application
 {
     public override void Initialize()
     {
-        Localization.Apply(new Storage().LoadSettings().Language);
+        Localization.Apply(Environment.GetCommandLineArgs().Contains(SetupPreviewExporter.Argument) ? "zh-CN" : new Storage().LoadSettings().Language);
         AvaloniaXamlLoader.Load(this);
         if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activation)
             activation.Activated += ApplicationActivated;
@@ -23,6 +23,14 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
+            var previewExport = Array.IndexOf(args, SetupPreviewExporter.Argument);
+            if (previewExport >= 0)
+            {
+                if (previewExport + 1 >= args.Length) throw new ArgumentException("请指定皮肤预览输出目录。");
+                SetupPreviewExporter.Start(desktop, Path.GetFullPath(args[previewExport + 1]));
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
             if (!args.Contains("--capture")) desktop.Exit += (_, _) => ApplicationUpdater.Shared.InstallOnExit();
             if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
             {

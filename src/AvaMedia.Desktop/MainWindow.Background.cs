@@ -17,7 +17,7 @@ public partial class MainWindow
     private long _lastQueueUiRefresh;
     private long _displayedElapsedSecond = -1;
     private bool IsCaptureSession => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-        desktop.Args?.Contains("--capture") == true;
+        (desktop.Args?.Contains("--capture") == true || desktop.Args?.Contains(SetupPreviewExporter.Argument) == true);
     private static bool WantsTray(AppSettings settings) => settings.MinimizeToTray || settings.CloseToTray;
 
     private void InitializeBackground()
