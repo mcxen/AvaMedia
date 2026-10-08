@@ -8,6 +8,7 @@ public sealed class ModelInstallationNotice : Border
 {
     private readonly TextBlock _message = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _retry = new() { Content = "重试", Classes = { "field-action" } };
+    private bool _preparing;
     public ModelInstallationNotice()
     {
         IsVisible = false;
@@ -29,9 +30,13 @@ public sealed class ModelInstallationNotice : Border
     private void LanguageChanged(object? sender, EventArgs args) => Refresh();
     private void Refresh()
     {
-        IsVisible = ModelInstallation.Failed;
+        if (!ModelInstallation.Installing) _preparing = false;
+        else if (ModelInstallation.Stage != "完成" && (ModelInstallation.Stage != "校验模型" || ModelInstallation.Received > 0)) _preparing = true;
+        IsVisible = _preparing || ModelInstallation.Failed;
         _retry.IsVisible = ModelInstallation.Failed;
         _retry.Content = Localization.Text("重试");
-        _message.Text = Localization.Text("图片修复暂不可用，请检查网络后重试。");
+        _message.Text = ModelInstallation.Failed ? Localization.Text("图片修复暂不可用，请检查网络后重试。")
+            : Localization.Text("图片修复模型") + " · " + Localization.Text(ModelInstallation.Stage)
+                + (ModelInstallation.Total > 0 ? $" · {ModelInstallation.Received / 1048576d:0.0} / {ModelInstallation.Total / 1048576d:0.0} MiB · {ModelInstallation.Percent}%" : "");
     }
 }

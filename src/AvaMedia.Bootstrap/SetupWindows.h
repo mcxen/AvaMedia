@@ -1,7 +1,7 @@
 #include "Setup.h"
 
 enum { SETUP_NEXT = 200, SETUP_BACK, SETUP_EXIT, SETUP_INSTALL, SETUP_FOLDER, SETUP_ZOOM, SETUP_SKIN = 220 };
-static HWND setup_window, setup_next, setup_back, setup_exit, setup_heading, setup_steps[2];
+static HWND setup_window, setup_next, setup_back, setup_exit, setup_heading, setup_steps[3];
 static HWND setup_pages[3][24], setup_status, setup_progress, setup_install;
 static HWND setup_output, setup_language, setup_source, setup_notify, setup_motion, setup_updates, setup_gpu;
 static int setup_page_counts[3], setup_step, setup_skin, setup_available, setup_busy, setup_done, setup_dpi;
@@ -62,14 +62,12 @@ static void setup_draw_skin(const DRAWITEMSTRUCT *draw) {
     SelectObject(dc, font);
 }
 static void setup_show_step(void) {
-    const wchar_t *headings[] = {L"准备启动", L"选择界面风格", L"设置使用偏好"};
+    const wchar_t *headings[] = {L"准备运行环境", L"选择界面风格", L"设置使用偏好"};
     for (int page = 0; page < 3; page++) {
         for (int i = 0; i < setup_page_counts[page]; i++) ShowWindow(setup_pages[page][i], page == setup_step ? SW_SHOW : SW_HIDE);
-        if (page > 0) {
-            wchar_t text[64]; _snwprintf(text, 64, L"%s %d  %s", page == setup_step ? L"●" : L"○", page,
-                page == 1 ? L"界面风格" : L"使用偏好");
-            SetWindowTextW(setup_steps[page - 1], text);
-        }
+        wchar_t text[64]; _snwprintf(text, 64, L"%s %d  %s", page == setup_step ? L"●" : L"○", page + 1,
+            page == 0 ? L"运行环境" : page == 1 ? L"界面风格" : L"使用偏好");
+        SetWindowTextW(setup_steps[page], text);
     }
     ShowWindow(setup_progress, setup_step == 0 && setup_busy ? SW_SHOW : SW_HIDE);
     ShowWindow(setup_install, setup_step == 0 && !setup_busy ? SW_SHOW : SW_HIDE);
@@ -133,9 +131,7 @@ static void setup_pick_folder(void) {
 }
 static void setup_poll_install(void) {
     wchar_t message[4096] = {0}; read_text_file(progress_path, message, 4096);
-    if (wcsncmp(message, L"正在下载 ", 5) == 0) SetWindowTextW(setup_status, L"正在下载启动所需文件…");
-    else if (wcsncmp(message, L"正在校验 ", 5) == 0) SetWindowTextW(setup_status, L"正在校验文件…");
-    else if (wcsncmp(message, L"正在安装 ", 5) == 0) SetWindowTextW(setup_status, L"正在准备启动…");
+    if (message[0]) SetWindowTextW(setup_status, message);
     if (!installer.hProcess || WaitForSingleObject(installer.hProcess, 0) != WAIT_OBJECT_0) return;
     GetExitCodeProcess(installer.hProcess, &install_status);
     CloseHandle(installer.hProcess); CloseHandle(installer.hThread); installer.hProcess = NULL;
@@ -145,17 +141,18 @@ static void setup_poll_install(void) {
     if (setup_available) {
         setup_step = 1;
     } else {
-        SetWindowTextW(setup_status, L"启动准备未完成，请重试。");
+        wcscpy(message, L"运行环境安装失败，请重试。"); read_text_file(log_path, message, 4096);
+        SetWindowTextW(setup_status, message);
     }
     setup_show_step();
 }
 static void setup_begin_install(void) {
     if (setup_busy || setup_available) return;
     DeleteFileW(progress_path); setup_busy = 1; install_status = 1;
-    SetWindowTextW(setup_status, L"正在准备首次启动，请稍候…"); setup_show_step();
+    SetWindowTextW(setup_status, L"正在准备安装运行环境…"); setup_show_step();
     SendMessageW(setup_progress, PBM_SETMARQUEE, TRUE, 30);
     if (start_installer()) SetTimer(setup_window, 1, 200, NULL);
-    else { setup_busy = 0; SetWindowTextW(setup_status, L"启动准备未完成，请重试。"); setup_show_step(); }
+    else { setup_busy = 0; SetWindowTextW(setup_status, L"无法启动运行环境安装程序，请重试。"); setup_show_step(); }
 }
 static LRESULT CALLBACK setup_proc(HWND window, UINT message, WPARAM first, LPARAM second) {
     if (message == DM_GETDEFID) return MAKELONG(setup_step == 0 && !setup_available ? SETUP_INSTALL : SETUP_NEXT, DC_HASDEFID);
@@ -204,13 +201,14 @@ static int run_setup(HINSTANCE instance, int available) {
     setup_load_images();
     setup_label(-1, L"天池万象转换", 24, 36, 164, 28);
     setup_label(-1, L"首次使用配置", 24, 70, 164, 24);
-    for (int i = 0; i < 2; i++) setup_steps[i] = setup_label(-1, L"", 24, 132 + i * 52, 168, 30);
+    for (int i = 0; i < 3; i++) setup_steps[i] = setup_label(-1, L"", 24, 132 + i * 52, 168, 30);
     setup_heading = setup_label(-1, L"", 212, 30, 516, 38);
     SendMessageW(setup_heading, WM_SETFONT, (WPARAM)setup_title_font, TRUE);
     setup_back = setup_control(-1, L"BUTTON", L"上一步", BS_PUSHBUTTON | WS_TABSTOP, 212, 502, 94, 32, SETUP_BACK);
     setup_exit = setup_control(-1, L"BUTTON", L"退出", BS_PUSHBUTTON | WS_TABSTOP, 24, 502, 90, 32, SETUP_EXIT);
     setup_next = setup_control(-1, L"BUTTON", L"下一步", BS_DEFPUSHBUTTON | WS_TABSTOP, 554, 502, 174, 32, SETUP_NEXT);
-    setup_status = setup_label(0, L"正在准备首次启动，请稍候…", 212, 144, 500, 66);
+    setup_label(0, L".NET 8 + ASP.NET Core 8", 212, 102, 500, 30);
+    setup_status = setup_label(0, L"正在准备安装运行环境…", 212, 144, 500, 66);
     setup_install = setup_control(0, L"BUTTON", L"重试", BS_PUSHBUTTON | WS_TABSTOP, 212, 240, 144, 34, SETUP_INSTALL);
     setup_progress = setup_control(0, PROGRESS_CLASSW, L"", PBS_MARQUEE, 212, 218, 500, 10, 0);
     setup_label(1, L"选择皮肤，放大查看界面细节。", 212, 80, 390, 28);

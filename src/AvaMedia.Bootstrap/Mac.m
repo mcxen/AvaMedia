@@ -101,15 +101,13 @@ static NSError *failure(NSString *message) {
     [self.window.contentView addSubview:button]; [self.pages[2] addObject:button]; return button;
 }
 - (void)refresh {
-    NSArray *names = @[@"界面风格", @"使用偏好"];
-    NSArray *headings = @[@"准备启动", @"选择界面风格", @"设置使用偏好"];
+    NSArray *names = @[@"运行环境", @"界面风格", @"使用偏好"];
+    NSArray *headings = @[@"准备运行环境", @"选择界面风格", @"设置使用偏好"];
     self.heading.stringValue = headings[self.step];
     for (NSInteger page = 0; page < 3; page++) {
         for (NSView *view in self.pages[page]) view.hidden = page != self.step;
-        if (page > 0) {
-            self.steps[page - 1].stringValue = [NSString stringWithFormat:@"%@ %ld  %@", page == self.step ? @"●" : @"○", (long)page, names[page - 1]];
-            self.steps[page - 1].textColor = page == self.step ? NSColor.controlAccentColor : NSColor.secondaryLabelColor;
-        }
+        self.steps[page].stringValue = [NSString stringWithFormat:@"%@ %ld  %@", page == self.step ? @"●" : @"○", (long)page + 1, names[page]];
+        self.steps[page].textColor = page == self.step ? NSColor.controlAccentColor : NSColor.secondaryLabelColor;
     }
     self.progress.hidden = self.step != 0 || !self.busy;
     self.nextButton.title = self.step == 2 ? @"完成并进入软件" : @"下一步";
@@ -131,13 +129,14 @@ static NSError *failure(NSString *message) {
     self.window.title = @"天池万象转换 · 首次使用配置"; self.window.delegate = self;
     [self label:@"天池万象转换" frame:NSMakeRect(24, 488, 180, 26) page:-1].font = [NSFont boldSystemFontOfSize:15];
     [self label:@"首次使用配置" frame:NSMakeRect(24, 455, 180, 26) page:-1].textColor = NSColor.secondaryLabelColor;
-    for (int i = 0; i < 2; i++) [self.steps addObject:[self label:@"" frame:NSMakeRect(24, 380 - i * 52, 180, 30) page:-1]];
+    for (int i = 0; i < 3; i++) [self.steps addObject:[self label:@"" frame:NSMakeRect(24, 380 - i * 52, 180, 30) page:-1]];
     self.heading = [self label:@"" frame:NSMakeRect(220, 488, 536, 38) page:-1]; self.heading.font = [NSFont boldSystemFontOfSize:23];
     self.backButton = [self action:@"上一步" frame:NSMakeRect(220, 20, 98, 34) selector:@selector(back:) page:-1];
     self.exitButton = [self action:@"退出" frame:NSMakeRect(24, 20, 90, 34) selector:@selector(exit:) page:-1];
     self.nextButton = [self action:@"下一步" frame:NSMakeRect(568, 20, 188, 34) selector:@selector(next:) page:-1];
     self.nextButton.keyEquivalent = @"\r"; self.exitButton.keyEquivalent = @"\e";
-    self.status = [self label:@"正在准备首次启动，请稍候…" frame:NSMakeRect(220, 326, 536, 66) page:0];
+    [self label:@".NET 8 + ASP.NET Core 8" frame:NSMakeRect(220, 418, 536, 28) page:0].font = [NSFont boldSystemFontOfSize:15];
+    self.status = [self label:@"正在准备安装运行环境…" frame:NSMakeRect(220, 326, 536, 66) page:0];
     self.button = [self action:@"重试" frame:NSMakeRect(220, 238, 144, 34) selector:@selector(install:) page:0];
     self.progress = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(220, 292, 536, 8)];
     self.progress.style = NSProgressIndicatorStyleBar; self.progress.indeterminate = YES;
@@ -328,10 +327,12 @@ static NSError *failure(NSString *message) {
             if (![url.scheme isEqualToString:@"https"] || ![url.host isEqualToString:@"builds.dotnet.microsoft.com"] ||
                 ![hash isKindOfClass:NSString.class] || hash.length != 128) { *error = failure(@"运行时下载信息无效。"); return nil; }
             NSString *archive = [stage stringByAppendingPathComponent:[NSUUID.UUID.UUIDString stringByAppendingString:@".tar.gz"]];
-            [self update:@"正在下载启动所需文件…"];
+            NSString *name = [package[@"name"] isKindOfClass:NSString.class] ? package[@"name"] : @"运行环境";
+            [self update:[NSString stringWithFormat:@"正在下载 %@…", name]];
             if (![self download:url to:archive error:error]) return nil;
-            [self update:@"正在校验并安装…"];
+            [self update:[NSString stringWithFormat:@"正在校验 %@…", name]];
             if (![self verify:archive hash:hash error:error]) return nil;
+            [self update:[NSString stringWithFormat:@"正在安装 %@…", name]];
             NSTask *extract = [NSTask new]; extract.executableURL = [NSURL fileURLWithPath:@"/usr/bin/tar"];
             extract.arguments = @[@"-xzf", archive, @"-C", content];
             extract.standardOutput = [NSFileHandle fileHandleWithNullDevice]; extract.standardError = [NSFileHandle fileHandleWithNullDevice];
@@ -355,7 +356,7 @@ static NSError *failure(NSString *message) {
 - (void)install:(id)sender {
     (void)sender;
     if (self.busy || self.runtime) return;
-    self.busy = YES; [self refresh]; [self.progress startAnimation:nil]; self.status.stringValue = @"正在准备首次启动，请稍候…";
+    self.busy = YES; [self refresh]; [self.progress startAnimation:nil]; self.status.stringValue = @"正在准备安装运行环境…";
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSError *error = nil;
         NSString *runtime = [self installRuntime:&error];
@@ -365,7 +366,7 @@ static NSError *failure(NSString *message) {
                 self.runtime = runtime; self.step = 1;
             } else {
                 NSLog(@"Startup preparation failed: %@", error);
-                self.status.stringValue = @"启动准备未完成，请重试。";
+                self.status.stringValue = error.localizedDescription ?: @"运行环境安装失败，请重试。";
             }
             [self refresh];
         });

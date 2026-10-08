@@ -190,6 +190,7 @@
   "打开输出文件": "Open output file",
   "打开输出目录": "Open output folder",
   "重试任务": "Retry task",
+  "重试": "Retry",
   "查看日志": "View log",
   "移除任务": "Remove task",
   "使用多线程": "Multithreading",
