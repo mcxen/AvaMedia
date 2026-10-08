@@ -1642,6 +1642,7 @@
   "下载更新": "Download update",
   "已准备更新": "Update ready",
   "正在下载更新…": "Downloading update…",
+  "正在准备更新…": "Preparing update…",
   "更新已准备好，将在退出应用时安装。": "The update is ready and will be installed when the application exits.",
   "更新失败": "Update failed",
   "更新安装失败": "Update installation failed",

@@ -7,15 +7,25 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
+internal enum UpdatePhase { Idle, Downloading, Preparing, Ready, Failed }
+internal sealed record UpdateProgress(UpdatePhase Phase, long ReceivedBytes = 0, long TotalBytes = 0, string? Error = null)
+{
+    public bool IsBusy => Phase is UpdatePhase.Downloading or UpdatePhase.Preparing;
+}
+
 internal sealed class ApplicationUpdater
 {
     public static ApplicationUpdater Shared { get; } = new();
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(30) };
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly object _stateGate = new();
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _automaticDownload;
-    private PreparedUpdate? _pending;
-    private bool _exiting;
+    private volatile PreparedUpdate? _pending;
+    private volatile bool _exiting;
+    private volatile UpdateProgress _progress = new(UpdatePhase.Idle);
+    public UpdateProgress Progress => _progress;
+    public event EventHandler? ProgressChanged;
     private static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "Updates");
     private static string ErrorPath => Path.Combine(Root, "install-error.txt");
     private sealed record PreparedUpdate(string Package, string Target, string Stage, string Backup, string Kind);
@@ -43,10 +53,10 @@ internal sealed class ApplicationUpdater
         {
             _automaticDownload?.Cancel();
             // A manually prepared update still represents the user's explicit update request.
-            if (_preparedAutomatically) DiscardPrepared();
+            lock (_stateGate) { if (_preparedAutomatically) DiscardPrepared(); }
         }
     }
-    private bool _preparedAutomatically;
+    private volatile bool _preparedAutomatically;
     public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct, Action? saveSettings = null)
     {
         bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
@@ -57,7 +67,7 @@ internal sealed class ApplicationUpdater
             {
                 var error = await File.ReadAllTextAsync(ErrorPath, ct);
                 File.Delete(ErrorPath);
-                if (owner.IsVisible) await Ui.Message(owner, "更新安装失败", error);
+                if (owner.IsVisible) new UpdateWindow(new(false, error)) { Title = "更新安装失败", ShowActivated = false }.Show(owner);
             }
             if (!settings.CheckForUpdates) return;
             var result = await check(ct);
@@ -68,23 +78,32 @@ internal sealed class ApplicationUpdater
                 _automaticDownload = download;
                 try
                 {
+                    if (!Silent() && owner.IsVisible) new UpdateWindow(result, settings, saveSettings) { ShowActivated = false }.Show(owner);
                     await PrepareAsync(result, automatic: true, download.Token);
-                    if (!Silent() && !_exiting && owner.IsVisible)
-                        await new UpdateWindow(result, settings, saveSettings).ShowDialog(owner);
                 }
                 finally { _automaticDownload = null; }
             }
-            else if (!Silent() && owner.IsVisible) await new UpdateWindow(result, settings, saveSettings).ShowDialog(owner);
+            else if (!Silent() && owner.IsVisible) new UpdateWindow(result, settings, saveSettings) { ShowActivated = false }.Show(owner);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             Trace.TraceWarning("自动更新失败：{0}", ex.Message);
-            if (!Silent() && !_exiting && owner.IsVisible) await Ui.Message(owner, "更新失败", ex.Message);
+            if (!Silent() && !_exiting && owner.IsVisible && Progress.Phase != UpdatePhase.Failed)
+                new UpdateWindow(new(false, ex.Message)) { Title = "更新失败", ShowActivated = false }.Show(owner);
         }
     }
 
-    public async Task PrepareAsync(UpdateResult result, bool automatic, CancellationToken ct)
+    public Task PrepareAsync(UpdateResult result, bool automatic, CancellationToken ct) =>
+        Task.Run(() => PrepareCoreAsync(result, automatic, ct), ct);
+
+    private void ReportProgress(UpdateProgress progress)
+    {
+        _progress = progress;
+        ProgressChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task PrepareCoreAsync(UpdateResult result, bool automatic, CancellationToken ct)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
         ct = linked.Token;
@@ -92,9 +111,13 @@ internal sealed class ApplicationUpdater
         string? work = null, stage = null;
         try
         {
-            if (_pending is not null) { if (!automatic) _preparedAutomatically = false; return; }
+            lock (_stateGate)
+            {
+                if (_pending is not null) { if (!automatic) _preparedAutomatically = false; return; }
+            }
             if (result.Asset is not { } asset || !TryTarget(out var target, out var kind))
                 throw new InvalidOperationException("当前安装不支持应用内更新，请从发布页下载安装包。");
+            ReportProgress(new(UpdatePhase.Downloading, TotalBytes: asset.Size));
             var id = Guid.NewGuid().ToString("N");
             var parent = Path.GetDirectoryName(target)!;
             stage = Path.Combine(parent, ".avamedia-update-" + id + (kind == "mac" ? ".app" : ""));
@@ -113,28 +136,52 @@ internal sealed class ApplicationUpdater
             using (var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
             {
                 var buffer = new byte[81920]; long received = 0;
+                var lastReport = Environment.TickCount64;
                 int count;
                 while ((count = await input.ReadAsync(buffer, ct)) > 0)
                 {
                     received += count;
                     if (received > asset.Size) throw new InvalidDataException("安装包大小不匹配。");
                     hash.AppendData(buffer, 0, count); await output.WriteAsync(buffer.AsMemory(0, count), ct);
+                    var now = Environment.TickCount64;
+                    if (now - lastReport >= 100 || received == asset.Size)
+                    {
+                        ReportProgress(new(UpdatePhase.Downloading, received, asset.Size));
+                        lastReport = now;
+                    }
                 }
                 if (received != asset.Size || !Convert.ToHexString(hash.GetHashAndReset()).Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("安装包 SHA256 校验失败。");
             }
+            ReportProgress(new(UpdatePhase.Preparing, asset.Size, asset.Size));
             if (kind == "portable")
             {
                 await Task.Run(() => ZipFile.ExtractToDirectory(package, stage), ct);
                 if (!File.Exists(Path.Combine(stage, "AvaMedia.Desktop.exe"))) throw new InvalidDataException("安装包缺少应用程序。");
             }
             else if (kind == "mac") await PrepareMacAsync(package, stage, result.LatestVersion!, ct);
-            ct.ThrowIfCancellationRequested();
-            _pending = new(package, target, stage, target + ".update-backup-" + id, kind);
-            _preparedAutomatically = automatic;
-            work = stage = null;
+            lock (_stateGate)
+            {
+                ct.ThrowIfCancellationRequested();
+                _preparedAutomatically = automatic;
+                _pending = new(package, target, stage, target + ".update-backup-" + id, kind);
+                work = stage = null;
+                ReportProgress(new(UpdatePhase.Ready, asset.Size, asset.Size));
+            }
         }
-        catch (UnauthorizedAccessException ex) { throw new IOException("应用目录无法写入，请从发布页手动安装更新。", ex); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            ReportProgress(new(UpdatePhase.Idle));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var error = ex is UnauthorizedAccessException
+                ? new IOException("应用目录无法写入，请从发布页手动安装更新。", ex) : ex;
+            ReportProgress(Progress with { Phase = UpdatePhase.Failed, Error = error.Message });
+            if (error != ex) throw error;
+            throw;
+        }
         finally
         {
             if (stage is not null) DeleteDirectory(stage);
@@ -179,12 +226,14 @@ internal sealed class ApplicationUpdater
     {
         if (_pending is not { } update) return;
         _pending = null; DeleteDirectory(update.Stage); DeleteDirectory(Path.GetDirectoryName(update.Package)!);
+        ReportProgress(new(UpdatePhase.Idle));
     }
 
     public void InstallOnExit()
     {
-        _exiting = true; _lifetime.Cancel();
-        if (_pending is not { } update) return;
+        PreparedUpdate? update;
+        lock (_stateGate) { _exiting = true; _lifetime.Cancel(); update = _pending; }
+        if (update is null) return;
         try
         {
             var windows = OperatingSystem.IsWindows();
