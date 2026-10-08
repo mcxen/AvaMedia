@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -13,8 +14,10 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     private readonly Dictionary<string, CategoryHeader> _categoryHeaders = [];
-    private readonly Dictionary<string, Vector> _categoryOffsets = [];
+    private readonly Dictionary<(string Category, bool TaskList), Vector> _categoryOffsets = [];
+    private readonly Dictionary<string, Button> _featureButtons = [];
     private bool _updatingCategories;
+    private bool _featureTaskList, _featureRefreshQueued;
     private int _categoryRevision;
 
     private void InitializeCategories()
@@ -50,49 +53,96 @@ public partial class MainWindow
         RememberCategoryOffset();
         _category = category;
         var revision = ++_categoryRevision;
+        BuildFeatureGrid(category);
+        ArrangeCategories(category);
+        RestoreFeatureOffset(revision);
+        Motion.Reveal(FeatureGrid);
+    }
+
+    private void BuildFeatureGrid(string category)
+    {
+        _featureTaskList = ActualThemeVariant == Skin.WindowsXP;
+        var columns = _featureTaskList ? 1 : 4;
         FeatureGrid.Children.Clear();
+        _featureButtons.Clear();
         FeatureGrid.RowDefinitions.Clear();
+        FeatureGrid.ColumnDefinitions.Clear();
+        for (var index = 0; index < columns; index++)
+            FeatureGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        FeatureGrid.Margin = _featureTaskList ? new Thickness(4) : new Thickness(12);
+        FeatureScroll.Margin = _featureTaskList ? new Thickness(10, 0, 10, 6) : default;
         int column = 0, row = 0;
         foreach (var feature in Catalog.All.Where(feature => feature.Category == category && (!Catalog.IsBeta(feature) || _settings.EnableBetaFeatures)))
         {
-            if (column + feature.Span > 4) { column = 0; row++; }
+            var span = _featureTaskList ? 1 : feature.Span;
+            if (column + span > columns) { column = 0; row++; }
             while (FeatureGrid.RowDefinitions.Count <= row)
                 FeatureGrid.RowDefinitions.Add(new RowDefinition(FeatureRowHeight, GridUnitType.Pixel));
-            var content = new Grid { RowDefinitions = new("*,Auto") };
-            var icon = new FeatureIcon { Kind = feature.Icon, Label = feature.Id == "mp4" ? "" : feature.Format.ToUpperInvariant() };
+            var content = _featureTaskList
+                ? new Grid { ColumnDefinitions = new("24,*"), ColumnSpacing = 8 }
+                : new Grid { RowDefinitions = new("*,Auto") };
+            var icon = new FeatureIcon { Kind = feature.Icon, Label = _featureTaskList || feature.Id == "mp4" ? "" : feature.Format.ToUpperInvariant() };
             icon.Bind(HeightProperty, new DynamicResourceExtension("UiFeatureIconHeight"));
+            if (_featureTaskList) { icon.Width = 22; icon.HorizontalAlignment = HorizontalAlignment.Left; icon.VerticalAlignment = VerticalAlignment.Center; }
             content.Children.Add(icon);
             var text = new TextBlock
             {
-                Text = feature.Label, TextWrapping = TextWrapping.Wrap, Classes = { "feature-label" },
-                Margin = new(1, 0), VerticalAlignment = VerticalAlignment.Bottom
+                Text = feature.Label, TextWrapping = _featureTaskList ? TextWrapping.NoWrap : TextWrapping.Wrap,
+                TextTrimming = _featureTaskList ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+                Classes = { "feature-label" }, Margin = new(1, 0),
+                VerticalAlignment = _featureTaskList ? VerticalAlignment.Center : VerticalAlignment.Bottom
             };
-            Grid.SetRow(text, 1);
+            if (_featureTaskList) Grid.SetColumn(text, 1); else Grid.SetRow(text, 1);
             content.Children.Add(text);
-            var tile = new Button { Content = content, Margin = new(3), Classes = { "tile" } };
+            var tile = new Button { Name = "Feature_" + feature.Id.Replace('-', '_'), Content = content,
+                Margin = _featureTaskList ? new Thickness(0, 1) : new Thickness(3), Classes = { _featureTaskList ? "feature-task" : "tile" } };
+            AutomationProperties.SetName(tile, feature.Label);
             ToolTip.SetTip(tile, feature.Label);
             tile.Click += async (_, _) => await Configure(feature);
+            if (_featureTaskList) tile.KeyDown += (_, args) => NavigateFeatureTasks(feature.Id, args);
+            _featureButtons.Add(feature.Id, tile);
             Grid.SetColumn(tile, column);
             Grid.SetRow(tile, row);
-            Grid.SetColumnSpan(tile, feature.Span);
+            Grid.SetColumnSpan(tile, span);
             FeatureGrid.Children.Add(tile);
-            column += feature.Span;
-            if (column == 4) { column = 0; row++; }
+            column += span;
+            if (column == columns) { column = 0; row++; }
         }
-        ArrangeCategories(category);
+    }
+
+    private void RestoreFeatureOffset(int revision, string? focusedFeature = null)
+    {
         FeatureScroll.Offset = default;
         // Apply remembered scroll after layout; rapid switches must not restore an old category.
         Dispatcher.UIThread.Post(() =>
         {
-            if (revision != _categoryRevision || !FeatureScroll.IsVisible) return;
-            FeatureScroll.Offset = _categoryOffsets.GetValueOrDefault(category);
+            if (_closing || revision != _categoryRevision || !FeatureScroll.IsVisible) return;
+            FeatureScroll.Offset = _categoryOffsets.GetValueOrDefault((_category, _featureTaskList));
+            if (focusedFeature is not null && _featureButtons.TryGetValue(focusedFeature, out var button))
+                button.Focus(NavigationMethod.Directional);
         }, DispatcherPriority.Loaded);
-        Motion.Reveal(FeatureGrid);
     }
 
     private double FeatureRowHeight => this.TryFindResource("UiFeatureRowHeight", out var value) && value is double height ? height : 91;
     private void RefreshFeatureMetrics()
     {
+        if (_featureTaskList != (ActualThemeVariant == Skin.WindowsXP))
+        {
+            if (_featureRefreshQueued) return;
+            _featureRefreshQueued = true;
+            // Rebuild after theme inheritance has settled, outside the skin-switch event.
+            Dispatcher.UIThread.Post(() =>
+            {
+                _featureRefreshQueued = false;
+                if (_closing || _featureTaskList == (ActualThemeVariant == Skin.WindowsXP)) return;
+                var focused = _featureButtons.FirstOrDefault(item => item.Value.IsKeyboardFocusWithin).Key;
+                RememberCategoryOffset();
+                var revision = ++_categoryRevision;
+                BuildFeatureGrid(_category);
+                RestoreFeatureOffset(revision, focused);
+            }, DispatcherPriority.Loaded);
+            return;
+        }
         foreach (var row in FeatureGrid.RowDefinitions) row.Height = new GridLength(FeatureRowHeight);
     }
 
@@ -107,7 +157,25 @@ public partial class MainWindow
     private void RememberCategoryOffset()
     {
         if (FeatureScroll.IsVisible && _categoryHeaders.Count != 0)
-            _categoryOffsets[_category] = FeatureScroll.Offset;
+            _categoryOffsets[(_category, _featureTaskList)] = FeatureScroll.Offset;
+    }
+
+    private void NavigateFeatureTasks(string featureId, KeyEventArgs args)
+    {
+        if (args.KeyModifiers != KeyModifiers.None) return;
+        var keys = _featureButtons.Keys.ToArray();
+        var index = Array.IndexOf(keys, featureId);
+        switch (args.Key)
+        {
+            case Key.Up: index = Math.Max(0, index - 1); break;
+            case Key.Down: index = Math.Min(keys.Length - 1, index + 1); break;
+            case Key.Home: index = 0; break;
+            case Key.End: index = keys.Length - 1; break;
+            case Key.Left: _categoryHeaders[_category].Focus(NavigationMethod.Directional); args.Handled = true; return;
+            default: return;
+        }
+        _featureButtons[keys[index]].Focus(NavigationMethod.Directional);
+        args.Handled = true;
     }
 
     private void ArrangeCategories(string? expanded)

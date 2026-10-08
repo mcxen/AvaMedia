@@ -59,6 +59,15 @@ public sealed class WindowsXPFace : Decorator
         var rect = new Rect(.5, .5, width - 1, height - 1);
         var disabled = !IsEffectivelyEnabled;
         if (Kind == "focus") { if (IsFocusedFace) DrawFocus(context, rect); return; }
+        if (Kind == "task")
+        {
+            if (disabled) return;
+            if (IsHot || IsPressed)
+                context.DrawRectangle(Brush.Parse(IsPressed ? "#CEDFF5" : "#E3EDFC"),
+                    new Pen(Brush.Parse(IsPressed ? "#7F9DB9" : "#B3C9EA"), 1), rect, 2, 2);
+            if (IsFocusedFace) DrawFocus(context, new Rect(3.5, 3.5, Math.Max(0, width - 7), Math.Max(0, height - 7)));
+            return;
+        }
         var down = IsPressed || IsSelected;
         if (Kind is "check" or "radio") { DrawChoice(context, rect, disabled); return; }
         if (Kind is "close" or "minimize" or "maximize" or "restore") { DrawCaption(context, rect, disabled); return; }
@@ -83,14 +92,14 @@ public sealed class WindowsXPFace : Decorator
         switch (Kind)
         {
             case "toolbar":
-            case "tile":
                 if (!IsHot && !down && !IsFocusedFace) return;
                 fill = down ? Brush.Parse("#CEDFF5") : Brush.Parse("#E8F2FF");
                 outline = "#316AC5"; radius = 0;
                 break;
             case "category":
-                fill = Gradient((0, "#FFFFFF"), (.45, "#F1F6FF"), (1, "#C6D3F7"));
-                outline = "#FFFFFF";
+                fill = IsSelected ? Gradient((0, "#FFFFFF"), (.45, "#E7F0FF"), (1, "#B8CDEE"))
+                    : Gradient((0, "#FFFFFF"), (.45, "#F5F8FF"), (1, "#D5E1F6"));
+                outline = IsHot || IsPressed ? "#7F9DB9" : "#AFBFDF";
                 break;
             case "tab":
                 fill = IsSelected ? Brushes.White : Gradient((0, "#FFFFFF"), (1, "#E0DFD7"));

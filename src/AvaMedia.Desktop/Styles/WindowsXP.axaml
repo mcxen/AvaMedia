@@ -83,7 +83,7 @@
           <Thickness x:Key="UiDialogPadding">12</Thickness>
           <Thickness x:Key="UiSectionPadding">10</Thickness>
           <x:Double x:Key="UiSettingSectionHeight">72</x:Double>
-          <x:Double x:Key="UiCategoryHeight">28</x:Double>
+          <x:Double x:Key="UiCategoryHeight">32</x:Double>
           <x:Double x:Key="UiMenuBarHeight">22</x:Double>
           <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
           <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
@@ -93,9 +93,10 @@
           <x:Double x:Key="UiStatusBarHeight">22</x:Double>
           <x:Double x:Key="UiTableHeaderHeight">24</x:Double>
           <x:Double x:Key="UiToolbarSeparatorHeight">24</x:Double>
-          <GridLength x:Key="UiSidebarWidth">360</GridLength>
-          <x:Double x:Key="UiFeatureIconHeight">32</x:Double>
-          <x:Double x:Key="UiFeatureRowHeight">74</x:Double>
+          <GridLength x:Key="UiSidebarWidth">300</GridLength>
+          <x:Double x:Key="UiFeatureIconHeight">22</x:Double>
+          <x:Double x:Key="UiFeatureRowHeight">36</x:Double>
+          <SolidColorBrush x:Key="XPTaskSurface" Color="#F1F5FF"/>
           <GridLength x:Key="UiQueuePreviewWidth">104</GridLength>
           <x:Double x:Key="UiQueueRowHeight">80</x:Double>
           <x:Double x:Key="UiQueueCoverHeight">56</x:Double>
@@ -162,9 +163,11 @@
   <Style Selector="Window.windows-xp controls|ActionIcon"><Setter Property="IsWindowsXP" Value="True"/></Style>
   <Style Selector="Window.windows-xp Button"><Setter Property="FontWeight" Value="Normal"/></Style>
   <Style Selector="Window.windows-xp Button.tool, Window.windows-xp Button.player-transport"><Setter Property="Theme" Value="{DynamicResource XPToolbarButtonTheme}"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="5,3"/></Style>
-  <Style Selector="Window.windows-xp Button.tile"><Setter Property="Theme" Value="{DynamicResource XPTileButtonTheme}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="4"/><Setter Property="RenderTransform" Value="scale(1)"/></Style>
-  <Style Selector="Window.windows-xp TextBlock.feature-label"><Setter Property="TextAlignment" Value="Center"/></Style>
-  <Style Selector="Window.windows-xp Button.category"><Setter Property="Theme" Value="{DynamicResource XPCategoryButtonTheme}"/><Setter Property="Foreground" Value="{DynamicResource XPSidebarText}"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="8,3"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.windows-xp Button.feature-task"><Setter Property="Theme" Value="{DynamicResource XPTaskButtonTheme}"/><Setter Property="Foreground" Value="{DynamicResource XPSidebarText}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Padding" Value="8,4"/><Setter Property="BorderThickness" Value="0"/><Setter Property="MinHeight" Value="32"/></Style>
+  <Style Selector="Window.windows-xp TextBlock.feature-label"><Setter Property="TextAlignment" Value="Left"/></Style>
+  <Style Selector="Window.windows-xp Grid#FeatureGrid"><Setter Property="Background" Value="{DynamicResource XPTaskSurface}"/></Style>
+  <Style Selector="Window.windows-xp ScrollViewer#FeatureScroll"><Setter Property="Background" Value="{DynamicResource XPTaskSurface}"/></Style>
+  <Style Selector="Window.windows-xp Button.category"><Setter Property="Theme" Value="{DynamicResource XPCategoryButtonTheme}"/><Setter Property="Foreground" Value="{DynamicResource XPSidebarText}"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Margin" Value="10,8,10,0"/><Setter Property="Padding" Value="10,4"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.windows-xp Button.category TextBlock.category-title"><Setter Property="TextAlignment" Value="Left"/></Style>
   <Style Selector="Window.windows-xp Button.category TextBlock.muted-icon"><Setter Property="Foreground" Value="{DynamicResource XPSidebarText}"/></Style>
   <Style Selector="Window.windows-xp Button.category Path.category-chevron"><Setter Property="Stroke" Value="{DynamicResource XPSidebarText}"/></Style>
