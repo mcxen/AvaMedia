@@ -47,7 +47,6 @@ static NSError *failure(NSString *message) {
 @property NSButton *backButton;
 @property NSButton *exitButton;
 @property NSTextField *heading;
-@property NSTextField *runtimePath;
 @property NSTextField *output;
 @property NSPopUpButton *language;
 @property NSButton *source;
@@ -102,23 +101,29 @@ static NSError *failure(NSString *message) {
     [self.window.contentView addSubview:button]; [self.pages[2] addObject:button]; return button;
 }
 - (void)refresh {
-    NSArray *names = @[@"运行环境", @"界面风格", @"使用偏好"];
-    NSArray *headings = @[@"准备运行环境", @"选择界面风格", @"设置使用偏好"];
+    NSArray *names = @[@"界面风格", @"使用偏好"];
+    NSArray *headings = @[@"准备启动", @"选择界面风格", @"设置使用偏好"];
     self.heading.stringValue = headings[self.step];
     for (NSInteger page = 0; page < 3; page++) {
         for (NSView *view in self.pages[page]) view.hidden = page != self.step;
-        self.steps[page].stringValue = [NSString stringWithFormat:@"%@ %ld  %@", page == self.step ? @"●" : @"○", (long)page + 1, names[page]];
-        self.steps[page].textColor = page == self.step ? NSColor.controlAccentColor : NSColor.secondaryLabelColor;
+        if (page > 0) {
+            self.steps[page - 1].stringValue = [NSString stringWithFormat:@"%@ %ld  %@", page == self.step ? @"●" : @"○", (long)page, names[page - 1]];
+            self.steps[page - 1].textColor = page == self.step ? NSColor.controlAccentColor : NSColor.secondaryLabelColor;
+        }
     }
     self.progress.hidden = self.step != 0 || !self.busy;
     self.nextButton.title = self.step == 2 ? @"完成并进入软件" : @"下一步";
     self.nextButton.enabled = !self.busy && (self.step != 0 || self.runtime != nil);
-    self.backButton.enabled = !self.busy && self.step > 0;
+    self.nextButton.hidden = self.step == 0;
+    self.backButton.hidden = self.step < 2;
+    self.backButton.enabled = !self.busy && self.step > 1;
     self.exitButton.enabled = !self.busy;
     self.button.enabled = !self.busy && !self.runtime;
+    self.button.hidden = self.step != 0 || self.busy;
     [self.window standardWindowButton:NSWindowCloseButton].enabled = !self.busy;
 }
 - (void)show {
+    self.step = self.runtime ? 1 : 0;
     self.pages = [NSMutableArray arrayWithArray:@[[NSMutableArray array], [NSMutableArray array], [NSMutableArray array]]];
     self.steps = [NSMutableArray array]; self.skins = [NSMutableArray array];
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 800, 560)
@@ -126,28 +131,17 @@ static NSError *failure(NSString *message) {
     self.window.title = @"天池万象转换 · 首次使用配置"; self.window.delegate = self;
     [self label:@"天池万象转换" frame:NSMakeRect(24, 488, 180, 26) page:-1].font = [NSFont boldSystemFontOfSize:15];
     [self label:@"首次使用配置" frame:NSMakeRect(24, 455, 180, 26) page:-1].textColor = NSColor.secondaryLabelColor;
-    for (int i = 0; i < 3; i++) [self.steps addObject:[self label:@"" frame:NSMakeRect(24, 380 - i * 52, 180, 30) page:-1]];
+    for (int i = 0; i < 2; i++) [self.steps addObject:[self label:@"" frame:NSMakeRect(24, 380 - i * 52, 180, 30) page:-1]];
     self.heading = [self label:@"" frame:NSMakeRect(220, 488, 536, 38) page:-1]; self.heading.font = [NSFont boldSystemFontOfSize:23];
     self.backButton = [self action:@"上一步" frame:NSMakeRect(220, 20, 98, 34) selector:@selector(back:) page:-1];
     self.exitButton = [self action:@"退出" frame:NSMakeRect(24, 20, 90, 34) selector:@selector(exit:) page:-1];
     self.nextButton = [self action:@"下一步" frame:NSMakeRect(568, 20, 188, 34) selector:@selector(next:) page:-1];
     self.nextButton.keyEquivalent = @"\r"; self.exitButton.keyEquivalent = @"\e";
-    [self label:@".NET 8 + ASP.NET Core 8" frame:NSMakeRect(220, 418, 536, 28) page:0].font = [NSFont boldSystemFontOfSize:15];
-    self.status = [self label:self.runtime ? @"✓ 运行环境已就绪" : @"需要安装运行时" frame:NSMakeRect(220, 326, 536, 66) page:0];
-    self.runtimePath = [self label:self.runtime ?: runtimeBase frame:NSMakeRect(220, 258, 536, 60) page:0];
-    self.runtimePath.textColor = NSColor.secondaryLabelColor;
-    self.button = [self action:self.runtime ? @"已安装" : @"安装运行时" frame:NSMakeRect(220, 208, 144, 34) selector:@selector(install:) page:0];
-    self.progress = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(220, 182, 536, 8)];
+    self.status = [self label:@"正在准备首次启动，请稍候…" frame:NSMakeRect(220, 326, 536, 66) page:0];
+    self.button = [self action:@"重试" frame:NSMakeRect(220, 238, 144, 34) selector:@selector(install:) page:0];
+    self.progress = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(220, 292, 536, 8)];
     self.progress.style = NSProgressIndicatorStyleBar; self.progress.indeterminate = YES;
     [self.window.contentView addSubview:self.progress]; [self.pages[0] addObject:self.progress];
-    [self label:@"安装到当前用户，无需管理员权限。" frame:NSMakeRect(220, 134, 536, 26) page:0].textColor = NSColor.secondaryLabelColor;
-    NSArray *tools = @[@"ffmpeg", @"ffprobe", @"yt-dlp"];
-    for (NSInteger i = 0; i < 3; i++) {
-        NSString *path = [[applicationBase stringByAppendingPathComponent:@"tools"] stringByAppendingPathComponent:tools[i]];
-        NSString *text = [NSString stringWithFormat:@"%@ · %@", tools[i], [NSFileManager.defaultManager isExecutableFileAtPath:path] ? @"内置" : @"缺失"];
-        [self label:text frame:NSMakeRect(220 + i * 180, 88, 174, 26) page:0];
-    }
-    [self label:@"内置工具缺失时，请重新安装完整版本。" frame:NSMakeRect(220, 60, 536, 24) page:0].textColor = NSColor.secondaryLabelColor;
     [self label:@"选择皮肤，放大查看界面细节。" frame:NSMakeRect(220, 446, 370, 28) page:1].textColor = NSColor.secondaryLabelColor;
     self.previewButton = [self action:@"放大预览" frame:NSMakeRect(638, 440, 118, 34) selector:@selector(zoom:) page:1];
     NSArray *skinNames = @[@"浅色", @"深色", @"Mac OS 9", @"Windows XP"];
@@ -180,8 +174,9 @@ static NSError *failure(NSString *message) {
     self.motion = [self check:@"减少界面动画" y:132 checked:NO];
     [self label:@"这些选项也可以在软件设置中调整。" frame:NSMakeRect(220, 82, 536, 26) page:2].textColor = NSColor.secondaryLabelColor;
     [self refresh]; [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
+    if (!self.runtime) [self install:nil];
 }
-- (void)back:(id)sender { (void)sender; if (!self.busy && self.step > 0) { self.step--; [self refresh]; } }
+- (void)back:(id)sender { (void)sender; if (!self.busy && self.step > 1) { self.step--; [self refresh]; } }
 - (void)exit:(id)sender { (void)sender; if (!self.busy) [NSApp stopModalWithCode:NSModalResponseCancel]; }
 - (void)selectSkin:(SetupSkinView *)sender {
     self.skin = sender.skinIndex;
@@ -333,7 +328,7 @@ static NSError *failure(NSString *message) {
             if (![url.scheme isEqualToString:@"https"] || ![url.host isEqualToString:@"builds.dotnet.microsoft.com"] ||
                 ![hash isKindOfClass:NSString.class] || hash.length != 128) { *error = failure(@"运行时下载信息无效。"); return nil; }
             NSString *archive = [stage stringByAppendingPathComponent:[NSUUID.UUID.UUIDString stringByAppendingString:@".tar.gz"]];
-            [self update:[NSString stringWithFormat:@"正在下载 %@…", package[@"name"]]];
+            [self update:@"正在下载启动所需文件…"];
             if (![self download:url to:archive error:error]) return nil;
             [self update:@"正在校验并安装…"];
             if (![self verify:archive hash:hash error:error]) return nil;
@@ -360,18 +355,17 @@ static NSError *failure(NSString *message) {
 - (void)install:(id)sender {
     (void)sender;
     if (self.busy || self.runtime) return;
-    self.busy = YES; [self refresh]; [self.progress startAnimation:nil]; self.status.stringValue = @"正在准备安装…";
+    self.busy = YES; [self refresh]; [self.progress startAnimation:nil]; self.status.stringValue = @"正在准备首次启动，请稍候…";
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         NSError *error = nil;
         NSString *runtime = [self installRuntime:&error];
         dispatch_async(dispatch_get_main_queue(), ^{
             self.busy = NO; [self.progress stopAnimation:nil];
             if (runtime) {
-                self.runtime = runtime; self.runtimePath.stringValue = runtime;
-                self.status.stringValue = @"✓ .NET 8 和 ASP.NET Core 8 已就绪"; self.button.title = @"已安装";
+                self.runtime = runtime; self.step = 1;
             } else {
-                self.status.stringValue = error.localizedDescription ?: @"安装失败，请重试。";
-                self.button.title = @"重试安装";
+                NSLog(@"Startup preparation failed: %@", error);
+                self.status.stringValue = @"启动准备未完成，请重试。";
             }
             [self refresh];
         });

@@ -142,7 +142,7 @@ public sealed class ConvertWindow : Window
         {
             list.IsVisible=false;toolbar.IsVisible=false;setting.IsVisible=false;
             var area=new StackPanel{Spacing=16,Margin=new(0,30,0,0)};
-            if(feature.Operation==Operation.Download){area.Children.Add(Ui.Text("视频地址 (HTTP / HTTPS)"));area.Children.Add(special);area.Children.Add(Ui.Text("通过已配置的 yt-dlp 下载，输出 MP4。"));}
+            if(feature.Operation==Operation.Download){area.Children.Add(Ui.Text("视频地址 (HTTP / HTTPS)"));area.Children.Add(special);area.Children.Add(Ui.Text("粘贴视频链接，选择保存位置即可。"));}
             else {area.Children.Add(Ui.Text(OperatingSystem.IsMacOS()?"光驱原始设备路径，例如 /dev/rdisk2":"光驱盘符或原始设备路径，例如 D:"));area.Children.Add(special);area.Children.Add(new TextBlock{Text="逐字节复制可读数据光盘为 ISO。需要本机读取权限，不处理加密。",TextWrapping=TextWrapping.Wrap});}
             Grid.SetRow(area,2);panel.Children.Add(area);
         }

@@ -15,7 +15,7 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 安装或首次发现完整运行时后保存根目录：Windows 写入 `HKCU\Software\AvaMedia\Runtime` 的 `win-x64` 值，Mac 写入运行时缓存中的 `runtime-root-osx-arm64.txt`。后续启动读取这个位置后直接加载运行时，不再调用独立的可用性预检，也不重复搜索系统安装目录。下载安装过程的校验仍在安装期间完成，macOS 安装完成后的自动重启也直接使用已保存的位置。
 
-首次使用的原生启动器提供运行环境、四种皮肤缩略预览、使用偏好三步向导，.NET 安装作为环境步骤的一部分。完成后保存配置并进入原有客户端，以后启动跳过向导；详见 [首次使用配置](FIRST-RUN-SETUP.md)。
+首次使用的原生启动器提供四种皮肤缩略预览、使用偏好两步向导。确实缺少运行环境时自动准备，完成后进入皮肤选择；不展示内置工具清单、组件名或安装路径。完成后保存配置并进入原有客户端，以后启动跳过向导；详见 [首次使用配置](FIRST-RUN-SETUP.md)。
 
 必要步骤失败时不发布 Release。构建 job 使用 `contents: read`，上传 job 单独获得 `contents: write` 和 GitHub 自带的 `GITHUB_TOKEN`；Actions 固定到核对过的 SHA。同一个 tag 可手动重跑，成品会重新上传。后续版本使用新 tag，不移动已发布 tag。
 

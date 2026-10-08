@@ -21,7 +21,6 @@ public sealed partial class SettingsWindow
     }
     private void InitializeModelManagement()
     {
-        ModelList.Children.Add(new Border { Classes = { "settingSection" }, Child = Ui.Text("YuNet · 人脸方向检测 · 内置") });
         foreach (var model in ModelCatalog.All)
         {
             var status = Ui.Text("读取状态…", "caption");

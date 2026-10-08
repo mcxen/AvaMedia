@@ -29,11 +29,9 @@ public sealed class ModelInstallationNotice : Border
     private void LanguageChanged(object? sender, EventArgs args) => Refresh();
     private void Refresh()
     {
-        IsVisible = ModelInstallation.Installing || ModelInstallation.Failed;
+        IsVisible = ModelInstallation.Failed;
         _retry.IsVisible = ModelInstallation.Failed;
         _retry.Content = Localization.Text("重试");
-        _message.Text = ModelInstallation.Failed ? Localization.Text("图片修复模型安装失败，请检查网络后重试。")
-            : Localization.Text("图片修复模型") + " · " + Localization.Text(ModelInstallation.Stage)
-                + (ModelInstallation.Stage == "下载" ? $" · {ModelInstallation.Received / 1048576d:0.0} / {ModelInstallation.Total / 1048576d:0.0} MiB · {ModelInstallation.Percent}%" : "");
+        _message.Text = Localization.Text("图片修复暂不可用，请检查网络后重试。");
     }
 }

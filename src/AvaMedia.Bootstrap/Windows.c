@@ -77,7 +77,6 @@ static void read_text_file(const wchar_t *path, wchar_t *result, int capacity) {
     }
     CloseHandle(file);
 }
-static void read_error(wchar_t *result, int capacity) { read_text_file(log_path, result, capacity); }
 #include "SetupWindows.h"
 
 static void unregister_player(void) {
