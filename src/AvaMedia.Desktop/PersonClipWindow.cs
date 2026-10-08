@@ -14,12 +14,12 @@ public sealed class PersonClipWindow : Window
     private readonly List<string> _paths = [];
     private readonly ListBox _files = new();
     private readonly TextBox _results = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-    private readonly NumericUpDown _fps = Number(.25m, 8, 2, .25m);
+    private readonly NumericUpDown _fps = Number(.25m, 16, 4, .25m);
     private readonly NumericUpDown _threshold = Number(.1m, .9m, .35m, .05m);
     private readonly NumericUpDown _padding = Number(0, 30, .5m, .1m);
     private readonly NumericUpDown _gap = Number(0, 30, 1, .5m);
     private readonly NumericUpDown _minimum = Number(0, 30, .5m, .1m);
-    private readonly CheckBox _uncertain = new() { Content = "保留不确定片段", IsChecked = true };
+    private readonly CheckBox _uncertain = new() { Content = "保留不确定片段", IsChecked = false };
     private readonly CheckBox _embedding = new() { Content = "使用 EmbeddingGemma 2 语义辅助", IsEnabled = false };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU", IsChecked = true };
     private readonly CheckBox _reuseFrames = new() { Content = "复用相似画面", IsChecked = true };
@@ -27,6 +27,14 @@ public sealed class PersonClipWindow : Window
     private readonly TextBlock _status = Ui.Text("");
     private readonly Controls.AiActivityView _activity = new();
     private readonly StackPanel _parameters = new() { Spacing = 8 };
+    private readonly Dictionary<string, CheckBox> _detectorBoxes = [];
+    private readonly Dictionary<string, TextBlock> _detectorStates = [];
+    private readonly HashSet<string> _installedDetectors = [];
+    private readonly ComboBox _detectionMode = new()
+    {
+        Name = "PersonDetectionMode", ItemsSource = new[] { "平衡检测", "减少漏检", "交叉确认" }, SelectedIndex = 0,
+        HorizontalAlignment = HorizontalAlignment.Stretch
+    };
     private readonly Button _add;
     private readonly Button _remove;
     private readonly Button _models;
@@ -52,12 +60,30 @@ public sealed class PersonClipWindow : Window
             try { await _manageModels(this); if (!_settings.EnableBetaFeatures) Close(null); else await RefreshModelsAsync(); }
             catch (Exception error) { _status.Text = error.Message; }
         });
-        _analyze = Ui.DialogButton("分析视频", async () => await AnalyzeAsync());
-        _stop = Ui.Button("停止分析", () => _analysis?.Cancel()); _stop.IsVisible = false;
-        _export = Ui.DialogButton("编辑并导出", () => { if (_settings.EnableBetaFeatures && _edits is not null) Close(_edits); }); _export.IsEnabled = false;
+        _analyze = Ui.DialogButton("分析视频", async () => await AnalyzeAsync()); _analyze.Name = "AnalyzePersonClips";
+        _stop = Ui.Button("停止分析", () => _analysis?.Cancel()); _stop.Name = "StopPersonClips"; _stop.IsVisible = false;
+        _export = Ui.DialogButton("编辑并导出", () => { if (_settings.EnableBetaFeatures && _edits is not null) Close(_edits); });
+        _export.Name = "ExportPersonClips"; _export.IsEnabled = false;
         var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         tools.Children.Add(_add); tools.Children.Add(_remove); tools.Children.Add(_models); layout.Children.Add(tools);
+        _parameters.Children.Add(Ui.Text("检测模型", "settingsHeading"));
+        foreach (var detector in PersonDetectorCatalog.All)
+        {
+            var model = ModelCatalog.Find(detector.Id);
+            var checkbox = new CheckBox { Name = "Detector_" + detector.Id, Content = detector.Name,
+                IsChecked = detector.Id != ModelCatalog.PersonId };
+            var state = Ui.Text("读取模型状态…", "caption");
+            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+            row.Children.Add(checkbox); Grid.SetColumn(state, 1); row.Children.Add(state);
+            _parameters.Children.Add(row); _detectorBoxes.Add(detector.Id, checkbox); _detectorStates.Add(detector.Id, state);
+            checkbox.IsCheckedChanged += (_, _) => { InvalidateResult(); UpdateDetectorSelection(); };
+            ToolTip.SetTip(checkbox, $"{model.DownloadSize / 1048576d:0.00} MiB");
+        }
+        _parameters.Children.Add(Ui.Text("联合策略")); _parameters.Children.Add(_detectionMode);
+        _detectionMode.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => Ui.Text(value ?? ""));
+        ToolTip.SetTip(_detectionMode, Localization.Text("平衡检测保留强证据或多模型一致的画面；减少漏检接受任一模型；交叉确认要求多数模型一致。"));
+        _detectionMode.SelectionChanged += (_, _) => InvalidateResult();
         foreach (var (label, input) in new[] { ("每秒采样帧数", _fps), ("检测阈值", _threshold), ("前后保留秒数", _padding), ("合并间隔秒数", _gap), ("最短片段秒数", _minimum) })
         {
             var row = new Grid { ColumnDefinitions = new("160,*"), ColumnSpacing = 12 };
@@ -106,13 +132,31 @@ public sealed class PersonClipWindow : Window
     private async Task RefreshModelsAsync()
     {
         var store = new ModelStore();
-        var person = await store.IsInstalledAsync(ModelCatalog.PersonId, ct: _lifetime.Token);
+        _installedDetectors.Clear();
+        foreach (var detector in PersonDetectorCatalog.All)
+        {
+            var installed = await store.IsInstalledAsync(detector.Id, ct: _lifetime.Token);
+            if (_closed) return;
+            if (installed) _installedDetectors.Add(detector.Id);
+            _detectorStates[detector.Id].Text = Localization.Text(installed ? "已下载" : "未下载")
+                + $" · {ModelCatalog.Find(detector.Id).DownloadSize / 1048576d:0.00} MiB";
+        }
         var embedding = await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token);
         if (_closed) return;
-        _modelStatus.Text = Localization.Text(person ? "人体检测模型已下载" : "请先在模型管理中下载 YOLOX");
         _embedding.IsEnabled = embedding;
         if (!embedding) _embedding.IsChecked = false;
-        _analyze.IsEnabled = person;
+        UpdateDetectorSelection();
+    }
+    private string[] SelectedDetectors => _detectorBoxes.Where(item => item.Value.IsChecked == true).Select(item => item.Key).ToArray();
+    private void UpdateDetectorSelection()
+    {
+        if (_analysis is not null || _closed) return;
+        var selected = SelectedDetectors;
+        var missing = selected.Where(id => !_installedDetectors.Contains(id)).ToArray();
+        _modelStatus.Text = selected.Length == 0 ? Localization.Text("请选择至少一种检测模型。")
+            : missing.Length > 0 ? Localization.Format($"请先下载：{string.Join("、", missing.Select(id => PersonDetectorCatalog.Find(id).Name))}")
+            : Localization.Format($"已选择 {selected.Length} 种检测模型");
+        _analyze.IsEnabled = selected.Length > 0 && missing.Length == 0;
     }
     private static double Value(NumericUpDown input)
     {
@@ -126,14 +170,15 @@ public sealed class PersonClipWindow : Window
         if (_paths.Count == 0) { _status.Text = Localization.Text("请添加视频。"); return; }
         PersonClipOptions options;
         try { options = new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum), _uncertain.IsChecked == true,
-            _embedding.IsChecked == true, _gpu.IsChecked == true, _reuseFrames.IsChecked == true); options.Validate(); }
+            _embedding.IsChecked == true, _gpu.IsChecked == true, _reuseFrames.IsChecked == true,
+            SelectedDetectors, (PersonDetectionMode)_detectionMode.SelectedIndex); options.Validate(); }
         catch (Exception error) { _status.Text = error.Message; return; }
         InvalidateResult();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _analysis = cancellation;
         _add.IsEnabled = _remove.IsEnabled = _models.IsEnabled = _parameters.IsEnabled = _analyze.IsEnabled = false;
         _stop.IsVisible = true;
-        _activity.Update(new("校验模型", "YOLOX · 人物检测", DateTime.UtcNow, DateTime.UtcNow));
+        _activity.Update(new("校验模型", string.Join(" + ", options.SelectedDetectors.Select(id => PersonDetectorCatalog.Find(id).Name)), DateTime.UtcNow, DateTime.UtcNow));
         try
         {
             var results = new List<ClipEditResult>();
@@ -152,6 +197,9 @@ public sealed class PersonClipWindow : Window
                 if (result.Segments.Count > 0) results.Add(new(result.Path, result.Info, result.Segments));
                 summaries.Add(Localization.Format($"{Path.GetFileName(result.Path)} · {result.Segments.Count} 个片段 · 保留 {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))} · 不确定 {result.UncertainFrames}/{result.SampledFrames} 帧"));
                 summaries.Add(Localization.Format($"模型计算 {result.InferredFrames} 帧 · 复用 {result.ReusedFrames} 帧 · 边界细化 {result.BoundaryFrames} 帧") + " · " + result.Backend);
+                foreach (var detector in result.Detectors)
+                    summaries.Add(Localization.Format($"{detector.Name} · 检测 {detector.Evaluations} 帧 · 有人 {detector.PositiveFrames} 帧")
+                        + (detector.FallbackReason is null ? "" : " · " + Localization.Text("已回退 CPU")));
                 _results.Text = string.Join(Environment.NewLine, summaries);
             }
             if (_closed) return;
@@ -168,6 +216,7 @@ public sealed class PersonClipWindow : Window
             {
                 _add.IsEnabled = _remove.IsEnabled = _models.IsEnabled = _parameters.IsEnabled = _analyze.IsEnabled = true;
                 _stop.IsVisible = false;
+                UpdateDetectorSelection();
             }
         }
     }

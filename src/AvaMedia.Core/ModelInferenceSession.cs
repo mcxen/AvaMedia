@@ -6,15 +6,16 @@ namespace AvaMedia.Core;
 internal sealed class ModelInferenceSession : IDisposable
 {
     private readonly string _path;
+    private readonly byte[]? _modelData;
     private readonly int? _batchSize;
     private InferenceSession _session;
     public string Backend { get; private set; } = "CPU";
     public string? FallbackReason { get; private set; }
     public string InputName => _session.InputMetadata.Keys.First();
 
-    public ModelInferenceSession(string path, string modelHash, bool preferGpu, int? batchSize = null)
+    public ModelInferenceSession(string path, string modelHash, bool preferGpu, int? batchSize = null, byte[]? modelData = null)
     {
-        _path = path; _batchSize = batchSize;
+        _path = path; _batchSize = batchSize; _modelData = modelData;
         if (preferGpu)
         {
             try
@@ -35,14 +36,14 @@ internal sealed class ModelInferenceSession : IDisposable
                         ["RequireStaticInputShapes"] = "1",
                         ["ModelCacheDirectory"] = cache
                     });
-                    _session = new(path, options); Backend = "Core ML / CPU"; return;
+                    _session = CreateSession(options); Backend = "Core ML / CPU"; return;
                 }
                 if (OperatingSystem.IsWindows() && providers.Contains("DmlExecutionProvider"))
                 {
                     options.EnableMemoryPattern = false;
                     options.ExecutionMode = ExecutionMode.ORT_SEQUENTIAL;
                     options.AppendExecutionProvider_DML();
-                    _session = new(path, options); Backend = "DirectML / CPU"; return;
+                    _session = CreateSession(options); Backend = "DirectML / CPU"; return;
                 }
                 FallbackReason = OperatingSystem.IsMacOS() ? "Core ML execution provider is unavailable."
                     : OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
@@ -67,7 +68,8 @@ internal sealed class ModelInferenceSession : IDisposable
         }
     }
 
-    private InferenceSession CpuSession() { using var options = Options(); return new(_path, options); }
+    private InferenceSession CreateSession(SessionOptions options) => _modelData is null ? new(_path, options) : new(_modelData, options);
+    private InferenceSession CpuSession() { using var options = Options(); return CreateSession(options); }
     private SessionOptions Options()
     {
         var options = new SessionOptions

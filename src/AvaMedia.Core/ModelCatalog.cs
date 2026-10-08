@@ -14,6 +14,8 @@ public sealed record DownloadableModel(string Id, string Name, string Purpose, s
 public static class ModelCatalog
 {
     public const string PersonId = "yolox";
+    public const string NanoDetId = "nanodet-person";
+    public const string MediaPipePersonId = "mediapipe-person";
     public const string EmbeddingId = "embeddinggemma-2";
     public const string LamaId = "lama";
     public const string JoyTagId = "joytag";
@@ -55,6 +57,12 @@ public static class ModelCatalog
             new(PersonId, "YOLOX", "自动保留有人片段", "Apache-2.0", "https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox",
                 [new(PersonFile, 35858002, "c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063",
                     ["https://huggingface.co/opencv/opencv_zoo/resolve/d4938dfc9d4ec5d098bfa33e98b3f3345a236586/models/object_detection_yolox/" + PersonFile])]),
+            new(NanoDetId, "NanoDet · 轻量", "自动保留有人片段", "Apache-2.0", "https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_nanodet",
+                [new("object_detection_nanodet_2022nov_int8bq.onnx", 1123958, "8a2c877cc6f09e7dfac7a9066e33ee5ae68de530b3b994f6ee9125cff6e34d3f",
+                    ["https://huggingface.co/opencv/opencv_zoo/resolve/d4938dfc9d4ec5d098bfa33e98b3f3345a236586/models/object_detection_nanodet/object_detection_nanodet_2022nov_int8bq.onnx"])]),
+            new(MediaPipePersonId, "MediaPipe · 人体", "自动保留有人片段", "Apache-2.0", "https://github.com/opencv/opencv_zoo/tree/main/models/person_detection_mediapipe",
+                [new("person_detection_mediapipe_2023mar.onnx", 11990159, "47fd5599d6fa17608f03e0eb0ae230baa6e597d7e8a2c8199fe00abea55a701f",
+                    ["https://huggingface.co/opencv/opencv_zoo/resolve/d4938dfc9d4ec5d098bfa33e98b3f3345a236586/models/person_detection_mediapipe/person_detection_mediapipe_2023mar.onnx"])]),
             new(EmbeddingId, "EmbeddingGemma 2 · Q8", "可选语义辅助 · 含本地推理工具", "Apache-2.0 / MIT",
                 "https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2",
                 new[] {
