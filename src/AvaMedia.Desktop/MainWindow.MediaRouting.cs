@@ -29,9 +29,10 @@ public partial class MainWindow
         if (request is not null) await Configure(Catalog.Find(request.FeatureId), request.Files);
     }
     private void DragOver(object? sender, DragEventArgs e)
-    { e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }
+    { if (e.Handled) return; e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }
     private async void Drop(object? sender, DragEventArgs e)
     {
+        if (e.Handled) return;
         e.Handled = true;
         try { await RouteFilesAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); }
         catch (Exception error)

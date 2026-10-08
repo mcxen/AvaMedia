@@ -1,4 +1,11 @@
 {
+  "拖到左侧工具继续处理": "Drag to a tool on the left to continue processing",
+  "输出文件缺失或不可访问。": "Output files are missing or inaccessible.",
+  "拖拽输出失败": "Unable to drag output files",
+  "带入 {0} 个文件": "Import {0} files",
+  "带入 {0} 个文件 · 跳过 {1} 个不支持的文件": "Import {0} files · Skip {1} unsupported files",
+  "此工具不支持这些文件": "This tool does not support these files",
+  "当前无法打开此工具": "This tool is currently unavailable",
   "阶段结果 · 最近 {0} 条": "Stage results · Latest {0}",
   "阶段画面": "Current frame",
   "过程记录": "Activity history",

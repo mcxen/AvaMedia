@@ -43,6 +43,7 @@ public partial class MainWindow
                 else if (_category == category) CollapseCategory();
             };
             header.KeyDown += (_, args) => NavigateCategories(category, args);
+            EnableCategoryDropNavigation(header, category);
         }
         Categories.RowDefinitions.Add(new RowDefinition(1, GridUnitType.Star));
     }
@@ -102,6 +103,7 @@ public partial class MainWindow
             AutomationProperties.SetName(tile, feature.Label);
             ToolTip.SetTip(tile, feature.Label);
             tile.Click += async (_, _) => await Configure(feature);
+            EnableFeatureDrop(tile, content, feature);
             if (_windowsXPFeatures) tile.KeyDown += (_, args) => NavigateFeatureIcons(feature.Id, args);
             _featureButtons.Add(feature.Id, tile);
             Grid.SetColumn(tile, column);

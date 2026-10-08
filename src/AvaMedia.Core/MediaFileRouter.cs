@@ -26,6 +26,34 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
         return MediaFileKind.Other;
     }
 
+    public bool Accepts(Feature feature, MediaRouteSource source)
+    {
+        if (Catalog.IsBeta(feature) && !enableBeta) return false;
+        var video = source.Kind == MediaFileKind.Video;
+        var image = source.Kind == MediaFileKind.Image;
+        var audio = source.Kind == MediaFileKind.Audio;
+        var extension = Path.GetExtension(source.Path);
+        return feature.Operation switch
+        {
+            Operation.Download or Operation.IsoCopy => false,
+            Operation.Zip => true,
+            Operation.Unzip => extension.Equals(".zip", StringComparison.OrdinalIgnoreCase),
+            Operation.PdfMerge or Operation.PdfSplit or Operation.PdfAge or Operation.PdfCompress
+                or Operation.PdfText or Operation.PdfDocx or Operation.PdfXlsx => extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase),
+            Operation.TextPdf => extension.Equals(".txt", StringComparison.OrdinalIgnoreCase),
+            Operation.ImagesPdf => image,
+            Operation.ImageCompress => image && ImageCompression.Supports(source.Path),
+            Operation.Info => video || audio || image,
+            Operation.Player or Operation.Transcribe or Operation.Mux => video || audio,
+            Operation.BatchTools => feature.Id == "contact-sheet" ? video : video || image,
+            _ when feature.Id is "crop" or "rotate" or "person-clip" => video,
+            _ when feature.Id is "voice-enhance" or "audio-enhance" => video || audio,
+            _ when feature.Category == "图片" => image,
+            _ when feature.Category == "音频" => video || audio,
+            _ => video
+        };
+    }
+
     public IReadOnlyList<MediaRouteOption> Routes(IReadOnlyList<MediaRouteSource> selected)
     {
         List<MediaRouteOption> routes = [];

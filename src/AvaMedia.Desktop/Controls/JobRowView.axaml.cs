@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -16,6 +18,9 @@ public partial class JobRowView : UserControl
     private CancellationTokenSource? _load;
     private PreviewKey? _key;
     private int _refreshPosted, _fullRefresh;
+    private Point? _outputPressed;
+    private IPointer? _outputPointer;
+    private bool _draggingOutput;
     private Task _previewReady = Task.CompletedTask;
     public Task Ready { get; private set; } = Task.CompletedTask;
     public JobRowDetails? Details => _details;
@@ -25,6 +30,11 @@ public partial class JobRowView : UserControl
         DataContextChanged += (_, _) => BindJob();
         AttachedToVisualTree += (_, _) => BindJob();
         DetachedFromVisualTree += (_, _) => Release();
+        OutputDragHandle.AddHandler(PointerPressedEvent, OutputPointerPressed, RoutingStrategies.Tunnel);
+        OutputDragHandle.PointerMoved += OutputPointerMoved;
+        OutputDragHandle.PointerReleased += (_, _) => ResetOutputPointer();
+        OutputDragHandle.PointerCaptureLost += (_, _) => ResetOutputPointer();
+        OutputDragHandle.DoubleTapped += (_, e) => { if (OutputDragGrip.IsVisible) e.Handled = true; };
     }
     private void BindJob()
     {
@@ -60,6 +70,11 @@ public partial class JobRowView : UserControl
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
+        var canDrag = _owner.CanDragOutput(job);
+        OutputDragGrip.IsVisible = canDrag;
+        OutputDragHandle.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
+        ToolTip.SetTip(OutputDragGrip, Localization.Text("拖到左侧工具继续处理"));
+        ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖到左侧工具继续处理") : null);
         ViewResultButton.IsVisible = _owner.CanViewSummaryResult(job);
         CoverButton.IsEnabled = _owner.CanEditTask(job);
         var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
@@ -125,6 +140,40 @@ public partial class JobRowView : UserControl
     { e.Handled = true; if (_owner is not null && _details is not null) await _owner.EditJob(_details.Job); }
     private async void ViewResultClick(object? sender, RoutedEventArgs e)
     { e.Handled = true; if (_owner is not null && _details is not null) await _owner.ShowSummaryResultAsync(_details.Job); }
+    private void OutputPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_draggingOutput || _owner is null || _details is null || !_owner.CanDragOutput(_details.Job)
+            || e.KeyModifiers != KeyModifiers.None || !e.GetCurrentPoint(OutputDragHandle).Properties.IsLeftButtonPressed) return;
+        _outputPressed = e.GetPosition(OutputDragHandle);
+        _outputPointer = e.Pointer;
+        e.Pointer.Capture(OutputDragHandle);
+        e.Handled = true;
+        _owner.SelectOutputForDrag(_details.Job);
+    }
+    private async void OutputPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_outputPressed is not {} start || _draggingOutput || _owner is null || _details is null) return;
+        if (!e.GetCurrentPoint(OutputDragHandle).Properties.IsLeftButtonPressed) { ResetOutputPointer(); return; }
+        var delta = e.GetPosition(OutputDragHandle) - start;
+        if (delta.X * delta.X + delta.Y * delta.Y < 36) return;
+        var owner = _owner; var job = _details.Job;
+        _draggingOutput = true; _outputPressed = null; e.Handled = true;
+        try
+        {
+            await owner.DragOutputsAsync(job, e, () =>
+            {
+                var pressed = _outputPointer is not null;
+                ResetOutputPointer(); return pressed;
+            });
+        }
+        finally { ResetOutputPointer(); _draggingOutput = false; }
+    }
+    private void ResetOutputPointer()
+    {
+        _outputPressed = null;
+        var pointer = _outputPointer; _outputPointer = null;
+        if (pointer?.Captured == OutputDragHandle) pointer.Capture(null);
+    }
     private void PresentationChanged(bool visible) { if (visible) Refresh(); else SuspendPreview(); }
     private void SuspendPreview()
     {
@@ -134,6 +183,7 @@ public partial class JobRowView : UserControl
     }
     private void Release()
     {
+        ResetOutputPointer();
         _load?.Cancel(); _load = null; _key = null;
         _previewReady = Task.CompletedTask;
         if (_owner is not null)

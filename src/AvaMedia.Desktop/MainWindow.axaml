@@ -1,4 +1,9 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
+  <Window.Styles>
+    <Style Selector="Border.tool-drop-indicator"><Setter Property="IsVisible" Value="False"/></Style>
+    <Style Selector="Button.tile.drop-target Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+    <Style Selector="Button.tile.drop-invalid Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
+  </Window.Styles>
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}">
       <MenuItem Header="文件"><MenuItem Header="添加文件…" Click="AddClick"/><Separator/><MenuItem Header="保存任务列表…" Click="ExportQueueClick"/><MenuItem Header="载入任务列表…" Click="ImportQueueClick"/><Separator/><MenuItem Header="退出" Click="ExitClick"/></MenuItem>
