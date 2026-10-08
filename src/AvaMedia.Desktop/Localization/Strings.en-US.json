@@ -81,6 +81,8 @@
   "循环": "Loop",
   "循环播放当前片段": "Loop the current segment",
   "按列表顺序播放全部片段": "Play all segments in list order",
+  "新增片段": "Add segment",
+  "从播放头新增片段": "Add a segment from the playhead",
   "复制片段": "Duplicate segment",
   "复制当前片段（Ctrl/Cmd+D）": "Duplicate the current segment (Ctrl/Cmd+D)",
   "在此分割": "Split here",

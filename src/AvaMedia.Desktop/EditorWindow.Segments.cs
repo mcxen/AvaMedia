@@ -5,10 +5,11 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
-public partial class EditorWindow
+public partial class EditorWindow : ISegmentThumbnailSource
 {
     private sealed record SegmentSnapshot(ConversionOptions[] Drafts, int SelectedIndex);
     private readonly List<SegmentSnapshot> _segmentUndo = [], _segmentRedo = [];
@@ -31,12 +32,12 @@ public partial class EditorWindow
         Opened += (_, _) => RefreshSegments();
     }
 
-    internal async Task<byte[]> ReadSegmentThumbnail(ConversionOptions options, CancellationToken ct)
+    async Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
     {
         using var request = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
         await _ready.Task.WaitAsync(request.Token);
         await _segmentThumbnailGate.WaitAsync(request.Token);
-        try { return await _previewFrames.Thumbnail(_path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
+        try { return await _previewFrames.Thumbnail(path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
         finally { _segmentThumbnailGate.Release(); }
     }
 
@@ -67,7 +68,7 @@ public partial class EditorWindow
         RedoSegmentButton.IsEnabled = _segmentRedo.Count > 0;
         var ready = _info?.Duration > 0 && _activeSegment is not null;
         PlayAllSegmentsButton.IsEnabled = ready;
-        AddSegmentButton.IsEnabled = SplitSegmentButton.IsEnabled = ready && ConfirmButton.IsEnabled;
+        AddSegmentButton.IsEnabled = DuplicateSegmentButton.IsEnabled = SplitSegmentButton.IsEnabled = ready && ConfirmButton.IsEnabled;
         var validRange = ready && string.IsNullOrEmpty(TimeError.Text);
         SplitAtPositionButton.IsEnabled = validRange && EditorTime.TryRead(StartTime.Text, _options.Start, out var start)
             && EditorTime.TryRead(EndTime.Text, _options.End, out var end) && _position > start && _position < end;
@@ -194,7 +195,7 @@ public partial class EditorWindow
         if (parts.Count == 0) return;
         RememberSegmentEdit();
         _selectingSegment = true; _segments.RemoveAt(index);
-        for (var i = 0; i < parts.Count; i++) _segments.Insert(index + i, new(parts[i]));
+        for (var i = 0; i < parts.Count; i++) _segments.Insert(index + i, new(parts[i], _path));
         _activeSegment = null; _selectingSegment = false;
         _segmentReady = SelectSegment(_segments[index], skipCommit: true);
     }
@@ -213,7 +214,7 @@ public partial class EditorWindow
             var snapshot = source[^1]; source.RemoveAt(source.Count - 1); target.Add(SegmentState());
             BeginPreview();
             _selectingSegment = true; _segments.Clear();
-            foreach (var draft in snapshot.Drafts) _segments.Add(new(draft));
+            foreach (var draft in snapshot.Drafts) _segments.Add(new(draft, _path));
             _activeSegment = null; _selectingSegment = false;
             await SelectSegment(_segments[Math.Clamp(snapshot.SelectedIndex, 0, _segments.Count - 1)], skipCommit: true);
         }
@@ -229,7 +230,7 @@ public partial class EditorWindow
         var command = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
         if (command && e.Key == Key.Z) _segmentReady = RestoreSegmentEdit(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         else if (command && e.Key == Key.Y) _segmentReady = RestoreSegmentEdit(true);
-        else if (command && e.Key == Key.D) AddSegmentClick(null, e);
+        else if (command && e.Key == Key.D) DuplicateSegmentClick(null, e);
         else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Up) MoveSegment(-1);
         else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Down) MoveSegment(1);
         else if (e.KeyModifiers != KeyModifiers.None) return;

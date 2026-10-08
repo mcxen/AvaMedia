@@ -32,7 +32,7 @@ public partial class MainWindow
                 if(result is null)return;
                 edits[i]=result;
             }
-            var decision=await new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin).ShowDialog<ClipExportDecision?>(this);
+            var decision=await new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin,previewFrames:Engine).ShowDialog<ClipExportDecision?>(this);
             if(decision is null)return;
             exportState=decision.State;
             if(decision.BackToEditing)continue;

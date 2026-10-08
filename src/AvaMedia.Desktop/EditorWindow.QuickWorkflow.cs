@@ -11,7 +11,9 @@ public sealed class ClipSegmentEntry : Observable
     private ConversionOptions _options;
     private int _number;
     private double _sourceDuration;
-    public ClipSegmentEntry(ConversionOptions options) => _options = options.Clone();
+    public ClipSegmentEntry(ConversionOptions options, string sourcePath = "") { _options = options.Clone(); SourcePath = sourcePath; }
+    public string SourcePath { get; }
+    public string SourceName => Path.GetFileName(SourcePath);
     public ConversionOptions Options
     {
         get => _options;
@@ -71,8 +73,8 @@ public partial class EditorWindow
         Avalonia.Automation.AutomationProperties.SetName(SegmentList, "视频片段列表");
         Avalonia.Automation.AutomationProperties.SetName(SegmentTrack, "片段顺序与播放位置");
         SegmentList.ItemsSource = _segments;
-        foreach (var draft in segments ?? []) _segments.Add(new(draft));
-        if (_segments.Count == 0) _segments.Add(new(_options));
+        foreach (var draft in segments ?? []) _segments.Add(new(draft, _path));
+        if (_segments.Count == 0) _segments.Add(new(_options, _path));
         _activeSegment = _segments[0]; _options = _activeSegment.Options.Clone();
         _selectingSegment = true; SegmentList.SelectedItem = _activeSegment; _selectingSegment = false;
         SyncDirectionControls(); InitializeSegmentEditing(); RefreshSegments();
@@ -111,13 +113,23 @@ public partial class EditorWindow
         UpdateSegmentActions();
     }
 
-    private void AddSegmentClick(object? sender, RoutedEventArgs e)
+    private void AddSegmentClick(object? sender, RoutedEventArgs e) => InsertSegment(duplicate: false);
+    private void DuplicateSegmentClick(object? sender, RoutedEventArgs e) => InsertSegment(duplicate: true);
+
+    private void InsertSegment(bool duplicate)
     {
-        if (!QuickWorkflow || _info is null || _activeSegment is null) return;
+        if (!QuickWorkflow || _closed || _info?.Duration is not > 0 || _activeSegment is null) return;
         try
         {
-            CommitActiveSegment(); RememberSegmentEdit();
-            var entry = new ClipSegmentEntry(_activeSegment.Options);
+            CommitActiveSegment();
+            var draft = _activeSegment.Options.Clone();
+            if (!duplicate)
+            {
+                draft.Start = double.IsFinite(_position) && _position >= 0 && _position < _info.Duration ? _position : 0;
+                draft.End = 0;
+            }
+            RememberSegmentEdit();
+            var entry = new ClipSegmentEntry(draft, _path);
             _selectingSegment = true; _segments.Insert(_segments.IndexOf(_activeSegment) + 1, entry); _selectingSegment = false;
             _segmentReady = SelectSegment(entry); SegmentError.Text = "";
         }

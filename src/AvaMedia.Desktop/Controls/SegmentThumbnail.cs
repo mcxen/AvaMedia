@@ -3,21 +3,27 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
+using AvaMedia.Core;
 
 namespace AvaMedia.Desktop.Controls;
+
+internal interface ISegmentThumbnailSource
+{
+    Task<byte[]> ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct);
+}
 
 /// <summary>Only realized list rows decode thumbnails; detached rows release their image and request.</summary>
 public sealed class SegmentThumbnail : Image
 {
     private ClipSegmentEntry? _entry;
-    private EditorWindow? _owner;
+    private ISegmentThumbnailSource? _owner;
     private CancellationTokenSource? _request;
     private (double Start, int Stream)? _loaded;
     public SegmentThumbnail() => DataContextChanged += (_, _) => Bind();
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        _owner = this.GetVisualAncestors().OfType<EditorWindow>().FirstOrDefault(); Bind();
+        _owner = this.GetVisualAncestors().OfType<ISegmentThumbnailSource>().FirstOrDefault(); Bind();
     }
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -49,7 +55,7 @@ public sealed class SegmentThumbnail : Image
         var old = Source as Bitmap; Source = null; old?.Dispose();
         try
         {
-            var data = await owner.ReadSegmentThumbnail(entry.Options.Clone(), token);
+            var data = await owner.ReadSegmentThumbnail(entry.SourcePath, entry.Options.Clone(), token);
             token.ThrowIfCancellationRequested();
             if (!ReferenceEquals(_entry, entry) || !ReferenceEquals(_request, request)) return;
             using var stream = new MemoryStream(data); Source = new Bitmap(stream);

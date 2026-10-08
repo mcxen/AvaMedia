@@ -100,13 +100,14 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,*" RowSpacing="6" ColumnSpacing="6">
-          <Button x:Name="AddSegmentButton" Content="复制片段" Click="AddSegmentClick" ToolTip.Tip="复制当前片段（Ctrl/Cmd+D）"/>
-          <Button Grid.Column="1" x:Name="SplitAtPositionButton" Content="在此分割" Click="SplitAtPositionClick" ToolTip.Tip="在播放头处分割当前片段（S）"/>
-          <Button Grid.Row="1" x:Name="SplitSegmentButton" Content="批量分割…" Click="SplitSegmentClick"/>
-          <Button Grid.Row="1" Grid.Column="1" x:Name="RemoveSegmentButton" Content="删除片段" Click="RemoveSegmentClick"/>
-          <Button Grid.Row="2" x:Name="SegmentUpButton" Content="上移" Click="SegmentUpClick" ToolTip.Tip="上移片段（Alt+↑）"/>
-          <Button Grid.Row="2" Grid.Column="1" x:Name="SegmentDownButton" Content="下移" Click="SegmentDownClick" ToolTip.Tip="下移片段（Alt+↓）"/>
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,*" RowSpacing="6" ColumnSpacing="6">
+          <Button x:Name="AddSegmentButton" Content="新增片段" Click="AddSegmentClick" ToolTip.Tip="从播放头新增片段"/>
+          <Button Grid.Column="1" x:Name="DuplicateSegmentButton" Content="复制片段" Click="DuplicateSegmentClick" ToolTip.Tip="复制当前片段（Ctrl/Cmd+D）"/>
+          <Button Grid.Row="1" x:Name="SplitAtPositionButton" Content="在此分割" Click="SplitAtPositionClick" ToolTip.Tip="在播放头处分割当前片段（S）"/>
+          <Button Grid.Row="1" Grid.Column="1" x:Name="SplitSegmentButton" Content="批量分割…" Click="SplitSegmentClick"/>
+          <Button Grid.Row="2" Grid.ColumnSpan="2" x:Name="RemoveSegmentButton" Content="删除片段" Click="RemoveSegmentClick"/>
+          <Button Grid.Row="3" x:Name="SegmentUpButton" Content="上移" Click="SegmentUpClick" ToolTip.Tip="上移片段（Alt+↑）"/>
+          <Button Grid.Row="3" Grid.Column="1" x:Name="SegmentDownButton" Content="下移" Click="SegmentDownClick" ToolTip.Tip="下移片段（Alt+↓）"/>
         </Grid>
         <TextBlock Grid.Row="3" x:Name="SegmentError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
       </Grid>
