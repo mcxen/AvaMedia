@@ -13,7 +13,12 @@ public sealed class PersonClipWindow : Window
     private readonly Func<Window, string?, Task> _manageModels;
     private readonly List<string> _paths = [];
     private readonly ListBox _files = new();
-    private readonly TextBox _results = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    private readonly TextBox _results = new()
+    {
+        Name = "PersonClipResults", IsReadOnly = true, AcceptsReturn = true,
+        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        Watermark = "分析时显示检测明细，完成后显示保留片段。"
+    };
     private readonly NumericUpDown _fps = Number(.25m, 16, 4, .25m);
     private readonly NumericUpDown _threshold = Number(.1m, .9m, .35m, .05m);
     private readonly NumericUpDown _padding = Number(0, 30, .5m, .1m);
@@ -181,6 +186,31 @@ public sealed class PersonClipWindow : Window
             || value < input.Minimum || value > input.Maximum) throw new ArgumentException("请输入范围内的检测参数。");
         return (double)value;
     }
+    private void ShowProgress(PersonClipProgress progress, int index, IReadOnlyList<string> summaries)
+    {
+        var lines = summaries.ToList();
+        if (lines.Count > 0) lines.Add("");
+        lines.Add(Localization.Format($"视频 {index + 1}/{_paths.Count} · {Path.GetFileName(_paths[index])}"));
+        lines.Add(Localization.Text(progress.Stage));
+        if (progress.Activity is { } activity)
+        {
+            if (activity.Detail.Length > 0) lines.Add(activity.Detail);
+            if (activity.Backend.Length > 0) lines.Add(activity.Backend);
+        }
+        if (progress.Evidence.Count > 0)
+        {
+            lines.Add(""); lines.Add(Localization.Text("当前画面检测"));
+            foreach (var evidence in progress.Evidence)
+                lines.Add(Localization.Format($"{PersonDetectorCatalog.Find(evidence.Id).Name} · 分数 {evidence.Score:0.000} / 阈值 {evidence.Threshold:0.000} · {Localization.Key(evidence.Score >= evidence.Threshold ? "达到阈值" : "低于阈值")} · {evidence.Backend}"));
+        }
+        if (progress.Activity is { RecentResults.Length: > 0 } observations)
+        {
+            lines.Add(""); lines.Add(Localization.Format($"阶段结果 · 最近 {observations.RecentResults.Length} 条"));
+            lines.AddRange(observations.RecentResults);
+        }
+        var text = Localization.Join(Environment.NewLine, lines);
+        if (_results.Text != text) _results.Text = text;
+    }
     private async Task AnalyzeAsync()
     {
         if (_analysis is not null || !_settings.EnableBetaFeatures) return;
@@ -203,10 +233,12 @@ public sealed class PersonClipWindow : Window
             for (var index = 0; index < _paths.Count; index++)
             {
                 var current = index; var finished = false;
+                ShowProgress(new(0, 0, "校验模型"), current, summaries);
                 var progress = new Progress<PersonClipProgress>(value =>
                 {
                     if (_closed || _analysis != cancellation || finished) return;
                     if (value.Activity is { } activity) _activity.Update(activity);
+                    ShowProgress(value, current, summaries);
                     _status.Text = Path.GetFileName(_paths[current]) + " · " + Localization.Text(value.Stage);
                 });
                 var result = await new PersonClipAnalysis(_engine).AnalyzeAsync(_paths[index], options, progress, cancellation.Token);
@@ -217,7 +249,13 @@ public sealed class PersonClipWindow : Window
                 foreach (var detector in result.Detectors)
                     summaries.Add(Localization.Format($"{detector.Name} · 检测 {detector.Evaluations} 帧 · 有人 {detector.PositiveFrames} 帧")
                         + (detector.FallbackReason is null ? "" : " · " + Localization.Text("已回退 CPU")));
-                _results.Text = string.Join(Environment.NewLine, summaries);
+                for (var segmentIndex = 0; segmentIndex < result.Segments.Count; segmentIndex++)
+                {
+                    var segment = result.Segments[segmentIndex];
+                    summaries.Add(Localization.Format($"保留片段 {segmentIndex + 1} · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}"));
+                }
+                summaries.Add("");
+                _results.Text = Localization.Join(Environment.NewLine, summaries);
             }
             if (_closed) return;
             _edits = results; _export.IsEnabled = results.Count > 0;
