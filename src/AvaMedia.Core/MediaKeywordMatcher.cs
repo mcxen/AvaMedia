@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace AvaMedia.Core;
 
 public sealed record SemanticKeyword(string Label, string Description);
-public sealed record VideoKeywordOptions(int Frames = 8, double MinimumSimilarity = .55, double MinimumMargin = .03, bool ReuseSimilarFrames = true)
+public sealed record MediaKeywordOptions(int Frames = 8, double MinimumSimilarity = .55, double MinimumMargin = .03, bool ReuseSimilarFrames = true)
 {
     public void Validate()
     {
@@ -12,8 +12,8 @@ public sealed record VideoKeywordOptions(int Frames = 8, double MinimumSimilarit
             throw new ArgumentException("语义匹配参数超出范围。");
     }
 }
-public sealed record VideoKeywordScore(string Keyword, double Similarity);
-public sealed record VideoKeywordResult(string Path, IReadOnlyList<VideoKeywordScore> Scores, bool IsMatch,
+public sealed record MediaKeywordScore(string Keyword, double Similarity);
+public sealed record MediaKeywordResult(string Path, IReadOnlyList<MediaKeywordScore> Scores, bool IsMatch,
     int SampledFrames, long Length, DateTime LastWriteUtc, int InferredFrames)
 {
     public int ReusedFrames => SampledFrames - InferredFrames;
@@ -21,19 +21,19 @@ public sealed record VideoKeywordResult(string Path, IReadOnlyList<VideoKeywordS
     public double Similarity => Scores[0].Similarity;
     public double Margin => Scores.Count > 1 ? Similarity - Scores[1].Similarity : 1;
 }
-public sealed record VideoKeywordProgress(int Frame, int TotalFrames)
+public sealed record MediaKeywordProgress(int Frame, int TotalFrames)
 {
     public AiActivity? Activity { get; init; }
 }
 
-/// <summary>Samples a bounded number of frames, reuses similar images and batches unique embeddings.</summary>
-public sealed class VideoKeywordMatcher : IAsyncDisposable
+/// <summary>Matches images or bounded video samples, reuses similar frames and batches embeddings.</summary>
+public sealed class MediaKeywordMatcher : IAsyncDisposable
 {
     private readonly IMediaEngine _engine;
-    private readonly GemmaVideoEmbedding _embedding;
+    private readonly GemmaMediaEmbedding _embedding;
     private readonly SemanticKeyword[] _keywords;
     private readonly float[][] _labels;
-    private VideoKeywordMatcher(IMediaEngine engine, GemmaVideoEmbedding embedding, SemanticKeyword[] keywords, float[][] labels)
+    private MediaKeywordMatcher(IMediaEngine engine, GemmaMediaEmbedding embedding, SemanticKeyword[] keywords, float[][] labels)
     { _engine = engine; _embedding = embedding; _keywords = keywords; _labels = labels; }
 
     public static SemanticKeyword[] ParseKeywords(string text)
@@ -45,7 +45,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             var split = entry.IndexOf('=');
             var label = (split < 0 ? entry : entry[..split]).Trim();
             var description = (split < 0 ? entry : entry[(split + 1)..]).Trim();
-            BatchVideoTools.ValidateRenameKeyword(label);
+            BatchRename.ValidateRenameKeyword(label);
             if (string.IsNullOrWhiteSpace(description) || description.Length > 512) throw new ArgumentException("关键词描述不能为空或超过 512 字符。");
             if (!labels.Add(label)) throw new ArgumentException("命名关键词重复：" + label);
             result.Add(new(label, description));
@@ -54,20 +54,20 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         return result.ToArray();
     }
 
-    public static Task<VideoKeywordMatcher> CreateAsync(IMediaEngine engine, IReadOnlyList<SemanticKeyword> keywords,
+    public static Task<MediaKeywordMatcher> CreateAsync(IMediaEngine engine, IReadOnlyList<SemanticKeyword> keywords,
         ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true, IProgress<AiActivity>? progress = null) => Task.Run(async () =>
     {
-        var activity = new AiActivityReporter(value => progress?.Report(value), "Gemma · 视频嵌入");
+        var activity = new AiActivityReporter(value => progress?.Report(value), "Gemma · 媒体嵌入");
         var snapshot = keywords.ToArray();
         if (snapshot.Length is < 1 or > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("请选择 1–20000 个关键词。");
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var keyword in snapshot)
         {
-            BatchVideoTools.ValidateRenameKeyword(keyword.Label);
+            BatchRename.ValidateRenameKeyword(keyword.Label);
             if (!names.Add(keyword.Label) || string.IsNullOrWhiteSpace(keyword.Description) || keyword.Description.Length > 512)
                 throw new ArgumentException("候选名称重复或描述无效：" + keyword.Label);
         }
-        var embedding = await GemmaVideoEmbedding.StartAsync(store ?? new(), ct, preferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
+        var embedding = await GemmaMediaEmbedding.StartAsync(store ?? new(), ct, preferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
         try
         {
             var labels = new List<float[]>();
@@ -88,26 +88,27 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
                 offset += batch.Count;
                 activity.Advance(labels.Count, snapshot.Length, "词");
             }
-            return new VideoKeywordMatcher(engine, embedding, snapshot, labels.ToArray());
+            return new MediaKeywordMatcher(engine, embedding, snapshot, labels.ToArray());
         }
         catch { await embedding.DisposeAsync(); throw; }
     }, ct);
 
-    public Task<VideoKeywordResult> MatchAsync(string path, VideoKeywordOptions options,
-        IProgress<VideoKeywordProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
+    public Task<MediaKeywordResult> MatchAsync(string path, MediaKeywordOptions options,
+        IProgress<MediaKeywordProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
         options.Validate();
         var completed = 0; var frames = 0;
-        var activity = new AiActivityReporter(value => progress?.Report(new(completed, frames) { Activity = value }), "Gemma · 视频嵌入", "次候选结果");
+        var activity = new AiActivityReporter(value => progress?.Report(new(completed, frames) { Activity = value }), "Gemma · 媒体嵌入", "次候选结果");
         activity.Backend(_embedding.Backend);
-        activity.Stage("读取视频", detail: Path.GetFileName(path));
+        var image = new MediaFileRouter().Classify(path) == MediaFileKind.Image;
+        activity.Stage(image ? "读取图片" : "读取视频", detail: Path.GetFileName(path));
         var file = new FileInfo(path);
         if (!file.Exists) throw new FileNotFoundException("源文件不存在，请刷新文件列表。", path);
         var length = file.Length; var modified = file.LastWriteTimeUtc;
-        var info = await _engine.Probe(path, ct).ConfigureAwait(false);
-        if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有有效时长的视频。");
-        var (duration, frameRate) = BatchVideoTools.VideoTiming(info);
-        frames = (int)Math.Min(options.Frames, Math.Max(1, Math.Ceiling(duration * 2)));
+        var info = image ? null : await _engine.Probe(path, ct).ConfigureAwait(false);
+        if (!image && (info is null || !info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0)) throw new ArgumentException("请选择有有效时长的视频。");
+        var (duration, frameRate) = info is null ? (0d, 1d) : BatchVideoTools.VideoTiming(info);
+        frames = image ? 1 : (int)Math.Min(options.Frames, Math.Max(1, Math.Ceiling(duration * 2)));
         var totals = new double[_keywords.Length];
         var unique = new List<(byte[] Png, byte[] Signature, double Seconds)>();
         var samples = new int[frames];
@@ -116,7 +117,8 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         {
             ct.ThrowIfCancellationRequested();
             var seconds = Math.Min(duration * (index + .5) / frames, Math.Max(0, duration - Math.Max(.08, 1 / frameRate)));
-            var png = await ReadFrameAsync(path, info.VideoStreamIndex, seconds, ct).ConfigureAwait(false);
+            var png = image ? await _engine.Thumbnail(path, 0, 512, 512, ct, pad: false).ConfigureAwait(false)
+                : await ReadFrameAsync(path, info!.VideoStreamIndex, seconds, ct).ConfigureAwait(false);
             var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromEncoded(png) : [];
             var existing = options.ReuseSimilarFrames ? unique.FindIndex(frame => VideoFrameSimilarity.Similar(frame.Signature, signature)) : -1;
             samples[index] = existing >= 0 ? existing : unique.Count;
@@ -124,7 +126,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             activity.Frame(png, $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)}");
             activity.Advance(index + 1, frames, "帧", $"待推理 {unique.Count} 帧 · 复用 {index + 1 - unique.Count} 帧");
         }
-        activity.Stage("匹配视频关键词", 0, frames, "帧");
+        activity.Stage("匹配媒体关键词", 0, frames, "帧");
         for (var offset = 0; offset < unique.Count; offset += 4)
         {
             ct.ThrowIfCancellationRequested();
@@ -134,23 +136,23 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             {
                 // Weight reused frames exactly as the original uniformly spaced samples.
                 var weight = samples.Count(sample => sample == offset + index);
-                for (var label = 0; label < totals.Length; label++) totals[label] += weight * GemmaVideoEmbedding.Cosine(vectors[index], _labels[label]);
+                for (var label = 0; label < totals.Length; label++) totals[label] += weight * GemmaMediaEmbedding.Cosine(vectors[index], _labels[label]);
                 completed += weight;
             }
             var latest = unique[Math.Min(offset + vectors.Length, unique.Count) - 1];
             activity.Frame(latest.Png, $"{Path.GetFileName(path)} · {MediaTime.Format(latest.Seconds)}");
-            activity.Result("当前候选 · " + string.Join(" · ", _keywords.Select((keyword, index) => new VideoKeywordScore(keyword.Label, totals[index] / completed))
+            activity.Result("当前候选 · " + string.Join(" · ", _keywords.Select((keyword, index) => new MediaKeywordScore(keyword.Label, totals[index] / completed))
                 .OrderByDescending(score => score.Similarity).Take(3).Select(score => $"{score.Keyword} {score.Similarity:0.000}")));
             activity.Advance(completed, frames, "帧", "相似度分数，阶段候选");
         }
         file.Refresh();
         if (!file.Exists || file.Length != length || file.LastWriteTimeUtc != modified)
             throw new IOException("分析期间源文件已改变，请重新匹配：" + path);
-        var scores = _keywords.Select((keyword, index) => new VideoKeywordScore(keyword.Label, totals[index] / frames))
+        var scores = _keywords.Select((keyword, index) => new MediaKeywordScore(keyword.Label, totals[index] / frames))
             .OrderByDescending(score => score.Similarity).ToArray();
         var margin = scores.Length > 1 ? scores[0].Similarity - scores[1].Similarity : 1;
         activity.Finish("关键词匹配完成");
-        return new VideoKeywordResult(path, scores, scores[0].Similarity >= options.MinimumSimilarity && margin >= options.MinimumMargin,
+        return new MediaKeywordResult(path, scores, scores[0].Similarity >= options.MinimumSimilarity && margin >= options.MinimumMargin,
             frames, length, modified, unique.Count);
     }, ct);
 

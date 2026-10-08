@@ -92,7 +92,7 @@ public sealed partial class BatchRotateWindow : Window
             if (!File.Exists(path) || !QuickClipBatch.VideoExtensions.Contains(System.IO.Path.GetExtension(path).TrimStart('.')))
             { skipped.Add(path); continue; }
             var full = System.IO.Path.GetFullPath(path);
-            if (_entries.Any(e => BatchVideoTools.PathComparer.Equals(e.Path, full))) continue;
+            if (_entries.Any(e => BatchRename.PathComparer.Equals(e.Path, full))) continue;
             var entry = new BatchRotateEntry(full) { Rotation = PerFile ? null : _sharedRotation,
                 DetectionMessage = PerFile ? "尚未检测，请自动检测或手动选择方向。" : null };
             entry.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(BatchRotateEntry.Include)) RefreshValidation(); };

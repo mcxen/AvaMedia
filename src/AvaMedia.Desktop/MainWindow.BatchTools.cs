@@ -18,17 +18,17 @@ public partial class MainWindow
             settings.Applied += (_, _) => ApplyOptions();
             await settings.ShowDialog<bool>(owner);
         }
-        var window = new BatchToolsWindow(Engine, _settings.OutputFolder, files, screenshots: screenshots,
-            settings: _settings, manageModels: ManageModels);
+        if (screenshots)
+        {
+            await new ContactSheetWindow(Engine, _settings.OutputFolder, files).ShowDialog(this);
+            return;
+        }
+        var window = new RenameWindow(Engine, _settings, files, manageModels: ManageModels);
         window.Renamed += mappings =>
         {
-            var map = mappings.ToDictionary(i => i.Source, i => i.Target, BatchVideoTools.PathComparer);
-            foreach (var job in _jobs)
-                job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            JobList.ItemsSource = null;
-            JobList.ItemsSource = _jobs;
-            Save();
-            Refresh();
+            var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
+            foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
+            JobList.ItemsSource = null; JobList.ItemsSource = _jobs; Save(); Refresh();
         };
         await window.ShowDialog(this);
     }

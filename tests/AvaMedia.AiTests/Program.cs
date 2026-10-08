@@ -54,7 +54,7 @@ internal static class Program
             if (mode == "semantic")
             {
                 var activities = new List<AiActivity>();
-                await using (var backend = await GemmaVideoEmbedding.StartAsync(store, CancellationToken.None))
+                await using (var backend = await GemmaMediaEmbedding.StartAsync(store, CancellationToken.None))
                 {
                     Console.WriteLine(JsonSerializer.Serialize(new { backend.Backend, backend.FallbackReason, backend.AccelerationDetails }));
                     Check(!OperatingSystem.IsMacOS() || backend.Backend.Contains("Metal"), "actual Metal GPU layer dispatch");
@@ -62,18 +62,18 @@ internal static class Program
                 }
                 var keywords = WordLibraryCatalog.BuiltIns.Single(library => library.Id == "common").Entries.Take(33)
                     .Select(word => new SemanticKeyword(word.Label, word.Description)).Append(new("长描述", new string('景', 500))).ToArray();
-                await using (var matcher = await VideoKeywordMatcher.CreateAsync(engine, keywords, store, preferGpu: true,
+                await using (var matcher = await MediaKeywordMatcher.CreateAsync(engine, keywords, store, preferGpu: true,
                     progress: new InlineProgress<AiActivity>(activities.Add)))
                 {
                     var result = await matcher.MatchAsync(paths.Single(path => Path.GetFileNameWithoutExtension(path) == "V01"), new(Frames: 4),
-                        new InlineProgress<VideoKeywordProgress>(value => { if (value.Activity is { } activity) activities.Add(activity); }));
+                        new InlineProgress<MediaKeywordProgress>(value => { if (value.Activity is { } activity) activities.Add(activity); }));
                     Check(result.Scores.Count == keywords.Length && result.Scores.All(score => double.IsFinite(score.Similarity)), "semantic labels and image vectors");
                     Check(activities.Any(value => value.Stage == "编码关键词" && value.Current == keywords.Length), "semantic multi-request label progress");
                     Check(activities.Any(value => value.Preview is { Length: > 0 }) && activities.Any(value => value.RecentResults.Length > 0), "semantic intermediate results");
                     report.Add(new { Semantic = result, Stages = activities.Select(value => value.Stage).Distinct().ToArray() });
                 }
                 using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-                await ExpectCancelled(async () => { await using var _ = await VideoKeywordMatcher.CreateAsync(engine, keywords, store, cancelled.Token); });
+                await ExpectCancelled(async () => { await using var _ = await MediaKeywordMatcher.CreateAsync(engine, keywords, store, cancelled.Token); });
                 using var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId);
                 Check(lease.Directory.Length > 0, "semantic process releases model lock");
             }
@@ -100,11 +100,11 @@ internal static class Program
                 var matches = cpu!.Where(value => MediaTagService.MatchLabel(value, query, .4).Length > 0).ToArray();
                 Check(matches.Length > 0, "real candidate matches");
                 var before = matches.ToDictionary(value => value.Path, value => Hash(value.Path));
-                var plan = BatchVideoTools.PreviewRename(matches.Select(value => value.Path), new("{keyword}_{index}"),
+                var plan = BatchRename.PreviewRename(matches.Select(value => value.Path), new("{keyword}_{index}"),
                     matches.ToDictionary(value => value.Path, value => MediaTagService.MatchLabel(value, query, .4)));
-                var journal = Path.Combine(Root, "rename.json"); BatchVideoTools.ApplyRename(plan, journal);
+                var journal = Path.Combine(Root, "rename.json"); BatchRename.ApplyRename(plan, journal);
                 Check(plan.All(item => File.Exists(item.Target) && Hash(item.Target) == before[item.Source]), "rename actual files");
-                BatchVideoTools.UndoRename(journal); Check(before.All(item => File.Exists(item.Key) && Hash(item.Key) == item.Value), "undo preserves bytes");
+                BatchRename.UndoRename(journal); Check(before.All(item => File.Exists(item.Key) && Hash(item.Key) == item.Value), "undo preserves bytes");
                 using var cancellation = new CancellationTokenSource(); var completed = new List<MediaTagResult>();
                 await ExpectCancelled(() => new MediaTagService(engine, store).AnalyzeAsync(paths, new(), new InlineProgress<MediaTagProgress>(value =>
                 { if (value.Result is { } result) { completed.Add(result); cancellation.Cancel(); } }), cancellation.Token));

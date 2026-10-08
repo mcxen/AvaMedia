@@ -5,11 +5,10 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed partial class BatchToolsWindow
+public sealed partial class RenameWindow
 {
-    private readonly AppSettings? _settings;
+    private readonly AppSettings _settings;
     private readonly Func<Window, Task>? _manageModels;
-    private readonly bool _screenshots;
     private readonly CheckBox _semantic = new() { Content = "关键词匹配重命名 · Beta" };
     private readonly TextBox _keywords = new() { AcceptsReturn = true, Height = 88, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         Watermark = Localization.Text("做饭，骑车，海边") };
@@ -22,18 +21,19 @@ public sealed partial class BatchToolsWindow
     private readonly Controls.AiActivityView _semanticActivity = new();
     private readonly StackPanel _semanticParameters = new() { Spacing = 8, IsVisible = false };
     private readonly TextBlock _semanticModelStatus = Ui.Text("读取模型状态…", "caption");
-    private readonly Dictionary<string, VideoKeywordResult> _semanticResults = new(BatchVideoTools.PathComparer);
+    private readonly Dictionary<string, MediaKeywordResult> _semanticResults = new(BatchRename.PathComparer);
+    private readonly Dictionary<string, string> _semanticDetails = new(BatchRename.PathComparer);
     private readonly CancellationTokenSource _semanticLifetime = new();
     private Button? _matchKeywords;
     private bool _semanticInstalled;
     private bool _semanticApplying;
     private string _ordinaryPattern = "{name}_{index}";
     private string _keywordPattern = "{keyword}_{index}";
-    private bool SemanticEnabled => !_screenshots && _settings?.EnableBetaFeatures == true && _semantic.IsChecked == true;
+    private bool SemanticEnabled => _settings.EnableBetaFeatures == true && _semantic.IsChecked == true;
 
     private void InitializeSemanticRename()
     {
-        if (!_screenshots && _settings?.EnableBetaFeatures == true)
+        if (_settings.EnableBetaFeatures == true)
         {
             _semanticPanel.IsVisible = true;
             _semanticGpu.IsChecked = _settings.AutoDetectGpu;
@@ -106,7 +106,7 @@ public sealed partial class BatchToolsWindow
     private void ClearSemanticMatches()
     {
         if (_operation is not null || !SemanticEnabled) return;
-        _semanticResults.Clear(); _semanticApplying = true;
+        _semanticResults.Clear(); _semanticDetails.Clear(); _semanticApplying = true;
         try { foreach (var entry in _entries) { entry.Keyword = ""; entry.Include = false; entry.Status = "待匹配"; entry.Details = entry.Path; } }
         finally { _semanticApplying = false; }
         InvalidatePlan();
@@ -125,38 +125,38 @@ public sealed partial class BatchToolsWindow
     private async Task MatchKeywordsAsync()
     {
         if (!SemanticEnabled || !_semanticInstalled || _operation is not null || _renaming || _importing) return;
-        SemanticKeyword[] keywords; VideoKeywordOptions options;
+        SemanticKeyword[] keywords; MediaKeywordOptions options;
         try
         {
-            if (_entries.Count == 0) throw new ArgumentException("请添加视频。");
+            if (_entries.Count == 0) throw new ArgumentException("请添加图片或视频。");
             keywords = SemanticCandidates();
             var frames = SemanticValue(_semanticFrames);
             if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
             options = new((int)frames, SemanticValue(_semanticThreshold), SemanticValue(_semanticMargin), _semanticReuse.IsChecked == true); options.Validate();
         }
-        catch (Exception error) { await Ui.Message(this, "语义匹配失败", error.Message); return; }
+        catch (Exception error) { await ShowErrorAsync("语义匹配失败", error); return; }
         ClearSemanticMatches();
         var selected = _entries.ToArray();
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_semanticLifetime.Token);
         _operation = operation; SetBusy(true); _stop.IsEnabled = true;
         _progressText.Text = Localization.Text("加载嵌入模型…");
-        _semanticActivity.Update(new("加载嵌入模型", "Gemma · 视频嵌入", DateTime.UtcNow, DateTime.UtcNow));
+        _semanticActivity.Update(new("加载嵌入模型", "Gemma · 媒体嵌入", DateTime.UtcNow, DateTime.UtcNow));
         var matched = 0; var failed = 0;
         try
         {
             var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) _semanticActivity.Update(activity); });
-            await using var matcher = await VideoKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true, progress: modelProgress);
+            await using var matcher = await MediaKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true, progress: modelProgress);
             for (var index = 0; index < selected.Length; index++)
             {
                 operation.Token.ThrowIfCancellationRequested();
                 var entry = selected[index]; var current = index; var finished = false;
                 entry.Status = "匹配中…";
-                var progress = new Progress<VideoKeywordProgress>(value =>
+                var progress = new Progress<MediaKeywordProgress>(value =>
                 {
                     if (_closed || _operation != operation || finished) return;
                     if (value.Activity is { } activity) _semanticActivity.Update(activity);
                     entry.Status = Localization.Text(value.Activity?.Stage ?? "匹配中") + (value.Activity?.Total > 0 ? $" {value.Activity.Current:0}/{value.Activity.Total:0}" : "");
-                    Localization.SetText(_progressText, $"{entry.Name} · {current + 1}/{selected.Length} 个视频");
+                    Localization.SetText(_progressText, $"{entry.Name} · {current + 1}/{selected.Length} 个文件");
                 });
                 try
                 {
@@ -171,10 +171,16 @@ public sealed partial class BatchToolsWindow
                     var scores = string.Join(Environment.NewLine, result.Scores.Take(20).Select(score => $"{score.Keyword}: {score.Similarity:0.000}"));
                     entry.Details = entry.Path + Environment.NewLine + scores + Environment.NewLine
                         + Localization.Format($"模型计算 {result.InferredFrames} 帧 · 复用 {result.ReusedFrames} 帧");
+                    _semanticDetails[entry.Path] = entry.Details;
                     if (result.IsMatch) matched++;
                 }
                 catch (OperationCanceledException) { finished = true; if (!_closed) entry.Status = "已停止"; throw; }
-                catch (Exception error) { finished = true; if (!_closed) entry.Status = Localization.Format($"失败：{error.Message}"); failed++; }
+                catch (Exception error)
+                {
+                    finished = true;
+                    if (!_closed) { entry.Status = Localization.Format($"失败：{error.Message}"); entry.Details = entry.Path + Environment.NewLine + error.Message; }
+                    AppDiagnostics.Record("Rename keyword matching", error); failed++;
+                }
             }
             if (_closed) return;
             InvalidatePlan();
@@ -183,11 +189,11 @@ public sealed partial class BatchToolsWindow
             _semanticActivity.Finish(AiActivityState.Completed, "关键词匹配完成");
         }
         catch (OperationCanceledException) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Cancelled, "已停止"); _progressText.Text = Localization.Text("语义匹配已停止，已完成结果已保留。"); } }
-        catch (Exception error) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Failed, "匹配失败"); await Ui.Message(this, "语义匹配失败", error.Message); } }
+        catch (Exception error) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Failed, "匹配失败"); await ShowErrorAsync("语义匹配失败", error); } }
         finally
         {
             _operation = null;
-            if (!_closed) { SetBusy(false); _stop.IsEnabled = false; }
+            if (!_closed) { SetBusy(false); _stop.IsEnabled = false; InvalidatePlan(); }
         }
     }
 }

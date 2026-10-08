@@ -17,8 +17,8 @@ public sealed partial class MediaAiWindow : Window
 {
     private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
-    private readonly ObservableCollection<BatchVideoEntry> _entries = [];
-    private readonly Dictionary<string, MediaTagResult> _results = new(BatchVideoTools.PathComparer);
+    private readonly ObservableCollection<MediaFileEntry> _entries = [];
+    private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
     private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple };
     private readonly StackPanel _imports = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly StackPanel _parameters = new() { Spacing = 9 };
@@ -64,28 +64,28 @@ public sealed partial class MediaAiWindow : Window
         _imports.Children.Add(_recursive);
         _imports.Children.Add(Ui.Button("移除选中", () =>
         {
-            foreach (var entry in _list.SelectedItems?.Cast<BatchVideoEntry>().ToArray() ?? []) { _results.Remove(entry.Path); _entries.Remove(entry); }
+            foreach (var entry in _list.SelectedItems?.Cast<MediaFileEntry>().ToArray() ?? []) { _results.Remove(entry.Path); _entries.Remove(entry); }
             InvalidatePlan();
         }));
         root.Children.Add(_imports);
         _list.ItemsSource = _entries;
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
-        _list.ItemTemplate = new FuncDataTemplate<BatchVideoEntry>((entry, _) =>
+        _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
         {
             var row = new Grid { ColumnDefinitions = new("28,*,200"), Margin = new(0, 7), ColumnSpacing = 8 };
-            var check = new CheckBox(); check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(BatchVideoEntry.Include)) { Mode = BindingMode.TwoWay }); row.Children.Add(check);
+            var check = new CheckBox(); check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaFileEntry.Include)) { Mode = BindingMode.TwoWay }); row.Children.Add(check);
             var content = new StackPanel { Spacing = 4 };
-            foreach (var property in new[] { nameof(BatchVideoEntry.Name), nameof(BatchVideoEntry.Details), nameof(BatchVideoEntry.NewName) })
+            foreach (var property in new[] { nameof(MediaFileEntry.Name), nameof(MediaFileEntry.Details), nameof(MediaFileEntry.NewName) })
             {
                 var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "caption" } };
                 Localization.SetIsUserText(text, true); text.Bind(TextBlock.TextProperty, new Binding(property)); content.Children.Add(text);
             }
             Grid.SetColumn(content, 1); row.Children.Add(content);
             var edits = new StackPanel { Spacing = 5 };
-            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(BatchVideoEntry.Status))); edits.Children.Add(status);
+            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status))); edits.Children.Add(status);
             var label = Ui.Input(); label.Watermark = Localization.Text("命名标签"); Localization.SetIsUserText(label, true);
-            label.Bind(TextBox.TextProperty, new Binding(nameof(BatchVideoEntry.Keyword)) { Mode = BindingMode.TwoWay }); edits.Children.Add(label);
+            label.Bind(TextBox.TextProperty, new Binding(nameof(MediaFileEntry.Keyword)) { Mode = BindingMode.TwoWay }); edits.Children.Add(label);
             Grid.SetColumn(edits, 2); row.Children.Add(edits); return row;
         });
         var body = new Grid { ColumnDefinitions = new("*,310"), ColumnSpacing = 16 };
@@ -134,11 +134,11 @@ public sealed partial class MediaAiWindow : Window
     private void AddPaths(IEnumerable<string> paths)
     {
         if (_closed) return;
-        foreach (var path in paths.Where(File.Exists).Where(MediaTagService.Supports).Select(Path.GetFullPath).Distinct(BatchVideoTools.PathComparer))
+        foreach (var path in paths.Where(File.Exists).Where(MediaTagService.Supports).Select(Path.GetFullPath).Distinct(BatchRename.PathComparer))
         {
-            if (_entries.Any(entry => BatchVideoTools.PathComparer.Equals(entry.Path, path))) continue;
-            var entry = new BatchVideoEntry(path) { Details = "", Status = "待分析" };
-            entry.PropertyChanged += (_, change) => { if (change.PropertyName is nameof(BatchVideoEntry.Include) or nameof(BatchVideoEntry.Keyword)) InvalidatePlan(); };
+            if (_entries.Any(entry => BatchRename.PathComparer.Equals(entry.Path, path))) continue;
+            var entry = new MediaFileEntry(path) { Details = "", Status = "待分析" };
+            entry.PropertyChanged += (_, change) => { if (change.PropertyName is nameof(MediaFileEntry.Include) or nameof(MediaFileEntry.Keyword)) InvalidatePlan(); };
             _entries.Add(entry);
         }
         InvalidatePlan();
@@ -189,7 +189,7 @@ public sealed partial class MediaAiWindow : Window
             CandidateQueries(WordLibraryCatalog.JoyTags);
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
-        foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchVideoTools.PathComparer)))
+        foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
         { _results.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); InvalidatePlan();
         _status.Text = Localization.Text(options.PreferGpu ? "加载 JoyTag · 首次 GPU 编译可能较慢…" : "加载 JoyTag…");
@@ -202,7 +202,7 @@ public sealed partial class MediaAiWindow : Window
                 _activity.Update(activity);
                 _status.Text = $"{update.Completed} / {update.Total} · {Path.GetFileName(update.Path)}";
             }
-            var entry = _entries.FirstOrDefault(entry => BatchVideoTools.PathComparer.Equals(entry.Path, update.Path)); if (entry is null) return;
+            var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, update.Path)); if (entry is null) return;
             if (update.Result is null && update.Error is null) { entry.Status = Localization.Text(update.Activity?.Stage ?? "处理中"); return; }
             if (update.Result is { } result) { _results[result.Path] = result; ShowResult(entry, result); }
             else { entry.Status = Localization.Text("失败"); entry.Details = update.Error ?? ""; entry.Include = false; }
@@ -222,7 +222,7 @@ public sealed partial class MediaAiWindow : Window
         catch (Exception error) { if (!_closed) { _activity.Finish(AiActivityState.Failed, "分析失败"); await Ui.Message(this, "分析失败", error.Message); } }
         finally { _operation = null; if (!_closed) { SetBusy(false); InvalidatePlan(); } }
     }
-    private void ShowResult(BatchVideoEntry entry, MediaTagResult result)
+    private void ShowResult(MediaFileEntry entry, MediaTagResult result)
     {
         entry.Status = $"{result.Backend} · {result.InferredFrames}/{result.SampledFrames}";
         if (result.FallbackReason is { } reason) entry.Status += " · " + Localization.Text("已回退 CPU") + ": " + reason;
@@ -253,9 +253,9 @@ public sealed partial class MediaAiWindow : Window
             var selected = _entries.Where(entry => entry.Include).ToArray();
             if (selected.Length == 0) throw new ArgumentException("请勾选要重命名的文件。");
             foreach (var entry in selected) if (_results.TryGetValue(entry.Path, out var result)) MediaTagService.ValidateSource(result);
-            _plan = BatchVideoTools.PreviewRename(selected.Select(entry => entry.Path), new(_pattern.Text ?? ""),
-                selected.ToDictionary(entry => entry.Path, entry => entry.Keyword.Trim(), BatchVideoTools.PathComparer));
-            foreach (var item in _plan) _entries.First(entry => BatchVideoTools.PathComparer.Equals(entry.Path, item.Source)).NewName = Path.GetFileName(item.Target);
+            _plan = BatchRename.PreviewRename(selected.Select(entry => entry.Path), new(_pattern.Text ?? ""),
+                selected.ToDictionary(entry => entry.Path, entry => entry.Keyword.Trim(), BatchRename.PathComparer));
+            foreach (var item in _plan) _entries.First(entry => BatchRename.PathComparer.Equals(entry.Path, item.Source)).NewName = Path.GetFileName(item.Target);
             _rename.IsEnabled = _plan.Any(item => item.Source != item.Target);
         }
         catch (Exception error) { InvalidatePlan(); await Ui.Message(this, "重命名预览失败", error.Message); }
@@ -266,11 +266,11 @@ public sealed partial class MediaAiWindow : Window
         var plan = _plan; _renaming = true; SetBusy(true);
         try
         {
-            var mappings = await Task.Run(() => undo ? BatchVideoTools.UndoRename(_journal) : BatchVideoTools.ApplyRename(plan!, _journal));
+            var mappings = await Task.Run(() => undo ? BatchRename.UndoRename(_journal) : BatchRename.ApplyRename(plan!, _journal));
             foreach (var mapping in mappings)
             {
                 _results.Remove(mapping.Source);
-                var entry = _entries.FirstOrDefault(entry => BatchVideoTools.PathComparer.Equals(entry.Path, mapping.Source));
+                var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, mapping.Source));
                 if (entry is not null) { entry.Renamed(mapping.Target); entry.Status = Localization.Text("已重命名"); entry.Keyword = ""; }
             }
             Renamed?.Invoke(mappings); _status.Text = Localization.Format($"已更新 {mappings.Length} 个文件名"); _undo.IsVisible = CanUndo();
@@ -299,7 +299,7 @@ public sealed partial class MediaAiWindow : Window
     }
     private bool CanUndo()
     {
-        try { return JsonSerializer.Deserialize<BatchVideoTools.RenameJournal>(File.ReadAllText(_journal))?.State == "completed"; }
+        try { return JsonSerializer.Deserialize<BatchRename.RenameJournal>(File.ReadAllText(_journal))?.State == "completed"; }
         catch (Exception error) when (error is IOException or JsonException or UnauthorizedAccessException) { return false; }
     }
 }

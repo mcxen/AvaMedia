@@ -45,7 +45,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             var split = entry.IndexOf('=');
             var label = (split < 0 ? entry : entry[..split]).Trim();
             var expression = split < 0 ? entry : entry[(split + 1)..];
-            BatchVideoTools.ValidateRenameKeyword(label);
+            BatchRename.ValidateRenameKeyword(label);
             var terms = expression.Split(['+', '＋'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             if (terms.Length == 0) throw new ArgumentException("请输入标签：" + label);
             var tags = terms.SelectMany(term => Aliases.TryGetValue(term, out var alias) ? alias : [term.Replace(' ', '_').ToLowerInvariant()]).Distinct().ToArray();
@@ -73,7 +73,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         var selected = new List<string>();
         foreach (var label in labels)
         {
-            try { BatchVideoTools.ValidateRenameKeyword(label); } catch (ArgumentException) { continue; }
+            try { BatchRename.ValidateRenameKeyword(label); } catch (ArgumentException) { continue; }
             if (selected.Sum(item => item.Length) + selected.Count + label.Length > 100) continue;
             selected.Add(label); if (selected.Count == 3) break;
         }
@@ -84,7 +84,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         IProgress<MediaTagProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
         options.Validate();
-        var files = paths.Select(Path.GetFullPath).Distinct(BatchVideoTools.PathComparer).ToArray();
+        var files = paths.Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
         var completed = 0;
         var currentPath = files.FirstOrDefault() ?? "";
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果");

@@ -20,16 +20,18 @@ if (fixture is null)
     if (generated.ExitCode != 0) throw new InvalidOperationException(generated.Error);
 }
 AppBuilder.Configure<BatchTestApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
-var window = new BatchToolsWindow(engine, output, [fixture], Path.Combine(output, "rename-journal.json")) { FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 13 };
+Window window = new RenameWindow(engine, initial: [fixture], journalPath: Path.Combine(output, "rename-journal.json")) { FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 13 };
 window.Show(); Dispatcher.UIThread.RunJobs();
 var preview = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "预览新名称"));
 preview.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
-var entry = window.GetVisualDescendants().OfType<ListBox>().Single().Items.Cast<BatchVideoEntry>().Single();
+var entry = window.GetVisualDescendants().OfType<ListBox>().Single(list => list.Items.OfType<MediaFileEntry>().Any()).Items.OfType<MediaFileEntry>().Single();
+var deadline = DateTime.UtcNow.AddSeconds(10);
+while (string.IsNullOrWhiteSpace(entry.NewName) && DateTime.UtcNow < deadline) { System.Threading.Thread.Sleep(10); Dispatcher.UIThread.RunJobs(); }
 if (string.IsNullOrWhiteSpace(entry.NewName) || !entry.NewName.Contains("_001")) throw new Exception("Rename preview did not update the list.");
 Capture("rename.png");
-var tab = window.GetVisualDescendants().OfType<TabControl>().Single(); tab.SelectedIndex = 1; Dispatcher.UIThread.RunJobs(); Capture("contact-sheet.png");
+window.Close(); window = new ContactSheetWindow(engine, output, [fixture]); window.Show(); Dispatcher.UIThread.RunJobs(); Capture("contact-sheet.png");
 window.Close();
-Console.WriteLine("PASS: batch window layout, rename preview action, contact sheet tab. " + output);
+Console.WriteLine("PASS: batch window layout, rename preview action, separate contact sheet window. " + output);
 void Capture(string name)
 {
     window.Measure(new Size(1260, 860)); window.Arrange(new Rect(0, 0, 1260, 860)); Dispatcher.UIThread.RunJobs();

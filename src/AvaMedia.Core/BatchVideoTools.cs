@@ -4,20 +4,16 @@ using SkiaSharp;
 
 namespace AvaMedia.Core;
 
-public sealed record RenameRules(string Pattern = "{name}_{index}", string Prefix = "", string Suffix = "", string Find = "", string Replace = "", int FirstIndex = 1, int Digits = 3);
-public sealed record RenameItem(string Source, string Target, long Length, DateTime LastWriteUtc);
 // CellWidth/CellHeight bound the long/short edges; each video's display ratio determines the actual cell size.
 public sealed record ContactSheetOptions(int Columns = 3, int Rows = 3, int CellWidth = 320, int CellHeight = 180, int SheetsPerVideo = 1, string Format = "jpg", bool Timestamps = true, double StartSeconds = 0, double EndSeconds = 0);
 public sealed record ContactSheetProgress(string Input, int Sheet, double Percent, string Message);
 
-/// <summary>Independent batch file and contact-sheet tools. Renaming never overwrites a file.</summary>
+/// <summary>Video collection and contact-sheet generation.</summary>
 public static class BatchVideoTools
 {
-    public static StringComparer PathComparer { get; } = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-
     public static string[] CollectVideos(IEnumerable<string> paths, bool recursive)
     {
-        var result = new HashSet<string>(PathComparer);
+        var result = new HashSet<string>(BatchRename.PathComparer);
         foreach (var input in paths)
         {
             var path = Path.GetFullPath(input);
@@ -37,117 +33,8 @@ public static class BatchVideoTools
                     if (VideoFormats.IsVideo(file)) result.Add(Path.GetFullPath(file));
             }
         }
-        return result.OrderBy(p => p, PathComparer).ToArray();
+        return result.OrderBy(p => p, BatchRename.PathComparer).ToArray();
     }
-
-    public static RenameItem[] PreviewRename(IEnumerable<string> paths, RenameRules rules, IReadOnlyDictionary<string, string>? keywords = null)
-    {
-        if (rules.FirstIndex < 0 || rules.Digits is < 1 or > 12) throw new ArgumentException("起始序号不能为负，序号位数须在 1–12 之间。");
-        if (string.IsNullOrWhiteSpace(rules.Pattern)) throw new ArgumentException("命名模板不能为空。");
-        if (rules.Pattern.Contains("{keyword}", StringComparison.Ordinal) && keywords is null)
-            throw new ArgumentException("请先进行语义匹配或填写匹配关键词。");
-        var result = new List<RenameItem>();
-        foreach (var (path, index) in paths.Select(Path.GetFullPath).Distinct(PathComparer).Select((p, i) => (p, i)))
-        {
-            var info = new FileInfo(path);
-            if (!info.Exists) throw new FileNotFoundException("源文件不存在，请刷新文件列表。", path);
-            var name = Path.GetFileNameWithoutExtension(path);
-            if (!string.IsNullOrEmpty(rules.Find)) name = name.Replace(rules.Find, rules.Replace, StringComparison.Ordinal);
-            var keyword = keywords?.GetValueOrDefault(path) ?? "";
-            if (rules.Pattern.Contains("{keyword}", StringComparison.Ordinal)) ValidateRenameKeyword(keyword);
-            var number = checked(rules.FirstIndex + index).ToString("D" + rules.Digits, CultureInfo.InvariantCulture);
-            var stem = rules.Prefix + System.Text.RegularExpressions.Regex.Replace(rules.Pattern, @"\{(name|index|parent|keyword)\}", match => match.Groups[1].Value switch
-                { "name" => name, "index" => number, "parent" => info.Directory?.Name ?? "", _ => keyword }) + rules.Suffix;
-            ValidateStem(stem);
-            var target = Path.Combine(info.DirectoryName!, stem + info.Extension);
-            result.Add(new(path, target, info.Length, info.LastWriteTimeUtc));
-        }
-        ValidateRenamePlan(result);
-        return result.ToArray();
-    }
-
-    public static void ValidateRenameKeyword(string keyword)
-    {
-        if (keyword.Length > 100 || keyword.Contains('{') || keyword.Contains('}')) throw new ArgumentException("命名关键词不能超过 100 字符或包含花括号。");
-        ValidateStem(keyword);
-    }
-
-    private static void ValidateStem(string stem)
-    {
-        if (string.IsNullOrWhiteSpace(stem) || stem.Length > 220 || stem.EndsWith('.') || stem.EndsWith(' ') || stem is "." or ".." || stem.Any(c => c < 32 || "<>:\"/\\|?*".Contains(c)))
-            throw new ArgumentException($"文件名无效：{stem}");
-        var first = stem.Split('.')[0].ToUpperInvariant();
-        if (first is "CON" or "PRN" or "AUX" or "NUL" || first.Length == 4 && (first.StartsWith("COM") || first.StartsWith("LPT")) && first[3] is >= '0' and <= '9')
-            throw new ArgumentException($"不能使用系统保留文件名：{stem}");
-    }
-
-    public static void ValidateRenamePlan(IReadOnlyList<RenameItem> items)
-    {
-        var sources = new HashSet<string>(items.Select(i => i.Source), PathComparer);
-        var targets = new HashSet<string>(PathComparer);
-        if (sources.Count != items.Count) throw new ArgumentException("重命名列表包含重复源文件。");
-        foreach (var item in items)
-        {
-            if (!targets.Add(item.Target)) throw new IOException("重命名后会产生同名文件：" + item.Target);
-            if (!PathComparer.Equals(Path.GetDirectoryName(item.Source), Path.GetDirectoryName(item.Target))) throw new ArgumentException("批量重命名仅支持原目录内改名。");
-            ValidateStem(Path.GetFileNameWithoutExtension(item.Target));
-            if (Directory.Exists(item.Target) || File.Exists(item.Target) && !sources.Contains(item.Target)) throw new IOException("目标名称已存在：" + item.Target);
-            var info = new FileInfo(item.Source);
-            if (!info.Exists || info.Length != item.Length || info.LastWriteTimeUtc != item.LastWriteUtc) throw new IOException("预览后源文件已改变，请重新预览：" + item.Source);
-        }
-    }
-
-    /// <summary>Stages every changed source before assigning targets, permitting name swaps. On failure rolls back.</summary>
-    public static RenameItem[] ApplyRename(IReadOnlyList<RenameItem> plan, string journalPath)
-        => ApplyRenameCore(plan, journalPath, "completed");
-
-    private static RenameItem[] ApplyRenameCore(IReadOnlyList<RenameItem> plan, string journalPath, string completedState)
-    {
-        ValidateRenamePlan(plan);
-        var changed = plan.Where(i => !StringComparer.Ordinal.Equals(i.Source, i.Target)).ToArray();
-        if (changed.Length == 0) return [];
-        var stages = changed.Select(i => new RenameStage(i, Path.Combine(Path.GetDirectoryName(i.Source)!, ".avamedia-rename-" + Guid.NewGuid().ToString("N") + ".tmp"))).ToArray();
-        var pendingJournal = journalPath + ".pending";
-        SaveJournal(pendingJournal, new("in-progress", stages));
-        int staged = 0, assigned = 0;
-        try
-        {
-            foreach (var stage in stages) { File.Move(stage.Item.Source, stage.Temporary, false); staged++; }
-            foreach (var stage in stages) { File.Move(stage.Temporary, stage.Item.Target, false); assigned++; }
-            SaveJournal(journalPath, new(completedState, stages));
-        }
-        catch (Exception error)
-        {
-            var rollbackErrors = new List<Exception>();
-            for (var i = assigned - 1; i >= 0; i--)
-                try { File.Move(stages[i].Item.Target, stages[i].Temporary, false); } catch (Exception ex) { rollbackErrors.Add(ex); }
-            for (var i = staged - 1; i >= 0; i--)
-                try { if (File.Exists(stages[i].Temporary)) File.Move(stages[i].Temporary, stages[i].Item.Source, false); } catch (Exception ex) { rollbackErrors.Add(ex); }
-            SaveJournal(pendingJournal, new(rollbackErrors.Count == 0 ? "rolled-back" : "recovery-required", stages));
-            if (rollbackErrors.Count > 0) throw new AggregateException("重命名失败，部分文件需按恢复记录手动还原：" + pendingJournal, new[] { error }.Concat(rollbackErrors));
-            throw new IOException("重命名失败，已还原原始文件名。", error);
-        }
-        try { File.Delete(pendingJournal); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-        return changed;
-    }
-
-    public static RenameItem[] UndoRename(string journalPath)
-    {
-        var journal = JsonSerializer.Deserialize<RenameJournal>(File.ReadAllText(journalPath)) ?? throw new InvalidDataException("恢复记录无效。");
-        if (journal.State != "completed") throw new InvalidOperationException("没有可撤销的成功重命名记录。");
-        var reverse = journal.Stages.Select(s => new RenameItem(s.Item.Target, s.Item.Source, s.Item.Length, s.Item.LastWriteUtc)).ToArray();
-        return ApplyRenameCore(reverse, journalPath, "undone");
-    }
-
-    private static void SaveJournal(string path, RenameJournal journal)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        var temp = path + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(journal, new JsonSerializerOptions { WriteIndented = true }));
-        File.Move(temp, path, true);
-    }
-    public sealed record RenameStage(RenameItem Item, string Temporary);
-    public sealed record RenameJournal(string State, RenameStage[] Stages);
 
     public static void ValidateContactSheet(ContactSheetOptions o)
     {

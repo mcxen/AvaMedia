@@ -11,35 +11,35 @@ await File.WriteAllTextAsync(first, "one"); await File.WriteAllTextAsync(second,
 Check(BatchVideoTools.CollectVideos([folder, first], false).Length == 2, "folder import filters videos and deduplicates");
 Check(BatchVideoTools.CollectVideos([folder], true).Length == 3, "recursive folder import");
 var rules = new RenameRules("{parent}_{index}", "片段-", "-成品", FirstIndex: 5, Digits: 3);
-var plan = BatchVideoTools.PreviewRename([first, second], rules);
+var plan = BatchRename.PreviewRename([first, second], rules);
 Check(Path.GetFileName(plan[0].Target) == "片段-文件夹 A_005-成品.mp4", "template / parent / prefix / suffix / zero padding");
 Check(File.Exists(first) && !File.Exists(plan[0].Target), "preview does not mutate files");
 var journal = Path.Combine(root, "rename-journal.json");
-var changed = BatchVideoTools.ApplyRename(plan, journal);
+var changed = BatchRename.ApplyRename(plan, journal);
 Check(changed.Length == 2 && File.ReadAllText(plan[0].Target) == "one" && File.ReadAllText(plan[1].Target) == "two", "apply keeps content and extension");
-BatchVideoTools.UndoRename(journal);
+BatchRename.UndoRename(journal);
 Check(File.ReadAllText(first) == "one" && File.ReadAllText(second) == "two", "undo restores original names");
-Reject(() => BatchVideoTools.PreviewRename([first], new("CON")), "reserved name rejection");
-Reject(() => BatchVideoTools.PreviewRename([first], new("../outside")), "directory traversal rejection");
-Reject(() => BatchVideoTools.PreviewRename([first], new("bad.")), "trailing dot rejection");
+Reject(() => BatchRename.PreviewRename([first], new("CON")), "reserved name rejection");
+Reject(() => BatchRename.PreviewRename([first], new("../outside")), "directory traversal rejection");
+Reject(() => BatchRename.PreviewRename([first], new("bad.")), "trailing dot rejection");
 var sameExt = Path.Combine(folder, "duplicate.mp4"); await File.WriteAllTextAsync(sameExt, "other");
-Reject(() => BatchVideoTools.PreviewRename([first, sameExt], new("same")), "duplicate targets rejected");
+Reject(() => BatchRename.PreviewRename([first, sameExt], new("same")), "duplicate targets rejected");
 var occupied = Path.Combine(folder, "occupied.mp4"); await File.WriteAllTextAsync(occupied, "preserved");
-Reject(() => BatchVideoTools.PreviewRename([first], new("occupied")), "existing destination never overwritten");
+Reject(() => BatchRename.PreviewRename([first], new("occupied")), "existing destination never overwritten");
 Check(File.ReadAllText(occupied) == "preserved", "existing content preserved");
-var stale = BatchVideoTools.PreviewRename([first], new("stale")); await File.AppendAllTextAsync(first, "changed");
-Reject(() => BatchVideoTools.ApplyRename(stale, journal), "changed source invalidates old preview");
+var stale = BatchRename.PreviewRename([first], new("stale")); await File.AppendAllTextAsync(first, "changed");
+Reject(() => BatchRename.ApplyRename(stale, journal), "changed source invalidates old preview");
 var swapA = Path.Combine(folder, "swap-a.mp4"); var swapB = Path.Combine(folder, "swap-b.mp4"); await File.WriteAllTextAsync(swapA, "A"); await File.WriteAllTextAsync(swapB, "B");
 RenameItem Mapping(string source, string target) { var info = new FileInfo(source); return new(source, target, info.Length, info.LastWriteTimeUtc); }
-BatchVideoTools.ApplyRename([Mapping(swapA, swapB), Mapping(swapB, swapA)], journal);
+BatchRename.ApplyRename([Mapping(swapA, swapB), Mapping(swapB, swapA)], journal);
 Check(File.ReadAllText(swapA) == "B" && File.ReadAllText(swapB) == "A", "two-phase rename permits name swaps");
-BatchVideoTools.UndoRename(journal);
+BatchRename.UndoRename(journal);
 Check(File.ReadAllText(swapA) == "A" && File.ReadAllText(swapB) == "B", "undo name swaps");
 if (OperatingSystem.IsWindows())
 {
-    var rollbackPlan = BatchVideoTools.PreviewRename([swapA, swapB], new("renamed_{index}"));
+    var rollbackPlan = BatchRename.PreviewRename([swapA, swapB], new("renamed_{index}"));
     using (var locked = new FileStream(swapB, FileMode.Open, FileAccess.Read, FileShare.None))
-        Reject(() => BatchVideoTools.ApplyRename(rollbackPlan, journal), "locked file aborts batch");
+        Reject(() => BatchRename.ApplyRename(rollbackPlan, journal), "locked file aborts batch");
     Check(File.ReadAllText(swapA) == "A" && File.ReadAllText(swapB) == "B" && !File.Exists(rollbackPlan[0].Target), "failed batch rolls back prior moves");
 }
 Reject(() => BatchVideoTools.ValidateContactSheet(new(Rows: 0)), "invalid grid rejection");

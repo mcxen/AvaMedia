@@ -3,7 +3,7 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed partial class BatchToolsWindow
+public sealed partial class RenameWindow
 {
     private WordCandidate[] _semanticCandidates = [];
     private string? _semanticLibraryError;
@@ -36,7 +36,7 @@ public sealed partial class BatchToolsWindow
     {
         ReloadSemanticCandidates();
         if (_semanticLibraryError is not null) throw new InvalidDataException("词库读取失败：" + _semanticLibraryError);
-        var manual = string.IsNullOrWhiteSpace(_keywords.Text) ? [] : VideoKeywordMatcher.ParseKeywords(_keywords.Text);
+        var manual = string.IsNullOrWhiteSpace(_keywords.Text) ? [] : MediaKeywordMatcher.ParseKeywords(_keywords.Text);
         var candidates = manual.Concat(_semanticCandidates.Select(entry => new SemanticKeyword(entry.Label, entry.Description)))
             .DistinctBy(keyword => keyword.Label, StringComparer.OrdinalIgnoreCase).ToArray();
         if (candidates.Length is < 1 or > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("请选择词库或输入 1–20000 个候选词。");

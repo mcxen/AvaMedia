@@ -19,7 +19,7 @@ public partial class MainWindow
         });
         window.Renamed += mappings =>
         {
-            var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchVideoTools.PathComparer);
+            var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
             JobList.ItemsSource = null; JobList.ItemsSource = _jobs; Save(); Refresh();
         };

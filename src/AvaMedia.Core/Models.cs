@@ -53,7 +53,7 @@ public static class Catalog
         Add("text-pdf","TXT → PDF","文档","pdf","text-pdf",Operation.TextPdf);
         Add("crop","批量裁剪","工具集","mp4","crop");
         Add("rotate","批量旋转","工具集","mp4","rotate");
-        Add("video-rename","视频重命名","工具集","","gear",Operation.BatchTools);
+        Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
         Add("media-ai","媒体 AI 标签 · Beta","工具集","","gear",Operation.BatchTools);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);

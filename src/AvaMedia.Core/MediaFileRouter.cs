@@ -92,6 +92,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
             routes.Add(new(Catalog.Find("mux"), "视频 / 音频混流", "用独立音频为视频配音", files, selected.Count - files.Length,
                 files.Length == 2 ? "" : "请选中一个视频和一个音频。"));
         }
+        Add("batch-rename", "批量重命名", "图片 / 视频 · 组合规则与名称预览", source => Video(source) || Image(source));
         Add("player", "打开播放器", "立即播放视频或音频", source => Video(source) || Audio(source));
         Add("info", "媒体信息", "查看编码、时长、尺寸与轨道", Media);
         Add("unzip", "解压 ZIP", "解压到独立文件夹", source => Extension(source, ".zip"));

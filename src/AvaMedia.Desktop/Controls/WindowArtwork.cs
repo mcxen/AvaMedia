@@ -35,7 +35,8 @@ public sealed class WindowArtwork : AvaloniaObject
             ClipSplitWindow => "split",
             PlayerWindow => "player",
             DownloadWindow => "download",
-            BatchToolsWindow => "gear",
+            RenameWindow => "gear",
+            ContactSheetWindow => "frames",
             OptionsWindow or SettingsWindow or HardwareTestWindow or ShutdownCountdownWindow => "gear",
             UpdateWindow => "info",
             _ => window.Owner is Window owner ? EffectiveKind(owner) : ""

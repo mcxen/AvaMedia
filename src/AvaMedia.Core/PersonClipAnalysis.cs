@@ -48,7 +48,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var info = await engine.Probe(path, ct);
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有有效时长的视频。");
         duration = info.Duration;
-        await using var embedding = options.UseEmbedding ? await GemmaVideoEmbedding.StartAsync(_store, ct, options.PreferGpu, stage => activity.Stage(stage)) : null;
+        await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, options.PreferGpu, stage => activity.Stage(stage)) : null;
         var samples = new List<PersonFrame>();
         byte[]? reference = null;
         PersonFrame? previous = null;
@@ -198,7 +198,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         }
     }
     private static async Task<PersonFrame> ClassifyAsync(ModelInferenceSession session, byte[] rgb, double seconds,
-        PersonClipOptions options, GemmaVideoEmbedding? embedding, CancellationToken ct)
+        PersonClipOptions options, GemmaMediaEmbedding? embedding, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var tensor = new DenseTensor<float>(new[] { 1, 3, Size, Size });

@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace AvaMedia.Core;
 
 /// <summary>Optional, owned loopback llama.cpp process. No remote video uploads or implicit downloads.</summary>
-public sealed class GemmaVideoEmbedding : IAsyncDisposable
+public sealed class GemmaMediaEmbedding : IAsyncDisposable
 {
     private readonly Process _process;
     private readonly HttpClient _client;
@@ -23,14 +23,14 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
     public string Backend => Volatile.Read(ref _backend);
     public string? FallbackReason { get; private set; }
     public string[] AccelerationDetails { get { lock (_diagnosticsGate) return _accelerationDetails.ToArray(); } }
-    private GemmaVideoEmbedding(Process process, HttpClient client, ModelLease model, bool preferGpu)
+    private GemmaMediaEmbedding(Process process, HttpClient client, ModelLease model, bool preferGpu)
     {
         _process = process; _client = client; _model = model;
         _backend = preferGpu ? "GPU (auto) / CPU" : "CPU";
         _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
     }
 
-    public static async Task<GemmaVideoEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
+    public static async Task<GemmaMediaEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
     {
         try { return await StartCoreAsync(store, ct, preferGpu, status).ConfigureAwait(false); }
         catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
@@ -43,11 +43,11 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
         }
     }
 
-    private static async Task<GemmaVideoEmbedding> StartCoreAsync(ModelStore store, CancellationToken ct, bool preferGpu, Action<string>? status)
+    private static async Task<GemmaMediaEmbedding> StartCoreAsync(ModelStore store, CancellationToken ct, bool preferGpu, Action<string>? status)
     {
         status?.Invoke("校验嵌入模型");
         var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId, ct).ConfigureAwait(false);
-        GemmaVideoEmbedding? backend = null;
+        GemmaMediaEmbedding? backend = null;
         HttpClient? client = null;
         try
         {

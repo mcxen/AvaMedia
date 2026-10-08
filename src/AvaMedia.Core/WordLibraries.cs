@@ -33,7 +33,7 @@ public static class WordLibraryCatalog
 
     private static string RenameLabel(string tag)
     {
-        try { BatchVideoTools.ValidateRenameKeyword(tag); return tag; }
+        try { BatchRename.ValidateRenameKeyword(tag); return tag; }
         catch (ArgumentException) { return "tag_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(tag)))[..16].ToLowerInvariant(); }
     }
 
@@ -151,7 +151,7 @@ public static class WordLibraryCatalog
         {
             if (entry is null || entry.Label is null || entry.Description is null || entry.Category is null || entry.Tags is null)
                 throw new ArgumentException("词库字段缺失。");
-            BatchVideoTools.ValidateRenameKeyword(entry.Label);
+            BatchRename.ValidateRenameKeyword(entry.Label);
             if (!labels.Add(entry.Label)) throw new ArgumentException("词库名称重复：" + entry.Label);
             if (string.IsNullOrWhiteSpace(entry.Category) || string.IsNullOrWhiteSpace(entry.Description)
                 || entry.Category.Length > 80 || entry.Description.Length > 512
