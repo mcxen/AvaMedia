@@ -60,6 +60,7 @@ public partial class MainWindow
             if (feature.Operation == Operation.ImageCompress)
             { await ConfigureImageCompressionAsync(job.Inputs, job.Options.ImageCompression, job); return; }
             if (feature.Operation == Operation.VideoCompress) { await EditVideoCompressionAsync(job); return; }
+            if (feature.Operation == Operation.VideoSlim) { await ConfigureVideoSlimmingAsync(job.Inputs, job); return; }
             if (PdfTools.Supports(feature.Operation))
             {
                 var request = await new PdfWorkspaceWindow(feature, Path.GetDirectoryName(job.Output)!, job.Inputs,

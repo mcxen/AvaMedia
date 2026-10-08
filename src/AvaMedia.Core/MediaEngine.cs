@@ -169,6 +169,7 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.IsoCopy && (job.Inputs.Length!=1 || string.IsNullOrWhiteSpace(job.Inputs[0])))throw new ArgumentException("光盘复制任务须包含一个设备路径。");
         if(feature.Operation is Operation.PdfAge or Operation.PdfCompress || PdfTools.Supports(feature.Operation) && o.Pdf is not null)PdfTools.Validate(job);
         if(feature.Operation==Operation.VideoCompress)VideoCompression.ValidateJob(job);
+        if(feature.Operation==Operation.VideoSlim){VideoSlimming.ValidateJob(job);return;}
         if(feature.Operation==Operation.ImageCompress){if(job.Inputs.Length!=1)throw new ArgumentException("每个图片压缩任务处理一张图片。");(o.ImageCompression??new ImageCompressionOptions{Format=o.Format}).Validate();}
         if(feature.Operation==Operation.Mux && job.Inputs.Length!=2) throw new ArgumentException("混流需要一个视频文件和一个音频文件。");
         if(feature.Operation==Operation.AudioMix && job.Inputs.Length<2) throw new ArgumentException("混音需要至少两个文件。");
@@ -237,6 +238,8 @@ public sealed class MediaEngine : IMediaEngine
         Validate(job);var f=Catalog.Find(job.FeatureId);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         if(File.Exists(job.Output) || Directory.Exists(job.Output)) throw new IOException("输出已存在，请重试以生成新的名称。");
+        if(f.Operation==Operation.VideoSlim)
+        {await new VideoSlimming(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.Transcribe)
         {await new SpeechSubtitleService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.ImagesPdf)

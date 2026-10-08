@@ -71,6 +71,13 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             var o = Job.Options;
             var label = feature.Label.StartsWith('→') ? o.Format.ToUpperInvariant() : feature.Label.Replace("\n", " ");
             var parts = new List<string> { label };
+            if (o.VideoSlimming is { } slim)
+            {
+                parts.Add(slim.Preset switch { VideoSlimmingPreset.Preserve => "保真", VideoSlimmingPreset.Smaller => "更小", _ => "均衡" });
+                parts.Add(slim.Codec == "hevc" ? "HEVC" : "H.264");
+                parts.Add(slim.Format.ToUpperInvariant());
+                return Localization.Join(" · ", parts);
+            }
             if (o.VideoCompression is { } videoCompression)
             {
                 parts.Add(videoCompression.Mode switch
@@ -140,7 +147,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         JobState.Waiting => "等待开始",
         JobState.Running when Job.Activity is not null => Localization.Text("处理中"),
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
-        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
+        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         _ => "已停止"
     };

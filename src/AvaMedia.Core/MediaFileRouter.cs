@@ -48,6 +48,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
             {
                 case MediaFileKind.Video:
                     Add("video-compress", "视频压缩", "自动画质档、质量、码率与目标体积", Video);
+                    Add("video-slim", "视频瘦身", "采样分析，按画面内容减少体积", Video);
                     Add("clip", "快速剪辑", "截取片段、调整速度、分段导出", Video);
                     Add("rotate", "批量旋转", "统一或逐个旋转，自动识别方向", Video);
                     Add("crop", "画面裁剪", "框选画面，共享或逐个调整", Video);

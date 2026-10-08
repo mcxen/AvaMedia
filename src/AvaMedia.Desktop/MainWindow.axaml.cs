@@ -65,6 +65,7 @@ public partial class MainWindow : Window
         if(feature.Operation==Operation.BatchTools){await ConfigureBatchToolsAsync(files,feature.Id=="contact-sheet");return;}
         if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}
         if(feature.Operation==Operation.VideoCompress){await ConfigureVideoCompressionAsync(files);return;}
+        if(feature.Operation==Operation.VideoSlim){await ConfigureVideoSlimmingAsync(files);return;}
         if(feature.Operation==Operation.ImageCompress){await ConfigureImageCompressionAsync(files);return;}
         if(feature.Id=="clip")
         {

@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -22,6 +22,7 @@ public static class Catalog
         void Add(string id, string text, string cat, string ext, string icon, Operation op = Operation.Convert, int span = 1) => f.Add(new(id,text,cat,ext,icon,op,span));
         Add("mp4","格式转换","视频","mp4","video",Operation.Convert,2);
         Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress,2);
+        Add("video-slim","视频瘦身","视频","mkv","gear",Operation.VideoSlim,2);
         Add("join","视频合并 & 混流","视频","mp4","join",Operation.Join,2);
         Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
         Add("clip","快速剪辑","视频","mp4","clip");
@@ -73,6 +74,7 @@ public sealed class ConversionOptions
     public PdfToolOptions? Pdf { get; set; }
     public DownloadOptions? Download { get; set; }
     public VideoCompressionOptions? VideoCompression { get; set; }
+    public VideoSlimmingOptions? VideoSlimming { get; set; }
     public ImageCompressionOptions? ImageCompression { get; set; }
     public TranscriptionOptions? Transcription { get; set; }
     public string Format { get; set; } = "mp4";
