@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         RefreshOutputPath();Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=QueueJobChanged;
         _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();
+        InitializeSystemResourceMonitor();
         ShowCategory(_category);Refresh();
         InitializePlatinumPresentation();
         DragDrop.SetAllowDrop(this,true);

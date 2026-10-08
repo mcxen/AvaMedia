@@ -1,4 +1,5 @@
 {
+  "CPU、GPU 为整机占用率，多显卡显示最高占用；无法读取时显示 —。": "CPU and GPU show system usage. For multiple GPUs, the highest usage is shown. Unavailable readings appear as —.",
   "下载": "Download",
   "峰值": "Peak",
   "平均": "Average",
