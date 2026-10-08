@@ -6,6 +6,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
@@ -15,6 +16,7 @@ using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Desktop;
 using AvaMedia.Desktop.Controls;
+using SkiaSharp;
 
 var fixtures = Path.GetFullPath("artifacts/speech-acceptance/fixtures");
 if (args.Contains("--native-ui"))
@@ -62,7 +64,7 @@ if (args.Contains("--models-only"))
     }
     File.WriteAllText(Path.Combine(root,"model-acceptance.json"),JsonSerializer.Serialize(checks));Console.WriteLine("RESULT "+root);return;
 }
-if (!args.Contains("--ui-only"))
+if (!args.Contains("--ui-only") && !args.Contains("--position-only"))
 {
 foreach (var (input, language, name) in new[] { (chinese, "zh", "chinese-base"), (english, "en", "english-base") })
 {
@@ -138,8 +140,71 @@ void Wait(Task task) { while (!task.IsCompleted) { Pump(); Thread.Sleep(10); } t
 T Find<T>(Window window, string name) where T : Control => window.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 void Capture(Window window, string name)
 {
-    Pump(); using var bitmap = new RenderTargetBitmap(new PixelSize((int)window.Width, (int)window.Height), new Vector(96, 96));
-    bitmap.Render(window); bitmap.Save(Path.Combine(root, name + ".png"));
+    Pump(); using var bitmap = window.CaptureRenderedFrame() ?? throw new Exception("Window did not render.");
+    bitmap.Save(Path.Combine(root, name + ".png"));
+}
+if (args.Contains("--position-only"))
+{
+    var video = Path.Combine(root,"preview.mp4");
+    FF("-v","error","-f","lavfi","-i","color=c=blue:s=640x360:r=10:d=1","-f","lavfi","-i","color=c=red:s=640x360:r=10:d=1",
+        "-filter_complex","[0:v][1:v]concat=n=2:v=1:a=0","-c:v","libx264","-pix_fmt","yuv420p",video);
+    var window = new SpeechToolsWindow(engine,Catalog.Find("auto-subtitle"),root,[video]); window.Show(); Wait(window.PreviewReady);
+    SKColor FrameColor()
+    {
+        using var stream = new MemoryStream(); ((Bitmap)Find<Image>(window,"SubtitlePreviewFrame").Source!).Save(stream);
+        using var bitmap = SKBitmap.Decode(stream.ToArray()); return bitmap.GetPixel(10,10);
+    }
+    Check(FrameColor().Blue>200 && FrameColor().Red<30,"preview displays the actual video beginning");
+    Find<Slider>(window,"SubtitlePreviewSeek").Value=1.5; Wait(window.PreviewReady);
+    Check(FrameColor().Red>200 && Find<TextBox>(window,"SubtitlePreviewTime").Text=="00:00:01.500","timeline seeking updates both the source frame and time field");
+    Find<TextBox>(window,"SubtitlePreviewTime").Text="00:00:00.250";
+    Find<TextBox>(window,"SubtitlePreviewTime").RaiseEvent(new KeyEventArgs { RoutedEvent=InputElement.KeyDownEvent,Key=Key.Enter }); Wait(window.PreviewReady);
+    Check(FrameColor().Blue>200 && window.ReadRequest().Options.Start==0,"typed preview time seeks without changing the output interval");
+    var seek=Find<Slider>(window,"SubtitlePreviewSeek"); seek.Value=.5; var obsolete=window.PreviewReady; seek.Value=1.7; Wait(window.PreviewReady); Wait(obsolete);
+    Check(FrameColor().Red>200,"a cancelled older seek cannot replace the latest preview");
+    Pump();
+    var screen=Find<Grid>(window,"SubtitlePreviewScreen");
+    Point At(double x,double y)=>screen.TranslatePoint(new Point(screen.Width*x,screen.Height*y),window)!.Value;
+    window.MouseDown(At(.3,.4),MouseButton.Left); window.MouseMove(At(.68,.33)); window.MouseUp(At(.68,.33),MouseButton.Left); Pump();
+    var positioned=window.ReadRequest().Options;
+    Check(positioned.SubtitlePositionX is >.6 and <.75 && Math.Abs(positioned.SubtitlePositionY!.Value-.33)<.01,"dragging on the video stores arbitrary normalized subtitle coordinates");
+    var caption=Find<Border>(window,"SubtitlePreviewCaption");var center=caption.TranslatePoint(new Point(caption.Bounds.Width/2,caption.Bounds.Height/2),screen)!.Value;
+    if(Math.Abs(center.X/screen.Bounds.Width-positioned.SubtitlePositionX!.Value)>=.01||Math.Abs(center.Y/screen.Bounds.Height-positioned.SubtitlePositionY!.Value)>=.01)
+        throw new Exception($"Caption center={center}, bounds={caption.Bounds}, frame={Find<Image>(window,"SubtitlePreviewFrame").Bounds}, expected={positioned.SubtitlePositionX},{positioned.SubtitlePositionY}");
+    Check(true,"the visible caption center matches the saved coordinates");
+    Capture(window,"subtitle-position-preview");
+    using(var screenshot=SKBitmap.Decode(Path.Combine(root,"subtitle-position-preview.png")))
+    {
+        var at=At(.1,.1);Check(screenshot.GetPixel((int)at.X,(int)at.Y).Red>200,"the video frame is visible behind the draggable subtitle");
+        var corner=caption.TranslatePoint(default,window)!.Value;var whites=new List<int>();
+        for(int y=(int)corner.Y;y<corner.Y+caption.Bounds.Height;y++)for(int x=(int)corner.X;x<corner.X+caption.Bounds.Width;x++)
+        {var pixel=screenshot.GetPixel(x,y);if(pixel.Red>220&&pixel.Green>220&&pixel.Blue>220)whites.Add(x);}
+        Check(whites.Count>100&&Math.Abs(whites.Average()-corner.X-caption.Bounds.Width/2)<caption.Bounds.Width*.2,"the complete preview label stays centered and visible after seeking");
+    }
+    var edited=new SpeechToolsWindow(engine,Catalog.Find("auto-subtitle"),root,[video],positioned,editing:true);edited.Show();Wait(edited.PreviewReady);
+    Check(edited.ReadRequest().Options.SubtitlePositionX==positioned.SubtitlePositionX,"task editing restores the dragged subtitle position");edited.Close();
+    Find<ToggleButton>(window,"SubtitlePosition2").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump();
+    Check(window.ReadRequest().Options.SubtitlePositionX is null && window.ReadRequest().Options.SubtitleAlignment==2,"nine-grid selection restores a preset position");window.Close();
+    var settings=new OptionsWindow(positioned,presetStorage:state,previewEngine:engine,previewSource:video);settings.Show();Pump();
+    settings.GetVisualDescendants().OfType<TabControl>().Single().SelectedIndex=2;Pump();Find<ComboBox>(settings,"SubtitleModeCombo").SelectedIndex=1;Pump();
+    var shared=settings.GetVisualDescendants().OfType<SubtitleStyleEditor>().Single();Wait(shared.PreviewReady);
+    Check(Find<Image>(settings,"SubtitlePreviewFrame").Source is Bitmap && settings.ReadOptions().SubtitlePositionX==positioned.SubtitlePositionX,"conversion settings share video preview and preserve the visual placement");settings.Close();
+    positioned.Format="mp4";positioned.SubtitleMode=SubtitleMode.BurnIn;positioned.SubtitleFont="Arial";positioned.SubtitleFontSize=20;positioned.SubtitleColor="#FF0000";
+    var cue=new[]{new SubtitleCue(TimeSpan.Zero,TimeSpan.FromSeconds(4),"Subtitle position")};
+    var ass=SpeechSubtitles.Ass(cue,positioned,640,360);
+    Check(ass.Contains("{\\an5\\pos("),"generated ASS includes the visual subtitle placement");
+    var external=positioned.Clone(); external.SubtitlePositionX=external.SubtitlePositionY=null;
+    positioned.Subtitle=Path.Combine(root,"external-position.ass");
+    File.WriteAllText(positioned.Subtitle,SpeechSubtitles.Ass(cue,external,640,360).Replace("Subtitle position","{\\an2\\pos(10,270)}Subtitle position"));
+    var burned=new Job {FeatureId="mp4",Inputs=[chinese],Output=Path.Combine(root,"custom-position.mp4"),Options=positioned};
+    Wait(engine.Execute(burned,_=>{},CancellationToken.None));Check(File.Exists(burned.Output),"custom subtitle placement produces a video");var rgb=Path.Combine(root,"position.rgb");
+    FF("-v","error","-ss","1","-i",burned.Output,"-frames:v","1","-pix_fmt","rgb24","-f","rawvideo",rgb);
+    var pixels=File.ReadAllBytes(rgb);
+    var red=Enumerable.Range(0,pixels.Length/3).Where(i=>pixels[i*3]>60&&pixels[i*3]>pixels[i*3+1]*2&&pixels[i*3]>pixels[i*3+2]*2).ToArray();
+    Check(red.Length>100&&Math.Abs(red.Average(i=>i%640)-positioned.SubtitlePositionX!.Value*640)<20&&Math.Abs(red.Average(i=>i/640)-positioned.SubtitlePositionY!.Value*360)<20,
+        "burned subtitles match the dragged position and replace an external ASS position");
+    state.SaveJobs([burned]);Check(state.LoadJobs()[0].Options.SubtitlePositionX==positioned.SubtitlePositionX,"queue persistence retains arbitrary subtitle coordinates");
+    File.WriteAllText(Path.Combine(root,"position-acceptance.json"),JsonSerializer.Serialize(checks));Console.WriteLine("RESULT "+root);return;
 }
 var subtitleWindow = new SpeechToolsWindow(engine, Catalog.Find("auto-subtitle"), root, [chinese]);
 subtitleWindow.Show(); Wait(subtitleWindow.PreviewReady);
