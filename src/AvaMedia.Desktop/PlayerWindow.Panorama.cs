@@ -49,19 +49,29 @@ public partial class PlayerWindow
         SyncPanoramaControls();
     }
 
-    public Task SetPanoramaAsync(PanoramaSettings settings)
+    public async Task SetPanoramaAsync(PanoramaSettings settings)
     {
-        if (_closed || _deleting) return Task.CompletedTask;
+        if (_closed || _deleting) return;
         var next = settings.Normalize();
         if (next.IsImmersive) Controls.PanoramaRenderer.Initialize();
         PanoramaImage.CancelDrag(); PanoramaImage.View = next;
         UpdatePanoramaVisibility(); SyncPanoramaControls();
+        if (_nativeBusy && next.IsImmersive && _nativeDisc is null)
+        {
+            var path = CurrentPath;
+            var playing = _nativeStarted ? _nativePlaying : _playIntent;
+            _nativeCancellation?.Cancel();
+            await _nativeLifetime;
+            if (_closed || _deleting || Panorama != next || !VideoFolderScanner.PathComparer.Equals(CurrentPath, path)) return;
+            if (_info is { HasVideo: true } nativeInfo)
+                await StartOpen(path, nativeInfo.VideoStreamIndex, nativeInfo.AudioStreamIndex, _position, playing);
+            return;
+        }
         if (!_pendingSeek && VideoImage.Source is Bitmap frame) PresentFrame(frame);
         if (_player is Playback playback && next.IsImmersive && playback.MaximumVideoSize.Width < 4096)
-        { PreparePanoramaPlayback(playback); return SeekAsync(_position, _playIntent); }
+        { PreparePanoramaPlayback(playback); await SeekAsync(_position, _playIntent); return; }
         if (next.IsImmersive && _player is null && _info is { HasVideo: true } info && CurrentPath.Length > 0)
-            return StartOpen(CurrentPath, info.VideoStreamIndex, info.AudioStreamIndex, _position, _playIntent);
-        return Task.CompletedTask;
+            await StartOpen(CurrentPath, info.VideoStreamIndex, info.AudioStreamIndex, _position, _playIntent);
     }
 
     private void RestorePanorama(string path, bool video)

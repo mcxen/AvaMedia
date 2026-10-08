@@ -6,7 +6,7 @@ namespace AvaMedia.Desktop.Controls;
 /// <summary>Inverse spherical projection: one camera ray per displayed pixel.</summary>
 internal static class PanoramaRenderer
 {
-    // SkSL executes on Avalonia's Skia canvas, including its software backend.
+    // The pinned native Skia build supports these runtime shaders on a GPU canvas.
     internal const string ShaderSource = """
         uniform shader frame;
         uniform float2 viewport;

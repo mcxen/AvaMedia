@@ -14,7 +14,7 @@ namespace AvaMedia.Desktop.Controls;
 
 public sealed class PanoramaView : Control, IDisposable
 {
-    private SKImage? _frame;
+    private FrozenFrame? _frame;
     private PanoramaSettings _view = new();
     private IPointer? _pointer;
     private Point _lastPoint;
@@ -51,7 +51,7 @@ public sealed class PanoramaView : Control, IDisposable
             frame.CopyPixels(buffer, AlphaFormat.Opaque);
             using var pixmap = pixels.PeekPixels(); image = SKImage.FromPixelCopy(pixmap);
         }
-        var old = _frame; _frame = image; old?.Dispose(); InvalidateVisual();
+        var old = _frame; _frame = new FrozenFrame(image); old?.Dispose(); InvalidateVisual();
     }
 
     public void ClearFrame()
@@ -66,8 +66,9 @@ public sealed class PanoramaView : Control, IDisposable
         try
         {
             var generation = _generation;
-            context.Custom(new PanoramaDraw(new Rect(Bounds.Size), PanoramaRenderer.CreateShader(_frame, View, (float)Bounds.Width,
-                (float)Bounds.Height), error => ReportError(error, generation)));
+            var shader = PanoramaRenderer.CreateShader(_frame.Image, View, (float)Bounds.Width, (float)Bounds.Height);
+            context.Custom(new PanoramaDraw(new Rect(Bounds.Size), shader, _frame.Acquire(), View,
+                error => ReportError(error, generation)));
         }
         catch (Exception error) { ReportError(error, _generation); }
     }
@@ -84,11 +85,8 @@ public sealed class PanoramaView : Control, IDisposable
         if (_frame is null || !View.IsImmersive || Bounds.Width <= 0 || Bounds.Height <= 0) throw new InvalidOperationException("没有可截取的 VR 画面。");
         var scale = Math.Min(Math.Clamp(renderScale, 1, 3), Math.Min(3840 / Bounds.Width, 2160 / Bounds.Height));
         var width = Math.Max(1, (int)Math.Round(Bounds.Width * scale)); var height = Math.Max(1, (int)Math.Round(Bounds.Height * scale));
-        using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque));
-        using var shader = PanoramaRenderer.CreateShader(_frame, View, width, height);
-        using var paint = new SKPaint { Shader = shader, FilterQuality = SKFilterQuality.Low };
-        surface.Canvas.DrawRect(0, 0, width, height, paint);
-        using var snapshot = surface.Snapshot(); using var data = snapshot.Encode(SKEncodedImageFormat.Png, 100); data.SaveTo(output);
+        using var bitmap = PanoramaRaster.Project(_frame.Image, View, width, height);
+        using var data = bitmap.Encode(SKEncodedImageFormat.Png, 100); data.SaveTo(output);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -122,7 +120,15 @@ public sealed class PanoramaView : Control, IDisposable
     public void CancelDrag() { var pointer = _pointer; _pointer = null; pointer?.Capture(null); Cursor = null; }
     public void Dispose() { if (_disposed) return; _disposed = true; ClearFrame(); }
 
-    private sealed class PanoramaDraw(Rect bounds, SKShader shader, Action<Exception> failed) : ICustomDrawOperation
+    private sealed class FrozenFrame(SKImage image) : IDisposable
+    {
+        private int _references = 1;
+        public SKImage Image { get; } = image;
+        public FrozenFrame Acquire() { Interlocked.Increment(ref _references); return this; }
+        public void Dispose() { if (Interlocked.Decrement(ref _references) == 0) Image.Dispose(); }
+    }
+
+    private sealed class PanoramaDraw(Rect bounds, SKShader shader, FrozenFrame frame, PanoramaSettings view, Action<Exception> failed) : ICustomDrawOperation
     {
         public Rect Bounds { get; } = bounds;
         private readonly SKPaint _paint = new() { Shader = shader, FilterQuality = SKFilterQuality.Low };
@@ -132,12 +138,18 @@ public sealed class PanoramaView : Control, IDisposable
             {
                 var feature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>() ?? throw new NotSupportedException("VR requires the Skia renderer.");
                 using var lease = feature.Lease();
-                lease.SkCanvas.DrawRect(0, 0, (float)Bounds.Width, (float)Bounds.Height, _paint);
+                if (lease.GrContext is null)
+                {
+                    using var bitmap = PanoramaRaster.Project(frame.Image, view, Math.Max(1, (int)Math.Ceiling(Bounds.Width)),
+                        Math.Max(1, (int)Math.Ceiling(Bounds.Height)));
+                    lease.SkCanvas.DrawBitmap(bitmap, new SKRect(0, 0, (float)Bounds.Width, (float)Bounds.Height));
+                }
+                else lease.SkCanvas.DrawRect(0, 0, (float)Bounds.Width, (float)Bounds.Height, _paint);
             }
             catch (Exception error) { failed(error); }
         }
         public bool HitTest(Point point) => Bounds.Contains(point);
         public bool Equals(ICustomDrawOperation? other) => false;
-        public void Dispose() { _paint.Dispose(); shader.Dispose(); }
+        public void Dispose() { _paint.Dispose(); shader.Dispose(); frame.Dispose(); }
     }
 }

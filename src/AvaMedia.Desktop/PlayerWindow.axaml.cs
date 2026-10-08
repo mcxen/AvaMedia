@@ -74,16 +74,17 @@ public partial class PlayerWindow : Window
             if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             else BeginMoveDrag(e);
         };
-        VideoArea.ContextRequested += (_, e) => { OpenMenu(BuildMenu(), VideoArea); e.Handled = true; };
+        VideoArea.ContextRequested += (_, e) => { if (IsPlayerOverlay(e.Source)) return; OpenMenu(BuildMenu(), VideoArea); e.Handled = true; };
         InitializeKeyboard();
         InitializePanorama();
         VideoArea.PointerPressed += (_, e) =>
         {
+            if (IsPlayerOverlay(e.Source)) return;
             if (!e.GetCurrentPoint(VideoArea).Properties.IsLeftButtonPressed) return;
             VideoArea.Focus(NavigationMethod.Pointer);
             if (e.ClickCount == 2) { ToggleFullscreen(); e.Handled = true; }
         };
-        VideoArea.PointerWheelChanged += (_, e) => { PlayerVolume.Value = Math.Clamp(PlayerVolume.Value + e.Delta.Y * 5, 0, 100); e.Handled = true; };
+        VideoArea.PointerWheelChanged += (_, e) => { if (IsPlayerOverlay(e.Source)) return; PlayerVolume.Value = Math.Clamp(PlayerVolume.Value + e.Delta.Y * 5, 0, 100); e.Handled = true; };
         PointerMoved += (_, _) => ShowChrome();
         _chromeTimer.Tick += (_, _) => HideChrome();
         _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); PlayerOsd.IsVisible = false; };
@@ -334,6 +335,9 @@ public partial class PlayerWindow : Window
         ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏（Enter / Esc）" : "全屏（Enter / 双击画面）");
         ShowChrome();
     }
+    private bool IsPlayerOverlay(object? source) => source is Control control && control.GetVisualAncestors().Prepend(control)
+        .Any(ancestor => ancestor == VrPanel || ancestor == PlaylistPanel || ancestor == ShortcutHelp);
+
     private void ShowChrome()
     { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && !Skin.UsesCustomChrome(ActualThemeVariant); ControlsBar.IsVisible = true; SetPosition(_position); Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
     public void SetConfirmDeletion(bool value)
