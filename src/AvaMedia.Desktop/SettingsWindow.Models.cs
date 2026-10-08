@@ -43,7 +43,6 @@ public sealed partial class SettingsWindow
         public required Button Download { get; init; }
         public required Button Verify { get; init; }
         public required Button Delete { get; init; }
-        public required Button Cancel { get; init; }
         public CancellationTokenSource? Cancellation { get; set; }
         public string? Action { get; set; }
         public string? Outcome { get; set; }
@@ -59,41 +58,47 @@ public sealed partial class SettingsWindow
     {
         foreach (var model in ModelCatalog.All)
         {
-            var status = Ui.Text("读取状态…", "caption"); status.TextWrapping = TextWrapping.NoWrap;
+            var status = Ui.Text("读取状态…", "caption");
+            status.TextWrapping = TextWrapping.NoWrap; status.TextTrimming = TextTrimming.CharacterEllipsis;
             var name = Ui.Text(model.Name, "settingsHeading");
             name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(name, model.Name);
-            var identity = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 12, RowSpacing = 3 };
+            var identity = new Grid { ColumnDefinitions = new("*,144"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 12, RowSpacing = 3 };
             identity.Children.Add(name); Grid.SetColumn(status, 1); identity.Children.Add(status);
             var metadata = Ui.FormattedText($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}", "caption");
             metadata.TextWrapping = TextWrapping.NoWrap; metadata.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(metadata, Localization.Format($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}"));
             Grid.SetRow(metadata, 1); Grid.SetColumnSpan(metadata, 2); identity.Children.Add(metadata);
 
-            var download = Ui.Button("下载", () => _ = RunModelActionAsync(model, "download"));
+            var download = Ui.Button("下载", () => DownloadOrCancelModel(model));
             var verify = Ui.Button("校验", () => _ = RunModelActionAsync(model, "verify"));
             var delete = Ui.Button("删除", () => _ = RunModelActionAsync(model, "delete"));
-            var cancel = Ui.Button("取消下载", () => CancelModelDownload(model));
-            cancel.IsVisible = false; download.Classes.Add("primary");
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-            foreach (var button in new[] { download, cancel, verify, delete })
-            { button.Classes.Add("field-action"); buttons.Children.Add(button); }
+            download.Classes.Add("primary");
+            // Keep the action slot and focused control stable when download becomes cancel.
+            var buttons = new Grid { ColumnDefinitions = new("136,68,68"), ColumnSpacing = 6, VerticalAlignment = VerticalAlignment.Center };
+            var actions = new[] { download, verify, delete };
+            for (var column = 0; column < actions.Length; column++)
+            { actions[column].Classes.Add("field-action"); Grid.SetColumn(actions[column], column); buttons.Children.Add(actions[column]); }
 
             var progressText = Ui.Text("", "caption");
+            progressText.TextWrapping = TextWrapping.NoWrap; progressText.TextTrimming = TextTrimming.CharacterEllipsis;
             var progressBar = new ProgressBar { Minimum = 0, Maximum = 100, Height = 4, MinHeight = 4 };
-            var progressPanel = new StackPanel { Spacing = 4, Margin = new(0, 6, 0, 0), IsVisible = false };
+            var progressPanel = new StackPanel { Spacing = 4, IsVisible = false };
             progressPanel.Children.Add(progressText); progressPanel.Children.Add(progressBar);
-            var error = Ui.Text("", "settingError"); error.IsVisible = false; error.Margin = new(0, 6, 0, 0);
-            var panel = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto,Auto"), ColumnSpacing = 16 };
+            var error = Ui.Text("", "settingError"); error.IsVisible = false; error.VerticalAlignment = VerticalAlignment.Top;
+            error.TextWrapping = TextWrapping.NoWrap; error.TextTrimming = TextTrimming.CharacterEllipsis;
+            // Progress and errors share a reserved area so actions never resize a model row.
+            var details = new Grid { Height = 30, Margin = new(0, 6, 0, 0), ClipToBounds = true };
+            details.Children.Add(progressPanel); details.Children.Add(error);
+            var panel = new Grid { ColumnDefinitions = new("*,284"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 16 };
             panel.Children.Add(identity); Grid.SetColumn(buttons, 1); panel.Children.Add(buttons);
-            Grid.SetRow(progressPanel, 1); Grid.SetColumnSpan(progressPanel, 2); panel.Children.Add(progressPanel);
-            Grid.SetRow(error, 2); Grid.SetColumnSpan(error, 2); panel.Children.Add(error);
+            Grid.SetRow(details, 1); Grid.SetColumnSpan(details, 2); panel.Children.Add(details);
             var container = new Border { Classes = { "settingSection", "modelRow" }, Child = panel };
             ModelList.Children.Add(container);
             _modelRows.Add(model.Id, new()
             {
                 Status = status, Error = error, ProgressPanel = progressPanel, ProgressText = progressText, ProgressBar = progressBar,
-                Download = download, Verify = verify, Delete = delete, Cancel = cancel, Container = container
+                Download = download, Verify = verify, Delete = delete, Container = container
             });
         }
         ModelStatus.IsVisible = false;
@@ -186,19 +191,21 @@ public sealed partial class SettingsWindow
         var status = !model.Supported ? "当前平台不可用" : background ? ModelInstallation.Stage
             : active ? progress?.Stage ?? "处理中…" : row.Busy ? "使用中" : row.Outcome ?? (backgroundFailure ? "下载失败" : row.Installed ? "已下载" : "未下载");
         row.Status.Text = Localization.Text(status);
-        row.Download.IsVisible = !downloading; row.Cancel.IsVisible = downloading;
-        row.Download.IsEnabled = model.Supported && !busy;
-        row.Cancel.IsEnabled = row.Cancellation?.IsCancellationRequested != true && (!background || !ModelInstallation.CancellationRequested);
-        row.Download.Content = Localization.Text(row.Downloaded > 0 && !row.Installed ? "继续下载"
+        ToolTip.SetTip(row.Status, row.Status.Text);
+        row.Download.IsEnabled = downloading
+            ? row.Cancellation?.IsCancellationRequested != true && (!background || !ModelInstallation.CancellationRequested)
+            : model.Supported && !busy;
+        row.Download.Content = Localization.Text(downloading ? "取消下载" : row.Downloaded > 0 && !row.Installed ? "继续下载"
             : row.DownloadFailed || backgroundFailure ? "重试下载" : row.Installed ? "修复下载" : "下载");
         row.Verify.IsEnabled = row.Installed && !busy;
         row.Delete.IsEnabled = !busy && _modelStore.HasLocalData(model.Id);
         row.Error.Text = Localization.Text(row.ErrorMessage ?? (backgroundFailure ? ModelInstallation.Error ?? "图片修复模型安装失败，请检查网络后重试。" : ""));
         row.Error.IsVisible = !string.IsNullOrEmpty(row.Error.Text);
+        ToolTip.SetTip(row.Error, row.Error.IsVisible ? row.Error.Text : null);
 
         if (!active && !background)
             progress = row.Downloaded > 0 && !row.Installed ? new(row.Downloaded, model.DownloadSize, "下载未完成") : null;
-        row.ProgressPanel.IsVisible = progress is not null;
+        row.ProgressPanel.IsVisible = progress is not null && !row.Error.IsVisible;
         if (progress is null) return;
         row.ProgressText.Text = Localization.Text(progress.Stage);
         if (progress.Total > 0)
@@ -207,10 +214,18 @@ public sealed partial class SettingsWindow
             row.ProgressText.Text += " · " + Localization.Format($"重试 {progress.Attempt}/{progress.MaxAttempts}");
         if (progress.Source.Length > 0)
             row.ProgressText.Text += " · " + Localization.Format($"下载源 {progress.SourceIndex}/{progress.SourceCount} · {new Uri(progress.Source).Host}");
-        ToolTip.SetTip(row.ProgressText, progress.Source.Length > 0 ? progress.Source : null);
+        ToolTip.SetTip(row.ProgressText, row.ProgressText.Text + (progress.Source.Length > 0 ? "\n" + progress.Source : ""));
         row.ProgressBar.IsIndeterminate = active || background
             ? progress.Stage is not ("下载" or "等待重试" or "切换下载源") : false;
         row.ProgressBar.Value = progress.Percent;
+    }
+
+    private void DownloadOrCancelModel(DownloadableModel model)
+    {
+        var row = _modelRows[model.Id];
+        if (row.Cancellation is not null && row.Action == "download" || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing)
+            CancelModelDownload(model);
+        else _ = RunModelActionAsync(model, "download");
     }
 
     private void CancelModelDownload(DownloadableModel model)
@@ -218,8 +233,9 @@ public sealed partial class SettingsWindow
         var row = _modelRows[model.Id];
         if (row.Cancellation is not null) row.Cancellation.Cancel();
         else if (model.Id == ModelCatalog.LamaId) ModelInstallation.Cancel();
-        row.Cancel.IsEnabled = false;
+        row.Download.IsEnabled = false;
         row.Status.Text = Localization.Text("正在停止…");
+        ToolTip.SetTip(row.Status, row.Status.Text);
     }
 
     private async Task RunModelActionAsync(DownloadableModel model, string action)
