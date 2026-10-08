@@ -22,7 +22,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     }
 
     public async Task<IReadOnlyList<SubtitleCue>> TranscribeAsync(Job source, TranscriptionOptions speech, int audioTrack,
-        Action<double> progress, CancellationToken ct)
+        Action<double> progress, CancellationToken ct, Action<AiActivity>? activityProgress = null)
     {
         var temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-transcript-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
@@ -30,7 +30,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             Output = Path.Combine(temporary, "subtitles.srt"), Options = new() { Format = "srt", Transcription = speech.Clone(), AudioStreamIndex = audioTrack } };
         task.PropertyChanged += (_, change) =>
         {
-            if (change.PropertyName == nameof(Job.Activity)) source.Activity = task.Activity;
+            if (change.PropertyName == nameof(Job.Activity) && task.Activity is { } activity)
+            {
+                if (activityProgress is not null) activityProgress(activity);
+                else source.Activity = activity;
+            }
             if (change.PropertyName == nameof(Job.ProgressDetail)) source.ProgressDetail = task.ProgressDetail;
         };
         try
@@ -45,7 +49,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     {
         var options = job.Options;
         var speech = options.Transcription ?? new();
-        var activity = new AiActivityReporter(value => job.Activity = value, "Whisper " + speech.Model, "条字幕");
+        var activity = new AiActivityReporter(value => job.Activity = value, "Whisper " + speech.Model, "条字幕",
+            ["读取音轨", "语音模型", "语音识别", "保存结果"]);
         activity.Stage("读取音轨");
         var info = await engine.Probe(job.Inputs[0], ct, options.VideoStreamIndex, options.AudioStreamIndex).ConfigureAwait(false);
         if (!info.HasAudio || info.Duration <= 0) throw new ArgumentException("文件没有可识别的音轨或有效时长。");
@@ -60,6 +65,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         if (duration <= 0) throw new ArgumentException("识别区间超出源文件时长。");
         job.Duration = duration / options.Speed;
         job.ProgressDetail = "准备语音模型"; progress(0);
+        activity.Node("语音模型");
         activity.Stage("准备语音模型");
         var models = installer ?? new();
         var model = await models.EnsureInstalledAsync(speech.Model, value =>
@@ -90,6 +96,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         .WithThreads(engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 4) : 1).WithThreshold(.5f)
                         .WithMinSpeechDuration(TimeSpan.FromMilliseconds(250)).WithMinSilenceDuration(TimeSpan.FromMilliseconds(150))
                         .WithSpeechPadding(TimeSpan.FromMilliseconds(100)).Build();
+                    activity.Node("语音识别");
                     double chunkBegin = 0, chunkEnd = 0, recognized = 0;
                     var recognitionProgressGate = new object();
                     void Recognized(double seconds)
@@ -177,6 +184,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             }
             finally { RecognitionGate.Release(); }
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
+            activity.Node("保存结果");
             if (options.Format is "srt" or "ass")
             {
                 job.ProgressDetail = "保存字幕";

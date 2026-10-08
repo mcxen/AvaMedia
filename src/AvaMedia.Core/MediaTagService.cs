@@ -87,7 +87,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         var files = paths.Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
         var completed = 0;
         var currentPath = files.FirstOrDefault() ?? "";
-        var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果");
+        var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果",
+            ["准备标签模型", "识别媒体标签"]);
         activity.Stage("校验模型");
         using var lease = await _store.AcquireAsync(ModelCatalog.JoyTagId, ct).ConfigureAwait(false);
         var tags = (await File.ReadAllLinesAsync(Path.Combine(lease.Directory, ModelCatalog.JoyTagLabels), ct).ConfigureAwait(false))
@@ -96,6 +97,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         activity.Stage("加载标签模型");
         using var session = new ModelInferenceSession(Path.Combine(lease.Directory, ModelCatalog.JoyTagFile),
             ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256, options.PreferGpu, options.BatchSize);
+        activity.Node("识别媒体标签");
         activity.Backend(session.Backend);
         var results = new List<MediaTagResult>();
         var pending = new List<(FileInfo File, long Length, DateTime Modified, byte[] Image)>();

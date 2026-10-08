@@ -2504,5 +2504,13 @@
   "当前 FFmpeg 缺少此输出格式的视频编码器。": "This FFmpeg installation has no video encoder for the output format.",
   "沿用原容器、视频编码、帧率、像素格式和色彩标记，音轨和字幕直接复制，保留章节；画面重新编码，默认参考源视频码率。": "Keep the source container, video codec, frame rate, pixel format and color tags. Copy audio, subtitles and chapters. Video is re-encoded at source bitrate by default.",
   "流复制保留原码率，不应用重新编码设置。": "Stream copy keeps original bitrate and ignores re-encoding settings.",
-  "原格式 / 原码率：直接复制音视频；剪辑边界受关键帧限制。": "Original format / bitrate: copy video and audio streams; cuts depend on keyframes."
+  "原格式 / 原码率：直接复制音视频；剪辑边界受关键帧限制。": "Original format / bitrate: copy video and audio streams; cuts depend on keyframes.",
+  "任务进度": "Task progress",
+  "画面分析": "Visual analysis",
+  "准备检测模型": "Prepare detection models",
+  "准备语义模型": "Prepare embedding model",
+  "准备标签模型": "Prepare tagging model",
+  "识别媒体标签": "Identify media tags",
+  "读取媒体": "Read media",
+  "进行中": "In progress"
 }

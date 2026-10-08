@@ -50,7 +50,11 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         var online = options.Provider == VideoSummaryProvider.Online;
         var onlineOptions = online && options.NeedsAi ? engine.Settings.OnlineAi.Resolve(options.OnlineProviderId).Clone() : new OnlineAiOptions();
         if (online && options.NeedsAi) { onlineOptions.Validate(); onlineOptions.ValidateConnection(); }
-        var activity = new AiActivityReporter(value => job.Activity = value, online ? "线上视频总结" : "本地视频总结", "项结果");
+        var nodes = new List<string> { "读取视频", "字幕与语音" };
+        if (options.NeedsAi && options.AnalyzeFrames) nodes.Add("画面分析");
+        if (options.NeedsAi) nodes.Add("内容总结");
+        nodes.Add("保存结果");
+        var activity = new AiActivityReporter(value => job.Activity = value, online ? "线上视频总结" : "本地视频总结", "项结果", nodes.ToArray());
         activity.Stage("等待视频总结"); progress(0);
         var staging = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!, ".AvaMedia-summary-" + Guid.NewGuid().ToString("N"));
         await Gate.WaitAsync(ct).ConfigureAwait(false);
@@ -61,7 +65,10 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             var info = await engine.Probe(job.Inputs[0], ct, audioStreamIndex: options.AudioTrack).ConfigureAwait(false);
             if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有画面和有效时长的视频。");
             job.Duration = info.Duration;
+            activity.Node("字幕与语音");
             var (cues, source) = await ReadTranscriptAsync(job, info, staging, progress, activity, ct).ConfigureAwait(false);
+            activity.Result($"{source} · {cues.Count} 条字幕", cues.Count);
+            if (options.NeedsAi) activity.Node(options.AnalyzeFrames ? "画面分析" : "内容总结");
             activity.Stage("准备视频总结"); progress(40);
             var frames = new List<VideoFrameObservation>();
             var sequences = new List<VideoSequenceObservation>();
@@ -127,6 +134,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             var outline = new VideoSummaryOutline([], [], []);
             if (options.NeedsAi)
             {
+                activity.Node("内容总结");
                 await using var textModel = await OpenModelAsync(ModelCatalog.SummaryTextId, onlineOptions, options, activity, ct).ConfigureAwait(false);
                 usedModels.Add(online ? onlineOptions.Name + " · " + onlineOptions.TextModel : ModelCatalog.Find(ModelCatalog.SummaryTextId).Name);
                 activity.Backend(textModel.Backend);
@@ -183,6 +191,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                 { Keywords = outline.Keywords, Highlights = outline.Highlights, Chapters = outline.Chapters, Transcript = cues,
                     KeywordClaims = outline.KeywordClaims, HighlightClaims = outline.HighlightClaims, Evidence = evidence,
                     Sequences = sequences, Sampling = sampling, RejectedClaims = rejectedClaims };
+            activity.Node("保存结果");
             activity.Stage("保存总结"); job.ProgressDetail = "保存总结";
             if (options.ExtractSubtitles && cues.Count > 0)
             {
@@ -200,7 +209,11 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             ct.ThrowIfCancellationRequested(); Directory.Move(staging, job.Output);
             job.Log = $"Local video summary · {cues.Count} subtitles · {frames.Count} frames · {sections.Count} sections";
             job.ProgressDetail = "视频总结已完成"; activity.Finish("视频总结已完成"); progress(100);
-            Task WriteAsync(string name, string value) => File.WriteAllTextAsync(Path.Combine(staging, name), value, new UTF8Encoding(false), ct);
+            async Task WriteAsync(string name, string value)
+            {
+                await File.WriteAllTextAsync(Path.Combine(staging, name), value, new UTF8Encoding(false), ct);
+                activity.Result(name);
+            }
         }
         finally
         {
@@ -266,7 +279,8 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                     throw new ArgumentException("没有可提取的文本字幕，位图或烧录字幕请改用语音识别。");
             }
             if (!info.HasAudio) return ([], "无音轨");
-            var recognized = await new SpeechSubtitleService(engine).TranscribeAsync(job, options.Speech, options.AudioTrack, value => progress(value * .4), ct).ConfigureAwait(false);
+            var recognized = await new SpeechSubtitleService(engine).TranscribeAsync(job, options.Speech, options.AudioTrack,
+                value => progress(value * .4), ct, activity.Observe).ConfigureAwait(false);
             return (recognized, "Whisper");
         }
         finally { if (File.Exists(extracted)) File.Delete(extracted); }

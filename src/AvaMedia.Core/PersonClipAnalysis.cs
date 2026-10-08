@@ -47,16 +47,20 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var modelName = string.Join(" + ", options.SelectedDetectors.Select(id => PersonDetectorCatalog.Find(id).Name));
         if (options.UseEmbedding) modelName += " + Gemma";
         var activity = new AiActivityReporter(value => progress?.Report(new(observedSeconds, duration, value.Stage)
-            { Activity = value, Evidence = evidence }), modelName + " · 人物检测", "个片段");
+            { Activity = value, Evidence = evidence }), modelName + " · 人物检测", "个片段",
+            ["准备检测模型", "读取视频", "人物检测", "细化片段边界", "保留片段"]);
         activity.Stage("校验模型");
         using var detectors = await PersonDetectorSet.CreateAsync(_store, options, ct);
         var size = detectors.FrameSize;
         activity.Stage("加载人物检测模型");
         activity.Backend(detectors.Backend);
+        activity.Node("读取视频");
         activity.Stage("读取视频", detail: Path.GetFileName(path));
         var info = await engine.Probe(path, ct);
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有有效时长的视频。");
         duration = info.Duration;
+        activity.Node("人物检测");
+        activity.Backend(detectors.Backend);
         await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, options.PreferGpu, stage => activity.Stage(stage)) : null;
         var samples = new List<PersonFrame>();
         byte[]? reference = null;
@@ -127,6 +131,8 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         if (candidateStart >= 0) activity.Result($"候选片段 {++candidates} · {MediaTime.Format(candidateStart)} – {MediaTime.Format(duration)}", candidates);
         var boundaries = samples.Skip(1).Zip(samples, (current, previousFrame) => current.Keep != previousFrame.Keep).Count(changed => changed);
         var refined = 0;
+        activity.Node("细化片段边界");
+        activity.Backend(detectors.Backend);
         activity.Stage("细化片段边界", 0, boundaries, "处");
         var intervals = new List<(double Start, double End)>();
         double start = samples[0].Keep ? 0 : -1;
@@ -174,6 +180,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         }
         var segments = padded.Where(interval => interval.End - interval.Start >= options.MinimumSeconds)
             .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
+        activity.Node("保留片段");
         foreach (var segment in segments) activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", segments.Length);
         activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
         activity.Stage("分析完成", detail: $"保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");

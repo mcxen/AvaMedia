@@ -57,7 +57,7 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
     public static Task<MediaKeywordMatcher> CreateAsync(IMediaEngine engine, IReadOnlyList<SemanticKeyword> keywords,
         ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true, IProgress<AiActivity>? progress = null) => Task.Run(async () =>
     {
-        var activity = new AiActivityReporter(value => progress?.Report(value), "Gemma · 媒体嵌入");
+        var activity = new AiActivityReporter(value => progress?.Report(value), "Gemma · 媒体嵌入", nodes: ["准备语义模型", "编码关键词"]);
         var snapshot = keywords.ToArray();
         if (snapshot.Length is < 1 or > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("请选择 1–20000 个关键词。");
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -71,6 +71,8 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
         try
         {
             var labels = new List<float[]>();
+            activity.Backend(embedding.Backend);
+            activity.Node("编码关键词");
             activity.Backend(embedding.Backend);
             activity.Stage("编码关键词", 0, snapshot.Length, "词");
             for (var offset = 0; offset < snapshot.Length;)
@@ -98,7 +100,8 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
     {
         options.Validate();
         var completed = 0; var frames = 0;
-        var activity = new AiActivityReporter(value => progress?.Report(new(completed, frames) { Activity = value }), "Gemma · 媒体嵌入", "次候选结果");
+        var activity = new AiActivityReporter(value => progress?.Report(new(completed, frames) { Activity = value }), "Gemma · 媒体嵌入", "次候选结果",
+            ["读取媒体", "采样画面", "匹配媒体关键词"]);
         activity.Backend(_embedding.Backend);
         var image = new MediaFileRouter().Classify(path) == MediaFileKind.Image;
         activity.Stage(image ? "读取图片" : "读取视频", detail: Path.GetFileName(path));
@@ -112,6 +115,7 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
         var totals = new double[_keywords.Length];
         var unique = new List<(byte[] Png, byte[] Signature, double Seconds)>();
         var samples = new int[frames];
+        activity.Node("采样画面");
         activity.Stage("采样画面", 0, frames, "帧");
         for (var index = 0; index < frames; index++)
         {
@@ -126,6 +130,8 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
             activity.Frame(png, $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)}");
             activity.Advance(index + 1, frames, "帧", $"待推理 {unique.Count} 帧 · 复用 {index + 1 - unique.Count} 帧");
         }
+        activity.Node("匹配媒体关键词");
+        activity.Backend(_embedding.Backend);
         activity.Stage("匹配媒体关键词", 0, frames, "帧");
         for (var offset = 0; offset < unique.Count; offset += 4)
         {
