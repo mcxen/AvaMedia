@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private Feature _last=Catalog.Find("mp4");
     private DateTime _lastSave;
     private bool _closing;
+    private HelpWindow? _helpWindow;
     private Task _running=Task.CompletedTask;
     private Task _queueSave=Task.CompletedTask;
     public Task PersistenceReady => _queueSave;
@@ -241,6 +242,12 @@ public partial class MainWindow : Window
         Title=AppIdentity.WindowTitle;ChineseLanguageItem.IsChecked=_settings.Language=="zh-CN";
         EnglishLanguageItem.IsChecked=_settings.Language=="en-US";SystemLanguageItem.IsChecked=_settings.Language=="system";
     }
-    private async void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.Message(this,"使用说明","1. 点击左侧格式或工具，添加文件，设置参数并确定。\n2. 点击“开始”执行队列。右键任务可编辑、重试、查看日志和打开输出目录。\n3. 快速剪辑：先选视频直接编辑，可添加多个片段、裁剪画面、旋转或识别人脸方向，再选择导出选项并加入队列。每个片段分别导出，返回编辑保留草稿。\n4. 已内置 FFmpeg / FFprobe 和下载工具，可直接使用；自定义工具可在选项中指定路径。\n5. PDF → DOCX/XLSX 提取文本，扫描 PDF 需要另行 OCR；不保留原始排版。\n6. ISO 复制需要光驱读取权限。DVD 转换请选择未加密 VOB 文件。\n\n更完整的能力与限制见工程 docs/FEATURES.md。");
+    private void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if(_helpWindow is { } existing){existing.Activate();return;}
+        _helpWindow=new HelpWindow();
+        _helpWindow.Closed+=(_,_)=>_helpWindow=null;
+        _helpWindow.Show(this);
+    }
     private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.MessageFormatted(this,Localization.Format($"关于{Localization.Key(AppIdentity.ChineseName)}"),$"{Localization.Format($"{Localization.Key(AppIdentity.ChineseName+" · "+AppIdentity.EnglishName)} {AppIdentity.Version}")}\nAvalonia + C# 多媒体工具\n\n独立实现的客户端，界面布局参考 FormatFactory 5.10.0。\n版权所有 © 2026 AvaMedia contributors。\n原创代码和矢量图标采用 AGPL-3.0-only 许可证。\n本程序不提供担保，可按该许可证修改和再分发。\n许可全文见 LICENSE；源码见 https://github.com/mcxen/AvaMedia。\n\nAvalonia: MIT · NAudio: MIT · PDFsharp: MIT · PdfPig: Apache-2.0\n内置 FFmpeg 8.1.3 通过独立进程调用，采用 GPL-3.0-or-later；对应源码随 Release 提供。\n内置 yt-dlp 和 QuickJS-NG，保留各组件的第三方许可证。\n\n完整版权声明见 THIRD-PARTY-NOTICES.md 和 licenses/。\nFormatFactory 名称及原产品资源归各权利人所有。");
 }

@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AvaMedia.Desktop.HelpWindow" Title="帮助"
+        Width="800" Height="780" MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="Border.help-card">
+      <Setter Property="Background" Value="{DynamicResource UiSurface}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/>
+      <Setter Property="Padding" Value="{DynamicResource UiSectionPadding}"/>
+      <Setter Property="Margin" Value="4"/>
+    </Style>
+  </Window.Styles>
+  <Grid Margin="{DynamicResource UiSectionPadding}" RowDefinitions="*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="{DynamicResource UiSpacingLarge}">
+        <StackPanel Spacing="{DynamicResource UiSpacingSmall}">
+          <TextBlock Text="功能介绍" Classes="title"/>
+          <TextBlock Text="转换、压缩和编辑视频、音频、图片与 PDF。" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Border Background="{DynamicResource UiSurfaceRaised}" Padding="{DynamicResource UiSectionPadding}"
+                CornerRadius="{DynamicResource UiControlRadius}">
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="{DynamicResource UiSpacingMedium}">
+            <StackPanel Spacing="{DynamicResource UiSpacingSmall}">
+              <TextBlock Text="1. 选择功能" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock Text="点击左侧功能，或把文件拖入主窗口。" Classes="caption" TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="{DynamicResource UiSpacingSmall}">
+              <TextBlock Text="2. 添加任务" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock Text="添加文件、调整参数，选择保存位置并确认。" Classes="caption" TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="{DynamicResource UiSpacingSmall}">
+              <TextBlock Text="3. 开始处理" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock Text="点击主窗口的“开始”，完成后打开“输出文件夹”。" Classes="caption" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+        <StackPanel Spacing="{DynamicResource UiSpacingSmall}">
+          <TextBlock Text="主要功能" FontWeight="SemiBold"/>
+          <UniformGrid x:Name="FeatureList" Columns="2" Margin="-4"/>
+          <Expander Header="其他功能" HorizontalAlignment="Stretch">
+            <StackPanel x:Name="OtherFeatureList" Margin="-4,8,-4,0"/>
+          </Expander>
+        </StackPanel>
+        <TextBlock Text="双击任务可修改参数；右键可重试、查看日志或打开输出目录。"
+                   Classes="caption" TextWrapping="Wrap"/>
+      </StackPanel>
+    </ScrollViewer>
+    <Button Grid.Row="1" Content="关闭" Click="CloseClick" IsCancel="True"
+            Classes="dialog-action" HorizontalAlignment="Right"/>
+  </Grid>
+</Window>
