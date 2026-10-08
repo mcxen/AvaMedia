@@ -23,18 +23,22 @@ public sealed class BatchVideoEntry : Observable
     private bool _include = true;
     private string _newName = "";
     private string _status = "待处理";
+    private string _keyword = "";
+    private string _details;
     public string Path => _path;
     public string Name => System.IO.Path.GetFileName(_path);
     public bool Include { get => _include; set => Set(ref _include, value); }
     public string NewName { get => _newName; set => Set(ref _newName, value); }
     public string Status { get => _status; set => Set(ref _status, value); }
+    public string Keyword { get => _keyword; set => Set(ref _keyword, value); }
+    public string Details { get => _details; set => Set(ref _details, value); }
     public string? LastSheet { get; set; }
-    public BatchVideoEntry(string path) => _path = path;
-    public void Renamed(string path) { _path = path; NewName = ""; Raise(nameof(Path)); Raise(nameof(Name)); }
+    public BatchVideoEntry(string path) { _path = path; _details = path; }
+    public void Renamed(string path) { _path = path; NewName = ""; Details = path; Raise(nameof(Path)); Raise(nameof(Name)); }
 }
 
 /// <summary>Dedicated batch panel; does not start or change the conversion queue.</summary>
-public sealed class BatchToolsWindow : Window
+public sealed partial class BatchToolsWindow : Window
 {
     private readonly IMediaEngine _engine;
     private readonly ObservableCollection<BatchVideoEntry> _entries = [];
@@ -75,8 +79,10 @@ public sealed class BatchToolsWindow : Window
     private readonly string _journal;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
-    public BatchToolsWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,string? journalPath=null, bool screenshots=false)
+    public BatchToolsWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,string? journalPath=null, bool screenshots=false,
+        AppSettings? settings = null, Func<Window, Task>? manageModels = null)
     {
+        _settings = settings; _manageModels = manageModels; _screenshots = screenshots;
         _engine = engine;_journal=journalPath??System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "batch-rename.json");
         Title = screenshots ? "多宫格截图" : "视频重命名";
         Width = 1120; Height = 760; MinWidth = 920; MinHeight = 620;
@@ -131,9 +137,21 @@ public sealed class BatchToolsWindow : Window
             var g = new Grid { ColumnDefinitions = new("28,*,*,160"), Margin = new(0, 6), ColumnSpacing = 5 };
             var check = new CheckBox { MinHeight = 22 };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(BatchVideoEntry.Include)) { Mode = BindingMode.TwoWay }); g.Children.Add(check);
-            Add(1, nameof(BatchVideoEntry.Name)); if(!screenshots)Add(2, nameof(BatchVideoEntry.NewName)); Add(3, nameof(BatchVideoEntry.Status));
+            Add(1, nameof(BatchVideoEntry.Name)); if(!screenshots)Add(2, nameof(BatchVideoEntry.NewName));
+            if (!screenshots && settings?.EnableBetaFeatures == true)
+            {
+                var status = new StackPanel { Spacing = 3 };
+                var text = new TextBlock { Classes = { "caption" }, TextTrimming = TextTrimming.CharacterEllipsis };
+                text.Bind(TextBlock.TextProperty, new Binding(nameof(BatchVideoEntry.Status))); status.Children.Add(text);
+                var keyword = Ui.Input(); keyword.Watermark = Localization.Text("匹配关键词");
+                Localization.SetIsUserText(keyword, true);
+                keyword.Bind(TextBox.TextProperty, new Binding(nameof(BatchVideoEntry.Keyword)) { Mode = BindingMode.TwoWay });
+                keyword.Bind(IsVisibleProperty, new Binding(nameof(CheckBox.IsChecked)) { Source = _semantic });
+                status.Children.Add(keyword); Grid.SetColumn(status, 3); g.Children.Add(status);
+            }
+            else Add(3, nameof(BatchVideoEntry.Status));
             if(screenshots)g.ColumnDefinitions[2].Width=new GridLength(0);
-            ToolTip.SetTip(g, entry?.Path); return g;
+            g.Bind(ToolTip.TipProperty, new Binding(nameof(BatchVideoEntry.Details))); return g;
             void Add(int column, string property)
             {
                 var t = new TextBlock { Classes = { "caption" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
@@ -145,6 +163,7 @@ public sealed class BatchToolsWindow : Window
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); body.Children.Add(filesArea);
         if(screenshots)header.ColumnDefinitions[2].Width=new GridLength(0);
         _renamePanel = new() { Spacing = 9, Margin = new(9) };
+        InitializeSemanticRename();
         AddRow(_renamePanel, "命名模板", _pattern); AddRow(_renamePanel, "前缀", _prefix); AddRow(_renamePanel, "后缀", _suffix);
         AddRow(_renamePanel, "查找文本", _find); AddRow(_renamePanel, "替换为", _replace); AddRow(_renamePanel, "起始序号", _firstIndex); AddRow(_renamePanel, "序号位数", _digits);
         _renamePanel.Children.Add(Ui.Text("{name} 文件名 · {index} 序号 · {parent} 文件夹；保留扩展名。","caption"));
@@ -174,7 +193,7 @@ public sealed class BatchToolsWindow : Window
         _sheetPanel.Children.Add(new Border { Classes = { "media-preview" }, Child = _preview, Margin = new(0, 5) });
         var open = new Button { Content = "打开输出文件夹", HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => { try { var folder = System.IO.Path.GetFullPath(_output.Text ?? ""); Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); } catch (Exception ex) { await Ui.Message(this, "打开失败", ex.Message); } }; _sheetPanel.Children.Add(open);
-        var settings=new ScrollViewer{Content=screenshots?_sheetPanel:_renamePanel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};Grid.SetColumn(settings,1);body.Children.Add(settings);
+        var settingsView=new ScrollViewer{Content=screenshots?_sheetPanel:_renamePanel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};Grid.SetColumn(settingsView,1);body.Children.Add(settingsView);
         Grid.SetRow(body, 2); root.Children.Add(body);
         var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -204,7 +223,8 @@ public sealed class BatchToolsWindow : Window
             foreach (var path in BatchVideoTools.CollectVideos(paths, false))
             {
                 if (!existing.Add(path)) continue;
-                var row = new BatchVideoEntry(path); row.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(BatchVideoEntry.Include)) InvalidatePlan(); }; _entries.Add(row);
+                var row = new BatchVideoEntry(path); row.PropertyChanged += (_, e) =>
+                { if (!_semanticApplying && e.PropertyName is nameof(BatchVideoEntry.Include) or nameof(BatchVideoEntry.Keyword)) InvalidatePlan(); }; _entries.Add(row);
             }
             InvalidatePlan();
         }
@@ -231,16 +251,18 @@ public sealed class BatchToolsWindow : Window
         {
             var files = _entries.Where(e => e.Include).Select(e => e.Path).ToArray(); if (files.Length == 0) throw new ArgumentException("请先勾选视频。");
             var rules = new RenameRules(_pattern.Text ?? "", _prefix.Text ?? "", _suffix.Text ?? "", _find.Text ?? "", _replace.Text ?? "", Integer(_firstIndex), Integer(_digits));
-            _renamePlan = BatchVideoTools.PreviewRename(files, rules);
+            var keywords = SemanticEnabled ? _entries.Where(entry => entry.Include).ToDictionary(entry => entry.Path, entry => entry.Keyword.Trim(), BatchVideoTools.PathComparer) : null;
+            ValidateSemanticSources(files);
+            _renamePlan = BatchVideoTools.PreviewRename(files, rules, keywords);
             var targets = _renamePlan.ToDictionary(i => i.Source, i => System.IO.Path.GetFileName(i.Target), BatchVideoTools.PathComparer);
             foreach (var row in _entries) row.NewName = targets.GetValueOrDefault(row.Path) ?? "";
-            _rename.IsEnabled = _renamePlan.Any(i => i.Source != i.Target); _progressText.Text = "预览完成";
+            _rename.IsEnabled = _operation is null && !_renaming && !_importing && _renamePlan.Any(i => i.Source != i.Target); _progressText.Text = "预览完成";
         }
         catch (Exception ex) { InvalidatePlan(); await Ui.Message(this, "重命名预览失败", ex.Message); }
     }
     private async Task ApplyRename()
     {
-        if (_renamePlan is null) return; var plan = _renamePlan;
+        if (_renamePlan is null || _operation is not null || _renaming || _importing) return; var plan = _renamePlan;
         SetBusy(true); _renaming = true;
         try { var result = await Task.Run(() => BatchVideoTools.ApplyRename(plan, _journal)); UpdatePaths(result); Localization.SetText(_progressText,$"已重命名 {result.Length} 个视频。"); }
         catch (Exception ex) { await Ui.Message(this, "重命名失败", ex.Message); }
@@ -255,6 +277,7 @@ public sealed class BatchToolsWindow : Window
     }
     private void UpdatePaths(IReadOnlyList<RenameItem> mappings)
     {
+        _semanticResults.Clear();
         var map = mappings.ToDictionary(i => i.Source, i => i.Target, BatchVideoTools.PathComparer);
         foreach (var entry in _entries) if (map.TryGetValue(entry.Path, out var target)) { entry.Renamed(target); entry.Status = "已重命名"; }
         Renamed?.Invoke(mappings);

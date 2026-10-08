@@ -61,11 +61,6 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
                 catch (OperationCanceledException) when (!deadline.IsCancellationRequested) { }
                 await Task.Delay(250, deadline.Token).ConfigureAwait(false);
             }
-            string[] descriptions = [
-                "A person visible in the scene.", "People standing, sitting or walking.", "A person seen from behind or from the side.",
-                "An empty room with nobody present.", "An outdoor scene without any people.", "A blank or black video frame."
-            ];
-            backend._labels = await backend.EmbedAsync(descriptions.Select(text => (object)("task: classification | query: " + text)).ToArray(), ct).ConfigureAwait(false);
             return backend;
         }
         catch
@@ -79,10 +74,28 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
     /// <returns>Similarity margin for person versus empty-scene descriptions; not a probability.</returns>
     public async Task<double> PersonMarginAsync(byte[] png, CancellationToken ct)
     {
-        object input = new { content = new[] { new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(png) } } } };
-        var vector = (await EmbedAsync([input], ct).ConfigureAwait(false))[0];
+        if (_labels.Length == 0)
+            _labels = await EmbedLabelsAsync([
+                "A person visible in the scene.", "People standing, sitting or walking.", "A person seen from behind or from the side.",
+                "An empty room with nobody present.", "An outdoor scene without any people.", "A blank or black video frame."
+            ], ct).ConfigureAwait(false);
+        var vector = await EmbedImageAsync(png, ct).ConfigureAwait(false);
         var scores = _labels.Select(label => Cosine(vector, label)).ToArray();
         return scores.Take(3).Max() - scores.Skip(3).Max();
+    }
+
+    public Task<float[][]> EmbedLabelsAsync(IReadOnlyList<string> descriptions, CancellationToken ct)
+    {
+        if (descriptions.Count is < 1 or > 32 || descriptions.Any(text => string.IsNullOrWhiteSpace(text) || text.Length > 512))
+            throw new ArgumentException("请输入 1–32 个关键词，描述不超过 512 字符。");
+        return EmbedAsync(descriptions.Select(text => (object)("task: classification | query: " + text)).ToArray(), ct);
+    }
+
+    public async Task<float[]> EmbedImageAsync(byte[] png, CancellationToken ct)
+    {
+        if (png.Length == 0) throw new ArgumentException("待分析画面为空。");
+        object input = new { content = new[] { new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(png) } } } };
+        return (await EmbedAsync([input], ct).ConfigureAwait(false))[0];
     }
 
     private async Task<float[][]> EmbedAsync(object[] input, CancellationToken ct)
@@ -100,8 +113,9 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
         return vectors;
     }
 
-    private static double Cosine(float[] left, float[] right)
+    public static double Cosine(float[] left, float[] right)
     {
+        if (left.Length != 768 || right.Length != 768) throw new ArgumentException("嵌入向量维度不符。");
         double dot = 0, a = 0, b = 0;
         for (var index = 0; index < left.Length; index++) { dot += left[index] * right[index]; a += left[index] * left[index]; b += right[index] * right[index]; }
         return dot / Math.Sqrt(a * b);

@@ -40,10 +40,12 @@ public static class BatchVideoTools
         return result.OrderBy(p => p, PathComparer).ToArray();
     }
 
-    public static RenameItem[] PreviewRename(IEnumerable<string> paths, RenameRules rules)
+    public static RenameItem[] PreviewRename(IEnumerable<string> paths, RenameRules rules, IReadOnlyDictionary<string, string>? keywords = null)
     {
         if (rules.FirstIndex < 0 || rules.Digits is < 1 or > 12) throw new ArgumentException("起始序号不能为负，序号位数须在 1–12 之间。");
         if (string.IsNullOrWhiteSpace(rules.Pattern)) throw new ArgumentException("命名模板不能为空。");
+        if (rules.Pattern.Contains("{keyword}", StringComparison.Ordinal) && keywords is null)
+            throw new ArgumentException("请先进行语义匹配或填写匹配关键词。");
         var result = new List<RenameItem>();
         foreach (var (path, index) in paths.Select(Path.GetFullPath).Distinct(PathComparer).Select((p, i) => (p, i)))
         {
@@ -51,15 +53,23 @@ public static class BatchVideoTools
             if (!info.Exists) throw new FileNotFoundException("源文件不存在，请刷新文件列表。", path);
             var name = Path.GetFileNameWithoutExtension(path);
             if (!string.IsNullOrEmpty(rules.Find)) name = name.Replace(rules.Find, rules.Replace, StringComparison.Ordinal);
-            var stem = rules.Prefix + rules.Pattern.Replace("{name}", name, StringComparison.Ordinal)
-                .Replace("{index}", checked(rules.FirstIndex + index).ToString("D" + rules.Digits, CultureInfo.InvariantCulture), StringComparison.Ordinal)
-                .Replace("{parent}", info.Directory?.Name ?? "", StringComparison.Ordinal) + rules.Suffix;
+            var keyword = keywords?.GetValueOrDefault(path) ?? "";
+            if (rules.Pattern.Contains("{keyword}", StringComparison.Ordinal)) ValidateRenameKeyword(keyword);
+            var number = checked(rules.FirstIndex + index).ToString("D" + rules.Digits, CultureInfo.InvariantCulture);
+            var stem = rules.Prefix + System.Text.RegularExpressions.Regex.Replace(rules.Pattern, @"\{(name|index|parent|keyword)\}", match => match.Groups[1].Value switch
+                { "name" => name, "index" => number, "parent" => info.Directory?.Name ?? "", _ => keyword }) + rules.Suffix;
             ValidateStem(stem);
             var target = Path.Combine(info.DirectoryName!, stem + info.Extension);
             result.Add(new(path, target, info.Length, info.LastWriteTimeUtc));
         }
         ValidateRenamePlan(result);
         return result.ToArray();
+    }
+
+    public static void ValidateRenameKeyword(string keyword)
+    {
+        if (keyword.Length > 100 || keyword.Contains('{') || keyword.Contains('}')) throw new ArgumentException("命名关键词不能超过 100 字符或包含花括号。");
+        ValidateStem(keyword);
     }
 
     private static void ValidateStem(string stem)
@@ -278,7 +288,7 @@ public static class BatchVideoTools
         data.SaveTo(output);
     }
 
-    private static (double Duration, double FrameRate) VideoTiming(MediaInfo info)
+    internal static (double Duration, double FrameRate) VideoTiming(MediaInfo info)
     {
         double duration = info.Duration, frameRate = 25;
         try

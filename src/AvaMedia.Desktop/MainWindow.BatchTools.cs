@@ -11,7 +11,15 @@ public partial class MainWindow
             await Ui.Message(this, "批量工具", "请在当前转换任务完成或停止后打开批量工具，以便同步重命名后的源文件路径。");
             return;
         }
-        var window = new BatchToolsWindow(Engine, _settings.OutputFolder, files, screenshots: screenshots);
+        async Task ManageModels(Avalonia.Controls.Window owner)
+        {
+            var settings = new SettingsWindow(_settings, _optionServices);
+            settings.OpenModelManagement();
+            settings.Applied += (_, _) => ApplyOptions();
+            await settings.ShowDialog<bool>(owner);
+        }
+        var window = new BatchToolsWindow(Engine, _settings.OutputFolder, files, screenshots: screenshots,
+            settings: _settings, manageModels: ManageModels);
         window.Renamed += mappings =>
         {
             var map = mappings.ToDictionary(i => i.Source, i => i.Target, BatchVideoTools.PathComparer);
