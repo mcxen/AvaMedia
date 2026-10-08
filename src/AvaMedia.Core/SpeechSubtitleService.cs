@@ -109,6 +109,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                     using var processor = builder.Build();
                     var result = new List<SubtitleCue>();
                     var wav = Path.Combine(temporary, "speech.wav");
+                    var regionWav = Path.Combine(temporary, "speech-region.wav");
                     for (var from = 0d; from < duration; from += ChunkSeconds)
                     {
                         ct.ThrowIfCancellationRequested();
@@ -132,30 +133,42 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         }
                         job.ProgressDetail = "识别字幕";
                         activity.Stage("识别字幕", recognized, duration, "秒", $"检测到 {speechSegments.Count} 个语音区间");
-                        chunkBegin = begin; chunkEnd = end;
-                        await using var audio = File.OpenRead(wav);
-                        await foreach (var segment in processor.ProcessAsync(audio, ct).ConfigureAwait(false))
+                        // Decode the detected utterances individually. A native
+                        // 30-second decoding window can otherwise skip later speech
+                        // after an early end-of-text prediction, despite VAD coverage.
+                        foreach (var region in speechSegments)
                         {
-                            var text = segment.Text.Trim();
-                            var start = Math.Max(0, begin + segment.Start.TotalSeconds);
-                            var stop = Math.Min(duration, begin + segment.End.TotalSeconds);
-                            var middle = (start + stop) / 2;
-                            // Overlap protects words at chunk edges; each segment belongs to one chunk.
-                            if (text.Length == 0 || stop <= start || middle < from || middle >= Math.Min(duration, from + ChunkSeconds)) continue;
-                            // Whisper can confidently invent text for non-speech. Its timestamps include pauses,
-                            // so require some actual speech support without cutting words to the detector's edges.
-                            var supported = speechSegments.Sum(segment => Math.Max(0,
-                                Math.Min(stop, begin + segment.End.TotalSeconds) - Math.Max(start, begin + segment.Start.TotalSeconds)));
-                            if (supported < Math.Min(.25, stop - start) || supported < (stop - start) * .2) continue;
-                            if (result.LastOrDefault() is { } previous)
+                            var regionStart = Math.Max(0, region.Start.TotalSeconds);
+                            var regionStop = Math.Min(end - begin, region.End.TotalSeconds);
+                            if (regionStop <= regionStart) continue;
+                            var prepared = await ProcessRunner.Run(engine.FFmpeg, ["-v", "error", "-nostdin", "-y", "-ss", MediaEngine.Number(regionStart),
+                                "-i", wav, "-t", MediaEngine.Number(regionStop - regionStart), "-c:a", "pcm_s16le", regionWav], ct).ConfigureAwait(false);
+                            if (prepared.ExitCode != 0) throw new InvalidDataException("提取语音区间失败。\n" + prepared.Error);
+                            chunkBegin = begin + regionStart; chunkEnd = begin + regionStop;
+                            await using var audio = File.OpenRead(regionWav);
+                            await foreach (var segment in processor.ProcessAsync(audio, ct).ConfigureAwait(false))
                             {
-                                if (previous.Text == text && start / options.Speed < previous.End.TotalSeconds + .5) continue;
-                                start = Math.Max(start, previous.End.TotalSeconds * options.Speed);
+                                var text = segment.Text.Trim();
+                                var start = Math.Max(chunkBegin, chunkBegin + segment.Start.TotalSeconds);
+                                var stop = Math.Min(chunkEnd, chunkBegin + segment.End.TotalSeconds);
+                                var middle = (start + stop) / 2;
+                                // Overlap protects words at chunk edges; each segment belongs to one chunk.
+                                if (!text.Any(char.IsLetterOrDigit) || stop <= start || middle < from || middle >= Math.Min(duration, from + ChunkSeconds)) continue;
+                                // Whisper can confidently invent text for non-speech. Its timestamps include pauses,
+                                // so require some actual speech support without cutting words to the detector's edges.
+                                var supported = speechSegments.Sum(segment => Math.Max(0,
+                                    Math.Min(stop, begin + segment.End.TotalSeconds) - Math.Max(start, begin + segment.Start.TotalSeconds)));
+                                if (supported < Math.Min(.25, stop - start) || supported < (stop - start) * .2) continue;
+                                if (result.LastOrDefault() is { } previous)
+                                {
+                                    if (previous.Text == text && start / options.Speed < previous.End.TotalSeconds + .5) continue;
+                                    start = Math.Max(start, previous.End.TotalSeconds * options.Speed);
+                                }
+                                if (stop <= start) continue;
+                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text));
+                                activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
+                                Recognized(stop);
                             }
-                            if (stop <= start) continue;
-                            result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text));
-                            activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
-                            Recognized(stop);
                         }
                         Recognized(Math.Min(duration, from + ChunkSeconds));
                     }

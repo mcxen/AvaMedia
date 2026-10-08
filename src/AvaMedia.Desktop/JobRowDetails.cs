@@ -122,7 +122,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             else if (feature.Operation == Operation.Transcribe)
             {
                 parts.Add(o.Format.ToUpperInvariant());
-                parts.Add(o.Transcription?.Model == SpeechModel.Tiny ? "轻量模型" : "标准模型");
+                parts.Add(o.Transcription?.Model switch { SpeechModel.Tiny => "轻量模型", SpeechModel.Small => "Whisper Small", _ => "标准模型" });
                 if (o.Format is "mp4" or "mkv" or "ass") parts.Add(Localization.Format($"字号 {o.SubtitleFontSize}"));
             }
             else if (feature.Category is "视频" or "音频" or "图片")

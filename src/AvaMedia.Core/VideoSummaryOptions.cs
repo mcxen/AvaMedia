@@ -12,7 +12,7 @@ public sealed class VideoSummaryOptions
     public string SubtitleFile { get; set; } = "";
     public int SubtitleTrack { get; set; } = -1;
     public int AudioTrack { get; set; }
-    public TranscriptionOptions Speech { get; set; } = new() { Model = SpeechModel.Tiny };
+    public TranscriptionOptions Speech { get; set; } = new() { Model = SpeechModel.Small };
     public bool AnalyzeFrames { get; set; } = true;
     public int FrameCount { get; set; } = 12;
     public string OutputLanguage { get; set; } = "简体中文";

@@ -16,16 +16,16 @@
 
 | 模型 | 用途 | 文件体积 |
 | --- | --- | --- |
-| Qwen3 0.6B Q4_0 | 中文摘要、分段总结与内容分析 | 428,970,080 字节，约 429 MB |
-| SmolVLM2 256M Q4_K_M + Q8 投影 | 抽样画面描述 | 235,005,792 字节，约 235 MB |
-| Whisper Tiny Q5_1 | 语音转录 | 32,152,673 字节，约 32 MB |
+| Qwen3 1.7B Q4_K_M | 中文摘要、分段总结与内容分析 | 1,282,439,264 字节，约 1.28 GB |
+| SmolVLM2 500M Q8_0 + Q8 投影 | 抽样画面描述 | 545,593,888 字节，约 546 MB |
+| Whisper Small Q5_1（默认） / Base、Tiny（可选） | 语音转录 | 190,085,487 / 59,707,625 / 32,152,673 字节，约 190 / 60 / 32 MB |
 | llama.cpp b11476 | 本地推理工具 | 下载归档 Mac 约 12 MB、Windows 约 33 MB；下载后在缓存中解压 |
 
-完整模型约 696 MB，不含推理工具，占用下载缓存而不增加安装包体积。关闭画面分析后不需要下载约 235 MB 的视觉模型；使用视频或外部字幕也不需要语音模型。画面模型主要支持英语，因此先用英语描述采样帧，再由 Qwen3 结合字幕生成所选语言的总结。两个模型依次加载，任务结束后释放；GPU 启动失败时尝试 CPU。
+默认完整模型约 2.02 GB，不含推理工具，占用下载缓存而不增加安装包体积。关闭画面分析后不需要下载约 546 MB 的视觉模型；使用视频或外部字幕也不需要语音模型。画面模型主要支持英语，因此先用英语描述采样帧，再由 Qwen3 结合字幕生成所选语言的总结。两个模型依次加载，任务结束后释放；GPU 启动失败时尝试 CPU。视觉描述使用贪心解码，文本总结使用低温采样，两者不使用额外重复惩罚；总结优先保留字幕或语音中的主题、否定表述和建议语气，画面描述作为未经核实的辅助资料。短转录直接参与最终总结，避免反复概括积累误差。
 
 字幕来源可选自动、视频字幕轨、语音识别或外部 SRT / VTT / ASS / SSA。自动模式优先使用可转为文本的字幕轨，否则使用 Whisper。位图字幕和已烧录字幕不能直接提取为文本，使用语音识别。字幕、音轨索引从 0 开始；字幕 -1 表示自动选择。外部字幕只用于单个视频，时间轴按源视频保留。
 
-画面分析默认均匀采样 12 帧，可调整至 1–48 帧。无音轨或无语音的视频可按采样画面生成总结。字幕提取可以单独执行，不加载总结和视觉模型。长字幕按字符预算处理全部片段，再逐级合并笔记；不会通过截断尾部来适应上下文。
+画面分析默认均匀采样 12 帧，可调整至 1–48 帧。模型输入保留原画面比例，最长边最多 768 像素，不添加黑边。无音轨或无语音的视频可按采样画面生成总结。字幕提取可以单独执行，不加载总结和视觉模型。长字幕按字符预算处理全部片段，再逐级合并笔记；不会通过截断尾部来适应上下文。
 
 每个视频输出到独立目录，不覆盖源文件或已有结果：
 
@@ -43,8 +43,12 @@
 
 总结和视觉模型文件来源、固定 revision、大小和 SHA256 位于 `src/AvaMedia.Core/Assets/SummaryModels.json`；语音模型和推理工具沿用现有固定来源清单。任务通过共享 `ModelStore` 下载和管理，运行时只监听带临时认证的本机回环地址。许可证与归属说明保存在 `licenses/local-summary/` 和 `licenses/speech/`。
 
-参考：[Qwen3 模型说明](https://huggingface.co/Qwen/Qwen3-0.6B)、[SmolVLM2 模型说明](https://huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct)、[量化视觉文件](https://huggingface.co/ggml-org/SmolVLM2-256M-Video-Instruct-GGUF)、[llama.cpp 本地服务](https://github.com/ggml-org/llama.cpp/blob/b11476/tools/server/README.md)。
+参考：[Qwen3 模型说明](https://huggingface.co/Qwen/Qwen3-1.7B)、[SmolVLM2 模型说明](https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct)、[量化视觉文件](https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF)、[llama.cpp 本地服务](https://github.com/ggml-org/llama.cpp/blob/b11476/tools/server/README.md)。
 
 界面参考：[BiliNote](https://github.com/JefferyHcool/BiliNote/blob/master/README.md) 的图文笔记、封面与原片跳转；[Eightify](https://eightify.app/) 的关键要点与带时间主题；[Notta AI Notes](https://support.notta.ai/hc/en-us/articles/15451756393243-Generate-AI-Notes-with-templates) 的总结、逐字稿与时间来源导航。AvaMedia 使用原生 Avalonia 控件实现以上阅读结构，沿用本地队列、模型和播放器。
 
-本次本地验证范围为客户端及 Core 编译、JSON 语法；没有执行完整模型下载、模型推理、媒体回归、界面截图或安装包验证。发布成品以后台 Release 工作流为准。
+2026-10-08 在本机实际下载并校验以上模型，通过生产视频总结流程处理 32 秒样片：OpenCV `vtest.avi` 的真实行人画面配本机合成中文旁白，没有内嵌或外部字幕。最终运行耗时约 27 秒，完整保留 6 条语音转录、12 帧观察、摘要和要点，源视频 SHA256 不变。
+
+内容核对结论为部分通过：摘要和关键要点保留了行人活动、保留有人片段与删除空白片段的建议，以及“不统计行人数量、不识别个人身份”的限制。章节仍可能把画面边缘进出误写成进出建筑，内容分析也可能把抽样帧误写成镜头切换；部分转录仍有错字。因此没有将完整内容质量判为验收通过。结果与逐项核对记录保存在本地 `artifacts/video-summary-sample/`。
+
+本次修改使用已提交源码加任务文件的独立快照编译 Core 与客户端，零警告、零错误；共享工作区中的播放器改动另行进行。此次未执行全量回归或安装包验收，发布成品以后台 Release 工作流为准。

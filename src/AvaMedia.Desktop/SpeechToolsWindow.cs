@@ -83,7 +83,8 @@ public sealed class SpeechToolsWindow : Window
         Add(fields, "输出内容", _output);
         _language = Ui.Combo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别"); _language.Name = "SpeechLanguage";
         _language.SelectedIndex = Math.Max(0, Array.IndexOf(TranscriptionOptions.Languages, _initial.Transcription?.Language ?? "auto"));
-        _model = Ui.Combo(["标准 · Base · 60 MB", "快速 · Tiny · 32 MB"], _initial.Transcription?.Model == SpeechModel.Tiny ? "快速 · Tiny · 32 MB" : "标准 · Base · 60 MB"); _model.Name = "SpeechModel";
+        _model = Ui.Combo(["标准 · Base · 60 MB", "快速 · Tiny · 32 MB", "Small · 190 MB"], _initial.Transcription?.Model switch
+        { SpeechModel.Tiny => "快速 · Tiny · 32 MB", SpeechModel.Small => "Small · 190 MB", _ => "标准 · Base · 60 MB" }); _model.Name = "SpeechModel";
         _style = new SubtitleStyleEditor(_initial); _voice = new VoiceEnhancementControl(_initial, !_transcribe);
         _styleSection = new Expander { Header = "字幕样式", Content = _style, IsExpanded = true, HorizontalAlignment = HorizontalAlignment.Stretch };
         _voiceSection = new Expander { Header = "音频处理", Content = _voice, IsExpanded = _initial.VoiceEnhancement, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -174,7 +175,8 @@ public sealed class SpeechToolsWindow : Window
         if (_transcribe)
         {
             options.Format = new[] { "mp4", "mkv", "srt", "ass" }[Math.Max(0, _output.SelectedIndex)];
-            options.Transcription = new() { Language = TranscriptionOptions.Languages[_language.SelectedIndex], Model = _model.SelectedIndex == 1 ? SpeechModel.Tiny : SpeechModel.Base };
+            options.Transcription = new() { Language = TranscriptionOptions.Languages[_language.SelectedIndex], Model = _model.SelectedIndex switch
+            { 1 => SpeechModel.Tiny, 2 => SpeechModel.Small, _ => SpeechModel.Base } };
             if (_styleSection.IsVisible) _style.ReadInto(options);
             if (options.Format is "srt" or "ass") options.VoiceEnhancement = false;
             return new(_feature, _files.ToArray(), folder, options, OutputToSource: _sourceFolder.IsChecked == true);

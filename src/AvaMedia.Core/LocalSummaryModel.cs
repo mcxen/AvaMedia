@@ -104,8 +104,12 @@ public sealed class LocalSummaryModel : IAsyncDisposable
             ? [new { role = "user", content }]
             : [new { role = "system", content = (object)system }, new { role = "user", content }];
         HttpResponseMessage response;
+        // SmolVLM publishes greedy visual decoding. Text-model penalties must not
+        // push its very small decoder towards unrelated objects or invented events.
+        var visual = _id == ModelCatalog.SummaryVisionId;
         var request = new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
-            ["max_tokens"] = tokens, ["temperature"] = .7, ["top_p"] = .8, ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 1.5 };
+            ["max_tokens"] = tokens, ["temperature"] = visual ? 0 : .2, ["top_p"] = .8,
+            ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 0 };
         if (schema is { } shape) request["response_format"] = new { type = "json_object", schema = shape };
         try
         {

@@ -41,11 +41,11 @@ public static class ModelCatalog
         DownloadableModel Speech(SpeechModel model)
         {
             var artifact = SpeechModelInstaller.Artifact(model);
-            return new(SpeechModelInstaller.Id(model), model == SpeechModel.Base ? "Whisper · 标准" : "Whisper · 轻量", "自动字幕", "MIT",
+            return new(SpeechModelInstaller.Id(model), model switch { SpeechModel.Base => "Whisper · 标准", SpeechModel.Tiny => "Whisper · 轻量", _ => "Whisper · Small" }, "自动字幕", "MIT",
                 "https://github.com/ggml-org/whisper.cpp", [new(artifact.FileName, artifact.Size, artifact.Sha256, [artifact.Url, artifact.Url + "?download=true"])]);
         }
         var models = new List<DownloadableModel> {
-            Speech(SpeechModel.Base), Speech(SpeechModel.Tiny),
+            Speech(SpeechModel.Base), Speech(SpeechModel.Tiny), Speech(SpeechModel.Small),
             new(JoyTagId, "JoyTag", "图片 / 视频 AI 标签 · Beta", "Apache-2.0", "https://github.com/fpgaminer/joytag",
                 [new(JoyTagFile, 366116154, "f85b7130e6e549b5b0822537007b7482e8c4c8e754c8d9a5bee08e27050e1097",
                     [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagFile}"]),

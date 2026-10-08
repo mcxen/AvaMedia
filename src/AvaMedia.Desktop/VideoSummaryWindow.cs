@@ -108,7 +108,8 @@ public sealed class VideoSummaryWindow : Window
         Add(_externalRow, "字幕文件", WithButton(_external, pickSubtitle)); fields.Children.Add(_externalRow);
         _speechLanguage = Ui.Combo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别");
         _speechLanguage.SelectedIndex = Math.Max(0, Array.IndexOf(TranscriptionOptions.Languages, options.Speech.Language));
-        _speechModel = Ui.Combo(["轻量 · Tiny · 32 MB", "标准 · Base · 60 MB"], options.Speech.Model == SpeechModel.Base ? "标准 · Base · 60 MB" : "轻量 · Tiny · 32 MB");
+        _speechModel = Ui.Combo(["轻量 · Tiny · 32 MB", "标准 · Base · 60 MB", "Small · 190 MB"], options.Speech.Model switch
+        { SpeechModel.Base => "标准 · Base · 60 MB", SpeechModel.Small => "Small · 190 MB", _ => "轻量 · Tiny · 32 MB" });
         _speechFields = new() { Spacing = 8 };
         Add(_speechFields, "识别语言", _speechLanguage); Add(_speechFields, "语音模型", _speechModel); fields.Children.Add(_speechFields);
         _frames.IsChecked = options.AnalyzeFrames; _frames.IsCheckedChanged += (_, _) => Refresh(); fields.Children.Add(_frames);
@@ -189,7 +190,7 @@ public sealed class VideoSummaryWindow : Window
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
             TranscriptSource = (VideoTranscriptSource)_source.SelectedIndex, SubtitleFile = _external.Text?.Trim() ?? "",
             SubtitleTrack = (int)(_subtitleTrack.Value ?? -1), AudioTrack = (int)(_audioTrack.Value ?? 0),
-            Speech = new() { Model = _speechModel.SelectedIndex == 1 ? SpeechModel.Base : SpeechModel.Tiny,
+            Speech = new() { Model = _speechModel.SelectedIndex switch { 1 => SpeechModel.Base, 2 => SpeechModel.Small, _ => SpeechModel.Tiny },
                 Language = TranscriptionOptions.Languages[Math.Max(0, _speechLanguage.SelectedIndex)] },
             AnalyzeFrames = _frames.IsChecked == true, FrameCount = (int)(_frameCount.Value ?? 12), PreferGpu = _gpu.IsChecked == true,
             ChunkCharacters = (int)(_chunkSize.Value ?? 2400), OutputLanguage = (string?)_language.SelectedItem ?? "简体中文", Focus = _focus.Text?.Trim() ?? ""

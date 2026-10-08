@@ -2,37 +2,37 @@
   "models": [
     {
       "id": "summary-qwen3",
-      "name": "Qwen3 · 0.6B · Q4",
+      "name": "Qwen3 · 1.7B · Q4",
       "purpose": "本地视频摘要与中文总结",
       "license": "Apache-2.0",
-      "page": "https://huggingface.co/Qwen/Qwen3-0.6B",
+      "page": "https://huggingface.co/Qwen/Qwen3-1.7B",
       "files": [
         {
-          "path": "Qwen3-0.6B-Q4_0.gguf",
-          "size": 428970080,
-          "sha256": "da2572f16c06133561ce56accaa822216f2391ef4d37fba427801cd6736417d4",
-          "url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/b5f37287796e5be0ea3dab2e7430873fb3f73e49/Qwen3-0.6B-Q4_0.gguf"
+          "path": "Qwen3-1.7B-Q4_K_M.gguf",
+          "size": 1282439264,
+          "sha256": "d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5",
+          "url": "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/daeb8e2d528a760970442092f6bf1e55c3b659eb/Qwen3-1.7B-Q4_K_M.gguf"
         }
       ]
     },
     {
       "id": "summary-smolvlm",
-      "name": "SmolVLM2 · 256M · Q4",
+      "name": "SmolVLM2 · 500M · Q8",
       "purpose": "本地视频画面分析",
       "license": "Apache-2.0",
-      "page": "https://huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct",
+      "page": "https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct",
       "files": [
         {
-          "path": "SmolVLM2-256M-Video-Instruct-Q4_K_M.gguf",
-          "size": 131234176,
-          "sha256": "1d86050bd8ef9b4404ba682dcbf0f37a3144070c32e8825402c0b99a8e89f48e",
-          "url": "https://huggingface.co/ggml-org/SmolVLM2-256M-Video-Instruct-GGUF/resolve/2fd73d28c10a108a723cbf6f348114977cd488c1/SmolVLM2-256M-Video-Instruct-Q4_K_M.gguf"
+          "path": "SmolVLM2-500M-Video-Instruct-Q8_0.gguf",
+          "size": 436808704,
+          "sha256": "6f67b8036b2469fcd71728702720c6b51aebd759b78137a8120733b4d66438bc",
+          "url": "https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF/resolve/ccd7aae53bcb1997355c2f094959e72b3642ce17/SmolVLM2-500M-Video-Instruct-Q8_0.gguf"
         },
         {
-          "path": "mmproj-SmolVLM2-256M-Video-Instruct-Q8_0.gguf",
-          "size": 103771616,
-          "sha256": "05d5751132244a6ebd64cba9b34898c0d874b2cb78159d758e1d4da3aad91581",
-          "url": "https://huggingface.co/ggml-org/SmolVLM2-256M-Video-Instruct-GGUF/resolve/2fd73d28c10a108a723cbf6f348114977cd488c1/mmproj-SmolVLM2-256M-Video-Instruct-Q8_0.gguf"
+          "path": "mmproj-SmolVLM2-500M-Video-Instruct-Q8_0.gguf",
+          "size": 108785184,
+          "sha256": "921dc7e259f308e5b027111fa185efcbf33db13f6e35749ddf7f5cdb60ef520b",
+          "url": "https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF/resolve/ccd7aae53bcb1997355c2f094959e72b3642ce17/mmproj-SmolVLM2-500M-Video-Instruct-Q8_0.gguf"
         }
       ]
     }

@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace AvaMedia.Core;
 
-public enum SpeechModel { Base, Tiny }
+public enum SpeechModel { Base, Tiny, Small }
 
 public sealed class TranscriptionOptions
 {
@@ -27,11 +27,16 @@ public sealed class SpeechModelInstaller(string? directory = null)
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private readonly ModelStore _store = new(directory);
     public string DirectoryPath => _store.Root;
-    public static string Id(SpeechModel model) => model == SpeechModel.Base ? "whisper-base" : model == SpeechModel.Tiny ? "whisper-tiny" : throw new ArgumentOutOfRangeException(nameof(model));
+    public static string Id(SpeechModel model) => model switch
+    {
+        SpeechModel.Base => "whisper-base", SpeechModel.Tiny => "whisper-tiny", SpeechModel.Small => "whisper-small",
+        _ => throw new ArgumentOutOfRangeException(nameof(model))
+    };
     public static SpeechModelArtifact Artifact(SpeechModel model) => model switch
     {
         SpeechModel.Base => new("ggml-base-q5_1.bin", 59707625, "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"),
         SpeechModel.Tiny => new("ggml-tiny-q5_1.bin", 32152673, "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7"),
+        SpeechModel.Small => new("ggml-small-q5_1.bin", 190085487, "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb"),
         _ => throw new ArgumentOutOfRangeException(nameof(model))
     };
 
