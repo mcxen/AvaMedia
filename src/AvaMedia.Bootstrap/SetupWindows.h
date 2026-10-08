@@ -3,7 +3,7 @@
 enum { SETUP_NEXT = 200, SETUP_BACK, SETUP_EXIT, SETUP_INSTALL, SETUP_FOLDER, SETUP_ZOOM, SETUP_SKIN = 220 };
 static HWND setup_window, setup_next, setup_back, setup_exit, setup_heading, setup_steps[3];
 static HWND setup_pages[3][24], setup_status, setup_progress, setup_install;
-static HWND setup_output, setup_language, setup_source, setup_notify, setup_motion, setup_updates, setup_gpu;
+static HWND setup_output, setup_language, setup_source, setup_notify, setup_motion, setup_updates, setup_gpu, setup_beta;
 static int setup_page_counts[3], setup_step, setup_skin, setup_available, setup_busy, setup_done, setup_dpi;
 static HFONT setup_font, setup_title_font;
 static wchar_t setup_root[AM_PATH], setup_pending[AM_PATH], setup_complete[AM_PATH];
@@ -111,8 +111,8 @@ static int setup_save(void) {
     fprintf(file, "{\"Theme\":\"%s\",\"Language\":\"%s\",\"OutputFolder\":", am_setup_skins[setup_skin].key,
         language == 1 ? "zh-CN" : language == 2 ? "en-US" : "system");
     int written = setup_json_string(file, output);
-    fprintf(file, ",\"OutputToSource\":%s,\"NotifyComplete\":%s,\"ReduceMotion\":%s,\"CheckForUpdates\":%s,\"AutoDetectGpu\":%s}",
-        setup_bool(setup_source), setup_bool(setup_notify), setup_bool(setup_motion), setup_bool(setup_updates), setup_bool(setup_gpu));
+    fprintf(file, ",\"OutputToSource\":%s,\"NotifyComplete\":%s,\"ReduceMotion\":%s,\"CheckForUpdates\":%s,\"AutoDetectGpu\":%s,\"EnableBetaFeatures\":%s}",
+        setup_bool(setup_source), setup_bool(setup_notify), setup_bool(setup_motion), setup_bool(setup_updates), setup_bool(setup_gpu), setup_bool(setup_beta));
     written = written && !ferror(file); if (fclose(file) != 0) written = 0;
     if (!written || !MoveFileExW(temporary, setup_pending, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) { DeleteFileW(temporary); return 0; }
     // The marker is committed last; a cancelled wizard never completes setup.
@@ -235,9 +235,10 @@ static int run_setup(HINSTANCE instance, int available) {
     for (int i = 0; i < 3; i++) SendMessageW(setup_language, CB_ADDSTRING, 0, (LPARAM)(i == 0 ? L"跟随系统" : i == 1 ? L"简体中文" : L"English"));
     SendMessageW(setup_language, CB_SETCURSEL, 0, 0);
     setup_notify = setup_check(L"任务完成通知", 252, 1);
-    setup_gpu = setup_check(L"自动检测 GPU 加速", 292, 1);
-    setup_updates = setup_check(L"启动时检查更新", 332, 1);
-    setup_motion = setup_check(L"减少界面动画", 372, 0);
+    setup_gpu = setup_check(L"自动检测 GPU 加速", 288, 1);
+    setup_updates = setup_check(L"启动时检查更新", 324, 1);
+    setup_motion = setup_check(L"减少界面动画", 360, 0);
+    setup_beta = setup_check(L"开启 Beta 功能", 396, 1);
     setup_label(2, L"这些选项也可以在软件设置中调整。", 212, 438, 500, 28);
     setup_show_step(); ShowWindow(setup_window, SW_SHOW); UpdateWindow(setup_window);
     if (!setup_available) setup_begin_install();

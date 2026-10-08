@@ -10,7 +10,7 @@ public sealed class PersonClipWindow : Window
 {
     private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
-    private readonly Func<Window, Task> _manageModels;
+    private readonly Func<Window, string?, Task> _manageModels;
     private readonly List<string> _paths = [];
     private readonly ListBox _files = new();
     private readonly TextBox _results = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
@@ -29,6 +29,8 @@ public sealed class PersonClipWindow : Window
     private readonly StackPanel _parameters = new() { Spacing = 8 };
     private readonly Dictionary<string, CheckBox> _detectorBoxes = [];
     private readonly Dictionary<string, TextBlock> _detectorStates = [];
+    private readonly Dictionary<string, Button> _detectorDownloads = [];
+    private readonly Button _embeddingDownload;
     private readonly HashSet<string> _installedDetectors = [];
     private readonly ComboBox _detectionMode = new()
     {
@@ -46,7 +48,7 @@ public sealed class PersonClipWindow : Window
     private IReadOnlyList<ClipEditResult>? _edits;
     private bool _closed;
 
-    public PersonClipWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? paths, Func<Window, Task> manageModels)
+    public PersonClipWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? paths, Func<Window, string?, Task> manageModels)
     {
         _engine = engine; _settings = settings; _manageModels = manageModels;
         _gpu.IsChecked = settings.AutoDetectGpu;
@@ -55,11 +57,7 @@ public sealed class PersonClipWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         _add = Ui.Button("添加视频…", async () => await AddFilesAsync());
         _remove = Ui.Button("移除", () => { if (_files.SelectedIndex >= 0) { _paths.RemoveAt(_files.SelectedIndex); RefreshFiles(); InvalidateResult(); } });
-        _models = Ui.Button("模型管理…", async () =>
-        {
-            try { await _manageModels(this); if (!_settings.EnableBetaFeatures) Close(null); else await RefreshModelsAsync(); }
-            catch (Exception error) { _status.Text = error.Message; }
-        });
+        _models = Ui.Button("模型管理…", async () => await OpenModelsAsync(null));
         _analyze = Ui.DialogButton("分析视频", async () => await AnalyzeAsync()); _analyze.Name = "AnalyzePersonClips";
         _stop = Ui.Button("停止分析", () => _analysis?.Cancel()); _stop.Name = "StopPersonClips"; _stop.IsVisible = false;
         _export = Ui.DialogButton("编辑并导出", () => { if (_settings.EnableBetaFeatures && _edits is not null) Close(_edits); });
@@ -74,8 +72,11 @@ public sealed class PersonClipWindow : Window
             var checkbox = new CheckBox { Name = "Detector_" + detector.Id, Content = detector.Name,
                 IsChecked = detector.Id != ModelCatalog.PersonId };
             var state = Ui.Text("读取模型状态…", "caption");
-            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+            var row = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
             row.Children.Add(checkbox); Grid.SetColumn(state, 1); row.Children.Add(state);
+            var download = Ui.Button("下载模型…", async () => await OpenModelsAsync(detector.Id));
+            download.Name = "Download_" + detector.Id; download.IsVisible = false; download.Classes.Add("field-action");
+            Grid.SetColumn(download, 2); row.Children.Add(download); _detectorDownloads.Add(detector.Id, download);
             _parameters.Children.Add(row); _detectorBoxes.Add(detector.Id, checkbox); _detectorStates.Add(detector.Id, state);
             checkbox.IsCheckedChanged += (_, _) => { InvalidateResult(); UpdateDetectorSelection(); };
             ToolTip.SetTip(checkbox, $"{model.DownloadSize / 1048576d:0.00} MiB");
@@ -90,7 +91,11 @@ public sealed class PersonClipWindow : Window
             row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); _parameters.Children.Add(row);
             input.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) InvalidateResult(); };
         }
-        _parameters.Children.Add(_uncertain); _parameters.Children.Add(_embedding); _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuseFrames); _parameters.Children.Add(_modelStatus);
+        _embeddingDownload = Ui.Button("下载模型…", async () => await OpenModelsAsync(ModelCatalog.EmbeddingId));
+        _embeddingDownload.IsVisible = false; _embeddingDownload.Classes.Add("field-action");
+        var embeddingRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+        embeddingRow.Children.Add(_embedding); Grid.SetColumn(_embeddingDownload, 1); embeddingRow.Children.Add(_embeddingDownload);
+        _parameters.Children.Add(_uncertain); _parameters.Children.Add(embeddingRow); _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuseFrames); _parameters.Children.Add(_modelStatus);
         _uncertain.IsCheckedChanged += (_, _) => InvalidateResult(); _embedding.IsCheckedChanged += (_, _) => InvalidateResult();
         _gpu.IsCheckedChanged += (_, _) => InvalidateResult(); _reuseFrames.IsCheckedChanged += (_, _) => InvalidateResult();
         var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
@@ -138,14 +143,26 @@ public sealed class PersonClipWindow : Window
             var installed = await store.IsInstalledAsync(detector.Id, ct: _lifetime.Token);
             if (_closed) return;
             if (installed) _installedDetectors.Add(detector.Id);
+            _detectorDownloads[detector.Id].IsVisible = !installed;
             _detectorStates[detector.Id].Text = Localization.Text(installed ? "已下载" : "未下载")
                 + $" · {ModelCatalog.Find(detector.Id).DownloadSize / 1048576d:0.00} MiB";
         }
         var embedding = await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token);
         if (_closed) return;
         _embedding.IsEnabled = embedding;
+        _embeddingDownload.IsVisible = !embedding;
         if (!embedding) _embedding.IsChecked = false;
         UpdateDetectorSelection();
+    }
+    private async Task OpenModelsAsync(string? modelId)
+    {
+        try
+        {
+            await _manageModels(this, modelId);
+            if (_closed) return;
+            if (!_settings.EnableBetaFeatures) Close(null); else await RefreshModelsAsync();
+        }
+        catch (Exception error) { if (!_closed) _status.Text = error.Message; }
     }
     private string[] SelectedDetectors => _detectorBoxes.Where(item => item.Value.IsChecked == true).Select(item => item.Key).ToArray();
     private void UpdateDetectorSelection()

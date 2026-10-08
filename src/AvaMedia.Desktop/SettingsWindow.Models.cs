@@ -12,10 +12,29 @@ public sealed partial class SettingsWindow
     private readonly ModelStore _modelStore = new();
     private readonly Dictionary<string, ModelRow> _modelRows = [];
     private bool _modelsClosed, _modelsRefreshing, _modelRefreshRequested, _repairWasInstalling;
-    public void OpenModelManagement() => SettingsTabs.SelectedItem = ModelsTab;
+    private string? _modelTarget;
+    private bool _onlineTarget;
+    public void OpenModelManagement(string? modelId = null)
+    {
+        _modelTarget = modelId; _onlineTarget = false; SettingsTabs.SelectedItem = ModelsTab;
+        if (IsVisible) FocusModelTarget();
+    }
+    public void OpenOnlineAiSettings()
+    {
+        _modelTarget = null; _onlineTarget = true; SettingsTabs.SelectedItem = ModelsTab;
+        if (IsVisible) FocusModelTarget();
+    }
+    private void FocusModelTarget() => Dispatcher.UIThread.Post(() =>
+    {
+        if (_modelsClosed) return;
+        if (_onlineTarget) { OnlineEndpointInput.BringIntoView(); OnlineEndpointInput.Focus(); }
+        else if (_modelTarget is { } id && _modelRows.TryGetValue(id, out var row))
+        { row.Container.BringIntoView(); row.Download.Focus(); }
+    }, DispatcherPriority.Loaded);
 
     private sealed class ModelRow
     {
+        public required Control Container { get; init; }
         public required TextBlock Status { get; init; }
         public required TextBlock Error { get; init; }
         public required StackPanel ProgressPanel { get; init; }
@@ -69,15 +88,16 @@ public sealed partial class SettingsWindow
             panel.Children.Add(identity); Grid.SetColumn(buttons, 1); panel.Children.Add(buttons);
             Grid.SetRow(progressPanel, 1); Grid.SetColumnSpan(progressPanel, 2); panel.Children.Add(progressPanel);
             Grid.SetRow(error, 2); Grid.SetColumnSpan(error, 2); panel.Children.Add(error);
-            ModelList.Children.Add(new Border { Classes = { "settingSection", "modelRow" }, Child = panel });
+            var container = new Border { Classes = { "settingSection", "modelRow" }, Child = panel };
+            ModelList.Children.Add(container);
             _modelRows.Add(model.Id, new()
             {
                 Status = status, Error = error, ProgressPanel = progressPanel, ProgressText = progressText, ProgressBar = progressBar,
-                Download = download, Verify = verify, Delete = delete, Cancel = cancel
+                Download = download, Verify = verify, Delete = delete, Cancel = cancel, Container = container
             });
         }
         ModelStatus.IsVisible = false;
-        Opened += async (_, _) => await RefreshModelsSafelyAsync();
+        Opened += async (_, _) => { FocusModelTarget(); await RefreshModelsSafelyAsync(); };
         ModelInstallation.Changed += RepairModelChanged;
         Localization.Changed += ModelsLanguageChanged;
         Closed += (_, _) =>

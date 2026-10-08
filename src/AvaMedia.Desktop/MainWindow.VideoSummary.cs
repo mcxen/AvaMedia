@@ -25,6 +25,11 @@ public partial class MainWindow
                 var settings = new SettingsWindow(_settings, _optionServices);
                 settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
                 await settings.ShowDialog<bool>(owner);
+            }, async owner =>
+            {
+                var settings = new SettingsWindow(_settings, _optionServices);
+                settings.OpenOnlineAiSettings(); settings.Applied += (_, _) => ApplyOptions();
+                await settings.ShowDialog<bool>(owner);
             });
         var request = await window.ShowDialog<ConversionRequest?>(this);
         if (request is null) return;

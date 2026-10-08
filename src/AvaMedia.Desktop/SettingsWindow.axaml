@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop"
         x:Class="AvaMedia.Desktop.SettingsWindow"
         Title="选项" Width="880" Height="660" MinWidth="780" MinHeight="600"
         Classes="settings" WindowStartupLocation="CenterOwner">
@@ -30,10 +30,6 @@
                     <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。"/>
                   </StackPanel>
                 </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="实验功能"/>
-                <Border Classes="settingSection"><CheckBox x:Name="BetaInput" Content="开启 Beta 功能"/></Border>
               </StackPanel>
               <StackPanel Spacing="8">
                 <TextBlock Classes="settingsHeading" Text="任务完成"/>
@@ -106,6 +102,10 @@
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="16">
               <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="实验功能"/>
+                <Border Classes="settingSection"><CheckBox x:Name="BetaInput" Content="开启 Beta 功能"/></Border>
+              </StackPanel>
+              <StackPanel Spacing="8">
                 <TextBlock Classes="settingsHeading" Text="后台与系统入口"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
@@ -154,6 +154,28 @@
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
+              <TextBlock Classes="settingsHeading" Text="线上 AI"/>
+              <Border Classes="settingSection">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="接口地址" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineEndpointInput" local:Localization.IsUserText="True"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="API Key" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineKeyInput" PasswordChar="●" local:Localization.IsUserText="True"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="文本模型" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineTextModelInput" local:Localization.IsUserText="True"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="视觉模型" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineVisionModelInput" Watermark="留空沿用文本模型" local:Localization.IsUserText="True"/>
+                  </Grid>
+                  <CheckBox x:Name="OnlineSchemaInput" Content="使用严格 JSON Schema（需接口支持）"/>
+                </StackPanel>
+              </Border>
               <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型"/>
               <StackPanel x:Name="ModelList" Spacing="8"/>
               <TextBlock x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap"/>

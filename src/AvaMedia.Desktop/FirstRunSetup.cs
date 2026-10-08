@@ -60,6 +60,7 @@ internal static class FirstRunSetup
         settings.ReduceMotion = ReadBoolean(choices, "ReduceMotion");
         settings.CheckForUpdates = ReadBoolean(choices, "CheckForUpdates");
         settings.AutoDetectGpu = ReadBoolean(choices, "AutoDetectGpu");
+        settings.EnableBetaFeatures = ReadBoolean(choices, "EnableBetaFeatures");
         SettingsPolicy.Validate(settings);
         Directory.CreateDirectory(settings.OutputFolder);
         storage.SaveSettings(settings);

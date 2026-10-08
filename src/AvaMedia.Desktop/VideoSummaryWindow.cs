@@ -23,7 +23,9 @@ public sealed class VideoSummaryWindow : Window
         _subtitles = new() { Content = "字幕提取" }, _analysis = new() { Content = "内容分析" },
         _frames = new() { Content = "分析视频画面" }, _gpu = new() { Content = "优先使用 GPU" },
         _sourceFolder = new() { Content = "输出至源文件目录" };
-    private readonly ComboBox _source, _language, _speechLanguage, _speechModel;
+    private readonly ComboBox _source, _language, _speechLanguage, _speechModel, _provider;
+    private readonly TextBlock _modelNotice = Ui.Text("", "caption");
+    private readonly Button? _configureOnline;
     private readonly TextBox _external = Ui.Input(), _focus = Ui.Input(), _folder;
     private readonly NumericUpDown _frameCount = new() { Minimum = 1, Maximum = 48, Increment = 1 },
         _subtitleTrack = new() { Minimum = -1, Maximum = 100, Increment = 1 },
@@ -36,7 +38,7 @@ public sealed class VideoSummaryWindow : Window
     private bool _busy;
 
     public VideoSummaryWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, VideoSummaryOptions? initial = null,
-        string? resultFolder = null, Func<Window, Task>? manageModels = null)
+        string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null)
     {
         _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new();
         Title = _editing ? "编辑任务 · 视频总结" : "视频总结";
@@ -89,6 +91,9 @@ public sealed class VideoSummaryWindow : Window
         foreach (var choice in new[] { _abstract, _summary, _subtitles, _analysis })
         { choice.Margin = new(0, 0, 20, 0); choice.IsCheckedChanged += (_, _) => Refresh(); outputs.Children.Add(choice); }
         fields.Children.Add(outputs);
+        _provider = Ui.Combo(["本地模型", "线上 AI"], "本地模型");
+        _provider.SelectedIndex = (int)options.Provider; _provider.Name = "SummaryProvider";
+        Add(fields, "总结模型", _provider);
         _source = Ui.Combo(["自动：优先字幕，否则识别语音", "视频字幕轨", "语音识别", "外部字幕文件"], "自动：优先字幕，否则识别语音");
         _source.SelectedIndex = (int)options.TranscriptSource; _source.Name = "SummaryTranscriptSource";
         Add(fields, "字幕来源", _source);
@@ -116,13 +121,19 @@ public sealed class VideoSummaryWindow : Window
         _language = Ui.Combo(["简体中文", "English", "日本語"], options.OutputLanguage); Add(fields, "输出语言", _language);
         _focus.Text = options.Focus; _focus.AcceptsReturn = true; _focus.TextWrapping = Avalonia.Media.TextWrapping.Wrap; _focus.MinHeight = 64;
         _focus.Watermark = "可选：关注的主题或问题"; Localization.SetIsUserText(_focus, true); Add(fields, "分析重点", _focus);
-        var modelRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
-        modelRow.Children.Add(Ui.Text("本地模型 · 首次使用自动下载", "caption"));
+        var modelRow = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 12 };
+        modelRow.Children.Add(_modelNotice);
+        if (configureOnlineAi is not null)
+        {
+            _configureOnline = new Button { Content = "配置接口…", Classes = { "field-action" } };
+            _configureOnline.Click += async (_, _) => { try { await configureOnlineAi(this); } catch (Exception error) { ShowError(error); } };
+            Grid.SetColumn(_configureOnline, 1); modelRow.Children.Add(_configureOnline);
+        }
         if (manageModels is not null)
         {
             var manage = new Button { Content = "模型管理", Classes = { "field-action" } };
             manage.Click += async (_, _) => { try { await manageModels(this); } catch (Exception error) { ShowError(error); } };
-            Grid.SetColumn(manage, 1); modelRow.Children.Add(manage);
+            Grid.SetColumn(manage, 2); modelRow.Children.Add(manage);
         }
         fields.Children.Add(modelRow);
         var advanced = new StackPanel { Spacing = 8 };
@@ -167,7 +178,8 @@ public sealed class VideoSummaryWindow : Window
         };
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = root;
-        _source.SelectionChanged += (_, _) => Refresh(); _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
+        _source.SelectionChanged += (_, _) => Refresh(); _provider.SelectionChanged += (_, _) => Refresh();
+        _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
         DragDrop.SetAllowDrop(root, true);
         root.AddHandler(DragDrop.DragOverEvent, (_, args) => { args.DragEffects = !_busy && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; args.Handled = true; });
         root.AddHandler(DragDrop.DropEvent, (_, args) => { args.Handled = true; AddFiles(args.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
@@ -186,6 +198,7 @@ public sealed class VideoSummaryWindow : Window
     {
         if (_files.Count == 0) throw new ArgumentException("请添加视频。");
         var options = new VideoSummaryOptions {
+            Provider = (VideoSummaryProvider)_provider.SelectedIndex,
             ExtractAbstract = _abstract.IsChecked == true, SummarizeContent = _summary.IsChecked == true,
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
             TranscriptSource = (VideoTranscriptSource)_source.SelectedIndex, SubtitleFile = _external.Text?.Trim() ?? "",
@@ -196,6 +209,7 @@ public sealed class VideoSummaryWindow : Window
             ChunkCharacters = (int)(_chunkSize.Value ?? 2400), OutputLanguage = (string?)_language.SelectedItem ?? "简体中文", Focus = _focus.Text?.Trim() ?? ""
         };
         options.Validate();
+        if (options.NeedsAi && options.Provider == VideoSummaryProvider.Online) _engine.Settings.OnlineAi.Validate();
         if (options.TranscriptSource == VideoTranscriptSource.External && _files.Count != 1) throw new ArgumentException("使用外部字幕时请选择一个视频。");
         var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(_files[0])! : _folder.Text?.Trim() ?? "";
         if (folder.Length == 0) throw new ArgumentException("请选择输出目录。");
@@ -207,6 +221,11 @@ public sealed class VideoSummaryWindow : Window
         if (_confirm is null) return;
         _empty.IsVisible = _files.Count == 0;
         var ai = _abstract.IsChecked == true || _summary.IsChecked == true || _analysis.IsChecked == true;
+        var online = _provider.SelectedIndex == (int)VideoSummaryProvider.Online;
+        _provider.IsEnabled = ai; _gpu.IsEnabled = ai && !online;
+        _modelNotice.IsVisible = ai;
+        _modelNotice.Text = Localization.Text(online ? "发送采样画面和转录内容到线上 AI" : "本地模型 · 首次使用自动下载");
+        if (_configureOnline is not null) _configureOnline.IsVisible = ai && online;
         _frames.IsEnabled = ai; _language.IsEnabled = _focus.IsEnabled = ai; _frameCount.IsEnabled = ai && _frames.IsChecked == true;
         _externalRow.IsVisible = _source.SelectedIndex == 3; _speechFields.IsVisible = _source.SelectedIndex is 0 or 2;
         _subtitleTrack.IsEnabled = _source.SelectedIndex is 0 or 1; _audioTrack.IsEnabled = _speechFields.IsVisible;

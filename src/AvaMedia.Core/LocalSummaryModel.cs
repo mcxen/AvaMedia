@@ -12,7 +12,7 @@ namespace AvaMedia.Core;
 public sealed record SummaryModelImage(string Label, byte[] Png);
 
 /// <summary>Task-owned llama.cpp process, authenticated loopback only, disposed before switching models.</summary>
-public sealed class LocalSummaryModel : IAsyncDisposable
+public sealed class LocalSummaryModel : ISummaryModel
 {
     private readonly Process _process;
     private readonly HttpClient _client;

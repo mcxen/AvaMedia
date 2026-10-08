@@ -10,7 +10,11 @@ public sealed partial class Storage
     private readonly object _queueWrite = new();
     private long _queueVersion;
     public Storage(string? root = null) { _root = root ?? DefaultRoot; _logs = new(_root); Directory.CreateDirectory(_root); }
-    public AppSettings LoadSettings() => Read<AppSettings>("settings.json") ?? new();
+    public AppSettings LoadSettings()
+    {
+        var settings = Read<AppSettings>("settings.json") ?? new();
+        LoadOnlineAiKey(settings.OnlineAi); return settings;
+    }
     public List<Job> LoadJobs()
     {
         var jobs=Read<List<Job>>("queue.json") ?? [];
@@ -18,7 +22,10 @@ public sealed partial class Storage
         foreach(var j in jobs.Where(j=>j.State is JobState.Running or JobState.Stopping)) {j.State=JobState.Cancelled;j.Error="应用在任务完成前退出，可重试。";}
         return jobs;
     }
-    public void SaveSettings(AppSettings s) => Write("settings.json",s);
+    public void SaveSettings(AppSettings s)
+    {
+        Write("settings.json", s); SaveOnlineAiKey(s.OnlineAi);
+    }
     public void SaveJobs(IEnumerable<Job> jobs) => WriteJobs(PrepareJobs(jobs), Interlocked.Increment(ref _queueVersion));
     public Task SaveJobsAsync(IEnumerable<Job> jobs)
     {

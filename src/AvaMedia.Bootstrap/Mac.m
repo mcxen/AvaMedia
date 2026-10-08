@@ -54,6 +54,7 @@ static NSError *failure(NSString *message) {
 @property NSButton *motion;
 @property NSButton *updates;
 @property NSButton *gpu;
+@property NSButton *beta;
 @property NSMutableArray<NSMutableArray<NSView *> *> *pages;
 @property NSMutableArray<NSTextField *> *steps;
 @property NSMutableArray<SetupSkinView *> *skins;
@@ -168,10 +169,11 @@ static NSError *failure(NSString *message) {
     [self.language addItemsWithTitles:@[@"跟随系统", @"简体中文", @"English"]];
     [self.window.contentView addSubview:self.language]; [self.pages[2] addObject:self.language];
     self.notify = [self check:@"任务完成通知" y:252 checked:YES];
-    self.gpu = [self check:@"自动检测 GPU 加速" y:212 checked:YES];
-    self.updates = [self check:@"启动时检查更新" y:172 checked:YES];
-    self.motion = [self check:@"减少界面动画" y:132 checked:NO];
-    [self label:@"这些选项也可以在软件设置中调整。" frame:NSMakeRect(220, 82, 536, 26) page:2].textColor = NSColor.secondaryLabelColor;
+    self.gpu = [self check:@"自动检测 GPU 加速" y:216 checked:YES];
+    self.updates = [self check:@"启动时检查更新" y:180 checked:YES];
+    self.motion = [self check:@"减少界面动画" y:144 checked:NO];
+    self.beta = [self check:@"开启 Beta 功能" y:108 checked:YES];
+    [self label:@"这些选项也可以在软件设置中调整。" frame:NSMakeRect(220, 66, 536, 26) page:2].textColor = NSColor.secondaryLabelColor;
     [self refresh]; [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
     if (!self.runtime) [self install:nil];
 }
@@ -243,7 +245,8 @@ static NSError *failure(NSString *message) {
         @"NotifyComplete":(self.notify.state == NSControlStateValueOn ? @YES : @NO),
         @"ReduceMotion":(self.motion.state == NSControlStateValueOn ? @YES : @NO),
         @"CheckForUpdates":(self.updates.state == NSControlStateValueOn ? @YES : @NO),
-        @"AutoDetectGpu":(self.gpu.state == NSControlStateValueOn ? @YES : @NO)};
+        @"AutoDetectGpu":(self.gpu.state == NSControlStateValueOn ? @YES : @NO),
+        @"EnableBetaFeatures":(self.beta.state == NSControlStateValueOn ? @YES : @NO)};
     NSData *data = [NSJSONSerialization dataWithJSONObject:choices options:0 error:error];
     if (!data || ![data writeToFile:[folder stringByAppendingPathComponent:@"setup-pending.json"] options:NSDataWritingAtomic error:error]) return NO;
     return [[NSData data] writeToFile:[folder stringByAppendingPathComponent:@"setup-complete"] options:NSDataWritingAtomic error:error];

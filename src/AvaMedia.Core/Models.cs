@@ -180,7 +180,7 @@ public sealed partial class Job : Observable
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }
 public sealed record MediaInfo(double Duration, int Width, int Height, bool HasAudio, bool HasVideo, string RawJson, string VideoCodec = "", string AudioCodec = "", int AudioSampleRate = 0, int AudioChannels = 0, int VideoStreamIndex = 0, int AudioStreamIndex = 0, double FrameRate = 0);
-public sealed class AppSettings
+public sealed partial class AppSettings
 {
     public string OutputFolder { get; set; } = MediaFolders.DefaultOutput;
     public bool OutputToSource { get; set; }
@@ -196,7 +196,7 @@ public sealed class AppSettings
     public bool CheckForUpdates { get; set; } = true;
     public bool AutoUpdate { get; set; }
     public bool SilentUpdate { get; set; }
-    public bool EnableBetaFeatures { get; set; }
+    public bool EnableBetaFeatures { get; set; } = true;
     public bool AutoDownloadRepairModel { get; set; } = true;
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
@@ -214,9 +214,13 @@ public sealed class AppSettings
     public int CpuThreads { get; set; } = 8;
     public int JpegQuality { get; set; } = 90;
     public int WebpQuality { get; set; } = 90;
-    public AppSettings Clone() => (AppSettings)MemberwiseClone();
+    public AppSettings Clone()
+    {
+        var copy = (AppSettings)MemberwiseClone(); copy.OnlineAi = OnlineAi.Clone(); return copy;
+    }
     public void CopyFrom(AppSettings source)
     {
+        OnlineAi = source.OnlineAi.Clone();
         OutputFolder=source.OutputFolder;FFmpegPath=source.FFmpegPath;FFprobePath=source.FFprobePath;YtDlpPath=source.YtDlpPath;
         OutputToSource=source.OutputToSource;AddSettingName=source.AddSettingName;OpenOutputFolderOnComplete=source.OpenOutputFolderOnComplete;
         ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;

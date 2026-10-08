@@ -42,7 +42,7 @@ internal static class VideoSummaryEvidencePolicy
 }
 
 /// <summary>Retains originals through reduction; reviews generated claims against their own cited evidence.</summary>
-internal sealed class VideoSummaryGrounding(LocalSummaryModel model, IReadOnlyList<VideoSummaryEvidence> evidence, string system)
+internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<VideoSummaryEvidence> evidence, string system)
 {
     private readonly IReadOnlyDictionary<string, VideoSummaryEvidence> _sources = evidence.ToDictionary(item => item.Id, StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
