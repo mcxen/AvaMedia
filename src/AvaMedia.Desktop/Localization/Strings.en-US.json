@@ -1148,6 +1148,7 @@
   "界面与音效": "Interface and sounds",
   "版本更新": "Updates",
   "启动时检查新版本": "Check for updates on startup",
+  "更新检查设置保存失败：{0}": "Could not save the update check setting: {0}",
   "外部工具路径": "External tool paths",
   "自动查找": "Find automatically",
   "yt-dlp（下载）": "yt-dlp (downloads)",

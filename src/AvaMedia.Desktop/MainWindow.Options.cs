@@ -37,7 +37,12 @@ public partial class MainWindow
                 catch (Exception ex) { failures.Add(Localization.Format($"托盘未能启用：{ex.Message}")); }
             if (failures.Count > 0 && !_closing) SummaryText.Text = Localization.Join("；", failures);
             if (!IsCaptureSession)
-                await ApplicationUpdater.Shared.StartupAsync(this, _settings, _optionServices.CheckUpdatesAsync, _optionLifetime.Token);
+                await ApplicationUpdater.Shared.StartupAsync(this, _settings, _optionServices.CheckUpdatesAsync, _optionLifetime.Token,
+                    saveSettings: () =>
+                    {
+                        _storage.SaveSettings(_settings);
+                        _appliedSettings.CheckForUpdates = _settings.CheckForUpdates;
+                    });
         };
         Closed += (_, _) => { _optionLifetime.Cancel(); _completionCancellation?.Cancel(); _optionServices.Dispose(); _optionLifetime.Dispose(); };
     }

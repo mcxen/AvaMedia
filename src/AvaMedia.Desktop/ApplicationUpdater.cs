@@ -47,7 +47,7 @@ internal sealed class ApplicationUpdater
         }
     }
     private bool _preparedAutomatically;
-    public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
+    public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct, Action? saveSettings = null)
     {
         bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
         try
@@ -58,9 +58,9 @@ internal sealed class ApplicationUpdater
                 File.Delete(ErrorPath);
                 if (owner.IsVisible) await Ui.Message(owner, "更新安装失败", error);
             }
-            if (!settings.CheckForUpdates && !settings.AutoUpdate) return;
+            if (!settings.CheckForUpdates) return;
             var result = await check(ct);
-            if (!result.HasUpdate || !result.CheckSucceeded || _exiting) return;
+            if (!settings.CheckForUpdates || !result.HasUpdate || !result.CheckSucceeded || _exiting) return;
             if (settings.AutoUpdate && result.Asset is not null && CanInstall)
             {
                 using var download = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
@@ -69,11 +69,11 @@ internal sealed class ApplicationUpdater
                 {
                     await PrepareAsync(result, automatic: true, download.Token);
                     if (!Silent() && !_exiting && owner.IsVisible)
-                        await Ui.Message(owner, "版本更新", "更新已准备好，将在退出应用时安装。");
+                        await new UpdateWindow(result, settings, saveSettings).ShowDialog(owner);
                 }
                 finally { _automaticDownload = null; }
             }
-            else if (!Silent() && owner.IsVisible) await new UpdateWindow(result).ShowDialog(owner);
+            else if (!Silent() && owner.IsVisible) await new UpdateWindow(result, settings, saveSettings).ShowDialog(owner);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
