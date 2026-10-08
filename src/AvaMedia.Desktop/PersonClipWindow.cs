@@ -25,7 +25,7 @@ public sealed class PersonClipWindow : Window
     private readonly CheckBox _reuseFrames = new() { Content = "复用相似画面", IsChecked = true };
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly TextBlock _status = Ui.Text("");
-    private readonly ProgressBar _progress = new() { Minimum = 0, Maximum = 100, IsVisible = false, Height = 6 };
+    private readonly Controls.AiActivityView _activity = new();
     private readonly StackPanel _parameters = new() { Spacing = 8 };
     private readonly Button _add;
     private readonly Button _remove;
@@ -55,10 +55,9 @@ public sealed class PersonClipWindow : Window
         _analyze = Ui.DialogButton("分析视频", async () => await AnalyzeAsync());
         _stop = Ui.Button("停止分析", () => _analysis?.Cancel()); _stop.IsVisible = false;
         _export = Ui.DialogButton("编辑并导出", () => { if (_settings.EnableBetaFeatures && _edits is not null) Close(_edits); }); _export.IsEnabled = false;
-        var layout = new Grid { RowDefinitions = new("Auto,140,Auto,*,Auto,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
+        var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         tools.Children.Add(_add); tools.Children.Add(_remove); tools.Children.Add(_models); layout.Children.Add(tools);
-        Grid.SetRow(_files, 1); layout.Children.Add(_files);
         foreach (var (label, input) in new[] { ("每秒采样帧数", _fps), ("检测阈值", _threshold), ("前后保留秒数", _padding), ("合并间隔秒数", _gap), ("最短片段秒数", _minimum) })
         {
             var row = new Grid { ColumnDefinitions = new("160,*"), ColumnSpacing = 12 };
@@ -68,20 +67,25 @@ public sealed class PersonClipWindow : Window
         _parameters.Children.Add(_uncertain); _parameters.Children.Add(_embedding); _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuseFrames); _parameters.Children.Add(_modelStatus);
         _uncertain.IsCheckedChanged += (_, _) => InvalidateResult(); _embedding.IsCheckedChanged += (_, _) => InvalidateResult();
         _gpu.IsCheckedChanged += (_, _) => InvalidateResult(); _reuseFrames.IsCheckedChanged += (_, _) => InvalidateResult();
-        Grid.SetRow(_parameters, 2); layout.Children.Add(_parameters);
-        Grid.SetRow(_results, 3); layout.Children.Add(_results);
-        Grid.SetRow(_progress, 4); layout.Children.Add(_progress);
-        Grid.SetRow(_status, 5); layout.Children.Add(_status);
+        var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
+        var inputs = new Grid { RowDefinitions = new("140,*"), RowSpacing = 12 };
+        inputs.Children.Add(_files);
+        var parameters = new ScrollViewer { Content = _parameters };
+        Grid.SetRow(parameters, 1); inputs.Children.Add(parameters); body.Children.Add(inputs);
+        var observations = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8 };
+        observations.Children.Add(_results); Grid.SetRow(_activity, 1); observations.Children.Add(_activity);
+        Grid.SetColumn(observations, 1); body.Children.Add(observations); Grid.SetRow(body, 1); layout.Children.Add(body);
+        Grid.SetRow(_status, 2); layout.Children.Add(_status);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(_stop); actions.Children.Add(_analyze); actions.Children.Add(Ui.DialogButton("取消", () => Close(null))); actions.Children.Add(_export);
-        Grid.SetRow(actions, 6); layout.Children.Add(actions); Content = layout;
+        Grid.SetRow(actions, 3); layout.Children.Add(actions); Content = layout;
         if (paths is not null) AddPaths(paths);
         Opened += async (_, _) => { try { await RefreshModelsAsync(); } catch (Exception error) { if (!_closed) _status.Text = error.Message; } };
         Closed += (_, _) => { _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
     }
     private static NumericUpDown Number(decimal min, decimal max, decimal value, decimal step) => new()
         { Minimum = min, Maximum = max, Value = value, Increment = step, Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
-    private void InvalidateResult() { if (_analysis is not null) return; _edits = null; _export.IsEnabled = false; _results.Text = ""; _status.Text = ""; }
+    private void InvalidateResult() { if (_analysis is not null) return; _edits = null; _export.IsEnabled = false; _results.Text = ""; _status.Text = ""; _activity.Update(null); }
     private void AddPaths(IEnumerable<string> paths)
     {
         foreach (var path in paths.Where(File.Exists))
@@ -128,23 +132,23 @@ public sealed class PersonClipWindow : Window
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _analysis = cancellation;
         _add.IsEnabled = _remove.IsEnabled = _models.IsEnabled = _parameters.IsEnabled = _analyze.IsEnabled = false;
-        _stop.IsVisible = _progress.IsVisible = true;
-        _progress.Value = 0;
+        _stop.IsVisible = true;
+        _activity.Update(new("校验模型", "YOLOX · 人物检测", DateTime.UtcNow, DateTime.UtcNow));
         try
         {
             var results = new List<ClipEditResult>();
             var summaries = new List<string>();
             for (var index = 0; index < _paths.Count; index++)
             {
-                var current = index;
+                var current = index; var finished = false;
                 var progress = new Progress<PersonClipProgress>(value =>
                 {
-                    if (_closed || _analysis != cancellation) return;
-                    _progress.IsIndeterminate = value.Duration == 0;
-                    _progress.Value = (current + (value.Duration > 0 ? value.Seconds / value.Duration : 0)) * 100 / _paths.Count;
+                    if (_closed || _analysis != cancellation || finished) return;
+                    if (value.Activity is { } activity) _activity.Update(activity);
                     _status.Text = Path.GetFileName(_paths[current]) + " · " + Localization.Text(value.Stage);
                 });
                 var result = await new PersonClipAnalysis(_engine).AnalyzeAsync(_paths[index], options, progress, cancellation.Token);
+                finished = true;
                 if (result.Segments.Count > 0) results.Add(new(result.Path, result.Info, result.Segments));
                 summaries.Add(Localization.Format($"{Path.GetFileName(result.Path)} · {result.Segments.Count} 个片段 · 保留 {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))} · 不确定 {result.UncertainFrames}/{result.SampledFrames} 帧"));
                 summaries.Add(Localization.Format($"模型计算 {result.InferredFrames} 帧 · 复用 {result.ReusedFrames} 帧 · 边界细化 {result.BoundaryFrames} 帧") + " · " + result.Backend);
@@ -153,16 +157,17 @@ public sealed class PersonClipWindow : Window
             if (_closed) return;
             _edits = results; _export.IsEnabled = results.Count > 0;
             _status.Text = Localization.Text(results.Count > 0 ? "分析完成" : "没有找到可保留的片段，可调整检测阈值后重试。");
+            _activity.Finish(AiActivityState.Completed, "分析完成");
         }
-        catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("分析已停止。"); }
-        catch (Exception error) { if (!_closed) _status.Text = error.Message; }
+        catch (OperationCanceledException) { if (!_closed) { _activity.Finish(AiActivityState.Cancelled, "已停止"); _status.Text = Localization.Text("分析已停止。"); } }
+        catch (Exception error) { if (!_closed) { _activity.Finish(AiActivityState.Failed, "分析失败"); _status.Text = error.Message; } }
         finally
         {
             _analysis = null;
             if (!_closed)
             {
                 _add.IsEnabled = _remove.IsEnabled = _models.IsEnabled = _parameters.IsEnabled = _analyze.IsEnabled = true;
-                _stop.IsVisible = _progress.IsVisible = false;
+                _stop.IsVisible = false;
             }
         }
     }

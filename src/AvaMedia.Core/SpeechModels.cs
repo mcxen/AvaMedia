@@ -35,21 +35,24 @@ public sealed class SpeechModelInstaller(string? directory = null)
         _ => throw new ArgumentOutOfRangeException(nameof(model))
     };
 
-    public async Task<string> EnsureInstalledAsync(SpeechModel model, Action<int>? progress = null, CancellationToken ct = default)
+    public async Task<string> EnsureInstalledAsync(SpeechModel model, Action<ModelDownloadProgress>? progress = null, CancellationToken ct = default)
     {
+        var size = Artifact(model).Size;
+        progress?.Invoke(new(0, size, "等待语音模型"));
         await Gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            progress?.Invoke(new(0, size, "校验模型"));
             if (!await _store.IsInstalledAsync(Id(model), true, ct).ConfigureAwait(false))
                 await _store.DownloadAsync(Id(model), new DownloadProgress(progress), ct).ConfigureAwait(false);
-            progress?.Invoke(100);
+            progress?.Invoke(new(size, size, "完成"));
             return _store.FileFor(Id(model), Artifact(model).FileName);
         }
         finally { Gate.Release(); }
     }
     public Task<ModelLease> AcquireAsync(SpeechModel model, CancellationToken ct = default) => _store.AcquireAsync(Id(model), ct);
-    private sealed class DownloadProgress(Action<int>? report) : IProgress<ModelDownloadProgress>
-    { public void Report(ModelDownloadProgress value) => report?.Invoke(value.Percent); }
+    private sealed class DownloadProgress(Action<ModelDownloadProgress>? report) : IProgress<ModelDownloadProgress>
+    { public void Report(ModelDownloadProgress value) => report?.Invoke(value); }
 }
 
 public static class SpeechAssets

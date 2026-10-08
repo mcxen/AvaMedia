@@ -22,7 +22,7 @@ public partial class MainWindow
     private static void ResetTask(Job job)
     {
         job.Log = "";
-        job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.Error = "";
+        job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.Error = ""; job.Activity = null;
         job.State = JobState.Waiting;
     }
 

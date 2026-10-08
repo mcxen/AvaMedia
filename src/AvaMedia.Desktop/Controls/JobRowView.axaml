@@ -30,9 +30,10 @@
     <StackPanel Grid.Column="2" Spacing="4" Margin="8,2" VerticalAlignment="Center">
       <TextBlock i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
       <TextBlock Text="{Binding SettingsSummary}" TextWrapping="Wrap" MaxHeight="36" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
-      <ProgressBar Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
+      <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
       <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}"/>
       <TextBlock Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="36" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
+      <local:AiActivityView x:Name="ActivityView"/>
     </StackPanel>
   </Grid>
 </UserControl>

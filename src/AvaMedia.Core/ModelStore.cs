@@ -71,6 +71,7 @@ public sealed class ModelStore(string? root = null)
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
         {
+            progress?.Report(new(0, model.DownloadSize, "校验模型"));
             if (await IsInstalledAsync(id, true, ct)) return;
             var staging = DirectoryFor(id) + ".download";
             Directory.CreateDirectory(staging);
@@ -109,6 +110,7 @@ public sealed class ModelStore(string? root = null)
                 await Task.Run(() => ExtractRuntime(staging, model.Files.Last().Path, ct), ct);
             }
             var manifest = new List<InstalledFile>();
+            progress?.Report(new(completed, model.DownloadSize, "校验模型"));
             foreach (var path in Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories))
             {
                 ct.ThrowIfCancellationRequested();
@@ -159,6 +161,7 @@ public sealed class ModelStore(string? root = null)
         if (offset > artifact.Size) { File.Delete(partial); offset = 0; }
         if (offset < artifact.Size)
         {
+            progress?.Report(new(completed + offset, total, "连接下载源"));
             using var stall = CancellationTokenSource.CreateLinkedTokenSource(ct);
             stall.CancelAfter(TimeSpan.FromSeconds(45));
             using var request = new HttpRequestMessage(HttpMethod.Get, source);
@@ -174,6 +177,7 @@ public sealed class ModelStore(string? root = null)
             await using var output = new FileStream(partial, offset == 0 ? FileMode.Create : FileMode.Append, FileAccess.Write, FileShare.None, 131072, true);
             var buffer = new byte[131072];
             var lastPercent = -1;
+            var lastReport = System.Diagnostics.Stopwatch.GetTimestamp();
             while (true)
             {
                 stall.CancelAfter(TimeSpan.FromSeconds(45));
@@ -183,10 +187,12 @@ public sealed class ModelStore(string? root = null)
                 if (offset > artifact.Size) throw new InvalidDataException("模型文件超过预期大小。");
                 await output.WriteAsync(buffer.AsMemory(0, count), stall.Token);
                 var update = new ModelDownloadProgress(completed + offset, total, "下载");
-                if (update.Percent != lastPercent) { progress?.Report(update); lastPercent = update.Percent; }
+                if (update.Percent != lastPercent || System.Diagnostics.Stopwatch.GetElapsedTime(lastReport).TotalMilliseconds >= 500)
+                { progress?.Report(update); lastPercent = update.Percent; lastReport = System.Diagnostics.Stopwatch.GetTimestamp(); }
             }
             await output.FlushAsync(ct);
         }
+        progress?.Report(new(completed + offset, total, "校验模型"));
         if (!await MatchesAsync(partial, artifact.Size, artifact.Sha256, true, ct))
         { File.Delete(partial); throw new InvalidDataException("模型 SHA-256 校验失败。"); }
         File.Move(partial, destination, true);

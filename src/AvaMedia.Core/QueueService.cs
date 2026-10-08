@@ -23,15 +23,17 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                     {
                         if(!active || token.IsCancellationRequested || !double.IsFinite(value))return;
                         job.Progress=Math.Clamp(value,0,100);
-                        if(job.FeatureId!="download")job.Estimate=estimator.Update(job.Progress,_time.GetElapsedTime(started));
+                        if(job.FeatureId!="download")job.Estimate=job.Activity is null ? estimator.Update(job.Progress,_time.GetElapsedTime(started)) : null;
                         Changed?.Invoke(job);
                     }
                 }
                 void Finish(JobState state,string error="")
-                {lock(progressGate){active=false;job.Error=error;job.Estimate=null;job.DownloadSpeed=null;if(state==JobState.Completed)job.Progress=100;job.State=state;}}
+                {lock(progressGate){active=false;job.Error=error;job.Estimate=null;job.DownloadSpeed=null;if(state==JobState.Completed)job.Progress=100;job.State=state;
+                    if(job.Activity is { } activity)job.Activity=activity with { UpdatedUtc=DateTime.UtcNow, State=state switch
+                    { JobState.Completed=>AiActivityState.Completed,JobState.Cancelled=>AiActivityState.Cancelled,_=>AiActivityState.Failed } };}}
                 try
                 {
-                    job.Progress=0;job.Estimate=null;job.DownloadSpeed=null;job.State=JobState.Running;job.Error="";job.ProgressDetail="";job.Log="";Publish(0);
+                    job.Activity=null;job.Progress=0;job.Estimate=null;job.DownloadSpeed=null;job.State=JobState.Running;job.Error="";job.ProgressDetail="";job.Log="";Publish(0);
                     using var timer=_time.CreateTimer(_=>{lock(progressGate)Publish(job.Progress);},null,TimeSpan.FromSeconds(1),TimeSpan.FromSeconds(1));
                     await engine.Execute(job,Publish,token);
                     token.ThrowIfCancellationRequested();Finish(JobState.Completed);

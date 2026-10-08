@@ -16,7 +16,10 @@ public sealed record PersonClipOptions(double FramesPerSecond = 2, double Thresh
             throw new ArgumentException("人物检测参数超出范围。");
     }
 }
-public sealed record PersonClipProgress(double Seconds, double Duration, string Stage);
+public sealed record PersonClipProgress(double Seconds, double Duration, string Stage)
+{
+    public AiActivity? Activity { get; init; }
+}
 public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList<ConversionOptions> Segments, int SampledFrames, int UncertainFrames,
     int InferredFrames, int BoundaryFrames, string Backend)
 {
@@ -33,19 +36,29 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         IProgress<PersonClipProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
         options.Validate();
-        progress?.Report(new(0, 0, "校验模型"));
+        double observedSeconds = 0, duration = 0;
+        var activity = new AiActivityReporter(value => progress?.Report(new(observedSeconds, duration, value.Stage) { Activity = value }), options.UseEmbedding ? "YOLOX + Gemma · 人物检测" : "YOLOX · 人物检测", "个片段");
+        activity.Stage("校验模型");
         using var model = await _store.AcquireAsync(ModelCatalog.PersonId, ct);
+        activity.Stage("加载人物检测模型");
         using var session = new ModelInferenceSession(Path.Combine(model.Directory, ModelCatalog.PersonFile),
             ModelCatalog.Find(ModelCatalog.PersonId).Files[0].Sha256, options.PreferGpu);
+        activity.Backend(session.Backend);
+        activity.Stage("读取视频", detail: Path.GetFileName(path));
         var info = await engine.Probe(path, ct);
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有有效时长的视频。");
-        progress?.Report(new(0, info.Duration, options.UseEmbedding ? "加载嵌入模型" : "扫描视频"));
-        await using var embedding = options.UseEmbedding ? await GemmaVideoEmbedding.StartAsync(_store, ct, options.PreferGpu) : null;
+        duration = info.Duration;
+        await using var embedding = options.UseEmbedding ? await GemmaVideoEmbedding.StartAsync(_store, ct, options.PreferGpu, stage => activity.Stage(stage)) : null;
         var samples = new List<PersonFrame>();
         byte[]? reference = null;
         PersonFrame? previous = null;
         var lastInference = double.NegativeInfinity;
         var inferredFrames = 0; var boundaryFrames = 0;
+        var previewClock = System.Diagnostics.Stopwatch.StartNew();
+        var nextPreview = TimeSpan.Zero;
+        double candidateStart = -1;
+        var candidates = 0;
+        activity.Stage("扫描视频", 0, duration, "秒");
         string[] args = ["-v", "error", "-nostdin", "-i", path, "-map", $"0:v:{info.VideoStreamIndex}",
             "-vf", $"fps={MediaEngine.Number(options.FramesPerSecond)}:start_time=0:eof_action=pass,{FrameFilter}",
             "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"];
@@ -71,7 +84,22 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                         previous = await ClassifyAsync(session, frame, seconds, options, embedding, ct);
                         samples.Add(previous); reference = signature; lastInference = seconds; inferredFrames++;
                     }
-                    progress?.Report(new(seconds, info.Duration, "扫描视频"));
+                    observedSeconds = Math.Min(duration, seconds + 1 / options.FramesPerSecond);
+                    var decision = samples[^1];
+                    if (decision.Keep && candidateStart < 0) candidateStart = seconds;
+                    if (!decision.Keep && candidateStart >= 0)
+                    {
+                        activity.Result($"候选片段 {++candidates} · {MediaTime.Format(candidateStart)} – {MediaTime.Format(seconds)}", candidates);
+                        candidateStart = -1;
+                    }
+                    if (previewClock.Elapsed >= nextPreview)
+                    {
+                        nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
+                        var label = decision.Uncertain ? "待确认" : decision.Keep ? "保留" : "跳过";
+                        activity.Frame(EncodePng(frame), $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)} · {label}");
+                    }
+                    activity.Backend(session.Backend);
+                    activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 复用 {samples.Count - inferredFrames} 帧 · 候选 {candidates + (candidateStart >= 0 ? 1 : 0)} 段");
                 }
                 // Drain the pipe before waiting, including any terminal frame produced by fps rounding.
                 await process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, ct);
@@ -86,6 +114,10 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             }
         }
         if (samples.Count == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
+        if (candidateStart >= 0) activity.Result($"候选片段 {++candidates} · {MediaTime.Format(candidateStart)} – {MediaTime.Format(duration)}", candidates);
+        var boundaries = samples.Skip(1).Zip(samples, (current, previousFrame) => current.Keep != previousFrame.Keep).Count(changed => changed);
+        var refined = 0;
+        activity.Stage("细化片段边界", 0, boundaries, "处");
         var intervals = new List<(double Start, double End)>();
         double start = samples[0].Keep ? 0 : -1;
         for (var index = 1; index < samples.Count; index++)
@@ -96,15 +128,21 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             {
                 ct.ThrowIfCancellationRequested();
                 var middle = (low + high) / 2;
-                progress?.Report(new(middle, info.Duration, "细化片段边界"));
+                activity.Advance(refined, boundaries, "处", $"正在定位 {MediaTime.Format(low)} – {MediaTime.Format(high)}");
                 var frame = await ReadAtAsync(path, info.VideoStreamIndex, middle, ct);
                 var result = await ClassifyAsync(session, frame, middle, options, embedding, ct);
+                if (previewClock.Elapsed >= nextPreview)
+                {
+                    nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
+                    activity.Frame(EncodePng(frame), $"边界画面 · {MediaTime.Format(middle)} · {(result.Keep ? "保留" : "跳过")}");
+                }
                 boundaryFrames++;
                 if (result.Keep == samples[index - 1].Keep) low = middle; else high = middle;
             }
             // Preserve the boundary uncertainty on the person side.
             if (samples[index].Keep) start = low;
             else if (start >= 0) { intervals.Add((start, high)); start = -1; }
+            activity.Advance(++refined, boundaries, "处", $"边界计算 {boundaryFrames} 帧");
         }
         if (start >= 0) intervals.Add((start, info.Duration));
         var merged = new List<(double Start, double End)>();
@@ -117,7 +155,10 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         }
         var segments = merged.Where(interval => interval.End - interval.Start >= options.MinimumSeconds)
             .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
-        progress?.Report(new(info.Duration, info.Duration, "完成"));
+        foreach (var segment in segments) activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", segments.Length);
+        activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
+        activity.Stage("分析完成", detail: $"{segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
+        activity.Finish("分析完成");
         return new PersonClipResult(path, info, segments, samples.Count, samples.Count(frame => frame.Uncertain),
             inferredFrames, boundaryFrames, session.Backend);
     }, ct);

@@ -12,6 +12,9 @@ internal static class ModelInstallation
     public static bool Installing { get; private set; }
     public static bool Failed { get; private set; }
     public static int Percent { get; private set; }
+    public static string Stage { get; private set; } = "校验模型";
+    public static long Received { get; private set; }
+    public static long Total { get; private set; }
     public static event Action? Changed;
     public static CancellationToken Lifetime { get; set; }
     public static void Cancel() { _cancellation?.Cancel(); Failed=false; Changed?.Invoke(); }
@@ -27,13 +30,14 @@ internal static class ModelInstallation
     {
         await Task.Yield();
         Failed = false;
+        Installing = true; Percent = 0; Stage = "校验模型"; Received = Total = 0;
         Changed?.Invoke();
         try
         {
-            var progress = new Progress<int>(percent =>
+            var progress = new Progress<ModelDownloadProgress>(value =>
             {
                 if (Lifetime.IsCancellationRequested || !_attemptActive || attempt != _attempt) return;
-                Installing = percent < 100; Percent = percent; Changed?.Invoke();
+                Percent = value.Percent; Stage = value.Stage; Received = value.Received; Total = value.Total; Changed?.Invoke();
             });
             await Installer.EnsureInstalledAsync(progress, _cancellation!.Token);
         }

@@ -33,6 +33,7 @@ public sealed class ModelInstallationNotice : Border
         _retry.IsVisible = ModelInstallation.Failed;
         _retry.Content = Localization.Text("重试");
         _message.Text = ModelInstallation.Failed ? Localization.Text("图片修复模型安装失败，请检查网络后重试。")
-            : Localization.Format($"正在安装图片修复模型… {ModelInstallation.Percent}%");
+            : Localization.Text("图片修复模型") + " · " + Localization.Text(ModelInstallation.Stage)
+                + (ModelInstallation.Stage == "下载" ? $" · {ModelInstallation.Received / 1048576d:0.0} / {ModelInstallation.Total / 1048576d:0.0} MiB · {ModelInstallation.Percent}%" : "");
     }
 }

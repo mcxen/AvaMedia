@@ -41,14 +41,14 @@ public partial class JobRowView : UserControl
     private void JobChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is not (nameof(Job.Progress) or nameof(Job.Status) or nameof(Job.ProgressDetail)
-            or nameof(Job.Estimate) or nameof(Job.RemainingTimeText))) Interlocked.Exchange(ref _fullRefresh, 1);
+            or nameof(Job.Estimate) or nameof(Job.RemainingTimeText) or nameof(Job.Activity))) Interlocked.Exchange(ref _fullRefresh, 1);
         if (Interlocked.Exchange(ref _refreshPosted, 1) != 0) return;
         Dispatcher.UIThread.Post(() =>
         {
             Interlocked.Exchange(ref _refreshPosted, 0);
             var full = Interlocked.Exchange(ref _fullRefresh, 0) != 0;
             if (!ReferenceEquals(sender, _details?.Job)) return;
-            if (full) Refresh(); else _details?.RefreshProgress();
+            if (full) Refresh(); else { _details?.RefreshProgress(); RefreshActivity(); }
         });
     }
     private void Refresh()
@@ -56,6 +56,7 @@ public partial class JobRowView : UserControl
         if (_details is null || _owner is null) return;
         if (!_owner.IsQueuePresentationVisible) { SuspendPreview(); return; }
         _details.Refresh();
+        RefreshActivity();
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
@@ -77,6 +78,11 @@ public partial class JobRowView : UserControl
         _load = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         _previewReady = LoadAsync(_details, _owner.Engine, key, _load);
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
+    }
+    private void RefreshActivity()
+    {
+        ActivityView.Update(_details?.Job.Activity);
+        PipelineProgress.IsVisible = _details?.Job.Activity is null;
     }
     private async Task LoadAsync(JobRowDetails details, IMediaEngine engine, PreviewKey key, CancellationTokenSource cancellation)
     {
@@ -131,6 +137,7 @@ public partial class JobRowView : UserControl
         { _owner.JobDisplayChanged -= Refresh; _owner.JobPresentationChanged -= PresentationChanged; }
         if (_details is not null) _details.Job.PropertyChanged -= JobChanged;
         RowRoot.DataContext = null;
+        ActivityView.Update(null);
         _details?.Dispose(); _details = null; _owner = null;
     }
     private sealed record PreviewKey(string Path, int Video, int Audio, double Start, double End, string FFmpeg, string FFprobe);

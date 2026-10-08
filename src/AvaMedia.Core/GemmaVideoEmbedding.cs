@@ -23,18 +23,20 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
         _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
     }
 
-    public static async Task<GemmaVideoEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true)
+    public static async Task<GemmaVideoEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
     {
-        try { return await StartCoreAsync(store, ct, preferGpu).ConfigureAwait(false); }
+        try { return await StartCoreAsync(store, ct, preferGpu, status).ConfigureAwait(false); }
         catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
             && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
         {
-            return await StartCoreAsync(store, ct, false).ConfigureAwait(false);
+            status?.Invoke("GPU 启动未成功，切换 CPU");
+            return await StartCoreAsync(store, ct, false, status).ConfigureAwait(false);
         }
     }
 
-    private static async Task<GemmaVideoEmbedding> StartCoreAsync(ModelStore store, CancellationToken ct, bool preferGpu)
+    private static async Task<GemmaVideoEmbedding> StartCoreAsync(ModelStore store, CancellationToken ct, bool preferGpu, Action<string>? status)
     {
+        status?.Invoke("校验嵌入模型");
         var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId, ct).ConfigureAwait(false);
         GemmaVideoEmbedding? backend = null;
         HttpClient? client = null;
@@ -54,8 +56,10 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
                 "--host", "127.0.0.1", "--port", port.ToString(), "--api-key", key];
             arguments = arguments.Concat(preferGpu ? ["--gpu-layers", "auto", "--mmproj-offload"]
                 : new[] { "--gpu-layers", "0", "--device", "none", "--no-mmproj-offload" }).ToArray();
+            status?.Invoke("启动推理工具");
             var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
             backend = new(process, client, lease);
+            status?.Invoke("等待嵌入模型就绪");
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromMinutes(2));
             while (true)

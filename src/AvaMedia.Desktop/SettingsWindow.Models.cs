@@ -12,7 +12,7 @@ public sealed partial class SettingsWindow
     private sealed class ModelRow
     {
         public required TextBlock Status { get; init; }
-        public required ProgressBar Progress { get; init; }
+        public required Controls.AiActivityView Activity { get; init; }
         public required Button Download { get; init; }
         public required Button Verify { get; init; }
         public required Button Delete { get; init; }
@@ -25,7 +25,7 @@ public sealed partial class SettingsWindow
         foreach (var model in ModelCatalog.All)
         {
             var status = Ui.Text("读取状态…", "caption");
-            var bar = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false, Height = 6 };
+            var activity = new Controls.AiActivityView();
             var download = Ui.Button("下载", () => _ = RunModelActionAsync(model, "download"));
             var verify = Ui.Button("校验", () => _ = RunModelActionAsync(model, "verify"));
             var delete = Ui.Button("删除", () => _ = RunModelActionAsync(model, "delete"));
@@ -36,9 +36,9 @@ public sealed partial class SettingsWindow
             var panel = new StackPanel { Spacing = 8 };
             panel.Children.Add(Ui.Text(model.Name, "settingsHeading"));
             panel.Children.Add(Ui.Text(Localization.Text(model.Purpose) + " · " + ModelSize(model.DownloadSize) + " · " + model.License, "caption"));
-            panel.Children.Add(status); panel.Children.Add(bar); panel.Children.Add(buttons);
+            panel.Children.Add(status); panel.Children.Add(activity); panel.Children.Add(buttons);
             ModelList.Children.Add(new Border { Classes = { "settingSection" }, Child = panel });
-            _modelRows.Add(model.Id, new() { Status = status, Progress = bar, Download = download, Verify = verify, Delete = delete, Cancel = cancel });
+            _modelRows.Add(model.Id, new() { Status = status, Activity = activity, Download = download, Verify = verify, Delete = delete, Cancel = cancel });
         }
         Opened += async (_, _) => await RefreshModelsSafelyAsync();
         ModelInstallation.Changed += RepairModelChanged;
@@ -77,8 +77,9 @@ public sealed partial class SettingsWindow
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         row.Cancellation = cancellation;
         row.Download.IsEnabled = row.Verify.IsEnabled = row.Delete.IsEnabled = false;
-        row.Cancel.IsVisible = action == "download"; row.Progress.IsVisible = action != "delete";
-        row.Progress.IsIndeterminate = action == "verify"; ModelStatus.Text = "";
+        row.Cancel.IsVisible = action == "download"; ModelStatus.Text = "";
+        row.Activity.Update(action == "delete" ? null : new("校验模型", model.Name, DateTime.UtcNow, DateTime.UtcNow));
+        var activity = new AiActivityReporter(value => row.Activity.Update(value), model.Name);
         try
         {
             if (action == "download")
@@ -86,8 +87,9 @@ public sealed partial class SettingsWindow
                 var progress = new Progress<ModelDownloadProgress>(value =>
                 {
                     if (_lifetime.IsCancellationRequested || row.Cancellation != cancellation) return;
-                    row.Progress.Value = value.Percent;
-                    row.Status.Text = Localization.Text(value.Stage) + " · " + value.Percent + "%";
+                    if (value.Stage == "下载") activity.Stage(value.Stage, value.Received, value.Total, "字节");
+                    else activity.Stage(value.Stage);
+                    row.Status.Text = Localization.Text(value.Stage);
                 });
                 await Task.Run(() => _modelStore.DownloadAsync(model.Id, progress, cancellation.Token), cancellation.Token);
             }
@@ -98,12 +100,13 @@ public sealed partial class SettingsWindow
                 ModelStatus.Text = Localization.Text("模型校验通过。");
             }
             else await _modelStore.DeleteAsync(model.Id, cancellation.Token);
+            row.Activity.Finish(AiActivityState.Completed, "模型已就绪");
         }
-        catch (OperationCanceledException) { if (!_lifetime.IsCancellationRequested) ModelStatus.Text = Localization.Text("下载已取消，重新下载可继续。"); }
-        catch (Exception error) { if (!_lifetime.IsCancellationRequested) ModelStatus.Text = error.Message; }
+        catch (OperationCanceledException) { if (!_lifetime.IsCancellationRequested) { row.Activity.Finish(AiActivityState.Cancelled, "已停止"); ModelStatus.Text = Localization.Text("下载已取消，重新下载可继续。"); } }
+        catch (Exception error) { if (!_lifetime.IsCancellationRequested) { row.Activity.Finish(AiActivityState.Failed, "模型准备失败"); ModelStatus.Text = error.Message; } }
         finally
         {
-            row.Cancellation = null; row.Cancel.IsVisible = row.Progress.IsVisible = false;
+            row.Cancellation = null; row.Cancel.IsVisible = false;
             if (!_lifetime.IsCancellationRequested) await RefreshModelsSafelyAsync();
         }
     }

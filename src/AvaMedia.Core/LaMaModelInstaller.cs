@@ -11,10 +11,10 @@ public sealed class LaMaModelInstaller(string? directory = null)
     private readonly ModelStore _store = new(directory);
     public string ModelPath => _store.FileFor(ModelCatalog.LamaId, FileName);
     public Task<bool> IsInstalledAsync(CancellationToken ct = default) => _store.IsInstalledAsync(ModelCatalog.LamaId, true, ct);
-    public async Task<string> EnsureInstalledAsync(IProgress<int>? progress = null, CancellationToken ct = default)
+    public async Task<string> EnsureInstalledAsync(IProgress<ModelDownloadProgress>? progress = null, CancellationToken ct = default)
     {
-        await _store.DownloadAsync(ModelCatalog.LamaId, progress is null ? null : new Progress<ModelDownloadProgress>(value => progress.Report(value.Percent)), ct).ConfigureAwait(false);
-        progress?.Report(100);
+        await _store.DownloadAsync(ModelCatalog.LamaId, progress, ct).ConfigureAwait(false);
+        progress?.Report(new(FileSize, FileSize, "完成"));
         return ModelPath;
     }
 }
