@@ -7,7 +7,7 @@ public static class QuickClipWorkflow
 {
     public static void ValidateJoinedExports(IEnumerable<ClipEditResult> edits, string preset)
     {
-        if(preset=="Fast Copy")throw new ArgumentException("合并保留片段请选择 MP4、MKV 或 TS。");
+        if(!QuickClipBatch.Presets.Contains(preset))throw new ArgumentException("请选择有效的导出格式。");
         if(edits.Any(edit=>edit.Segments.Count>64))throw new ArgumentException("单个视频合并最多 64 个片段，请选择分别导出。");
     }
 
@@ -20,7 +20,9 @@ public static class QuickClipWorkflow
         foreach(var edit in items)
         {
             var inputs=PrepareExports([edit],preset,exportOptions);
-            var options=exportOptions.Clone();options.Format=preset.ToLowerInvariant();options.CopyStreams=false;options.Start=options.End=0;
+            var options=preset=="Fast Copy"?inputs[0].Options.Clone():exportOptions.Clone();
+            if(preset!="Fast Copy"){options.Format=preset.ToLowerInvariant();options.CopyStreams=false;}
+            options.Start=options.End=0;
             var target=outputToSource?Path.GetDirectoryName(Path.GetFullPath(edit.Path))!:folder;
             var grouped=ConversionBatch.CreateJobs(Catalog.Find("join"),inputs.Select(input=>input.Path).ToArray(),target,options,
                 inputs.Select(input=>input.Options).ToArray(),used);

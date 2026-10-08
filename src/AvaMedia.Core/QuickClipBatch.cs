@@ -5,7 +5,9 @@ public sealed record QuickClipInput(string Path, ConversionOptions Options);
 /// <summary>Per-file drafts for the quick clipping dialog. Creating jobs never modifies input media.</summary>
 public static class QuickClipBatch
 {
+    public const string DefaultPreset = "Fast Copy";
     public static string[] Presets { get; } = ["Fast Copy", "MP4", "MKV", "TS"];
+    public static string PresetLabel(string preset) => preset == "Fast Copy" ? "原格式 / 原码率" : preset;
     public static IReadOnlySet<string> VideoExtensions => VideoFormats.InputExtensions;
 
     public static ConversionOptions ResolveOptions(string path, string preset, ConversionOptions draft)

@@ -177,22 +177,24 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.VideoSummary){VideoSummaryService.Validate(job);return;}
         ValidateEncodingOptions(o);
         SourceVideoExport.ValidateJob(job);
+        SourceClipCopy.Validate(job);
+        var copyJoined = SourceClipCopy.IsJoined(job);
         if(job.InputOptions is not null)
         {
             if(job.InputOptions.Count!=job.Inputs.Length)throw new ArgumentException("输入文件与独立参数数量不一致。");
             for(int index=0;index<job.Inputs.Length;index++)Validate(new(){FeatureId="mp4",Inputs=[job.Inputs[index]],Output=job.Output,Options=job.InputOptions[index]});
         }
-        if(SubtitleOptions.Mode(o) is SubtitleMode.Preserve or SubtitleMode.ExternalTrack && feature.Operation is Operation.Join or Operation.AudioMix)throw new ArgumentException("合并和混音暂不支持输出独立字幕轨；视频合并可在每个输入中烧录字幕。");
+        if(SubtitleOptions.Mode(o) is SubtitleMode.Preserve or SubtitleMode.ExternalTrack && feature.Operation is Operation.Join or Operation.AudioMix && !copyJoined)throw new ArgumentException("合并和混音暂不支持输出独立字幕轨；视频合并可在每个输入中烧录字幕。");
         if(feature.Operation==Operation.Join && job.Inputs.Length>1 && SubtitleOptions.Mode(o)==SubtitleMode.BurnIn && string.IsNullOrWhiteSpace(o.Subtitle))throw new ArgumentException("源字幕需在每个合并输入的选项中分别选择烧录。");
-        if(o.CopyStreams && (feature.Operation==Operation.AudioMix || feature.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null)))throw new ArgumentException("合并编辑和混音需要重新编码。");
-        if((o.VideoCodec=="copy" || o.AudioCodec=="copy") && (feature.Operation==Operation.AudioMix || feature.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null)))throw new ArgumentException("合并编辑和混音的输出编码器需要重新编码，不能选择 copy。");
+        if(o.CopyStreams && (feature.Operation==Operation.AudioMix || feature.Operation==Operation.Join && !copyJoined && (job.Inputs.Length>1 || job.InputOptions is not null)))throw new ArgumentException("合并编辑和混音需要重新编码。");
+        if((o.VideoCodec=="copy" || o.AudioCodec=="copy") && (feature.Operation==Operation.AudioMix || feature.Operation==Operation.Join && !copyJoined && (job.Inputs.Length>1 || job.InputOptions is not null)))throw new ArgumentException("合并编辑和混音的输出编码器需要重新编码，不能选择 copy。");
         if(feature.Operation==Operation.Mux && job.InputOptions is not null)
         {
             var video=job.InputOptions[0];var audio=job.InputOptions[1];var outputTrim=o.Start>0 || o.End>0;
             if((o.CopyStreams || o.VideoCodec=="copy") && (outputTrim || video.Start>0 || video.End>0 || HasVideoFilters(video)))throw new ArgumentException("混流的视频输入或输出区间需要画面处理，请选择视频编码器。");
             if(!o.Mute && !audio.Mute && (o.CopyStreams || o.AudioCodec=="copy") && (outputTrim || audio.Start>0 || audio.End>0 || HasAudioFilters(audio)))throw new ArgumentException("混流的音频输入或输出区间需要音频处理，请选择音频编码器。");
         }
-        if(o.KeepAllAudioStreams && feature.Operation is Operation.Join or Operation.AudioMix or Operation.SplitVideo)throw new ArgumentException("当前合并、混音和视频流提取不支持保留独立的所有音频流。");
+        if(o.KeepAllAudioStreams && feature.Operation is Operation.Join or Operation.AudioMix or Operation.SplitVideo && !copyJoined)throw new ArgumentException("当前合并、混音和视频流提取不支持保留独立的所有音频流。");
     }
     public static bool HasVideoFilters(ConversionOptions o) => o.CropWidth>0 || o.DelogoWidth>0 || o.Speed!=1 || o.Width>0 || o.Height>0 || o.Fps>0 || o.Rotation!=0 || o.Flip || o.FadeIn>0 || o.FadeOut>0 || SubtitleOptions.Mode(o)==SubtitleMode.BurnIn;
     public static bool HasAudioFilters(ConversionOptions o) => o.Speed!=1 || o.Volume!=1 || (o.AudioFadeIn??o.FadeIn)>0 || (o.AudioFadeOut??o.FadeOut)>0 || o.Echo || o.NoiseReduction || o.VoiceEnhancement || o.ReverseAudio;
@@ -332,6 +334,11 @@ public sealed class MediaEngine : IMediaEngine
             var selected=job.Options.Clone();selected.Subtitle="";selected.SubtitleMode=SubtitleOptions.Mode(job.Options)==SubtitleMode.ExternalTrack?SubtitleMode.Preserve:SubtitleMode.BurnIn;SubtitleOptions.ValidateSource(selected,sub);
         }
         job.Duration=ValidateEdits(job,infos);
+        if(SourceClipCopy.IsJoined(job))
+        {
+            await SourceClipCopy.ExecuteAsync(this,job,infos,progress,ct);
+            return;
+        }
         var effective=SettingsPolicy.Resolve(job.Options,Settings);
         VideoCompressionPlan? compressionPlan=null;
         VideoCompressionColor? compressionColor=null;

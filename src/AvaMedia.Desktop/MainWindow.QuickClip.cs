@@ -20,7 +20,7 @@ public partial class MainWindow
         var paths=selectedPaths.Select(Path.GetFullPath).Distinct(OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal).ToArray();
         if(paths.Length==0)return;
         _last=Catalog.Find("clip");
-        var edits=paths.Select(path=>initialEdits?.FirstOrDefault(edit=>edit.Path==path)).ToArray();ClipExportState? exportState=new("MP4",_settings.OutputFolder,_settings.OutputToSource,new(),_settings.AddSettingName);
+        var edits=paths.Select(path=>initialEdits?.FirstOrDefault(edit=>edit.Path==path)).ToArray();ClipExportState? exportState=new(QuickClipBatch.DefaultPreset,_settings.OutputFolder,_settings.OutputToSource,new(),_settings.AddSettingName,JoinSegments:allowJoin);
         while(true)
         {
             for(var i=0;i<paths.Length;i++)

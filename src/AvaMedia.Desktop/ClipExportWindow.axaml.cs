@@ -28,9 +28,10 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.Segments.Select((segment,i)=>new ClipSegmentEntry(segment,edit.Path){Number=i+1,SourceDuration=edit.Info.Duration})).ToArray();
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
         AddSettingName.IsChecked=state?.AddSettingName??false;
-        JoinSegments.IsVisible=allowJoin;JoinSegments.IsChecked=allowJoin && state?.JoinSegments==true;
+        JoinSegments.IsVisible=allowJoin;JoinSegments.IsChecked=allowJoin && (state?.JoinSegments??true);
         JoinSegments.IsCheckedChanged+=(_,_)=>ValidateExport();
-        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??"MP4";
+        FormatCombo.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset,_)=>Ui.Text(QuickClipBatch.PresetLabel(preset??QuickClipBatch.DefaultPreset)));
+        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??QuickClipBatch.DefaultPreset;
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
@@ -41,7 +42,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         try { return await _previewFrames.Thumbnail(path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
         finally { _thumbnailGate.Release(); }
     }
-    private string Preset=>FormatCombo.SelectedItem as string??"MP4";
+    private string Preset=>FormatCombo.SelectedItem as string??QuickClipBatch.DefaultPreset;
     public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,JoinSegments.IsVisible && JoinSegments.IsChecked==true);
     public ConversionRequest CreateRequest()
     {

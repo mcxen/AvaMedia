@@ -48,7 +48,7 @@ public sealed partial class QuickClipWindow : Window
     private bool _closed;
     public IReadOnlyList<QuickClipEntry> Entries => _entries;
     public Task Ready => Task.WhenAll(_entries.Select(e => e.Ready));
-    public string Preset => FormatCombo.SelectedItem as string ?? "Fast Copy";
+    public string Preset => FormatCombo.SelectedItem as string ?? QuickClipBatch.DefaultPreset;
 
     public QuickClipWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder, []) { }
     public QuickClipWindow(IMediaEngine engine, string outputFolder, string[] files)
@@ -56,7 +56,8 @@ public sealed partial class QuickClipWindow : Window
         InitializeComponent(); _engine = engine;
         _folders = new([System.IO.Path.GetFullPath(outputFolder), SourceDirectory]);
         FileList.ItemsSource = _entries; OutputCombo.ItemsSource = _folders; OutputCombo.SelectedIndex = 0;
-        FormatCombo.ItemsSource = QuickClipBatch.Presets; FormatCombo.SelectedIndex = 0;
+        FormatCombo.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset, _) => Ui.Text(QuickClipBatch.PresetLabel(preset ?? QuickClipBatch.DefaultPreset)));
+        FormatCombo.ItemsSource = QuickClipBatch.Presets; FormatCombo.SelectedItem = QuickClipBatch.DefaultPreset;
         AddFiles(files); UpdateOrder();
         DragDrop.SetAllowDrop(this, true); AddHandler(DragDrop.DropEvent, DropFiles);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = DragDropEffects.Copy);
