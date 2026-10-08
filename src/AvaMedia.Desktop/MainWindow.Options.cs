@@ -75,7 +75,7 @@ public partial class MainWindow
         Motion.SetReducedMotion(_settings.ReduceMotion);
         if(prior.EnableBetaFeatures != _settings.EnableBetaFeatures)
         {
-            if(!_settings.EnableBetaFeatures && _last.Id=="person-clip")_last=Catalog.Find("clip");
+            if(!_settings.EnableBetaFeatures && Catalog.IsBeta(_last))_last=Catalog.Find("clip");
             ShowCategory(_category);
         }
         if(prior.AutoDownloadRepairModel != _settings.AutoDownloadRepairModel)

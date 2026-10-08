@@ -51,6 +51,11 @@ public partial class MainWindow : Window
     }
     private async Task Configure(Feature feature,string[]? files=null)
     {
+        if(feature.Id is "image-ai" or "media-ai")
+        {
+            if(_settings.EnableBetaFeatures)await ConfigureMediaAiAsync(files);
+            return;
+        }
         if(feature.Id=="person-clip")
         {
             if(_settings.EnableBetaFeatures)await ConfigurePersonClipAsync(files);

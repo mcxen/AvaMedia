@@ -21,7 +21,7 @@ public partial class MainWindow
         var files = paths.Where(File.Exists).Select(Path.GetFullPath).Distinct(VideoFolderScanner.PathComparer).ToArray();
         if (files.Length == 0) return;
         if (_mediaRouteWindow is { } existing) { existing.AddFiles(files); existing.Activate(); return; }
-        var window = new MediaRouteWindow(Engine, files);
+        var window = new MediaRouteWindow(Engine, files, new MediaFileRouter(_settings.EnableBetaFeatures));
         _mediaRouteWindow = window;
         MediaRouteRequest? request;
         try { request = await window.ShowForRoutingAsync(this); }

@@ -14,7 +14,7 @@ public interface IMediaFileRouter
 }
 
 /// <summary>File acceptance and batch requirements, independent of the desktop presentation.</summary>
-public sealed class MediaFileRouter : IMediaFileRouter
+public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
 {
     public MediaFileKind Classify(string path)
     {
@@ -41,6 +41,7 @@ public sealed class MediaFileRouter : IMediaFileRouter
         bool Audio(MediaRouteSource source) => source.Kind == MediaFileKind.Audio;
         bool Media(MediaRouteSource source) => source.Kind is MediaFileKind.Video or MediaFileKind.Audio or MediaFileKind.Image;
         bool Extension(MediaRouteSource source, string extension) => Path.GetExtension(source.Path).Equals(extension, StringComparison.OrdinalIgnoreCase);
+        if (enableBeta) Add("media-ai", "媒体 AI 标签 · Beta", "图片 / 视频标签、关键词筛选与重命名", source => Video(source) || Image(source));
         var groups = selected.GroupBy(source => source.Kind).OrderByDescending(group => group.Count()).Select(group => group.Key);
         foreach (var group in groups)
             switch (group)

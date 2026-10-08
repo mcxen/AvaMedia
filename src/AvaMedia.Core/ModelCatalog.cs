@@ -15,6 +15,10 @@ public static class ModelCatalog
     public const string PersonId = "yolox";
     public const string EmbeddingId = "embeddinggemma-2";
     public const string LamaId = "lama";
+    public const string JoyTagId = "joytag";
+    public const string JoyTagFile = "model.onnx";
+    public const string JoyTagLabels = "top_tags.txt";
+    private const string JoyTagRevision = "6b7f16331a6ccf0fdce37d5a9564715f6e772b22";
     private const string GemmaRevision = "bfcd298762cc34d0357ece5ebdd31791a3a374d8";
     public const string GemmaFile = "embeddinggemma-2-Q8_0.gguf";
     public const string ProjectorFile = "mmproj-embeddinggemma-2-Q8_0.gguf";
@@ -35,6 +39,11 @@ public static class ModelCatalog
         }
         return [
             Speech(SpeechModel.Base), Speech(SpeechModel.Tiny),
+            new(JoyTagId, "JoyTag", "图片 / 视频 AI 标签 · Beta", "Apache-2.0", "https://github.com/fpgaminer/joytag",
+                [new(JoyTagFile, 366116154, "f85b7130e6e549b5b0822537007b7482e8c4c8e754c8d9a5bee08e27050e1097",
+                    [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagFile}"]),
+                 new(JoyTagLabels, 76752, "32b1963a234af848643b2bbf47d8eff1f1c7889406810c57b980f41b2b9e01d0",
+                    [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagLabels}"])]),
             new(LamaId, "LaMa", "图片修复", "Apache-2.0", "https://huggingface.co/opencv/inpainting_lama",
                 [new(LaMaModelInstaller.FileName, LaMaModelInstaller.FileSize, LaMaModelInstaller.Sha256,
                     [LaMaModelInstaller.HubUrl, LaMaModelInstaller.FallbackUrl])]),
