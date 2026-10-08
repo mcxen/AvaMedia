@@ -214,7 +214,15 @@ public partial class MainWindow : Window
         try{var jobs=await _storage.ImportJobsAsync(files[0]);foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}catch(Exception ex){await Ui.Message(this,"载入失败",ex.Message);}
     }
     private void ExitClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>RequestExit();
-    private void SetSkin(string theme){Skin.Apply(theme);_settings.Theme=theme;Save();}
+    private void SetSkin(string theme)
+    {
+        // Let the menu close and release its popup before replacing its theme and window frame.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_closing) return;
+            Skin.Apply(theme); _settings.Theme = theme; Save();
+        }, DispatcherPriority.Normal);
+    }
     private void LightClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Light");
     private void DarkClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("Dark");
     private void MacOS9Click(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>SetSkin("MacOS9");

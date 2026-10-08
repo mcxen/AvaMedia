@@ -158,7 +158,6 @@
       </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Styles.Resources>
-  <Style Selector="Window"><Setter Property="local:Skin.IsEnabled" Value="True"/></Style>
   <Style Selector="Window.windows-xp"><Setter Property="UseLayoutRounding" Value="True"/></Style>
   <Style Selector="Window.windows-xp controls|ActionIcon"><Setter Property="IsWindowsXP" Value="True"/></Style>
   <Style Selector="Window.windows-xp Button"><Setter Property="FontWeight" Value="Normal"/></Style>

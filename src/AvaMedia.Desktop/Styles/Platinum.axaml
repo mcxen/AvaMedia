@@ -121,7 +121,6 @@
       </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Styles.Resources>
-  <Style Selector="Window"><Setter Property="local:Skin.IsEnabled" Value="True"/></Style>
   <Style Selector="Window.mac-os9"><Setter Property="UseLayoutRounding" Value="True"/></Style>
   <Style Selector="Window.mac-os9 controls|ActionIcon"><Setter Property="IsPlatinum" Value="True"/></Style>
   <Style Selector="Window.mac-os9 Button[IsDefault=true]"><Setter Property="BorderThickness" Value="4"/></Style>

@@ -19,8 +19,8 @@ public sealed class Skin : AvaloniaObject
 
     static Skin() => IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
     {
-        if (change.NewValue is true) Windows.GetValue(window, w => new Registration(w));
-        else if (Windows.TryGetValue(window, out var registration)) { registration.Dispose(); Windows.Remove(window); }
+        if (change.NewValue is true) Windows.GetValue(window, w => new Registration(w)).RequestRefresh();
+        else if (Windows.TryGetValue(window, out var registration)) { Windows.Remove(window); registration.Dispose(); }
     });
 
     public static bool GetIsEnabled(Window window) => window.GetValue(IsEnabledProperty);
@@ -51,6 +51,8 @@ public sealed class Skin : AvaloniaObject
         private SystemDecorations _decorations;
         private readonly TextRenderingMode _textMode;
         private bool _changing;
+        private bool _refreshQueued;
+        private bool _disposed;
         public Registration(Window window)
         {
             _window = window;
@@ -60,77 +62,102 @@ public sealed class Skin : AvaloniaObject
             window.Opened += Changed;
             window.Closed += Closed;
             window.PropertyChanged += PropertyChanged;
-            Refresh();
         }
-        private void Changed(object? sender, EventArgs e) => Refresh();
+        private void Changed(object? sender, EventArgs e) => RequestRefresh();
         public void ToggleShade() => _frame?.ToggleShade();
         public void RestoreWindow() => _frame?.RestoreShade();
         public void Zoom() { if (_xpFrame is not null) _xpFrame.Zoom(); else _frame?.Zoom(); }
         private void PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
-            if (e.Property == ContentControl.ContentProperty || e.Property == Window.WindowStateProperty) Refresh();
+            if (e.Property == ContentControl.ContentProperty || e.Property == Window.WindowStateProperty) RequestRefresh();
+        }
+        public void RequestRefresh()
+        {
+            if (_changing || _disposed || _refreshQueued) return;
+            _refreshQueued = true;
+            // Finish theme inheritance, styling and input routing before moving the window's content.
+            Dispatcher.UIThread.Post(() =>
+            {
+                _refreshQueued = false;
+                if (!_disposed) Refresh();
+            }, DispatcherPriority.Normal);
         }
         private void Refresh()
         {
-            if (_changing) return;
-            var platinum = _window.ActualThemeVariant == MacOS9;
-            var xp = _window.ActualThemeVariant == WindowsXP;
-            if (platinum) EnsureSkinStyles("Platinum");
-            if (xp) EnsureSkinStyles("WindowsXP");
-            var decorated = _window.WindowState != WindowState.FullScreen;
-            _window.Classes.Set("mac-os9", platinum);
-            _window.Classes.Set("windows-xp", xp);
-            RenderOptions.SetTextRenderingMode(_window, platinum ? TextRenderingMode.Alias : _textMode);
+            if (_changing || _disposed) return;
             _changing = true;
             try
             {
+                var platinum = _window.ActualThemeVariant == MacOS9;
+                var xp = _window.ActualThemeVariant == WindowsXP;
+                if (platinum) EnsureSkinStyles("Platinum");
+                if (xp) EnsureSkinStyles("WindowsXP");
+                var decorated = _window.WindowState != WindowState.FullScreen;
+                var customChrome = decorated && (platinum || xp);
+                _window.Classes.Set("mac-os9", platinum);
+                _window.Classes.Set("windows-xp", xp);
+                RenderOptions.SetTextRenderingMode(_window, platinum ? TextRenderingMode.Alias : _textMode);
+
+                var hadFrame = _frame is not null || _xpFrame is not null;
                 if (_frame is not null && !ReferenceEquals(_window.Content, _frame))
                 {
-                    _frame.ReleaseContent(); _frame = null; _window.SystemDecorations = _decorations;
+                    _frame.ReleaseContent(); _frame = null;
                 }
                 if (_xpFrame is not null && !ReferenceEquals(_window.Content, _xpFrame))
                 {
-                    _xpFrame.ReleaseContent(); _xpFrame = null; _window.SystemDecorations = _decorations;
+                    _xpFrame.ReleaseContent(); _xpFrame = null;
                 }
-                if ((!platinum || !decorated) && _frame is not null)
+                if (decorated && (platinum && _frame is not null || xp && _xpFrame is not null)) return;
+
+                var content = _window.Content;
+                if (_frame is not null)
                 {
-                    var restoredContent = _frame.ReleaseContent();
-                    _window.Content = null; _window.Content = restoredContent;
-                    _window.SystemDecorations = _decorations;
+                    content = _frame.ReleaseContent();
                     _frame = null;
                 }
-                if ((!xp || !decorated) && _xpFrame is not null)
+                if (_xpFrame is not null)
                 {
-                    var restoredContent = _xpFrame.ReleaseContent();
-                    _window.Content = null; _window.Content = restoredContent;
-                    _window.SystemDecorations = _decorations;
+                    content = _xpFrame.ReleaseContent();
                     _xpFrame = null;
                 }
-                if (decorated && platinum && _frame is null && _window.Content is { } content)
+
+                // Transfer the existing body once. Custom skins keep native decorations disabled throughout.
+                if (customChrome && content is not null)
                 {
-                    _decorations = _window.SystemDecorations;
+                    if (!hadFrame) _decorations = _window.SystemDecorations;
                     _window.Content = null;
-                    _frame = new PlatinumWindowFrame(_window, content);
-                    _window.Content = _frame;
+                    if (platinum) _window.Content = _frame = new PlatinumWindowFrame(_window, content);
+                    else _window.Content = _xpFrame = new WindowsXPWindowFrame(_window, content);
                     _window.SystemDecorations = SystemDecorations.None;
                 }
-                else if (decorated && xp && _xpFrame is null && _window.Content is { } xpContent)
+                else if (hadFrame)
                 {
-                    _decorations = _window.SystemDecorations;
                     _window.Content = null;
-                    _xpFrame = new WindowsXPWindowFrame(_window, xpContent);
-                    _window.Content = _xpFrame;
-                    _window.SystemDecorations = SystemDecorations.None;
+                    _window.Content = content;
+                    _window.SystemDecorations = _decorations;
                 }
             }
             finally { _changing = false; }
         }
-        private void Closed(object? sender, EventArgs e) { Dispose(); Windows.Remove(_window); }
-        public void Dispose()
+        private void Closed(object? sender, EventArgs e) { Windows.Remove(_window); Dispose(false); }
+        public void Dispose() => Dispose(true);
+        private void Dispose(bool restoreContent)
         {
-            _frame?.ReleaseContent(); _xpFrame?.ReleaseContent();
+            if (_disposed) return;
+            _disposed = true;
             _window.ActualThemeVariantChanged -= Changed; _window.Opened -= Changed;
             _window.Closed -= Closed; _window.PropertyChanged -= PropertyChanged;
+            var ownedFrame = _frame is not null && ReferenceEquals(_window.Content, _frame)
+                || _xpFrame is not null && ReferenceEquals(_window.Content, _xpFrame);
+            var content = _frame?.ReleaseContent() ?? _xpFrame?.ReleaseContent();
+            _frame = null; _xpFrame = null;
+            if (restoreContent && ownedFrame)
+            {
+                _window.Content = null; _window.Content = content;
+                _window.SystemDecorations = _decorations;
+                _window.Classes.Remove("mac-os9"); _window.Classes.Remove("windows-xp");
+                RenderOptions.SetTextRenderingMode(_window, _textMode);
+            }
         }
     }
 }

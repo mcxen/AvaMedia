@@ -192,6 +192,7 @@
     <Setter Property="FontSize" Value="{DynamicResource UiFontBody}" />
     <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="Background" Value="{DynamicResource UiCanvas}" />
+    <Setter Property="local:Skin.IsEnabled" Value="True" />
     <Setter Property="local:Motion.IsEnabled" Value="True" />
   </Style>
   <Style Selector="Button">
