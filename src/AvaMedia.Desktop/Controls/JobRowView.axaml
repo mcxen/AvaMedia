@@ -32,14 +32,16 @@
         <TextBlock x:Name="OutputDragGrip" Text="⋮⋮" Classes="queue-secondary" IsVisible="False" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
       </Grid>
-      <TextBlock Text="{Binding SettingsSummary}" TextWrapping="Wrap" MaxHeight="36" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
-      <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-        <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
+      <TextBlock Text="{Binding SettingsSummary}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
+      <Grid>
+        <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
+        <local:AiActivityView x:Name="ActivityView" Compact="True"/>
+      </Grid>
+      <Grid x:Name="StateLine" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <Button x:Name="ViewResultButton" Grid.Column="1" Content="查看结果" Classes="tool" Click="ViewResultClick" IsVisible="False"/>
       </Grid>
-      <TextBlock Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="36" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
-      <local:AiActivityView x:Name="ActivityView"/>
+      <TextBlock Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
     </StackPanel>
   </Grid>
 </UserControl>

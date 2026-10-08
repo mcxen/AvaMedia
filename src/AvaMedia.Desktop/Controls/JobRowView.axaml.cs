@@ -97,8 +97,10 @@ public partial class JobRowView : UserControl
     }
     private void RefreshActivity()
     {
-        ActivityView.Update(_details?.Job.Activity);
-        PipelineProgress.IsVisible = _details?.Job.Activity is null;
+        var job = _details?.Job;
+        ActivityView.Update(_owner?.IsQueuePresentationVisible == true ? job?.Activity : null);
+        PipelineProgress.IsVisible = job?.Activity is null;
+        StateLine.IsVisible = job is not { State: JobState.Running, Activity: not null };
     }
     private async Task LoadAsync(JobRowDetails details, IMediaEngine engine, PreviewKey key, CancellationTokenSource cancellation)
     {
@@ -177,6 +179,7 @@ public partial class JobRowView : UserControl
     private void PresentationChanged(bool visible) { if (visible) Refresh(); else SuspendPreview(); }
     private void SuspendPreview()
     {
+        ActivityView.Update(null);
         var loading = _load; _load = null; loading?.Cancel(); _key = null;
         _previewReady = Task.CompletedTask; Ready = _details?.MetadataReady ?? Task.CompletedTask;
         _details?.ReleaseCover();
