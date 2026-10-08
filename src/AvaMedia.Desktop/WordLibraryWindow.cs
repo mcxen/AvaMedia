@@ -179,7 +179,7 @@ public sealed class WordLibraryWindow : Window
             try
             {
                 var entries = WordLibraryCatalog.ParseText(text.Text ?? "");
-                var updated = new WordLibrary(editable ? library!.Id : Guid.NewGuid().ToString("N"), name.Text?.Trim() ?? "", "自定义 · 本地", entries);
+                var updated = new WordLibrary(editable ? library!.Id : Guid.NewGuid().ToString("N"), name.Text?.Trim() ?? "", library?.Source ?? "自定义 · 本地", entries);
                 _store.Save(updated); Reload(updated.Id); editor.Close();
             }
             catch (Exception error) { await Ui.Message(editor, "词库保存失败", error.Message); }
@@ -201,7 +201,8 @@ public sealed class WordLibraryWindow : Window
             var imported = files[0].Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
                 ? JsonSerializer.Deserialize<WordLibrary>(content) ?? throw new ArgumentException("JSON 词库无效。")
                 : new WordLibrary("", Path.GetFileNameWithoutExtension(files[0].Name), "", WordLibraryCatalog.ParseText(content));
-            var library = imported with { Id = Guid.NewGuid().ToString("N"), BuiltIn = false, Source = "导入 · " + files[0].Name };
+            var library = imported with { Id = Guid.NewGuid().ToString("N"), BuiltIn = false,
+                Source = "导入 · " + (string.IsNullOrWhiteSpace(imported.Source) ? files[0].Name : imported.Source) };
             _store.Save(library); Reload(library.Id);
         }
         catch (Exception error) { await Ui.Message(this, "词库导入失败", error.Message); }
