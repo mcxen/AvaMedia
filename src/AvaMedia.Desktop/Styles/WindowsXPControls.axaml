@@ -18,8 +18,8 @@
   <ControlTheme x:Key="XPToolbarButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
     <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="toolbar"/></Style>
   </ControlTheme>
-  <ControlTheme x:Key="XPTaskButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
-    <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="task"/></Style>
+  <ControlTheme x:Key="XPFeatureButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
+    <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="tile"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="XPCategoryButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
     <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="category"/></Style>

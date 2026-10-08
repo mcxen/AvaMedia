@@ -124,6 +124,7 @@
       <x:Double x:Key="UiTableHeaderHeight">32</x:Double>
       <x:Double x:Key="UiToolbarSeparatorHeight">38</x:Double>
       <GridLength x:Key="UiSidebarWidth">425</GridLength>
+      <x:Double x:Key="UiSidebarMinWidth">0</x:Double>
       <x:Double x:Key="UiFeatureIconHeight">64</x:Double>
       <x:Double x:Key="UiFeatureRowHeight">91</x:Double>
       <GridLength x:Key="UiQueuePreviewWidth">140</GridLength>

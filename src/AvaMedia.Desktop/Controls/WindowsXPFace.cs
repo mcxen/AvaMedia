@@ -36,7 +36,7 @@ public sealed class WindowsXPFace : Decorator
     protected override Size ArrangeOverride(Size finalSize)
     {
         var area = new Rect(finalSize).Deflate(Padding);
-        if (IsPressed && Kind is "button" or "toolbar" or "arrow") area = area.Translate(new Vector(1, 1));
+        if (IsPressed && Kind is "button" or "toolbar" or "arrow" or "tile") area = area.Translate(new Vector(1, 1));
         Child?.Arrange(area);
         return finalSize;
     }
@@ -59,12 +59,13 @@ public sealed class WindowsXPFace : Decorator
         var rect = new Rect(.5, .5, width - 1, height - 1);
         var disabled = !IsEffectivelyEnabled;
         if (Kind == "focus") { if (IsFocusedFace) DrawFocus(context, rect); return; }
-        if (Kind == "task")
+        if (Kind == "tile")
         {
             if (disabled) return;
-            if (IsHot || IsPressed)
-                context.DrawRectangle(Brush.Parse(IsPressed ? "#CEDFF5" : "#E3EDFC"),
-                    new Pen(Brush.Parse(IsPressed ? "#7F9DB9" : "#B3C9EA"), 1), rect, 2, 2);
+            if (IsHot || IsPressed || IsFocusedFace)
+                context.DrawRectangle(IsPressed ? Brush.Parse("#CEDFF5")
+                        : Gradient((0, "#F7FAFF"), (1, "#DFEBFC")),
+                    new Pen(Brush.Parse(IsPressed || IsFocusedFace ? "#316AC5" : "#B3C9EA"), 1), rect, 2, 2);
             if (IsFocusedFace) DrawFocus(context, new Rect(3.5, 3.5, Math.Max(0, width - 7), Math.Max(0, height - 7)));
             return;
         }

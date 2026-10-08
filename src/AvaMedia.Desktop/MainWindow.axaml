@@ -27,7 +27,7 @@
       </StackPanel>
     </Border>
     <Grid Grid.Row="2">
-      <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiSidebarWidth}"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiSidebarWidth}" MinWidth="{DynamicResource UiSidebarMinWidth}"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
       <Border Classes="feature-sidebar" Grid.Column="0" Background="{DynamicResource UiFeaturePanel}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
         <Grid x:Name="Categories">
           <ScrollViewer x:Name="FeatureScroll" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
