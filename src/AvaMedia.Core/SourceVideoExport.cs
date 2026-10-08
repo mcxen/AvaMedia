@@ -8,7 +8,7 @@ public static class SourceVideoExport
 {
     public const string Original = "原格式 / 原属性";
     public const string FastRotation = "Fast Copy（方向标记）";
-    public const string OriginalHint = "沿用原容器、视频编码、帧率、像素格式和色彩标记，音轨和字幕直接复制，保留章节；画面需重新编码，码率和文件大小会变化。";
+    public const string OriginalHint = "沿用原容器、视频编码、帧率、像素格式和色彩标记，音轨和字幕直接复制，保留章节；画面重新编码，默认参考源视频码率。";
     public const string FastHint = "MOV / MP4 / M4V：只改播放方向标记，音视频和字幕直接复制，保留章节，不损失画质；播放器须支持方向标记。";
     public static string Selection(ConversionOptions options) => options.PreserveSourceAttributes ? Original :
         options.LosslessRotation is not null ? FastRotation : options.Format;
@@ -147,8 +147,7 @@ public static class SourceVideoExport
             }
             if (filters.Count > 0) arguments.AddRange(["-filter" + stream, string.Join(",", filters)]);
             if (outputPixels is not null) arguments.AddRange(["-pix_fmt" + stream, "+" + outputPixels]);
-            if (video.TryGetProperty("bit_rate", out var rate) && long.TryParse(rate.GetString(), out var bitrate) && bitrate > 0)
-                arguments.AddRange(["-b" + stream, bitrate.ToString(CultureInfo.InvariantCulture)]);
+            arguments.AddRange(VideoEncoding.EncodingArguments(options.VideoCodec, options, infos, VideoEncoding.TargetBitrate(job, infos), stream));
             if (fullRangeAlias) arguments.AddRange(["-color_range" + stream, "pc"]);
             foreach (var field in new[] { "color_range", "color_space", "color_transfer", "color_primaries", "chroma_location" })
             {

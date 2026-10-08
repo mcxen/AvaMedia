@@ -82,7 +82,11 @@ public sealed class OptionsWindow : Window
                 var quality=_draft.ImageQuality??(legacy?(int)Math.Round(_format=="jpg"?100-(Math.Clamp(_draft.Quality/4d,2,12)-2)*99/29d:Math.Clamp(100-_draft.Quality*90d/63,10,100)):_imageQualityDefault??90);
                 Number(video,_format=="jpg"?"JPG Quality (1 – 100)":"WebP Quality (1 – 100)",quality,(o,v)=>o.ImageQuality=legacy && v==quality?null:(int)v,true,1,100);
             }
-            else if(!input && _kind!=MediaOptionsKind.Frames && (image?_format=="avif":_format!="gif"))Number(video,"质量 (值越低质量越高)",_draft.Quality,(o,v)=>o.Quality=(int)v,true,1,63);
+            else if(!input && _kind!=MediaOptionsKind.Frames && (image?_format=="avif":VideoFormats.OriginalOutputExtensions.Contains(_format)))
+            {
+                if(image)Number(video,"质量 (值越低质量越高)",_draft.Quality,(o,v)=>o.Quality=(int)v,true,1,63);
+                else VideoEncodingFields(video);
+            }
             if(!outputOnly)
             {
                 Choice(video,"旋转角度",["0","90","180","270"],(_draft.LosslessRotation??_draft.Rotation).ToString(),(o,v)=>
@@ -207,10 +211,33 @@ public sealed class OptionsWindow : Window
         return [..software,..HardwareAcceleration.CompatibleCodecs(format)];
     }
     private static void Add(Panel panel,string label,Control control){var row=new Grid{ColumnDefinitions=new("230,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}
+    private void VideoEncodingFields(StackPanel panel)
+    {
+        var labels=new[]{"参考源视频码率（默认）","按质量编码","自定义视频码率"};
+        var mode=Ui.Combo(labels,labels[Math.Clamp((int)_draft.VideoRateMode,0,2)]);mode.Name="VideoRateModeCombo";
+        mode.IsEnabled=_copyMode!=true;
+        Add(panel,"码率控制",mode);_readers.Add(o=>o.VideoRateMode=(VideoRateMode)mode.SelectedIndex);
+        var bitrate=new StackPanel{Spacing=12};var quality=new StackPanel{Spacing=12};
+        panel.Children.Add(bitrate);panel.Children.Add(quality);
+        Number(bitrate,"视频码率 (kbps)",_draft.VideoBitrate,(o,v)=>o.VideoBitrate=(int)v,true,1,200000);
+        Number(quality,"质量 (值越低质量越高)",_draft.Quality,(o,v)=>o.Quality=(int)v,true,1,63);
+        var note=Ui.Text("","caption");note.TextWrapping=Avalonia.Media.TextWrapping.Wrap;panel.Children.Add(note);
+        void Refresh()
+        {
+            bitrate.IsVisible=mode.SelectedIndex==2;quality.IsVisible=mode.SelectedIndex==1;
+            note.Text=Localization.Text(_copyMode==true?"流复制保留原码率，不应用重新编码设置。":mode.SelectedIndex switch
+            {
+                0=>"视频、音频参考源平均码率；重新编码后的大小可能略有变化。",
+                1=>"按质量编码不限制体积；提高质量不会恢复源视频已丢失的细节。",
+                _=>"可主动提高码率；提高码率通常只会增大体积，不会恢复原始细节。"
+            });
+        }
+        mode.SelectionChanged+=(_,_)=>Refresh();Refresh();
+    }
     private void Number(Panel panel,string label,double value,Action<ConversionOptions,double> set,bool integer,double min,double max)
     {
         var box=Ui.Input(MediaEngine.Number(value));if(label=="音量 (%)")box.Name="VolumePercent";if(label=="音频淡入时长 (秒)")box.Name="AudioFadeInInput";if(label=="音频淡出时长 (秒)")box.Name="AudioFadeOutInput";Add(panel,label,box);_readers.Add(o=>{if(!panel.IsVisible)return;var number=double.Parse(box.Text??"",CultureInfo.InvariantCulture);if(!double.IsFinite(number)||number<min||number>max||integer&&number!=Math.Truncate(number))throw new ArgumentException(integer ? Localization.Format($"{Localization.Key(label)}：请输入有效整数。") : Localization.Format($"{Localization.Key(label)}：请输入有效数值。"));set(o,number);});
-        if(label.StartsWith("视频轨索引"))box.Name="VideoStreamIndex";if(label.StartsWith("音频轨索引"))box.Name="AudioStreamIndex";if(label.StartsWith("字幕轨索引"))box.Name="SubtitleStreamIndex";if(label.StartsWith("烧录字号"))box.Name="SubtitleFontSize";if(label.StartsWith("JPG Quality") || label.StartsWith("WebP Quality"))box.Name="ImageQualityInput";
+        if(label.StartsWith("视频轨索引"))box.Name="VideoStreamIndex";if(label=="视频码率 (kbps)")box.Name="VideoBitrateInput";if(label.StartsWith("音频轨索引"))box.Name="AudioStreamIndex";if(label.StartsWith("字幕轨索引"))box.Name="SubtitleStreamIndex";if(label.StartsWith("烧录字号"))box.Name="SubtitleFontSize";if(label.StartsWith("JPG Quality") || label.StartsWith("WebP Quality"))box.Name="ImageQualityInput";
     }
     private void Choice(Panel panel,string label,string[] items,string value,Action<ConversionOptions,string> set,bool enabled=true)
     {

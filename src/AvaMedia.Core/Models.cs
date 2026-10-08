@@ -83,7 +83,8 @@ public sealed class ConversionOptions
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
-    public int VideoBitrate { get; set; }
+    public VideoRateMode VideoRateMode { get; set; } = VideoRateMode.Source;
+    public int VideoBitrate { get; set; } = 4000;
     public int? ImageQuality { get; set; }
     public int Threads { get; set; }
     public int Width { get; set; }

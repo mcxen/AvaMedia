@@ -47,6 +47,8 @@ public static class QuickClipWorkflow
                 options.VideoCodec = exportOptions.VideoCodec;
                 options.AudioCodec = exportOptions.AudioCodec;
                 options.Quality = exportOptions.Quality;
+                options.VideoRateMode = exportOptions.VideoRateMode;
+                options.VideoBitrate = exportOptions.VideoBitrate;
                 options.Width = exportOptions.Width;
                 options.Height = exportOptions.Height;
                 options.Fps = exportOptions.Fps;

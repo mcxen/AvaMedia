@@ -199,6 +199,7 @@ public sealed class MediaEngine : IMediaEngine
     public static bool HasFilters(ConversionOptions o) => HasVideoFilters(o) || HasAudioFilters(o);
     public static void ValidateEncodingOptions(ConversionOptions o)
     {
+        VideoEncoding.Validate(o);
         SourceVideoExport.ValidateOptions(o);
         if(!o.CopyStreams && HardwareTranscoding.Encoder(o.VideoCodec) is {} hardwareEncoder && !HardwareTranscoding.Compatible(o.Format,hardwareEncoder.Format))
             throw new ArgumentException("所选硬件编码器与输出格式不兼容，请使用自动编码或选择兼容格式。");
@@ -366,6 +367,11 @@ public sealed class MediaEngine : IMediaEngine
         if(effective.PreserveSourceAttributes)
             hardware=hardware.Where(codec=>SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex)).ToArray();
         ProcessResult? result=null;var hardwareLog=new StringBuilder();
+        if(!effective.CopyStreams && effective.VideoCodec!="copy" && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
+        {
+            var bitrate=VideoEncoding.TargetBitrate(effectiveJob,infos);
+            hardwareLog.AppendLine(bitrate is {} bits?$"{(effective.VideoRateMode==VideoRateMode.Source?"参考源视频码率":"自定义视频码率")}：{bits/1000d:0.###} kbps，峰值受限。":$"按质量编码：质量 {effective.Quality}，不限制输出体积。");
+        }
         if(effective.PreserveSourceAttributes && hardware.Count==0)
             hardwareLog.AppendLine(Settings.AutoDetectGpu?"没有可用且能保留源编码、位深与色度采样的 GPU 编码器，使用原编码的软件实现。":"自动 GPU 已关闭，使用原编码的软件实现。");
         var failedDecoders=new HashSet<string>(StringComparer.Ordinal);
@@ -390,6 +396,12 @@ public sealed class MediaEngine : IMediaEngine
         {
             if(hardware.Count>0)hardwareLog.AppendLine("可用硬件编码器均失败，回退软件编码。");
             effective.VideoCodec=effective.PreserveSourceAttributes?SourceVideoExport.Encoder(infos[0],sourceEncoderListing!):job.Options.VideoCodec;
+            if(effective.VideoCodec=="自动" && effective.VideoRateMode==VideoRateMode.Source && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
+            {
+                var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
+                if(encoders.ExitCode!=0)throw new InvalidOperationException("无法读取视频编码器。"+encoders.Error);
+                effective.VideoCodec=VideoEncoding.SoftwareEncoder(effective.Format,infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"",encoders.Output+encoders.Error);
+            }
             if(effective.VideoCompression is {} fallbackCompression)
             {
                 var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
@@ -463,7 +475,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.End>0) a.AddRange(["-t",Number((o.End-o.Start)/o.Speed)]);
         if(f.Operation==Operation.Join && combined)
         {
-            bool audioOnly=IsAudio(o.Format),withAudio=!o.Mute;var graph=new StringBuilder();var parts=new StringBuilder();
+            bool audioOnly=IsAudio(o.Format),withAudio=!o.Mute && infos.Where((info,index)=>job.InputOptions?.ElementAtOrDefault(index)?.Mute!=true).Any(info=>info.HasAudio);var graph=new StringBuilder();var parts=new StringBuilder();
             for(int i=0;i<infos.Count;i++)
             {
                 if(!audioOnly)
@@ -472,7 +484,7 @@ public sealed class MediaEngine : IMediaEngine
                     int w=Math.Max(2,infos[0].Width/2*2),h=Math.Max(2,infos[0].Height/2*2);
                     var edit=job.InputOptions?.ElementAtOrDefault(i)??new ConversionOptions();
                     var vf=MediaFilters.Video(edit,MediaFilters.Duration(infos[i],edit),"i"+i,true,job.Inputs[i]);
-                    vf.AddRange([$"scale={w}:{h}:force_original_aspect_ratio=decrease",$"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2","setsar=1","fps="+Number(o.Fps>0?o.Fps:25),"setpts=PTS-STARTPTS"]);
+                    vf.AddRange([$"scale={w}:{h}:force_original_aspect_ratio=decrease",$"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2","setsar=1","fps="+Number(o.Fps>0?o.Fps:infos[0].FrameRate>0?infos[0].FrameRate:25),"setpts=PTS-STARTPTS"]);
                     graph.Append($"[{i}:v:{infos[i].VideoStreamIndex}]"+string.Join(",",vf)+$"[v{i}];");parts.Append($"[v{i}]");
                 }
                 if(withAudio)
@@ -571,17 +583,16 @@ public sealed class MediaEngine : IMediaEngine
                 if(o.VideoCompression is not null)a.AddRange(["-metadata:s:v:0","rotate=0"]);
                 if(compressionColor?.ToneMap==true)a.AddRange(["-colorspace","bt709","-color_trc","bt709","-color_primaries","bt709","-color_range","tv"]);
                 if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o));
-                else if(codec is "mpeg4" or "wmv2" or "flv" or "mpeg2video")a.AddRange(["-q:v",Number(Math.Clamp(o.Quality/4d,2,12))]);
-                else if(codec=="libvpx-vp9")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-deadline","good","-cpu-used","4"]);
-                else if(codec is "libx264" or "libx265")a.AddRange(["-crf",o.Quality.ToString(),"-preset","medium"]);
-                else if(codec=="libaom-av1")a.AddRange(["-crf",o.Quality.ToString(),"-b:v","0","-cpu-used","6"]);
-                else if(hardwareBackend is not null && HardwareTranscoding.Encoder(codec) is {} selectedEncoder)
-                    a.AddRange(hardwareBackend.EncodingArguments(selectedEncoder,HardwareTranscoding.Context(o,infos)));
-                else if(codec=="h264_mf")a.AddRange(["-rate_control","quality","-quality",Math.Clamp(100-o.Quality*100/63,1,100).ToString()]);
+                else a.AddRange(VideoEncoding.EncodingArguments(codec,o,infos,codec=="copy"?null:VideoEncoding.TargetBitrate(job,infos)));
                 if(o.Fps>0)a.AddRange(["-r",Number(o.Fps)]);
             }
             string ac=o.AudioCodec=="自动"?o.Format switch {"mp3"=>"libmp3lame","flac"=>"flac","wav"=>"pcm_s16le","aiff"=>"pcm_s16be","ogg"=>"libvorbis","opus" or "webm"=>"libopus","ac3"=>"ac3","wma" or "wmv"=>"wmav2","mpg"=>"mp2",_=>"aac"}:o.AudioCodec;
             if(!o.Mute && f.Operation!=Operation.SplitVideo){a.AddRange(["-c:a",ac]);if(ac!="copy"){if(ac is not ("flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))a.AddRange(["-b:a",o.AudioBitrate+"k"]);if(ac=="libopus" || o.SampleRate>0)a.AddRange(["-ar",(ac=="libopus"?48000:o.SampleRate).ToString()]);if(o.AudioChannels>0)a.AddRange(["-ac",o.AudioChannels.ToString()]);}}
+            if(!o.Mute && f.Operation!=Operation.SplitVideo && ac is not ("copy" or "flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))
+            {
+                var rates=VideoEncoding.AudioBitrates(job,infos,ac);
+                for(var index=0;index<rates.Count;index++)a.AddRange(["-b:a:"+index,rates[index].ToString(CultureInfo.InvariantCulture)]);
+            }
             if(o.Format is "mp4" or "mov" or "m4v" or "m4a" or "3gp" or "3g2") a.AddRange(["-movflags","+faststart"]);
         }
         if(o.Threads>0 && !o.CopyStreams)a.AddRange(["-threads",o.Threads.ToString()]);

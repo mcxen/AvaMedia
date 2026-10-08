@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace AvaMedia.Core;
@@ -51,32 +49,9 @@ public static class SourceVideoGpu
             else Add(["-color_range" + stream, "pc"]);
         }
 
-        var quality = Math.Clamp(options.Quality, 1, 51).ToString(CultureInfo.InvariantCulture);
-        if (codec.EndsWith("_nvenc", StringComparison.Ordinal))
-        {
-            Add(["-preset", "p4", "-tune", "hq", "-rc", "vbr", "-cq", quality]);
-            if (!arguments.Contains("-b" + stream)) Add(["-b" + stream, "0"]);
-        }
-        else if (codec.EndsWith("_qsv", StringComparison.Ordinal))
-        {
+        // SourceVideoExport supplies the selected rate mode; adding QP here would override its bitrate budget.
+        if (codec.EndsWith("_qsv", StringComparison.Ordinal))
             arguments.InsertRange(arguments.IndexOf("-i"), ["-init_hw_device", "qsv=avamedia_qsv:hw_any"]);
-            var qsvQuality = codec.StartsWith("av1_", StringComparison.Ordinal)
-                ? Math.Clamp((int)Math.Round(Math.Clamp(options.Quality, 1, 63) * 255d / 63), 1, 255).ToString(CultureInfo.InvariantCulture) : quality;
-            Add(["-preset", "medium", "-q" + stream, qsvQuality]);
-        }
-        else if (codec.EndsWith("_amf", StringComparison.Ordinal))
-        {
-            var amfQuality = codec.StartsWith("av1_", StringComparison.Ordinal)
-                ? Math.Clamp((int)Math.Round(Math.Clamp(options.Quality, 1, 63) * 255d / 63), 1, 255).ToString(CultureInfo.InvariantCulture) : quality;
-            Add(["-quality", "balanced", "-rc", "cqp", "-qp_i", amfQuality, "-qp_p", amfQuality]);
-        }
-        else
-        {
-            Add(["-allow_sw", "0", "-realtime", "0"]);
-            if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
-                Add(["-q" + stream, MediaEngine.Number(100 - (Math.Clamp(options.Quality, 1, 63) - 1) * 99d / 62)]);
-            else if (!arguments.Contains("-b" + stream)) Add(["-b" + stream, "4000000"]);
-        }
         return arguments;
 
         void Add(IEnumerable<string> values) => arguments.InsertRange(arguments.Count - 1, values);

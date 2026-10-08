@@ -60,10 +60,19 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     }
     private void FormatChanged(object? sender,SelectionChangedEventArgs e)
     {
-        if(FormatNote is null)return;
-        FormatNote.Text=Preset=="Fast Copy"?"Fast Copy 剪辑边界受关键帧限制。":"";
-        FormatNote.IsVisible=Preset=="Fast Copy";
-        ValidateExport();
+        RefreshFormatNote();ValidateExport();
+    }
+    private void RefreshFormatNote()
+    {
+        if(FormatNote is null || _options is null)return;
+        FormatNote.Text=Localization.Text(Preset=="Fast Copy"?"原格式 / 原码率：直接复制音视频；剪辑边界受关键帧限制。":
+            _options.VideoRateMode switch
+            {
+                VideoRateMode.Source=>"重新编码，默认参考源视频码率；可在编码与质量中修改。",
+                VideoRateMode.Quality=>"按质量编码，输出体积可能增大。",
+                _=>"按自定义视频码率编码。"
+            });
+        FormatNote.IsVisible=true;
     }
     private void OutputLocationChanged(object? sender,RoutedEventArgs e){SetOutputLocation();ValidateExport();}
     private void SetOutputLocation(){if(ExportFolder is null)return;ExportFolder.IsEnabled=BrowseFolderButton.IsEnabled=OutputToSource.IsChecked!=true;}
@@ -72,7 +81,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     {
         var options=_options.Clone();options.Format=Preset=="Fast Copy"?"mp4":Preset.ToLowerInvariant();
         if(await new OptionsWindow(options,copyStreamsMode:Preset=="Fast Copy",kind:MediaOptionsKind.ClipExport).ShowDialog<ConversionOptions?>(this) is {} result)
-        {_options=result;ValidateExport();}
+        {_options=result;RefreshFormatNote();ValidateExport();}
     }
     private void BackClick(object? sender,RoutedEventArgs e)=>Close(new ClipExportDecision(true,ReadState()));
     private void CancelClick(object? sender,RoutedEventArgs e)=>Close(null);

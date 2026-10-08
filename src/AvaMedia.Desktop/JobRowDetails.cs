@@ -148,6 +148,13 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
                 if (o.VoiceEnhancement) parts.Add(Localization.Format($"人声增强 {o.VoiceEnhancementStrength}%"));
                 if (Job.InputOptions?.Count > 0) parts.Add("逐文件编辑");
             }
+            if (feature.Operation is Operation.Convert or Operation.Join or Operation.Mux or Operation.SplitVideo or Operation.Transcribe && !o.CopyStreams && o.LosslessRotation is null && o.VideoCodec != "copy" && VideoFormats.OriginalOutputExtensions.Contains(o.Format))
+                parts.Add(o.VideoRateMode switch
+                {
+                    VideoRateMode.Source => "参考源码率",
+                    VideoRateMode.Bitrate => Localization.Format($"视频 {o.VideoBitrate} kbps"),
+                    _ => Localization.Format($"质量 {o.Quality}")
+                });
             return Localization.Join(" · ", parts);
         }
     }
