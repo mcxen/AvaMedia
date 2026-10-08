@@ -18,4 +18,11 @@ public static partial class WordLibraryCatalog
             .ToDictionary(group => group.Key, group => group.First().Category, StringComparer.OrdinalIgnoreCase);
 
     public static string TagCategory(string tag) => TagCategories.GetValueOrDefault(tag) ?? "其他标签";
+
+    private static Dictionary<string, string> CreateTagLabels() => Common()
+            .Where(entry => entry.Tags.Length == 1)
+            .GroupBy(entry => entry.Tags[0], StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Label, StringComparer.OrdinalIgnoreCase);
+
+    public static string TagLabel(string tag) => TagLabels.GetValueOrDefault(tag) ?? tag;
 }

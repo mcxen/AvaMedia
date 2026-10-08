@@ -123,7 +123,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Backend(session.Backend);
                     activity.Frame(item.Image, item.File.Name);
                     activity.Result(item.File.Name + " · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j]))
-                        .OrderByDescending(score => score.Score).Take(5).Select(score => $"{score.Tag} {score.Score:0.00}")));
+                        .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     Report(item.File.FullName, new(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
                         1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason), null);
                 }
@@ -192,7 +192,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Backend(session.Backend);
                     activity.Frame(latest.Image, $"{file.Name} · {MediaTime.Format(latest.Seconds)}");
                     activity.Result("当前标签 · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / scored, maximum[j]))
-                        .OrderByDescending(score => score.Score).Take(5).Select(score => $"{score.Tag} {score.Score:0.00}")));
+                        .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     activity.Advance(scored, count, "帧", session.FallbackReason is null ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");
                 }
                 CheckSource(file, length, modified);

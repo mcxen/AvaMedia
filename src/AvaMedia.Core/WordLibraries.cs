@@ -21,15 +21,17 @@ public static partial class WordLibraryCatalog
     public static readonly WordLibrary[] BuiltIns;
     private static readonly WordCandidate[] FeatureEntries;
     private static readonly Dictionary<string, string> TagCategories;
+    private static readonly Dictionary<string, string> TagLabels;
 
     static WordLibraryCatalog()
     {
         JoyTags = ReadText("joytag.txt").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         FeatureEntries = ReadFeatureWords();
         TagCategories = CreateTagCategories();
+        TagLabels = CreateTagLabels();
         BuiltIns = new WordLibrary[]
         {
-        new("person-features", "人物特征", "AvaMedia · 头发、身体、乳房、眼睛与面部特征", FeatureEntries),
+        new("person-features", "人物特征", "AvaMedia · 外观、配饰、动作、神态与体毛特征", FeatureEntries),
         new("common", "常用分类", "AvaMedia · 中文名称与模型标签映射", Common()),
         new("ratings", "内容分级候选", "AvaMedia · 语义描述，需人工确认", [
             new("非NSFW", "内容分级", "An ordinary safe-for-work scene, fully clothed people, everyday objects or nature, suitable for a general audience.", []),
@@ -115,12 +117,12 @@ public static partial class WordLibraryCatalog
 物体	室外	outdoors
 成人标签	生殖器	genitals
 """;
-        return text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
+        return FeatureEntries.Concat(text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
         {
             var fields = line.Split('\t'); var tags = fields[2].Split('+');
             return new WordCandidate(fields[1], fields[0], "A photo showing " + string.Join(" and ", tags.Select(tag => tag.Replace('_', ' '))) + ".",
                 tags.All(JoyTags.Contains) ? tags : []);
-        }).Concat(FeatureEntries).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
+        })).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     public static WordCandidate[] ParseText(string text)

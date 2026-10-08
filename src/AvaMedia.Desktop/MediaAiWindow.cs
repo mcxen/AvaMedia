@@ -229,7 +229,7 @@ public sealed partial class MediaAiWindow : Window
         var threshold = Number(_threshold);
         entry.Details = string.Join(Environment.NewLine, result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
             .GroupBy(score => WordLibraryCatalog.TagCategory(score.Tag))
-            .Select(group => Localization.Text(group.Key) + " · " + string.Join(" · ", group.Select(score => $"{score.Tag} {score.Score:0.00}"))));
+            .Select(group => Localization.Text(group.Key) + " · " + string.Join(" · ", group.Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}"))));
     }
     private void Match()
     {
