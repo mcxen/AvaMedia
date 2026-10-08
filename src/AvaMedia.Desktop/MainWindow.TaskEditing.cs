@@ -6,16 +6,16 @@ public partial class MainWindow
 {
     private Job? _editingJob;
 
-    internal bool CanEditTask(Job job) => !_closing && !_queue.IsRunning && _editingJob is null
-        && job.State != JobState.Running && _jobs.Contains(job);
+    internal bool CanEditTask(Job job) => CanManageTasks && !_queue.IsExecuting(job)
+        && job.State is not (JobState.Running or JobState.Stopping) && _jobs.Contains(job);
 
     private void UpdateTaskEditingActions()
     {
         var enabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job job && CanEditTask(job);
         EditTaskButton.IsEnabled = EditTaskMenuItem.IsEnabled = EditTaskContextMenu.IsEnabled = enabled;
         ViewSummaryResultMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job result && CanViewSummaryResult(result);
-        RetryTaskMenu.IsEnabled = !_queue.IsRunning && _editingJob is null
-            && (JobList.SelectedItems?.OfType<Job>().Any(item => item.CanRetry) ?? false);
+        RetryTaskMenu.IsEnabled = SelectedJobs().Any(item => CanRequeueTask(item) && item.State == JobState.Failed);
+        UpdateTaskManagementActions();
     }
 
     private IEnumerable<string> EditingReservations(Job original) => _jobs.Where(job => job != original).Select(job => job.Output);
@@ -23,14 +23,15 @@ public partial class MainWindow
     private static void ResetTask(Job job)
     {
         job.Log = "";
-        job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.Error = ""; job.Activity = null;
+        job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.DownloadSpeed = null; job.Error = ""; job.Activity = null;
         job.State = JobState.Waiting;
     }
 
     private void ApplyEditedJobs(Job original, IReadOnlyList<Job> replacements, bool preserveOutputName = true)
     {
-        if (_closing || _queue.IsRunning || original.State == JobState.Running || !_jobs.Contains(original)) return;
+        if (_closing || _queue.IsExecuting(original) || original.State is JobState.Running or JobState.Stopping || !_jobs.Contains(original)) return;
         var replacement = replacements[0];
+        var paused = original.State == JobState.Paused;
         if (preserveOutputName && Catalog.Find(replacement.FeatureId).Operation != Operation.Download)
         {
             var directory = Catalog.DirectoryOutput(Catalog.Find(replacement.FeatureId).Operation);
@@ -45,14 +46,18 @@ public partial class MainWindow
         original.Output = replacement.Output; original.DownloadTitle = replacement.DownloadTitle;
         original.Duration = replacement.Duration;
         ResetTask(original);
+        if (paused) original.State = JobState.Paused;
         var index = _jobs.IndexOf(original);
-        foreach (var additional in replacements.Skip(1)) _jobs.Insert(++index, additional);
+        foreach (var additional in replacements.Skip(1))
+        { if (paused) additional.State = JobState.Paused; _jobs.Insert(++index, additional); }
         Save(); Refresh();
     }
 
     internal async Task EditJob(Job job)
     {
         if (!CanEditTask(job)) return;
+        var scheduled = _queue.IsScheduled(job);
+        if (!_queue.Withdraw(job)) return;
         _editingJob = job; Refresh();
         try
         {
@@ -83,6 +88,12 @@ public partial class MainWindow
             ApplyEditedJobs(job, jobs, preserveOutputName: result.SettingName.Length == 0);
         }
         catch (Exception exception) { await Ui.Message(this, "任务编辑失败", exception.Message); }
-        finally { _editingJob = null; Refresh(); }
+        finally
+        {
+            _editingJob = null;
+            if (scheduled && _jobs.Contains(job) && job.State == JobState.Waiting)
+            { _queue.Enqueue([job]); _queue.ReorderPending(_jobs); }
+            Save(); Refresh();
+        }
     }
 }

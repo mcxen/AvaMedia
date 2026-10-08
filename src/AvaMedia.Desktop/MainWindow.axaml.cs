@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         UpdateLanguageMenu();Localization.Changed+=LanguageChanged;
         Closed+=(_,_)=>Localization.Changed-=LanguageChanged;
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
+        InitializeTaskManagement();
         InitializeOptions();
         RefreshOutputPath();Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=QueueJobChanged;
@@ -139,44 +140,29 @@ public partial class MainWindow : Window
         if (_startupOptionsInitialized && !_backgroundWindowVisible) return;
         UpdateElapsed();
         PresentDownloadSpeedMonitor();
-        StartButton.IsEnabled=!_queue.IsRunning && _editingJob is null && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
+        StartButton.IsEnabled=CanManageTasks && !_queue.IsStopping && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning&&CanManageTasks;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
         UpdateTaskEditingActions();
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
         if(refreshRows)JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
         => await StartQueueAsync();
-    private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_queue.Stop();
+    private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){_queue.Stop();Save();Refresh();}
     private async void AddClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Configure(_last);
     private async void RemoveClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if(_queue.IsRunning)return;
-        var removed=JobList.SelectedItems?.Cast<Job>().ToArray()??[];
-        foreach(var job in removed)_jobs.Remove(job);
-        Save();Refresh();
-        try{await _queueSave;await _storage.DeleteJobLogsAsync(removed);}
+        try{await RemoveTasksAsync(SelectedJobs());}
         catch(Exception ex){await Ui.Message(this,"移除任务",ex.Message);}
     }
     private async void ClearClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         if(_queue.IsRunning)return;
-        var removed=_jobs.ToArray();_jobs.Clear();Save();Refresh();
-        try{await _queueSave;await _storage.DeleteJobLogsAsync(removed);}
+        try{await RemoveTasksAsync(_jobs.ToArray());}
         catch(Exception ex){await Ui.Message(this,"清空列表",ex.Message);}
     }
     private async void RetryClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if(_queue.IsRunning || _editingJob is not null)return;
-        try
-        {
-            foreach(var j in JobList.SelectedItems?.Cast<Job>().Where(j=>j.CanRetry)??[])
-            {
-                bool directory=Catalog.DirectoryOutput(Catalog.Find(j.FeatureId).Operation);
-                var output=MediaEngine.UniqueOutput(Path.GetDirectoryName(j.Output)!,directory?Path.GetFileName(j.Output):Path.GetFileNameWithoutExtension(j.Output),j.Options.Format,EditingReservations(j),directory);
-                ResetTask(j);j.Output=output;
-            }
-            Save();Refresh();
-        }
+        try{await RestartTasksAsync(SelectedJobs().Where(j=>j.State==JobState.Failed).ToArray());}
         catch(Exception ex){await Ui.Message(this,"重试任务",ex.Message);}
     }
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
@@ -188,8 +174,8 @@ public partial class MainWindow : Window
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
-    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);else await Ui.Message(this,"输出文件","任务尚未生成输出。");}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
-    private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItem is Job j){try{var path=Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;Directory.CreateDirectory(path);Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed){try{if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j]){try{var path=Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;if(Directory.Exists(path))Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         if(JobList.SelectedItem is not Job job)return;

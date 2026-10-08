@@ -158,6 +158,8 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
         JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
+        JobState.Paused => "已暂停排队",
+        JobState.Stopping => "正在终止",
         _ => "已停止"
     };
     public string StateDetail => Job.State switch
@@ -165,7 +167,6 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         JobState.Running when Job.Activity is not null => "",
         JobState.Running => Job.Status.IndexOf(" · ", StringComparison.Ordinal) is >= 0 and var separator ? Job.Status[(separator + 3)..] : "",
         JobState.Failed => string.IsNullOrWhiteSpace(Job.Error) ? "右键查看日志" : Job.Error.Trim(),
-        JobState.Cancelled => "可右键重试任务",
         _ => ""
     };
     public bool HasStateDetail => StateDetail.Length > 0;

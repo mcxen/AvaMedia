@@ -117,7 +117,7 @@ public partial class MainWindow
     private void ConfigureTaskTray()
     {
         if (_optionServices is not IBackgroundTaskTray tray) return;
-        tray.SetTaskActions(new(() => _ = InvokeTrayActionAsync(StartQueueAsync), () => _queue.Stop(),
+        tray.SetTaskActions(new(() => _ = InvokeTrayActionAsync(StartQueueAsync), () => { _queue.Stop(); Save(); Refresh(); },
             () => _ = InvokeTrayActionAsync(OpenBackgroundOutputAsync), () => _ = InvokeTrayActionAsync(ShowLastCompletionAsync), MoveToBackground));
         RefreshTaskState();
     }
@@ -138,17 +138,26 @@ public partial class MainWindow
     {
         if (!_trayEnabled || _optionServices is not IBackgroundTaskTray tray) return;
         var waiting = _jobs.Count(j => j.State == JobState.Waiting);
-        var active = _jobs.Where(j => j.State == JobState.Running).ToArray();
+        var active = _jobs.Where(j => j.State is JobState.Running or JobState.Stopping).ToArray();
         var completed = _jobs.Count(j => j.State == JobState.Completed); var failed = _jobs.Count(j => j.State == JobState.Failed);
         var summary = _closing ? "正在退出…" : _queue.IsRunning
             ? Localization.Format($"处理中 {active.Length} 个 · {(active.Length > 0 ? active.Average(j => j.Progress) : 0):0}% · 等待 {waiting} 个")
             : Localization.Format($"等待 {waiting} 个 · 完成 {completed} 个 · 失败 {failed} 个");
-        tray.UpdateTaskState(new(summary, !_closing && !_queue.IsRunning && _editingJob is null && waiting > 0, !_closing && _queue.IsRunning, _lastCompletion is not null, !IsVisible));
+        tray.UpdateTaskState(new(summary, _jobs.Any(CanStartTask), !_closing && _queue.IsRunning && !_queue.IsStopping, _lastCompletion is not null, !IsVisible));
     }
-    private async Task StartQueueAsync()
+    private readonly List<Job> _runningBatch = [];
+    private Task StartQueueAsync() => StartQueueAsync(_jobs.Where(CanStartTask).ToArray());
+    private async Task StartQueueAsync(Job[] requested)
     {
-        if (_closing || _queue.IsRunning || _editingJob is not null) return;
-        var batch = _jobs.Where(j => j.State == JobState.Waiting).ToArray(); if (batch.Length == 0) return;
+        if (!CanManageTasks || _queue.IsStopping) return;
+        var batch = requested.Where(job => _jobs.Contains(job) && CanStartTask(job)).Distinct().ToArray(); if (batch.Length == 0) return;
+        if (_queue.IsRunning)
+        {
+            var added = _queue.Enqueue(batch);
+            _runningBatch.AddRange(added.Where(job => !_runningBatch.Contains(job)));
+            _queue.ReorderPending(_jobs); Save(); Refresh(); return;
+        }
+        _runningBatch.Clear(); _runningBatch.AddRange(batch);
         if (batch.Any(j => j.FeatureId == "download")) ResetDownloadSpeedMonitor();
         _completionCancellation?.Cancel(); _lastCompletion = null; Save(); _elapsed.Restart();
         _timer.Start();
@@ -160,8 +169,9 @@ public partial class MainWindow
         finally { _elapsed.Stop(); _timer.Stop(); _running = Task.CompletedTask; SampleDownloadSpeedMonitor(); }
         if (_closing) return;
         Interlocked.Exchange(ref _queueDirty, 0);
-        Save(); _lastCompletion = QueueCompletion.From(batch); Refresh();
-        CompletionActions = FinishQueueOptionsAsync(batch, _settings.Clone()); await CompletionActions;
+        var finished = _runningBatch.Where(_jobs.Contains).Distinct().ToArray(); _runningBatch.Clear();
+        Save(); _lastCompletion = QueueCompletion.From(finished); Refresh();
+        CompletionActions = FinishQueueOptionsAsync(finished, _settings.Clone()); await CompletionActions;
     }
     private async Task ShowLastCompletionAsync()
     {

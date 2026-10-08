@@ -35,20 +35,13 @@ public partial class MainWindow
         var window = new SettingsWindow(_settings, _optionServices); window.OpenModelManagement();
         window.Applied += (_, _) => ApplyOptions(); await window.ShowDialog<bool>(this);
     }
-    private bool CanRetryNotification(Job[] jobs) => !_closing && !_queue.IsRunning && _editingJob is null
-        && jobs.Any(job => _jobs.Contains(job) && (job.CanRetry || job.State == JobState.Completed));
+    private bool CanRetryNotification(Job[] jobs) => jobs.Any(job => _jobs.Contains(job) && CanRequeueTask(job)
+        && (job.CanRetry || job.State == JobState.Completed));
 
     private async Task RetryNotificationAsync(Job[] jobs)
     {
         if (!CanRetryNotification(jobs)) return;
-        foreach (var job in jobs.Where(job => _jobs.Contains(job) && (job.CanRetry || job.State == JobState.Completed)))
-        {
-            var directory = Catalog.DirectoryOutput(Catalog.Find(job.FeatureId).Operation);
-            var name = directory ? Path.GetFileName(job.Output) : Path.GetFileNameWithoutExtension(job.Output);
-            var output = MediaEngine.UniqueOutput(Path.GetDirectoryName(job.Output)!, name, job.Options.Format, EditingReservations(job), directory);
-            ResetTask(job); job.Output = output;
-        }
-        Save(); Refresh(); await StartQueueAsync();
+        await RestartTasksAsync(jobs.Where(job => job.CanRetry || job.State == JobState.Completed).ToArray());
     }
     private Task FocusJobsAsync(Job[] jobs)
     {

@@ -15,7 +15,7 @@ public sealed partial class Storage
     {
         var jobs=Read<List<Job>>("queue.json") ?? [];
         foreach (var job in jobs) job.AttachLogs(_logs);
-        foreach(var j in jobs.Where(j=>j.State == JobState.Running)) {j.State=JobState.Cancelled;j.Error="应用在任务完成前退出，可重试。";}
+        foreach(var j in jobs.Where(j=>j.State is JobState.Running or JobState.Stopping)) {j.State=JobState.Cancelled;j.Error="应用在任务完成前退出，可重试。";}
         return jobs;
     }
     public void SaveSettings(AppSettings s) => Write("settings.json",s);
@@ -99,7 +99,7 @@ public sealed partial class Storage
                     throw new InvalidDataException("任务列表格式无效。");
                 job.Id = Guid.NewGuid();
                 job.AttachLogs(_logs);
-                if (job.State == JobState.Running) job.State = JobState.Cancelled;
+                if (job.State is JobState.Running or JobState.Stopping) job.State = JobState.Cancelled;
                 jobs.Add(job);
                 if (entry.TryGetProperty(nameof(Job.Log), out var log))
                 {

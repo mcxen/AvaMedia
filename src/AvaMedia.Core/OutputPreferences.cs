@@ -43,6 +43,6 @@ public sealed record QueueCompletion(int Completed, int Failed, int Cancelled, I
             .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToArray();
         // An interrupted queue also includes jobs that never acquired a concurrency slot.
         return new(batch.Count(j => j.State == JobState.Completed), batch.Count(j => j.State == JobState.Failed),
-            batch.Count(j => j.State is JobState.Cancelled or JobState.Waiting or JobState.Running), folders);
+            batch.Count(j => j.State is JobState.Cancelled or JobState.Waiting or JobState.Running or JobState.Paused or JobState.Stopping), folders);
     }
 }
