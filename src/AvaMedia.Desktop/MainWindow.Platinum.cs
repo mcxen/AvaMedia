@@ -10,5 +10,8 @@ public partial class MainWindow
         RefreshFeatureMetrics();
     }
 
-    private void PlatinumPresentationChanged(object? sender, EventArgs args) => RefreshFeatureMetrics();
+    private void PlatinumPresentationChanged(object? sender, EventArgs args)
+    {
+        RefreshFeatureMetrics(); RefreshOutputPath();
+    }
 }

@@ -28,7 +28,7 @@
     </Border>
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiSidebarWidth}"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-      <Border Classes="feature-sidebar" Grid.Column="0" Background="{DynamicResource UiCanvas}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
+      <Border Classes="feature-sidebar" Grid.Column="0" Background="{DynamicResource UiFeaturePanel}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
         <Grid x:Name="Categories">
           <ScrollViewer x:Name="FeatureScroll" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <Grid x:Name="FeatureGrid" Margin="12" ColumnDefinitions="*,*,*,*"/>
@@ -38,7 +38,8 @@
       <GridSplitter Grid.Column="1" Background="{DynamicResource UiDivider}" ResizeDirection="Columns"/>
       <Grid Grid.Column="2" RowDefinitions="Auto,*">
         <Border Classes="platinum-list-heading" Height="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}">
-          <Grid ColumnDefinitions="140,*,*">
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <TextBlock Text="封面 / 预览" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0"/>
             <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0">
               <TextBlock Text="文件 / 媒体信息" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0"/>
@@ -70,7 +71,10 @@
     <StackPanel Grid.Row="3">
     <local:ModelInstallationNotice/>
     <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
-      <TextBlock i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <Grid ColumnDefinitions="Auto,*">
+        <local:ActionIcon Kind="folder" Width="16" Height="16" Margin="0,0,4,0" VerticalAlignment="Center" IsVisible="{DynamicResource UiShowOutputIcon}"/>
+        <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      </Grid>
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
       <TextBlock x:Name="ElapsedText" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Text="耗时: 00:00:00" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Margin="10,0"/>

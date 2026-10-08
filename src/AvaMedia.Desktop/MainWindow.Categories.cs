@@ -64,7 +64,7 @@ public partial class MainWindow
             content.Children.Add(icon);
             var text = new TextBlock
             {
-                Text = feature.Label, TextWrapping = TextWrapping.Wrap,
+                Text = feature.Label, TextWrapping = TextWrapping.Wrap, Classes = { "feature-label" },
                 Margin = new(1, 0), VerticalAlignment = VerticalAlignment.Bottom
             };
             Grid.SetRow(text, 1);

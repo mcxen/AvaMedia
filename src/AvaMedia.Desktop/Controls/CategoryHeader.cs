@@ -25,10 +25,18 @@ public sealed class CategoryHeader : Button
     {
         Classes.Add("category");
         var content = new Grid { ColumnDefinitions = new("24,*,20") };
-        content.Children.Add(new TextBlock
+        var glyphText = new TextBlock
         {
             Text = glyph, Classes = { "muted-icon" }, VerticalAlignment = VerticalAlignment.Center
-        });
+        };
+        content.Children.Add(glyphText);
+        var xpIcon = new FeatureIcon
+        {
+            Kind = category switch { "音频" => "audio", "图片" => "image", "文档" => "document", "工具集" => "gear", "视频" => "video", _ => "disc" },
+            Label = "", Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center, IsVisible = false
+        };
+        content.Children.Add(xpIcon);
         var title = new TextBlock
         {
             Text = category, Classes = { "category-title" }, TextAlignment = TextAlignment.Center,
@@ -44,6 +52,12 @@ public sealed class CategoryHeader : Button
         chevron.Bind(Path.StrokeProperty, new DynamicResourceExtension("UiTextSecondary"));
         Grid.SetColumn(chevron, 2);
         content.Children.Add(chevron);
+        var xpToggle = new WindowsXPFace
+        {
+            Kind = "category-toggle", Width = 17, Height = 17,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = false
+        };
+        Grid.SetColumn(xpToggle, 2); content.Children.Add(xpToggle);
         Content = content;
         ActualThemeVariantChanged += (_, _) => UpdateChevron();
         ToolTip.SetTip(this, category);
@@ -56,6 +70,10 @@ public sealed class CategoryHeader : Button
         };
         void UpdateChevron()
         {
+            var xp = ActualThemeVariant == Skin.WindowsXP;
+            title.TextAlignment = xp ? TextAlignment.Left : TextAlignment.Center;
+            glyphText.IsVisible = !xp; xpIcon.IsVisible = xp;
+            chevron.IsVisible = !xp; xpToggle.IsVisible = xp; xpToggle.IsSelected = IsExpanded;
             var classic = ActualThemeVariant == Skin.MacOS9;
             chevron.Data = classic ? Geometry.Parse(IsExpanded ? "M 1,3 L 11,3 L 6,9 Z" : "M 3,1 L 9,6 L 3,11 Z") : IsExpanded ? OpenChevron : ClosedChevron;
             chevron.StrokeThickness = classic ? 0 : 1.5;

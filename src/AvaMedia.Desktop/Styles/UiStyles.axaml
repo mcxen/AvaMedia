@@ -4,6 +4,7 @@
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="UiCanvas" Color="#FAFAFA" />
+          <SolidColorBrush x:Key="UiFeaturePanel" Color="#FAFAFA" />
           <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF" />
           <SolidColorBrush x:Key="UiToolbar" Color="#FFFFFF" />
           <SolidColorBrush x:Key="UiMenuSurface" Color="#FFFFFF" />
@@ -39,6 +40,7 @@
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="UiCanvas" Color="#202020" />
+          <SolidColorBrush x:Key="UiFeaturePanel" Color="#202020" />
           <SolidColorBrush x:Key="UiSurface" Color="#282828" />
           <SolidColorBrush x:Key="UiToolbar" Color="#282828" />
           <SolidColorBrush x:Key="UiMenuSurface" Color="#282828" />
@@ -116,6 +118,7 @@
       <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
       <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
       <x:Boolean x:Key="UiWindowShadeEnabled">False</x:Boolean>
+      <x:Boolean x:Key="UiShowOutputIcon">False</x:Boolean>
       <x:Double x:Key="UiToolbarHeight">55</x:Double>
       <x:Double x:Key="UiStatusBarHeight">26</x:Double>
       <x:Double x:Key="UiTableHeaderHeight">32</x:Double>
@@ -123,6 +126,14 @@
       <GridLength x:Key="UiSidebarWidth">425</GridLength>
       <x:Double x:Key="UiFeatureIconHeight">64</x:Double>
       <x:Double x:Key="UiFeatureRowHeight">91</x:Double>
+      <GridLength x:Key="UiQueuePreviewWidth">140</GridLength>
+      <x:Double x:Key="UiQueueRowHeight">108</x:Double>
+      <x:Double x:Key="UiQueueCoverHeight">80</x:Double>
+      <x:Double x:Key="UiQueueArtworkWidth">114</x:Double>
+      <x:Double x:Key="UiQueueArtworkHeight">72</x:Double>
+      <x:Double x:Key="UiQueueIconWidth">80</x:Double>
+      <x:Double x:Key="UiQueueIconHeight">64</x:Double>
+      <x:Double x:Key="UiQueueProgressHeight">10</x:Double>
       <Thickness x:Key="UiToolbarPadding">7,0</Thickness>
       <Thickness x:Key="UiStatusPadding">5,0</Thickness>
       <ControlTheme x:Key="UiTopLevelMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource SimpleTopLevelMenuItem}">

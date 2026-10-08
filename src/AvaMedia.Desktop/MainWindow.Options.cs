@@ -71,7 +71,7 @@ public partial class MainWindow
         }
         ApplicationUpdater.Shared.PreferencesChanged(_settings);
         _appliedSettings = _settings.Clone();
-        OutputPath.Text = "📂 " + _settings.OutputFolder; Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;
+        RefreshOutputPath(); Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;
         Motion.SetReducedMotion(_settings.ReduceMotion);
         if(prior.EnableBetaFeatures != _settings.EnableBetaFeatures)
         {

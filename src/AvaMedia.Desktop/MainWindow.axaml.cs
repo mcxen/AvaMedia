@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         Closed+=(_,_)=>Localization.Changed-=LanguageChanged;
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
         InitializeOptions();
-        OutputPath.Text="📂 "+_settings.OutputFolder;Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
+        RefreshOutputPath();Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=QueueJobChanged;
         _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();
         ShowCategory(_category);Refresh();

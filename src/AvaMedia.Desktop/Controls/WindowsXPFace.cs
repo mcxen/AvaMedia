@@ -63,6 +63,13 @@ public sealed class WindowsXPFace : Decorator
         if (Kind is "check" or "radio") { DrawChoice(context, rect, disabled); return; }
         if (Kind is "close" or "minimize" or "maximize" or "restore") { DrawCaption(context, rect, disabled); return; }
         if (Kind == "grip") { DrawGrip(context, width, height); return; }
+        if (Kind == "category-toggle")
+        {
+            context.DrawEllipse(Gradient((0, "#FFFFFF"), (1, "#D8E5FB")), new Pen(Brush.Parse("#99B6E0"), 1), rect);
+            var arrow = IsSelected ? "M 5,8 L 8,5 L 11,8 M 5,12 L 8,9 L 11,12" : "M 5,5 L 8,8 L 11,5 M 5,9 L 8,12 L 11,9";
+            context.DrawGeometry(null, new Pen(Brush.Parse("#215DC6"), 1), Geometry.Parse(arrow));
+            return;
+        }
         if (Kind == "expander")
         {
             context.DrawRectangle(Brushes.White, new Pen(Brush.Parse("#7F9DB9"), 1), rect);
@@ -112,8 +119,9 @@ public sealed class WindowsXPFace : Decorator
         if (width > 5 && height > 5)
         {
             var inner = new Rect(1.5, 1.5, width - 3, height - 3);
-            var rim = IsHot && (Kind is "button" or "tab") ? "#F6B73C" : IsDefaultFace ? "#6982EE" : "#FFFFFF";
-            context.DrawRectangle(null, new Pen(Brush.Parse(rim), IsHot || IsDefaultFace ? 2 : 1), inner, Math.Max(0, radius - 1), Math.Max(0, radius - 1));
+            var emphasized = !disabled && (IsHot || IsDefaultFace);
+            var rim = !disabled && IsHot && (Kind is "button" or "tab") ? "#F6B73C" : !disabled && IsDefaultFace ? "#6982EE" : "#FFFFFF";
+            context.DrawRectangle(null, new Pen(Brush.Parse(rim), emphasized ? 2 : 1), inner, Math.Max(0, radius - 1), Math.Max(0, radius - 1));
         }
         if (Kind == "tab" && (IsSelected || IsHot))
             context.DrawRectangle(Brush.Parse("#E68B2C"), null, new Rect(3, 1, Math.Max(0, width - 6), 2));

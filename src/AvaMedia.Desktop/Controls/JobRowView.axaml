@@ -9,11 +9,12 @@
     <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
     <Style Selector="Window.windows-xp ListBoxItem:selected TextBlock.queue-secondary, Window.windows-xp ListBoxItem:selected TextBlock.queue-state"><Setter Property="Foreground" Value="White"/></Style>
   </UserControl.Styles>
-  <Grid x:Name="RowRoot" ColumnDefinitions="140,*,*" MinHeight="108" Margin="0,6">
-    <Button x:Name="CoverButton" Classes="media-action" Padding="2" Margin="8,0,12,0" VerticalAlignment="Center" Height="80" Click="CoverClick" ToolTip.Tip="{Binding PreviewTip}" AutomationProperties.Name="{Binding PreviewTip}">
-      <Grid Width="114" Height="72" ClipToBounds="True">
+  <Grid x:Name="RowRoot" MinHeight="{DynamicResource UiQueueRowHeight}" Margin="0,6">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Button x:Name="CoverButton" Classes="media-action" Padding="2" Margin="8,0,12,0" VerticalAlignment="Center" Height="{DynamicResource UiQueueCoverHeight}" Click="CoverClick" ToolTip.Tip="{Binding PreviewTip}" AutomationProperties.Name="{Binding PreviewTip}">
+      <Grid Width="{DynamicResource UiQueueArtworkWidth}" Height="{DynamicResource UiQueueArtworkHeight}" ClipToBounds="True">
         <Border Background="{DynamicResource UiSurfaceRaised}"/>
-        <local:FeatureIcon Kind="{Binding Icon}" Label="{Binding Extension}" Width="80" Height="64" IsVisible="{Binding NoCover}"/>
+        <local:FeatureIcon Kind="{Binding Icon}" Label="{Binding Extension}" Width="{DynamicResource UiQueueIconWidth}" Height="{DynamicResource UiQueueIconHeight}" IsVisible="{Binding NoCover}"/>
         <Image x:Name="CoverImage" Source="{Binding Cover}" Stretch="Uniform"/>
         <Border Background="{DynamicResource UiMediaOverlay}" CornerRadius="3" Padding="4,1" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsVisible="{Binding HasCover}">
           <TextBlock Text="▶" Foreground="{DynamicResource UiMediaText}" FontSize="12"/>
@@ -29,7 +30,7 @@
     <StackPanel Grid.Column="2" Spacing="4" Margin="8,2" VerticalAlignment="Center">
       <TextBlock i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
       <TextBlock Text="{Binding SettingsSummary}" TextWrapping="Wrap" MaxHeight="36" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
-      <ProgressBar Value="{Binding Job.Progress}" Maximum="100" Height="10"/>
+      <ProgressBar Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
       <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}"/>
       <TextBlock Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="36" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
     </StackPanel>

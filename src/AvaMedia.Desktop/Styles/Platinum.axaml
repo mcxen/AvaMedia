@@ -5,6 +5,7 @@
         <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
           <ResourceDictionary.MergedDictionaries><ResourceInclude Source="avares://AvaMedia.Desktop/Styles/PlatinumControls.axaml"/></ResourceDictionary.MergedDictionaries>
           <SolidColorBrush x:Key="UiCanvas" Color="#CCCCCC"/>
+          <SolidColorBrush x:Key="UiFeaturePanel" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiToolbar" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="UiStatusText" Color="#111111"/>

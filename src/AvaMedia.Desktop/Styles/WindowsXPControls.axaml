@@ -56,6 +56,14 @@
     <Style Selector="^:selected"><Setter Property="Margin" Value="-2,-2,-2,0"/><Setter Property="ZIndex" Value="1"/></Style>
     <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFace"><Setter Property="IsFocusedFace" Value="True"/></Style>
   </ControlTheme>
+  <ControlTemplate x:Key="XPScrollThumbTemplate"><controls:WindowsXPFace Name="XPThumb" Kind="scroll" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate>
+  <ControlTheme x:Key="XPScrollThumbTheme" TargetType="Thumb">
+    <Setter Property="Template" Value="{StaticResource XPScrollThumbTemplate}"/>
+    <Style Selector="^:pressed /template/ controls|WindowsXPFace#XPThumb"><Setter Property="IsPressed" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPVerticalScrollThumbTheme" TargetType="Thumb" BasedOn="{StaticResource XPScrollThumbTheme}">
+    <Style Selector="^ /template/ controls|WindowsXPFace#XPThumb"><Setter Property="IsVertical" Value="True"/></Style>
+  </ControlTheme>
   <ControlTheme x:Key="XPScrollBarTheme" TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}">
     <Style Selector="^ /template/ Border"><Setter Property="Background" Value="#F1EFE2"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/></Style>
     <Style Selector="^ /template/ RepeatButton.repeat">
@@ -67,20 +75,48 @@
       </ControlTemplate></Setter>
     </Style>
     <Style Selector="^ /template/ RepeatButton > Path, ^ /template/ RepeatButton:pointerover > Path"><Setter Property="Fill" Value="#4D6185"/></Style>
-    <Style Selector="^ /template/ Thumb#thumb">
-      <Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Name="XPThumb" Kind="scroll" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter>
-    </Style>
-    <Style Selector="^:horizontal /template/ Thumb#thumb"><Setter Property="Height" Value="17"/><Setter Property="MinWidth" Value="17"/></Style>
-    <Style Selector="^:vertical /template/ Thumb#thumb"><Setter Property="Width" Value="17"/><Setter Property="MinHeight" Value="17"/></Style>
-    <Style Selector="^:vertical /template/ controls|WindowsXPFace#XPThumb"><Setter Property="IsVertical" Value="True"/></Style>
-      <Style Selector="^ /template/ Thumb#thumb:pressed /template/ controls|WindowsXPFace"><Setter Property="IsPressed" Value="True"/></Style>
+    <Style Selector="^ /template/ Thumb#thumb"><Setter Property="Template" Value="{StaticResource XPScrollThumbTemplate}"/></Style>
+    <Style Selector="^:horizontal /template/ Thumb#thumb"><Setter Property="Height" Value="17"/><Setter Property="MinWidth" Value="17"/><Setter Property="Theme" Value="{StaticResource XPScrollThumbTheme}"/></Style>
+    <Style Selector="^:vertical /template/ Thumb#thumb"><Setter Property="Width" Value="17"/><Setter Property="MinHeight" Value="17"/><Setter Property="Theme" Value="{StaticResource XPVerticalScrollThumbTheme}"/></Style>
   </ControlTheme>
 
+  <ControlTheme x:Key="XPSliderThumbTheme" TargetType="Thumb">
+    <Setter Property="Width" Value="12"/><Setter Property="Height" Value="20"/>
+    <Setter Property="MinWidth" Value="12"/><Setter Property="MinHeight" Value="20"/>
+    <Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Name="XPThumb" Kind="slider" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter>
+    <Style Selector="^:pressed /template/ controls|WindowsXPFace#XPThumb"><Setter Property="IsPressed" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPVerticalSliderThumbTheme" TargetType="Thumb" BasedOn="{StaticResource XPSliderThumbTheme}">
+    <Setter Property="Width" Value="20"/><Setter Property="Height" Value="12"/>
+    <Setter Property="MinWidth" Value="20"/><Setter Property="MinHeight" Value="12"/>
+    <Style Selector="^ /template/ controls|WindowsXPFace#XPThumb"><Setter Property="IsVertical" Value="True"/></Style>
+  </ControlTheme>
   <ControlTheme x:Key="XPSliderTheme" TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}">
+    <Style Selector="^:horizontal">
+      <Setter Property="Template"><ControlTemplate>
+        <Grid Name="grid" MinHeight="20">
+          <Border Name="TrackBackground" Height="4" Margin="6,0" VerticalAlignment="Center"/>
+          <Track Name="PART_Track" IsDirectionReversed="{TemplateBinding IsDirectionReversed}" Orientation="Horizontal">
+            <Track.DecreaseButton><RepeatButton Name="PART_DecreaseButton" Theme="{StaticResource SliderRepeatTrackTheme}"/></Track.DecreaseButton>
+            <Track.IncreaseButton><RepeatButton Name="PART_IncreaseButton" Theme="{StaticResource SliderRepeatTrackTheme}"/></Track.IncreaseButton>
+            <Thumb Name="thumb" Theme="{StaticResource XPSliderThumbTheme}"/>
+          </Track>
+        </Grid>
+      </ControlTemplate></Setter>
+    </Style>
+    <Style Selector="^:vertical">
+      <Setter Property="Template"><ControlTemplate>
+        <Grid Name="grid" MinWidth="20">
+          <Border Name="TrackBackground" Width="4" Margin="0,6" HorizontalAlignment="Center"/>
+          <Track Name="PART_Track" IsDirectionReversed="{TemplateBinding IsDirectionReversed}" Orientation="Vertical">
+            <Track.DecreaseButton><RepeatButton Name="PART_DecreaseButton" Theme="{StaticResource SliderRepeatTrackTheme}"/></Track.DecreaseButton>
+            <Track.IncreaseButton><RepeatButton Name="PART_IncreaseButton" Theme="{StaticResource SliderRepeatTrackTheme}"/></Track.IncreaseButton>
+            <Thumb Name="thumb" Theme="{StaticResource XPVerticalSliderThumbTheme}"/>
+          </Track>
+        </Grid>
+      </ControlTemplate></Setter>
+    </Style>
     <Style Selector="^ /template/ Border#TrackBackground"><Setter Property="Background" Value="#E7E5DC"/><Setter Property="BorderBrush" Value="#9D9C99"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BoxShadow" Value="inset 0 1 0 0 #C2C1B9"/></Style>
-    <Style Selector="^:horizontal /template/ Thumb#thumb"><Setter Property="MinWidth" Value="12"/><Setter Property="MinHeight" Value="20"/><Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Kind="slider" Width="12" Height="20" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter></Style>
-    <Style Selector="^:vertical /template/ Thumb#thumb"><Setter Property="MinWidth" Value="20"/><Setter Property="MinHeight" Value="12"/><Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Kind="slider" Width="20" Height="12" IsVertical="True" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter></Style>
-      <Style Selector="^ /template/ Thumb#thumb:pressed /template/ controls|WindowsXPFace"><Setter Property="IsPressed" Value="True"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="XPProgressBarTheme" TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
     <Setter Property="Background" Value="#FFFFFF"/><Setter Property="BorderBrush" Value="#686F62"/><Setter Property="BorderThickness" Value="1"/>
@@ -101,15 +137,16 @@
     <Style Selector="^:vertical"><Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="14"/></Style>
     <Style Selector="^:vertical /template/ controls|WindowsXPProgressChunks"><Setter Property="IsVertical" Value="True"/></Style>
   </ControlTheme>
-  <ControlTheme x:Key="XPListBoxItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+  <ControlTheme x:Key="XPListBoxItemTheme" TargetType="ListBoxItem">
     <Setter Property="Padding" Value="3,2"/>
+    <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="Black"/>
     <Setter Property="Template"><ControlTemplate>
       <Border Name="XPSelection" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        <controls:WindowsXPFace Name="XPFocus" Kind="focus"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/></controls:WindowsXPFace>
       </Border>
     </ControlTemplate></Setter>
     <Style Selector="^:selected"><Setter Property="Background" Value="#316AC5"/><Setter Property="Foreground" Value="White"/></Style>
-    <Style Selector="^:focus-visible /template/ Border#XPSelection"><Setter Property="BorderBrush" Value="Black"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFocus"><Setter Property="IsFocusedFace" Value="True"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="XPExpanderToggleTheme" TargetType="ToggleButton">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
