@@ -35,6 +35,7 @@ public sealed partial class SettingsWindow : Window
         AutoUpdateInput.IsCheckedChanged += (_, _) => SilentUpdateInput.IsEnabled = AutoUpdateInput.IsChecked == true;
         _appliedValues=_values.Select(value=>value()).ToArray();
         InitializeModelManagement();
+        InitializeWordLibraryManagement();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
         PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
         if (OperatingSystem.IsMacOS())

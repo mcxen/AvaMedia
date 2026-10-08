@@ -36,6 +36,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
     {
         var known = vocabulary.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var queries = new List<MediaTagQuery>();
+        var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in text.Split(['\r', '\n', ',', '，', ';', '；'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var split = entry.IndexOf('=');
@@ -47,20 +48,33 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             var tags = terms.SelectMany(term => Aliases.TryGetValue(term, out var alias) ? alias : [term.Replace(' ', '_').ToLowerInvariant()]).Distinct().ToArray();
             var unknown = tags.FirstOrDefault(tag => !known.Contains(tag));
             if (unknown is not null) throw new ArgumentException("模型不支持此标签：" + unknown);
-            if (queries.Any(query => query.Label.Equals(label, StringComparison.OrdinalIgnoreCase))) throw new ArgumentException("关键词重复：" + label);
+            if (!labels.Add(label)) throw new ArgumentException("关键词重复：" + label);
             queries.Add(new(label, tags));
         }
-        if (queries.Count > 32) throw new ArgumentException("最多输入 32 个关键词。");
+        if (queries.Count > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("最多选择 20000 个关键词。");
         return queries.ToArray();
     }
 
     public static string MatchLabel(MediaTagResult result, IReadOnlyList<MediaTagQuery> queries, double threshold)
     {
         if (!double.IsFinite(threshold) || threshold is < 0 or > 1) throw new ArgumentException("标签阈值须为 0–1。");
-        if (queries.Count == 0) return string.Join('_', result.Scores.Where(score => score.Score >= threshold)
-            .OrderByDescending(score => score.Score).Take(3).Select(score => score.Tag));
+        if (queries.Count == 0) return JoinLabels(result.Scores.Where(score => score.Score >= threshold)
+            .OrderByDescending(score => score.Score).Select(score => score.Tag));
         var scores = result.Scores.ToDictionary(score => score.Tag, score => score.Score);
-        return string.Join('_', queries.Where(query => query.Tags.All(tag => scores.GetValueOrDefault(tag) >= threshold)).Select(query => query.Label));
+        return JoinLabels(queries.Where(query => query.Tags.Length > 0 && query.Tags.All(tag => scores.GetValueOrDefault(tag) >= threshold))
+            .OrderByDescending(query => query.Tags.Min(tag => scores.GetValueOrDefault(tag))).Select(query => query.Label));
+    }
+
+    private static string JoinLabels(IEnumerable<string> labels)
+    {
+        var selected = new List<string>();
+        foreach (var label in labels)
+        {
+            try { BatchVideoTools.ValidateRenameKeyword(label); } catch (ArgumentException) { continue; }
+            if (selected.Sum(item => item.Length) + selected.Count + label.Length > 100) continue;
+            selected.Add(label); if (selected.Count == 3) break;
+        }
+        return string.Join('_', selected);
     }
 
     public Task<IReadOnlyList<MediaTagResult>> AnalyzeAsync(IEnumerable<string> paths, MediaTagOptions options,

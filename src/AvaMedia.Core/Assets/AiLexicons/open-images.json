@@ -1,0 +1,3608 @@
+[
+  {
+    "Label": "Accordion",
+    "Category": "通用物体",
+    "Description": "A photo of accordion.",
+    "Tags": []
+  },
+  {
+    "Label": "Adhesive tape",
+    "Category": "通用物体",
+    "Description": "A photo of adhesive tape.",
+    "Tags": []
+  },
+  {
+    "Label": "Aircraft",
+    "Category": "交通工具",
+    "Description": "A photo of aircraft.",
+    "Tags": []
+  },
+  {
+    "Label": "Alarm clock",
+    "Category": "通用物体",
+    "Description": "A photo of alarm clock.",
+    "Tags": []
+  },
+  {
+    "Label": "Alpaca",
+    "Category": "动物",
+    "Description": "A photo of alpaca.",
+    "Tags": []
+  },
+  {
+    "Label": "Ambulance",
+    "Category": "交通工具",
+    "Description": "A photo of ambulance.",
+    "Tags": []
+  },
+  {
+    "Label": "Animal",
+    "Category": "动物",
+    "Description": "A photo of animal.",
+    "Tags": []
+  },
+  {
+    "Label": "Ant",
+    "Category": "动物",
+    "Description": "A photo of ant.",
+    "Tags": []
+  },
+  {
+    "Label": "Antelope",
+    "Category": "动物",
+    "Description": "A photo of antelope.",
+    "Tags": []
+  },
+  {
+    "Label": "Apple",
+    "Category": "食物",
+    "Description": "A photo of apple.",
+    "Tags": []
+  },
+  {
+    "Label": "Armadillo",
+    "Category": "动物",
+    "Description": "A photo of armadillo.",
+    "Tags": []
+  },
+  {
+    "Label": "Artichoke",
+    "Category": "食物",
+    "Description": "A photo of artichoke.",
+    "Tags": []
+  },
+  {
+    "Label": "Auto part",
+    "Category": "通用物体",
+    "Description": "A photo of auto part.",
+    "Tags": []
+  },
+  {
+    "Label": "Axe",
+    "Category": "通用物体",
+    "Description": "A photo of axe.",
+    "Tags": []
+  },
+  {
+    "Label": "Backpack",
+    "Category": "服饰",
+    "Description": "A photo of backpack.",
+    "Tags": []
+  },
+  {
+    "Label": "Bagel",
+    "Category": "食物",
+    "Description": "A photo of bagel.",
+    "Tags": []
+  },
+  {
+    "Label": "Baked goods",
+    "Category": "食物",
+    "Description": "A photo of baked goods.",
+    "Tags": []
+  },
+  {
+    "Label": "Balance beam",
+    "Category": "通用物体",
+    "Description": "A photo of balance beam.",
+    "Tags": []
+  },
+  {
+    "Label": "Ball (Object)",
+    "Category": "通用物体",
+    "Description": "A photo of ball (object).",
+    "Tags": []
+  },
+  {
+    "Label": "Balloon",
+    "Category": "通用物体",
+    "Description": "A photo of balloon.",
+    "Tags": []
+  },
+  {
+    "Label": "Banana",
+    "Category": "食物",
+    "Description": "A photo of banana.",
+    "Tags": []
+  },
+  {
+    "Label": "Band-aid",
+    "Category": "通用物体",
+    "Description": "A photo of band-aid.",
+    "Tags": []
+  },
+  {
+    "Label": "Banjo",
+    "Category": "通用物体",
+    "Description": "A photo of banjo.",
+    "Tags": []
+  },
+  {
+    "Label": "Barge",
+    "Category": "交通工具",
+    "Description": "A photo of barge.",
+    "Tags": []
+  },
+  {
+    "Label": "Barrel",
+    "Category": "通用物体",
+    "Description": "A photo of barrel.",
+    "Tags": []
+  },
+  {
+    "Label": "Baseball bat",
+    "Category": "通用物体",
+    "Description": "A photo of baseball bat.",
+    "Tags": []
+  },
+  {
+    "Label": "Baseball glove",
+    "Category": "通用物体",
+    "Description": "A photo of baseball glove.",
+    "Tags": []
+  },
+  {
+    "Label": "Bat (Animal)",
+    "Category": "动物",
+    "Description": "A photo of bat (animal).",
+    "Tags": []
+  },
+  {
+    "Label": "Bathroom accessory",
+    "Category": "通用物体",
+    "Description": "A photo of bathroom accessory.",
+    "Tags": []
+  },
+  {
+    "Label": "Bathroom cabinet",
+    "Category": "通用物体",
+    "Description": "A photo of bathroom cabinet.",
+    "Tags": []
+  },
+  {
+    "Label": "Bathtub",
+    "Category": "通用物体",
+    "Description": "A photo of bathtub.",
+    "Tags": []
+  },
+  {
+    "Label": "Beaker",
+    "Category": "通用物体",
+    "Description": "A photo of beaker.",
+    "Tags": []
+  },
+  {
+    "Label": "Bear",
+    "Category": "动物",
+    "Description": "A photo of bear.",
+    "Tags": []
+  },
+  {
+    "Label": "Beard",
+    "Category": "通用物体",
+    "Description": "A photo of beard.",
+    "Tags": []
+  },
+  {
+    "Label": "Bed",
+    "Category": "通用物体",
+    "Description": "A photo of bed.",
+    "Tags": []
+  },
+  {
+    "Label": "Bee",
+    "Category": "动物",
+    "Description": "A photo of bee.",
+    "Tags": []
+  },
+  {
+    "Label": "Beehive",
+    "Category": "通用物体",
+    "Description": "A photo of beehive.",
+    "Tags": []
+  },
+  {
+    "Label": "Beer",
+    "Category": "通用物体",
+    "Description": "A photo of beer.",
+    "Tags": []
+  },
+  {
+    "Label": "Beetle",
+    "Category": "动物",
+    "Description": "A photo of beetle.",
+    "Tags": []
+  },
+  {
+    "Label": "Bell pepper",
+    "Category": "食物",
+    "Description": "A photo of bell pepper.",
+    "Tags": []
+  },
+  {
+    "Label": "Belt",
+    "Category": "服饰",
+    "Description": "A photo of belt.",
+    "Tags": []
+  },
+  {
+    "Label": "Bench",
+    "Category": "通用物体",
+    "Description": "A photo of bench.",
+    "Tags": []
+  },
+  {
+    "Label": "Bicycle",
+    "Category": "通用物体",
+    "Description": "A photo of bicycle.",
+    "Tags": []
+  },
+  {
+    "Label": "Bicycle helmet",
+    "Category": "通用物体",
+    "Description": "A photo of bicycle helmet.",
+    "Tags": []
+  },
+  {
+    "Label": "Bicycle wheel",
+    "Category": "通用物体",
+    "Description": "A photo of bicycle wheel.",
+    "Tags": []
+  },
+  {
+    "Label": "Bidet",
+    "Category": "通用物体",
+    "Description": "A photo of bidet.",
+    "Tags": []
+  },
+  {
+    "Label": "Billboard",
+    "Category": "通用物体",
+    "Description": "A photo of billboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Billiard table",
+    "Category": "通用物体",
+    "Description": "A photo of billiard table.",
+    "Tags": []
+  },
+  {
+    "Label": "Binoculars",
+    "Category": "通用物体",
+    "Description": "A photo of binoculars.",
+    "Tags": []
+  },
+  {
+    "Label": "Bird",
+    "Category": "动物",
+    "Description": "A photo of bird.",
+    "Tags": []
+  },
+  {
+    "Label": "Blender",
+    "Category": "通用物体",
+    "Description": "A photo of blender.",
+    "Tags": []
+  },
+  {
+    "Label": "Blue jay",
+    "Category": "动物",
+    "Description": "A photo of blue jay.",
+    "Tags": []
+  },
+  {
+    "Label": "Boat",
+    "Category": "交通工具",
+    "Description": "A photo of boat.",
+    "Tags": []
+  },
+  {
+    "Label": "Bomb",
+    "Category": "通用物体",
+    "Description": "A photo of bomb.",
+    "Tags": []
+  },
+  {
+    "Label": "Book",
+    "Category": "通用物体",
+    "Description": "A photo of book.",
+    "Tags": []
+  },
+  {
+    "Label": "Bookcase",
+    "Category": "通用物体",
+    "Description": "A photo of bookcase.",
+    "Tags": []
+  },
+  {
+    "Label": "Boot",
+    "Category": "服饰",
+    "Description": "A photo of boot.",
+    "Tags": []
+  },
+  {
+    "Label": "Bottle",
+    "Category": "通用物体",
+    "Description": "A photo of bottle.",
+    "Tags": []
+  },
+  {
+    "Label": "Bottle opener",
+    "Category": "通用物体",
+    "Description": "A photo of bottle opener.",
+    "Tags": []
+  },
+  {
+    "Label": "Bow and arrow",
+    "Category": "通用物体",
+    "Description": "A photo of bow and arrow.",
+    "Tags": []
+  },
+  {
+    "Label": "Bowl",
+    "Category": "通用物体",
+    "Description": "A photo of bowl.",
+    "Tags": []
+  },
+  {
+    "Label": "Bowling equipment",
+    "Category": "通用物体",
+    "Description": "A photo of bowling equipment.",
+    "Tags": []
+  },
+  {
+    "Label": "Box",
+    "Category": "通用物体",
+    "Description": "A photo of box.",
+    "Tags": []
+  },
+  {
+    "Label": "Boy",
+    "Category": "人物",
+    "Description": "A photo of boy.",
+    "Tags": []
+  },
+  {
+    "Label": "Brassiere",
+    "Category": "服饰",
+    "Description": "A photo of brassiere.",
+    "Tags": []
+  },
+  {
+    "Label": "Bread",
+    "Category": "食物",
+    "Description": "A photo of bread.",
+    "Tags": []
+  },
+  {
+    "Label": "Briefcase",
+    "Category": "服饰",
+    "Description": "A photo of briefcase.",
+    "Tags": []
+  },
+  {
+    "Label": "Broccoli",
+    "Category": "食物",
+    "Description": "A photo of broccoli.",
+    "Tags": []
+  },
+  {
+    "Label": "Bronze sculpture",
+    "Category": "通用物体",
+    "Description": "A photo of bronze sculpture.",
+    "Tags": []
+  },
+  {
+    "Label": "Brown bear",
+    "Category": "动物",
+    "Description": "A photo of brown bear.",
+    "Tags": []
+  },
+  {
+    "Label": "Building",
+    "Category": "建筑",
+    "Description": "A photo of building.",
+    "Tags": []
+  },
+  {
+    "Label": "Bull",
+    "Category": "动物",
+    "Description": "A photo of bull.",
+    "Tags": []
+  },
+  {
+    "Label": "Burrito",
+    "Category": "食物",
+    "Description": "A photo of burrito.",
+    "Tags": []
+  },
+  {
+    "Label": "Bus",
+    "Category": "交通工具",
+    "Description": "A photo of bus.",
+    "Tags": []
+  },
+  {
+    "Label": "Bust",
+    "Category": "通用物体",
+    "Description": "A photo of bust.",
+    "Tags": []
+  },
+  {
+    "Label": "Butterfly",
+    "Category": "动物",
+    "Description": "A photo of butterfly.",
+    "Tags": []
+  },
+  {
+    "Label": "Cabbage",
+    "Category": "食物",
+    "Description": "A photo of cabbage.",
+    "Tags": []
+  },
+  {
+    "Label": "Cabinetry",
+    "Category": "通用物体",
+    "Description": "A photo of cabinetry.",
+    "Tags": []
+  },
+  {
+    "Label": "Cake",
+    "Category": "食物",
+    "Description": "A photo of cake.",
+    "Tags": []
+  },
+  {
+    "Label": "Cake stand",
+    "Category": "通用物体",
+    "Description": "A photo of cake stand.",
+    "Tags": []
+  },
+  {
+    "Label": "Calculator",
+    "Category": "通用物体",
+    "Description": "A photo of calculator.",
+    "Tags": []
+  },
+  {
+    "Label": "Camel",
+    "Category": "动物",
+    "Description": "A photo of camel.",
+    "Tags": []
+  },
+  {
+    "Label": "Camera",
+    "Category": "通用物体",
+    "Description": "A photo of camera.",
+    "Tags": []
+  },
+  {
+    "Label": "Can opener",
+    "Category": "通用物体",
+    "Description": "A photo of can opener.",
+    "Tags": []
+  },
+  {
+    "Label": "Canary",
+    "Category": "动物",
+    "Description": "A photo of canary.",
+    "Tags": []
+  },
+  {
+    "Label": "Candle",
+    "Category": "通用物体",
+    "Description": "A photo of candle.",
+    "Tags": []
+  },
+  {
+    "Label": "Candy",
+    "Category": "食物",
+    "Description": "A photo of candy.",
+    "Tags": []
+  },
+  {
+    "Label": "Cannon",
+    "Category": "通用物体",
+    "Description": "A photo of cannon.",
+    "Tags": []
+  },
+  {
+    "Label": "Canoe",
+    "Category": "交通工具",
+    "Description": "A photo of canoe.",
+    "Tags": []
+  },
+  {
+    "Label": "Cantaloupe",
+    "Category": "食物",
+    "Description": "A photo of cantaloupe.",
+    "Tags": []
+  },
+  {
+    "Label": "Car",
+    "Category": "交通工具",
+    "Description": "A photo of car.",
+    "Tags": []
+  },
+  {
+    "Label": "Carnivore",
+    "Category": "动物",
+    "Description": "A photo of carnivore.",
+    "Tags": []
+  },
+  {
+    "Label": "Carrot",
+    "Category": "食物",
+    "Description": "A photo of carrot.",
+    "Tags": []
+  },
+  {
+    "Label": "Cart",
+    "Category": "交通工具",
+    "Description": "A photo of cart.",
+    "Tags": []
+  },
+  {
+    "Label": "Cassette deck",
+    "Category": "通用物体",
+    "Description": "A photo of cassette deck.",
+    "Tags": []
+  },
+  {
+    "Label": "Castle",
+    "Category": "建筑",
+    "Description": "A photo of castle.",
+    "Tags": []
+  },
+  {
+    "Label": "Cat",
+    "Category": "动物",
+    "Description": "A photo of cat.",
+    "Tags": []
+  },
+  {
+    "Label": "Cat furniture",
+    "Category": "通用物体",
+    "Description": "A photo of cat furniture.",
+    "Tags": []
+  },
+  {
+    "Label": "Caterpillar",
+    "Category": "动物",
+    "Description": "A photo of caterpillar.",
+    "Tags": []
+  },
+  {
+    "Label": "Cattle",
+    "Category": "动物",
+    "Description": "A photo of cattle.",
+    "Tags": []
+  },
+  {
+    "Label": "Ceiling fan",
+    "Category": "通用物体",
+    "Description": "A photo of ceiling fan.",
+    "Tags": []
+  },
+  {
+    "Label": "Cello",
+    "Category": "通用物体",
+    "Description": "A photo of cello.",
+    "Tags": []
+  },
+  {
+    "Label": "Centipede",
+    "Category": "动物",
+    "Description": "A photo of centipede.",
+    "Tags": []
+  },
+  {
+    "Label": "Chainsaw",
+    "Category": "通用物体",
+    "Description": "A photo of chainsaw.",
+    "Tags": []
+  },
+  {
+    "Label": "Chair",
+    "Category": "通用物体",
+    "Description": "A photo of chair.",
+    "Tags": []
+  },
+  {
+    "Label": "Cheese",
+    "Category": "食物",
+    "Description": "A photo of cheese.",
+    "Tags": []
+  },
+  {
+    "Label": "Cheetah",
+    "Category": "动物",
+    "Description": "A photo of cheetah.",
+    "Tags": []
+  },
+  {
+    "Label": "Chest of drawers",
+    "Category": "通用物体",
+    "Description": "A photo of chest of drawers.",
+    "Tags": []
+  },
+  {
+    "Label": "Chicken",
+    "Category": "动物",
+    "Description": "A photo of chicken.",
+    "Tags": []
+  },
+  {
+    "Label": "Chime",
+    "Category": "通用物体",
+    "Description": "A photo of chime.",
+    "Tags": []
+  },
+  {
+    "Label": "Chisel",
+    "Category": "通用物体",
+    "Description": "A photo of chisel.",
+    "Tags": []
+  },
+  {
+    "Label": "Chopsticks",
+    "Category": "通用物体",
+    "Description": "A photo of chopsticks.",
+    "Tags": []
+  },
+  {
+    "Label": "Christmas tree",
+    "Category": "植物",
+    "Description": "A photo of christmas tree.",
+    "Tags": []
+  },
+  {
+    "Label": "Clock",
+    "Category": "通用物体",
+    "Description": "A photo of clock.",
+    "Tags": []
+  },
+  {
+    "Label": "Closet",
+    "Category": "通用物体",
+    "Description": "A photo of closet.",
+    "Tags": []
+  },
+  {
+    "Label": "Clothing",
+    "Category": "服饰",
+    "Description": "A photo of clothing.",
+    "Tags": []
+  },
+  {
+    "Label": "Coat",
+    "Category": "服饰",
+    "Description": "A photo of coat.",
+    "Tags": []
+  },
+  {
+    "Label": "Cocktail",
+    "Category": "通用物体",
+    "Description": "A photo of cocktail.",
+    "Tags": []
+  },
+  {
+    "Label": "Cocktail shaker",
+    "Category": "通用物体",
+    "Description": "A photo of cocktail shaker.",
+    "Tags": []
+  },
+  {
+    "Label": "Coconut",
+    "Category": "通用物体",
+    "Description": "A photo of coconut.",
+    "Tags": []
+  },
+  {
+    "Label": "Coffee (drink)",
+    "Category": "通用物体",
+    "Description": "A photo of coffee (drink).",
+    "Tags": []
+  },
+  {
+    "Label": "Coffee cup",
+    "Category": "通用物体",
+    "Description": "A photo of coffee cup.",
+    "Tags": []
+  },
+  {
+    "Label": "Coffee table",
+    "Category": "通用物体",
+    "Description": "A photo of coffee table.",
+    "Tags": []
+  },
+  {
+    "Label": "Coffeemaker",
+    "Category": "通用物体",
+    "Description": "A photo of coffeemaker.",
+    "Tags": []
+  },
+  {
+    "Label": "Coin",
+    "Category": "通用物体",
+    "Description": "A photo of coin.",
+    "Tags": []
+  },
+  {
+    "Label": "Common fig",
+    "Category": "食物",
+    "Description": "A photo of common fig.",
+    "Tags": []
+  },
+  {
+    "Label": "Common sunflower",
+    "Category": "植物",
+    "Description": "A photo of common sunflower.",
+    "Tags": []
+  },
+  {
+    "Label": "Computer keyboard",
+    "Category": "通用物体",
+    "Description": "A photo of computer keyboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Computer monitor",
+    "Category": "通用物体",
+    "Description": "A photo of computer monitor.",
+    "Tags": []
+  },
+  {
+    "Label": "Computer mouse",
+    "Category": "通用物体",
+    "Description": "A photo of computer mouse.",
+    "Tags": []
+  },
+  {
+    "Label": "Container",
+    "Category": "通用物体",
+    "Description": "A photo of container.",
+    "Tags": []
+  },
+  {
+    "Label": "Convenience store",
+    "Category": "建筑",
+    "Description": "A photo of convenience store.",
+    "Tags": []
+  },
+  {
+    "Label": "Cookie",
+    "Category": "食物",
+    "Description": "A photo of cookie.",
+    "Tags": []
+  },
+  {
+    "Label": "Cooking spray",
+    "Category": "食物",
+    "Description": "A photo of cooking spray.",
+    "Tags": []
+  },
+  {
+    "Label": "Corded phone",
+    "Category": "通用物体",
+    "Description": "A photo of corded phone.",
+    "Tags": []
+  },
+  {
+    "Label": "Cosmetics",
+    "Category": "通用物体",
+    "Description": "A photo of cosmetics.",
+    "Tags": []
+  },
+  {
+    "Label": "Couch",
+    "Category": "通用物体",
+    "Description": "A photo of couch.",
+    "Tags": []
+  },
+  {
+    "Label": "Countertop",
+    "Category": "通用物体",
+    "Description": "A photo of countertop.",
+    "Tags": []
+  },
+  {
+    "Label": "Cowboy hat",
+    "Category": "服饰",
+    "Description": "A photo of cowboy hat.",
+    "Tags": []
+  },
+  {
+    "Label": "Crab",
+    "Category": "动物",
+    "Description": "A photo of crab.",
+    "Tags": []
+  },
+  {
+    "Label": "Cream",
+    "Category": "通用物体",
+    "Description": "A photo of cream.",
+    "Tags": []
+  },
+  {
+    "Label": "Cricket ball",
+    "Category": "通用物体",
+    "Description": "A photo of cricket ball.",
+    "Tags": []
+  },
+  {
+    "Label": "Crocodile",
+    "Category": "动物",
+    "Description": "A photo of crocodile.",
+    "Tags": []
+  },
+  {
+    "Label": "Croissant",
+    "Category": "食物",
+    "Description": "A photo of croissant.",
+    "Tags": []
+  },
+  {
+    "Label": "Crown",
+    "Category": "服饰",
+    "Description": "A photo of crown.",
+    "Tags": []
+  },
+  {
+    "Label": "Crutch",
+    "Category": "通用物体",
+    "Description": "A photo of crutch.",
+    "Tags": []
+  },
+  {
+    "Label": "Cucumber",
+    "Category": "食物",
+    "Description": "A photo of cucumber.",
+    "Tags": []
+  },
+  {
+    "Label": "Cupboard",
+    "Category": "通用物体",
+    "Description": "A photo of cupboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Curtain",
+    "Category": "通用物体",
+    "Description": "A photo of curtain.",
+    "Tags": []
+  },
+  {
+    "Label": "Cutting board",
+    "Category": "通用物体",
+    "Description": "A photo of cutting board.",
+    "Tags": []
+  },
+  {
+    "Label": "Dagger",
+    "Category": "通用物体",
+    "Description": "A photo of dagger.",
+    "Tags": []
+  },
+  {
+    "Label": "Dairy Product",
+    "Category": "食物",
+    "Description": "A photo of dairy product.",
+    "Tags": []
+  },
+  {
+    "Label": "Deer",
+    "Category": "动物",
+    "Description": "A photo of deer.",
+    "Tags": []
+  },
+  {
+    "Label": "Desk",
+    "Category": "通用物体",
+    "Description": "A photo of desk.",
+    "Tags": []
+  },
+  {
+    "Label": "Dessert",
+    "Category": "食物",
+    "Description": "A photo of dessert.",
+    "Tags": []
+  },
+  {
+    "Label": "Diaper",
+    "Category": "通用物体",
+    "Description": "A photo of diaper.",
+    "Tags": []
+  },
+  {
+    "Label": "Dice",
+    "Category": "通用物体",
+    "Description": "A photo of dice.",
+    "Tags": []
+  },
+  {
+    "Label": "Digital clock",
+    "Category": "通用物体",
+    "Description": "A photo of digital clock.",
+    "Tags": []
+  },
+  {
+    "Label": "Dinosaur",
+    "Category": "动物",
+    "Description": "A photo of dinosaur.",
+    "Tags": []
+  },
+  {
+    "Label": "Dishwasher",
+    "Category": "通用物体",
+    "Description": "A photo of dishwasher.",
+    "Tags": []
+  },
+  {
+    "Label": "Dog",
+    "Category": "动物",
+    "Description": "A photo of dog.",
+    "Tags": []
+  },
+  {
+    "Label": "Dog bed",
+    "Category": "通用物体",
+    "Description": "A photo of dog bed.",
+    "Tags": []
+  },
+  {
+    "Label": "Doll",
+    "Category": "通用物体",
+    "Description": "A photo of doll.",
+    "Tags": []
+  },
+  {
+    "Label": "Dolphin",
+    "Category": "动物",
+    "Description": "A photo of dolphin.",
+    "Tags": []
+  },
+  {
+    "Label": "Door",
+    "Category": "通用物体",
+    "Description": "A photo of door.",
+    "Tags": []
+  },
+  {
+    "Label": "Door handle",
+    "Category": "通用物体",
+    "Description": "A photo of door handle.",
+    "Tags": []
+  },
+  {
+    "Label": "Doughnut",
+    "Category": "食物",
+    "Description": "A photo of doughnut.",
+    "Tags": []
+  },
+  {
+    "Label": "Dragonfly",
+    "Category": "动物",
+    "Description": "A photo of dragonfly.",
+    "Tags": []
+  },
+  {
+    "Label": "Drawer",
+    "Category": "通用物体",
+    "Description": "A photo of drawer.",
+    "Tags": []
+  },
+  {
+    "Label": "Dress",
+    "Category": "服饰",
+    "Description": "A photo of dress.",
+    "Tags": []
+  },
+  {
+    "Label": "Drill (Tool)",
+    "Category": "通用物体",
+    "Description": "A photo of drill (tool).",
+    "Tags": []
+  },
+  {
+    "Label": "Drink",
+    "Category": "通用物体",
+    "Description": "A photo of drink.",
+    "Tags": []
+  },
+  {
+    "Label": "Drinking straw",
+    "Category": "通用物体",
+    "Description": "A photo of drinking straw.",
+    "Tags": []
+  },
+  {
+    "Label": "Drum",
+    "Category": "通用物体",
+    "Description": "A photo of drum.",
+    "Tags": []
+  },
+  {
+    "Label": "Duck",
+    "Category": "动物",
+    "Description": "A photo of duck.",
+    "Tags": []
+  },
+  {
+    "Label": "Dumbbell",
+    "Category": "通用物体",
+    "Description": "A photo of dumbbell.",
+    "Tags": []
+  },
+  {
+    "Label": "Eagle",
+    "Category": "动物",
+    "Description": "A photo of eagle.",
+    "Tags": []
+  },
+  {
+    "Label": "Earring",
+    "Category": "服饰",
+    "Description": "A photo of earring.",
+    "Tags": []
+  },
+  {
+    "Label": "Egg",
+    "Category": "食物",
+    "Description": "A photo of egg.",
+    "Tags": []
+  },
+  {
+    "Label": "Elephant",
+    "Category": "动物",
+    "Description": "A photo of elephant.",
+    "Tags": []
+  },
+  {
+    "Label": "Envelope",
+    "Category": "通用物体",
+    "Description": "A photo of envelope.",
+    "Tags": []
+  },
+  {
+    "Label": "Eraser",
+    "Category": "通用物体",
+    "Description": "A photo of eraser.",
+    "Tags": []
+  },
+  {
+    "Label": "Face powder",
+    "Category": "通用物体",
+    "Description": "A photo of face powder.",
+    "Tags": []
+  },
+  {
+    "Label": "Facial tissue holder",
+    "Category": "通用物体",
+    "Description": "A photo of facial tissue holder.",
+    "Tags": []
+  },
+  {
+    "Label": "Falcon",
+    "Category": "动物",
+    "Description": "A photo of falcon.",
+    "Tags": []
+  },
+  {
+    "Label": "Fashion accessory",
+    "Category": "服饰",
+    "Description": "A photo of fashion accessory.",
+    "Tags": []
+  },
+  {
+    "Label": "Fast food",
+    "Category": "食物",
+    "Description": "A photo of fast food.",
+    "Tags": []
+  },
+  {
+    "Label": "Fax",
+    "Category": "通用物体",
+    "Description": "A photo of fax.",
+    "Tags": []
+  },
+  {
+    "Label": "Fedora",
+    "Category": "服饰",
+    "Description": "A photo of fedora.",
+    "Tags": []
+  },
+  {
+    "Label": "Filing cabinet",
+    "Category": "通用物体",
+    "Description": "A photo of filing cabinet.",
+    "Tags": []
+  },
+  {
+    "Label": "Fire hydrant",
+    "Category": "通用物体",
+    "Description": "A photo of fire hydrant.",
+    "Tags": []
+  },
+  {
+    "Label": "Fireplace",
+    "Category": "通用物体",
+    "Description": "A photo of fireplace.",
+    "Tags": []
+  },
+  {
+    "Label": "Fish",
+    "Category": "动物",
+    "Description": "A photo of fish.",
+    "Tags": []
+  },
+  {
+    "Label": "Fixed-wing aircraft",
+    "Category": "交通工具",
+    "Description": "A photo of fixed-wing aircraft.",
+    "Tags": []
+  },
+  {
+    "Label": "Flag",
+    "Category": "通用物体",
+    "Description": "A photo of flag.",
+    "Tags": []
+  },
+  {
+    "Label": "Flashlight",
+    "Category": "通用物体",
+    "Description": "A photo of flashlight.",
+    "Tags": []
+  },
+  {
+    "Label": "Flower",
+    "Category": "植物",
+    "Description": "A photo of flower.",
+    "Tags": []
+  },
+  {
+    "Label": "Flowerpot",
+    "Category": "通用物体",
+    "Description": "A photo of flowerpot.",
+    "Tags": []
+  },
+  {
+    "Label": "Flute",
+    "Category": "通用物体",
+    "Description": "A photo of flute.",
+    "Tags": []
+  },
+  {
+    "Label": "Flying disc",
+    "Category": "通用物体",
+    "Description": "A photo of flying disc.",
+    "Tags": []
+  },
+  {
+    "Label": "Food",
+    "Category": "食物",
+    "Description": "A photo of food.",
+    "Tags": []
+  },
+  {
+    "Label": "Food processor",
+    "Category": "通用物体",
+    "Description": "A photo of food processor.",
+    "Tags": []
+  },
+  {
+    "Label": "Football",
+    "Category": "通用物体",
+    "Description": "A photo of football.",
+    "Tags": []
+  },
+  {
+    "Label": "Football helmet",
+    "Category": "通用物体",
+    "Description": "A photo of football helmet.",
+    "Tags": []
+  },
+  {
+    "Label": "Footwear",
+    "Category": "服饰",
+    "Description": "A photo of footwear.",
+    "Tags": []
+  },
+  {
+    "Label": "Fork",
+    "Category": "通用物体",
+    "Description": "A photo of fork.",
+    "Tags": []
+  },
+  {
+    "Label": "Fountain",
+    "Category": "通用物体",
+    "Description": "A photo of fountain.",
+    "Tags": []
+  },
+  {
+    "Label": "Fox",
+    "Category": "动物",
+    "Description": "A photo of fox.",
+    "Tags": []
+  },
+  {
+    "Label": "French fries",
+    "Category": "食物",
+    "Description": "A photo of french fries.",
+    "Tags": []
+  },
+  {
+    "Label": "French horn",
+    "Category": "通用物体",
+    "Description": "A photo of french horn.",
+    "Tags": []
+  },
+  {
+    "Label": "Frog",
+    "Category": "动物",
+    "Description": "A photo of frog.",
+    "Tags": []
+  },
+  {
+    "Label": "Fruit",
+    "Category": "食物",
+    "Description": "A photo of fruit.",
+    "Tags": []
+  },
+  {
+    "Label": "Frying pan",
+    "Category": "通用物体",
+    "Description": "A photo of frying pan.",
+    "Tags": []
+  },
+  {
+    "Label": "Furniture",
+    "Category": "通用物体",
+    "Description": "A photo of furniture.",
+    "Tags": []
+  },
+  {
+    "Label": "Garden Asparagus",
+    "Category": "食物",
+    "Description": "A photo of garden asparagus.",
+    "Tags": []
+  },
+  {
+    "Label": "Gas stove",
+    "Category": "通用物体",
+    "Description": "A photo of gas stove.",
+    "Tags": []
+  },
+  {
+    "Label": "Giraffe",
+    "Category": "动物",
+    "Description": "A photo of giraffe.",
+    "Tags": []
+  },
+  {
+    "Label": "Girl",
+    "Category": "人物",
+    "Description": "A photo of girl.",
+    "Tags": []
+  },
+  {
+    "Label": "Glasses",
+    "Category": "通用物体",
+    "Description": "A photo of glasses.",
+    "Tags": []
+  },
+  {
+    "Label": "Glove",
+    "Category": "服饰",
+    "Description": "A photo of glove.",
+    "Tags": []
+  },
+  {
+    "Label": "Goat",
+    "Category": "动物",
+    "Description": "A photo of goat.",
+    "Tags": []
+  },
+  {
+    "Label": "Goggles",
+    "Category": "通用物体",
+    "Description": "A photo of goggles.",
+    "Tags": []
+  },
+  {
+    "Label": "Goldfish",
+    "Category": "动物",
+    "Description": "A photo of goldfish.",
+    "Tags": []
+  },
+  {
+    "Label": "Golf ball",
+    "Category": "通用物体",
+    "Description": "A photo of golf ball.",
+    "Tags": []
+  },
+  {
+    "Label": "Golf cart",
+    "Category": "交通工具",
+    "Description": "A photo of golf cart.",
+    "Tags": []
+  },
+  {
+    "Label": "Gondola",
+    "Category": "交通工具",
+    "Description": "A photo of gondola.",
+    "Tags": []
+  },
+  {
+    "Label": "Goose",
+    "Category": "动物",
+    "Description": "A photo of goose.",
+    "Tags": []
+  },
+  {
+    "Label": "Grape",
+    "Category": "食物",
+    "Description": "A photo of grape.",
+    "Tags": []
+  },
+  {
+    "Label": "Grapefruit",
+    "Category": "食物",
+    "Description": "A photo of grapefruit.",
+    "Tags": []
+  },
+  {
+    "Label": "Grinder",
+    "Category": "通用物体",
+    "Description": "A photo of grinder.",
+    "Tags": []
+  },
+  {
+    "Label": "Guacamole",
+    "Category": "食物",
+    "Description": "A photo of guacamole.",
+    "Tags": []
+  },
+  {
+    "Label": "Guitar",
+    "Category": "通用物体",
+    "Description": "A photo of guitar.",
+    "Tags": []
+  },
+  {
+    "Label": "Hair dryer",
+    "Category": "通用物体",
+    "Description": "A photo of hair dryer.",
+    "Tags": []
+  },
+  {
+    "Label": "Hair spray",
+    "Category": "通用物体",
+    "Description": "A photo of hair spray.",
+    "Tags": []
+  },
+  {
+    "Label": "Hamburger",
+    "Category": "食物",
+    "Description": "A photo of hamburger.",
+    "Tags": []
+  },
+  {
+    "Label": "Hammer",
+    "Category": "通用物体",
+    "Description": "A photo of hammer.",
+    "Tags": []
+  },
+  {
+    "Label": "Hamster",
+    "Category": "动物",
+    "Description": "A photo of hamster.",
+    "Tags": []
+  },
+  {
+    "Label": "Hand dryer",
+    "Category": "通用物体",
+    "Description": "A photo of hand dryer.",
+    "Tags": []
+  },
+  {
+    "Label": "Handbag",
+    "Category": "服饰",
+    "Description": "A photo of handbag.",
+    "Tags": []
+  },
+  {
+    "Label": "Handgun",
+    "Category": "通用物体",
+    "Description": "A photo of handgun.",
+    "Tags": []
+  },
+  {
+    "Label": "Harbor seal",
+    "Category": "动物",
+    "Description": "A photo of harbor seal.",
+    "Tags": []
+  },
+  {
+    "Label": "Harmonica",
+    "Category": "通用物体",
+    "Description": "A photo of harmonica.",
+    "Tags": []
+  },
+  {
+    "Label": "Harp",
+    "Category": "通用物体",
+    "Description": "A photo of harp.",
+    "Tags": []
+  },
+  {
+    "Label": "Harpsichord",
+    "Category": "通用物体",
+    "Description": "A photo of harpsichord.",
+    "Tags": []
+  },
+  {
+    "Label": "Hat",
+    "Category": "服饰",
+    "Description": "A photo of hat.",
+    "Tags": []
+  },
+  {
+    "Label": "Headphones",
+    "Category": "通用物体",
+    "Description": "A photo of headphones.",
+    "Tags": []
+  },
+  {
+    "Label": "Heater",
+    "Category": "通用物体",
+    "Description": "A photo of heater.",
+    "Tags": []
+  },
+  {
+    "Label": "Hedgehog",
+    "Category": "动物",
+    "Description": "A photo of hedgehog.",
+    "Tags": []
+  },
+  {
+    "Label": "Helicopter",
+    "Category": "交通工具",
+    "Description": "A photo of helicopter.",
+    "Tags": []
+  },
+  {
+    "Label": "Helmet",
+    "Category": "通用物体",
+    "Description": "A photo of helmet.",
+    "Tags": []
+  },
+  {
+    "Label": "High heels",
+    "Category": "服饰",
+    "Description": "A photo of high heels.",
+    "Tags": []
+  },
+  {
+    "Label": "Hiking equipment",
+    "Category": "通用物体",
+    "Description": "A photo of hiking equipment.",
+    "Tags": []
+  },
+  {
+    "Label": "Hippopotamus",
+    "Category": "动物",
+    "Description": "A photo of hippopotamus.",
+    "Tags": []
+  },
+  {
+    "Label": "Home appliance",
+    "Category": "通用物体",
+    "Description": "A photo of home appliance.",
+    "Tags": []
+  },
+  {
+    "Label": "Honeycomb",
+    "Category": "食物",
+    "Description": "A photo of honeycomb.",
+    "Tags": []
+  },
+  {
+    "Label": "Horizontal bar",
+    "Category": "通用物体",
+    "Description": "A photo of horizontal bar.",
+    "Tags": []
+  },
+  {
+    "Label": "Horse",
+    "Category": "动物",
+    "Description": "A photo of horse.",
+    "Tags": []
+  },
+  {
+    "Label": "Hot dog",
+    "Category": "食物",
+    "Description": "A photo of hot dog.",
+    "Tags": []
+  },
+  {
+    "Label": "House",
+    "Category": "建筑",
+    "Description": "A photo of house.",
+    "Tags": []
+  },
+  {
+    "Label": "Houseplant",
+    "Category": "植物",
+    "Description": "A photo of houseplant.",
+    "Tags": []
+  },
+  {
+    "Label": "Human arm",
+    "Category": "通用物体",
+    "Description": "A photo of human arm.",
+    "Tags": []
+  },
+  {
+    "Label": "Human body",
+    "Category": "通用物体",
+    "Description": "A photo of human body.",
+    "Tags": []
+  },
+  {
+    "Label": "Human ear",
+    "Category": "通用物体",
+    "Description": "A photo of human ear.",
+    "Tags": []
+  },
+  {
+    "Label": "Human eye",
+    "Category": "通用物体",
+    "Description": "A photo of human eye.",
+    "Tags": []
+  },
+  {
+    "Label": "Human face",
+    "Category": "通用物体",
+    "Description": "A photo of human face.",
+    "Tags": []
+  },
+  {
+    "Label": "Human foot",
+    "Category": "通用物体",
+    "Description": "A photo of human foot.",
+    "Tags": []
+  },
+  {
+    "Label": "Human hair",
+    "Category": "通用物体",
+    "Description": "A photo of human hair.",
+    "Tags": []
+  },
+  {
+    "Label": "Human hand",
+    "Category": "通用物体",
+    "Description": "A photo of human hand.",
+    "Tags": []
+  },
+  {
+    "Label": "Human head",
+    "Category": "通用物体",
+    "Description": "A photo of human head.",
+    "Tags": []
+  },
+  {
+    "Label": "Human leg",
+    "Category": "通用物体",
+    "Description": "A photo of human leg.",
+    "Tags": []
+  },
+  {
+    "Label": "Human mouth",
+    "Category": "通用物体",
+    "Description": "A photo of human mouth.",
+    "Tags": []
+  },
+  {
+    "Label": "Human nose",
+    "Category": "通用物体",
+    "Description": "A photo of human nose.",
+    "Tags": []
+  },
+  {
+    "Label": "Humidifier",
+    "Category": "通用物体",
+    "Description": "A photo of humidifier.",
+    "Tags": []
+  },
+  {
+    "Label": "Ice cream",
+    "Category": "食物",
+    "Description": "A photo of ice cream.",
+    "Tags": []
+  },
+  {
+    "Label": "Indoor rower",
+    "Category": "通用物体",
+    "Description": "A photo of indoor rower.",
+    "Tags": []
+  },
+  {
+    "Label": "Infant bed",
+    "Category": "通用物体",
+    "Description": "A photo of infant bed.",
+    "Tags": []
+  },
+  {
+    "Label": "Insect",
+    "Category": "动物",
+    "Description": "A photo of insect.",
+    "Tags": []
+  },
+  {
+    "Label": "Invertebrate",
+    "Category": "动物",
+    "Description": "A photo of invertebrate.",
+    "Tags": []
+  },
+  {
+    "Label": "Ipod",
+    "Category": "通用物体",
+    "Description": "A photo of ipod.",
+    "Tags": []
+  },
+  {
+    "Label": "Isopod",
+    "Category": "动物",
+    "Description": "A photo of isopod.",
+    "Tags": []
+  },
+  {
+    "Label": "Jacket",
+    "Category": "服饰",
+    "Description": "A photo of jacket.",
+    "Tags": []
+  },
+  {
+    "Label": "Jacuzzi",
+    "Category": "通用物体",
+    "Description": "A photo of jacuzzi.",
+    "Tags": []
+  },
+  {
+    "Label": "Jaguar (Animal)",
+    "Category": "动物",
+    "Description": "A photo of jaguar (animal).",
+    "Tags": []
+  },
+  {
+    "Label": "Jeans",
+    "Category": "服饰",
+    "Description": "A photo of jeans.",
+    "Tags": []
+  },
+  {
+    "Label": "Jellyfish",
+    "Category": "动物",
+    "Description": "A photo of jellyfish.",
+    "Tags": []
+  },
+  {
+    "Label": "Jet ski",
+    "Category": "交通工具",
+    "Description": "A photo of jet ski.",
+    "Tags": []
+  },
+  {
+    "Label": "Jug",
+    "Category": "通用物体",
+    "Description": "A photo of jug.",
+    "Tags": []
+  },
+  {
+    "Label": "Juice",
+    "Category": "通用物体",
+    "Description": "A photo of juice.",
+    "Tags": []
+  },
+  {
+    "Label": "Kangaroo",
+    "Category": "动物",
+    "Description": "A photo of kangaroo.",
+    "Tags": []
+  },
+  {
+    "Label": "Kettle",
+    "Category": "通用物体",
+    "Description": "A photo of kettle.",
+    "Tags": []
+  },
+  {
+    "Label": "Kitchen & dining room table",
+    "Category": "通用物体",
+    "Description": "A photo of kitchen & dining room table.",
+    "Tags": []
+  },
+  {
+    "Label": "Kitchen appliance",
+    "Category": "通用物体",
+    "Description": "A photo of kitchen appliance.",
+    "Tags": []
+  },
+  {
+    "Label": "Kitchen knife",
+    "Category": "通用物体",
+    "Description": "A photo of kitchen knife.",
+    "Tags": []
+  },
+  {
+    "Label": "Kitchen utensil",
+    "Category": "通用物体",
+    "Description": "A photo of kitchen utensil.",
+    "Tags": []
+  },
+  {
+    "Label": "Kitchenware",
+    "Category": "通用物体",
+    "Description": "A photo of kitchenware.",
+    "Tags": []
+  },
+  {
+    "Label": "Kite",
+    "Category": "通用物体",
+    "Description": "A photo of kite.",
+    "Tags": []
+  },
+  {
+    "Label": "Knife",
+    "Category": "通用物体",
+    "Description": "A photo of knife.",
+    "Tags": []
+  },
+  {
+    "Label": "Koala",
+    "Category": "动物",
+    "Description": "A photo of koala.",
+    "Tags": []
+  },
+  {
+    "Label": "Ladder",
+    "Category": "通用物体",
+    "Description": "A photo of ladder.",
+    "Tags": []
+  },
+  {
+    "Label": "Ladle",
+    "Category": "通用物体",
+    "Description": "A photo of ladle.",
+    "Tags": []
+  },
+  {
+    "Label": "Ladybug",
+    "Category": "动物",
+    "Description": "A photo of ladybug.",
+    "Tags": []
+  },
+  {
+    "Label": "Lamp",
+    "Category": "通用物体",
+    "Description": "A photo of lamp.",
+    "Tags": []
+  },
+  {
+    "Label": "Land vehicle",
+    "Category": "交通工具",
+    "Description": "A photo of land vehicle.",
+    "Tags": []
+  },
+  {
+    "Label": "Lantern",
+    "Category": "通用物体",
+    "Description": "A photo of lantern.",
+    "Tags": []
+  },
+  {
+    "Label": "Laptop",
+    "Category": "通用物体",
+    "Description": "A photo of laptop.",
+    "Tags": []
+  },
+  {
+    "Label": "Lavender (Plant)",
+    "Category": "植物",
+    "Description": "A photo of lavender (plant).",
+    "Tags": []
+  },
+  {
+    "Label": "Lemon (plant)",
+    "Category": "食物",
+    "Description": "A photo of lemon (plant).",
+    "Tags": []
+  },
+  {
+    "Label": "Leopard",
+    "Category": "动物",
+    "Description": "A photo of leopard.",
+    "Tags": []
+  },
+  {
+    "Label": "Light bulb",
+    "Category": "通用物体",
+    "Description": "A photo of light bulb.",
+    "Tags": []
+  },
+  {
+    "Label": "Light switch",
+    "Category": "通用物体",
+    "Description": "A photo of light switch.",
+    "Tags": []
+  },
+  {
+    "Label": "Lighthouse",
+    "Category": "建筑",
+    "Description": "A photo of lighthouse.",
+    "Tags": []
+  },
+  {
+    "Label": "Lily",
+    "Category": "植物",
+    "Description": "A photo of lily.",
+    "Tags": []
+  },
+  {
+    "Label": "Limousine",
+    "Category": "交通工具",
+    "Description": "A photo of limousine.",
+    "Tags": []
+  },
+  {
+    "Label": "Lion",
+    "Category": "动物",
+    "Description": "A photo of lion.",
+    "Tags": []
+  },
+  {
+    "Label": "Lipstick",
+    "Category": "通用物体",
+    "Description": "A photo of lipstick.",
+    "Tags": []
+  },
+  {
+    "Label": "Lizard",
+    "Category": "动物",
+    "Description": "A photo of lizard.",
+    "Tags": []
+  },
+  {
+    "Label": "Lobster",
+    "Category": "动物",
+    "Description": "A photo of lobster.",
+    "Tags": []
+  },
+  {
+    "Label": "Loveseat",
+    "Category": "通用物体",
+    "Description": "A photo of loveseat.",
+    "Tags": []
+  },
+  {
+    "Label": "Luggage and bags",
+    "Category": "服饰",
+    "Description": "A photo of luggage and bags.",
+    "Tags": []
+  },
+  {
+    "Label": "Lynx",
+    "Category": "动物",
+    "Description": "A photo of lynx.",
+    "Tags": []
+  },
+  {
+    "Label": "Magpie",
+    "Category": "动物",
+    "Description": "A photo of magpie.",
+    "Tags": []
+  },
+  {
+    "Label": "Mammal",
+    "Category": "动物",
+    "Description": "A photo of mammal.",
+    "Tags": []
+  },
+  {
+    "Label": "Man",
+    "Category": "人物",
+    "Description": "A photo of man.",
+    "Tags": []
+  },
+  {
+    "Label": "Mango",
+    "Category": "食物",
+    "Description": "A photo of mango.",
+    "Tags": []
+  },
+  {
+    "Label": "Maple",
+    "Category": "植物",
+    "Description": "A photo of maple.",
+    "Tags": []
+  },
+  {
+    "Label": "Maraca",
+    "Category": "通用物体",
+    "Description": "A photo of maraca.",
+    "Tags": []
+  },
+  {
+    "Label": "Marine invertebrates",
+    "Category": "动物",
+    "Description": "A photo of marine invertebrates.",
+    "Tags": []
+  },
+  {
+    "Label": "Marine mammal",
+    "Category": "动物",
+    "Description": "A photo of marine mammal.",
+    "Tags": []
+  },
+  {
+    "Label": "Measuring cup",
+    "Category": "通用物体",
+    "Description": "A photo of measuring cup.",
+    "Tags": []
+  },
+  {
+    "Label": "Mechanical fan",
+    "Category": "通用物体",
+    "Description": "A photo of mechanical fan.",
+    "Tags": []
+  },
+  {
+    "Label": "Medical equipment",
+    "Category": "通用物体",
+    "Description": "A photo of medical equipment.",
+    "Tags": []
+  },
+  {
+    "Label": "Microphone",
+    "Category": "通用物体",
+    "Description": "A photo of microphone.",
+    "Tags": []
+  },
+  {
+    "Label": "Microwave oven",
+    "Category": "通用物体",
+    "Description": "A photo of microwave oven.",
+    "Tags": []
+  },
+  {
+    "Label": "Milk",
+    "Category": "食物",
+    "Description": "A photo of milk.",
+    "Tags": []
+  },
+  {
+    "Label": "Miniskirt",
+    "Category": "服饰",
+    "Description": "A photo of miniskirt.",
+    "Tags": []
+  },
+  {
+    "Label": "Mirror",
+    "Category": "通用物体",
+    "Description": "A photo of mirror.",
+    "Tags": []
+  },
+  {
+    "Label": "Missile",
+    "Category": "通用物体",
+    "Description": "A photo of missile.",
+    "Tags": []
+  },
+  {
+    "Label": "Mixer",
+    "Category": "通用物体",
+    "Description": "A photo of mixer.",
+    "Tags": []
+  },
+  {
+    "Label": "Mixing bowl",
+    "Category": "通用物体",
+    "Description": "A photo of mixing bowl.",
+    "Tags": []
+  },
+  {
+    "Label": "Mobile phone",
+    "Category": "通用物体",
+    "Description": "A photo of mobile phone.",
+    "Tags": []
+  },
+  {
+    "Label": "Monkey",
+    "Category": "动物",
+    "Description": "A photo of monkey.",
+    "Tags": []
+  },
+  {
+    "Label": "Moths and butterflies",
+    "Category": "动物",
+    "Description": "A photo of moths and butterflies.",
+    "Tags": []
+  },
+  {
+    "Label": "Motorcycle",
+    "Category": "交通工具",
+    "Description": "A photo of motorcycle.",
+    "Tags": []
+  },
+  {
+    "Label": "Mouse",
+    "Category": "动物",
+    "Description": "A photo of mouse.",
+    "Tags": []
+  },
+  {
+    "Label": "Muffin",
+    "Category": "食物",
+    "Description": "A photo of muffin.",
+    "Tags": []
+  },
+  {
+    "Label": "Mug",
+    "Category": "通用物体",
+    "Description": "A photo of mug.",
+    "Tags": []
+  },
+  {
+    "Label": "Mule",
+    "Category": "动物",
+    "Description": "A photo of mule.",
+    "Tags": []
+  },
+  {
+    "Label": "Mushroom",
+    "Category": "食物",
+    "Description": "A photo of mushroom.",
+    "Tags": []
+  },
+  {
+    "Label": "Musical instrument",
+    "Category": "通用物体",
+    "Description": "A photo of musical instrument.",
+    "Tags": []
+  },
+  {
+    "Label": "Musical keyboard",
+    "Category": "通用物体",
+    "Description": "A photo of musical keyboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Nail (Construction)",
+    "Category": "通用物体",
+    "Description": "A photo of nail (construction).",
+    "Tags": []
+  },
+  {
+    "Label": "Necklace",
+    "Category": "服饰",
+    "Description": "A photo of necklace.",
+    "Tags": []
+  },
+  {
+    "Label": "Nightstand",
+    "Category": "通用物体",
+    "Description": "A photo of nightstand.",
+    "Tags": []
+  },
+  {
+    "Label": "Oboe",
+    "Category": "通用物体",
+    "Description": "A photo of oboe.",
+    "Tags": []
+  },
+  {
+    "Label": "Office building",
+    "Category": "建筑",
+    "Description": "A photo of office building.",
+    "Tags": []
+  },
+  {
+    "Label": "Office supplies",
+    "Category": "通用物体",
+    "Description": "A photo of office supplies.",
+    "Tags": []
+  },
+  {
+    "Label": "Orange (fruit)",
+    "Category": "食物",
+    "Description": "A photo of orange (fruit).",
+    "Tags": []
+  },
+  {
+    "Label": "Organ (Musical Instrument)",
+    "Category": "通用物体",
+    "Description": "A photo of organ (musical instrument).",
+    "Tags": []
+  },
+  {
+    "Label": "Ostrich",
+    "Category": "动物",
+    "Description": "A photo of ostrich.",
+    "Tags": []
+  },
+  {
+    "Label": "Otter",
+    "Category": "动物",
+    "Description": "A photo of otter.",
+    "Tags": []
+  },
+  {
+    "Label": "Oven",
+    "Category": "通用物体",
+    "Description": "A photo of oven.",
+    "Tags": []
+  },
+  {
+    "Label": "Owl",
+    "Category": "动物",
+    "Description": "A photo of owl.",
+    "Tags": []
+  },
+  {
+    "Label": "Oyster",
+    "Category": "动物",
+    "Description": "A photo of oyster.",
+    "Tags": []
+  },
+  {
+    "Label": "Paddle",
+    "Category": "通用物体",
+    "Description": "A photo of paddle.",
+    "Tags": []
+  },
+  {
+    "Label": "Palm tree",
+    "Category": "植物",
+    "Description": "A photo of palm tree.",
+    "Tags": []
+  },
+  {
+    "Label": "Pancake",
+    "Category": "食物",
+    "Description": "A photo of pancake.",
+    "Tags": []
+  },
+  {
+    "Label": "Panda",
+    "Category": "动物",
+    "Description": "A photo of panda.",
+    "Tags": []
+  },
+  {
+    "Label": "Paper cutter",
+    "Category": "通用物体",
+    "Description": "A photo of paper cutter.",
+    "Tags": []
+  },
+  {
+    "Label": "Paper towel",
+    "Category": "通用物体",
+    "Description": "A photo of paper towel.",
+    "Tags": []
+  },
+  {
+    "Label": "Parachute",
+    "Category": "通用物体",
+    "Description": "A photo of parachute.",
+    "Tags": []
+  },
+  {
+    "Label": "Parking meter",
+    "Category": "通用物体",
+    "Description": "A photo of parking meter.",
+    "Tags": []
+  },
+  {
+    "Label": "Parrot",
+    "Category": "动物",
+    "Description": "A photo of parrot.",
+    "Tags": []
+  },
+  {
+    "Label": "Pasta",
+    "Category": "食物",
+    "Description": "A photo of pasta.",
+    "Tags": []
+  },
+  {
+    "Label": "Pastry",
+    "Category": "食物",
+    "Description": "A photo of pastry.",
+    "Tags": []
+  },
+  {
+    "Label": "Peach",
+    "Category": "食物",
+    "Description": "A photo of peach.",
+    "Tags": []
+  },
+  {
+    "Label": "Pear",
+    "Category": "食物",
+    "Description": "A photo of pear.",
+    "Tags": []
+  },
+  {
+    "Label": "Pen",
+    "Category": "通用物体",
+    "Description": "A photo of pen.",
+    "Tags": []
+  },
+  {
+    "Label": "Pencil case",
+    "Category": "通用物体",
+    "Description": "A photo of pencil case.",
+    "Tags": []
+  },
+  {
+    "Label": "Pencil sharpener",
+    "Category": "通用物体",
+    "Description": "A photo of pencil sharpener.",
+    "Tags": []
+  },
+  {
+    "Label": "Penguin",
+    "Category": "动物",
+    "Description": "A photo of penguin.",
+    "Tags": []
+  },
+  {
+    "Label": "Perfume",
+    "Category": "通用物体",
+    "Description": "A photo of perfume.",
+    "Tags": []
+  },
+  {
+    "Label": "Person",
+    "Category": "人物",
+    "Description": "A photo of person.",
+    "Tags": []
+  },
+  {
+    "Label": "Personal care",
+    "Category": "通用物体",
+    "Description": "A photo of personal care.",
+    "Tags": []
+  },
+  {
+    "Label": "Personal flotation device",
+    "Category": "通用物体",
+    "Description": "A photo of personal flotation device.",
+    "Tags": []
+  },
+  {
+    "Label": "Piano",
+    "Category": "通用物体",
+    "Description": "A photo of piano.",
+    "Tags": []
+  },
+  {
+    "Label": "Picnic basket",
+    "Category": "通用物体",
+    "Description": "A photo of picnic basket.",
+    "Tags": []
+  },
+  {
+    "Label": "Picture frame",
+    "Category": "通用物体",
+    "Description": "A photo of picture frame.",
+    "Tags": []
+  },
+  {
+    "Label": "Pig",
+    "Category": "动物",
+    "Description": "A photo of pig.",
+    "Tags": []
+  },
+  {
+    "Label": "Pillow",
+    "Category": "通用物体",
+    "Description": "A photo of pillow.",
+    "Tags": []
+  },
+  {
+    "Label": "Pineapple",
+    "Category": "食物",
+    "Description": "A photo of pineapple.",
+    "Tags": []
+  },
+  {
+    "Label": "Pitcher (Container)",
+    "Category": "通用物体",
+    "Description": "A photo of pitcher (container).",
+    "Tags": []
+  },
+  {
+    "Label": "Pizza",
+    "Category": "食物",
+    "Description": "A photo of pizza.",
+    "Tags": []
+  },
+  {
+    "Label": "Pizza cutter",
+    "Category": "通用物体",
+    "Description": "A photo of pizza cutter.",
+    "Tags": []
+  },
+  {
+    "Label": "Plant",
+    "Category": "植物",
+    "Description": "A photo of plant.",
+    "Tags": []
+  },
+  {
+    "Label": "Plastic bag",
+    "Category": "通用物体",
+    "Description": "A photo of plastic bag.",
+    "Tags": []
+  },
+  {
+    "Label": "Plate",
+    "Category": "通用物体",
+    "Description": "A photo of plate.",
+    "Tags": []
+  },
+  {
+    "Label": "Platter",
+    "Category": "通用物体",
+    "Description": "A photo of platter.",
+    "Tags": []
+  },
+  {
+    "Label": "Plumbing fixture",
+    "Category": "通用物体",
+    "Description": "A photo of plumbing fixture.",
+    "Tags": []
+  },
+  {
+    "Label": "Polar bear",
+    "Category": "动物",
+    "Description": "A photo of polar bear.",
+    "Tags": []
+  },
+  {
+    "Label": "Pomegranate",
+    "Category": "食物",
+    "Description": "A photo of pomegranate.",
+    "Tags": []
+  },
+  {
+    "Label": "Popcorn",
+    "Category": "食物",
+    "Description": "A photo of popcorn.",
+    "Tags": []
+  },
+  {
+    "Label": "Porch",
+    "Category": "通用物体",
+    "Description": "A photo of porch.",
+    "Tags": []
+  },
+  {
+    "Label": "Porcupine",
+    "Category": "动物",
+    "Description": "A photo of porcupine.",
+    "Tags": []
+  },
+  {
+    "Label": "Poster",
+    "Category": "通用物体",
+    "Description": "A photo of poster.",
+    "Tags": []
+  },
+  {
+    "Label": "Potato",
+    "Category": "食物",
+    "Description": "A photo of potato.",
+    "Tags": []
+  },
+  {
+    "Label": "Power plugs and sockets",
+    "Category": "通用物体",
+    "Description": "A photo of power plugs and sockets.",
+    "Tags": []
+  },
+  {
+    "Label": "Pressure cooker",
+    "Category": "通用物体",
+    "Description": "A photo of pressure cooker.",
+    "Tags": []
+  },
+  {
+    "Label": "Pretzel",
+    "Category": "食物",
+    "Description": "A photo of pretzel.",
+    "Tags": []
+  },
+  {
+    "Label": "Printer",
+    "Category": "通用物体",
+    "Description": "A photo of printer.",
+    "Tags": []
+  },
+  {
+    "Label": "Pumpkin",
+    "Category": "食物",
+    "Description": "A photo of pumpkin.",
+    "Tags": []
+  },
+  {
+    "Label": "Punching bag",
+    "Category": "通用物体",
+    "Description": "A photo of punching bag.",
+    "Tags": []
+  },
+  {
+    "Label": "Rabbit",
+    "Category": "动物",
+    "Description": "A photo of rabbit.",
+    "Tags": []
+  },
+  {
+    "Label": "Raccoon",
+    "Category": "动物",
+    "Description": "A photo of raccoon.",
+    "Tags": []
+  },
+  {
+    "Label": "Racket",
+    "Category": "通用物体",
+    "Description": "A photo of racket.",
+    "Tags": []
+  },
+  {
+    "Label": "Radish",
+    "Category": "食物",
+    "Description": "A photo of radish.",
+    "Tags": []
+  },
+  {
+    "Label": "Ratchet (Device)",
+    "Category": "通用物体",
+    "Description": "A photo of ratchet (device).",
+    "Tags": []
+  },
+  {
+    "Label": "Raven",
+    "Category": "动物",
+    "Description": "A photo of raven.",
+    "Tags": []
+  },
+  {
+    "Label": "Rays and skates",
+    "Category": "动物",
+    "Description": "A photo of rays and skates.",
+    "Tags": []
+  },
+  {
+    "Label": "Red panda",
+    "Category": "动物",
+    "Description": "A photo of red panda.",
+    "Tags": []
+  },
+  {
+    "Label": "Refrigerator",
+    "Category": "通用物体",
+    "Description": "A photo of refrigerator.",
+    "Tags": []
+  },
+  {
+    "Label": "Remote control",
+    "Category": "通用物体",
+    "Description": "A photo of remote control.",
+    "Tags": []
+  },
+  {
+    "Label": "Reptile",
+    "Category": "动物",
+    "Description": "A photo of reptile.",
+    "Tags": []
+  },
+  {
+    "Label": "Rhinoceros",
+    "Category": "动物",
+    "Description": "A photo of rhinoceros.",
+    "Tags": []
+  },
+  {
+    "Label": "Rifle",
+    "Category": "通用物体",
+    "Description": "A photo of rifle.",
+    "Tags": []
+  },
+  {
+    "Label": "Ring binder",
+    "Category": "通用物体",
+    "Description": "A photo of ring binder.",
+    "Tags": []
+  },
+  {
+    "Label": "Rocket",
+    "Category": "交通工具",
+    "Description": "A photo of rocket.",
+    "Tags": []
+  },
+  {
+    "Label": "Roller skates",
+    "Category": "通用物体",
+    "Description": "A photo of roller skates.",
+    "Tags": []
+  },
+  {
+    "Label": "Rose",
+    "Category": "植物",
+    "Description": "A photo of rose.",
+    "Tags": []
+  },
+  {
+    "Label": "Rugby ball",
+    "Category": "通用物体",
+    "Description": "A photo of rugby ball.",
+    "Tags": []
+  },
+  {
+    "Label": "Ruler",
+    "Category": "通用物体",
+    "Description": "A photo of ruler.",
+    "Tags": []
+  },
+  {
+    "Label": "Salad",
+    "Category": "食物",
+    "Description": "A photo of salad.",
+    "Tags": []
+  },
+  {
+    "Label": "Salt and pepper shakers",
+    "Category": "通用物体",
+    "Description": "A photo of salt and pepper shakers.",
+    "Tags": []
+  },
+  {
+    "Label": "Sandal",
+    "Category": "服饰",
+    "Description": "A photo of sandal.",
+    "Tags": []
+  },
+  {
+    "Label": "Sandwich",
+    "Category": "食物",
+    "Description": "A photo of sandwich.",
+    "Tags": []
+  },
+  {
+    "Label": "Saucer",
+    "Category": "通用物体",
+    "Description": "A photo of saucer.",
+    "Tags": []
+  },
+  {
+    "Label": "Saxophone",
+    "Category": "通用物体",
+    "Description": "A photo of saxophone.",
+    "Tags": []
+  },
+  {
+    "Label": "Scale",
+    "Category": "通用物体",
+    "Description": "A photo of scale.",
+    "Tags": []
+  },
+  {
+    "Label": "Scarf",
+    "Category": "服饰",
+    "Description": "A photo of scarf.",
+    "Tags": []
+  },
+  {
+    "Label": "Scissors",
+    "Category": "通用物体",
+    "Description": "A photo of scissors.",
+    "Tags": []
+  },
+  {
+    "Label": "Scoreboard",
+    "Category": "通用物体",
+    "Description": "A photo of scoreboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Scorpion",
+    "Category": "动物",
+    "Description": "A photo of scorpion.",
+    "Tags": []
+  },
+  {
+    "Label": "Screwdriver",
+    "Category": "通用物体",
+    "Description": "A photo of screwdriver.",
+    "Tags": []
+  },
+  {
+    "Label": "Sculpture",
+    "Category": "通用物体",
+    "Description": "A photo of sculpture.",
+    "Tags": []
+  },
+  {
+    "Label": "Sea lion",
+    "Category": "动物",
+    "Description": "A photo of sea lion.",
+    "Tags": []
+  },
+  {
+    "Label": "Sea turtle",
+    "Category": "动物",
+    "Description": "A photo of sea turtle.",
+    "Tags": []
+  },
+  {
+    "Label": "Seafood",
+    "Category": "食物",
+    "Description": "A photo of seafood.",
+    "Tags": []
+  },
+  {
+    "Label": "Seahorse",
+    "Category": "动物",
+    "Description": "A photo of seahorse.",
+    "Tags": []
+  },
+  {
+    "Label": "Seat belt",
+    "Category": "通用物体",
+    "Description": "A photo of seat belt.",
+    "Tags": []
+  },
+  {
+    "Label": "Segway",
+    "Category": "交通工具",
+    "Description": "A photo of segway.",
+    "Tags": []
+  },
+  {
+    "Label": "Serving tray",
+    "Category": "通用物体",
+    "Description": "A photo of serving tray.",
+    "Tags": []
+  },
+  {
+    "Label": "Sewing machine",
+    "Category": "通用物体",
+    "Description": "A photo of sewing machine.",
+    "Tags": []
+  },
+  {
+    "Label": "Shark",
+    "Category": "动物",
+    "Description": "A photo of shark.",
+    "Tags": []
+  },
+  {
+    "Label": "Sheep",
+    "Category": "动物",
+    "Description": "A photo of sheep.",
+    "Tags": []
+  },
+  {
+    "Label": "Shelf",
+    "Category": "通用物体",
+    "Description": "A photo of shelf.",
+    "Tags": []
+  },
+  {
+    "Label": "Shellfish",
+    "Category": "动物",
+    "Description": "A photo of shellfish.",
+    "Tags": []
+  },
+  {
+    "Label": "Shirt",
+    "Category": "服饰",
+    "Description": "A photo of shirt.",
+    "Tags": []
+  },
+  {
+    "Label": "Shorts",
+    "Category": "服饰",
+    "Description": "A photo of shorts.",
+    "Tags": []
+  },
+  {
+    "Label": "Shotgun",
+    "Category": "通用物体",
+    "Description": "A photo of shotgun.",
+    "Tags": []
+  },
+  {
+    "Label": "Shower",
+    "Category": "通用物体",
+    "Description": "A photo of shower.",
+    "Tags": []
+  },
+  {
+    "Label": "Shrimp",
+    "Category": "动物",
+    "Description": "A photo of shrimp.",
+    "Tags": []
+  },
+  {
+    "Label": "Sink",
+    "Category": "通用物体",
+    "Description": "A photo of sink.",
+    "Tags": []
+  },
+  {
+    "Label": "Skateboard",
+    "Category": "通用物体",
+    "Description": "A photo of skateboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Ski",
+    "Category": "通用物体",
+    "Description": "A photo of ski.",
+    "Tags": []
+  },
+  {
+    "Label": "Skirt",
+    "Category": "服饰",
+    "Description": "A photo of skirt.",
+    "Tags": []
+  },
+  {
+    "Label": "Skull",
+    "Category": "通用物体",
+    "Description": "A photo of skull.",
+    "Tags": []
+  },
+  {
+    "Label": "Skunk",
+    "Category": "动物",
+    "Description": "A photo of skunk.",
+    "Tags": []
+  },
+  {
+    "Label": "Skyscraper",
+    "Category": "建筑",
+    "Description": "A photo of skyscraper.",
+    "Tags": []
+  },
+  {
+    "Label": "Slow cooker",
+    "Category": "通用物体",
+    "Description": "A photo of slow cooker.",
+    "Tags": []
+  },
+  {
+    "Label": "Snack",
+    "Category": "食物",
+    "Description": "A photo of snack.",
+    "Tags": []
+  },
+  {
+    "Label": "Snail",
+    "Category": "动物",
+    "Description": "A photo of snail.",
+    "Tags": []
+  },
+  {
+    "Label": "Snake",
+    "Category": "动物",
+    "Description": "A photo of snake.",
+    "Tags": []
+  },
+  {
+    "Label": "Snowboard",
+    "Category": "通用物体",
+    "Description": "A photo of snowboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Snowman",
+    "Category": "通用物体",
+    "Description": "A photo of snowman.",
+    "Tags": []
+  },
+  {
+    "Label": "Snowmobile",
+    "Category": "交通工具",
+    "Description": "A photo of snowmobile.",
+    "Tags": []
+  },
+  {
+    "Label": "Snowplow",
+    "Category": "通用物体",
+    "Description": "A photo of snowplow.",
+    "Tags": []
+  },
+  {
+    "Label": "Soap dispenser",
+    "Category": "通用物体",
+    "Description": "A photo of soap dispenser.",
+    "Tags": []
+  },
+  {
+    "Label": "Sock",
+    "Category": "服饰",
+    "Description": "A photo of sock.",
+    "Tags": []
+  },
+  {
+    "Label": "Sofa bed",
+    "Category": "通用物体",
+    "Description": "A photo of sofa bed.",
+    "Tags": []
+  },
+  {
+    "Label": "Sombrero",
+    "Category": "服饰",
+    "Description": "A photo of sombrero.",
+    "Tags": []
+  },
+  {
+    "Label": "Sparrow",
+    "Category": "动物",
+    "Description": "A photo of sparrow.",
+    "Tags": []
+  },
+  {
+    "Label": "Spatula",
+    "Category": "通用物体",
+    "Description": "A photo of spatula.",
+    "Tags": []
+  },
+  {
+    "Label": "Spice rack",
+    "Category": "通用物体",
+    "Description": "A photo of spice rack.",
+    "Tags": []
+  },
+  {
+    "Label": "Spider",
+    "Category": "动物",
+    "Description": "A photo of spider.",
+    "Tags": []
+  },
+  {
+    "Label": "Spoon",
+    "Category": "通用物体",
+    "Description": "A photo of spoon.",
+    "Tags": []
+  },
+  {
+    "Label": "Sports equipment",
+    "Category": "通用物体",
+    "Description": "A photo of sports equipment.",
+    "Tags": []
+  },
+  {
+    "Label": "Sports uniform",
+    "Category": "服饰",
+    "Description": "A photo of sports uniform.",
+    "Tags": []
+  },
+  {
+    "Label": "Squash (Plant)",
+    "Category": "食物",
+    "Description": "A photo of squash (plant).",
+    "Tags": []
+  },
+  {
+    "Label": "Squid",
+    "Category": "动物",
+    "Description": "A photo of squid.",
+    "Tags": []
+  },
+  {
+    "Label": "Squirrel",
+    "Category": "动物",
+    "Description": "A photo of squirrel.",
+    "Tags": []
+  },
+  {
+    "Label": "Stairs",
+    "Category": "通用物体",
+    "Description": "A photo of stairs.",
+    "Tags": []
+  },
+  {
+    "Label": "Stapler",
+    "Category": "通用物体",
+    "Description": "A photo of stapler.",
+    "Tags": []
+  },
+  {
+    "Label": "Starfish",
+    "Category": "动物",
+    "Description": "A photo of starfish.",
+    "Tags": []
+  },
+  {
+    "Label": "Stationary bicycle",
+    "Category": "通用物体",
+    "Description": "A photo of stationary bicycle.",
+    "Tags": []
+  },
+  {
+    "Label": "Stethoscope",
+    "Category": "通用物体",
+    "Description": "A photo of stethoscope.",
+    "Tags": []
+  },
+  {
+    "Label": "Stool",
+    "Category": "通用物体",
+    "Description": "A photo of stool.",
+    "Tags": []
+  },
+  {
+    "Label": "Stop sign",
+    "Category": "通用物体",
+    "Description": "A photo of stop sign.",
+    "Tags": []
+  },
+  {
+    "Label": "Strawberry",
+    "Category": "食物",
+    "Description": "A photo of strawberry.",
+    "Tags": []
+  },
+  {
+    "Label": "Street light",
+    "Category": "通用物体",
+    "Description": "A photo of street light.",
+    "Tags": []
+  },
+  {
+    "Label": "Stretcher",
+    "Category": "通用物体",
+    "Description": "A photo of stretcher.",
+    "Tags": []
+  },
+  {
+    "Label": "Studio couch",
+    "Category": "通用物体",
+    "Description": "A photo of studio couch.",
+    "Tags": []
+  },
+  {
+    "Label": "Submarine",
+    "Category": "交通工具",
+    "Description": "A photo of submarine.",
+    "Tags": []
+  },
+  {
+    "Label": "Submarine sandwich",
+    "Category": "食物",
+    "Description": "A photo of submarine sandwich.",
+    "Tags": []
+  },
+  {
+    "Label": "Suit",
+    "Category": "服饰",
+    "Description": "A photo of suit.",
+    "Tags": []
+  },
+  {
+    "Label": "Suitcase",
+    "Category": "服饰",
+    "Description": "A photo of suitcase.",
+    "Tags": []
+  },
+  {
+    "Label": "Sun hat",
+    "Category": "服饰",
+    "Description": "A photo of sun hat.",
+    "Tags": []
+  },
+  {
+    "Label": "Sunglasses",
+    "Category": "通用物体",
+    "Description": "A photo of sunglasses.",
+    "Tags": []
+  },
+  {
+    "Label": "Surfboard",
+    "Category": "通用物体",
+    "Description": "A photo of surfboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Sushi",
+    "Category": "食物",
+    "Description": "A photo of sushi.",
+    "Tags": []
+  },
+  {
+    "Label": "Swan",
+    "Category": "动物",
+    "Description": "A photo of swan.",
+    "Tags": []
+  },
+  {
+    "Label": "Swim cap",
+    "Category": "服饰",
+    "Description": "A photo of swim cap.",
+    "Tags": []
+  },
+  {
+    "Label": "Swimming pool",
+    "Category": "通用物体",
+    "Description": "A photo of swimming pool.",
+    "Tags": []
+  },
+  {
+    "Label": "Swimwear",
+    "Category": "服饰",
+    "Description": "A photo of swimwear.",
+    "Tags": []
+  },
+  {
+    "Label": "Sword",
+    "Category": "通用物体",
+    "Description": "A photo of sword.",
+    "Tags": []
+  },
+  {
+    "Label": "Syringe",
+    "Category": "通用物体",
+    "Description": "A photo of syringe.",
+    "Tags": []
+  },
+  {
+    "Label": "Table",
+    "Category": "通用物体",
+    "Description": "A photo of table.",
+    "Tags": []
+  },
+  {
+    "Label": "Table tennis racket",
+    "Category": "通用物体",
+    "Description": "A photo of table tennis racket.",
+    "Tags": []
+  },
+  {
+    "Label": "Tablet computer",
+    "Category": "通用物体",
+    "Description": "A photo of tablet computer.",
+    "Tags": []
+  },
+  {
+    "Label": "Tableware",
+    "Category": "通用物体",
+    "Description": "A photo of tableware.",
+    "Tags": []
+  },
+  {
+    "Label": "Taco",
+    "Category": "食物",
+    "Description": "A photo of taco.",
+    "Tags": []
+  },
+  {
+    "Label": "Tank",
+    "Category": "通用物体",
+    "Description": "A photo of tank.",
+    "Tags": []
+  },
+  {
+    "Label": "Tap",
+    "Category": "通用物体",
+    "Description": "A photo of tap.",
+    "Tags": []
+  },
+  {
+    "Label": "Tart",
+    "Category": "食物",
+    "Description": "A photo of tart.",
+    "Tags": []
+  },
+  {
+    "Label": "Taxi",
+    "Category": "交通工具",
+    "Description": "A photo of taxi.",
+    "Tags": []
+  },
+  {
+    "Label": "Tea",
+    "Category": "通用物体",
+    "Description": "A photo of tea.",
+    "Tags": []
+  },
+  {
+    "Label": "Teapot",
+    "Category": "通用物体",
+    "Description": "A photo of teapot.",
+    "Tags": []
+  },
+  {
+    "Label": "Teddy bear",
+    "Category": "动物",
+    "Description": "A photo of teddy bear.",
+    "Tags": []
+  },
+  {
+    "Label": "Telephone",
+    "Category": "通用物体",
+    "Description": "A photo of telephone.",
+    "Tags": []
+  },
+  {
+    "Label": "Television",
+    "Category": "通用物体",
+    "Description": "A photo of television.",
+    "Tags": []
+  },
+  {
+    "Label": "Tennis ball",
+    "Category": "通用物体",
+    "Description": "A photo of tennis ball.",
+    "Tags": []
+  },
+  {
+    "Label": "Tennis racket",
+    "Category": "通用物体",
+    "Description": "A photo of tennis racket.",
+    "Tags": []
+  },
+  {
+    "Label": "Tent",
+    "Category": "通用物体",
+    "Description": "A photo of tent.",
+    "Tags": []
+  },
+  {
+    "Label": "Tiara",
+    "Category": "服饰",
+    "Description": "A photo of tiara.",
+    "Tags": []
+  },
+  {
+    "Label": "Tick",
+    "Category": "动物",
+    "Description": "A photo of tick.",
+    "Tags": []
+  },
+  {
+    "Label": "Tie",
+    "Category": "服饰",
+    "Description": "A photo of tie.",
+    "Tags": []
+  },
+  {
+    "Label": "Tiger",
+    "Category": "动物",
+    "Description": "A photo of tiger.",
+    "Tags": []
+  },
+  {
+    "Label": "Tin can",
+    "Category": "通用物体",
+    "Description": "A photo of tin can.",
+    "Tags": []
+  },
+  {
+    "Label": "Tire",
+    "Category": "通用物体",
+    "Description": "A photo of tire.",
+    "Tags": []
+  },
+  {
+    "Label": "Toaster",
+    "Category": "通用物体",
+    "Description": "A photo of toaster.",
+    "Tags": []
+  },
+  {
+    "Label": "Toilet",
+    "Category": "通用物体",
+    "Description": "A photo of toilet.",
+    "Tags": []
+  },
+  {
+    "Label": "Toilet paper",
+    "Category": "通用物体",
+    "Description": "A photo of toilet paper.",
+    "Tags": []
+  },
+  {
+    "Label": "Tomato",
+    "Category": "食物",
+    "Description": "A photo of tomato.",
+    "Tags": []
+  },
+  {
+    "Label": "Tool",
+    "Category": "通用物体",
+    "Description": "A photo of tool.",
+    "Tags": []
+  },
+  {
+    "Label": "Toothbrush",
+    "Category": "通用物体",
+    "Description": "A photo of toothbrush.",
+    "Tags": []
+  },
+  {
+    "Label": "Torch",
+    "Category": "通用物体",
+    "Description": "A photo of torch.",
+    "Tags": []
+  },
+  {
+    "Label": "Tortoise",
+    "Category": "动物",
+    "Description": "A photo of tortoise.",
+    "Tags": []
+  },
+  {
+    "Label": "Towel",
+    "Category": "通用物体",
+    "Description": "A photo of towel.",
+    "Tags": []
+  },
+  {
+    "Label": "Tower",
+    "Category": "建筑",
+    "Description": "A photo of tower.",
+    "Tags": []
+  },
+  {
+    "Label": "Toy",
+    "Category": "通用物体",
+    "Description": "A photo of toy.",
+    "Tags": []
+  },
+  {
+    "Label": "Traffic light",
+    "Category": "通用物体",
+    "Description": "A photo of traffic light.",
+    "Tags": []
+  },
+  {
+    "Label": "Traffic sign",
+    "Category": "通用物体",
+    "Description": "A photo of traffic sign.",
+    "Tags": []
+  },
+  {
+    "Label": "Train",
+    "Category": "交通工具",
+    "Description": "A photo of train.",
+    "Tags": []
+  },
+  {
+    "Label": "Training bench",
+    "Category": "通用物体",
+    "Description": "A photo of training bench.",
+    "Tags": []
+  },
+  {
+    "Label": "Treadmill",
+    "Category": "通用物体",
+    "Description": "A photo of treadmill.",
+    "Tags": []
+  },
+  {
+    "Label": "Tree",
+    "Category": "植物",
+    "Description": "A photo of tree.",
+    "Tags": []
+  },
+  {
+    "Label": "Tree house",
+    "Category": "建筑",
+    "Description": "A photo of tree house.",
+    "Tags": []
+  },
+  {
+    "Label": "Tripod",
+    "Category": "通用物体",
+    "Description": "A photo of tripod.",
+    "Tags": []
+  },
+  {
+    "Label": "Trombone",
+    "Category": "通用物体",
+    "Description": "A photo of trombone.",
+    "Tags": []
+  },
+  {
+    "Label": "Trousers",
+    "Category": "服饰",
+    "Description": "A photo of trousers.",
+    "Tags": []
+  },
+  {
+    "Label": "Truck",
+    "Category": "交通工具",
+    "Description": "A photo of truck.",
+    "Tags": []
+  },
+  {
+    "Label": "Trumpet",
+    "Category": "通用物体",
+    "Description": "A photo of trumpet.",
+    "Tags": []
+  },
+  {
+    "Label": "Turkey",
+    "Category": "动物",
+    "Description": "A photo of turkey.",
+    "Tags": []
+  },
+  {
+    "Label": "Turtle",
+    "Category": "动物",
+    "Description": "A photo of turtle.",
+    "Tags": []
+  },
+  {
+    "Label": "Umbrella",
+    "Category": "服饰",
+    "Description": "A photo of umbrella.",
+    "Tags": []
+  },
+  {
+    "Label": "Unicycle",
+    "Category": "交通工具",
+    "Description": "A photo of unicycle.",
+    "Tags": []
+  },
+  {
+    "Label": "Van",
+    "Category": "交通工具",
+    "Description": "A photo of van.",
+    "Tags": []
+  },
+  {
+    "Label": "Vase",
+    "Category": "通用物体",
+    "Description": "A photo of vase.",
+    "Tags": []
+  },
+  {
+    "Label": "Vegetable",
+    "Category": "食物",
+    "Description": "A photo of vegetable.",
+    "Tags": []
+  },
+  {
+    "Label": "Vehicle",
+    "Category": "交通工具",
+    "Description": "A photo of vehicle.",
+    "Tags": []
+  },
+  {
+    "Label": "Vehicle registration plate",
+    "Category": "通用物体",
+    "Description": "A photo of vehicle registration plate.",
+    "Tags": []
+  },
+  {
+    "Label": "Violin",
+    "Category": "通用物体",
+    "Description": "A photo of violin.",
+    "Tags": []
+  },
+  {
+    "Label": "Volleyball (Ball)",
+    "Category": "通用物体",
+    "Description": "A photo of volleyball (ball).",
+    "Tags": []
+  },
+  {
+    "Label": "Waffle",
+    "Category": "食物",
+    "Description": "A photo of waffle.",
+    "Tags": []
+  },
+  {
+    "Label": "Waffle iron",
+    "Category": "通用物体",
+    "Description": "A photo of waffle iron.",
+    "Tags": []
+  },
+  {
+    "Label": "Wall clock",
+    "Category": "通用物体",
+    "Description": "A photo of wall clock.",
+    "Tags": []
+  },
+  {
+    "Label": "Wardrobe",
+    "Category": "通用物体",
+    "Description": "A photo of wardrobe.",
+    "Tags": []
+  },
+  {
+    "Label": "Washing machine",
+    "Category": "通用物体",
+    "Description": "A photo of washing machine.",
+    "Tags": []
+  },
+  {
+    "Label": "Waste container",
+    "Category": "通用物体",
+    "Description": "A photo of waste container.",
+    "Tags": []
+  },
+  {
+    "Label": "Watch",
+    "Category": "服饰",
+    "Description": "A photo of watch.",
+    "Tags": []
+  },
+  {
+    "Label": "Watercraft",
+    "Category": "交通工具",
+    "Description": "A photo of watercraft.",
+    "Tags": []
+  },
+  {
+    "Label": "Watermelon",
+    "Category": "食物",
+    "Description": "A photo of watermelon.",
+    "Tags": []
+  },
+  {
+    "Label": "Weapon",
+    "Category": "通用物体",
+    "Description": "A photo of weapon.",
+    "Tags": []
+  },
+  {
+    "Label": "Whale",
+    "Category": "动物",
+    "Description": "A photo of whale.",
+    "Tags": []
+  },
+  {
+    "Label": "Wheel",
+    "Category": "通用物体",
+    "Description": "A photo of wheel.",
+    "Tags": []
+  },
+  {
+    "Label": "Wheelchair",
+    "Category": "通用物体",
+    "Description": "A photo of wheelchair.",
+    "Tags": []
+  },
+  {
+    "Label": "Whisk",
+    "Category": "通用物体",
+    "Description": "A photo of whisk.",
+    "Tags": []
+  },
+  {
+    "Label": "Whiteboard",
+    "Category": "通用物体",
+    "Description": "A photo of whiteboard.",
+    "Tags": []
+  },
+  {
+    "Label": "Willow",
+    "Category": "植物",
+    "Description": "A photo of willow.",
+    "Tags": []
+  },
+  {
+    "Label": "Window",
+    "Category": "通用物体",
+    "Description": "A photo of window.",
+    "Tags": []
+  },
+  {
+    "Label": "Window blind",
+    "Category": "通用物体",
+    "Description": "A photo of window blind.",
+    "Tags": []
+  },
+  {
+    "Label": "Wine",
+    "Category": "通用物体",
+    "Description": "A photo of wine.",
+    "Tags": []
+  },
+  {
+    "Label": "Wine glass",
+    "Category": "通用物体",
+    "Description": "A photo of wine glass.",
+    "Tags": []
+  },
+  {
+    "Label": "Wine rack",
+    "Category": "通用物体",
+    "Description": "A photo of wine rack.",
+    "Tags": []
+  },
+  {
+    "Label": "Winter melon",
+    "Category": "食物",
+    "Description": "A photo of winter melon.",
+    "Tags": []
+  },
+  {
+    "Label": "Wok",
+    "Category": "通用物体",
+    "Description": "A photo of wok.",
+    "Tags": []
+  },
+  {
+    "Label": "Woman",
+    "Category": "人物",
+    "Description": "A photo of woman.",
+    "Tags": []
+  },
+  {
+    "Label": "Wood-burning stove",
+    "Category": "通用物体",
+    "Description": "A photo of wood-burning stove.",
+    "Tags": []
+  },
+  {
+    "Label": "Woodpecker",
+    "Category": "动物",
+    "Description": "A photo of woodpecker.",
+    "Tags": []
+  },
+  {
+    "Label": "Worm",
+    "Category": "动物",
+    "Description": "A photo of worm.",
+    "Tags": []
+  },
+  {
+    "Label": "Wrench",
+    "Category": "通用物体",
+    "Description": "A photo of wrench.",
+    "Tags": []
+  },
+  {
+    "Label": "Zebra",
+    "Category": "动物",
+    "Description": "A photo of zebra.",
+    "Tags": []
+  },
+  {
+    "Label": "Zucchini",
+    "Category": "食物",
+    "Description": "A photo of zucchini.",
+    "Tags": []
+  }
+]

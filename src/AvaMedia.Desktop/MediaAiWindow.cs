@@ -13,7 +13,7 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed class MediaAiWindow : Window
+public sealed partial class MediaAiWindow : Window
 {
     private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
@@ -99,6 +99,7 @@ public sealed class MediaAiWindow : Window
         AddRow("标签阈值", _threshold); AddRow("视频采样帧数", _frames);
         _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuse);
         _analyze = Ui.Button("分析标签", async () => await AnalyzeAsync()); _analyze.IsEnabled = false; _parameters.Children.Add(_analyze);
+        InitializeWordLibraries();
         _parameters.Children.Add(Ui.Text("关键词", "caption")); Localization.SetIsUserText(_keywords, true); _parameters.Children.Add(_keywords);
         _parameters.Children.Add(Ui.Text("逗号或换行分隔；组合用 +，如 黑长发=black_hair+long_hair。", "caption"));
         _parameters.Children.Add(Ui.Button("筛选匹配", async () => { try { Match(); } catch (Exception error) { await Ui.Message(this, "标签筛选失败", error.Message); } }));
@@ -181,6 +182,7 @@ public sealed class MediaAiWindow : Window
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
             options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true); options.Validate(); Number(_threshold);
+            CandidateQueries(WordLibraryCatalog.JoyTags);
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchVideoTools.PathComparer)))
@@ -218,7 +220,7 @@ public sealed class MediaAiWindow : Window
     private void Match()
     {
         var vocabulary = _results.Values.FirstOrDefault()?.Scores.Select(score => score.Tag) ?? [];
-        var queries = MediaTagService.ParseQueries(_keywords.Text ?? "", vocabulary); var threshold = Number(_threshold);
+        var queries = CandidateQueries(vocabulary); var threshold = Number(_threshold);
         foreach (var entry in _entries)
         {
             if (!_results.TryGetValue(entry.Path, out var result)) { entry.Include = false; continue; }

@@ -31,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Assets/AiLexicons/*" LogicalName="AvaMedia.Core.AiLexicons.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets/Speech/sh.rnnn" LogicalName="AvaMedia.Core.SpeechDenoise.rnnn" />
     <EmbeddedResource Include="Assets/Speech/ggml-silero-v6.2.0.bin" LogicalName="AvaMedia.Core.SpeechVad.bin" />
     <EmbeddedResource Include="Assets/face_detection_yunet_2026may.onnx" LogicalName="AvaMedia.Core.YuNet.onnx" />

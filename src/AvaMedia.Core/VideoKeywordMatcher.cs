@@ -47,7 +47,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             if (!labels.Add(label)) throw new ArgumentException("命名关键词重复：" + label);
             result.Add(new(label, description));
         }
-        if (result.Count is < 1 or > 32) throw new ArgumentException("请输入 1–32 个关键词，使用逗号或换行分隔。");
+        if (result.Count is < 1 or > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("请输入 1–20000 个关键词，使用逗号或换行分隔。");
         return result.ToArray();
     }
 
@@ -55,13 +55,33 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true) => Task.Run(async () =>
     {
         var snapshot = keywords.ToArray();
-        if (snapshot.Length is < 1 or > 32) throw new ArgumentException("请输入 1–32 个关键词。");
-        foreach (var keyword in snapshot) BatchVideoTools.ValidateRenameKeyword(keyword.Label);
+        if (snapshot.Length is < 1 or > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("请选择 1–20000 个关键词。");
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var keyword in snapshot)
+        {
+            BatchVideoTools.ValidateRenameKeyword(keyword.Label);
+            if (!names.Add(keyword.Label) || string.IsNullOrWhiteSpace(keyword.Description) || keyword.Description.Length > 512)
+                throw new ArgumentException("候选名称重复或描述无效：" + keyword.Label);
+        }
         var embedding = await GemmaVideoEmbedding.StartAsync(store ?? new(), ct, preferGpu).ConfigureAwait(false);
         try
         {
-            var labels = await embedding.EmbedLabelsAsync(snapshot.Select(keyword => keyword.Description).ToArray(), ct).ConfigureAwait(false);
-            return new VideoKeywordMatcher(engine, embedding, snapshot, labels);
+            var labels = new List<float[]>();
+            for (var offset = 0; offset < snapshot.Length;)
+            {
+                ct.ThrowIfCancellationRequested();
+                // Keep long custom descriptions within the local runtime's context as well as its item limit.
+                var batch = new List<string>(); var characters = 0;
+                foreach (var keyword in snapshot.Skip(offset).Take(32))
+                {
+                    var cost = keyword.Description.Length + 64;
+                    if (batch.Count > 0 && characters + cost > 2048) break;
+                    batch.Add(keyword.Description); characters += cost;
+                }
+                labels.AddRange(await embedding.EmbedLabelsAsync(batch, ct).ConfigureAwait(false));
+                offset += batch.Count;
+            }
+            return new VideoKeywordMatcher(engine, embedding, snapshot, labels.ToArray());
         }
         catch { await embedding.DisposeAsync(); throw; }
     }, ct);

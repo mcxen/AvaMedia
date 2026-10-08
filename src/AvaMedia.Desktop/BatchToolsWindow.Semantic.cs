@@ -45,6 +45,7 @@ public sealed partial class BatchToolsWindow
                 InvalidatePlan();
             };
             Localization.SetIsUserText(_keywords, true);
+            InitializeSemanticWordLibraries();
             _semanticParameters.Children.Add(_keywords);
             _semanticParameters.Children.Add(Ui.Text("逗号或换行分隔；可写“海边=人在海边散步”。", "caption"));
             AddRow(_semanticParameters, "每视频采样帧数", _semanticFrames);
@@ -127,7 +128,7 @@ public sealed partial class BatchToolsWindow
         try
         {
             if (_entries.Count == 0) throw new ArgumentException("请添加视频。");
-            keywords = VideoKeywordMatcher.ParseKeywords(_keywords.Text ?? "");
+            keywords = SemanticCandidates();
             var frames = SemanticValue(_semanticFrames);
             if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
             options = new((int)frames, SemanticValue(_semanticThreshold), SemanticValue(_semanticMargin), _semanticReuse.IsChecked == true); options.Validate();
@@ -163,7 +164,7 @@ public sealed partial class BatchToolsWindow
                     try { entry.Keyword = result.Keyword; entry.Include = result.IsMatch; }
                     finally { _semanticApplying = false; }
                     entry.Status = Localization.Format($"{Localization.Key(result.IsMatch ? "已匹配" : "待确认")} · {result.Similarity:0.000}");
-                    var scores = string.Join(Environment.NewLine, result.Scores.Select(score => $"{score.Keyword}: {score.Similarity:0.000}"));
+                    var scores = string.Join(Environment.NewLine, result.Scores.Take(20).Select(score => $"{score.Keyword}: {score.Similarity:0.000}"));
                     entry.Details = entry.Path + Environment.NewLine + scores + Environment.NewLine
                         + Localization.Format($"模型计算 {result.InferredFrames} 帧 · 复用 {result.ReusedFrames} 帧");
                     if (result.IsMatch) matched++;

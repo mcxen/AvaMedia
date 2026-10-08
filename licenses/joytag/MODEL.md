@@ -8,3 +8,11 @@
 - `top_tags.txt`: 76752 bytes, SHA-256 `32b1963a234af848643b2bbf47d8eff1f1c7889406810c57b980f41b2b9e01d0`
 
 The ONNX output contains raw logits for 5813 independent tags. Apply sigmoid rather than softmax. Input: RGB, centered white square padding, 448×448, CLIP mean/std, NCHW float32. AvaMedia uses its image decoder for orientation and Skia resampling; scores may differ from the upstream PIL example.
+
+## Bundled vocabulary
+
+`src/AvaMedia.Core/Assets/AiLexicons/joytag.txt` includes only the 5813 tag names
+from `top_tags.txt` at the same pinned model revision. It permits offline browsing
+before a model download. SHA-256:
+`32b1963a234af848643b2bbf47d8eff1f1c7889406810c57b980f41b2b9e01d0`.
+Weights are still optional and downloaded through model management.
