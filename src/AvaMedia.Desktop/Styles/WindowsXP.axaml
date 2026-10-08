@@ -1,0 +1,183 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}">
+          <ResourceDictionary.MergedDictionaries><ResourceInclude Source="avares://AvaMedia.Desktop/Styles/WindowsXPControls.axaml"/></ResourceDictionary.MergedDictionaries>
+          <SolidColorBrush x:Key="UiCanvas" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiToolbar" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="UiMenuSurface" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiStatusText" Color="#000000"/>
+          <SolidColorBrush x:Key="UiSurfaceRaised" Color="#F5F4EA"/>
+          <SolidColorBrush x:Key="UiText" Color="#000000"/>
+          <SolidColorBrush x:Key="UiTextSecondary" Color="#716F64"/>
+          <SolidColorBrush x:Key="UiBorder" Color="#7F9DB9"/>
+          <SolidColorBrush x:Key="UiDivider" Color="#ACA899"/>
+          <SolidColorBrush x:Key="UiTileBorder" Color="#D0D8EA"/>
+          <SolidColorBrush x:Key="UiHover" Color="#E8F2FF"/>
+          <SolidColorBrush x:Key="UiPressed" Color="#CEDFF5"/>
+          <SolidColorBrush x:Key="UiAccent" Color="#215DC6"/>
+          <SolidColorBrush x:Key="UiAccentBorder" Color="#316AC5"/>
+          <SolidColorBrush x:Key="UiStatusSurface" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="UiSuccess" Color="#168900"/>
+          <SolidColorBrush x:Key="UiWarning" Color="#946300"/>
+          <SolidColorBrush x:Key="UiDanger" Color="#C00000"/>
+          <SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiSelection" Color="#316AC5"/>
+          <SolidColorBrush x:Key="UiSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiMediaSurface" Color="#000000"/>
+          <SolidColorBrush x:Key="UiMediaText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiMediaOverlay" Color="#CC000000"/>
+          <SolidColorBrush x:Key="UiCropShade" Color="#66000000"/>
+          <SolidColorBrush x:Key="UiCropSelection" Color="#19316AC5"/>
+          <SolidColorBrush x:Key="UiCropBorder" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiBevelLight" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiBevelMidLight" Color="#F1EFE2"/>
+          <SolidColorBrush x:Key="UiBevelMidDark" Color="#ACA899"/>
+          <SolidColorBrush x:Key="UiBevelDark" Color="#716F64"/>
+          <SolidColorBrush x:Key="UiChromeBorder" Color="#0054E3"/>
+          <SolidColorBrush x:Key="UiMenuSelection" Color="#C1D2EE"/>
+          <SolidColorBrush x:Key="UiMenuSelectionText" Color="#000000"/>
+          <SolidColorBrush x:Key="XPMenuBorder" Color="#808080"/>
+          <SolidColorBrush x:Key="XPSidebar" Color="#D6DFF7"/>
+          <SolidColorBrush x:Key="XPSidebarText" Color="#215DC6"/>
+          <BoxShadows x:Key="UiMenuShadow">2 2 2 0 #50000000</BoxShadows>
+          <LinearGradientBrush x:Key="XPTitlebar" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Color="#0058EE" Offset="0"/><GradientStop Color="#3593FF" Offset="0.08"/>
+            <GradientStop Color="#288EFD" Offset="0.15"/><GradientStop Color="#0060EF" Offset="0.4"/>
+            <GradientStop Color="#0055E5" Offset="0.85"/><GradientStop Color="#003DAA" Offset="1"/>
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="XPInactiveTitlebar" StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Color="#9DB9E8" Offset="0"/><GradientStop Color="#7A9DCE" Offset="0.3"/><GradientStop Color="#6C8FC0" Offset="1"/></LinearGradientBrush>
+          <LinearGradientBrush x:Key="XPToolbar" StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Color="#F7F5EC" Offset="0"/><GradientStop Color="#ECE9D8" Offset="1"/></LinearGradientBrush>
+          <LinearGradientBrush x:Key="XPTableHeading" StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Color="#FFFFFF" Offset="0"/><GradientStop Color="#ECE9D8" Offset="0.9"/><GradientStop Color="#D6D2C2" Offset="1"/></LinearGradientBrush>
+          <FontFamily x:Key="UiFont">Tahoma, SimSun, 宋体, Songti SC, Arial</FontFamily>
+          <FontFamily x:Key="UiNumericFont">Tahoma, SimSun, Songti SC, Arial</FontFamily>
+          <FontFamily x:Key="XPTitleFont">Trebuchet MS, Tahoma, SimSun, Songti SC, Arial</FontFamily>
+          <x:Double x:Key="UiFontBody">12</x:Double>
+          <x:Double x:Key="UiFontCaption">12</x:Double>
+          <x:Double x:Key="UiFontTitle">12</x:Double>
+          <x:Double x:Key="UiFontHeading">13</x:Double>
+          <x:Double x:Key="UiFontBrand">16</x:Double>
+          <CornerRadius x:Key="UiControlRadius">3</CornerRadius>
+          <x:Double x:Key="UiFieldHeight">24</x:Double>
+          <Thickness x:Key="UiButtonPadding">9,3</Thickness>
+          <Thickness x:Key="UiInputPadding">3,2</Thickness>
+          <x:Double x:Key="UiDialogActionHeight">26</x:Double>
+          <x:Double x:Key="UiDialogActionWidth">88</x:Double>
+          <Thickness x:Key="UiDialogActionPadding">9,3</Thickness>
+          <x:Double x:Key="UiTimeFontSize">12</x:Double>
+          <x:Double x:Key="UiTimeFieldWidth">136</x:Double>
+          <x:Double x:Key="UiIconSize">16</x:Double>
+          <x:Double x:Key="UiIconSmall">12</x:Double>
+          <x:Double x:Key="UiIconLarge">24</x:Double>
+          <x:Double x:Key="UiTransportSize">28</x:Double>
+          <x:Double x:Key="UiRangeHeight">24</x:Double>
+          <x:Double x:Key="UiTransportRowHeight">40</x:Double>
+          <x:Double x:Key="UiSpacingSmall">6</x:Double>
+          <x:Double x:Key="UiSpacingMedium">8</x:Double>
+          <x:Double x:Key="UiSpacingLarge">12</x:Double>
+          <Thickness x:Key="UiCompactButtonPadding">3</Thickness>
+          <Thickness x:Key="UiPagePadding">8</Thickness>
+          <Thickness x:Key="UiDialogPadding">12</Thickness>
+          <Thickness x:Key="UiSectionPadding">10</Thickness>
+          <x:Double x:Key="UiSettingSectionHeight">72</x:Double>
+          <x:Double x:Key="UiCategoryHeight">28</x:Double>
+          <x:Double x:Key="UiMenuBarHeight">22</x:Double>
+          <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
+          <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
+          <x:Boolean x:Key="UiWindowShadeEnabled">False</x:Boolean>
+          <x:Double x:Key="UiToolbarHeight">38</x:Double>
+          <x:Double x:Key="UiStatusBarHeight">22</x:Double>
+          <x:Double x:Key="UiTableHeaderHeight">24</x:Double>
+          <x:Double x:Key="UiToolbarSeparatorHeight">24</x:Double>
+          <GridLength x:Key="UiSidebarWidth">360</GridLength>
+          <x:Double x:Key="UiFeatureIconHeight">32</x:Double>
+          <x:Double x:Key="UiFeatureRowHeight">74</x:Double>
+          <Thickness x:Key="UiToolbarPadding">5,0</Thickness>
+          <Thickness x:Key="UiStatusPadding">4,0,18,0</Thickness>
+          <x:Double x:Key="UiPlayerButtonSize">26</x:Double>
+          <x:Double x:Key="UiPlayerSpeedWidth">40</x:Double>
+          <x:Double x:Key="UiPlayerTimelineHeight">20</x:Double>
+          <x:Double x:Key="UiPlayerVolumeWidth">70</x:Double>
+          <x:Double x:Key="UiPlayerPlaylistWidth">232</x:Double>
+          <Thickness x:Key="UiPlayerInlinePadding">5,0</Thickness>
+          <Thickness x:Key="UiPlayerBarPadding">5,3</Thickness>
+          <x:Double x:Key="UiEditorDetailsWidth">240</x:Double>
+          <x:Double x:Key="UiFieldLabelWidth">72</x:Double>
+          <x:Double x:Key="UiCoordinateWidth">88</x:Double>
+          <x:Double x:Key="ScrollBarThickness">17</x:Double>
+          <x:Double x:Key="ScrollBarThumbThickness">17</x:Double>
+          <SolidColorBrush x:Key="ThemeForegroundBrush" Color="#000000"/>
+          <SolidColorBrush x:Key="ThemeForegroundLowBrush" Color="#ACA899"/>
+          <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="ThemeControlLowBrush" Color="#F5F4EA"/>
+          <SolidColorBrush x:Key="ThemeControlMidBrush" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="ThemeControlHighBrush" Color="#C3D5F5"/>
+          <SolidColorBrush x:Key="ThemeControlMidHighBrush" Color="#B8CFF5"/>
+          <SolidColorBrush x:Key="ThemeControlVeryHighBrush" Color="#8DAEE2"/>
+          <SolidColorBrush x:Key="ThemeControlHighlightMidBrush" Color="#E8F2FF"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush" Color="#316AC5"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush2" Color="#7F9DB9"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush3" Color="#CEDFF5"/>
+          <SolidColorBrush x:Key="ThemeAccentBrush4" Color="#C1D2EE"/>
+          <SolidColorBrush x:Key="ThemeBorderLowBrush" Color="#D4D0C8"/>
+          <SolidColorBrush x:Key="ThemeBorderMidBrush" Color="#7F9DB9"/>
+          <SolidColorBrush x:Key="ThemeBorderHighBrush" Color="#003C74"/>
+          <SolidColorBrush x:Key="HighlightBrush" Color="#316AC5"/>
+          <SolidColorBrush x:Key="HighlightForegroundBrush" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="ErrorBrush" Color="#C00000"/>
+          <ControlTheme x:Key="UiButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}"/>
+          <ControlTheme x:Key="UiToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource XPToggleButtonTheme}"/>
+          <ControlTheme x:Key="UiTextBoxTheme" TargetType="TextBox" BasedOn="{StaticResource XPTextBoxTheme}"/>
+          <ControlTheme x:Key="UiComboBoxTheme" TargetType="ComboBox" BasedOn="{StaticResource XPComboBoxTheme}"/>
+          <ControlTheme x:Key="UiCheckBoxTheme" TargetType="CheckBox" BasedOn="{StaticResource XPCheckBoxTheme}"/>
+          <ControlTheme x:Key="UiRadioButtonTheme" TargetType="RadioButton" BasedOn="{StaticResource XPRadioButtonTheme}"/>
+          <ControlTheme x:Key="UiNumericUpDownTheme" TargetType="NumericUpDown" BasedOn="{StaticResource XPNumericUpDownTheme}"/>
+          <ControlTheme x:Key="UiTabItemTheme" TargetType="TabItem" BasedOn="{StaticResource XPTabItemTheme}"/>
+          <ControlTheme x:Key="UiScrollBarTheme" TargetType="ScrollBar" BasedOn="{StaticResource XPScrollBarTheme}"/>
+          <ControlTheme x:Key="UiSliderTheme" TargetType="Slider" BasedOn="{StaticResource XPSliderTheme}"/>
+          <ControlTheme x:Key="UiProgressBarTheme" TargetType="ProgressBar" BasedOn="{StaticResource XPProgressBarTheme}"/>
+          <ControlTheme x:Key="UiListBoxItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource XPListBoxItemTheme}"/>
+          <ControlTheme x:Key="UiExpanderTheme" TargetType="Expander" BasedOn="{StaticResource XPExpanderTheme}"/>
+          <ControlTheme x:Key="UiMenuTheme" TargetType="Menu" BasedOn="{StaticResource XPMenuTheme}"/>
+          <ControlTheme x:Key="UiMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource XPMenuItemTheme}"/>
+          <ControlTheme x:Key="UiContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource XPContextMenuTheme}"/>
+          <ControlTheme x:Key="UiToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource XPToolTipTheme}"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+  <Style Selector="Window"><Setter Property="local:Skin.IsEnabled" Value="True"/></Style>
+  <Style Selector="Window.windows-xp"><Setter Property="UseLayoutRounding" Value="True"/></Style>
+  <Style Selector="Window.windows-xp controls|ActionIcon"><Setter Property="IsWindowsXP" Value="True"/></Style>
+  <Style Selector="Window.windows-xp Button"><Setter Property="FontWeight" Value="Normal"/></Style>
+  <Style Selector="Window.windows-xp Button.tool, Window.windows-xp Button.player-transport"><Setter Property="Theme" Value="{DynamicResource XPToolbarButtonTheme}"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="5,3"/></Style>
+  <Style Selector="Window.windows-xp Button.tile"><Setter Property="Theme" Value="{DynamicResource XPTileButtonTheme}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="4"/><Setter Property="RenderTransform" Value="scale(1)"/></Style>
+  <Style Selector="Window.windows-xp Button.category"><Setter Property="Theme" Value="{DynamicResource XPCategoryButtonTheme}"/><Setter Property="Foreground" Value="{DynamicResource XPSidebarText}"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="8,3"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.windows-xp Button.category TextBlock.category-title"><Setter Property="TextAlignment" Value="Left"/></Style>
+  <Style Selector="Window.windows-xp Button.category TextBlock.muted-icon"><Setter Property="Foreground" Value="{DynamicResource XPSidebarText}"/></Style>
+  <Style Selector="Window.windows-xp Button.category Path.category-chevron"><Setter Property="Stroke" Value="{DynamicResource XPSidebarText}"/></Style>
+  <Style Selector="Window.windows-xp TextBox, Window.windows-xp ComboBox"><Setter Property="Background" Value="White"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="{DynamicResource UiInputPadding}"/></Style>
+  <Style Selector="Window.windows-xp ListBox"><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderBrush" Value="#7F9DB9"/></Style>
+  <Style Selector="Window.windows-xp TabControl /template/ ContentPresenter#PART_SelectedContentHost"><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#919B9C"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10"/><Setter Property="Margin" Value="0,-1,0,0"/><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="Window.windows-xp Border.app-toolbar"><Setter Property="Background" Value="{DynamicResource XPToolbar}"/><Setter Property="BoxShadow" Value="inset 0 1 0 0 #FFFFFF"/></Style>
+  <Style Selector="Window.windows-xp Border.feature-sidebar"><Setter Property="Background" Value="{DynamicResource XPSidebar}"/></Style>
+  <Style Selector="Window.windows-xp Border.platinum-list-heading"><Setter Property="Background" Value="{DynamicResource XPTableHeading}"/></Style>
+  <Style Selector="Window.windows-xp Grid.table-header"><Setter Property="Background" Value="{DynamicResource XPTableHeading}"/></Style>
+  <Style Selector="Window.windows-xp Border.app-statusbar"><Setter Property="BorderBrush" Value="#ACA899"/><Setter Property="BorderThickness" Value="0,1,0,0"/><Setter Property="BoxShadow" Value="inset 0 1 0 0 #FFFFFF"/></Style>
+  <Style Selector="Window.windows-xp.settings Border.settingSection"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="BorderBrush" Value="#D0D0BF"/><Setter Property="CornerRadius" Value="3"/></Style>
+  <Style Selector="Window.windows-xp GridSplitter"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.xp-window"><Setter Property="Background" Value="#0054E3"/><Setter Property="BorderBrush" Value="#003DAA"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="3,0,3,3"/><Setter Property="CornerRadius" Value="8,8,0,0"/><Setter Property="ClipToBounds" Value="True"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.xp-window.inactive"><Setter Property="Background" Value="#7A96C1"/><Setter Property="BorderBrush" Value="#5B77A4"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.xp-window.maximized"><Setter Property="Padding" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.xp-window > Grid > ContentControl"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
+  <Style Selector="Border.xp-titlebar"><Setter Property="Background" Value="{DynamicResource XPTitlebar}"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.inactive Border.xp-titlebar"><Setter Property="Background" Value="{DynamicResource XPInactiveTitlebar}"/></Style>
+  <Style Selector="TextBlock.xp-title"><Setter Property="FontFamily" Value="{DynamicResource XPTitleFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="White"/></Style>
+  <Style Selector="TextBlock.xp-title-shadow"><Setter Property="Foreground" Value="#0B3A8E"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.inactive TextBlock.xp-title"><Setter Property="Foreground" Value="#D8E4F8"/></Style>
+  <Style Selector="controls|WindowsXPWindowFrame.inactive TextBlock.xp-title-shadow"><Setter Property="Foreground" Value="#5B77A4"/></Style>
+  <Style Selector="Window.windows-xp Button:disabled controls|ActionIcon"><Setter Property="Opacity" Value="0.45"/></Style>
+  <Style Selector="Window.windows-xp Button.xp-caption, Window.windows-xp Button.xp-system-icon"><Setter Property="Theme" Value="{DynamicResource XPCaptionButtonTheme}"/><Setter Property="Width" Value="21"/><Setter Property="Height" Value="21"/><Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Margin" Value="0"/><Setter Property="Padding" Value="0"/></Style>
+</Styles>

@@ -8,7 +8,7 @@
 
 An open-source desktop media toolkit for **Windows and macOS**. Convert, compress, edit, play and download media, work with images and PDFs, and manage batch operations in one task queue.
 
-Built with **C#, .NET 8 and Avalonia 11**, with Simplified Chinese / English interfaces and Light, Dark and Mac OS 9 · Platinum skins. AvaMedia is under active development; see the [feature notes](docs/FEATURES.md) for implementation and verification status.
+Built with **C#, .NET 8 and Avalonia 11**, with Simplified Chinese / English interfaces and Light, Dark, Mac OS 9 · Platinum and Windows XP · Luna skins. AvaMedia is under active development; see the [feature notes](docs/FEATURES.md) for implementation and verification status.
 
 [Download](https://github.com/mcxen/AvaMedia/releases/latest) · [Screenshots](#screenshots) · [Run from source](#run-from-source) · [Report an issue](https://github.com/mcxen/AvaMedia/issues)
 
@@ -104,7 +104,7 @@ The detailed project documents below are currently in Chinese.
 | Conversion and compression | [Video compression](docs/VIDEO-COMPRESSION.md) · [Image compression](docs/IMAGE-COMPRESSION.md) · [HEIC](docs/HEIC.md) · [TS video](docs/TS-VIDEO.md) · [GPU transcoding](docs/GPU-TRANSCODING.md) |
 | Editing and playback | [Quick Clip](docs/QUICK-CLIP.md) · [Video editing](docs/VIDEO-EDITING.md) · [Batch crop](docs/BATCH-CROP.md) · [Batch rotate](docs/BATCH-ROTATE.md) · [Subtitles and tracks](docs/SUBTITLE-OPTIONS.md) · [Player](docs/PLAYER.md) |
 | Files and utilities | [File routing](docs/MEDIA-ROUTING.md) · [WiFi transfer](docs/WIFI-TRANSFER.md) · [PDF workspace](docs/PDF-WORKSPACE.md) · [Downloads](docs/VIDEO-DOWNLOAD.md) · [Batch tools](docs/BATCH-TOOLS.md) |
-| Development and releases | [Architecture](docs/ARCHITECTURE.md) · [Settings](docs/SETTINGS.md) · [Skins](docs/MACOS9-SKIN.md) · [Platforms](docs/PLATFORMS.md) · [Git workflow](docs/GIT-WORKFLOW.md) · [Releases](docs/RELEASE.md) |
+| Development and releases | [Architecture](docs/ARCHITECTURE.md) · [Settings](docs/SETTINGS.md) · [Mac OS 9](docs/MACOS9-SKIN.md) · [Windows XP](docs/WINDOWS-XP-SKIN.md) · [Platforms](docs/PLATFORMS.md) · [Git workflow](docs/GIT-WORKFLOW.md) · [Releases](docs/RELEASE.md) |
 
 Report bugs and suggest improvements through [Issues](https://github.com/mcxen/AvaMedia/issues). For media-related problems, include your OS and app versions, input format, reproduction steps and error logs.
 

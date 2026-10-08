@@ -1,18 +1,18 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
-    <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}" Background="{DynamicResource UiMenuSurface}">
+    <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}">
       <MenuItem Header="文件"><MenuItem Header="添加文件…" Click="AddClick"/><Separator/><MenuItem Header="保存任务列表…" Click="ExportQueueClick"/><MenuItem Header="载入任务列表…" Click="ImportQueueClick"/><Separator/><MenuItem Header="退出" Click="ExitClick"/></MenuItem>
       <MenuItem Header="WiFi 传文件" Click="WifiTransferClick"/>
       <MenuItem Header="编辑"><MenuItem x:Name="EditTaskMenuItem" Header="编辑任务…" Click="EditSelectedClick"/><Separator/><MenuItem x:Name="SettingsMenuItem" Header="偏好设置…" Click="SettingsClick"/></MenuItem>
       <MenuItem Header="显示">
-        <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/></MenuItem>
+        <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/><MenuItem Header="Windows XP · Luna" Click="WindowsXPClick"/></MenuItem>
         <MenuItem Header="语言"><MenuItem x:Name="SystemLanguageItem" Header="跟随系统" Click="SystemLanguageClick"/><Separator/><MenuItem x:Name="ChineseLanguageItem" Header="简体中文" Click="ChineseClick"/><MenuItem x:Name="EnglishLanguageItem" Header="English" Click="EnglishClick"/></MenuItem>
       </MenuItem>
       <MenuItem Header="转换"><MenuItem Header="开始" Click="StartClick"/><MenuItem Header="停止" Click="StopClick"/></MenuItem>
       <MenuItem Header="窗口"><MenuItem Header="缩放窗口" Click="ZoomWindowClick"/><MenuItem Header="收起 / 展开标题栏" IsEnabled="{DynamicResource UiWindowShadeEnabled}" Click="ShadeWindowClick"/><Separator/><MenuItem Header="最小化窗口" Click="MinimizeWindowClick"/></MenuItem>
       <MenuItem Header="帮助"><MenuItem Header="功能与使用说明" Click="HelpClick"/><MenuItem Header="关于 / 开源许可证" Click="AboutClick"/></MenuItem>
     </Menu>
-    <Border Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1" Background="{DynamicResource UiToolbar}">
+    <Border Classes="app-toolbar" Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1" Background="{DynamicResource UiToolbar}">
       <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="{DynamicResource UiToolbarPadding}">
         <Button Classes="tool" Click="OutputClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="folder"/><TextBlock Text="输出文件夹" VerticalAlignment="Center"/></StackPanel></Button>
         <Button Classes="tool" Click="SettingsClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="gear"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></Button>
@@ -28,7 +28,7 @@
     </Border>
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiSidebarWidth}"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-      <Border Grid.Column="0" Background="{DynamicResource UiCanvas}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
+      <Border Classes="feature-sidebar" Grid.Column="0" Background="{DynamicResource UiCanvas}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
         <Grid x:Name="Categories">
           <ScrollViewer x:Name="FeatureScroll" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <Grid x:Name="FeatureGrid" Margin="12" ColumnDefinitions="*,*,*,*"/>
@@ -69,7 +69,7 @@
     </Grid>
     <StackPanel Grid.Row="3">
     <local:ModelInstallationNotice/>
-    <Border Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
+    <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
       <TextBlock i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>

@@ -135,15 +135,42 @@
         </Style>
       </ControlTheme>
       <ControlTheme x:Key="UiMenuTheme" TargetType="Menu" BasedOn="{StaticResource {x:Type Menu}}">
+        <Setter Property="Background" Value="{DynamicResource UiMenuSurface}"/>
         <Setter Property="ItemContainerTheme" Value="{StaticResource UiTopLevelMenuItemTheme}"/>
         <Setter Property="Padding" Value="0"/>
       </ControlTheme>
       <ControlTheme x:Key="UiMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}"/>
       <ControlTheme x:Key="UiContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource {x:Type ContextMenu}}"/>
       <ControlTheme x:Key="UiToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource {x:Type ToolTip}}"/>
+      <ControlTheme x:Key="UiButtonTheme" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"/>
+      <ControlTheme x:Key="UiToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}"/>
+      <ControlTheme x:Key="UiTextBoxTheme" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
+      <ControlTheme x:Key="UiComboBoxTheme" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"/>
+      <ControlTheme x:Key="UiCheckBoxTheme" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"/>
+      <ControlTheme x:Key="UiRadioButtonTheme" TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}"/>
+      <ControlTheme x:Key="UiNumericUpDownTheme" TargetType="NumericUpDown" BasedOn="{StaticResource {x:Type NumericUpDown}}"/>
+      <ControlTheme x:Key="UiTabItemTheme" TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}"/>
+      <ControlTheme x:Key="UiScrollBarTheme" TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}"/>
+      <ControlTheme x:Key="UiSliderTheme" TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}"/>
+      <ControlTheme x:Key="UiProgressBarTheme" TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}"/>
+      <ControlTheme x:Key="UiListBoxItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"/>
+      <ControlTheme x:Key="UiExpanderTheme" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"/>
       <x:Double x:Key="UiCategoryHeight">32</x:Double>
     </ResourceDictionary>
   </Styles.Resources>
+  <Style Selector="Button"><Setter Property="Theme" Value="{DynamicResource UiButtonTheme}"/></Style>
+  <Style Selector="ToggleButton"><Setter Property="Theme" Value="{DynamicResource UiToggleButtonTheme}"/></Style>
+  <Style Selector="TextBox"><Setter Property="Theme" Value="{DynamicResource UiTextBoxTheme}"/></Style>
+  <Style Selector="ComboBox"><Setter Property="Theme" Value="{DynamicResource UiComboBoxTheme}"/></Style>
+  <Style Selector="CheckBox"><Setter Property="Theme" Value="{DynamicResource UiCheckBoxTheme}"/></Style>
+  <Style Selector="RadioButton"><Setter Property="Theme" Value="{DynamicResource UiRadioButtonTheme}"/></Style>
+  <Style Selector="NumericUpDown"><Setter Property="Theme" Value="{DynamicResource UiNumericUpDownTheme}"/></Style>
+  <Style Selector="TabItem"><Setter Property="Theme" Value="{DynamicResource UiTabItemTheme}"/></Style>
+  <Style Selector="ScrollBar"><Setter Property="Theme" Value="{DynamicResource UiScrollBarTheme}"/></Style>
+  <Style Selector="Slider"><Setter Property="Theme" Value="{DynamicResource UiSliderTheme}"/></Style>
+  <Style Selector="ProgressBar"><Setter Property="Theme" Value="{DynamicResource UiProgressBarTheme}"/></Style>
+  <Style Selector="ListBoxItem"><Setter Property="Theme" Value="{DynamicResource UiListBoxItemTheme}"/></Style>
+  <Style Selector="Expander"><Setter Property="Theme" Value="{DynamicResource UiExpanderTheme}"/></Style>
   <Style Selector="Menu"><Setter Property="Theme" Value="{DynamicResource UiMenuTheme}"/></Style>
   <Style Selector="Menu, MenuItem, ContextMenu"><Setter Property="controls:MenuTemplateLifetime.IsEnabled" Value="True"/></Style>
   <Style Selector="MenuItem"><Setter Property="ItemContainerTheme" Value="{DynamicResource UiMenuItemTheme}"/></Style>

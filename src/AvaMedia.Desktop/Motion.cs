@@ -52,7 +52,7 @@ public sealed class Motion : AvaloniaObject
             && SystemParametersInfo(0x1042, 0, out var enabled, 0) && !enabled;
         var allowMotion = !_userReducedMotion && !_systemReducedMotion;
         foreach (var window in OpenWindows)
-            window.Classes.Set("motion-enabled", allowMotion && window.ActualThemeVariant != Skin.MacOS9);
+            window.Classes.Set("motion-enabled", allowMotion && !Skin.UsesCustomChrome(window.ActualThemeVariant));
         if (!allowMotion)
             foreach (var animation in Animations.Values.ToArray())
                 animation.Cancel();
@@ -61,7 +61,7 @@ public sealed class Motion : AvaloniaObject
     public static void Reveal(Control control, string durationResource = "MotionNavigate")
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (control.ActualThemeVariant == Skin.MacOS9) { Cancel(control); return; }
+        if (Skin.UsesCustomChrome(control.ActualThemeVariant)) { Cancel(control); return; }
         if (TopLevel.GetTopLevel(control) is not Window window
             || !window.IsVisible || !control.IsVisible || !window.Classes.Contains("motion-enabled"))
             return;
@@ -137,7 +137,7 @@ public sealed class Motion : AvaloniaObject
         }
         private void Activated(object? sender, EventArgs args) => RefreshPreferences();
         private void ThemeChanged(object? sender, EventArgs args)
-        { RefreshPreferences(); if (_window.ActualThemeVariant == Skin.MacOS9) CancelWindowAnimations(); }
+        { RefreshPreferences(); if (Skin.UsesCustomChrome(_window.ActualThemeVariant)) CancelWindowAnimations(); }
         private void Closed(object? sender, EventArgs args) => Dispose();
         private void VisibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
         {

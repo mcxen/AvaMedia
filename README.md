@@ -8,7 +8,7 @@
 
 面向 **Windows 和 macOS** 的开源桌面媒体工具。转换、压缩、剪辑、播放、下载，以及图片和 PDF 处理，集中在一个可批量执行的任务队列中。
 
-使用 **C#、.NET 8 和 Avalonia 11** 开发，提供简体中文 / English 界面与 Light、Dark、Mac OS 9 · Platinum 三套皮肤。当前仍为开发版，功能范围和已验证结果见 [功能说明](docs/FEATURES.md)。
+使用 **C#、.NET 8 和 Avalonia 11** 开发，提供简体中文 / English 界面与 Light、Dark、Mac OS 9 · Platinum 与 Windows XP · Luna 四套皮肤。当前仍为开发版，功能范围和已验证结果见 [功能说明](docs/FEATURES.md)。
 
 [下载](https://github.com/mcxen/AvaMedia/releases/latest) · [界面截图](#界面截图) · [从源码运行](#从源码运行) · [报告问题](https://github.com/mcxen/AvaMedia/issues)
 
@@ -102,7 +102,7 @@ dotnet run --project src/AvaMedia.Desktop -c Release --no-build
 | 转换与压缩 | [视频压缩](docs/VIDEO-COMPRESSION.md) · [图片压缩](docs/IMAGE-COMPRESSION.md) · [HEIC](docs/HEIC.md) · [TS 视频](docs/TS-VIDEO.md) · [GPU 转码](docs/GPU-TRANSCODING.md) |
 | 编辑与播放 | [快速剪辑](docs/QUICK-CLIP.md) · [视频编辑](docs/VIDEO-EDITING.md) · [批量裁剪](docs/BATCH-CROP.md) · [批量旋转](docs/BATCH-ROTATE.md) · [字幕与选轨](docs/SUBTITLE-OPTIONS.md) · [播放器](docs/PLAYER.md) |
 | 文件与工具 | [文件路由](docs/MEDIA-ROUTING.md) · [WiFi 传文件](docs/WIFI-TRANSFER.md) · [PDF 工作区](docs/PDF-WORKSPACE.md) · [视频下载](docs/VIDEO-DOWNLOAD.md) · [批量工具](docs/BATCH-TOOLS.md) |
-| 开发与发布 | [架构](docs/ARCHITECTURE.md) · [设置](docs/SETTINGS.md) · [皮肤](docs/MACOS9-SKIN.md) · [平台](docs/PLATFORMS.md) · [Git 工作流](docs/GIT-WORKFLOW.md) · [自动发布](docs/RELEASE.md) |
+| 开发与发布 | [架构](docs/ARCHITECTURE.md) · [设置](docs/SETTINGS.md) · [Mac OS 9](docs/MACOS9-SKIN.md) · [Windows XP](docs/WINDOWS-XP-SKIN.md) · [平台](docs/PLATFORMS.md) · [Git 工作流](docs/GIT-WORKFLOW.md) · [自动发布](docs/RELEASE.md) |
 
 欢迎通过 [Issues](https://github.com/mcxen/AvaMedia/issues) 报告问题或提出建议。媒体相关问题请附系统版本、应用版本、输入格式、操作步骤和错误日志。
 

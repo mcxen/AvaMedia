@@ -31,14 +31,14 @@ public sealed class CategoryHeader : Button
         });
         var title = new TextBlock
         {
-            Text = category, TextAlignment = TextAlignment.Center,
+            Text = category, Classes = { "category-title" }, TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(title, 1);
         content.Children.Add(title);
         var chevron = new Path
         {
-            Data = ClosedChevron, Width = 12, Height = 12, StrokeThickness = 1.5,
+            Data = ClosedChevron, Classes = { "category-chevron" }, Width = 12, Height = 12, StrokeThickness = 1.5,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
         };
         chevron.Bind(Path.StrokeProperty, new DynamicResourceExtension("UiTextSecondary"));

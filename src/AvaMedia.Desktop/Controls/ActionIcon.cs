@@ -15,7 +15,10 @@ public sealed class ActionIcon : Control
     public IBrush? ContrastBrush { get => GetValue(ContrastBrushProperty); set => SetValue(ContrastBrushProperty, value); }
     public static readonly StyledProperty<bool> IsPlatinumProperty = AvaloniaProperty.Register<ActionIcon, bool>(nameof(IsPlatinum));
     public bool IsPlatinum { get => GetValue(IsPlatinumProperty); set => SetValue(IsPlatinumProperty, value); }
-    static ActionIcon() => AffectsRender<ActionIcon>(KindProperty, ForegroundProperty, ContrastBrushProperty, IsPlatinumProperty);
+    public static readonly StyledProperty<bool> IsWindowsXPProperty = AvaloniaProperty.Register<ActionIcon, bool>(nameof(IsWindowsXP));
+    public bool IsWindowsXP { get => GetValue(IsWindowsXPProperty); set => SetValue(IsWindowsXPProperty, value); }
+    static ActionIcon() => AffectsRender<ActionIcon>(KindProperty, ForegroundProperty, ContrastBrushProperty, IsPlatinumProperty, IsWindowsXPProperty);
+    public ActionIcon() => ActualThemeVariantChanged += (_, _) => InvalidateVisual();
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -23,6 +26,7 @@ public sealed class ActionIcon : Control
     }
     public override void Render(DrawingContext context)
     {
+        if (IsWindowsXP || ActualThemeVariant == Skin.WindowsXP) { WindowsXPArtwork.Action(context, Bounds.Size, Kind); return; }
         if (IsPlatinum) { RenderPlatinum(context); return; }
         var scale = Math.Min(Bounds.Width, Bounds.Height) / 24;
         using var transform = context.PushTransform(Matrix.CreateScale(scale, scale) * Matrix.CreateTranslation((Bounds.Width - 24 * scale) / 2, (Bounds.Height - 24 * scale) / 2));

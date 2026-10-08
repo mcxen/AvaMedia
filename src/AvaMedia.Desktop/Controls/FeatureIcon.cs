@@ -48,6 +48,7 @@ public sealed class FeatureIcon : Control
     }
     public override void Render(DrawingContext c)
     {
+        if (ActualThemeVariant == Skin.WindowsXP) { WindowsXPArtwork.Feature(c, Bounds.Size, Kind, Label); return; }
         var scale=Math.Min(Bounds.Width/92,Bounds.Height/80);
         if (scale <= 0) return;
         using var transform=c.PushTransform(Matrix.CreateScale(scale,scale)*Matrix.CreateTranslation((Bounds.Width-92*scale)/2,(Bounds.Height-80*scale)/2));

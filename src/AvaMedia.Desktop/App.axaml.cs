@@ -28,7 +28,7 @@ public sealed partial class App : Application
             {
                 var settings = new Storage().LoadSettings();
                 Localization.Apply(settings.Language);
-                Skin.Apply(args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : args.Contains("--light") ? "Light" : settings.Theme);
+                Skin.Apply(args.Contains("--winxp") ? "WindowsXP" : args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : args.Contains("--light") ? "Light" : settings.Theme);
                 Motion.SetReducedMotion(settings.ReduceMotion);
                 var files = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal) && File.Exists(a)).ToArray();
                 var engine = new MediaEngine(settings);
@@ -73,6 +73,7 @@ public sealed partial class App : Application
             if(captureRoot is not null){var storage=new Storage(Path.Combine(captureRoot,"capture-state"));storage.SaveSettings(new(){OutputFolder=Path.GetFullPath(Path.Combine(captureRoot,"output")),NotifyComplete=false});window=new MainWindow(storage);}else window=new MainWindow();
             if(desktop.Args?.Contains("--dark")==true)RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Dark;
             if(desktop.Args?.Contains("--macos9")==true)Skin.Apply("MacOS9");
+            if(desktop.Args?.Contains("--winxp")==true)Skin.Apply("WindowsXP");
             desktop.MainWindow = window;
             InitializeModelInstallation(desktop, window, args);
             if (args.Contains("--convert")) window.Opened += async (_, _) => await window.ImportForConversionAsync(args);

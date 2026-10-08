@@ -1,0 +1,98 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:conv="using:Avalonia.Controls.Converters" xmlns:sys="using:System">
+  <!-- Named menu parts and keyboard behavior follow Avalonia SimpleTheme (MIT).
+       XP flat menus, selection borders and tooltip colors are original. -->
+  <conv:PlatformKeyGestureConverter x:Key="XPKeyGestureConverter"/>
+  <ControlTheme x:Key="XPMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="MinHeight" Value="22"/>
+    <Setter Property="Padding" Value="4,2"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="ItemContainerTheme" Value="{DynamicResource UiMenuItemTheme}"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="root" Background="{TemplateBinding Background}" BorderThickness="1" BorderBrush="Transparent">
+          <Grid ColumnDefinitions="18,2,*,Auto,16">
+            <ContentControl x:Name="PART_ToggleIconPresenter" Grid.Column="0" IsVisible="False" Width="12" Height="12" VerticalAlignment="Center"/>
+            <ContentPresenter Name="PART_IconPresenter" Grid.Column="0" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center" Content="{TemplateBinding Icon}"/>
+            <ContentPresenter Name="PART_HeaderPresenter" Grid.Column="2" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}">
+              <ContentPresenter.DataTemplates><DataTemplate DataType="sys:String"><AccessText Text="{Binding}"/></DataTemplate></ContentPresenter.DataTemplates>
+            </ContentPresenter>
+            <TextBlock x:Name="PART_InputGestureText" Grid.Column="3" Margin="18,0,2,0" VerticalAlignment="Center" Text="{TemplateBinding InputGesture, Converter={StaticResource XPKeyGestureConverter}}"/>
+            <Path Name="rightArrow" Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0,0 L 4,3 L 0,6 Z" Fill="{TemplateBinding Foreground}"/>
+            <Popup Name="PART_Popup" IsLightDismissEnabled="False" IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}" Placement="RightEdgeAlignedTop" HorizontalOffset="-1">
+              <Border Margin="0,0,3,3">
+                <Border Background="{DynamicResource UiMenuSurface}" BorderBrush="{DynamicResource XPMenuBorder}" BorderThickness="1" Padding="2" BoxShadow="{DynamicResource UiMenuShadow}">
+                  <ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}"><ItemsPresenter Name="PART_ItemsPresenter" Margin="0,1" Grid.IsSharedSizeScope="True" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+                </Border>
+              </Border>
+            </Popup>
+          </Grid>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:selected"><Setter Property="Foreground" Value="{DynamicResource UiMenuSelectionText}"/></Style>
+    <Style Selector="^:selected /template/ Border#root"><Setter Property="Background" Value="{DynamicResource UiMenuSelection}"/><Setter Property="BorderBrush" Value="#316AC5"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="^:empty /template/ Path#rightArrow"><Setter Property="IsVisible" Value="False"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+    <Style Selector="^:separator"><Setter Property="MinHeight" Value="5"/><Setter Property="Template"><ControlTemplate><Separator Theme="{StaticResource XPMenuSeparatorTheme}"/></ControlTemplate></Setter></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPTopLevelMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource SimpleTopLevelMenuItem}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="Padding" Value="7,1"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="ItemContainerTheme" Value="{DynamicResource UiMenuItemTheme}"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="root" Background="{TemplateBinding Background}" BorderThickness="1" BorderBrush="Transparent">
+          <Panel>
+            <ContentPresenter Name="PART_HeaderPresenter" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}">
+              <ContentPresenter.DataTemplates><DataTemplate DataType="sys:String"><AccessText Text="{Binding}"/></DataTemplate></ContentPresenter.DataTemplates>
+            </ContentPresenter>
+            <Popup Name="PART_Popup" IsLightDismissEnabled="True" IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}" Placement="BottomEdgeAlignedLeft" OverlayInputPassThroughElement="{Binding $parent[Menu]}">
+              <Border Margin="0,0,3,3">
+                <Border Background="{DynamicResource UiMenuSurface}" BorderBrush="{DynamicResource XPMenuBorder}" BorderThickness="1" Padding="2" BoxShadow="{DynamicResource UiMenuShadow}">
+                  <ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}"><ItemsPresenter Name="PART_ItemsPresenter" Margin="0,1" Grid.IsSharedSizeScope="True" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+                </Border>
+              </Border>
+            </Popup>
+          </Panel>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:selected"><Setter Property="Foreground" Value="{DynamicResource UiMenuSelectionText}"/></Style>
+    <Style Selector="^:selected /template/ Border#root"><Setter Property="Background" Value="{DynamicResource UiMenuSelection}"/><Setter Property="BorderBrush" Value="#316AC5"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPMenuTheme" TargetType="Menu" BasedOn="{StaticResource {x:Type Menu}}">
+    <Setter Property="ItemContainerTheme" Value="{StaticResource XPTopLevelMenuItemTheme}"/>
+    <Setter Property="Background" Value="{DynamicResource UiCanvas}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Height" Value="22"/>
+  </ControlTheme>
+  <ControlTheme x:Key="XPContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource {x:Type ContextMenu}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="ItemContainerTheme" Value="{DynamicResource UiMenuItemTheme}"/>
+    <Setter Property="Template"><ControlTemplate><Border Margin="0,0,3,3"><Border Background="{DynamicResource UiMenuSurface}" BorderBrush="{DynamicResource XPMenuBorder}" BorderThickness="1" Padding="2" BoxShadow="{DynamicResource UiMenuShadow}"><ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}"><ItemsPresenter Name="PART_ItemsPresenter" Margin="0,1" Grid.IsSharedSizeScope="True" ItemsPanel="{TemplateBinding ItemsPanel}" KeyboardNavigation.TabNavigation="Continue"/></ScrollViewer></Border></Border></ControlTemplate></Setter>
+  </ControlTheme>
+  <ControlTheme x:Key="XPMenuSeparatorTheme" TargetType="Separator" BasedOn="{StaticResource {x:Type Separator}}">
+    <Setter Property="Template"><ControlTemplate><Grid Height="5" Margin="2,0"><Border Height="1" Background="{DynamicResource UiBorder}" Margin="0,2,0,0" VerticalAlignment="Top"/><Border Height="1" Background="White" Margin="0,3,0,0" VerticalAlignment="Top"/></Grid></ControlTemplate></Setter>
+  </ControlTheme>
+  <ControlTheme x:Key="XPToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource {x:Type ToolTip}}">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="Black"/>
+    <Setter Property="Background" Value="#FFFFCC"/>
+    <Setter Property="BorderBrush" Value="#767676"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="4,3"/>
+    <Style Selector="^ /template/ Border"><Setter Property="BoxShadow" Value="{DynamicResource UiMenuShadow}"/></Style>
+  </ControlTheme>
+</ResourceDictionary>

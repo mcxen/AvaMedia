@@ -1,0 +1,129 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <!-- Original Luna faces. Named parts and behavior inherit Avalonia SimpleTheme (MIT). -->
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceInclude Source="avares://AvaMedia.Desktop/Styles/WindowsXPMenus.axaml"/>
+    <ResourceInclude Source="avares://AvaMedia.Desktop/Styles/WindowsXPFields.axaml"/>
+  </ResourceDictionary.MergedDictionaries>
+  <ControlTheme x:Key="XPButtonTheme" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <controls:WindowsXPFace Name="XPFace" Padding="{TemplateBinding Padding}" IsPressed="{TemplateBinding IsPressed}" IsHot="{TemplateBinding IsPointerOver}" IsDefaultFace="{TemplateBinding IsDefault}">
+          <ContentPresenter Name="XPContent" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
+        </controls:WindowsXPFace>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFace"><Setter Property="IsFocusedFace" Value="True"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Foreground" Value="#ACA899"/><Setter Property="Opacity" Value="1"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPToolbarButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
+    <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="toolbar"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPTileButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
+    <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="tile"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPCategoryButtonTheme" TargetType="Button" BasedOn="{StaticResource XPButtonTheme}">
+    <Style Selector="^ /template/ controls|WindowsXPFace#XPFace"><Setter Property="Kind" Value="category"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPCaptionButtonTheme" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Template"><ControlTemplate><ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/></ControlTemplate></Setter>
+  </ControlTheme>
+  <ControlTheme x:Key="XPToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="Template"><ControlTemplate>
+      <controls:WindowsXPFace Name="XPFace" Padding="{TemplateBinding Padding}" IsHot="{TemplateBinding IsPointerOver}" IsPressed="{TemplateBinding IsPressed}">
+        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center" RecognizesAccessKey="True"/>
+      </controls:WindowsXPFace>
+    </ControlTemplate></Setter>
+    <Style Selector="^:checked /template/ controls|WindowsXPFace#XPFace"><Setter Property="IsSelected" Value="True"/></Style>
+    <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFace"><Setter Property="IsFocusedFace" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPTextBoxTheme" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <Setter Property="SelectionBrush" Value="#316AC5"/><Setter Property="SelectionForegroundBrush" Value="White"/><Setter Property="CaretBrush" Value="Black"/>
+    <Style Selector="^ /template/ Border#border, ^:pointerover /template/ Border#border, ^:focus /template/ Border#border">
+      <Setter Property="CornerRadius" Value="0"/><Setter Property="BorderBrush" Value="#7F9DB9"/><Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="^:disabled /template/ Border#border"><Setter Property="Background" Value="#ECE9D8"/></Style>
+    <Style Selector="^:error /template/ Border#border"><Setter Property="BorderBrush" Value="#C00000"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPTabItemTheme" TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+    <Setter Property="Foreground" Value="Black"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
+    <Setter Property="Padding" Value="10,5,10,4"/>
+    <Setter Property="Template"><ControlTemplate>
+      <controls:WindowsXPFace Name="XPFace" Kind="tab" Padding="{TemplateBinding Padding}" IsHot="{TemplateBinding IsPointerOver}" IsSelected="{TemplateBinding IsSelected}">
+        <ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" RecognizesAccessKey="True" VerticalContentAlignment="Center"/>
+      </controls:WindowsXPFace>
+    </ControlTemplate></Setter>
+    <Style Selector="^:selected"><Setter Property="Margin" Value="-2,-2,-2,0"/><Setter Property="ZIndex" Value="1"/></Style>
+    <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFace"><Setter Property="IsFocusedFace" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPScrollBarTheme" TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}">
+    <Style Selector="^ /template/ Border"><Setter Property="Background" Value="#F1EFE2"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/></Style>
+    <Style Selector="^ /template/ RepeatButton.repeat">
+      <Setter Property="Width" Value="17"/><Setter Property="Height" Value="17"/><Setter Property="Padding" Value="0"/>
+      <Setter Property="Template"><ControlTemplate>
+        <controls:WindowsXPFace Kind="arrow" IsPressed="{TemplateBinding IsPressed}" IsHot="{TemplateBinding IsPointerOver}">
+          <ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+        </controls:WindowsXPFace>
+      </ControlTemplate></Setter>
+    </Style>
+    <Style Selector="^ /template/ RepeatButton > Path, ^ /template/ RepeatButton:pointerover > Path"><Setter Property="Fill" Value="#4D6185"/></Style>
+    <Style Selector="^ /template/ Thumb#thumb">
+      <Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Name="XPThumb" Kind="scroll" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter>
+    </Style>
+    <Style Selector="^:horizontal /template/ Thumb#thumb"><Setter Property="Height" Value="17"/><Setter Property="MinWidth" Value="17"/></Style>
+    <Style Selector="^:vertical /template/ Thumb#thumb"><Setter Property="Width" Value="17"/><Setter Property="MinHeight" Value="17"/></Style>
+    <Style Selector="^:vertical /template/ controls|WindowsXPFace#XPThumb"><Setter Property="IsVertical" Value="True"/></Style>
+      <Style Selector="^ /template/ Thumb#thumb:pressed /template/ controls|WindowsXPFace"><Setter Property="IsPressed" Value="True"/></Style>
+  </ControlTheme>
+
+  <ControlTheme x:Key="XPSliderTheme" TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}">
+    <Style Selector="^ /template/ Border#TrackBackground"><Setter Property="Background" Value="#E7E5DC"/><Setter Property="BorderBrush" Value="#9D9C99"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BoxShadow" Value="inset 0 1 0 0 #C2C1B9"/></Style>
+    <Style Selector="^:horizontal /template/ Thumb#thumb"><Setter Property="MinWidth" Value="12"/><Setter Property="MinHeight" Value="20"/><Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Kind="slider" Width="12" Height="20" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter></Style>
+    <Style Selector="^:vertical /template/ Thumb#thumb"><Setter Property="MinWidth" Value="20"/><Setter Property="MinHeight" Value="12"/><Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Kind="slider" Width="20" Height="12" IsVertical="True" IsHot="{TemplateBinding IsPointerOver}"/></ControlTemplate></Setter></Style>
+      <Style Selector="^ /template/ Thumb#thumb:pressed /template/ controls|WindowsXPFace"><Setter Property="IsPressed" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPProgressBarTheme" TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+    <Setter Property="Background" Value="#FFFFFF"/><Setter Property="BorderBrush" Value="#686F62"/><Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Template"><ControlTemplate>
+      <Grid>
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="2" CornerRadius="2" ClipToBounds="True" BoxShadow="inset 1 1 0 0 #D6D3C5">
+          <Panel>
+            <Border Name="PART_Indicator" IsVisible="{Binding !IsIndeterminate, RelativeSource={RelativeSource TemplatedParent}}"><controls:WindowsXPProgressChunks Name="XPChunks"/></Border>
+            <Border Name="PART_IndeterminateIndicator" IsVisible="{TemplateBinding IsIndeterminate}"><controls:WindowsXPProgressChunks Name="XPBusyChunks"/></Border>
+          </Panel>
+        </Border>
+        <LayoutTransformControl Name="PART_LayoutTransformControl" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{TemplateBinding ShowProgressText}">
+          <TextBlock Foreground="Black"><TextBlock.Text><MultiBinding Converter="{StaticResource StringFormatConverter}"><TemplateBinding Property="ProgressTextFormat"/><Binding Path="Value" RelativeSource="{RelativeSource TemplatedParent}"/><TemplateBinding Property="Percentage"/><TemplateBinding Property="Minimum"/><TemplateBinding Property="Maximum"/></MultiBinding></TextBlock.Text></TextBlock>
+        </LayoutTransformControl>
+      </Grid>
+    </ControlTemplate></Setter>
+    <Style Selector="^:horizontal"><Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="14"/></Style>
+    <Style Selector="^:vertical"><Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="14"/></Style>
+    <Style Selector="^:vertical /template/ controls|WindowsXPProgressChunks"><Setter Property="IsVertical" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPListBoxItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="Padding" Value="3,2"/>
+    <Setter Property="Template"><ControlTemplate>
+      <Border Name="XPSelection" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+      </Border>
+    </ControlTemplate></Setter>
+    <Style Selector="^:selected"><Setter Property="Background" Value="#316AC5"/><Setter Property="Foreground" Value="White"/></Style>
+    <Style Selector="^:focus-visible /template/ Border#XPSelection"><Setter Property="BorderBrush" Value="Black"/><Setter Property="BorderThickness" Value="1"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPExpanderToggleTheme" TargetType="ToggleButton">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="Template"><ControlTemplate>
+      <Grid ColumnDefinitions="18,*" Background="Transparent">
+        <controls:WindowsXPFace Name="XPExpandMark" Kind="expander" Width="11" Height="11" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+        <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{Binding $parent[Expander].HeaderTemplate}" VerticalContentAlignment="Center" RecognizesAccessKey="True"/>
+      </Grid>
+    </ControlTemplate></Setter>
+    <Style Selector="^:checked /template/ controls|WindowsXPFace#XPExpandMark"><Setter Property="IsSelected" Value="True"/></Style>
+    <Style Selector="^:focus-visible"><Setter Property="Foreground" Value="#215DC6"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPExpanderTheme" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Style Selector="^[ExpandDirection=Down] /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Down]:expanded /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Up] /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Up]:expanded /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Left] /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Left]:expanded /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Right] /template/ ToggleButton#PART_toggle, ^[ExpandDirection=Right]:expanded /template/ ToggleButton#PART_toggle"><Setter Property="Theme" Value="{StaticResource XPExpanderToggleTheme}"/></Style>
+  </ControlTheme>
+</ResourceDictionary>

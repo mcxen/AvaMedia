@@ -21,7 +21,7 @@ public sealed class WindowArtwork : AvaloniaObject
     internal static void Enable(Window window) => Attach(window);
     private static Registration Attach(Window window) => Windows.GetValue(window, w => new Registration(w));
 
-    private static string EffectiveKind(Window window)
+    internal static string EffectiveKind(Window window)
     {
         if (GetKind(window) is { Length: > 0 } kind) return kind;
         return window switch

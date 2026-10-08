@@ -1,0 +1,72 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <ControlTheme x:Key="XPDropArrowTheme" TargetType="ToggleButton">
+    <Setter Property="Focusable" Value="False"/><Setter Property="Width" Value="18"/>
+    <Setter Property="Template"><ControlTemplate>
+      <controls:WindowsXPFace Name="XPArrow" Kind="arrow" IsHot="{TemplateBinding IsPointerOver}" IsPressed="{TemplateBinding IsPressed}">
+        <Path Data="M 0,0 L 7,0 L 3.5,4 Z" Fill="#4D6185" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </controls:WindowsXPFace>
+    </ControlTemplate></Setter>
+    <Style Selector="^:checked /template/ controls|WindowsXPFace#XPArrow"><Setter Property="IsPressed" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPComboBoxItemTheme" TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="3,2"/><Setter Property="MinHeight" Value="18"/>
+    <Setter Property="Foreground" Value="Black"/>
+    <Setter Property="Template"><ControlTemplate><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" VerticalContentAlignment="Center"/></ControlTemplate></Setter>
+    <Style Selector="^:pointerover, ^:selected, ^:selected:focus, ^:selected:pointerover, ^:selected:focus:pointerover"><Setter Property="Foreground" Value="White"/><Setter Property="Background" Value="#316AC5"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPComboBoxTheme" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+    <Setter Property="ItemContainerTheme" Value="{StaticResource XPComboBoxItemTheme}"/>
+    <Setter Property="Template"><ControlTemplate>
+      <Border Name="XPField" Background="{TemplateBinding Background}" BorderBrush="#7F9DB9" BorderThickness="1">
+        <Grid ColumnDefinitions="*,18">
+          <Panel Margin="{TemplateBinding Padding}">
+            <TextBlock Text="{TemplateBinding PlaceholderText}" Foreground="{TemplateBinding PlaceholderForeground}" VerticalAlignment="Center">
+              <TextBlock.IsVisible><MultiBinding Converter="{x:Static BoolConverters.And}"><Binding Path="SelectionBoxItem" RelativeSource="{RelativeSource TemplatedParent}" Converter="{x:Static ObjectConverters.IsNull}"/><Binding Path="!IsEditable" RelativeSource="{RelativeSource TemplatedParent}"/></MultiBinding></TextBlock.IsVisible>
+            </TextBlock>
+            <ContentControl Name="XPSelectedItem" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center" IsVisible="{TemplateBinding IsEditable, Converter={x:Static BoolConverters.Not}}"/>
+            <TextBox Name="PART_EditableTextBox" Background="Transparent" BorderThickness="0" Padding="0" MinHeight="0" Theme="{StaticResource {x:Type TextBox}}" Text="{TemplateBinding Text, Mode=TwoWay}" IsVisible="{TemplateBinding IsEditable}"/>
+          </Panel>
+          <ToggleButton Name="toggle" Grid.Column="1" Theme="{StaticResource XPDropArrowTheme}" ClickMode="Press" Margin="0,1,1,1" IsChecked="{TemplateBinding IsDropDownOpen, Mode=TwoWay}"/>
+          <Popup Name="PART_Popup" MinWidth="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}" IsLightDismissEnabled="True" IsOpen="{TemplateBinding IsDropDownOpen, Mode=TwoWay}" PlacementTarget="{TemplateBinding}" InheritsTransform="True">
+            <Border Background="White" BorderBrush="#7F9DB9" BorderThickness="1">
+              <ScrollViewer HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}" IsDeferredScrollingEnabled="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}" ScrollViewer.IsScrollChainingEnabled="False"><ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+            </Border>
+          </Popup>
+        </Grid>
+      </Border>
+    </ControlTemplate></Setter>
+    <Style Selector="^:focus /template/ ContentControl#XPSelectedItem"><Setter Property="Background" Value="#316AC5"/><Setter Property="Foreground" Value="White"/></Style>
+    <Style Selector="^:disabled /template/ Border#XPField"><Setter Property="Background" Value="#ECE9D8"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPCheckBoxTheme" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+    <Setter Property="MinHeight" Value="18"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="13,*" ColumnSpacing="6" Background="Transparent">
+      <controls:WindowsXPFace Kind="check" Width="13" Height="13" VerticalAlignment="Center" IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}" IsHot="{TemplateBinding IsPointerOver}"/>
+      <controls:WindowsXPFace Name="XPFocus" Kind="focus" Grid.Column="1"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" RecognizesAccessKey="True" VerticalContentAlignment="Center"/></controls:WindowsXPFace>
+    </Grid></ControlTemplate></Setter>
+    <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFocus"><Setter Property="IsFocusedFace" Value="True"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Foreground" Value="#ACA899"/><Setter Property="Opacity" Value="1"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPRadioButtonTheme" TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+    <Setter Property="MinHeight" Value="18"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="13,*" ColumnSpacing="6" Background="Transparent">
+      <controls:WindowsXPFace Kind="radio" Width="13" Height="13" VerticalAlignment="Center" IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}" IsHot="{TemplateBinding IsPointerOver}"/>
+      <controls:WindowsXPFace Name="XPFocus" Kind="focus" Grid.Column="1"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" RecognizesAccessKey="True" VerticalContentAlignment="Center"/></controls:WindowsXPFace>
+    </Grid></ControlTemplate></Setter>
+    <Style Selector="^:focus-visible /template/ controls|WindowsXPFace#XPFocus"><Setter Property="IsFocusedFace" Value="True"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Foreground" Value="#ACA899"/><Setter Property="Opacity" Value="1"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPButtonSpinnerTheme" TargetType="ButtonSpinner" BasedOn="{StaticResource {x:Type ButtonSpinner}}">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Style Selector="^ /template/ Border#border, ^:pointerover /template/ Border#border, ^:focus /template/ Border#border"><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderBrush" Value="#7F9DB9"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="^ /template/ RepeatButton">
+      <Setter Property="Width" Value="17"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/>
+      <Setter Property="Template"><ControlTemplate><controls:WindowsXPFace Kind="arrow" IsHot="{TemplateBinding IsPointerOver}" IsPressed="{TemplateBinding IsPressed}"><ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/></controls:WindowsXPFace></ControlTemplate></Setter>
+    </Style>
+  </ControlTheme>
+  <ControlTheme x:Key="XPNumericUpDownTheme" TargetType="NumericUpDown" BasedOn="{StaticResource {x:Type NumericUpDown}}">
+    <Setter Property="Padding" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="White"/>
+    <Style Selector="^ /template/ ButtonSpinner#PART_Spinner"><Setter Property="Theme" Value="{StaticResource XPButtonSpinnerTheme}"/></Style>
+    <Style Selector="^ /template/ TextBox#PART_TextBox"><Setter Property="Theme" Value="{StaticResource {x:Type TextBox}}"/><Setter Property="Margin" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="3,1"/><Setter Property="BorderThickness" Value="0"/></Style>
+  </ControlTheme>
+</ResourceDictionary>

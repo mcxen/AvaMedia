@@ -1726,5 +1726,8 @@
   "待确认": "Needs review",
   "{0} · {1}": "{0} · {1}",
   "匹配完成：已勾选 {0} 个，待确认 {1} 个，失败 {2} 个。": "Matching complete: {0} selected, {1} need review, {2} failed.",
-  "语义匹配已停止，已完成结果已保留。": "Matching stopped. Completed results have been kept."
+  "语义匹配已停止，已完成结果已保留。": "Matching stopped. Completed results have been kept.",
+  "还原": "Restore",
+  "移动": "Move",
+  "大小": "Size"
 }

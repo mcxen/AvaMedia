@@ -90,7 +90,7 @@ public partial class MainWindow
         Motion.Reveal(FeatureGrid);
     }
 
-    private double FeatureRowHeight => ActualThemeVariant == Skin.MacOS9 ? 74 : 91;
+    private double FeatureRowHeight => this.TryFindResource("UiFeatureRowHeight", out var value) && value is double height ? height : 91;
     private void RefreshFeatureMetrics()
     {
         foreach (var row in FeatureGrid.RowDefinitions) row.Height = new GridLength(FeatureRowHeight);

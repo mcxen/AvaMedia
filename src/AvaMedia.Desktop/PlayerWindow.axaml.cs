@@ -312,7 +312,7 @@ public partial class PlayerWindow : Window
         ShowChrome();
     }
     private void ShowChrome()
-    { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && ActualThemeVariant != Skin.MacOS9; ControlsBar.IsVisible = true; SetPosition(_position); Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
+    { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && !Skin.UsesCustomChrome(ActualThemeVariant); ControlsBar.IsVisible = true; SetPosition(_position); Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
     public void SetConfirmDeletion(bool value)
     { var settings = _preferences.LoadSettings(); settings.ConfirmPlayerDeletion = value; _preferences.SaveSettings(settings); ConfirmDeletion = value; }
     public async Task DeleteCurrentAsync()
