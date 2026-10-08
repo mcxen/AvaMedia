@@ -86,7 +86,6 @@ public sealed partial class MediaAiWindow : Window
             var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status))); edits.Children.Add(status);
             var label = Ui.Input(); label.Watermark = Localization.Text("命名标签"); Localization.SetIsUserText(label, true);
             label.Bind(TextBox.TextProperty, new Binding(nameof(MediaFileEntry.Keyword)) { Mode = BindingMode.TwoWay }); edits.Children.Add(label);
-            if (entry is not null) { edits.Children.Add(Ui.Text("人工审核", "caption")); edits.Children.Add(ReviewControl(entry)); }
             Grid.SetColumn(edits, 2); row.Children.Add(edits); return row;
         });
         var body = new Grid { ColumnDefinitions = new("*,310"), ColumnSpacing = 16 };
@@ -114,8 +113,7 @@ public sealed partial class MediaAiWindow : Window
         _rename = Ui.Button("执行重命名", async () => await RenameAsync(false)); _rename.IsEnabled = false; _parameters.Children.Add(_rename);
         _undo = Ui.Button("撤销上次重命名", async () => await RenameAsync(true)); _undo.IsVisible = CanUndo(); _parameters.Children.Add(_undo);
         _parameters.Children.Add(Ui.Button("导出标签 JSON…", async () => await ExportAsync()));
-        _parameters.Children.Add(Ui.Text("NSFW 审核 · 风险标签辅助判断，未检出不代表安全。", "caption"));
-        _parameters.Children.Add(Ui.Button("导出审核反馈 JSONL…", async () => await ExportFeedbackAsync()));
+        _parameters.Children.Add(Ui.Text("NSFW 判断 · 未检出风险标签不代表安全。", "caption"));
         var scroll = new ScrollViewer { Content = _parameters }; Grid.SetColumn(scroll, 1); body.Children.Add(scroll); Grid.SetRow(body, 1); root.Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_status);
         _stop = Ui.Button("停止", () => _operation?.Cancel()); _stop.IsVisible = false; Grid.SetColumn(_stop, 1); footer.Children.Add(_stop);
@@ -141,10 +139,9 @@ public sealed partial class MediaAiWindow : Window
         {
             if (_entries.Any(entry => BatchRename.PathComparer.Equals(entry.Path, path))) continue;
             var entry = new MediaFileEntry(path) { Details = "", Status = "待分析" };
-            entry.PropertyChanged += async (_, change) =>
+            entry.PropertyChanged += (_, change) =>
             {
                 if (change.PropertyName is nameof(MediaFileEntry.Include) or nameof(MediaFileEntry.Keyword)) InvalidatePlan();
-                if (change.PropertyName == nameof(MediaFileEntry.ReviewDecision)) await SaveReviewAsync(entry);
             };
             _entries.Add(entry);
         }
@@ -197,7 +194,7 @@ public sealed partial class MediaAiWindow : Window
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
-        { _results.Remove(entry.Path); ClearReview(entry); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
+        { _results.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); InvalidatePlan();
         _status.Text = Localization.Text(options.PreferGpu ? "加载 JoyTag · 首次 GPU 编译可能较慢…" : "加载 JoyTag…");
         _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
@@ -235,8 +232,6 @@ public sealed partial class MediaAiWindow : Window
         if (result.FallbackReason is { } reason) entry.Status += " · " + Localization.Text("已回退 CPU") + ": " + reason;
         var threshold = Number(_threshold);
         var moderation = NsfwModeration.Evaluate(result, threshold);
-        entry.HasTagResult = true;
-        RestoreReview(entry, result);
         entry.Status += " · " + NsfwStateText(moderation.State);
         entry.Details = string.Join(Environment.NewLine, result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
             .GroupBy(score => WordLibraryCatalog.TagCategory(score.Tag))
@@ -248,6 +243,12 @@ public sealed partial class MediaAiWindow : Window
                 + string.Join(" · ", moderation.Evidence.Select(item => $"{item.Label} {item.Signal:0.00}")) + Environment.NewLine + entry.Details;
         }
     }
+    private static string NsfwStateText(NsfwSignalState state) => Localization.Text(state switch
+    {
+        NsfwSignalState.Suspected => "疑似 NSFW",
+        NsfwSignalState.ContextOnly => "仅命中提示标签",
+        _ => "未检出风险标签"
+    });
     private void Match()
     {
         var vocabulary = _results.Values.FirstOrDefault()?.Scores.Select(score => score.Tag) ?? [];
@@ -289,7 +290,7 @@ public sealed partial class MediaAiWindow : Window
             {
                 _results.Remove(mapping.Source);
                 var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, mapping.Source));
-                if (entry is not null) { ClearReview(entry); entry.Renamed(mapping.Target); entry.Status = Localization.Text("已重命名"); entry.Keyword = ""; }
+                if (entry is not null) { entry.Renamed(mapping.Target); entry.Status = Localization.Text("已重命名"); entry.Keyword = ""; }
             }
             Renamed?.Invoke(mappings); _status.Text = Localization.Format($"已更新 {mappings.Length} 个文件名"); _undo.IsVisible = CanUndo();
         }
@@ -307,7 +308,6 @@ public sealed partial class MediaAiWindow : Window
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, Results = _results.Values.Select(result => new
             { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
                 DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),
-                HumanReview = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, result.Path))?.ReviewDecision.ToString(),
                 Tags = result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score) }) };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }

@@ -29,14 +29,14 @@ public static partial class WordLibraryCatalog
         JoyTags = ReadText("joytag.txt").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         FeatureEntries = ReadFeatureWords();
         NsfwEntries = NsfwModeration.Candidates();
-        if (NsfwEntries.Any(entry => !entry.Supports(WordLibraryTarget.JoyTag))) throw new InvalidDataException("NSFW 审核词库包含模型不支持的标签。");
+        if (NsfwEntries.Any(entry => !entry.Supports(WordLibraryTarget.JoyTag))) throw new InvalidDataException("NSFW 识别词库包含模型不支持的标签。");
         TagCategories = CreateTagCategories();
         TagLabels = CreateTagLabels();
         BuiltIns = new WordLibrary[]
         {
         new("person-features", "人物特征", "AvaMedia · 外观、配饰、动作、神态与体毛特征", FeatureEntries),
-        new("nsfw-review", "NSFW 审核标签", "JoyTag / Danbooru · Apache-2.0 · AvaMedia 审核分组", NsfwEntries),
-        new("nudenet-review", "NudeNet 审核分类", "notAI-tech/NudeNet · AGPL-3.0 · 18 类语义候选，非 JoyTag 检测输出", ReadNudeNetWords()),
+        new("nsfw-review", "NSFW 识别标签", "JoyTag / Danbooru · Apache-2.0 · AvaMedia 风险分组", NsfwEntries),
+        new("nudenet-review", "NudeNet 分类", "notAI-tech/NudeNet · AGPL-3.0 · 18 类语义候选，非 JoyTag 检测输出", ReadNudeNetWords()),
         new("common", "常用分类", "AvaMedia · 中文名称与模型标签映射", Common()),
         new("ratings", "内容分级候选", "AvaMedia · 语义描述，需人工确认", [
             new("非NSFW", "内容分级", "An ordinary safe-for-work scene, fully clothed people, everyday objects or nature, suitable for a general audience.", []),
