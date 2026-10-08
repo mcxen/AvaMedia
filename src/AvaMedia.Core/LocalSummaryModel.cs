@@ -125,6 +125,11 @@ public sealed class LocalSummaryModel : IAsyncDisposable
         var request = new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
             ["max_tokens"] = tokens, ["temperature"] = visual ? 0 : .2, ["top_p"] = .8,
             ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 0 };
+        if (visual)
+        {
+            request["repeat_penalty"] = 1.1;
+            request["stop"] = new[] { "\n" };
+        }
         if (schema is { } shape) request["response_format"] = new { type = "json_object", schema = shape };
         try
         {
@@ -143,8 +148,17 @@ public sealed class LocalSummaryModel : IAsyncDisposable
         var text = body.GetString()!.Trim();
         text = Regex.Replace(text, @"<think>.*?</think>", "", RegexOptions.Singleline, TimeSpan.FromSeconds(1)).Trim();
         if (text.Length == 0) throw new InvalidDataException("本地总结模型返回了空内容。");
-        if (choices[0].TryGetProperty("finish_reason", out var reason) && reason.GetString() == "length")
-            throw new InvalidDataException("总结超过输出长度，请缩小分段字符数或分析重点后重试。");
+        var limited = choices[0].TryGetProperty("finish_reason", out var reason) && reason.GetString() == "length";
+        if (visual)
+        {
+            // Small visual decoders can repeat after a complete caption. Keep whole sentences only;
+            // an incomplete prefix is never turned into visual evidence or a partially parsed JSON answer.
+            var sentences = Regex.Matches(text, """\G\s*.*?[.!?](?:["”’])?(?=\s|$)""", RegexOptions.Singleline, TimeSpan.FromSeconds(1))
+                .Cast<Match>().Take(images is null ? 1 : 2).ToArray();
+            if (sentences.Length > 0) text = string.Join(" ", sentences.Select(sentence => sentence.Value.Trim()));
+            else if (limited) throw new InvalidDataException("画面模型未返回完整观察，请减小采样画面数后重试。");
+        }
+        else if (limited) throw new InvalidDataException("总结超过输出长度，请缩小分段字符数或分析重点后重试。");
         return text;
     }
 
