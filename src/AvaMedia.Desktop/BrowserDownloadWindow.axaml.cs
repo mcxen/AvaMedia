@@ -14,6 +14,7 @@ public partial class BrowserDownloadWindow : Window
 {
     private readonly ObservableCollection<DownloadEntry> _entries = [];
     private readonly Dictionary<string, DownloadEntry> _media = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _discardedMedia = new(StringComparer.Ordinal);
     private readonly string _token = Guid.NewGuid().ToString("N");
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _scanTimer = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -91,7 +92,7 @@ public partial class BrowserDownloadWindow : Window
             var url = DownloadLinks.NormalizePageUrl(input);
             _pageUrl = url;
             _encryptedPage = "";
-            _media.Clear(); _entries.Clear(); RefreshSelection();
+            _media.Clear(); _discardedMedia.Clear(); _entries.Clear(); RefreshSelection();
             BrowserStatus.Text = "正在打开网站";
             Browser.Navigate(new Uri(url));
         }
@@ -144,11 +145,15 @@ public partial class BrowserDownloadWindow : Window
 
     private void ResourceRequested(object? sender, WebResourceRequestedEventArgs args)
     {
+        // WKWebView exposes navigation requests here, including HTML pages named *.webm.
+        // Its media subresources are confirmed by the injected script instead.
+        if (OperatingSystem.IsMacOS()) return;
         if (_closed || _saving || args.Request.Method != System.Net.Http.HttpMethod.Get) return;
         var url = args.Request.Uri.AbsoluteUri;
         var extension = DownloadLinks.MediaExtension(url);
         if (extension.Length == 0 || extension is "ts" or "m2ts") return;
         string Header(string name) => args.Request.Headers.FirstOrDefault(pair => pair.Key.Equals(name, StringComparison.OrdinalIgnoreCase)).Value ?? "";
+        if (Header("Accept").Contains("text/html", StringComparison.OrdinalIgnoreCase)) return;
         AddMedia(url, extension, 0, Header("Referer"), Header("User-Agent"), Header("Origin"));
     }
 
@@ -164,7 +169,7 @@ public partial class BrowserDownloadWindow : Window
             if (Uri.TryCreate(page, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
             {
                 page = DownloadLinks.NormalizePageUrl(page);
-                if (_pageUrl != page) { _entries.Clear(); _media.Clear(); }
+                if (_pageUrl != page) { _entries.Clear(); _media.Clear(); _discardedMedia.Clear(); }
                 _pageUrl = page;
                 AddressInput.Text = uri.AbsoluteUri;
             }
@@ -172,6 +177,13 @@ public partial class BrowserDownloadWindow : Window
             if (title.Length > 0 && title != _title)
                 foreach (var entry in _entries) entry.Complete(entry.Video! with { Title = title }, entry.IsChecked);
             _title = title; _agent = Text(root, "userAgent");
+            if (root.TryGetProperty("discard", out var discard) && discard.ValueKind == JsonValueKind.Array)
+                foreach (var item in discard.EnumerateArray().Take(1000))
+                    if (item.ValueKind == JsonValueKind.String && item.GetString() is { Length: > 0 } fragment)
+                    {
+                        if (_discardedMedia.Count < 2000) _discardedMedia.Add(fragment);
+                        if (_media.Remove(fragment, out var entry)) _entries.Remove(entry);
+                    }
             if (_encryptedPage != _pageUrl) BrowserStatus.Text = "正在嗅探视频";
             if (root.TryGetProperty("encrypted", out var encrypted) && encrypted.ValueKind == JsonValueKind.True)
             {
@@ -198,6 +210,7 @@ public partial class BrowserDownloadWindow : Window
         try
         {
             url = DownloadLinks.Normalize(url);
+            if (_discardedMedia.Contains(url)) return;
             var context = new WebViewMediaContext(url, _pageUrl, referer.Length > 0 ? referer : _pageUrl,
                 agent.Length > 0 ? agent : _agent, origin, extension);
             context.Validate();
