@@ -245,9 +245,11 @@ static NSError *failure(NSString *message) {
     if (![manager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:error]) return NO;
     NSDictionary *choices = @{@"Theme":[NSString stringWithUTF8String:am_setup_skins[self.skin].key],
         @"Language":@[@"system", @"zh-CN", @"en-US"][self.language.indexOfSelectedItem], @"OutputFolder":output,
-        @"OutputToSource":@(self.source.state == NSControlStateValueOn), @"NotifyComplete":@(self.notify.state == NSControlStateValueOn),
-        @"ReduceMotion":@(self.motion.state == NSControlStateValueOn), @"CheckForUpdates":@(self.updates.state == NSControlStateValueOn),
-        @"AutoDetectGpu":@(self.gpu.state == NSControlStateValueOn)};
+        @"OutputToSource":(self.source.state == NSControlStateValueOn ? @YES : @NO),
+        @"NotifyComplete":(self.notify.state == NSControlStateValueOn ? @YES : @NO),
+        @"ReduceMotion":(self.motion.state == NSControlStateValueOn ? @YES : @NO),
+        @"CheckForUpdates":(self.updates.state == NSControlStateValueOn ? @YES : @NO),
+        @"AutoDetectGpu":(self.gpu.state == NSControlStateValueOn ? @YES : @NO)};
     NSData *data = [NSJSONSerialization dataWithJSONObject:choices options:0 error:error];
     if (!data || ![data writeToFile:[folder stringByAppendingPathComponent:@"setup-pending.json"] options:NSDataWritingAtomic error:error]) return NO;
     return [[NSData data] writeToFile:[folder stringByAppendingPathComponent:@"setup-complete"] options:NSDataWritingAtomic error:error];
