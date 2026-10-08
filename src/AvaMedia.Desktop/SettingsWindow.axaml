@@ -39,7 +39,7 @@
                 <TextBlock Classes="settingsHeading" Text="任务完成"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
-                    <CheckBox x:Name="NotifyInput" Content="显示完成气泡通知" ToolTip.Tip="前台和后台均可显示右下角气泡，不自动恢复主窗口。"/>
+                    <CheckBox x:Name="NotifyInput" Content="显示完成通知" ToolTip.Tip="通知保留在主界面，不自动恢复主窗口。"/>
                     <CheckBox x:Name="OpenOutputInput" Content="打开输出文件夹"/>
                     <CheckBox x:Name="ShutdownInput" Content="全部成功后关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。"/>
                   </StackPanel>

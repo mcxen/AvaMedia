@@ -1,4 +1,5 @@
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Notifications;
 
@@ -8,6 +9,24 @@ public partial class MainWindow
 {
     internal bool CanExitForUpdate => !_closing && !_queue.IsRunning && _editingJob is null;
     private void NotificationsClick(object? sender, RoutedEventArgs args) => NotificationCenter.Shared.OpenHistory(this);
+    private void ToggleNotificationsClick(object? sender, RoutedEventArgs args)
+    {
+        if (NotificationCenter.Shared.Expanded) NotificationCenter.Shared.Collapse();
+        else NotificationCenter.Shared.OpenHistory(this);
+    }
+    private void InitializeNotifications()
+    {
+        var center = NotificationCenter.Shared; center.Attach(this);
+        center.Changed += RefreshNotificationBadge;
+        Closed += (_, _) => center.Changed -= RefreshNotificationBadge;
+        RefreshNotificationBadge();
+    }
+    private void RefreshNotificationBadge()
+    {
+        var entries = NotificationCenter.Shared.Entries;
+        NotificationBadge.Text = entries.Count.ToString(); NotificationBadge.IsVisible = entries.Count > 0;
+        NotificationBadge.FontWeight = entries.Any(entry => !entry.Read) ? FontWeight.Bold : FontWeight.Normal;
+    }
 
     internal async Task OpenModelManagementAsync()
     {

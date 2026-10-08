@@ -23,7 +23,8 @@ internal sealed class NotificationCenter
 {
     public static NotificationCenter Shared { get; } = new();
     private readonly List<NotificationEntry> _entries = [];
-    private NotificationBubbleWindow? _window;
+    private readonly HashSet<string> _removedKeys = [];
+    private WeakReference<Window>? _host;
     private WeakReference<Window>? _anchor;
     private bool _stopped;
     public IReadOnlyList<NotificationEntry> Entries => _entries;
@@ -38,6 +39,11 @@ internal sealed class NotificationCenter
     {
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => Publish(owner, message, show, reopen, select)); return; }
         if (_stopped) return;
+        if (_removedKeys.Contains(message.Key))
+        {
+            if (!reopen) return;
+            _removedKeys.Remove(message.Key);
+        }
         if (owner is not null) _anchor = new(owner);
         var entry = _entries.FirstOrDefault(item => item.Message.Key == message.Key);
         if (entry is null)
@@ -54,30 +60,56 @@ internal sealed class NotificationCenter
         if (reopen) { entry.Dismissed = false; entry.Read = false; }
         if (show && !entry.Dismissed)
         {
-            if (select || !Expanded || Selected is null) { Selected = entry; Expanded = true; History = false; entry.Read = true; }
-            EnsureWindow();
+            EnsurePresentation();
+            if (select || !Expanded || Selected is null)
+            {
+                Selected = entry; Expanded = true; History = false;
+                entry.Read = Host is { IsVisible: true, WindowState: not WindowState.Minimized };
+            }
         }
         Changed?.Invoke();
     }
 
-    private void EnsureWindow()
+    internal void Attach(Window host) => _host = new(host);
+    private Window? Host => _host?.TryGetTarget(out var window) == true ? window : null;
+    private void EnsurePresentation()
     {
-        if (_window is null)
+        if (Host is {} host && Available(host)) return;
+        if (Avalonia.Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop
+            || desktop.MainWindow is not {} primary) return;
+        Attach(primary);
+        // Standalone playback also presents notifications inside its application window.
+        if (primary is MainWindow || primary.Content is not Control content) return;
+        var notifications = new NotificationPanel { Width = 364, MaxHeight = 420, Margin = new(12),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom };
+        if (content is Grid grid)
         {
-            _window = new(this);
-            _window.Closed += (_, _) => _window = null;
+            Grid.SetRowSpan(notifications, Math.Max(1, grid.RowDefinitions.Count));
+            Grid.SetColumnSpan(notifications, Math.Max(1, grid.ColumnDefinitions.Count));
+            grid.Children.Add(notifications);
         }
-        if (!_window.IsVisible) _window.Show();
+        else
+        {
+            primary.Content = null;
+            var root = new Grid(); root.Children.Add(content); root.Children.Add(notifications); primary.Content = root;
+        }
     }
     public void OpenHistory(Window? owner = null)
     {
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OpenHistory(owner)); return; }
         if (_stopped) return;
         if (owner is not null) _anchor = new(owner);
-        Expanded = History = true; EnsureWindow(); Changed?.Invoke(); _window?.Activate();
+        EnsurePresentation(); Expanded = History = true; Changed?.Invoke();
+        if (Host is MainWindow main) main.RestoreFromTray();
+        else if (Host is {} host)
+        {
+            if (!host.IsVisible) host.Show();
+            if (host.WindowState == WindowState.Minimized) host.WindowState = WindowState.Normal;
+            host.Activate();
+        }
     }
     public void Select(NotificationEntry entry)
-    { Selected = entry; entry.Read = true; Expanded = true; History = false; Changed?.Invoke(); }
+    { if (!_entries.Contains(entry)) return; Selected = entry; entry.Read = true; Expanded = true; History = false; Changed?.Invoke(); }
     public void Step(int direction)
     {
         if (_entries.Count == 0) return;
@@ -93,21 +125,26 @@ internal sealed class NotificationCenter
         Changed?.Invoke();
     }
     public void Collapse() { Expanded = History = false; Changed?.Invoke(); }
-    public void HideAll()
+    public void Remove(NotificationEntry entry)
     {
-        foreach (var item in _entries.ToArray()) Dismiss(item);
-        Expanded = History = false; _window?.Hide(); Changed?.Invoke();
+        if (!_entries.Remove(entry)) return;
+        _removedKeys.Add(entry.Message.Key); Dismiss(entry);
+        if (Selected == entry) Selected = _entries.FirstOrDefault(item => !item.Dismissed);
+        if (Selected is null) History = true;
+        else if (Expanded && !History) Selected.Read = true;
+        Changed?.Invoke();
     }
-    public void ClearHistory()
+    public void ClearAll()
     {
-        foreach (var item in _entries.Where(item => !IsActive(item)).ToArray()) Dismiss(item);
-        _entries.RemoveAll(item => !IsActive(item));
-        if (Selected is not null && !_entries.Contains(Selected)) Selected = null;
+        var removed = _entries.ToArray();
+        foreach (var entry in removed) _removedKeys.Add(entry.Message.Key);
+        _entries.Clear(); Selected = null; History = Expanded = true;
+        foreach (var entry in removed) Dismiss(entry);
         Changed?.Invoke();
     }
     public async Task InvokeAsync(NotificationEntry entry, int index)
     {
-        if (entry.Busy || index < 0 || index >= (entry.Message.Actions?.Count ?? 0)) return;
+        if (!_entries.Contains(entry) || entry.Busy || index < 0 || index >= (entry.Message.Actions?.Count ?? 0)) return;
         var action = entry.Message.Actions![index];
         if (action.Enabled?.Invoke() == false) return;
         entry.Busy = true; Changed?.Invoke();
@@ -126,7 +163,7 @@ internal sealed class NotificationCenter
         finally { entry.Busy = false; Changed?.Invoke(); }
     }
     public void Shutdown()
-    { _stopped = true; _window?.Close(); _entries.Clear(); Selected = null; }
+    { _stopped = true; Expanded = History = false; _entries.Clear(); _removedKeys.Clear(); Selected = null; _host = _anchor = null; Changed?.Invoke(); }
 
     private static void Dismiss(NotificationEntry entry)
     {

@@ -1,8 +1,9 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:notifications="using:AvaMedia.Desktop.Notifications" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
   <Window.Styles>
     <Style Selector="Border.tool-drop-indicator"><Setter Property="IsVisible" Value="False"/></Style>
     <Style Selector="Button.tile.drop-target Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
     <Style Selector="Button.tile.drop-invalid Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
+    <Style Selector="Button.notification-status"><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="8,0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
   </Window.Styles>
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu x:Name="ApplicationMenu" Grid.Row="{DynamicResource UiMainMenuRow}" Height="{DynamicResource UiMenuBarHeight}">
@@ -78,7 +79,7 @@
       </Grid>
     </Grid>
     <StackPanel Grid.Row="3">
-    <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
+    <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
       <Grid ColumnDefinitions="Auto,*">
         <local:ActionIcon Kind="folder" Width="16" Height="16" Margin="0,0,4,0" VerticalAlignment="Center" IsVisible="{DynamicResource UiShowOutputIcon}"/>
         <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -86,9 +87,18 @@
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
       <TextBlock x:Name="ElapsedText" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Text="耗时: 00:00:00" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Margin="10,0"/>
-      <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" ToolTip.Tip="任务完成后显示右下角气泡通知。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
+      <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" ToolTip.Tip="任务完成后在主界面右下角显示通知。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="ResourceUsageText" Grid.Column="5" Text="CPU —   GPU —" i18n:Localization.IsUserText="True" ToolTip.Tip="整机 CPU、GPU 占用率" Foreground="{DynamicResource UiStatusText}" FontWeight="Normal" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center" Margin="16,0,4,0"/>
+      <Border Grid.Column="6" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0" Margin="4,0,0,0">
+        <Button x:Name="NotificationButton" Classes="notification-status" Click="ToggleNotificationsClick" ToolTip.Tip="通知中心" AutomationProperties.Name="通知中心" VerticalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="通知" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}"/>
+            <TextBlock x:Name="NotificationBadge" i18n:Localization.IsUserText="True" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" IsVisible="False"/>
+          </StackPanel>
+        </Button>
+      </Border>
     </Grid></Border>
     </StackPanel>
+    <notifications:NotificationPanel Grid.Row="2" Width="364" MaxHeight="420" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12"/>
   </Grid>
 </Window>

@@ -1,4 +1,11 @@
 {
+  "通知": "Notifications",
+  "移除通知": "Remove notification",
+  "清除全部通知": "Clear all notifications",
+  "暂无通知": "No notifications",
+  "显示完成通知": "Show completion notifications",
+  "任务完成后在主界面右下角显示通知。": "Show notifications in the lower-right corner of the main window when tasks finish.",
+  "通知保留在主界面，不自动恢复主窗口。": "Keep notifications in the main window without restoring it automatically.",
   "拖到左侧工具继续处理": "Drag to a tool on the left to continue processing",
   "输出文件缺失或不可访问。": "Output files are missing or inaccessible.",
   "拖拽输出失败": "Unable to drag output files",
