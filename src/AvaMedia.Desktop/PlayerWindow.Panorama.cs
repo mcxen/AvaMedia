@@ -152,7 +152,7 @@ public partial class PlayerWindow
             PlaylistPanel.IsVisible = false; SyncPanoramaControls();
             PlayerVrMode.Focus(_keyboardNavigation ? NavigationMethod.Tab : NavigationMethod.Pointer);
         }
-        else VideoArea.Focus();
+        else FocusPlayback();
         ShowChrome();
     }
     private void RecenterPanorama()

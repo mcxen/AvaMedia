@@ -82,7 +82,7 @@ public partial class PlayerWindow : Window
         {
             if (IsPlayerOverlay(e.Source)) return;
             if (!e.GetCurrentPoint(VideoArea).Properties.IsLeftButtonPressed) return;
-            VideoArea.Focus(NavigationMethod.Pointer);
+            FocusPlayback();
             if (e.ClickCount == 2) { ToggleFullscreen(); e.Handled = true; }
         };
         VideoArea.PointerWheelChanged += (_, e) => { if (IsPlayerOverlay(e.Source)) return; PlayerVolume.Value = Math.Clamp(PlayerVolume.Value + e.Delta.Y * 5, 0, 100); e.Handled = true; };
@@ -100,7 +100,7 @@ public partial class PlayerWindow : Window
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, (_, e) => { if (_deleting || _closed) return; var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToArray(); if (paths?.Length > 0) { SetFiles(paths); Ready = OpenAsync(_playlist[0]); } });
-        Opened += (_, _) => { VideoArea.Focus(); if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
+        Opened += (_, _) => { FocusPlayback(); if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
         Closed += (_, _) =>
         {
             Localization.Changed -= LanguageChanged;
@@ -333,8 +333,7 @@ public partial class PlayerWindow : Window
         if (WindowState == WindowState.FullScreen) WindowState = _windowedState;
         else
         {
-            _keyboardNavigation = false;
-            VideoArea.Focus(NavigationMethod.Pointer);
+            FocusPlayback();
             _windowedState = WindowState;
             WindowState = WindowState.FullScreen;
         }
@@ -419,11 +418,15 @@ public partial class PlayerWindow : Window
         var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Spacing = 12 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
         var confirm = Ui.DialogButton("移入回收站", () => { if (remember.IsChecked == true) SetConfirmDeletion(false); dialog.Close(true); }); confirm.Classes.Add("primary"); buttons.Children.Add(confirm);
-        Grid.SetRow(buttons, 3); body.Children.Add(buttons); dialog.Content = body; return await dialog.ShowDialog<bool>(this);
+        Grid.SetRow(buttons, 3); body.Children.Add(buttons); dialog.Content = body;
+        var confirmed = await dialog.ShowDialog<bool>(this);
+        if (!_closed) FocusPlayback();
+        return confirmed;
     }
     private async Task Pick()
     {
         var paths = await Ui.Pick(this, "打开视频 / 音频", true);
+        if (!_closed) FocusPlayback();
         if (paths.Length == 0 || _closed || _deleting) return;
         SetFiles(paths); await OpenAsync(_playlist[0]);
     }
@@ -485,7 +488,7 @@ public partial class PlayerWindow : Window
             PlaylistList.ScrollIntoView(PlaylistList.SelectedIndex);
             PlaylistList.Focus(_keyboardNavigation ? NavigationMethod.Tab : NavigationMethod.Pointer);
         }
-        else VideoArea.Focus();
+        else FocusPlayback();
         ShowChrome();
     }
     private void PlaylistDoubleTapped(object? sender, RoutedEventArgs e)

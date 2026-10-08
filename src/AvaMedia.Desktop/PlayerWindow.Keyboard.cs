@@ -13,6 +13,9 @@ public partial class PlayerWindow
     private ContextMenu? _openMenu;
     private IPointer? _chromePointer;
     private Avalonia.Point? _lastPointerPosition;
+    private Control? _pointerControl;
+    private int _menuGeneration;
+    private ComboBox[] _playbackSelectors = [];
 
     private void InitializeKeyboard()
     {
@@ -22,13 +25,34 @@ public partial class PlayerWindow
         {
             _chromePointer = e.Pointer;
             _keyboardNavigation = false;
+            var source = e.Source as Control;
+            _pointerControl = IsPlaybackControl(source) && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed
+                ? (Control?)ControlWithin<Button>(source) ?? ControlWithin<Slider>(source) : null;
             ShowChrome();
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(PointerReleasedEvent, (_, _) => ShowChrome(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, (_, _) =>
+        {
+            if (_pointerControl is { } control) RestorePointerFocus(control);
+            _pointerControl = null;
+            ShowChrome();
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(GotFocusEvent, (_, e) =>
         {
-            if (e.NavigationMethod is NavigationMethod.Tab or NavigationMethod.Directional) _keyboardNavigation = true;
+            // Popup focus restoration can report Tab even when the user selected with the mouse.
+            if (e.NavigationMethod == NavigationMethod.Pointer) _keyboardNavigation = false;
+            else if (e.NavigationMethod == NavigationMethod.Directional) _keyboardNavigation = true;
             ShowChrome();
+        });
+        AddHandler(LostFocusEvent, (_, _) => Dispatcher.UIThread.Post(RestoreMissingFocus), handledEventsToo: true);
+        _playbackSelectors = [PlayerVrMode, PlayerVrLayout, PlayerVrEye, PlayerVrProjection];
+        foreach (var combo in _playbackSelectors)
+            combo.DropDownClosed += (_, _) => RestorePointerFocus(combo);
+        Activated += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            var focused = FocusManager?.GetFocusedElement() as Control;
+            RestoreMissingFocus();
+            if (CanRestorePlaybackFocus && !_keyboardNavigation && IsPlaybackControl(focused)
+                && (Within<Button>(focused) || Within<Slider>(focused) || Within<ComboBox>(focused))) FocusPlayback();
         });
         Deactivated += (_, _) => _pressedKeys.Clear();
     }
@@ -37,46 +61,89 @@ public partial class PlayerWindow
 
     private void KeyPressed(object? sender, KeyEventArgs e)
     {
-        var repeated = !_pressedKeys.Add(e.Key);
+        var source = e.Source as Control ?? FocusManager?.GetFocusedElement() as Control;
+        if (!IsEnabled || Within<Notifications.NotificationPanel>(source)) return;
         if (e.Key == Key.Tab) _keyboardNavigation = true;
         ShowChrome(); // Reveal the controls before Tab navigation chooses its next target.
-        var source = e.Source as Control ?? FocusManager?.GetFocusedElement() as Control;
-        if (_openMenu?.IsOpen == true || Within<MenuItem>(source)) return;
+        if (_openMenu?.IsOpen == true || Within<MenuItem>(source) || _playbackSelectors.Any(combo => combo.IsDropDownOpen)) return;
         var resolved = PlayerShortcuts.Resolve(e.Key, e.KeyModifiers);
-        // Capturing the current view and F11 remain available while adjusting playback controls.
-        if (resolved == PlayerCommand.CaptureFrame || e.Key == Key.F11 && resolved == PlayerCommand.ToggleFullscreen)
+        // Panel and window commands remain available from closed selectors and editable controls.
+        if (resolved is PlayerCommand.CaptureFrame or PlayerCommand.ExitFullscreen or PlayerCommand.Open
+            or PlayerCommand.Stop or PlayerCommand.Help or PlayerCommand.Playlist or PlayerCommand.Settings
+            || resolved == PlayerCommand.ToggleFullscreen && (e.Key == Key.F11 || e.KeyModifiers == KeyModifiers.Alt))
         {
-            e.Handled = true;
-            if (!repeated) CommandReady = HandleKeyboardAsync(() => ExecuteAsync(resolved.Value));
+            ExecuteKeyboardCommand(e, resolved.Value);
             return;
         }
-        if (Within<TextBox>(source) || Within<ComboBox>(source) || Within<NumericUpDown>(source)) return;
+        if (Within<TextBox>(source) || Within<NumericUpDown>(source)) return;
+        if (Within<ComboBox>(source) && e.KeyModifiers == KeyModifiers.None
+            && (IsNavigationKey(e.Key) || _keyboardNavigation && e.Key is (Key.Space or Key.Enter))) return;
 
         if (Within<ListBox>(source))
         {
             if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None)
             {
                 e.Handled = true;
-                if (!repeated) CommandReady = HandleKeyboardAsync(PlaySelectedFileAsync);
+                if (_pressedKeys.Add(e.Key)) CommandReady = HandleKeyboardAsync(PlaySelectedFileAsync);
                 return;
             }
-            if (IsNavigationKey(e.Key) || e.Key is Key.Space or Key.Delete
-                || e.KeyModifiers == KeyModifiers.None && e.Key >= Key.A && e.Key <= Key.Z) return;
+            if (e.KeyModifiers == KeyModifiers.None && e.Key is (Key.Up or Key.Down or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Delete)) return;
         }
-        if (Within<Slider>(source) && IsNavigationKey(e.Key) && e.KeyModifiers == KeyModifiers.None) return;
+        if (_keyboardNavigation && Within<Slider>(source) && IsNavigationKey(e.Key) && e.KeyModifiers == KeyModifiers.None) return;
         if (_keyboardNavigation && Within<Button>(source) && e.Key is (Key.Space or Key.Enter) && e.KeyModifiers == KeyModifiers.None)
         {
-            if (repeated) e.Handled = true;
+            if (!_pressedKeys.Add(e.Key)) e.Handled = true;
             return;
         }
         if (resolved is not { } command) return;
+        ExecuteKeyboardCommand(e, command);
+    }
+
+    private void ExecuteKeyboardCommand(KeyEventArgs e, PlayerCommand command)
+    {
         e.Handled = true;
+        var repeated = !_pressedKeys.Add(e.Key);
         if (repeated && !PlayerShortcuts.CanRepeat(command)) return;
+        if (command is PlayerCommand.Playlist or PlayerCommand.VrSettings or PlayerCommand.Settings) _keyboardNavigation = true;
         CommandReady = HandleKeyboardAsync(() => ExecuteAsync(command));
     }
 
+    private static T? ControlWithin<T>(Control? source) where T : Control
+        => source as T ?? source?.GetVisualAncestors().OfType<T>().FirstOrDefault();
+
     private static bool Within<T>(Control? source) where T : Control
-        => source is T || source?.GetVisualAncestors().Any(a => a is T) == true;
+        => ControlWithin<T>(source) is not null;
+
+    private bool IsPlaybackControl(Control? source)
+        => source is not null && source.GetVisualAncestors().Prepend(source)
+            .Any(control => control == ControlsBar || control == HeaderBar || control == PlaylistPanel || control == VrPanel);
+
+    private void FocusPlayback()
+    {
+        _keyboardNavigation = false;
+        VideoArea.Focus(NavigationMethod.Pointer);
+    }
+
+    private bool CanRestorePlaybackFocus => !_closed && IsActive && IsEnabled && _openMenu?.IsOpen != true
+        && !_playbackSelectors.Any(combo => combo.IsDropDownOpen);
+
+    private void RestoreMissingFocus()
+    {
+        if (!CanRestorePlaybackFocus) return;
+        var focused = FocusManager?.GetFocusedElement() as Control;
+        if (focused is null || !focused.IsEffectivelyVisible || !focused.IsEffectivelyEnabled) FocusPlayback();
+    }
+
+    private void RestorePointerFocus(Control control)
+    {
+        if (_keyboardNavigation) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!CanRestorePlaybackFocus || _keyboardNavigation) return;
+            var focused = FocusManager?.GetFocusedElement() as Control;
+            if (focused == control || focused?.GetVisualAncestors().Contains(control) == true) FocusPlayback();
+        });
+    }
 
     private static bool IsNavigationKey(Key key)
         => key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End or Key.PageUp or Key.PageDown;
@@ -92,7 +159,7 @@ public partial class PlayerWindow
     {
         var index = PlaylistList.SelectedIndex;
         if (index < 0 || index >= _playlist.Length || _deleting) return Task.CompletedTask;
-        VideoArea.Focus();
+        FocusPlayback();
         return OpenAsync(_playlist[index]);
     }
 
@@ -102,7 +169,7 @@ public partial class PlayerWindow
         else if (VrPanel.IsVisible) { ToggleVrPanel(); return; }
         else if (PlaylistPanel.IsVisible) { TogglePlaylist(); return; }
         else if (WindowState == WindowState.FullScreen) ToggleFullscreen();
-        VideoArea.Focus();
+        FocusPlayback();
         ShowChrome();
     }
 
@@ -112,8 +179,9 @@ public partial class PlayerWindow
         var captured = _chromePointer?.Captured as Control;
         if (ShortcutHelp.IsVisible || PlaylistPanel.IsVisible || VrPanel.IsVisible || PanoramaImage.IsDragging
             || ControlsBar.IsPointerOver || captured == ControlsBar || captured?.GetVisualAncestors().Contains(ControlsBar) == true
+            || Within<Notifications.NotificationPanel>(FocusManager?.GetFocusedElement() as Control)
             || _openMenu?.IsOpen == true || _keyboardNavigation && ControlsBar.IsKeyboardFocusWithin) return;
-        if (ControlsBar.IsKeyboardFocusWithin) VideoArea.Focus(NavigationMethod.Pointer);
+        if (ControlsBar.IsKeyboardFocusWithin) FocusPlayback();
         _chromeTimer.Stop();
         ControlsBar.IsVisible = false;
         Cursor = new(StandardCursorType.None);
@@ -125,15 +193,14 @@ public partial class PlayerWindow
         var position = e.GetPosition(this);
         if (_lastPointerPosition == position) return;
         _lastPointerPosition = position;
-        _keyboardNavigation = false;
         ShowChrome();
     }
 
     private void OpenMenu(ContextMenu menu, Control target)
     {
         _openMenu?.Close();
+        var generation = ++_menuGeneration;
         _openMenu = menu;
-        menu.AddHandler(KeyDownEvent, (_, e) => _pressedKeys.Add(e.Key), RoutingStrategies.Tunnel, handledEventsToo: true);
         menu.AddHandler(KeyUpEvent, KeyReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
         menu.Closed += (_, _) =>
         {
@@ -142,12 +209,11 @@ public partial class PlayerWindow
             // The popup finishes restoring focus after Closed has been raised.
             Dispatcher.UIThread.Post(() =>
             {
-                if (_closed || _openMenu is not null) return;
+                if (_closed || !IsActive || !IsEnabled || generation != _menuGeneration || _openMenu is not null) return;
                 var focused = FocusManager?.GetFocusedElement() as Control;
                 if (focused == target || Within<MenuItem>(focused))
                 {
-                    _keyboardNavigation = false;
-                    VideoArea.Focus(NavigationMethod.Pointer);
+                    FocusPlayback();
                 }
                 ShowChrome();
             });

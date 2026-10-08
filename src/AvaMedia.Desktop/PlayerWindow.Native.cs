@@ -17,7 +17,9 @@ public partial class PlayerWindow
     private async Task OpenDiscAsync()
     {
         if (_nativeBusy || _closed) return;
-        if (await new DiscOpenWindow().ShowDialog<DiscPlayback?>(this) is { } source)
+        var source = await new DiscOpenWindow().ShowDialog<DiscPlayback?>(this);
+        if (!_closed) FocusPlayback();
+        if (source is not null && !_closed)
         {
             _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel(); CancelFrameStep(); _revision++; _folderGeneration++;
             _firstFrame.TrySetCanceled(); _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -114,7 +116,7 @@ public partial class PlayerWindow
             {
                 if (!_closed)
                 {
-                    Show(); Activate(); PlayerStatus.Text = Localization.Text("原生播放已关闭"); PlayerStatus.IsVisible = true;
+                    Show(); Activate(); FocusPlayback(); PlayerStatus.Text = Localization.Text("原生播放已关闭"); PlayerStatus.IsVisible = true;
                     if (disc is null && File.Exists(CurrentPath))
                         try
                         {
