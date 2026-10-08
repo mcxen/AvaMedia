@@ -41,6 +41,8 @@ JoyTag 固定支持 5813 个英文标签，包括人物外观、服装、场景�
 
 分析只读素材，可导出标签 JSON。只有点击“执行重命名”才更新原目录文件名，使用现有冲突检查、源文件身份校验、回滚、撤销与队列路径更新。默认使用 CPU；GPU 可手动勾选，按平台尝试 Core ML / DirectML，编译或运行失败自动回退 CPU，每行显示实际后端。Core ML 可分派到 GPU、神经网络引擎和 CPU，不代表所有节点都在 GPU 上运行；首次编译较慢，需要磁盘空间保存缓存，后续分析复用缓存。本机 C# 路径已完成图片和视频的 Core ML 推理，但这批小样本没有稳定的整批提速收益。
 
+NSFW 审核使用独立审核词库解释 JoyTag 分数：图片取该图分数，视频风险取采样峰值，避免风险画面被采样均值稀释；普通标签筛选仍使用采样均值。显示“疑似 NSFW · 待审核”“仅命中提示标签”或“未检出风险标签”，后者不代表安全。人工审核与模型建议分开保存，可导出用于后续训练的审核反馈 JSONL，详见 [NSFW 审核](NSFW-REVIEW.md)。
+
 来源与固定版本：
 
 - [OpenCV YOLOX](https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox)，Apache-2.0；ONNX 权重使用 OpenCV Hugging Face 修订 `d4938dfc9d4ec5d098bfa33e98b3f3345a236586`。

@@ -1,0 +1,18 @@
+NudeNet裸露分类	女性生殖器裸露	FEMALE_GENITALIA_EXPOSED	An image with exposed female genitalia.
+NudeNet裸露分类	男性生殖器裸露	MALE_GENITALIA_EXPOSED	An image with exposed male genitalia.
+NudeNet裸露分类	女性胸部裸露	FEMALE_BREAST_EXPOSED	An image with exposed female breasts.
+NudeNet裸露分类	男性胸部裸露	MALE_BREAST_EXPOSED	An image with an exposed male chest.
+NudeNet裸露分类	臀部裸露	BUTTOCKS_EXPOSED	An image with exposed buttocks.
+NudeNet裸露分类	肛门裸露	ANUS_EXPOSED	An image with an exposed anus.
+NudeNet遮挡分类	女性生殖器遮挡	FEMALE_GENITALIA_COVERED	An image with covered female genitalia.
+NudeNet遮挡分类	女性胸部遮挡	FEMALE_BREAST_COVERED	An image with covered female breasts.
+NudeNet遮挡分类	臀部遮挡	BUTTOCKS_COVERED	An image with covered buttocks.
+NudeNet遮挡分类	肛门遮挡	ANUS_COVERED	An image with a covered anus.
+NudeNet上下文	腹部裸露	BELLY_EXPOSED	An image with an exposed belly.
+NudeNet上下文	腹部遮挡	BELLY_COVERED	An image with a covered belly.
+NudeNet上下文	脚部裸露	FEET_EXPOSED	An image with exposed feet.
+NudeNet上下文	脚部遮挡	FEET_COVERED	An image with covered feet.
+NudeNet上下文	腋部裸露	ARMPITS_EXPOSED	An image with exposed armpits.
+NudeNet上下文	腋部遮挡	ARMPITS_COVERED	An image with covered armpits.
+NudeNet上下文	女性面部类别	FACE_FEMALE	An image with a face in the NudeNet FACE_FEMALE class.
+NudeNet上下文	男性面部类别	FACE_MALE	An image with a face in the NudeNet FACE_MALE class.

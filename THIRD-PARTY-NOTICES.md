@@ -28,6 +28,15 @@ PDF page previews use [PDFium](https://pdfium.googlesource.com/pdfium/) through 
 
 The page workspace's interaction design references [iLovePDF merge](https://www.ilovepdf.com/merge_pdf) and [split](https://www.ilovepdf.com/split_pdf). [Stirling-PDF scanner and compression tools](https://github.com/Stirling-Tools/Stirling-PDF) were reviewed as design references. Their UI assets and implementation code are not incorporated; page arrangement, image recompression and aged-paper rendering are original AvaMedia code.
 
+## NSFW review vocabularies
+
+The JoyTag/Danbooru review subset uses the Apache-2.0 vocabulary already retained
+in `licenses/joytag/`. The 18 NudeNet class names are adapted from
+[notAI-tech/NudeNet](https://github.com/notAI-tech/NudeNet/tree/6ccc81c6c305cccfd46d92b414f8a5c0a816574d),
+AGPL-3.0; attribution and both upstream license files are retained in
+`licenses/nsfw-review/`. Review groups and Chinese labels are AvaMedia additions.
+NudeNet class candidates do not imply a bundled NudeNet detector or weights.
+
 ## External tools
 
 FFmpeg and FFprobe 8.1.3 are bundled in the application `tools` directory as independent, replaceable processes. Both platform builds enable GPL and version3 for x264/x265 and are distributed under GPL-3.0-or-later; no nonfree component is enabled. Original component notices accompany the binaries in `licenses/media-tools/`. The original AvaMedia application remains AGPL-3.0-only. See [FFmpeg legal information](https://ffmpeg.org/legal.html). No FormatFactory FFmpeg binary is redistributed.
