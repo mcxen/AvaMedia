@@ -35,7 +35,7 @@ AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOp
 var detector=new ResultDetector(new(270,OrientationReliability.High,8,8,8,"8 帧方向一致"));
 var editor=new EditorWindow(engine,source,new(),"quick-workflow",orientationDetector:detector);editor.Show();Pump(editor.Ready);
 Check(editor.Segments.Count==1 && editor.FindControl<Button>("ConfirmButton")!.Content!.ToString()!.Contains("导出选项"),"Editor opens with one active segment and export next step");
-Check(editor.FindControl<TabItem>("DirectionTab")!.IsVisible && editor.FindControl<TabItem>("SegmentsTab")!.IsVisible,"Editing tabs are immediately available");
+Check(editor.FindControl<TabItem>("DirectionTab")!.IsVisible && editor.FindControl<Border>("SegmentPane")!.IsVisible,"Direction editing and the segment pane are immediately available");
 SetRange(editor,.4,1.6);SetCrop(editor,24,12,160,100);SetDirection(editor,90);Click(editor,"AddSegmentButton");
 Check(editor.Segments.Count==2 && editor.Segments[0].Options is {Start:.4,End:1.6,CropX:24,Rotation:90},"Adding a segment saves the original draft");
 SetRange(editor,2,3.2);SetCrop(editor,0,0,0,0);SetDirection(editor,180);
@@ -53,7 +53,7 @@ Check(editor.ReadDraft().Rotation==90 && editor.FindControl<Button>("ApplyDirect
 Click(editor,"ApplyDirectionButton");Check(editor.ReadDraft().Rotation==270,"Apply face direction to the selected segment");
 Check(editor.ReadClipEdit().Segments[0].Rotation==180,"Face suggestion does not change other segments");
 SetDirection(editor,90);Capture(editor,"editor-direction-light.png",1000,730);AssertVisible(editor,"DirectionCombo");AssertVisible(editor,"ConfirmButton");
-editor.FindControl<TabControl>("EditTabs")!.SelectedItem=editor.FindControl<TabItem>("SegmentsTab");Capture(editor,"editor-segments-light.png",1000,730);AssertVisible(editor,"SegmentDownButton");
+editor.FindControl<TabControl>("EditTabs")!.SelectedIndex=0;Capture(editor,"editor-segments-light.png",1000,730);AssertVisible(editor,"SegmentDownButton");
 Application.Current!.RequestedThemeVariant=ThemeVariant.Dark;Capture(editor,"editor-segments-dark.png",1000,730);
 read=editor.ReadClipEdit();editor.Close();
 var switchEditor=new EditorWindow(engine,source,new(){Start=.4,End=1.6},"quick-workflow",segments:[new(){Start=.4,End=1.6},new(){Start=.4,End=2.4}]);switchEditor.Show();Pump(switchEditor.Ready);Click(switchEditor,"PlaySelectionButton");Pump(switchEditor.PlaybackReady);

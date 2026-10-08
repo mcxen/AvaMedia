@@ -10,142 +10,167 @@ public sealed class ClipSegmentEntry : Observable
 {
     private ConversionOptions _options;
     private int _number;
-    public ClipSegmentEntry(ConversionOptions options) => _options=options.Clone();
-    public ConversionOptions Options { get=>_options; set { _options=value.Clone();Raise(nameof(Summary)); } }
-    public int Number { get=>_number; set { _number=value;Raise(nameof(Summary)); } }
-    public string Summary => Localization.Join("\n", new[] {
-        Localization.Format($"片段 {Number}   ·   {Stamp(_options.Start)} → {(_options.End>0?Stamp(_options.End):Localization.Text("视频结尾"))}   ·   {MediaEngine.Number(_options.Speed)}×"),
-        Localization.Join("   ·   ", new[] { _options.CropWidth>0?Localization.Format($"裁剪 {_options.CropX},{_options.CropY} / {_options.CropWidth}×{_options.CropHeight}"):"完整画面", BatchRotate.Direction(_options.Rotation), _options.Flip?"水平镜像":"" }.Where(s=>s.Length>0)) });
-    private static string Stamp(double seconds)=>MediaTime.Format(seconds);
+    private double _sourceDuration;
+    public ClipSegmentEntry(ConversionOptions options) => _options = options.Clone();
+    public ConversionOptions Options
+    {
+        get => _options;
+        set { _options = value.Clone(); Raise(nameof(Options)); RefreshLabels(); }
+    }
+    public int Number { get => _number; set { if (_number == value) return; _number = value; RefreshLabels(); } }
+    public double SourceDuration { get => _sourceDuration; set { if (_sourceDuration == value) return; _sourceDuration = value; RefreshLabels(); } }
+    public double End => _options.End > 0 ? _options.End : _sourceDuration;
+    public double OutputDuration => Math.Max(0, End - _options.Start) / Math.Max(.25, _options.Speed);
+    public string Title => Localization.Format($"片段 {Number}");
+    public string DurationLabel => MediaTime.Format(OutputDuration) + " · " + MediaEngine.Number(_options.Speed) + "×";
+    public string TimeRange => MediaTime.Format(_options.Start) + " → " + (End > 0 ? MediaTime.Format(End) : Localization.Text("视频结尾"));
+    public string EditSummary => Localization.Join(" · ", new[] {
+        _options.CropWidth > 0 ? Localization.Format($"裁剪 {_options.CropWidth}×{_options.CropHeight}") : "",
+        _options.Rotation != 0 ? BatchRotate.Direction(_options.Rotation) : "",
+        _options.Flip ? "水平镜像" : "",
+        _options.DelogoWidth > 0 ? "去水印" : ""
+    }.Where(s => s.Length > 0));
+    public bool HasEdits => EditSummary.Length > 0;
+    public string Summary => Title + " · " + TimeRange + "\n" + DurationLabel + (HasEdits ? "\n" + EditSummary : "");
+    private void RefreshLabels()
+    {
+        foreach (var property in new[] { nameof(Title), nameof(DurationLabel), nameof(TimeRange), nameof(EditSummary), nameof(HasEdits), nameof(Summary) }) Raise(property);
+    }
 }
 
 public partial class EditorWindow
 {
-    private readonly ObservableCollection<ClipSegmentEntry> _segments=[];
+    private readonly ObservableCollection<ClipSegmentEntry> _segments = [];
     private ClipSegmentEntry? _activeSegment;
     private bool _selectingSegment;
     private IVideoOrientationDetector? _directionDetector;
     private CancellationTokenSource? _directionCancellation;
     private VideoOrientationResult? _directionResult;
-    private Task _directionReady=Task.CompletedTask;
-    private bool QuickWorkflow=>_mode=="quick-workflow";
-    public IReadOnlyList<ClipSegmentEntry> Segments=>_segments;
-    public Task DirectionReady=>_directionReady;
+    private Task _directionReady = Task.CompletedTask;
+    private bool QuickWorkflow => _mode == "quick-workflow";
+    public IReadOnlyList<ClipSegmentEntry> Segments => _segments;
+    public Task DirectionReady => _directionReady;
 
     private void InitializeQuickWorkflow(IReadOnlyList<ConversionOptions>? segments, IVideoOrientationDetector? detector)
     {
-        if(!QuickWorkflow)return;
-        _directionDetector=detector??new VideoOrientationDetector(_engine);
-        SegmentsTab.IsVisible=DirectionTab.IsVisible=SegmentFooter.IsVisible=true;
-        EditOptionsButton.Content="其他编辑选项…";
-        PreviewNote.Text="速度、淡入淡出及其他效果仅在输出时生效。";
-        ConfirmButton.Content="下一步：导出选项";
-        DirectionCombo.ItemsSource=new[]{"保持原方向","顺时针 90°","旋转 180°","逆时针 90°"};
-        Avalonia.Automation.AutomationProperties.SetName(DirectionCombo,"当前片段旋转方向");
-        Avalonia.Automation.AutomationProperties.SetName(SegmentList,"视频片段列表");
-        SyncDirectionControls();
-        SegmentList.ItemsSource=_segments;
-        foreach(var draft in segments??[])_segments.Add(new(draft));
-        if(_segments.Count==0)_segments.Add(new(_options));
-        _selectingSegment=true;_activeSegment=_segments.FirstOrDefault();SegmentList.SelectedItem=_activeSegment;_selectingSegment=false;
-        RefreshSegments();
-        Closed+=(_,_)=>_directionCancellation?.Cancel();
+        if (!QuickWorkflow) return;
+        _directionDetector = detector ?? new VideoOrientationDetector(_engine);
+        DirectionTab.IsVisible = SegmentFooter.IsVisible = SegmentPane.IsVisible = SegmentPaneSplitter.IsVisible = SegmentTrackScroll.IsVisible = LoopSegmentCheck.IsVisible = true;
+        EditorLayout.ColumnDefinitions[1].Width = new Avalonia.Controls.GridLength(10);
+        EditorLayout.ColumnDefinitions[2].Width = new Avalonia.Controls.GridLength(320);
+        EditorLayout.ColumnDefinitions[0].MinWidth = 620;
+        EditorLayout.ColumnDefinitions[2].MinWidth = 290;
+        EditorLayout.ColumnDefinitions[2].MaxWidth = 450;
+        TotalTime.IsVisible = false;
+        Width = 1380;
+        EditOptionsButton.Content = "其他编辑选项…";
+        PreviewNote.Text = "速度与方向可预览；裁剪、淡入淡出及其他效果在输出时生效。";
+        ConfirmButton.Content = "下一步：导出选项";
+        DirectionCombo.ItemsSource = new[] { "保持原方向", "顺时针 90°", "旋转 180°", "逆时针 90°" };
+        Avalonia.Automation.AutomationProperties.SetName(DirectionCombo, "当前片段旋转方向");
+        Avalonia.Automation.AutomationProperties.SetName(SegmentList, "视频片段列表");
+        Avalonia.Automation.AutomationProperties.SetName(SegmentTrack, "片段顺序与播放位置");
+        SegmentList.ItemsSource = _segments;
+        foreach (var draft in segments ?? []) _segments.Add(new(draft));
+        if (_segments.Count == 0) _segments.Add(new(_options));
+        _activeSegment = _segments[0]; _options = _activeSegment.Options.Clone();
+        _selectingSegment = true; SegmentList.SelectedItem = _activeSegment; _selectingSegment = false;
+        SyncDirectionControls(); InitializeSegmentEditing(); RefreshSegments();
+        Closed += (_, _) => { _directionCancellation?.Cancel(); _segmentEditTimer.Stop(); };
     }
 
-    public void SetWorkflowStep(int current,int total)
+    public void SetWorkflowStep(int current, int total)
     {
-        Localization.SetTitle(this,$"快速剪辑 · 编辑 {current}/{total} · {Path.GetFileName(_path)}");
-        ConfirmButton.Content=current<total?"下一个视频 →":"下一步：导出选项 →";
+        Localization.SetTitle(this, $"快速剪辑 · 编辑 {current}/{total} · {Path.GetFileName(_path)}");
+        ConfirmButton.Content = current < total ? "下一个视频 →" : "下一步：导出选项 →";
     }
 
     private void CommitActiveSegment()
     {
-        if(_activeSegment is not null)_activeSegment.Options=ReadDraft();
+        _segmentEditTimer.Stop();
+        if (_activeSegment is null) return;
+        var draft = ReadDraft();
+        if (SameSegmentOptions(_activeSegment.Options, draft)) return;
+        RememberSegmentEdit(); _activeSegment.Options = draft;
+        _options = draft.Clone(); if (_options.End == 0 && _info is not null) _options.End = _info.Duration;
+        TrimBar.Start = _options.Start; TrimBar.End = _options.End; TrimBar.InvalidateVisual(); RefreshSegments();
     }
 
     private void RefreshSegments()
     {
-        for(var i=0;i<_segments.Count;i++)_segments[i].Number=i+1;
-        SegmentCount.Text=_segments.Count==0?"当前区间导出 1 个片段":Localization.Format($"{_segments.Count} 个片段分别导出");
-        RemoveSegmentButton.IsEnabled=_activeSegment is not null && _segments.Count>1;
-        SegmentUpButton.IsEnabled=_activeSegment is not null && _segments.IndexOf(_activeSegment)>0;
-        SegmentDownButton.IsEnabled=_activeSegment is not null && _segments.IndexOf(_activeSegment)<_segments.Count-1;
+        if (!QuickWorkflow) return;
+        for (var i = 0; i < _segments.Count; i++) { _segments[i].Number = i + 1; _segments[i].SourceDuration = _info?.Duration ?? 0; }
+        SegmentCount.Text = Localization.Format($"{_segments.Count} 个片段");
+        SegmentTotalDuration.Text = Localization.Format($"总输出时长：{MediaTime.Format(_segments.Sum(s => s.OutputDuration))}");
+        ActiveSegmentLabel.Text = _activeSegment?.Title ?? "";
+        var index = _activeSegment is null ? -1 : _segments.IndexOf(_activeSegment);
+        RemoveSegmentButton.IsEnabled = index >= 0 && _segments.Count > 1;
+        SegmentUpButton.IsEnabled = index > 0;
+        SegmentDownButton.IsEnabled = index >= 0 && index < _segments.Count - 1;
+        SegmentTrack.SetItems(_segments.Select(s => new Controls.SegmentTimelineItem(s.Number, s.Options.Start, s.End, s.Options.Speed)).ToArray(), index);
+        UpdateSegmentActions();
     }
 
-    private void AddSegmentClick(object? sender,RoutedEventArgs e)
+    private void AddSegmentClick(object? sender, RoutedEventArgs e)
     {
-        if(!QuickWorkflow || _info is null)return;
+        if (!QuickWorkflow || _info is null || _activeSegment is null) return;
         try
         {
-            var draft=ReadDraft();CommitActiveSegment();var entry=new ClipSegmentEntry(draft);_segments.Add(entry);
-            _selectingSegment=true;_activeSegment=entry;SegmentList.SelectedItem=entry;_selectingSegment=false;
-            SegmentError.Text="";RefreshSegments();
+            CommitActiveSegment(); RememberSegmentEdit();
+            var entry = new ClipSegmentEntry(_activeSegment.Options);
+            _selectingSegment = true; _segments.Insert(_segments.IndexOf(_activeSegment) + 1, entry); _selectingSegment = false;
+            _segmentReady = SelectSegment(entry); SegmentError.Text = "";
         }
-        catch(Exception ex){SegmentError.Text=ex.Message;EditTabs.SelectedItem=SegmentsTab;}
+        catch (Exception ex) { SegmentError.Text = ex.Message; }
     }
 
-    private async void SegmentChanged(object? sender,SelectionChangedEventArgs e)
+    private void SegmentChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if(_selectingSegment || !QuickWorkflow || _info is null || ReferenceEquals(SegmentList.SelectedItem,_activeSegment))return;
+        if (_selectingSegment || !QuickWorkflow || _info is null || ReferenceEquals(SegmentList.SelectedItem, _activeSegment)) return;
+        if (SegmentList.SelectedItem is ClipSegmentEntry entry) _segmentReady = SelectSegment(entry);
+    }
+
+    private void RemoveSegmentClick(object? sender, RoutedEventArgs e)
+    {
+        if (_activeSegment is null || _segments.Count <= 1) return;
         try
         {
-            CommitActiveSegment();
-            if(SegmentList.SelectedItem is not ClipSegmentEntry entry)return;
-            BeginPreview();_ = _player.Stop();
-            // All workflow segments use the selected source streams. Other editing settings are independent.
-            var tracksChanged=entry.Options.VideoStreamIndex!=_options.VideoStreamIndex || entry.Options.AudioStreamIndex!=_options.AudioStreamIndex;
-            _activeSegment=entry;_options=entry.Options.Clone();
-            if(tracksChanged){ClearDirectionDetection();await _player.Stop();await _audioReady;await Load();}
-            if(_closed)return;
-            if(_options.End==0)_options.End=_info.Duration;
-            RefreshOptionControls();UpdateTimes();
-            _updating=true;_regionDelogo=false;DelogoMode.IsChecked=false;_updating=false;LoadRegion();SyncDirectionControls();Seek(_options.Start);ScheduleThumbs();
-            SegmentError.Text="";RefreshSegments();
+            CommitActiveSegment(); RememberSegmentEdit();
+            var index = _segments.IndexOf(_activeSegment);
+            _selectingSegment = true; _segments.RemoveAt(index); _activeSegment = null; _selectingSegment = false;
+            _segmentReady = SelectSegment(_segments[Math.Min(index, _segments.Count - 1)], skipCommit: true);
         }
-        catch(Exception ex)
-        {
-            _selectingSegment=true;SegmentList.SelectedItem=_activeSegment;_selectingSegment=false;SegmentError.Text=ex.Message;
-        }
-    }
-
-    private void RemoveSegmentClick(object? sender,RoutedEventArgs e)
-    {
-        if(_activeSegment is null || _segments.Count<=1)return;
-        var index=_segments.IndexOf(_activeSegment);
-        _selectingSegment=true;_segments.Remove(_activeSegment);_activeSegment=null;SegmentList.SelectedItem=null;_selectingSegment=false;
-        if(_segments.Count>0)SegmentList.SelectedItem=_segments[Math.Min(index,_segments.Count-1)];
-        RefreshSegments();
+        catch (Exception ex) { SegmentError.Text = ex.Message; }
     }
 
     private void MoveSegment(int delta)
     {
-        if(_activeSegment is null)return;
+        if (_activeSegment is null) return;
         try
         {
-            CommitActiveSegment();var index=_segments.IndexOf(_activeSegment);var target=index+delta;
-            if(target<0 || target>=_segments.Count)return;
-            _selectingSegment=true;_segments.Move(index,target);SegmentList.SelectedItem=_activeSegment;_selectingSegment=false;RefreshSegments();SegmentError.Text="";
+            CommitActiveSegment(); var index = _segments.IndexOf(_activeSegment); var target = index + delta;
+            if (target < 0 || target >= _segments.Count) return;
+            CancelSegmentSequence(); RememberSegmentEdit();
+            _selectingSegment = true; _segments.Move(index, target); SegmentList.SelectedItem = _activeSegment; _selectingSegment = false;
+            SegmentList.ScrollIntoView(_activeSegment); RefreshSegments(); SegmentError.Text = "";
         }
-        catch(Exception ex){SegmentError.Text=ex.Message;}
+        catch (Exception ex) { SegmentError.Text = ex.Message; }
     }
-    private void SegmentUpClick(object? sender,RoutedEventArgs e)=>MoveSegment(-1);
-    private void SegmentDownClick(object? sender,RoutedEventArgs e)=>MoveSegment(1);
+    private void SegmentUpClick(object? sender, RoutedEventArgs e) => MoveSegment(-1);
+    private void SegmentDownClick(object? sender, RoutedEventArgs e) => MoveSegment(1);
 
-    private async void SplitSegmentClick(object? sender,RoutedEventArgs e)
+    private async void SplitSegmentClick(object? sender, RoutedEventArgs e)
     {
-        if(_info is null || _activeSegment is null)return;
+        if (_info is null || _activeSegment is null) return;
         try
         {
-            CommitActiveSegment();var entry=_activeSegment;
-            var parts=await new ClipSplitWindow(entry.Options,_info.Duration).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
-            if(parts is null || _closed)return;
-            var index=_segments.IndexOf(entry);if(index<0)return;
-            _selectingSegment=true;_segments.RemoveAt(index);
-            foreach(var part in parts.Reverse())_segments.Insert(index,new(part));
-            _activeSegment=null;SegmentList.SelectedItem=null;_selectingSegment=false;
-            SegmentList.SelectedItem=_segments[index];RefreshSegments();SegmentError.Text="";
+            CommitActiveSegment(); Seek(_position); var entry = _activeSegment;
+            var parts = await new ClipSplitWindow(entry.Options, _info.Duration).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
+            if (parts is null || _closed) return;
+            var index = _segments.IndexOf(entry); if (index < 0) return;
+            ReplaceSegment(index, parts);
         }
-        catch(Exception ex){SegmentError.Text=ex.Message;}
+        catch (Exception ex) { SegmentError.Text = ex.Message; }
     }
 
     public ClipEditResult ReadClipEdit()
@@ -172,17 +197,17 @@ public partial class EditorWindow
     private void DirectionChanged(object? sender,SelectionChangedEventArgs e)
     {
         if(!QuickWorkflow || _updating || DirectionCombo.SelectedIndex<0)return;
-        _options.Rotation=DirectionCombo.SelectedIndex*90;UpdateDirectionPreview();
+        _options.Rotation=DirectionCombo.SelectedIndex*90;UpdateDirectionPreview();ScheduleSegmentUpdate();
         if(_directionResult is not null)Localization.SetText(DirectionStatus,$"识别建议：{Localization.Key(_directionResult.Description)}；当前片段：{Localization.Key(BatchRotate.Direction(_options.Rotation))}\n{Localization.OrientationReason(_directionResult)}");
     }
     private void MirrorChanged(object? sender,RoutedEventArgs e)
     {
-        if(!QuickWorkflow || _updating)return;_options.Flip=MirrorCheck.IsChecked==true;UpdateDirectionPreview();
+        if(!QuickWorkflow || _updating)return;_options.Flip=MirrorCheck.IsChecked==true;UpdateDirectionPreview();ScheduleSegmentUpdate();
     }
     private void UpdateDirectionPreview()
     {
         if(PreviewTransform is null)return;
-        if(!QuickWorkflow || EditTabs.SelectedItem!=DirectionTab){PreviewTransform.LayoutTransform=null;return;}
+        if(!QuickWorkflow || CropLayer.Enabled){PreviewTransform.LayoutTransform=null;return;}
         var transforms=new TransformGroup();transforms.Children.Add(new RotateTransform(_options.Rotation));
         if(_options.Flip)transforms.Children.Add(new ScaleTransform(-1,1));PreviewTransform.LayoutTransform=transforms;
     }
@@ -214,7 +239,7 @@ public partial class EditorWindow
     private void ApplyDirectionClick(object? sender,RoutedEventArgs e)
     {
         if(_directionResult?.Rotation is not (0 or 90 or 180 or 270))return;
-        _options.Rotation=_directionResult.Rotation.Value;SyncDirectionControls();
+        _options.Rotation=_directionResult.Rotation.Value;SyncDirectionControls();ScheduleSegmentUpdate();
         Localization.SetText(DirectionStatus,$"已应用到当前片段：{Localization.Key(_directionResult.Description)}\n{Localization.OrientationReason(_directionResult)}");
     }
 }
