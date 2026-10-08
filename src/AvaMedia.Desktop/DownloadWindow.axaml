@@ -10,7 +10,7 @@
       <TextBox Grid.Row="1" x:Name="LinksInput" AcceptsReturn="True" Height="82" TextWrapping="Wrap"/>
       <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
         <Button x:Name="InspectButton" Content="解析链接" Click="InspectClick"/>
-        <Button Grid.Column="1" x:Name="BrowserCaptureButton" Content="从浏览器识别" Click="BrowserCaptureClick"/>
+        <Button Grid.Column="1" x:Name="BrowserCaptureButton" Content="浏览器嗅探" Click="BrowserCaptureClick"/>
         <TextBlock Grid.Column="2" x:Name="InspectStatus" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
         <CheckBox Grid.Column="3" x:Name="ExpandPlaylist" Content="展开列表（最多 100 项）" VerticalAlignment="Center"/>
       </Grid>
@@ -84,6 +84,7 @@
               <StackPanel Spacing="4">
                 <TextBlock Text="浏览器 CDP"/>
                 <TextBox x:Name="BrowserEndpoint" Text="http://127.0.0.1:9222"/>
+                <Button x:Name="ExternalBrowserCaptureButton" Content="从外部浏览器识别" Click="ExternalBrowserCaptureClick" Classes="tool"/>
               </StackPanel>
             </StackPanel>
           </Expander>

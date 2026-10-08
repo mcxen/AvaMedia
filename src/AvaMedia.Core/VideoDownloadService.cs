@@ -27,7 +27,7 @@ public sealed class VideoDownloadService : IVideoDownloadService
     public IVideoDownloadProvider Resolve(string url, DownloadOptions? options = null)
     {
         var uri = new Uri(DownloadLinks.Normalize(url));
-        if (options?.Browser is not null && !DownloadLinks.IsFileditchPage(url) && _providers.OfType<DirectVideoDownloadProvider>().FirstOrDefault() is {} direct) return direct;
+        if ((options?.WebView is not null || options?.Browser is not null && !DownloadLinks.IsFileditchPage(url)) && _providers.OfType<DirectVideoDownloadProvider>().FirstOrDefault() is {} direct) return direct;
         return _providers.FirstOrDefault(provider => provider.CanHandle(uri))
             ?? throw new InvalidOperationException("没有支持此链接的下载服务。");
     }

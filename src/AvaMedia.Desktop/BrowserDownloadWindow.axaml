@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:web="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.WebView"
+        xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.BrowserDownloadWindow"
+        Title="浏览器嗅探" Width="1220" Height="800" MinWidth="960" MinHeight="640" WindowStartupLocation="CenterOwner">
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+      <Button x:Name="BackButton" Content="后退" Click="BackClick" Classes="tool" IsEnabled="False"/>
+      <Button Grid.Column="1" x:Name="ForwardButton" Content="前进" Click="ForwardClick" Classes="tool" IsEnabled="False"/>
+      <Button Grid.Column="2" x:Name="ReloadButton" Content="刷新" Click="ReloadClick" Classes="tool"/>
+      <TextBox Grid.Column="3" x:Name="AddressInput" Watermark="网站地址" KeyDown="AddressKeyDown"/>
+      <Button Grid.Column="4" x:Name="NavigateButton" Content="打开" Click="NavigateClick" Classes="tool"/>
+    </Grid>
+    <Grid Grid.Row="1" ColumnDefinitions="*,320" ColumnSpacing="12">
+      <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1">
+        <web:NativeWebView x:Name="Browser"/>
+      </Border>
+      <Border Grid.Column="1" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1">
+        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+          <Grid Margin="12,10" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBlock x:Name="MediaCount" Text="发现的视频" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SelectAll" Content="全选" IsCheckedChanged="SelectAllChanged"/>
+          </Grid>
+          <Grid Grid.Row="1">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <ItemsControl x:Name="MediaList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="12">
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <CheckBox IsChecked="{Binding IsChecked,Mode=TwoWay}" VerticalAlignment="Top" AutomationProperties.Name="{Binding Title}"/>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                          <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextWrapping="Wrap" ToolTip.Tip="{Binding Detail}"/>
+                          <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap"/>
+                          <TextBlock i18n:Localization.IsUserText="True" Text="{Binding DisplayUrl}" Classes="caption" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+            <TextBlock x:Name="EmptyMedia" Text="播放视频后自动识别" Classes="caption" Margin="16" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+      <TextBlock x:Name="BrowserStatus" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" x:Name="InstallRuntimeButton" Content="安装 WebView2" Click="InstallRuntimeClick" Classes="tool" IsVisible="False"/>
+      <Button Grid.Column="2" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
+      <Button Grid.Column="3" x:Name="UseMediaButton" Content="使用选中视频" Click="UseMediaClick" Classes="primary dialog-action" IsEnabled="False"/>
+    </Grid>
+  </Grid>
+</Window>

@@ -29,7 +29,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         args.AddRange(["--", url]);
         var result = await _run(MediaEngine.Resolve(_settings.YtDlpPath, "yt-dlp"), args, ct, null);
         ct.ThrowIfCancellationRequested();
-        if (result.ExitCode != 0) throw new InvalidOperationException(DownloadDiagnostics.Explain(result.Error, url));
+        if (result.ExitCode != 0) throw new InvalidOperationException(ExplainError(result.Error, url, options));
         try
         {
             if(!options.ExpandPlaylist){using var json=JsonDocument.Parse(result.Output);if(json.RootElement.TryGetProperty("entries",out var entries) && entries.ValueKind==JsonValueKind.Array)throw new InvalidDataException("这是播放列表、分P、相册或文件列表，请勾选“展开播放列表 / 分P / 相册”后重新解析。");}
@@ -104,7 +104,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
             }
         });
         ct.ThrowIfCancellationRequested();job.Log = DownloadDiagnostics.Redact(result.Output + "\n" + result.Error);
-        if (result.ExitCode != 0) throw new InvalidOperationException(DownloadDiagnostics.Explain(result.Error, url));
+        if (result.ExitCode != 0) throw new InvalidOperationException(ExplainError(result.Error, url, options));
         var media = System.IO.Path.Combine(staging, "media." + job.Options.Format);
         if (!File.Exists(media) || new FileInfo(media).Length == 0)
             throw new InvalidDataException("没有生成所选格式的媒体文件，可能是视频不可用、格式无法封装或正在直播。请查看日志。");
@@ -119,6 +119,14 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         }
         // The exact directory is generated from the output folder and this job's GUID.
         Directory.Delete(staging, recursive: true);job.ProgressDetail = "";progress(100);
+    }
+
+    private static string ExplainError(string error, string url, DownloadOptions options)
+    {
+        var message = DownloadDiagnostics.Explain(error, url);
+        if (options.WebView is not null && System.Text.RegularExpressions.Regex.IsMatch(error, @"\b(401|403|410)\b|expired", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            message = "视频地址或登录态已过期，请编辑任务并在内嵌浏览器重新嗅探。\n" + message;
+        return message;
     }
 
     private List<string> CommonArguments(DownloadOptions options, string cookiePath)
@@ -140,6 +148,13 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
             if (browser.UserAgent.Length > 0) args.AddRange(["--user-agent", browser.UserAgent]);
             if (_extractorNames == "avamedia:direct") args.AddRange(["--extractor-args", "AvaMediaDirect:ext=" + browser.Extension]);
         }
+        if (options.WebView is {} web)
+        {
+            if (web.Referer.Length > 0) args.AddRange(["--referer", web.Referer]);
+            if (web.UserAgent.Length > 0) args.AddRange(["--user-agent", web.UserAgent]);
+            if (web.Origin.Length > 0) args.AddRange(["--add-header", "Origin:" + web.Origin]);
+            if (_extractorNames == "avamedia:direct") args.AddRange(["--extractor-args", "AvaMediaDirect:ext=" + web.Extension + ";browser_media=1"]);
+        }
         // Clear yt-dlp's default Deno runtime so an installed Deno cannot take precedence.
         args.Add("--no-js-runtimes");
         try { args.AddRange(["--js-runtimes", "quickjs:" + MediaEngine.Resolve("", "qjs")]); }
@@ -157,7 +172,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         if (format is "mp3" or "m4a") args.AddRange(["--format", "ba/b", "--extract-audio", "--audio-format", format, "--audio-quality", "0"]);
         else
         {
-            var limit = _extractorNames != "avamedia:direct" && options.MaxHeight > 0 ? "[height<=?" + options.MaxHeight + "]" : "";
+            var limit = (_extractorNames != "avamedia:direct" || options.WebView?.Extension is "m3u8" or "mpd") && options.MaxHeight > 0 ? "[height<=?" + options.MaxHeight + "]" : "";
             var selector = format == "mp4" ? $"bv*[ext=mp4]{limit}+ba[ext=m4a]/b[ext=mp4]{limit}/bv*{limit}+ba/b{limit}" : $"bv*{limit}+ba/b{limit}";
             args.AddRange(["--format", selector, "--merge-output-format", format, "--remux-video", format]);
         }
@@ -175,9 +190,16 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         public string Path { get; } = path;
         public static async Task<CookieLease> CreateAsync(DownloadOptions options, string url, CancellationToken ct)
         {
-            if (options.CookieFile.Length == 0 && !options.UseBrowserCookies) return new("", null);
+            var source = options.CookieFile;
+            if (options.UseWebViewCookies)
+            {
+                if (options.WebView is null) throw new InvalidOperationException("请先在内嵌浏览器嗅探视频。");
+                source = WebViewCookieStore.PathFor(options.WebView.CookieSnapshotId);
+                if (!File.Exists(source)) throw new InvalidOperationException("浏览器登录态已失效，请重新嗅探视频。");
+            }
+            if (source.Length == 0 && !options.UseBrowserCookies) return new("", null);
             if (options.UseBrowserCookies && options.Browser is null) throw new InvalidOperationException("请先从浏览器识别视频，再使用 CDP 登录态。");
-            var browserCookies = options.CookieFile.Length == 0
+            var browserCookies = source.Length == 0
                 ? await BrowserVideoCapture.ReadCookiesAsync(options.Browser!, url, ct) : null;
             var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-cookies-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
@@ -186,7 +208,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
             try
             {
                 if (browserCookies is not null) await File.WriteAllTextAsync(path, browserCookies, ct);
-                else File.Copy(options.CookieFile, path);
+                else File.Copy(source, path);
                 return new(path, directory);
             }
             catch { Directory.Delete(directory, recursive: true);throw; }

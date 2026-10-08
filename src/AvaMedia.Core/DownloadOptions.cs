@@ -11,12 +11,17 @@ public sealed record DownloadOptions
     public bool AutoSubtitles { get; init; }
     public bool Metadata { get; init; } = true;
     public BrowserMediaContext? Browser { get; init; }
+    public WebViewMediaContext? WebView { get; init; }
     public bool UseBrowserCookies { get; init; }
+    public bool UseWebViewCookies { get; init; }
     public string CdpEndpoint { get; init; } = BrowserVideoCapture.DefaultEndpoint;
 
     public void Validate()
     {
         Browser?.Validate();
+        WebView?.Validate();
+        if (Browser is not null && WebView is not null) throw new ArgumentException("请选择一个浏览器媒体来源。");
+        if (UseWebViewCookies && (UseBrowserCookies || CookieBrowser.Length > 0 || CookieFile.Length > 0)) throw new ArgumentException("内嵌浏览器登录态和其他登录态请选择一种。");
         if (UseBrowserCookies && (CookieBrowser.Length > 0 || CookieFile.Length > 0)) throw new ArgumentException("浏览器登录态和 cookies.txt 请选择一种。");
         if (MaxHeight is < 0 or > 4320) throw new ArgumentException("清晰度须在 0–4320p 之间，0 表示最佳画质。");
         if (!new[] { "", "firefox", "chrome", "edge", "safari", "brave" }.Contains(CookieBrowser))
@@ -30,7 +35,7 @@ public sealed record DownloadOptions
 }
 
 public sealed record DownloadVideo(string Url, string Id, string Title, string Uploader,
-    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null, string SourceUrl = "");
+    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null, string SourceUrl = "", WebViewMediaContext? WebView = null);
 public sealed record DownloadInspection(IReadOnlyList<DownloadVideo> Videos, bool Truncated = false);
 public sealed record VideoDownloadRequest(IReadOnlyList<DownloadVideo> Videos, string Folder,
     string Format, DownloadOptions Options, string OutputName = "");
@@ -65,7 +70,11 @@ public static class DownloadBatch
         foreach (var video in request.Videos)
         {
             _ = DownloadLinks.Normalize(video.Url);
-            if (video.SourceUrl.Length > 0 && !DownloadLinks.IsFileditchPage(video.SourceUrl)) throw new ArgumentException("视频来源页无效，请重新解析。");
+            if (video.SourceUrl.Length > 0)
+            {
+                _ = DownloadLinks.Normalize(video.SourceUrl);
+                if (video.WebView is null && !DownloadLinks.IsFileditchPage(video.SourceUrl)) throw new ArgumentException("视频来源页无效，请重新解析。");
+            }
             if (video.IsLive) throw new ArgumentException("当前下载流程不支持正在进行的直播。");
         }
         var used = new HashSet<string>(reserved ?? [], OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -79,9 +88,9 @@ public static class DownloadBatch
             title = string.Concat(title.Select(c => char.IsControl(c) || "<>:\"/\\|?*".Contains(c) ? '_' : c)).Trim().TrimEnd('.');
             if (string.IsNullOrWhiteSpace(title)) title = "Video";
             if (System.Text.RegularExpressions.Regex.IsMatch(title, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) title = "_" + title;
-            var job = new Job { FeatureId = "download", Inputs = [video.SourceUrl.Length > 0 ? DownloadLinks.Normalize(video.SourceUrl) : video.Url], DownloadTitle = video.Title,
+            var job = new Job { FeatureId = "download", Inputs = [video.WebView is {} web ? DownloadLinks.NormalizePageUrl(web.PageUrl) : video.SourceUrl.Length > 0 ? DownloadLinks.Normalize(video.SourceUrl) : video.Url], DownloadTitle = video.Title,
                 Duration = double.IsFinite(video.Duration)?Math.Max(0,video.Duration):0,
-                Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false, Browser = video.Browser } },
+                Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false, Browser = video.Browser, WebView = video.WebView } },
                 Output = MediaEngine.UniqueOutput(request.Folder, request.OutputName.Length > 0 ? request.OutputName : title, request.Format, used) };
             MediaEngine.Validate(job);used.Add(job.Output);jobs.Add(job);
         }

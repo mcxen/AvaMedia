@@ -18,10 +18,12 @@
     <AvaloniaResource Include="Assets/AppIcon/v2/app.png" />
     <AvaloniaResource Include="Assets/Fonts/Platinum/*.ttf" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="11.4.1" />
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.22" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="QRCoder" Version="1.8.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../AvaMedia.Core/AvaMedia.Core.csproj" />
+    <EmbeddedResource Include="Browser/MediaSniffer.js" LogicalName="AvaMedia.Desktop.MediaSniffer.js" />
   </ItemGroup>
 </Project>

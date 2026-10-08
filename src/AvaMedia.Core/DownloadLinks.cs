@@ -4,18 +4,18 @@ namespace AvaMedia.Core;
 
 public static class DownloadLinks
 {
-    public static IReadOnlyList<string> Extract(string? text)
+    public static IReadOnlyList<string> Extract(string? text, bool preservePageFragments = false)
     {
         // Share messages often contain prose around the URL. Keep signed query strings intact.
         text = Regex.Replace(text ?? "", @"\[[^\]\r\n]*\]\((https?://[^\s<>]+)\)", "$1", RegexOptions.IgnoreCase);
         var matches = Regex.Matches(text, "https?://[^\\s<>\"，。；）】]+", RegexOptions.IgnoreCase)
             .Select(m => m.Value.TrimEnd(')', ']', '}', ',', '.', ';', '!', '。', '`', '\''));
         var result = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var match in matches) result.Add(Normalize(match));
+        foreach (var match in matches) result.Add(preservePageFragments ? NormalizePageUrl(match) : Normalize(match));
         if (result.Count == 0 && !string.IsNullOrWhiteSpace(text))
         {
             foreach (var line in text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                if (line.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) result.Add(Normalize("https://" + line));
+                if (line.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) result.Add(preservePageFragments ? NormalizePageUrl("https://" + line) : Normalize("https://" + line));
         }
         if (result.Count > 100) throw new ArgumentException("一次最多解析 100 个链接，请分批添加。");
         return result.ToArray();
@@ -29,6 +29,13 @@ public static class DownloadLinks
         // File-host fragments select a list member or carry a Bunkr numeric file ID.
         var fragment = Platform(url) is "Bunkr" or "Pixeldrain" ? uri.Fragment : "";
         return uri.GetLeftPart(UriPartial.Path) + uri.Query + fragment;
+    }
+
+    public static string NormalizePageUrl(string url)
+    {
+        _ = Normalize(url);
+        // Hash routes are part of a browser page's address, even though HTTP media requests omit them.
+        return new Uri(url.Trim()).AbsoluteUri;
     }
 
     public static string Platform(string url)
@@ -49,9 +56,8 @@ public static class DownloadLinks
     public static string MediaExtension(string url, string mime = "")
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) return "";
-        if (IsFileditchPage(url)) return "";
         var extension = Path.GetExtension(Uri.UnescapeDataString(uri.AbsolutePath)).TrimStart('.').ToLowerInvariant();
-        if (IsMediaExtension(extension)) return extension;
+        if (!IsFileditchPage(url) && IsMediaExtension(extension)) return extension;
         return mime.Split(';')[0].Trim().ToLowerInvariant() switch
         {
             "video/mp4" => "mp4", "video/webm" => "webm", "video/quicktime" => "mov",
