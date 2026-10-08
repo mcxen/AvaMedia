@@ -11,6 +11,9 @@ namespace AvaMedia.Core;
 public sealed record ModelDownloadProgress(long Received, long Total, string Stage, int Attempt = 0, int MaxAttempts = 0)
 {
     public int Percent => Total == 0 ? 0 : (int)Math.Clamp(Received * 100 / Total, 0, 100);
+    public string Source { get; init; } = "";
+    public int SourceIndex { get; init; }
+    public int SourceCount { get; init; }
 }
 
 public sealed class ModelLease(string directory, SemaphoreSlim gate) : IDisposable
@@ -93,6 +96,7 @@ public sealed class ModelStore(string? root = null)
             using var client = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(20) }) { Timeout = Timeout.InfiniteTimeSpan };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AvaMedia/" + AppIdentity.Version);
             long completed = 0;
+            string? preferredOrigin = null;
             foreach (var artifact in model.Files)
             {
                 var destination = SafePath(staging, artifact.Path);
@@ -108,32 +112,50 @@ public sealed class ModelStore(string? root = null)
                         continue;
                     }
                     var errors = new List<Exception>();
+                    var failures = new Dictionary<string, Exception>(StringComparer.Ordinal);
+                    var rejected = new HashSet<string>(StringComparer.Ordinal);
                     var downloaded = false;
-                    for (var sourceIndex = 0; sourceIndex < artifact.Sources.Length; sourceIndex++)
+                    const int attempts = 3;
+                    for (var attempt = 1; attempt <= attempts; attempt++)
                     {
-                        var source = artifact.Sources[sourceIndex];
-                        const int attempts = 3;
-                        for (var attempt = 1; attempt <= attempts; attempt++)
+                        var sources = ModelDownloadSources.Resolve(artifact)
+                            .Where(source => !rejected.Contains(source))
+                            .OrderBy(source => new Uri(source).GetLeftPart(UriPartial.Authority) == preferredOrigin ? 0 : 1).ToArray();
+                        if (sources.Length == 0) break;
+                        for (var sourceIndex = 0; sourceIndex < sources.Length; sourceIndex++)
                         {
+                            ct.ThrowIfCancellationRequested();
+                            var source = sources[sourceIndex];
+                            var sourceProgress = new SourceProgress(progress, source, sourceIndex + 1, sources.Length, attempt, attempts);
+                            if (sourceIndex > 0)
+                                sourceProgress.Report(new(completed + PartialBytes(destination, artifact.Size), model.DownloadSize, "切换下载源"));
                             try
                             {
-                                await DownloadFileAsync(client, source, destination, artifact, completed, model.DownloadSize, progress, ct);
+                                await DownloadFileAsync(client, source, destination, artifact, completed, model.DownloadSize, sourceProgress, ct);
+                                preferredOrigin = new Uri(source).GetLeftPart(UriPartial.Authority);
                                 downloaded = true; break;
                             }
                             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                             catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or OperationCanceledException)
                             {
-                                errors.Add(error);
-                                if (attempt == attempts || !Retryable(error)) break;
-                                progress?.Report(new(completed + PartialBytes(destination, artifact.Size), model.DownloadSize, "等待重试", attempt + 1, attempts));
-                                await Task.Delay(TimeSpan.FromSeconds(attempt * 2), ct);
+                                errors.Add(new IOException("下载源 " + source, error));
+                                failures[source] = error;
+                                if (!Retryable(error)) rejected.Add(source);
                             }
                         }
                         if (downloaded) break;
-                        if (sourceIndex + 1 < artifact.Sources.Length)
-                            progress?.Report(new(completed + PartialBytes(destination, artifact.Size), model.DownloadSize, "切换下载源"));
+                        if (attempt < attempts && sources.Any(source => !rejected.Contains(source)))
+                        {
+                            progress?.Report(new(completed + PartialBytes(destination, artifact.Size), model.DownloadSize, "等待重试", attempt + 1, attempts));
+                            await Task.Delay(TimeSpan.FromSeconds(attempt * 2), ct);
+                        }
                     }
-                    if (!downloaded) throw new IOException("模型下载失败，已保留下载进度。请检查网络后重试。", new AggregateException(errors));
+                    if (!downloaded)
+                    {
+                        var reasons = failures.Select(failure => new Uri(failure.Key).Host + " · "
+                            + (failure.Value is OperationCanceledException ? "连接或下载超时。" : failure.Value.GetBaseException().Message)).Distinct();
+                        throw new IOException("模型下载失败，已保留下载进度。请检查网络后重试。\n" + string.Join("\n", reasons), new AggregateException(errors));
+                    }
                 }
                 completed += artifact.Size;
                 progress?.Report(new(completed, model.DownloadSize, "下载"));
@@ -197,6 +219,16 @@ public sealed class ModelStore(string? root = null)
         IOException or OperationCanceledException => true,
         _ => false
     };
+
+    private sealed class SourceProgress(IProgress<ModelDownloadProgress>? progress, string source, int index, int count,
+        int attempt, int attempts) : IProgress<ModelDownloadProgress>
+    {
+        public void Report(ModelDownloadProgress value) => progress?.Report(value with
+        {
+            Source = source, SourceIndex = index, SourceCount = count,
+            Attempt = attempt > 1 ? attempt : 0, MaxAttempts = attempts
+        });
+    }
 
     private static async Task DownloadFileAsync(HttpClient client, string source, string destination, ModelArtifact artifact,
         long completed, long total, IProgress<ModelDownloadProgress>? progress, CancellationToken ct)

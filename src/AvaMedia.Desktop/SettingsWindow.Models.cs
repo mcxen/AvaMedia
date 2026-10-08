@@ -179,8 +179,10 @@ public sealed partial class SettingsWindow
         var active = row.Cancellation is not null;
         var downloading = background || active && row.Action == "download";
         var busy = active || background || row.Busy;
-        var progress = background ? new ModelDownloadProgress(ModelInstallation.Received, ModelInstallation.Total, ModelInstallation.Stage,
-            ModelInstallation.RetryAttempt, ModelInstallation.MaxAttempts) : row.Progress;
+        var progress = row.Progress;
+        if (background)
+            progress = (ModelInstallation.Progress ?? new(ModelInstallation.Received, ModelInstallation.Total, ModelInstallation.Stage,
+                ModelInstallation.RetryAttempt, ModelInstallation.MaxAttempts)) with { Stage = ModelInstallation.Stage };
         var status = !model.Supported ? "当前平台不可用" : background ? ModelInstallation.Stage
             : active ? progress?.Stage ?? "处理中…" : row.Busy ? "使用中" : row.Outcome ?? (backgroundFailure ? "下载失败" : row.Installed ? "已下载" : "未下载");
         row.Status.Text = Localization.Text(status);
@@ -203,6 +205,9 @@ public sealed partial class SettingsWindow
             row.ProgressText.Text += $" · {ModelSize(progress.Received)} / {ModelSize(progress.Total)} · {progress.Percent}%";
         if (progress.Attempt > 0)
             row.ProgressText.Text += " · " + Localization.Format($"重试 {progress.Attempt}/{progress.MaxAttempts}");
+        if (progress.Source.Length > 0)
+            row.ProgressText.Text += " · " + Localization.Format($"下载源 {progress.SourceIndex}/{progress.SourceCount} · {new Uri(progress.Source).Host}");
+        ToolTip.SetTip(row.ProgressText, progress.Source.Length > 0 ? progress.Source : null);
         row.ProgressBar.IsIndeterminate = active || background
             ? progress.Stage is not ("下载" or "等待重试" or "切换下载源") : false;
         row.ProgressBar.Value = progress.Percent;

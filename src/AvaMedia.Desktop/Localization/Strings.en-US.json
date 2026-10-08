@@ -88,6 +88,8 @@
   "当前无法打开此工具": "This tool is currently unavailable",
   "详情": "Details",
   "进度详情": "Progress details",
+  "模型镜像须为 HTTP 或 HTTPS 地址，不能包含凭据、查询参数或片段。": "Model mirrors must be HTTP or HTTPS URLs without credentials, query parameters or a fragment.",
+  "下载源 {0}/{1} · {2}": "Source {0}/{1} · {2}",
   "分析时显示检测明细，完成后显示保留片段。": "Detection details appear during analysis; retained clips appear when complete.",
   "视频 {0}/{1} · {2}": "Video {0}/{1} · {2}",
   "当前画面检测": "Current frame detection",

@@ -20,6 +20,7 @@ internal static class ModelInstallation
     public static long Total { get; private set; }
     public static int RetryAttempt { get; private set; }
     public static int MaxAttempts { get; private set; }
+    public static ModelDownloadProgress? Progress { get; private set; }
     public static bool CancellationRequested => _cancellation?.IsCancellationRequested == true;
     public static event Action? Changed;
     public static CancellationToken Lifetime { get; set; }
@@ -46,11 +47,13 @@ internal static class ModelInstallation
             Failed = Succeeded = false; Error = null;
             Installing = true; Percent = 0; Stage = "校验模型"; Received = Total = 0;
             RetryAttempt = MaxAttempts = 0;
+            Progress = null;
             NotifyChanged();
             var progress = new Progress<ModelDownloadProgress>(value =>
             {
                 if (Lifetime.IsCancellationRequested || CancellationRequested || !_attemptActive || attempt != _attempt) return;
                 Percent = value.Percent; Stage = value.Stage; Received = value.Received; Total = value.Total;
+                Progress = value;
                 RetryAttempt = value.Attempt; MaxAttempts = value.MaxAttempts; NotifyChanged();
             });
             await Installer.EnsureInstalledAsync(progress, _cancellation!.Token);
