@@ -134,9 +134,9 @@ public sealed partial class SettingsWindow : Window
     private async void CheckUpdatesClick(object? sender, RoutedEventArgs args)
     {
         CheckUpdatesButton.IsEnabled = false;
-        try { var result = await _services.CheckUpdatesAsync(_lifetime.Token); if (IsVisible) new UpdateWindow(result).Show(Owner as Window ?? this); }
+        try { var result = await _services.CheckUpdatesAsync(_lifetime.Token); if (IsVisible) Notifications.UpdateNotifications.Show(this, result); }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (IsVisible) { StatusText.Text = Localization.Format($"版本检查失败：{ex.Message}"); StatusText.IsVisible = true; } }
+        catch (Exception ex) { if (IsVisible) Notifications.UpdateNotifications.Error(this, "版本检查失败", ex.Message); }
         finally { if (IsVisible) CheckUpdatesButton.IsEnabled = true; }
     }
     private async void RegisterPlayerClick(object? sender, RoutedEventArgs args)

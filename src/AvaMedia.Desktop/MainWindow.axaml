@@ -5,6 +5,8 @@
       <MenuItem Header="WiFi 传文件" Click="WifiTransferClick"/>
       <MenuItem Header="编辑"><MenuItem x:Name="EditTaskMenuItem" Header="编辑任务…" Click="EditSelectedClick"/><Separator/><MenuItem x:Name="SettingsMenuItem" Header="偏好设置…" Click="SettingsClick"/></MenuItem>
       <MenuItem Header="显示">
+        <MenuItem Header="通知中心…" Click="NotificationsClick"/>
+        <Separator/>
         <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/><MenuItem Header="Windows XP · Luna" Click="WindowsXPClick"/></MenuItem>
         <MenuItem Header="语言"><MenuItem x:Name="SystemLanguageItem" Header="跟随系统" Click="SystemLanguageClick"/><Separator/><MenuItem x:Name="ChineseLanguageItem" Header="简体中文" Click="ChineseClick"/><MenuItem x:Name="EnglishLanguageItem" Header="English" Click="EnglishClick"/></MenuItem>
       </MenuItem>
@@ -71,7 +73,6 @@
       </Grid>
     </Grid>
     <StackPanel Grid.Row="3">
-    <local:ModelInstallationNotice/>
     <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
       <Grid ColumnDefinitions="Auto,*">
         <local:ActionIcon Kind="folder" Width="16" Height="16" Margin="0,0,4,0" VerticalAlignment="Center" IsVisible="{DynamicResource UiShowOutputIcon}"/>
@@ -80,7 +81,7 @@
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
       <TextBlock x:Name="ElapsedText" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Text="耗时: 00:00:00" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Margin="10,0"/>
-      <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成弹窗" ToolTip.Tip="与选项页“转换完成后”的弹窗开关同步。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
+      <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" ToolTip.Tip="任务完成后显示右下角气泡通知。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="ResourceUsageText" Grid.Column="5" Text="CPU —   GPU —" i18n:Localization.IsUserText="True" ToolTip.Tip="整机 CPU、GPU 占用率" Foreground="{DynamicResource UiStatusText}" FontWeight="Normal" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center" Margin="16,0,4,0"/>
     </Grid></Border>
     </StackPanel>

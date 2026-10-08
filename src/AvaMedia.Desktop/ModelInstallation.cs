@@ -11,6 +11,8 @@ internal static class ModelInstallation
     private static CancellationTokenSource? _cancellation;
     public static bool Installing { get; private set; }
     public static bool Failed { get; private set; }
+    public static bool Succeeded { get; private set; }
+    public static int Attempt => _attempt;
     public static string? Error { get; private set; }
     public static int Percent { get; private set; }
     public static string Stage { get; private set; } = "校验模型";
@@ -41,7 +43,7 @@ internal static class ModelInstallation
         try
         {
             _cancellation = CancellationTokenSource.CreateLinkedTokenSource(Lifetime);
-            Failed = false; Error = null;
+            Failed = Succeeded = false; Error = null;
             Installing = true; Percent = 0; Stage = "校验模型"; Received = Total = 0;
             RetryAttempt = MaxAttempts = 0;
             NotifyChanged();
@@ -52,6 +54,7 @@ internal static class ModelInstallation
                 RetryAttempt = value.Attempt; MaxAttempts = value.MaxAttempts; NotifyChanged();
             });
             await Installer.EnsureInstalledAsync(progress, _cancellation!.Token);
+            Succeeded = true;
         }
         catch (OperationCanceledException) when (Lifetime.IsCancellationRequested || _cancellation?.IsCancellationRequested == true) { Failed = false; }
         catch (Exception error)

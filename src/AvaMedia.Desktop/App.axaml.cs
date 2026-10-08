@@ -23,6 +23,8 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
+            desktop.Exit += (_, _) => Notifications.NotificationCenter.Shared.Shutdown();
             var previewExport = Array.IndexOf(args, SetupPreviewExporter.Argument);
             if (previewExport >= 0)
             {

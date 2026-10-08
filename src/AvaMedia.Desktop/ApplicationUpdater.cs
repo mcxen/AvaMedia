@@ -21,10 +21,13 @@ internal sealed class ApplicationUpdater
     private readonly object _stateGate = new();
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _automaticDownload;
+    private CancellationTokenSource? _activeDownload;
     private volatile PreparedUpdate? _pending;
     private volatile bool _exiting;
     private volatile UpdateProgress _progress = new(UpdatePhase.Idle);
     public UpdateProgress Progress => _progress;
+    public bool IsDownloading => _activeDownload is not null || _automaticDownload is not null || Progress.IsBusy;
+    public bool CanCancelDownload => _activeDownload is { IsCancellationRequested: false };
     public event EventHandler? ProgressChanged;
     private static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "Updates");
     private static string ErrorPath => Path.Combine(Root, "install-error.txt");
@@ -57,7 +60,7 @@ internal sealed class ApplicationUpdater
         }
     }
     private volatile bool _preparedAutomatically;
-    public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct, Action? saveSettings = null)
+    public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
     {
         bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
         try
@@ -67,7 +70,7 @@ internal sealed class ApplicationUpdater
             {
                 var error = await File.ReadAllTextAsync(ErrorPath, ct);
                 File.Delete(ErrorPath);
-                if (owner.IsVisible) new UpdateWindow(new(false, error)) { Title = "更新安装失败", ShowActivated = false }.Show(owner);
+                Notifications.UpdateNotifications.Error(owner, "更新安装失败", error);
             }
             if (!settings.CheckForUpdates) return;
             var result = await check(ct);
@@ -78,24 +81,30 @@ internal sealed class ApplicationUpdater
                 _automaticDownload = download;
                 try
                 {
-                    if (!Silent() && owner.IsVisible) new UpdateWindow(result, settings, saveSettings) { ShowActivated = false }.Show(owner);
+                    Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
                     await PrepareAsync(result, automatic: true, download.Token);
                 }
                 finally { _automaticDownload = null; }
             }
-            else if (!Silent() && owner.IsVisible) new UpdateWindow(result, settings, saveSettings) { ShowActivated = false }.Show(owner);
+            else Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             Trace.TraceWarning("自动更新失败：{0}", ex.Message);
-            if (!Silent() && !_exiting && owner.IsVisible && Progress.Phase != UpdatePhase.Failed)
-                new UpdateWindow(new(false, ex.Message)) { Title = "更新失败", ShowActivated = false }.Show(owner);
+            if (!Silent() && !_exiting && Progress.Phase != UpdatePhase.Failed)
+                Notifications.UpdateNotifications.Error(owner, "更新失败", ex.Message);
         }
     }
 
     public Task PrepareAsync(UpdateResult result, bool automatic, CancellationToken ct) =>
         Task.Run(() => PrepareCoreAsync(result, automatic, ct), ct);
+
+    public void CancelDownload()
+    {
+        try { _activeDownload?.Cancel(); }
+        catch (ObjectDisposedException) { }
+    }
 
     private void ReportProgress(UpdateProgress progress)
     {
@@ -108,6 +117,7 @@ internal sealed class ApplicationUpdater
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
         ct = linked.Token;
         await _gate.WaitAsync(ct);
+        _activeDownload = linked;
         string? work = null, stage = null;
         try
         {
@@ -186,6 +196,7 @@ internal sealed class ApplicationUpdater
         {
             if (stage is not null) DeleteDirectory(stage);
             if (work is not null) DeleteDirectory(work);
+            _activeDownload = null;
             _gate.Release();
         }
     }

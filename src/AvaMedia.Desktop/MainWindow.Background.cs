@@ -166,7 +166,7 @@ public partial class MainWindow
     private async Task ShowLastCompletionAsync()
     {
         if (_closing || _lastCompletion is not { } completion) return;
-        RestoreFromTray(); await Ui.Message(this, "任务结果", CompletionMessage(completion));
+        await Ui.Message(this, "任务结果", CompletionMessage(completion));
     }
     private static string CompletionMessage(QueueCompletion completion) =>
         Localization.Format($"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。\n\n输出目录：\n{string.Join("\n", completion.OutputFolders)}");

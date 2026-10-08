@@ -498,6 +498,8 @@ public partial class PlayerWindow : Window
         var properties = new MenuItem { Header = "媒体信息", IsEnabled = _info is not null };
         properties.Click += (_, _) => { if (_info is { } info) CommandReady = Ui.MessageFormatted(this, "媒体信息", $"{Path.GetFileName(CurrentPath)}\n时长：{EditorTime.Format(info.Duration)}\n画面：{info.Width} × {info.Height}\n视频：{info.VideoCodec} · {MediaEngine.Number(info.FrameRate)} fps\n音频：{info.AudioCodec} · {info.AudioSampleRate} Hz · {info.AudioChannels} 声道"); };
         items.Add(properties);
+        var notifications = new MenuItem { Header = "通知中心…" };
+        notifications.Click += (_, _) => Notifications.NotificationCenter.Shared.OpenHistory(this); items.Add(notifications);
         var close = new MenuItem { Header = "关闭" }; close.Click += (_, _) => Close(); items.Add(close);
         return new ContextMenu { ItemsSource = items };
     }

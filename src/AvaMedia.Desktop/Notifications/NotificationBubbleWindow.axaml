@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.Notifications.NotificationBubbleWindow"
+        Title="通知中心" Width="364" SizeToContent="Height" CanResize="False" ShowInTaskbar="False" ShowActivated="False" Topmost="True"
+        SystemDecorations="None" Background="Transparent" TransparencyLevelHint="Transparent" local:Skin.IsEnabled="False">
+  <Window.Styles>
+    <Style Selector="Button.bubble-action"><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="10,4"/></Style>
+    <Style Selector="Border.bubble-frame"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="6"/></Style>
+    <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+  </Window.Styles>
+  <StackPanel Spacing="0" Margin="2">
+    <Border x:Name="Bubble" Classes="bubble-frame">
+      <Border BorderBrush="{DynamicResource UiBevelLight}" BorderThickness="1,1,0,0" CornerRadius="5" Padding="16,12">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="4">
+              <TextBlock x:Name="Heading" Classes="title" TextWrapping="Wrap"/>
+              <TextBlock x:Name="Timestamp" Classes="caption"/>
+            </StackPanel>
+            <Button Grid.Column="1" Classes="tool row-icon" Content="×" Click="DismissClick" VerticalAlignment="Top" AutomationProperties.Name="关闭当前通知" ToolTip.Tip="关闭当前通知"/>
+          </Grid>
+          <ScrollViewer x:Name="MessageScroll" Grid.Row="1" MaxHeight="200" HorizontalScrollBarVisibility="Disabled">
+            <SelectableTextBlock x:Name="MessageText" TextWrapping="Wrap" FontSize="{DynamicResource UiFontBody}" LineHeight="22" Foreground="{DynamicResource UiText}"/>
+          </ScrollViewer>
+          <ListBox x:Name="HistoryList" Grid.Row="1" MaxHeight="248" SelectionChanged="HistorySelectionChanged" IsVisible="False"/>
+          <StackPanel x:Name="ProgressPanel" Grid.Row="2" Spacing="6" IsVisible="False">
+            <ProgressBar x:Name="ProgressBar" Maximum="100" Height="8"/>
+            <TextBlock x:Name="ProgressText" Classes="caption"/>
+          </StackPanel>
+          <WrapPanel x:Name="Actions" Grid.Row="3"/>
+          <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <Button x:Name="Previous" Classes="tool bubble-action" Content="‹" Click="PreviousClick" AutomationProperties.Name="上一条通知"/>
+              <TextBlock x:Name="Counter" VerticalAlignment="Center" Classes="caption"/>
+              <Button x:Name="Next" Classes="tool bubble-action" Content="›" Click="NextClick" AutomationProperties.Name="下一条通知"/>
+            </StackPanel>
+            <Button x:Name="HistoryButton" Grid.Column="1" Classes="tool bubble-action" Content="所有通知" Click="HistoryClick"/>
+          </Grid>
+        </Grid>
+      </Border>
+    </Border>
+    <Path x:Name="Tail" Data="M 0,0 L 18,16 L 18,0" Fill="{DynamicResource UiSurface}" Stroke="{DynamicResource UiBorder}" StrokeThickness="1" Width="20" Height="16" HorizontalAlignment="Right" Margin="0,-1,26,0"/>
+    <Button x:Name="NotificationLauncher" Classes="bubble-action" HorizontalAlignment="Right" Click="LauncherClick" ToolTip.Tip="通知中心" AutomationProperties.Name="通知中心">
+      <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="“" FontSize="26" LineHeight="24" Foreground="{DynamicResource UiText}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="Badge" Grid.Column="1" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      </Grid>
+      <Button.ContextMenu><ContextMenu>
+        <MenuItem Header="打开通知中心" Click="HistoryClick"/>
+        <MenuItem Header="隐藏所有气泡" Click="HideClick"/>
+        <MenuItem Header="清除已结束的通知" Click="ClearClick"/>
+      </ContextMenu></Button.ContextMenu>
+    </Button>
+  </StackPanel>
+</Window>

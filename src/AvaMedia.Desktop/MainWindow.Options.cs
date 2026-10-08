@@ -37,12 +37,7 @@ public partial class MainWindow
                 catch (Exception ex) { failures.Add(Localization.Format($"托盘未能启用：{ex.Message}")); }
             if (failures.Count > 0 && !_closing) SummaryText.Text = Localization.Join("；", failures);
             if (!IsCaptureSession && !FirstRunSetup.Failed)
-                await ApplicationUpdater.Shared.StartupAsync(this, _settings, _optionServices.CheckUpdatesAsync, _optionLifetime.Token,
-                    saveSettings: () =>
-                    {
-                        _storage.SaveSettings(_settings);
-                        _appliedSettings.CheckForUpdates = _settings.CheckForUpdates;
-                    });
+                await ApplicationUpdater.Shared.StartupAsync(this, _settings, _optionServices.CheckUpdatesAsync, _optionLifetime.Token);
         };
         Closed += (_, _) => { _optionLifetime.Cancel(); _completionCancellation?.Cancel(); _optionServices.Dispose(); _optionLifetime.Dispose(); };
     }
@@ -102,17 +97,11 @@ public partial class MainWindow
             else if (completion.AllSucceeded && preferences.PlayCompleteSound) _optionServices.PlaySound(UiSound.Complete);
             if (preferences.OpenOutputFolderOnComplete)
                 foreach (var folder in completion.OutputFolders) _optionServices.OpenFolder(folder);
+            if (preferences.NotifyComplete && !token.IsCancellationRequested) NotifyQueueResults(batch);
             if (completion.AllSucceeded && preferences.ShutdownOnComplete && !_jobs.Any(j => j.State is JobState.Waiting or JobState.Running))
             {
-                RestoreFromTray();
-                var countdown = new ShutdownCountdownWindow();
-                using var registration = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => countdown.Close(false)));
-                if (await countdown.ShowDialog<bool>(this) && !token.IsCancellationRequested) await _optionServices.ShutdownAsync(token);
+                if (await Notifications.ShutdownNotifications.WaitAsync(this, token) && !token.IsCancellationRequested) await _optionServices.ShutdownAsync(token);
                 return;
-            }
-            if (preferences.NotifyComplete && !token.IsCancellationRequested && IsVisible && WindowState != WindowState.Minimized)
-            {
-                await Ui.Message(this, "转换完成", CompletionMessage(completion));
             }
         }
         catch (OperationCanceledException) { }

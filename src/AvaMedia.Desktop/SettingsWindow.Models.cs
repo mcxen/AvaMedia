@@ -208,9 +208,16 @@ public sealed partial class SettingsWindow
             UpdateModelRow(model, row); return;
         }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var notificationKey = "model:" + model.Id + ":" + Guid.NewGuid().ToString("N");
         row.Cancellation = cancellation; row.Action = action;
         row.Outcome = row.ErrorMessage = null; row.DownloadFailed = false;
         row.Progress = new(0, 0, action == "delete" ? "删除中…" : "校验模型");
+        void NotifyProgress(ModelDownloadProgress value) => Notifications.NotificationCenter.Shared.Publish(this,
+            new(notificationKey, "下载模型", (FormattableString)$"{model.Name}\n{Localization.Key(value.Stage)} · {value.Received / 1048576d:0.0} / {value.Total / 1048576d:0.0} MB",
+                Notifications.NotificationKind.Progress,
+                [new("停止下载", () => { CancelModelDownload(model); return Task.CompletedTask; }, Enabled: () => row.Cancellation is not null && !row.Cancellation.IsCancellationRequested)],
+                value.Total > 0 ? value.Percent : null, value.Total <= 0));
+        if (action == "download") NotifyProgress(row.Progress);
         try
         {
             ModelStatus.IsVisible = false;
@@ -220,7 +227,7 @@ public sealed partial class SettingsWindow
                 var progress = new Progress<ModelDownloadProgress>(value =>
                 {
                     if (_modelsClosed || cancellation.IsCancellationRequested || row.Cancellation != cancellation) return;
-                    try { row.Progress = value; UpdateModelRow(model, row); }
+                    try { row.Progress = value; UpdateModelRow(model, row); NotifyProgress(value); }
                     catch (Exception error) { AppDiagnostics.Record("Model download progress", error); }
                 });
                 await Task.Run(() => _modelStore.DownloadAsync(model.Id, progress, cancellation.Token), cancellation.Token);
@@ -232,16 +239,25 @@ public sealed partial class SettingsWindow
             else await _modelStore.DeleteAsync(model.Id, cancellation.Token);
             if (model.Id == ModelCatalog.LamaId && action != "delete") ModelInstallation.ClearFailure();
             row.Outcome = action == "verify" ? "校验通过" : action == "delete" ? "未下载" : "已下载";
+            Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作完成",
+                (FormattableString)$"{model.Name} · {Localization.Key(row.Outcome)}", Notifications.NotificationKind.Success,
+                [new("模型管理", Notifications.ModelNotifications.OpenManagementAsync)]));
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             row.Outcome = "已停止";
+            Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作已停止", model.Name), show: false);
         }
         catch (Exception error)
         {
             row.Outcome = action == "download" ? "下载失败" : action == "verify" ? "校验失败" : "删除失败";
             row.DownloadFailed = action == "download"; row.ErrorMessage = error.Message;
             AppDiagnostics.Record("Model management " + action + " " + model.Id, error);
+            Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作失败",
+                (FormattableString)$"{model.Name}\n{error.Message}", Notifications.NotificationKind.Error, [
+                    new("重试", () => { _ = RunModelActionAsync(model, action); return Task.CompletedTask; }, Primary: true, DismissOnSuccess: true,
+                        Enabled: () => !_modelsClosed && row.Cancellation is null && !_modelStore.IsBusy(model.Id)),
+                    new("模型管理", Notifications.ModelNotifications.OpenManagementAsync)]));
         }
         finally
         {

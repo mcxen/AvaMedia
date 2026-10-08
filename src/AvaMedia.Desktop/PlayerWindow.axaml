@@ -60,7 +60,6 @@
         <Button Grid.Column="7" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表（F6）" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>
         <Button Grid.Column="8" x:Name="FullscreenButton" Classes="player-transport" Click="FullscreenClick" ToolTip.Tip="全屏（Enter / 双击画面）" AutomationProperties.Name="全屏"><local:ActionIcon x:Name="FullscreenIcon" Kind="fullscreen"/></Button>
       </Grid>
-      <local:ModelInstallationNotice Grid.Row="2"/>
     </Grid>
   </Grid>
 </Window>

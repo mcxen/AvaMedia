@@ -22,15 +22,13 @@ internal static class Ui
     {var files=await owner.StorageProvider.OpenFilePickerAsync(new(){Title=Localization.Text(title),AllowMultiple=multiple});return files.Select(f=>f.TryGetLocalPath()).OfType<string>().ToArray();}
     public static async Task<string?> Folder(Window owner,string title)
     {var folders=await owner.StorageProvider.OpenFolderPickerAsync(new(){Title=Localization.Text(title),AllowMultiple=false});return folders.FirstOrDefault()?.TryGetLocalPath();}
-    public static async Task Message(Window owner,string title,string message)
-        => await ShowMessage(owner,title,box=>box.Text=message);
-    public static async Task MessageFormatted(Window owner,string title,FormattableString message)
-        => await ShowMessage(owner,title,box=>Localization.SetText(box,message));
-    private static async Task ShowMessage(Window owner,string title,Action<TextBox> setMessage)
+    public static Task Message(Window owner,string title,string message)
+        => Notify(owner,title,message);
+    public static Task MessageFormatted(Window owner,string title,FormattableString message)
+        => Notify(owner,title,message);
+    private static Task Notify(Window owner,string title,object message)
     {
-        var w=new Window{Title=title,Width=650,Height=420,MinWidth=450,MinHeight=250,WindowStartupLocation=WindowStartupLocation.CenterOwner};
-        var grid=new Grid{RowDefinitions=new("*,Auto"),Margin=new(18)};
-        var body=new TextBox{IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Stretch};setMessage(body);grid.Children.Add(body);
-        var close=DialogButton("确定",()=>w.Close());close.HorizontalAlignment=HorizontalAlignment.Right;close.Margin=new(0,14,0,0);Grid.SetRow(close,1);grid.Children.Add(close);w.Content=grid;await w.ShowDialog(owner);
+        Notifications.NotificationCenter.Shared.Publish(owner,new(Guid.NewGuid().ToString("N"),title,message));
+        return Task.CompletedTask;
     }
 }

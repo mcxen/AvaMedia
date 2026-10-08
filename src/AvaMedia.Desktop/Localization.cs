@@ -79,6 +79,11 @@ public sealed class Localization : AvaloniaObject
     public static string OrientationReason(VideoOrientationResult result) => result.IsCertain
         ? Format($"有效 {result.ValidFrames}/{result.SampledFrames} 帧，{result.AgreeingFrames} 帧方向一致。") : Text(result.Reason);
     public static string Format(FormattableString source) => Remember(source, Render(source));
+    internal static string RenderContent(object source)
+    {
+        if (source is string text) return Sources.TryGetValue(text, out var original) ? Render(original.Value) : Lines(text);
+        return source is FormattableString format ? Format(format) : source.ToString() ?? "";
+    }
     private static string Render(object source)
     {
         if (source is LabelKey label) return Literal(label.Value);

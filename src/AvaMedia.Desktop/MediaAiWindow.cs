@@ -37,6 +37,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly Button _undo;
     private readonly Button _stop;
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly Func<Window, Task> _manageModels;
     private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "ai-rename.json");
     private CancellationTokenSource? _operation;
     private RenameItem[]? _plan;
@@ -45,6 +46,7 @@ public sealed partial class MediaAiWindow : Window
 
     public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels)
     {
+        _manageModels = manageModels;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
         ToolTip.SetTip(_gpu, Localization.Text("macOS 由 Core ML 自动选择 CPU、GPU 或神经网络引擎；首次编译可能较慢。"));
         Title = "媒体 AI 标签 · Beta"; Width = 1120; Height = 740; MinWidth = 920; MinHeight = 600;
@@ -93,13 +95,7 @@ public sealed partial class MediaAiWindow : Window
         analysis.Children.Add(_list); Grid.SetRow(_activity, 1); analysis.Children.Add(_activity); body.Children.Add(analysis);
         _parameters.Children.Add(Ui.Text("JoyTag · 本地推理", "caption"));
         _parameters.Children.Add(_modelStatus);
-        _parameters.Children.Add(Ui.Button("模型管理…", async () =>
-        {
-            await manageModels(this);
-            if (_closed) return;
-            if (!_settings.EnableBetaFeatures) { Close(); return; }
-            await RefreshModelAsync();
-        }));
+        _parameters.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync()));
         AddRow("标签阈值", _threshold); AddRow("视频采样帧数", _frames);
         _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuse);
         _analyze = Ui.Button("分析标签", async () => await AnalyzeAsync()); _analyze.IsEnabled = false; _parameters.Children.Add(_analyze);
@@ -180,10 +176,18 @@ public sealed partial class MediaAiWindow : Window
             || number < control.Minimum || number > control.Maximum) throw new ArgumentException("请输入范围内的参数。");
         return (double)number;
     }
-    private async Task AnalyzeAsync()
+    private async Task ManageModelsAsync()
+    {
+        await _manageModels(this);
+        if (_closed) return;
+        if (!_settings.EnableBetaFeatures) { Close(); return; }
+        await RefreshModelAsync();
+    }
+    private bool CanAnalyzeNotification(string[] paths) => !_closed && !_busy && _entries.Any(entry => paths.Contains(entry.Path, BatchRename.PathComparer));
+    private async Task AnalyzeAsync(string[]? requestedPaths = null)
     {
         if (_busy || !_settings.EnableBetaFeatures) return;
-        var paths = _entries.Where(entry => entry.Include).Select(entry => entry.Path).ToArray();
+        var paths = _entries.Where(entry => requestedPaths is null ? entry.Include : requestedPaths.Contains(entry.Path, BatchRename.PathComparer)).Select(entry => entry.Path).ToArray();
         if (paths.Length == 0) { await Ui.Message(this, "AI 标签", "请添加并勾选图片或视频。"); return; }
         MediaTagOptions options;
         try
@@ -219,11 +223,30 @@ public sealed partial class MediaAiWindow : Window
             foreach (var result in results) _results[result.Path] = result;
             _status.Text = Localization.Format($"完成 {results.Count} / {paths.Length} 个文件");
             _activity.Finish(AiActivityState.Completed, "标签分析完成");
+            var failedPaths = paths.Where(path => !_results.ContainsKey(path)).ToArray();
+            var resultActions = new List<Notifications.NotificationAction> {
+                    new("查看结果", () => Notifications.NotificationCenter.ShowOwnerAsync(this), Primary: failedPaths.Length == 0, Enabled: () => !_closed),
+                    new("导出标签 JSON…", ExportAsync, Enabled: () => !_closed && !_busy),
+                    new("重新分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Enabled: () => CanAnalyzeNotification(paths)) };
+            if (failedPaths.Length > 0) resultActions.Insert(0, new("重试失败文件", () => { _ = AnalyzeAsync(failedPaths); return Task.CompletedTask; }, Primary: true,
+                Enabled: () => CanAnalyzeNotification(failedPaths)));
+            Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "标签分析完成",
+                (FormattableString)$"成功 {results.Count} 个，失败 {failedPaths.Length} 个。",
+                failedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
             try { Match(); }
             catch (Exception error) { await Ui.Message(this, "标签筛选失败", error.Message); }
         }
         catch (OperationCanceledException) { if (!_closed) { _activity.Finish(AiActivityState.Cancelled, "已停止"); _status.Text = Localization.Text("已停止，已完成结果已保留"); } }
-        catch (Exception error) { if (!_closed) { _activity.Finish(AiActivityState.Failed, "分析失败"); await Ui.Message(this, "分析失败", error.Message); } }
+        catch (Exception error)
+        {
+            if (!_closed)
+            {
+                _activity.Finish(AiActivityState.Failed, "分析失败");
+                Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "分析失败", error.Message, Notifications.NotificationKind.Error, [
+                    new("重试分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Primary: true, Enabled: () => CanAnalyzeNotification(paths)),
+                    new("模型管理", ManageModelsAsync, Enabled: () => !_closed)]));
+            }
+        }
         finally { _operation = null; if (!_closed) { SetBusy(false); InvalidatePlan(); } }
     }
     private void ShowResult(MediaFileEntry entry, MediaTagResult result)

@@ -37,8 +37,7 @@ public sealed class WindowArtwork : AvaloniaObject
             DownloadWindow => "download",
             RenameWindow => "gear",
             ContactSheetWindow => "frames",
-            OptionsWindow or SettingsWindow or HardwareTestWindow or ShutdownCountdownWindow => "gear",
-            UpdateWindow => "info",
+            OptionsWindow or SettingsWindow or HardwareTestWindow => "gear",
             _ => window.Owner is Window owner ? EffectiveKind(owner) : ""
         };
     }
