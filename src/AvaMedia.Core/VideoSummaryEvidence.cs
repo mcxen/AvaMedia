@@ -41,19 +41,23 @@ internal static class VideoSummaryEvidencePolicy
     }
 }
 
-/// <summary>Retains originals through reduction; reviews generated claims against their own cited evidence.</summary>
+/// <summary>Synthesizes related content; reviews each statement against its cited originals.</summary>
 internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<VideoSummaryEvidence> evidence, string system)
 {
     private readonly IReadOnlyDictionary<string, VideoSummaryEvidence> _sources = evidence.ToDictionary(item => item.Id, StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     internal int RejectedClaims { get; private set; }
     internal IReadOnlyDictionary<string, VideoSummaryEvidence> Sources => _sources;
-    internal static readonly JsonElement ClaimSchema = JsonSerializer.Deserialize<JsonElement>("""
-        { "type":"object", "additionalProperties":false, "required":["text","evidenceIds"], "properties":{
-          "text":{"type":"string","maxLength":240},
-          "evidenceIds":{"type":"array","minItems":1,"maxItems":3,"items":{"type":"string","maxLength":24}}
-        }}
-        """);
+    internal static JsonElement ClaimShape(int maximumLength) => JsonSerializer.SerializeToElement(new
+    {
+        type = "object", additionalProperties = false, required = new[] { "text", "evidenceIds" },
+        properties = new
+        {
+            text = new { type = "string", maxLength = maximumLength },
+            evidenceIds = new { type = "array", minItems = 1, maxItems = 8, items = new { type = "string", maxLength = 24 } }
+        }
+    });
+    internal static readonly JsonElement ClaimSchema = ClaimShape(240);
     private static readonly JsonElement ReviewSchema = JsonSerializer.Deserialize<JsonElement>("""
         { "type":"object", "additionalProperties":false, "required":["supported"], "properties":{
           "supported":{"type":"boolean"}
@@ -71,11 +75,11 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
     internal static string ClaimText(IEnumerable<VideoSummaryClaim> claims) => string.Join("\n", claims.Select(claim => JsonSerializer.Serialize(new
     { text = claim.Text, evidenceIds = claim.EvidenceIds }, JsonOptions)));
 
-    internal VideoSummaryClaim? ReadClaim(JsonElement item)
+    internal VideoSummaryClaim? ReadClaim(JsonElement item, int maximumLength = 240)
     {
         var claim = item.Deserialize<VideoSummaryClaim>(JsonOptions);
         // Dropping only invalid IDs would make the remaining sources appear to support the entire claim.
-        if (claim is null || string.IsNullOrWhiteSpace(claim.Text) || claim.Text.Length > 240 || claim.EvidenceIds is not { Length: > 0 and <= 3 }
+        if (claim is null || string.IsNullOrWhiteSpace(claim.Text) || claim.Text.Length > maximumLength || claim.EvidenceIds is not { Length: > 0 and <= 8 }
             || claim.EvidenceIds.Any(id => id is null || !_sources.ContainsKey(id)))
         { RejectedClaims++; return null; }
         claim = claim with { Text = claim.Text.Trim(), EvidenceIds = claim.EvidenceIds.Distinct(StringComparer.Ordinal).ToArray() };
@@ -85,37 +89,24 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
 
     internal async Task<IReadOnlyList<VideoSummaryClaim>> GenerateAsync(string prompt, string context, int maximum, CancellationToken ct)
     {
-        var json = await model.CompleteAsync(system, prompt + "\n每条 text 必须携带 1–3 个原始 evidenceIds，不写编号、模型名或提示词本身。\n资料：\n" + context,
-            ct, tokens: 1024, schema: ArraySchema("claims", maximum)).ConfigureAwait(false);
+        var json = await model.CompleteAsync(system, prompt +
+            "\n把相关内容归纳成完整表述，不逐句摘抄、不罗列零散对话。每条 text 携带 1–8 个必要的原始 evidenceIds；合并多句资料时引用支持各部分的编号。" +
+            "不写编号、模型名或提示词本身。\n资料：\n" + context,
+            ct, tokens: 1536, schema: ArraySchema("claims", maximum)).ConfigureAwait(false);
         using var document = JsonDocument.Parse(json);
-        var claims = document.RootElement.GetProperty("claims").EnumerateArray().Select(ReadClaim).OfType<VideoSummaryClaim>().Take(maximum).ToArray();
+        var claims = document.RootElement.GetProperty("claims").EnumerateArray().Select(item => ReadClaim(item)).OfType<VideoSummaryClaim>().Take(maximum).ToArray();
         return await ReviewAsync(claims, ct).ConfigureAwait(false);
     }
 
-    internal async Task<IReadOnlyList<VideoSummaryClaim>> SelectAsync(IReadOnlyList<VideoSummaryClaim> facts, string prompt, int maximum, CancellationToken ct)
-    {
-        var schema = ArraySchema("selected", maximum, JsonSerializer.SerializeToElement(new { type = "integer", minimum = 0, maximum = facts.Count - 1 }));
-        var json = await model.CompleteAsync(system, prompt +
-            "选择重要且不重复的原表述，兼顾语音建议、否定限制和画面。只返回 selected 索引。\n" + IndexedFacts(facts),
-            ct, tokens: 256, schema: schema).ConfigureAwait(false);
-        using var document = JsonDocument.Parse(json);
-        var selected = document.RootElement.GetProperty("selected").EnumerateArray().Select(item => item.GetInt32())
-            .Distinct().Where(index => index >= 0 && index < facts.Count).Take(maximum).Select(index => facts[index]).ToList();
-        if (selected.Count == 0) selected.AddRange(facts.Take(maximum));
-        // Both source categories must survive final selection when there is room for them.
-        if (maximum >= 2)
-            foreach (var group in facts.GroupBy(HasSpeech))
-                if (!selected.Any(claim => HasSpeech(claim) == group.Key))
-                {
-                    if (selected.Count == maximum) selected.RemoveAt(selected.Count - 1);
-                    selected.Add(group.First());
-                }
-        return selected;
-        bool HasSpeech(VideoSummaryClaim claim) => claim.EvidenceIds.Any(id => _sources[id].Kind == "transcript");
-    }
-
-    internal static string IndexedFacts(IReadOnlyList<VideoSummaryClaim> facts) => JsonSerializer.Serialize(
-        facts.Select((claim, index) => new { index, text = claim.Text, evidenceIds = claim.EvidenceIds }), JsonOptions);
+    internal string SummaryContext(IEnumerable<VideoSummaryClaim> facts) => string.Join("\n", facts
+        .OrderBy(claim => claim.EvidenceIds.Select(id => _sources[id].Start).Min())
+        .Select(claim => JsonSerializer.Serialize(new
+        {
+            start = MediaTime.Format(claim.EvidenceIds.Select(id => _sources[id].Start).Min()),
+            end = MediaTime.Format(claim.EvidenceIds.Select(id => _sources[id].End).Max()),
+            kind = claim.EvidenceIds.Any(id => _sources[id].Kind == "transcript") ? "transcript" : "visual",
+            text = claim.Text, evidenceIds = claim.EvidenceIds
+        }, JsonOptions)));
 
     internal async Task<IReadOnlyList<VideoSummaryClaim>> ReviewAsync(IEnumerable<VideoSummaryClaim> candidates, CancellationToken ct)
     {
@@ -142,8 +133,8 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
 
     internal async Task<IReadOnlyList<VideoSummaryClaim>> ReadFactsAsync(int budget, IList<string> notes, Action<int, int> progress, CancellationToken ct)
     {
-        // Read speech, still images and sequence observations separately. A speculative sequence
-        // caption must not crowd out the visible objects from otherwise useful still images.
+        // Read every speech packet in context, including the ending. Originals remain in Evidence;
+        // downstream stages receive segment summaries rather than hundreds of disconnected quotes.
         var packets = Pack(evidence.Where(item => item.Kind == "transcript").OrderBy(item => item.Start), item => EvidenceText([item]).Length, budget)
             .Concat(Pack(evidence.Where(item => item.Kind == "frame").OrderBy(item => item.Start), item => EvidenceText([item]).Length, budget))
             .Concat(Pack(evidence.Where(item => item.Kind is "sequence" or "comparison").OrderBy(item => item.Start), item => EvidenceText([item]).Length, budget)).ToList();
@@ -154,11 +145,11 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
             IReadOnlyList<VideoSummaryClaim> items;
             if (kind == "transcript")
             {
-                // Exact quotations retain instructions and negations even when the small text
-                // decoder and its reviewer both misread them. Later stages select these originals.
-                items = packets[index].SelectMany(source => VideoSummaryService.Split(source.Text, 238)
-                    .Where(piece => !string.IsNullOrWhiteSpace(piece))
-                    .Select(piece => new VideoSummaryClaim("“" + piece.Trim() + "”", [source.Id]))).ToArray();
+                items = await GenerateAsync(
+                    "将这段连续字幕作为完整上下文，归纳至多 4 条段落笔记，每条不超过 60 字。提炼本段主题、主要行为或观点、过程进展及已说明的结果，" +
+                    "合并相邻对话，省略招呼、感叹、重复问答与无关插话。游戏、故事或操作演示应交代在做什么、如何推进、发生了什么；" +
+                    "只有字幕明确说明时才写原因和结果。建议保留为建议，否定与条件不能省略，不把角色台词改成作者观点。",
+                    EvidenceText(packets[index]), 4, ct).ConfigureAwait(false);
             }
             else
             {
@@ -180,33 +171,35 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
         var spoken = facts.Where(claim => claim.EvidenceIds.Any(id => _sources[id].Kind == "transcript")).ToArray();
         var visual = facts.Where(claim => claim.EvidenceIds.All(id => _sources[id].Kind != "transcript")).ToArray();
         if (spoken.Length == 0 || visual.Length == 0) return await ReduceAsync(facts, budget, ct).ConfigureAwait(false);
-        var half = (budget - 1) / 2;
-        var left = await ReduceAsync(spoken, half, ct).ConfigureAwait(false);
-        var right = await ReduceAsync(visual, half, ct).ConfigureAwait(false);
-        return left.Concat(right).ToArray();
+        // Speech carries the narrative. Reserve a bounded share for visual context instead of
+        // forcing incidental objects to consume half the final summary's context.
+        var visualBudget = Math.Min(SummaryContext(visual).Length, budget / 3);
+        var right = await ReduceAsync(visual, visualBudget, ct).ConfigureAwait(false);
+        var left = await ReduceAsync(spoken, budget - SummaryContext(right).Length - 1, ct).ConfigureAwait(false);
+        return left.Concat(right).OrderBy(claim => claim.EvidenceIds.Select(id => _sources[id].Start).Min()).ToArray();
     }
 
     internal async Task<IReadOnlyList<VideoSummaryClaim>> ReduceAsync(IReadOnlyList<VideoSummaryClaim> facts, int budget, CancellationToken ct)
     {
-        // Selection preserves exact text and original references, unlike repeatedly rewriting summaries.
-        for (var level = 0; ClaimText(facts).Length > budget; level++)
+        // Merge each chronological packet before the next level. Never fit the context by
+        // taking the first few statements or repeatedly selecting isolated subtitle lines.
+        for (var level = 0; SummaryContext(facts).Length > budget; level++)
         {
             if (level >= 8) throw new InvalidDataException("证据笔记未能收敛，请调整分段字符数。");
             var reduced = new List<VideoSummaryClaim>();
-            foreach (var group in Pack(facts, claim => ClaimText([claim]).Length, budget))
+            // The reserved visual budget can be smaller than two individual notes. Read a
+            // full packet so those notes can still be merged instead of rewriting them one by one.
+            foreach (var group in Pack(facts, claim => SummaryContext([claim]).Length, Math.Max(1000, budget)))
             {
-                var keep = Math.Max(1, group.Count / 2);
-                var schema = ArraySchema("selected", keep, JsonSerializer.SerializeToElement(new { type = "integer", minimum = 0, maximum = group.Count - 1 }));
-                var json = await model.CompleteAsync(system,
-                    $"从候选中选择最多 {keep} 条最重要且不重复的原表述，兼顾语音观点、画面内容与否定限制。仅返回 selected 索引，不改写内容。\n" +
-                    JsonSerializer.Serialize(group.Select((claim, index) => new { index, text = claim.Text, evidenceIds = claim.EvidenceIds }), JsonOptions), ct, tokens: 256, schema: schema).ConfigureAwait(false);
-                using var document = JsonDocument.Parse(json);
-                var indices = document.RootElement.GetProperty("selected").EnumerateArray().Select(item => item.GetInt32())
-                    .Distinct().Where(index => index >= 0 && index < group.Count).Take(keep).Order().ToArray();
-                if (indices.Length == 0) throw new InvalidDataException("模型没有选出有依据的关键内容。");
-                reduced.AddRange(indices.Select(index => group[index]));
+                var keep = Math.Clamp(group.Count / 2, 1, 4);
+                var merged = await GenerateAsync(
+                    $"将这些按时间排列的段落笔记压缩成最多 {keep} 条，每条不超过 50 字。整合同一主题的过程和结果，" +
+                    "保留本段主要进展、结尾结果及重要建议、否定或条件。删除重复和次要细节，不能只摘取开头的内容；视觉资料只保留与主题有关的可见信息。",
+                    SummaryContext(group), keep, ct).ConfigureAwait(false);
+                if (merged.Count == 0) throw new InvalidDataException("模型未能将段落笔记归纳成有依据的内容，请调整分段字符数。");
+                reduced.AddRange(merged);
             }
-            if (ClaimText(reduced).Length >= ClaimText(facts).Length) throw new InvalidDataException("证据笔记未能压缩，请调整分段字符数。");
+            if (SummaryContext(reduced).Length >= SummaryContext(facts).Length) throw new InvalidDataException("证据笔记未能压缩，请调整分段字符数。");
             facts = reduced;
         }
         return facts;

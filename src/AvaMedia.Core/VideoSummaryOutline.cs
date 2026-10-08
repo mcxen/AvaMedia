@@ -13,55 +13,57 @@ internal sealed record VideoSummaryOutline(VideoSummaryClaim[] KeywordClaims, Vi
 {
     internal string[] Keywords => KeywordClaims.Select(claim => claim.Text).ToArray();
     internal string[] Highlights => HighlightClaims.Select(claim => claim.Text).ToArray();
-    internal static JsonElement Schema(int factCount) => JsonSerializer.SerializeToElement(new
+    internal static JsonElement Schema() => JsonSerializer.SerializeToElement(new
     {
         type = "object", additionalProperties = false, required = new[] { "keywords", "highlights", "chapters" },
         properties = new
         {
-            keywords = new { type = "array", maxItems = 8, items = new
-            {
-                type = "object", additionalProperties = false, required = new[] { "text", "factIndex" },
-                properties = new { text = new { type = "string", maxLength = 60 }, factIndex = new { type = "integer", minimum = 0, maximum = factCount - 1 } }
-            } },
-            highlights = new { type = "array", maxItems = 5, items = new { type = "integer", minimum = 0, maximum = factCount - 1 } },
+            keywords = new { type = "array", maxItems = 8, items = VideoSummaryGrounding.ClaimShape(60) },
+            highlights = new { type = "array", maxItems = 5, items = VideoSummaryGrounding.ClaimSchema },
             chapters = new { type = "array", maxItems = 8, items = new
             {
-                type = "object", additionalProperties = false, required = new[] { "title", "factIndex" },
+                type = "object", additionalProperties = false, required = new[] { "title", "claims" },
                 properties = new
                 {
-                    title = new { type = "string", maxLength = 60 }, factIndex = new { type = "integer", minimum = 0, maximum = factCount - 1 }
+                    title = VideoSummaryGrounding.ClaimShape(60),
+                    claims = new { type = "array", minItems = 1, maxItems = 2, items = VideoSummaryGrounding.ClaimSchema }
                 }
             } }
         }
     });
 
-    internal static async Task<VideoSummaryOutline> ParseAsync(string json, VideoSummaryGrounding grounding, IReadOnlyList<VideoSummaryClaim> facts, bool includeChapters, CancellationToken ct)
+    internal static async Task<VideoSummaryOutline> ParseAsync(string json, VideoSummaryGrounding grounding, bool includeChapters, CancellationToken ct)
     {
         using var document = JsonDocument.Parse(json); var root = document.RootElement;
         var keywords = root.GetProperty("keywords").EnumerateArray()
-            .Select(item => Label(item.GetProperty("text"), Fact(item.GetProperty("factIndex")))).OfType<VideoSummaryClaim>().Take(8).ToArray();
-        var highlights = root.GetProperty("highlights").EnumerateArray().Select(Fact).OfType<VideoSummaryClaim>()
+            .Select(item => grounding.ReadClaim(item, 60)).OfType<VideoSummaryClaim>().Take(8).ToArray();
+        var highlights = root.GetProperty("highlights").EnumerateArray().Select(item => grounding.ReadClaim(item)).OfType<VideoSummaryClaim>()
             .DistinctBy(VideoSummaryGrounding.Key).Take(5).ToArray();
-        var chapters = new List<(VideoSummaryClaim Title, VideoSummaryClaim Body)>();
+        var chapters = new List<(VideoSummaryClaim Title, VideoSummaryClaim[] Claims)>();
         if (includeChapters)
             foreach (var item in root.GetProperty("chapters").EnumerateArray().Take(8))
             {
-                var body = Fact(item.GetProperty("factIndex")); var title = Label(item.GetProperty("title"), body);
-                if (body is null || title is null) continue;
-                chapters.Add((title, body));
+                var title = grounding.ReadClaim(item.GetProperty("title"), 60);
+                var claims = item.GetProperty("claims").EnumerateArray().Take(2)
+                    .Select(claim => grounding.ReadClaim(claim)).OfType<VideoSummaryClaim>().DistinctBy(VideoSummaryGrounding.Key).ToArray();
+                if (claims.Length == 0 || title is null) continue;
+                chapters.Add((title, claims));
             }
-        // Bodies and highlights select already reviewed originals. Only newly generated labels
-        // require review; the model cannot turn an original recommendation into an event here.
-        var accepted = (await grounding.ReviewAsync(keywords.Concat(chapters.Select(item => item.Title)), ct).ConfigureAwait(false))
+        // Titles, points and chapter bodies are synthesized text. Each must pass review using
+        // its own original citations, including negations and the difference between advice and events.
+        var accepted = (await grounding.ReviewAsync(keywords.Concat(highlights)
+            .Concat(chapters.SelectMany(item => item.Claims.Prepend(item.Title))), ct).ConfigureAwait(false))
             .Select(VideoSummaryGrounding.Key).ToHashSet(StringComparer.Ordinal);
         bool Keep(VideoSummaryClaim claim) => accepted.Contains(VideoSummaryGrounding.Key(claim));
-        return new(keywords.Where(Keep).ToArray(), highlights, chapters.Where(item => Keep(item.Title))
-            .Select(item => new VideoSummaryChapter(item.Title.Text, item.Body.Text,
-                item.Body.EvidenceIds.Select(id => grounding.Sources[id].Start).Min()) { EvidenceIds = item.Body.EvidenceIds })
+        return new(keywords.Where(Keep).DistinctBy(claim => claim.Text).ToArray(), highlights.Where(Keep).ToArray(),
+            chapters.Where(item => Keep(item.Title)).Select(item => (item.Title, Claims: item.Claims.Where(Keep).ToArray()))
+            .Where(item => item.Claims.Length > 0).Select(item =>
+            {
+                var ids = item.Claims.SelectMany(claim => claim.EvidenceIds).Concat(item.Title.EvidenceIds).Distinct(StringComparer.Ordinal).ToArray();
+                return new VideoSummaryChapter(item.Title.Text, string.Join("\n\n", item.Claims.Select(claim => claim.Text)),
+                    ids.Select(id => grounding.Sources[id].Start).Min()) { EvidenceIds = ids };
+            })
             .OrderBy(chapter => chapter.Seconds).ToArray());
-        VideoSummaryClaim? Fact(JsonElement item) => item.TryGetInt32(out var index) && index >= 0 && index < facts.Count ? facts[index] : null;
-        VideoSummaryClaim? Label(JsonElement item, VideoSummaryClaim? fact) => fact is null ? null : grounding.ReadClaim(
-            JsonSerializer.SerializeToElement(new { text = item.GetString(), evidenceIds = fact.EvidenceIds }));
     }
 
     internal string ChapterMarkdown()
