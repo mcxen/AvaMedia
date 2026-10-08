@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Threading;
 using AvaMedia.Core;
 
@@ -37,8 +38,12 @@ public partial class MainWindow
         try
         {
             var usage = await Task.Run(() => _systemResourceMonitor.Sample(reset));
-            if (!_closing && !_resourceMonitorClosed && IsQueuePresentationVisible) NetworkMonitor.UpdateResources(usage);
+            if (!_closing && !_resourceMonitorClosed && IsQueuePresentationVisible)
+                ResourceUsageText.Text = $"CPU {FormatResourceUsage(usage.Cpu)}   GPU {FormatResourceUsage(usage.Gpu)}";
         }
         finally { _resourceSampling = false; }
     }
+
+    private static string FormatResourceUsage(double? value) => value is { } percent
+        ? percent.ToString("0", CultureInfo.InvariantCulture) + "%" : "—";
 }

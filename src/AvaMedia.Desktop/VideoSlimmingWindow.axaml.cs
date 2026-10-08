@@ -19,16 +19,22 @@ public sealed class VideoSlimmingEntry(string path) : Observable
     public MediaInfo? Info { get; set; }
     public long Bytes { get; set; }
     public bool Loading { get; set; } = true;
+    public bool Analyzing { get; set; }
     public string InspectionError { get; set; } = "";
-    public string Error { get; set; } = "";
+    public string ValidationError { get; set; } = "";
+    public string AnalysisError { get; set; } = "";
+    public string Error => InspectionError.Length > 0 ? InspectionError : ValidationError.Length > 0 ? ValidationError : AnalysisError;
     public bool HasError => Error.Length > 0;
     public VideoSlimmingAnalysis? Analysis { get; set; }
     public string SourceSummary => Info is { } source ? Localization.Format(
-        $"{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {Bytes / 1000000d:0.##} MB · {source.VideoCodec.ToUpperInvariant()}") :
+        $"{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {source.VideoCodec.ToUpperInvariant()}") :
         Loading ? Localization.Text("正在读取媒体信息…") : "";
-    public string ResultSummary => Analysis is not { } analysis ? Localization.Text("执行前自动分析") :
-        analysis.Worthwhile ? Localization.Format($"预计 {analysis.EstimatedBytes / 1000000d:0.##} MB · 节省 {analysis.EstimatedSaving:0.#}%（采样估算）") :
-        Localization.Text("不建议瘦身：预计节省不足 5%");
+    public string SourceSize => Bytes > 0 ? Localization.Format($"{Bytes / 1000000d:0.##} MB") : "—";
+    public string EstimatedSize => Analysis is { } analysis ? Localization.Format($"{analysis.EstimatedBytes / 1000000d:0.##} MB") : "—";
+    public string Saving => Analysis is { } analysis ? Localization.Format($"{analysis.EstimatedSaving:0.#}%") : "—";
+    public bool Unavailable => HasError || Analysis?.Worthwhile == false;
+    public string Status => Localization.Text(Loading ? "读取中" : Analyzing ? "分析中" : HasError ? "需要处理" :
+        Analysis is null ? "待分析" : Analysis.Worthwhile ? "可瘦身" : "节省不足 5%");
     public string QualitySummary => Analysis is not { } analysis ? "" : Localization.Format(
         $"SSIM {analysis.MeanSsim:0.####} · {analysis.Samples} 段采样 · {analysis.AudioTracks} 音轨 · {analysis.SubtitleTracks} 字幕轨");
     public void Refresh() => Raise(string.Empty);
@@ -41,7 +47,9 @@ public partial class VideoSlimmingWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _analysisCancellation;
     private bool _busy;
+    private bool _adding;
     private bool _closed;
+    private string _completionStatus = "";
 
     public VideoSlimmingWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoSlimmingWindow(IMediaEngine engine, string outputFolder, string[] files,
@@ -62,17 +70,19 @@ public partial class VideoSlimmingWindow : Window
         foreach (var combo in new[] { PresetInput, CodecInput, FormatInput })
             combo.SelectionChanged += (_, _) =>
             {
-                foreach (var entry in _entries) { entry.Analysis = null; entry.Error = entry.InspectionError; }
+                foreach (var entry in _entries) { entry.Analysis = null; entry.AnalysisError = ""; }
+                _completionStatus = "";
                 Refresh();
             };
         SourceFolderInput.IsCheckedChanged += (_, _) => UpdateOutput();
+        OutputInput.TextChanged += (_, _) => Refresh();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) =>
-        { e.DragEffects = !_busy && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, true);
+        { e.DragEffects = !_busy && !_adding && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, true);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
             e.Handled = true;
-            if (!_busy) await AddFilesAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []);
+            if (!_busy && !_adding) await AddFilesAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []);
         }, RoutingStrategies.Bubble, true);
         Opened += async (_, _) =>
         {
@@ -93,7 +103,11 @@ public partial class VideoSlimmingWindow : Window
         Codec = CodecInput.SelectedIndex == 1 ? "h264" : "hevc",
         Format = FormatInput.SelectedIndex == 1 ? "mp4" : "mkv"
     };
-    private void UpdateOutput() => OutputInput.IsEnabled = BrowseButton.IsEnabled = !_busy && SourceFolderInput.IsChecked != true;
+    private void UpdateOutput()
+    {
+        OutputInput.IsEnabled = BrowseButton.IsEnabled = !_busy && SourceFolderInput.IsChecked != true;
+        Refresh();
+    }
 
     private void Refresh()
     {
@@ -101,32 +115,72 @@ public partial class VideoSlimmingWindow : Window
         var options = ReadOptions();
         foreach (var entry in _entries)
         {
-            if (entry.InspectionError.Length > 0) entry.Error = entry.InspectionError;
-            else if (entry.Info is { } info)
+            entry.ValidationError = "";
+            if (entry.Info is { } info)
             {
                 try { VideoSlimming.ValidateSource(info, options); }
-                catch (ArgumentException exception) { entry.Error = exception.Message; }
+                catch (ArgumentException exception) { entry.ValidationError = exception.Message; }
             }
             entry.Refresh();
         }
         OptionsPanel.IsEnabled = !_busy; SourceList.IsEnabled = !_busy;
-        SourceFolderInput.IsEnabled = !_busy; UpdateOutput();
+        ImportPanel.IsEnabled = !_busy && !_adding;
+        RemoveButton.IsEnabled = !_busy && !_adding && SourceList.SelectedItems?.Count > 0;
+        RemoveUnavailableButton.IsEnabled = !_busy && !_adding && _entries.Any(entry => entry.Unavailable);
+        SourceFolderInput.IsEnabled = !_busy;
+        OutputInput.IsEnabled = BrowseButton.IsEnabled = !_busy && SourceFolderInput.IsChecked != true;
         AnalysisProgress.IsVisible = _busy;
         var valid = _entries.Count > 0 && _entries.All(entry => !entry.Loading && !entry.HasError);
-        AnalyzeButton.Content = Localization.Text(_busy ? "停止分析" : "分析体积");
-        AnalyzeButton.IsEnabled = _busy || _entries.Count > 0 && _entries.All(entry => !entry.Loading && entry.InspectionError.Length == 0);
-        ConfirmButton.IsEnabled = !_busy && valid && _entries.All(entry => entry.Analysis?.Worthwhile != false);
+        var stopping = _analysisCancellation?.IsCancellationRequested == true;
+        AnalyzeButton.Content = Localization.Text(_busy ? stopping ? "正在停止…" : "停止分析" : "预估体积");
+        AnalyzeButton.IsEnabled = _busy ? !stopping : !_adding && _entries.Any(entry => !entry.Loading && entry.InspectionError.Length == 0 && entry.ValidationError.Length == 0);
+        var hasFolder = SourceFolderInput.IsChecked == true || !string.IsNullOrWhiteSpace(OutputInput.Text);
+        ConfirmButton.IsEnabled = !_busy && !_adding && valid && hasFolder && _entries.All(entry => entry.Analysis?.Worthwhile != false);
         var analyzed = _entries.Count(entry => entry.Analysis is not null);
-        SummaryText.Text = Localization.Format($"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 已分析 {analyzed}");
+        FileCountText.Text = _entries.Count > 0 ? Localization.Format($"{_entries.Count} 个视频") : "";
+        EmptyText.IsVisible = _entries.Count == 0;
+        SummaryText.Text = _entries.Count == 0 ? "" : analyzed == _entries.Count
+            ? Localization.Format($"原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 预计 {_entries.Sum(entry => entry.Analysis!.EstimatedBytes) / 1000000d:0.##} MB（采样估算）")
+            : Localization.Format($"原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 已分析 {analyzed}/{_entries.Count}");
+        if (!_busy)
+        {
+            var unavailable = _entries.Count(entry => entry.Unavailable);
+            StatusText.Text = _adding ? Localization.Text("正在读取媒体信息…") : unavailable > 0
+                ? Localization.Format($"{unavailable} 个视频不可处理，请移除或调整参数。") : !hasFolder && _entries.Count > 0
+                ? Localization.Text("请选择输出目录。") : _completionStatus.Length > 0 ? Localization.Text(_completionStatus)
+                : _entries.Count > 0 && analyzed < _entries.Count ? Localization.Text("未预估的视频将在执行时自动分析。") : "";
+        }
+        RefreshDetails();
+    }
+
+    private void SourceSelectionChanged(object? sender, SelectionChangedEventArgs args)
+    {
+        if (RemoveButton is not null) RemoveButton.IsEnabled = !_busy && !_adding && SourceList.SelectedItems?.Count > 0;
+        RefreshDetails();
+    }
+    private void RefreshDetails()
+    {
+        if (AnalysisDetails is null) return;
+        var entry = SourceList.SelectedItem as VideoSlimmingEntry;
+        AnalysisDetails.IsVisible = entry is { Analysis: not null } || entry?.HasError == true;
+        SelectedFileText.Text = entry?.Name ?? "";
+        QualityText.Text = entry?.QualitySummary ?? "";
+        QualityText.IsVisible = QualityText.Text.Length > 0;
+        ErrorText.Text = entry?.Error ?? "";
+        ErrorText.IsVisible = ErrorText.Text.Length > 0;
+        if (entry?.HasError == true) AnalysisDetails.IsExpanded = true;
     }
 
     private async Task AddFilesAsync(IEnumerable<string> files)
     {
+        if (_busy || _adding || _closed) return;
+        _adding = true; _completionStatus = "";
         try
         {
             var used = _entries.Select(entry => entry.Path).ToHashSet(VideoFolderScanner.PathComparer);
             var added = files.Select(Path.GetFullPath).Where(used.Add).Select(path => new VideoSlimmingEntry(path)).ToArray();
             foreach (var entry in added) _entries.Add(entry);
+            if (SourceList.SelectedItem is null && _entries.Count > 0) SourceList.SelectedIndex = 0;
             Refresh();
             foreach (var entry in added)
             {
@@ -140,41 +194,52 @@ public partial class VideoSlimmingWindow : Window
                 }
                 catch (OperationCanceledException) { entry.InspectionError = "媒体读取超时或已取消。"; }
                 catch (Exception exception) { entry.InspectionError = exception.Message; }
-                entry.Loading = false; entry.Error = entry.InspectionError; Refresh();
+                entry.Loading = false; Refresh();
                 if (_closed) return;
             }
         }
         catch (Exception exception) { if (!_closed) await Ui.Message(this, "添加视频失败", exception.Message); }
+        finally { _adding = false; Refresh(); }
     }
 
     private async void AnalyzeClick(object? sender, RoutedEventArgs args)
     {
-        if (_busy) { _analysisCancellation?.Cancel(); return; }
+        if (_busy) { _analysisCancellation?.Cancel(); AnalyzeButton.IsEnabled = false; AnalyzeButton.Content = Localization.Text("正在停止…"); return; }
         if (_engine is not MediaEngine engine) { await Ui.Message(this, "分析失败", "媒体引擎不支持视频瘦身。"); return; }
         _analysisCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var entries = _entries.Where(entry => !entry.Loading && entry.InspectionError.Length == 0 && entry.ValidationError.Length == 0).ToArray();
+        if (entries.Length == 0) { _analysisCancellation.Dispose(); _analysisCancellation = null; return; }
+        var token = _analysisCancellation.Token;
+        AnalysisProgress.Value = 0; _completionStatus = "";
         _busy = true; Refresh();
         try
         {
             var options = ReadOptions();
-            foreach (var entry in _entries)
+            for (var index = 0; index < entries.Length; index++)
             {
-                entry.Error = ""; entry.Analysis = null;
+                var entry = entries[index]; var completed = index;
+                token.ThrowIfCancellationRequested();
+                entry.AnalysisError = ""; entry.Analysis = null; entry.Analyzing = true; entry.Refresh();
+                StatusText.Text = Localization.Format($"分析 {index + 1}/{entries.Length} · {entry.Name}");
                 try
                 {
                     entry.Analysis = await new VideoSlimming(engine).AnalyzeAsync(entry.Path, options, (value, detail) =>
                         Dispatcher.UIThread.Post(() =>
                         {
-                            if (_closed || !_busy) return;
-                            AnalysisProgress.Value = value; StatusText.Text = Localization.Join(" · ", [entry.Name, detail]);
-                        }), _analysisCancellation.Token);
+                            if (_closed || !_busy || !entry.Analyzing || token.IsCancellationRequested) return;
+                            AnalysisProgress.Value = (completed + Math.Clamp(value, 0, 100) / 100) / entries.Length * 100;
+                            StatusText.Text = Localization.Join(" · ", [Localization.Format($"分析 {completed + 1}/{entries.Length}"), entry.Name, detail]);
+                        }), token);
                 }
                 catch (OperationCanceledException) { throw; }
-                catch (Exception exception) { entry.Error = exception.Message; }
+                catch (Exception exception) { entry.AnalysisError = exception.Message; }
+                finally { entry.Analyzing = false; }
+                AnalysisProgress.Value = (index + 1d) / entries.Length * 100;
                 Refresh();
             }
-            StatusText.Text = Localization.Text("分析完成");
+            _completionStatus = "分析完成";
         }
-        catch (OperationCanceledException) { if (!_closed) StatusText.Text = Localization.Text("分析已停止"); }
+        catch (OperationCanceledException) { _completionStatus = "分析已停止"; }
         finally { _analysisCancellation.Dispose(); _analysisCancellation = null; _busy = false; Refresh(); }
     }
 
@@ -188,6 +253,15 @@ public partial class VideoSlimmingWindow : Window
     private void RemoveClick(object? sender, RoutedEventArgs args)
     {
         foreach (var entry in SourceList.SelectedItems?.OfType<VideoSlimmingEntry>().ToArray() ?? []) _entries.Remove(entry);
+        _completionStatus = "";
+        if (SourceList.SelectedItem is null && _entries.Count > 0) SourceList.SelectedIndex = 0;
+        Refresh();
+    }
+    private void RemoveUnavailableClick(object? sender, RoutedEventArgs args)
+    {
+        foreach (var entry in _entries.Where(entry => entry.Unavailable).ToArray()) _entries.Remove(entry);
+        _completionStatus = "";
+        if (SourceList.SelectedItem is null && _entries.Count > 0) SourceList.SelectedIndex = 0;
         Refresh();
     }
     private async void BrowseClick(object? sender, RoutedEventArgs args)
@@ -199,8 +273,9 @@ public partial class VideoSlimmingWindow : Window
         try
         {
             var options = ReadOptions(); options.Validate();
-            if (string.IsNullOrWhiteSpace(OutputInput.Text)) throw new ArgumentException("请选择输出目录。");
-            Close(new VideoSlimmingRequest(_entries.Select(entry => entry.Path).ToArray(), options, Path.GetFullPath(OutputInput.Text),
+            var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(_entries[0].Path)! : OutputInput.Text;
+            if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
+            Close(new VideoSlimmingRequest(_entries.Select(entry => entry.Path).ToArray(), options, Path.GetFullPath(folder),
                 SourceFolderInput.IsChecked == true, _entries.Where(entry => entry.Analysis is not null)
                     .ToDictionary(entry => entry.Path, entry => entry.Analysis!)));
         }

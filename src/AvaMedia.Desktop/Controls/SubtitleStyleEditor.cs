@@ -16,6 +16,9 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
     private readonly NumericUpDown _size;
     private readonly NumericUpDown _margin;
     private readonly TextBox _color;
+    private readonly TextBlock _colorError = Ui.Text("颜色格式：#RRGGBB", "error");
+    private readonly TextBlock _positionText = Ui.Text("", "caption");
+    private readonly Button _resetPosition = new() { Name = "SubtitleResetPosition", Content = "恢复对齐", Classes = { "field-action" } };
     private readonly ToggleButton[] _positions = new ToggleButton[9];
     private readonly Image _frame = new() { Name = "SubtitlePreviewFrame", Stretch = Stretch.Fill };
     private readonly TextBlock _sample = new() { Text = "字幕预览", TextWrapping = TextWrapping.Wrap };
@@ -34,16 +37,16 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         _referenceHeight = referenceHeight; _defaultSize = referenceHeight == 288 ? 16 : 48;
         _alignment = Math.Clamp(options.SubtitleAlignment, 1, 9);
         if (options.SubtitlePositionX is {} x && options.SubtitlePositionY is {} y) _customPosition = new(x, y);
-        var root = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 20 };
-        var fields = new StackPanel { Spacing = 12 }; root.Children.Add(fields);
+        var root = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 20, Margin = new(0, 10, 0, 0) };
+        var fields = new StackPanel { Spacing = 10 }; root.Children.Add(fields);
         var automatic = Localization.Text("自动");
         var fonts = FontManager.Current.SystemFonts.Select(font => font.Name).Append(options.SubtitleFont).Where(name => name.Length > 0).Distinct().OrderBy(name => name);
         _font = Ui.Combo(new[] { automatic }.Concat(fonts), options.SubtitleFont.Length > 0 ? options.SubtitleFont : automatic); _font.Name = "SubtitleFont";
         Localization.SetIsUserText(_font, true);
         Add(fields, "字体", _font);
         _size = Number("SubtitleFontSize", options.SubtitleFontSize, 0, 200);
-        ToolTip.SetTip(_size, "0 = 自动"); Add(fields, "字号", _size);
-        _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor";
+        ToolTip.SetTip(_size, "0 = 自动"); Add(fields, "字号 (px)", _size);
+        _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB";
         var colors = new StackPanel { Spacing = 8 }; colors.Children.Add(_color);
         var palette = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var hex in new[] { "#FFFFFF", "#FFFF00", "#FFD166", "#00E5FF", "#FF6B6B", "#76FF03", "#C792EA", "#000000" })
@@ -53,7 +56,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
             AutomationProperties.SetName(swatch, hex); ToolTip.SetTip(swatch, hex);
             swatch.Click += (_, _) => _color.Text = hex; palette.Children.Add(swatch);
         }
-        colors.Children.Add(palette); Add(fields, "颜色", colors);
+        colors.Children.Add(palette); colors.Children.Add(_colorError); Add(fields, "颜色", colors);
         var positions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto"), RowDefinitions = new("Auto,Auto,Auto") };
         string[] arrows = ["↙", "↓", "↘", "←", "●", "→", "↖", "↑", "↗"];
         string[] names = ["左下", "中下", "右下", "左中", "居中", "右中", "左上", "中上", "右上"];
@@ -67,13 +70,25 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
             Grid.SetRow(button, 2 - index / 3); Grid.SetColumn(button, index % 3);
             positions.Children.Add(button); _positions[index] = button;
         }
-        Add(fields, "位置", positions);
-        _margin = Number("SubtitleMargin", options.SubtitleMargin, 0, 2000); Add(fields, "边距", _margin);
+        var positionFields = new StackPanel { Spacing = 4 };
+        positionFields.Children.Add(positions); positionFields.Children.Add(_positionText); positionFields.Children.Add(_resetPosition);
+        _resetPosition.Click += (_, _) =>
+        {
+            _customPosition = null; _alignment = 2;
+            for (var index = 0; index < _positions.Length; index++) _positions[index].IsChecked = index + 1 == _alignment;
+            UpdatePreview();
+        };
+        Add(fields, "位置", positionFields);
+        _margin = Number("SubtitleMargin", options.SubtitleMargin, 0, 2000); Add(fields, "边距 (px)", _margin);
         _screen.Background = new SolidColorBrush(Color.Parse("#202428")); _screen.Children.Add(_frame);
         _caption = new Border { Name = "SubtitlePreviewCaption", Child = _sample, Padding = new(4, 2), Background = new SolidColorBrush(Color.Parse("#66000000")) };
         _captionLayer.Children.Add(_caption); _screen.Children.Add(_captionLayer);
         var preview = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Top };
-        preview.Children.Add(Ui.Text("预览", "caption"));
+        var previewText = Ui.Input(Localization.Text("字幕预览")); previewText.Name = "SubtitlePreviewText"; previewText.Watermark = "预览文字";
+        Localization.SetIsUserText(_sample, true); _sample.Text = previewText.Text;
+        Localization.SetIsUserText(previewText, true); AutomationProperties.SetName(previewText, "预览文字");
+        previewText.TextChanged += (_, _) => { _sample.Text = previewText.Text ?? ""; UpdatePreview(); };
+        preview.Children.Add(previewText);
         _previewHost.Children.Add(_screen); _previewHost.SizeChanged += (_, _) => FitPreview(); preview.Children.Add(_previewHost);
         SetupPreview(preview, referenceHeight, options.Start);
         Grid.SetColumn(preview, 1); root.Children.Add(preview); Content = root;
@@ -85,6 +100,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
 
     public void ReadInto(ConversionOptions options)
     {
+        if (!ValidColor()) { _color.Focus(); throw new ArgumentException("颜色格式：#RRGGBB"); }
         options.SubtitleFont = _font.SelectedIndex <= 0 ? "" : (string)_font.SelectedItem!;
         options.SubtitleFontSize = ReadNumber(_size); options.SubtitleMargin = ReadNumber(_margin);
         options.SubtitleColor = _color.Text?.Trim().ToUpperInvariant() ?? "";
@@ -110,7 +126,8 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         var scale = _screen.Height / _referenceHeight;
         _sample.FontSize = ((double)(_size.Value ?? 0) is > 0 and var fontSize ? fontSize : _defaultSize) * scale;
         _sample.FontFamily = _font.SelectedIndex <= 0 ? FontFamily.Default : new FontFamily((string)_font.SelectedItem!);
-        if (Color.TryParse(_color.Text, out var color)) _sample.Foreground = new SolidColorBrush(color);
+        _colorError.IsVisible = !ValidColor();
+        if (ValidColor() && Color.TryParse(_color.Text, out var color)) _sample.Foreground = new SolidColorBrush(color);
         var margin = _customPosition is null ? Math.Min((double)(_margin.Value ?? 0) * scale, Math.Min(_screen.Width, _screen.Height) / 3) : 0;
         _sample.MaxWidth = Math.Max(1, _screen.Width - margin * 2 - _caption.Padding.Left - _caption.Padding.Right);
         _sample.InvalidateMeasure(); _caption.InvalidateMeasure();
@@ -118,6 +135,8 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         _caption.Measure(new Size(_screen.Width - margin * 2, double.PositiveInfinity));
         var size = _caption.DesiredSize; _caption.Width = size.Width; _caption.Height = size.Height;
         _margin.IsEnabled = _customPosition is null;
+        _positionText.IsVisible = _resetPosition.IsVisible = _customPosition is not null;
+        if (_customPosition is {} custom) _positionText.Text = Localization.Format($"X {custom.X * 100:0.#}% · Y {custom.Y * 100:0.#}%");
         double left, top;
         if (_customPosition is {} position)
         {
@@ -131,6 +150,8 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         Canvas.SetLeft(_caption, left); Canvas.SetTop(_caption, top);
         _captionLayer.InvalidateArrange();
     }
+
+    private bool ValidColor() => _color.Text?.Trim() is { Length: 7 } text && text[0] == '#' && text.Skip(1).All(Uri.IsHexDigit);
 
     private void FitPreview()
     {
@@ -150,7 +171,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
     }
     private static void Add(Panel fields, string label, Control control)
     {
-        var row = new Grid { ColumnDefinitions = new("48,*"), ColumnSpacing = 8 };
+        var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 8 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); fields.Children.Add(row);
     }
     public void Dispose() { _disposed = true; _videoSource?.Cancel(); _seekFrame?.Cancel(); _videoSource?.Dispose(); _seekFrame?.Dispose(); _frame.Source = null; _bitmap?.Dispose(); _bitmap = null; }

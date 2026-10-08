@@ -14,8 +14,6 @@ public sealed class DownloadSpeedMonitor : Border
     private readonly TextBlock _current = Value(15);
     private readonly TextBlock _peak = Value(12);
     private readonly TextBlock _average = Value(12);
-    private readonly TextBlock _cpu = Value(11);
-    private readonly TextBlock _gpu = Value(11);
     private readonly DownloadSpeedGraph _graph = new() { Height = 44 };
 
     public DownloadSpeedMonitor()
@@ -25,17 +23,12 @@ public sealed class DownloadSpeedMonitor : Border
         Bind(BorderBrushProperty, new DynamicResourceExtension("UiBorder"));
         ToolTip.SetTip(this, "曲线显示最近 60 秒的下载总速度；峰值与平均值按本轮下载统计，平均值包含停顿，不包含媒体整理。");
         AutomationProperties.SetName(this, "下载网速监控");
-        var layout = new Grid { RowDefinitions = new("Auto,Auto,Auto"), RowSpacing = 5 };
+        var layout = new Grid { RowDefinitions = new("Auto,Auto"), RowSpacing = 5 };
         var header = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 16 };
         AddMetric(header, 0, "下载", _current);
         AddMetric(header, 1, "峰值", _peak);
         AddMetric(header, 2, "平均", _average);
         layout.Children.Add(header); Grid.SetRow(_graph, 1); layout.Children.Add(_graph); Child = layout;
-        var resources = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
-        ToolTip.SetTip(resources, "CPU、GPU 为整机占用率，多显卡显示最高占用；无法读取时显示 —。");
-        AddResource(resources, 0, "CPU", _cpu); AddResource(resources, 1, "GPU", _gpu);
-        Grid.SetRow(resources, 2); layout.Children.Add(resources);
-        UpdateResources(default);
         Update(default, new double[60]);
     }
 
@@ -63,23 +56,6 @@ public sealed class DownloadSpeedMonitor : Border
         _average.Text = FormatSpeed(totals.Average);
         _graph.Update(history, totals.Average);
     }
-
-    private static void AddResource(Grid row, int column, string label, TextBlock value)
-    {
-        var metric = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var caption = new TextBlock { Text = label, FontSize = 11 };
-        caption.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiTextSecondary"));
-        metric.Children.Add(caption); metric.Children.Add(value);
-        Grid.SetColumn(metric, column); row.Children.Add(metric);
-    }
-
-    public void UpdateResources(SystemResourceUsage usage)
-    {
-        _cpu.Text = FormatUsage(usage.Cpu); _gpu.Text = FormatUsage(usage.Gpu);
-    }
-
-    private static string FormatUsage(double? value) => value is { } percent
-        ? percent.ToString("0", CultureInfo.InvariantCulture) + "%" : "—";
 
     private static string FormatSpeed(double speed)
     {

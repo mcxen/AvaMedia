@@ -27,13 +27,13 @@ public sealed class VideoCompressionEntry(string path) : Observable
         ? Localization.Text("预计输出不小于源视频；可降低码率或分辨率。") : "";
     public bool HasWarning => Warning.Length > 0;
     public string SourceSummary => Info is { } source
-        ? Localization.Format($"源视频：{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {Bytes / 1000000d:0.##} MB · {source.VideoCodec.ToUpperInvariant()}")
+        ? Localization.Format($"{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {Bytes / 1000000d:0.##} MB · {source.VideoCodec.ToUpperInvariant()}")
         : Loading ? Localization.Text("正在读取媒体信息…") : "";
     public bool HasColorChange => Color?.ToneMap == true;
     public string ColorSummary => HasColorChange ? Localization.Format($"{Color!.SourceLabel} → SDR（BT.709）；不保留 HDR 动态元数据。") : "";
     public string PlanSummary => Plan is not { } plan ? "" : plan.QualityDriven
-        ? Localization.Format($"画质优先 · 质量 {plan.Quality} · {plan.Width} × {plan.Height} · 体积由内容决定")
-        : Localization.Format($"预计 {plan.EstimatedBytes!.Value / 1000000d:0.##} MB · {plan.Width} × {plan.Height} · 视频 {plan.VideoBitrate} kbps · 音频 {plan.AudioBitrate} kbps");
+        ? Localization.Format($"输出 {plan.Width} × {plan.Height} · 质量 {plan.Quality}")
+        : Localization.Format($"预计 {plan.EstimatedBytes!.Value / 1000000d:0.##} MB · 输出 {plan.Width} × {plan.Height}");
     public void Refresh() => Raise(string.Empty);
 }
 
@@ -54,6 +54,7 @@ public partial class VideoCompressionWindow : Window
         InitializeComponent(); _engine = engine; WindowArtwork.SetKind(this, "gear");
         if (editing) { Title = "编辑视频压缩任务"; ConfirmButton.Content = "保存修改"; }
         SourceList.ItemsSource = _entries;
+        SourceList.SelectionChanged += (_, _) => RemoveButton.IsEnabled = SourceList.SelectedItems?.Count > 0;
         var options = VideoCompression.Effective(initial ?? new());
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = !_closed && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -62,9 +63,9 @@ public partial class VideoCompressionWindow : Window
             e.Handled = true;
             if (!_closed) await AddFilesAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>().Where(File.Exists) ?? []);
         }, RoutingStrategies.Bubble, handledEventsToo: true);
-        ModeInput.ItemsSource = new[] { "自动档（推荐）", "手动质量（画质优先）", "手动码率（体积可估）", "按原体积百分比", "按目标 MB" };
-        PresetInput.ItemsSource = new[] { "高 · 画质优先", "中 · 均衡（推荐）", "低 · 体积优先" };
-        SpeedInput.ItemsSource = new[] { "快 · 更快完成", "中 · 均衡速度", "慢 · 压缩效率优先" };
+        ModeInput.ItemsSource = new[] { "自动", "按画质", "按码率", "按原体积比例", "指定体积" };
+        PresetInput.ItemsSource = new[] { "高画质", "均衡", "小体积" };
+        SpeedInput.ItemsSource = new[] { "快速编码", "均衡", "慢速编码" };
         BitratePresetInput.ItemsSource = new[] { "自定义码率", "500 kbps", "1000 kbps（1 Mbps）", "2000 kbps（2 Mbps）",
             "4000 kbps（4 Mbps）", "8000 kbps（8 Mbps）", "12000 kbps（12 Mbps）", "20000 kbps（20 Mbps）" };
         FormatInput.ItemsSource = new[] { "MP4", "MOV（QuickTime）", "M4V（Apple 视频）", "MKV", "TS（MPEG-TS）" };
@@ -113,7 +114,8 @@ public partial class VideoCompressionWindow : Window
             };
         KeepAudioInput.IsCheckedChanged += (_, _) => Recalculate();
         GpuInput.IsCheckedChanged += (_, _) => Recalculate();
-        SourceFolderInput.IsCheckedChanged += (_, _) => UpdateOutput();
+        SourceFolderInput.IsCheckedChanged += (_, _) => { UpdateOutput(); Recalculate(); };
+        OutputInput.TextChanged += (_, _) => Recalculate();
         Opened += async (_, _) => await AddFilesAsync(files);
         Localization.Changed += LanguageChanged;
         Closed += (_, _) => { _closed = true; _lifetime.Cancel(); Localization.Changed -= LanguageChanged; };
@@ -221,7 +223,7 @@ public partial class VideoCompressionWindow : Window
             2 => "目标原体积 50% · 快速",
             _ => "目标原体积 70% · 中速"
         }, KeepAudioInput.IsChecked == true ? Localization.Format($"音频最高 {preset.AudioBitrate} kbps") : "移除声音"]);
-        OutputSummary.Text = Localization.Format($"输出：{(FormatInput.SelectedIndex >= 0 ? Formats[FormatInput.SelectedIndex].ToUpperInvariant() : "")} · {(CodecInput.SelectedIndex == 1 ? "HEVC" : "H.264")}");
+        OutputOptions.Header = Localization.Format($"输出参数 · {(FormatInput.SelectedIndex >= 0 ? Formats[FormatInput.SelectedIndex].ToUpperInvariant() : "")} · {(CodecInput.SelectedIndex == 1 ? "HEVC" : "H.264")}");
         ModeDescription.Text = Localization.Text(mode == VideoCompressionMode.Automatic
             ? "低码率时自动降低分辨率与音频码率"
             : VideoCompression.UsesQuality(mode)
@@ -241,12 +243,16 @@ public partial class VideoCompressionWindow : Window
             var pending = _entries.Count(entry => entry.Loading);
             var invalid = _entries.Count(entry => entry.HasError);
             var ready = _entries.Count(entry => entry.Plan is not null);
-            if (VideoCompression.UsesQuality(mode))
+            EmptyText.IsVisible = _entries.Count == 0;
+            RemoveInvalidButton.IsEnabled = invalid > 0;
+            if (_entries.Count == 0) TotalSummary.Text = "";
+            else if (VideoCompression.UsesQuality(mode))
                 Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 输出体积由内容决定");
             else Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 预计 {_entries.Sum(entry => entry.Plan?.EstimatedBytes ?? 0) / 1000000d:0.##} MB");
-            ValidationText.Text = _entries.Count == 0 ? "" : pending > 0 ? "正在读取…" :
-                invalid > 0 ? "请调整目标或移除有错误的视频。" : "";
-            ConfirmButton.IsEnabled = ready > 0 && ready == _entries.Count && pending == 0 && invalid == 0;
+            var hasFolder = SourceFolderInput.IsChecked == true || !string.IsNullOrWhiteSpace(OutputInput.Text);
+            ValidationText.Text = Localization.Text(_entries.Count == 0 ? "" : pending > 0 ? "正在读取…" :
+                invalid > 0 ? "请调整目标或移除有错误的视频。" : !hasFolder ? "请选择输出目录。" : "");
+            ConfirmButton.IsEnabled = ready > 0 && ready == _entries.Count && pending == 0 && invalid == 0 && hasFolder;
         }
         catch (Exception exception)
         {
@@ -266,6 +272,11 @@ public partial class VideoCompressionWindow : Window
     private void RemoveClick(object? sender, RoutedEventArgs args)
     {
         foreach (var entry in SourceList.SelectedItems?.OfType<VideoCompressionEntry>().ToArray() ?? []) _entries.Remove(entry);
+        Recalculate();
+    }
+    private void RemoveInvalidClick(object? sender, RoutedEventArgs args)
+    {
+        foreach (var entry in _entries.Where(entry => entry.HasError).ToArray()) _entries.Remove(entry);
         Recalculate();
     }
     private void LightClick(object? sender, RoutedEventArgs args) { PercentageInput.Value = 80; }
@@ -288,9 +299,10 @@ public partial class VideoCompressionWindow : Window
                 if (!File.Exists(entry.Path)) throw new FileNotFoundException("源视频已移走，请重新添加。", entry.Path);
                 _ = VideoCompression.Plan(new FileInfo(entry.Path).Length, entry.Info!, options);
             }
-            if (string.IsNullOrWhiteSpace(OutputInput.Text)) throw new ArgumentException("请选择输出目录。");
+            var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(_entries[0].Path)! : OutputInput.Text;
+            if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
             Close(new VideoCompressionRequest(_entries.Select(entry => entry.Path).ToArray(), options,
-                Path.GetFullPath(OutputInput.Text), SourceFolderInput.IsChecked == true, SettingNameInput.IsChecked == true));
+                Path.GetFullPath(folder), SourceFolderInput.IsChecked == true, SettingNameInput.IsChecked == true));
         }
         catch (Exception exception) { await Ui.Message(this, "压缩参数错误", exception.Message); }
     }

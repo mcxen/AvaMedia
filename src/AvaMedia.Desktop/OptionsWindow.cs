@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Platform.Storage;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
 
@@ -120,27 +121,60 @@ public sealed class OptionsWindow : Window
         {
             var subtitle=Page("字幕");
             string[] modes=input?["关闭","烧录到画面"]:["关闭","烧录到画面","保留源字幕轨","附加外部字幕轨"];
-            var mode=Ui.Combo(modes,SubtitleOptions.Mode(_draft) switch{SubtitleMode.BurnIn=>modes[1],SubtitleMode.Preserve when !input=>modes[2],SubtitleMode.ExternalTrack when !input=>modes[3],_=>modes[0]});mode.Name="SubtitleModeCombo";Add(subtitle,"字幕处理",mode);
+            var mode=Ui.Combo(modes,SubtitleOptions.Mode(_draft) switch{SubtitleMode.BurnIn=>modes[1],SubtitleMode.Preserve when !input=>modes[2],SubtitleMode.ExternalTrack when !input=>modes[3],_=>modes[0]});
+            mode.Name="SubtitleModeCombo";Add(subtitle,"字幕处理",mode);
             _readers.Add(o=>o.SubtitleMode=mode.SelectedIndex switch{1=>SubtitleMode.BurnIn,2=>SubtitleMode.Preserve,3=>SubtitleMode.ExternalTrack,_=>SubtitleMode.None});
-            var filePanel=new StackPanel{Spacing=12};var trackPanel=new StackPanel{Spacing=12};var languagePanel=new StackPanel{Spacing=12};var burnPanel=new StackPanel{Spacing=12};
-            subtitle.Children.Add(filePanel);subtitle.Children.Add(trackPanel);subtitle.Children.Add(languagePanel);subtitle.Children.Add(burnPanel);
-            var box=Ui.Input(_draft.Subtitle);box.Name="SubtitlePath";var row=new Grid{ColumnDefinitions=new("*,Auto"),ColumnSpacing=8};row.Children.Add(box);
-            var browse=new Button{Content="浏览…",Classes={"field-action"}};browse.Click+=async(_,_)=>{if((await Ui.Pick(this,"选择字幕文件",false)).FirstOrDefault() is {} path){box.Text=path;if(mode.SelectedIndex==0)mode.SelectedIndex=1;}};Grid.SetColumn(browse,1);row.Children.Add(browse);Add(filePanel,"外部字幕文件",row);_readers.Add(o=>o.Subtitle=mode.SelectedIndex is 1 or 3?box.Text?.Trim()??"":"");
-            Number(trackPanel,"字幕轨索引 (-1 = 默认/全部)",_draft.SubtitleStreamIndex,(o,v)=>o.SubtitleStreamIndex=(int)v,true,-1,255);
-            var language=Ui.Input(_draft.SubtitleLanguage);language.Name="SubtitleLanguage";Add(languagePanel,"轨道语言 (如 zho、eng)",language);_readers.Add(o=>{if(languagePanel.IsVisible)o.SubtitleLanguage=language.Text?.Trim()??"";});
-            var style=new SubtitleStyleEditor(_draft,288);_subtitleStyle=style;burnPanel.Children.Add(style);
+            var sourcePanel=new StackPanel{Spacing=12};var filePanel=new StackPanel{Spacing=12};
+            var trackPanel=new StackPanel{Spacing=8};var languagePanel=new StackPanel{Spacing=12};
+            subtitle.Children.Add(sourcePanel);subtitle.Children.Add(filePanel);subtitle.Children.Add(trackPanel);subtitle.Children.Add(languagePanel);
+            var source=Ui.Combo(["源字幕轨","外部文件"],string.IsNullOrWhiteSpace(_draft.Subtitle)?"源字幕轨":"外部文件");
+            source.Name="SubtitleSource";Add(sourcePanel,"字幕来源",source);
+            var box=Ui.Input(_draft.Subtitle);box.Name="SubtitlePath";box.Watermark="选择字幕文件";
+            var row=new Grid{ColumnDefinitions=new("*,Auto"),ColumnSpacing=8};row.Children.Add(box);
+            var browse=new Button{Content="浏览…",Classes={"field-action"}};
+            browse.Click+=async(_,_)=>
+            {
+                var picked=await StorageProvider.OpenFilePickerAsync(new(){Title=Localization.Text("选择字幕文件"),AllowMultiple=false,
+                    FileTypeFilter=[new Avalonia.Platform.Storage.FilePickerFileType(Localization.Text("字幕文件")){Patterns=["*.srt","*.ass","*.ssa","*.vtt"]}]});
+                if(picked.FirstOrDefault()?.TryGetLocalPath() is {} path){box.Text=path;source.SelectedIndex=1;if(mode.SelectedIndex==0)mode.SelectedIndex=1;}
+            };
+            Grid.SetColumn(browse,1);row.Children.Add(browse);Add(filePanel,"字幕文件",row);
+            _readers.Add(o=>
+            {
+                var external=mode.SelectedIndex==3 || mode.SelectedIndex==1 && source.SelectedIndex==1;
+                o.Subtitle=external?box.Text?.Trim()??"":"";
+                if(external && o.Subtitle.Length==0)throw new ArgumentException("请选择字幕文件。");
+            });
+            var defaultTrack=new CheckBox{Name="SubtitleDefaultTrack",IsChecked=_draft.SubtitleStreamIndex==-1};trackPanel.Children.Add(defaultTrack);
+            var track=new NumericUpDown{Name="SubtitleStreamIndex",Minimum=0,Maximum=255,Value=Math.Max(0,_draft.SubtitleStreamIndex),Increment=1,FormatString="0"};
+            ToolTip.SetTip(track,"从 0 开始");Add(trackPanel,"字幕轨索引",track);
+            _readers.Add(o=>
+            {
+                if(!trackPanel.IsVisible)return;
+                if(defaultTrack.IsChecked==true){o.SubtitleStreamIndex=-1;return;}
+                if(track.Value is not {} value || DataValidationErrors.GetHasErrors(track) || value<0 || value>255 || value!=decimal.Truncate(value))
+                    throw new ArgumentException("请选择有效的字幕轨索引。");
+                o.SubtitleStreamIndex=(int)value;
+            });
+            var language=Ui.Input(_draft.SubtitleLanguage);language.Name="SubtitleLanguage";language.Watermark="zho / eng";
+            Add(languagePanel,"轨道语言",language);_readers.Add(o=>{if(languagePanel.IsVisible)o.SubtitleLanguage=language.Text?.Trim()??"";});
+            var style=new SubtitleStyleEditor(_draft,288);_subtitleStyle=style;
+            var burnPanel=new Expander{Header="字幕样式",Content=style,IsExpanded=true,HorizontalAlignment=HorizontalAlignment.Stretch};subtitle.Children.Add(burnPanel);
             _readers.Add(o=>{if(burnPanel.IsVisible)style.ReadInto(o);});
-            var note=Ui.Text("外部文件留空时使用源字幕；字幕轨 -1 在烧录时选第一条，在保留时选全部。","caption");subtitle.Children.Add(note);
             var previewStarted=false;
             void RefreshSubtitleFields()
             {
-                filePanel.IsVisible=mode.SelectedIndex is 1 or 3;trackPanel.IsVisible=mode.SelectedIndex is 1 or 2;
+                sourcePanel.IsVisible=mode.SelectedIndex==1;
+                filePanel.IsVisible=mode.SelectedIndex==3 || mode.SelectedIndex==1 && source.SelectedIndex==1;
+                trackPanel.IsVisible=mode.SelectedIndex==2 || mode.SelectedIndex==1 && source.SelectedIndex==0;
                 languagePanel.IsVisible=mode.SelectedIndex is 2 or 3;burnPanel.IsVisible=mode.SelectedIndex==1;
-                note.IsVisible=mode.SelectedIndex is 1 or 2;
+                defaultTrack.Content=Localization.Text(mode.SelectedIndex==2?"全部字幕轨":"第一条字幕轨");
+                track.IsEnabled=defaultTrack.IsChecked!=true;
                 if(burnPanel.IsVisible && !previewStarted && _previewEngine is not null && _previewSource is not null)
                 {previewStarted=true;_=style.SetVideoAsync(_previewEngine,_previewSource,_draft.VideoStreamIndex);}
             }
-            mode.SelectionChanged+=(_,_)=>RefreshSubtitleFields();RefreshSubtitleFields();
+            mode.SelectionChanged+=(_,_)=>RefreshSubtitleFields();source.SelectionChanged+=(_,_)=>RefreshSubtitleFields();
+            defaultTrack.IsCheckedChanged+=(_,_)=>RefreshSubtitleFields();RefreshSubtitleFields();
         }
         if(!input)
         {
