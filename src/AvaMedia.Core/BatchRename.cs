@@ -32,7 +32,9 @@ public static partial class BatchRename
 
     private static void ValidateStem(string stem)
     {
-        if (string.IsNullOrWhiteSpace(stem) || stem.Length > 220 || !OperatingSystem.IsWindows() && System.Text.Encoding.UTF8.GetByteCount(stem) > 255 || stem.EndsWith('.') || stem.EndsWith(' ') || stem is "." or ".." || stem.Any(c => c < 32 || "<>:\"/\\|?*".Contains(c)))
+        if (stem.Length > 220 || !OperatingSystem.IsWindows() && System.Text.Encoding.UTF8.GetByteCount(stem) > 255)
+            throw new ArgumentException("文件名过长，请缩短名称。");
+        if (string.IsNullOrWhiteSpace(stem) || stem.EndsWith('.') || stem.EndsWith(' ') || stem is "." or ".." || stem.Any(c => c < 32 || "<>:\"/\\|?*".Contains(c)))
             throw new ArgumentException($"文件名无效：{stem}");
         var first = stem.Split('.')[0].ToUpperInvariant();
         if (first is "CON" or "PRN" or "AUX" or "NUL" || first.Length == 4 && (first.StartsWith("COM") || first.StartsWith("LPT")) && first[3] is >= '0' and <= '9')

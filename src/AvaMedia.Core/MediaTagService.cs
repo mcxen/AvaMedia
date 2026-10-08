@@ -74,8 +74,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         foreach (var label in labels)
         {
             try { BatchRename.ValidateRenameKeyword(label); } catch (ArgumentException) { continue; }
-            if (selected.Sum(item => item.Length) + selected.Count + label.Length > 100) continue;
-            selected.Add(label); if (selected.Count == 3) break;
+            selected.Add(label);
         }
         return string.Join('_', selected);
     }

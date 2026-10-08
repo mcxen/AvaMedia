@@ -28,7 +28,7 @@ public sealed partial class MediaAiWindow
         {
             _libraryCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.JoyTag);
             _libraryError = null;
-            _librarySummary.Text = Localization.Format($"词库候选 {_libraryCandidates.Length} 个 · 命名取最高分的 3 个");
+            _librarySummary.Text = Localization.Format($"词库候选 {_libraryCandidates.Length} 个 · 使用全部达标标签");
         }
         catch (Exception error) { _libraryError = error.Message; _libraryCandidates = []; _librarySummary.Text = "词库读取失败：" + error.Message; }
     }

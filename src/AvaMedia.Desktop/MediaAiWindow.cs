@@ -228,7 +228,7 @@ public sealed partial class MediaAiWindow : Window
         if (result.FallbackReason is { } reason) entry.Status += " · " + Localization.Text("已回退 CPU") + ": " + reason;
         var threshold = Number(_threshold);
         entry.Details = string.Join(" · ", result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
-            .Take(20).Select(score => $"{score.Tag} {score.Score:0.00}"));
+            .Select(score => $"{score.Tag} {score.Score:0.00}"));
     }
     private void Match()
     {

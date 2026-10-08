@@ -155,7 +155,13 @@ public static partial class BatchRename
             _ => throw new ArgumentException("未知的命名字段：" + match.Value)
         }, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
     }
-    private static string Keyword(string? value) { ValidateRenameKeyword(value ?? ""); return value!; }
+    private static string Keyword(string? value)
+    {
+        var keyword = value ?? "";
+        if (keyword.Contains('{') || keyword.Contains('}')) throw new ArgumentException("命名关键词不能包含花括号。");
+        ValidateStem(keyword);
+        return keyword;
+    }
     private static string ChangeCase(string text, RenameCase mode) => mode switch
     {
         RenameCase.Lower => text.ToLowerInvariant(), RenameCase.Upper => text.ToUpperInvariant(),

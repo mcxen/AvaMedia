@@ -1876,7 +1876,7 @@
   "尚未选择词库候选": "No library candidates selected",
   "选择词库 / 类别…": "Select word library / category…",
   "在「选项 → 词库管理」编辑；下方可补充关键词。": "Edit in Options → Word libraries. Add extra keywords below.",
-  "词库候选 {0} 个 · 命名取最高分的 3 个": "{0} library candidates · Names use the top 3 matches",
+  "词库候选 {0} 个 · 使用全部达标标签": "{0} library candidates · Use all matching tags",
   "词库候选 {0} 个": "{0} library candidates",
   "视频瘦身": "Video slimming",
   "编辑视频瘦身任务": "Edit video slimming task",
@@ -2085,6 +2085,8 @@
   "错误": "Error",
   "预览已停止": "Preview stopped",
   "首字母大写": "Sentence case",
+  "命名关键词不能包含花括号。": "Naming keywords cannot contain braces.",
+  "文件名过长，请缩短名称。": "The filename is too long. Shorten the name.",
   "图片 / 视频 · 组合规则与名称预览": "Images / Videos · Ordered rules and filename preview",
   "{0} 个文件 · 图片 {1} · 视频 {2} · 勾选 {3} 个": "{0} files · {1} images · {2} videos · {3} checked",
   "将修改 {0} 个 · 错误 {1} 个": "{0} changes · {1} errors"
