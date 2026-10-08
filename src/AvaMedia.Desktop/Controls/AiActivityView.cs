@@ -66,7 +66,7 @@ public sealed class AiActivityView : Border
         var quantified = activity.Total is > 0 && activity.Current is not null;
         var count = quantified ? activity.Unit switch
         {
-            "秒" => $"{MediaTime.Format(activity.Current!.Value)} / {MediaTime.Format(activity.Total!.Value)}",
+            "秒" => $"{AiActivity.FormatElapsed(activity.Current!.Value)} / {AiActivity.FormatElapsed(activity.Total!.Value)}",
             "字节" => $"{Size(activity.Current!.Value)} / {Size(activity.Total!.Value)}",
             "%" => $"{activity.Current:0}%",
             _ => $"{activity.Current:0} / {activity.Total:0} {Localization.Text(activity.Unit)}"
@@ -96,7 +96,7 @@ public sealed class AiActivityView : Border
     {
         if (_activity is not { } activity) return;
         var now = activity.State == AiActivityState.Running ? DateTime.UtcNow : activity.UpdatedUtc;
-        var elapsed = MediaTime.Format(Math.Max(0, (now - activity.StartedUtc).TotalSeconds));
+        var elapsed = AiActivity.FormatElapsed((now - activity.StartedUtc).TotalSeconds);
         var quiet = Math.Max(0, (now - activity.UpdatedUtc).TotalSeconds);
         _clock.Text = Localization.Format($"已用时 {elapsed}") + (activity.State == AiActivityState.Running && quiet >= 10
             ? " · " + Localization.Format($"最近进展 {quiet:0} 秒前") : "");

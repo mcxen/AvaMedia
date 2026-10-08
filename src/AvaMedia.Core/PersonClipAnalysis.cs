@@ -157,7 +157,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
         foreach (var segment in segments) activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", segments.Length);
         activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
-        activity.Stage("分析完成", detail: $"{segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
+        activity.Stage("分析完成", detail: $"保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
         activity.Finish("分析完成");
         return new PersonClipResult(path, info, segments, samples.Count, samples.Count(frame => frame.Uncertain),
             inferredFrames, boundaryFrames, session.Backend);

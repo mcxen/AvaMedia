@@ -7,6 +7,12 @@ public enum AiActivityState { Running, Completed, Cancelled, Failed }
 /// <summary>Transient, bounded observations of actual work; never serialized into the queue.</summary>
 public sealed record AiActivity(string Stage, string Model, DateTime StartedUtc, DateTime UpdatedUtc)
 {
+    /// <summary>Human-readable progress time; editing and subtitle boundaries retain their own precision.</summary>
+    public static string FormatElapsed(double seconds)
+    {
+        var whole = (long)Math.Clamp(double.IsFinite(seconds) ? Math.Floor(seconds) : 0, 0, long.MaxValue / 2);
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{whole / 3600:00}:{whole / 60 % 60:00}:{whole % 60:00}");
+    }
     public string Backend { get; init; } = "";
     public string Detail { get; init; } = "";
     public double? Current { get; init; }
@@ -39,7 +45,7 @@ public sealed class AiActivityReporter(Action<AiActivity> report, string model, 
         {
             Stage = stage, Current = current, Total = total, Unit = unit, Detail = detail,
             RecentStages = value.Stage == stage ? value.RecentStages : value.RecentStages.TakeLast(11)
-                .Append($"{MediaTime.Format(Math.Max(0, (DateTime.UtcNow - value.StartedUtc).TotalSeconds))} · {stage}").ToArray()
+                .Append($"{AiActivity.FormatElapsed((DateTime.UtcNow - value.StartedUtc).TotalSeconds)} · {stage}").ToArray()
         });
     public void Advance(double current, double total, string unit, string? detail = null) =>
         Publish(value => value with { Current = current, Total = total, Unit = unit, Detail = detail ?? value.Detail });
@@ -56,7 +62,7 @@ public sealed class AiActivityReporter(Action<AiActivity> report, string model, 
         {
             Stage = stage, State = AiActivityState.Completed, Current = null, Total = null, Unit = "",
             RecentStages = value.Stage == stage ? value.RecentStages : value.RecentStages.TakeLast(11)
-                .Append($"{MediaTime.Format(Math.Max(0, (DateTime.UtcNow - value.StartedUtc).TotalSeconds))} · {stage}").ToArray()
+                .Append($"{AiActivity.FormatElapsed((DateTime.UtcNow - value.StartedUtc).TotalSeconds)} · {stage}").ToArray()
         });
     }
 }
