@@ -11,12 +11,20 @@ public partial class PlayerWindow
     private readonly HashSet<Key> _pressedKeys = [];
     private bool _keyboardNavigation;
     private ContextMenu? _openMenu;
+    private IPointer? _chromePointer;
+    private Avalonia.Point? _lastPointerPosition;
 
     private void InitializeKeyboard()
     {
         AddHandler(KeyDownEvent, KeyPressed, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, KeyReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
-        AddHandler(PointerPressedEvent, (_, _) => _keyboardNavigation = false, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            _chromePointer = e.Pointer;
+            _keyboardNavigation = false;
+            ShowChrome();
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, (_, _) => ShowChrome(), RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(GotFocusEvent, (_, e) =>
         {
             if (e.NavigationMethod is NavigationMethod.Tab or NavigationMethod.Directional) _keyboardNavigation = true;
@@ -30,7 +38,7 @@ public partial class PlayerWindow
     private void KeyPressed(object? sender, KeyEventArgs e)
     {
         var repeated = !_pressedKeys.Add(e.Key);
-        _keyboardNavigation = true;
+        if (e.Key == Key.Tab) _keyboardNavigation = true;
         ShowChrome(); // Reveal the controls before Tab navigation chooses its next target.
         var source = e.Source as Control ?? FocusManager?.GetFocusedElement() as Control;
         if (_openMenu?.IsOpen == true || Within<MenuItem>(source)) return;
@@ -56,7 +64,7 @@ public partial class PlayerWindow
                 || e.KeyModifiers == KeyModifiers.None && e.Key >= Key.A && e.Key <= Key.Z) return;
         }
         if (Within<Slider>(source) && IsNavigationKey(e.Key) && e.KeyModifiers == KeyModifiers.None) return;
-        if (Within<Button>(source) && e.Key is (Key.Space or Key.Enter) && e.KeyModifiers == KeyModifiers.None)
+        if (_keyboardNavigation && Within<Button>(source) && e.Key is (Key.Space or Key.Enter) && e.KeyModifiers == KeyModifiers.None)
         {
             if (repeated) e.Handled = true;
             return;
@@ -100,13 +108,25 @@ public partial class PlayerWindow
 
     private void HideChrome()
     {
-        _chromeTimer.Stop();
-        if (WindowState != WindowState.FullScreen || ShortcutHelp.IsVisible || PlaylistPanel.IsVisible || VrPanel.IsVisible || PanoramaImage.IsDragging
+        if (WindowState != WindowState.FullScreen) { _chromeTimer.Stop(); return; }
+        var captured = _chromePointer?.Captured as Control;
+        if (ShortcutHelp.IsVisible || PlaylistPanel.IsVisible || VrPanel.IsVisible || PanoramaImage.IsDragging
+            || ControlsBar.IsPointerOver || captured == ControlsBar || captured?.GetVisualAncestors().Contains(ControlsBar) == true
             || _openMenu?.IsOpen == true || _keyboardNavigation && ControlsBar.IsKeyboardFocusWithin) return;
         if (ControlsBar.IsKeyboardFocusWithin) VideoArea.Focus(NavigationMethod.Pointer);
         _chromeTimer.Stop();
         ControlsBar.IsVisible = false;
         Cursor = new(StandardCursorType.None);
+    }
+
+    private void PlayerPointerMoved(object? sender, PointerEventArgs e)
+    {
+        _chromePointer = e.Pointer;
+        var position = e.GetPosition(this);
+        if (_lastPointerPosition == position) return;
+        _lastPointerPosition = position;
+        _keyboardNavigation = false;
+        ShowChrome();
     }
 
     private void OpenMenu(ContextMenu menu, Control target)
@@ -120,7 +140,17 @@ public partial class PlayerWindow
             if (!ReferenceEquals(_openMenu, menu)) return;
             _openMenu = null;
             // The popup finishes restoring focus after Closed has been raised.
-            Dispatcher.UIThread.Post(() => { if (!_closed) ShowChrome(); });
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_closed || _openMenu is not null) return;
+                var focused = FocusManager?.GetFocusedElement() as Control;
+                if (focused == target || Within<MenuItem>(focused))
+                {
+                    _keyboardNavigation = false;
+                    VideoArea.Focus(NavigationMethod.Pointer);
+                }
+                ShowChrome();
+            });
         };
         ShowChrome();
         menu.Open(target);

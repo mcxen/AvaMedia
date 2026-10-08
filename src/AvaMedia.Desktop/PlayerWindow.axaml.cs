@@ -3,6 +3,7 @@ using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
@@ -85,7 +86,7 @@ public partial class PlayerWindow : Window
             if (e.ClickCount == 2) { ToggleFullscreen(); e.Handled = true; }
         };
         VideoArea.PointerWheelChanged += (_, e) => { if (IsPlayerOverlay(e.Source)) return; PlayerVolume.Value = Math.Clamp(PlayerVolume.Value + e.Delta.Y * 5, 0, 100); e.Handled = true; };
-        PointerMoved += (_, _) => ShowChrome();
+        AddHandler(PointerMovedEvent, PlayerPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
         _chromeTimer.Tick += (_, _) => HideChrome();
         _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); PlayerOsd.IsVisible = false; };
         ActualThemeVariantChanged += (_, _) => ShowChrome();
@@ -316,7 +317,7 @@ public partial class PlayerWindow : Window
             case PlayerCommand.NextFile: await ChangeFile(1); break;
             case PlayerCommand.Open: await Pick(); break;
             case PlayerCommand.Stop: await SeekAsync(0, false); break;
-            case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; break;
+            case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; ShowChrome(); break;
             case PlayerCommand.Playlist: TogglePlaylist(); break;
             case PlayerCommand.Settings: OpenMenu(BuildMenu(), PlayerSettingsButton); break;
             case PlayerCommand.CaptureFrame: await CaptureFrameAsync(); break;
@@ -330,7 +331,13 @@ public partial class PlayerWindow : Window
     public void ToggleFullscreen()
     {
         if (WindowState == WindowState.FullScreen) WindowState = _windowedState;
-        else { if (HeaderBar.IsKeyboardFocusWithin) VideoArea.Focus(); _windowedState = WindowState; WindowState = WindowState.FullScreen; }
+        else
+        {
+            _keyboardNavigation = false;
+            VideoArea.Focus(NavigationMethod.Pointer);
+            _windowedState = WindowState;
+            WindowState = WindowState.FullScreen;
+        }
         Avalonia.Automation.AutomationProperties.SetName(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
         ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏（Enter / Esc）" : "全屏（Enter / 双击画面）");
         ShowChrome();
@@ -339,7 +346,19 @@ public partial class PlayerWindow : Window
         .Any(ancestor => ancestor == VrPanel || ancestor == PlaylistPanel || ancestor == ShortcutHelp);
 
     private void ShowChrome()
-    { HeaderBar.IsVisible = WindowState != WindowState.FullScreen && !Skin.UsesCustomChrome(ActualThemeVariant); ControlsBar.IsVisible = true; SetPosition(_position); Cursor = Cursor.Default; _chromeTimer.Stop(); if (WindowState == WindowState.FullScreen) _chromeTimer.Start(); }
+    {
+        var fullscreen = WindowState == WindowState.FullScreen;
+        HeaderBar.IsVisible = !fullscreen && !Skin.UsesCustomChrome(ActualThemeVariant);
+        // Overlay the fullscreen picture so hiding controls does not resize it or generate pointer movement.
+        var overlay = fullscreen && !PlaylistPanel.IsVisible && !VrPanel.IsVisible && !ShortcutHelp.IsVisible;
+        Grid.SetRow(ControlsBar, overlay ? 1 : 2);
+        ControlsBar.VerticalAlignment = overlay ? VerticalAlignment.Bottom : VerticalAlignment.Stretch;
+        ControlsBar.IsVisible = true;
+        SetPosition(_position);
+        Cursor = Cursor.Default;
+        _chromeTimer.Stop();
+        if (fullscreen) _chromeTimer.Start();
+    }
     public void SetConfirmDeletion(bool value)
     { var settings = _preferences.LoadSettings(); settings.ConfirmPlayerDeletion = value; _preferences.SaveSettings(settings); ConfirmDeletion = value; }
     public async Task DeleteCurrentAsync()
