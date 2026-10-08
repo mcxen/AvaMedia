@@ -15,13 +15,15 @@ public sealed class OptionsWindow : Window
     private readonly string _format;
     private readonly bool _allowAllAudioStreams;
     private readonly int? _imageQualityDefault;
+    private readonly IMediaEngine? _previewEngine;
+    private readonly string? _previewSource;
     private readonly List<Action<ConversionOptions>> _readers = [];
     private ConversionOptions _draft;
     private SubtitleStyleEditor? _subtitleStyle;
-    public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null)
+    public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null, IMediaEngine? previewEngine=null, string? previewSource=null)
     {
         Title="输出配置";Width=760;Height=660;MinWidth=550;MinHeight=420;WindowStartupLocation=WindowStartupLocation.CenterOwner;
-        _draft=options.Clone();_copyMode=copyStreamsMode;_kind=kind;_format=options.Format;_presets=presetStorage??new();_allowAllAudioStreams=allowAllAudioStreams;_imageQualityDefault=imageQualityDefault;Build();
+        _draft=options.Clone();_copyMode=copyStreamsMode;_kind=kind;_format=options.Format;_presets=presetStorage??new();_allowAllAudioStreams=allowAllAudioStreams;_imageQualityDefault=imageQualityDefault;_previewEngine=previewEngine;_previewSource=previewSource;Build();
         Closed+=(_,_)=>_subtitleStyle?.Dispose();
     }
     public ConversionOptions ReadOptions()
@@ -129,11 +131,14 @@ public sealed class OptionsWindow : Window
             var style=new SubtitleStyleEditor(_draft,288);_subtitleStyle=style;burnPanel.Children.Add(style);
             _readers.Add(o=>{if(burnPanel.IsVisible)style.ReadInto(o);});
             var note=Ui.Text("外部文件留空时使用源字幕；字幕轨 -1 在烧录时选第一条，在保留时选全部。","caption");subtitle.Children.Add(note);
+            var previewStarted=false;
             void RefreshSubtitleFields()
             {
                 filePanel.IsVisible=mode.SelectedIndex is 1 or 3;trackPanel.IsVisible=mode.SelectedIndex is 1 or 2;
                 languagePanel.IsVisible=mode.SelectedIndex is 2 or 3;burnPanel.IsVisible=mode.SelectedIndex==1;
                 note.IsVisible=mode.SelectedIndex is 1 or 2;
+                if(burnPanel.IsVisible && !previewStarted && _previewEngine is not null && _previewSource is not null)
+                {previewStarted=true;_=style.SetVideoAsync(_previewEngine,_previewSource,_draft.VideoStreamIndex);}
             }
             mode.SelectionChanged+=(_,_)=>RefreshSubtitleFields();RefreshSubtitleFields();
         }

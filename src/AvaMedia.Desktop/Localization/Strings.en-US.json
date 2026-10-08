@@ -1,4 +1,8 @@
 {
+  "字幕预览": "Subtitle preview",
+  "拖动字幕调整位置": "Drag subtitles to adjust their position",
+  "预览时间": "Preview time",
+  "请输入视频时长内的预览时间。": "Enter a preview time within the video duration.",
   "片段 {0}": "Segment {0}",
   "{0} 个片段": "{0} segments",
   "总输出时长：{0}": "Total output duration: {0}",

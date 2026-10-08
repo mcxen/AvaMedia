@@ -29,8 +29,7 @@ public sealed class SpeechToolsWindow : Window
     private readonly Button _confirm;
     private readonly CancellationTokenSource _lifetime = new();
     private bool _busy;
-    private int _previewRevision;
-    public Task PreviewReady { get; private set; } = Task.CompletedTask;
+    public Task PreviewReady => _style.PreviewReady;
 
     public SpeechToolsWindow(IMediaEngine engine, Feature feature, string outputFolder, IEnumerable<string>? files = null, ConversionOptions? options = null, bool editing = false)
     {
@@ -46,14 +45,18 @@ public sealed class SpeechToolsWindow : Window
         var add = new Button { Content = "添加文件…", Classes = { "field-action" } };
         add.Click += async (_, _) => { if (!_busy) AddFiles(await Ui.Pick(this, "选择音视频文件", true)); }; toolbar.Children.Add(add);
         var remove = new Button { Content = "移除", IsEnabled = false, Classes = { "field-action" } };
-        remove.Click += (_, _) => { if (!_busy && _sources.SelectedItem is string path) _files.Remove(path); Refresh(); }; toolbar.Children.Add(remove);
+        remove.Click += (_, _) => { if (!_busy && _sources.SelectedItem is string path) _files.Remove(path); if (_sources.SelectedItem is null && _files.Count > 0) _sources.SelectedIndex = 0; Refresh(); }; toolbar.Children.Add(remove);
         source.Children.Add(toolbar);
         _sources.ItemsSource = _files;
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
         {
             var text = Ui.Text(Path.GetFileName(path!)); Localization.SetIsUserText(text, true); ToolTip.SetTip(text, path); return text;
         });
-        _sources.SelectionChanged += (_, _) => { remove.IsEnabled = !_busy && _sources.SelectedItem is not null; PreviewReady = LoadPreviewAsync(); };
+        _sources.SelectionChanged += (_, _) =>
+        {
+            remove.IsEnabled = !_busy && _sources.SelectedItem is not null;
+            if (_transcribe && _style is not null) _ = _style.SetVideoAsync(_engine, _sources.SelectedItem as string, _initial.VideoStreamIndex, _lifetime.Token);
+        };
         source.Children.Add(_sources);
         var fields = new StackPanel { Spacing = 14 }; Grid.SetRow(fields, 1);
         root.Children.Add(new ScrollViewer { Content = fields, [Grid.RowProperty] = 1 });
@@ -151,21 +154,6 @@ public sealed class SpeechToolsWindow : Window
         if (_confirm is not null) _confirm.IsEnabled = !_busy && _files.Count > 0;
         if (_style is not null) _style.IsVisible = _transcribe && _output.SelectedIndex != 2;
         if (_voice is not null) _voice.IsVisible = !_transcribe || _output.SelectedIndex is 0 or 1;
-    }
-
-    private async Task LoadPreviewAsync()
-    {
-        var revision = ++_previewRevision;
-        if (!_transcribe || _sources.SelectedItem is not string path) return;
-        try
-        {
-            var info = await _engine.Probe(path, _lifetime.Token);
-            if (!info.HasVideo) return;
-            var frame = await _engine.Thumbnail(path, Math.Min(1, info.Duration / 2), 640, 360, _lifetime.Token, pad: false);
-            if (!_lifetime.IsCancellationRequested && revision == _previewRevision) _style.SetFrame(frame, info.Width, info.Height);
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception error) { if (!_lifetime.IsCancellationRequested && revision == _previewRevision) _notice.Text = Localization.Format($"预览失败：{error.Message}"); }
     }
 
     private static void Add(Panel panel, string label, Control control)

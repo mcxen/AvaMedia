@@ -274,7 +274,7 @@ public partial class EditorWindow : Window
         try
         {
             var draft=ReadDraft();var kind=QuickWorkflow?MediaOptionsKind.ClipEdit:_mode is "input" or "input-audio"?(_info?.HasVideo==true&&!AudioEditing?MediaOptionsKind.InputVideo:MediaOptionsKind.InputAudio):_mode=="frames"?MediaOptionsKind.Frames:MediaEngine.IsAudio(draft.Format)?MediaOptionsKind.Audio:MediaEngine.IsImage(draft.Format)?MediaOptionsKind.Image:MediaOptionsKind.Video;
-            var result=await new OptionsWindow(draft,kind:kind).ShowDialog<ConversionOptions?>(this);
+            var result=await new OptionsWindow(draft,kind:kind,previewEngine:_engine,previewSource:_path).ShowDialog<ConversionOptions?>(this);
             if(result is not null){var tracksChanged=result.VideoStreamIndex!=_options.VideoStreamIndex || result.AudioStreamIndex!=_options.AudioStreamIndex;if(tracksChanged)await _engine.Probe(_path,_lifetime.Token,result.VideoStreamIndex,result.AudioStreamIndex);_options=result;if(tracksChanged){ClearDirectionDetection();await _player.Stop();await _audioReady;await Load();}if(_info is not null && _options.End==0)_options.End=_info.Duration;RefreshOptionControls();UpdateTimes();LoadRegion();SyncDirectionControls();}
         }catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
     }

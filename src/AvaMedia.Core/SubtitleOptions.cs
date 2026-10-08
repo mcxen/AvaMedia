@@ -16,6 +16,10 @@ public static class SubtitleOptions
             throw new ArgumentException("轨道索引必须为非负整数；字幕 -1 表示默认/全部。");
         if (o.SubtitleFontSize is < 0 or > 200 || o.SubtitleAlignment is < 1 or > 9 || o.SubtitleMargin is < 0 or > 2000)
             throw new ArgumentException("字幕字体大小、位置或边距超出允许范围。");
+        if (o.SubtitlePositionX.HasValue != o.SubtitlePositionY.HasValue
+            || o.SubtitlePositionX is {} x && (!double.IsFinite(x) || x < 0 || x > 1)
+            || o.SubtitlePositionY is {} y && (!double.IsFinite(y) || y < 0 || y > 1))
+            throw new ArgumentException("字幕位置必须位于视频画面内。");
         if (!Regex.IsMatch(o.SubtitleColor, "^#[0-9a-fA-F]{6}$") || o.SubtitleFont.Any(c => char.IsControl(c) || ",=;:'\\[]".Contains(c)))
             throw new ArgumentException("字幕颜色需为 #RRGGBB，字体名称不能包含滤镜分隔符。");
         if (o.SubtitleLanguage.Length > 0 && !Regex.IsMatch(o.SubtitleLanguage, "^[a-zA-Z]{3}$"))

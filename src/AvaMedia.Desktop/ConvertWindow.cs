@@ -82,7 +82,7 @@ public sealed class ConvertWindow : Window
                 var single=!ConversionBatch.IsGrouped(feature)&&_entries.Count==1;
                 var current=single?_entries[0].Options??_options:_options;
                 var draft=SelectOutput(current,feature,selection,_entries.FirstOrDefault()?.Path??"");
-                var dialog=new OptionsWindow(draft,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:draft.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality);
+                var dialog=new OptionsWindow(draft,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:draft.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality,previewEngine:engine,previewSource:_entries.FirstOrDefault()?.Path);
                 var changed=await dialog.ShowDialog<ConversionOptions?>(this);
                 if(changed is null)return;
                 _options=SelectOutput(changed,feature,selection,_entries.FirstOrDefault()?.Path??"");

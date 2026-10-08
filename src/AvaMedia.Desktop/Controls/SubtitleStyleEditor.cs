@@ -10,17 +10,20 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop.Controls;
 
-public sealed class SubtitleStyleEditor : UserControl, IDisposable
+public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
 {
     private readonly ComboBox _font;
     private readonly NumericUpDown _size;
     private readonly NumericUpDown _margin;
     private readonly TextBox _color;
     private readonly ToggleButton[] _positions = new ToggleButton[9];
-    private readonly Image _frame = new() { Stretch = Stretch.Fill };
-    private readonly TextBlock _sample = new() { Text = "自动字幕 · Subtitle preview", TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center };
+    private readonly Image _frame = new() { Name = "SubtitlePreviewFrame", Stretch = Stretch.Fill };
+    private readonly TextBlock _sample = new() { Text = "字幕预览", TextWrapping = TextWrapping.Wrap };
     private readonly Border _caption;
-    private readonly Grid _screen = new() { Width = 640, Height = 360, ClipToBounds = true };
+    private readonly Canvas _captionLayer = new();
+    private readonly Grid _screen = new() { Width = 320, Height = 180, ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly Grid _previewHost = new() { MaxHeight = 300 };
+    private double _previewAspect = 16d / 9;
     private Bitmap? _bitmap;
     private double _referenceHeight = 1080;
     private readonly double _defaultSize;
@@ -30,6 +33,7 @@ public sealed class SubtitleStyleEditor : UserControl, IDisposable
     {
         _referenceHeight = referenceHeight; _defaultSize = referenceHeight == 288 ? 16 : 48;
         _alignment = Math.Clamp(options.SubtitleAlignment, 1, 9);
+        if (options.SubtitlePositionX is {} x && options.SubtitlePositionY is {} y) _customPosition = new(x, y);
         var root = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 20 };
         var fields = new StackPanel { Spacing = 12 }; root.Children.Add(fields);
         var automatic = Localization.Text("自动");
@@ -57,20 +61,21 @@ public sealed class SubtitleStyleEditor : UserControl, IDisposable
         {
             var alignment = index + 1;
             var button = new ToggleButton { Name = "SubtitlePosition" + alignment, Content = arrows[index],
-                MinWidth = 40, Margin = new(0, 0, 4, 4), IsChecked = alignment == _alignment };
+                MinWidth = 40, Margin = new(0, 0, 4, 4), IsChecked = _customPosition is null && alignment == _alignment };
             AutomationProperties.SetName(button, names[index]); ToolTip.SetTip(button, names[index]);
-            button.Click += (_, _) => { _alignment = alignment; foreach (var item in _positions) item.IsChecked = item == button; UpdatePreview(); };
+            button.Click += (_, _) => { _customPosition = null; _alignment = alignment; foreach (var item in _positions) item.IsChecked = item == button; UpdatePreview(); };
             Grid.SetRow(button, 2 - index / 3); Grid.SetColumn(button, index % 3);
             positions.Children.Add(button); _positions[index] = button;
         }
         Add(fields, "位置", positions);
         _margin = Number("SubtitleMargin", options.SubtitleMargin, 0, 2000); Add(fields, "边距", _margin);
         _screen.Background = new SolidColorBrush(Color.Parse("#202428")); _screen.Children.Add(_frame);
-        _caption = new Border { Child = _sample, Padding = new(4, 2), Background = new SolidColorBrush(Color.Parse("#66000000")) };
-        _screen.Children.Add(_caption);
+        _caption = new Border { Name = "SubtitlePreviewCaption", Child = _sample, Padding = new(4, 2), Background = new SolidColorBrush(Color.Parse("#66000000")) };
+        _captionLayer.Children.Add(_caption); _screen.Children.Add(_captionLayer);
         var preview = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Top };
         preview.Children.Add(Ui.Text("预览", "caption"));
-        preview.Children.Add(new Viewbox { Child = _screen, Stretch = Stretch.Uniform, MaxHeight = 300, HorizontalAlignment = HorizontalAlignment.Stretch });
+        _previewHost.Children.Add(_screen); _previewHost.SizeChanged += (_, _) => FitPreview(); preview.Children.Add(_previewHost);
+        SetupPreview(preview, referenceHeight, options.Start);
         Grid.SetColumn(preview, 1); root.Children.Add(preview); Content = root;
         _font.SelectionChanged += (_, _) => UpdatePreview(); _color.TextChanged += (_, _) => UpdatePreview();
         _size.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty) UpdatePreview(); };
@@ -84,6 +89,7 @@ public sealed class SubtitleStyleEditor : UserControl, IDisposable
         options.SubtitleFontSize = ReadNumber(_size); options.SubtitleMargin = ReadNumber(_margin);
         options.SubtitleColor = _color.Text?.Trim().ToUpperInvariant() ?? "";
         options.SubtitleAlignment = _alignment;
+        options.SubtitlePositionX = _customPosition?.X; options.SubtitlePositionY = _customPosition?.Y;
         var validation = options.Clone(); validation.SubtitleMode = SubtitleMode.None;
         SubtitleOptions.Validate(validation);
     }
@@ -92,21 +98,45 @@ public sealed class SubtitleStyleEditor : UserControl, IDisposable
     {
         using var input = new MemoryStream(image); var next = new Bitmap(input);
         _frame.Source = next; _bitmap?.Dispose(); _bitmap = next;
-        _screen.Height = 640d * Math.Max(1, height) / Math.Max(1, width);
+        _previewAspect = (double)Math.Max(1, width) / Math.Max(1, height); FitPreview();
         _referenceHeight = sourceResolution ? Math.Max(1, height) : 288;
         UpdatePreview();
     }
 
     private void UpdatePreview()
     {
+        _frame.Width = _screen.Width; _frame.Height = _screen.Height;
+        _captionLayer.Width = _screen.Width; _captionLayer.Height = _screen.Height;
         var scale = _screen.Height / _referenceHeight;
-        _sample.FontSize = ((double)(_size.Value ?? 0) is > 0 and var size ? size : _defaultSize) * scale;
+        _sample.FontSize = ((double)(_size.Value ?? 0) is > 0 and var fontSize ? fontSize : _defaultSize) * scale;
         _sample.FontFamily = _font.SelectedIndex <= 0 ? FontFamily.Default : new FontFamily((string)_font.SelectedItem!);
         if (Color.TryParse(_color.Text, out var color)) _sample.Foreground = new SolidColorBrush(color);
-        _caption.HorizontalAlignment = ((_alignment - 1) % 3) switch { 0 => HorizontalAlignment.Left, 1 => HorizontalAlignment.Center, _ => HorizontalAlignment.Right };
-        _caption.VerticalAlignment = ((_alignment - 1) / 3) switch { 0 => VerticalAlignment.Bottom, 1 => VerticalAlignment.Center, _ => VerticalAlignment.Top };
-        _caption.Margin = new(Math.Min((double)(_margin.Value ?? 0) * scale, _screen.Height / 3));
-        _sample.MaxWidth = Math.Max(1, _screen.Width - _caption.Margin.Left * 2);
+        var margin = _customPosition is null ? Math.Min((double)(_margin.Value ?? 0) * scale, Math.Min(_screen.Width, _screen.Height) / 3) : 0;
+        _sample.MaxWidth = Math.Max(1, _screen.Width - margin * 2 - _caption.Padding.Left - _caption.Padding.Right);
+        _sample.InvalidateMeasure(); _caption.InvalidateMeasure();
+        _caption.Width = _caption.Height = double.NaN;
+        _caption.Measure(new Size(_screen.Width - margin * 2, double.PositiveInfinity));
+        var size = _caption.DesiredSize; _caption.Width = size.Width; _caption.Height = size.Height;
+        _margin.IsEnabled = _customPosition is null;
+        double left, top;
+        if (_customPosition is {} position)
+        {
+            left = position.X * _screen.Width - size.Width / 2; top = position.Y * _screen.Height - size.Height / 2;
+        }
+        else
+        {
+            left = ((_alignment - 1) % 3) switch { 0 => margin, 1 => (_screen.Width - size.Width) / 2, _ => _screen.Width - margin - size.Width };
+            top = ((_alignment - 1) / 3) switch { 0 => _screen.Height - margin - size.Height, 1 => (_screen.Height - size.Height) / 2, _ => margin };
+        }
+        Canvas.SetLeft(_caption, left); Canvas.SetTop(_caption, top);
+        _captionLayer.InvalidateArrange();
+    }
+
+    private void FitPreview()
+    {
+        var width = Math.Min(_previewHost.Bounds.Width > 0 ? _previewHost.Bounds.Width : 320, 300 * _previewAspect);
+        if (Math.Abs(_screen.Width - width) < .01 && Math.Abs(_screen.Height - width / _previewAspect) < .01) return;
+        _screen.Width = width; _screen.Height = width / _previewAspect; UpdatePreview();
     }
 
     private static NumericUpDown Number(string name, int value, int minimum, int maximum) => new()
@@ -123,7 +153,7 @@ public sealed class SubtitleStyleEditor : UserControl, IDisposable
         var row = new Grid { ColumnDefinitions = new("48,*"), ColumnSpacing = 8 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); fields.Children.Add(row);
     }
-    public void Dispose() { _frame.Source = null; _bitmap?.Dispose(); _bitmap = null; }
+    public void Dispose() { _disposed = true; _videoSource?.Cancel(); _seekFrame?.Cancel(); _videoSource?.Dispose(); _seekFrame?.Dispose(); _frame.Source = null; _bitmap?.Dispose(); _bitmap = null; }
 }
 
 public sealed class VoiceEnhancementControl : UserControl

@@ -157,7 +157,7 @@ public static class SpeechSubtitles
         {
             var text = cue.Text.Replace("\\", "＼").Replace("{", "｛").Replace("}", "｝").Replace("\r", "").Replace("\n", "\\N");
             builder.Append("Dialogue: 0,").Append(Time(cue.Start, true)).Append(',').Append(Time(cue.End, true))
-                .Append(",Default,,0,0,0,,").Append(text).Append('\n');
+                .Append(",Default,,0,0,0,,").Append(SubtitlePositioning.Tag(style, width, height)).Append(text).Append('\n');
         }
         return builder.ToString();
     }

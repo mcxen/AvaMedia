@@ -127,6 +127,8 @@ public sealed class ConversionOptions
     public string SubtitleColor { get; set; } = "#FFFFFF";
     public int SubtitleAlignment { get; set; } = 2;
     public int SubtitleMargin { get; set; } = 20;
+    public double? SubtitlePositionX { get; set; }
+    public double? SubtitlePositionY { get; set; }
     public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled }

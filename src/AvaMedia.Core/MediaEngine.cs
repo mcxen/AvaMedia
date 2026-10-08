@@ -347,7 +347,8 @@ public sealed class MediaEngine : IMediaEngine
             if(listing.ExitCode!=0)throw new InvalidOperationException("无法读取原编码所需的编码器。"+listing.Error);
             sourceEncoderListing=listing.Output+listing.Error;
         }
-        var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions,Options=effective,Output=job.Output,Duration=job.Duration};
+        var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions?.Select(option=>option.Clone()).ToList(),Options=effective,Output=job.Output,Duration=job.Duration};
+        using var subtitlePositioning=await SubtitlePositioning.PrepareAsync(this,effectiveJob,ct).ConfigureAwait(false);
         IReadOnlyList<string> hardware=[];
         if(Settings.AutoDetectGpu && effective.VideoCompression?.PreferGpu!=false && !effective.CopyStreams && effective.VideoCodec=="自动" &&
             infos.Any(i=>i.HasVideo) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
