@@ -146,9 +146,12 @@ public sealed class ModelStore(string? root = null)
 
     private static async Task<bool> MatchesAsync(string path, long size, string hash, bool verify, CancellationToken ct)
     {
-        if (!File.Exists(path) || new FileInfo(path).Length != size) return false;
-        if (!verify) return true;
+        if (!File.Exists(path)) return false;
+        // Runtime archives contain dylib links. FileInfo.Length may report the link's
+        // length; the manifest records the content actually opened for hashing.
         await using var input = File.OpenRead(path);
+        if (input.Length != size) return false;
+        if (!verify) return true;
         return Convert.ToHexString(await SHA256.HashDataAsync(input, ct)).Equals(hash, StringComparison.OrdinalIgnoreCase);
     }
 

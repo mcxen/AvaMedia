@@ -17,9 +17,16 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
     private readonly Task _stderr;
     private readonly ModelLease _model;
     private float[][] _labels = [];
-    private GemmaVideoEmbedding(Process process, HttpClient client, ModelLease model)
+    private readonly object _diagnosticsGate = new();
+    private readonly Queue<string> _accelerationDetails = new();
+    private string _backend;
+    public string Backend => Volatile.Read(ref _backend);
+    public string? FallbackReason { get; private set; }
+    public string[] AccelerationDetails { get { lock (_diagnosticsGate) return _accelerationDetails.ToArray(); } }
+    private GemmaVideoEmbedding(Process process, HttpClient client, ModelLease model, bool preferGpu)
     {
         _process = process; _client = client; _model = model;
+        _backend = preferGpu ? "GPU (auto) / CPU" : "CPU";
         _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
     }
 
@@ -30,7 +37,9 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
             && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
         {
             status?.Invoke("GPU 启动未成功，切换 CPU");
-            return await StartCoreAsync(store, ct, false, status).ConfigureAwait(false);
+            var cpu = await StartCoreAsync(store, ct, false, status).ConfigureAwait(false);
+            cpu.FallbackReason = error.Message;
+            return cpu;
         }
     }
 
@@ -53,12 +62,13 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
                 "--mmproj", Path.Combine(lease.Directory, ModelCatalog.ProjectorFile), "--embedding", "--pooling", "mean",
                 "--ctx-size", "8192", "--batch-size", "2048", "--ubatch-size", "2048", "--parallel", "1",
                 "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(),
+                "--log-verbosity", "4", "--log-colors", "off",
                 "--host", "127.0.0.1", "--port", port.ToString(), "--api-key", key];
             arguments = arguments.Concat(preferGpu ? ["--gpu-layers", "auto", "--mmproj-offload"]
                 : new[] { "--gpu-layers", "0", "--device", "none", "--no-mmproj-offload" }).ToArray();
             status?.Invoke("启动推理工具");
             var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
-            backend = new(process, client, lease);
+            backend = new(process, client, lease, preferGpu);
             status?.Invoke("等待嵌入模型就绪");
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromMinutes(2));
@@ -141,7 +151,23 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
         for (var index = 0; index < left.Length; index++) { dot += left[index] * right[index]; a += left[index] * left[index]; b += right[index] * right[index]; }
         return dot / Math.Sqrt(a * b);
     }
-    private static async Task DrainAsync(StreamReader reader) { while (await reader.ReadLineAsync().ConfigureAwait(false) is not null) { } }
+    private async Task DrainAsync(StreamReader reader)
+    {
+        while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
+        {
+            // Retain only hardware dispatch lines; never retain requests or API credentials.
+            if (!System.Text.RegularExpressions.Regex.IsMatch(line,
+                @"^\S+\s+I\s+(?:load_tensors: offloaded |ggml_metal_init: found device:|ggml_metal_device_init: GPU name:)")) continue;
+            lock (_diagnosticsGate)
+            {
+                if (_accelerationDetails.Count == 12) _accelerationDetails.Dequeue();
+                _accelerationDetails.Enqueue(line.Length > 500 ? line[..500] : line);
+            }
+            var match = System.Text.RegularExpressions.Regex.Match(line, @"offloaded (\d+)/\d+ layers to GPU");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var layers) && layers > 0)
+                Volatile.Write(ref _backend, OperatingSystem.IsMacOS() ? "Metal / CPU" : "GPU / CPU");
+        }
+    }
     public async ValueTask DisposeAsync()
     {
         try { if (!_process.HasExited) _process.Kill(true); await _process.WaitForExitAsync().ConfigureAwait(false); await Task.WhenAll(_stdout, _stderr).ConfigureAwait(false); }

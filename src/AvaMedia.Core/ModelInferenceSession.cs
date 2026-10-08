@@ -44,6 +44,9 @@ internal sealed class ModelInferenceSession : IDisposable
                     options.AppendExecutionProvider_DML();
                     _session = new(path, options); Backend = "DirectML / CPU"; return;
                 }
+                FallbackReason = OperatingSystem.IsMacOS() ? "Core ML execution provider is unavailable."
+                    : OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
+                    : "No supported GPU execution provider on this platform.";
             }
             catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or DllNotFoundException
                 or EntryPointNotFoundException or IOException or UnauthorizedAccessException) { FallbackReason = error.Message; }

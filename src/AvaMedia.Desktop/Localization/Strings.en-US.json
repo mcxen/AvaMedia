@@ -1873,5 +1873,7 @@
   "隔行视频请先在格式转换中去隔行。": "Deinterlace the video in Format conversion first.",
   "此音轨、字幕或附件无法原样保留在 MP4，请选择 MKV。": "These audio tracks, subtitles or attachments cannot be copied to MP4. Select MKV.",
   "此视频的字幕适合 MP4，请选择 MP4 以原样保留。": "Select MP4 to preserve this video's subtitle tracks.",
-  "正在瘦身": "Slimming video"
+  "正在瘦身": "Slimming video",
+  "macOS 由 Core ML 自动选择 CPU、GPU 或神经网络引擎；首次编译可能较慢。": "On macOS, Core ML selects the CPU, GPU or Neural Engine. Initial compilation may take longer.",
+  "已回退 CPU": "Fell back to CPU"
 }

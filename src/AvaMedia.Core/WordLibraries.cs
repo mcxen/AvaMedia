@@ -165,11 +165,11 @@ public static class WordLibraryCatalog
 }
 
 /// <summary>Independent local settings. Each write reloads the other fields to preserve edits from another dialog.</summary>
-public sealed class WordLibraryStore
+public sealed class WordLibraryStore(string? path = null)
 {
     private static readonly object Gate = new();
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
-    private readonly string _path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "word-libraries.json");
+    private readonly string _path = Path.GetFullPath(path ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "word-libraries.json"));
     public sealed class State
     {
         public List<WordLibrary> Libraries { get; set; } = [];

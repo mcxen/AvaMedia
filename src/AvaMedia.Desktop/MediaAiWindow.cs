@@ -45,7 +45,8 @@ public sealed partial class MediaAiWindow : Window
 
     public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels)
     {
-        _engine = engine; _settings = settings; _gpu.IsChecked = false;
+        _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
+        ToolTip.SetTip(_gpu, Localization.Text("macOS 由 Core ML 自动选择 CPU、GPU 或神经网络引擎；首次编译可能较慢。"));
         Title = "媒体 AI 标签 · Beta"; Width = 1120; Height = 740; MinWidth = 920; MinHeight = 600;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
@@ -224,6 +225,7 @@ public sealed partial class MediaAiWindow : Window
     private void ShowResult(BatchVideoEntry entry, MediaTagResult result)
     {
         entry.Status = $"{result.Backend} · {result.InferredFrames}/{result.SampledFrames}";
+        if (result.FallbackReason is { } reason) entry.Status += " · " + Localization.Text("已回退 CPU") + ": " + reason;
         var threshold = Number(_threshold);
         entry.Details = string.Join(" · ", result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
             .Take(20).Select(score => $"{score.Tag} {score.Score:0.00}"));
@@ -285,7 +287,7 @@ public sealed partial class MediaAiWindow : Window
             var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
             if (file is null) return;
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, Results = _results.Values.Select(result => new
-            { result.Path, result.Backend, result.SampledFrames, result.InferredFrames, Tags = result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score) }) };
+            { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames, Tags = result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score) }) };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception error) { await Ui.Message(this, "导出失败", error.Message); }

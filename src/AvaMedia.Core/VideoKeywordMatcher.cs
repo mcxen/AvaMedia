@@ -71,6 +71,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         try
         {
             var labels = new List<float[]>();
+            activity.Backend(embedding.Backend);
             activity.Stage("编码关键词", 0, snapshot.Length, "词");
             for (var offset = 0; offset < snapshot.Length;)
             {
@@ -98,6 +99,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         options.Validate();
         var completed = 0; var frames = 0;
         var activity = new AiActivityReporter(value => progress?.Report(new(completed, frames) { Activity = value }), "Gemma · 视频嵌入", "次候选结果");
+        activity.Backend(_embedding.Backend);
         activity.Stage("读取视频", detail: Path.GetFileName(path));
         var file = new FileInfo(path);
         if (!file.Exists) throw new FileNotFoundException("源文件不存在，请刷新文件列表。", path);
