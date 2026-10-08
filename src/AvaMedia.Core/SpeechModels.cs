@@ -56,25 +56,29 @@ public static class SpeechAssets
 {
     private static readonly object Gate = new();
     private static string? _denoisePath;
+    private static string? _vadPath;
     public static string ModelDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "models");
     public const string DenoiseSha256 = "70bb6685eb0c2a1d18e2918dca3fbfbd39317010b1802eb1b6ea73a92f3fdec0";
-    public static string EnsureDenoiseModel()
+    public const string VadSha256 = "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987";
+    public static string EnsureDenoiseModel() => EnsureEmbeddedModel(ref _denoisePath, "speech-sh.rnnn", "AvaMedia.Core.SpeechDenoise.rnnn", DenoiseSha256);
+    public static string EnsureVadModel() => EnsureEmbeddedModel(ref _vadPath, "ggml-silero-v6.2.0.bin", "AvaMedia.Core.SpeechVad.bin", VadSha256);
+    private static string EnsureEmbeddedModel(ref string? cached, string name, string resource, string sha256)
     {
         lock (Gate)
         {
-            if (_denoisePath is not null && File.Exists(_denoisePath)) return _denoisePath;
+            if (cached is not null && File.Exists(cached)) return cached;
             Directory.CreateDirectory(ModelDirectory);
-            var path = Path.Combine(ModelDirectory, "speech-sh.rnnn");
-            if (File.Exists(path) && Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).Equals(DenoiseSha256, StringComparison.OrdinalIgnoreCase))
-                return _denoisePath = path;
-            using var embedded = typeof(SpeechAssets).Assembly.GetManifestResourceStream("AvaMedia.Core.SpeechDenoise.rnnn")
-                ?? throw new FileNotFoundException("应用缺少人声降噪模型，请重新安装。");
+            var path = Path.Combine(ModelDirectory, name);
+            if (File.Exists(path) && Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).Equals(sha256, StringComparison.OrdinalIgnoreCase))
+                return cached = path;
+            using var embedded = typeof(SpeechAssets).Assembly.GetManifestResourceStream(resource)
+                ?? throw new FileNotFoundException("应用缺少语音模型，请重新安装。", name);
             var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 using (var output = File.Create(temporary)) embedded.CopyTo(output);
                 File.Move(temporary, path, true);
-                return _denoisePath = path;
+                return cached = path;
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }

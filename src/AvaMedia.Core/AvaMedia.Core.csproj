@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets/Speech/sh.rnnn" LogicalName="AvaMedia.Core.SpeechDenoise.rnnn" />
+    <EmbeddedResource Include="Assets/Speech/ggml-silero-v6.2.0.bin" LogicalName="AvaMedia.Core.SpeechVad.bin" />
     <EmbeddedResource Include="Assets/face_detection_yunet_2026may.onnx" LogicalName="AvaMedia.Core.YuNet.onnx" />
     <None Update="DownloadPlugins/avamedia/yt_dlp_plugins/extractor/*.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="download-plugins/avamedia/yt_dlp_plugins/extractor/%(Filename)%(Extension)" />
   </ItemGroup>

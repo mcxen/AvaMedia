@@ -56,6 +56,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 cues = await Task.Run(async () =>
                 {
                     using var factory = WhisperFactory.FromPath(model);
+                    using var vadFactory = WhisperVadFactory.FromPath(SpeechAssets.EnsureVadModel());
+                    using var vad = vadFactory.CreateBuilder().WithUseGpu(false)
+                        .WithThreads(engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 4) : 1).WithThreshold(.5f)
+                        .WithMinSpeechDuration(TimeSpan.FromMilliseconds(250)).WithMinSilenceDuration(TimeSpan.FromMilliseconds(150))
+                        .WithSpeechPadding(TimeSpan.FromMilliseconds(100)).Build();
                     var builder = factory.CreateBuilder().WithLanguage(speech.Language).WithNoContext()
                         .WithThreads(Math.Clamp(engine.Settings.MultiThread ? engine.Settings.CpuThreads : 1, 1, 8))
                         .WithNoSpeechThreshold(.6f).WithTokenTimestamps().WithMaxSegmentLength(42);
@@ -74,6 +79,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                             "-vn", "-sn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wav], ct).ConfigureAwait(false);
                         if (extracted.ExitCode != 0) throw new InvalidDataException("提取识别音轨失败。\n" + extracted.Error);
                         job.ProgressDetail = "识别字幕";
+                        IReadOnlyList<VadSegmentData> speechSegments;
+                        await using (var detectionAudio = File.OpenRead(wav))
+                            speechSegments = await vad.DetectSpeechAsync(detectionAudio, ct).ConfigureAwait(false);
+                        if (speechSegments.Count == 0)
+                        { progress(15 + 60 * Math.Min(duration, from + ChunkSeconds) / duration); continue; }
                         await using var audio = File.OpenRead(wav);
                         await foreach (var segment in processor.ProcessAsync(audio, ct).ConfigureAwait(false))
                         {
@@ -83,6 +93,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                             var middle = (start + stop) / 2;
                             // Overlap protects words at chunk edges; each segment belongs to one chunk.
                             if (text.Length == 0 || stop <= start || middle < from || middle >= Math.Min(duration, from + ChunkSeconds)) continue;
+                            // Whisper can confidently invent text for non-speech. Its timestamps include pauses,
+                            // so require some actual speech support without cutting words to the detector's edges.
+                            var supported = speechSegments.Sum(segment => Math.Max(0,
+                                Math.Min(stop, begin + segment.End.TotalSeconds) - Math.Max(start, begin + segment.Start.TotalSeconds)));
+                            if (supported < Math.Min(.25, stop - start) || supported < (stop - start) * .2) continue;
                             if (result.LastOrDefault() is { } previous)
                             {
                                 if (previous.Text == text && start / options.Speed < previous.End.TotalSeconds + .5) continue;
