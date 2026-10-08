@@ -11,6 +11,14 @@ public sealed partial class App
         var lifetime = new CancellationTokenSource();
         ModelInstallation.Lifetime = lifetime.Token;
         desktop.Exit += (_, _) => { lifetime.Cancel(); lifetime.Dispose(); };
-        window.Opened += async (_, _) => { if(new AvaMedia.Core.Storage().LoadSettings().AutoDownloadRepairModel)await ModelInstallation.StartAsync(); };
+        window.Opened += async (_, _) =>
+        {
+            try
+            {
+                if (!FirstRunSetup.Failed && new AvaMedia.Core.Storage().LoadSettings().AutoDownloadRepairModel)
+                    await ModelInstallation.StartAsync();
+            }
+            catch (Exception error) { AppDiagnostics.Record("Startup model installation", error); }
+        };
     }
 }

@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace AvaMedia.Core;
 
-public sealed record ModelDownloadProgress(long Received, long Total, string Stage)
+public sealed record ModelDownloadProgress(long Received, long Total, string Stage, int Attempt = 0, int MaxAttempts = 0)
 {
     public int Percent => Total == 0 ? 0 : (int)Math.Clamp(Received * 100 / Total, 0, 100);
 }
@@ -32,6 +32,21 @@ public sealed class ModelStore(string? root = null)
     private SemaphoreSlim Gate(string id) => Gates.GetOrAdd(DirectoryFor(id), _ => new(1, 1));
     public bool IsBusy(string id) => Gate(id).CurrentCount == 0;
     public bool HasLocalData(string id) => Directory.Exists(DirectoryFor(id)) || Directory.Exists(DirectoryFor(id) + ".download");
+    public long DownloadedBytes(string id)
+    {
+        var staging = DirectoryFor(id) + ".download";
+        return ModelCatalog.Find(id).Files.Sum(file => PartialBytes(SafePath(staging, file.Path), file.Size));
+    }
+    private static long PartialBytes(string destination, long size)
+    {
+        try
+        {
+            var path = File.Exists(destination + ".part") ? destination + ".part" : destination;
+            return File.Exists(path) ? Math.Clamp(new FileInfo(path).Length, 0, size) : 0;
+        }
+        catch (IOException) { return 0; }
+        catch (UnauthorizedAccessException) { return 0; }
+    }
 
     public async Task<bool> IsInstalledAsync(string id, bool verify = false, CancellationToken ct = default)
     {
@@ -83,6 +98,7 @@ public sealed class ModelStore(string? root = null)
                 var destination = SafePath(staging, artifact.Path);
                 if (!await MatchesAsync(destination, artifact.Size, artifact.Sha256, true, ct))
                 {
+                    if (File.Exists(destination)) File.Delete(destination);
                     var existing = SafePath(DirectoryFor(id), artifact.Path);
                     if (await MatchesAsync(existing, artifact.Size, artifact.Sha256, true, ct))
                     {
@@ -93,13 +109,31 @@ public sealed class ModelStore(string? root = null)
                     }
                     var errors = new List<Exception>();
                     var downloaded = false;
-                    foreach (var source in artifact.Sources)
+                    for (var sourceIndex = 0; sourceIndex < artifact.Sources.Length; sourceIndex++)
                     {
-                        try { await DownloadFileAsync(client, source, destination, artifact, completed, model.DownloadSize, progress, ct); downloaded = true; break; }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                        catch (Exception error) when (error is HttpRequestException or IOException or OperationCanceledException) { errors.Add(error); }
+                        var source = artifact.Sources[sourceIndex];
+                        const int attempts = 3;
+                        for (var attempt = 1; attempt <= attempts; attempt++)
+                        {
+                            try
+                            {
+                                await DownloadFileAsync(client, source, destination, artifact, completed, model.DownloadSize, progress, ct);
+                                downloaded = true; break;
+                            }
+                            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                            catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or OperationCanceledException)
+                            {
+                                errors.Add(error);
+                                if (attempt == attempts || !Retryable(error)) break;
+                                progress?.Report(new(completed + PartialBytes(destination, artifact.Size), model.DownloadSize, "等待重试", attempt + 1, attempts));
+                                await Task.Delay(TimeSpan.FromSeconds(attempt * 2), ct);
+                            }
+                        }
+                        if (downloaded) break;
+                        if (sourceIndex + 1 < artifact.Sources.Length)
+                            progress?.Report(new(completed + PartialBytes(destination, artifact.Size), model.DownloadSize, "切换下载源"));
                     }
-                    if (!downloaded) throw new IOException("模型下载失败，请检查网络后重试。", new AggregateException(errors));
+                    if (!downloaded) throw new IOException("模型下载失败，已保留下载进度。请检查网络后重试。", new AggregateException(errors));
                 }
                 completed += artifact.Size;
                 progress?.Report(new(completed, model.DownloadSize, "下载"));
@@ -155,6 +189,15 @@ public sealed class ModelStore(string? root = null)
         return Convert.ToHexString(await SHA256.HashDataAsync(input, ct)).Equals(hash, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool Retryable(Exception error) => error switch
+    {
+        HttpRequestException http => http.StatusCode is not { } status || status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests
+            || (int)status >= 500,
+        InvalidDataException => false,
+        IOException or OperationCanceledException => true,
+        _ => false
+    };
+
     private static async Task DownloadFileAsync(HttpClient client, string source, string destination, ModelArtifact artifact,
         long completed, long total, IProgress<ModelDownloadProgress>? progress, CancellationToken ct)
     {
@@ -195,6 +238,7 @@ public sealed class ModelStore(string? root = null)
             }
             await output.FlushAsync(ct);
         }
+        if (offset != artifact.Size) throw new IOException("下载中断，已保留下载进度。");
         progress?.Report(new(completed + offset, total, "校验模型"));
         if (!await MatchesAsync(partial, artifact.Size, artifact.Sha256, true, ct))
         { File.Delete(partial); throw new InvalidDataException("模型 SHA-256 校验失败。"); }

@@ -4,6 +4,7 @@
         Classes="settings" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="Border.settingSection"><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="12"/></Style>
+    <Style Selector="Border.settingSection.modelRow"><Setter Property="Padding" Value="12,9"/></Style>
     <Style Selector="Border.settingsPage"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="16"/></Style>
     <Style Selector="TextBlock.settingsHeading"><Setter Property="FontWeight" Value="SemiBold"/></Style>
     <Style Selector="NumericUpDown"><Setter Property="Width" Value="96"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
@@ -154,7 +155,7 @@
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
               <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型"/>
-              <StackPanel x:Name="ModelList" Spacing="12"/>
+              <StackPanel x:Name="ModelList" Spacing="8"/>
               <TextBlock x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap"/>
             </StackPanel>
           </ScrollViewer>

@@ -52,6 +52,7 @@ internal sealed class ApplicationUpdater
         bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
         try
         {
+            if (FirstRunSetup.Failed) return;
             if (File.Exists(ErrorPath) && !Silent())
             {
                 var error = await File.ReadAllTextAsync(ErrorPath, ct);

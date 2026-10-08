@@ -1971,5 +1971,20 @@
   "预计 {0} MB · 输出 {1} × {2}": "Estimated {0} MB · Output {1} × {2}",
   "{0} · {1} × {2} · {3}": "{0} · {1} × {2} · {3}",
   "{0} MB": "{0} MB",
-  "{0}%": "{0}%"
+  "{0}%": "{0}%",
+  "首次配置未完成": "First-run setup incomplete",
+  "首次配置未能应用，已使用当前设置进入软件。\n{0}\n请在选项中重新配置。": "First-run settings could not be applied. The app opened with the current settings.\n{0}\nPlease configure them again in Options.",
+  "等待重试": "Waiting to retry",
+  "切换下载源": "Switching download source",
+  "模型下载失败，已保留下载进度。请检查网络后重试。": "Model download failed. Download progress was kept. Check your network and retry.",
+  "下载中断，已保留下载进度。": "Download interrupted. Download progress was kept.",
+  "继续下载": "Resume",
+  "重试下载": "Retry",
+  "下载未完成": "Incomplete download",
+  "下载失败": "Download failed",
+  "校验通过": "Verified",
+  "校验失败": "Verification failed",
+  "删除中…": "Deleting…",
+  "删除失败": "Delete failed",
+  "重试 {0}/{1}": "Retry {0}/{1}"
 }

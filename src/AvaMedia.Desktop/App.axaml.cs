@@ -42,6 +42,7 @@ public sealed partial class App : Application
                 var engine = new MediaEngine(settings);
                 var player = new PlayerWindow(engine, files);
                 desktop.MainWindow = player;
+                FirstRunSetup.AttachFailureNotice(player);
                 if (!args.Contains("--player-benchmark"))
                 {
                     var options = new AppOptionsServices();
@@ -83,6 +84,7 @@ public sealed partial class App : Application
             if(desktop.Args?.Contains("--macos9")==true)Skin.Apply("MacOS9");
             if(desktop.Args?.Contains("--winxp")==true)Skin.Apply("WindowsXP");
             desktop.MainWindow = window;
+            FirstRunSetup.AttachFailureNotice(window);
             InitializeModelInstallation(desktop, window, args);
             if (args.Contains("--convert")) window.Opened += async (_, _) => await window.ImportForConversionAsync(args);
             if (desktop.Args?.Contains("--capture") == true)
