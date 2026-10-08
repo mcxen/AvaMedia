@@ -14,13 +14,15 @@ public sealed class PersonClipWindow : Window
     private readonly List<string> _paths = [];
     private readonly ListBox _files = new();
     private readonly TextBox _results = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-    private readonly NumericUpDown _fps = Number(1, 8, 2, 1);
+    private readonly NumericUpDown _fps = Number(.25m, 8, 2, .25m);
     private readonly NumericUpDown _threshold = Number(.1m, .9m, .35m, .05m);
     private readonly NumericUpDown _padding = Number(0, 30, .5m, .1m);
     private readonly NumericUpDown _gap = Number(0, 30, 1, .5m);
     private readonly NumericUpDown _minimum = Number(0, 30, .5m, .1m);
     private readonly CheckBox _uncertain = new() { Content = "保留不确定片段", IsChecked = true };
     private readonly CheckBox _embedding = new() { Content = "使用 EmbeddingGemma 2 语义辅助", IsEnabled = false };
+    private readonly CheckBox _gpu = new() { Content = "自动适配 GPU", IsChecked = true };
+    private readonly CheckBox _reuseFrames = new() { Content = "复用相似画面", IsChecked = true };
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly TextBlock _status = Ui.Text("");
     private readonly ProgressBar _progress = new() { Minimum = 0, Maximum = 100, IsVisible = false, Height = 6 };
@@ -39,6 +41,8 @@ public sealed class PersonClipWindow : Window
     public PersonClipWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? paths, Func<Window, Task> manageModels)
     {
         _engine = engine; _settings = settings; _manageModels = manageModels;
+        _gpu.IsChecked = settings.AutoDetectGpu;
+        ToolTip.SetTip(_fps, Localization.Text("降低采样频率会减少计算，短暂出现的人物可能漏检。"));
         Title = "保留有人片段 · Beta"; Width = 880; Height = 740; MinWidth = 760; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         _add = Ui.Button("添加视频…", async () => await AddFilesAsync());
@@ -61,8 +65,9 @@ public sealed class PersonClipWindow : Window
             row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); _parameters.Children.Add(row);
             input.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) InvalidateResult(); };
         }
-        _parameters.Children.Add(_uncertain); _parameters.Children.Add(_embedding); _parameters.Children.Add(_modelStatus);
+        _parameters.Children.Add(_uncertain); _parameters.Children.Add(_embedding); _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuseFrames); _parameters.Children.Add(_modelStatus);
         _uncertain.IsCheckedChanged += (_, _) => InvalidateResult(); _embedding.IsCheckedChanged += (_, _) => InvalidateResult();
+        _gpu.IsCheckedChanged += (_, _) => InvalidateResult(); _reuseFrames.IsCheckedChanged += (_, _) => InvalidateResult();
         Grid.SetRow(_parameters, 2); layout.Children.Add(_parameters);
         Grid.SetRow(_results, 3); layout.Children.Add(_results);
         Grid.SetRow(_progress, 4); layout.Children.Add(_progress);
@@ -116,7 +121,8 @@ public sealed class PersonClipWindow : Window
         if (_analysis is not null || !_settings.EnableBetaFeatures) return;
         if (_paths.Count == 0) { _status.Text = Localization.Text("请添加视频。"); return; }
         PersonClipOptions options;
-        try { options = new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum), _uncertain.IsChecked == true, _embedding.IsChecked == true); options.Validate(); }
+        try { options = new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum), _uncertain.IsChecked == true,
+            _embedding.IsChecked == true, _gpu.IsChecked == true, _reuseFrames.IsChecked == true); options.Validate(); }
         catch (Exception error) { _status.Text = error.Message; return; }
         InvalidateResult();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
@@ -141,6 +147,7 @@ public sealed class PersonClipWindow : Window
                 var result = await new PersonClipAnalysis(_engine).AnalyzeAsync(_paths[index], options, progress, cancellation.Token);
                 if (result.Segments.Count > 0) results.Add(new(result.Path, result.Info, result.Segments));
                 summaries.Add(Localization.Format($"{Path.GetFileName(result.Path)} · {result.Segments.Count} 个片段 · 保留 {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))} · 不确定 {result.UncertainFrames}/{result.SampledFrames} 帧"));
+                summaries.Add(Localization.Format($"模型计算 {result.InferredFrames} 帧 · 复用 {result.ReusedFrames} 帧 · 边界细化 {result.BoundaryFrames} 帧") + " · " + result.Backend);
                 _results.Text = string.Join(Environment.NewLine, summaries);
             }
             if (_closed) return;

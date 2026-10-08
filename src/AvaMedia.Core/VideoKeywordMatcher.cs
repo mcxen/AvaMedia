@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace AvaMedia.Core;
 
 public sealed record SemanticKeyword(string Label, string Description);
-public sealed record VideoKeywordOptions(int Frames = 12, double MinimumSimilarity = .55, double MinimumMargin = .03)
+public sealed record VideoKeywordOptions(int Frames = 8, double MinimumSimilarity = .55, double MinimumMargin = .03, bool ReuseSimilarFrames = true)
 {
     public void Validate()
     {
@@ -14,15 +14,16 @@ public sealed record VideoKeywordOptions(int Frames = 12, double MinimumSimilari
 }
 public sealed record VideoKeywordScore(string Keyword, double Similarity);
 public sealed record VideoKeywordResult(string Path, IReadOnlyList<VideoKeywordScore> Scores, bool IsMatch,
-    int SampledFrames, long Length, DateTime LastWriteUtc)
+    int SampledFrames, long Length, DateTime LastWriteUtc, int InferredFrames)
 {
+    public int ReusedFrames => SampledFrames - InferredFrames;
     public string Keyword => Scores[0].Keyword;
     public double Similarity => Scores[0].Similarity;
     public double Margin => Scores.Count > 1 ? Similarity - Scores[1].Similarity : 1;
 }
 public sealed record VideoKeywordProgress(int Frame, int TotalFrames);
 
-/// <summary>Reuses one local model for a batch. Scores are mean cosine similarities across evenly spaced frames.</summary>
+/// <summary>Samples a bounded number of frames, reuses similar images and batches unique embeddings.</summary>
 public sealed class VideoKeywordMatcher : IAsyncDisposable
 {
     private readonly IMediaEngine _engine;
@@ -51,12 +52,12 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
     }
 
     public static Task<VideoKeywordMatcher> CreateAsync(IMediaEngine engine, IReadOnlyList<SemanticKeyword> keywords,
-        ModelStore? store = null, CancellationToken ct = default) => Task.Run(async () =>
+        ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true) => Task.Run(async () =>
     {
         var snapshot = keywords.ToArray();
         if (snapshot.Length is < 1 or > 32) throw new ArgumentException("请输入 1–32 个关键词。");
         foreach (var keyword in snapshot) BatchVideoTools.ValidateRenameKeyword(keyword.Label);
-        var embedding = await GemmaVideoEmbedding.StartAsync(store ?? new(), ct).ConfigureAwait(false);
+        var embedding = await GemmaVideoEmbedding.StartAsync(store ?? new(), ct, preferGpu).ConfigureAwait(false);
         try
         {
             var labels = await embedding.EmbedLabelsAsync(snapshot.Select(keyword => keyword.Description).ToArray(), ct).ConfigureAwait(false);
@@ -77,14 +78,32 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         var (duration, frameRate) = BatchVideoTools.VideoTiming(info);
         var frames = (int)Math.Min(options.Frames, Math.Max(1, Math.Ceiling(duration * 2)));
         var totals = new double[_keywords.Length];
+        var unique = new List<(byte[] Png, byte[] Signature)>();
+        var samples = new int[frames];
         for (var index = 0; index < frames; index++)
         {
             ct.ThrowIfCancellationRequested();
             var seconds = Math.Min(duration * (index + .5) / frames, Math.Max(0, duration - Math.Max(.08, 1 / frameRate)));
             var png = await ReadFrameAsync(path, info.VideoStreamIndex, seconds, ct).ConfigureAwait(false);
-            var vector = await _embedding.EmbedImageAsync(png, ct).ConfigureAwait(false);
-            for (var label = 0; label < totals.Length; label++) totals[label] += GemmaVideoEmbedding.Cosine(vector, _labels[label]);
-            progress?.Report(new(index + 1, frames));
+            var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromEncoded(png) : [];
+            var existing = options.ReuseSimilarFrames ? unique.FindIndex(frame => VideoFrameSimilarity.Similar(frame.Signature, signature)) : -1;
+            samples[index] = existing >= 0 ? existing : unique.Count;
+            if (existing < 0) unique.Add((png, signature));
+        }
+        var completed = 0;
+        for (var offset = 0; offset < unique.Count; offset += 4)
+        {
+            ct.ThrowIfCancellationRequested();
+            var batch = unique.Skip(offset).Take(4).Select(frame => frame.Png).ToArray();
+            var vectors = await _embedding.EmbedImagesAsync(batch, ct).ConfigureAwait(false);
+            for (var index = 0; index < vectors.Length; index++)
+            {
+                // Weight reused frames exactly as the original uniformly spaced samples.
+                var weight = samples.Count(sample => sample == offset + index);
+                for (var label = 0; label < totals.Length; label++) totals[label] += weight * GemmaVideoEmbedding.Cosine(vectors[index], _labels[label]);
+                completed += weight;
+            }
+            progress?.Report(new(completed, frames));
         }
         file.Refresh();
         if (!file.Exists || file.Length != length || file.LastWriteTimeUtc != modified)
@@ -93,7 +112,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             .OrderByDescending(score => score.Similarity).ToArray();
         var margin = scores.Length > 1 ? scores[0].Similarity - scores[1].Similarity : 1;
         return new VideoKeywordResult(path, scores, scores[0].Similarity >= options.MinimumSimilarity && margin >= options.MinimumMargin,
-            frames, length, modified);
+            frames, length, modified, unique.Count);
     }, ct);
 
     private async Task<byte[]> ReadFrameAsync(string path, int stream, double seconds, CancellationToken ct)

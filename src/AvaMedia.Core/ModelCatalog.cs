@@ -55,16 +55,16 @@ public static class ModelCatalog
         var arm = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
         if (!arm && RuntimeInformation.ProcessArchitecture != Architecture.X64) return null;
         var platform = OperatingSystem.IsMacOS() ? (arm ? "macos-arm64" : "macos-x64")
-            : OperatingSystem.IsWindows() ? (arm ? "win-cpu-arm64" : "win-cpu-x64")
-            : OperatingSystem.IsLinux() ? (arm ? "ubuntu-arm64" : "ubuntu-x64") : "";
+            : OperatingSystem.IsWindows() ? (arm ? "win-vulkan-arm64" : "win-vulkan-x64")
+            : OperatingSystem.IsLinux() ? (arm ? "ubuntu-vulkan-arm64" : "ubuntu-vulkan-x64") : "";
         var (size, hash) = platform switch
         {
             "macos-arm64" => (12012019L, "577634a1b8a59e8dabe02ba10de1e610be0574dfaf1cf3020e6dd42853ed877e"),
             "macos-x64" => (11530774L, "c2a0dfe7622a99fc3279454814045923e99f1cfdddb8f121c5969c5c675fc073"),
-            "win-cpu-arm64" => (12267911L, "68e3a218ed7d9cd563e8ddf7a1e58d88d034a8f90a91061bdd3876bf247d8a93"),
-            "win-cpu-x64" => (19441535L, "a23e548c6b3525c38bcfeceaff919786ae06741857043cb670279b70100e5483"),
-            "ubuntu-arm64" => (13728259L, "9aa7c1dcea2e0491f27441b30217767ec4730bcdeefa646e288825454a71bfa1"),
-            "ubuntu-x64" => (17737286L, "2cda5ff9363967f1aba5b5b096032e1b7d9eb568b011769282bf34e4f1cf4b5e"),
+            "win-vulkan-arm64" => (25918979L, "53659ca6e67dc624c62f6df48f204cd89d9d1ff12a642173ba67235be9ff4bf7"),
+            "win-vulkan-x64" => (33380424L, "5c71e7b749697da4a8d46e9ee55486845cbba27c9dfbecb4007f31ba6610d523"),
+            "ubuntu-vulkan-arm64" => (24888315L, "8dae2f39afee01d3032a101d7c398a6734d6fd9697690d8f93bdce4e3a9efea2"),
+            "ubuntu-vulkan-x64" => (31684207L, "5bb4306d7917f33e81efda02e6f791ae6a82e86bee121227a3ab2b4e8e40427f"),
             _ => (0L, "")
         };
         if (size == 0) return null;

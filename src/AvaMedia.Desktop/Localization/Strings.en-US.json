@@ -1733,5 +1733,9 @@
   "语义匹配已停止，已完成结果已保留。": "Matching stopped. Completed results have been kept.",
   "还原": "Restore",
   "移动": "Move",
-  "大小": "Size"
+  "大小": "Size",
+  "复用相似画面": "Reuse similar frames",
+  "降低采样频率会减少计算，短暂出现的人物可能漏检。": "Lower sampling rates reduce computation and may miss briefly visible people.",
+  "模型计算 {0} 帧 · 复用 {1} 帧": "Inferred {0} frames · Reused {1} frames",
+  "模型计算 {0} 帧 · 复用 {1} 帧 · 边界细化 {2} 帧": "Inferred {0} frames · Reused {1} frames · Refined {2} boundary frames"
 }

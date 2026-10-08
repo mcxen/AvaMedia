@@ -13,7 +13,9 @@ public sealed partial class BatchToolsWindow
     private readonly CheckBox _semantic = new() { Content = "关键词匹配重命名 · Beta" };
     private readonly TextBox _keywords = new() { AcceptsReturn = true, Height = 88, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         Watermark = Localization.Text("做饭，骑车，海边") };
-    private readonly NumericUpDown _semanticFrames = SemanticNumber(1, 32, 12, 1);
+    private readonly NumericUpDown _semanticFrames = SemanticNumber(1, 32, 8, 1);
+    private readonly CheckBox _semanticGpu = new() { Content = "自动适配 GPU", IsChecked = true };
+    private readonly CheckBox _semanticReuse = new() { Content = "复用相似画面", IsChecked = true };
     private readonly NumericUpDown _semanticThreshold = SemanticNumber(0, 1, .55m, .05m);
     private readonly NumericUpDown _semanticMargin = SemanticNumber(0, 1, .03m, .01m);
     private readonly StackPanel _semanticPanel = new() { Spacing = 8, IsVisible = false };
@@ -33,6 +35,7 @@ public sealed partial class BatchToolsWindow
         if (!_screenshots && _settings?.EnableBetaFeatures == true)
         {
             _semanticPanel.IsVisible = true;
+            _semanticGpu.IsChecked = _settings.AutoDetectGpu;
             _semanticPanel.Children.Add(_semantic);
             _semantic.IsCheckedChanged += (_, _) =>
             {
@@ -47,6 +50,7 @@ public sealed partial class BatchToolsWindow
             AddRow(_semanticParameters, "每视频采样帧数", _semanticFrames);
             AddRow(_semanticParameters, "最低相似度", _semanticThreshold);
             AddRow(_semanticParameters, "关键词分差", _semanticMargin);
+            _semanticParameters.Children.Add(_semanticGpu); _semanticParameters.Children.Add(_semanticReuse);
             _semanticParameters.Children.Add(Ui.Text("相似度不是概率；不确定结果可手动勾选和修改标签。", "caption"));
             _semanticParameters.Children.Add(Ui.Text("{keyword} 匹配关键词", "caption"));
             _semanticParameters.Children.Add(_semanticModelStatus);
@@ -67,6 +71,7 @@ public sealed partial class BatchToolsWindow
             _matchKeywords.IsEnabled = false; _semanticParameters.Children.Add(_matchKeywords);
             _semanticPanel.Children.Add(_semanticParameters); _renamePanel.Children.Add(_semanticPanel);
             _keywords.TextChanged += (_, _) => ClearSemanticMatches();
+            _semanticGpu.IsCheckedChanged += (_, _) => ClearSemanticMatches(); _semanticReuse.IsCheckedChanged += (_, _) => ClearSemanticMatches();
             foreach (var number in new[] { _semanticFrames, _semanticThreshold, _semanticMargin })
                 number.PropertyChanged += (_, change) =>
                 { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) ClearSemanticMatches(); };
@@ -125,7 +130,7 @@ public sealed partial class BatchToolsWindow
             keywords = VideoKeywordMatcher.ParseKeywords(_keywords.Text ?? "");
             var frames = SemanticValue(_semanticFrames);
             if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-            options = new((int)frames, SemanticValue(_semanticThreshold), SemanticValue(_semanticMargin)); options.Validate();
+            options = new((int)frames, SemanticValue(_semanticThreshold), SemanticValue(_semanticMargin), _semanticReuse.IsChecked == true); options.Validate();
         }
         catch (Exception error) { await Ui.Message(this, "语义匹配失败", error.Message); return; }
         ClearSemanticMatches();
@@ -136,7 +141,7 @@ public sealed partial class BatchToolsWindow
         var matched = 0; var failed = 0;
         try
         {
-            await using var matcher = await VideoKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token);
+            await using var matcher = await VideoKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true);
             for (var index = 0; index < selected.Length; index++)
             {
                 operation.Token.ThrowIfCancellationRequested();
@@ -159,7 +164,8 @@ public sealed partial class BatchToolsWindow
                     finally { _semanticApplying = false; }
                     entry.Status = Localization.Format($"{Localization.Key(result.IsMatch ? "已匹配" : "待确认")} · {result.Similarity:0.000}");
                     var scores = string.Join(Environment.NewLine, result.Scores.Select(score => $"{score.Keyword}: {score.Similarity:0.000}"));
-                    entry.Details = entry.Path + Environment.NewLine + scores;
+                    entry.Details = entry.Path + Environment.NewLine + scores + Environment.NewLine
+                        + Localization.Format($"模型计算 {result.InferredFrames} 帧 · 复用 {result.ReusedFrames} 帧");
                     if (result.IsMatch) matched++;
                 }
                 catch (OperationCanceledException) { finished = true; if (!_closed) entry.Status = "已停止"; throw; }

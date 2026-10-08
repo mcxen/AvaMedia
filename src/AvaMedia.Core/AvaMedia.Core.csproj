@@ -4,17 +4,30 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseDirectML Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows')))">true</UseDirectML>
+    <Microsoft_AI_DirectML_SkipLibraryCopy Condition="'$(UseDirectML)' == 'true'">true</Microsoft_AI_DirectML_SkipLibraryCopy>
+    <Microsoft_AI_DirectML_SkipDebugLayerCopy Condition="'$(UseDirectML)' == 'true'">true</Microsoft_AI_DirectML_SkipDebugLayerCopy>
+    <_DirectMLArchitecture>x64</_DirectMLArchitecture>
+    <_DirectMLArchitecture Condition="'$(RuntimeIdentifier)' == 'win-arm64' or ('$(RuntimeIdentifier)' == '' and '$(PROCESSOR_ARCHITECTURE)' == 'ARM64')">arm64</_DirectMLArchitecture>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.2" Condition="'$(UseDirectML)' != 'true'" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.1" Condition="'$(UseDirectML)' == 'true'" />
+    <PackageReference Include="Microsoft.AI.DirectML" Version="1.15.4" GeneratePathProperty="true" Condition="'$(UseDirectML)' == 'true'" />
     <PackageReference Include="PdfPig" Version="0.1.13" />
     <PackageReference Include="PDFsharp" Version="6.2.4" />
     <PackageReference Include="bblanchon.PDFium.macOS" Version="157.0.8086" />
     <PackageReference Include="bblanchon.PDFium.Win32" Version="157.0.8086" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseDirectML)' == 'true'">
+    <!-- The upstream native copy target omits AnyCPU. Carry the redistributable through project references as well. -->
+    <None Include="$(PkgMicrosoft_AI_DirectML)/bin/$(_DirectMLArchitecture)-win/DirectML.dll" Link="DirectML.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

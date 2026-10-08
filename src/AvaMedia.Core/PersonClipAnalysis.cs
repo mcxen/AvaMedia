@@ -7,17 +7,21 @@ namespace AvaMedia.Core;
 
 public sealed record PersonClipOptions(double FramesPerSecond = 2, double Threshold = .35,
     double PaddingSeconds = .5, double MergeGapSeconds = 1, double MinimumSeconds = .5,
-    bool KeepUncertain = true, bool UseEmbedding = false)
+    bool KeepUncertain = true, bool UseEmbedding = false, bool PreferGpu = true, bool ReuseSimilarFrames = true)
 {
     public void Validate()
     {
-        if (!double.IsFinite(FramesPerSecond) || FramesPerSecond is < 1 or > 8 || !double.IsFinite(Threshold) || Threshold is < .1 or > .9
+        if (!double.IsFinite(FramesPerSecond) || FramesPerSecond is < .25 or > 8 || !double.IsFinite(Threshold) || Threshold is < .1 or > .9
             || new[] { PaddingSeconds, MergeGapSeconds, MinimumSeconds }.Any(value => !double.IsFinite(value) || value < 0 || value > 30))
             throw new ArgumentException("人物检测参数超出范围。");
     }
 }
 public sealed record PersonClipProgress(double Seconds, double Duration, string Stage);
-public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList<ConversionOptions> Segments, int SampledFrames, int UncertainFrames);
+public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList<ConversionOptions> Segments, int SampledFrames, int UncertainFrames,
+    int InferredFrames, int BoundaryFrames, string Backend)
+{
+    public int ReusedFrames => SampledFrames - InferredFrames;
+}
 internal sealed record PersonFrame(double Seconds, bool Keep, bool Uncertain);
 
 public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelStore = null)
@@ -31,13 +35,17 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         options.Validate();
         progress?.Report(new(0, 0, "校验模型"));
         using var model = await _store.AcquireAsync(ModelCatalog.PersonId, ct);
-        using var sessionOptions = new SessionOptions { IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4), InterOpNumThreads = 1 };
-        using var session = new InferenceSession(Path.Combine(model.Directory, ModelCatalog.PersonFile), sessionOptions);
+        using var session = new ModelInferenceSession(Path.Combine(model.Directory, ModelCatalog.PersonFile),
+            ModelCatalog.Find(ModelCatalog.PersonId).Files[0].Sha256, options.PreferGpu);
         var info = await engine.Probe(path, ct);
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有有效时长的视频。");
         progress?.Report(new(0, info.Duration, options.UseEmbedding ? "加载嵌入模型" : "扫描视频"));
-        await using var embedding = options.UseEmbedding ? await GemmaVideoEmbedding.StartAsync(_store, ct) : null;
+        await using var embedding = options.UseEmbedding ? await GemmaVideoEmbedding.StartAsync(_store, ct, options.PreferGpu) : null;
         var samples = new List<PersonFrame>();
+        byte[]? reference = null;
+        PersonFrame? previous = null;
+        var lastInference = double.NegativeInfinity;
+        var inferredFrames = 0; var boundaryFrames = 0;
         string[] args = ["-v", "error", "-nostdin", "-i", path, "-map", $"0:v:{info.VideoStreamIndex}",
             "-vf", $"fps={MediaEngine.Number(options.FramesPerSecond)}:start_time=0:eof_action=pass,{FrameFilter}",
             "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"];
@@ -52,7 +60,17 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 {
                     var seconds = samples.Count / options.FramesPerSecond;
                     if (seconds >= info.Duration) break;
-                    samples.Add(await ClassifyAsync(session, frame, seconds, options, embedding, ct));
+                    var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromRgb(frame, Size, Size) : null;
+                    // Compare with the last inferred frame so gradual changes cannot drift indefinitely.
+                    // Recheck at least once per second and never reuse an uncertain decision.
+                    if (signature is not null && reference is not null && previous is { Uncertain: false }
+                        && seconds - lastInference < 1 && VideoFrameSimilarity.Similar(signature, reference))
+                        samples.Add(previous with { Seconds = seconds });
+                    else
+                    {
+                        previous = await ClassifyAsync(session, frame, seconds, options, embedding, ct);
+                        samples.Add(previous); reference = signature; lastInference = seconds; inferredFrames++;
+                    }
                     progress?.Report(new(seconds, info.Duration, "扫描视频"));
                 }
                 // Drain the pipe before waiting, including any terminal frame produced by fps rounding.
@@ -81,6 +99,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 progress?.Report(new(middle, info.Duration, "细化片段边界"));
                 var frame = await ReadAtAsync(path, info.VideoStreamIndex, middle, ct);
                 var result = await ClassifyAsync(session, frame, middle, options, embedding, ct);
+                boundaryFrames++;
                 if (result.Keep == samples[index - 1].Keep) low = middle; else high = middle;
             }
             // Preserve the boundary uncertainty on the person side.
@@ -99,7 +118,8 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var segments = merged.Where(interval => interval.End - interval.Start >= options.MinimumSeconds)
             .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
         progress?.Report(new(info.Duration, info.Duration, "完成"));
-        return new PersonClipResult(path, info, segments, samples.Count, samples.Count(frame => frame.Uncertain));
+        return new PersonClipResult(path, info, segments, samples.Count, samples.Count(frame => frame.Uncertain),
+            inferredFrames, boundaryFrames, session.Backend);
     }, ct);
 
     private static string FrameFilter => $"scale={Size}:{Size}:force_original_aspect_ratio=decrease,pad={Size}:{Size}:0:0:color=0x727272,setsar=1";
@@ -136,7 +156,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             await error;
         }
     }
-    private static async Task<PersonFrame> ClassifyAsync(InferenceSession session, byte[] rgb, double seconds,
+    private static async Task<PersonFrame> ClassifyAsync(ModelInferenceSession session, byte[] rgb, double seconds,
         PersonClipOptions options, GemmaVideoEmbedding? embedding, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -144,7 +164,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var plane = Size * Size;
         for (var pixel = 0; pixel < plane; pixel++)
             for (var channel = 0; channel < 3; channel++) tensor.Buffer.Span[channel * plane + pixel] = rgb[pixel * 3 + channel];
-        using var output = session.Run([NamedOnnxValue.CreateFromTensor(session.InputMetadata.Keys.First(), tensor)]);
+        using var output = session.Run(NamedOnnxValue.CreateFromTensor(session.InputName, tensor), ct);
         ct.ThrowIfCancellationRequested();
         var detections = output.First().AsTensor<float>();
         if (detections.Rank != 3 || detections.Dimensions[2] != 85) throw new InvalidDataException("人体检测模型输出格式无效。");

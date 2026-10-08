@@ -23,7 +23,17 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
         _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
     }
 
-    public static async Task<GemmaVideoEmbedding> StartAsync(ModelStore store, CancellationToken ct)
+    public static async Task<GemmaVideoEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true)
+    {
+        try { return await StartCoreAsync(store, ct, preferGpu).ConfigureAwait(false); }
+        catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
+            && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
+        {
+            return await StartCoreAsync(store, ct, false).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<GemmaVideoEmbedding> StartCoreAsync(ModelStore store, CancellationToken ct, bool preferGpu)
     {
         var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId, ct).ConfigureAwait(false);
         GemmaVideoEmbedding? backend = null;
@@ -42,6 +52,8 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
                 "--ctx-size", "8192", "--batch-size", "2048", "--ubatch-size", "2048", "--parallel", "1",
                 "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(),
                 "--host", "127.0.0.1", "--port", port.ToString(), "--api-key", key];
+            arguments = arguments.Concat(preferGpu ? ["--gpu-layers", "auto", "--mmproj-offload"]
+                : new[] { "--gpu-layers", "0", "--device", "none", "--no-mmproj-offload" }).ToArray();
             var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
             backend = new(process, client, lease);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -92,10 +104,15 @@ public sealed class GemmaVideoEmbedding : IAsyncDisposable
     }
 
     public async Task<float[]> EmbedImageAsync(byte[] png, CancellationToken ct)
+        => (await EmbedImagesAsync([png], ct).ConfigureAwait(false))[0];
+
+    public Task<float[][]> EmbedImagesAsync(IReadOnlyList<byte[]> images, CancellationToken ct)
     {
-        if (png.Length == 0) throw new ArgumentException("待分析画面为空。");
-        object input = new { content = new[] { new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(png) } } } };
-        return (await EmbedAsync([input], ct).ConfigureAwait(false))[0];
+        if (images.Count is < 1 or > 4 || images.Any(image => image.Length == 0)) throw new ArgumentException("每批须包含 1–4 个有效画面。");
+        return EmbedAsync(images.Select(png => (object)new
+        {
+            content = new[] { new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(png) } } }
+        }).ToArray(), ct);
     }
 
     private async Task<float[][]> EmbedAsync(object[] input, CancellationToken ct)
