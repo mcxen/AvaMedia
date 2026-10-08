@@ -14,7 +14,10 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false
 public sealed record MediaTagScore(string Tag, double Score, double Maximum);
 public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Scores, int SampledFrames, int InferredFrames,
     string Backend, long Length, DateTime LastWriteUtc, string? FallbackReason = null);
-public sealed record MediaTagProgress(string Path, MediaTagResult? Result, string? Error, int Completed, int Total);
+public sealed record MediaTagProgress(string Path, MediaTagResult? Result, string? Error, int Completed, int Total)
+{
+    public AiActivity? Activity { get; init; }
+}
 public sealed record MediaTagQuery(string Label, string[] Tags);
 
 /// <summary>Local multi-label inference, batched images and bounded video samples. Never writes source media.</summary>
@@ -82,13 +85,18 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
     {
         options.Validate();
         var files = paths.Select(Path.GetFullPath).Distinct(BatchVideoTools.PathComparer).ToArray();
+        var completed = 0;
+        var currentPath = files.FirstOrDefault() ?? "";
+        var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果");
+        activity.Stage("校验模型");
         using var lease = await _store.AcquireAsync(ModelCatalog.JoyTagId, ct).ConfigureAwait(false);
         var tags = (await File.ReadAllLinesAsync(Path.Combine(lease.Directory, ModelCatalog.JoyTagLabels), ct).ConfigureAwait(false))
             .Where(tag => !string.IsNullOrWhiteSpace(tag)).ToArray();
         if (tags.Length != 5813) throw new InvalidDataException("模型标签文件无效，请重新下载 JoyTag。");
+        activity.Stage("加载标签模型");
         using var session = new ModelInferenceSession(Path.Combine(lease.Directory, ModelCatalog.JoyTagFile),
             ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256, options.PreferGpu, options.BatchSize);
-        var completed = 0;
+        activity.Backend(session.Backend);
         var results = new List<MediaTagResult>();
         var pending = new List<(FileInfo File, long Length, DateTime Modified, byte[] Image)>();
         void Report(string path, MediaTagResult? result, string? error)
@@ -99,6 +107,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         void FlushImages()
         {
             if (pending.Count == 0) return;
+            activity.Stage("识别图片标签", detail: $"当前批次 {pending.Count} 张图片");
+            activity.Frame(pending[^1].Image, pending[^1].File.Name);
             float[][] vectors;
             try { vectors = Predict(session, pending.Select(item => item.Image).ToArray(), options.BatchSize, tags.Length, ct); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
@@ -106,9 +116,14 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             for (var i = 0; i < pending.Count; i++)
             {
                 var item = pending[i];
+                currentPath = item.File.FullName;
                 try
                 {
                     CheckSource(item.File, item.Length, item.Modified);
+                    activity.Backend(session.Backend);
+                    activity.Frame(item.Image, item.File.Name);
+                    activity.Result(item.File.Name + " · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j]))
+                        .OrderByDescending(score => score.Score).Take(5).Select(score => $"{score.Tag} {score.Score:0.00}")));
                     Report(item.File.FullName, new(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
                         1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason), null);
                 }
@@ -119,11 +134,14 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         foreach (var path in files.Where(path => !VideoFormats.IsVideo(path)))
         {
             ct.ThrowIfCancellationRequested();
+            currentPath = path;
+            activity.Stage("读取图片", detail: Path.GetFileName(path));
             try
             {
                 if (!Supports(path)) throw new ArgumentException("请选择图片或视频。");
                 var file = new FileInfo(path); var length = file.Length; var modified = file.LastWriteTimeUtc;
                 var png = await engine.Thumbnail(path, 0, 768, 768, ct, pad: false).ConfigureAwait(false);
+                activity.Frame(png, file.Name);
                 pending.Add((file, length, modified, png));
                 if (pending.Count == options.BatchSize) FlushImages();
             }
@@ -134,6 +152,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         foreach (var path in files.Where(VideoFormats.IsVideo))
         {
             ct.ThrowIfCancellationRequested();
+            currentPath = path;
+            activity.Stage("读取视频", detail: Path.GetFileName(path));
             try
             {
                 var file = new FileInfo(path); var length = file.Length; var modified = file.LastWriteTimeUtc;
@@ -141,8 +161,9 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("视频时长无效。");
                 var (duration, frameRate) = BatchVideoTools.VideoTiming(info);
                 var count = (int)Math.Min(options.VideoFrames, Math.Max(1, Math.Ceiling(duration * 2)));
-                var unique = new List<(byte[] Image, byte[] Signature)>();
+                var unique = new List<(byte[] Image, byte[] Signature, double Seconds)>();
                 var samples = new int[count];
+                activity.Stage("采样画面", 0, count, "帧");
                 for (var i = 0; i < count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -151,23 +172,35 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromEncoded(png) : [];
                     var reused = options.ReuseSimilarFrames ? unique.FindIndex(item => VideoFrameSimilarity.Similar(item.Signature, signature)) : -1;
                     samples[i] = reused >= 0 ? reused : unique.Count;
-                    if (reused < 0) unique.Add((png, signature));
+                    if (reused < 0) unique.Add((png, signature, seconds));
+                    activity.Frame(png, $"{file.Name} · {MediaTime.Format(seconds)}");
+                    activity.Advance(i + 1, count, "帧", $"待推理 {unique.Count} 帧 · 复用 {i + 1 - unique.Count} 帧");
                 }
                 var mean = new double[tags.Length]; var maximum = new double[tags.Length];
+                var scored = 0;
+                activity.Stage("识别视频标签", 0, count, "帧");
                 for (var offset = 0; offset < unique.Count; offset += options.BatchSize)
                 {
                     var vectors = Predict(session, unique.Skip(offset).Take(options.BatchSize).Select(item => item.Image).ToArray(), options.BatchSize, tags.Length, ct);
                     for (var i = 0; i < vectors.Length; i++)
                     {
                         var weight = samples.Count(sample => sample == offset + i);
+                        scored += weight;
                         for (var j = 0; j < tags.Length; j++) { mean[j] += vectors[i][j] * weight / count; maximum[j] = Math.Max(maximum[j], vectors[i][j]); }
                     }
+                    var latest = unique[Math.Min(offset + vectors.Length, unique.Count) - 1];
+                    activity.Backend(session.Backend);
+                    activity.Frame(latest.Image, $"{file.Name} · {MediaTime.Format(latest.Seconds)}");
+                    activity.Result("当前标签 · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / scored, maximum[j]))
+                        .OrderByDescending(score => score.Score).Take(5).Select(score => $"{score.Tag} {score.Score:0.00}")));
+                    activity.Advance(scored, count, "帧", session.FallbackReason is null ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");
                 }
                 CheckSource(file, length, modified);
                 Report(path, new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j], maximum[j])).ToArray(), count, unique.Count, session.Backend, length, modified, session.FallbackReason), null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }
         }
+        activity.Finish("标签分析完成");
         return (IReadOnlyList<MediaTagResult>)results;
     }, ct);
 

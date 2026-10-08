@@ -199,7 +199,9 @@ public sealed partial class BatchToolsWindow : Window
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         bottom.Children.Add(_progressText); _stop = Ui.DialogButton("停止", () => _operation?.Cancel()); _stop.IsEnabled = false;_stop.IsVisible=false;Grid.SetColumn(_stop, 1); bottom.Children.Add(_stop);
         var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); bottom.Children.Add(close);
-        var execute=screenshots?_generate:_rename;execute.IsDefault=true;Grid.SetColumn(execute,3);bottom.Children.Add(execute);Grid.SetRow(bottom, 3); root.Children.Add(bottom); Content = root;
+        var execute=screenshots?_generate:_rename;execute.IsDefault=true;Grid.SetColumn(execute,3);bottom.Children.Add(execute);
+        var feedback = new StackPanel { Spacing = 6 }; feedback.Children.Add(_semanticActivity); feedback.Children.Add(bottom);
+        Grid.SetRow(feedback, 3); root.Children.Add(feedback); Content = root;
         foreach (var box in new[] { _pattern, _prefix, _suffix, _find, _replace, _firstIndex, _digits }) box.TextChanged += (_, _) => InvalidatePlan();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _operation is null && !_renaming && !_importing ? DragDropEffects.Copy : DragDropEffects.None);

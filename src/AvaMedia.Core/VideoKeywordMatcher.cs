@@ -21,7 +21,10 @@ public sealed record VideoKeywordResult(string Path, IReadOnlyList<VideoKeywordS
     public double Similarity => Scores[0].Similarity;
     public double Margin => Scores.Count > 1 ? Similarity - Scores[1].Similarity : 1;
 }
-public sealed record VideoKeywordProgress(int Frame, int TotalFrames);
+public sealed record VideoKeywordProgress(int Frame, int TotalFrames)
+{
+    public AiActivity? Activity { get; init; }
+}
 
 /// <summary>Samples a bounded number of frames, reuses similar images and batches unique embeddings.</summary>
 public sealed class VideoKeywordMatcher : IAsyncDisposable
@@ -52,8 +55,9 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
     }
 
     public static Task<VideoKeywordMatcher> CreateAsync(IMediaEngine engine, IReadOnlyList<SemanticKeyword> keywords,
-        ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true) => Task.Run(async () =>
+        ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true, IProgress<AiActivity>? progress = null) => Task.Run(async () =>
     {
+        var activity = new AiActivityReporter(value => progress?.Report(value), "Gemma · 视频嵌入");
         var snapshot = keywords.ToArray();
         if (snapshot.Length is < 1 or > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("请选择 1–20000 个关键词。");
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -63,10 +67,11 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             if (!names.Add(keyword.Label) || string.IsNullOrWhiteSpace(keyword.Description) || keyword.Description.Length > 512)
                 throw new ArgumentException("候选名称重复或描述无效：" + keyword.Label);
         }
-        var embedding = await GemmaVideoEmbedding.StartAsync(store ?? new(), ct, preferGpu).ConfigureAwait(false);
+        var embedding = await GemmaVideoEmbedding.StartAsync(store ?? new(), ct, preferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
         try
         {
             var labels = new List<float[]>();
+            activity.Stage("编码关键词", 0, snapshot.Length, "词");
             for (var offset = 0; offset < snapshot.Length;)
             {
                 ct.ThrowIfCancellationRequested();
@@ -80,6 +85,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
                 }
                 labels.AddRange(await embedding.EmbedLabelsAsync(batch, ct).ConfigureAwait(false));
                 offset += batch.Count;
+                activity.Advance(labels.Count, snapshot.Length, "词");
             }
             return new VideoKeywordMatcher(engine, embedding, snapshot, labels.ToArray());
         }
@@ -90,16 +96,20 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         IProgress<VideoKeywordProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
         options.Validate();
+        var completed = 0; var frames = 0;
+        var activity = new AiActivityReporter(value => progress?.Report(new(completed, frames) { Activity = value }), "Gemma · 视频嵌入", "次候选结果");
+        activity.Stage("读取视频", detail: Path.GetFileName(path));
         var file = new FileInfo(path);
         if (!file.Exists) throw new FileNotFoundException("源文件不存在，请刷新文件列表。", path);
         var length = file.Length; var modified = file.LastWriteTimeUtc;
         var info = await _engine.Probe(path, ct).ConfigureAwait(false);
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有有效时长的视频。");
         var (duration, frameRate) = BatchVideoTools.VideoTiming(info);
-        var frames = (int)Math.Min(options.Frames, Math.Max(1, Math.Ceiling(duration * 2)));
+        frames = (int)Math.Min(options.Frames, Math.Max(1, Math.Ceiling(duration * 2)));
         var totals = new double[_keywords.Length];
-        var unique = new List<(byte[] Png, byte[] Signature)>();
+        var unique = new List<(byte[] Png, byte[] Signature, double Seconds)>();
         var samples = new int[frames];
+        activity.Stage("采样画面", 0, frames, "帧");
         for (var index = 0; index < frames; index++)
         {
             ct.ThrowIfCancellationRequested();
@@ -108,9 +118,11 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
             var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromEncoded(png) : [];
             var existing = options.ReuseSimilarFrames ? unique.FindIndex(frame => VideoFrameSimilarity.Similar(frame.Signature, signature)) : -1;
             samples[index] = existing >= 0 ? existing : unique.Count;
-            if (existing < 0) unique.Add((png, signature));
+            if (existing < 0) unique.Add((png, signature, seconds));
+            activity.Frame(png, $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)}");
+            activity.Advance(index + 1, frames, "帧", $"待推理 {unique.Count} 帧 · 复用 {index + 1 - unique.Count} 帧");
         }
-        var completed = 0;
+        activity.Stage("匹配视频关键词", 0, frames, "帧");
         for (var offset = 0; offset < unique.Count; offset += 4)
         {
             ct.ThrowIfCancellationRequested();
@@ -123,7 +135,11 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
                 for (var label = 0; label < totals.Length; label++) totals[label] += weight * GemmaVideoEmbedding.Cosine(vectors[index], _labels[label]);
                 completed += weight;
             }
-            progress?.Report(new(completed, frames));
+            var latest = unique[Math.Min(offset + vectors.Length, unique.Count) - 1];
+            activity.Frame(latest.Png, $"{Path.GetFileName(path)} · {MediaTime.Format(latest.Seconds)}");
+            activity.Result("当前候选 · " + string.Join(" · ", _keywords.Select((keyword, index) => new VideoKeywordScore(keyword.Label, totals[index] / completed))
+                .OrderByDescending(score => score.Similarity).Take(3).Select(score => $"{score.Keyword} {score.Similarity:0.000}")));
+            activity.Advance(completed, frames, "帧", "相似度分数，阶段候选");
         }
         file.Refresh();
         if (!file.Exists || file.Length != length || file.LastWriteTimeUtc != modified)
@@ -131,6 +147,7 @@ public sealed class VideoKeywordMatcher : IAsyncDisposable
         var scores = _keywords.Select((keyword, index) => new VideoKeywordScore(keyword.Label, totals[index] / frames))
             .OrderByDescending(score => score.Similarity).ToArray();
         var margin = scores.Length > 1 ? scores[0].Similarity - scores[1].Similarity : 1;
+        activity.Finish("关键词匹配完成");
         return new VideoKeywordResult(path, scores, scores[0].Similarity >= options.MinimumSimilarity && margin >= options.MinimumMargin,
             frames, length, modified, unique.Count);
     }, ct);

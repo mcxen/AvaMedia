@@ -19,6 +19,7 @@ public sealed partial class BatchToolsWindow
     private readonly NumericUpDown _semanticThreshold = SemanticNumber(0, 1, .55m, .05m);
     private readonly NumericUpDown _semanticMargin = SemanticNumber(0, 1, .03m, .01m);
     private readonly StackPanel _semanticPanel = new() { Spacing = 8, IsVisible = false };
+    private readonly Controls.AiActivityView _semanticActivity = new();
     private readonly StackPanel _semanticParameters = new() { Spacing = 8, IsVisible = false };
     private readonly TextBlock _semanticModelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly Dictionary<string, VideoKeywordResult> _semanticResults = new(BatchVideoTools.PathComparer);
@@ -139,10 +140,12 @@ public sealed partial class BatchToolsWindow
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_semanticLifetime.Token);
         _operation = operation; SetBusy(true); _stop.IsEnabled = true;
         _progressText.Text = Localization.Text("加载嵌入模型…");
+        _semanticActivity.Update(new("加载嵌入模型", "Gemma · 视频嵌入", DateTime.UtcNow, DateTime.UtcNow));
         var matched = 0; var failed = 0;
         try
         {
-            await using var matcher = await VideoKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true);
+            var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) _semanticActivity.Update(activity); });
+            await using var matcher = await VideoKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true, progress: modelProgress);
             for (var index = 0; index < selected.Length; index++)
             {
                 operation.Token.ThrowIfCancellationRequested();
@@ -151,7 +154,8 @@ public sealed partial class BatchToolsWindow
                 var progress = new Progress<VideoKeywordProgress>(value =>
                 {
                     if (_closed || _operation != operation || finished) return;
-                    entry.Status = Localization.Format($"匹配中 {value.Frame}/{value.TotalFrames} 帧");
+                    if (value.Activity is { } activity) _semanticActivity.Update(activity);
+                    entry.Status = Localization.Text(value.Activity?.Stage ?? "匹配中") + (value.Activity?.Total > 0 ? $" {value.Activity.Current:0}/{value.Activity.Total:0}" : "");
                     Localization.SetText(_progressText, $"{entry.Name} · {current + 1}/{selected.Length} 个视频");
                 });
                 try
@@ -176,9 +180,10 @@ public sealed partial class BatchToolsWindow
             InvalidatePlan();
             if (matched > 0) await PreviewRename();
             Localization.SetText(_progressText, $"匹配完成：已勾选 {matched} 个，待确认 {selected.Length - matched - failed} 个，失败 {failed} 个。");
+            _semanticActivity.Finish(AiActivityState.Completed, "关键词匹配完成");
         }
-        catch (OperationCanceledException) { if (!_closed) _progressText.Text = Localization.Text("语义匹配已停止，已完成结果已保留。"); }
-        catch (Exception error) { if (!_closed) await Ui.Message(this, "语义匹配失败", error.Message); }
+        catch (OperationCanceledException) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Cancelled, "已停止"); _progressText.Text = Localization.Text("语义匹配已停止，已完成结果已保留。"); } }
+        catch (Exception error) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Failed, "匹配失败"); await Ui.Message(this, "语义匹配失败", error.Message); } }
         finally
         {
             _operation = null;

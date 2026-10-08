@@ -31,6 +31,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
+    private readonly Controls.AiActivityView _activity = new();
     private readonly Button _analyze;
     private readonly Button _rename;
     private readonly Button _undo;
@@ -86,7 +87,9 @@ public sealed partial class MediaAiWindow : Window
             label.Bind(TextBox.TextProperty, new Binding(nameof(BatchVideoEntry.Keyword)) { Mode = BindingMode.TwoWay }); edits.Children.Add(label);
             Grid.SetColumn(edits, 2); row.Children.Add(edits); return row;
         });
-        var body = new Grid { ColumnDefinitions = new("*,310"), ColumnSpacing = 16 }; body.Children.Add(_list);
+        var body = new Grid { ColumnDefinitions = new("*,310"), ColumnSpacing = 16 };
+        var analysis = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8 };
+        analysis.Children.Add(_list); Grid.SetRow(_activity, 1); analysis.Children.Add(_activity); body.Children.Add(analysis);
         _parameters.Children.Add(Ui.Text("JoyTag · 本地推理", "caption"));
         _parameters.Children.Add(_modelStatus);
         _parameters.Children.Add(Ui.Button("模型管理…", async () =>
@@ -189,10 +192,17 @@ public sealed partial class MediaAiWindow : Window
         { _results.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); InvalidatePlan();
         _status.Text = Localization.Text(options.PreferGpu ? "加载 JoyTag · 首次 GPU 编译可能较慢…" : "加载 JoyTag…");
+        _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
         var progress = new Progress<MediaTagProgress>(update =>
         {
-            if (_closed) return;
+            if (_closed || _operation != operation) return;
+            if (update.Activity is { } activity)
+            {
+                _activity.Update(activity);
+                _status.Text = $"{update.Completed} / {update.Total} · {Path.GetFileName(update.Path)}";
+            }
             var entry = _entries.FirstOrDefault(entry => BatchVideoTools.PathComparer.Equals(entry.Path, update.Path)); if (entry is null) return;
+            if (update.Result is null && update.Error is null) { entry.Status = Localization.Text(update.Activity?.Stage ?? "处理中"); return; }
             if (update.Result is { } result) { _results[result.Path] = result; ShowResult(entry, result); }
             else { entry.Status = Localization.Text("失败"); entry.Details = update.Error ?? ""; entry.Include = false; }
             _status.Text = $"{update.Completed} / {update.Total}";
@@ -203,11 +213,12 @@ public sealed partial class MediaAiWindow : Window
             if (_closed) return;
             foreach (var result in results) _results[result.Path] = result;
             _status.Text = Localization.Format($"完成 {results.Count} / {paths.Length} 个文件");
+            _activity.Finish(AiActivityState.Completed, "标签分析完成");
             try { Match(); }
             catch (Exception error) { await Ui.Message(this, "标签筛选失败", error.Message); }
         }
-        catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("已停止，已完成结果已保留"); }
-        catch (Exception error) { if (!_closed) await Ui.Message(this, "分析失败", error.Message); }
+        catch (OperationCanceledException) { if (!_closed) { _activity.Finish(AiActivityState.Cancelled, "已停止"); _status.Text = Localization.Text("已停止，已完成结果已保留"); } }
+        catch (Exception error) { if (!_closed) { _activity.Finish(AiActivityState.Failed, "分析失败"); await Ui.Message(this, "分析失败", error.Message); } }
         finally { _operation = null; if (!_closed) { SetBusy(false); InvalidatePlan(); } }
     }
     private void ShowResult(BatchVideoEntry entry, MediaTagResult result)
