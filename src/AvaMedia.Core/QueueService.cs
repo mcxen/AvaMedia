@@ -28,10 +28,10 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                     }
                 }
                 void Finish(JobState state,string error="")
-                {lock(progressGate){active=false;job.Error=error;job.Estimate=null;if(state==JobState.Completed)job.Progress=100;job.State=state;}}
+                {lock(progressGate){active=false;job.Error=error;job.Estimate=null;job.DownloadSpeed=null;if(state==JobState.Completed)job.Progress=100;job.State=state;}}
                 try
                 {
-                    job.Progress=0;job.Estimate=null;job.State=JobState.Running;job.Error="";job.ProgressDetail="";job.Log="";Publish(0);
+                    job.Progress=0;job.Estimate=null;job.DownloadSpeed=null;job.State=JobState.Running;job.Error="";job.ProgressDetail="";job.Log="";Publish(0);
                     using var timer=_time.CreateTimer(_=>{lock(progressGate)Publish(job.Progress);},null,TimeSpan.FromSeconds(1),TimeSpan.FromSeconds(1));
                     await engine.Execute(job,Publish,token);
                     token.ThrowIfCancellationRequested();Finish(JobState.Completed);

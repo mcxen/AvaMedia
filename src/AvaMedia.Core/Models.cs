@@ -138,6 +138,9 @@ public sealed partial class Job : Observable
     public string DownloadTitle { get=>_downloadTitle; set { if(Set(ref _downloadTitle,value))Raise(nameof(Name)); } }
     private string _progressDetail="";
     public string ProgressDetail { get=>_progressDetail; set { if(Set(ref _progressDetail,value))Raise(nameof(Status)); } }
+    private DownloadSpeedSample? _downloadSpeed;
+    [JsonIgnore]
+    public DownloadSpeedSample? DownloadSpeed { get=>Volatile.Read(ref _downloadSpeed); set=>Volatile.Write(ref _downloadSpeed,value); }
     private ProgressEstimate? _estimate;
     [JsonIgnore]
     public ProgressEstimate? Estimate { get=>_estimate; set { if(Set(ref _estimate,value)){Raise(nameof(RemainingTimeText));Raise(nameof(Status));} } }

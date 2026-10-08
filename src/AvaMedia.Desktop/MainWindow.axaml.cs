@@ -128,6 +128,7 @@ public partial class MainWindow : Window
         RefreshTaskState();
         if (_startupOptionsInitialized && !_backgroundWindowVisible) return;
         UpdateElapsed();
+        PresentDownloadSpeedMonitor();
         StartButton.IsEnabled=!_queue.IsRunning && _editingJob is null && _jobs.Any(j=>j.State==JobState.Waiting);StopButton.IsEnabled=_queue.IsRunning;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning;RemoveButton.IsEnabled=JobList.SelectedItems?.Count>0&&!_queue.IsRunning;
         UpdateTaskEditingActions();
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");

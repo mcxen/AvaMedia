@@ -50,16 +50,21 @@ public static class DownloadDiagnostics
         return platform + " · " + hint + "\n" + detail[..Math.Min(detail.Length, 1800)];
     }
 
-    public static (double Percent, string Detail)? Progress(string line)
+    public static (double? Percent, string Detail, double BytesPerSecond, bool IsDownloading)? Progress(string line)
     {
         const string marker = "AVAMEDIA_PROGRESS:";
         var index = line.IndexOf(marker, StringComparison.Ordinal);
         if (index < 0) return null;
         var parts = line[(index + marker.Length)..].Split('|');
         var match = Regex.Match(parts[0], @"\d+(?:\.\d+)?");
-        if (!match.Success || !double.TryParse(match.Value, System.Globalization.CultureInfo.InvariantCulture, out var percent)) return null;
+        double? percent = match.Success && double.TryParse(match.Value, System.Globalization.CultureInfo.InvariantCulture, out var rawPercent)
+            && double.IsFinite(rawPercent) ? Math.Clamp(rawPercent, 0, 99) : null;
         var speed = parts.ElementAtOrDefault(1)?.Trim() ?? "";var eta = parts.ElementAtOrDefault(2)?.Trim() ?? "";
         var detail = (speed is "" or "NA" or "Unknown" ? "" : speed) + (eta is "" or "NA" or "Unknown" ? "" : " · 剩余 " + eta);
-        return (Math.Clamp(percent, 0, 99), detail.Trim(' ', '·'));
+        var downloading = parts.ElementAtOrDefault(4)?.Trim() == "downloading";
+        var bytesPerSecond = double.TryParse(parts.ElementAtOrDefault(3), System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var rawSpeed) && double.IsFinite(rawSpeed) && rawSpeed > 0
+            ? rawSpeed : 0;
+        return (percent, detail.Trim(' ', '·'), downloading ? bytesPerSecond : 0, downloading);
     }
 }

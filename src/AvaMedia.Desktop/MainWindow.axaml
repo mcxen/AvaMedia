@@ -36,7 +36,7 @@
         </Grid>
       </Border>
       <GridSplitter Grid.Column="1" Background="{DynamicResource UiDivider}" ResizeDirection="Columns"/>
-      <Grid Grid.Column="2" RowDefinitions="Auto,*">
+      <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
         <Border Classes="platinum-list-heading" Height="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}">
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -66,6 +66,7 @@
             </ContextMenu>
           </ListBox.ContextMenu>
         </ListBox>
+        <local:DownloadSpeedMonitor x:Name="NetworkMonitor" Grid.Row="2" HorizontalAlignment="Right" Margin="8,6,8,6"/>
       </Grid>
     </Grid>
     <StackPanel Grid.Row="3">

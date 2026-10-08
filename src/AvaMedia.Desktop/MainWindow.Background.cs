@@ -85,6 +85,7 @@ public partial class MainWindow
     // Collapse decoder progress bursts into one queued UI update. Hidden windows update once per second.
     private void QueueJobChanged(Job job)
     {
+        _downloadSpeedTracker.Observe(job);
         Interlocked.Exchange(ref _queueDirty, 1);
         if (!_backgroundWindowVisible || _closing || Interlocked.CompareExchange(ref _refreshPosted, 1, 0) != 0) return;
         Dispatcher.UIThread.Post(DrainQueueChanges, DispatcherPriority.Background);
@@ -101,6 +102,7 @@ public partial class MainWindow
     private void BackgroundTick()
     {
         if (_closing) return;
+        SampleDownloadSpeedMonitor();
         if (_backgroundWindowVisible) UpdateElapsed();
         DrainQueueChanges();
     }
@@ -147,6 +149,7 @@ public partial class MainWindow
     {
         if (_closing || _queue.IsRunning || _editingJob is not null) return;
         var batch = _jobs.Where(j => j.State == JobState.Waiting).ToArray(); if (batch.Length == 0) return;
+        if (batch.Any(j => j.FeatureId == "download")) ResetDownloadSpeedMonitor();
         _completionCancellation?.Cancel(); _lastCompletion = null; Save(); _elapsed.Restart();
         _timer.Start();
         try
@@ -154,7 +157,7 @@ public partial class MainWindow
             _running = _queue.Run(batch, _settings.MultiThread ? _settings.ParallelJobs : 1); Refresh();
             await _running;
         }
-        finally { _elapsed.Stop(); _timer.Stop(); _running = Task.CompletedTask; }
+        finally { _elapsed.Stop(); _timer.Stop(); _running = Task.CompletedTask; SampleDownloadSpeedMonitor(); }
         if (_closing) return;
         Interlocked.Exchange(ref _queueDirty, 0);
         Save(); _lastCompletion = QueueCompletion.From(batch); Refresh();

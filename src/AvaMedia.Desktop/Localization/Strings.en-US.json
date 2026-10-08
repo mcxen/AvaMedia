@@ -1,4 +1,9 @@
 {
+  "下载": "Download",
+  "峰值": "Peak",
+  "平均": "Average",
+  "下载网速监控": "Download speed monitor",
+  "曲线显示最近 60 秒的下载总速度；峰值与平均值按本轮下载统计，平均值包含停顿，不包含媒体整理。": "Total download speed over the last 60 seconds. Peak and average cover this download session; the average includes stalls and excludes media postprocessing.",
   "字幕预览": "Subtitle preview",
   "拖动字幕调整位置": "Drag subtitles to adjust their position",
   "预览时间": "Preview time",

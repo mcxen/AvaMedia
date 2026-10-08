@@ -93,9 +93,15 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         var result = await _run(MediaEngine.Resolve(_settings.YtDlpPath, "yt-dlp"), args, ct, line =>
         {
             if (DownloadDiagnostics.Progress(line) is { } update)
-            { job.ProgressDetail = update.Detail;progress(update.Percent); }
+            {
+                job.DownloadSpeed = new(update.BytesPerSecond, update.IsDownloading);
+                job.ProgressDetail = update.Detail;progress(update.Percent ?? job.Progress);
+            }
             else if (line.StartsWith("[Merger]", StringComparison.Ordinal) || line.StartsWith("[VideoRemuxer]", StringComparison.Ordinal) || line.StartsWith("[ExtractAudio]", StringComparison.Ordinal))
-                job.ProgressDetail = "合并或整理媒体";
+            {
+                job.DownloadSpeed = null;
+                job.ProgressDetail = "合并或整理媒体";progress(job.Progress);
+            }
         });
         ct.ThrowIfCancellationRequested();job.Log = DownloadDiagnostics.Redact(result.Output + "\n" + result.Error);
         if (result.ExitCode != 0) throw new InvalidOperationException(DownloadDiagnostics.Explain(result.Error, url));
@@ -146,7 +152,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
         options.Validate();if (format is not ("mp4" or "mkv" or "mp3" or "m4a")) throw new ArgumentException("下载格式无效。");
         var args = CommonArguments(options, cookiePath);
         args.AddRange(["--no-playlist", "--no-overwrites", "--continue", "--newline", "--no-mtime", "--concurrent-fragments", "4",
-            "--match-filter", "!is_live", "--progress-template", "download:AVAMEDIA_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
+            "--match-filter", "!is_live", "--progress-delta", "1", "--progress-template", "download:AVAMEDIA_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.speed)s|%(progress.status)s",
             "--output", template]);
         if (format is "mp3" or "m4a") args.AddRange(["--format", "ba/b", "--extract-audio", "--audio-format", format, "--audio-quality", "0"]);
         else
