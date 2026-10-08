@@ -24,16 +24,16 @@ public sealed partial class SettingsWindow : Window
         InitializeComponent(); _settings = settings; _services = services ?? new AppOptionsServices(); _ownsServices = services is null;
         Localization.Changed += LanguageChanged;
         Populate(settings);
-        foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput,
-            OnlineEndpointInput, OnlineTextModelInput, OnlineVisionModelInput, OnlineKeyInput })
+        foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
         foreach (var input in new[] { AutoGpuInput, MultithreadInput, NotifyInput, ReducedMotionInput, OutputToSourceInput, AddSettingNameInput,
-            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput, BetaInput, AutoRepairModelInput, OnlineSchemaInput })
+            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput, BetaInput, AutoRepairModelInput })
         { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
         foreach (var input in new[] { ThreadsInput, JpegQualityInput, WebpQualityInput, ParallelInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         AutoUpdateInput.IsCheckedChanged += (_, _) => SilentUpdateInput.IsEnabled = AutoUpdateInput.IsChecked == true;
+        InitializeProviderManagement();
         _appliedValues=_values.Select(value=>value()).ToArray();
         InitializeModelManagement();
         InitializeWordLibraryManagement();
@@ -70,14 +70,7 @@ public sealed partial class SettingsWindow : Window
         draft.CloseToTray = CloseToTrayInput.IsChecked == true;
         draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
         draft.EnableBetaFeatures = BetaInput.IsChecked == true; draft.AutoDownloadRepairModel = AutoRepairModelInput.IsChecked == true;
-        draft.OnlineAi = new()
-        {
-            Endpoint = OnlineEndpointInput.Text?.Trim() ?? "",
-            TextModel = OnlineTextModelInput.Text?.Trim() ?? "",
-            VisionModel = OnlineVisionModelInput.Text?.Trim() ?? "",
-            ApiKey = OnlineKeyInput.Text?.Trim() ?? "",
-            UseJsonSchema = OnlineSchemaInput.IsChecked == true
-        };
+        draft.OnlineAi = _providerDraft.Clone();
         SettingsPolicy.Validate(draft); draft.OutputFolder = Path.GetFullPath(draft.OutputFolder); return draft;
     }
     private int Number(NumericUpDown input, string label)
@@ -107,9 +100,7 @@ public sealed partial class SettingsWindow : Window
         CloseToTrayInput.IsChecked = source.CloseToTray;
         AutoUpdateInput.IsChecked = source.AutoUpdate; SilentUpdateInput.IsChecked = source.SilentUpdate;
         BetaInput.IsChecked = source.EnableBetaFeatures; AutoRepairModelInput.IsChecked = source.AutoDownloadRepairModel;
-        OnlineEndpointInput.Text = source.OnlineAi.Endpoint; OnlineTextModelInput.Text = source.OnlineAi.TextModel;
-        OnlineVisionModelInput.Text = source.OnlineAi.VisionModel; OnlineKeyInput.Text = source.OnlineAi.ApiKey;
-        OnlineSchemaInput.IsChecked = source.OnlineAi.UseJsonSchema;
+        PopulateProviders(source.OnlineAi);
         SilentUpdateInput.IsEnabled = source.AutoUpdate;
         RuntimeInfo.Text = RuntimeDescription;
         StatusText.IsVisible = false; _initializing = false;

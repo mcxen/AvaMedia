@@ -2,13 +2,17 @@
 
 ## 线上 AI
 
-视频总结默认使用本地模型，也可选择“线上 AI”。通过“配置接口…”进入“选项 → 模型管理”，填写接口地址、API Key、文本模型和视觉模型；视觉模型留空时沿用文本模型，此时该模型须支持图像输入。接口地址支持基础地址（例如 `https://api.openai.com/v1`）或完整的 `/chat/completions` 地址，远程接口须使用 HTTPS，本机接口可使用 HTTP。
+视频总结默认使用本地模型，也可选择“线上 AI”及具体供应商。通过“配置供应商…”进入“选项 → AI 供应商”，添加、编辑、停用或删除独立配置，并设置默认供应商。预设包含 OpenAI、OpenRouter、硅基流动、Ollama 和自定义供应商；每家独立保存地址、API Key、文本模型和视觉模型。视觉模型留空时沿用文本模型，此时该模型须支持图像输入。接口地址支持基础地址（例如 `https://api.openai.com/v1`）或完整的 `/chat/completions` 地址，远程接口须使用 HTTPS，本机接口可使用 HTTP。
 
-请求遵循 [Chat Completions 格式](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)：Bearer 认证、文本及 `image_url` 多图输入、`max_completion_tokens`。结构化输出默认使用 `json_object`，支持严格结构的服务可勾选 JSON Schema。配置所选服务必须支持这些字段；失败请求不自动重发。
+请求遵循 [Chat Completions 格式](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)，支持 Bearer 认证、文本及 `image_url` 多图输入。“高级”可选择输出长度参数 `max_completion_tokens` 或 `max_tokens`、提示词约束 / JSON 对象 / 严格 JSON Schema，以及 10–600 秒的超时。预设按服务的接口文档填写地址与输出长度参数，模型 ID 由用户选择，服务和模型必须支持所选参数；失败请求不自动重发。
+
+“连接并获取模型”手动请求 `/models`，最多等待 30 秒，可以取消。模型 ID 可搜索或手动输入；没有模型列表接口时仍可保存和使用手填模型。获取列表不自动修改已填模型，也不证明模型支持图像或结构化输出。编辑连接、切换供应商或关闭设置会取消进行中的请求，避免旧响应覆盖新配置；打开、保存设置和运行本地任务不会调用供应商。
 
 线上模式发送转录资料、采样画面及总结指令，并继续执行相同的引用复核和内容约束。语音识别仍使用本地 Whisper；没有内嵌或外部字幕时，需下载语音模型。线上模式不下载 Qwen、SmolVLM 或 llama.cpp。
 
-任务只保存本地／线上选择，执行时读取当前接口配置。API Key 不进入任务、预设、报告和 `settings.json`，单独保存在用户数据目录的 `online-ai-key.json`，macOS/Linux 文件权限为仅当前用户读写；该文件是明文凭据。配置地址和模型名称保存在 `settings.json`。清空 API Key 并应用会删除凭据文件。
+排队时保存本地／线上选择和具体供应商标识，默认供应商也在排队时解析为具体标识。执行时读取该供应商的当前配置；配置删除或停用后明确报错，不切换到其他服务。报告记录实际供应商名称及模型 ID。API Key 默认遮罩，不进入任务、预设、报告和 `settings.json`，按供应商标识及地址单独保存在用户数据目录的 `online-ai-key.json`，macOS/Linux 文件权限为仅当前用户读写；该文件是明文凭据。清空密钥或删除供应商并应用会移除对应凭据，全部清空后删除凭据文件。
+
+设置结构参考 [Cherry Studio 的供应商与模型管理](https://github.com/CherryHQ/cherry-studio-docs/blob/main/pre-basic/settings/providers.md)、[供应商注册表](https://github.com/CherryHQ/cherry-studio/blob/main/docs/references/provider-model/provider-registry.md)，接口获取及手填模型参考 [Open WebUI](https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible/)。预设参数按 [OpenAI](https://developers.openai.com/api/reference/resources/models/methods/list)、[Ollama](https://docs.ollama.com/api/openai-compatibility)、[OpenRouter](https://openrouter.ai/docs/quickstart)、[硅基流动](https://docs.siliconflow.cn/docs/api/chat-completions-post)官方接口文档核对。
 
 人物片段检测中，未下载的模型显示“下载模型…”按钮，点击后打开模型管理并定位对应模型；返回检测窗口时刷新下载状态。
 

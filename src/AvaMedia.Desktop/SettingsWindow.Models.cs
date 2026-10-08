@@ -21,7 +21,7 @@ public sealed partial class SettingsWindow
     }
     public void OpenOnlineAiSettings()
     {
-        _modelTarget = null; _onlineTarget = true; SettingsTabs.SelectedItem = ModelsTab;
+        _modelTarget = null; _onlineTarget = true; SettingsTabs.SelectedItem = ProvidersTab;
         if (IsVisible) FocusModelTarget();
     }
     private void FocusModelTarget() => Dispatcher.UIThread.Post(() =>

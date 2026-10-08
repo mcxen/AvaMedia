@@ -154,31 +154,75 @@
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
-              <TextBlock Classes="settingsHeading" Text="线上 AI"/>
-              <Border Classes="settingSection">
-                <StackPanel Spacing="10">
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="接口地址" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineEndpointInput" local:Localization.IsUserText="True"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="API Key" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineKeyInput" PasswordChar="●" local:Localization.IsUserText="True"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="文本模型" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineTextModelInput" local:Localization.IsUserText="True"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="视觉模型" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineVisionModelInput" Watermark="留空沿用文本模型" local:Localization.IsUserText="True"/>
-                  </Grid>
-                  <CheckBox x:Name="OnlineSchemaInput" Content="使用严格 JSON Schema（需接口支持）"/>
-                </StackPanel>
-              </Border>
               <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型"/>
               <StackPanel x:Name="ModelList" Spacing="8"/>
               <TextBlock x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </TabItem>
+      <TabItem x:Name="ProvidersTab" Header="AI 供应商">
+        <Border Classes="settingsPage">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="12">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <ComboBox x:Name="OnlineProviderInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True" AutomationProperties.Name="供应商"/>
+                <Button Grid.Column="1" x:Name="AddProviderButton" Content="添加供应商…" Click="AddProviderClick" Classes="field-action"/>
+                <Button Grid.Column="2" x:Name="DeleteProviderButton" Content="删除" Click="DeleteProviderClick" Classes="field-action"/>
+              </Grid>
+              <Border x:Name="OnlineProviderSection" Classes="settingSection">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="名称" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineNameInput" local:Localization.IsUserText="True" AutomationProperties.Name="供应商名称"/>
+                    <CheckBox Grid.Column="2" x:Name="OnlineEnabledInput" Content="启用"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="接口地址" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineEndpointInput" Watermark="https://…/v1" local:Localization.IsUserText="True" AutomationProperties.Name="接口地址"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="API Key" Classes="settingLabel"/>
+                    <TextBox Grid.Column="1" x:Name="OnlineKeyInput" PasswordChar="●" local:Localization.IsUserText="True" AutomationProperties.Name="API Key"/>
+                    <Button Grid.Column="2" x:Name="RevealProviderKeyButton" Content="显示密钥" Click="RevealProviderKeyClick" Classes="field-action"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="文本模型" Classes="settingLabel"/>
+                    <AutoCompleteBox Grid.Column="1" x:Name="OnlineTextModelInput" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" Watermark="输入或选择模型 ID" local:Localization.IsUserText="True" AutomationProperties.Name="文本模型"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                    <TextBlock Text="视觉模型" Classes="settingLabel"/>
+                    <AutoCompleteBox Grid.Column="1" x:Name="OnlineVisionModelInput" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" Watermark="支持图像输入；留空沿用文本模型" local:Localization.IsUserText="True" AutomationProperties.Name="视觉模型"/>
+                  </Grid>
+                  <WrapPanel Orientation="Horizontal">
+                    <Button x:Name="FetchProviderModelsButton" Content="连接并获取模型" Click="FetchProviderModelsClick" Classes="field-action" Margin="0,0,8,0"/>
+                    <Button x:Name="CancelProviderModelsButton" Content="取消" Click="CancelProviderModelsClick" Classes="field-action" Margin="0,0,8,0" IsVisible="False"/>
+                    <Button x:Name="DefaultProviderButton" Content="设为默认" Click="DefaultProviderClick" Classes="field-action" Margin="0,0,8,0"/>
+                    <Button x:Name="ProviderDocsButton" Content="文档" Click="ProviderDocsClick" Classes="field-action"/>
+                  </WrapPanel>
+                  <TextBlock x:Name="ProviderStatus" Classes="caption" TextWrapping="Wrap" IsVisible="False"/>
+                  <Expander Header="高级" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="10" Margin="0,8,0,0">
+                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                        <TextBlock Text="输出长度参数" Classes="settingLabel"/>
+                        <ComboBox Grid.Column="1" x:Name="OnlineTokenInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True">
+                          <ComboBoxItem Content="max_completion_tokens"/><ComboBoxItem Content="max_tokens"/>
+                        </ComboBox>
+                      </Grid>
+                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                        <TextBlock Text="结构化输出" Classes="settingLabel"/>
+                        <ComboBox Grid.Column="1" x:Name="OnlineFormatInput" HorizontalAlignment="Stretch">
+                          <ComboBoxItem Content="提示词约束"/><ComboBoxItem Content="JSON 对象"/><ComboBoxItem Content="严格 JSON Schema"/>
+                        </ComboBox>
+                      </Grid>
+                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                        <TextBlock Text="请求超时（秒）" Classes="settingLabel"/>
+                        <NumericUpDown Grid.Column="1" x:Name="OnlineTimeoutInput" Minimum="10" Maximum="600" Increment="10" FormatString="0" HorizontalAlignment="Left"/>
+                      </Grid>
+                    </StackPanel>
+                  </Expander>
+                </StackPanel>
+              </Border>
             </StackPanel>
           </ScrollViewer>
         </Border>

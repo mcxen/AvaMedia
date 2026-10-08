@@ -135,6 +135,7 @@ public sealed class Localization : AvaloniaObject
             yield return AutomationProperties.HelpTextProperty;
             if (control is Window) yield return Window.TitleProperty;
             if (control is TextBlock) yield return TextBlock.TextProperty;
+            if (control is AutoCompleteBox) yield return AutoCompleteBox.WatermarkProperty;
             if (control is TextBox box)
             {
                 yield return TextBox.WatermarkProperty;

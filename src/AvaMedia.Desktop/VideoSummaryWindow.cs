@@ -24,6 +24,9 @@ public sealed class VideoSummaryWindow : Window
         _frames = new() { Content = "分析视频画面" }, _gpu = new() { Content = "优先使用 GPU" },
         _sourceFolder = new() { Content = "输出至源文件目录" };
     private readonly ComboBox _source, _language, _speechLanguage, _speechModel, _provider;
+    private readonly ComboBox _onlineProvider = new() { Name = "SummaryOnlineProvider", HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly StackPanel _onlineProviderRow = new();
+    private sealed record OnlineProviderChoice(string Id, string Name, bool UserText = true);
     private readonly TextBlock _modelNotice = Ui.Text("", "caption");
     private readonly Button? _configureOnline;
     private readonly TextBox _external = Ui.Input(), _focus = Ui.Input(), _folder;
@@ -94,6 +97,10 @@ public sealed class VideoSummaryWindow : Window
         _provider = Ui.Combo(["本地模型", "线上 AI"], "本地模型");
         _provider.SelectedIndex = (int)options.Provider; _provider.Name = "SummaryProvider";
         Add(fields, "总结模型", _provider);
+        _onlineProvider.ItemTemplate = new FuncDataTemplate<OnlineProviderChoice>((item, _) =>
+        { var label = Ui.Text(item?.Name ?? ""); Localization.SetIsUserText(label, item?.UserText == true); return label; });
+        RefreshOnlineProviders(options.OnlineProviderId);
+        Add(_onlineProviderRow, "供应商", _onlineProvider); fields.Children.Add(_onlineProviderRow);
         _source = Ui.Combo(["自动：优先字幕，否则识别语音", "视频字幕轨", "语音识别", "外部字幕文件"], "自动：优先字幕，否则识别语音");
         _source.SelectedIndex = (int)options.TranscriptSource; _source.Name = "SummaryTranscriptSource";
         Add(fields, "字幕来源", _source);
@@ -125,8 +132,16 @@ public sealed class VideoSummaryWindow : Window
         modelRow.Children.Add(_modelNotice);
         if (configureOnlineAi is not null)
         {
-            _configureOnline = new Button { Content = "配置接口…", Classes = { "field-action" } };
-            _configureOnline.Click += async (_, _) => { try { await configureOnlineAi(this); } catch (Exception error) { ShowError(error); } };
+            _configureOnline = new Button { Content = "配置供应商…", Classes = { "field-action" } };
+            _configureOnline.Click += async (_, _) =>
+            {
+                try
+                {
+                    var selected = (_onlineProvider.SelectedItem as OnlineProviderChoice)?.Id ?? "";
+                    await configureOnlineAi(this); RefreshOnlineProviders(selected);
+                }
+                catch (Exception error) { ShowError(error); }
+            };
             Grid.SetColumn(_configureOnline, 1); modelRow.Children.Add(_configureOnline);
         }
         if (manageModels is not null)
@@ -199,6 +214,7 @@ public sealed class VideoSummaryWindow : Window
         if (_files.Count == 0) throw new ArgumentException("请添加视频。");
         var options = new VideoSummaryOptions {
             Provider = (VideoSummaryProvider)_provider.SelectedIndex,
+            OnlineProviderId = (_onlineProvider.SelectedItem as OnlineProviderChoice)?.Id ?? "",
             ExtractAbstract = _abstract.IsChecked == true, SummarizeContent = _summary.IsChecked == true,
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
             TranscriptSource = (VideoTranscriptSource)_source.SelectedIndex, SubtitleFile = _external.Text?.Trim() ?? "",
@@ -209,7 +225,11 @@ public sealed class VideoSummaryWindow : Window
             ChunkCharacters = (int)(_chunkSize.Value ?? 2400), OutputLanguage = (string?)_language.SelectedItem ?? "简体中文", Focus = _focus.Text?.Trim() ?? ""
         };
         options.Validate();
-        if (options.NeedsAi && options.Provider == VideoSummaryProvider.Online) _engine.Settings.OnlineAi.Validate();
+        if (options.NeedsAi && options.Provider == VideoSummaryProvider.Online)
+        {
+            var selected = _engine.Settings.OnlineAi.Resolve(options.OnlineProviderId); selected.Validate(); selected.ValidateConnection();
+            options.OnlineProviderId = selected.Id;
+        }
         if (options.TranscriptSource == VideoTranscriptSource.External && _files.Count != 1) throw new ArgumentException("使用外部字幕时请选择一个视频。");
         var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(_files[0])! : _folder.Text?.Trim() ?? "";
         if (folder.Length == 0) throw new ArgumentException("请选择输出目录。");
@@ -222,6 +242,7 @@ public sealed class VideoSummaryWindow : Window
         _empty.IsVisible = _files.Count == 0;
         var ai = _abstract.IsChecked == true || _summary.IsChecked == true || _analysis.IsChecked == true;
         var online = _provider.SelectedIndex == (int)VideoSummaryProvider.Online;
+        _onlineProviderRow.IsVisible = ai && online;
         _provider.IsEnabled = ai; _gpu.IsEnabled = ai && !online;
         _modelNotice.IsVisible = ai;
         _modelNotice.Text = Localization.Text(online ? "发送采样画面和转录内容到线上 AI" : "本地模型 · 首次使用自动下载");
@@ -232,6 +253,15 @@ public sealed class VideoSummaryWindow : Window
         _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _confirm.IsEnabled = !_busy && _files.Count > 0 && (ai || _subtitles.IsChecked == true);
         _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
+    }
+    private void RefreshOnlineProviders(string selected)
+    {
+        var choices = new List<OnlineProviderChoice> { new("", "默认供应商", false) };
+        choices.AddRange(_engine.Settings.OnlineAi.Providers.Where(p => p.Enabled).Select(p => new OnlineProviderChoice(p.Id, p.Name)));
+        if (selected.Length != 0 && !choices.Any(p => p.Id == selected))
+            choices.Add(new(selected, "供应商不可用", false));
+        _onlineProvider.ItemsSource = choices;
+        _onlineProvider.SelectedItem = choices.First(p => p.Id == selected);
     }
     private static Grid WithButton(Control control, Button button)
     {
