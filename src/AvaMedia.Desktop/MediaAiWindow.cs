@@ -196,7 +196,7 @@ public sealed partial class MediaAiWindow : Window
                     if (_closed || _operation != operation) return;
                     _status.Text = Localization.Text(update.Stage);
                     _activity.Update(new("下载标签模型", "JoyTag", started, DateTime.UtcNow)
-                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.Source });
+                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
                 });
                 await new ModelStore().DownloadAsync(ModelCatalog.JoyTagId, download, operation.Token);
                 _modelReady = true; _modelStatus.IsVisible = false;
@@ -209,7 +209,7 @@ public sealed partial class MediaAiWindow : Window
                     if (_closed || _operation != operation) return;
                     _status.Text = Localization.Text("下载语义模型") + " · " + Localization.Text(update.Stage);
                     _activity.Update(new("下载语义模型", SemanticModelConsent.Model.Name, started, DateTime.UtcNow)
-                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.Source });
+                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
                 }), operation.Token);
             }
             var results = await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);

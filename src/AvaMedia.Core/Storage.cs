@@ -13,7 +13,10 @@ public sealed partial class Storage
     public AppSettings LoadSettings()
     {
         var settings = Read<AppSettings>("settings.json") ?? new();
-        LoadOnlineAiKey(settings.OnlineAi); return settings;
+        LoadOnlineAiKey(settings.OnlineAi);
+        // Model downloads follow the saved source choice in every entry point (main window, standalone tools).
+        try { ModelDownloadSources.Preference = ModelSourcePreference.From(settings); } catch (ArgumentException) { }
+        return settings;
     }
     public List<Job> LoadJobs()
     {

@@ -71,6 +71,8 @@ public sealed partial class SettingsWindow : Window
         draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
         draft.EnableBetaFeatures = BetaInput.IsChecked == true; draft.AutoDownloadRepairModel = AutoRepairModelInput.IsChecked == true;
         draft.OnlineAi = _providerDraft.Clone();
+        draft.ModelSource = ((ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex)).ToString();
+        draft.ModelSourceUrl = ModelSourceUrlInput.Text?.Trim() ?? "";
         SettingsPolicy.Validate(draft); draft.OutputFolder = Path.GetFullPath(draft.OutputFolder); return draft;
     }
     private int Number(NumericUpDown input, string label)
@@ -101,6 +103,7 @@ public sealed partial class SettingsWindow : Window
         AutoUpdateInput.IsChecked = source.AutoUpdate; SilentUpdateInput.IsChecked = source.SilentUpdate;
         BetaInput.IsChecked = source.EnableBetaFeatures; AutoRepairModelInput.IsChecked = source.AutoDownloadRepairModel;
         PopulateProviders(source.OnlineAi);
+        PopulateModelSource(source);
         SilentUpdateInput.IsEnabled = source.AutoUpdate;
         RuntimeInfo.Text = RuntimeDescription;
         StatusText.IsVisible = false; _initializing = false;
@@ -115,6 +118,7 @@ public sealed partial class SettingsWindow : Window
             var draft = ReadSettings(); var prior = _settings.Clone(); _settings.CopyFrom(draft);
             try { Applied?.Invoke(this, EventArgs.Empty); }
             catch { _settings.CopyFrom(prior); throw; }
+            ModelDownloadSources.Preference = ModelSourcePreference.From(_settings);
             _applied = true; _appliedValues=_values.Select(value=>value()).ToArray(); ApplyButton.IsEnabled = false; StatusText.IsVisible = false; return true;
         }
         catch (Exception ex) { StatusText.Text = ex.Message; StatusText.IsVisible = true;if(_settings.PlayErrorSound)_services.PlaySound(UiSound.Error); return false; }

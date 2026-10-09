@@ -200,6 +200,9 @@ public sealed partial class AppSettings
     public bool SilentUpdate { get; set; }
     public bool EnableBetaFeatures { get; set; } = true;
     public bool AutoDownloadRepairModel { get; set; } = true;
+    /// <summary>Model download source: Auto, HuggingFace, ModelScope, HfMirror or Custom (see ModelSourceKind).</summary>
+    public string ModelSource { get; set; } = "Auto";
+    public string ModelSourceUrl { get; set; } = "";
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
     public string YtDlpPath { get; set; } = "";
@@ -228,7 +231,7 @@ public sealed partial class AppSettings
         ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
         CloseToTray=source.CloseToTray;AutoUpdate=source.AutoUpdate;SilentUpdate=source.SilentUpdate;
-        EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;
+        EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;ModelSource=source.ModelSource;ModelSourceUrl=source.ModelSourceUrl;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;

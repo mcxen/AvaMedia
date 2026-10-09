@@ -12,6 +12,8 @@ public sealed record ModelDownloadProgress(long Received, long Total, string Sta
 {
     public int Percent => Total == 0 ? 0 : (int)Math.Clamp(Received * 100 / Total, 0, 100);
     public string Source { get; init; } = "";
+    /// <summary>Readable source name (Hugging Face, ModelScope, HF-Mirror, GitHub or host).</summary>
+    public string SourceName => Source.Length == 0 ? "" : ModelDownloadSources.Describe(Source);
     public int SourceIndex { get; init; }
     public int SourceCount { get; init; }
 }
@@ -160,29 +162,101 @@ public sealed class ModelStore(string? root = null)
                 completed += artifact.Size;
                 progress?.Report(new(completed, model.DownloadSize, "下载"));
             }
-            if (ModelCatalog.IncludesRuntime(id))
-            {
-                progress?.Report(new(completed, model.DownloadSize, "安装推理工具"));
-                await Task.Run(() => ExtractRuntime(staging, model.Files.Last().Path, ct), ct);
-            }
-            var manifest = new List<InstalledFile>();
-            progress?.Report(new(completed, model.DownloadSize, "校验模型"));
-            foreach (var path in Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories))
-            {
-                ct.ThrowIfCancellationRequested();
-                if (path.EndsWith(".part") || Path.GetFileName(path) == "installed.json") continue;
-                await using var input = File.OpenRead(path);
-                var hash = Convert.ToHexString(await SHA256.HashDataAsync(input, ct)).ToLowerInvariant();
-                manifest.Add(new(Path.GetRelativePath(staging, path), input.Length, hash));
-            }
-            await File.WriteAllTextAsync(Path.Combine(staging, "installed.json"), JsonSerializer.Serialize(manifest), ct);
-            ct.ThrowIfCancellationRequested();
-            var final = DirectoryFor(id);
-            if (Directory.Exists(final)) Directory.Delete(final, true);
-            Directory.Move(staging, final);
-            progress?.Report(new(completed, model.DownloadSize, "完成"));
+            await PublishAsync(id, model, staging, completed, progress, ct);
         }
         finally { gate.Release(); }
+    }
+
+    /// <summary>
+    /// Import user-supplied files (for example downloaded in a browser or copied from another computer). Files are matched by
+    /// catalog size and SHA-256, so renamed files work; matched files are staged and published exactly like a download.
+    /// </summary>
+    public async Task ImportAsync(string id, IReadOnlyList<string> paths, IProgress<ModelDownloadProgress>? progress = null, CancellationToken ct = default)
+    {
+        var model = ModelCatalog.Find(id);
+        if (!model.Supported) throw new PlatformNotSupportedException("当前平台不支持此模型的本地推理工具。");
+        var gate = Gate(id);
+        if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
+        try
+        {
+            var candidates = await Task.Run(() => paths.SelectMany(path => Directory.Exists(path)
+                    ? Directory.EnumerateFiles(path, "*", new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 4, IgnoreInaccessible = true })
+                    : File.Exists(path) ? [path] : Array.Empty<string>())
+                .Select(Path.GetFullPath).Where(path => !path.EndsWith(".part", StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.Ordinal).Select(path => new FileInfo(path)).ToArray(), ct);
+            if (candidates.Length == 0) throw new FileNotFoundException("所选位置没有可导入的文件。");
+            var staging = DirectoryFor(id) + ".download";
+            Directory.CreateDirectory(staging);
+            var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
+            var missing = new List<string>(); var mismatched = new List<string>();
+            long completed = 0;
+            foreach (var artifact in model.Files)
+            {
+                ct.ThrowIfCancellationRequested();
+                var destination = SafePath(staging, artifact.Path);
+                var name = Path.GetFileName(artifact.Path);
+                FileInfo? match = null;
+                // Same-name files first, then any file of the exact catalog size (renamed downloads).
+                foreach (var file in candidates.Where(file => file.Length == artifact.Size)
+                    .OrderBy(file => file.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ? 0 : 1))
+                {
+                    progress?.Report(new(completed, model.DownloadSize, "校验文件"));
+                    if (!hashes.TryGetValue(file.FullName, out var hash))
+                    {
+                        await using var input = File.OpenRead(file.FullName);
+                        hashes[file.FullName] = hash = Convert.ToHexString(await SHA256.HashDataAsync(input, ct)).ToLowerInvariant();
+                    }
+                    if (hash.Equals(artifact.Sha256, StringComparison.OrdinalIgnoreCase)) { match = file; break; }
+                }
+                if (match is null)
+                {
+                    if (await MatchesAsync(destination, artifact.Size, artifact.Sha256, true, ct)) { completed += artifact.Size; continue; }
+                    (candidates.Any(file => file.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ? mismatched : missing).Add(name);
+                    continue;
+                }
+                progress?.Report(new(completed, model.DownloadSize, "导入文件"));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(match.FullName, destination + ".part", true);
+                if (!await MatchesAsync(destination + ".part", artifact.Size, artifact.Sha256, true, ct))
+                { File.Delete(destination + ".part"); throw new IOException("导入时文件被修改：" + match.FullName); }
+                File.Move(destination + ".part", destination, true);
+                completed += artifact.Size;
+                progress?.Report(new(completed, model.DownloadSize, "导入文件"));
+            }
+            if (mismatched.Count > 0)
+                throw new InvalidDataException("文件与模型清单不符（大小或 SHA-256 不同），请确认版本：" + string.Join("、", mismatched)
+                    + (missing.Count > 0 ? "\n缺少：" + string.Join("、", missing) : ""));
+            if (missing.Count > 0)
+                throw new FileNotFoundException("缺少模型文件：" + string.Join("、", missing) + "。已导入的文件会保留，可继续下载其余部分。");
+            await PublishAsync(id, model, staging, completed, progress, ct);
+        }
+        finally { gate.Release(); }
+    }
+
+    private async Task PublishAsync(string id, DownloadableModel model, string staging, long completed,
+        IProgress<ModelDownloadProgress>? progress, CancellationToken ct)
+    {
+        if (ModelCatalog.IncludesRuntime(id))
+        {
+            progress?.Report(new(completed, model.DownloadSize, "安装推理工具"));
+            await Task.Run(() => ExtractRuntime(staging, model.Files.Last().Path, ct), ct);
+        }
+        var manifest = new List<InstalledFile>();
+        progress?.Report(new(completed, model.DownloadSize, "校验模型"));
+        foreach (var path in Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (path.EndsWith(".part") || Path.GetFileName(path) == "installed.json") continue;
+            await using var input = File.OpenRead(path);
+            var hash = Convert.ToHexString(await SHA256.HashDataAsync(input, ct)).ToLowerInvariant();
+            manifest.Add(new(Path.GetRelativePath(staging, path), input.Length, hash));
+        }
+        await File.WriteAllTextAsync(Path.Combine(staging, "installed.json"), JsonSerializer.Serialize(manifest), ct);
+        ct.ThrowIfCancellationRequested();
+        var final = DirectoryFor(id);
+        if (Directory.Exists(final)) Directory.Delete(final, true);
+        Directory.Move(staging, final);
+        progress?.Report(new(completed, model.DownloadSize, "完成"));
     }
 
     public async Task DeleteAsync(string id, CancellationToken ct = default)

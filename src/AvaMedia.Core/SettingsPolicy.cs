@@ -5,6 +5,7 @@ public static class SettingsPolicy
     public static void Validate(AppSettings settings)
     {
         settings.OnlineAi.Validate(requireModel: false);
+        ModelSourcePreference.From(settings).Validate();
         if (string.IsNullOrWhiteSpace(settings.OutputFolder)) throw new ArgumentException("请选择输出目录。");
         _ = Path.GetFullPath(settings.OutputFolder);
         if (settings.CpuThreads is < 1 or > 16) throw new ArgumentException("多线程数量必须在 1 到 16 之间。");

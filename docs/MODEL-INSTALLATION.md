@@ -2,7 +2,7 @@
 
 YuNet 人脸检测模型继续内嵌到 Core，不下载。LaMa 图片修复模型在正常首次启动时后台安装，主窗口和独立播放器显示简短进度，其他功能可继续使用。已安装的文件大小与 SHA256 校验通过后，不再请求网络。模型保存在用户本地应用数据目录的 `AvaMedia/models/lama/inpainting_lama_2025jan.onnx`。
 
-下载使用稳定的 Hugging Face `resolve` 路径，让服务自动跳转到 CDN；不会保存签名有期限的 CDN URL。支持 `HF_ENDPOINT` 首选镜像、`AVAMEDIA_HF_MIRRORS` 多个追加镜像及内置的 HF-Mirror、NorthStar 镜像，随后保留模型清单中的飞猫盘备用入口。每个源失败后立即轮换下一个，最多三轮重试；全部失败后显示各来源错误与重试按钮。配置方式见 [模型管理](MODELS.md)。
+下载使用稳定的 Hugging Face `resolve` 路径，让服务自动跳转到 CDN；不会保存签名有期限的 CDN URL。按选项中的「模型下载源」（自动 / Hugging Face / ModelScope / HF-Mirror / 自定义）排列候选源，`HF_ENDPOINT` 与 `AVAMEDIA_HF_MIRRORS` 仍排在最前，随后保留模型清单中的飞猫盘备用入口；也可在模型管理中「导入本地文件…」离线安装。每个源失败后立即轮换下一个，最多三轮重试；全部失败后显示各来源错误与重试按钮。配置方式见 [模型管理](MODELS.md)。
 
 每次下载限制连接和无数据等待时间；写入 `lama.download` 暂存目录中的 `.part` 文件，严格检查 92591623 字节大小与 `7df918ac3921d3daf0aae1d219776cf0dc4e4935f035af81841b40adcf74fdf2` 校验值，成功后才发布正式模型。退出应用会取消下载；失败或取消保留可续传文件，SHA-256 不符的文件会删除后重新下载。截图及播放器基准入口不触发安装。
 

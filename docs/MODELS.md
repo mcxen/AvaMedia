@@ -6,22 +6,31 @@ AI 重命名的候选词在 **选项 → 词库管理** 中管理；各重命名
 
 选项 → 模型管理提供下载、取消、继续下载、SHA-256 校验和删除。模型保存在用户数据目录 `AvaMedia/models/`，按模型分目录；下载写入独立暂存目录，校验完成后发布。分析持有模型使用锁，下载或使用期间不能删除同一模型。YuNet 为内置资源，只展示状态。
 
-Hugging Face 模型下载支持多个镜像候选：`HF_ENDPOINT` 指定首选镜像，`AVAMEDIA_HF_MIRRORS` 追加其它镜像基址，以分号、逗号或换行分隔。两者都未设置时，优先原始 Hugging Face 地址，再依次尝试内置的 `https://hf-mirror.com` 和 `https://hf-cf.northstar.cool`；配置了镜像时，顺序为首选镜像、追加镜像、内置镜像和模型清单中的原始／备用地址，重复地址只尝试一次。镜像须提供与 Hugging Face 相同的仓库路径；支持基址包含路径前缀，不保存有期限的 CDN 签名地址。
+选项 → 模型管理顶部的「模型下载源」可选 自动 / Hugging Face / ModelScope / HF-Mirror / 自定义，保存在设置中（`ModelSource`、`ModelSourceUrl`），应用后立即对新的下载生效：
 
-下载按轮次尝试候选源：一个源失败后立即换下一个，最多三轮，轮次之间短暂退避。每轮重新读取环境变量并构造候选源；返回不可重试错误（例如 404、文件大小不符或 SHA-256 不符）的源不在本次下载中反复尝试。后续模型文件优先尝试本次已成功的来源。进度显示当前来源域名和序号，悬停查看完整路径；最终失败列出各来源错误，完整错误链写入应用日志。
+- **自动**：系统界面语言为简体中文（zh-CN / zh-Hans）或时区为中国（如 `Asia/Shanghai`、`China Standard Time`）时，依次尝试 ModelScope → HF-Mirror → Hugging Face；其它地区依次尝试 Hugging Face → ModelScope → HF-Mirror。这样国内首次下载优先走直连速度更稳定的 ModelScope，海外仍以上游为准。
+- **Hugging Face / ModelScope / HF-Mirror**：所选来源排在最前；失败或该模型没有此来源时，按自动顺序回退到其它来源。
+- **自定义**：填写兼容 Hugging Face 仓库路径的镜像基址（可带路径前缀，不能包含凭据、查询参数或片段），排在最前，失败后同样回退。
 
-镜像保留原始仓库、修订、文件路径和查询参数，文件大小及 SHA-256 校验要求不变，切换源可以继续已有下载。该设置适用于 Whisper、人物检测、JoyTag、LaMa、EmbeddingGemma 和本地总结权重；GitHub 上的 llama.cpp 推理工具仍使用自己的下载地址及模型清单中的备用源，不将其改写为 Hugging Face 路径。
+ModelScope 只提供 `master` 分支，路径格式也与 Hugging Face 不同（`https://modelscope.cn/models/<组织>/<仓库>/resolve/master/<文件>`），因此模型清单为每个文件单独写出完整的 ModelScope 地址，不做域名替换；固定的文件大小与 SHA-256 校验保证下载内容与 Hugging Face 固定修订一致，上游若改动文件会被拒绝。目前提供 ModelScope 地址的模型：JoyTag、EmbeddingGemma 2。其它模型（Whisper、人物检测、LaMa、本地总结权重）只有 Hugging Face 路径，选择 ModelScope 时自动回退。原内置的第三方镜像 `hf-cf.northstar.cool` 来源不明，已移除。
 
-在 PowerShell 中设置后，从同一窗口启动应用，变量值使用纯网址：
+环境变量仍然有效，并排在所选来源之前：`HF_ENDPOINT` 指定首选镜像，`AVAMEDIA_HF_MIRRORS` 追加其它镜像基址，以分号、逗号或换行分隔。重复地址只尝试一次；不保存有期限的 CDN 签名地址。
+
+下载按轮次尝试候选源：一个源失败后立即换下一个，最多三轮，轮次之间短暂退避。每轮重新构造候选源；返回不可重试错误（例如 404、文件大小不符或 SHA-256 不符）的源不在本次下载中反复尝试。后续模型文件优先尝试本次已成功的来源。模型管理的进度、下载气泡和 AI 标签工作台显示实际来源名称（Hugging Face、ModelScope、HF-Mirror、GitHub 或自定义域名）和序号，悬停查看完整路径；最终失败列出各来源错误，完整错误链写入应用日志。
+
+切换来源可以继续已有下载（`.part` 文件按 Range 续传），文件大小及 SHA-256 校验要求不变。GitHub 上的 llama.cpp 推理工具仍使用自己的下载地址。
+
+在 PowerShell 中设置环境变量后，从同一窗口启动应用，变量值使用纯网址：
 
 ```powershell
 $env:HF_ENDPOINT = "https://hf-mirror.com"
-$env:AVAMEDIA_HF_MIRRORS = "https://hf-cf.northstar.cool"
 ```
 
 已运行的应用不会继承之后设置的环境变量，需要重新启动。
 
-2026-10-08 镜像查找记录：上述两个内置镜像对清单中固定修订的 NanoDet 文件 HEAD 请求返回 200 和预期的 1123958 字节大小；[Sufy](https://hf-cdn.sufy.com/) 同一请求返回 403，[hf-mirror.net](https://hf-mirror.net/) 返回 500，暂未内置。说明页见 [HF-Mirror](https://hf-mirror.com/) 和 [NorthStar 镜像](https://hf-cf.northstar.cool/)。这里只检查了响应头，没有完整下载或校验模型；所有实际下载仍须通过清单中的 SHA-256 校验。
+2026-10-09 ModelScope 验证：`https://modelscope.cn/models/fancyfeast/joytag/resolve/master/top_tags.txt` 下载得到 76752 字节，SHA-256 与清单一致；`model.onnx` 的 Range 请求返回 206 与 `bytes 366116000-366116153/366116154`。通过 `ModelStore` 选择 ModelScope 完整下载 JoyTag 时，在 120 MB 处取消后继续，从已保留的 `.part` 续传并通过 SHA-256 校验。
+
+**导入本地文件**：每个模型行下方的「导入本地文件…」可选择文件或文件夹（文件夹最多向下查找 4 层）。按清单中的文件大小和 SHA-256 匹配，文件可以改名；匹配的文件先复制到暂存目录再按下载相同的流程发布。同名文件大小或哈希不符时提示「文件与模型清单不符」并列出文件名；缺少的文件会列出，已导入的部分保留在暂存目录，之后可继续下载其余文件。适合在浏览器或其它电脑下载后离线安装。
 
 模型下载由应用管理，关闭选项界面后继续下载；重新打开模型管理可查看当前进度、取消或继续下载。模型下载、管理结果和失败进入 [右下角气泡通知](NOTIFICATIONS.md)，同一次操作原位更新进度。关闭气泡不会停止下载；停止和重试通过操作按钮执行，关闭选项后这些按钮仍有效。退出应用会停止下载，已下载的暂存数据保留用于下次继续。启动下载图片修复模型也使用同一通知中心，已缓存模型的启动校验不弹提示。
 

@@ -43,6 +43,7 @@ public sealed partial class SettingsWindow
         public required Button Download { get; init; }
         public required Button Verify { get; init; }
         public required Button Delete { get; init; }
+        public required Button Import { get; init; }
         public CancellationTokenSource? Cancellation { get; set; }
         public string? Outcome { get; set; }
         public string? ErrorMessage { get; set; }
@@ -52,8 +53,33 @@ public sealed partial class SettingsWindow
         public ModelDownloadProgress? Progress { get; set; }
     }
 
+    private static readonly string[] ModelSourceNames = ["自动", "Hugging Face", "ModelScope", "HF-Mirror", "自定义"];
+    private void PopulateModelSource(AppSettings source)
+    {
+        ModelSourceInput.ItemsSource ??= ModelSourceNames;
+        var preference = ModelSourcePreference.From(source);
+        ModelSourceInput.SelectedIndex = (int)preference.Kind; ModelSourceUrlInput.Text = preference.CustomUrl;
+        UpdateModelSourceHint();
+    }
+    private void UpdateModelSourceHint()
+    {
+        var kind = (ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex);
+        ModelSourceUrlInput.IsVisible = kind == ModelSourceKind.Custom;
+        ModelSourceHint.Text = Localization.Text(kind switch
+        {
+            ModelSourceKind.Auto => ModelDownloadSources.PrefersChinaSources()
+                ? "自动：当前地区依次尝试 ModelScope、HF-Mirror、Hugging Face。" : "自动：依次尝试 Hugging Face、ModelScope、HF-Mirror。",
+            ModelSourceKind.Custom => "填写兼容 Hugging Face 路径的镜像基址，例如 https://hf-mirror.com；失败时回退到其它来源。",
+            _ => "优先使用所选来源；失败或该模型没有此来源时回退到其它来源。所有文件都校验大小与 SHA-256。"
+        });
+    }
+
     private void InitializeModelManagement()
     {
+        ModelSourceInput.SelectionChanged += (_, _) => { UpdateModelSourceHint(); MarkDirty(); };
+        ModelSourceUrlInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); };
+        _values.Add(() => ModelSourceInput.SelectedIndex); _values.Add(() => ModelSourceUrlInput.Text);
+        _appliedValues = _values.Select(value => value()).ToArray();
         foreach (var model in ModelCatalog.All)
         {
             var status = Ui.Text("读取状态…", "caption");
@@ -71,6 +97,11 @@ public sealed partial class SettingsWindow
             var download = Ui.Button("下载", () => DownloadOrCancelModel(model));
             var verify = Ui.Button("校验", () => _ = RunModelActionAsync(model, "verify"));
             var delete = Ui.Button("删除", () => _ = RunModelActionAsync(model, "delete"));
+            var import = new Button { Content = "导入本地文件…", HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
+            ToolTip.SetTip(import, "选择已下载的模型文件或所在文件夹，按大小与 SHA-256 校验后安装");
+            var importFiles = new MenuItem { Header = "选择文件…" }; importFiles.Click += (_, _) => _ = ImportModelAsync(model, folder: false);
+            var importFolder = new MenuItem { Header = "选择文件夹…" }; importFolder.Click += (_, _) => _ = ImportModelAsync(model, folder: true);
+            import.Flyout = new MenuFlyout { Items = { importFiles, importFolder } };
             download.Classes.Add("primary");
             // Keep the action slot and focused control stable when download becomes cancel.
             var buttons = new Grid { ColumnDefinitions = new("136,68,68"), ColumnSpacing = 6, VerticalAlignment = VerticalAlignment.Center };
@@ -90,13 +121,14 @@ public sealed partial class SettingsWindow
             details.Children.Add(progressPanel); details.Children.Add(error);
             var panel = new Grid { ColumnDefinitions = new("*,284"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 16 };
             panel.Children.Add(identity); Grid.SetColumn(buttons, 1); panel.Children.Add(buttons);
-            Grid.SetRow(details, 1); Grid.SetColumnSpan(details, 2); panel.Children.Add(details);
+            Grid.SetRow(details, 1); panel.Children.Add(details);
+            import.Margin = new(0, 6, 0, 0); Grid.SetRow(import, 1); Grid.SetColumn(import, 1); panel.Children.Add(import);
             var container = new Border { Classes = { "settingSection", "modelRow" }, Child = panel };
             ModelList.Children.Add(container);
             _modelRows.Add(model.Id, new()
             {
                 Status = status, Error = error, ProgressPanel = progressPanel, ProgressText = progressText, ProgressBar = progressBar,
-                Download = download, Verify = verify, Delete = delete, Container = container
+                Download = download, Verify = verify, Delete = delete, Import = import, Container = container
             });
         }
         ModelStatus.IsVisible = false;
@@ -210,6 +242,7 @@ public sealed partial class SettingsWindow
             : download?.Error is not null || backgroundFailure ? "重试下载" : row.Installed ? "修复下载" : "下载");
         row.Verify.IsEnabled = row.Installed && !busy;
         row.Delete.IsEnabled = !busy && _modelStore.HasLocalData(model.Id);
+        row.Import.IsEnabled = model.Supported && !busy && model.Files.Count > 0;
         row.Error.Text = Localization.Text(row.ErrorMessage ?? download?.Error ?? (backgroundFailure ? ModelInstallation.Error ?? "图片修复模型安装失败，请检查网络后重试。" : ""));
         row.Error.IsVisible = !string.IsNullOrEmpty(row.Error.Text);
         ToolTip.SetTip(row.Error, row.Error.IsVisible ? row.Error.Text : null);
@@ -224,11 +257,53 @@ public sealed partial class SettingsWindow
         if (progress.Attempt > 0)
             row.ProgressText.Text += " · " + Localization.Format($"重试 {progress.Attempt}/{progress.MaxAttempts}");
         if (progress.Source.Length > 0)
-            row.ProgressText.Text += " · " + Localization.Format($"下载源 {progress.SourceIndex}/{progress.SourceCount} · {new Uri(progress.Source).Host}");
+            row.ProgressText.Text += " · " + Localization.Format($"下载源 {progress.SourceIndex}/{progress.SourceCount} · {progress.SourceName}");
         ToolTip.SetTip(row.ProgressText, row.ProgressText.Text + (progress.Source.Length > 0 ? "\n" + progress.Source : ""));
         row.ProgressBar.IsIndeterminate = active || background
-            ? progress.Stage is not ("下载" or "等待重试" or "切换下载源") : false;
+            ? progress.Stage is not ("下载" or "等待重试" or "切换下载源" or "导入文件") : false;
         row.ProgressBar.Value = progress.Percent;
+    }
+
+    private async Task ImportModelAsync(DownloadableModel model, bool folder)
+    {
+        if (_modelsClosed) return;
+        var row = _modelRows[model.Id];
+        if (row.Cancellation is not null || ModelDownloads.Shared.Find(model.Id)?.Active == true || _modelStore.IsBusy(model.Id)
+            || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing) return;
+        var paths = folder ? (await Ui.Folder(this, "选择模型文件夹") is { } path ? [path] : [])
+            : await Ui.Pick(this, "选择模型文件");
+        if (paths.Length == 0 || _modelsClosed) return;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        ModelDownloads.Shared.ClearResult(model.Id);
+        var notificationKey = "model:" + model.Id + ":" + Guid.NewGuid().ToString("N");
+        row.Cancellation = cancellation; row.Outcome = row.ErrorMessage = null;
+        row.Progress = new(0, model.DownloadSize, "校验文件");
+        var progress = new Progress<ModelDownloadProgress>(value =>
+        { if (!_modelsClosed && row.Cancellation == cancellation) { row.Progress = value; UpdateModelRow(model, row); } });
+        try
+        {
+            ModelStatus.IsVisible = false; UpdateModelRow(model, row);
+            await Task.Run(() => _modelStore.ImportAsync(model.Id, paths, progress, cancellation.Token), cancellation.Token);
+            if (model.Id == ModelCatalog.LamaId) ModelInstallation.ClearFailure();
+            row.Outcome = "已导入";
+            Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作完成",
+                (FormattableString)$"{model.Name} · {Localization.Key(row.Outcome)}", Notifications.NotificationKind.Success,
+                [new("模型管理", Notifications.ModelNotifications.OpenManagementAsync)]));
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { row.Outcome = "已停止"; }
+        catch (Exception error)
+        {
+            row.Outcome = "导入失败"; row.ErrorMessage = error.Message;
+            AppDiagnostics.Record("Model import " + model.Id, error);
+            Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作失败",
+                (FormattableString)$"{model.Name}\n{error.Message}", Notifications.NotificationKind.Error,
+                [new("模型管理", Notifications.ModelNotifications.OpenManagementAsync)]));
+        }
+        finally
+        {
+            row.Cancellation = null; row.Progress = null;
+            if (!_modelsClosed) await RefreshModelsSafelyAsync();
+        }
     }
 
     private void DownloadOrCancelModel(DownloadableModel model)

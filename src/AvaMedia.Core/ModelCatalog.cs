@@ -35,8 +35,10 @@ public static class ModelCatalog
 
     private static IReadOnlyList<DownloadableModel> Build()
     {
+        // ModelScope mirrors only expose master; the pinned size and SHA-256 still reject any other revision.
         ModelArtifact Gemma(string name, long size, string hash) => new(name, size, hash,
-            [$"https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/{GemmaRevision}/{name}"]);
+            [$"https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/{GemmaRevision}/{name}",
+             $"https://modelscope.cn/models/ggml-org/embeddinggemma-2-GGUF/resolve/master/{name}"]);
         var runtime = Runtime();
         DownloadableModel Speech(SpeechModel model)
         {
@@ -48,9 +50,11 @@ public static class ModelCatalog
             Speech(SpeechModel.Base), Speech(SpeechModel.Tiny), Speech(SpeechModel.Small),
             new(JoyTagId, "JoyTag", "图片 / 视频 AI 标签 · Beta", "Apache-2.0", "https://github.com/fpgaminer/joytag",
                 [new(JoyTagFile, 366116154, "f85b7130e6e549b5b0822537007b7482e8c4c8e754c8d9a5bee08e27050e1097",
-                    [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagFile}"]),
+                    [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagFile}",
+                     $"https://modelscope.cn/models/fancyfeast/joytag/resolve/master/{JoyTagFile}"]),
                  new(JoyTagLabels, 76752, "32b1963a234af848643b2bbf47d8eff1f1c7889406810c57b980f41b2b9e01d0",
-                    [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagLabels}"])]),
+                    [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagLabels}",
+                     $"https://modelscope.cn/models/fancyfeast/joytag/resolve/master/{JoyTagLabels}"])]),
             new(LamaId, "LaMa", "图片修复", "Apache-2.0", "https://huggingface.co/opencv/inpainting_lama",
                 [new(LaMaModelInstaller.FileName, LaMaModelInstaller.FileSize, LaMaModelInstaller.Sha256,
                     [LaMaModelInstaller.HubUrl, LaMaModelInstaller.FallbackUrl])]),

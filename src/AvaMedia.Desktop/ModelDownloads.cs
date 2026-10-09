@@ -99,7 +99,9 @@ internal sealed class ModelDownloads
     {
         if (_stopped || state.Progress is not { } value) return;
         NotificationCenter.Shared.Publish(Owner(state), new(state.NotificationKey, "下载模型",
-            (FormattableString)$"{state.Model.Name}\n{Localization.Key(value.Stage)} · {value.Received / 1048576d:0.0} / {value.Total / 1048576d:0.0} MB",
+            value.SourceName.Length > 0
+                ? (FormattableString)$"{state.Model.Name}\n{Localization.Key(value.Stage)} · {value.Received / 1048576d:0.0} / {value.Total / 1048576d:0.0} MB · {value.SourceName}"
+                : $"{state.Model.Name}\n{Localization.Key(value.Stage)} · {value.Received / 1048576d:0.0} / {value.Total / 1048576d:0.0} MB",
             NotificationKind.Progress,
             [new("停止下载", () => { Cancel(state.Model.Id); return Task.CompletedTask; },
                 Enabled: () => state.Active && !state.CancellationRequested)],
