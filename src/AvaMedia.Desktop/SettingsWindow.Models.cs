@@ -27,7 +27,11 @@ public sealed partial class SettingsWindow
     private void FocusModelTarget() => Dispatcher.UIThread.Post(() =>
     {
         if (_modelsClosed) return;
-        if (_onlineTarget) { OnlineEndpointInput.BringIntoView(); OnlineEndpointInput.Focus(); }
+        if (_onlineTarget)
+        {
+            var input = ProviderSetupSection.IsVisible && string.IsNullOrWhiteSpace(OnlineKeyInput.Text) ? OnlineKeyInput : OnlineEndpointInput;
+            input.BringIntoView(); input.Focus();
+        }
         else if (_modelTarget is { } id && _modelRows.TryGetValue(id, out var row))
         { row.Container.BringIntoView(); row.Download.Focus(); }
     }, DispatcherPriority.Loaded);

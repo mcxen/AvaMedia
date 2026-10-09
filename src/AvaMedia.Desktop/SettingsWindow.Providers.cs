@@ -87,6 +87,7 @@ public sealed partial class SettingsWindow
             OnlineTimeoutInput.Value = provider.TimeoutSeconds;
             ProviderStatus.IsVisible = false;
             ProviderDocsButton.IsVisible = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.Documentation.Length != 0);
+            ProviderSetupSection.IsVisible = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.ApiKeyPage.Length != 0);
             RefreshProviderDefault();
         }
         finally { _populatingProvider = false; }
@@ -185,6 +186,17 @@ public sealed partial class SettingsWindow
     private async void ProviderDocsClick(object? sender, RoutedEventArgs args)
     {
         if (OnlineAiPresets.All.FirstOrDefault(p => p.Id == SelectedProvider?.Preset)?.Documentation is not { Length: > 0 } url) return;
+        await OpenProviderPage(url);
+    }
+
+    private async void ProviderApiKeyClick(object? sender, RoutedEventArgs args)
+    {
+        if (OnlineAiPresets.All.FirstOrDefault(p => p.Id == SelectedProvider?.Preset)?.ApiKeyPage is not { Length: > 0 } url) return;
+        await OpenProviderPage(url);
+    }
+
+    private async Task OpenProviderPage(string url)
+    {
         try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
         catch (Exception error) { await Ui.Message(this, "打开失败", error.Message); }
     }

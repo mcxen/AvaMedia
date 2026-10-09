@@ -12,7 +12,11 @@ public sealed class OnlineAiClient : IDisposable
     {
         _options = options.Clone(); _options.ValidateConnection();
         _client = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan };
-        if (_options.ApiKey.Length != 0) _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        if (_options.ApiKey.Length != 0)
+        {
+            if (_options.Preset == "dots") _client.DefaultRequestHeaders.Add("api-key", _options.ApiKey);
+            else _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        }
     }
 
     public async Task<OnlineAiModelInfo[]> GetModelsAsync(CancellationToken ct)

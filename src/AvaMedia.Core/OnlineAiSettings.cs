@@ -2,7 +2,7 @@ namespace AvaMedia.Core;
 
 public sealed class OnlineAiSettings
 {
-    public List<OnlineAiOptions> Providers { get; set; } = [OnlineAiPresets.Create("openai")];
+    public List<OnlineAiOptions> Providers { get; set; } = [OnlineAiPresets.Create("dots")];
     public string DefaultProviderId { get; set; } = "";
     public OnlineAiSettings Clone() => new() { DefaultProviderId = DefaultProviderId, Providers = Providers.Select(p => p.Clone()).ToList() };
 
@@ -27,11 +27,14 @@ public sealed class OnlineAiSettings
     }
 }
 
-public sealed record OnlineAiPreset(string Id, string Name, string Endpoint, string Documentation, OnlineAiTokenLimit TokenLimit);
+public sealed record OnlineAiPreset(string Id, string Name, string Endpoint, string Documentation, OnlineAiTokenLimit TokenLimit,
+    string DefaultModel = "", string ApiKeyPage = "", OnlineAiResponseFormat ResponseFormat = OnlineAiResponseFormat.JsonObject);
 
 public static class OnlineAiPresets
 {
     public static IReadOnlyList<OnlineAiPreset> All { get; } = [
+        new("dots", "小红书 Dots", "https://note3-prev-api.askdiandian.com/v1", "https://dots.ai/platform/docs", OnlineAiTokenLimit.MaxTokens,
+            "dots3-note-prev", "https://dots.ai/platform/apikeys", OnlineAiResponseFormat.Prompt),
         new("openai", "OpenAI", "https://api.openai.com/v1", "https://developers.openai.com/api/docs", OnlineAiTokenLimit.MaxCompletionTokens),
         new("openrouter", "OpenRouter", "https://openrouter.ai/api/v1", "https://openrouter.ai/docs/quickstart", OnlineAiTokenLimit.MaxTokens),
         new("siliconflow", "硅基流动", "https://api.siliconflow.cn/v1", "https://docs.siliconflow.cn/docs/userguide/quickstart", OnlineAiTokenLimit.MaxTokens),
@@ -41,6 +44,11 @@ public static class OnlineAiPresets
     public static OnlineAiOptions Create(string id)
     {
         var preset = All.First(p => p.Id == id);
-        return new() { Name = preset.Name, Preset = preset.Id, Endpoint = preset.Endpoint, TokenLimit = preset.TokenLimit };
+        return new()
+        {
+            Name = preset.Name, Preset = preset.Id, Endpoint = preset.Endpoint, TokenLimit = preset.TokenLimit,
+            TextModel = preset.DefaultModel, VisionModel = preset.DefaultModel, ResponseFormat = preset.ResponseFormat,
+            ModelIds = preset.DefaultModel.Length == 0 ? [] : [preset.DefaultModel]
+        };
     }
 }

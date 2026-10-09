@@ -76,6 +76,8 @@ v1.1.51 已完成相关编译、词库及语言资源静态检查，并按用户
 
 高级设置可开启「生成画面描述」。JoyTag 标签分析完成后，会用设置中的 AI 供应商（推荐本机 Ollama 视觉模型）对采样画面生成自由文本描述，成人/NSFW 内容允许如实描写。描述写入同目录 `.ai-tags.txt` 的「画面描述」区段，并包含在「导出标签 JSON」中；不修改源文件 EXIF 或媒体内容。需先在设置 → AI 供应商中配置可用的视觉模型（例如 Ollama `http://localhost:11434/v1` + `moondream` / `llava`）。
 
+线上配置提供「小红书 Dots」预设，新用户默认显示该预设。点击「注册 / 获取密钥」进入 [Dots API Keys](https://dots.ai/platform/apikeys)，登录或注册后创建自己的 API Key，再粘贴到设置中并点击「连接并获取模型」，应用设置后即可使用。预设已填入 `https://note3-prev-api.askdiandian.com/v1` 与文本、视觉模型 `dots3-note-prev`，使用官方 `api-key` 请求头和提示词约束输出。已有供应商配置保持原样。2026-10-09 [官方文档](https://dots.ai/platform/docs#model-pricing)标明当前免费体验、暂不收费，恢复收费前会提前公告；免费安排以官方最新公告为准。
+
 本次按仓库约定检查 Core / Desktop 编译和语言资源语法，未执行原生界面、模型推理、媒体输出或性能回归。
 
 ## 真人素材

@@ -44,7 +44,7 @@ public sealed class OnlineAiOptions
     public void ValidateConnection()
     {
         Validate(requireModel: false); _ = CompletionUri();
-        if (Preset is "openai" or "openrouter" or "siliconflow" && ApiKey.Length == 0)
+        if (Preset is "openai" or "openrouter" or "siliconflow" or "dots" && ApiKey.Length == 0)
             throw new ArgumentException("请填写供应商的 API Key。");
     }
 

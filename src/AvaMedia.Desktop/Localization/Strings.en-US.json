@@ -3001,5 +3001,9 @@
   "分析部分失败": "Analysis partially failed",
   "上下文 {0} token": "Context: {0} tokens",
   "最大输出 {0} token": "Maximum output: {0} tokens",
-  "输出上限由供应商决定": "Output limit set by the provider"
+  "输出上限由供应商决定": "Output limit set by the provider",
+  "小红书 Dots": "Xiaohongshu Dots",
+  "注册 / 获取密钥": "Sign up / Get API key",
+  "注册后创建 API Key，粘贴到下方即可连接。": "Sign up, create an API key, and paste it below to connect.",
+  "当前免费体验，恢复收费前官方会提前通知。": "Currently a free trial. Dots will announce when billing resumes."
 }

@@ -189,6 +189,11 @@
                     <TextBlock Text="接口地址" Classes="settingLabel"/>
                     <TextBox Grid.Column="1" x:Name="OnlineEndpointInput" Watermark="https://…/v1" local:Localization.IsUserText="True" AutomationProperties.Name="接口地址"/>
                   </Grid>
+                  <Grid x:Name="ProviderSetupSection" ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="False">
+                    <TextBlock Grid.Column="1" Text="注册后创建 API Key，粘贴到下方即可连接。" Classes="caption" TextWrapping="Wrap"/>
+                    <TextBlock Grid.Column="1" Grid.Row="1" Text="当前免费体验，恢复收费前官方会提前通知。" Classes="caption" TextWrapping="Wrap"/>
+                    <Button Grid.Column="2" Grid.RowSpan="2" Content="注册 / 获取密钥" Click="ProviderApiKeyClick" Classes="field-action" VerticalAlignment="Center"/>
+                  </Grid>
                   <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="12">
                     <TextBlock Text="API Key" Classes="settingLabel"/>
                     <TextBox Grid.Column="1" x:Name="OnlineKeyInput" PasswordChar="●" local:Localization.IsUserText="True" AutomationProperties.Name="API Key"/>
