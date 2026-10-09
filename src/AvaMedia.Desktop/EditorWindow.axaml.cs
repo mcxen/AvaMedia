@@ -82,7 +82,7 @@ public partial class EditorWindow : Window
     {
         try
         {
-            _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_player.SetStreams(_options.VideoStreamIndex,_options.AudioStreamIndex);
+            _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_options.VideoStreamIndex=_info.VideoStreamIndex;_player.SetStreams(_options.VideoStreamIndex,_options.AudioStreamIndex);
             var oldPreview=PreviewImage.Source as Bitmap;PreviewImage.Source=null;if(oldPreview!=_player.Frame)oldPreview?.Dispose();_player.Configure(_info);
             TrimBar.Duration=Math.Max(0,_info.Duration);if(_options.End==0)_options.End=TrimBar.Duration;_updating=true;SeekBar.Maximum=Math.Max(0,_info.Duration);SetPosition(double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,SeekBar.Maximum):0);TotalTime.Text=ShortTime(_info.Duration);UpdateTimes();
             CropLayer.SourceWidth=Math.Max(1,_info.Width);CropLayer.SourceHeight=Math.Max(1,_info.Height);ApplyRatio();

@@ -21,6 +21,7 @@ public static class VideoFormats
     {
         if (IsTransportStream(format)) arguments.AddRange(["-f", "mpegts"]);
         else if (format == "m4v") arguments.AddRange(["-f", "mp4"]);
+        else if (format == "wav") arguments.AddRange(["-rf64", "auto"]);
     }
     public static void ValidateTransportOutput(ConversionOptions options)
     {

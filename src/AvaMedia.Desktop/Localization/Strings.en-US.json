@@ -2601,5 +2601,7 @@
   "读取文件…": "Reading files…",
   "已添加 {0} 个文件": "Added {0} files",
   "标签个数须为整数。": "Tag count must be an integer.",
-  "复制失败": "Copy failed"
+  "复制失败": "Copy failed",
+  "编码未生成有效文件。": "Encoding did not produce a valid file.",
+  "文本超过 Excel 工作表行数限制，请改为导出 TXT。": "The text exceeds the Excel worksheet row limit. Export it as TXT."
 }

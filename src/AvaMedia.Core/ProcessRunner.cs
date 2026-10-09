@@ -19,11 +19,21 @@ public static class ProcessRunner
     public static async Task<ProcessResult> Run(string executable,IEnumerable<string> args,CancellationToken ct=default,Action<string>? line=null,int maximumOutputChars=160000)
     {
         using var process=await StartAsync(executable,args,ct).ConfigureAwait(false);
-        using var reg=ct.Register(()=>{try {process.Kill(true);} catch(InvalidOperationException) {}});
+        using var reg=ct.Register(()=>{try {process.Kill(true);} catch(InvalidOperationException) {} catch(System.ComponentModel.Win32Exception) {}});
         var error=new StringBuilder();var output=new StringBuilder();
         async Task Read(StreamReader reader,StringBuilder buffer,bool callback)
         {
-            while(await reader.ReadLineAsync() is {} text) {if(buffer.Length>maximumOutputChars) buffer.Remove(0,buffer.Length/2);buffer.AppendLine(text);if(callback) line?.Invoke(text);}
+            try
+            {
+                while(await reader.ReadLineAsync() is {} text) {if(buffer.Length>maximumOutputChars) buffer.Remove(0,buffer.Length/2);buffer.AppendLine(text);if(callback) line?.Invoke(text);}
+            }
+            catch
+            {
+                // A failing progress/parser callback must not stop draining stdout while the
+                // process is still running: a full pipe would deadlock WaitForExitAsync.
+                try{process.Kill(true);}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){}
+                throw;
+            }
         }
         await Task.WhenAll(Read(process.StandardOutput,output,true),Read(process.StandardError,error,false),process.WaitForExitAsync(CancellationToken.None)).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();return new(process.ExitCode,output.ToString(),error.ToString());

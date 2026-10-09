@@ -91,7 +91,7 @@ public sealed partial class QuickClipWindow : Window
             var ratio = (double)info.Width / Math.Max(1, info.Height);
             var width = Math.Clamp((int)Math.Round(88 * ratio), 1, 124);
             var height = Math.Clamp((int)Math.Round(124 / Math.Max(.001, ratio)), 1, 88);
-            var bytes = await _engine.Thumbnail(entry.Path, Math.Min(options.Start, info.Duration), width, height, _stop.Token,videoStreamIndex:options.VideoStreamIndex,endExclusive:info.Duration>0&&options.Start>=info.Duration);
+            var bytes = await _engine.Thumbnail(entry.Path, Math.Min(options.Start, info.Duration), width, height, _stop.Token,videoStreamIndex:info.VideoStreamIndex,endExclusive:info.Duration>0&&options.Start>=info.Duration);
             using var stream = new MemoryStream(bytes); var bitmap = new Bitmap(stream);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {

@@ -21,7 +21,7 @@ public static class SourceVideoGpu
     public static List<string> BuildArguments(Job job, IReadOnlyList<MediaInfo> infos)
     {
         var arguments = SourceVideoExport.BuildArguments(job, infos);
-        var options = job.Options;
+        var options = job.Options.Clone(); options.VideoStreamIndex = infos[0].VideoStreamIndex;
         var codec = options.VideoCodec;
         if (!options.PreserveSourceAttributes || !IsHardware(codec)) return arguments;
         if (!CanEncode(codec, infos[0], options.VideoStreamIndex))

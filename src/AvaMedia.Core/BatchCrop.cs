@@ -36,10 +36,11 @@ public static class BatchCrop
     public static ConversionOptions ResolveOptions(CropArea area, MediaInfo reference, MediaInfo target,
         BatchCropMode mode, ConversionOptions defaults, string? sourcePath = null)
     {
-        if (reference.VideoStreamIndex != defaults.VideoStreamIndex || target.VideoStreamIndex != defaults.VideoStreamIndex)
+        if (defaults.VideoStreamIndex != 0 && (reference.VideoStreamIndex != defaults.VideoStreamIndex || target.VideoStreamIndex != defaults.VideoStreamIndex))
             throw new ArgumentException("媒体信息与所选视频轨不一致，请重新读取视频。");
         var resolved = Resolve(area, reference, target, mode);
         var options = defaults.Clone();
+        options.VideoStreamIndex = target.VideoStreamIndex;
         if (options.Format == SourceVideoExport.Original)
         { options.Format = SourceVideoExport.Format(options.Format, sourcePath); options.PreserveSourceAttributes = true; }
         options.CropX = resolved.X; options.CropY = resolved.Y;

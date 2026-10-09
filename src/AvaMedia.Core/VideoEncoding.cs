@@ -105,7 +105,7 @@ public static class VideoEncoding
         var audio = audios.Select(StreamRate).Select(rate => rate > 0 ? rate :
             (total > 0 ? total * (info.HasVideo ? .15 : 1) : video * .15) / Math.Max(1, audios.Length)).ToArray();
         if (video <= 0 && total > 0 && info.HasVideo)
-            video = Math.Max(0, total - audio.Sum()) / Math.Max(1, videos.Length);
+            video = Math.Max(0, total - audio.Sum()) / Math.Max(1, videos.Count(MediaStreams.IsContentVideo));
         var combined = video + audio.Sum();
         var scale = total > 0 && combined > total ? total / combined : 1;
         return new(video > 0 ? Rate(video * scale) : 0, audio.Select(rate => rate > 0 ? Rate(rate * scale) : 0).ToArray());

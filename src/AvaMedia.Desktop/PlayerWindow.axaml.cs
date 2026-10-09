@@ -517,10 +517,12 @@ public partial class PlayerWindow : Window
             using var json = JsonDocument.Parse(info.RawJson);
             foreach (var type in new[] { "video", "audio" })
             {
-                var streams = json.RootElement.GetProperty("streams").EnumerateArray().Where(s => s.GetProperty("codec_type").GetString() == type).ToArray();
+                var streams = json.RootElement.GetProperty("streams").EnumerateArray().Where(s => s.GetProperty("codec_type").GetString() == type)
+                    .Select((stream,index)=>(Stream:stream,Index:index)).Where(item=>type!="video" || MediaStreams.IsContentVideo(item.Stream)).ToArray();
                 if (streams.Length <= 1) continue;
-                var choices = streams.Select((stream, index) =>
+                var choices = streams.Select(choice =>
                 {
+                    var stream=choice.Stream;var index=choice.Index;
                     var codec = stream.GetProperty("codec_name").GetString();
                     var item = new MenuItem { Header = $"{index + 1}: {codec}", ToggleType = MenuItemToggleType.Radio, IsChecked = index == (type == "video" ? info.VideoStreamIndex : info.AudioStreamIndex) };
                     item.Click += (_, _) => CommandReady = StartOpen(CurrentPath, type == "video" ? index : info.VideoStreamIndex, type == "audio" ? index : info.AudioStreamIndex, _position, _playIntent);

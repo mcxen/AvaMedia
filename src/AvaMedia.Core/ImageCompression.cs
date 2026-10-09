@@ -115,7 +115,7 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
                     {
                         hasOrientation = true;
                         width = frames[0].GetProperty("width").GetInt32(); height = frames[0].GetProperty("height").GetInt32();
-                        if (Math.Abs(rotation.GetDouble()) % 180 == 90) (width, height) = (height, width);
+                        if (MediaStreams.IsQuarterTurn(rotation.GetDouble())) (width, height) = (height, width);
                     }
         }
         return new(Path.GetFullPath(path), new FileInfo(path).Length, width, height, bitDepth, pixelFormat, hasOrientation);

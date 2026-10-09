@@ -48,8 +48,17 @@ public static class DocumentEngine
         }
         if(op==Operation.Zip)
         {
-            using var zip=ZipFile.Open(job.Output,ZipArchiveMode.Create);var used=new HashSet<string>();
-            foreach(var path in job.Inputs){ct.ThrowIfCancellationRequested();var name=Path.GetFileName(path);for(int i=1;!used.Add(name);i++)name=Path.GetFileNameWithoutExtension(path)+$" ({i})"+Path.GetExtension(path);zip.CreateEntryFromFile(path,name);}
+            SaveNew(job.Output,temporary=>
+            {
+                using var zip=ZipFile.Open(temporary,ZipArchiveMode.Create);var used=new HashSet<string>();
+                foreach(var path in job.Inputs)
+                {
+                    ct.ThrowIfCancellationRequested();var name=Path.GetFileName(path);for(int i=1;!used.Add(name);i++)name=Path.GetFileNameWithoutExtension(path)+$" ({i})"+Path.GetExtension(path);
+                    var entry=zip.CreateEntry(name);var modified=File.GetLastWriteTime(path);
+                    if(modified.Year is >=1980 and <=2107)entry.LastWriteTime=new DateTimeOffset(modified);
+                    using var source=File.OpenRead(path);using var target=entry.Open();Copy(source,target,ct);
+                }
+            },ct);
         }
         else if(op==Operation.Unzip)
         {
@@ -60,7 +69,16 @@ public static class DocumentEngine
                 ct.ThrowIfCancellationRequested();var destination=Path.GetFullPath(Path.Combine(root,entry.FullName));
                 if(!destination.StartsWith(root,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal))throw new InvalidDataException("压缩包包含越界路径。");
                 if(string.IsNullOrEmpty(entry.Name))Directory.CreateDirectory(destination);
-                else {Directory.CreateDirectory(Path.GetDirectoryName(destination)!);entry.ExtractToFile(destination,false);}progress(++count*100d/Math.Max(1,zip.Entries.Count));
+                else
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    SaveNew(destination,temporary=>
+                    {
+                        using var source=entry.Open();using var target=new FileStream(temporary,FileMode.CreateNew,FileAccess.Write);Copy(source,target,ct);
+                    },ct);
+                    File.SetLastWriteTime(destination,entry.LastWriteTime.LocalDateTime);
+                }
+                progress(++count*100d/Math.Max(1,zip.Entries.Count));
             }
         }
         else if(op==Operation.ImagesPdf)
@@ -110,9 +128,12 @@ public static class DocumentEngine
                 }
             }
             finally{foreach(var pdf in sources.Values)pdf.Dispose();}
-            if(op==Operation.PdfText)File.WriteAllText(job.Output,string.Join("\n\f\n",pages),Encoding.UTF8);
-            else if(op==Operation.PdfDocx)WriteDocx(job.Output,pages);
-            else if(op==Operation.PdfXlsx)WriteXlsx(job.Output,pages);
+            SaveNew(job.Output,temporary=>
+            {
+                if(op==Operation.PdfText)File.WriteAllText(temporary,string.Join("\n\f\n",pages),Encoding.UTF8);
+                else if(op==Operation.PdfDocx)WriteDocx(temporary,pages,ct);
+                else if(op==Operation.PdfXlsx)WriteXlsx(temporary,pages,ct);
+            },ct);
         }
         progress(100);
     }
@@ -147,16 +168,29 @@ public static class DocumentEngine
         }
         finally{graphics?.Dispose();}
     }
-    private static string Escape(string text) => SecurityElement.Escape(text)??"";
+    private static string XmlText(string text)
+    {
+        var valid=new StringBuilder(text.Length);
+        foreach(var rune in text.EnumerateRunes())
+            if(rune.Value is 0x9 or 0xA or 0xD or >=0x20 and <=0xD7FF or >=0xE000 and <=0xFFFD or >=0x10000 and <=0x10FFFF)valid.Append(rune.ToString());
+        return valid.ToString();
+    }
+    private static string Escape(string text) => SecurityElement.Escape(XmlText(text))??"";
     private static void Entry(ZipArchive zip,string name,string xml){using var writer=new StreamWriter(zip.CreateEntry(name).Open(),new UTF8Encoding(false));writer.Write(xml);}
-    private static void WriteDocx(string path,IEnumerable<string> pages)
+    private static void WriteDocx(string path,IEnumerable<string> pages,CancellationToken ct)
     {
         using var zip=ZipFile.Open(path,ZipArchiveMode.Create);
         Entry(zip,"[Content_Types].xml","<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/></Types>");
         Entry(zip,"_rels/.rels","<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/></Relationships>");
-        Entry(zip,"word/document.xml","<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"+string.Join("<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>",pages.Select(p=>string.Concat(p.Split('\n').Select(l=>"<w:p><w:r><w:t xml:space=\"preserve\">"+Escape(l)+"</w:t></w:r></w:p>"))))+"</w:body></w:document>");
+        var body=new StringBuilder();var first=true;
+        foreach(var page in pages)
+        {
+            if(!first)body.Append("<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>");first=false;
+            foreach(var line in page.Split('\n')){ct.ThrowIfCancellationRequested();body.Append("<w:p><w:r><w:t xml:space=\"preserve\">").Append(Escape(line)).Append("</w:t></w:r></w:p>");}
+        }
+        Entry(zip,"word/document.xml","<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"+body+"</w:body></w:document>");
     }
-    private static void WriteXlsx(string path,IEnumerable<string> pages)
+    private static void WriteXlsx(string path,IEnumerable<string> pages,CancellationToken ct)
     {
         using var zip=ZipFile.Open(path,ZipArchiveMode.Create);
         Entry(zip,"[Content_Types].xml","<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>");
@@ -164,8 +198,30 @@ public static class DocumentEngine
         Entry(zip,"xl/workbook.xml","<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"PDF文本\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>");
         Entry(zip,"xl/_rels/workbook.xml.rels","<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>");
         int row=0;var xml=new StringBuilder("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
-        foreach(var p in pages)foreach(var l in p.Split('\n')){row++;xml.Append($"<row r=\"{row}\"><c r=\"A{row}\" t=\"inlineStr\"><is><t xml:space=\"preserve\">{Escape(l)}</t></is></c></row>");}
+        foreach(var page in pages)foreach(var line in page.Split('\n'))
+        {
+            var text=XmlText(line);var offset=0;
+            do
+            {
+                ct.ThrowIfCancellationRequested();if(row==1048576)throw new InvalidDataException("文本超过 Excel 工作表行数限制，请改为导出 TXT。");
+                var count=Math.Min(32767,text.Length-offset);
+                if(offset+count<text.Length && count>0 && char.IsHighSurrogate(text[offset+count-1]))count--;
+                row++;xml.Append($"<row r=\"{row}\"><c r=\"A{row}\" t=\"inlineStr\"><is><t xml:space=\"preserve\">{Escape(text.Substring(offset,count))}</t></is></c></row>");offset+=count;
+            }while(offset<text.Length);
+        }
         Entry(zip,"xl/worksheets/sheet1.xml",xml+"</sheetData></worksheet>");
+    }
+    private static void SaveNew(string destination,Action<string> write,CancellationToken ct)
+    {
+        if(File.Exists(destination) || Directory.Exists(destination))throw new IOException("输出已存在，请重试以生成新的名称。");
+        var temporary=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!,".AvaMedia-doc-"+Guid.NewGuid()+Path.GetExtension(destination));
+        try{write(temporary);ct.ThrowIfCancellationRequested();File.Move(temporary,destination);}
+        finally{if(File.Exists(temporary))File.Delete(temporary);}
+    }
+    private static void Copy(Stream source,Stream target,CancellationToken ct)
+    {
+        var buffer=new byte[128*1024];int read;
+        while(true){ct.ThrowIfCancellationRequested();read=source.Read(buffer);if(read==0)break;target.Write(buffer,0,read);}
     }
     private sealed class SystemFontResolver : IFontResolver
     {

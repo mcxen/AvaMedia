@@ -128,7 +128,7 @@ public static class BatchVideoTools
                     if (video.TryGetProperty("side_data_list", out var sides))
                         foreach (var side in sides.EnumerateArray())
                             if (side.TryGetProperty("rotation", out var angle)) rotation = angle.GetDouble();
-                    if (Math.Abs(rotation) % 180 == 90) (width, height) = (height, width);
+                    if (MediaStreams.IsQuarterTurn(rotation)) (width, height) = (height, width);
                 }
             }
         }
@@ -181,15 +181,13 @@ public static class BatchVideoTools
         try
         {
             using var json = JsonDocument.Parse(info.RawJson);
-            var video = json.RootElement.GetProperty("streams").EnumerateArray().First(s => s.GetProperty("codec_type").GetString() == "video");
-            if (video.TryGetProperty("duration", out var d) && double.TryParse(d.GetString(), CultureInfo.InvariantCulture, out var streamDuration) && streamDuration > 0)
+            var video = json.RootElement.GetProperty("streams").EnumerateArray().Where(s => s.GetProperty("codec_type").GetString() == "video").ElementAtOrDefault(info.VideoStreamIndex);
+            if (video.ValueKind == JsonValueKind.Undefined) return (duration, frameRate);
+            var streamDuration = MediaStreams.StreamDuration(video);
+            if (streamDuration > 0)
                 duration = Math.Min(duration, streamDuration);
-            if (video.TryGetProperty("avg_frame_rate", out var rate))
-            {
-                var parts = (rate.GetString() ?? "").Split('/');
-                if (parts.Length == 2 && double.TryParse(parts[0], CultureInfo.InvariantCulture, out var numerator) && double.TryParse(parts[1], CultureInfo.InvariantCulture, out var denominator) && numerator > 0 && denominator > 0)
-                    frameRate = numerator / denominator;
-            }
+            var rate = MediaStreams.FrameRate(video);
+            if (rate > 0) frameRate = rate;
         }
         catch (JsonException) { }
         return (duration, frameRate);

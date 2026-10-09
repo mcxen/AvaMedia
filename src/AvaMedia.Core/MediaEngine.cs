@@ -58,34 +58,32 @@ public sealed class MediaEngine : IMediaEngine
         var videos=streams.Where(s=>s.GetProperty("codec_type").GetString()=="video").ToArray();
         var audios=streams.Where(s=>s.GetProperty("codec_type").GetString()=="audio").ToArray();
         if(videoStreamIndex<0 || audioStreamIndex<0 || videoStreamIndex>0 && videoStreamIndex>=videos.Length || audioStreamIndex>0 && audioStreamIndex>=audios.Length)throw new ArgumentException("源文件不包含所选视频或音频轨。");
+        videoStreamIndex=MediaStreams.VideoIndex(videos,videoStreamIndex);
         var video=videos.ElementAtOrDefault(videoStreamIndex);
+        if(video.ValueKind!=JsonValueKind.Undefined && !MediaStreams.IsContentVideo(video))video=default;
         var audio=audios.ElementAtOrDefault(audioStreamIndex);
-        var duration=0d;
-        if(root.TryGetProperty("format",out var fmt) && fmt.TryGetProperty("duration",out var d)) double.TryParse(d.GetString(),CultureInfo.InvariantCulture,out duration);
+        var duration=MediaStreams.Duration(root,streams);
         int width=video.ValueKind==JsonValueKind.Undefined?0:video.GetProperty("width").GetInt32(),height=video.ValueKind==JsonValueKind.Undefined?0:video.GetProperty("height").GetInt32();
         if(video.ValueKind!=JsonValueKind.Undefined && video.TryGetProperty("side_data_list",out var sideData))
-            foreach(var side in sideData.EnumerateArray())if(side.TryGetProperty("rotation",out var rotation) && Math.Abs(rotation.GetDouble())%180==90)(width,height)=(height,width);
+            foreach(var side in sideData.EnumerateArray())if(side.TryGetProperty("rotation",out var rotation) && MediaStreams.IsQuarterTurn(rotation.GetDouble())){(width,height)=(height,width);break;}
         if(HeifImage.Supports(path))
         {
             var primary=HeifImage.Read(root);width=primary.Width;height=primary.Height;
             videoStreamIndex=primary.VideoIndex;video=videos[videoStreamIndex];
         }
         int rate=0,channels=0;if(audio.ValueKind!=JsonValueKind.Undefined){if(audio.TryGetProperty("sample_rate",out var sample))int.TryParse(sample.GetString(),out rate);if(audio.TryGetProperty("channels",out var ch))channels=ch.GetInt32();}
-        var frameRate=0d;
-        if(video.ValueKind!=JsonValueKind.Undefined && video.TryGetProperty("avg_frame_rate",out var fps))
-        {
-            var fraction=(fps.GetString()??"").Split('/');
-            if(fraction.Length==2 && double.TryParse(fraction[0],CultureInfo.InvariantCulture,out var numerator) && double.TryParse(fraction[1],CultureInfo.InvariantCulture,out var denominator) && denominator>0)frameRate=numerator/denominator;
-        }
+        var frameRate=MediaStreams.FrameRate(video);
         return new(duration,width,height,audio.ValueKind!=JsonValueKind.Undefined,video.ValueKind!=JsonValueKind.Undefined,r.Output,Codec(video),Codec(audio),rate,channels,videoStreamIndex,audioStreamIndex,frameRate);
         static string Codec(JsonElement e) => e.ValueKind==JsonValueKind.Undefined?"":e.GetProperty("codec_name").GetString()??"";
     }
     public async Task<byte[]> Thumbnail(string input,double seconds,int width=640,int height=360,CancellationToken ct=default,bool pad=true,int videoStreamIndex=0,bool endExclusive=false)
     {
+        if(!double.IsFinite(seconds) || seconds<0 || width<1 || height<1 || videoStreamIndex<0)throw new ArgumentException("逐帧定位参数无效。");
         if(!pad && AppleImageIO.Supports(input))return await AppleImageIO.ThumbnailAsync(input,width,height,ct).ConfigureAwait(false);
         if(endExclusive && seconds>0)
         {
             var media=await Probe(input,ct,videoStreamIndex);var origin=TimelineOrigin(media);
+            videoStreamIndex=media.VideoStreamIndex;
             var lookback=1d;double? last=null;
             while(last is null)
             {
@@ -99,7 +97,7 @@ public sealed class MediaEngine : IMediaEngine
             seconds=Math.Max(0,last.Value-.000001);
         }
         var from=Math.Max(0,seconds);
-        var map=$"0:v:{videoStreamIndex}";
+        var map="0:"+MediaStreams.VideoSpecifier(videoStreamIndex);
         var prefix="";
         List<string> args=["-v","error","-nostdin","-filter_complex_threads","1"];
         if(HeifImage.Supports(input))
@@ -123,6 +121,7 @@ public sealed class MediaEngine : IMediaEngine
         if(!double.IsFinite(seconds) || seconds<0 || direction is not (-1 or 1))throw new ArgumentException("逐帧定位参数无效。");
         var media=await Probe(input,ct,videoStreamIndex);
         if(!media.HasVideo || media.Duration<=0)throw new ArgumentException("文件没有可定位的视频帧。");
+        videoStreamIndex=media.VideoStreamIndex;
         seconds=Math.Min(seconds,media.Duration);var origin=TimelineOrigin(media);var span=1d;
         while(true)
         {
@@ -138,15 +137,19 @@ public sealed class MediaEngine : IMediaEngine
     private static double TimelineOrigin(MediaInfo info)
     {
         using var json=JsonDocument.Parse(info.RawJson);
-        return json.RootElement.TryGetProperty("format",out var format) && format.TryGetProperty("start_time",out var start) && double.TryParse(start.GetString(),CultureInfo.InvariantCulture,out var value)?value:0;
+        return json.RootElement.TryGetProperty("format",out var format) && format.TryGetProperty("start_time",out var start) && double.TryParse(start.GetString(),CultureInfo.InvariantCulture,out var value) && double.IsFinite(value)?value:0;
     }
     private async Task<double[]> FrameTimes(string input,double from,double to,double origin,int videoStreamIndex,CancellationToken ct)
     {
-        var result=await ProcessRunner.Run(FFprobe,["-v","error","-select_streams",$"v:{videoStreamIndex}","-read_intervals",Number(origin+from)+"%"+Number(origin+to),"-show_frames","-show_entries","frame=best_effort_timestamp_time","-of","json",input],ct);
+        // Long GOPs and high frame rates can exceed the bounded process log. Parse timestamps
+        // as they arrive instead of parsing a JSON document whose beginning may be discarded.
+        var times=new List<double>();
+        var result=await ProcessRunner.Run(FFprobe,["-v","error","-select_streams",MediaStreams.VideoSpecifier(videoStreamIndex),"-read_intervals",Number(origin+from)+"%"+Number(origin+to),"-show_frames","-show_entries","frame=best_effort_timestamp_time","-of","csv=p=0",input],ct,line=>
+        {
+            var value=line.Split(',')[0];
+            if(double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var time) && double.IsFinite(time))times.Add(time-origin);
+        },maximumOutputChars:4096);
         if(result.ExitCode!=0)throw new InvalidDataException(result.Error);
-        using var json=JsonDocument.Parse(result.Output);var times=new List<double>();
-        if(json.RootElement.TryGetProperty("frames",out var frames))foreach(var frame in frames.EnumerateArray())
-            if(frame.TryGetProperty("best_effort_timestamp_time",out var timestamp) && double.TryParse(timestamp.GetString(),CultureInfo.InvariantCulture,out var time))times.Add(time-origin);
         return times.ToArray();
     }
     public static bool IsAudio(string format) => new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}.Contains(format);
@@ -209,6 +212,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.Threads is <0 or >16)throw new ArgumentException("编码线程数必须在 0 到 16 之间。");
         if(o.VoiceEnhancementStrength is <1 or >100)throw new ArgumentException("人声增强强度必须在 1 到 100 之间。");
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
+        if(o.Quality is <1 or >63 || o.Rotation is not (0 or 90 or 180 or 270))throw new ArgumentException("参数超出允许范围。");
         SubtitleOptions.Validate(o);
         VideoFormats.ValidateMobileOutput(o);
         VideoFormats.ValidateTransportOutput(o);
@@ -226,6 +230,7 @@ public sealed class MediaEngine : IMediaEngine
         var lengths=new List<double>();
         for(int index=0;index<infos.Count;index++)
         {
+            if(!double.IsFinite(infos[index].Duration) || infos[index].Duration<0)throw new ArgumentException("合并与混流输入须有有效媒体时长。");
             var edit=job.InputOptions?.ElementAtOrDefault(index)??new ConversionOptions();
             if(job.InputOptions is not null)MediaEditValidation.Validate(infos[index],edit);
             if(feature.Operation is Operation.Join or Operation.AudioMix or Operation.Mux && infos[index].Duration<=0)throw new ArgumentException("合并与混流输入须有有效媒体时长。");
@@ -233,8 +238,10 @@ public sealed class MediaEngine : IMediaEngine
             if(feature.Operation==Operation.Join && IsAudio(options.Format) && !infos[index].HasAudio && !edit.Mute && !options.Mute || feature.Operation==Operation.AudioMix && !infos[index].HasAudio)throw new ArgumentException("音频合并或混音输入必须包含音轨。");
             lengths.Add(MediaFilters.Duration(infos[index],edit));
         }
+        if(feature.Operation is Operation.Frames or Operation.SplitVideo && !infos[0].HasVideo)throw new ArgumentException("此文件不包含视频画面。");
         if(feature.Operation==Operation.Mux && (!infos[0].HasVideo || !infos[1].HasAudio))throw new ArgumentException("第一个文件需包含视频，第二个文件需包含音频。");
         var fullDuration=feature.Operation switch{Operation.Join=>lengths.Sum(),Operation.AudioMix=>lengths.Max(),Operation.Mux when !options.Mute && job.InputOptions?.ElementAtOrDefault(1)?.Mute!=true=>lengths.Min(),_=>lengths[0]};
+        if(!double.IsFinite(fullDuration))throw new ArgumentException("合并与混流输入须有有效媒体时长。");
         MediaEditValidation.Validate(infos[0] with{Duration=fullDuration},options);
         return ((options.End>0?Math.Min(options.End,fullDuration):fullDuration)-options.Start)/options.Speed;
     }
@@ -297,8 +304,17 @@ public sealed class MediaEngine : IMediaEngine
         {
             var source=job.Inputs[0];if(source.Length==2 && source[1]==':') source="\\\\.\\"+source;
             await using var input=new FileStream(source,FileMode.Open,FileAccess.Read,FileShare.ReadWrite,1024*1024,true);
-            await using var output=new FileStream(job.Output,FileMode.CreateNew,FileAccess.Write,FileShare.None,1024*1024,true);
-            var buffer=new byte[1024*1024];int read;while((read=await input.ReadAsync(buffer,ct))>0) {await output.WriteAsync(buffer.AsMemory(0,read),ct);progress(0);}progress(100);return;
+            var temporary=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,".AvaMedia-iso-"+Guid.NewGuid()+".iso");
+            try
+            {
+                await using(var output=new FileStream(temporary,FileMode.CreateNew,FileAccess.Write,FileShare.None,1024*1024,true))
+                {
+                    var buffer=new byte[1024*1024];int read;while((read=await input.ReadAsync(buffer,ct))>0){await output.WriteAsync(buffer.AsMemory(0,read),ct);progress(0);}
+                }
+                ct.ThrowIfCancellationRequested();File.Move(temporary,job.Output);
+            }
+            finally{if(File.Exists(temporary))File.Delete(temporary);}
+            progress(100);return;
         }
         if(f.Operation==Operation.Info) {var info=await Probe(job.Inputs[0],ct);await File.WriteAllTextAsync(job.Output,info.RawJson,ct);progress(100);return;}
         if(f.Operation==Operation.Download)
@@ -343,6 +359,7 @@ public sealed class MediaEngine : IMediaEngine
             return;
         }
         var effective=SettingsPolicy.Resolve(job.Options,Settings);
+        effective.VideoStreamIndex=infos[0].VideoStreamIndex;
         VideoCompressionPlan? compressionPlan=null;
         VideoCompressionColor? compressionColor=null;
         if(f.Operation==Operation.VideoCompress)
@@ -393,7 +410,11 @@ public sealed class MediaEngine : IMediaEngine
             {
                 job.ProgressDetail="GPU 编码 · "+codec;progress(0);
                 effective.VideoCodec=codec;effectiveJob.Output=temporary;result=await EncodeWithDecoding(effectiveJob);
-                if(result.ExitCode==0){File.Move(temporary,job.Output);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;}
+                if(result.ExitCode==0)
+                {
+                    if(!File.Exists(temporary) || new FileInfo(temporary).Length==0)throw new InvalidDataException("编码未生成有效文件。");
+                    ct.ThrowIfCancellationRequested();File.Move(temporary,job.Output);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;
+                }
                 else
                 {
                     hardwareLog.AppendLine(explicitHardware?$"指定硬件编码 {codec} 失败。":$"自动硬件编码 {codec} 失败，尝试其他可用编码器。").AppendLine(result.Error);
@@ -419,7 +440,19 @@ public sealed class MediaEngine : IMediaEngine
             }
             job.ProgressDetail=effective.VideoCodec=="自动"?"软件自动编码":"软件编码 · "+effective.VideoCodec;
             if(effective.PreserveSourceAttributes)hardwareLog.AppendLine("使用软件编码 "+effective.VideoCodec+"。");
-            progress(0);effectiveJob.Output=job.Output;result=await Encode(effectiveJob,null);
+            // Keep incomplete single-file exports private, including cancellation and software
+            // fallback failures. File.Move never overwrites a concurrently created destination.
+            var temporary=Catalog.DirectoryOutput(f.Operation)?null:Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,".AvaMedia-encode-"+Guid.NewGuid()+Path.GetExtension(job.Output));
+            try
+            {
+                progress(0);effectiveJob.Output=temporary??job.Output;result=await Encode(effectiveJob,null);
+                if(result.ExitCode==0 && temporary is not null)
+                {
+                    if(!File.Exists(temporary) || new FileInfo(temporary).Length==0)throw new InvalidDataException("编码未生成有效文件。");
+                    ct.ThrowIfCancellationRequested();File.Move(temporary,job.Output);
+                }
+            }
+            finally{if(temporary is not null && File.Exists(temporary))File.Delete(temporary);}
         }
         var completed=result!;
         job.Log=hardwareLog+completed.Error;
@@ -468,6 +501,7 @@ public sealed class MediaEngine : IMediaEngine
         if(f.Operation==Operation.Mux && job.InputOptions?.ElementAtOrDefault(1)?.Mute==true){o=o.Clone();o.Mute=true;}
         if(o.Threads>0)a.AddRange(["-filter_threads",o.Threads.ToString(),"-filter_complex_threads",o.Threads.ToString()]);
         var combined=f.Operation==Operation.AudioMix || f.Operation==Operation.Join && (job.Inputs.Length>1 || job.InputOptions is not null) || f.Operation==Operation.Mux && job.InputOptions is not null;
+        var audioCopy=!combined && job.Inputs.Length==1 && IsAudio(o.Format) && (o.CopyStreams || o.AudioCodec=="copy");
         var videoFilters=MediaFilters.Video(o,job.Duration,"out",combined,job.Inputs.FirstOrDefault());var audioFilters=MediaFilters.Audio(o,job.Duration,combined);
         var image=HeifImage.Supports(job.Inputs[0])?HeifImage.Parse(infos[0].RawJson):null;
         if(image?.PreFilter.Length>0)videoFilters.Insert(0,image.PreFilter);
@@ -475,13 +509,16 @@ public sealed class MediaEngine : IMediaEngine
         if(compressionColor is not null)videoFilters.InsertRange(0,compressionColor.Filters());
         for(var inputIndex=0;inputIndex<job.Inputs.Length;inputIndex++)
         {
-            if(!combined && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);
+            if(!combined && !audioCopy && o.Start>0)a.AddRange(["-ss",Number(o.Start)]);
             if(o.Threads>0)a.AddRange(["-threads",o.Threads.ToString()]);
             if(hardwareDecoding?.TryGetValue(inputIndex,out var decoding)==true)a.AddRange(decoding.InputArguments);
             if(inputIndex==0 && image?.PreFilter.Length>0)a.Add("-noautorotate");
             a.AddRange(["-i",job.Inputs[inputIndex]]);
         }
         if(SubtitleOptions.Mode(o)==SubtitleMode.ExternalTrack){if(o.Start>0)a.AddRange(["-ss",Number(o.Start)]);a.AddRange(["-i",o.Subtitle]);}
+        // Some M4A files mark only sparse audio packets as keyframes. Output seeking with
+        // copyinkf keeps the requested audio boundary without waiting for the next such packet.
+        if(audioCopy && o.Start>0)a.AddRange(["-ss",Number(o.Start),"-copyinkf"]);
         if(o.End>0) a.AddRange(["-t",Number((o.End-o.Start)/o.Speed)]);
         if(f.Operation==Operation.Join && combined)
         {
@@ -540,15 +577,15 @@ public sealed class MediaEngine : IMediaEngine
                 }
                 if(graph.Length>0)a.AddRange(["-filter_complex",graph.ToString()]);
             }
-            else{a.AddRange(["-map",$"0:v:{o.VideoStreamIndex}"]);if(!o.Mute)a.AddRange(["-map",o.KeepAllAudioStreams?"1:a?":$"1:a:{o.AudioStreamIndex}","-shortest"]);}
+            else{a.AddRange(["-map",$"0:v:{infos[0].VideoStreamIndex}"]);if(!o.Mute)a.AddRange(["-map",o.KeepAllAudioStreams?"1:a?":$"1:a:{o.AudioStreamIndex}","-shortest"]);}
         }
         else if(f.Operation==Operation.SplitAudio) a.AddRange(["-map",o.KeepAllAudioStreams?"0:a?":$"0:a:{o.AudioStreamIndex}","-vn"]);
-        else if(f.Operation==Operation.SplitVideo) a.AddRange(["-map",$"0:v:{o.VideoStreamIndex}","-an"]);
+        else if(f.Operation==Operation.SplitVideo) a.AddRange(["-map",$"0:v:{infos[0].VideoStreamIndex}","-an"]);
         else
         {
             if(!IsAudio(o.Format))
             {
-                var map=image?.Map() ?? $"0:v:{o.VideoStreamIndex}?";
+                var map=image?.Map() ?? "0:"+MediaStreams.VideoSpecifier(infos[0].VideoStreamIndex)+"?";
                 if(map.StartsWith('['))a.AddRange(["-filter_complex",$"{map}null[vout]","-map","[vout]"]);
                 else a.AddRange(["-map",map]);
             }
@@ -595,6 +632,11 @@ public sealed class MediaEngine : IMediaEngine
                 if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o));
                 else a.AddRange(VideoEncoding.EncodingArguments(codec,o,infos,codec=="copy"?null:VideoEncoding.TargetBitrate(job,infos)));
                 if(o.Fps>0)a.AddRange(["-r",Number(o.Fps)]);
+                else if(!combined && codec!="copy")
+                {
+                    a.AddRange(["-fps_mode:v:0","vfr"]);
+                    if(codec is "libx264" or "libx265" or "libaom-av1" or "libvpx-vp9")a.AddRange(["-enc_time_base:v:0","demux"]);
+                }
             }
             string ac=o.AudioCodec=="自动"?o.Format switch {"mp3"=>"libmp3lame","flac"=>"flac","wav"=>"pcm_s16le","aiff"=>"pcm_s16be","ogg"=>"libvorbis","opus" or "webm"=>"libopus","ac3"=>"ac3","wma" or "wmv"=>"wmav2","mpg"=>"mp2",_=>"aac"}:o.AudioCodec;
             if(!o.Mute && f.Operation!=Operation.SplitVideo){a.AddRange(["-c:a",ac]);if(ac!="copy"){if(ac is not ("flac" or "pcm_s16le" or "pcm_s16be" or "pcm_s24le" or "pcm_f32le" or "pcm_s24be" or "alac"))a.AddRange(["-b:a",o.AudioBitrate+"k"]);if(ac=="libopus" || o.SampleRate>0)a.AddRange(["-ar",(ac=="libopus"?48000:o.SampleRate).ToString()]);if(o.AudioChannels>0)a.AddRange(["-ac",o.AudioChannels.ToString()]);}}

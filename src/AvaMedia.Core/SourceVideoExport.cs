@@ -78,7 +78,7 @@ public static class SourceVideoExport
     {
         MediaEngine.Validate(job);
         if (infos.Count != 1 || !infos[0].HasVideo) throw new ArgumentException("原属性导出需要完整的视频信息。");
-        var media = infos[0]; var options = job.Options;
+        var media = infos[0]; var options = job.Options.Clone(); options.VideoStreamIndex = media.VideoStreamIndex;
         using var json = JsonDocument.Parse(media.RawJson);
         var video = json.RootElement.GetProperty("streams").EnumerateArray().Where(s => s.GetProperty("codec_type").GetString() == "video").ElementAt(options.VideoStreamIndex);
         var pixels = video.TryGetProperty("pix_fmt", out var pixelValue) ? pixelValue.GetString() : null;

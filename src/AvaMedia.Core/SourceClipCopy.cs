@@ -57,7 +57,7 @@ public static class SourceClipCopy
                     {
                         var values = line.Split(',');
                         if (!double.TryParse(values[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var time) || !double.IsFinite(time)) return;
-                        var length = values.Length > 1 && double.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0
+                        var length = values.Length > 1 && double.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value) && value > 0
                             ? value : info.FrameRate > 0 ? 1 / info.FrameRate : 0;
                         first = Math.Min(first, time); end = Math.Max(end, time + length);
                     }, maximumOutputChars: 4096);
@@ -72,7 +72,7 @@ public static class SourceClipCopy
             {
                 var part = timings[index];
                 var duration = part.Duration + part.Offset - (index + 1 < timings.Count ? timings[index + 1].Offset : 0);
-                if (duration <= 0) throw new InvalidDataException("片段过短，无法按原始编码连接，请选择重新编码格式。");
+                if (!double.IsFinite(duration) || duration <= 0) throw new InvalidDataException("片段过短，无法按原始编码连接，请选择重新编码格式。");
                 list.Append("file '").Append(part.Name).Append("'\nduration ").Append(MediaEngine.Number(duration)).Append('\n');
             }
             job.Duration = timings.Sum(part => part.Duration);
@@ -84,8 +84,10 @@ public static class SourceClipCopy
                 "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero"];
             if (!job.Options.KeepMetadata) arguments.AddRange(["-map_metadata", "-1"]);
             VideoFormats.AppendMuxerArguments(arguments, job.Options.Format);
-            arguments.Add(job.Output);
+            var joined=Path.Combine(folder,"joined."+job.Options.Format);
+            arguments.Add(joined);
             await Run(arguments, seconds => progress(75 + 24.9 * Math.Clamp(seconds / job.Duration, 0, 1)));
+            ct.ThrowIfCancellationRequested();File.Move(joined,job.Output);
             progress(100);
         }
         finally { Directory.Delete(folder, true); }
