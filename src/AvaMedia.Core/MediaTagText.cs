@@ -124,7 +124,7 @@ public static class MediaTagText
         var candidates = library ?? [];
         var scores = result.Scores.ToDictionary(score => score.Tag, score => MediaTagService.TagSignal(result, score), StringComparer.OrdinalIgnoreCase);
         IEnumerable<MediaTagTextLabel> tags = candidates.Where(entry => entry.Tags.Length > 0 && entry.Tags.All(tag => scores.TryGetValue(tag, out var value) && value >= threshold))
-            .Select(entry => new MediaTagTextLabel(entry.Label, entry.Category, entry.Tags.Min(tag => scores[tag]),
+            .Select(entry => new MediaTagTextLabel(WordLibraryCatalog.CandidateLabel(entry), WordLibraryCatalog.CandidateCategory(entry), entry.Tags.Min(tag => scores[tag]),
                 ScoreKind(result, entry.Tags), ModelCatalog.JoyTagId, entry.Tags));
         if (!onlyLibrary) tags = tags.Concat(result.Scores.Where(score => (!result.RealPeopleOnly || WordLibraryCatalog.RealPeopleTags.Contains(score.Tag)
                 || candidates.Any(entry => entry.Tags.Contains(score.Tag, StringComparer.OrdinalIgnoreCase))) && MediaTagService.TagSignal(result, score) >= threshold)

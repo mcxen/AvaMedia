@@ -80,8 +80,8 @@ public sealed class WordLibraryWindow : Window
             var grid = new Grid { ColumnDefinitions = new("28,190,*"), ColumnSpacing = 8, Margin = new(2, 5) };
             var check = new CheckBox { IsEnabled = row.Supported, IsVisible = target is not null };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(WordRow.Selected)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);
-            var label = new TextBlock { Text = row.Entry.Label, TextTrimming = TextTrimming.CharacterEllipsis };
-            ToolTip.SetTip(label, row.Entry.Label);
+            var label = new TextBlock { Text = WordLibraryCatalog.CandidateLabel(row.Entry), TextTrimming = TextTrimming.CharacterEllipsis };
+            ToolTip.SetTip(label, label.Text);
             Localization.SetIsUserText(label, true); Grid.SetColumn(label, 1); grid.Children.Add(label);
             var description = new TextBlock { Text = row.Entry.Category + " · " + row.Entry.Description
                 + (row.Entry.Tags.Length > 0 ? " · " + string.Join('+', row.Entry.Tags) : " · 语义匹配"),
@@ -167,7 +167,8 @@ public sealed class WordLibraryWindow : Window
         var category = (_category.SelectedItem as CategoryChoice)?.Value; var search = _search.Text?.Trim() ?? "";
         return _rows.Where(row => (string.IsNullOrEmpty(category) || row.Entry.Category == category)
             && (_selectedOnly.IsChecked != true || row.Selected)
-            && (search.Length == 0 || row.Entry.Label.Contains(search, StringComparison.OrdinalIgnoreCase)
+            && (search.Length == 0 || WordLibraryCatalog.CandidateLabel(row.Entry).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || row.Entry.Label.Contains(search, StringComparison.OrdinalIgnoreCase)
                 || row.Entry.Description.Contains(search, StringComparison.OrdinalIgnoreCase)
                 || row.Entry.Tags.Any(tag => tag.Contains(search, StringComparison.OrdinalIgnoreCase)))).ToArray();
     }

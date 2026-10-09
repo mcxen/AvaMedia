@@ -22,6 +22,7 @@ public static partial class WordLibraryCatalog
     public static readonly WordLibrary[] BuiltIns;
     private static readonly WordCandidate[] FeatureEntries;
     private static readonly WordCandidate[] NsfwEntries;
+    private static readonly WordCandidate[] ChineseEntries;
     public static IReadOnlyList<WordCandidate> SceneEntries { get; }
     public static IReadOnlyList<WordCandidate> RealPeopleEntries { get; }
     public static IReadOnlySet<string> RealPeopleTags { get; }
@@ -31,13 +32,18 @@ public static partial class WordLibraryCatalog
     static WordLibraryCatalog()
     {
         JoyTags = ReadText("joytag.txt").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ChineseEntries = ReadChineseWords();
+        Validate(ChineseEntries);
         FeatureEntries = ReadFeatureWords();
         NsfwEntries = NsfwModeration.Candidates();
         SceneEntries = ReadSceneWords();
+        var photoWords = ChineseEntries.Where(entry => entry.Category.StartsWith("NSFW", StringComparison.Ordinal)
+            || entry.Category.StartsWith("场景", StringComparison.Ordinal)).ToArray();
         RealPeopleEntries = FeatureEntries.Concat(NsfwEntries).Concat(SceneEntries).Concat(ReadRealPeopleWords())
+            .Concat(photoWords)
             .DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
         Validate(RealPeopleEntries);
-        RealPeopleTags = RealPeopleEntries.SelectMany(entry => entry.Tags).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        RealPeopleTags = RealPeopleEntries.Concat(photoWords).SelectMany(entry => entry.Tags).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (NsfwEntries.Any(entry => !entry.Supports(WordLibraryTarget.JoyTag))) throw new InvalidDataException("NSFW 识别词库包含模型不支持的标签。");
         TagCategories = CreateTagCategories();
         TagLabels = CreateTagLabels();
@@ -45,16 +51,20 @@ public static partial class WordLibraryCatalog
         {
         new("real-people", "真人 · 姿态与成人标签", "AvaMedia 中文映射 · JoyTag 照片标签、姿态及 NSFW · 不含角色与作品标签", RealPeopleEntries.ToArray()),
         new("person-features", "人物特征", "AvaMedia · 外观、配饰、动作、神态与体毛特征", FeatureEntries),
-        new("nsfw-review", "NSFW 识别标签", "JoyTag / Danbooru · Apache-2.0 · AvaMedia 风险分组", NsfwEntries),
+        new("nsfw-review", "NSFW 识别标签", "AvaMedia · 中文细分标签与风险分组", NsfwEntries
+            .Concat(ChineseEntries.Where(entry => entry.Category.StartsWith("NSFW", StringComparison.Ordinal)
+                && !NsfwModeration.ContainsTag(entry.Tags[0]))).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray()),
         new("scene-context", "场景、照明与面部", "AvaMedia · JoyTag 标签与本地语义描述", SceneEntries.ToArray()),
+        new("outdoor-scenery", "户外风景", "AvaMedia · 地形、水域、天气、天象、植物与建筑", ChineseEntries
+            .Where(entry => entry.Category.StartsWith("场景", StringComparison.Ordinal)).ToArray()),
         new("nudenet-review", "NudeNet 分类", "notAI-tech/NudeNet · AGPL-3.0 · 18 类语义候选，非 JoyTag 检测输出", ReadNudeNetWords()),
         new("common", "常用分类", "AvaMedia · 中文名称与模型标签映射", Common()),
         new("ratings", "内容分级候选", "AvaMedia · 语义描述，需人工确认", [
-            new("非NSFW", "内容分级", "An ordinary safe-for-work scene, fully clothed people, everyday objects or nature, suitable for a general audience.", []),
-            new("NSFW", "内容分级", "An adult scene with explicit nudity, exposed genitals or sexual activity, not safe for work.", [])]),
+            new("日常内容（SFW）", "内容分级", "An ordinary safe-for-work scene, fully clothed people, everyday objects or nature, suitable for a general audience.", []),
+            new("成人内容（NSFW）", "内容分级", "An adult scene with explicit nudity, exposed genitals or sexual activity, not safe for work.", [])]),
         new("open-images", "Open Images · 通用物体", "Google LLC · CC BY 4.0 · Open Images V7",
             JsonSerializer.Deserialize<WordCandidate[]>(ReadText("open-images.json"))!),
-        new("joytag", "JoyTag · 完整标签", "fpgaminer / fancyfeast · Apache-2.0 · 5813 tags",
+        new("joytag", "JoyTag · 完整标签", "JoyTag · Apache-2.0 · 中文映射：AvaMedia / Physton（MIT）",
             JoyTags.Order(StringComparer.Ordinal).Select(tag => new WordCandidate(RenameLabel(tag), TagCategory(tag), "A photo of " + tag.Replace('_', ' ') + ".", [tag])).ToArray())
         }.Select(library => library with { BuiltIn = true }).ToArray();
     }

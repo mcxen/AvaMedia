@@ -45,7 +45,7 @@ public sealed partial class MediaAiWindow
     {
         var scores = result.Scores.ToDictionary(score => score.Tag, score => JoyValue(result, score), StringComparer.OrdinalIgnoreCase);
         var selected = _libraryCandidates.Where(entry => entry.Tags.Length > 0 && entry.Tags.All(scores.ContainsKey))
-            .Select(entry => new ResultTag(entry.Label, entry.Category, entry.Tags.Min(tag => scores[tag]),
+            .Select(entry => new ResultTag(WordLibraryCatalog.CandidateLabel(entry), WordLibraryCatalog.CandidateCategory(entry), entry.Tags.Min(tag => scores[tag]),
                 JoyScoreKind(result, entry.Tags), RawTags: entry.Tags));
         return _onlyLibrary.IsChecked == true ? selected : selected.Concat(result.Scores
             .Where(score => _realPeople.IsChecked != true || WordLibraryCatalog.RealPeopleTags.Contains(score.Tag))

@@ -7,6 +7,11 @@ vocabulary, weight hashes and license are retained in `licenses/joytag/`.
 Review groups, Chinese labels and the risk/context policy are AvaMedia additions;
 they are not an upstream NSFW classifier or a calibrated probability.
 
+Additional adult-detail Chinese labels in `joytag-zh-curated.tsv` are maintained
+by AvaMedia and extend browsing/display candidates, not the 93 automatic-review
+rules. The general-label Chinese fallback and its MIT notice are documented in
+`licenses/chinese-tags/`.
+
 - Upstream: https://github.com/fpgaminer/joytag
 - Pinned labels: https://huggingface.co/fancyfeast/joytag/blob/6b7f16331a6ccf0fdce37d5a9564715f6e772b22/top_tags.txt
 

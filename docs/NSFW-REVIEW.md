@@ -6,10 +6,12 @@
 
 | 词库 | 来源与许可证 | 接入方式 |
 | --- | --- | --- |
-| NSFW 识别标签 | [JoyTag](https://github.com/fpgaminer/joytag)，Apache-2.0；[固定词表](https://huggingface.co/fancyfeast/joytag/blob/6b7f16331a6ccf0fdce37d5a9564715f6e772b22/top_tags.txt) | 93 个真实标签，47 个风险标签、46 个上下文提示 |
+| NSFW 识别标签 | [JoyTag](https://github.com/fpgaminer/joytag)，Apache-2.0；[固定词表](https://huggingface.co/fancyfeast/joytag/blob/6b7f16331a6ccf0fdce37d5a9564715f6e772b22/top_tags.txt) | 324 个中文候选；自动判断使用其中 93 条规则（47 个风险标签、46 个上下文提示） |
 | NudeNet 分类 | [NudeNet](https://github.com/notAI-tech/NudeNet/blob/6ccc81c6c305cccfd46d92b414f8a5c0a816574d/README.md)，AGPL-3.0 | 18 个源类别，中文映射，语义候选 |
 
 来源、固定修订与许可证副本见 `licenses/nsfw-review/`。JoyTag 使用 Danbooru 风格的固定词表；新增中文分组和风险/提示策略由 AvaMedia 整理。NudeNet 分类不冒充 JoyTag 输出，没有捆绑 NudeNet 代码、权重或检测框。
+
+额外的 231 个成人内容细分名称由 AvaMedia 逐项校正，覆盖裸露细节、接触、分泌物、道具、衣着与遮挡。它们用于结果、曲线、筛选和导出的中文显示，使用已有模型输出，不新增自动风险规则。通用中文标签来源与许可见 `licenses/chinese-tags/`。
 
 [WD Tagger v3](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) 支持分级，但训练数据主要是 Danbooru 图像；本次不将它的独立分级头或词表假装成 JoyTag 能力。没有明确数据许可证的第三方标签树未纳入。
 

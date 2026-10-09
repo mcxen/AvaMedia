@@ -17,7 +17,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, string> _reportSources = new(BatchRename.PathComparer);
     private readonly ComboBox _chartSource = Ui.Combo(["标签分数（JoyTag）", "语义相似度（场景/面部）"], "标签分数（JoyTag）");
     private readonly ComboBox _scoreMode = Ui.Combo(["推荐分数", "采样峰值", "采样平均", "当前画面"], "推荐分数");
-    private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征", "姿态 / 体位"], "全部标签");
+    private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "成人内容（NSFW）", "场景", "人物特征", "姿态 / 体位"], "全部标签");
     private readonly ComboBox _tagSort = Ui.Combo(["按分数排序", "按名称排序"], "按分数排序");
     private readonly Slider _tagThreshold = new() { Minimum = .05, Maximum = .95, Value = .4, TickFrequency = .01 };
     private readonly Slider _sceneThreshold = new() { Minimum = .05, Maximum = .95, Value = .55, TickFrequency = .01 };

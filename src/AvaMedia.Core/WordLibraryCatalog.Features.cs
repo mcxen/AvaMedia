@@ -21,7 +21,7 @@ public static partial class WordLibraryCatalog
                 + string.Join(" and ", fields[2].Split('+').Select(tag => tag.Replace('_', ' '))) + ".", fields[2].Split('+'));
         }).ToArray();
 
-    private static IEnumerable<WordCandidate> DisplayWords() => NsfwEntries.Concat(SceneEntries).Concat(RealPeopleEntries).Concat(Common());
+    private static IEnumerable<WordCandidate> DisplayWords() => NsfwEntries.Concat(SceneEntries).Concat(RealPeopleEntries).Concat(ChineseEntries).Concat(Common());
 
     private static Dictionary<string, string> CreateTagCategories() => DisplayWords()
             .SelectMany(entry => entry.Tags.Select(tag => (Tag: tag, entry.Category)))
@@ -30,14 +30,20 @@ public static partial class WordLibraryCatalog
 
     public static string TagCategory(string tag) => TagCategories.GetValueOrDefault(tag) ?? "其他标签";
 
-    private static Dictionary<string, string> CreateTagLabels() => DisplayWords()
+    private static Dictionary<string, string> CreateTagLabels()
+    {
+        var labels = ReadChineseLabels();
+        foreach (var entry in ChineseEntries.Concat(DisplayWords())
             .Where(entry => entry.Tags.Length == 1)
             .GroupBy(entry => entry.Tags[0], StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Label, StringComparer.OrdinalIgnoreCase);
+            .Select(group => group.First())) labels[entry.Tags[0]] = entry.Label;
+        return labels;
+    }
 
     public static string TagLabel(string tag) => TagLabels.GetValueOrDefault(tag) ?? tag;
 
-    public static bool UsesSamplePeak(string tag) => NsfwModeration.ContainsTag(tag)
+    public static bool UsesSamplePeak(string tag) => TagCategory(tag).StartsWith("NSFW", StringComparison.Ordinal)
+        || TagCategory(tag).StartsWith("场景", StringComparison.Ordinal)
         || RealPeopleEntries.Any(entry => entry.Category == "动作姿态" && entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
         || SceneEntries.Any(entry => entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
 }

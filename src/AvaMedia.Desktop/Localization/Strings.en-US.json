@@ -2980,5 +2980,7 @@
   "标签类别": "Tag category",
   "标签排序": "Tag sorting",
   "分数来源": "Score source",
-  "图表来源": "Chart source"
+  "图表来源": "Chart source",
+  "成人内容（NSFW）": "Adult content (NSFW)",
+  "日常内容（SFW）": "Everyday content (SFW)"
 }
