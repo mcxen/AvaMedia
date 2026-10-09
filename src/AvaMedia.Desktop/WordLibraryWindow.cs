@@ -26,8 +26,8 @@ public sealed class WordLibraryWindow : Window
     private readonly HashSet<SelectedWord> _selected = [];
     private WordLibrary[] _catalog = [];
     private WordRow[] _rows = [];
-    private bool _updating;
-    public bool Applied { get; private set; }
+    private bool _updating, _loaded;
+    private string _categoryValue = "";
 
     private sealed record CategoryChoice(string Value, int Count)
     {
@@ -89,32 +89,45 @@ public sealed class WordLibraryWindow : Window
             Grid.SetColumn(description, 2); grid.Children.Add(description); return grid;
         });
         Grid.SetRow(_list, 3); root.Children.Add(_list);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_count);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_count);
         var cancel = Ui.DialogButton("关闭", Close); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
-        if (target is not null)
-        {
-            var apply = Ui.DialogButton("使用所选候选词", async () =>
-            {
-                try
-                {
-                    var valid = _catalog.SelectMany(library => library.Entries.Where(entry => entry.Supports(target.Value))
-                        .Select(entry => new SelectedWord(library.Id, entry.Label))).ToHashSet();
-                    _store.SaveSelection(target.Value, _selected.Where(valid.Contains).ToArray()); Applied = true; Close();
-                }
-                catch (Exception error) { await Ui.Message(this, "词库保存失败", error.Message); }
-            });
-            apply.IsDefault = true; Grid.SetColumn(apply, 2); footer.Children.Add(apply);
-        }
         Grid.SetRow(footer, 4); root.Children.Add(footer); Content = root;
         _libraries.SelectionChanged += (_, _) => RefreshRows();
-        _category.SelectionChanged += (_, _) => Filter();
+        _category.SelectionChanged += (_, _) =>
+        {
+            if (_updating) return;
+            _categoryValue = (_category.SelectedItem as CategoryChoice)?.Value ?? "";
+            Filter();
+        };
         _search.TextChanged += (_, _) => Filter(); _selectedOnly.IsCheckedChanged += (_, _) => Filter();
         Localization.Changed += WordLanguageChanged;
         Closed += (_, _) => Localization.Changed -= WordLanguageChanged;
         Opened += async (_, _) =>
         {
-            try { if (target is not null) _selected.UnionWith(_store.Selection(target.Value)); Reload(); }
+            try
+            {
+                var view = _store.View(target);
+                if (target is not null) _selected.UnionWith(_store.Selection(target.Value));
+                _categoryValue = view?.Category ?? "";
+                Reload(view?.LibraryId); _loaded = true;
+            }
             catch (Exception error) { await Ui.Message(this, "词库读取失败", error.Message); }
+        };
+        Closing += async (_, args) =>
+        {
+            if (!_loaded || _libraries.SelectedItem is not WordLibrary library) return;
+            try
+            {
+                var view = new WordLibraryView(library.Id, _categoryValue);
+                if (target is not null)
+                {
+                    var valid = _catalog.SelectMany(item => item.Entries.Where(entry => entry.Supports(target.Value))
+                        .Select(entry => new SelectedWord(item.Id, entry.Label))).ToHashSet();
+                    _store.SaveSelection(target.Value, _selected.Where(valid.Contains).ToArray(), view);
+                }
+                else _store.SaveView(target, view);
+            }
+            catch (Exception error) { args.Cancel = true; await Ui.Message(this, "词库保存失败", error.Message); }
         };
     }
     private void WordLanguageChanged(object? sender, EventArgs args) => RefreshRows();
@@ -130,7 +143,7 @@ public sealed class WordLibraryWindow : Window
         _updating = true;
         try
         {
-            var previousCategory = (_category.SelectedItem as CategoryChoice)?.Value;
+            var previousCategory = _categoryValue;
             _rows = library.Entries.Select(entry => new WordRow { Entry = entry, Key = new(library.Id, entry.Label),
                 Supported = _target is null || entry.Supports(_target.Value), Selected = _selected.Contains(new(library.Id, entry.Label)) }).ToArray();
             foreach (var row in _rows) row.PropertyChanged += (_, change) =>
@@ -142,7 +155,8 @@ public sealed class WordLibraryWindow : Window
             var choices = new[] { new CategoryChoice("", library.Entries.Length) }
                 .Concat(library.Entries.GroupBy(entry => entry.Category).Select(group => new CategoryChoice(group.Key, group.Count()))).ToArray();
             _category.ItemsSource = choices;
-            _category.SelectedItem = choices.FirstOrDefault(choice => choice.Value == previousCategory) ?? choices[0]; _source.Text = library.Source;
+            var category = choices.FirstOrDefault(choice => choice.Value == previousCategory) ?? choices[0];
+            _category.SelectedItem = category; _categoryValue = category.Value; _source.Text = library.Source;
         }
         finally { _updating = false; }
         Filter();

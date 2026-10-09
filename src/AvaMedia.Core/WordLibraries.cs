@@ -13,6 +13,7 @@ public sealed record WordLibrary(string Id, string Name, string Source, WordCand
     public override string ToString() => $"{Name} · {Entries.Length}";
 }
 public sealed record SelectedWord(string LibraryId, string Label);
+public sealed record WordLibraryView(string LibraryId, string Category);
 
 public static partial class WordLibraryCatalog
 {
@@ -179,13 +180,16 @@ public sealed class WordLibraryStore(string? path = null)
     {
         public List<WordLibrary> Libraries { get; set; } = [];
         public Dictionary<WordLibraryTarget, SelectedWord[]> Selections { get; set; } = [];
+        public Dictionary<string, WordLibraryView> Views { get; set; } = [];
     }
     private State Read()
     {
         if (!File.Exists(_path)) return new();
         if (new FileInfo(_path).Length > 32 * 1024 * 1024) throw new InvalidDataException("词库文件过大。");
         var state = JsonSerializer.Deserialize<State>(File.ReadAllText(_path), Json) ?? throw new InvalidDataException("词库文件无效。");
-        if (state.Libraries is null || state.Selections is null || state.Libraries.Count > 100) throw new InvalidDataException("词库文件无效。");
+        if (state.Libraries is null || state.Selections is null || state.Views is null || state.Libraries.Count > 100
+            || state.Views.Values.Any(view => view is null || view.LibraryId is null || view.Category is null))
+            throw new InvalidDataException("词库文件无效。");
         foreach (var library in state.Libraries)
         {
             if (library is null || library.Entries is null || string.IsNullOrWhiteSpace(library.Id) || string.IsNullOrWhiteSpace(library.Name)
@@ -200,16 +204,21 @@ public sealed class WordLibraryStore(string? path = null)
     public WordLibrary[] Libraries() { lock (Gate) return WordLibraryCatalog.BuiltIns.Concat(Read().Libraries).ToArray(); }
     public SelectedWord[] Selection(WordLibraryTarget target)
     { lock (Gate) return Read().Selections.GetValueOrDefault(target) ?? []; }
+    public WordLibraryView? View(WordLibraryTarget? target)
+    { lock (Gate) return Read().Views.GetValueOrDefault(ViewKey(target)); }
+    public void SaveView(WordLibraryTarget? target, WordLibraryView view) => Update(state => state.Views[ViewKey(target)] = view);
+    private static string ViewKey(WordLibraryTarget? target) => target?.ToString() ?? "Management";
     public WordCandidate[] Resolve(WordLibraryTarget target)
     {
         var keys = Selection(target).ToHashSet();
         return Libraries().SelectMany(library => library.Entries.Where(entry => keys.Contains(new(library.Id, entry.Label))))
             .Where(entry => entry.Supports(target)).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
     }
-    public void SaveSelection(WordLibraryTarget target, SelectedWord[] selection) => Update(state =>
+    public void SaveSelection(WordLibraryTarget target, SelectedWord[] selection, WordLibraryView? view = null) => Update(state =>
     {
         if (selection.Length > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("选择的候选词过多。");
         state.Selections[target] = selection.Distinct().ToArray();
+        if (view is not null) state.Views[ViewKey(target)] = view;
     });
     public void Save(WordLibrary library) => Update(state =>
     {
