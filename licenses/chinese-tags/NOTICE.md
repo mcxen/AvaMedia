@@ -24,3 +24,9 @@ entries. These corrections and the existing person/scene/NSFW vocabularies take
 precedence over community translations. Labels are display names for existing
 model outputs, not new model classes or accuracy claims. Supplemental adult
 labels do not add rules to `NsfwModeration` or alter the binary classifier.
+
+Adult labels use concise colloquial Chinese names. Public tweet indexes were
+consulted for terminology (for example, https://ww.twstalker.com/RamirezRigger88
+uses the terms for vibrators, vibrating eggs and mouth gags). This is a wording
+reference, not a frequency survey. No tweet text or media is bundled; categories,
+raw model tags and risk flags retain their definitions.
