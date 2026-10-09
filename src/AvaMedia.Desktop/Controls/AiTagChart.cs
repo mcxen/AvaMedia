@@ -10,8 +10,8 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop.Controls;
 
 public sealed record TagChartBar(string Key, string Label, double Score, double Peak, double Average, double? Current);
-public sealed record TagChartSeries(string Key, string Label, IReadOnlyList<MediaTagPoint> Points, string Model, bool Semantic, int Variant);
-public sealed record TagChartThreshold(string Model, string Label, double Value, bool Semantic);
+public sealed record TagChartSeries(string Key, IReadOnlyList<MediaTagPoint> Points, string Model, bool Semantic, int Variant);
+public sealed record TagChartThreshold(string Model, double Value, bool Semantic);
 
 /// <summary>Actual sampled observations, with a draggable threshold and sample seeking.</summary>
 public sealed class AiTagChart : Control
@@ -37,6 +37,8 @@ public sealed class AiTagChart : Control
     private bool _draggingThreshold;
     public event Action<string>? TagSelected;
     public event Action<double>? SampleSelected;
+    public event Action<double?>? SampleHovered;
+    public event Action<TagChartBar?>? BarHovered;
     public event Action<double>? ThresholdEdited;
     public event Action<string, double>? ModelThresholdEdited;
     static AiTagChart() => AffectsRender<AiTagChart>(AccentBrushProperty, TextBrushProperty, GridBrushProperty, SuccessBrushProperty, WarningBrushProperty);
@@ -95,7 +97,6 @@ public sealed class AiTagChart : Control
             }
             var thresholdX = ScoreX(_threshold);
             context.DrawLine(new Pen(WarningBrush, 1, new DashStyle([5, 4], 0)), new(thresholdX, plot.Y), new(thresholdX, plot.Bottom));
-            Text(context, Localization.Text("阈值") + $" {_threshold:0.00}", new(Math.Clamp(thresholdX - 25, plot.X, Math.Max(plot.X, plot.Right - 60)), 4), 10, WarningBrush);
             if (_bars.Count == 0) Text(context, Localization.Text("等待标签分数"), new(plot.X, plot.Y + 20));
         }
     }
@@ -110,14 +111,12 @@ public sealed class AiTagChart : Control
             Text(context, score.ToString("0.00"), new(0, y - 7), brush: ModelBrush(ModelCatalog.JoyTagId));
             if (semantic) Text(context, (score * 2 - 1).ToString("0.00"), new(plot.Right + 5, y - 7), brush: ModelBrush(ModelCatalog.EmbeddingId));
             var x = plot.X + plot.Width * i / 4; context.DrawLine(grid, new(x, plot.Y), new(x, plot.Bottom));
-            Text(context, MediaTime.Format(_duration * i / 4), new(Math.Clamp(x - 28, plot.X, Math.Max(plot.X, plot.Right - 66)), plot.Bottom + 8), 10);
         }
+        DrawTimeLabels(context, plot);
         foreach (var threshold in _thresholds)
         {
             var color = ModelBrush(threshold.Model); var y = Y(threshold.Value, threshold.Semantic);
             context.DrawLine(new Pen(color, 1, new DashStyle([5, 4], 0)), new(plot.X, y), new(plot.Right, y));
-            var caption = Localization.Text(threshold.Semantic ? "场景阈值" : "标签阈值") + $" {threshold.Value:0.00}";
-            Text(context, caption, new(threshold.Semantic ? Math.Max(plot.X + 4, plot.Right - 100) : plot.X + 4, Math.Max(plot.Y, y - 16)), 10, color);
         }
         using (context.PushClip(plot.Inflate(4)))
             foreach (var series in _series)
@@ -138,6 +137,24 @@ public sealed class AiTagChart : Control
             }
         if (_series.Count > 0) context.DrawLine(new Pen(TextBrush, 1), new(X(_cursor), plot.Y), new(X(_cursor), plot.Bottom));
         if (_series.Count == 0) Text(context, Localization.Text("选择标签查看采样曲线"), new(plot.X + 12, plot.Y + plot.Height / 2));
+    }
+    private void DrawTimeLabels(DrawingContext context, Rect plot)
+    {
+        var labels = Enumerable.Range(0, 5).Select(index => (Index: index, Caption: MediaTime.Format(_duration * index / 4)))
+            .Select(item => (item.Index, item.Caption, Text: new FormattedText(item.Caption, CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 10, TextBrush ?? Brushes.Black))).ToArray();
+        var end = labels[^1]; var endX = plot.Right - end.Text.Width; var y = plot.Bottom + 8;
+        var previousEnd = plot.X + labels[0].Text.Width;
+        if (previousEnd + 8 > endX) { context.DrawText(end.Text, new(endX, y)); return; }
+        context.DrawText(labels[0].Text, new(plot.X, y));
+        var displayed = new HashSet<string> { labels[0].Caption, end.Caption };
+        foreach (var label in labels.Skip(1).SkipLast(1))
+        {
+            var x = plot.X + plot.Width * label.Index / 4 - label.Text.Width / 2;
+            if (x < previousEnd + 8 || x + label.Text.Width > endX - 8 || !displayed.Add(label.Caption)) continue;
+            context.DrawText(label.Text, new(x, y)); previousEnd = x + label.Text.Width;
+        }
+        context.DrawText(end.Text, new(endX, y));
     }
     private void SetThreshold(Point point)
     {
@@ -184,13 +201,18 @@ public sealed class AiTagChart : Control
         {
             var time = (point.X - Plot.X) / Plot.Width * _duration;
             var nearest = _series.SelectMany(series => series.Points).Where(sample => sample.Score.HasValue).MinBy(sample => Math.Abs(sample.Seconds - time));
-            ToolTip.SetTip(this, nearest is null ? null : MediaTime.Format(nearest.Seconds) + "\n" + string.Join("\n", _series.Select(series => series.Label + " · " + series.Points.FirstOrDefault(sample => sample.Seconds == nearest.Seconds)?.Score?.ToString("0.000"))));
+            SampleHovered?.Invoke(nearest?.Seconds);
         }
         else if (!Timeline && _bars.Count > 0 && point.Y >= Plot.Y && point.Y < Plot.Bottom)
         {
             var item = _bars[Math.Clamp((int)((point.Y - Plot.Y) / Plot.Height * _bars.Count), 0, _bars.Count - 1)];
-            ToolTip.SetTip(this, $"{item.Label}\n" + Localization.Text("峰值") + $" {item.Peak:0.000} · " + Localization.Text("平均") + $" {item.Average:0.000}");
+            BarHovered?.Invoke(item);
         }
+        else { SampleHovered?.Invoke(null); BarHovered?.Invoke(null); }
+    }
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e); SampleHovered?.Invoke(null); BarHovered?.Invoke(null);
     }
     protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); _draggingThreshold = false; _draggedThreshold = null; e.Pointer.Capture(null); }
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); _draggingThreshold = false; _draggedThreshold = null; }

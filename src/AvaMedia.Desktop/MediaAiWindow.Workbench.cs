@@ -26,7 +26,8 @@ public sealed partial class MediaAiWindow
     private readonly Button _playSample = new() { Content = "播放此时间" };
     private readonly AiTagChart _scoreBars = new() { Height = 310 };
     private readonly AiTagChart _peakCurve = new() { Timeline = true, Height = 230 };
-    private readonly WrapPanel _traceLegend = new();
+    private readonly Grid _traceLegend = new() { ColumnSpacing = 8, RowSpacing = 4 };
+    private readonly TextBlock _barReadout = Ui.Text("", "caption");
     private readonly TextBlock _thresholdCaption = Ui.Text("", "caption");
     private readonly TextBlock _sceneCaption = Ui.Text("", "caption");
     private readonly TextBlock _chartSummary = Ui.Text("", "caption");
@@ -68,7 +69,7 @@ public sealed partial class MediaAiWindow
     }
 
     private bool TryDisplayedResult(string path, out MediaTagResult result) => _liveResults.TryGetValue(path, out result!) || _results.TryGetValue(path, out result!);
-    private static string TagKey(ResultTag tag) => tag.Model + "/" + tag.Label;
+    private static string TagKey(ResultTag tag) => tag.Model + "/" + tag.Label.Trim();
     private bool ScopeMatches(ResultTag tag) => _tagScope.SelectedIndex switch
     {
         1 => tag.Category.StartsWith("NSFW", StringComparison.Ordinal),
@@ -120,6 +121,8 @@ public sealed partial class MediaAiWindow
         _peakCurve.ModelThresholdEdited += (model, value) => SetThreshold(value, model == ModelCatalog.EmbeddingId);
         _scoreBars.TagSelected += key => SelectTrace(key);
         _peakCurve.SampleSelected += seconds => { _ = SelectSampleAsync(seconds); };
+        _peakCurve.SampleHovered += RefreshLegendSample;
+        _scoreBars.BarHovered += bar => _barReadout.Text = bar is null ? "" : Localization.Text("峰值") + $" {bar.Peak:0.000} · " + Localization.Text("平均") + $" {bar.Average:0.000}";
         _playSample.Click += async (_, _) =>
         {
             if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var result)) return;
@@ -132,9 +135,9 @@ public sealed partial class MediaAiWindow
     private Control BuildCharts()
     {
         var charts = new Grid { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
-        var bars = new StackPanel { Spacing = 8 }; bars.Children.Add(Ui.Text("标签柱状图", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars);
+        var bars = new StackPanel { Spacing = 8 }; bars.Children.Add(Ui.Text("标签柱状图", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
         charts.Children.Add(ChartPanel(bars));
-        var curve = new StackPanel { Spacing = 8 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_traceLegend); curve.Children.Add(_peakCurve);
+        var curve = new StackPanel { Spacing = 8 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
         var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; sample.Children.Add(_sampleSummary); Grid.SetColumn(_playSample, 1); sample.Children.Add(_playSample); curve.Children.Add(sample);
         var right = ChartPanel(curve); Grid.SetColumn(right, 1); charts.Children.Add(right); return charts;
     }
@@ -165,7 +168,7 @@ public sealed partial class MediaAiWindow
         else tags = result.Scores.Select(score => new ResultTag(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag), JoyValue(result, score), JoyScoreKind(result, [score.Tag]), RawTags: [score.Tag]));
         var query = _tagSearch.Text?.Trim() ?? "";
         return tags.Where(tag => double.IsFinite(tag.Score) && ScopeMatches(tag) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(tag => tag.Score).DistinctBy(TagKey).ToArray();
+            .OrderByDescending(tag => tag.Score).DistinctBy(TagKey, StringComparer.OrdinalIgnoreCase).ToArray();
     }
     private void RenderCharts(MediaTagResult? result)
     {
@@ -173,7 +176,7 @@ public sealed partial class MediaAiWindow
         _thresholdCaption.Text = Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}");
         _sceneCaption.Text = Localization.Format($"场景相似度 {_sceneThreshold.Value:0.00}"); _sceneThresholdRow.IsVisible = _sceneTags.IsChecked == true || result?.Scenes is not null;
         var candidates = result is null ? [] : PlotCandidates(result);
-        _traceLegend.Children.Clear();
+        _barReadout.Text = "";
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
         var selected = result is null ? [] : new[] { false, true }.SelectMany(scene =>
         {
@@ -182,20 +185,9 @@ public sealed partial class MediaAiWindow
             return PlotCandidates(result, scene).Where(tag => modelKeys.Length == 0 || modelKeys.Contains(TagKey(tag))).Take(3);
         }).ToArray();
         var series = result is null ? [] : selected.GroupBy(tag => tag.Model).SelectMany(group => group.Select((tag, variant) =>
-            new TagChartSeries(TagKey(tag), ModelLabel(tag.Model) + " · " + tag.Label, TagPoints(result, tag), tag.Model,
+            new TagChartSeries(TagKey(tag), TagPoints(result, tag), tag.Model,
                 tag.Model == ModelCatalog.EmbeddingId, variant))).ToArray();
-        foreach (var group in selected.GroupBy(tag => tag.Model))
-        {
-            var variant = 0;
-            foreach (var tag in group)
-            {
-                var line = new[] { "━", "┄", "┈" }[variant++];
-                var legend = Ui.Button(line + " " + ModelLabel(tag.Model) + " · " + tag.Label + $" · {tag.Score:0.000}", () => SelectTrace(TagKey(tag)));
-                legend.Margin = new(0, 0, 6, 4);
-                legend.Bind(Button.BorderBrushProperty, new DynamicResourceExtension(ModelColor(tag.Model))); legend.BorderThickness = new(2);
-                Localization.SetIsUserText(legend, true); _traceLegend.Children.Add(legend);
-            }
-        }
+        RenderTraceLegend(selected, series);
         var bars = candidates.Take(12).Select(tag =>
         {
             var points = TagPoints(result!, tag).Where(point => point.Score.HasValue).Select(point => point.Score!.Value).ToArray();
@@ -204,13 +196,13 @@ public sealed partial class MediaAiWindow
         }).ToArray();
         _chartSummary.Text = result is null ? Localization.Text("等待识别数据") : Localization.Format($"采样 {(semantic ? result.Scenes?.Frames.Count ?? 0 : result.Frames.Count)}/{result.SampledFrames} 帧 · 达标 {candidates.Count(tag => semantic ? SceneQualifies(result, tag) : tag.Score >= threshold)} 个");
         var cursor = result is null ? 0 : CursorFor(result);
-        _sampleSummary.Text = result is null ? "" : MediaTime.Format(cursor) + " · " + Localization.Text("点击曲线定位采样画面");
+        _sampleSummary.Text = result is null ? "" : MediaTime.Format(cursor);
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
         _scoreBars.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic);
         var thresholds = new List<TagChartThreshold>();
-        if (result?.Scores.Count > 0) thresholds.Add(new(ModelCatalog.JoyTagId, "JoyTag", (double)(_threshold.Value ?? .4m), false));
-        if (result?.Scenes is not null) thresholds.Add(new(ModelCatalog.EmbeddingId, ModelLabel(ModelCatalog.EmbeddingId), _sceneThreshold.Value, true));
+        if (result?.Scores.Count > 0) thresholds.Add(new(ModelCatalog.JoyTagId, (double)(_threshold.Value ?? .4m), false));
+        if (result?.Scenes is not null) thresholds.Add(new(ModelCatalog.EmbeddingId, _sceneThreshold.Value, true));
         _peakCurve.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic, thresholds);
     }
     private static string ModelLabel(string model) => model == ModelCatalog.EmbeddingId ? "EmbeddingGemma" : "JoyTag";
