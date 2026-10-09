@@ -32,7 +32,6 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _barReadout = new() { Classes = { "caption" }, MinHeight = 32, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _thresholdCaption = Ui.Text("", "caption");
     private readonly TextBlock _sceneCaption = Ui.Text("", "caption");
-    private readonly TextBlock _chartSummary = Ui.Text("", "caption");
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
     private readonly StackPanel _sceneThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly StackPanel _tagThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -170,12 +169,10 @@ public sealed partial class MediaAiWindow
     private Control BuildCharts()
     {
         var charts = new Grid { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
-        var bars = new StackPanel { Spacing = 6 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
+        var bars = new StackPanel { Spacing = 6 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
         var left = ChartPanel(bars); left.VerticalAlignment = VerticalAlignment.Stretch; charts.Children.Add(left);
         var curve = new StackPanel { Spacing = 6 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
-        var right = ChartPanel(curve); right.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(right, 1); charts.Children.Add(right);
-        var section = new StackPanel { Spacing = 6 }; section.Children.Add(charts);
-        section.Children.Add(Ui.Text("拖动阈值线可即时筛选，无需重新分析", "caption")); return section;
+        var right = ChartPanel(curve); right.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(right, 1); charts.Children.Add(right); return charts;
     }
     private static Border ChartPanel(Control? content = null)
     {
@@ -223,7 +220,6 @@ public sealed partial class MediaAiWindow
             return new TagChartBar(TagKey(tag), tag.Label, tag.Score, points.Length > 0 ? points.Max() : tag.Score,
                 points.Length > 0 ? points.Average() : tag.Score, CurrentScore(result!, tag));
         }).ToArray();
-        _chartSummary.Text = result is null ? Localization.Text("等待识别数据") : Localization.Format($"采样 {(semantic ? result.Scenes?.Frames.Count ?? 0 : result.Frames.Count)}/{result.SampledFrames} 帧 · 达标 {candidates.Count(tag => semantic ? SceneQualifies(result, tag) : tag.Score >= threshold)} 个");
         var cursor = result is null ? 0 : CursorFor(result);
         _sampleSummary.Text = result is null ? "" : MediaTime.Format(cursor);
         _sampleSummary.IsVisible = result is not null && VideoFormats.IsVideo(result.Path);

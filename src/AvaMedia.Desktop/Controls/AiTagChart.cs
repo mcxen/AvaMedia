@@ -191,7 +191,8 @@ public sealed class AiTagChart : Control
             ThresholdHandle(context, threshold.Value.ToString("0.00", CultureInfo.InvariantCulture), new(threshold.Semantic ? plot.Right : plot.X, Math.Max(plot.Y - 6, y - 18)), ModelBrush(threshold.Model), plot,
                 rightAligned: threshold.Semantic);
         }
-        if (_series.Count == 0) Text(context, Localization.Text(_thresholds.Count == 0 && _bars.Count == 0 ? "分析完成后显示采样曲线" : "点击下方标签或柱条添加对比曲线"), new(plot.X + 12, plot.Y + plot.Height / 2));
+        // Before analysis the ranking chart carries the empty-state hint; the curve stays blank instead of repeating it.
+        if (_series.Count == 0 && (_thresholds.Count > 0 || _bars.Count > 0)) Text(context, Localization.Text("点击下方标签或柱条添加对比曲线"), new(plot.X + 12, plot.Y + plot.Height / 2));
     }
     private void DrawTimeLabels(DrawingContext context, Rect plot)
     {

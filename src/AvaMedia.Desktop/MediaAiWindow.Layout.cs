@@ -181,7 +181,7 @@ public sealed partial class MediaAiWindow
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
         _imports.IsEnabled = _advanced.IsEnabled = _chooseTagGroups.IsEnabled = !_busy && !_writingTxt;
-        _analyze.IsEnabled = !_busy && !_writingTxt && included > 0; _analyze.Content = Localization.Text(!_modelReady ? "下载模型并分析" : "开始分析");
+        _analyze.IsEnabled = !_busy && !_writingTxt && included > 0;
         _enqueueQueue.IsEnabled = !_busy && !_writingTxt && included > 0 && _enqueue is not null;
         _viewQueue.IsEnabled = _showQueue is not null;
         _rename.IsEnabled = !_busy && !_writingTxt && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());

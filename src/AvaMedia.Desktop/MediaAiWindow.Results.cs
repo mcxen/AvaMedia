@@ -12,7 +12,8 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly TextBlock _detailTitle = Ui.Text("识别结果", "heading");
-    private readonly TextBlock _detailState = Ui.Text("尚未添加文件", "caption");
+    // Only live/partial progress; the file list already shows each file's status and tag count.
+    private readonly TextBlock _detailState = new() { Classes = { "caption" }, IsVisible = false };
     private readonly TextBox _tagSearch = new() { Watermark = "查找标签", Name = "MediaAiTagSearch", Width = 240 };
     private readonly Button _editTags = new() { Content = "编辑标签…", IsVisible = false };
     private readonly Button _restoreTags = new() { Content = "恢复识别标签", IsVisible = false };
@@ -115,7 +116,7 @@ public sealed partial class MediaAiWindow
         _followLive.IsVisible = _playSample.IsVisible = entry is not null && VideoFormats.IsVideo(entry.Path);
         if (entry is null || !TryDisplayedResult(entry.Path, out var result))
         {
-            _detailState.Text = entry?.Status ?? Localization.Text("尚未添加文件");
+            _detailState.Text = ""; _detailState.IsVisible = false;
             if (entry?.Status == Localization.Text("失败") && entry.Details.Length > 0) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
             RenderCharts(null); UpdateNsfwBadge(null); UpdateActions(); return;
         }
@@ -133,7 +134,8 @@ public sealed partial class MediaAiWindow
             _tagGroups.Children.Add(caption);
         }
         var tags = ResultTags(result, search: true).ToArray();
-        _detailState.Text = _liveResults.ContainsKey(result.Path) ? (_busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签")) : Localization.Format($"识别到 {tags.Length} 个标签");
+        _detailState.IsVisible = _liveResults.ContainsKey(result.Path);
+        _detailState.Text = !_detailState.IsVisible ? "" : _busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签");
         if (tags.Length == 0) _tagGroups.Children.Add(Ui.Text(string.IsNullOrWhiteSpace(_tagSearch.Text) ? "未找到达标标签" : "未找到匹配标签", "caption"));
         foreach (var group in tags.GroupBy(tag => tag.Category))
         {
@@ -161,8 +163,6 @@ public sealed partial class MediaAiWindow
             details.Children.Add(Ui.Text(Localization.Text("场景、照明与面部") + " · " + scenes.Backend, "caption"));
             if (scenes.FallbackReason is not null) details.Children.Add(Ui.Text(scenes.FallbackReason, "caption"));
         }
-        details.Children.Add(Ui.Text(NsfwStateText(moderation.State), "caption"));
-        if (moderation.Evidence.Count > 0) details.Children.Add(Ui.Text(string.Join(" · ", moderation.Evidence.Select(item => $"{item.Label} {item.Signal:0.00}")), "caption"));
         UpdateNsfwBadge(moderation);
         _details.Content = new ScrollViewer { Content = details, MaxHeight = 140 };
         _details.IsVisible = true; UpdateActions();
