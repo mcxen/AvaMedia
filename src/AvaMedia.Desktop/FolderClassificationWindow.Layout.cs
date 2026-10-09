@@ -61,8 +61,12 @@ public sealed partial class FolderClassificationWindow
         _ruleList.ItemTemplate = new FuncDataTemplate<FolderClassificationRule>((rule, _) => Ui.Text(rule?.Name ?? "", "caption"));
         _rulesPanel.Children.Add(_ruleList);
         var ruleActions = new WrapPanel();
+        foreach (var preset in FolderClassificationRule.Presets)
+        {
+            var button = Ui.Button(preset.Name, async () => await GuardAsync(() => AddPresetAsync(preset)));
+            button.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(button);
+        }
         foreach (var (label, action) in new (string, Func<Task>)[] {
-            ("露点", () => AddPresetAsync(FolderClassificationRule.Exposure)), ("生活日常", () => AddPresetAsync(FolderClassificationRule.DailyLife)),
             ("自定义…", () => EditRuleAsync(null)), ("编辑…", () => EditRuleAsync(_ruleList.SelectedItem as FolderClassificationRule)),
             ("移除", () => { if (_ruleList.SelectedItem is FolderClassificationRule rule) { _rules.Remove(rule); InvalidateAnalysis(); SavePreferences(); } return Task.CompletedTask; }) })
         { var button = Ui.Button(label, async () => await GuardAsync(action)); button.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(button); }
@@ -76,7 +80,7 @@ public sealed partial class FolderClassificationWindow
         _settingsPanel.Children.Add(Ui.Button("选择分类目录…", async () => await GuardAsync(async () =>
         { if (await Ui.Folder(this, "选择分类目录") is { } folder) _output.Text = folder; })));
         _settingsPanel.Children.Add(_splitTypes); _settingsPanel.Children.Add(_writeText); _settingsPanel.Children.Add(_mode);
-        _settingsPanel.Children.Add(Ui.Text("露点的“否”表示采样未检出。视频采样可能漏掉短暂画面。", "caption"));
+        _settingsPanel.Children.Add(Ui.Text("空镜指不含可见人物的场景。视频按采样画面分类。", "caption"));
         body.Children.Add(new ScrollViewer { Content = _settingsPanel });
         var table = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 4 };
         var header = new Grid { ColumnDefinitions = new("30,*,100"), Classes = { "table-header" } };

@@ -26,7 +26,7 @@ public sealed partial class FolderClassificationWindow : Window
 
     public sealed class Preferences
     {
-        public FolderClassificationRule[] Rules { get; set; } = [FolderClassificationRule.Exposure, FolderClassificationRule.DailyLife];
+        public FolderClassificationRule[] SceneRules { get; set; } = FolderClassificationRule.DefaultRules();
         public string OutputFolder { get; set; } = "";
         public bool Recursive { get; set; } = true;
         public bool SplitTypes { get; set; } = true;
@@ -64,9 +64,9 @@ public sealed partial class FolderClassificationWindow : Window
     private void LoadPreferences()
     {
         var saved = _storage.LoadToolOptions<Preferences>("folder-classification") ?? new();
-        try { FolderClassification.ValidateRules(saved.Rules); }
-        catch (Exception error) when (error is ArgumentException or NullReferenceException) { saved.Rules = new Preferences().Rules; }
-        foreach (var rule in saved.Rules) _rules.Add(rule);
+        try { FolderClassification.ValidateRules(saved.SceneRules); }
+        catch (Exception error) when (error is ArgumentException or NullReferenceException) { saved.SceneRules = FolderClassificationRule.DefaultRules(); }
+        foreach (var rule in saved.SceneRules) _rules.Add(rule);
         _output.Text = saved.OutputFolder; _recursive.IsChecked = saved.Recursive;
         _splitTypes.IsChecked = saved.SplitTypes; _writeText.IsChecked = saved.WriteText; _gpu.IsChecked = saved.PreferGpu;
         _frames.Value = Math.Clamp(saved.VideoFrames, 1, 32); _tagThreshold.Value = Math.Clamp(saved.TagThreshold, 0, 1);
@@ -75,7 +75,7 @@ public sealed partial class FolderClassificationWindow : Window
 
     private void SavePreferences() => _storage.SaveToolOptions("folder-classification", new Preferences
     {
-        Rules = _rules.ToArray(), OutputFolder = _output.Text ?? "", Recursive = _recursive.IsChecked == true,
+        SceneRules = _rules.ToArray(), OutputFolder = _output.Text ?? "", Recursive = _recursive.IsChecked == true,
         SplitTypes = _splitTypes.IsChecked == true, WriteText = _writeText.IsChecked == true, PreferGpu = _gpu.IsChecked == true,
         VideoFrames = (int)(_frames.Value ?? 12), TagThreshold = _tagThreshold.Value ?? .5m, LastJournal = _lastJournal
     });

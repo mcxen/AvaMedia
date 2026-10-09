@@ -1,13 +1,10 @@
 namespace AvaMedia.Core;
 
 public enum BinaryMediaAnswer { Review, Yes, No }
-public enum FolderRuleKind { Tags, Semantic }
 
-public sealed record FolderClassificationRule(string Id, string Name, FolderRuleKind Kind,
-    string PositiveDescription, string NegativeDescription, string[] Tags)
+public sealed record FolderClassificationRule(string Id, string Name, string PositiveDescription, string NegativeDescription)
 {
     public double Threshold { get; init; } = .5;
-    public double NegativeThreshold { get; init; } = .15;
     public double Margin { get; init; } = .04;
     public string PositiveLabel => "yes_" + Id;
     public string NegativeLabel => "no_" + Id;
@@ -17,25 +14,34 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderRule
         if (string.IsNullOrWhiteSpace(Id) || Id.Length > 40 || Id.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-'))
             throw new ArgumentException("分类规则标识无效。");
         BatchRename.ValidateRenameKeyword(Name);
-        if (!Enum.IsDefined(Kind) || !double.IsFinite(Threshold) || Threshold is < 0 or > 1
-            || !double.IsFinite(NegativeThreshold) || NegativeThreshold < 0 || NegativeThreshold >= Threshold
+        if (!double.IsFinite(Threshold) || Threshold is < 0 or > 1
             || !double.IsFinite(Margin) || Margin is < 0 or > 1) throw new ArgumentException("分类阈值无效。");
-        if (Kind == FolderRuleKind.Tags)
-        {
-            if (Tags.Length == 0 || Tags.Any(tag => !WordLibraryCatalog.JoyTags.Contains(tag)))
-                throw new ArgumentException("请选择模型支持的分类标签。");
-        }
-        else WordLibraryCatalog.Validate(Candidates());
+        WordLibraryCatalog.Validate(Candidates());
     }
 
-    public WordCandidate[] Candidates() => Kind == FolderRuleKind.Semantic
-        ? [new(PositiveLabel, "分类-" + Id, PositiveDescription, []), new(NegativeLabel, "分类-" + Id, NegativeDescription, [])] : [];
+    public WordCandidate[] Candidates() =>
+        [new(PositiveLabel, "分类-" + Id, PositiveDescription, []), new(NegativeLabel, "分类-" + Id, NegativeDescription, [])];
 
-    public static FolderClassificationRule Exposure => new("exposure", "露点", FolderRuleKind.Tags, "", "",
-        ["nipples", "pussy", "penis", "testicles", "anus"]);
-    public static FolderClassificationRule DailyLife => new("daily-life", "生活日常", FolderRuleKind.Semantic,
-        "A candid photo of ordinary daily life: cooking, eating, housework, shopping, commuting, family activities or leisure at home.",
-        "A photo of other content: a staged performance, professional sport, advertisement, product display, animation, artwork or explicit adult scene.", []);
+    public static IReadOnlyList<FolderClassificationRule> Presets { get; } = [
+        new("forest", "森林",
+            "A forest or woodland scene, with many trees, leafy canopies, undergrowth or a wooded trail dominating the view.",
+            "A scene outside a forest: an indoor room, city street, beach, open grassland or bare mountain without woodland."),
+        new("empty-shot", "空镜",
+            "An establishing shot of scenery or an empty space with no visible people: landscape, architecture, street, room or natural detail.",
+            "A shot containing visible people, with a person or a group present in the scene or shown in close-up."),
+        new("coast", "海边",
+            "A coastal scene showing the sea, a sandy or rocky beach, ocean waves or a seaside shoreline.",
+            "An inland scene: a forest, mountain, city interior, river or lake without an ocean coast."),
+        new("mountains", "山景",
+            "A mountain landscape with visible mountain peaks, ridges, rocky slopes or a valley surrounded by mountains.",
+            "A scene without a mountain landscape: an indoor room, flat city street, flat field or beach."),
+        new("city", "城市",
+            "An outdoor urban scene with city streets, buildings, a skyline, sidewalks or other dense built surroundings.",
+            "A non-urban scene: a natural forest, mountain, open countryside, beach or an indoor room."),
+        new("indoors", "室内",
+            "An indoor scene inside a room or building, with walls, ceiling, furniture or interior fittings visible.",
+            "An outdoor scene in open air: a street, forest, mountain, beach or countryside.")];
+    public static FolderClassificationRule[] DefaultRules() => Presets.Take(2).ToArray();
 }
 
 public sealed record FolderClassificationDecision(string RuleId, string Name, BinaryMediaAnswer Answer,
@@ -111,20 +117,6 @@ public static class FolderClassification
     {
         FolderClassificationDecision Result(BinaryMediaAnswer answer, double? yes, double? no, double? seconds, string evidence)
             => new(rule.Id, rule.Name, answer, yes, no, seconds, evidence);
-        if (rule.Kind == FolderRuleKind.Tags)
-        {
-            var scores = media.Scores.Where(score => rule.Tags.Contains(score.Tag)).ToArray();
-            if (scores.Length != rule.Tags.Length || scores.Any(score => !double.IsFinite(score.Maximum)))
-                return Result(BinaryMediaAnswer.Review, null, null, null, "分类标签分数缺失");
-            var strongest = scores.MaxBy(score => Math.Max(score.Score, score.Maximum))!;
-            var peak = Math.Max(strongest.Score, strongest.Maximum);
-            var tagIndex = media.Scores.ToList().FindIndex(score => score.Tag == strongest.Tag);
-            var frame = media.Frames.Where(frame => frame.Values.Length > tagIndex)
-                .MaxBy(frame => frame.Values[tagIndex]);
-            var answer = peak >= rule.Threshold ? BinaryMediaAnswer.Yes : peak <= rule.NegativeThreshold ? BinaryMediaAnswer.No : BinaryMediaAnswer.Review;
-            return Result(answer, peak, null, frame?.Seconds,
-                answer == BinaryMediaAnswer.No ? "采样画面未检出；不能排除未采样片段" : WordLibraryCatalog.TagLabel(strongest.Tag));
-        }
         if (media.Scenes is null || media.SceneError is not null)
             return Result(BinaryMediaAnswer.Review, null, null, null, media.SceneError ?? "语义识别结果缺失");
         var observations = media.Scenes.Frames.Select(frame => (frame.Seconds,

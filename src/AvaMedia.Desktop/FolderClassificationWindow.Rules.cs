@@ -24,18 +24,13 @@ public sealed partial class FolderClassificationWindow
         foreach (var input in new[] { name, positive, negative }) Localization.SetIsUserText(input, true);
         var threshold = new NumericUpDown { Minimum = .01m, Maximum = 1, Increment = .05m, FormatString = "0.00", Value = (decimal)(existing?.Threshold ?? .5) };
         var secondary = new NumericUpDown { Minimum = 0, Maximum = 1, Increment = .01m, FormatString = "0.00",
-            Value = (decimal)(existing?.Kind == FolderRuleKind.Tags ? existing.NegativeThreshold : existing?.Margin ?? .04) };
+            Value = (decimal)(existing?.Margin ?? .04) };
         var body = new StackPanel { Spacing = 8 };
         void Field(string text, Control control) { body.Children.Add(Ui.Text(text, "caption")); body.Children.Add(control); }
         Field("分类名称", name);
-        if (existing?.Kind == FolderRuleKind.Tags)
-            body.Children.Add(Ui.Text("检测标签：" + string.Join(" · ", existing.Tags.Select(WordLibraryCatalog.TagLabel)), "caption"));
-        else
-        {
-            Field("“是”的画面描述", positive); Field("“否”的画面描述", negative);
-            body.Children.Add(Ui.Text("描述具体画面；两侧须能区分。", "caption"));
-        }
-        Field("命中阈值", threshold); Field(existing?.Kind == FolderRuleKind.Tags ? "未检出阈值" : "最小分差", secondary);
+        Field("“是”的画面描述", positive); Field("“否”的画面描述", negative);
+        body.Children.Add(Ui.Text("描述具体画面；两侧须能区分。", "caption"));
+        Field("命中阈值", threshold); Field("最小分差", secondary);
         var errorText = Ui.Text("", "caption"); body.Children.Add(errorText);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close()));
@@ -43,10 +38,9 @@ public sealed partial class FolderClassificationWindow
         {
             try
             {
-                var rule = (existing ?? new(Guid.NewGuid().ToString("N"), "", FolderRuleKind.Semantic, "", "", [])) with
+                var rule = (existing ?? new(Guid.NewGuid().ToString("N"), "", "", "")) with
                 { Name = name.Text?.Trim() ?? "", PositiveDescription = positive.Text?.Trim() ?? "", NegativeDescription = negative.Text?.Trim() ?? "",
-                    Threshold = (double)(threshold.Value ?? .5m), Margin = existing?.Kind == FolderRuleKind.Tags ? existing.Margin : (double)(secondary.Value ?? .04m),
-                    NegativeThreshold = existing?.Kind == FolderRuleKind.Tags ? (double)(secondary.Value ?? .15m) : 0 };
+                    Threshold = (double)(threshold.Value ?? .5m), Margin = (double)(secondary.Value ?? .04m) };
                 FolderClassification.ValidateRules(_rules.Where(item => item != existing).Append(rule).ToArray());
                 dialog.Close(rule);
             }
