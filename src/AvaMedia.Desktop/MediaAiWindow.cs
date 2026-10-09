@@ -309,10 +309,11 @@ public sealed partial class MediaAiWindow : Window
         var frames = hasVideo ? Number(_frames) : 1;
         if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
         return new((int)frames, _gpu.IsChecked == true, hasVideo && _reuse.IsChecked == true, BatchSize: 1,
-            RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
+            RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true, CaptionPrompt: _captionPrompt)
         {
             SemanticCandidates = SemanticLibraryCandidates,
-            RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true
+            RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true,
+            CaptionSystemPrompt = _captionSystemPrompt, CaptionUseFrameTools = _captionUseFrameTools
         };
     }
 

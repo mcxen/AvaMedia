@@ -64,7 +64,8 @@ public sealed class OnlineAiClient : IDisposable
             if (!response.IsSuccessStatusCode)
                 throw new ProviderHttpException((int)response.StatusCode, (int)response.StatusCode switch
                 {
-                    401 or 403 => "供应商拒绝授权，请检查 API Key 或权限。",
+                    401 => "供应商拒绝授权，请检查 API Key 或权限。",
+                    403 => "供应商拒绝请求，请检查模型权限或内容限制。",
                     404 or 405 when method == HttpMethod.Get => "供应商未提供模型列表，可手动填写模型。",
                     404 => "接口或模型不存在，请检查地址与模型名称。",
                     429 => "供应商限流或额度不足，请稍后重试。",

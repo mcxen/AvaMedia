@@ -4,7 +4,7 @@ using System.Text;
 namespace AvaMedia.Core;
 
 /// <summary>OpenAI-compatible Chat Completions; credentials never enter jobs or reports.</summary>
-public sealed class OnlineSummaryModel : ISummaryModel
+public sealed partial class OnlineSummaryModel : ISummaryModel
 {
     private readonly OnlineAiClient _client;
     private readonly OnlineAiOptions _options;
@@ -38,27 +38,11 @@ public sealed class OnlineSummaryModel : ISummaryModel
         if (schema is { } shape) prompt += "\nReturn only JSON matching this schema:\n" + shape.GetRawText();
         object content = prompt;
         if (image is not null || images is not null)
-        {
-            var parts = new List<object> { new { type = "text", text = prompt } };
-            foreach (var frame in images ?? [new("", image!)])
-            {
-                if (frame.Label.Length != 0) parts.Add(new { type = "text", text = frame.Label });
-                parts.Add(new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(frame.Png) } });
-            }
-            content = parts;
-        }
-        var request = new Dictionary<string, object>
-        {
-            ["model"] = _model,
-            ["messages"] = new object[] { new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },
-                new { role = "user", content } }
-        };
+            content = ImageContent(prompt, images ?? [new("", image!)]);
         var inputBytes = Encoding.UTF8.GetByteCount(system) + (long)Encoding.UTF8.GetByteCount(prompt)
             + (images?.Sum(frame => (long)Encoding.UTF8.GetByteCount(frame.Label)) ?? 0);
-        var maximum = _options.ModelInfo.FirstOrDefault(model => model.Id == _model)?.OutputBudget(inputBytes, images?.Count ?? (image is null ? 0 : 1));
-        // Missing output metadata means the provider chooses its limit; do not impose a guessed small ceiling.
-        if (maximum is { } budget)
-            request[_options.TokenLimit == OnlineAiTokenLimit.MaxTokens ? "max_tokens" : "max_completion_tokens"] = budget;
+        var request = ConversationRequest([new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },
+            new { role = "user", content }], inputBytes, images?.Count ?? (image is null ? 0 : 1));
         if (schema is { } jsonSchema && _options.ResponseFormat != OnlineAiResponseFormat.Prompt)
             request["response_format"] = _options.ResponseFormat == OnlineAiResponseFormat.JsonSchema
                 ? new { type = "json_schema", json_schema = new { name = "video_summary", schema = jsonSchema, strict = true } }
@@ -80,4 +64,24 @@ public sealed class OnlineSummaryModel : ISummaryModel
     }
 
     public ValueTask DisposeAsync() { _client.Dispose(); return ValueTask.CompletedTask; }
+
+    private Dictionary<string, object> ConversationRequest(IReadOnlyList<object> messages, long textBytes, int imageCount)
+    {
+        var request = new Dictionary<string, object> { ["model"] = _model, ["messages"] = messages };
+        // Missing output metadata means the provider chooses its limit; do not impose a guessed small ceiling.
+        if (_options.ModelInfo.FirstOrDefault(model => model.Id == _model)?.OutputBudget(textBytes, imageCount) is { } budget)
+            request[_options.TokenLimit == OnlineAiTokenLimit.MaxTokens ? "max_tokens" : "max_completion_tokens"] = budget;
+        return request;
+    }
+
+    private static List<object> ImageContent(string prompt, IReadOnlyList<SummaryModelImage> images)
+    {
+        var parts = new List<object> { new { type = "text", text = prompt } };
+        foreach (var frame in images)
+        {
+            if (frame.Label.Length != 0) parts.Add(new { type = "text", text = frame.Label });
+            parts.Add(new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(frame.Png) } });
+        }
+        return parts;
+    }
 }

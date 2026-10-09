@@ -10,6 +10,8 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false
     public WordCandidate[] SemanticCandidates { get; init; } = [];
     public bool RealPeopleOnly { get; init; }
     public bool RecognizeNsfw { get; init; }
+    public string? CaptionSystemPrompt { get; init; }
+    public bool CaptionUseFrameTools { get; init; } = true;
     public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
     public void Validate()
     {
@@ -179,7 +181,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             catch (Exception error) when (error is not OperationCanceledException)
             { captionProvider = null; /* per-file CaptionError set when GenerateCaptions runs */ }
         }
-        async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null)
+        async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null, int videoStreamIndex = 0)
         {
             if (!options.GenerateCaptions) return result;
             activity.Node("生成画面描述");
@@ -189,7 +191,11 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var provider = captionProvider ?? MediaCaptionService.PrepareProvider(engine.Settings.OnlineAi.Resolve(options.CaptionProviderId));
                 captionProvider ??= provider;
                 var (caption, model) = await MediaCaptionService.GenerateAsync(provider, images, options, ct,
-                    frameSeconds: frameSeconds, videoDurationSeconds: result.DurationSeconds).ConfigureAwait(false);
+                    frameSeconds: frameSeconds, videoDurationSeconds: result.DurationSeconds,
+                    frameTool: frameSeconds is not null && options.CaptionUseFrameTools
+                        ? new MediaCaptionFrameTool(engine, result, videoStreamIndex,
+                            (png, label) => { activity.Node("补充描述画面"); activity.Frame(png, label); }).Tool : null).ConfigureAwait(false);
+                ValidateSource(result);
                 activity.Result(Path.GetFileName(result.Path) + " · 画面描述");
                 return result with { Caption = caption, CaptionModel = model };
             }
@@ -345,7 +351,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     value => PublishPreview(tagResult with { Scenes = value }), video: true).ConfigureAwait(false);
                 CheckSource(file, length, modified);
                 var completedVideo = tagResult with { Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped };
-                Report(path, await WithCaptionAsync(completedVideo, captionImages, sampleSeconds).ConfigureAwait(false), null);
+                Report(path, await WithCaptionAsync(completedVideo, captionImages, sampleSeconds, info.VideoStreamIndex).ConfigureAwait(false), null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }
         }

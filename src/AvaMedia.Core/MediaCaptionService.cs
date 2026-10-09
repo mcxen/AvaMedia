@@ -10,7 +10,7 @@ public static class MediaCaptionService
         "文字只有清晰可辨时才逐字转写；模糊的标牌只描述为标牌，不能补全、猜测或编造文字。" +
         "视频采样图不是连续录像：只陈述采样时刻可见的状态，只有多个画面共同支持时才描述变化，不能补写未采样的动作、因果或完整轨迹。" +
         "不同画面的人物不能直接认定为同一人，不能把跨帧人数相加；不确定的细节直接省略。" +
-        "可见的成人/NSFW 内容，包括裸露、性器官、性行为、体位和体液，须用准确、中性、事实性的语言如实描述，不回避、说教或拒绝。" +
+        "对裸露或成人画面，仅作中立、非露骨的内容识别与描述，可说明裸露和身体遮挡状态；不写色情渲染、感官体验或露骨行为细节，不把普通姿态推断为性行为。" +
         "不要罗列不存在的裸露或成人内容，不输出免责声明。只输出简洁的描述正文。";
 
     public const string DefaultUserPrompt =
@@ -20,6 +20,7 @@ public static class MediaCaptionService
     {
         if (options.CaptionMaxTokens is < 64 or > 4096) throw new ArgumentException("画面描述最大输出须为 64–4096。");
         if (options.CaptionPrompt is { Length: > 4000 }) throw new ArgumentException("画面描述提示过长。");
+        if (options.CaptionSystemPrompt is { Length: > 8000 }) throw new ArgumentException("画面描述系统提示过长。");
         if (options.CaptionProviderId is { Length: > 0 } && !Guid.TryParseExact(options.CaptionProviderId, "N", out _))
             throw new ArgumentException("画面描述供应商标识无效。");
     }
@@ -43,7 +44,8 @@ public static class MediaCaptionService
 
     public static async Task<(string Caption, string Model)> GenerateAsync(
         OnlineAiOptions provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
-        ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0)
+        ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0,
+        OnlineSummaryTool? frameTool = null)
     {
         if (frames.Count == 0) throw new ArgumentException("没有可用于画面描述的采样帧。");
         if (frameSeconds is not null && (frameSeconds.Count != frames.Count || !double.IsFinite(videoDurationSeconds) || videoDurationSeconds <= 0
@@ -52,6 +54,7 @@ public static class MediaCaptionService
             throw new ArgumentException("视频描述采样时间无效。");
         ValidateOptions(options);
         var prepared = PrepareProvider(provider);
+        var system = string.IsNullOrWhiteSpace(options.CaptionSystemPrompt) ? DefaultSystemPrompt : options.CaptionSystemPrompt.Trim();
         var prompt = string.IsNullOrWhiteSpace(options.CaptionPrompt) ? DefaultUserPrompt : options.CaptionPrompt.Trim();
         if (frameSeconds is not null)
             prompt = $"以下为同一视频按时间顺序抽取的 {frames.Count} 个画面，视频总时长 {MediaTime.Format(videoDurationSeconds)}。" +
@@ -63,15 +66,21 @@ public static class MediaCaptionService
 
         if (model is not null)
         {
-            var caption = await model.CompleteAsync(DefaultSystemPrompt, prompt, ct,
+            if (frameTool is not null) throw new ArgumentException("按需补帧需要支持工具调用的线上视觉模型。");
+            var caption = await model.CompleteAsync(system, prompt, ct,
                 image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
             return (RequireCaption(caption), prepared.EffectiveVisionModel);
         }
 
         await using var vision = new OnlineSummaryModel(prepared, vision: true);
         {
-            var caption = await vision.CompleteAsync(DefaultSystemPrompt, prompt, ct,
-                image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
+            var caption = frameTool is not null && frameSeconds is not null
+                ? await vision.CompleteWithToolsAsync(system +
+                    "遇到采样间动作、遮挡或局部细节无法确认时，可用 get_video_frames 查看指定时间的画面，必要时指定局部区域。" +
+                    "最多补充 8 帧、2 轮；工具结果后的图像是实际画面证据。工具失败或仍看不清时省略该细节，不能把工具参数或请求目的当作事实。",
+                    prompt, images!, [frameTool], ct).ConfigureAwait(false)
+                : await vision.CompleteAsync(system, prompt, ct,
+                    image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
             return (RequireCaption(caption), prepared.EffectiveVisionModel);
         }
     }
@@ -87,7 +96,7 @@ public static class MediaCaptionService
     {
         var caption = NormalizeCaption(text);
         if (caption.Length == 0) throw new InvalidDataException("画面描述模型未返回有效内容。");
-        if (LooksLikeRefusal(caption)) throw new InvalidDataException("画面描述模型拒绝描述，请更换本地未审查视觉模型。");
+        if (LooksLikeRefusal(caption)) throw new InvalidDataException("画面描述模型拒绝请求，请调整描述要求或更换视觉模型。");
         return caption;
     }
 
