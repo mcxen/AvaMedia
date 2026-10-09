@@ -19,11 +19,9 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
 
     public static async Task<MediaSceneClassifier> CreateAsync(ModelStore store, MediaTagOptions options, AiActivityReporter activity, CancellationToken ct)
     {
+        // Never download here: the UI asks before fetching the semantic model; workers skip scenes instead.
         if (!await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: ct).ConfigureAwait(false))
-        {
-            activity.Stage("下载语义模型");
-            await store.DownloadAsync(ModelCatalog.EmbeddingId, new DownloadProgress(activity), ct).ConfigureAwait(false);
-        }
+            throw new SemanticModelMissingException();
         var embedding = await GemmaMediaEmbedding.StartAsync(store, ct, options.PreferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
         try
         {
@@ -92,8 +90,7 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     }
 
     public ValueTask DisposeAsync() => embedding.DisposeAsync();
-    private sealed class DownloadProgress(AiActivityReporter activity) : IProgress<ModelDownloadProgress>
-    {
-        public void Report(ModelDownloadProgress value) => activity.Stage("下载语义模型", value.Received, value.Total, "字节", value.Stage);
-    }
 }
+
+/// <summary>The optional semantic model is not installed; callers skip scene/semantic work rather than download implicitly.</summary>
+public sealed class SemanticModelMissingException() : InvalidOperationException("语义模型未下载，已跳过场景识别。");

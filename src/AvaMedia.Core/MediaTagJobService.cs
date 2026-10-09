@@ -95,12 +95,13 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
                 [result.Path, job.Output]);
             await File.WriteAllTextAsync(destination, System.Text.Json.JsonSerializer.Serialize(new
             {
-                result.Path, result.Backend, Labels = labels, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError
+                result.Path, result.Backend, Labels = labels, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError, result.SceneSkipped
             }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), ct).ConfigureAwait(false);
             job.Output = destination;
             job.ProgressDetail = Path.GetFileName(destination);
         }
-        if (result.SceneError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "") + "语义识别失败";
+        if (result.SceneError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "")
+            + (result.SceneSkipped ? "未下载语义模型，已跳过场景" : "语义识别失败");
         if (result.CaptionError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "") + "画面描述失败";
         activity.Finish("标签分析完成"); progress(100);
     }

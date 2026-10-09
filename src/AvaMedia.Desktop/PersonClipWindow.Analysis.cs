@@ -43,6 +43,14 @@ public sealed partial class PersonClipWindow
         PersonClipOptions options;
         try { options = ReadDetection(); options.Validate(); new Storage().SaveToolOptions("person-clip", options with { ExcludedRanges = null }); }
         catch (Exception error) { _status.Text = error.Message; return; }
+        var embeddingSkipped = false;
+        if (options.UseEmbedding && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
+        {
+            if (_busy || _closed) return;
+            // Ask before fetching the optional semantic model; declining analyses with the detectors only.
+            if (!await SemanticModelConsent.ConfirmAsync(this, "语义辅助")) { options = options with { UseEmbedding = false }; embeddingSkipped = true; }
+            if (_busy || _closed) return;
+        }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _analysis = operation; _busy = true; _stop.IsVisible = true; _rangePanel.IsEnabled = false; UpdateDetectorSelection();
         try
@@ -80,7 +88,9 @@ public sealed partial class PersonClipWindow
                 catch (Exception error) { entry.Status = "失败"; entry.Error=error.Message; _status.Text = Path.GetFileName(entry.Path) + " · " + error.Message; }
                 RefreshFiles();
             }
-            _status.Text = Localization.Format($"已分析 {_entries.Count(entry => entry.Result is not null)} / {_entries.Count} 个视频");
+            _status.Text = embeddingSkipped
+                ? Localization.Format($"已分析 {_entries.Count(entry => entry.Result is not null)} / {_entries.Count} 个视频 · 未下载语义模型，已跳过语义辅助")
+                : Localization.Format($"已分析 {_entries.Count(entry => entry.Result is not null)} / {_entries.Count} 个视频");
         }
         catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("分析已停止，已完成结果保留"); }
         catch (Exception error) { if (!_closed) _status.Text = error.Message; }

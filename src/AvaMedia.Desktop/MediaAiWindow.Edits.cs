@@ -7,7 +7,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly Dictionary<string, ResultTag[]> _editedTags = new(BatchRename.PathComparer);
-    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = true, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false);
+    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = false, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false);
     private void LoadPreferences()
     {
         if(_storage.LoadToolOptions<Preferences>("media-ai") is not {} saved) return;

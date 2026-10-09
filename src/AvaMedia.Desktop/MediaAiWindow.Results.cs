@@ -122,7 +122,8 @@ public sealed partial class MediaAiWindow
         }
         RenderCharts(result);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
-        if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
+        if (result.SceneError is not null) _tagGroups.Children.Add(result.SceneSkipped ? Ui.Text(Localization.Text(result.SceneError), "caption")
+            : Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
         if (result.CaptionError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("画面描述失败：") + result.CaptionError, "error"));
         else if (!string.IsNullOrWhiteSpace(result.Caption))
         {

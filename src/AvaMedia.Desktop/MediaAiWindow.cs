@@ -22,7 +22,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Value = 8, Increment = 1 };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU" };
     private readonly CheckBox _reuse = new() { Content = "复用相似画面", IsChecked = true };
-    private readonly CheckBox _sceneTags = new() { Content = "识别场景、照明与面部", IsChecked = true };
+    private readonly CheckBox _sceneTags = new() { Content = "识别场景、照明与面部", IsChecked = false };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
@@ -108,12 +108,16 @@ public sealed partial class MediaAiWindow : Window
             var installed = await new ModelStore().IsInstalledAsync(ModelCatalog.JoyTagId, ct: _lifetime.Token);
             if (_closed) return;
             _modelReady = installed;
-            var missingBytes = installed ? 0 : ModelCatalog.Find(ModelCatalog.JoyTagId).DownloadSize;
-            if (NeedsSemanticModel && !await new ModelStore().IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token))
-                missingBytes += ModelCatalog.Find(ModelCatalog.EmbeddingId).DownloadSize;
+            var semanticMissing = NeedsSemanticModel && SemanticModelConsent.Model.Supported && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token);
             if (_closed) return;
-            _modelStatus.Text = missingBytes == 0 ? "" : Localization.Format($"首次分析需要下载模型 · 约 {Math.Ceiling(missingBytes / 1_000_000d):0} MB");
-            _modelStatus.IsVisible = missingBytes > 0; UpdateActions();
+            // Sizes come from the catalog: tags are required, the semantic model only when scenes or semantic words are selected.
+            var parts = new List<string>();
+            if (!installed)
+                parts.Add(Localization.Format($"首次分析需要下载标签模型 · 约 {SemanticModelConsent.Megabytes(ModelCatalog.Find(ModelCatalog.JoyTagId).DownloadSize)} MB"));
+            if (semanticMissing)
+                parts.Add(Localization.Format($"场景识别另需语义模型 · 约 {SemanticModelConsent.Megabytes(SemanticModelConsent.Model.DownloadSize)} MB（开始前询问）"));
+            _modelStatus.Text = string.Join(Environment.NewLine, parts);
+            _modelStatus.IsVisible = parts.Count > 0; UpdateActions();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) _modelStatus.Text = error.Message; }
@@ -146,6 +150,15 @@ public sealed partial class MediaAiWindow : Window
             options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
+        var (downloadSemantic, scenesSkipped) = (false, false);
+        if (options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
+        {
+            if (_closed || _busy) return;
+            downloadSemantic = await SemanticModelConsent.ConfirmAsync(this, "场景识别");
+            if (_closed || _busy) return;
+            // Declined: keep the saved choice but run tags only for this analysis.
+            if (!downloadSemantic) { options = options with { RecognizeScenes = false, SemanticCandidates = [] }; scenesSkipped = true; }
+        }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
         { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _editedTags.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); RenderSelectedResult();
@@ -188,13 +201,26 @@ public sealed partial class MediaAiWindow : Window
                 await new ModelStore().DownloadAsync(ModelCatalog.JoyTagId, download, operation.Token);
                 _modelReady = true; _modelStatus.IsVisible = false;
             }
+            if (downloadSemantic)
+            {
+                var started = DateTime.UtcNow;
+                await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(update =>
+                {
+                    if (_closed || _operation != operation) return;
+                    _status.Text = Localization.Text("下载语义模型") + " · " + Localization.Text(update.Stage);
+                    _activity.Update(new("下载语义模型", SemanticModelConsent.Model.Name, started, DateTime.UtcNow)
+                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.Source });
+                }), operation.Token);
+            }
             var results = await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);
             if (_closed) return;
             foreach (var result in results) { _results[result.Path] = result; _liveResults.Remove(result.Path); }
-            _status.Text = Localization.Format($"完成 {results.Count} / {paths.Length} 个文件");
+            _status.Text = scenesSkipped ? Localization.Format($"完成 {results.Count} / {paths.Length} 个文件 · 已跳过场景识别")
+                : Localization.Format($"完成 {results.Count} / {paths.Length} 个文件");
             _activity.Finish(AiActivityState.Completed, "标签分析完成");
             var failedPaths = paths.Where(path => !_results.ContainsKey(path)).ToArray();
-            var sceneFailedPaths = results.Where(result => result.SceneError is not null).Select(result => result.Path).ToArray();
+            var sceneFailedPaths = results.Where(result => result.SceneError is not null && !result.SceneSkipped).Select(result => result.Path).ToArray();
+            scenesSkipped |= results.Any(result => result.SceneSkipped);
             var resultActions = new List<Notifications.NotificationAction> {
                     new("查看结果", () => Notifications.NotificationCenter.ShowOwnerAsync(this), Primary: failedPaths.Length == 0, Enabled: () => !_closed),
                     new("生成同目录 TXT", () => SaveTextReportsAsync(paths), Enabled: () => !_closed && !_busy && !_writingTxt),
@@ -205,8 +231,9 @@ public sealed partial class MediaAiWindow : Window
             if (sceneFailedPaths.Length > 0) resultActions.Insert(0, new("重试语义识别", () => { _ = AnalyzeAsync(sceneFailedPaths); return Task.CompletedTask; },
                 Enabled: () => CanAnalyzeNotification(sceneFailedPaths)));
             Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "标签分析完成",
-                sceneFailedPaths.Length == 0 ? (FormattableString)$"成功 {results.Count} 个，失败 {failedPaths.Length} 个。"
-                    : $"标签完成 {results.Count}/{paths.Length} 个 · 语义识别失败 {sceneFailedPaths.Length} 个",
+                sceneFailedPaths.Length > 0 ? (FormattableString)$"标签完成 {results.Count}/{paths.Length} 个 · 语义识别失败 {sceneFailedPaths.Length} 个"
+                    : scenesSkipped ? $"成功 {results.Count} 个，失败 {failedPaths.Length} 个。未下载语义模型，已跳过场景识别。"
+                    : $"成功 {results.Count} 个，失败 {failedPaths.Length} 个。",
                 failedPaths.Length == 0 && sceneFailedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
             foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
                 if (_results.TryGetValue(entry.Path, out var result)) ShowResult(entry, result);
@@ -266,6 +293,31 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var options = ReadTaskOptions();
+            // Queue workers never prompt or download; ask here, otherwise the job records that scenes were skipped.
+            if (options.Analysis.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
+            {
+                if (_closed || _busy) return;
+                if (await SemanticModelConsent.ConfirmAsync(this, "场景识别"))
+                {
+                    if (_closed || _busy) return;
+                    using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
+                    try
+                    {
+                        await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(update =>
+                        {
+                            if (!_closed && _operation == operation)
+                                _status.Text = Localization.Text("下载语义模型") + $" · {update.Percent}%";
+                        }), operation.Token);
+                    }
+                    finally { _operation = null; if (!_closed) SetBusy(false); }
+                }
+                else
+                {
+                    options.Analysis = options.Analysis with { RecognizeScenes = false, SemanticCandidates = [] };
+                    _status.Text = Localization.Text("未下载语义模型，任务将跳过场景识别");
+                }
+                if (_closed) return;
+            }
             var feature = Catalog.Find("media-ai");
             var folder = Path.GetDirectoryName(paths[0])!;
             var jobs = ConversionBatch.CreateJobs(feature, paths, folder,
@@ -274,7 +326,8 @@ public sealed partial class MediaAiWindow : Window
             _enqueue(jobs, true);
             _status.Text = Localization.Format($"已加入任务队列 {jobs.Count} 个");
         }
-        catch (Exception error) { await Ui.Message(this, "加入任务队列", error.Message); }
+        catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("已停止"); }
+        catch (Exception error) { if (!_closed) await Ui.Message(this, "加入任务队列", error.Message); }
     }
 
     private void ShowQueuedTasks()
@@ -287,6 +340,7 @@ public sealed partial class MediaAiWindow : Window
     {
         var tags = ResultTags(result).ToArray();
         entry.Status = result.SceneError is null ? Localization.Format($"已识别 {tags.Length} 个标签")
+            : result.SceneSkipped ? Localization.Format($"已识别 {tags.Length} 个标签 · 已跳过场景识别")
             : Localization.Format($"已识别 {tags.Length} 个标签 · 语义识别失败");
         entry.Details = string.Join(" · ", tags.Take(5).Select(tag => tag.Label));
     }

@@ -110,6 +110,16 @@ public sealed partial class RenameWindow
             options = new((int)frames, SemanticValue(_semanticThreshold), SemanticValue(_semanticMargin), _semanticReuse.IsChecked == true); options.Validate();
         }
         catch (Exception error) { await ShowErrorAsync("语义匹配失败", error); return; }
+        var download = false;
+        if (!await SemanticModelConsent.IsInstalledAsync(_semanticLifetime.Token))
+        {
+            if (_closed || _operation is not null || _renaming || _importing) return;
+            // Keyword matching needs the semantic model; it is downloaded only after explicit confirmation.
+            if (!await SemanticModelConsent.ConfirmAsync(this, "关键词匹配"))
+            { if (!_closed) _progressText.Text = Localization.Text("未下载语义模型，已取消关键词匹配。"); return; }
+            if (_closed || _operation is not null || _renaming || _importing) return;
+            download = true;
+        }
         var selected = _entries.ToArray();
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_semanticLifetime.Token);
         _operation = operation; SetBusy(true); _stop.IsEnabled = true;
@@ -118,9 +128,8 @@ public sealed partial class RenameWindow
         var matched = 0; var failed = 0;
         try
         {
-            var store=new ModelStore();
-            if(!await store.IsInstalledAsync(ModelCatalog.EmbeddingId,ct:operation.Token))
-                await store.DownloadAsync(ModelCatalog.EmbeddingId,new Progress<ModelDownloadProgress>(value=>{if(!_closed)_progressText.Text=Localization.Text("下载模型")+$" · {value.Percent:0}%";}),operation.Token);
+            if(download)
+                await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(value=>{if(!_closed)_progressText.Text=Localization.Text("下载语义模型")+$" · {value.Percent:0}%";}),operation.Token);
             new Storage().SaveToolOptions("semantic-rename",new SemanticPreferences(_keywords.Text??"",options,_semanticGpu.IsChecked==true));
             var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) _semanticActivity.Update(activity); });
             await using var matcher = await MediaKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true, progress: modelProgress);

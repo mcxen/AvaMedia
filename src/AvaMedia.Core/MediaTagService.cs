@@ -23,6 +23,8 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public IReadOnlyList<MediaTagFrame> Frames { get; init; } = [];
     public MediaSceneResult? Scenes { get; init; }
     public string? SceneError { get; init; }
+    /// <summary>Scenes were requested but skipped because the semantic model is not installed; SceneError carries the note.</summary>
+    public bool SceneSkipped { get; init; }
     public double DurationSeconds { get; init; }
     public string? Caption { get; init; }
     public string? CaptionModel { get; init; }
@@ -124,12 +126,13 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         activity.Stage("加载标签模型");
         using var session = new ModelInferenceSession(Path.Combine(lease.Directory, ModelCatalog.JoyTagFile),
             ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256, options.PreferGpu, options.BatchSize);
-        string? sceneSetupError = null;
+        string? sceneSetupError = null; var sceneSkipped = false;
         async Task<MediaSceneClassifier?> PrepareScenesAsync()
         {
             if (!options.NeedsSemanticModel) return null;
             activity.Node("准备场景模型");
             try { return await MediaSceneClassifier.CreateAsync(_store, options, activity, ct).ConfigureAwait(false); }
+            catch (SemanticModelMissingException error) { sceneSetupError = error.Message; sceneSkipped = true; return null; }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { sceneSetupError = error.Message; return null; }
         }
@@ -197,7 +200,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     var scene = await SceneResultAsync([item.Image], [0], [0]).ConfigureAwait(false);
                     CheckSource(item.File, item.Length, item.Modified);
                     var tagged = new MediaTagResult(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
-                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error, Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }] };
+                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped, Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }] };
                     Report(item.File.FullName, await WithCaptionAsync(tagged, [item.Image]).ConfigureAwait(false), null);
                 }
                 catch (IOException error) { Report(item.File.FullName, null, error.Message); }
@@ -288,7 +291,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,
                     value => PublishPreview(tagResult with { Scenes = value })).ConfigureAwait(false);
                 CheckSource(file, length, modified);
-                var completedVideo = tagResult with { Scenes = scene.Result, SceneError = scene.Error };
+                var completedVideo = tagResult with { Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped };
                 Report(path, await WithCaptionAsync(completedVideo, unique.Select(frame => frame.Image).ToArray()).ConfigureAwait(false), null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }

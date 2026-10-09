@@ -2261,7 +2261,6 @@
   "重试语义识别": "Retry semantic recognition",
   "标签完成 {0}/{1} 个 · 语义识别失败 {2} 个": "Tags completed for {0}/{1} files · Semantic recognition failed for {2}",
   "已识别 {0} 个标签 · 语义识别失败": "Recognized {0} tags · Semantic recognition failed",
-  "首次分析需要下载模型 · 约 {0} MB": "The first analysis requires a model download · About {0} MB",
   "准备场景模型": "Preparing the scene model",
   "下载语义模型": "Downloading the semantic model",
   "准备语义描述": "Preparing semantic descriptions",
@@ -2792,5 +2791,19 @@
   "已加入任务队列 {0} 个": "Added {0} to the task queue",
   "导出失败": "Export failed",
   "请输入范围内的参数。": "Enter a value within the allowed range.",
-  "字节": "bytes"
+  "字节": "bytes",
+  "{0}需要下载约 {1} MB 的语义模型，是否下载？": "{0} needs to download the semantic model (about {1} MB). Download now?",
+  "场景识别": "Scene recognition",
+  "语义辅助": "Semantic assist",
+  "首次分析需要下载标签模型 · 约 {0} MB": "The first analysis downloads the tag model · About {0} MB",
+  "场景识别另需语义模型 · 约 {0} MB（开始前询问）": "Scene recognition also needs the semantic model · About {0} MB (asked before starting)",
+  "完成 {0} / {1} 个文件 · 已跳过场景识别": "Completed {0} / {1} files · Scene recognition skipped",
+  "成功 {0} 个，失败 {1} 个。未下载语义模型，已跳过场景识别。": "{0} succeeded, {1} failed. The semantic model is not downloaded, so scene recognition was skipped.",
+  "未下载语义模型，任务将跳过场景识别": "The semantic model is not downloaded; queued tasks will skip scene recognition",
+  "已识别 {0} 个标签 · 已跳过场景识别": "{0} tags recognized · Scene recognition skipped",
+  "语义模型未下载，已跳过场景识别。": "The semantic model is not downloaded, so scene recognition was skipped.",
+  "已分析 {0} / {1} 个视频 · 未下载语义模型，已跳过语义辅助": "Analyzed {0} / {1} videos · Semantic model not downloaded, semantic assist skipped",
+  "未下载语义模型，已取消关键词匹配。": "The semantic model is not downloaded; keyword matching was cancelled.",
+  "未下载语义模型，已跳过场景": "Semantic model not downloaded, scenes skipped",
+  "需要语义模型": "Semantic model required"
 }
