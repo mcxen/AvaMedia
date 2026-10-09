@@ -28,6 +28,9 @@ public sealed partial class MediaAiWindow
     private readonly Button _playSample = new() { Content = "播放此时间" };
     private readonly AiTagChart _scoreBars = new() { Height = 310 };
     private readonly AiTagChart _peakCurve = new() { Timeline = true, Height = 230 };
+    private readonly Grid _charts = new() { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
+    private readonly Border _scorePanel = ChartPanel();
+    private readonly Border _curvePanel = ChartPanel();
     private readonly Grid _traceLegend = new() { ColumnSpacing = 8, RowSpacing = 4 };
     private readonly TextBlock _barReadout = new() { Classes = { "caption" }, MinHeight = 32, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _thresholdCaption = Ui.Text("", "caption");
@@ -169,11 +172,10 @@ public sealed partial class MediaAiWindow
     }
     private Control BuildCharts()
     {
-        var charts = new Grid { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
         var bars = new StackPanel { Spacing = 6 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
-        var left = ChartPanel(bars); left.VerticalAlignment = VerticalAlignment.Stretch; charts.Children.Add(left);
+        _scorePanel.Child = bars; _scorePanel.VerticalAlignment = VerticalAlignment.Stretch; _charts.Children.Add(_scorePanel);
         var curve = new StackPanel { Spacing = 6 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
-        var right = ChartPanel(curve); right.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(right, 1); charts.Children.Add(right); return charts;
+        _curvePanel.Child = curve; _curvePanel.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(_curvePanel, 1); _charts.Children.Add(_curvePanel); return _charts;
     }
     private static Border ChartPanel(Control? content = null)
     {
@@ -193,7 +195,7 @@ public sealed partial class MediaAiWindow
     {
         var tags = (semantic ?? _chartSource.SelectedIndex == 1) ? SceneCandidates(result) : JoyCandidates(result);
         var query = _tagSearch.Text?.Trim() ?? "";
-        return tags.Where(tag => double.IsFinite(tag.Score) && ScopeMatches(tag) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        return tags.Where(tag => TagQualifies(result, tag) && ScopeMatches(tag) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(tag => tag.Score).DistinctBy(TagKey, StringComparer.OrdinalIgnoreCase).ToArray();
     }
     private void RenderCharts(MediaTagResult? result)
@@ -204,6 +206,7 @@ public sealed partial class MediaAiWindow
         _sceneThresholdRow.IsVisible = semantic || _sceneTags.IsChecked == true || result?.Scenes is not null; PlaceThresholds();
         var candidates = result is null ? [] : PlotCandidates(result);
         _barReadout.Text = "";
+        _chartSection.IsVisible = result is not null;
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
         var selected = result is null ? [] : new[] { false, true }.SelectMany(scene =>
         {
@@ -226,12 +229,17 @@ public sealed partial class MediaAiWindow
         _sampleSummary.IsVisible = result is not null && VideoFormats.IsVideo(result.Path);
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
-        _scoreBars.Height = bars.Length == 0 ? 180 : 28 + bars.Length * 36;
-        _scoreBars.EmptyText = result is null ? null : "未找到匹配标签";
+        _scorePanel.IsVisible = bars.Length > 0;
+        _curvePanel.IsVisible = series.Any(trace => trace.Points.Any(point => point.Score.HasValue));
+        _charts.IsVisible = _scorePanel.IsVisible || _curvePanel.IsVisible;
+        _charts.ColumnDefinitions[0].Width = _scorePanel.IsVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        _charts.ColumnDefinitions[1].Width = _curvePanel.IsVisible ? new GridLength(1.25, GridUnitType.Star) : new GridLength(0);
+        _charts.ColumnSpacing = _scorePanel.IsVisible && _curvePanel.IsVisible ? 12 : 0;
+        _scoreBars.Height = Math.Max(80, 28 + bars.Length * 36);
         _scoreBars.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic);
         var thresholds = new List<TagChartThreshold>();
-        if (result?.Scores.Count > 0) thresholds.Add(new(ModelCatalog.JoyTagId, (double)(_threshold.Value ?? .4m), false));
-        if (result?.Scenes is not null) thresholds.Add(new(ModelCatalog.EmbeddingId, _sceneThreshold.Value, true));
+        if (selected.Any(tag => tag.Model == ModelCatalog.JoyTagId)) thresholds.Add(new(ModelCatalog.JoyTagId, (double)(_threshold.Value ?? .4m), false));
+        if (selected.Any(tag => tag.Model == ModelCatalog.EmbeddingId)) thresholds.Add(new(ModelCatalog.EmbeddingId, _sceneThreshold.Value, true));
         _peakCurve.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic, thresholds);
     }
     private static string ModelLabel(string model) => model == ModelCatalog.EmbeddingId ? "EmbeddingGemma" : "JoyTag";

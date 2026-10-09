@@ -52,11 +52,11 @@ public sealed partial class MediaAiWindow
             .Select(score => new ResultTag(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag), JoyValue(result, score),
                 JoyScoreKind(result, [score.Tag]), RawTags: [score.Tag])));
     }
+    private bool TagQualifies(MediaTagResult result, ResultTag tag) => double.IsFinite(tag.Score)
+        && (tag.Model == ModelCatalog.EmbeddingId ? SceneQualifies(result, tag) : tag.Score >= (double)(_threshold.Value ?? .4m));
     private IEnumerable<ResultTag> ResultTags(MediaTagResult result, bool search = false)
     {
-        var threshold = (double)(_threshold.Value ?? .4m);
-        IEnumerable<ResultTag> tags = JoyCandidates(result).Where(tag => tag.Score >= threshold);
-        tags = tags.Concat(SceneCandidates(result).Where(tag => SceneQualifies(result, tag)));
+        IEnumerable<ResultTag> tags = JoyCandidates(result).Concat(SceneCandidates(result)).Where(tag => TagQualifies(result, tag));
         if(_editedTags.TryGetValue(result.Path,out var edited))tags=edited;
         var query = search ? _tagSearch.Text?.Trim() ?? "" : "";
         return tags.Where(tag => (!search || ScopeMatches(tag)) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
