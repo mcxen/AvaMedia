@@ -120,7 +120,8 @@ public static class FolderOrganization
                     }
                     entry.Stage = "completed";
                     await SaveJournalAsync(journalPath, journal).ConfigureAwait(false);
-                    progress?.Report(new(media.Path, item.Target, ++completed, plan.Count));
+                    completed++;
+                    progress?.Report(new(media.Path, item.Target, completed, plan.Count));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)
@@ -164,7 +165,8 @@ public static class FolderOrganization
                         if (journal.Move) { EnsureRegularDirectory(Path.GetDirectoryName(entry.Source)!); CheckFile(entry.Source, entry.Length, entry.LastWriteUtc); }
                         entry.Stage = "undone";
                         await SaveJournalAsync(journalPath, journal).ConfigureAwait(false);
-                        progress?.Report(new(entry.Target, entry.Source, ++completed, entries.Length));
+                        completed++;
+                        progress?.Report(new(entry.Target, entry.Source, completed, entries.Length));
                         continue;
                     }
                     CheckFile(entry.Target, entry.Length, entry.TargetWriteUtc);
@@ -189,7 +191,8 @@ public static class FolderOrganization
                     File.Delete(entry.Target);
                     entry.Stage = "undone";
                     await SaveJournalAsync(journalPath, journal).ConfigureAwait(false);
-                    progress?.Report(new(entry.Target, entry.Source, ++completed, entries.Length));
+                    completed++;
+                    progress?.Report(new(entry.Target, entry.Source, completed, entries.Length));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)

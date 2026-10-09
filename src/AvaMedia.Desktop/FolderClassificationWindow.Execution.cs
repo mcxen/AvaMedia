@@ -129,7 +129,7 @@ public sealed partial class FolderClassificationWindow
         var journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "folder-classification",
             DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N") + ".json");
         _lastJournal = journal; SavePreferences();
-        try { await RunOrganizationAsync(operation => FolderOrganization.ExecuteAsync(plan, move, journal, OrganizationProgress(), operation.Token), "整理完成"); }
+        try { await RunOrganizationAsync((operation, progress) => FolderOrganization.ExecuteAsync(plan, move, journal, progress, operation.Token), "整理完成"); }
         finally
         {
             var recorded = File.Exists(journal)
@@ -163,7 +163,7 @@ public sealed partial class FolderClassificationWindow
         if (!_canMove()) throw new InvalidOperationException("请在当前转换任务完成或停止后撤销整理。");
         if (!await Ui.Confirm(this, "撤销分类整理", "将还原移动的源文件，并移除上次整理产生的副本与标签 TXT。已修改的文件将保留。", "撤销")) return;
         var before = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
-        try { await RunOrganizationAsync(operation => FolderOrganization.UndoAsync(journal, OrganizationProgress(), operation.Token), "撤销完成"); }
+        try { await RunOrganizationAsync((operation, progress) => FolderOrganization.UndoAsync(journal, progress, operation.Token), "撤销完成"); }
         finally
         {
             if (before.Move)
@@ -186,6 +186,23 @@ public sealed partial class FolderClassificationWindow
                 }
                 finally { _syncing = false; }
             }
+            else
+            {
+                var after = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
+                var restored = after.Entries.Where(entry => entry.Stage == "undone"
+                    && before.Entries.Any(old => old.Target == entry.Target && old.Stage != "undone"));
+                _syncing = true;
+                try
+                {
+                    foreach (var entry in restored)
+                    {
+                        var row = _entries.FirstOrDefault(row => BatchRename.PathComparer.Equals(row.Path, entry.Source));
+                        if (row is null) continue;
+                        row.Include = true; UpdateEntry(row);
+                    }
+                }
+                finally { _syncing = false; }
+            }
             InvalidatePlan(); RenderBoard();
         }
     }
@@ -201,13 +218,15 @@ public sealed partial class FolderClassificationWindow
         });
     }
 
-    private async Task RunOrganizationAsync(Func<CancellationTokenSource, Task<FolderOrganizationResult>> run, string stage)
+    private async Task RunOrganizationAsync(Func<CancellationTokenSource, IProgress<FolderOrganizationProgress>, Task<FolderOrganizationResult>> run, string stage)
     {
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation;
         _writing = true; SetBusy(true);
         try
         {
-            var result = await Task.Run(() => run(operation));
+            // Progress must capture the UI context before work starts on the background thread.
+            var progress = OrganizationProgress();
+            var result = await Task.Run(() => run(operation, progress));
             _status.Text = Localization.Format($"{Localization.Key(result.Cancelled ? "已停止" : stage)} · 完成 {result.Completed} 个，失败 {result.Errors.Length} 个");
             _scanErrors.Text = string.Join(Environment.NewLine, result.Errors); _scanErrors.IsVisible = result.Errors.Length > 0;
         }
