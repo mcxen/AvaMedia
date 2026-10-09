@@ -121,13 +121,7 @@ public sealed class VideoSlimming(MediaEngine engine)
                 ct.ThrowIfCancellationRequested();
                 progress?.Invoke(i * 15d / starts.Count, $"采样 {i + 1}/{starts.Count}");
                 var path = Path.Combine(workspace, $"reference-{i}.mkv");
-                await Checked(["-v", "error", "-nostdin", "-n", "-threads", threads.ToString(),
-                    "-ss", MediaEngine.Number(starts[i]), "-i", input, "-t", MediaEngine.Number(seconds),
-                    "-map", "0:v:0", "-an", "-vf", "setpts=PTS-STARTPTS", "-c:v", "ffv1", "-level", "3", "-threads", threads.ToString(),
-                    "-fps_mode", "passthrough", "-enc_time_base:v", "demux", path], ct).ConfigureAwait(false);
-                var info = await engine.Probe(path, ct).ConfigureAwait(false);
-                if (!info.HasVideo || info.Duration <= 0) throw new InvalidDataException("无法获取有效的视频样本。");
-                samples.Add(new(path, info.Duration));
+                samples.Add(await CreateSampleAsync(input, path, starts[i], seconds, threads, ct).ConfigureAwait(false));
             }
             Candidate? best = null;
             var lower = 16; var upper = 42; var iteration = 0; var quality = 26;
@@ -175,6 +169,47 @@ public sealed class VideoSlimming(MediaEngine engine)
             return result;
         }
         finally { Directory.Delete(workspace, recursive: true); }
+    }
+
+    private async Task<Sample> CreateSampleAsync(string input, string path, double start, double seconds,
+        int threads, CancellationToken ct)
+    {
+        // TS duration/seek estimates can land beyond the last decodable frame. FFmpeg may
+        // exit successfully with a header-only MKV, which then fails ffprobe with EBML errors.
+        // Only retry empty output, moving back to a nearby keyframe without accurate-seek discard.
+        var positions = new[] { start, Math.Max(0, start - seconds), Math.Max(0, start - Math.Max(12, seconds * 4)) }
+            .Distinct().ToArray();
+        for (var attempt = 0; attempt < positions.Length; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            List<string> args = ["-v", "error", "-nostdin", "-n", "-threads", threads.ToString()];
+            if (positions[attempt] > 0)
+            {
+                if (attempt > 0) args.Add("-noaccurate_seek");
+                args.AddRange(["-ss", MediaEngine.Number(positions[attempt])]);
+            }
+            args.AddRange(["-i", input, "-t", MediaEngine.Number(seconds), "-map", "0:v:0", "-an",
+                "-vf", "setpts=PTS-STARTPTS", "-c:v", "ffv1", "-level", "3", "-threads", threads.ToString(),
+                "-fps_mode", "passthrough", "-enc_time_base:v", "demux", "-progress", "pipe:1", "-nostats", path]);
+            long frames = -1;
+            await Checked(args, ct, line =>
+            {
+                if (line.StartsWith("frame=", StringComparison.Ordinal) &&
+                    long.TryParse(line[6..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count))
+                    frames = Math.Max(frames, count);
+            }).ConfigureAwait(false);
+            if (frames < 0) throw new InvalidDataException("无法读取视频采样帧数。");
+            if (frames > 0)
+            {
+                var info = await engine.Probe(path, ct).ConfigureAwait(false);
+                if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0)
+                    throw new InvalidDataException("无法获取有效的视频样本。");
+                return new(path, info.Duration);
+            }
+            // Never probe or compare a header-only file, and remove it before retrying with -n.
+            if (File.Exists(path)) File.Delete(path);
+        }
+        throw new InvalidDataException($"无法在 {MediaEngine.Number(start)} 秒附近提取视频画面，源文件可能存在时长或时间戳异常。");
     }
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
