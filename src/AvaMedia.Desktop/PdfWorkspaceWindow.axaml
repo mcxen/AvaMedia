@@ -68,8 +68,10 @@
             <TextBlock Text="页面排版" FontWeight="SemiBold"/>
             <ComboBox x:Name="PaperSizeSetting" SelectionChanged="LayoutChanged"><ComboBoxItem Content="A4"/><ComboBoxItem Content="Letter"/><ComboBoxItem x:Name="SourceSizeItem" Content="原图尺寸"/></ComboBox>
             <CheckBox x:Name="LandscapeSetting" Content="横向页面" IsCheckedChanged="LayoutChanged"/>
-            <Grid ColumnDefinitions="*,96" ColumnSpacing="8"><TextBlock Text="页边距（pt）" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="PageMargin" Minimum="0" Maximum="144" Value="20" FormatString="0" ValueChanged="LayoutChanged"/></Grid>
-            <Grid x:Name="FontSizeRow" ColumnDefinitions="*,96" ColumnSpacing="8"><TextBlock Text="字号（pt）" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="TextFontSize" Minimum="6" Maximum="48" Value="12" FormatString="0" ValueChanged="LayoutChanged"/></Grid>
+            <Grid ColumnDefinitions="*,96" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4"><TextBlock Text="页边距（pt）" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="PageMargin" Minimum="0" Maximum="144" Value="20" FormatString="0" ValueChanged="LayoutChanged"/>
+            <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #PageMargin}"/></Grid>
+            <Grid x:Name="FontSizeRow" ColumnDefinitions="*,96" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4"><TextBlock Text="字号（pt）" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="TextFontSize" Minimum="6" Maximum="48" Value="12" FormatString="0" ValueChanged="LayoutChanged"/>
+            <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #TextFontSize}"/></Grid>
           </StackPanel>
           <StackPanel x:Name="SplitPanel" Spacing="8" IsVisible="False">
             <TextBlock Text="拆分方式" FontWeight="SemiBold"/>
@@ -78,9 +80,10 @@
               <ComboBoxItem Content="每页一个文件"/>
               <ComboBoxItem Content="所选页面合为一个文件"/>
             </ComboBox>
-            <Grid ColumnDefinitions="*,96,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,96,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4">
               <TextBlock Text="每组页数" VerticalAlignment="Center"/>
               <NumericUpDown Grid.Column="1" x:Name="GroupSize" Minimum="1" Maximum="10000" Value="5" FormatString="0"/>
+              <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #GroupSize}"/>
               <Button Grid.Column="2" Content="应用" Click="GroupClick"/>
             </Grid>
             <TextBlock x:Name="GroupSummary" Classes="caption" TextWrapping="Wrap"/>
@@ -105,8 +108,10 @@
               <TextBlock Text="污渍" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="StainAmount" Minimum="0" Maximum="100" Value="35" FormatString="0" ValueChanged="EffectChanged"/>
               <Slider Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="{Binding #StainAmount.Value, Mode=TwoWay}" SmallChange="1" LargeChange="10" AutomationProperties.Name="污渍"/>
             </Grid>
-            <Grid ColumnDefinitions="*,96" ColumnSpacing="8"><TextBlock Text="颗粒" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="GrainAmount" Minimum="0" Maximum="100" Value="15" FormatString="0" ValueChanged="EffectChanged"/></Grid>
-            <Grid ColumnDefinitions="*,96" ColumnSpacing="8"><TextBlock Text="倾斜角度" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="SkewAmount" Minimum="-2" Maximum="2" Increment="0.1" Value="0.2" FormatString="0.0" ValueChanged="EffectChanged"/></Grid>
+            <Grid ColumnDefinitions="*,96" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4"><TextBlock Text="颗粒" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="GrainAmount" Minimum="0" Maximum="100" Value="15" FormatString="0" ValueChanged="EffectChanged"/>
+            <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #GrainAmount}"/></Grid>
+            <Grid ColumnDefinitions="*,96" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4"><TextBlock Text="倾斜角度" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="SkewAmount" Minimum="-2" Maximum="2" Increment="0.1" Value="0.2" FormatString="0.0" ValueChanged="EffectChanged"/>
+            <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #SkewAmount}"/></Grid>
           </StackPanel>
           <StackPanel x:Name="CompressPanel" Spacing="8" IsVisible="False">
             <TextBlock Text="压缩档位" FontWeight="SemiBold"/>
@@ -115,8 +120,10 @@
             <TextBlock Text="默认保留文字并压缩图片；整页压缩会移除可搜索文字、表单和链接。" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
           <StackPanel x:Name="RasterSettings" Spacing="8" IsVisible="False">
-            <Grid ColumnDefinitions="*,96" ColumnSpacing="8"><TextBlock Text="JPEG 质量" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="JpegQuality" Minimum="10" Maximum="100" Value="75" FormatString="0" ValueChanged="EffectChanged"/></Grid>
-            <Grid ColumnDefinitions="*,96" ColumnSpacing="8"><TextBlock Text="最长边（像素）" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="RasterEdge" Minimum="600" Maximum="4096" Increment="100" Value="1800" FormatString="0" ValueChanged="EffectChanged"/></Grid>
+            <Grid ColumnDefinitions="*,96" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4"><TextBlock Text="JPEG 质量" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="JpegQuality" Minimum="10" Maximum="100" Value="75" FormatString="0" ValueChanged="EffectChanged"/>
+            <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #JpegQuality}"/></Grid>
+            <Grid ColumnDefinitions="*,96" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4"><TextBlock Text="最长边（像素）" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" x:Name="RasterEdge" Minimum="600" Maximum="4096" Increment="100" Value="1800" FormatString="0" ValueChanged="EffectChanged"/>
+            <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #RasterEdge}"/></Grid>
             <TextBlock x:Name="RasterNote" Text="做旧输出为图像页面，不保留可搜索文字、表单和链接。" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
         </StackPanel>
@@ -125,7 +132,7 @@
     </Grid>
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
       <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-      <TextBox Grid.Column="1" x:Name="OutputFolder"/>
+      <TextBox Grid.Column="1" x:Name="OutputFolder" IsReadOnly="True"/>
       <Button Grid.Column="2" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">

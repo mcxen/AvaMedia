@@ -40,6 +40,7 @@ public sealed class VideoCompressionEntry(string path) : Observable
 public partial class VideoCompressionWindow : Window
 {
     private readonly IMediaEngine _engine;
+    private readonly MediaPreviewPanel _preview;
     private readonly ObservableCollection<VideoCompressionEntry> _entries = [];
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _inspectionSlots = new(2);
@@ -53,8 +54,9 @@ public partial class VideoCompressionWindow : Window
     {
         InitializeComponent(); ToolExecution.Configure(this,ConfirmButton,"开始压缩",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
         if (editing) { Title = "编辑视频压缩任务"; ConfirmButton.Content = "保存修改"; }
+        _preview = new MediaPreviewPanel(engine); PreviewHost.Content = _preview;
         SourceList.ItemsSource = _entries;
-        SourceList.SelectionChanged += (_, _) => RemoveButton.IsEnabled = SourceList.SelectedItems?.Count > 0;
+        SourceList.SelectionChanged += (_, _) => { RemoveButton.IsEnabled = SourceList.SelectedItems?.Count > 0; RefreshPreview(); };
         var options = VideoCompression.Effective(initial ?? new Storage().LoadToolOptions<VideoCompressionOptions>("video-compress") ?? new());
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = !_closed && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -118,7 +120,7 @@ public partial class VideoCompressionWindow : Window
         OutputInput.TextChanged += (_, _) => Recalculate();
         Opened += async (_, _) => await AddFilesAsync(files);
         Localization.Changed += LanguageChanged;
-        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); Localization.Changed -= LanguageChanged; };
+        Closed += (_, _) => { _closed = true; _preview.Dispose(); _lifetime.Cancel(); Localization.Changed -= LanguageChanged; };
         UpdateOutput(); Recalculate();
     }
 
@@ -260,6 +262,14 @@ public partial class VideoCompressionWindow : Window
             TotalSummary.Text = Localization.Text("参数无效，暂不显示输出预估。");
             ValidationText.Text = exception.Message; ConfirmButton.IsEnabled = false;
         }
+        RefreshPreview();
+    }
+
+    private void RefreshPreview()
+    {
+        if (SourceList.SelectedItem is null && _entries.Count > 0) SourceList.SelectedIndex = 0;
+        var entry = SourceList.SelectedItem as VideoCompressionEntry;
+        _preview.SetSource(entry?.Path); SizeChart.SetSizes(entry?.Bytes ?? 0,entry?.Plan?.EstimatedBytes);
     }
 
     private async void AddClick(object? sender, RoutedEventArgs args) => await AddFilesAsync(await Ui.Pick(this, "添加压缩视频"));

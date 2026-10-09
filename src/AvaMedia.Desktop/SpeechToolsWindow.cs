@@ -21,6 +21,7 @@ public sealed class SpeechToolsWindow : Window
     private readonly Storage _storage;
     private readonly bool _transcribe, _editing;
     private readonly ObservableCollection<string> _files = [];
+    private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SpeechFiles", MinHeight = 72, MaxHeight = 130, SelectionMode = SelectionMode.Multiple };
     private readonly TextBlock _count = Ui.Text("", "caption");
     private readonly TextBlock _empty = Ui.Text("添加或拖入音视频文件", "caption");
@@ -76,6 +77,10 @@ public sealed class SpeechToolsWindow : Window
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
         var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); source.Children.Add(fileArea);
         var fields = new StackPanel { Spacing = 16 };
+        Width = Math.Max(Width,1120); MinWidth = 980; root.ColumnDefinitions = new("*,420");
+        _preview = new MediaPreviewPanel(engine); Grid.SetRow(_preview,1); Grid.SetColumn(_preview,1); root.Children.Add(_preview);
+        _sources.SelectionChanged += (_,_) => _preview.SetSource(_sources.SelectedItem as string);
+        Closed += (_,_) => _preview.Dispose();
         root.Children.Add(new ScrollViewer { Content = fields, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, [Grid.RowProperty] = 1 });
         string[] outputs = _transcribe ? ["烧录字幕 · MP4", "烧录字幕 · MKV", "字幕文件 · SRT", "样式字幕 · ASS"]
             : feature.Category == "音频" ? ["原格式", "WAV", "M4A", "MP3", "FLAC"] : ["原格式", "MP4", "MKV", "MOV", "WAV", "M4A", "MP3"];
@@ -108,7 +113,7 @@ public sealed class SpeechToolsWindow : Window
         var saving = new StackPanel { Spacing = 8 };
         var outputRow = new Grid { ColumnDefinitions = new("80,*,Auto"), ColumnSpacing = 8 };
         outputRow.Children.Add(Ui.Text("保存位置"));
-        _folder = Ui.Input(outputFolder); _folder.Name = "SpeechOutputFolder"; Localization.SetIsUserText(_folder, true);
+        _folder = Ui.Input(outputFolder); _folder.IsReadOnly = true; _folder.Name = "SpeechOutputFolder"; Localization.SetIsUserText(_folder, true);
         Grid.SetColumn(_folder, 1); outputRow.Children.Add(_folder);
         _browse = new Button { Content = "浏览…", Classes = { "field-action" } };
         _browse.Click += async (_, _) => { if (!_busy && await Ui.Folder(this, "选择输出目录") is { } selected && !_lifetime.IsCancellationRequested) _folder.Text = selected; };

@@ -1,10 +1,10 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoCompressionWindow"
         Title="视频压缩" Width="1120" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
   <Grid RowDefinitions="*,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="12">
     <Grid ColumnDefinitions="*,360" ColumnSpacing="12">
       <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}">
-        <Grid RowDefinitions="Auto,*,Auto" Margin="12" RowSpacing="8">
+        <Grid RowDefinitions="Auto,*,240,Auto" Margin="12" RowSpacing="8">
           <WrapPanel Orientation="Horizontal">
             <WrapPanel.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></WrapPanel.Styles>
             <Button Content="添加视频…" Click="AddClick"/>
@@ -30,7 +30,8 @@
           </ListBox>
           <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False"/>
           </Grid>
-          <TextBlock x:Name="TotalSummary" Grid.Row="2" Classes="caption" TextWrapping="Wrap"/>
+          <Grid Grid.Row="2" RowDefinitions="*,Auto" RowSpacing="8"><ContentControl x:Name="PreviewHost"/><controls:SizeComparisonView x:Name="SizeChart" Grid.Row="1"/></Grid>
+          <TextBlock x:Name="TotalSummary" Grid.Row="3" Classes="caption" TextWrapping="Wrap"/>
         </Grid>
       </Border>
       <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}">
@@ -46,6 +47,7 @@
             <StackPanel x:Name="QualitySection" Spacing="6" IsVisible="False">
               <TextBlock Text="质量（1–51）"/>
               <NumericUpDown x:Name="QualityInput" Minimum="1" Maximum="51" Increment="1" Value="23" FormatString="0" AutomationProperties.Name="质量（1–51）"/>
+              <controls:ParameterSlider Input="{Binding #QualityInput}"/>
               <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
                 <Button Content="高 · 20" Click="HighQualityClick"/>
                 <Button Grid.Column="1" Content="中 · 23" Click="MediumQualityClick"/>
@@ -56,11 +58,13 @@
             <StackPanel x:Name="BitrateSection" Spacing="6" IsVisible="False">
               <TextBlock Text="视频平均码率（kbps）"/>
               <NumericUpDown x:Name="BitrateInput" Minimum="64" Maximum="200000" Increment="500" Value="4000" FormatString="0" AutomationProperties.Name="视频平均码率（kbps）"/>
+              <controls:ParameterSlider Input="{Binding #BitrateInput}"/>
               <ComboBox x:Name="BitratePresetInput" AutomationProperties.Name="常用视频码率"/>
             </StackPanel>
             <StackPanel x:Name="PercentageSection" Spacing="6">
               <TextBlock Text="目标体积（原文件 %）"/>
               <NumericUpDown x:Name="PercentageInput" Minimum="5" Maximum="95" Increment="5" Value="60" FormatString="0" AutomationProperties.Name="目标体积（原文件 %）"/>
+              <controls:ParameterSlider Input="{Binding #PercentageInput}"/>
               <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
                 <Button Content="轻量 80%" Click="LightClick"/>
                 <Button Grid.Column="1" Content="均衡 60%" Click="BalancedClick"/>
@@ -70,6 +74,7 @@
             <StackPanel x:Name="SizeSection" Spacing="6" IsVisible="False">
               <TextBlock Text="每个视频的目标体积（MB）"/>
               <NumericUpDown x:Name="SizeInput" Minimum="0.1" Maximum="1000000" Increment="5" Value="50" FormatString="0.##" AutomationProperties.Name="每个视频的目标体积（MB）"/>
+              <controls:ParameterSlider Input="{Binding #SizeInput}"/>
             </StackPanel>
             <TextBlock x:Name="ModeDescription" Classes="caption" TextWrapping="Wrap"/>
             <Expander x:Name="OutputOptions" Header="输出参数" HorizontalAlignment="Stretch">
@@ -96,7 +101,7 @@
     <StackPanel Grid.Row="1" Spacing="8">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
         <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-        <TextBox x:Name="OutputInput" Grid.Column="1" AutomationProperties.Name="输出文件夹"/>
+        <TextBox x:Name="OutputInput" Grid.Column="1" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
         <Button x:Name="BrowseButton" Grid.Column="2" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
       </Grid>
       <StackPanel Orientation="Horizontal" Spacing="16">

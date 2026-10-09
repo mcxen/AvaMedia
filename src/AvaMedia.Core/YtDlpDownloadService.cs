@@ -64,7 +64,7 @@ public sealed class YtDlpDownloadService : IVideoDownloadProvider
             var title = Text(item, "title");if (title.Length == 0) title = "视频 " + Text(item, "id");
             var duration = item.TryGetProperty("duration", out var length) && length.ValueKind==JsonValueKind.Number && length.TryGetDouble(out var value) && double.IsFinite(value) ? Math.Max(0, value) : 0;
             videos.Add(new(url, Text(item, "id"), title, Text(item, "uploader"), duration, DownloadLinks.Platform(sourceUrl),
-                item.TryGetProperty("is_live", out var live) && live.ValueKind == JsonValueKind.True));
+                item.TryGetProperty("is_live", out var live) && live.ValueKind == JsonValueKind.True, ThumbnailUrl: Text(item,"thumbnail")));
         }
         if (videos.Count == 0) throw new InvalidDataException("没有解析出可下载视频。请使用视频链接；图文笔记和空播放列表不在此流程中。");
         var count = root.TryGetProperty("playlist_count", out var total) && total.ValueKind==JsonValueKind.Number && total.TryGetInt32(out var n) ? n : items.Length;

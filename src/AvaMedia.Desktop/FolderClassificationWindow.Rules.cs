@@ -175,7 +175,7 @@ public sealed partial class FolderClassificationWindow
         var limits = new Avalonia.Controls.Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 12 };
         var fields = new[] { ("最低匹配分数", threshold), ("与其他类别的最小差距", margin), ("视频画面一致率", agreement) };
         for (var index = 0; index < fields.Length; index++)
-        { var field = new StackPanel { Spacing = 6 }; field.Children.Add(Ui.Text(fields[index].Item1, "caption")); field.Children.Add(fields[index].Item2); Avalonia.Controls.Grid.SetColumn(field, index); limits.Children.Add(field); }
+        { var field = new StackPanel { Spacing = 6 }; field.Children.Add(Ui.Text(fields[index].Item1, "caption")); field.Children.Add(Ui.Parameter(fields[index].Item2,fields[index].Item1)); Avalonia.Controls.Grid.SetColumn(field, index); limits.Children.Add(field); }
         ToolTip.SetTip(threshold, Localization.Text("匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
         ToolTip.SetTip(margin, Localization.Text("第一名与第二名的分数差距小于此值时，画面进入待确认。"));
         ToolTip.SetTip(agreement, Localization.Text("视频中至少有这一比例的采样画面命中同一类别，才自动归类。"));

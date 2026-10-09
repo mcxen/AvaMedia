@@ -16,6 +16,7 @@ public sealed class VideoSummaryWindow : Window
 {
     private readonly IMediaEngine _engine;
     private readonly ObservableCollection<string> _files = [];
+    private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SummaryFiles", MinHeight = 72, MaxHeight = 130, SelectionMode = SelectionMode.Multiple };
     private readonly TextBlock _empty = Ui.Text("添加或拖入视频", "caption");
     private readonly TextBlock _notice = Ui.Text("", "caption");
@@ -87,6 +88,10 @@ public sealed class VideoSummaryWindow : Window
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
         var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); imports.Children.Add(fileArea);
         var fields = new StackPanel { Spacing = 16 };
+        Width = Math.Max(Width,1120); MinWidth = 980; root.ColumnDefinitions = new("*,420");
+        _preview = new MediaPreviewPanel(engine); Grid.SetRow(_preview,1); Grid.SetColumn(_preview,1); root.Children.Add(_preview);
+        _sources.SelectionChanged += (_,_) => _preview.SetSource(_sources.SelectedItem as string);
+        Closed += (_,_) => _preview.Dispose();
         root.Children.Add(new ScrollViewer { Content = fields, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, [Grid.RowProperty] = 1 });
         var outputs = new WrapPanel { Orientation = Orientation.Horizontal };
         _abstract.IsChecked = options.ExtractAbstract; _summary.IsChecked = options.SummarizeContent;
@@ -105,7 +110,7 @@ public sealed class VideoSummaryWindow : Window
         _source.SelectedIndex = (int)options.TranscriptSource; _source.Name = "SummaryTranscriptSource";
         var recognition = new StackPanel { Spacing=8 };
         Add(recognition, "字幕来源", _source);
-        _external.Text = options.SubtitleFile; Localization.SetIsUserText(_external, true);
+        _external.IsReadOnly = true; _external.Text = options.SubtitleFile; Localization.SetIsUserText(_external, true);
         var pickSubtitle = new Button { Content = "浏览…", Classes = { "field-action" } };
         pickSubtitle.Click += async (_, _) =>
         {
@@ -162,7 +167,7 @@ public sealed class VideoSummaryWindow : Window
         Add(advanced,"字幕轨",subtitle);Add(advanced,"音轨",audio); Add(advanced, "分段字符数", _chunkSize); advanced.Children.Add(_gpu);
         foreach(var child in advanced.Children.ToArray()){advanced.Children.Remove(child);recognition.Children.Add(child);}
         fields.Children.Add(new Expander { Header = "识别设置", Content = recognition, HorizontalAlignment = HorizontalAlignment.Stretch });
-        var saving = new StackPanel { Spacing = 8 }; _folder = Ui.Input(outputFolder); Localization.SetIsUserText(_folder, true);
+        var saving = new StackPanel { Spacing = 8 }; _folder = Ui.Input(outputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
         var browse = new Button { Content = "浏览…", Classes = { "field-action" } };
         browse.Click += async (_, _) =>
         {
@@ -200,6 +205,7 @@ public sealed class VideoSummaryWindow : Window
             }
         };
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
+        foreach (var child in root.Children.Where(child => Grid.GetRow(child) != 1)) Grid.SetColumnSpan(child,2);
         Content = root; ToolExecution.Configure(this,_confirm,"开始总结",_editing);
         _source.SelectionChanged += (_, _) => Refresh(); _provider.SelectionChanged += (_, _) => Refresh();
         _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
@@ -278,7 +284,7 @@ public sealed class VideoSummaryWindow : Window
         grid.Children.Add(control); Grid.SetColumn(button, 1); grid.Children.Add(button); return grid;
     }
     private static void Add(Panel panel, string label, Control control)
-    {
+    { control=Ui.Parameter(control,label);
         AutomationProperties.SetName(control, label);
         var row = new Grid { ColumnDefinitions = new("145,*"), ColumnSpacing = 12 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); panel.Children.Add(row);

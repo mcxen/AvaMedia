@@ -18,7 +18,7 @@
     <StackPanel Grid.Row="2" Spacing="12">
       <Grid ColumnDefinitions="110,220,*,Auto" ColumnSpacing="12"><TextBlock Text="输出格式" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FormatCombo" SelectionChanged="FormatChanged"/><Button Grid.Column="3" x:Name="ExportOptionsButton" Content="编码与质量…" Click="ExportOptionsClick"/></Grid>
       <TextBlock x:Name="FormatNote" Classes="caption" TextWrapping="Wrap"/>
-      <Grid ColumnDefinitions="110,*,Auto" ColumnSpacing="12"><TextBlock Text="保存位置" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="ExportFolder"/><Button Grid.Column="2" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/></Grid>
+      <Grid ColumnDefinitions="110,*,Auto" ColumnSpacing="12"><TextBlock Text="保存位置" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="ExportFolder" IsReadOnly="True"/><Button Grid.Column="2" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/></Grid>
       <CheckBox x:Name="OutputToSource" Content="保存到各视频所在文件夹" IsCheckedChanged="OutputLocationChanged"/>
       <CheckBox x:Name="AddSettingName" Content="添加设置名称"/>
       <CheckBox x:Name="JoinSegments" Content="将每个视频的保留片段合并为一个文件" IsVisible="False"/>

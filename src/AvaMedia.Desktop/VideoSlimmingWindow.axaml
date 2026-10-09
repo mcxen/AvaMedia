@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoSlimmingWindow"
         Title="视频瘦身" Width="1040" Height="700" MinWidth="860" MinHeight="560" WindowStartupLocation="CenterOwner">
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="14">
@@ -20,7 +20,7 @@
       </Grid>
     </StackPanel>
     <Border Grid.Row="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}">
-      <Grid RowDefinitions="Auto,*,Auto">
+      <Grid RowDefinitions="Auto,*,210,Auto">
         <Grid ColumnDefinitions="*,100,110,80,120" ColumnSpacing="12" Margin="12,8">
           <TextBlock Text="视频" Classes="caption"/>
           <TextBlock Grid.Column="1" Text="原体积" Classes="caption"/>
@@ -48,7 +48,8 @@
           </ListBox>
           <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
         </Grid>
-        <Expander x:Name="AnalysisDetails" Grid.Row="2" Header="分析详情" HorizontalAlignment="Stretch" Margin="12,6,12,10" IsVisible="False">
+        <Grid Grid.Row="2" ColumnDefinitions="*,320" ColumnSpacing="16" Margin="12"><ContentControl x:Name="PreviewHost"/><controls:SizeComparisonView x:Name="SizeChart" Grid.Column="1" VerticalAlignment="Center"/></Grid>
+        <Expander x:Name="AnalysisDetails" Grid.Row="3" Header="分析详情" HorizontalAlignment="Stretch" Margin="12,6,12,10" IsVisible="False">
           <ScrollViewer MaxHeight="120" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="6" Margin="0,8,0,0">
               <TextBlock x:Name="SelectedFileText" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis"/>
@@ -62,7 +63,7 @@
     <StackPanel Grid.Row="2" Spacing="8">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
         <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-        <TextBox x:Name="OutputInput" Grid.Column="1" AutomationProperties.Name="输出文件夹" i18n:Localization.IsUserText="True"/>
+        <TextBox IsReadOnly="True" x:Name="OutputInput" Grid.Column="1" AutomationProperties.Name="输出文件夹" i18n:Localization.IsUserText="True"/>
         <Button x:Name="BrowseButton" Grid.Column="2" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
       </Grid>
       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">

@@ -46,6 +46,31 @@ public static class BatchVideoTools
             throw new ArgumentException("结束时间必须晚于开始时间；结束为 0 表示视频末尾。");
     }
 
+    public static async Task<byte[]> PreviewContactSheetAsync(IMediaEngine engine,string input,ContactSheetOptions options,CancellationToken token)
+    {
+        ValidateContactSheet(options);var info=await engine.Probe(input,token);
+        if(!info.HasVideo||info.Duration<=0)throw new InvalidDataException("文件不含可截图的视频或无法读取时长。");
+        var (width,height)=ContactSheetCellSize(info,options);var scale=Math.Min(1,900d/Math.Max(width*options.Columns,height*options.Rows));
+        width=Math.Max(1,(int)(width*scale));height=Math.Max(1,(int)(height*scale));
+        var (duration,fps)=VideoTiming(info);var end=options.EndSeconds>0?Math.Min(options.EndSeconds,duration):duration;
+        if(options.StartSeconds>=end)throw new ArgumentException("开始时间超出视频时长。");
+        var count=options.Columns*options.Rows;
+        using var bitmap=new SKBitmap(width*options.Columns,height*options.Rows);using var canvas=new SKCanvas(bitmap);
+        using var paint=new SKPaint{Color=SKColors.White,TextSize=Math.Max(9,height*.08f),IsAntialias=true};
+        using var shade=new SKPaint{Color=new SKColor(0,0,0,170)};
+        for(var index=0;index<count;index++)
+        {
+            token.ThrowIfCancellationRequested();
+            var requested=options.StartSeconds+(end-options.StartSeconds)*(index+.5)/(count*options.SheetsPerVideo);
+            var seconds=Math.Min(requested,Math.Max(0,duration-Math.Max(.08,1/fps)));
+            var data=await engine.Thumbnail(input,seconds,width,height,token,pad:false,videoStreamIndex:info.VideoStreamIndex);
+            using var frame=SKBitmap.Decode(data);var x=index%options.Columns*width;var y=index/options.Columns*height;
+            canvas.DrawBitmap(frame,new SKRect(x,y,x+width,y+height));
+            if(options.Timestamps){canvas.DrawRect(x,y+height-paint.TextSize-6,width,paint.TextSize+6,shade);canvas.DrawText(MediaTime.Format(seconds),x+3,y+height-3,paint);}
+        }
+        token.ThrowIfCancellationRequested();using var image=SKImage.FromBitmap(bitmap);using var encoded=image.Encode(SKEncodedImageFormat.Png,100);return encoded.ToArray();
+    }
+
     public static async Task<string[]> GenerateContactSheets(IMediaEngine engine, string input, string outputFolder, ContactSheetOptions options, IProgress<ContactSheetProgress>? progress = null, CancellationToken ct = default)
     {
         ValidateContactSheet(options);

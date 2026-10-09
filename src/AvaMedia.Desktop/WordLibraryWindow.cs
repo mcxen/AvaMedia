@@ -189,30 +189,10 @@ public sealed class WordLibraryWindow : Window
     }
     private async Task EditAsync(WordLibrary? library)
     {
-        var editable = library is { BuiltIn: false };
-        var name = Ui.Input(library is null ? "我的词库" : editable ? library.Name : library.Name + " 副本");
-        var text = new TextBox { AcceptsReturn = true, AcceptsTab = true, TextWrapping = TextWrapping.NoWrap,
-            Text = library is null ? "动物\t猫\tA photo of a cat.\tcat" : WordLibraryCatalog.ToText(library) };
-        Localization.SetIsUserText(name, true); Localization.SetIsUserText(text, true);
-        var editor = new Window { Title = "编辑词库", Width = 820, Height = 620, MinWidth = 650, MinHeight = 480,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 10, Margin = new(20) };
-        root.Children.Add(name);
-        var hint = Ui.Text("每行一个词；或用 Tab 分隔：类别、名称、语义描述、JoyTag 标签（组合用 +）。最多 20000 个词。", "caption");
-        Grid.SetRow(hint, 1); root.Children.Add(hint); Grid.SetRow(text, 2); root.Children.Add(text);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
-        actions.Children.Add(Ui.DialogButton("取消", editor.Close));
-        actions.Children.Add(Ui.DialogButton("保存词库", async () =>
-        {
-            try
-            {
-                var entries = WordLibraryCatalog.ParseText(text.Text ?? "");
-                var updated = new WordLibrary(editable ? library!.Id : Guid.NewGuid().ToString("N"), name.Text?.Trim() ?? "", library?.Source ?? "自定义 · 本地", entries);
-                _store.Save(updated); Reload(updated.Id); editor.Close();
-            }
-            catch (Exception error) { await Ui.Message(editor, "词库保存失败", error.Message); }
-        }));
-        Grid.SetRow(actions, 3); root.Children.Add(actions); editor.Content = root; await editor.ShowDialog(this);
+        var editor = new WordLibraryEditorWindow(library);
+        if (await editor.ShowDialog<WordLibrary?>(this) is not { } updated) return;
+        try { _store.Save(updated); Reload(updated.Id); }
+        catch (Exception error) { await Ui.Message(this,"词库保存失败",error.Message); }
     }
     private async Task ImportAsync()
     {

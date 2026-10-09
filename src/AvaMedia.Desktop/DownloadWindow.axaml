@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AvaMedia.Desktop.DownloadWindow" Title="视频下载" Width="1040" Height="740" MinWidth="860" MinHeight="620" WindowStartupLocation="CenterOwner">
   <Grid Margin="20" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="16">
     <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
@@ -29,9 +29,10 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="12">
-                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                      <Grid ColumnDefinitions="Auto,112,*" ColumnSpacing="10">
                         <CheckBox IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Top"/>
-                        <StackPanel Grid.Column="1" Spacing="4" PointerPressed="VideoRowPressed">
+                        <controls:RemoteThumbnail Grid.Column="1" SourceUrl="{Binding ThumbnailUrl}" Height="70"/>
+                        <StackPanel Grid.Column="2" Spacing="4" PointerPressed="VideoRowPressed">
                           <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Detail}"/>
                           <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
                           <TextBlock Text="{Binding ErrorSummary}" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
@@ -73,16 +74,18 @@
               <StackPanel x:Name="CookieFilePanel" IsVisible="False" Spacing="4">
                 <TextBlock Text="Cookie 文件"/>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                  <TextBox x:Name="CookieFileInput" Watermark="cookies.txt"/>
+                  <TextBox IsReadOnly="True" x:Name="CookieFileInput" Watermark="cookies.txt"/>
                   <Button Grid.Column="1" Content="浏览…" Click="CookieFileClick" Classes="field-action"/>
                 </Grid>
               </StackPanel>
               <StackPanel Spacing="4">
                 <TextBlock Text="代理（可选）"/>
+                <ComboBox x:Name="ProxyPreset" SelectionChanged="ProxyPresetChanged"/>
                 <TextBox x:Name="DownloadProxy" Watermark="http://127.0.0.1:7890"/>
               </StackPanel>
               <StackPanel Spacing="4">
-                <TextBlock Text="浏览器 CDP"/>
+                <TextBlock Text="外部浏览器连接"/>
+                <ComboBox x:Name="BrowserConnectionPreset" SelectionChanged="ConnectionPresetChanged"/>
                 <TextBox x:Name="BrowserEndpoint" Text="http://127.0.0.1:9222"/>
                 <Button x:Name="ExternalBrowserCaptureButton" Content="从外部浏览器识别" Click="ExternalBrowserCaptureClick" Classes="tool"/>
               </StackPanel>
@@ -93,7 +96,7 @@
     </Grid>
     <Grid Grid.Row="2" x:Name="DownloadOutputFields" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" RowSpacing="8">
       <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-      <TextBox Grid.Column="1" x:Name="DownloadFolder"/>
+      <TextBox IsReadOnly="True" Grid.Column="1" x:Name="DownloadFolder"/>
       <Button Grid.Column="2" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/>
       <TextBlock Grid.Row="1" x:Name="OutputNameLabel" Text="文件名" VerticalAlignment="Center" IsVisible="False"/>
       <TextBox Grid.Row="1" Grid.Column="1" x:Name="DownloadOutputName" IsVisible="False"/>

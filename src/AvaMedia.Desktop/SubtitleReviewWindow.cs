@@ -52,6 +52,9 @@ public sealed class SubtitleReviewWindow : Window
     private readonly StackPanel _editor = new() { Spacing = 10 };
     private readonly AiActivityView _activity = new() { Compact = true };
     private readonly SubtitleStyleEditor _style;
+    private readonly TimeRangePicker _timing = new();
+    private readonly MediaPreviewPanel _preview;
+    private double _duration = 1;
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _recognition;
     private bool _busy;
@@ -93,7 +96,14 @@ public sealed class SubtitleReviewWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_files,"字幕源文件");Avalonia.Automation.AutomationProperties.SetName(_cues,"字幕列表");
         Avalonia.Automation.AutomationProperties.SetName(_start,"开始时间");Avalonia.Automation.AutomationProperties.SetName(_end,"结束时间");Avalonia.Automation.AutomationProperties.SetName(_text,"字幕文字");
         _text.AcceptsReturn = true; _text.MinHeight = 100; _text.TextWrapping = Avalonia.Media.TextWrapping.Wrap; Localization.SetIsUserText(_text, true);
-        _editor.Children.Add(Ui.Text("开始时间")); _editor.Children.Add(_start); _editor.Children.Add(Ui.Text("结束时间")); _editor.Children.Add(_end);
+        _start.IsReadOnly=_end.IsReadOnly=true;
+        _preview=new MediaPreviewPanel(engine){Height=180}; _editor.Children.Add(_preview);_editor.Children.Add(_timing);
+        _timing.Changed+=()=>
+        {
+            if(_cues.SelectedItem is not CueDraft cue)return;
+            cue.Start=EditorTime.Format(_timing.Start);cue.End=EditorTime.Format(_timing.End);
+            _preview.SetPosition(request.Options.Start+_timing.Start*request.Options.Speed);
+        };
         _editor.Children.Add(_text);
         _start.Bind(TextBox.TextProperty, new Binding(nameof(CueDraft.Start)) { Mode = BindingMode.TwoWay });
         _end.Bind(TextBox.TextProperty, new Binding(nameof(CueDraft.End)) { Mode = BindingMode.TwoWay });
@@ -121,7 +131,7 @@ public sealed class SubtitleReviewWindow : Window
         _format = Ui.Combo(["字幕文件 · SRT", "样式字幕 · ASS", "带字幕视频 · MP4", "带字幕视频 · MKV"], "字幕文件 · SRT");
         _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", "mp4", "mkv" }, request.Options.Format));
         side.Children.Add(Ui.Text("输出内容")); side.Children.Add(_format);
-        _folder = Ui.Input(request.OutputFolder); Localization.SetIsUserText(_folder, true);
+        _folder = Ui.Input(request.OutputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
         Avalonia.Automation.AutomationProperties.SetName(_folder, "字幕保存位置");
         _sourceFolder = new CheckBox { Content = "输出至源文件目录", IsChecked = request.OutputToSource };
         side.Children.Add(Ui.Text("保存位置")); side.Children.Add(_folder);
@@ -152,15 +162,24 @@ public sealed class SubtitleReviewWindow : Window
         _export = Ui.DialogButton(editing ? "保存修改" : "导出字幕", Export); _export.Classes.Add("primary");_export.IsDefault=true;actions.Children.Add(_export);
         ToolExecution.Configure(this, _export, "导出字幕", editing);
         Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
-        _files.SelectionChanged += (_, _) => { _cues.ItemsSource = Selected?.Cues; _cues.SelectedIndex = Selected?.Cues?.Count > 0 ? 0 : -1; _notice.Text = Localization.Text(Selected?.Status ?? ""); Refresh(); };
+        _files.SelectionChanged += async (_, _) => { _preview.SetSource(Selected?.Path);
+            if(Selected is {} source)try {var info=await engine.Probe(source.Path,_lifetime.Token);if(Selected==source){_duration=Math.Max(.01,(info.Duration-request.Options.Start)/request.Options.Speed);UpdateTiming();}}catch(OperationCanceledException){}catch(Exception error){_notice.Text=error.Message;}
+             _cues.ItemsSource = Selected?.Cues; _cues.SelectedIndex = Selected?.Cues?.Count > 0 ? 0 : -1; _notice.Text = Localization.Text(Selected?.Status ?? ""); Refresh(); };
         _cues.SelectionChanged += (_, _) =>
         {
-            _editor.DataContext = _cues.SelectedItem;
+            _editor.DataContext = _cues.SelectedItem; UpdateTiming();
             Refresh();
         };
         Opened += async (_, _) => await RecognizeAsync();
-        Closed += (_, _) => { _lifetime.Cancel(); _recognition?.Cancel(); _style.Dispose(); };
+        Closed += (_, _) => { _lifetime.Cancel(); _recognition?.Cancel(); _style.Dispose(); _preview.Dispose(); };
         RefreshFiles(); _files.SelectedIndex = 0; Refresh();
+    }
+
+    private void UpdateTiming()
+    {
+        if(_cues.SelectedItem is not CueDraft cue)return;
+        if(EditorTime.TryRead(cue.Start,0,out var start)&&EditorTime.TryRead(cue.End,0,out var end))
+        { _timing.SetRange(start,end,_duration); _preview.SetPosition(_request.Options.Start+start*_request.Options.Speed); }
     }
 
     private async Task RecognizeAsync()

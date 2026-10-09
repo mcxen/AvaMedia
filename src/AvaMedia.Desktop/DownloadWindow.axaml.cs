@@ -16,6 +16,7 @@ public sealed class DownloadEntry(string url) : Observable
     private string _error="";
     public string Url { get; }=url;
     public DownloadVideo? Video=>_video;
+    public string ThumbnailUrl=>_video?.ThumbnailUrl??"";
     public bool IsChecked { get=>_checked;set=>Set(ref _checked,value&&IsReady); }
     public bool IsReady=>_video is not null && !_video.IsLive && !HasError;
     public bool HasError=>_error.Length>0;
@@ -33,7 +34,7 @@ public sealed class DownloadEntry(string url) : Observable
         Refresh();IsChecked=selected&&IsReady;
     }
     public void Fail(string message){_error=message;IsChecked=false;Refresh();}
-    private void Refresh(){foreach(var name in new[]{nameof(IsReady),nameof(HasError),nameof(ErrorSummary),nameof(Title),nameof(DisplayUrl),nameof(Detail),nameof(Description),nameof(HasDescription)})Raise(name);}
+    private void Refresh(){foreach(var name in new[]{nameof(IsReady),nameof(HasError),nameof(ErrorSummary),nameof(Title),nameof(DisplayUrl),nameof(Detail),nameof(Description),nameof(HasDescription),nameof(ThumbnailUrl)})Raise(name);}
 }
 
 public partial class DownloadWindow : Window
@@ -63,7 +64,11 @@ public partial class DownloadWindow : Window
         DownloadQuality.ItemsSource=_qualityHeights.Select(height=>height switch{0=>"最佳",2160=>"2160p / 4K",1440=>"1440p / 2K",_=>height+"p"}).ToArray();DownloadQuality.SelectedIndex=Array.IndexOf(_qualityHeights,options.MaxHeight);
         DownloadSubtitles.ItemsSource=new[]{"不保存字幕","人工字幕","含自动字幕"};DownloadSubtitles.SelectedIndex=options.Subtitles?options.AutoSubtitles?2:1:0;
         CookieSource.ItemsSource=new[]{"不读取登录态","Firefox","Chrome","Edge","Safari","Brave","cookies.txt 文件","浏览器 CDP","内嵌浏览器"};CookieSource.SelectedIndex=options.UseWebViewCookies?8:options.UseBrowserCookies?7:options.CookieFile.Length>0?6:Math.Max(0,Array.IndexOf(new[]{"","firefox","chrome","edge","safari","brave"},options.CookieBrowser));
+        BrowserConnectionPreset.ItemsSource=new[]{"本机浏览器 · 默认连接","本机浏览器 · 备用连接","自定义地址"};
+        ProxyPreset.ItemsSource=new[]{"不使用代理","本机代理 · 7890","本机代理 · 1080","自定义代理"};
         BrowserEndpoint.Text=options.Browser?.Endpoint??options.CdpEndpoint;
+        BrowserConnectionPreset.SelectedIndex=BrowserEndpoint.Text=="http://127.0.0.1:9222"?0:BrowserEndpoint.Text=="http://127.0.0.1:9223"?1:2;
+        ProxyPreset.SelectedIndex=options.Proxy.Length==0?0:options.Proxy=="http://127.0.0.1:7890"?1:options.Proxy=="socks5://127.0.0.1:1080"?2:3;
         CookieFileInput.Text=options.CookieFile;DownloadProxy.Text=options.Proxy;SaveMetadata.IsChecked=options.Metadata;ExpandPlaylist.IsChecked=options.ExpandPlaylist;
         if(editingJob is not null)
         {
@@ -200,6 +205,16 @@ public partial class DownloadWindow : Window
             RefreshSelection();
         };
         _entries.Add(entry);
+    }
+    private void ConnectionPresetChanged(object? sender,SelectionChangedEventArgs args)
+    {
+        if(BrowserEndpoint is null)return;BrowserEndpoint.IsVisible=BrowserConnectionPreset.SelectedIndex==2;
+        if(BrowserConnectionPreset.SelectedIndex is 0 or 1)BrowserEndpoint.Text=BrowserConnectionPreset.SelectedIndex==0?"http://127.0.0.1:9222":"http://127.0.0.1:9223";
+    }
+    private void ProxyPresetChanged(object? sender,SelectionChangedEventArgs args)
+    {
+        if(DownloadProxy is null)return;DownloadProxy.IsVisible=ProxyPreset.SelectedIndex==3;
+        if(ProxyPreset.SelectedIndex is >=0 and <3)DownloadProxy.Text=new[]{"","http://127.0.0.1:7890","socks5://127.0.0.1:1080"}[ProxyPreset.SelectedIndex];
     }
     private void SetBusy(bool value)
     {

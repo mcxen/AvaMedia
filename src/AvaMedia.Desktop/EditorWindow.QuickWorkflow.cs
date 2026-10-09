@@ -178,7 +178,7 @@ public partial class EditorWindow
         try
         {
             CommitActiveSegment(); Seek(_position); var entry = _activeSegment;
-            var parts = await new ClipSplitWindow(entry.Options, _info.Duration).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
+            var parts = await new ClipSplitWindow(entry.Options, _info.Duration,_engine,_path).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
             if (parts is null || _closed) return;
             var index = _segments.IndexOf(entry); if (index < 0) return;
             ReplaceSegment(index, parts);

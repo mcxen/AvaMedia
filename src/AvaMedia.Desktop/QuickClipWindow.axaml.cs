@@ -238,7 +238,7 @@ public sealed partial class QuickClipWindow : Window
         if (Entry(sender) is not { } entry) return; await entry.Ready;
         if (_closed || !_entries.Contains(entry)) return;
         if (entry.Info is null) { await Ui.Message(this, "分割失败", entry.Error); return; }
-        var options = await new ClipSplitWindow(entry.Options, entry.Info.Duration).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
+        var options = await new ClipSplitWindow(entry.Options, entry.Info.Duration,_engine,entry.Path).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
         if (!_closed && options is not null) ReplaceWithSegments(entry, options);
     }
 

@@ -46,7 +46,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         Add(fields, "字体", _font);
         _size = Number("SubtitleFontSize", options.SubtitleFontSize, 0, 200);
         ToolTip.SetTip(_size, "0 = 自动"); Add(fields, "字号 (px)", _size);
-        _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB";
+        _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB"; _color.IsReadOnly = true;
         var colors = new StackPanel { Spacing = 8 }; colors.Children.Add(_color);
         var palette = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var hex in new[] { "#FFFFFF", "#FFFF00", "#FFD166", "#00E5FF", "#FF6B6B", "#76FF03", "#C792EA", "#000000" })
@@ -56,7 +56,26 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
             AutomationProperties.SetName(swatch, hex); ToolTip.SetTip(swatch, hex);
             swatch.Click += (_, _) => _color.Text = hex; palette.Children.Add(swatch);
         }
-        colors.Children.Add(palette); colors.Children.Add(_colorError); Add(fields, "颜色", colors);
+        colors.Children.Add(palette);
+        var initialColor = Color.TryParse(options.SubtitleColor, out var parsedColor) ? parsedColor : Colors.White;
+        var channels = new[] { Ui.Number(initialColor.R,0,255), Ui.Number(initialColor.G,0,255), Ui.Number(initialColor.B,0,255) };
+        var swatchPreview = new Border { Height=20, Background=new SolidColorBrush(initialColor) }; colors.Children.Add(swatchPreview);
+        var syncingColor=false;
+        for (var index=0; index<channels.Length; index++)
+        {
+            var channel=channels[index]; colors.Children.Add(Ui.Text(new[]{"红","绿","蓝"}[index],"caption")); colors.Children.Add(Ui.Adjust(channel));
+            channel.ValueChanged+=(_,_)=>
+            {
+                if(syncingColor)return;
+                _color.Text=$"#{(int)(channels[0].Value??0):X2}{(int)(channels[1].Value??0):X2}{(int)(channels[2].Value??0):X2}";
+            };
+        }
+        _color.TextChanged+=(_,_)=>
+        {
+            if(!Color.TryParse(_color.Text,out var color))return; syncingColor=true;
+            channels[0].Value=color.R;channels[1].Value=color.G;channels[2].Value=color.B;swatchPreview.Background=new SolidColorBrush(color);syncingColor=false;
+        };
+ colors.Children.Add(_colorError); Add(fields, "颜色", colors);
         var positions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto"), RowDefinitions = new("Auto,Auto,Auto") };
         string[] arrows = ["↙", "↓", "↘", "←", "●", "→", "↖", "↑", "↗"];
         string[] names = ["左下", "中下", "右下", "左中", "居中", "右中", "左上", "中上", "右上"];
@@ -170,7 +189,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         return (int)value;
     }
     private static void Add(Panel fields, string label, Control control)
-    {
+    { control=Ui.Parameter(control,label);
         var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 8 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); fields.Children.Add(row);
     }

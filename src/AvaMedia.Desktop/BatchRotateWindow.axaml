@@ -81,7 +81,7 @@
       <TextBlock Text="输出格式" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="1" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="旋转输出格式"/>
       <TextBlock Grid.Column="2" Text="保存位置" VerticalAlignment="Center" Margin="8,0,0,0"/>
-      <TextBox Grid.Column="3" x:Name="OutputInput" AutomationProperties.Name="批量旋转输出文件夹"/>
+      <TextBox IsReadOnly="True" Grid.Column="3" x:Name="OutputInput" AutomationProperties.Name="批量旋转输出文件夹"/>
       <Button Grid.Column="4" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
       <StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" Spacing="18"><CheckBox x:Name="SourceOutputInput" Content="输出至源文件目录"/><CheckBox x:Name="SettingNameInput" Content="添加设置名称"/></StackPanel>
       <TextBlock Grid.Row="2" Grid.ColumnSpan="5" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>

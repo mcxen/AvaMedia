@@ -16,6 +16,44 @@ internal static class Ui
     public static TextBlock FormattedText(FormattableString text,string? role=null)
     {var label=Text("",role);Localization.SetText(label,text);return label;}
     public static TextBox Input(string value="",int width=0) => new(){Text=value,MinWidth=width,HorizontalAlignment=HorizontalAlignment.Stretch};
+    public static NumericUpDown Number(double value,double minimum,double maximum,double step=1) => new()
+    {Value=(decimal)value,Minimum=(decimal)minimum,Maximum=(decimal)maximum,Increment=(decimal)step,FormatString=step>=1?"0":"0.##"};
+    public static Control Parameter(Control control,string label)
+    {
+        if(control is not NumericUpDown number)return control;
+        Avalonia.Automation.AutomationProperties.SetName(number,label);return Adjust(number);
+    }
+    public static Control Adjust(NumericUpDown input,double? maximum=null)
+    {
+        var min=(double)input.Minimum;var max=maximum??Math.Min((double)input.Maximum,1000000);
+        max=Math.Max(min+.000001,max);var logarithmic=max-min>1000;
+        double Scale(double value)=>logarithmic?Math.Log10(Math.Max(0,value-min)+1):value;
+        double Unscale(double value)=>logarithmic?Math.Pow(10,value)+min-1:value;
+        var slider=new Slider{Minimum=Scale(min),Maximum=Scale(max),Value=Scale(Math.Clamp((double)(input.Value??input.Minimum),min,max)),MinWidth=64};
+        slider.SmallChange=(slider.Maximum-slider.Minimum)/100;slider.LargeChange=slider.SmallChange*10;
+        var syncing=false;
+        slider.PropertyChanged+=(_,change)=>
+        {
+            if(syncing||change.Property!=Slider.ValueProperty)return;
+            syncing=true;
+            var step=Math.Max(.001,(double)input.Increment);
+            input.Value=(decimal)Math.Clamp(Math.Round(Unscale(slider.Value)/step)*step,min,(double)input.Maximum);
+            syncing=false;
+        };
+        input.ValueChanged+=(_,_)=>{if(syncing)return;syncing=true;slider.Value=Scale(Math.Clamp((double)(input.Value??input.Minimum),min,max));syncing=false;};
+        input.PropertyChanged+=(_,change)=>
+        {
+            if(change.Property==Control.IsEnabledProperty)slider.IsEnabled=input.IsEnabled;
+            if(change.Property!=NumericUpDown.MinimumProperty&&change.Property!=NumericUpDown.MaximumProperty)return;
+            syncing=true;min=(double)input.Minimum;max=Math.Max(min+.000001,Math.Min((double)input.Maximum,maximum??1000000));logarithmic=max-min>1000;
+            slider.Minimum=Scale(min);slider.Maximum=Scale(max);slider.Value=Scale(Math.Clamp((double)(input.Value??input.Minimum),min,max));syncing=false;
+        };
+        slider.IsEnabled=input.IsEnabled;
+        var name=Avalonia.Automation.AutomationProperties.GetName(input);
+        Avalonia.Automation.AutomationProperties.SetName(slider,string.IsNullOrEmpty(name)?input.Name??"调整数值":name);
+        var row=new Grid{ColumnDefinitions=new("*,88"),ColumnSpacing=10};row.Children.Add(slider);
+        input.Width=88;input.HorizontalAlignment=HorizontalAlignment.Stretch;Grid.SetColumn(input,1);row.Children.Add(input);return row;
+    }
     public static ComboBox Combo(IEnumerable<string> items,string selected)
     {var list=items.ToArray();return new(){ItemsSource=list,SelectedItem=list.Contains(selected)?selected:list.FirstOrDefault(),HorizontalAlignment=HorizontalAlignment.Stretch};}
     public static async Task<string[]> Pick(Window owner,string title,bool multiple=true)

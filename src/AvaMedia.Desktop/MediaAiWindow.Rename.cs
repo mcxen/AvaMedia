@@ -35,10 +35,11 @@ public sealed partial class MediaAiWindow
         var limit = new NumericUpDown { Minimum = 1, Maximum = 8, Value = 3, Text = "3", Increment = 1, Width = 90 };
         var pattern = Ui.Input("{name}_{keyword}"); Localization.SetIsUserText(pattern, true);
         var custom = new StackPanel { Spacing = 5, IsVisible = false };
-        custom.Children.Add(pattern); custom.Children.Add(Ui.Text("可用：{name} 原名、{keyword} 标签、{index} 序号", "caption"));
+        custom.Children.Add(pattern);
+        var tokens=new WrapPanel(); foreach(var token in new[]{"{name}","{keyword}","{index}"}) { var insert=Ui.Button(token=="{name}"?"原文件名":token=="{keyword}"?"标签":"序号",()=>pattern.Text+=token); insert.Margin=new(0,0,6,4);tokens.Children.Add(insert); } custom.Children.Add(tokens); custom.Children.Add(Ui.Text("可用：{name} 原名、{keyword} 标签、{index} 序号", "caption"));
         var options = new Grid { ColumnDefinitions = new("Auto,250,Auto,Auto,*"), ColumnSpacing = 10 };
         options.Children.Add(Ui.Text("名称格式")); Grid.SetColumn(format, 1); options.Children.Add(format);
-        var labelCount = Ui.Text("标签个数"); Grid.SetColumn(labelCount, 2); options.Children.Add(labelCount); Grid.SetColumn(limit, 3); options.Children.Add(limit); root.Children.Add(options);
+        var labelCount = Ui.Text("标签个数"); Grid.SetColumn(labelCount, 2); options.Children.Add(labelCount); var countControl=Ui.Adjust(limit); Grid.SetColumn(countControl,3); Grid.SetColumnSpan(countControl,2); options.Children.Add(countControl); root.Children.Add(options);
         Grid.SetRow(custom, 1); root.Children.Add(custom);
         var list = new ListBox { ItemsSource = rows };
         list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())

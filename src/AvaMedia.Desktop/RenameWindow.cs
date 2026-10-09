@@ -171,5 +171,5 @@ public sealed partial class RenameWindow : Window
     private async Task ShowErrorAsync(string title, Exception error)
     { AppDiagnostics.Record(title, error); if (!_closed) { try { await Ui.Message(this, title, error.Message); } catch (Exception noticeError) { AppDiagnostics.Record("Rename error notice", noticeError); } } }
     private static Grid AddRow(Panel panel, string label, Control control)
-    { var row = new Grid { ColumnDefinitions = new("100,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label, "caption")); Grid.SetColumn(control, 1); row.Children.Add(control); panel.Children.Add(row); return row; }
+    { control=Ui.Parameter(control,label); var row = new Grid { ColumnDefinitions = new("100,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label, "caption")); Grid.SetColumn(control, 1); row.Children.Add(control); panel.Children.Add(row); return row; }
 }

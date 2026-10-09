@@ -35,7 +35,7 @@ public sealed record DownloadOptions
 }
 
 public sealed record DownloadVideo(string Url, string Id, string Title, string Uploader,
-    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null, string SourceUrl = "", WebViewMediaContext? WebView = null);
+    double Duration, string Platform, bool IsLive = false, BrowserMediaContext? Browser = null, string SourceUrl = "", WebViewMediaContext? WebView = null, string ThumbnailUrl = "");
 public sealed record DownloadInspection(IReadOnlyList<DownloadVideo> Videos, bool Truncated = false);
 public sealed record VideoDownloadRequest(IReadOnlyList<DownloadVideo> Videos, string Folder,
     string Format, DownloadOptions Options, string OutputName = "");

@@ -161,6 +161,7 @@ public sealed partial class MediaAiWindow
     }
     private Control AddSettingRow(string label, Control control)
     {
+        control=Ui.Parameter(control,label);
         var row = new Grid { ColumnDefinitions = new("140,*"), ColumnSpacing = 12 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); _settingsPanel.Children.Add(row);
         return row;

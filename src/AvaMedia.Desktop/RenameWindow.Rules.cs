@@ -113,7 +113,10 @@ public sealed partial class RenameWindow
                 Numbering(); Placement(); break;
             case RenameAction.Date:
                 Choice("日期来源", ["修改时间", "创建时间"], (int)rule.Date, value => step.Operation = step.Operation with { Date = (RenameDate)value });
-                Text("日期格式", rule.DateFormat, text => step.Operation = step.Operation with { DateFormat = text }); Placement(); break;
+                var dateFormats = new[] { "yyyyMMdd", "yyyy-MM-dd", "yyyy-MM-dd_HH-mm", "yyyy年MM月dd日", "yyyyMMdd_HHmmss" };
+                var dateChoice = Ui.Combo(dateFormats.Append(rule.DateFormat).Distinct(), rule.DateFormat);
+                dateChoice.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((pattern, _) => { try { return Ui.Text(DateTime.Today.ToString(pattern)); } catch(FormatException) { return Ui.Text(pattern??""); } });
+                AddRow(_ruleEditor,"日期样式",dateChoice);dateChoice.SelectionChanged+=(_,_)=>{if(dateChoice.SelectedItem is string pattern)step.Operation=step.Operation with {DateFormat=pattern};}; Placement(); break;
             case RenameAction.Extension:
                 Text("扩展名", rule.Text, text => step.Operation = step.Operation with { Text = text });
                 _ruleEditor.Children.Add(Ui.Text("只修改扩展名，不转换文件格式。", "caption")); break;
@@ -133,7 +136,11 @@ public sealed partial class RenameWindow
                 Toggle("从末尾计算", rule.FromEnd, value => step.Operation = step.Operation with { FromEnd = value });
                 _ruleEditor.Children.Add(Ui.Text("位置从 0 开始", "caption"));
             }
-            else Text("分隔符", rule.Separator, text => step.Operation = step.Operation with { Separator = text });
+            else
+            {
+                var separator=Text("分隔符",rule.Separator,text=>step.Operation=step.Operation with {Separator=text});
+                var choices=new WrapPanel();foreach(var value in new[]{""," ","_","-","."}){var button=Ui.Button(value.Length==0?"无":value==" "?"空格":value,()=>separator.Text=value);button.Margin=new(0,0,4,4);choices.Children.Add(button);}_ruleEditor.Children.Add(choices);
+            }
         }
         TextBox Text(string label, string value, Action<string> change)
         { var box = Ui.Input(value); Localization.SetIsUserText(box, true); AddRow(_ruleEditor, label, box); box.TextChanged += (_, _) => change(box.Text ?? ""); return box; }

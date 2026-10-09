@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop"
+<Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop"
         x:Class="AvaMedia.Desktop.SettingsWindow"
         Title="选项" Width="880" Height="660" MinWidth="780" MinHeight="600"
         Classes="settings" WindowStartupLocation="CenterOwner">
@@ -23,7 +23,7 @@
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
                       <TextBlock Text="默认输出文件夹" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹"/>
+                      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
                       <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick"/>
                     </Grid>
                     <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载仍使用默认输出文件夹。"/>
@@ -62,15 +62,17 @@
                 <TextBlock Classes="settingsHeading" Text="任务与线程"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
                       <TextBlock Text="同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/>
+                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #ParallelInput}"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–8 个任务" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
                     <CheckBox x:Name="MultithreadInput" Content="使用多线程转码"/>
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
                       <TextBlock Text="每个任务的线程数" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" AutomationProperties.Name="多线程数量"/>
+                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #ThreadsInput}"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–16；关闭多线程时使用 1" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
                   </StackPanel>
@@ -80,14 +82,16 @@
                 <TextBlock Classes="settingsHeading" Text="默认图片质量"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
                       <TextBlock Text="JPEG 质量" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPEG 质量"/>
+                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #JpegQualityInput}"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
                       <TextBlock Text="WebP 质量" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP 质量"/>
+                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #WebpQualityInput}"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </Grid>
                   </StackPanel>
@@ -229,9 +233,10 @@
                           <ComboBoxItem Content="提示词约束"/><ComboBoxItem Content="JSON 对象"/><ComboBoxItem Content="严格 JSON Schema"/>
                         </ComboBox>
                       </Grid>
-                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
                         <TextBlock Text="请求超时（秒）" Classes="settingLabel"/>
                         <NumericUpDown Grid.Column="1" x:Name="OnlineTimeoutInput" Minimum="10" Maximum="600" Increment="10" FormatString="0" HorizontalAlignment="Left"/>
+                        <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #OnlineTimeoutInput}"/>
                       </Grid>
                     </StackPanel>
                   </Expander>
@@ -260,17 +265,17 @@
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
                       <TextBlock Text="FFmpeg" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="FfmpegInput" Watermark="自动查找" AutomationProperties.Name="FFmpeg 路径"/>
+                      <TextBox Grid.Column="1" x:Name="FfmpegInput" Watermark="自动查找" AutomationProperties.Name="FFmpeg 路径" IsReadOnly="True"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfmpegBrowseClick"/>
                     </Grid>
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
                       <TextBlock Text="FFprobe" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="FfprobeInput" Watermark="自动查找" AutomationProperties.Name="FFprobe 路径"/>
+                      <TextBox Grid.Column="1" x:Name="FfprobeInput" Watermark="自动查找" AutomationProperties.Name="FFprobe 路径" IsReadOnly="True"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfprobeBrowseClick"/>
                     </Grid>
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
                       <TextBlock Text="yt-dlp（下载）" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径"/>
+                      <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径" IsReadOnly="True"/>
                       <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="YtdlpBrowseClick"/>
                     </Grid>
                     <TextBlock Classes="caption" Text="留空使用内置工具" TextWrapping="Wrap"/>

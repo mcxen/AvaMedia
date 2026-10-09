@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -26,8 +27,8 @@ public sealed partial class PersonClipWindow : Window
     private readonly List<Entry> _entries = [];
     private readonly ListBox _files = new() { Name = "PersonClipFiles" };
     private readonly ListBox _ranges = new() { Name = "PersonClipExcludedRanges", Height = 200 };
-    private readonly TextBox _start = new() { Name = "PersonClipExcludeStart", Text = "00:00:00.000" };
-    private readonly TextBox _end = new() { Name = "PersonClipExcludeEnd", Text = "00:00:00.000" };
+    private readonly TextBox _start = new() { IsReadOnly = true, Name = "PersonClipExcludeStart", Text = "00:00:00.000" };
+    private readonly TextBox _end = new() { IsReadOnly = true, Name = "PersonClipExcludeEnd", Text = "00:00:00.000" };
     private readonly NumericUpDown _fps = Number(.25m, 16, 2, .25m);
     private readonly NumericUpDown _threshold = Number(.1m, .9m, .35m, .05m);
     private readonly NumericUpDown _padding = Number(0, 30, .5m, .1m);
@@ -41,7 +42,7 @@ public sealed partial class PersonClipWindow : Window
     private readonly CheckBox _dark = new() { Content = "快速排除黑灯画面", IsChecked = true };
     private readonly CheckBox _blank = new() { Content = "快速排除无画面", IsChecked = true };
     private readonly CheckBox _sourceFolder = new() { Content = "输出至源文件目录" };
-    private readonly TextBox _folder = new() { Name = "PersonClipOutputFolder" };
+    private readonly TextBox _folder = new() { IsReadOnly = true, Name = "PersonClipOutputFolder" };
     private readonly TextBlock _modelStatus = Ui.Text("", "caption");
     private readonly TextBlock _status = Ui.Text("");
     private readonly StackPanel _rangePanel = new() { Spacing = 8 };
@@ -64,7 +65,7 @@ public sealed partial class PersonClipWindow : Window
         bool editing = false, bool? outputToSource = null)
     {
         _engine = engine; _settings = settings; _manageModels = manageModels;
-        Title = "保留有人片段 · Beta"; Width = 920; Height = 740; MinWidth = 760; MinHeight = 650;
+        Title = "保留有人片段 · Beta"; Width = 1120; Height = 850; MinWidth = 980; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var defaults = initial?.Detection ?? new Storage().LoadToolOptions<PersonClipOptions>("person-clip") ?? new();
         _fps.Value = (decimal)defaults.FramesPerSecond; _threshold.Value = (decimal)defaults.Threshold;
@@ -115,7 +116,10 @@ public sealed partial class PersonClipWindow : Window
         parameters.Children.Add(Ui.Button("模型管理…", async () => await OpenModelsAsync(null)));
         var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 12 };
         var profile = new StackPanel { Spacing = 8 }; AddField(profile, "检测档位", _detectionMode); left.Children.Add(profile);
-        Grid.SetRow(_files, 1); left.Children.Add(_files);
+        var preview = new MediaPreviewPanel(engine);
+        var sourceArea = new Grid { RowDefinitions = new("*,240"), RowSpacing = 8 }; sourceArea.Children.Add(_files); Grid.SetRow(preview,1); sourceArea.Children.Add(preview);
+        Grid.SetRow(sourceArea, 1); left.Children.Add(sourceArea);
+        _files.SelectionChanged += (_,_) => preview.SetSource(Selected?.Path); Closed += (_,_) => preview.Dispose();
         var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _analyze = Ui.Button("开始分析", async () => await AnalyzeAsync()); _analyze.Classes.Add("primary");
         _stop = Ui.Button("停止", () => _analysis?.Cancel()); _stop.IsVisible = false;
@@ -125,8 +129,7 @@ public sealed partial class PersonClipWindow : Window
         _ranges.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<PersonClipRange>((range, _) => Ui.Text(range is null ? "" : MediaTime.Format(range.Start) + " – " + MediaTime.Format(range.End)));
         AddField(_rangePanel, "开始时间", _start); AddField(_rangePanel, "结束时间", _end);
         var rangeActions = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var button in new[] { Ui.Button("添加区间", () => SaveRange(false)), Ui.Button("保存修改", () => SaveRange(true)),
-            Ui.Button("移除区间", RemoveRange), Ui.Button("从视频标记…", async () => await MarkRangeAsync()) })
+        foreach (var button in new[] { Ui.Button("从视频标记 / 调整…", async () => await MarkRangeAsync()), Ui.Button("移除区间", RemoveRange) })
         { button.Margin = new(0, 0, 8, 8); rangeActions.Children.Add(button); }
         _rangePanel.Children.Add(rangeActions);
         var results = new StackPanel { Spacing = 10 };
@@ -156,7 +159,7 @@ public sealed partial class PersonClipWindow : Window
     private static NumericUpDown Number(decimal min, decimal max, decimal value, decimal step) => new()
         { Minimum = min, Maximum = max, Value = value, Increment = step, Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
     private static void AddField(StackPanel panel, string label, Control input)
-    {
+    { input=Ui.Parameter(input,label);
         var row = new Grid { ColumnDefinitions = new("145,*"), ColumnSpacing = 8 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); panel.Children.Add(row);
     }
@@ -180,19 +183,6 @@ public sealed partial class PersonClipWindow : Window
     {
         _ranges.ItemsSource = Selected?.Excluded ?? []; _rangePanel.IsEnabled = Selected is not null;
         _start.Text = _end.Text = "00:00:00.000";
-    }
-    private void SaveRange(bool replace)
-    {
-        if (Selected is not { } entry) return;
-        try
-        {
-            var range = new PersonClipRange(ClipSplit.ParseTime(_start.Text), ClipSplit.ParseTime(_end.Text)); range.Validate();
-            var ranges = entry.Excluded.ToList();
-            if (replace) { if (_ranges.SelectedIndex < 0) throw new ArgumentException("请选择要修改的区间。"); ranges[_ranges.SelectedIndex] = range; }
-            else ranges.Add(range);
-            entry.Excluded = PersonClipExclusions.Normalize(ranges); entry.Result = null; entry.Status = "待分析"; RefreshFiles(); _status.Text = "";
-        }
-        catch (Exception error) { _status.Text = error.Message; }
     }
     private void RemoveRange()
     {

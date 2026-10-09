@@ -43,6 +43,7 @@ public sealed class VideoSlimmingEntry(string path) : Observable
 public partial class VideoSlimmingWindow : Window
 {
     private readonly IMediaEngine _engine;
+    private readonly MediaPreviewPanel _preview;
     private readonly ObservableCollection<VideoSlimmingEntry> _entries = [];
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _analysisCancellation;
@@ -66,6 +67,7 @@ public partial class VideoSlimmingWindow : Window
         OutputInput.Text = outputFolder;
         SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource;
         if (editing) { Title = "编辑视频瘦身任务"; ConfirmButton.Content = "保存修改"; }
+        _preview = new MediaPreviewPanel(engine); PreviewHost.Content = _preview;
         SourceList.ItemsSource = _entries;
         foreach (var combo in new[] { PresetInput, CodecInput, FormatInput })
             combo.SelectionChanged += (_, _) =>
@@ -91,7 +93,7 @@ public partial class VideoSlimmingWindow : Window
                 engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 16) : 1))
             { _entries[0].Analysis = analysis; Refresh(); }
         };
-        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); _analysisCancellation?.Cancel(); Localization.Changed -= LanguageChanged; };
+        Closed += (_, _) => { _closed = true; _preview.Dispose(); _lifetime.Cancel(); _analysisCancellation?.Cancel(); Localization.Changed -= LanguageChanged; };
         Localization.Changed += LanguageChanged;
         UpdateOutput(); Refresh();
     }
@@ -161,8 +163,10 @@ public partial class VideoSlimmingWindow : Window
     }
     private void RefreshDetails()
     {
-        if (AnalysisDetails is null) return;
+        if (AnalysisDetails is null || _preview is null) return;
+        if (SourceList.SelectedItem is null && _entries.Count > 0) SourceList.SelectedIndex = 0;
         var entry = SourceList.SelectedItem as VideoSlimmingEntry;
+        _preview.SetSource(entry?.Path); SizeChart.SetSizes(entry?.Bytes ?? 0,entry?.Analysis?.EstimatedBytes);
         AnalysisDetails.IsVisible = entry is { Analysis: not null } || entry?.HasError == true;
         SelectedFileText.Text = entry?.Name ?? "";
         QualityText.Text = entry?.QualitySummary ?? "";

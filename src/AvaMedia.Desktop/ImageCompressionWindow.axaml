@@ -78,6 +78,7 @@
               <Slider x:Name="QualitySlider" Minimum="1" Maximum="100" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="调整压缩质量"/>
               <CheckBox x:Name="ResizeInput" Content="缩小最长边"/>
               <NumericUpDown x:Name="EdgeInput" Minimum="1" Maximum="32768" Increment="1" Value="1920" FormatString="0" AutomationProperties.Name="压缩后最大边长"/>
+              <controls:ParameterSlider Input="{Binding #EdgeInput}"/>
             </StackPanel>
             <Button x:Name="PreviewAllButton" Content="预览全部" Click="PreviewAllClick"/>
             <TextBlock x:Name="BatchSummary" Classes="caption" TextWrapping="Wrap"/>
@@ -87,7 +88,7 @@
     </Grid>
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
       <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="压缩图片保存文件夹"/>
+      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="压缩图片保存文件夹" IsReadOnly="True"/>
       <Button Grid.Column="2" x:Name="BrowseButton" Classes="field-action" Content="浏览…" Click="BrowseClick"/>
       <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="20">
         <CheckBox x:Name="SourceFolderInput" Content="输出至源文件目录"/>
