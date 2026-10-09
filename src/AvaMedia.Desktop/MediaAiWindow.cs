@@ -179,15 +179,19 @@ public sealed partial class MediaAiWindow : Window
             _status.Text = Localization.Format($"完成 {results.Count} / {paths.Length} 个文件");
             _activity.Finish(AiActivityState.Completed, "标签分析完成");
             var failedPaths = paths.Where(path => !_results.ContainsKey(path)).ToArray();
+            var sceneFailedPaths = results.Where(result => result.SceneError is not null).Select(result => result.Path).ToArray();
             var resultActions = new List<Notifications.NotificationAction> {
                     new("查看结果", () => Notifications.NotificationCenter.ShowOwnerAsync(this), Primary: failedPaths.Length == 0, Enabled: () => !_closed),
                     new("导出标签 JSON…", ExportAsync, Enabled: () => !_closed && !_busy),
                     new("重新分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Enabled: () => CanAnalyzeNotification(paths)) };
             if (failedPaths.Length > 0) resultActions.Insert(0, new("重试失败文件", () => { _ = AnalyzeAsync(failedPaths); return Task.CompletedTask; }, Primary: true,
                 Enabled: () => CanAnalyzeNotification(failedPaths)));
+            if (sceneFailedPaths.Length > 0) resultActions.Insert(0, new("重试场景识别", () => { _ = AnalyzeAsync(sceneFailedPaths); return Task.CompletedTask; },
+                Enabled: () => CanAnalyzeNotification(sceneFailedPaths)));
             Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "标签分析完成",
-                (FormattableString)$"成功 {results.Count} 个，失败 {failedPaths.Length} 个。",
-                failedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
+                sceneFailedPaths.Length == 0 ? (FormattableString)$"成功 {results.Count} 个，失败 {failedPaths.Length} 个。"
+                    : $"标签完成 {results.Count}/{paths.Length} 个 · 场景失败 {sceneFailedPaths.Length} 个",
+                failedPaths.Length == 0 && sceneFailedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
             foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
                 if (_results.TryGetValue(entry.Path, out var result)) ShowResult(entry, result);
             RenderSelectedResult();

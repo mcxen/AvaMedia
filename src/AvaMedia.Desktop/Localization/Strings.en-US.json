@@ -2230,6 +2230,8 @@
   "画面照明": "Image lighting",
   "识别场景与照明": "Identify scenes and lighting",
   "场景识别失败：": "Scene recognition failed: ",
+  "重试场景识别": "Retry scene recognition",
+  "标签完成 {0}/{1} 个 · 场景失败 {2} 个": "Tags completed for {0}/{1} files · Scenes failed for {2}",
   "已识别 {0} 个标签 · 场景识别失败": "Recognized {0} tags · Scene recognition failed",
   "首次分析需要下载模型 · 约 {0} MB": "The first analysis requires a model download · About {0} MB",
   "准备场景模型": "Preparing the scene model",
