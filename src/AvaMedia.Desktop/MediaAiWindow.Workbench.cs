@@ -32,7 +32,7 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _sceneCaption = Ui.Text("", "caption");
     private readonly TextBlock _chartSummary = Ui.Text("", "caption");
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
-    private readonly StackPanel _sceneThresholdRow = new() { Spacing = 3 };
+    private readonly StackPanel _sceneThresholdRow = new() { Spacing = 2 };
     private bool _syncingThresholds, _writingTxt;
     private MediaTagResult? _indexedResult;
     private Dictionary<string, int> _scoreIndices = new(StringComparer.OrdinalIgnoreCase);
@@ -101,14 +101,23 @@ public sealed partial class MediaAiWindow
     };
     private Control BuildWorkbench()
     {
-        var panel = new StackPanel { Spacing = 10 };
-        var options = new Grid { ColumnDefinitions = new("*,*,*,Auto"), ColumnSpacing = 8 };
-        Control[] selectors = [_chartSource, _scoreMode, _tagScope, _followLive];
-        for (var i = 0; i < selectors.Length; i++) { Grid.SetColumn(selectors[i], i); options.Children.Add(selectors[i]); }
+        var panel = new WrapPanel();
+        var options = new WrapPanel { Margin = new(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+        _chartSource.Width = 236; _scoreMode.Width = 138; _tagScope.Width = 128;
+        foreach (var selector in new[] { _chartSource, _scoreMode, _tagScope })
+        {
+            selector.Margin = new(0, 0, 8, 6); options.Children.Add(selector);
+        }
         panel.Children.Add(options);
-        var thresholds = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 };
-        var tagRow = new StackPanel { Spacing = 3 }; tagRow.Children.Add(_thresholdCaption); tagRow.Children.Add(_tagThreshold); thresholds.Children.Add(tagRow);
-        _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold); Grid.SetColumn(_sceneThresholdRow, 1); thresholds.Children.Add(_sceneThresholdRow); panel.Children.Add(thresholds);
+        foreach (var slider in new[] { _tagThreshold, _sceneThreshold })
+        {
+            slider.Width = 184; slider.Height = 24; slider.HorizontalAlignment = HorizontalAlignment.Left;
+        }
+        var thresholds = new WrapPanel();
+        var tagRow = new StackPanel { Spacing = 2, Margin = new(0, 0, 12, 6) };
+        tagRow.Children.Add(_thresholdCaption); tagRow.Children.Add(_tagThreshold); thresholds.Children.Add(tagRow);
+        _sceneThresholdRow.Margin = new(0, 0, 0, 6);
+        _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold); thresholds.Children.Add(_sceneThresholdRow); panel.Children.Add(thresholds);
         _tagThreshold.Value = (double)(_threshold.Value ?? .4m);
         _threshold.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty) SetThreshold((double)(_threshold.Value ?? .4m), false); };
         _tagThreshold.PropertyChanged += (_, change) => { if (change.Property == Slider.ValueProperty) SetThreshold(_tagThreshold.Value, false); };
@@ -139,13 +148,12 @@ public sealed partial class MediaAiWindow
     private Control BuildCharts()
     {
         var charts = new Grid { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
-        var bars = new StackPanel { Spacing = 8 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
-        charts.Children.Add(ChartPanel(bars));
-        var curve = new StackPanel { Spacing = 8 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
-        var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; sample.Children.Add(_sampleSummary); Grid.SetColumn(_playSample, 1); sample.Children.Add(_playSample); curve.Children.Add(sample);
-        var right = ChartPanel(curve); Grid.SetColumn(right, 1); charts.Children.Add(right); return charts;
+        var bars = new StackPanel { Spacing = 6 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
+        var left = ChartPanel(bars); left.VerticalAlignment = VerticalAlignment.Stretch; charts.Children.Add(left);
+        var curve = new StackPanel { Spacing = 6 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
+        var right = ChartPanel(curve); right.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(right, 1); charts.Children.Add(right); return charts;
     }
-    private static Border ChartPanel(Control content)
+    private static Border ChartPanel(Control? content = null)
     {
         var panel = new Border { Child = content, Padding = new(12), CornerRadius = new(6), BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
         panel.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("UiControlRadius"));
@@ -201,6 +209,7 @@ public sealed partial class MediaAiWindow
         _chartSummary.Text = result is null ? Localization.Text("等待识别数据") : Localization.Format($"采样 {(semantic ? result.Scenes?.Frames.Count ?? 0 : result.Frames.Count)}/{result.SampledFrames} 帧 · 达标 {candidates.Count(tag => semantic ? SceneQualifies(result, tag) : tag.Score >= threshold)} 个");
         var cursor = result is null ? 0 : CursorFor(result);
         _sampleSummary.Text = result is null ? "" : MediaTime.Format(cursor);
+        _sampleSummary.IsVisible = result is not null && VideoFormats.IsVideo(result.Path);
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
         _scoreBars.Height = bars.Length == 0 ? 180 : 28 + bars.Length * 36;

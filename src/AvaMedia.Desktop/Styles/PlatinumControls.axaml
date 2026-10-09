@@ -17,6 +17,9 @@
     <Style Selector="^:focus-visible /template/ controls|PlatinumBevel#PlatinumFace"><Setter Property="IsFocusedFace" Value="True"/></Style>
     <Style Selector="^[IsDefault=true]"><Setter Property="BorderThickness" Value="4"/></Style>
   </ControlTheme>
+  <ControlTheme x:Key="PlatinumToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource PlatinumButtonTheme}">
+    <Style Selector="^:checked /template/ controls|PlatinumBevel#PlatinumFace"><Setter Property="IsPressed" Value="True"/></Style>
+  </ControlTheme>
   <ControlTheme x:Key="PlatinumBevelButtonTheme" TargetType="Button" BasedOn="{StaticResource PlatinumButtonTheme}">
     <Style Selector="^ /template/ controls|PlatinumBevel#PlatinumFace"><Setter Property="CornerRadius" Value="0"/></Style>
   </ControlTheme>

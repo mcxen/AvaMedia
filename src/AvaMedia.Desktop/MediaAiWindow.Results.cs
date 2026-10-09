@@ -12,26 +12,41 @@ public sealed partial class MediaAiWindow
 {
     private readonly TextBlock _detailTitle = Ui.Text("识别结果", "heading");
     private readonly TextBlock _detailState = Ui.Text("尚未添加文件", "caption");
-    private readonly TextBox _tagSearch = new() { Watermark = "查找标签", Name = "MediaAiTagSearch" };
-    private readonly StackPanel _tagGroups = new() { Spacing = 14 };
-    private readonly Image _preview = new() { Height = 140, Stretch = Stretch.Uniform, IsVisible = false };
+    private readonly TextBox _tagSearch = new() { Watermark = "查找标签", Name = "MediaAiTagSearch", Width = 240 };
+    private readonly Button _editTags = new() { Content = "编辑标签…", IsVisible = false };
+    private readonly Button _restoreTags = new() { Content = "恢复识别标签", IsVisible = false };
+    private readonly Border _tagPanel = ChartPanel();
+    private readonly StackPanel _tagGroups = new() { Spacing = 10 };
+    private readonly Image _preview = new() { Width = 224, Height = 126, Stretch = Stretch.Uniform, IsVisible = false, VerticalAlignment = VerticalAlignment.Top };
     private readonly Expander _details = new() { Header = "识别详情", IsVisible = false };
     private Bitmap? _previewBitmap;
     private CancellationTokenSource? _previewRequest;
 
     private Control BuildResultPane()
     {
-        var result = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 10 };
-        var content = new StackPanel { Spacing = 14 };
-        var heading = new Grid { ColumnDefinitions = new("*,190"), ColumnSpacing = 12 };
-        var title = new StackPanel { Spacing = 5 }; title.Children.Add(_detailTitle); title.Children.Add(_detailState); heading.Children.Add(title);
-        Grid.SetColumn(_preview, 1); heading.Children.Add(_preview); content.Children.Add(heading);
-        content.Children.Add(BuildWorkbench()); content.Children.Add(BuildCharts()); content.Children.Add(_tagSearch);
-        content.Children.Add(_tagGroups); content.Children.Add(_details);
-        result.Children.Add(new ScrollViewer { Content = content, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
-        var actions = new WrapPanel();
-        foreach (var button in new[] { _saveTxt, _copy, _export, _rename, _undo }) { button.Margin = new(0, 0, 8, 6); actions.Children.Add(button); }
-        Grid.SetRow(actions, 1); result.Children.Add(actions); return result;
+        var content = new StackPanel { Spacing = 10 };
+        var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
+        heading.Children.Add(_preview);
+        _detailTitle.MaxLines = 2; _detailTitle.TextTrimming = TextTrimming.CharacterEllipsis;
+        var title = new StackPanel { Spacing = 6 };
+        title.Children.Add(_detailTitle); title.Children.Add(_detailState);
+        _sampleSummary.Classes.Add("time");
+        title.Children.Add(WorkbenchActions(_sampleSummary, _playSample, _followLive));
+        title.Children.Add(WorkbenchActions(_saveTxt, _export, _rename, _undo));
+        Grid.SetColumn(title, 1); heading.Children.Add(title); content.Children.Add(ChartPanel(heading));
+        content.Children.Add(ChartPanel(BuildWorkbench())); content.Children.Add(BuildCharts());
+        var tags = new StackPanel { Spacing = 6 };
+        tags.Children.Add(WorkbenchActions(_tagSearch, _editTags, _restoreTags, _copy));
+        tags.Children.Add(_tagGroups); tags.Children.Add(_details); _tagPanel.Child = tags; content.Children.Add(_tagPanel);
+        _editTags.Click += async (_, _) =>
+        {
+            if (_list.SelectedItem is MediaFileEntry entry && _results.TryGetValue(entry.Path, out var result)) await EditTagsAsync(result);
+        };
+        _restoreTags.Click += (_, _) =>
+        {
+            if (_list.SelectedItem is MediaFileEntry entry) { _editedTags.Remove(entry.Path); RefreshDisplayedResults(); }
+        };
+        return new ScrollViewer { Content = content, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
     }
     private void RenderSelectedResult()
     {
@@ -39,7 +54,12 @@ public sealed partial class MediaAiWindow
         _tagGroups.Children.Clear(); _details.IsVisible = false;
         var entry = _list.SelectedItem as MediaFileEntry;
         _detailTitle.Text = entry?.Name ?? Localization.Text("识别结果"); Localization.SetIsUserText(_detailTitle, true);
+        ToolTip.SetTip(_detailTitle, entry?.Path);
         _tagSearch.IsVisible = entry is not null && TryDisplayedResult(entry.Path, out _);
+        _tagPanel.IsVisible = _tagSearch.IsVisible || entry?.Status == Localization.Text("失败") && entry.Details.Length > 0;
+        _editTags.IsVisible = entry is not null && _results.ContainsKey(entry.Path);
+        _restoreTags.IsVisible = _editTags.IsVisible && _editedTags.ContainsKey(entry!.Path);
+        _followLive.IsVisible = _playSample.IsVisible = entry is not null && VideoFormats.IsVideo(entry.Path);
         if (entry is null || !TryDisplayedResult(entry.Path, out var result))
         {
             _detailState.Text = entry?.Status ?? Localization.Text("尚未添加文件");
@@ -47,10 +67,6 @@ public sealed partial class MediaAiWindow
             RenderCharts(null); UpdateActions(); return;
         }
         RenderCharts(result);
-        var edits=new StackPanel { Orientation=Orientation.Horizontal, Spacing=8 };
-        edits.Children.Add(Ui.Button("编辑标签…",async()=>await EditTagsAsync(result)));
-        if(_editedTags.ContainsKey(result.Path))edits.Children.Add(Ui.Button("恢复识别标签",()=>{_editedTags.Remove(result.Path);RefreshDisplayedResults();}));
-        if (_results.ContainsKey(result.Path)) _tagGroups.Children.Add(edits);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
         if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
         var tags = ResultTags(result, search: true).ToArray();

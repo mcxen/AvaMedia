@@ -17,7 +17,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
     private readonly ListBox _list = new() { Name = "MediaAiFiles" };
-    private readonly StackPanel _imports = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly WrapPanel _imports = new();
     private readonly NumericUpDown _threshold = new() { Minimum = .05m, Maximum = .95m, Value = .4m, Increment = .05m };
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Value = 8, Increment = 1 };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU" };
@@ -27,7 +27,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly Controls.AiActivityView _activity = new() { Compact = true };
-    private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary", "dialog-action" } };
+    private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary" } };
     private readonly Button _rename = new() { Content = "标签重命名…" };
     private readonly Button _undo = new() { Content = "撤销重命名" };
     private readonly Button _stop = new() { Content = "停止", IsVisible = false };

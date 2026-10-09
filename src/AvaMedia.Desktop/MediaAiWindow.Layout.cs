@@ -26,8 +26,8 @@ public sealed partial class MediaAiWindow
 
     private void BuildInterface()
     {
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(20), RowSpacing = 12 };
-        var toolbar = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
+        ConfigureWorkbenchScrollbars();
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 10 };
         _imports.Children.Add(Ui.Button("添加文件…", async () =>
         {
             var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
@@ -46,7 +46,10 @@ public sealed partial class MediaAiWindow
             if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
             RenderSelectedResult(); UpdateActions();
         }));
-        toolbar.Children.Add(_imports); Grid.SetColumn(_advanced, 1); toolbar.Children.Add(_advanced); root.Children.Add(toolbar);
+        foreach (var button in _imports.Children) button.Margin = new(0, 0, 6, 6);
+        _imports.Margin = new(0, 0, 10, 0);
+        var toolbar = new WrapPanel(); toolbar.Children.Add(_imports);
+        toolbar.Children.Add(WorkbenchActions(_analyze, _stop, _advanced)); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
@@ -54,7 +57,7 @@ public sealed partial class MediaAiWindow
         _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
         {
             if (entry is null) return new TextBlock();
-            var row = new Grid { ColumnDefinitions = new("28,*"), ColumnSpacing = 8, Margin = new(0, 7) };
+            var row = new Grid { ColumnDefinitions = new("24,*"), ColumnSpacing = 6, Margin = new(0, 5) };
             var check = new CheckBox { VerticalAlignment = VerticalAlignment.Top };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaFileEntry.Include)) { Mode = BindingMode.TwoWay }); row.Children.Add(check);
             var content = new StackPanel { Spacing = 4 };
@@ -71,14 +74,12 @@ public sealed partial class MediaAiWindow
         var fileBody = new Grid(); fileBody.Children.Add(_list);
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; fileBody.Children.Add(_empty);
         Grid.SetRow(fileBody, 1); files.Children.Add(fileBody);
-        var body = new Grid { ColumnDefinitions = new("270,*"), ColumnSpacing = 18 };
-        body.Children.Add(files); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
+        var body = new Grid { ColumnDefinitions = new("248,*"), ColumnSpacing = 12 };
+        var filePanel = ChartPanel(files); filePanel.VerticalAlignment = VerticalAlignment.Stretch;
+        body.Children.Add(filePanel); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
         Grid.SetRow(_activity, 2); root.Children.Add(_activity);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
-        var state = new StackPanel { Spacing = 4 }; state.Children.Add(_status); state.Children.Add(_modelStatus); footer.Children.Add(state);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        actions.Children.Add(_stop); actions.Children.Add(_analyze);
-        Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
+        var state = new StackPanel { Spacing = 3 }; state.Children.Add(_status); state.Children.Add(_modelStatus);
+        Grid.SetRow(state, 3); root.Children.Add(state); Content = root;
         _activity.Update(null); _undo.IsVisible = CanUndo();
         _analyze.Click += async (_, _) => await AnalyzeAsync();
         _rename.Click += async (_, _) => await OpenRenameDialogAsync(); _undo.Click += async (_, _) => await RenameAsync(true);
@@ -117,6 +118,25 @@ public sealed partial class MediaAiWindow
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();
         _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync(_settingsOwner ?? this)));
+    }
+    private void ConfigureWorkbenchScrollbars()
+    {
+        Resources["ScrollBarThickness"] = 10d;
+        Styles.Add(new Style(selector => selector.OfType<ScrollBar>().Class(":vertical"))
+        { Setters = { new Setter(ScrollBar.WidthProperty, 10d), new Setter(ScrollBar.MinWidthProperty, 10d) } });
+        Styles.Add(new Style(selector => selector.OfType<ScrollBar>().Class(":vertical").Template().OfType<Thumb>().Name("thumb"))
+        { Setters = { new Setter(Thumb.WidthProperty, 10d), new Setter(Thumb.MinWidthProperty, 0d) } });
+        Styles.Add(new Style(selector => selector.OfType<ScrollBar>().Class(":vertical").Template().OfType<RepeatButton>().Class("repeat"))
+        { Setters = { new Setter(RepeatButton.WidthProperty, 10d), new Setter(RepeatButton.HeightProperty, 10d) } });
+    }
+    private static WrapPanel WorkbenchActions(params Control[] controls)
+    {
+        var row = new WrapPanel();
+        foreach (var control in controls)
+        {
+            control.Margin = new(0, 0, 6, 6); control.VerticalAlignment = VerticalAlignment.Center; row.Children.Add(control);
+        }
+        return row;
     }
     private void AddSettingRow(string label, Control control)
     {
@@ -162,6 +182,7 @@ public sealed partial class MediaAiWindow
         _export.IsEnabled = !_busy && _results.Count > 0; _undo.IsEnabled = !_busy && !_writingTxt && _canRename();
         _copy.IsEnabled = _list.SelectedItem is MediaFileEntry selected && TryDisplayedResult(selected.Path, out var value) && ResultTags(value, search: true).Any();
         _saveTxt.IsEnabled = !_busy && !_writingTxt && _entries.Any(entry => entry.Include && _results.ContainsKey(entry.Path));
+        _saveTxt.IsVisible = _results.Count > 0;
         _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
         _stop.IsVisible = _busy && _operation is not null;
     }

@@ -43,7 +43,7 @@ public sealed partial class MediaAiWindow
                 var trace = series.First(item => item.Key == TagKey(tag));
                 var line = new[] { "━", "┄", "┈" }[trace.Variant];
                 var value = Ui.Text(line + $" {tag.Score:0.000}"); Localization.SetIsUserText(value, true);
-                var button = new Button { Content = value, Padding = new(5, 2), HorizontalAlignment = HorizontalAlignment.Stretch };
+                var button = new Button { Content = value, Padding = new(5, 2), MinHeight = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Stretch };
                 button.Bind(Button.BorderBrushProperty, new DynamicResourceExtension(ModelColor(tag.Model)));
                 value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(ModelColor(tag.Model)));
                 AutomationProperties.SetName(button, ModelLabel(tag.Model) + " · " + tag.Label);
