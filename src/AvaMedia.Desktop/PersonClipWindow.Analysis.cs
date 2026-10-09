@@ -29,8 +29,11 @@ public sealed partial class PersonClipWindow
         var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(20), RowSpacing = 12 }; root.Children.Add(content);
         var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right;
         Grid.SetRow(close, 1); root.Children.Add(close); window.Content = root;
-        window.Closing += (_, args) => { try { ReadDetection().Validate(); } catch (Exception error) { args.Cancel = true; _ = Ui.Message(window, "参数错误", error.Message); } };
-        window.Closed += (_, _) => content.Content = null;
+        window.Closed += (_, _) =>
+        {
+            content.Content = null;
+            foreach (var input in new[] { _fps, _threshold, _padding, _gap, _minimum, _darkThreshold }) ToolInputs.CommitNumber(input);
+        };
         await window.ShowDialog(this);
     }
 

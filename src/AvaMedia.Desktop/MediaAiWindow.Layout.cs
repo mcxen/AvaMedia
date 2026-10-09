@@ -125,12 +125,12 @@ public sealed partial class MediaAiWindow
         var root = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 12, Margin = new(20) };
         var scroll = new ScrollViewer { Content = _settingsPanel }; root.Children.Add(scroll);
         var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetRow(close, 1); root.Children.Add(close); window.Content = root;
-        window.Closing += (_, args) =>
+        window.Closed += (_, _) =>
         {
-            try { Number(_threshold); var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。"); }
-            catch (Exception error) { args.Cancel = true; _ = Ui.Message(window, "参数错误", error.Message); }
+            scroll.Content = null;
+            ToolInputs.CommitNumber(_threshold); ToolInputs.CommitNumber(_frames, integer: true);
+            try { SavePreferences(); } catch (Exception error) { _status.Text = error.Message; }
         };
-        window.Closed += (_, _) => { scroll.Content = null; try{SavePreferences();}catch(Exception error){_status.Text=error.Message;} };
         _settingsOwner = window;
         try { await window.ShowDialog(this); }
         finally { _settingsOwner = null; }

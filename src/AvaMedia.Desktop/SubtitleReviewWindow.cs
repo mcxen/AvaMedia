@@ -137,11 +137,7 @@ public sealed class SubtitleReviewWindow : Window
         {
             var window=new Window { Title="字幕样式",Width=780,Height=650,MinWidth=700,MinHeight=480,WindowStartupLocation=WindowStartupLocation.CenterOwner };
             var scroll=new ScrollViewer { Content=_style };var layout=new Grid { RowDefinitions=new("*,Auto"),Margin=new(20),RowSpacing=12 };layout.Children.Add(scroll);
-            var done=Ui.DialogButton("关闭",()=>
-            {
-                try{var draft=_request.Options.Clone();_style.ReadInto(draft);window.Close();}
-                catch(Exception error){_=Ui.Message(window,"参数错误",error.Message);}
-            });done.HorizontalAlignment=HorizontalAlignment.Right;Grid.SetRow(done,1);layout.Children.Add(done);window.Content=layout;
+            var done=Ui.DialogButton("关闭",window.Close);done.HorizontalAlignment=HorizontalAlignment.Right;Grid.SetRow(done,1);layout.Children.Add(done);window.Content=layout;
             window.Opened+=async(_,_)=>await _style.SetVideoAsync(_engine,Selected?.Path,_request.Options.VideoStreamIndex,_lifetime.Token);
             window.Closed+=(_,_)=>scroll.Content=null;await window.ShowDialog(this);
         });side.Children.Add(styles);

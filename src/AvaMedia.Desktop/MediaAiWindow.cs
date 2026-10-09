@@ -12,6 +12,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow : Window
 {
     private readonly IMediaEngine _engine;
+    private readonly Storage _storage;
     private readonly AppSettings _settings;
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
@@ -37,9 +38,9 @@ public sealed partial class MediaAiWindow : Window
     private bool _closed, _renaming, _busy, _modelReady;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
-    public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null)
+    public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null, Storage? storage=null)
     {
-        _manageModels = manageModels; _canRename=canRename??(()=>true);
+        _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
         LoadPreferences();
         // These inputs live in the optional settings dialog, so initialize text before any template is attached.

@@ -10,12 +10,12 @@ public sealed partial class MediaAiWindow
     private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary);
     private void LoadPreferences()
     {
-        if(new Storage().LoadToolOptions<Preferences>("media-ai") is not {} saved) return;
+        if(_storage.LoadToolOptions<Preferences>("media-ai") is not {} saved) return;
         _threshold.Value = Math.Clamp(saved.Threshold, .05m, .95m); _frames.Value = Math.Clamp(saved.Frames, 1, 32);
         _gpu.IsChecked = saved.Gpu; _reuse.IsChecked = saved.Reuse; _recursive.IsChecked = saved.Recursive;
         _showScores.IsChecked = saved.Scores; _onlyLibrary.IsChecked = saved.OnlyLibrary;
     }
-    private void SavePreferences() => new Storage().SaveToolOptions("media-ai", new Preferences(_threshold.Value ?? .4m, _frames.Value ?? 8,
+    private void SavePreferences() => _storage.SaveToolOptions("media-ai", new Preferences(_threshold.Value ?? .4m, _frames.Value ?? 8,
         _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true));
     private async Task EditTagsAsync(MediaTagResult result)
     {
