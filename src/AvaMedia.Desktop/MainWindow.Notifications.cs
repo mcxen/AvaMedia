@@ -83,7 +83,8 @@ public partial class MainWindow
         var actions = new List<NotificationAction> { new("查看任务", () => FocusJobsAsync(batch), Primary: true),
             new("打开输出目录", () => OpenNotificationOutputAsync(completion.OutputFolders.ToArray())) };
         if (failed.Length > 0) actions.Add(new("重试失败任务", () => RetryNotificationAsync(failed), Enabled: () => CanRetryNotification(failed)));
-        NotificationCenter.Shared.Publish(this, new("queue:" + id, "任务执行完成", CompletionMessage(completion),
+        NotificationCenter.Shared.Publish(this, new("queue:" + id, "任务执行完成",
+            (FormattableString)$"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。",
             failed.Length > 0 ? NotificationKind.Warning : NotificationKind.Success, actions));
     }
 }

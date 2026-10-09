@@ -1,40 +1,43 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.Notifications.NotificationPanel">
   <UserControl.Styles>
-    <Style Selector="Button.notification-action"><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="10,4"/></Style>
+    <Style Selector="Button.notification-action"><Setter Property="MinHeight" Value="26"/><Setter Property="Padding" Value="8,3"/><Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/></Style>
+    <Style Selector="Button.notification-action.primary"><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/></Style>
+    <Style Selector="Button.notification-utility"><Setter Property="MinHeight" Value="24"/><Setter Property="Padding" Value="6,2"/></Style>
+    <Style Selector="Button.notification-icon"><Setter Property="Width" Value="24"/><Setter Property="Height" Value="24"/><Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/></Style>
     <Style Selector="Border.notification-frame"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="6"/></Style>
-    <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+    <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="4,2"/></Style>
   </UserControl.Styles>
   <Border Classes="notification-frame">
-    <Border BorderBrush="{DynamicResource UiBevelLight}" BorderThickness="1,1,0,0" CornerRadius="5" Padding="16,12">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4">
-          <StackPanel Spacing="4">
-            <TextBlock x:Name="Heading" Classes="title" TextWrapping="Wrap"/>
-            <TextBlock x:Name="Timestamp" Classes="caption"/>
-          </StackPanel>
-          <Button x:Name="RemoveButton" Grid.Column="1" Classes="tool notification-action" Content="移除" Click="RemoveClick" VerticalAlignment="Top" AutomationProperties.Name="移除通知"/>
-          <Button x:Name="ClearButton" Grid.Column="2" Classes="tool notification-action" Content="清空" Click="ClearClick" VerticalAlignment="Top" AutomationProperties.Name="清除全部通知" ToolTip.Tip="清除全部通知"/>
-          <Button Grid.Column="3" Classes="tool notification-action" Content="×" Click="DismissClick" VerticalAlignment="Top" AutomationProperties.Name="关闭当前通知" ToolTip.Tip="关闭当前通知"/>
+    <Border BorderBrush="{DynamicResource UiBevelLight}" BorderThickness="1,1,0,0" CornerRadius="5" Padding="12,10">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+          <TextBlock x:Name="Heading" FontSize="{DynamicResource UiFontBody}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Timestamp" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
+          <Button Grid.Column="2" Classes="tool notification-action notification-icon" Content="×" Click="DismissClick" VerticalAlignment="Top" AutomationProperties.Name="关闭当前通知" ToolTip.Tip="关闭当前通知"/>
         </Grid>
-        <ScrollViewer x:Name="MessageScroll" Grid.Row="1" MaxHeight="180" HorizontalScrollBarVisibility="Disabled">
-          <SelectableTextBlock x:Name="MessageText" TextWrapping="Wrap" FontSize="{DynamicResource UiFontBody}" LineHeight="22" Foreground="{DynamicResource UiText}"/>
+        <ScrollViewer x:Name="MessageScroll" MaxHeight="144" HorizontalScrollBarVisibility="Disabled">
+          <SelectableTextBlock x:Name="MessageText" TextWrapping="Wrap" FontSize="{DynamicResource UiFontBody}" LineHeight="18" Foreground="{DynamicResource UiText}"/>
         </ScrollViewer>
-        <ListBox x:Name="HistoryList" Grid.Row="1" MaxHeight="230" SelectionChanged="HistorySelectionChanged" IsVisible="False"/>
-        <TextBlock x:Name="EmptyText" Grid.Row="1" Text="暂无通知" Classes="caption" Margin="0,12" IsVisible="False"/>
-        <StackPanel x:Name="ProgressPanel" Grid.Row="2" Spacing="6" IsVisible="False">
-          <ProgressBar x:Name="ProgressBar" Maximum="100" Height="8"/>
-          <TextBlock x:Name="ProgressText" Classes="caption"/>
-        </StackPanel>
-        <WrapPanel x:Name="Actions" Grid.Row="3"/>
-        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <StackPanel Orientation="Horizontal" Spacing="4">
-            <Button x:Name="Previous" Classes="tool notification-action" Content="‹" Click="PreviousClick" AutomationProperties.Name="上一条通知"/>
-            <TextBlock x:Name="Counter" VerticalAlignment="Center" Classes="caption"/>
-            <Button x:Name="Next" Classes="tool notification-action" Content="›" Click="NextClick" AutomationProperties.Name="下一条通知"/>
-          </StackPanel>
-          <Button x:Name="HistoryButton" Grid.Column="1" Classes="tool notification-action" Content="所有通知" Click="HistoryClick"/>
+        <ListBox x:Name="HistoryList" MaxHeight="230" SelectionChanged="HistorySelectionChanged" IsVisible="False"/>
+        <TextBlock x:Name="EmptyText" Text="暂无通知" Classes="caption" Margin="0,4" IsVisible="False"/>
+        <Grid x:Name="ProgressPanel" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="False">
+          <ProgressBar x:Name="ProgressBar" Maximum="100" Height="8" VerticalAlignment="Center"/>
+          <TextBlock x:Name="ProgressText" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
         </Grid>
-      </Grid>
+        <WrapPanel x:Name="Actions"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+          <StackPanel x:Name="Navigation" Orientation="Horizontal" Spacing="2">
+            <Button x:Name="Previous" Classes="tool notification-action notification-icon" Content="‹" Click="PreviousClick" AutomationProperties.Name="上一条通知"/>
+            <TextBlock x:Name="Counter" VerticalAlignment="Center" Classes="caption"/>
+            <Button x:Name="Next" Classes="tool notification-action notification-icon" Content="›" Click="NextClick" AutomationProperties.Name="下一条通知"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <Button x:Name="RemoveButton" Classes="tool notification-action notification-utility" Content="移除" Click="RemoveClick" AutomationProperties.Name="移除通知"/>
+            <Button x:Name="ClearButton" Classes="tool notification-action notification-utility" Content="清空" Click="ClearClick" AutomationProperties.Name="清除全部通知" ToolTip.Tip="清除全部通知"/>
+            <Button x:Name="HistoryButton" Classes="tool notification-action notification-utility" Content="所有通知" Click="HistoryClick"/>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
     </Border>
   </Border>
 </UserControl>

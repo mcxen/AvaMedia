@@ -25,12 +25,20 @@ public sealed partial class NotificationPanel : UserControl
         HistoryList.ItemTemplate = new FuncDataTemplate<NotificationEntry>((entry, _) =>
         {
             if (entry is null) return new Border();
-            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Margin = new(4, 6) };
-            var labels = new StackPanel { Spacing = 4 };
+            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6, Margin = new(0, 3) };
+            var labels = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 6, RowSpacing = 2 };
             var title = Ui.Text(NotificationCenter.Text(entry.Message.Title)); title.FontWeight = entry.Read ? FontWeight.Normal : FontWeight.SemiBold;
-            labels.Children.Add(title); labels.Children.Add(Ui.Text(entry.Created.ToString("HH:mm"), "caption")); row.Children.Add(labels);
-            var remove = new Button { Content = Localization.Text("移除"), Classes = { "tool", "notification-action" } };
+            title.TextWrapping = TextWrapping.NoWrap; title.TextTrimming = TextTrimming.CharacterEllipsis;
+            var time = Ui.Text(entry.Created.ToString("HH:mm"), "caption"); Grid.SetColumn(time, 1);
+            var body = NotificationCenter.Text(entry.Message.Body);
+            var preview = Ui.Text(string.Join(" · ", body.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)), "caption");
+            preview.TextWrapping = TextWrapping.NoWrap; preview.TextTrimming = TextTrimming.CharacterEllipsis;
+            preview.IsVisible = !string.IsNullOrWhiteSpace(body) && body != title.Text;
+            Grid.SetRow(preview, 1); Grid.SetColumnSpan(preview, 2);
+            labels.Children.Add(title); labels.Children.Add(time); labels.Children.Add(preview); row.Children.Add(labels);
+            var remove = new Button { Content = "×", Classes = { "tool", "notification-action", "notification-icon" } };
             AutomationProperties.SetName(remove, Localization.Text("移除通知"));
+            ToolTip.SetTip(remove, Localization.Text("移除通知"));
             remove.Click += (_, args) => { args.Handled = true; _center.Remove(entry); };
             Grid.SetColumn(remove, 1); row.Children.Add(remove); return row;
         });
@@ -89,6 +97,7 @@ public sealed partial class NotificationPanel : UserControl
             MessageScroll.IsVisible = !_center.History; HistoryList.IsVisible = _center.History && _center.Entries.Count > 0;
             EmptyText.IsVisible = _center.History && _center.Entries.Count == 0;
             Previous.IsVisible = Next.IsVisible = !_center.History && _center.Entries.Count > 1;
+            Navigation.IsVisible = _center.History ? _center.Entries.Count > 0 : _center.Entries.Count > 1;
             HistoryButton.Content = Localization.Text(_center.History ? "收起" : "所有通知");
             RemoveButton.IsVisible = !_center.History && _center.Selected is not null;
             ClearButton.IsEnabled = _center.Entries.Count > 0;
@@ -96,18 +105,22 @@ public sealed partial class NotificationPanel : UserControl
             if (_center.History)
             {
                 Heading.Classes.Remove("error"); Heading.Text = Localization.Text("通知中心"); Timestamp.Text = "";
+                Timestamp.IsVisible = false;
                 HistoryList.ItemsSource = _center.Entries.ToArray(); HistoryList.SelectedItem = null;
                 Counter.Text = Localization.Format($"{_center.Entries.Count} 条通知"); ProgressPanel.IsVisible = false;
             }
             else if (selected is not null)
             {
                 var message = selected.Message; Heading.Text = NotificationCenter.Text(message.Title); Timestamp.Text = selected.Created.ToString("HH:mm");
+                Timestamp.IsVisible = true;
                 var text = NotificationCenter.Text(message.Body); if (MessageText.Text != text) MessageText.Text = text;
+                MessageScroll.IsVisible = !string.IsNullOrWhiteSpace(text) && text != Heading.Text;
                 if (_selectedKey != message.Key) { _selectedKey = message.Key; MessageScroll.Offset = default; }
                 Heading.Classes.Set("error", message.Kind == NotificationKind.Error);
                 ProgressPanel.IsVisible = message.Progress is not null || message.Indeterminate;
                 ProgressBar.IsIndeterminate = message.Indeterminate; ProgressBar.Value = Math.Clamp(message.Progress ?? 0, 0, 100);
                 ProgressText.Text = message.Progress is { } percent ? $"{percent:0}%" : "";
+                ProgressText.IsVisible = message.Progress is not null;
                 Counter.Text = $"{_center.Entries.ToList().IndexOf(selected) + 1} / {_center.Entries.Count}";
             }
             RefreshActions(); RefreshActionTimer(); RefreshAutoCloseTimer();
@@ -118,6 +131,7 @@ public sealed partial class NotificationPanel : UserControl
     {
         var entry = _center.Selected;
         var actions = _center.History || entry is null ? [] : entry.Message.Actions ?? [];
+        Actions.IsVisible = actions.Count > 0;
         var signature = entry?.Message.Key + "|" + string.Join("|", actions.Select(action => NotificationCenter.Text(action.Label) + action.Primary +
             (entry is { Busy: false } && action.Enabled?.Invoke() != false)));
         if (signature == _actionSignature) return;
@@ -125,7 +139,7 @@ public sealed partial class NotificationPanel : UserControl
         for (var index = 0; index < actions.Count; index++)
         {
             var action = actions[index]; var actionIndex = index;
-            var button = new Button { Content = Localization.Text(action.Label), Classes = { "notification-action" }, Margin = new(0, 0, 8, 4),
+            var button = new Button { Content = Localization.Text(action.Label), Classes = { "notification-action" }, Margin = new(0, 0, 6, 2),
                 IsEnabled = entry is { Busy: false } && action.Enabled?.Invoke() != false };
             if (action.Primary) button.Classes.Add("primary");
             button.Click += async (_, _) => { if (_center.Selected is { } current) await _center.InvokeAsync(current, actionIndex); };
