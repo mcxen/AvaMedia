@@ -19,7 +19,6 @@ public sealed partial class MediaAiWindow
         _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true));
     private async Task EditTagsAsync(MediaTagResult result)
     {
-        if(_busy) return;
         var original = ResultTags(result).ToArray();
         var input = Ui.Input(string.Join(Environment.NewLine, original.Select(tag => tag.Label)));
         input.AcceptsReturn = true; input.TextWrapping = Avalonia.Media.TextWrapping.Wrap; Localization.SetIsUserText(input, true);

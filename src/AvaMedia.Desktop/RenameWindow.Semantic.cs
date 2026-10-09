@@ -75,11 +75,6 @@ public sealed partial class RenameWindow
             _matchKeywords = Ui.Button("匹配并预览", async () => await MatchKeywordsAsync());
             _matchKeywords.IsEnabled = true; _semanticParameters.Children.Add(_matchKeywords);
             _semanticPanel.Children.Add(_semanticParameters); _renamePanel.Children.Add(_semanticPanel);
-            _keywords.TextChanged += (_, _) => ClearSemanticMatches();
-            _semanticGpu.IsCheckedChanged += (_, _) => ClearSemanticMatches(); _semanticReuse.IsCheckedChanged += (_, _) => ClearSemanticMatches();
-            foreach (var number in new[] { _semanticFrames, _semanticThreshold, _semanticMargin })
-                number.PropertyChanged += (_, change) =>
-                { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) ClearSemanticMatches(); };
         }
         Closed += (_, _) => { _semanticLifetime.Cancel(); _semanticLifetime.Dispose(); };
     }
@@ -90,14 +85,6 @@ public sealed partial class RenameWindow
         if (!decimal.TryParse(input.Text, System.Globalization.NumberStyles.Number, input.NumberFormat, out var value)
             || value < input.Minimum || value > input.Maximum) throw new ArgumentException("请输入范围内的语义匹配参数。");
         return (double)value;
-    }
-    private void ClearSemanticMatches()
-    {
-        if (_operation is not null || !SemanticEnabled) return;
-        _semanticResults.Clear(); _semanticDetails.Clear(); _semanticApplying = true;
-        try { foreach (var entry in _entries) { entry.Keyword = ""; entry.Include = false; entry.Status = "待匹配"; entry.Details = entry.Path; } }
-        finally { _semanticApplying = false; }
-        InvalidatePlan();
     }
     private void ValidateSemanticSources(IEnumerable<string> paths)
     {
@@ -123,7 +110,6 @@ public sealed partial class RenameWindow
             options = new((int)frames, SemanticValue(_semanticThreshold), SemanticValue(_semanticMargin), _semanticReuse.IsChecked == true); options.Validate();
         }
         catch (Exception error) { await ShowErrorAsync("语义匹配失败", error); return; }
-        ClearSemanticMatches();
         var selected = _entries.ToArray();
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_semanticLifetime.Token);
         _operation = operation; SetBusy(true); _stop.IsEnabled = true;

@@ -16,7 +16,7 @@ public sealed partial class RenameWindow
             var picker = new WordLibraryWindow(WordLibraryTarget.Semantic);
             await picker.ShowDialog(this);
             if (_closed) return;
-            ReloadSemanticCandidates(); ClearSemanticMatches();
+            ReloadSemanticCandidates();
         }));
         _semanticParameters.Children.Add(_semanticLibrarySummary);
 

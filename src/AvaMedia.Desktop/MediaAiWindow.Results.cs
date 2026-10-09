@@ -43,7 +43,7 @@ public sealed partial class MediaAiWindow
             UpdateActions(); return;
         }
         var edits=new StackPanel { Orientation=Orientation.Horizontal, Spacing=8 };
-        var edit=Ui.Button("编辑标签…",async()=>await EditTagsAsync(result));edit.IsEnabled=!_busy;edits.Children.Add(edit);
+        edits.Children.Add(Ui.Button("编辑标签…",async()=>await EditTagsAsync(result)));
         if(_editedTags.ContainsKey(result.Path))edits.Children.Add(Ui.Button("恢复识别标签",()=>{_editedTags.Remove(result.Path);RefreshDisplayedResults();}));
         _tagGroups.Children.Add(edits);
         var tags = ResultTags(result, search: true).ToArray();
@@ -69,7 +69,6 @@ public sealed partial class MediaAiWindow
         if (result.FallbackReason is not null) details.Children.Add(Ui.Text(Localization.Text("已回退 CPU") + " · " + result.FallbackReason, "caption"));
         details.Children.Add(Ui.Text(NsfwStateText(moderation.State), "caption"));
         if (moderation.Evidence.Count > 0) details.Children.Add(Ui.Text(string.Join(" · ", moderation.Evidence.Select(item => $"{item.Label} {item.Signal:0.00}")), "caption"));
-        else details.Children.Add(Ui.Text("未检出风险标签不代表安全。", "caption"));
         if (moderation.State == NsfwSignalState.Suspected) _tagGroups.Children.Insert(0, Ui.Text("疑似 NSFW", "error"));
         _details.Content = new ScrollViewer { Content = details, MaxHeight = 140 };
         _details.IsVisible = true; UpdateActions();
