@@ -28,14 +28,18 @@ S01 来自 [MMPose 的 COCO 测试照片](https://github.com/open-mmlab/mmpose/b
 
 原生工作台实际完成四个文件的分析，结果分别显示 8、16、12、36 个标签；后端报告为 `Core ML / CPU`。确认真人开关、中文词库及“四肢撑地”搜索，普通照片显示“未检出”，成人样本显示“疑似 NSFW”。原生“生成同目录 TXT”已生成四份报告，文件中包含独立分类模型、后端和逐采样分数。
 
-相关 Core、Desktop 和验收项目的 Release 编译通过，零警告、零错误。测试工具的 `real-people` 模式允许用本机清单重现，`real-ui` 模式打开生产工作台。清单对象字段为 `Id`、`Path`、`ExpectedNsfw` 和可选 `ExpectedPose`，至少包含普通真人、成人真人及视频。
+原生 JSON 导出验证发现并修复了后台序列化读取 UI 控件导致的线程错误。修复后实际导出的 JSON 为 290,104 字节，包含普通真人照片的全部 5813 项原始分数、中文标签和独立 NSFW 分类。
+
+最终原生补验确认：点击 NSFW 徽标展开“识别详情”，显示 Marqo 峰值与平均 0.049、分类阈值 0.50、CPU 后端和采样时间；“姿态 / 体位”筛选显示站立 0.432 及对应曲线。切换筛选会重建详情，分类依据仍保持可读。
+
+相关 Core、Desktop 和验收项目的 Release 编译通过，零警告、零错误。合入并行提交后，共享工作区尚未完成的目录分类界面一度导致编译失败；最终从已提交源码快照构建，保留并行未提交内容。测试工具的 `real-people` 模式允许用本机清单重现，`real-ui` 模式打开生产工作台。清单对象字段为 `Id`、`Path`、`ExpectedNsfw` 和可选 `ExpectedPose`，至少包含普通真人、成人真人及视频。
 
 ```sh
 .tools/dotnet/dotnet build tests/AvaMedia.AiTests/AvaMedia.AiTests.csproj -c Release -r osx-arm64 --artifacts-path artifacts/real-people-build
 .tools/dotnet/dotnet artifacts/real-people-build/bin/AvaMedia.AiTests/release_osx-arm64/AvaMedia.AiTests.dll real-people artifacts/real-people-e2e-final /absolute/path/inventory.json
 ```
 
-本机最终结果：`artifacts/real-people-e2e-final/acceptance.json`；完整结果：`artifacts/real-people-e2e-final/results.json`。这些文件和素材不提交到仓库。
+合并后的本机结果：`artifacts/real-people-integration-e2e/acceptance.json`；完整结果：`artifacts/real-people-integration-e2e/results.json`；原生导出：`artifacts/real-people-ui-final/media/ui-final-results.json`。这些文件和素材不提交到仓库。
 
 ## 验证范围
 

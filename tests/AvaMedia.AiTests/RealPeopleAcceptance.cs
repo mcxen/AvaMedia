@@ -61,6 +61,7 @@ internal static class RealPeopleAcceptance
             await MediaTagText.SaveAsync(result, labels, .4, .55, .03, CancellationToken.None);
             if (nsfw.Suspected) Check(NsfwModeration.Evaluate(result, .99).State == NsfwSignalState.Suspected, "NSFW 分类与标签阈值独立 · " + fixture.Id);
             var pose = fixture.ExpectedPose is null ? null : result.Scores.Single(score => score.Tag == fixture.ExpectedPose);
+            if (pose is not null) Check(pose.Maximum >= .4, "真人姿态人工标注对照 · " + fixture.Id);
             summary.Add(new { fixture.Id, fixture.ExpectedNsfw, ActualNsfw = nsfw.Suspected, nsfw.Average, nsfw.Maximum,
                 result.SampledFrames, result.InferredFrames, result.Backend, NsfwBackend = nsfw.Backend,
                 fixture.ExpectedPose, PoseScore = pose?.Maximum, PoseMatched = pose is null ? (bool?)null : pose.Maximum >= .4,
