@@ -39,7 +39,7 @@ S01 来自 [MMPose 的 COCO 测试照片](https://github.com/open-mmlab/mmpose/b
 .tools/dotnet/dotnet artifacts/real-people-build/bin/AvaMedia.AiTests/release_osx-arm64/AvaMedia.AiTests.dll real-people artifacts/real-people-e2e-final /absolute/path/inventory.json
 ```
 
-合并后的本机结果：`artifacts/real-people-integration-e2e/acceptance.json`；完整结果：`artifacts/real-people-integration-e2e/results.json`；原生导出：`artifacts/real-people-ui-final/media/ui-final-results.json`。这些文件和素材不提交到仓库。
+最终本机结果：`artifacts/real-people-delivery-e2e/acceptance.json`；完整结果：`artifacts/real-people-delivery-e2e/results.json`；原生导出：`artifacts/real-people-ui-final/media/ui-final-results.json`。这些文件和素材不提交到仓库。
 
 ## 验证范围
 
