@@ -2644,6 +2644,7 @@
   "带字幕视频 · MKV": "Video with subtitles · MKV",
   "识别已停止，已完成结果保留": "Transcription stopped; completed results are retained",
   "时间格式为 时:分:秒.毫秒": "Use HH:MM:SS.mmm for time",
+  "字幕须包含文字，结束时间须晚于开始时间。": "Enter subtitle text and set the end time after the start time.",
   "请先识别或添加字幕。": "Transcribe or add subtitles first.",
   "源文件已改变，请重新打开并识别字幕。": "The source changed. Reopen it and transcribe again.",
   "源文件已改变，请重新分析。": "The source changed. Analyze it again.",
