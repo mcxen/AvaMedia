@@ -5,7 +5,7 @@ using SkiaSharp;
 namespace AvaMedia.Core;
 
 public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false, bool ReuseSimilarFrames = true, int BatchSize = 4, bool RecognizeScenes = false,
-    bool GenerateCaptions = false, string? CaptionProviderId = null, string? CaptionPrompt = null, int CaptionMaxTokens = 512)
+    bool GenerateCaptions = false, string? CaptionProviderId = null, string? CaptionPrompt = null, int CaptionMaxTokens = 2048)
 {
     public WordCandidate[] SemanticCandidates { get; init; } = [];
     public bool RealPeopleOnly { get; init; }

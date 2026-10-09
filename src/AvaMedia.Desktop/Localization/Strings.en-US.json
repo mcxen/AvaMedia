@@ -2990,5 +2990,11 @@
   "视频预览": "Video preview",
   "生成画面描述": "Generate image descriptions",
   "预热 NSFW 模型": "Warming up NSFW model",
-  "使用 AI 供应商中配置的视觉模型。": "Uses the vision model configured in AI providers."
+  "使用 AI 供应商中配置的视觉模型。": "Uses the vision model configured in AI providers.",
+  "语义识别失败 {0} 个": "Semantic recognition failed for {0} files",
+  "画面描述失败 {0} 个": "Image descriptions failed for {0} files",
+  "分析部分失败": "Analysis partially failed",
+  "上下文 {0} token": "Context: {0} tokens",
+  "最大输出 {0} token": "Maximum output: {0} tokens",
+  "输出上限由供应商决定": "Output limit set by the provider"
 }

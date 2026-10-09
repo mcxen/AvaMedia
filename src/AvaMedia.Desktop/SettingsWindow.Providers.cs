@@ -96,6 +96,22 @@ public sealed partial class SettingsWindow
     {
         OnlineTextModelInput.ItemsSource = provider.ModelIds; OnlineVisionModelInput.ItemsSource = provider.ModelIds;
         OnlineTextModelInput.Text = provider.TextModel; OnlineVisionModelInput.Text = provider.VisionModel;
+        RefreshProviderLimits(provider);
+    }
+
+    private void RefreshProviderLimits(OnlineAiOptions provider)
+    {
+        var selected = new[] { provider.TextModel, provider.EffectiveVisionModel }.Where(id => id.Length > 0).Distinct(StringComparer.Ordinal);
+        var lines = selected.Select(id =>
+        {
+            var model = provider.ModelInfo.FirstOrDefault(model => model.Id == id);
+            var parts = new List<string>();
+            if (model?.ContextTokens is { } context) parts.Add(Localization.Format($"上下文 {context} token"));
+            parts.Add(model?.MaxOutputTokens is { } output ? Localization.Format($"最大输出 {output} token") : Localization.Text("输出上限由供应商决定"));
+            return id + " · " + Localization.Join(" · ", parts);
+        }).ToArray();
+        OnlineLimitsText.Text = string.Join(Environment.NewLine, lines); OnlineLimitsText.IsVisible = lines.Length > 0;
+        Localization.SetIsUserText(OnlineLimitsText, true);
     }
 
     private void ProviderEdited(bool connectionChanged)
@@ -110,12 +126,12 @@ public sealed partial class SettingsWindow
         provider.TimeoutSeconds = int.TryParse(OnlineTimeoutInput.Text, out var seconds) ? seconds : 0;
         if (connectionChanged)
         {
-            provider.ModelIds = []; _populatingProvider = true;
+            provider.ModelIds = []; provider.ModelInfo = []; _populatingProvider = true;
             try { SetProviderModels(provider); } finally { _populatingProvider = false; }
         }
         if (_providerDraft.DefaultProviderId == provider.Id && !provider.Enabled)
             _providerDraft.DefaultProviderId = _providerDraft.Providers.FirstOrDefault(p => p.Enabled)?.Id ?? "";
-        ProviderStatus.IsVisible = false; RefreshProviderChoices(); RefreshProviderDefault(); MarkDirty();
+        ProviderStatus.IsVisible = false; RefreshProviderLimits(provider); RefreshProviderChoices(); RefreshProviderDefault(); MarkDirty();
     }
 
     private void RefreshProviderDefault()
@@ -192,11 +208,19 @@ public sealed partial class SettingsWindow
         bool Current() => !cancellation.IsCancellationRequested && _providerRequest == cancellation && _providerId == snapshot.Id && revision == _providerRevision;
         try
         {
-            using var client = new OnlineAiClient(snapshot); var ids = await client.GetModelsAsync(cancellation.Token);
+            using var client = new OnlineAiClient(snapshot); var models = await client.GetModelsAsync(cancellation.Token);
+            foreach (var id in new[] { snapshot.TextModel, snapshot.EffectiveVisionModel }.Where(id => id.Length > 0).Distinct(StringComparer.Ordinal))
+            {
+                var index = Array.FindIndex(models, model => model.Id == id);
+                if (index >= 0 && models[index].HasLimits) continue;
+                var detail = await client.GetModelInfoAsync(id, cancellation.Token);
+                if (detail is null) continue;
+                if (index >= 0) models[index] = detail; else models = [.. models, detail];
+            }
             if (!Current()) return;
-            provider.ModelIds = ids; _populatingProvider = true;
+            provider.ModelIds = models.Select(model => model.Id).ToArray(); provider.ModelInfo = models; _populatingProvider = true;
             try { SetProviderModels(provider); } finally { _populatingProvider = false; }
-            ProviderStatus.Text = Localization.Format($"已连接，读取 {ids.Length} 个模型。"); ProviderStatus.IsVisible = true; MarkDirty();
+            ProviderStatus.Text = Localization.Format($"已连接，读取 {models.Length} 个模型。"); ProviderStatus.IsVisible = true; MarkDirty();
         }
         catch (OperationCanceledException)
         { if (_providerRequest == cancellation && !_lifetime.IsCancellationRequested) ShowProviderStatus("已取消"); }

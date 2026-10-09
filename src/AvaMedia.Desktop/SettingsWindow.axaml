@@ -211,6 +211,7 @@
                   <TextBlock x:Name="ProviderStatus" Classes="caption" TextWrapping="Wrap" IsVisible="False"/>
                   <Expander Header="高级" HorizontalAlignment="Stretch">
                     <StackPanel Spacing="10" Margin="0,8,0,0">
+                      <TextBlock x:Name="OnlineLimitsText" Classes="caption" TextWrapping="Wrap"/>
                       <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
                         <TextBlock Text="输出长度参数" Classes="settingLabel"/>
                         <ComboBox Grid.Column="1" x:Name="OnlineTokenInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True">

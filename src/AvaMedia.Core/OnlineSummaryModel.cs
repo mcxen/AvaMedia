@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text;
 
 namespace AvaMedia.Core;
 
@@ -52,7 +53,12 @@ public sealed class OnlineSummaryModel : ISummaryModel
             ["messages"] = new object[] { new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },
                 new { role = "user", content } }
         };
-        request[_options.TokenLimit == OnlineAiTokenLimit.MaxTokens ? "max_tokens" : "max_completion_tokens"] = tokens;
+        var inputBytes = Encoding.UTF8.GetByteCount(system) + (long)Encoding.UTF8.GetByteCount(prompt)
+            + (images?.Sum(frame => (long)Encoding.UTF8.GetByteCount(frame.Label)) ?? 0);
+        var maximum = _options.ModelInfo.FirstOrDefault(model => model.Id == _model)?.OutputBudget(inputBytes, images?.Count ?? (image is null ? 0 : 1));
+        // Missing output metadata means the provider chooses its limit; do not impose a guessed small ceiling.
+        if (maximum is { } budget)
+            request[_options.TokenLimit == OnlineAiTokenLimit.MaxTokens ? "max_tokens" : "max_completion_tokens"] = budget;
         if (schema is { } jsonSchema && _options.ResponseFormat != OnlineAiResponseFormat.Prompt)
             request["response_format"] = _options.ResponseFormat == OnlineAiResponseFormat.JsonSchema
                 ? new { type = "json_schema", json_schema = new { name = "video_summary", schema = jsonSchema, strict = true } }

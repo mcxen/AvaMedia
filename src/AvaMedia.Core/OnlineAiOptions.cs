@@ -19,9 +19,10 @@ public sealed class OnlineAiOptions
     public OnlineAiResponseFormat ResponseFormat { get; set; } = OnlineAiResponseFormat.JsonObject;
     public int TimeoutSeconds { get; set; } = 180;
     public string[] ModelIds { get; set; } = [];
+    public OnlineAiModelInfo[] ModelInfo { get; set; } = [];
     [JsonIgnore] public string EffectiveVisionModel => string.IsNullOrWhiteSpace(VisionModel) ? TextModel : VisionModel;
     public OnlineAiOptions Clone()
-    { var copy = (OnlineAiOptions)MemberwiseClone(); copy.ModelIds = [.. ModelIds]; return copy; }
+    { var copy = (OnlineAiOptions)MemberwiseClone(); copy.ModelIds = [.. ModelIds]; copy.ModelInfo = [.. ModelInfo]; return copy; }
 
     public Uri CompletionUri()
     {
@@ -60,6 +61,9 @@ public sealed class OnlineAiOptions
         if (requireModel && string.IsNullOrWhiteSpace(TextModel))
             throw new ArgumentException("请在 AI 供应商中配置文本模型。");
         if (ModelIds.Length > 2048 || ModelIds.Any(id => string.IsNullOrWhiteSpace(id) || id.Length > 128 || id.Any(char.IsControl)))
+            throw new ArgumentException("供应商模型列表无效。");
+        if (ModelInfo.Length > 2048 || ModelInfo.Any(model => string.IsNullOrWhiteSpace(model.Id) || model.Id.Length > 128
+            || model.Id.Any(char.IsControl) || model.ContextTokens is <= 0 || model.MaxOutputTokens is <= 0))
             throw new ArgumentException("供应商模型列表无效。");
         if (ApiKey.Length > 4096 || ApiKey.Any(char.IsWhiteSpace) || ApiKey.Any(char.IsControl)) throw new ArgumentException("API Key 无效。");
     }

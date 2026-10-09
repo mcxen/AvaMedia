@@ -32,7 +32,7 @@ public sealed partial class MediaAiWindow
             ToolTip.SetTip(_warmStatus, null);
             var progress = new Progress<AiActivity>(value =>
             {
-                if (_closed || _warmRequest != request || request.IsCancellationRequested) return;
+                if (_closed || _busy || _warmRequest != request || request.IsCancellationRequested) return;
                 _warmStatus.Text = Localization.Text(value.Stage)
                     + (value.Current is { } current && value.Total is > 0 and var total ? $" · {current:0}/{total:0}" : "");
             });
@@ -40,7 +40,7 @@ public sealed partial class MediaAiWindow
             {
                 if (reset) await _tagService.ResetPreparedModelsAsync(request.Token);
                 var ready = await _tagService.WarmAsync(options, progress, request.Token);
-                if (_closed || _warmRequest != request || request.IsCancellationRequested) return;
+                if (_closed || _busy || _warmRequest != request || request.IsCancellationRequested) return;
                 _warmStatus.Text = ready ? Localization.Text(_modelStatus.IsVisible ? "标签模型已预热" : "模型已就绪") : "";
                 _warmStatus.IsVisible = ready && _modelStatus.IsVisible;
                 if (ready && !_modelStatus.IsVisible && !_busy && _status.Text == Localization.Text("就绪"))
@@ -49,10 +49,10 @@ public sealed partial class MediaAiWindow
             catch (OperationCanceledException) { }
             catch (Exception error)
             {
-                if (_closed || _warmRequest != request) return;
+                AppDiagnostics.Record("AI model preparation", error);
+                if (_closed || _busy || _warmRequest != request) return;
                 _warmStatus.Text = Localization.Text("模型准备失败");
                 ToolTip.SetTip(_warmStatus, error.Message); _warmRetry.IsVisible = true;
-                AppDiagnostics.Record("AI model preparation", error);
             }
             finally
             {

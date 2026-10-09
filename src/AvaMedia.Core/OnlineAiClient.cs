@@ -15,17 +15,35 @@ public sealed class OnlineAiClient : IDisposable
         if (_options.ApiKey.Length != 0) _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
     }
 
-    public async Task<string[]> GetModelsAsync(CancellationToken ct)
+    public async Task<OnlineAiModelInfo[]> GetModelsAsync(CancellationToken ct)
     {
         using var json = await SendAsync(HttpMethod.Get, _options.ModelsUri(), null, ct, Math.Min(30, _options.TimeoutSeconds)).ConfigureAwait(false);
         if (json.RootElement.ValueKind != JsonValueKind.Object || !json.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("供应商模型列表格式无效，可手动填写模型。");
         return data.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object
                 && item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
-            .Select(item => item.GetProperty("id").GetString()!)
-            .Where(id => !string.IsNullOrWhiteSpace(id) && id.Length <= 128 && !id.Any(char.IsControl))
-            .Distinct(StringComparer.Ordinal).Order(StringComparer.OrdinalIgnoreCase).Take(2048).ToArray();
+            .Select(OnlineAiModelInfo.Read)
+            .Where(model => !string.IsNullOrWhiteSpace(model.Id) && model.Id.Length <= 128 && !model.Id.Any(char.IsControl))
+            .DistinctBy(model => model.Id, StringComparer.Ordinal).OrderBy(model => model.Id, StringComparer.OrdinalIgnoreCase).Take(2048).ToArray();
     }
+
+    public async Task<OnlineAiModelInfo?> GetModelInfoAsync(string id, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Length > 128 || id.Any(char.IsControl)) throw new ArgumentException("线上 AI 模型名称无效。");
+        try
+        {
+            var uri = new Uri(_options.ModelsUri().AbsoluteUri + "/" + Uri.EscapeDataString(id));
+            using var json = await SendAsync(HttpMethod.Get, uri, null, ct, Math.Min(30, _options.TimeoutSeconds)).ConfigureAwait(false);
+            var model = json.RootElement;
+            if (model.ValueKind == JsonValueKind.Object && model.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object) model = data;
+            return model.ValueKind == JsonValueKind.Object && model.TryGetProperty("id", out var modelId)
+                && modelId.ValueKind == JsonValueKind.String && modelId.GetString() == id ? OnlineAiModelInfo.Read(model) : null;
+        }
+        catch (ProviderHttpException error) when (error.StatusCode is 404 or 405) { return null; }
+    }
+
+    private sealed class ProviderHttpException(int statusCode, string message) : IOException(message)
+    { public int StatusCode { get; } = statusCode; }
 
     internal async Task<JsonDocument> CompleteAsync(object request, CancellationToken ct) =>
         await SendAsync(HttpMethod.Post, _options.CompletionUri(), request, ct, _options.TimeoutSeconds).ConfigureAwait(false);
@@ -40,7 +58,7 @@ public sealed class OnlineAiClient : IDisposable
             if (payload is not null) message.Content = JsonContent.Create(payload);
             using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
-                throw new InvalidDataException((int)response.StatusCode switch
+                throw new ProviderHttpException((int)response.StatusCode, (int)response.StatusCode switch
                 {
                     401 or 403 => "供应商拒绝授权，请检查 API Key 或权限。",
                     404 or 405 when method == HttpMethod.Get => "供应商未提供模型列表，可手动填写模型。",

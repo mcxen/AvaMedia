@@ -188,6 +188,7 @@ public sealed partial class MediaAiWindow : Window
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
         { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _editedTags.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); RenderSelectedResult();
+        _warmStatus.IsVisible = _warmRetry.IsVisible = false;
         _status.Text = Localization.Text(_modelReady ? "准备分析…" : "下载标签模型");
         _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
         var progress = new Progress<MediaTagProgress>(update =>
@@ -229,30 +230,37 @@ public sealed partial class MediaAiWindow : Window
             var results = await _tagService.AnalyzeAsync(paths, options, progress, operation.Token);
             if (_closed) return;
             foreach (var result in results) { _results[result.Path] = result; _liveResults.Remove(result.Path); }
-            _status.Text = scenesSkipped ? Localization.Format($"完成 {results.Count} / {paths.Length} 个文件 · 已跳过场景识别")
-                : Localization.Format($"完成 {results.Count} / {paths.Length} 个文件");
-            _activity.Finish(AiActivityState.Completed, "标签分析完成");
             var failedPaths = paths.Where(path => !_results.ContainsKey(path)).ToArray();
             var sceneFailedPaths = results.Where(result => result.SceneError is not null && !result.SceneSkipped).Select(result => result.Path).ToArray();
+            var captionFailedPaths = results.Where(result => result.CaptionError is not null).Select(result => result.Path).ToArray();
+            var incompletePaths = failedPaths.Concat(sceneFailedPaths).Concat(captionFailedPaths).Distinct(BatchRename.PathComparer).ToArray();
+            var hasFailures = incompletePaths.Length > 0;
+            var completionTitle = hasFailures ? results.Count == 0 ? "分析失败" : "分析部分失败" : "标签分析完成";
             scenesSkipped |= results.Any(result => result.SceneSkipped);
+            var completionDetails = new List<string>();
+            if (sceneFailedPaths.Length > 0) completionDetails.Add(Localization.Format($"语义识别失败 {sceneFailedPaths.Length} 个"));
+            if (captionFailedPaths.Length > 0) completionDetails.Add(Localization.Format($"画面描述失败 {captionFailedPaths.Length} 个"));
+            if (scenesSkipped) completionDetails.Add(Localization.Text("已跳过场景识别"));
+            _status.Text = Localization.Join(" · ", new[] { Localization.Format($"完成 {results.Count} / {paths.Length} 个文件") }.Concat(completionDetails));
+            _activity.Finish(hasFailures ? AiActivityState.Failed : AiActivityState.Completed, completionTitle);
             var resultActions = new List<Notifications.NotificationAction> {
-                    new("查看结果", () => Notifications.NotificationCenter.ShowOwnerAsync(this), Primary: failedPaths.Length == 0, Enabled: () => !_closed),
+                    new("查看结果", () => Notifications.NotificationCenter.ShowOwnerAsync(this), Primary: !hasFailures, Enabled: () => !_closed),
                     new("生成同目录 TXT", () => SaveTextReportsAsync(paths), Enabled: () => !_closed && !_busy && !_writingTxt),
                     new("导出标签 JSON…", ExportAsync, Enabled: () => !_closed && !_busy),
                     new("重新分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Enabled: () => CanAnalyzeNotification(paths)) };
-            if (failedPaths.Length > 0) resultActions.Insert(0, new("重试失败文件", () => { _ = AnalyzeAsync(failedPaths); return Task.CompletedTask; }, Primary: true,
-                Enabled: () => CanAnalyzeNotification(failedPaths)));
-            if (sceneFailedPaths.Length > 0) resultActions.Insert(0, new("重试语义识别", () => { _ = AnalyzeAsync(sceneFailedPaths); return Task.CompletedTask; },
-                Enabled: () => CanAnalyzeNotification(sceneFailedPaths)));
-            Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "标签分析完成",
-                sceneFailedPaths.Length > 0 ? (FormattableString)$"标签完成 {results.Count}/{paths.Length} 个 · 语义识别失败 {sceneFailedPaths.Length} 个"
-                    : scenesSkipped ? $"成功 {results.Count} 个，失败 {failedPaths.Length} 个。未下载语义模型，已跳过场景识别。"
-                    : $"成功 {results.Count} 个，失败 {failedPaths.Length} 个。",
-                failedPaths.Length == 0 && sceneFailedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
+            if (hasFailures) resultActions.Insert(0, new("重试失败文件", () => { _ = AnalyzeAsync(incompletePaths); return Task.CompletedTask; }, Primary: true,
+                Enabled: () => CanAnalyzeNotification(incompletePaths)));
+            var notificationBody = Localization.Join(" · ", new[] { Localization.Format($"成功 {paths.Length - incompletePaths.Length} 个，失败 {incompletePaths.Length} 个。") }.Concat(completionDetails));
+            Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), completionTitle,
+                notificationBody, hasFailures ? Notifications.NotificationKind.Warning : Notifications.NotificationKind.Success, resultActions));
             foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
                 if (_results.TryGetValue(entry.Path, out var result)) ShowResult(entry, result);
             RenderSelectedResult();
-            if (_autoTxt.IsChecked == true) await SaveTextReportsAsync(results.Select(result => result.Path).ToArray());
+            if (_autoTxt.IsChecked == true)
+            {
+                await SaveTextReportsAsync(results.Select(result => result.Path).ToArray());
+                if (completionDetails.Count > 0) _status.Text = Localization.Join(" · ", new[] { _status.Text }.Concat(completionDetails));
+            }
         }
         catch (OperationCanceledException)
         {
@@ -372,6 +380,7 @@ public sealed partial class MediaAiWindow : Window
         entry.Status = result.SceneError is null ? Localization.Format($"已识别 {tags.Length} 个标签")
             : result.SceneSkipped ? Localization.Format($"已识别 {tags.Length} 个标签 · 已跳过场景识别")
             : Localization.Format($"已识别 {tags.Length} 个标签 · 语义识别失败");
+        if (result.CaptionError is not null) entry.Status = Localization.Join(" · ", [entry.Status, Localization.Text("画面描述失败")]);
         entry.Details = string.Join(" · ", tags.Take(5).Select(tag => tag.Label));
     }
     private static string NsfwStateText(NsfwSignalState state) => Localization.Text(state switch
