@@ -22,10 +22,13 @@ public static class QuickClipWorkflow
             var inputs=PrepareExports([edit],preset,exportOptions);
             var options=preset=="Fast Copy"?inputs[0].Options.Clone():exportOptions.Clone();
             if(preset!="Fast Copy"){options.Format=preset.ToLowerInvariant();options.CopyStreams=false;}
-            options.Start=options.End=0;
+            // One retained range can go straight through clipping, including its editing settings.
+            var single=inputs.Count==1;
+            if(single)options=inputs[0].Options.Clone();
+            else options.Start=options.End=0;
             var target=outputToSource?Path.GetDirectoryName(Path.GetFullPath(edit.Path))!:folder;
-            var grouped=ConversionBatch.CreateJobs(Catalog.Find("join"),inputs.Select(input=>input.Path).ToArray(),target,options,
-                inputs.Select(input=>input.Options).ToArray(),used);
+            var grouped=ConversionBatch.CreateJobs(Catalog.Find(single?"clip":"join"),inputs.Select(input=>input.Path).ToArray(),target,options,
+                single?null:inputs.Select(input=>input.Options).ToArray(),used);
             foreach(var job in grouped)
             {
                 var name=Path.GetFileNameWithoutExtension(edit.Path)+" ["+(string.IsNullOrWhiteSpace(settingName)?"People":settingName)+"]";

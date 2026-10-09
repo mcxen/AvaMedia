@@ -69,8 +69,17 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var inferredFrames = 0; var boundaryFrames = 0;
         var previewClock = System.Diagnostics.Stopwatch.StartNew();
         var nextPreview = TimeSpan.Zero;
-        double candidateStart = -1;
-        var candidates = 0;
+        var candidates = new List<(int Start, int End)>();
+        var candidateStart = -1;
+        var candidateEnd = -1;
+        var connectionGap = Math.Max(options.MergeGapSeconds, 2 * options.PaddingSeconds);
+        void CompleteCandidate()
+        {
+            var end = candidateEnd >= 0 ? candidateEnd : samples.Count;
+            candidates.Add((candidateStart, end));
+            activity.Result($"候选片段 {candidates.Count} · {MediaTime.Format(samples[candidateStart].Seconds)} – {MediaTime.Format(end < samples.Count ? samples[end].Seconds : duration)}", candidates.Count);
+            candidateStart = candidateEnd = -1;
+        }
         activity.Stage("扫描视频", 0, duration, "秒");
         string[] args = ["-v", "error", "-nostdin", "-i", path, "-map", $"0:v:{info.VideoStreamIndex}",
             "-vf", $"fps={MediaEngine.Number(options.FramesPerSecond)}:start_time=0:eof_action=pass,{FrameFilter(size)}",
@@ -100,12 +109,14 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                     observedSeconds = Math.Min(duration, seconds + 1 / options.FramesPerSecond);
                     var decision = samples[^1];
                     evidence = decision.Evidence;
-                    if (decision.Keep && candidateStart < 0) candidateStart = seconds;
-                    if (!decision.Keep && candidateStart >= 0)
+                    // Keep short detection gaps inside one source range; only its outer edges need refinement.
+                    if (candidateEnd >= 0 && seconds - samples[candidateEnd].Seconds > connectionGap) CompleteCandidate();
+                    if (decision.Keep)
                     {
-                        activity.Result($"候选片段 {++candidates} · {MediaTime.Format(candidateStart)} – {MediaTime.Format(seconds)}", candidates);
-                        candidateStart = -1;
+                        if (candidateStart < 0) candidateStart = samples.Count - 1;
+                        candidateEnd = -1;
                     }
+                    else if (candidateStart >= 0 && candidateEnd < 0) candidateEnd = samples.Count - 1;
                     if (previewClock.Elapsed >= nextPreview)
                     {
                         nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
@@ -113,7 +124,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                         activity.Frame(EncodePng(frame, size), $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)} · {label}");
                     }
                     activity.Backend(detectors.Backend);
-                    activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 复用 {samples.Count - inferredFrames} 帧 · 候选 {candidates + (candidateStart >= 0 ? 1 : 0)} 段");
+                    activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 复用 {samples.Count - inferredFrames} 帧 · 候选 {candidates.Count + (candidateStart >= 0 ? 1 : 0)} 段");
                 }
                 // Drain the pipe before waiting, including any terminal frame produced by fps rounding.
                 await process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, ct);
@@ -128,17 +139,21 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             }
         }
         if (samples.Count == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
-        if (candidateStart >= 0) activity.Result($"候选片段 {++candidates} · {MediaTime.Format(candidateStart)} – {MediaTime.Format(duration)}", candidates);
-        var boundaries = samples.Skip(1).Zip(samples, (current, previousFrame) => current.Keep != previousFrame.Keep).Count(changed => changed);
+        if (candidateStart >= 0) CompleteCandidate();
+        var boundaries = candidates.Sum(candidate => (candidate.Start > 0 ? 1 : 0) + (candidate.End < samples.Count ? 1 : 0));
         var refined = 0;
         activity.Node("细化片段边界");
         activity.Backend(detectors.Backend);
         activity.Stage("细化片段边界", 0, boundaries, "处");
         var intervals = new List<(double Start, double End)>();
-        double start = samples[0].Keep ? 0 : -1;
-        for (var index = 1; index < samples.Count; index++)
+        foreach (var candidate in candidates)
         {
-            if (samples[index].Keep == samples[index - 1].Keep) continue;
+            var start = candidate.Start == 0 ? 0 : await RefineBoundaryAsync(candidate.Start);
+            var end = candidate.End == samples.Count ? info.Duration : await RefineBoundaryAsync(candidate.End);
+            intervals.Add((start, end));
+        }
+        async Task<double> RefineBoundaryAsync(int index)
+        {
             double low = samples[index - 1].Seconds, high = samples[index].Seconds;
             while (high - low > .1)
             {
@@ -156,12 +171,10 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 boundaryFrames++;
                 if (result.Keep == samples[index - 1].Keep) low = middle; else high = middle;
             }
-            // Preserve the boundary uncertainty on the person side.
-            if (samples[index].Keep) start = low;
-            else if (start >= 0) { intervals.Add((start, high)); start = -1; }
             activity.Advance(++refined, boundaries, "处", $"边界计算 {boundaryFrames} 帧");
+            // Preserve the boundary uncertainty on the person side.
+            return samples[index].Keep ? low : high;
         }
-        if (start >= 0) intervals.Add((start, info.Duration));
         var merged = new List<(double Start, double End)>();
         foreach (var interval in intervals)
         {
