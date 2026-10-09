@@ -82,9 +82,9 @@ public sealed partial class FolderClassificationWindow
     }
 
     private static bool SameRules(IEnumerable<FolderClassificationRule> first, IEnumerable<FolderClassificationRule> second)
-        => first.Select(rule => (rule.Id, rule.Name, rule.Threshold, rule.Margin, rule.MinimumAgreement,
+        => first.Select(rule => (rule.Id, rule.Name, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
             Categories: string.Join("\n", rule.Categories.Select(category => category.Id + "\t" + category.Name + "\t" + category.Description))))
-        .SequenceEqual(second.Select(rule => (rule.Id, rule.Name, rule.Threshold, rule.Margin, rule.MinimumAgreement,
+        .SequenceEqual(second.Select(rule => (rule.Id, rule.Name, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
             Categories: string.Join("\n", rule.Categories.Select(category => category.Id + "\t" + category.Name + "\t" + category.Description)))));
 
     private FolderClassificationRule[] ReplaceSelectedGroup(FolderClassificationRule rule)
@@ -128,24 +128,26 @@ public sealed partial class FolderClassificationWindow
 
     private async Task EditRuleAsync(FolderClassificationRule? existing)
     {
-        var dialog = new Window { Title = "多分类设置", Width = 760, Height = 720, MinWidth = 650, MinHeight = 560,
+        var dialog = new Window { Title = "分类设置", Width = 760, Height = 560, MinWidth = 650, MinHeight = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var name = Ui.Input(existing?.Name ?? "自定义分类"); Localization.SetIsUserText(name, true);
-        var threshold = new NumericUpDown { Minimum = 0, Maximum = 1, Increment = .05m, FormatString = "0.00", Value = (decimal)(existing?.Threshold ?? .5) };
-        var margin = new NumericUpDown { Minimum = 0, Maximum = 1, Increment = .01m, FormatString = "0.00", Value = (decimal)(existing?.Margin ?? .04) };
-        var agreement = new NumericUpDown { Minimum = 51, Maximum = 100, Increment = 5, FormatString = "0'%'", Value = (decimal)((existing?.MinimumAgreement ?? .8) * 100) };
+        var name = Ui.Input(existing?.Name ?? ""); Localization.SetIsUserText(name, true);
+        name.Watermark = Localization.Text("如：室内场景");
+        var threshold = new NumericUpDown { Minimum = 0, Maximum = 1, Increment = .05m, FormatString = "0.00", Value = (decimal)(existing?.Threshold ?? FolderClassificationRule.DefaultThreshold) };
+        var margin = new NumericUpDown { Minimum = 0, Maximum = 1, Increment = .01m, FormatString = "0.00", Value = (decimal)(existing?.Margin ?? FolderClassificationRule.DefaultMargin) };
+        var agreement = new NumericUpDown { Minimum = 51, Maximum = 100, Increment = 5, FormatString = "0'%'", Value = (decimal)((existing?.MinimumAgreement ?? FolderClassificationRule.DefaultMinimumAgreement) * 100) };
+        var mode = Ui.Combo(["自动", "手动调整"], existing?.UseAutomaticSettings == false ? "手动调整" : "自动");
         var categories = new List<CategoryEditor>();
-        foreach (var category in existing?.Categories ?? [new("", "类别 1", ""), new("", "类别 2", "")])
+        foreach (var category in existing?.Categories ?? [new("", "", ""), new("", "", "")])
         {
-            var label = Ui.Input(category.Name); var description = Ui.Input(category.Description); description.AcceptsReturn = true; description.MinHeight = 58;
+            var label = Ui.Input(category.Name); var description = Ui.Input(category.Description); description.AcceptsReturn = true; description.MinHeight = 48;
             Localization.SetIsUserText(label, true); Localization.SetIsUserText(description, true);
             categories.Add(new(category.Id.Length == 0 ? Guid.NewGuid().ToString("N") : category.Id, label, description));
         }
         var rows = new StackPanel { Spacing = 10 };
-        var add = new Button { Content = "添加类别" };
+        var add = new Button { Content = "添加类别", HorizontalAlignment = HorizontalAlignment.Left };
         add.Click += (_, _) =>
         {
-            var label = Ui.Input(""); var description = Ui.Input(""); description.AcceptsReturn = true; description.MinHeight = 58;
+            var label = Ui.Input(""); var description = Ui.Input(""); description.AcceptsReturn = true; description.MinHeight = 48;
             Localization.SetIsUserText(label, true); Localization.SetIsUserText(description, true);
             categories.Add(new(Guid.NewGuid().ToString("N"), label, description)); RebuildCategories(); label.Focus();
         };
@@ -156,7 +158,7 @@ public sealed partial class FolderClassificationWindow
             foreach (var category in categories)
             {
                 var row = new Avalonia.Controls.Grid { ColumnDefinitions = new("140,*,Auto"), ColumnSpacing = 8 };
-                category.Name.Watermark = Localization.Text("类别名称"); category.Description.Watermark = Localization.Text("描述这一类的具体画面");
+                category.Name.Watermark = Localization.Text("类别名称"); category.Description.Watermark = Localization.Text("画面特征，如：床、枕头和被褥");
                 row.Children.Add(category.Name); Avalonia.Controls.Grid.SetColumn(category.Description, 1); row.Children.Add(category.Description);
                 var remove = Ui.Button("移除", () => { categories.Remove(category); RebuildCategories(); });
                 remove.IsEnabled = categories.Count > 2; Avalonia.Controls.Grid.SetColumn(remove, 2); row.Children.Add(remove); rows.Children.Add(row);
@@ -165,36 +167,66 @@ public sealed partial class FolderClassificationWindow
         }
         RebuildCategories();
         var body = new StackPanel { Spacing = 10 };
-        body.Children.Add(Ui.Text("分类组名称", "caption")); body.Children.Add(name);
+        body.Children.Add(Ui.Text("分类名称", "caption")); body.Children.Add(name);
         body.Children.Add(Ui.Text("类别与画面描述", "settingsHeading")); body.Children.Add(rows); body.Children.Add(add);
-        body.Children.Add(Ui.Text("每组只选一个类别；类别名称也是目标目录名称。分不清时进入待确认。", "caption"));
+        body.Children.Add(Ui.Text("类别名称用作文件夹名，不确定的文件放入待确认。", "caption"));
+        var modeRow = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
+        modeRow.Children.Add(Ui.Text("识别设置", "caption")); Grid.SetColumn(mode, 1); modeRow.Children.Add(mode); body.Children.Add(modeRow);
         var limits = new Avalonia.Controls.Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 12 };
-        var fields = new[] { ("匹配分数阈值", threshold), ("领先最小分差", margin), ("视频采样一致率", agreement) };
+        var fields = new[] { ("最低匹配分数", threshold), ("与其他类别的最小差距", margin), ("视频画面一致率", agreement) };
         for (var index = 0; index < fields.Length; index++)
         { var field = new StackPanel { Spacing = 6 }; field.Children.Add(Ui.Text(fields[index].Item1, "caption")); field.Children.Add(fields[index].Item2); Avalonia.Controls.Grid.SetColumn(field, index); limits.Children.Add(field); }
-        body.Children.Add(limits);
-        body.Children.Add(Ui.Text("匹配分数是语义相似度；采样一致率是同一类别命中的画面占比。", "caption"));
+        ToolTip.SetTip(threshold, Localization.Text("匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
+        ToolTip.SetTip(margin, Localization.Text("第一名与第二名的分数差距小于此值时，画面进入待确认。"));
+        ToolTip.SetTip(agreement, Localization.Text("视频中至少有这一比例的采样画面命中同一类别，才自动归类。"));
+        var advancedBody = new StackPanel { Spacing = 10 };
+        advancedBody.Children.Add(limits); advancedBody.Children.Add(Ui.Text("数值越高，分类越谨慎。", "caption"));
+        var makeDefault = new CheckBox { Content = "设为默认分类" }; advancedBody.Children.Add(makeDefault);
+        ToolTip.SetTip(makeDefault, Localization.Text("将当前分类规则设为下次打开时的默认分类"));
+        var advanced = new Expander { Header = "高级设置", Content = advancedBody, HorizontalAlignment = HorizontalAlignment.Stretch };
+        void UpdateMode()
+        {
+            var automatic = mode.SelectedIndex == 0;
+            if (automatic)
+            {
+                threshold.Value = (decimal)FolderClassificationRule.DefaultThreshold;
+                margin.Value = (decimal)FolderClassificationRule.DefaultMargin;
+                agreement.Value = (decimal)(FolderClassificationRule.DefaultMinimumAgreement * 100);
+            }
+            limits.IsEnabled = !automatic; advanced.IsExpanded = !automatic;
+        }
+        mode.SelectionChanged += (_, _) => UpdateMode(); UpdateMode(); body.Children.Add(advanced);
         if (existing?.Id == "age-appearance") body.Children.Add(Ui.Text("外观年龄段是粗略判断，无法确认真实年龄。多人或不清晰画面请人工核对。", "caption"));
-        var makeDefault = new CheckBox { Content = "同时将当前规则设为默认" }; body.Children.Add(makeDefault);
-        var errorText = Ui.Text("", "caption"); body.Children.Add(errorText);
+        var errorText = Ui.Text("", "caption"); errorText.IsVisible = false; body.Children.Add(errorText);
+        void ShowError(string message) { errorText.Text = message; errorText.IsVisible = true; }
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close()));
         buttons.Children.Add(Ui.DialogButton("保存", () =>
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(name.Text))
+                { name.Focus(); ShowError(Localization.Text("请填写分类名称。")); return; }
+                var missingName = categories.FirstOrDefault(category => string.IsNullOrWhiteSpace(category.Name.Text));
+                if (missingName is not null)
+                { missingName.Name.Focus(); ShowError(Localization.Text("请填写类别名称。")); return; }
                 var missing = categories.FirstOrDefault(category => string.IsNullOrWhiteSpace(category.Description.Text));
                 if (missing is not null)
-                { missing.Description.Focus(); errorText.Text = Localization.Format($"请为“{missing.Name.Text}”填写画面描述。"); return; }
+                { missing.Description.Focus(); ShowError(Localization.Format($"请为“{missing.Name.Text}”填写画面描述。")); return; }
                 var choices = categories.Select(category => new FolderClassificationCategory(category.Id, category.Name.Text?.Trim() ?? "",
                     string.Join(" ", (category.Description.Text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))).ToArray();
                 var rule = new FolderClassificationRule(existing?.Id ?? Guid.NewGuid().ToString("N"), name.Text?.Trim() ?? "", choices)
-                { Threshold = (double)(threshold.Value ?? .5m), Margin = (double)(margin.Value ?? .04m), MinimumAgreement = (double)(agreement.Value ?? 80) / 100 };
+                {
+                    UseAutomaticSettings = mode.SelectedIndex == 0,
+                    Threshold = (double)(threshold.Value ?? (decimal)FolderClassificationRule.DefaultThreshold),
+                    Margin = (double)(margin.Value ?? (decimal)FolderClassificationRule.DefaultMargin),
+                    MinimumAgreement = (double)(agreement.Value ?? (decimal)(FolderClassificationRule.DefaultMinimumAgreement * 100)) / 100
+                };
                 var activeRules = ActiveWith(rule); var savedRules = SavedWith(rule);
                 var defaults = makeDefault.IsChecked == true ? activeRules : DefaultsWith(rule);
                 SavePreferences(defaults, savedRules); dialog.Close(new RuleEditResult(rule, makeDefault.IsChecked == true));
             }
-            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException) { errorText.Text = error.Message; }
+            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException) { ShowError(error.Message); }
         }));
         var root = new Avalonia.Controls.Grid { RowDefinitions = new("*,Auto"), Margin = new(18), RowSpacing = 12 };
         root.Children.Add(new ScrollViewer { Content = body }); Avalonia.Controls.Grid.SetRow(buttons, 1); root.Children.Add(buttons); dialog.Content = root;

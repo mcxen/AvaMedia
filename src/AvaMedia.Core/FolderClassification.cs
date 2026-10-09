@@ -5,9 +5,13 @@ public sealed record FolderClassificationCategory(string Id, string Name, string
 /// <summary>Categories in a group compete for one destination; uncertainty has its own basket.</summary>
 public sealed record FolderClassificationRule(string Id, string Name, FolderClassificationCategory[] Categories)
 {
-    public double Threshold { get; init; } = .5;
-    public double Margin { get; init; } = .04;
-    public double MinimumAgreement { get; init; } = .8;
+    public const double DefaultThreshold = .5;
+    public const double DefaultMargin = .04;
+    public const double DefaultMinimumAgreement = .8;
+    public bool UseAutomaticSettings { get; init; } = true;
+    public double Threshold { get; init; } = DefaultThreshold;
+    public double Margin { get; init; } = DefaultMargin;
+    public double MinimumAgreement { get; init; } = DefaultMinimumAgreement;
     public string Label(string categoryId) => "class_" + Id + "_" + categoryId;
 
     public void Validate()
@@ -143,6 +147,9 @@ public static class FolderClassification
 
     private static FolderClassificationDecision Decide(MediaTagResult media, FolderClassificationRule rule)
     {
+        var threshold = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultThreshold : rule.Threshold;
+        var margin = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultMargin : rule.Margin;
+        var minimumAgreement = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultMinimumAgreement : rule.MinimumAgreement;
         FolderClassificationDecision Review(string evidence) => new(rule.Id, rule.Name, null, "待确认", [], [], null, 0, evidence);
         if (media.Scenes is null || media.SceneError is not null)
             return Review(media.SceneError ?? "语义识别结果缺失");
@@ -159,7 +166,7 @@ public static class FolderClassification
             { frames.Add(new(frame.Seconds, null, null, null)); continue; }
             var ranked = scores.OrderByDescending(item => item.Score).ToArray();
             var top = ranked[0]; var gap = top.Score!.Value - ranked[1].Score!.Value;
-            frames.Add(new(frame.Seconds, top.Score >= rule.Threshold && gap >= rule.Margin && gap > 0 ? top.Category.Id : null, top.Score, gap));
+            frames.Add(new(frame.Seconds, top.Score >= threshold && gap >= margin && gap > 0 ? top.Category.Id : null, top.Score, gap));
         }
         if (frames.Count == 0) return Review("分类语义分数缺失");
         var aggregate = rule.Categories.Where(category => sums[category.Id].Count > 0).Select(category =>
@@ -167,7 +174,7 @@ public static class FolderClassification
             .OrderByDescending(score => score.MatchedFrames).ThenByDescending(score => score.Similarity).ToArray();
         var winner = aggregate.FirstOrDefault();
         var agreement = winner is null ? 0 : (double)winner.MatchedFrames / frames.Count;
-        var accepted = winner is { MatchedFrames: > 0 } && agreement >= rule.MinimumAgreement
+        var accepted = winner is { MatchedFrames: > 0 } && agreement >= minimumAgreement
             && frames.All(frame => frame.Similarity is not null);
         var best = frames.Where(frame => frame.CategoryId == winner?.CategoryId).MaxBy(frame => frame.Margin);
         best ??= frames.MaxBy(frame => frame.Similarity);
