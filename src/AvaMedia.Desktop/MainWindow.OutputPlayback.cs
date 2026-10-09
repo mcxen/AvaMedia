@@ -30,7 +30,7 @@ public partial class MainWindow
             await Ui.Message(this, "无法播放输出视频", "请选择已完成且输出视频仍存在的任务。");
             return;
         }
-        try { new PlayerWindow(Engine, outputs).Show(this); }
+        try { new PlayerWindow(Engine, outputs).ShowForPlayback(this); }
         catch (Exception exception) { await Ui.Message(this, "播放器打开失败", exception.Message); }
     }
 }

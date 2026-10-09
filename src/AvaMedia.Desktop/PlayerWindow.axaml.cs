@@ -118,6 +118,24 @@ public partial class PlayerWindow : Window
         if (CurrentPath.Length == 0) { FileName.Text = AppIdentity.PlayerTitle; PlayerStatus.Text = AppIdentity.PlayerWelcome; }
     }
 
+    public void ShowForPlayback(Window source)
+    {
+        if (IsVisible) { Activate(); return; }
+        // An owned macOS window becomes a fullscreen auxiliary and cannot enter its own fullscreen space.
+        // Use the source only to choose the display; keep playback as an independent top-level window.
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        if (source.Screens.ScreenFromWindow(source) is { } screen)
+        {
+            var area = screen.WorkingArea; var scale = screen.Scaling;
+            Width = Math.Max(MinWidth, Math.Min(Width, area.Width / scale));
+            Height = Math.Max(MinHeight, Math.Min(Height, area.Height / scale));
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Position = new(area.X + Math.Max(0, (area.Width - (int)Math.Round(Width * scale)) / 2),
+                area.Y + Math.Max(0, (area.Height - (int)Math.Round(Height * scale)) / 2));
+        }
+        Show();
+    }
+
     public Task OpenAsync(string path)
         => StartOpen(path, 0, 0, 0, true);
     public Task OpenAtAsync(string path, double seconds)

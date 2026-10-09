@@ -141,7 +141,7 @@ public sealed partial class VideoSummaryResultWindow : Window
                 {
                     current = new PlayerWindow(_engine); _player = current;
                     current.Closed += (_, _) => { if (ReferenceEquals(_player, current)) _player = null; };
-                    current.Show(this);
+                    current.ShowForPlayback(this);
                 }
                 if (!VideoFolderScanner.PathComparer.Equals(current.CurrentPath, Path.GetFullPath(_source!)))
                     await current.OpenAtAsync(_source!, seconds);

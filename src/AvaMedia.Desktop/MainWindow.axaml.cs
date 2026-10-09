@@ -114,7 +114,7 @@ public partial class MainWindow : Window
         }
         if(feature.Operation==Operation.Player)
         {
-            files??=await Ui.Pick(this,"打开媒体文件",true);if(files.Length>0)new PlayerWindow(Engine,files).Show(this);return;
+            files??=await Ui.Pick(this,"打开媒体文件",true);if(files.Length>0)new PlayerWindow(Engine,files).ShowForPlayback(this);return;
         }
         Window dialog=feature.Operation==Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance"
             ? new SpeechToolsWindow(Engine,feature,_settings.OutputFolder,files)

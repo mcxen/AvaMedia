@@ -46,7 +46,7 @@ internal sealed class VoicePreviewWindow : Window
                     percent => Dispatcher.UIThread.Post(() => { if(!_lifetime.IsCancellationRequested) _status.Text = Localization.Text("准备试听") + $" · {percent:0}%"; }), _lifetime.Token);
             }
             if(_lifetime.IsCancellationRequested) return;
-            if(_player is null) { _player = new PlayerWindow(_engine); _player.Closed += (_, _) => _player = null; _player.Show(this); }
+            if(_player is null) { _player = new PlayerWindow(_engine); _player.Closed += (_, _) => _player = null; _player.ShowForPlayback(this); }
             await _player.OpenAtAsync(output, 0); _player.Activate(); _status.Text = Localization.Text(enhanced ? "试听增强" : "试听原声");
         }
         catch(OperationCanceledException) { }

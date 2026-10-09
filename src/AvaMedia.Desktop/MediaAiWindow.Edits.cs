@@ -50,7 +50,7 @@ public sealed partial class MediaAiWindow
                 {
                     var file = new FileInfo(result.Path);
                     if(!file.Exists || file.Length != result.Length || file.LastWriteTimeUtc != result.LastWriteUtc) throw new IOException("源文件已改变，请重新分析。");
-                    var player = new PlayerWindow(_engine); player.Show(this); await player.OpenAtAsync(result.Path, frame.Seconds); window.Close();
+                    var player = new PlayerWindow(_engine); player.ShowForPlayback(this); await player.OpenAtAsync(result.Path, frame.Seconds); window.Close();
                 }
                 catch(Exception error) { await Ui.Message(window, "无法播放", error.Message); }
             }));

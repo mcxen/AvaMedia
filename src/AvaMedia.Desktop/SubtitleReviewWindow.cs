@@ -75,7 +75,7 @@ public sealed class SubtitleReviewWindow : Window
             if (Selected is not {} source || _cues.SelectedItem is not SubtitleCue cue) return;
             try
             {
-                var player = new PlayerWindow(engine, [source.Path]); player.Show(this); await player.Ready;
+                var player = new PlayerWindow(engine, [source.Path]); player.ShowForPlayback(this); await player.Ready;
                 await player.SeekAsync(request.Options.Start + cue.Start.TotalSeconds * request.Options.Speed, true);
             }
             catch(Exception error) { _notice.Text = error.Message; }
