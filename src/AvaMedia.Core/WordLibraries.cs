@@ -211,11 +211,11 @@ public sealed class WordLibraryStore(string? path = null)
     { lock (Gate) return Read().Views.GetValueOrDefault(ViewKey(target)); }
     public void SaveView(WordLibraryTarget? target, WordLibraryView view) => Update(state => state.Views[ViewKey(target)] = view);
     private static string ViewKey(WordLibraryTarget? target) => target?.ToString() ?? "Management";
-    public WordCandidate[] Resolve(WordLibraryTarget target)
+    public WordCandidate[] Resolve(WordLibraryTarget target, bool includeSemantic = false)
     {
         var keys = Selection(target).ToHashSet();
         return Libraries().SelectMany(library => library.Entries.Where(entry => keys.Contains(new(library.Id, entry.Label))))
-            .Where(entry => entry.Supports(target)).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
+            .Where(entry => includeSemantic || entry.Supports(target)).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
     }
     public void SaveSelection(WordLibraryTarget target, SelectedWord[] selection, WordLibraryView? view = null) => Update(state =>
     {

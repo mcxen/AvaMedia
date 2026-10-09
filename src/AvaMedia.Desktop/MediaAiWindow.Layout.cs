@@ -14,6 +14,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly Button _advanced = new() { Content = "高级设置…" };
+    private readonly Button _chooseTagGroups = new() { Content = "标签组…" };
     private readonly Button _copy = new() { Content = "复制标签" };
     private readonly Button _export = new() { Content = "导出分析结果…" };
     private readonly CheckBox _selectAll = new() { Content = "全选" };
@@ -49,7 +50,7 @@ public sealed partial class MediaAiWindow
         foreach (var button in _imports.Children) button.Margin = new(0, 0, 6, 6);
         _imports.Margin = new(0, 0, 10, 0);
         var toolbar = new WrapPanel(); toolbar.Children.Add(_imports);
-        toolbar.Children.Add(WorkbenchActions(_analyze, _stop, _advanced)); root.Children.Add(toolbar);
+        toolbar.Children.Add(WorkbenchActions(_analyze, _stop, _chooseTagGroups, _advanced)); toolbar.Children.Add(_librarySummary); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
@@ -95,6 +96,7 @@ public sealed partial class MediaAiWindow
             catch (Exception error) { await Ui.Message(this, "复制失败", error.Message); }
         };
         _advanced.Click += async (_, _) => await OpenAdvancedAsync();
+        _chooseTagGroups.Click += async (_, _) => await OpenTagGroupsAsync();
         _selectAll.IsCheckedChanged += (_, _) =>
         {
             if (_updatingSelection) return;
@@ -108,15 +110,8 @@ public sealed partial class MediaAiWindow
         _settingsPanel.Children.Add(_autoTxt);
         _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
-        _settingsPanel.Children.Add(Ui.Button("选择词库 / 类别…", async () =>
-        {
-            await new WordLibraryWindow(WordLibraryTarget.JoyTag).ShowDialog(_settingsOwner ?? this);
-            if (_closed) return;
-            ReloadWordCandidates(); RefreshDisplayedResults();
-        }));
         _showScores.IsCheckedChanged += (_, _) => RenderSelectedResult();
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();
-        _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync(_settingsOwner ?? this)));
     }
     private void ConfigureWorkbenchScrollbars()
@@ -174,7 +169,7 @@ public sealed partial class MediaAiWindow
         _updatingSelection = true; _selectAll.IsChecked = _entries.Count > 0 && included == _entries.Count; _updatingSelection = false;
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
-        _imports.IsEnabled = _advanced.IsEnabled = !_busy && !_writingTxt;
+        _imports.IsEnabled = _advanced.IsEnabled = _chooseTagGroups.IsEnabled = !_busy && !_writingTxt;
         _analyze.IsEnabled = !_busy && !_writingTxt && included > 0; _analyze.Content = Localization.Text(!_modelReady ? "下载模型并分析" : "开始分析");
         _rename.IsEnabled = !_busy && !_writingTxt && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
         _copy.IsVisible = _results.Count + _liveResults.Count > 0;

@@ -103,7 +103,7 @@ public sealed partial class MediaAiWindow : Window
             if (_closed) return;
             _modelReady = installed;
             var missingBytes = installed ? 0 : ModelCatalog.Find(ModelCatalog.JoyTagId).DownloadSize;
-            if (_sceneTags.IsChecked == true && !await new ModelStore().IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token))
+            if (NeedsSemanticModel && !await new ModelStore().IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token))
                 missingBytes += ModelCatalog.Find(ModelCatalog.EmbeddingId).DownloadSize;
             if (_closed) return;
             _modelStatus.Text = missingBytes == 0 ? "" : Localization.Format($"首次分析需要下载模型 · 约 {Math.Ceiling(missingBytes / 1_000_000d):0} MB");
@@ -135,7 +135,9 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true); options.Validate(); Number(_threshold); SavePreferences();
+            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true)
+                { SemanticCandidates = SemanticLibraryCandidates };
+            options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))

@@ -58,14 +58,16 @@ public sealed partial class MediaAiWindow
         };
     }
     private IEnumerable<ResultTag> SceneCandidates(MediaTagResult result) => result.Scenes?.Frames.SelectMany(frame => frame.Candidates)
-        .Where(candidate => !WordLibraryCatalog.IsSemanticBaseline(candidate.Label)).DistinctBy(candidate => candidate.Label)
+        .Where(candidate => !WordLibraryCatalog.IsSemanticBaseline(candidate.Label)
+            && (_onlyLibrary.IsChecked != true || _libraryCandidates.Any(entry => entry.Label.Equals(candidate.Label, StringComparison.OrdinalIgnoreCase))))
+        .DistinctBy(candidate => candidate.Label)
         .Select(candidate => new ResultTag(candidate.Label, candidate.Category, SceneValue(result, candidate.Label), "cosine_similarity", ModelCatalog.EmbeddingId)) ?? [];
     private bool SceneQualifies(MediaTagResult result, ResultTag tag)
     {
         IEnumerable<MediaSceneFrame> frames = result.Scenes?.Frames ?? [];
         if (_scoreMode.SelectedIndex == 3) frames = frames.OrderBy(frame => Math.Abs(frame.Seconds - CursorFor(result))).Take(1);
         return tag.Score >= _sceneThreshold.Value && frames.Any(frame => frame.Candidates.Any(candidate => candidate.Label == tag.Label
-            && candidate.Similarity >= _sceneThreshold.Value && candidate.Margin >= (double)(_sceneMargin.Value ?? .03m)));
+            && candidate.Qualifies(_sceneThreshold.Value, (double)(_sceneMargin.Value ?? .03m))));
     }
 
     private bool TryDisplayedResult(string path, out MediaTagResult result) => _liveResults.TryGetValue(path, out result!) || _results.TryGetValue(path, out result!);
@@ -169,15 +171,7 @@ public sealed partial class MediaAiWindow
     }
     private ResultTag[] PlotCandidates(MediaTagResult result, bool? semantic = null)
     {
-        IEnumerable<ResultTag> tags;
-        if (semantic ?? _chartSource.SelectedIndex == 1) tags = SceneCandidates(result);
-        else if (_onlyLibrary.IsChecked == true)
-        {
-            var scores = result.Scores.ToDictionary(score => score.Tag, score => JoyValue(result, score), StringComparer.OrdinalIgnoreCase);
-            tags = _libraryCandidates.Where(candidate => candidate.Tags.Length > 0 && candidate.Tags.All(scores.ContainsKey))
-                .Select(candidate => new ResultTag(candidate.Label, candidate.Category, candidate.Tags.Min(tag => scores[tag]), JoyScoreKind(result, candidate.Tags), RawTags: candidate.Tags));
-        }
-        else tags = result.Scores.Select(score => new ResultTag(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag), JoyValue(result, score), JoyScoreKind(result, [score.Tag]), RawTags: [score.Tag]));
+        var tags = (semantic ?? _chartSource.SelectedIndex == 1) ? SceneCandidates(result) : JoyCandidates(result);
         var query = _tagSearch.Text?.Trim() ?? "";
         return tags.Where(tag => double.IsFinite(tag.Score) && ScopeMatches(tag) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(tag => tag.Score).DistinctBy(TagKey, StringComparer.OrdinalIgnoreCase).ToArray();

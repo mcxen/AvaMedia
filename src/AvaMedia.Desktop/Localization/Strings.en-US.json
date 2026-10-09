@@ -2774,5 +2774,13 @@
   "保存片段": "Save clips",
   "字幕源文件": "Subtitle sources",
   "字幕列表": "Subtitle cues",
-  "字幕文字": "Subtitle text"
+  "字幕文字": "Subtitle text",
+  "标签组…": "Tag groups…",
+  "选择标签组": "Select tag groups",
+  "全选当前列表": "Select all shown",
+  "应用选择": "Apply selection",
+  "勾选标签，或全选当前列表；语义候选在下次分析时识别。": "Check tags or select all shown. Semantic candidates are recognized on the next analysis.",
+  "已选 {0} 个标签 · 语义候选 {1} 个": "Selected {0} tags · {1} semantic candidates",
+  "新选的语义标签需要重新分析": "Analyze again to recognize newly selected semantic tags",
+  "识别语义标签": "Recognizing semantic tags"
 }

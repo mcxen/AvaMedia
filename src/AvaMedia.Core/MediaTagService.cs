@@ -6,9 +6,12 @@ namespace AvaMedia.Core;
 
 public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false, bool ReuseSimilarFrames = true, int BatchSize = 4, bool RecognizeScenes = false)
 {
+    public WordCandidate[] SemanticCandidates { get; init; } = [];
+    public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
     public void Validate()
     {
         if (VideoFrames is < 1 or > 32 || BatchSize is < 1 or > 8) throw new ArgumentException("采样帧数须为 1–32，批次大小须为 1–8。");
+        if (SemanticCandidates.Length > 0) WordLibraryCatalog.Validate(SemanticCandidates);
     }
 }
 public sealed record MediaTagScore(string Tag, double Score, double Maximum);
@@ -103,7 +106,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         var completed = 0;
         var currentPath = files.FirstOrDefault() ?? "";
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果",
-            options.RecognizeScenes ? ["准备标签模型", "准备场景模型", "识别媒体标签"] : ["准备标签模型", "识别媒体标签"]);
+            options.NeedsSemanticModel ? ["准备标签模型", "准备场景模型", "识别媒体标签"] : ["准备标签模型", "识别媒体标签"]);
         activity.Stage("校验模型");
         using var lease = await _store.AcquireAsync(ModelCatalog.JoyTagId, ct).ConfigureAwait(false);
         var tags = (await File.ReadAllLinesAsync(Path.Combine(lease.Directory, ModelCatalog.JoyTagLabels), ct).ConfigureAwait(false))
@@ -115,9 +118,9 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         string? sceneSetupError = null;
         async Task<MediaSceneClassifier?> PrepareScenesAsync()
         {
-            if (!options.RecognizeScenes) return null;
+            if (!options.NeedsSemanticModel) return null;
             activity.Node("准备场景模型");
-            try { return await MediaSceneClassifier.CreateAsync(_store, options.PreferGpu, activity, ct).ConfigureAwait(false); }
+            try { return await MediaSceneClassifier.CreateAsync(_store, options, activity, ct).ConfigureAwait(false); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { sceneSetupError = error.Message; return null; }
         }

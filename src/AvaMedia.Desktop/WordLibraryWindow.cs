@@ -16,6 +16,7 @@ public sealed class WordLibraryWindow : Window
 {
     private readonly WordLibraryStore _store = new();
     private readonly WordLibraryTarget? _target;
+    private readonly bool _includeSemantic;
     private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ComboBox _category = new() { MinWidth = 160, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBox _search = new() { Watermark = "搜索名称、描述或标签", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -43,12 +44,12 @@ public sealed class WordLibraryWindow : Window
         public bool Selected { get => _selected; set => Set(ref _selected, value); }
     }
 
-    public WordLibraryWindow(WordLibraryTarget? target = null)
+    public WordLibraryWindow(WordLibraryTarget? target = null, bool includeSemantic = false)
     {
-        _target = target;
+        _target = target; _includeSemantic = includeSemantic;
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
-        Title = target is null ? "词库管理" : "选择候选词 · " + (target == WordLibraryTarget.JoyTag ? "JoyTag" : "语义匹配");
+        Title = includeSemantic ? "选择标签组" : target is null ? "词库管理" : "选择候选词 · " + (target == WordLibraryTarget.JoyTag ? "JoyTag" : "语义匹配");
         Width = 930; Height = 710; MinWidth = 760; MinHeight = 580; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), RowSpacing = 10, Margin = new(20) };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -64,11 +65,11 @@ public sealed class WordLibraryWindow : Window
         var information = new StackPanel { Spacing = 5 }; information.Children.Add(_source);
         if (target is not null)
         {
-            information.Children.Add(Ui.Text(target == WordLibraryTarget.JoyTag
+            information.Children.Add(Ui.Text(includeSemantic ? "勾选标签，或全选当前列表；语义候选在下次分析时识别。" : target == WordLibraryTarget.JoyTag
                 ? "仅可选择 JoyTag 支持的标签；内容分级候选可用于视频语义匹配。"
                 : "自定义描述参与语义匹配；内容分级为候选结果，需人工确认。", "caption"));
             var selection = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            selection.Children.Add(Ui.Button("选择当前类别 / 搜索结果", () => SelectVisible(true)));
+            selection.Children.Add(Ui.Button("全选当前列表", () => SelectVisible(true)));
             selection.Children.Add(Ui.Button("取消当前选择", () => SelectVisible(false)));
             selection.Children.Add(Ui.Button("清空全部", () => { _selected.Clear(); RefreshRows(); })); information.Children.Add(selection);
         }
@@ -90,7 +91,7 @@ public sealed class WordLibraryWindow : Window
         });
         Grid.SetRow(_list, 3); root.Children.Add(_list);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_count);
-        var cancel = Ui.DialogButton("关闭", Close); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
+        var close = Ui.DialogButton(target is null ? "关闭" : "应用选择", Close); Grid.SetColumn(close, 1); footer.Children.Add(close);
         Grid.SetRow(footer, 4); root.Children.Add(footer); Content = root;
         _libraries.SelectionChanged += (_, _) => RefreshRows();
         _category.SelectionChanged += (_, _) =>
@@ -121,7 +122,7 @@ public sealed class WordLibraryWindow : Window
                 var view = new WordLibraryView(library.Id, _categoryValue);
                 if (target is not null)
                 {
-                    var valid = _catalog.SelectMany(item => item.Entries.Where(entry => entry.Supports(target.Value))
+                    var valid = _catalog.SelectMany(item => item.Entries.Where(entry => _includeSemantic || entry.Supports(target.Value))
                         .Select(entry => new SelectedWord(item.Id, entry.Label))).ToHashSet();
                     _store.SaveSelection(target.Value, _selected.Where(valid.Contains).ToArray(), view);
                 }
@@ -145,7 +146,7 @@ public sealed class WordLibraryWindow : Window
         {
             var previousCategory = _categoryValue;
             _rows = library.Entries.Select(entry => new WordRow { Entry = entry, Key = new(library.Id, entry.Label),
-                Supported = _target is null || entry.Supports(_target.Value), Selected = _selected.Contains(new(library.Id, entry.Label)) }).ToArray();
+                Supported = _target is null || _includeSemantic || entry.Supports(_target.Value), Selected = _selected.Contains(new(library.Id, entry.Label)) }).ToArray();
             foreach (var row in _rows) row.PropertyChanged += (_, change) =>
             {
                 if (_updating || change.PropertyName != nameof(WordRow.Selected)) return;

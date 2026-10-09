@@ -1,29 +1,35 @@
 namespace AvaMedia.Core;
 
-public sealed record MediaSceneMatch(string Label, string Category, double Similarity, double Margin);
+public sealed record MediaSceneMatch(string Label, string Category, double Similarity, double Margin)
+{
+    public bool RequiresMargin { get; init; } = true;
+    public bool Qualifies(double similarity, double margin) => Similarity >= similarity && (!RequiresMargin || Margin >= margin);
+}
 public sealed record MediaSceneFrame(double Seconds, IReadOnlyList<MediaSceneMatch> Matches)
 { public IReadOnlyList<MediaSceneMatch> Candidates { get; init; } = []; }
 public sealed record MediaSceneScore(string Label, string Category, double Similarity, int MatchedFrames);
 public sealed record MediaSceneResult(string Model, string Backend, string? FallbackReason,
     double MinimumSimilarity, double MinimumMargin, IReadOnlyList<MediaSceneScore> Scores, IReadOnlyList<MediaSceneFrame> Frames);
 
-/// <summary>Local scene and face-visibility candidates share the tagger's samples; cosine scores are separate from JoyTag outputs.</summary>
+/// <summary>Built-in scenes and selected semantic candidates share the tagger's samples.</summary>
 internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCandidate[] candidates, float[][] labels) : IAsyncDisposable
 {
     private const double MinimumSimilarity = .55;
     private const double MinimumMargin = .03;
 
-    public static async Task<MediaSceneClassifier> CreateAsync(ModelStore store, bool preferGpu, AiActivityReporter activity, CancellationToken ct)
+    public static async Task<MediaSceneClassifier> CreateAsync(ModelStore store, MediaTagOptions options, AiActivityReporter activity, CancellationToken ct)
     {
         if (!await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: ct).ConfigureAwait(false))
         {
             activity.Stage("下载语义模型");
             await store.DownloadAsync(ModelCatalog.EmbeddingId, new DownloadProgress(activity), ct).ConfigureAwait(false);
         }
-        var embedding = await GemmaMediaEmbedding.StartAsync(store, ct, preferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
+        var embedding = await GemmaMediaEmbedding.StartAsync(store, ct, options.PreferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
         try
         {
-            var candidates = WordLibraryCatalog.SceneEntries.Where(entry => entry.Category is "场景空间" or "照明状态" or "面部可见性").ToArray();
+            var defaults = options.RecognizeScenes
+                ? WordLibraryCatalog.SceneEntries.Where(entry => entry.Category is "场景空间" or "照明状态" or "面部可见性") : [];
+            var candidates = defaults.Concat(options.SemanticCandidates).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
             var labels = new List<float[]>();
             activity.Backend(embedding.Backend);
             activity.Stage("准备语义描述", 0, candidates.Length, "词");
@@ -40,7 +46,7 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     public async Task<MediaSceneResult> AnalyzeAsync(IReadOnlyList<byte[]> images, IReadOnlyList<double> seconds,
         IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null)
     {
-        activity.Stage("识别场景、照明与面部", 0, images.Count, "帧");
+        activity.Stage("识别语义标签", 0, images.Count, "帧");
         activity.Backend(embedding.Backend);
         var matches = new List<MediaSceneMatch[]>();
         var observations = new List<MediaSceneMatch[]>();
@@ -65,13 +71,15 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
                 foreach (var group in groups)
                 {
                     var ranked = group.Select(entry => entry.Index).OrderByDescending(index => scores[index]).ToArray();
-                    var best = ranked[0]; var margin = scores[best] - scores[ranked[1]];
-                    raw.AddRange(ranked.Select(index => new MediaSceneMatch(candidates[index].Label, candidates[index].Category,
-                        scores[index], scores[index] - scores[index == best ? ranked[1] : best])));
-                    // Baselines compete with named findings, but are not presented as positive tags.
-                    if (scores[best] < MinimumSimilarity || margin < MinimumMargin
-                        || WordLibraryCatalog.IsSemanticBaseline(candidates[best].Label)) continue;
-                    selected.Add(new(candidates[best].Label, candidates[best].Category, scores[best], margin));
+                    // Scene alternatives compete; objects, features and custom descriptions can coexist.
+                    var exclusive = ranked.Length > 1 && group.Key is "场景空间" or "照明状态" or "面部可见性" or "内容分级";
+                    var best = ranked[0];
+                    var observationsForGroup = ranked.Select(index => new MediaSceneMatch(candidates[index].Label, candidates[index].Category,
+                        scores[index], exclusive ? scores[index] - scores[index == best ? ranked[1] : best] : 0)
+                        { RequiresMargin = exclusive }).ToArray();
+                    raw.AddRange(observationsForGroup);
+                    selected.AddRange(observationsForGroup.Where(match => match.Qualifies(MinimumSimilarity, MinimumMargin)
+                        && !WordLibraryCatalog.IsSemanticBaseline(match.Label)));
                 }
                 matches.Add(selected.ToArray());
                 observations.Add(raw.ToArray());

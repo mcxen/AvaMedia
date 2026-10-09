@@ -79,7 +79,7 @@ public static class MediaTagText
         {
             var points = MediaTagTimeline.Points(result, label.Tags, label.Model == ModelCatalog.EmbeddingId ? label.Label : null);
             var times = label.Model == ModelCatalog.EmbeddingId
-                ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == label.Label && candidate.Similarity >= sceneThreshold && candidate.Margin >= sceneMargin)).Select(frame => MediaTime.Format(frame.Seconds)) ?? []
+                ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == label.Label && candidate.Qualifies(sceneThreshold, sceneMargin))).Select(frame => MediaTime.Format(frame.Seconds)) ?? []
                 : points.Where(point => point.Score >= threshold).Select(point => MediaTime.Format(point.Seconds));
             body.AppendLine(FormattableString.Invariant($"{label.Category}\t{label.Label}\t{label.Score:0.000}\t{label.ScoreKind}\t{label.Model}\t{string.Join("，", times)}"));
         }
