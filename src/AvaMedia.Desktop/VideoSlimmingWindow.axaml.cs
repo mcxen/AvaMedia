@@ -190,7 +190,7 @@ public partial class VideoSlimmingWindow : Window
                     entry.Bytes = new FileInfo(entry.Path).Length;
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
                     timeout.CancelAfter(TimeSpan.FromSeconds(30));
-                    entry.Info = await _engine.Probe(entry.Path, timeout.Token);
+                    entry.Info = await VideoSlimming.ProbeSourceAsync(_engine, entry.Path, timeout.Token);
                 }
                 catch (OperationCanceledException) { entry.InspectionError = "媒体读取超时或已取消。"; }
                 catch (Exception exception) { entry.InspectionError = exception.Message; }

@@ -52,6 +52,18 @@ public sealed class VideoSlimming(MediaEngine engine)
         IEnumerable<string>? reserved = null) => ConversionBatch.CreateJobs(Catalog.Find("video-slim"), files, folder,
             CreateOptions(options), reserved: reserved);
 
+    public static async Task<MediaInfo> ProbeSourceAsync(IMediaEngine engine, string input, CancellationToken ct = default)
+    {
+        var source = await engine.Probe(input, ct).ConfigureAwait(false);
+        using var document = JsonDocument.Parse(source.RawJson);
+        var videos = document.RootElement.GetProperty("streams").EnumerateArray()
+            .Where(stream => Text(stream, "codec_type") == "video").ToArray();
+        var index = Array.FindIndex(videos, IsContentVideo);
+        if (index < 0) return source with { HasVideo = false };
+        return index == source.VideoStreamIndex ? source :
+            await engine.Probe(input, ct, videoStreamIndex: index).ConfigureAwait(false);
+    }
+
     public static void ValidateJob(Job job)
     {
         var options = job.Options;
@@ -80,7 +92,7 @@ public sealed class VideoSlimming(MediaEngine engine)
         options.Validate(); input = Path.GetFullPath(input);
         var file = new FileInfo(input);
         var sourceBytes = file.Length; var modified = file.LastWriteTimeUtc.Ticks;
-        var source = await engine.Probe(input, ct).ConfigureAwait(false);
+        var source = await ProbeSourceAsync(engine, input, ct).ConfigureAwait(false);
         ValidateSource(source, options);
         var threads = Threads();
         var encoder = options.Codec == "hevc" ? "libx265" : "libx264";
@@ -93,7 +105,7 @@ public sealed class VideoSlimming(MediaEngine engine)
         var xpsnr = Regex.IsMatch(listing, @"\bxpsnr\b");
         using var document = JsonDocument.Parse(source.RawJson);
         var streams = document.RootElement.GetProperty("streams").EnumerateArray().ToArray();
-        var video = streams.First(stream => Text(stream, "codec_type") == "video");
+        var video = streams.First(IsContentVideo);
         var audioBytes = await EstimateAudioBytesAsync(input, source, ct).ConfigureAwait(false);
         var pixelFormat = Text(video, "pix_fmt") switch
         {
@@ -188,7 +200,7 @@ public sealed class VideoSlimming(MediaEngine engine)
                 if (attempt > 0) args.Add("-noaccurate_seek");
                 args.AddRange(["-ss", MediaEngine.Number(positions[attempt])]);
             }
-            args.AddRange(["-i", input, "-t", MediaEngine.Number(seconds), "-map", "0:v:0", "-an",
+            args.AddRange(["-i", input, "-t", MediaEngine.Number(seconds), "-map", "0:V:0", "-an",
                 "-vf", "setpts=PTS-STARTPTS", "-c:v", "ffv1", "-level", "3", "-threads", threads.ToString(),
                 "-fps_mode", "passthrough", "-enc_time_base:v", "demux", "-progress", "pipe:1", "-nostats", path]);
             long frames = -1;
@@ -265,8 +277,8 @@ public sealed class VideoSlimming(MediaEngine engine)
         // Matroska rounds timestamps to milliseconds. Match the nearest frame so rounding does not
         // compare a frame to its predecessor; never repeat the last frame to hide truncation.
         var filter = xpsnr
-            ? "[0:v:0]settb=AVTB,setpts=PTS-STARTPTS,split=2[d0][d1];[1:v:0]settb=AVTB,setpts=PTS-STARTPTS,split=2[r0][r1];[d0][r0]ssim=shortest=1:repeatlast=0:ts_sync_mode=nearest[s];[d1][r1]xpsnr=shortest=1:repeatlast=0:ts_sync_mode=nearest[x]"
-            : "[0:v:0]settb=AVTB,setpts=PTS-STARTPTS[d];[1:v:0]settb=AVTB,setpts=PTS-STARTPTS[r];[d][r]ssim=shortest=1:repeatlast=0:ts_sync_mode=nearest[s]";
+            ? "[0:V:0]settb=AVTB,setpts=PTS-STARTPTS,split=2[d0][d1];[1:V:0]settb=AVTB,setpts=PTS-STARTPTS,split=2[r0][r1];[d0][r0]ssim=shortest=1:repeatlast=0:ts_sync_mode=nearest[s];[d1][r1]xpsnr=shortest=1:repeatlast=0:ts_sync_mode=nearest[x]"
+            : "[0:V:0]settb=AVTB,setpts=PTS-STARTPTS[d];[1:V:0]settb=AVTB,setpts=PTS-STARTPTS[r];[d][r]ssim=shortest=1:repeatlast=0:ts_sync_mode=nearest[s]";
         List<string> args = ["-hide_banner", "-nostdin", "-threads", Threads().ToString(), "-i", distorted,
             "-threads", Threads().ToString(), "-i", reference, "-filter_complex_threads", "1", "-filter_complex", filter, "-map", "[s]"];
         if (xpsnr) args.AddRange(["-map", "[x]"]);
@@ -298,7 +310,7 @@ public sealed class VideoSlimming(MediaEngine engine)
         {
             var start = count == 1 ? 0 : i * (duration - length) / (count - 1);
             var result = await Checked(["-hide_banner", "-nostdin", "-threads", Threads().ToString(),
-                "-ss", MediaEngine.Number(start), "-i", input, "-t", MediaEngine.Number(length), "-an", "-vf",
+                "-ss", MediaEngine.Number(start), "-i", input, "-t", MediaEngine.Number(length), "-map", "0:V:0", "-an", "-vf",
                 "fps=4,scale=160:-2,signalstats,metadata=mode=print", "-f", "null", "-"], ct).ConfigureAwait(false);
             double time = 0;
             foreach (var line in result.Error.Split('\n'))
@@ -364,7 +376,7 @@ public sealed class VideoSlimming(MediaEngine engine)
         string pixelFormat, int quality, int threads, string format, bool includeSubtitles)
     {
         List<string> args = ["-hide_banner", "-nostdin", "-n", "-threads", threads.ToString(), "-i", input,
-            "-map", "0:v:0", "-map", "0:a?", "-c:v", encoder, "-preset", "medium", "-crf", quality.ToString(),
+            "-map", "0:V:0", "-map", "0:a?", "-c:v", encoder, "-preset", "medium", "-crf", quality.ToString(),
             "-pix_fmt", pixelFormat, "-threads", threads.ToString(), "-c:a", "copy", "-fps_mode", "passthrough", "-enc_time_base:v", "demux",
             "-metadata:s:v:0", "rotate=0"];
         if (encoder == "libx265") args.AddRange(["-x265-params", $"pools={threads}:frame-threads=1:log-level=error"]);
@@ -385,14 +397,15 @@ public sealed class VideoSlimming(MediaEngine engine)
     public static void ValidateSource(MediaInfo source, VideoSlimmingOptions options)
     {
         options.Validate();
-        if (!source.HasVideo || !double.IsFinite(source.Duration) || source.Duration <= 0 || source.Width < 2 || source.Height < 2)
-            throw new ArgumentException("请选择有有效时长的视频。");
-        var color = VideoCompressionColor.Inspect(source);
-        if (color.ToneMap || color.DolbyVision) throw new ArgumentException("HDR / Dolby Vision 视频请使用视频压缩；瘦身暂仅分析 SDR 视频。");
         using var document = JsonDocument.Parse(source.RawJson);
         var streams = document.RootElement.GetProperty("streams").EnumerateArray().ToArray();
-        var videos = streams.Where(stream => Text(stream, "codec_type") == "video").ToArray();
+        var allVideos = streams.Where(stream => Text(stream, "codec_type") == "video").ToArray();
+        var videos = allVideos.Where(IsContentVideo).ToArray();
+        if (videos.Length == 0 || !source.HasVideo || !double.IsFinite(source.Duration) || source.Duration <= 0 || source.Width < 2 || source.Height < 2)
+            throw new ArgumentException("请选择有有效时长的视频。");
         if (videos.Length != 1) throw new ArgumentException("多视频轨文件请先提取需要的视频轨。");
+        var color = VideoCompressionColor.Inspect(source with { VideoStreamIndex = Array.FindIndex(allVideos, IsContentVideo) });
+        if (color.ToneMap || color.DolbyVision) throw new ArgumentException("HDR / Dolby Vision 视频请使用视频压缩；瘦身暂仅分析 SDR 视频。");
         if (videos[0].TryGetProperty("field_order", out var order) && order.GetString() is "tt" or "bb" or "tb" or "bt")
             throw new ArgumentException("隔行视频请先在格式转换中去隔行。");
         foreach (var stream in streams)
@@ -405,6 +418,14 @@ public sealed class VideoSlimming(MediaEngine engine)
                 throw new ArgumentException("此视频的字幕适合 MP4，请选择 MP4 以原样保留。");
         }
     }
+
+    // Match FFmpeg's V stream selector: cover art and timed thumbnails are not video content.
+    private static bool IsContentVideo(JsonElement stream) => Text(stream, "codec_type") == "video" &&
+        !HasDisposition(stream, "attached_pic") && !HasDisposition(stream, "timed_thumbnails");
+
+    private static bool HasDisposition(JsonElement stream, string name) =>
+        stream.TryGetProperty("disposition", out var disposition) && disposition.TryGetProperty(name, out var value) &&
+        value.TryGetInt32(out var flag) && flag != 0;
 
     private static string Diagnosis(MediaInfo source, long bytes, long estimate)
     {
