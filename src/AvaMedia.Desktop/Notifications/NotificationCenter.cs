@@ -15,6 +15,7 @@ internal sealed class NotificationEntry(NotificationMessage message)
     public DateTime Created { get; } = DateTime.Now;
     public bool Read { get; set; }
     public bool Dismissed { get; set; }
+    public bool AutoHidden { get; set; }
     public bool Busy { get; set; }
 }
 
@@ -26,11 +27,14 @@ internal sealed class NotificationCenter
     private readonly HashSet<string> _removedKeys = [];
     private WeakReference<Window>? _host;
     private WeakReference<Window>? _anchor;
-    private bool _stopped;
+    private bool _stopped, _manualPresentation;
     public IReadOnlyList<NotificationEntry> Entries => _entries;
     public NotificationEntry? Selected { get; private set; }
     public bool Expanded { get; private set; }
     public bool History { get; private set; }
+    public int AutoCloseVersion { get; private set; }
+    public bool CanAutoClose => Expanded && !History && !_manualPresentation
+        && Selected is { Busy: false, Message: { Active: false } };
     public event Action? Changed;
     public Window? Anchor => _anchor?.TryGetTarget(out var window) == true ? window : null;
     public static string Text(object value) => Localization.RenderContent(value);
@@ -46,6 +50,8 @@ internal sealed class NotificationCenter
         }
         if (owner is not null) _anchor = new(owner);
         var entry = _entries.FirstOrDefault(item => item.Message.Key == message.Key);
+        var added = entry is null;
+        var phaseChanged = entry is not null && (entry.Message.Kind != message.Kind || entry.Message.Active != message.Active);
         if (entry is null)
         {
             entry = new(message); _entries.Insert(0, entry);
@@ -56,14 +62,20 @@ internal sealed class NotificationCenter
                 if (old is null) break; _entries.Remove(old);
             }
         }
-        else entry.Message = message;
-        if (reopen) { entry.Dismissed = false; entry.Read = false; }
-        if (show && !entry.Dismissed)
+        else
+        {
+            entry.Message = message;
+            if (phaseChanged) entry.AutoHidden = false;
+        }
+        if (phaseChanged && Selected == entry) AutoCloseVersion++;
+        if (reopen) { entry.Dismissed = entry.AutoHidden = entry.Read = false; }
+        if (show && !entry.Dismissed && !entry.AutoHidden)
         {
             EnsurePresentation();
-            if (select || !Expanded || Selected is null)
+            if (select || !Expanded || Selected is null
+                || !_manualPresentation && !Selected.Message.Active && (added || reopen || phaseChanged))
             {
-                Selected = entry; Expanded = true; History = false;
+                Selected = entry; Expanded = true; History = _manualPresentation = false; AutoCloseVersion++;
                 entry.Read = Host is { IsVisible: true, WindowState: not WindowState.Minimized };
             }
         }
@@ -99,7 +111,7 @@ internal sealed class NotificationCenter
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OpenHistory(owner)); return; }
         if (_stopped) return;
         if (owner is not null) _anchor = new(owner);
-        EnsurePresentation(); Expanded = History = true; Changed?.Invoke();
+        EnsurePresentation(); Expanded = History = _manualPresentation = true; Changed?.Invoke();
         if (Host is MainWindow main) main.RestoreFromTray();
         else if (Host is {} host)
         {
@@ -109,7 +121,7 @@ internal sealed class NotificationCenter
         }
     }
     public void Select(NotificationEntry entry)
-    { if (!_entries.Contains(entry)) return; Selected = entry; entry.Read = true; Expanded = true; History = false; Changed?.Invoke(); }
+    { if (!_entries.Contains(entry)) return; Selected = entry; entry.Read = true; Expanded = _manualPresentation = true; History = false; Changed?.Invoke(); }
     public void Step(int direction)
     {
         if (_entries.Count == 0) return;
@@ -119,26 +131,35 @@ internal sealed class NotificationCenter
     public void DismissSelected()
     {
         if (Selected is { } selected) Dismiss(selected);
-        Selected = _entries.FirstOrDefault(item => !item.Dismissed && item != Selected);
-        Expanded = Selected is not null; History = false;
-        if (Selected is { } next) next.Read = true;
+        Collapse();
+    }
+    public void AutoCollapse()
+    {
+        if (CanAutoClose) Collapse();
+    }
+    public void Collapse()
+    {
+        Expanded = History = _manualPresentation = false;
+        // Hide existing progress streams together so the next progress tick cannot reopen the panel.
+        foreach (var entry in _entries) entry.AutoHidden = true;
         Changed?.Invoke();
     }
-    public void Collapse() { Expanded = History = false; Changed?.Invoke(); }
     public void Remove(NotificationEntry entry)
     {
         if (!_entries.Remove(entry)) return;
         _removedKeys.Add(entry.Message.Key); Dismiss(entry);
         if (Selected == entry) Selected = _entries.FirstOrDefault(item => !item.Dismissed);
-        if (Selected is null) History = true;
+        if (_entries.Count == 0) { Collapse(); return; }
+        if (Selected is null) History = _manualPresentation = true;
         else if (Expanded && !History) Selected.Read = true;
+        AutoCloseVersion++;
         Changed?.Invoke();
     }
     public void ClearAll()
     {
         var removed = _entries.ToArray();
         foreach (var entry in removed) _removedKeys.Add(entry.Message.Key);
-        _entries.Clear(); Selected = null; History = Expanded = true;
+        _entries.Clear(); Selected = null; History = Expanded = _manualPresentation = false;
         foreach (var entry in removed) Dismiss(entry);
         Changed?.Invoke();
     }
@@ -163,7 +184,7 @@ internal sealed class NotificationCenter
         finally { entry.Busy = false; Changed?.Invoke(); }
     }
     public void Shutdown()
-    { _stopped = true; Expanded = History = false; _entries.Clear(); _removedKeys.Clear(); Selected = null; _host = _anchor = null; Changed?.Invoke(); }
+    { _stopped = true; Expanded = History = _manualPresentation = false; _entries.Clear(); _removedKeys.Clear(); Selected = null; _host = _anchor = null; Changed?.Invoke(); }
 
     private static void Dismiss(NotificationEntry entry)
     {

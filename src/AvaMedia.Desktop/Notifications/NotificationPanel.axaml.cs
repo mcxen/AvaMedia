@@ -16,6 +16,8 @@ public sealed partial class NotificationPanel : UserControl
     private Window? _owner;
     private bool _refreshing, _attached;
     private readonly DispatcherTimer _actionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _autoCloseTimer = new();
+    private int _autoCloseVersion = -1;
     public NotificationPanel()
     {
         InitializeComponent();
@@ -41,22 +43,42 @@ public sealed partial class NotificationPanel : UserControl
         };
         DetachedFromVisualTree += (_, _) =>
         {
-            _attached = false; _actionTimer.Stop(); _center.Changed -= Refresh; Localization.Changed -= LanguageChanged;
+            _attached = false; _actionTimer.Stop(); _autoCloseTimer.Stop(); _center.Changed -= Refresh; Localization.Changed -= LanguageChanged;
             if (_owner is not null) _owner.PropertyChanged -= HostStateChanged;
             _owner = null;
         };
         _actionTimer.Tick += (_, _) => RefreshActions();
-        PropertyChanged += (_, args) => { if (args.Property == IsVisibleProperty) RefreshActionTimer(); };
+        _autoCloseTimer.Tick += (_, _) => { _autoCloseTimer.Stop(); _center.AutoCollapse(); };
+        PropertyChanged += (_, args) =>
+        {
+            if (args.Property == IsVisibleProperty) RefreshActionTimer();
+            if (args.Property == IsVisibleProperty || args.Property == IsPointerOverProperty || args.Property == IsKeyboardFocusWithinProperty)
+                RefreshAutoCloseTimer();
+        };
         KeyDown += (_, args) =>
         {
-            if (args.Key == Key.Escape) { _center.Collapse(); args.Handled = true; }
+            if (args.Key == Key.Escape) { ClosePanel(); args.Handled = true; }
         };
         Refresh();
     }
     private void RefreshActionTimer()
     { if (_attached && IsVisible && _owner is { IsVisible: true, WindowState: not WindowState.Minimized }) _actionTimer.Start(); else _actionTimer.Stop(); }
+    private void RefreshAutoCloseTimer()
+    {
+        if (_autoCloseVersion != _center.AutoCloseVersion)
+        {
+            _autoCloseVersion = _center.AutoCloseVersion; _autoCloseTimer.Stop();
+            _autoCloseTimer.Interval = TimeSpan.FromSeconds(_center.Selected?.Message.Kind is NotificationKind.Error or NotificationKind.Warning ? 12 : 8);
+        }
+        if (!_attached || !IsVisible || !_center.CanAutoClose || IsPointerOver || IsKeyboardFocusWithin
+            || _owner is not { IsVisible: true, WindowState: not WindowState.Minimized }) _autoCloseTimer.Stop();
+        else if (!_autoCloseTimer.IsEnabled) _autoCloseTimer.Start();
+    }
     private void HostStateChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
-    { if (args.Property == IsVisibleProperty || args.Property == Window.WindowStateProperty) RefreshActionTimer(); }
+    {
+        if (args.Property != IsVisibleProperty && args.Property != Window.WindowStateProperty) return;
+        RefreshActionTimer(); RefreshAutoCloseTimer();
+    }
     private void LanguageChanged(object? sender, EventArgs args) { _actionSignature = null; Refresh(); }
     private void Refresh()
     {
@@ -88,7 +110,7 @@ public sealed partial class NotificationPanel : UserControl
                 ProgressText.Text = message.Progress is { } percent ? $"{percent:0}%" : "";
                 Counter.Text = $"{_center.Entries.ToList().IndexOf(selected) + 1} / {_center.Entries.Count}";
             }
-            RefreshActions(); RefreshActionTimer();
+            RefreshActions(); RefreshActionTimer(); RefreshAutoCloseTimer();
         }
         finally { _refreshing = false; }
     }
@@ -110,7 +132,8 @@ public sealed partial class NotificationPanel : UserControl
             Actions.Children.Add(button);
         }
     }
-    private void DismissClick(object? sender, RoutedEventArgs args) { if (_center.History) _center.Collapse(); else _center.DismissSelected(); }
+    private void ClosePanel() { if (_center.History) _center.Collapse(); else _center.DismissSelected(); }
+    private void DismissClick(object? sender, RoutedEventArgs args) => ClosePanel();
     private void RemoveClick(object? sender, RoutedEventArgs args) { if (_center.Selected is {} entry) _center.Remove(entry); }
     private void ClearClick(object? sender, RoutedEventArgs args) => _center.ClearAll();
     private void PreviousClick(object? sender, RoutedEventArgs args) => _center.Step(-1);
