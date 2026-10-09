@@ -80,10 +80,10 @@ internal sealed class GemmaTokenizer
         var normalized = segment.Replace(' ', '▁');
         var symbols = new List<int>(normalized.Length);
         var runes = normalized.EnumerateRunes();
+        Span<byte> buffer = stackalloc byte[4];
         foreach (var rune in runes)
         {
             if (_vocab.TryGetValue(rune.ToString(), out var id)) { symbols.Add(id); continue; }
-            Span<byte> buffer = stackalloc byte[4];
             var count = rune.EncodeToUtf8(buffer);
             for (var index = 0; index < count; index++) symbols.Add(_bytes[buffer[index]]);
         }
