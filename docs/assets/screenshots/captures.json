@@ -1,0 +1,330 @@
+{
+  "capturedUtc": "2026-10-09T06:59:35.684803+00:00",
+  "platform": "Darwin 24.6.0 Darwin Kernel Version 24.6.0: Mon Aug 11 21:16:30 PDT 2025; root:xnu-11417.140.69.701.11~1/RELEASE_ARM64_T8132",
+  "version": "1.1.51.0",
+  "captures": [
+    {
+      "file": "main-light.png",
+      "theme": "Light",
+      "width": 1440,
+      "height": 836,
+      "sha256": "bcc2b89de50fe99da7b3f1d2e896a8f691b7e987a970a1c370d2155f9d02b0d2"
+    },
+    {
+      "file": "route-light.png",
+      "theme": "Light",
+      "width": 1140,
+      "height": 780,
+      "sha256": "995207152764896123f610e6cadaa877886954c37d3dcedcc9c82d018769329e"
+    },
+    {
+      "file": "settings-light.png",
+      "theme": "Light",
+      "width": 880,
+      "height": 660,
+      "sha256": "e562ae86309f328b4b1185ebe7fa4ce5383cf830dae786ebd51a6c24457bfeb0"
+    },
+    {
+      "file": "options-light.png",
+      "theme": "Light",
+      "width": 760,
+      "height": 660,
+      "sha256": "bafc706f892fe0158e71b00562cd5ff2b8c146999327afb6bc8dd0402e86c136"
+    },
+    {
+      "file": "convert-light.png",
+      "theme": "Light",
+      "width": 830,
+      "height": 620,
+      "sha256": "ac32333e800f68a2d835e211f8a38a8e34ddc89f7a62d5fcc4110b3266b5c01d"
+    },
+    {
+      "file": "download-light.png",
+      "theme": "Light",
+      "width": 1040,
+      "height": 740,
+      "sha256": "aca511e0b3662e6fa0551371f3a4bd3799e4068642cfa29a6f869423e4a913a2"
+    },
+    {
+      "file": "editor-light.png",
+      "theme": "Light",
+      "width": 1380,
+      "height": 836,
+      "sha256": "6239345649fb22da0be798c4fb0409ec2e56a4554504412b6c451f963d012a31"
+    },
+    {
+      "file": "export-light.png",
+      "theme": "Light",
+      "width": 920,
+      "height": 660,
+      "sha256": "eede474c86e84d16fdaea92a48ad09984bd83cc3f7a7d83573c424035da464dc"
+    },
+    {
+      "file": "player-light.png",
+      "theme": "Light",
+      "width": 1100,
+      "height": 720,
+      "sha256": "4bc6eef631d24b579df28dcc8692811fa52556a4f7db0b7623ad0f413e3cda6a"
+    },
+    {
+      "file": "media-components-light.png",
+      "theme": "Light",
+      "width": 1160,
+      "height": 836,
+      "sha256": "a98df4b1291d93fcbc64e42f740605b0abbbf53fb3eba0442ed0c72c8e5969fc"
+    },
+    {
+      "file": "components-light.png",
+      "theme": "Light",
+      "width": 1040,
+      "height": 760,
+      "sha256": "82367dc148eb38b32c6f70b110b3cd8a63ddda1ed807e202cb7ea7e5efc3885f"
+    },
+    {
+      "file": "main-dark.png",
+      "theme": "Dark",
+      "width": 1440,
+      "height": 836,
+      "sha256": "8aaa94ec118953b283388d640564565d6412358a851da82f76dd947e1169f909"
+    },
+    {
+      "file": "route-dark.png",
+      "theme": "Dark",
+      "width": 1140,
+      "height": 780,
+      "sha256": "641b6433743e6aa5b666970e53ae6b524fcecb4d7e2a0447c7cf11ad8f0a289e"
+    },
+    {
+      "file": "settings-dark.png",
+      "theme": "Dark",
+      "width": 880,
+      "height": 660,
+      "sha256": "fe10ddc2fc7c90398fe35de06abee1ca1ca80c9b5d3d116a315ac615411d93f7"
+    },
+    {
+      "file": "options-dark.png",
+      "theme": "Dark",
+      "width": 760,
+      "height": 660,
+      "sha256": "0d235326351da63429ea8381773ff915f7bf71da08c0afe11dd1f30f56aaeedb"
+    },
+    {
+      "file": "convert-dark.png",
+      "theme": "Dark",
+      "width": 830,
+      "height": 620,
+      "sha256": "e8fd39b3fa0497e183c05c51bfea76bbbaeda2fb3aaebbee2c7e5f80953f3ccb"
+    },
+    {
+      "file": "download-dark.png",
+      "theme": "Dark",
+      "width": 1040,
+      "height": 740,
+      "sha256": "ab0b555a25252dcfe02188d4efcf716aeb902ffaa4807be5f3a61ed80a07c9ba"
+    },
+    {
+      "file": "editor-dark.png",
+      "theme": "Dark",
+      "width": 1380,
+      "height": 836,
+      "sha256": "0da902f4c9f985592628eb3f581c0f3c1bb079c92560c2134411790c74cbeed3"
+    },
+    {
+      "file": "export-dark.png",
+      "theme": "Dark",
+      "width": 920,
+      "height": 660,
+      "sha256": "78d803af9cfed9d30fe185201066da76361e7e251e53f9b78522969a8059d720"
+    },
+    {
+      "file": "player-dark.png",
+      "theme": "Dark",
+      "width": 1100,
+      "height": 720,
+      "sha256": "f2d01533ded1c1d93f13e1c8e1e48bee7d384c0d6eab8924e547aee615c6f603"
+    },
+    {
+      "file": "media-components-dark.png",
+      "theme": "Dark",
+      "width": 1160,
+      "height": 836,
+      "sha256": "7a63a9a5db8b2ef4637d3c9597d72fd2006bf23cb94b74bf03b202e90582adb3"
+    },
+    {
+      "file": "components-dark.png",
+      "theme": "Dark",
+      "width": 1040,
+      "height": 760,
+      "sha256": "603ba36bcc9be7fa8ad0dedc16a2924d98f7062a13a8d4fb0c51bcb0062d8790"
+    },
+    {
+      "file": "main-macos9.png",
+      "theme": "MacOS9",
+      "width": 1440,
+      "height": 836,
+      "sha256": "39628a3ea2a5608f1336241172d16f365a4ef4ce10788058b9e9d6b1c7a6c32c"
+    },
+    {
+      "file": "route-macos9.png",
+      "theme": "MacOS9",
+      "width": 1140,
+      "height": 780,
+      "sha256": "2f4194e0543c21274b5972512d7b8ef9179887bd1df11a684955bc117f36c13a"
+    },
+    {
+      "file": "settings-macos9.png",
+      "theme": "MacOS9",
+      "width": 880,
+      "height": 660,
+      "sha256": "c84367ebb07c3c20410c41d28e5751d460d5f919daef9eb6fad06b24c33e9611"
+    },
+    {
+      "file": "options-macos9.png",
+      "theme": "MacOS9",
+      "width": 760,
+      "height": 660,
+      "sha256": "d07b244386a44e0e710e5130a0ec3a66efc610432c4f7d3408e1af3e82a7173e"
+    },
+    {
+      "file": "convert-macos9.png",
+      "theme": "MacOS9",
+      "width": 830,
+      "height": 620,
+      "sha256": "2590211fe0cf1f04ed4d9d5e1856da60699ce37fce71d0426586b4e5d8425d86"
+    },
+    {
+      "file": "download-macos9.png",
+      "theme": "MacOS9",
+      "width": 1040,
+      "height": 740,
+      "sha256": "e32c56f4253047ef5324d661109dcbe1533f174c0c7bea36a2de0587204eaecc"
+    },
+    {
+      "file": "editor-macos9.png",
+      "theme": "MacOS9",
+      "width": 1380,
+      "height": 836,
+      "sha256": "60bd86e1bf02200b5cbca45690e70225c3cd31b45074e06509e8e1f641682a78"
+    },
+    {
+      "file": "export-macos9.png",
+      "theme": "MacOS9",
+      "width": 920,
+      "height": 660,
+      "sha256": "40200464dc9f9bd1ea7fe079b78542270398a975cf14ec14003eb2a37e7e01b3"
+    },
+    {
+      "file": "player-macos9.png",
+      "theme": "MacOS9",
+      "width": 1100,
+      "height": 720,
+      "sha256": "037c174432a7218aefe1cd142fe8e23249c75a351d0d65c7a3031b3ed75dd6d5"
+    },
+    {
+      "file": "media-components-macos9.png",
+      "theme": "MacOS9",
+      "width": 1160,
+      "height": 836,
+      "sha256": "3d521a3450b9e856b09bc6dcb8d379bc80e05f5d483643f35de7c2abbfac511e"
+    },
+    {
+      "file": "components-macos9.png",
+      "theme": "MacOS9",
+      "width": 1040,
+      "height": 760,
+      "sha256": "ef3dcd6ffa114b528ebb60fa1dca94bee214bac91b354ad9e6db04efc4a63601"
+    },
+    {
+      "file": "main-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1440,
+      "height": 836,
+      "sha256": "57799f96d1daf72cfb95ff2eac226644f9d59eda1c9746033f30aa4f76c31a18"
+    },
+    {
+      "file": "route-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1140,
+      "height": 780,
+      "sha256": "2e0685045e160045c70afbc1a636e6b37c55dcb211e9c820ab67792e92875b93"
+    },
+    {
+      "file": "settings-winxp.png",
+      "theme": "WindowsXP",
+      "width": 880,
+      "height": 660,
+      "sha256": "7c69b6404a3a57f349e0da791752aa4a34a50865a8362e39d18e4aee57c6dd41"
+    },
+    {
+      "file": "options-winxp.png",
+      "theme": "WindowsXP",
+      "width": 760,
+      "height": 660,
+      "sha256": "439f14d6b6621b7994ea1f88ca4e761c4d50737b0192136531f84bc1edaa4595"
+    },
+    {
+      "file": "convert-winxp.png",
+      "theme": "WindowsXP",
+      "width": 830,
+      "height": 620,
+      "sha256": "6e348a6e9a9705c674b6f66e201044aeeff523b7531e7820ddfa4cd176fc6b59"
+    },
+    {
+      "file": "download-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1040,
+      "height": 740,
+      "sha256": "2fd409dc08ff5cae43f2d9c6017dae940de65ba112d92650a1d02da52cb42f75"
+    },
+    {
+      "file": "editor-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1380,
+      "height": 836,
+      "sha256": "819b7ff83017bed0b6a93529782bf28ab55598bf85bc504f8915cc33faaa8bf5"
+    },
+    {
+      "file": "export-winxp.png",
+      "theme": "WindowsXP",
+      "width": 920,
+      "height": 660,
+      "sha256": "37b62f56134d91b90be0a7a609d8faf8c2505bce8f8d5d3c2e89dcf9dba1589c"
+    },
+    {
+      "file": "player-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1100,
+      "height": 720,
+      "sha256": "880fa0f51b40c661a13330bdd6c4d45914f84af8c18cf0c24bdcd7dacdab23df"
+    },
+    {
+      "file": "media-components-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1160,
+      "height": 836,
+      "sha256": "691201210668a6bc2b7ceec595e2badeabade2541a47c1b10afadd144e7c871e"
+    },
+    {
+      "file": "components-winxp.png",
+      "theme": "WindowsXP",
+      "width": 1040,
+      "height": 760,
+      "sha256": "63d2837a6ca0adfac61aeb0e5de2e021cf10beca209a0d435e2f5e1fc4a5f35b"
+    }
+  ],
+  "sampleOnly": true,
+  "mediaExportsExecuted": false,
+  "scale": 1,
+  "baseCommit": "4543d8424f588ab2272a366c6dbe2ca84474261a",
+  "sourceChanges": {
+    "src/AvaMedia.Core/MediaFileRouter.cs": "16a20337c5751d3f3701939b502bfea9911fe7b15bce93a87fe4a185fe75351e",
+    "src/AvaMedia.Desktop/MediaRouteWindow.axaml": "8ab5ccf88dfd9b72366661062f90494debd263c8ff4e8b0da0ff7f37fd7cdd97",
+    "src/AvaMedia.Desktop/Styles/Platinum.axaml": "10054bc5d68b97349a8267834da4aa4c067109f41254d59f198e3673d52e877c",
+    "src/AvaMedia.Desktop/Styles/PlatinumControls.axaml": "0529e00cd7645fb54ef3b2b5c21285b2407963d4c321dc49ab50acc8e2bf16e7",
+    "src/AvaMedia.Desktop/Controls/CustomWindowResize.cs": "7594e08cdb05bafc90ed303082f74e8b4711b129206df7b4a7e53ee5053c6a5c",
+    "src/AvaMedia.Desktop/Controls/SegmentTimeline.cs": "a44768fe3b15c27de98d3a062ac014c5b5e2764f7c13c42479165616699e0cdb",
+    "src/AvaMedia.Desktop/Localization/Strings.en-US.json": "e1f5b26a4d013f9e02c9a86619ae58779254b13f9d28b6943ca01bbd70e8bde3",
+    "tools/AvaMedia.UiCapture/Program.cs": "fa75e80cd1e57521835205e1d7421ce2b1df565af0e0a71b51618973812e1648",
+    "tools/AvaMedia.UiCapture/AvaMedia.UiCapture.csproj": "733d3062cef6291fe9f2c98bfd7d895b59e8e3deaecab7035401af37f27950e1"
+  }
+}

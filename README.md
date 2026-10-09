@@ -42,7 +42,7 @@ macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；�
 | WiFi 传文件 | 同一局域网内，手机扫码通过浏览器上传文件，电脑也可分享文件给手机下载 |
 | 任务队列与工具 | 并行处理、进度、停止、编辑参数、重试、日志、自动保存与导入导出；ZIP 压缩 / 解压、导出帧、DVD / VOB 转换和原始数据复制为 ISO |
 
-拖入文件可按视频、音频、图片和文档推荐工具；也可先选择功能，再添加文件、调整参数、加入队列并开始处理。快速剪辑先编辑片段，再统一配置导出，每个片段生成独立文件。
+拖入文件后，路由按文件类型显示匹配工具、可带入与跳过数量，并支持搜索和键盘选择；也可先选择功能，再添加文件、调整参数、加入队列并开始处理。快速剪辑先编辑片段，再统一配置导出，每个片段生成独立文件。
 
 ### 使用边界
 
@@ -54,19 +54,19 @@ macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；�
 
 ## 界面截图
 
-以下为本地已编译客户端在 macOS 上截取的实际界面（2026-10-07），使用中文界面；应用也支持 English。编辑器示例画面来自 [NASA 公共领域照片](tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。
+以下为 2026-10-09 在 macOS 上运行本地 Release 开发构建后生成的中文界面截图。四套皮肤共用功能和参数；示例画面来自 [NASA 公共领域照片](tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。
 
-**主窗口 · Light**
-
-![AvaMedia 浅色主窗口：媒体工具分类、任务队列与 WiFi 传文件入口](docs/assets/screenshots/main-light.png)
-
-| Mac OS 9 · Platinum | 快速剪辑 · Dark |
+| Light | Dark |
 | --- | --- |
-| [![AvaMedia Mac OS 9 主窗口](docs/assets/screenshots/main-macos9.png)](docs/assets/screenshots/main-macos9.png) | [![AvaMedia 深色快速剪辑编辑器：时间区间、边界预览与片段编辑](docs/assets/screenshots/editor-dark.png)](docs/assets/screenshots/editor-dark.png) |
-| **导出设置 · Light** | **视频下载 · Light** |
-| [![AvaMedia 导出设置：片段列表、输出格式和保存位置](docs/assets/screenshots/export-light.png)](docs/assets/screenshots/export-light.png) | [![AvaMedia 视频下载：链接解析、画质、字幕和登录选项](docs/assets/screenshots/download-light.png)](docs/assets/screenshots/download-light.png) |
+| [![AvaMedia 浅色主窗口与任务队列](docs/assets/screenshots/main-light.png)](docs/assets/screenshots/main-light.png) | [![AvaMedia 深色主窗口与任务队列](docs/assets/screenshots/main-dark.png)](docs/assets/screenshots/main-dark.png) |
+| **Mac OS 9 · Platinum** | **Windows XP · Luna** |
+| [![AvaMedia Platinum 主窗口](docs/assets/screenshots/main-macos9.png)](docs/assets/screenshots/main-macos9.png) | [![AvaMedia Windows XP 主窗口](docs/assets/screenshots/main-winxp.png)](docs/assets/screenshots/main-winxp.png) |
+| **文件路由 · Windows XP** | **快速剪辑 · Dark** |
+| [![文件路由：输入文件、兼容数量、分类连线与自适应工具网格](docs/assets/screenshots/route-winxp.png)](docs/assets/screenshots/route-winxp.png) | [![快速剪辑：时间区间、边界预览与片段编辑](docs/assets/screenshots/editor-dark.png)](docs/assets/screenshots/editor-dark.png) |
+| **播放器 · Platinum** | **视频下载 · Light** |
+| [![Platinum 播放器与紧凑播放控制栏](docs/assets/screenshots/player-macos9.png)](docs/assets/screenshots/player-macos9.png) | [![视频下载：链接、画质、字幕和登录选项](docs/assets/screenshots/download-light.png)](docs/assets/screenshots/download-light.png) |
 
-点击配图可查看原图。截图来源与更新方式见 [截图说明](docs/assets/screenshots/README.md)。
+点击配图查看原图。[完整截图目录](docs/assets/screenshots/README.md) 收录四套皮肤的 44 张截图，包含路由、设置、转换、编辑、导出、播放及组件预览；检查范围与修正记录见 [外观检查](docs/APPEARANCE-REVIEW.md)。
 
 ## 从源码运行
 

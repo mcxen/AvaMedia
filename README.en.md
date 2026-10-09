@@ -42,7 +42,7 @@ Current development builds download and verify the LaMa model in the background 
 | WiFi file transfer | Scan a QR code to upload files from a phone's browser on the same local network, or share files from the computer for a phone to download |
 | Task queue and utilities | Parallel jobs, progress, stop, parameter editing, retry, logs, automatic saving and import/export; ZIP creation / extraction, frame export, DVD / VOB conversion and raw-data copying to ISO |
 
-Drop files into the main window to see tools suited to videos, audio, images and documents. Alternatively, choose a tool, add files, adjust settings, queue the jobs and start processing. Quick Clip lets you edit first, then choose export settings for all clips; each clip becomes a separate file.
+Drop files into the main window to see tools grouped by file type, with accepted and skipped counts, search and keyboard selection. Alternatively, choose a tool, add files, adjust settings, queue the jobs and start processing. Quick Clip lets you edit first, then choose export settings for all clips; each clip becomes a separate file.
 
 ### Practical limits
 
@@ -54,19 +54,19 @@ Drop files into the main window to see tools suited to videos, audio, images and
 
 ## Screenshots
 
-Actual interfaces captured from a locally compiled client on macOS on **2026-10-07**. Screenshots use the Chinese interface; English is also available in the app. The editor sample uses a [NASA public-domain photograph](tests/AvaMedia.BatchRotateTests/Fixtures/README.md).
+Chinese interfaces captured after running a local Release development build on macOS on **2026-10-09**. All four skins share the same features and parameters. The sample uses a [NASA public-domain photograph](tests/AvaMedia.BatchRotateTests/Fixtures/README.md).
 
-**Main window · Light**
-
-![AvaMedia Light main window with media tools, task queue and WiFi transfer](docs/assets/screenshots/main-light.png)
-
-| Mac OS 9 · Platinum | Quick Clip · Dark |
+| Light | Dark |
 | --- | --- |
-| [![AvaMedia Mac OS 9 main window](docs/assets/screenshots/main-macos9.png)](docs/assets/screenshots/main-macos9.png) | [![AvaMedia Dark Quick Clip editor with a timeline, boundary previews and clip editing](docs/assets/screenshots/editor-dark.png)](docs/assets/screenshots/editor-dark.png) |
-| **Export settings · Light** | **Video downloads · Light** |
-| [![AvaMedia export settings with clips, output format and destination](docs/assets/screenshots/export-light.png)](docs/assets/screenshots/export-light.png) | [![AvaMedia video downloader with URL parsing, quality, subtitles and login options](docs/assets/screenshots/download-light.png)](docs/assets/screenshots/download-light.png) |
+| [![AvaMedia Light main window and task queue](docs/assets/screenshots/main-light.png)](docs/assets/screenshots/main-light.png) | [![AvaMedia Dark main window and task queue](docs/assets/screenshots/main-dark.png)](docs/assets/screenshots/main-dark.png) |
+| **Mac OS 9 · Platinum** | **Windows XP · Luna** |
+| [![AvaMedia Platinum main window](docs/assets/screenshots/main-macos9.png)](docs/assets/screenshots/main-macos9.png) | [![AvaMedia Windows XP main window](docs/assets/screenshots/main-winxp.png)](docs/assets/screenshots/main-winxp.png) |
+| **File routing · Windows XP** | **Quick Clip · Dark** |
+| [![File routing with input files, compatibility counts, category connections and an adaptive tool grid](docs/assets/screenshots/route-winxp.png)](docs/assets/screenshots/route-winxp.png) | [![Quick Clip with a time range, boundary previews and clip editing](docs/assets/screenshots/editor-dark.png)](docs/assets/screenshots/editor-dark.png) |
+| **Player · Platinum** | **Video downloads · Light** |
+| [![Platinum player with compact playback controls](docs/assets/screenshots/player-macos9.png)](docs/assets/screenshots/player-macos9.png) | [![Video downloads with URLs, quality, subtitles and login options](docs/assets/screenshots/download-light.png)](docs/assets/screenshots/download-light.png) |
 
-Click a gallery image to open it at full size. See the [screenshot notes](docs/assets/screenshots/README.md) for sources and update instructions.
+Click an image for full size. The [complete gallery](docs/assets/screenshots/README.md) contains 44 captures across all four skins, including routing, settings, conversion, editing, export, playback and component previews. See the [appearance review](docs/APPEARANCE-REVIEW.md) for scope and fixes.
 
 ## Run from source
 

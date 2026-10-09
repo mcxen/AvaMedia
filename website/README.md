@@ -23,7 +23,7 @@ npm run preview
 
 - 功能范围依据仓库中英文 README 和 `docs/FEATURES.md`，不宣传未接入的 LaMa 修复推理等功能。
 - `scripts/prepare-assets.mjs` 在开发、构建前复制仓库现有真实截图及应用图标到生成目录 `public/media/`。不重复维护图片，也不抓取新截图。
-- 截图来源见 [`../docs/assets/screenshots/README.md`](../docs/assets/screenshots/README.md)。编辑器示例为 NASA 公共领域照片，来源见 [`../tests/AvaMedia.BatchRotateTests/Fixtures/README.md`](../tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。播放器配图是测试图案。
+- 截图来源见 [`../docs/assets/screenshots/README.md`](../docs/assets/screenshots/README.md)。编辑器示例为 NASA 公共领域照片，来源见 [`../tests/AvaMedia.BatchRotateTests/Fixtures/README.md`](../tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。播放器配图也使用同一照片。当前截图更新于 2026-10-09，包含四套皮肤，完整目录记录于截图说明。
 - 下载入口默认指向 GitHub 最新 Release。JavaScript 从公开 Release API 解析 Windows 安装版、便携 ZIP 和 macOS DMG；只接受本仓库已上传的安装包 URL。请求超时、限流或离线时保留发布页入口，不绑定旧版本号。
 - 无分析脚本、外部字体或视频依赖。页面唯一的外部数据请求是公开 GitHub Release 元数据。
 
