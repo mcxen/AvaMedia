@@ -19,6 +19,7 @@ public sealed partial class FolderClassificationWindow : Window
     private FolderClassificationRule[] _defaultRules = FolderClassificationRule.DefaultRules();
     private readonly Dictionary<string, FolderClassifiedFile> _results = new(BatchRename.PathComparer);
     private readonly List<string> _inputs = [];
+    private readonly HashSet<string> _analysisPending = new(BatchRename.PathComparer);
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _operation;
     private FolderOrganizationItem[]? _plan;
@@ -44,23 +45,26 @@ public sealed partial class FolderClassificationWindow : Window
         Func<Window, Task> manageModels)
     {
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
-        Title = "文件夹分类"; Width = 1260; Height = 800; MinWidth = 1000; MinHeight = 660;
+        Title = "文件夹分类"; Width = 1360; Height = 840; MinWidth = 1160; MinHeight = 660;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         LoadPreferences(); BuildInterface(); UpdateActions();
-        _files.SelectionChanged += (_, _) => RenderDetails();
+        _files.SelectionChanged += (_, _) => { if (!_renderingBoard) RenderDetails(); };
         _files.DoubleTapped += (_, _) => OpenSelected();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, (_, args) => args.DragEffects = !_busy && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None);
+        AddHandler(DragDrop.DragOverEvent, (_, args) =>
+        { if (!args.Handled) args.DragEffects = !_busy && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; });
         AddHandler(DragDrop.DropEvent, async (_, args) =>
         {
-            if (!_busy) await ImportPathsAsync(args.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []);
+            if (!args.Handled && !_busy) await ImportPathsAsync(args.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []);
         });
         Closing += (_, args) =>
         {
             if (_writing) { args.Cancel = true; _operation?.Cancel(); return; }
-            _closed = true; _lifetime.Cancel(); _operation?.Cancel();
+            _closed = true; _boardTimer.Stop(); _lifetime.Cancel(); _operation?.Cancel();
+            _coverCache.Clear(); _coverOrder.Clear(); _coverBytes = 0;
         };
-        Closed += (_, _) => _lifetime.Dispose();
+        Closed += (_, _) =>
+        { _files.ItemsSource = null; _baskets.Children.Clear(); _selectedCover.Path = null; _lifetime.Dispose(); };
         if (initial is not null) Opened += async (_, _) => await ImportPathsAsync(initial);
     }
 
@@ -121,12 +125,13 @@ public sealed partial class FolderClassificationWindow : Window
             _entries.Clear();
             foreach (var path in scan.Files)
             {
-                var entry = retained.GetValueOrDefault(path) ?? new MediaFileEntry(path);
+                var entry = retained.GetValueOrDefault(path) ?? new MediaFileEntry(path) { Status = Localization.Text("待分析") };
                 if (!retained.ContainsKey(path)) entry.PropertyChanged += (_, change) =>
                 { if (change.PropertyName == nameof(MediaFileEntry.Include)) InvalidatePlan(); };
                 _entries.Add(entry);
             }
             foreach (var path in _results.Keys.Where(path => !scan.Files.Contains(path, BatchRename.PathComparer)).ToArray()) _results.Remove(path);
+            _analysisPending.RemoveWhere(path => !scan.Files.Contains(path, BatchRename.PathComparer));
             InvalidatePlan(); SavePreferences();
             _status.Text = Localization.Format($"已扫描 {scan.Files.Length} 个媒体文件，无法访问 {scan.Errors.Length} 项");
             _scanErrors.Text = string.Join(Environment.NewLine, scan.Errors); _scanErrors.IsVisible = scan.Errors.Length > 0;
@@ -142,14 +147,14 @@ public sealed partial class FolderClassificationWindow : Window
         if (_syncing) return;
         _plan = null;
         foreach (var entry in _entries) entry.NewName = "";
-        UpdateActions();
+        UpdateActions(); QueueBoardRefresh();
     }
 
     private void InvalidateAnalysis()
     {
         if (_syncing) return;
         _attempted = false;
-        _results.Clear();
+        _results.Clear(); _analysisPending.Clear();
         foreach (var entry in _entries) { entry.Status = Localization.Text("待分析"); entry.Details = entry.Path; }
         InvalidatePlan(); RenderDetails();
     }
@@ -157,12 +162,12 @@ public sealed partial class FolderClassificationWindow : Window
     private void SetBusy(bool busy)
     {
         _busy = busy; _imports.IsEnabled = _settingsPanel.IsEnabled = _rulesPanel.IsEnabled = !busy;
-        _files.IsEnabled = !busy; _stop.IsVisible = busy; UpdateActions(); RenderDetails();
+        _stop.IsVisible = busy; UpdateActions(); RenderBoard();
     }
     private void UpdateActions()
     {
         _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Include);
-        _retry.IsEnabled = !_busy && _entries.Any(entry => entry.Include && !_results.ContainsKey(entry.Path));
+        _retry.IsEnabled = !_busy && _entries.Any(entry => entry.Include && (!_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path)));
         _retry.IsVisible = _attempted;
         _preview.IsEnabled = !_busy && _results.Count > 0;
         _organize.IsEnabled = !_busy && _plan is { Length: > 0 };

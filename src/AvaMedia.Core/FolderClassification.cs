@@ -1,65 +1,93 @@
 namespace AvaMedia.Core;
 
-public enum BinaryMediaAnswer { Review, Yes, No }
+public sealed record FolderClassificationCategory(string Id, string Name, string Description);
 
-public sealed record FolderClassificationRule(string Id, string Name, string PositiveDescription, string NegativeDescription)
+/// <summary>Categories in a group compete for one destination; uncertainty has its own basket.</summary>
+public sealed record FolderClassificationRule(string Id, string Name, FolderClassificationCategory[] Categories)
 {
     public double Threshold { get; init; } = .5;
     public double Margin { get; init; } = .04;
-    public string PositiveLabel => "yes_" + Id;
-    public string NegativeLabel => "no_" + Id;
+    public double MinimumAgreement { get; init; } = .8;
+    public string Label(string categoryId) => "class_" + Id + "_" + categoryId;
 
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(Id) || Id.Length > 40 || Id.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-'))
-            throw new ArgumentException("分类规则标识无效。");
+        ValidateId(Id);
         BatchRename.ValidateRenameKeyword(Name);
+        if (Categories is null || Categories.Length is < 2 or > 12)
+            throw new ArgumentException("每组须包含 2–12 个类别。");
+        foreach (var category in Categories)
+        {
+            if (category is null) throw new ArgumentException("分类字段缺失。");
+            ValidateId(category.Id);
+            BatchRename.ValidateRenameKeyword(category.Name);
+            if (string.IsNullOrWhiteSpace(category.Description) || category.Description.Length > 512
+                || category.Description.Any(character => character is '\t' or '\r' or '\n'))
+                throw new ArgumentException("类别画面描述须为 1–512 个字符且不能换行。");
+            if (category.Name is "待确认" or "待分析") throw new ArgumentException("类别名称不能使用待确认或待分析。");
+        }
+        if (Categories.Select(category => category.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != Categories.Length
+            || Categories.Select(category => category.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != Categories.Length)
+            throw new ArgumentException("同组类别名称或标识重复。");
         if (!double.IsFinite(Threshold) || Threshold is < 0 or > 1
-            || !double.IsFinite(Margin) || Margin is < 0 or > 1) throw new ArgumentException("分类阈值无效。");
+            || !double.IsFinite(Margin) || Margin is < 0 or > 1
+            || !double.IsFinite(MinimumAgreement) || MinimumAgreement is <= .5 or > 1)
+            throw new ArgumentException("分类阈值无效。");
         WordLibraryCatalog.Validate(Candidates());
     }
 
-    public WordCandidate[] Candidates() =>
-        [new(PositiveLabel, "分类-" + Id, PositiveDescription, []), new(NegativeLabel, "分类-" + Id, NegativeDescription, [])];
+    private static void ValidateId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Length > 32 || id.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-'))
+            throw new ArgumentException("分类标识无效。");
+    }
+
+    public WordCandidate[] Candidates() => Categories.Select(category =>
+        new WordCandidate(Label(category.Id), "分类-" + Id, category.Description, [])).ToArray();
 
     public static IReadOnlyList<FolderClassificationRule> Presets { get; } = [
-        new("forest", "森林",
-            "A forest or woodland scene, with many trees, leafy canopies, undergrowth or a wooded trail dominating the view.",
-            "A scene outside a forest: an indoor room, city street, beach, open grassland or bare mountain without woodland."),
-        new("empty-shot", "空镜",
-            "An establishing shot of scenery or an empty space with no visible people: landscape, architecture, street, room or natural detail.",
-            "A shot containing visible people, with a person or a group present in the scene or shown in close-up."),
-        new("coast", "海边",
-            "A coastal scene showing the sea, a sandy or rocky beach, ocean waves or a seaside shoreline.",
-            "An inland scene: a forest, mountain, city interior, river or lake without an ocean coast."),
-        new("mountains", "山景",
-            "A mountain landscape with visible mountain peaks, ridges, rocky slopes or a valley surrounded by mountains.",
-            "A scene without a mountain landscape: an indoor room, flat city street, flat field or beach."),
-        new("city", "城市",
-            "An outdoor urban scene with city streets, buildings, a skyline, sidewalks or other dense built surroundings.",
-            "A non-urban scene: a natural forest, mountain, open countryside, beach or an indoor room."),
-        new("indoors", "室内",
-            "An indoor scene inside a room or building, with walls, ceiling, furniture or interior fittings visible.",
-            "An outdoor scene in open air: a street, forest, mountain, beach or countryside.")];
-    public static FolderClassificationRule[] DefaultRules() => Presets.Take(2).ToArray();
+        new("scenery", "场景", [
+            new("forest", "森林", "A forest or woodland scene with dense trees, leafy canopies, undergrowth or a wooded trail."),
+            new("coast", "海边", "A coastal scene showing the ocean, a sandy or rocky beach, sea waves or a seaside shoreline."),
+            new("mountains", "山景", "A mountain landscape with peaks, ridges, rocky slopes or valleys surrounded by mountains."),
+            new("city", "城市", "An outdoor urban scene with streets, buildings, sidewalks or a city skyline."),
+            new("indoors", "室内", "An indoor room or building interior with walls, ceilings, furniture or interior fittings."),
+            new("other", "其他场景", "A scene in open countryside, grassland, a river, lake, sky or a close-up detail.")]),
+        new("indoor-location", "室内场景", [
+            new("room", "房间", "A living room, office or general room interior, with seating, tables or shelves, not focused on a bed or bathroom fittings."),
+            new("bed", "床上", "A scene focused on a bed surface, mattress, pillows or bed covers. The bed fills the main part of the view."),
+            new("bathroom", "浴室", "A bathroom interior with a bathtub, shower, washbasin, toilet, tiled walls or bathroom fittings.")]),
+        new("empty-shot", "空镜", [
+            new("empty", "空镜", "An establishing shot of scenery or an empty space without visible people: landscape, architecture, street, room or natural detail."),
+            new("people", "有人物", "A shot with visible people, with a person or a group present in the scene or shown in close-up.")]),
+        new("age-appearance", "外观年龄段", [
+            new("young", "儿童或青少年", "A visible person with the appearance of a child or adolescent, showing a youthful face and body proportions."),
+            new("adult", "成年人", "A visible person with the appearance of an adult, showing a mature face without prominent elderly facial features."),
+            new("older", "老年人", "A visible person with the appearance of an older adult, showing pronounced age-related wrinkles, grey hair or elderly facial features.")])];
+    public static FolderClassificationRule[] DefaultRules() => [Presets[0]];
 }
 
-public sealed record FolderClassificationDecision(string RuleId, string Name, BinaryMediaAnswer Answer,
-    double? PositiveScore, double? NegativeScore, double? Seconds, string Evidence, bool Manual = false);
+public sealed record FolderCategoryScore(string CategoryId, string Name, double Similarity, int MatchedFrames);
+public sealed record FolderFrameClassification(double Seconds, string? CategoryId, double? Similarity, double? Margin);
+public sealed record FolderClassificationDecision(string RuleId, string Name, string? CategoryId, string CategoryName,
+    IReadOnlyList<FolderCategoryScore> Scores, IReadOnlyList<FolderFrameClassification> Frames, double? Seconds,
+    double Agreement, string Evidence, bool Manual = false)
+{
+    public bool NeedsReview => CategoryId is null;
+}
 public sealed record FolderClassifiedFile(MediaTagResult Media, IReadOnlyList<FolderClassificationDecision> Decisions,
     IReadOnlyList<string> Tags);
 public sealed record FolderScanResult(string[] Files, string[] Errors);
 
-/// <summary>Binary decisions keep inconclusive observations separate from a negative answer.</summary>
 public static class FolderClassification
 {
     public static void ValidateRules(IReadOnlyList<FolderClassificationRule> rules)
     {
-        if (rules.Count > 8) throw new ArgumentException("最多使用 8 条分类规则。");
+        if (rules.Count > 8) throw new ArgumentException("最多使用 8 组分类。");
         foreach (var rule in rules) rule.Validate();
-        if (rules.Select(rule => rule.Id).Distinct().Count() != rules.Count
+        if (rules.Select(rule => rule.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != rules.Count
             || rules.Select(rule => rule.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != rules.Count)
-            throw new ArgumentException("分类规则名称或标识重复。");
+            throw new ArgumentException("分类组名称或标识重复。");
     }
 
     public static FolderScanResult Scan(IEnumerable<string> inputs, bool recursive, string? excludedFolder, CancellationToken ct)
@@ -115,27 +143,50 @@ public static class FolderClassification
 
     private static FolderClassificationDecision Decide(MediaTagResult media, FolderClassificationRule rule)
     {
-        FolderClassificationDecision Result(BinaryMediaAnswer answer, double? yes, double? no, double? seconds, string evidence)
-            => new(rule.Id, rule.Name, answer, yes, no, seconds, evidence);
+        FolderClassificationDecision Review(string evidence) => new(rule.Id, rule.Name, null, "待确认", [], [], null, 0, evidence);
         if (media.Scenes is null || media.SceneError is not null)
-            return Result(BinaryMediaAnswer.Review, null, null, null, media.SceneError ?? "语义识别结果缺失");
-        var observations = media.Scenes.Frames.Select(frame => (frame.Seconds,
-            Yes: frame.Candidates.FirstOrDefault(match => match.Label == rule.PositiveLabel)?.Similarity,
-            No: frame.Candidates.FirstOrDefault(match => match.Label == rule.NegativeLabel)?.Similarity)).ToArray();
-        if (observations.Length == 0 || observations.Any(item => item.Yes is null || item.No is null
-            || !double.IsFinite(item.Yes.Value) || !double.IsFinite(item.No.Value)))
-            return Result(BinaryMediaAnswer.Review, null, null, null, "二分语义分数缺失");
-        var positive = observations.Where(item => item.Yes >= rule.Threshold && item.Yes - item.No >= rule.Margin)
-            .OrderByDescending(item => item.Yes - item.No).ToArray();
-        var negative = observations.Where(item => item.No >= rule.Threshold && item.No - item.Yes >= rule.Margin).ToArray();
-        // Mixed or ambiguous videos need review. Do not force the best frame's label on an entire video.
-        var answerSemantic = positive.Length == observations.Length ? BinaryMediaAnswer.Yes
-            : negative.Length == observations.Length ? BinaryMediaAnswer.No : BinaryMediaAnswer.Review;
-        var best = observations.MaxBy(item => Math.Abs(item.Yes!.Value - item.No!.Value));
-        return Result(answerSemantic, best.Yes, best.No, best.Seconds,
-            answerSemantic == BinaryMediaAnswer.Review ? "采样画面有分歧或分差不足" : "二分语义匹配");
+            return Review(media.SceneError ?? "语义识别结果缺失");
+        var frames = new List<FolderFrameClassification>();
+        var sums = new Dictionary<string, List<double>>();
+        foreach (var category in rule.Categories) sums[category.Id] = [];
+        foreach (var frame in media.Scenes.Frames)
+        {
+            var scores = rule.Categories.Select(category => (Category: category,
+                Score: frame.Candidates.FirstOrDefault(match => match.Label == rule.Label(category.Id))?.Similarity)).ToArray();
+            foreach (var item in scores.Where(item => item.Score is { } score && double.IsFinite(score)))
+                sums[item.Category.Id].Add(item.Score!.Value);
+            if (scores.Any(item => item.Score is null || !double.IsFinite(item.Score.Value)))
+            { frames.Add(new(frame.Seconds, null, null, null)); continue; }
+            var ranked = scores.OrderByDescending(item => item.Score).ToArray();
+            var top = ranked[0]; var gap = top.Score!.Value - ranked[1].Score!.Value;
+            frames.Add(new(frame.Seconds, top.Score >= rule.Threshold && gap >= rule.Margin && gap > 0 ? top.Category.Id : null, top.Score, gap));
+        }
+        if (frames.Count == 0) return Review("分类语义分数缺失");
+        var aggregate = rule.Categories.Where(category => sums[category.Id].Count > 0).Select(category =>
+            new FolderCategoryScore(category.Id, category.Name, sums[category.Id].Average(), frames.Count(frame => frame.CategoryId == category.Id)))
+            .OrderByDescending(score => score.MatchedFrames).ThenByDescending(score => score.Similarity).ToArray();
+        var winner = aggregate.FirstOrDefault();
+        var agreement = winner is null ? 0 : (double)winner.MatchedFrames / frames.Count;
+        var accepted = winner is { MatchedFrames: > 0 } && agreement >= rule.MinimumAgreement
+            && frames.All(frame => frame.Similarity is not null);
+        var best = frames.Where(frame => frame.CategoryId == winner?.CategoryId).MaxBy(frame => frame.Margin);
+        best ??= frames.MaxBy(frame => frame.Similarity);
+        return new(rule.Id, rule.Name, accepted ? winner!.CategoryId : null, accepted ? winner!.Name : "待确认",
+            aggregate, frames, best?.Seconds, agreement,
+            accepted ? "多类别语义匹配" : frames.Any(frame => frame.Similarity is null) ? "分类语义分数缺失"
+                : winner is { MatchedFrames: > 0 } ? "采样画面有分歧" : "匹配分数或分差不足");
     }
 
-    public static string AnswerLabel(BinaryMediaAnswer answer) => answer switch
-    { BinaryMediaAnswer.Yes => "是", BinaryMediaAnswer.No => "否", _ => "待确认" };
+    public static FolderClassifiedFile KeepManual(FolderClassifiedFile classified, FolderClassifiedFile? previous)
+    {
+        if (previous is null || !BatchRename.PathComparer.Equals(previous.Media.Path, classified.Media.Path)
+            || previous.Media.Length != classified.Media.Length
+            || previous.Media.LastWriteUtc != classified.Media.LastWriteUtc) return classified;
+        return classified with { Decisions = classified.Decisions.Select(decision =>
+        {
+            var manual = previous.Decisions.FirstOrDefault(old => old.RuleId == decision.RuleId && old.Manual);
+            return manual is null ? decision : decision with
+            { CategoryId = manual.CategoryId, CategoryName = manual.CategoryName, Manual = true, Evidence = "人工确认" };
+        }).ToArray() };
+    }
 }

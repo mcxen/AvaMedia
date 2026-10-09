@@ -39,13 +39,7 @@ public static class FolderOrganization
         return files.Where(file => seen.Add(file.Media.Path)).Select(file =>
         {
             CheckSource(file.Media);
-            var folder = root;
-            if (splitTypes) folder = Path.Combine(folder, VideoFormats.IsVideo(file.Media.Path) ? "视频" : "图片");
-            foreach (var decision in file.Decisions)
-            {
-                BatchRename.ValidateRenameKeyword(decision.Name);
-                folder = Path.Combine(folder, decision.Name + "_" + FolderClassification.AnswerLabel(decision.Answer));
-            }
+            var folder = DestinationFolder(file, root, splitTypes);
             EnsureRegularDirectory(folder);
             var stem = Path.GetFileNameWithoutExtension(file.Media.Path);
             var extension = Path.GetExtension(file.Media.Path);
@@ -61,6 +55,22 @@ public static class FolderOrganization
             if (report is not null) reserved.Add(report);
             return new FolderOrganizationItem(file, target, report);
         }).ToArray();
+    }
+
+    public static string DestinationFolder(FolderClassifiedFile file, string outputFolder, bool splitTypes)
+    {
+        var root = Path.GetFullPath(outputFolder);
+        var folder = root;
+        if (splitTypes) folder = Path.Combine(folder, VideoFormats.IsVideo(file.Media.Path) ? "视频" : "图片");
+        foreach (var decision in file.Decisions)
+        {
+            BatchRename.ValidateRenameKeyword(decision.Name);
+            BatchRename.ValidateRenameKeyword(decision.CategoryName);
+            if (file.Decisions.Count > 1) folder = Path.Combine(folder, decision.Name);
+            folder = Path.Combine(folder, decision.CategoryName);
+        }
+        if (!FolderClassification.IsWithin(folder, root)) throw new IOException("分类目标超出输出目录。");
+        return folder;
     }
 
     public static async Task<FolderOrganizationResult> ExecuteAsync(IReadOnlyList<FolderOrganizationItem> plan, bool move,
@@ -198,14 +208,15 @@ public static class FolderOrganization
         var text = new StringBuilder().AppendLine(Path.GetFileName(file.Media.Path)).AppendLine();
         foreach (var decision in file.Decisions)
         {
-            text.Append(decision.Name).Append(": ").Append(FolderClassification.AnswerLabel(decision.Answer));
+            text.Append(decision.Name).Append(": ").Append(decision.CategoryName);
             if (decision.Manual) text.Append(" · 人工确认");
             else
             {
-                if (decision.PositiveScore is { } yes) text.Append(FormattableString.Invariant($" · 是 {yes:0.000}"));
-                if (decision.NegativeScore is { } no) text.Append(FormattableString.Invariant($" · 否 {no:0.000}"));
+                text.Append(FormattableString.Invariant($" · 采样一致率 {decision.Agreement:P0}"));
                 if (decision.Seconds is { } seconds) text.Append(FormattableString.Invariant($" · {seconds:0.00}s"));
             }
+            foreach (var score in decision.Scores)
+                text.AppendLine().Append(FormattableString.Invariant($"  {score.Name}: {score.Similarity:0.000} · 命中 {score.MatchedFrames}/{decision.Frames.Count} 帧"));
             text.AppendLine().AppendLine(decision.Evidence);
         }
         text.AppendLine().AppendLine("标签: " + string.Join(" · ", file.Tags));
