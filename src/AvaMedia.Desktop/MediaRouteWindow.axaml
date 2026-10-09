@@ -7,8 +7,8 @@
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
       <Setter Property="VerticalAlignment" Value="Stretch"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="MinHeight" Value="110"/>
-      <Setter Property="Padding" Value="12"/>
+      <Setter Property="MinHeight" Value="{DynamicResource UiRouteCardHeight}"/>
+      <Setter Property="Padding" Value="{DynamicResource UiRouteCardPadding}"/>
       <Setter Property="Background" Value="{DynamicResource UiSurface}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
       <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/>
@@ -25,15 +25,35 @@
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="Padding" Value="0"/>
     </Style>
+    <Style Selector="Border.route-source">
+      <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/>
+    </Style>
+    <Style Selector="Border.route-source.accepted">
+      <Setter Property="Background" Value="{DynamicResource UiHover}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
+    </Style>
+    <Style Selector="TextBlock.route-group.active, TextBlock.route-disposition.accepted">
+      <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/>
+    </Style>
   </Window.Styles>
-  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
     <Grid ColumnDefinitions="*,Auto">
-      <Button Content="添加文件…" Click="AddClick" VerticalAlignment="Center"/>
+      <Button Content="添加文件…" Click="AddClick" Classes="field-action" HorizontalAlignment="Left"/>
+      <TextBox x:Name="ToolSearch" Grid.Column="1" Width="{DynamicResource UiEditorDetailsWidth}"
+               Watermark="搜索工具" AutomationProperties.Name="搜索工具"/>
     </Grid>
-    <Grid Grid.Row="1" ColumnDefinitions="310,100,*">
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="{DynamicResource UiRouteSourceWidth}"/>
+        <ColumnDefinition Width="{DynamicResource UiRouteFlowWidth}"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
       <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1"
               CornerRadius="{DynamicResource UiControlRadius}">
-        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10" Margin="14">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="{DynamicResource UiSpacingSmall}" Margin="{DynamicResource UiRouteCardPadding}">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Text="输入文件" FontWeight="SemiBold"/>
             <TextBlock x:Name="SourceCount" Grid.Column="1" Classes="caption"/>
@@ -48,16 +68,16 @@
           </Grid>
         </Grid>
       </Border>
-      <controls:MediaRouteFlow Grid.Column="1" Grid.ColumnSpan="2" x:Name="RouteFlow" LineBrush="{DynamicResource UiDivider}"
+      <controls:MediaRouteFlow Grid.Column="1" x:Name="RouteFlow" ClipToBounds="True" IsHitTestVisible="False" LineBrush="{DynamicResource UiDivider}"
                               ActivateDuration="{StaticResource MotionNavigate}" FadeDuration="{StaticResource MotionFast}"
                               AccentBrush="{DynamicResource UiAccent}" SurfaceBrush="{DynamicResource UiSurface}"/>
-      <Grid Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="10">
+      <Grid Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="{DynamicResource UiSpacingSmall}">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Text="选择工具" FontWeight="SemiBold"/>
           <TextBlock x:Name="RouteCount" Grid.Column="1" Classes="caption"/>
         </Grid>
         <ScrollViewer x:Name="RouteScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
-          <Grid x:Name="RouteGrid" ColumnDefinitions="*,*" ColumnSpacing="10" RowSpacing="10"/>
+          <StackPanel x:Name="RouteSections" Spacing="{DynamicResource UiSpacingMedium}"/>
         </ScrollViewer>
         <TextBlock x:Name="EmptyText" Grid.Row="1" Text="尚未选择文件" Classes="caption"
                    HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False" TextWrapping="Wrap"/>

@@ -23,12 +23,15 @@ public sealed class MediaRouteEntry(MediaRouteSource source) : Observable
     private Bitmap? _preview;
     private string _detail = "";
     private bool _previewUnavailable;
+    private string _disposition = "";
     public MediaRouteSource Source { get; } = source;
     public string Name => Path.GetFileName(Source.Path);
     public bool Include { get => _include; set => Set(ref _include, value); }
     public Bitmap? Preview => _preview;
     public bool HasPreview => _preview is not null;
     public bool NoPreview => !HasPreview;
+    public string Disposition => Localization.Text(_disposition);
+    internal void SetDisposition(string value) => Set(ref _disposition, value, nameof(Disposition));
     public long Bytes { get; private set; }
     internal bool Requested { get; set; }
     public string Caption => Localization.Join(" · ", new[] { KindName(Source.Kind), Bytes > 0 ? ImageCompression.Bytes(Bytes) : "", _detail }.Where(text => text.Length > 0));
@@ -69,7 +72,13 @@ public partial class MediaRouteWindow : Window
         KindPicker.ItemsSource = new[] { "全部文件", "仅视频", "仅图片", "仅音频", "仅文档", "其他文件" };
         KindPicker.SelectedIndex = 0;
         KindPicker.SelectionChanged += (_, _) => SelectKind();
+        ToolSearch.TextChanged += (_, _) => BuildRouteSections();
+        ToolSearch.KeyDown += SearchKeyDown;
+        AddHandler(KeyDownEvent, RoutingKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         RouteScroll.ScrollChanged += (_, _) => UpdateFlowTarget();
+        SourceList.AddHandler(ScrollViewer.ScrollChangedEvent, (_, _) => UpdateFlowTarget());
+        RouteScroll.SizeChanged += (_, _) => ArrangeRouteSections();
+        RouteScroll.PropertyChanged += (_, change) => { if (change.Property == ScrollViewer.ViewportProperty) ArrangeRouteSections(); };
         LayoutUpdated += (_, _) => UpdateFlowTarget();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -148,79 +157,10 @@ public partial class MediaRouteWindow : Window
 
     private void RefreshRoutes()
     {
-        var selected = _entries.Where(entry => entry.Include).Select(entry => entry.Source).ToArray();
-        var routes = _router.Routes(selected);
-        var previous = _active?.Feature.Id;
-        _cards.Clear(); RouteGrid.Children.Clear(); RouteGrid.RowDefinitions.Clear();
-        for (var index = 0; index < routes.Count; index++)
-        {
-            if (index % 2 == 0) RouteGrid.RowDefinitions.Add(new(GridLength.Auto));
-            var route = routes[index]; var card = RouteCard(route);
-            Grid.SetRow(card, index / 2); Grid.SetColumn(card, index % 2);
-            _cards.Add((route, card)); RouteGrid.Children.Add(card);
-        }
-        _active = routes.FirstOrDefault(route => route.Feature.Id == previous) ?? routes.FirstOrDefault(route => route.Enabled);
-        Localization.SetText(SourceCount, $"{selected.Length} / {_entries.Count} 项");
-        Localization.SetText(RouteCount, $"{routes.Count(route => route.Enabled)} 个可用工具");
-        EmptyText.IsVisible = routes.Count == 0; RouteFlow.InputCount = selected.Length;
-        ActivateRoute(_active);
-    }
-    private Button RouteCard(MediaRouteOption route)
-    {
-        var button = new Button { Classes = { "route-card" }, IsEnabled = route.Enabled };
-        var body = new Grid { ColumnDefinitions = new("42,*,16"), ColumnSpacing = 10 };
-        var icon = new FeatureIcon { Kind = route.Feature.Icon, Label = route.Feature.Format.ToUpperInvariant(), Width = 40, Height = 40, VerticalAlignment = VerticalAlignment.Center };
-        body.Children.Add(icon);
-        var labels = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        var title = Ui.Text(route.Title); title.FontWeight = FontWeight.SemiBold; title.TextWrapping = TextWrapping.Wrap; labels.Children.Add(title);
-        var description = Ui.Text(route.Enabled ? route.Description : route.DisabledReason, "caption"); description.TextWrapping = TextWrapping.Wrap; labels.Children.Add(description);
-        labels.Children.Add(route.SkippedCount > 0 ? Ui.FormattedText($"接收 {route.Files.Length} 项 · 跳过 {route.SkippedCount} 项", "caption") : Ui.FormattedText($"接收 {route.Files.Length} 项", "caption"));
-        Grid.SetColumn(labels, 1); body.Children.Add(labels);
-        var arrow = Ui.Text("→"); arrow.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("UiFontTitle")); Grid.SetColumn(arrow, 2); body.Children.Add(arrow);
-        button.Content = body;
-        button.PointerEntered += (_, _) => ActivateRoute(route);
-        button.PointerExited += (_, _) => UpdateFlowTarget();
-        button.GotFocus += (_, _) => ActivateRoute(route);
-        button.LostFocus += (_, _) => UpdateFlowTarget();
-        button.Click += (_, _) => OpenRoute(route);
-        ToolTip.SetTip(button, Localization.Text(route.Enabled ? route.Description : route.DisabledReason));
-        return button;
-    }
-    private void ActivateRoute(MediaRouteOption? route)
-    {
-        _active = route;
-        foreach (var card in _cards) card.Button.Classes.Set("active", card.Route == route);
-        OpenButton.IsEnabled = route?.Enabled == true;
-        RouteFlow.AcceptedCount = route?.Enabled == true ? route.Files.Length : 0;
-        if (route is null)
-        { DestinationTitle.Text = Localization.Text("尚未选择文件"); DestinationSummary.Text = ""; OpenButton.Content = Localization.Text("进入工具"); }
-        else
-        {
-            Localization.SetText(DestinationTitle, $"将打开：{Localization.Key(route.Title)}");
-            DestinationSummary.Text = route.Enabled ? route.SkippedCount > 0
-                ? Localization.Format($"接收 {route.Files.Length} 项；其余 {route.SkippedCount} 项不进入此工具。")
-                : Localization.Format($"已选 {route.Files.Length} 项") : Localization.Text(route.DisabledReason);
-            OpenButton.Content = Localization.Format($"进入{Localization.Key(route.Title)}");
-        }
-        UpdateFlowTarget();
-    }
-    private void UpdateFlowTarget()
-    {
-        if (_closed) return;
-        var viewport = RouteScroll.TranslatePoint(new(0, 0), RouteFlow);
-        var ports = new List<MediaRoutePort>();
-        if (viewport is { } origin)
-            foreach (var item in _cards)
-            {
-                if (item.Button.TranslatePoint(new(0, 0), RouteFlow) is not { } position) continue;
-                var top = Math.Max(position.Y, origin.Y);
-                var bottom = Math.Min(position.Y + item.Button.Bounds.Height, origin.Y + RouteScroll.Bounds.Height);
-                if (bottom - top > 8) ports.Add(new(item.Route.Feature.Id, new(position.X - 4, (top + bottom) / 2)));
-            }
-        if (!RouteFlow.Ports.SequenceEqual(ports)) RouteFlow.Ports = ports;
-        var card = _cards.FirstOrDefault(card => card.Route == _active).Button;
-        RouteFlow.ActiveKey = _active?.Feature.Id ?? "";
-        RouteFlow.Highlighted = card is { IsEnabled: true } && (card.IsPointerOver || card.IsFocused);
+        _selected = _entries.Where(entry => entry.Include).Select(entry => entry.Source).ToArray();
+        _routes = _router.Routes(_selected);
+        Localization.SetText(SourceCount, $"{_selected.Length} / {_entries.Count} 项");
+        BuildRouteSections();
     }
     private void OpenRoute(MediaRouteOption route)
     { if (!_closed && route.Enabled) { _request = new(route.Feature.Id, route.Files); Close(_request); } }
@@ -240,17 +180,26 @@ public partial class MediaRouteWindow : Window
     private Control SourceCard(MediaRouteEntry entry)
     {
         var single = _entries.Count == 1;
-        var grid = new Grid { ColumnDefinitions = new(single ? "*" : "96,*"), RowDefinitions = new(single ? "Auto,Auto,Auto,Auto" : "Auto,Auto,Auto"),
-            ColumnSpacing = 10, RowSpacing = 5, Margin = new(0, 0, 0, 14) };
+        var grid = new Grid { RowDefinitions = new(single ? "Auto,Auto,Auto,Auto" : "Auto,Auto,Auto") };
+        grid.Bind(Grid.ColumnSpacingProperty, new DynamicResourceExtension("UiSpacingSmall"));
+        if (single) grid.ColumnDefinitions.Add(new(1, GridUnitType.Star));
+        else
+        {
+            var previewColumn = new ColumnDefinition();
+            previewColumn.Bind(ColumnDefinition.WidthProperty, new DynamicResourceExtension("UiRouteThumbnailWidth"));
+            grid.ColumnDefinitions.Add(previewColumn); grid.ColumnDefinitions.Add(new(1, GridUnitType.Star));
+        }
         var preview = new Grid();
         var image = new Image { Stretch = Stretch.Uniform };
-        image.Bind(Image.SourceProperty, new Binding(nameof(MediaRouteEntry.Preview)));
-        preview.Children.Add(image);
+        image.Bind(Image.SourceProperty, new Binding(nameof(MediaRouteEntry.Preview))); preview.Children.Add(image);
         var fallback = new FeatureIcon { Kind = entry.Source.Kind switch { MediaFileKind.Video => "video", MediaFileKind.Image => "image", MediaFileKind.Audio => "audio", _ => "document" },
-            Label = Path.GetExtension(entry.Source.Path).TrimStart('.').ToUpperInvariant(), Width = single ? 72 : 40, Height = single ? 72 : 40,
+            Label = Path.GetExtension(entry.Source.Path).TrimStart('.').ToUpperInvariant(),
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        fallback.Bind(WidthProperty, new DynamicResourceExtension(single ? "UiFeatureIconHeight" : "UiIconLarge"));
+        fallback.Bind(HeightProperty, new DynamicResourceExtension(single ? "UiFeatureIconHeight" : "UiIconLarge"));
         fallback.Bind(IsVisibleProperty, new Binding(nameof(MediaRouteEntry.NoPreview))); preview.Children.Add(fallback);
-        var frame = new Border { Height = single ? 260 : 72, ClipToBounds = true, Child = preview };
+        var frame = new Border { ClipToBounds = true, Child = preview };
+        frame.Bind(HeightProperty, new DynamicResourceExtension(single ? "UiRoutePreviewHeight" : "UiRouteThumbnailHeight"));
         frame.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
         frame.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("UiControlRadius"));
         if (!single) Grid.SetRowSpan(frame, 3); grid.Children.Add(frame);
@@ -258,14 +207,24 @@ public partial class MediaRouteWindow : Window
         Localization.SetIsUserText(name, true); ToolTip.SetTip(name, entry.Source.Path);
         var include = new CheckBox { Content = name, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         include.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaRouteEntry.Include)) { Mode = BindingMode.TwoWay });
-        Grid.SetRow(include, single ? 1 : 0); Grid.SetColumn(include, single ? 0 : 1); grid.Children.Add(include);
+        var titleRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 4 }; titleRow.Children.Add(include);
+        var disposition = Ui.Text("", "caption"); disposition.Classes.Add("route-disposition"); disposition.VerticalAlignment = VerticalAlignment.Center;
+        disposition.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.Disposition)));
+        Grid.SetColumn(disposition, 1); titleRow.Children.Add(disposition);
+        Grid.SetRow(titleRow, single ? 1 : 0); Grid.SetColumn(titleRow, single ? 0 : 1); grid.Children.Add(titleRow);
         var caption = new TextBlock { Classes = { "caption" }, TextWrapping = TextWrapping.Wrap };
         caption.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.Caption))); Grid.SetRow(caption, single ? 2 : 1); Grid.SetColumn(caption, single ? 0 : 1); grid.Children.Add(caption);
         var hint = new TextBlock { Classes = { "caption" }, TextWrapping = TextWrapping.Wrap };
         hint.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.PreviewHint))); Grid.SetRow(hint, single ? 3 : 2); Grid.SetColumn(hint, single ? 0 : 1); grid.Children.Add(hint);
-        grid.DataContext = entry;
-        grid.AttachedToVisualTree += (_, _) => { if (!entry.Requested) { entry.Requested = true; _ = ObservePreviewAsync(entry); } };
-        return grid;
+        var row = new Border { Child = grid, Classes = { "route-source" }, DataContext = entry };
+        row.AttachedToVisualTree += (_, _) =>
+        {
+            _sourceRows[entry] = (row, disposition); UpdateSourceFeedback();
+            if (!entry.Requested) { entry.Requested = true; _ = ObservePreviewAsync(entry); }
+        };
+        row.DetachedFromVisualTree += (_, _) =>
+        { if (_sourceRows.TryGetValue(entry, out var existing) && existing.Row == row) _sourceRows.Remove(entry); };
+        return row;
     }
     private async Task ObservePreviewAsync(MediaRouteEntry entry)
     {
