@@ -105,7 +105,11 @@ public sealed partial class MediaAiWindow : Window
     {
         try
         {
-            var installed = await new ModelStore().IsInstalledAsync(ModelCatalog.JoyTagId, ct: _lifetime.Token);
+            var store = new ModelStore();
+            var required = _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
+            var missing = new List<string>();
+            foreach (var id in required) if (!await store.IsInstalledAsync(id, ct: _lifetime.Token)) missing.Add(id);
+            var installed = missing.Count == 0;
             if (_closed) return;
             _modelReady = installed;
             var semanticMissing = NeedsSemanticModel && SemanticModelConsent.Model.Supported && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token);
@@ -113,7 +117,7 @@ public sealed partial class MediaAiWindow : Window
             // Sizes come from the catalog: tags are required, the semantic model only when scenes or semantic words are selected.
             var parts = new List<string>();
             if (!installed)
-                parts.Add(Localization.Format($"首次分析需要下载标签模型 · 约 {SemanticModelConsent.Megabytes(ModelCatalog.Find(ModelCatalog.JoyTagId).DownloadSize)} MB"));
+                parts.Add(Localization.Format($"首次分析需要下载标签模型 · 约 {SemanticModelConsent.Megabytes(missing.Sum(id => ModelCatalog.Find(id).DownloadSize))} MB"));
             if (semanticMissing)
                 parts.Add(Localization.Format($"场景识别另需语义模型 · 约 {SemanticModelConsent.Megabytes(SemanticModelConsent.Model.DownloadSize)} MB（开始前询问）"));
             _modelStatus.Text = string.Join(Environment.NewLine, parts);
@@ -138,16 +142,21 @@ public sealed partial class MediaAiWindow : Window
     private bool CanAnalyzeNotification(string[] paths) => !_closed && !_busy && _entries.Any(entry => paths.Contains(entry.Path, BatchRename.PathComparer));
     private async Task EnsureTagModelAsync(CancellationTokenSource operation)
     {
-        if (_modelReady) return;
-        var started = DateTime.UtcNow;
-        var download = new Progress<ModelDownloadProgress>(update =>
+        var store = new ModelStore();
+        var required = _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
+        foreach (var id in required)
         {
-            if (_closed || _operation != operation) return;
-            _status.Text = Localization.Text(update.Stage);
-            _activity.Update(new("下载标签模型", "JoyTag", started, DateTime.UtcNow)
-            { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
-        });
-        await new ModelStore().DownloadAsync(ModelCatalog.JoyTagId, download, operation.Token);
+            if (await store.IsInstalledAsync(id, ct: operation.Token)) continue;
+            var started = DateTime.UtcNow;
+            var download = new Progress<ModelDownloadProgress>(update =>
+            {
+                if (_closed || _operation != operation) return;
+                _status.Text = Localization.Text(update.Stage);
+                _activity.Update(new("下载标签模型", ModelCatalog.Find(id).Name, started, DateTime.UtcNow)
+                { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
+            });
+            await store.DownloadAsync(id, download, operation.Token);
+        }
         _modelReady = true; _modelStatus.IsVisible = false;
     }
 
@@ -161,7 +170,7 @@ public sealed partial class MediaAiWindow : Window
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
             options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
-                { SemanticCandidates = SemanticLibraryCandidates };
+                { SemanticCandidates = SemanticLibraryCandidates, RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true };
             options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
@@ -273,7 +282,7 @@ public sealed partial class MediaAiWindow : Window
         var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
         var analysis = new MediaTagOptions((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true,
             RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
-            { SemanticCandidates = SemanticLibraryCandidates };
+            { SemanticCandidates = SemanticLibraryCandidates, RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true };
         var options = new MediaTagTaskOptions
         {
             Analysis = analysis,
@@ -394,8 +403,9 @@ public sealed partial class MediaAiWindow : Window
             if (file is null) return;
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = _results.Values.Select(result => new
             { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
+                result.RealPeopleOnly, result.Nsfw,
                 DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),
-                Tags = ResultTags(result).ToArray(), result.DurationSeconds, Vocabulary = result.Scores.Select(score => score.Tag).ToArray(), Evidence=result.Frames, result.Scenes, result.SceneError, result.Caption, result.CaptionModel, result.CaptionError }) };
+                Tags = ResultTags(result).ToArray(), result.DurationSeconds, Vocabulary = result.Scores.Select(score => score.Tag).ToArray(), Evidence=result.Frames, result.Scenes, result.SceneError, result.Caption, result.CaptionModel, result.CaptionError }).ToArray() };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception error) { await Ui.Message(this, "导出失败", error.Message); }

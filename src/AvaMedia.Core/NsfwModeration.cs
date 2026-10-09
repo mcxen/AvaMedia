@@ -6,7 +6,10 @@ namespace AvaMedia.Core;
 public enum NsfwSignalState { Suspected, ContextOnly, NoEvidence }
 public sealed record NsfwTagRule(string Category, string Label, string Tag, bool Risk);
 public sealed record NsfwEvidence(string Tag, string Label, string Category, bool Risk, double Average, double Maximum, double Signal);
-public sealed record NsfwAssessment(NsfwSignalState State, double Threshold, string SignalBasis, IReadOnlyList<NsfwEvidence> Evidence);
+public sealed record NsfwAssessment(NsfwSignalState State, double Threshold, string SignalBasis, IReadOnlyList<NsfwEvidence> Evidence)
+{
+    public RealNsfwResult? Classifier { get; init; }
+}
 
 /// <summary>Automatic risk assessment from a pinned vocabulary. Signals are independent tag scores, not an NSFW probability.</summary>
 public static class NsfwModeration
@@ -34,8 +37,9 @@ public static class NsfwModeration
             if (signal >= threshold) evidence.Add(new(rule.Tag, rule.Label, rule.Category, rule.Risk, score.Score, score.Maximum, signal));
         }
         var ordered = evidence.OrderByDescending(item => item.Risk).ThenByDescending(item => item.Signal).ToArray();
-        return new(ordered.Any(item => item.Risk) ? NsfwSignalState.Suspected : ordered.Length > 0 ? NsfwSignalState.ContextOnly : NsfwSignalState.NoEvidence,
-            threshold, video ? "sample_peak" : "image_score", ordered);
+        return new(ordered.Any(item => item.Risk) || result.Nsfw?.Suspected == true ? NsfwSignalState.Suspected
+            : ordered.Length > 0 ? NsfwSignalState.ContextOnly : NsfwSignalState.NoEvidence,
+            threshold, video ? "sample_peak" : "image_score", ordered) { Classifier = result.Nsfw };
     }
 
     private static NsfwTagRule[] ReadRules()

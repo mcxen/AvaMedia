@@ -14,6 +14,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly Button _advanced = new() { Content = "高级设置…" };
+    private readonly CheckBox _realPeople = new() { Content = "真人素材", IsChecked = true, Name = "MediaAiRealPeople" };
     private readonly Button _chooseTagGroups = new() { Content = "标签组…" };
     private readonly Button _copy = new() { Content = "复制标签" };
     private readonly Button _export = new() { Content = "导出分析结果…" };
@@ -109,7 +110,9 @@ public sealed partial class MediaAiWindow
         _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
         AddSettingRow("视频采样帧数", _frames); AddSettingRow("类别分差", _sceneMargin);
         _settingsPanel.Children.Add(_autoTxt);
+        _settingsPanel.Children.Add(_realPeople);
         _settingsPanel.Children.Add(_generateCaptions); _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
+        _realPeople.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RefreshDisplayedResults(); await RefreshModelAsync(); } };
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
         _showScores.IsCheckedChanged += (_, _) => RenderSelectedResult();
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();

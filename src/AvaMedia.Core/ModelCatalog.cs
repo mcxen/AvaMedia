@@ -19,6 +19,8 @@ public static class ModelCatalog
     public const string EmbeddingId = "embeddinggemma-2";
     public const string LamaId = "lama";
     public const string JoyTagId = "joytag";
+    public const string NsfwId = "marqo-nsfw";
+    public const string NsfwFile = "marqo-nsfw-384.onnx";
     public const string SummaryTextId = "summary-qwen3";
     public const string SummaryVisionId = "summary-smolvlm";
     public const string SummaryRuntimeId = "summary-runtime";
@@ -48,6 +50,10 @@ public static class ModelCatalog
         }
         var models = new List<DownloadableModel> {
             Speech(SpeechModel.Base), Speech(SpeechModel.Tiny), Speech(SpeechModel.Small),
+            new(NsfwId, "Marqo NSFW", "真人素材 NSFW 分类", "Apache-2.0",
+                "https://huggingface.co/ICIJ/nsfw-image-detection-384-onnx",
+                [new(NsfwFile, 22450955, "50256dde930a4ceeb8953246ba7345158e02cc0a201a173402ab3e6e3a76f40a",
+                    ["https://huggingface.co/ICIJ/nsfw-image-detection-384-onnx/resolve/4f63fac119fb24a9d98393e57549b1427530ca52/marqo-nsfw-384.onnx"])]),
             new(JoyTagId, "JoyTag", "图片 / 视频 AI 标签 · Beta", "Apache-2.0", "https://github.com/fpgaminer/joytag",
                 [new(JoyTagFile, 366116154, "f85b7130e6e549b5b0822537007b7482e8c4c8e754c8d9a5bee08e27050e1097",
                     [$"https://huggingface.co/fancyfeast/joytag/resolve/{JoyTagRevision}/{JoyTagFile}",

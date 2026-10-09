@@ -76,6 +76,7 @@ public static class MediaTagText
             .AppendLine("时长：" + MediaTime.Format(result.DurationSeconds))
             .AppendLine(FormattableString.Invariant($"标签阈值：{threshold:0.00}；语义相似度：{sceneThreshold:0.00}；类别分差：{sceneMargin:0.00}"))
             .AppendLine("标签模型：" + result.Backend).AppendLine("语义模型：" + (result.Scenes?.Backend ?? result.SceneError ?? "未启用"))
+            .AppendLine("素材标签：" + (result.RealPeopleOnly ? "真人" : "全部"))
             .AppendLine("描述模型：" + (result.CaptionModel ?? result.CaptionError ?? (string.IsNullOrWhiteSpace(result.Caption) ? "未启用" : "未知")))
             .AppendLine().AppendLine("类别\t标签\t分数\t分数类型\t模型\t达标采样时间");
         foreach (var label in labels)
@@ -85,6 +86,16 @@ public static class MediaTagText
                 ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == label.Label && candidate.Qualifies(sceneThreshold, sceneMargin))).Select(frame => MediaTime.Format(frame.Seconds)) ?? []
                 : points.Where(point => point.Score >= threshold).Select(point => MediaTime.Format(point.Seconds));
             body.AppendLine(FormattableString.Invariant($"{label.Category}\t{label.Label}\t{label.Score:0.000}\t{label.ScoreKind}\t{label.Model}\t{string.Join("，", times)}"));
+        }
+        if (result.Nsfw is { } nsfw)
+        {
+            body.AppendLine().AppendLine("真人 NSFW 分类")
+                .AppendLine("模型：" + nsfw.Model + " · " + nsfw.Backend)
+                .AppendLine(FormattableString.Invariant($"分类阈值：{nsfw.Threshold:0.00}；采样平均：{nsfw.Average:0.000}；采样峰值：{nsfw.Maximum:0.000}"))
+                .AppendLine("结果：" + (nsfw.Suspected ? "疑似 NSFW" : "未达分类阈值"))
+                .AppendLine("采样时间\tNSFW 分数");
+            foreach (var frame in nsfw.Frames) body.AppendLine(FormattableString.Invariant($"{MediaTime.Format(frame.Seconds)}\t{frame.Score:0.000}"));
+            if (nsfw.FallbackReason is not null) body.AppendLine("后端回退：" + nsfw.FallbackReason);
         }
         if (!string.IsNullOrWhiteSpace(result.Caption) || result.CaptionError is not null)
         {
@@ -119,7 +130,8 @@ public static class MediaTagText
                 .Select(entry => new MediaTagTextLabel(entry.Label, entry.Category, entry.Tags.Min(tag => scores.GetValueOrDefault(tag)),
                     ScoreKind(result, entry.Tags), ModelCatalog.JoyTagId, entry.Tags));
         }
-        else tags = result.Scores.Where(score => MediaTagService.TagSignal(result, score) >= threshold)
+        else tags = result.Scores.Where(score => (!result.RealPeopleOnly || WordLibraryCatalog.RealPeopleTags.Contains(score.Tag)
+                || candidates.Any(entry => entry.Tags.Contains(score.Tag, StringComparer.OrdinalIgnoreCase))) && MediaTagService.TagSignal(result, score) >= threshold)
             .Select(score => new MediaTagTextLabel(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag),
                 MediaTagService.TagSignal(result, score), ScoreKind(result, [score.Tag]), ModelCatalog.JoyTagId, [score.Tag]));
 

@@ -8,6 +8,8 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false
     bool GenerateCaptions = false, string? CaptionProviderId = null, string? CaptionPrompt = null, int CaptionMaxTokens = 512)
 {
     public WordCandidate[] SemanticCandidates { get; init; } = [];
+    public bool RealPeopleOnly { get; init; }
+    public bool RecognizeNsfw { get; init; }
     public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
     public void Validate()
     {
@@ -29,6 +31,8 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public string? Caption { get; init; }
     public string? CaptionModel { get; init; }
     public string? CaptionError { get; init; }
+    public bool RealPeopleOnly { get; init; }
+    public RealNsfwResult? Nsfw { get; init; }
 }
 public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores)
 {
@@ -115,6 +119,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         var stages = new List<string> { "准备标签模型" };
         if (options.NeedsSemanticModel) stages.Add("准备场景模型");
         stages.Add("识别媒体标签");
+        if (options.RecognizeNsfw) stages.Add("识别真人 NSFW");
         if (options.GenerateCaptions) stages.Add("生成画面描述");
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果",
             stages.ToArray());
@@ -126,6 +131,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         activity.Stage("加载标签模型");
         using var session = new ModelInferenceSession(Path.Combine(lease.Directory, ModelCatalog.JoyTagFile),
             ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256, options.PreferGpu, options.BatchSize);
+        using var nsfw = options.RecognizeNsfw ? await RealNsfwClassifier.CreateAsync(_store, options.PreferGpu, ct).ConfigureAwait(false) : null;
         string? sceneSetupError = null; var sceneSkipped = false;
         async Task<MediaSceneClassifier?> PrepareScenesAsync()
         {
@@ -198,9 +204,22 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Result(item.File.Name + " · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     var scene = await SceneResultAsync([item.Image], [0], [0]).ConfigureAwait(false);
+                    RealNsfwResult? classification = null;
+                    if (nsfw is not null)
+                    {
+                        activity.Node("识别真人 NSFW");
+                        activity.Stage("识别真人 NSFW", detail: item.File.Name);
+                        classification = nsfw.Analyze([item.Image], [0], [0], ct);
+                    }
                     CheckSource(item.File, item.Length, item.Modified);
                     var tagged = new MediaTagResult(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
-                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped, Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }] };
+                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason)
+                    {
+                        RealPeopleOnly = options.RealPeopleOnly,
+                        Nsfw = classification,
+                        Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped,
+                        Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }]
+                    };
                     Report(item.File.FullName, await WithCaptionAsync(tagged, [item.Image]).ConfigureAwait(false), null);
                 }
                 catch (IOException error) { Report(item.File.FullName, null, error.Message); }
@@ -262,6 +281,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     count, samples.Where((_, index) => frameValues[index] is not null).Distinct().Count(), session.Backend, length, modified, session.FallbackReason)
                 {
                     DurationSeconds = duration,
+                    RealPeopleOnly = options.RealPeopleOnly,
                     Frames = sampleSeconds.Select((seconds, index) => (seconds, index)).Where(item => frameValues[item.index] is not null)
                         .Select(item => new MediaTagFrame(item.seconds, evidence[item.index]) { Values = frameValues[item.index] }).ToArray()
                 };
@@ -288,6 +308,14 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     PublishPreview(Snapshot());
                 }
                 var tagResult = Snapshot();
+                if (nsfw is not null)
+                {
+                    activity.Node("识别真人 NSFW");
+                    activity.Stage("识别真人 NSFW", 0, unique.Count, "帧");
+                    tagResult = tagResult with { Nsfw = nsfw.Analyze(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples, ct,
+                        (current, total) => activity.Advance(current, total, "帧")) };
+                    PublishPreview(tagResult);
+                }
                 var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,
                     value => PublishPreview(tagResult with { Scenes = value })).ConfigureAwait(false);
                 CheckSource(file, length, modified);

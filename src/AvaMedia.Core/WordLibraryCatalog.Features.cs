@@ -12,7 +12,16 @@ public static partial class WordLibraryCatalog
                     + string.Join(" and ", tags.Select(tag => tag.Replace('_', ' '))) + ".", tags);
             }).ToArray();
 
-    private static IEnumerable<WordCandidate> DisplayWords() => NsfwEntries.Concat(SceneEntries).Concat(Common());
+    private static WordCandidate[] ReadRealPeopleWords() => ReadText("real-people.tsv")
+        .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
+        {
+            var fields = line.Split('\t');
+            if (fields.Length != 3) throw new InvalidDataException("真人词库字段无效。");
+            return new WordCandidate(fields[1], fields[0], "A photograph showing "
+                + string.Join(" and ", fields[2].Split('+').Select(tag => tag.Replace('_', ' '))) + ".", fields[2].Split('+'));
+        }).ToArray();
+
+    private static IEnumerable<WordCandidate> DisplayWords() => NsfwEntries.Concat(SceneEntries).Concat(RealPeopleEntries).Concat(Common());
 
     private static Dictionary<string, string> CreateTagCategories() => DisplayWords()
             .SelectMany(entry => entry.Tags.Select(tag => (Tag: tag, entry.Category)))
@@ -29,5 +38,6 @@ public static partial class WordLibraryCatalog
     public static string TagLabel(string tag) => TagLabels.GetValueOrDefault(tag) ?? tag;
 
     public static bool UsesSamplePeak(string tag) => NsfwModeration.ContainsTag(tag)
+        || RealPeopleEntries.Any(entry => entry.Category == "动作姿态" && entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
         || SceneEntries.Any(entry => entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
 }

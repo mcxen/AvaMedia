@@ -30,6 +30,7 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _nsfwBadgeText = new() { FontWeight = FontWeight.SemiBold };
     private readonly Button _nsfwBadge = new() { Name = "MediaAiNsfwBadge", IsVisible = false, Padding = new(8, 2), MinHeight = 0, BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
     private readonly StackPanel _nsfwEvidence = new() { Spacing = 5, Width = 340 };
+    private readonly Flyout _nsfwFlyout = new();
     private readonly Expander _chartSection = new() { Header = "分数与曲线", IsExpanded = true, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
 
     private Control BuildResultPane()
@@ -42,7 +43,8 @@ public sealed partial class MediaAiWindow
         titleRow.Children.Add(_detailTitle); Grid.SetColumn(_nsfwBadge, 1); titleRow.Children.Add(_nsfwBadge);
         _nsfwBadge.Content = _nsfwBadgeText; ToolTip.SetTip(_nsfwBadge, "点击查看 NSFW 判断依据");
         _nsfwBadge.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
-        _nsfwBadge.Flyout = new Flyout { Content = new ScrollViewer { Content = _nsfwEvidence, MaxHeight = 320 } };
+        _nsfwFlyout.Content = new ScrollViewer { Content = _nsfwEvidence, MaxHeight = 320 };
+        _nsfwBadge.Click += (_, _) => _nsfwFlyout.ShowAt(_nsfwBadge);
         var title = new StackPanel { Spacing = 6 };
         title.Children.Add(titleRow); title.Children.Add(_detailState);
         _sampleSummary.Classes.Add("time");
@@ -77,7 +79,7 @@ public sealed partial class MediaAiWindow
     private void UpdateNsfwBadge(NsfwAssessment? moderation)
     {
         _nsfwBadge.IsVisible = moderation is not null; _nsfwEvidence.Children.Clear();
-        if (moderation is null) { _nsfwBadge.Flyout?.Hide(); return; }
+        if (moderation is null) { _nsfwFlyout.Hide(); return; }
         var (text, brush) = moderation.State switch
         {
             NsfwSignalState.Suspected => ("疑似 NSFW", "UiDanger"),
@@ -89,6 +91,14 @@ public sealed partial class MediaAiWindow
         _nsfwBadge.Bind(Button.BorderBrushProperty, new DynamicResourceExtension(brush == "UiTextSecondary" ? "UiBorder" : brush));
         AutomationProperties.SetName(_nsfwBadge, "NSFW · " + Localization.Text(text));
         var state = Ui.Text(NsfwStateText(moderation.State)); state.FontWeight = FontWeight.SemiBold; _nsfwEvidence.Children.Add(state);
+        if (moderation.Classifier is { } classifier)
+        {
+            _nsfwEvidence.Children.Add(Ui.Text(FormattableString.Invariant($"Marqo NSFW · 峰值 {classifier.Maximum:0.000} · 平均 {classifier.Average:0.000}")));
+            _nsfwEvidence.Children.Add(Ui.Text(FormattableString.Invariant($"分类阈值 {classifier.Threshold:0.00} · {classifier.Backend}"), "caption"));
+            foreach (var frame in classifier.Frames)
+                _nsfwEvidence.Children.Add(Ui.Text(FormattableString.Invariant($"{MediaTime.Format(frame.Seconds)} · NSFW {frame.Score:0.000}"), "caption"));
+            if (classifier.FallbackReason is not null) _nsfwEvidence.Children.Add(Ui.Text(classifier.FallbackReason, "caption"));
+        }
         _nsfwEvidence.Children.Add(Ui.Text(Localization.Format($"判断阈值 {moderation.Threshold:0.00}"), "caption"));
         if (moderation.Evidence.Count == 0) _nsfwEvidence.Children.Add(Ui.Text("没有识别词库标签达到阈值", "caption"));
         foreach (var item in moderation.Evidence)

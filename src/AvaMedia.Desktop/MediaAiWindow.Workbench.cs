@@ -17,7 +17,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, string> _reportSources = new(BatchRename.PathComparer);
     private readonly ComboBox _chartSource = Ui.Combo(["标签分数（JoyTag）", "语义相似度（场景/面部）"], "标签分数（JoyTag）");
     private readonly ComboBox _scoreMode = Ui.Combo(["推荐分数", "采样峰值", "采样平均", "当前画面"], "推荐分数");
-    private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征"], "全部标签");
+    private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征", "姿态 / 体位"], "全部标签");
     private readonly Slider _tagThreshold = new() { Minimum = .05, Maximum = .95, Value = .4, TickFrequency = .01 };
     private readonly Slider _sceneThreshold = new() { Minimum = .05, Maximum = .95, Value = .55, TickFrequency = .01 };
     private readonly NumericUpDown _sceneMargin = new() { Minimum = 0, Maximum = .5m, Value = .03m, Increment = .01m };
@@ -84,6 +84,7 @@ public sealed partial class MediaAiWindow
         1 => tag.Category.StartsWith("NSFW", StringComparison.Ordinal),
         2 => tag.Category.StartsWith("场景", StringComparison.Ordinal) || tag.Category is "照明状态" or "画面照明",
         3 => !tag.Category.StartsWith("NSFW", StringComparison.Ordinal) && (tag.Category.Contains("特征", StringComparison.Ordinal) || tag.Category == "面部可见性"),
+        4 => tag.Category is "动作姿态" or "NSFW体位" or "NSFW姿态提示" or "人物朝向",
         _ => true
     };
     private double CursorFor(MediaTagResult result) => _positions.GetValueOrDefault(result.Path);

@@ -95,7 +95,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
                 [result.Path, job.Output]);
             await File.WriteAllTextAsync(destination, System.Text.Json.JsonSerializer.Serialize(new
             {
-                result.Path, result.Backend, Labels = labels, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError, result.SceneSkipped
+                result.Path, result.Backend, Labels = labels, result.RealPeopleOnly, result.Nsfw, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError, result.SceneSkipped
             }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), ct).ConfigureAwait(false);
             job.Output = destination;
             job.ProgressDetail = Path.GetFileName(destination);

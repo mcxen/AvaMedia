@@ -7,7 +7,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly Dictionary<string, ResultTag[]> _editedTags = new(BatchRename.PathComparer);
-    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = false, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false);
+    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = false, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false, bool RealPeople = true);
     private void LoadPreferences()
     {
         if(_storage.LoadToolOptions<Preferences>("media-ai") is not {} saved) return;
@@ -18,9 +18,10 @@ public sealed partial class MediaAiWindow
         _sceneThreshold.Value = Math.Clamp(saved.SceneThreshold, .05, .95); _sceneMargin.Value = Math.Clamp(saved.SceneMargin, 0, .5m);
         _scoreMode.SelectedIndex = Math.Clamp(saved.ScoreMode, 0, 3); _autoTxt.IsChecked = saved.AutoTxt;
         _generateCaptions.IsChecked = saved.GenerateCaptions;
+        _realPeople.IsChecked = saved.RealPeople;
     }
     private void SavePreferences() => _storage.SaveToolOptions("media-ai", new Preferences(_threshold.Value ?? .4m, _frames.Value ?? 8,
-        _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true, _sceneTags.IsChecked == true, _sceneThreshold.Value, _sceneMargin.Value ?? .03m, _scoreMode.SelectedIndex, _autoTxt.IsChecked == true, _generateCaptions.IsChecked == true));
+        _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true, _sceneTags.IsChecked == true, _sceneThreshold.Value, _sceneMargin.Value ?? .03m, _scoreMode.SelectedIndex, _autoTxt.IsChecked == true, _generateCaptions.IsChecked == true, _realPeople.IsChecked == true));
     private async Task EditTagsAsync(MediaTagResult result)
     {
         var original = ResultTags(result).ToArray();

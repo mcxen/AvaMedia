@@ -23,6 +23,8 @@ public static partial class WordLibraryCatalog
     private static readonly WordCandidate[] FeatureEntries;
     private static readonly WordCandidate[] NsfwEntries;
     public static IReadOnlyList<WordCandidate> SceneEntries { get; }
+    public static IReadOnlyList<WordCandidate> RealPeopleEntries { get; }
+    public static IReadOnlySet<string> RealPeopleTags { get; }
     private static readonly Dictionary<string, string> TagCategories;
     private static readonly Dictionary<string, string> TagLabels;
 
@@ -32,11 +34,16 @@ public static partial class WordLibraryCatalog
         FeatureEntries = ReadFeatureWords();
         NsfwEntries = NsfwModeration.Candidates();
         SceneEntries = ReadSceneWords();
+        RealPeopleEntries = FeatureEntries.Concat(NsfwEntries).Concat(SceneEntries).Concat(ReadRealPeopleWords())
+            .DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
+        Validate(RealPeopleEntries);
+        RealPeopleTags = RealPeopleEntries.SelectMany(entry => entry.Tags).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (NsfwEntries.Any(entry => !entry.Supports(WordLibraryTarget.JoyTag))) throw new InvalidDataException("NSFW 识别词库包含模型不支持的标签。");
         TagCategories = CreateTagCategories();
         TagLabels = CreateTagLabels();
         BuiltIns = new WordLibrary[]
         {
+        new("real-people", "真人 · 姿态与成人标签", "AvaMedia 中文映射 · JoyTag 照片标签、姿态及 NSFW · 不含角色与作品标签", RealPeopleEntries.ToArray()),
         new("person-features", "人物特征", "AvaMedia · 外观、配饰、动作、神态与体毛特征", FeatureEntries),
         new("nsfw-review", "NSFW 识别标签", "JoyTag / Danbooru · Apache-2.0 · AvaMedia 风险分组", NsfwEntries),
         new("scene-context", "场景、照明与面部", "AvaMedia · JoyTag 标签与本地语义描述", SceneEntries.ToArray()),
@@ -126,7 +133,7 @@ public static partial class WordLibraryCatalog
 物体	室外	outdoors
 成人标签	生殖器	genitals
 """;
-        return FeatureEntries.Concat(NsfwEntries).Concat(SceneEntries).Concat(text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
+        return RealPeopleEntries.Concat(text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
         {
             var fields = line.Split('\t'); var tags = fields[2].Split('+');
             return new WordCandidate(fields[1], fields[0], "A photo showing " + string.Join(" and ", tags.Select(tag => tag.Replace('_', ' '))) + ".",
