@@ -62,7 +62,8 @@
             <TextBlock Classes="caption" Text="快速勾选"/>
             <ComboBox x:Name="KindPicker" Grid.Column="1" AutomationProperties.Name="快速勾选文件类型"/>
           </Grid>
-          <ListBox x:Name="SourceList" Grid.Row="2" Background="Transparent" BorderThickness="0" AutomationProperties.Name="输入文件预览"/>
+          <ListBox x:Name="SourceList" Grid.Row="2" Background="Transparent" BorderThickness="0"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="输入文件预览"/>
           <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <Button Grid.Column="1" Content="取消勾选" Click="DeselectClick" Classes="field-action"/>
           </Grid>
