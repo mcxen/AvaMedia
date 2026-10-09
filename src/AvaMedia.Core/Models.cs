@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary, PersonClip }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -26,7 +26,7 @@ public static class Catalog
         Add("join","视频合并 & 混流","视频","mp4","join",Operation.Join,2);
         Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
         Add("clip","快速剪辑","视频","mp4","clip");
-        Add("person-clip","保留有人片段 · Beta","视频","mp4","clip");
+        Add("person-clip","保留有人片段 · Beta","视频","mp4","clip",Operation.PersonClip);
         Add("delogo","去除水印","视频","mp4","erase");
         Add("frames","导出帧","视频","png","frames",Operation.Frames);
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
@@ -80,6 +80,7 @@ public sealed class ConversionOptions
     public ImageCompressionOptions? ImageCompression { get; set; }
     public TranscriptionOptions? Transcription { get; set; }
     public VideoSummaryOptions? VideoSummary { get; set; }
+    public PersonClipTaskOptions? PersonClip { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
@@ -138,7 +139,7 @@ public sealed class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public sealed partial class Job : Observable
@@ -175,7 +176,7 @@ public sealed partial class Job : Observable
     public string Source => string.Join(Environment.NewLine, Inputs);
     public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {Output}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成",JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+(FeatureId=="person-clip" && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

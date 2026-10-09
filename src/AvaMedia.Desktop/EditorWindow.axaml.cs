@@ -75,6 +75,7 @@ public partial class EditorWindow : Window
         _player.Error+=message=>{if(!_closed){CancelSegmentSequence();_previewFailed=true;PreviewStatus.Text=message;PreviewStatus.IsVisible=true;}};
         CropLayer.Changed+=rect=>{_updating=true;CropX.Text=((int)rect.X).ToString();CropY.Text=((int)rect.Y).ToString();CropWidth.Text=((int)rect.Width).ToString();CropHeight.Text=((int)rect.Height).ToString();_updating=false;ValidateInputs();};
         Opened+=async(_,_)=>{await Load();if(mode is "crop" or "delogo"){EditTabs.SelectedIndex=1;if(mode=="delogo")DelogoMode.IsChecked=true;}};
+        if (mode == "person-exclusion") ConfigureIntervalSelection();
         Closed+=(_,_)=>{_closed=true;_previewRevision++;_thumbnailRevision++;_playRevision=-1;_lifetime.Cancel();_seek?.Cancel();_thumbs?.Cancel();_frameStep?.Cancel();_player.Dispose();foreach(var image in new[]{PreviewImage,StartImage,EndImage})if(image.Source is Bitmap b && b!=_player.Frame)b.Dispose();_seek?.Dispose();_thumbs?.Dispose();_frameStep?.Dispose();_lifetime.Dispose();};
     }
     private async Task Load()
@@ -90,6 +91,7 @@ public partial class EditorWindow : Window
             Localization.SetText(MediaDescription,$"{Path.GetFileName(_path)}\n时长: {TimeText(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}");
             if(_info.HasVideo){_previewReady=Frame(PreviewImage,_options.Start,_lifetime.Token);await _previewReady;_thumbnailsReady=Thumbnails(_lifetime.Token);await _thumbnailsReady;PreviewStatus.IsVisible=false;}else PreviewStatus.Text="♫ 音频预览";
             SoundButton.IsEnabled=_info.HasAudio;PlayButton.IsEnabled=_info.Duration>0;((TabItem)EditTabs.Items[0]!).IsVisible=_info.Duration>0;((TabItem)EditTabs.Items[1]!).IsVisible=_info.HasVideo&&!AudioEditing;if(_info.Duration<=0)EditTabs.SelectedIndex=1;
+            if (_mode == "person-exclusion") ConfigureIntervalSelection();
             if(_info.HasAudio)_audioReady=PrepareAudio();else AudioStatus.Text="此文件不含音轨";
             RefreshSegments();ValidateInputs();TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;_ready.TrySetResult();await _audioReady;
             async Task PrepareAudio()
@@ -299,6 +301,20 @@ public partial class EditorWindow : Window
             else{draft.CropX=x;draft.CropY=y;draft.CropWidth=w;draft.CropHeight=h;if(x==0&&y==0&&w==_info.Width&&h==_info.Height){draft.CropWidth=0;draft.CropHeight=0;}}
         }
         return draft;
+    }
+    private void ConfigureIntervalSelection()
+    {
+        Title = Localization.Text("免检测区间") + " · " + Path.GetFileName(_path);
+        ConfirmButton.Content = "保存区间";
+        ((TabItem)EditTabs.Items[0]!).Header = "免检测区间";
+        foreach (var tab in EditTabs.Items.OfType<TabItem>().Skip(1)) tab.IsVisible = false;
+        EditTabs.SelectedIndex = 0;
+        if (FadeInCombo.Parent is Control fadeIn) fadeIn.IsVisible = false;
+        if (FadeOutCombo.Parent is Control fadeOut) fadeOut.IsVisible = false;
+        SpeedCombo.IsEnabled = false;
+        if (SpeedCombo.Parent is Grid times)
+            foreach (var control in times.Children.Where(control => Grid.GetRow(control) == 1 && Grid.GetColumn(control) is 2 or 3))
+                control.IsVisible = false;
     }
     private void CancelClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>Close(null);
     private async void ConfirmClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
