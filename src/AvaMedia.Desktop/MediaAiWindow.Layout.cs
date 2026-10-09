@@ -86,9 +86,7 @@ public sealed partial class MediaAiWindow
         body.Children.Add(filePanel); var result = BuildResultPane(); _resultPane = result; Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
         Grid.SetRow(_activity, 2); root.Children.Add(_activity);
         var state = new StackPanel { Spacing = 3 }; state.Children.Add(_status); state.Children.Add(_modelStatus);
-        state.Children.Add(WorkbenchActions(_warmStatus, _warmRetry));
-        _warmStatus.IsVisible = false;
-        _warmRetry.Click += async (_, _) => await PrepareModelsAsync(reset: true);
+        state.Children.Add(BuildModelPreparation());
         Grid.SetRow(state, 3); root.Children.Add(state); Content = root;
         _activity.Update(null); _undo.IsVisible = CanUndo();
         _analyze.Click += async (_, _) => await AnalyzeAsync();
@@ -204,7 +202,7 @@ public sealed partial class MediaAiWindow
         var hasVideo = _entries.Any(entry => entry.Include && VideoFormats.IsVideo(entry.Path));
         if (_videoFramesSetting is not null) _videoFramesSetting.IsVisible = hasVideo;
         _reuse.IsVisible = hasVideo;
-        _warmRetry.IsEnabled = !_busy && _warmRequest is null;
+        UpdateModelPreparationActions();
         _updatingSelection = true; _selectAll.IsChecked = _entries.Count > 0 && included == _entries.Count; _updatingSelection = false;
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;

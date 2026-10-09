@@ -201,6 +201,8 @@ public sealed partial class AppSettings
     public bool SilentUpdate { get; set; }
     public bool EnableBetaFeatures { get; set; } = true;
     public bool AutoDownloadRepairModel { get; set; } = true;
+    public bool PrewarmTagModels { get; set; } = true;
+    public int TagModelIdleMinutes { get; set; } = 5;
     /// <summary>Model download source: Auto, HuggingFace, ModelScope, HfMirror or Custom (see ModelSourceKind).</summary>
     public string ModelSource { get; set; } = "Auto";
     public string ModelSourceUrl { get; set; } = "";
@@ -233,6 +235,7 @@ public sealed partial class AppSettings
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
         CloseToTray=source.CloseToTray;AutoUpdate=source.AutoUpdate;SilentUpdate=source.SilentUpdate;
         EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;ModelSource=source.ModelSource;ModelSourceUrl=source.ModelSourceUrl;
+        PrewarmTagModels=source.PrewarmTagModels;TagModelIdleMinutes=source.TagModelIdleMinutes;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;

@@ -6,6 +6,7 @@ public static class SettingsPolicy
     {
         settings.OnlineAi.Validate(requireModel: false);
         ModelSourcePreference.From(settings).Validate();
+        if (settings.TagModelIdleMinutes is not (-1 or 1 or 5 or 15 or 30)) throw new ArgumentException("请选择模型空闲释放时间。");
         if (string.IsNullOrWhiteSpace(settings.OutputFolder)) throw new ArgumentException("请选择输出目录。");
         _ = Path.GetFullPath(settings.OutputFolder);
         if (settings.CpuThreads is < 1 or > 16) throw new ArgumentException("多线程数量必须在 1 到 16 之间。");

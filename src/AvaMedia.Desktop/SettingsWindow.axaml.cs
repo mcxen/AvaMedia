@@ -36,6 +36,7 @@ public sealed partial class SettingsWindow : Window
         InitializeProviderManagement();
         _appliedValues=_values.Select(value=>value()).ToArray();
         InitializeModelManagement();
+        InitializeModelLifecycle();
         InitializeWordLibraryManagement();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
         PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
@@ -70,6 +71,8 @@ public sealed partial class SettingsWindow : Window
         draft.CloseToTray = CloseToTrayInput.IsChecked == true;
         draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
         draft.EnableBetaFeatures = BetaInput.IsChecked == true; draft.AutoDownloadRepairModel = AutoRepairModelInput.IsChecked == true;
+        draft.PrewarmTagModels = _modelWarmChoice.SelectedIndex == 0;
+        draft.TagModelIdleMinutes = ModelIdleChoices[Math.Clamp(_modelIdleChoice.SelectedIndex, 0, ModelIdleChoices.Length - 1)];
         draft.OnlineAi = _providerDraft.Clone();
         draft.ModelSource = ((ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex)).ToString();
         draft.ModelSourceUrl = ModelSourceUrlInput.Text?.Trim() ?? "";
@@ -104,6 +107,7 @@ public sealed partial class SettingsWindow : Window
         BetaInput.IsChecked = source.EnableBetaFeatures; AutoRepairModelInput.IsChecked = source.AutoDownloadRepairModel;
         PopulateProviders(source.OnlineAi);
         PopulateModelSource(source);
+        PopulateModelLifecycle(source);
         SilentUpdateInput.IsEnabled = source.AutoUpdate;
         RuntimeInfo.Text = RuntimeDescription;
         StatusText.IsVisible = false; _initializing = false;

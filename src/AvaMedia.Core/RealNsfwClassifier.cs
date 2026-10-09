@@ -18,6 +18,7 @@ internal sealed class RealNsfwClassifier : IDisposable
 {
     private const int Size = 384;
     private readonly ModelInferenceSession _session;
+    internal string Backend => _session.Backend;
     internal RealNsfwClassifier(string directory, bool gpu)
     {
         _session = new(Path.Combine(directory, ModelCatalog.NsfwFile),

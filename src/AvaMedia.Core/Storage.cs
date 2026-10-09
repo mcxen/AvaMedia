@@ -16,6 +16,7 @@ public sealed partial class Storage
         LoadOnlineAiKey(settings.OnlineAi);
         // Model downloads follow the saved source choice in every entry point (main window, standalone tools).
         try { ModelDownloadSources.Preference = ModelSourcePreference.From(settings); } catch (ArgumentException) { }
+        MediaTagRuntime.Configure(settings);
         return settings;
     }
     public List<Job> LoadJobs()
@@ -28,6 +29,7 @@ public sealed partial class Storage
     public void SaveSettings(AppSettings s)
     {
         Write("settings.json", s); SaveOnlineAiKey(s.OnlineAi);
+        MediaTagRuntime.Configure(s);
     }
     public void SaveJobs(IEnumerable<Job> jobs) => WriteJobs(PrepareJobs(jobs), Interlocked.Increment(ref _queueVersion));
     public Task SaveJobsAsync(IEnumerable<Job> jobs)

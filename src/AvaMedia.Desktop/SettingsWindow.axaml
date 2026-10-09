@@ -159,6 +159,7 @@
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="12">
               <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型"/>
+              <Border x:Name="ModelLifecycleSection" Classes="settingSection"/>
               <StackPanel Spacing="4">
                 <Grid ColumnDefinitions="Auto,180,*" ColumnSpacing="12">
                   <TextBlock Text="模型下载源" VerticalAlignment="Center"/>

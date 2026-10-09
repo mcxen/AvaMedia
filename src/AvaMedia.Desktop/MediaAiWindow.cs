@@ -15,7 +15,6 @@ public sealed partial class MediaAiWindow : Window
     private readonly Storage _storage;
     private readonly AppSettings _settings;
     private readonly MediaTagService _tagService;
-    private readonly IDisposable _modelRetention;
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
     private readonly ListBox _list = new() { Name = "MediaAiFiles" };
@@ -51,7 +50,7 @@ public sealed partial class MediaAiWindow : Window
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _enqueue = enqueue; _showQueue = showQueue;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
-        _tagService = new(engine); _modelRetention = _tagService.KeepModelsWarm();
+        _tagService = new(engine); MediaTagRuntime.Configure(settings);
         LoadPreferences();
         if (!ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported) { _sceneTags.IsChecked = false; _sceneTags.IsEnabled = false; }
         // These inputs live in the optional settings dialog, so initialize text before any template is attached.
@@ -69,7 +68,7 @@ public sealed partial class MediaAiWindow : Window
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _busy ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (!_busy) await AddFoldersAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); _lifetime.Cancel(); };
-        Closed += (_, _) => { try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _modelRetention.Dispose(); _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
+        Closed += (_, _) => { try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
         AddPaths(initial ?? []);
     }
     public void ImportPaths(IEnumerable<string> paths) => AddPaths(paths);
@@ -125,7 +124,12 @@ public sealed partial class MediaAiWindow : Window
                 parts.Add(Localization.Format($"场景识别另需语义模型 · 约 {SemanticModelConsent.Megabytes(SemanticModelConsent.Model.DownloadSize)} MB（开始前询问）"));
             _modelStatus.Text = string.Join(Environment.NewLine, parts);
             _modelStatus.IsVisible = parts.Count > 0; UpdateActions();
-            if (prepare) await PrepareModelsAsync();
+            UpdateModelPreparationActions();
+            if (prepare)
+            {
+                if (_settings.PrewarmTagModels) await PrepareModelsAsync();
+                else _warmRequest?.Cancel();
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) _modelStatus.Text = error.Message; }
@@ -188,7 +192,7 @@ public sealed partial class MediaAiWindow : Window
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
         { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _editedTags.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); RenderSelectedResult();
-        _warmStatus.IsVisible = _warmRetry.IsVisible = false;
+        _warmStatus.IsVisible = false;
         _status.Text = Localization.Text(_modelReady ? "准备分析…" : "下载标签模型");
         _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
         var progress = new Progress<MediaTagProgress>(update =>

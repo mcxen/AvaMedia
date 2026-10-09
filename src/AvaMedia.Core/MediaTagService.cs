@@ -53,7 +53,6 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
 {
     private const int Size = 448;
     private readonly ModelStore _store = modelStore ?? new();
-    public IDisposable KeepModelsWarm() => MediaTagModelCache.Retain(_store);
     public Task ResetPreparedModelsAsync(CancellationToken ct = default) => MediaTagModelCache.InvalidateAsync(_store.Root, ModelCatalog.JoyTagId, ct);
 
     /// <summary>Prepare installed models and selected descriptions without files, downloads or source changes.</summary>
@@ -67,7 +66,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             RecognizeNsfw = options.RecognizeNsfw && await _store.IsInstalledAsync(ModelCatalog.NsfwId, ct: ct).ConfigureAwait(false)
         };
         var activity = new AiActivityReporter(value => progress?.Report(value), "AI 标签");
-        using var models = await MediaTagModelCache.AcquireAsync(_store, installed, stage => activity.Stage(stage), ct).ConfigureAwait(false);
+        using var models = await MediaTagModelCache.AcquireAsync(_store, installed, stage => activity.Stage(stage), ct, preparing: true).ConfigureAwait(false);
         if (models.SemanticError is { } error) throw new InvalidOperationException(error);
         if (installed.NeedsSemanticModel && models.Embedding is not null)
         {

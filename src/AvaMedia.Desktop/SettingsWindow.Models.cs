@@ -91,12 +91,17 @@ public sealed partial class SettingsWindow
             var name = Ui.Text(model.Name, "settingsHeading");
             name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(name, model.Name);
-            var identity = new Grid { ColumnDefinitions = new("*,144"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 12, RowSpacing = 3 };
+            var identity = new Grid { ColumnDefinitions = new("*,144"), RowDefinitions = new("Auto,Auto,Auto"), ColumnSpacing = 12, RowSpacing = 3 };
             identity.Children.Add(name); Grid.SetColumn(status, 1); identity.Children.Add(status);
             var metadata = Ui.FormattedText($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}", "caption");
             metadata.TextWrapping = TextWrapping.NoWrap; metadata.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(metadata, Localization.Format($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}"));
             Grid.SetRow(metadata, 1); Grid.SetColumnSpan(metadata, 2); identity.Children.Add(metadata);
+            if (MediaTagRuntime.Supports(model.Id))
+            {
+                var runtime = new Controls.ModelRuntimeView(_modelStore.Root, model.Id);
+                Grid.SetRow(runtime, 2); Grid.SetColumnSpan(runtime, 2); identity.Children.Add(runtime);
+            }
 
             var download = Ui.Button("下载", () => DownloadOrCancelModel(model));
             var verify = Ui.Button("校验", () => _ = RunModelActionAsync(model, "verify"));
@@ -230,7 +235,8 @@ public sealed partial class SettingsWindow
         var backgroundFailure = model.Id == ModelCatalog.LamaId && ModelInstallation.Failed && !row.Installed;
         var active = row.Cancellation is not null || download?.Active == true;
         var downloading = background || download?.Active == true;
-        var busy = active || background || row.Busy;
+        var runtime = MediaTagRuntime.Status(_modelStore.Root, model.Id);
+        var busy = active || background || row.Busy || runtime.Preparing || runtime.State == ModelLoadState.InUse;
         var progress = download?.Active == true ? download.Progress : row.Progress;
         if (background)
             progress = (ModelInstallation.Progress ?? new(ModelInstallation.Received, ModelInstallation.Total, ModelInstallation.Stage,
