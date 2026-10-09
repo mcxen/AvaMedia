@@ -2895,5 +2895,21 @@
   "山景": "Mountains",
   "城市": "City",
   "室内": "Indoors",
-  "空镜指不含可见人物的场景。视频按采样画面分类。": "Empty shots contain no visible people. Videos are classified from sampled frames."
+  "空镜指不含可见人物的场景。视频按采样画面分类。": "Empty shots contain no visible people. Videos are classified from sampled frames.",
+  "保存分类": "Save classification",
+  "载入默认": "Load defaults",
+  "已保存分类": "Saved classifications",
+  "将当前分类规则设为下次打开时的默认分类": "Use the current rules as defaults the next time this tool opens",
+  "删除已保存分类": "Delete saved classification",
+  "默认分类：{0}": "Default classifications: {0}",
+  "仅按类型分类": "Media types only",
+  "已保存分类：{0}": "Saved classification: {0}",
+  "当前分类已设为默认，下次打开自动载入": "Current classifications are now defaults and will load next time",
+  "已载入默认分类": "Default classifications loaded",
+  "已使用分类：{0}": "Using classification: {0}",
+  "已删除分类：{0}": "Deleted classification: {0}",
+  "同时将当前规则设为默认": "Also make the current rules default",
+  "分类已保存，当前规则已设为默认": "Classification saved; current rules are now defaults",
+  "最多保存 100 个分类。": "Save up to 100 classifications.",
+  "已保存分类的名称或标识重复。": "Saved classification names or IDs must be unique."
 }

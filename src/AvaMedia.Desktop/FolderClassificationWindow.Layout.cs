@@ -15,6 +15,13 @@ public sealed partial class FolderClassificationWindow
 {
     private readonly ListBox _files = new() { SelectionMode = SelectionMode.Single, Padding = new(0) };
     private readonly ListBox _ruleList = new() { MinHeight = 100, MaxHeight = 210 };
+    private readonly ComboBox _savedSelector = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly Button _saveRule = new() { Content = "保存分类" };
+    private readonly Button _setDefault = new() { Content = "设为默认" };
+    private readonly Button _restoreDefault = new() { Content = "载入默认" };
+    private readonly Button _useSaved = new() { Content = "使用" };
+    private readonly Button _deleteSaved = new() { Content = "删除" };
+    private readonly TextBlock _defaultSummary = Ui.Text("", "caption");
     private readonly WrapPanel _imports = new();
     private readonly StackPanel _settingsPanel = new() { Spacing = 10 };
     private readonly StackPanel _rulesPanel = new() { Spacing = 8 };
@@ -71,6 +78,26 @@ public sealed partial class FolderClassificationWindow
             ("移除", () => { if (_ruleList.SelectedItem is FolderClassificationRule rule) { _rules.Remove(rule); InvalidateAnalysis(); SavePreferences(); } return Task.CompletedTask; }) })
         { var button = Ui.Button(label, async () => await GuardAsync(action)); button.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(button); }
         _rulesPanel.Children.Add(ruleActions); _settingsPanel.Children.Add(_rulesPanel);
+        var savedActions = new WrapPanel();
+        foreach (var button in new[] { _saveRule, _setDefault, _restoreDefault })
+        { button.Margin = new(0, 0, 6, 6); savedActions.Children.Add(button); }
+        _rulesPanel.Children.Add(savedActions); _rulesPanel.Children.Add(_defaultSummary);
+        _rulesPanel.Children.Add(Ui.Text("已保存分类", "caption"));
+        _savedSelector.ItemsSource = _savedRules;
+        _savedSelector.ItemTemplate = new FuncDataTemplate<FolderClassificationRule>((rule, _) =>
+        { var name = Ui.Text(rule?.Name ?? "", "caption"); Localization.SetIsUserText(name, true); return name; });
+        var savedRow = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 5 };
+        savedRow.Children.Add(_savedSelector); Grid.SetColumn(_useSaved, 1); savedRow.Children.Add(_useSaved);
+        Grid.SetColumn(_deleteSaved, 2); savedRow.Children.Add(_deleteSaved); _rulesPanel.Children.Add(savedRow);
+        ToolTip.SetTip(_setDefault, "将当前分类规则设为下次打开时的默认分类");
+        ToolTip.SetTip(_deleteSaved, "删除已保存分类");
+        _saveRule.Click += async (_, _) => await GuardAsync(SaveSelectedRuleAsync);
+        _setDefault.Click += async (_, _) => await GuardAsync(SetDefaultRulesAsync);
+        _restoreDefault.Click += (_, _) => RestoreDefaultRules();
+        _useSaved.Click += async (_, _) => await GuardAsync(UseSavedRuleAsync);
+        _deleteSaved.Click += async (_, _) => await GuardAsync(DeleteSavedRuleAsync);
+        _ruleList.SelectionChanged += (_, _) => RefreshRuleActions();
+        _savedSelector.SelectionChanged += (_, _) => RefreshRuleActions();
         _settingsPanel.Children.Add(Ui.Text("视频采样帧数", "caption")); _settingsPanel.Children.Add(_frames);
         _settingsPanel.Children.Add(Ui.Text("标签阈值", "caption")); _settingsPanel.Children.Add(_tagThreshold);
         _settingsPanel.Children.Add(_gpu);

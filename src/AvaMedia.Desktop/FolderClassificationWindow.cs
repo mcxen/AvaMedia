@@ -15,6 +15,8 @@ public sealed partial class FolderClassificationWindow : Window
     private readonly Storage _storage = new();
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly ObservableCollection<FolderClassificationRule> _rules = [];
+    private readonly ObservableCollection<FolderClassificationRule> _savedRules = [];
+    private FolderClassificationRule[] _defaultRules = FolderClassificationRule.DefaultRules();
     private readonly Dictionary<string, FolderClassifiedFile> _results = new(BatchRename.PathComparer);
     private readonly List<string> _inputs = [];
     private readonly CancellationTokenSource _lifetime = new();
@@ -27,6 +29,7 @@ public sealed partial class FolderClassificationWindow : Window
     public sealed class Preferences
     {
         public FolderClassificationRule[] SceneRules { get; set; } = FolderClassificationRule.DefaultRules();
+        public FolderClassificationRule[] SavedRules { get; set; } = [];
         public string OutputFolder { get; set; } = "";
         public bool Recursive { get; set; } = true;
         public bool SplitTypes { get; set; } = true;
@@ -66,16 +69,22 @@ public sealed partial class FolderClassificationWindow : Window
         var saved = _storage.LoadToolOptions<Preferences>("folder-classification") ?? new();
         try { FolderClassification.ValidateRules(saved.SceneRules); }
         catch (Exception error) when (error is ArgumentException or NullReferenceException) { saved.SceneRules = FolderClassificationRule.DefaultRules(); }
+        try { ValidateSavedRules(saved.SavedRules); }
+        catch (Exception error) when (error is ArgumentException or NullReferenceException) { saved.SavedRules = []; }
+        _defaultRules = saved.SceneRules;
         foreach (var rule in saved.SceneRules) _rules.Add(rule);
+        foreach (var rule in saved.SavedRules) _savedRules.Add(rule);
         _output.Text = saved.OutputFolder; _recursive.IsChecked = saved.Recursive;
         _splitTypes.IsChecked = saved.SplitTypes; _writeText.IsChecked = saved.WriteText; _gpu.IsChecked = saved.PreferGpu;
         _frames.Value = Math.Clamp(saved.VideoFrames, 1, 32); _tagThreshold.Value = Math.Clamp(saved.TagThreshold, 0, 1);
         _lastJournal = saved.LastJournal;
     }
 
-    private void SavePreferences() => _storage.SaveToolOptions("folder-classification", new Preferences
+    private void SavePreferences(FolderClassificationRule[]? defaultRules = null, FolderClassificationRule[]? savedRules = null)
+        => _storage.SaveToolOptions("folder-classification", new Preferences
     {
-        SceneRules = _rules.ToArray(), OutputFolder = _output.Text ?? "", Recursive = _recursive.IsChecked == true,
+        SceneRules = defaultRules ?? _defaultRules, SavedRules = savedRules ?? _savedRules.ToArray(),
+        OutputFolder = _output.Text ?? "", Recursive = _recursive.IsChecked == true,
         SplitTypes = _splitTypes.IsChecked == true, WriteText = _writeText.IsChecked == true, PreferGpu = _gpu.IsChecked == true,
         VideoFrames = (int)(_frames.Value ?? 12), TagThreshold = _tagThreshold.Value ?? .5m, LastJournal = _lastJournal
     });
@@ -161,6 +170,7 @@ public sealed partial class FolderClassificationWindow : Window
         _export.IsEnabled = !_busy && _results.Count > 0;
         _analyze.Classes.Set("primary", _plan is not { Length: > 0 });
         _organize.Classes.Set("primary", _plan is { Length: > 0 });
+        RefreshRuleActions();
     }
 
     private void SelectEntries(Func<MediaFileEntry, bool> select)
