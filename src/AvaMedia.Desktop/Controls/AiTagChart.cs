@@ -35,7 +35,8 @@ public sealed class AiTagChart : Control
     private string? _activeThresholdModel;
     private double _threshold = .4, _duration = 1, _cursor, _minimum;
     private string? _selected, _hovered;
-    private bool _draggingThreshold;
+    private bool _draggingThreshold, _seeking, _canSeek;
+    public bool IsSeeking => _seeking;
     public event Action<string>? TagSelected;
     public event Action<double>? SampleSelected;
     public event Action<double?>? SampleHovered;
@@ -55,8 +56,14 @@ public sealed class AiTagChart : Control
     }
     public void Update(IReadOnlyList<TagChartBar> bars, IReadOnlyList<TagChartSeries> series, double threshold, double duration, double cursor, string? selected, bool semantic, IReadOnlyList<TagChartThreshold>? thresholds = null)
     {
-        _bars = bars; _series = series; _threshold = threshold; _duration = Math.Max(1, duration); _cursor = cursor; _selected = selected;
+        _bars = bars; _series = series; _threshold = threshold;
+        _duration = double.IsFinite(duration) && duration > 0 ? duration : 1; _cursor = cursor; _selected = selected;
+        _canSeek = Timeline && double.IsFinite(duration) && duration > 0;
         _thresholds = thresholds ?? []; _minimum = semantic ? -1 : 0; _hovered = null; InvalidateVisual();
+    }
+    public void UpdateCursor(double seconds)
+    {
+        _cursor = Math.Clamp(seconds, 0, _duration); InvalidateVisual();
     }
     private Rect Plot => Timeline ? new(38, 28, Math.Max(1, Bounds.Width - 92), Math.Max(1, Bounds.Height - 62))
         : new(24, 24, Math.Max(1, Bounds.Width - 24), Math.Max(1, Bounds.Height - 28));
@@ -155,7 +162,7 @@ public sealed class AiTagChart : Control
                     previous = position;
                 }
             }
-        if (_series.Count > 0) context.DrawLine(new Pen(TextBrush, 1), new(X(_cursor), plot.Y), new(X(_cursor), plot.Bottom));
+        if (_canSeek) context.DrawLine(new Pen(TextBrush, 1), new(X(_cursor), plot.Y), new(X(_cursor), plot.Bottom));
         if (_series.Count == 0) Text(context, Localization.Text("选择标签查看采样曲线"), new(plot.X + 12, plot.Y + plot.Height / 2));
     }
     private void DrawTimeLabels(DrawingContext context, Rect plot)
@@ -200,31 +207,32 @@ public sealed class AiTagChart : Control
         base.OnPointerPressed(e);
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         var point = e.GetPosition(this); Focus();
-        if (Timeline && Plot.Contains(point))
+        if (Timeline && new Rect(Plot.X, Plot.Y, Plot.Width, Bounds.Height - Plot.Y).Contains(point))
         {
-            _draggedThreshold = _thresholds.Where(threshold => Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)) < 7)
+            _draggedThreshold = _thresholds.Where(threshold => Plot.Contains(point) && Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)) < 7)
                 .OrderBy(threshold => Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)))
                 .ThenBy(threshold => threshold.Semantic == (point.X > Plot.Center.X) ? 0 : 1).FirstOrDefault();
             if (_draggedThreshold is { } threshold)
             {
                 _activeThresholdModel = threshold.Model; _draggingThreshold = true; e.Pointer.Capture(this); SetThreshold(point);
             }
-            else Seek(point.X);
+            else if (_canSeek) { _seeking = true; e.Pointer.Capture(this); Seek(point.X, force: true); }
         }
         else if (!Timeline && OnBarThreshold(point))
         { _draggingThreshold = true; e.Pointer.Capture(this); SetThreshold(point); }
         else if (BarAt(point) is { } bar) TagSelected?.Invoke(bar.Key);
         e.Handled = true;
     }
-    private void Seek(double x)
+    private void Seek(double x, bool force = false)
     {
-        var seconds = (x - Plot.X) / Plot.Width * _duration;
-        var nearest = _series.SelectMany(series => series.Points).Where(point => point.Score.HasValue).OrderBy(point => Math.Abs(point.Seconds - seconds)).FirstOrDefault();
-        if (nearest is not null) SampleSelected?.Invoke(nearest.Seconds);
+        var seconds = Math.Clamp((x - Plot.X) / Plot.Width * _duration, 0, Math.Max(0, _duration - .001));
+        if (!force && Math.Abs(seconds - _cursor) < .0001) return;
+        UpdateCursor(seconds); SampleSelected?.Invoke(seconds);
     }
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e); var point = e.GetPosition(this);
+        if (_seeking) { Seek(point.X); e.Handled = true; return; }
         if (_draggingThreshold) { SetThreshold(point); return; }
         if (Timeline && Plot.Contains(point))
         {
@@ -245,8 +253,16 @@ public sealed class AiTagChart : Control
     {
         base.OnPointerExited(e); _hovered = null; InvalidateVisual(); SampleHovered?.Invoke(null); BarHovered?.Invoke(null);
     }
-    protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); _draggingThreshold = false; _draggedThreshold = null; e.Pointer.Capture(null); }
-    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); _draggingThreshold = false; _draggedThreshold = null; }
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (_seeking) { _seeking = false; Seek(e.GetPosition(this).X, force: true); e.Handled = true; }
+        _seeking = _draggingThreshold = false; _draggedThreshold = null; e.Pointer.Capture(null);
+    }
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e); _seeking = _draggingThreshold = false; _draggedThreshold = null;
+    }
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
@@ -260,7 +276,7 @@ public sealed class AiTagChart : Control
                 ModelThresholdEdited?.Invoke(threshold.Model, Math.Clamp(threshold.Value + step, .05, .95));
             e.Handled = true;
         }
-        if (Timeline && e.Key is Key.Left or Key.Right)
+        if (Timeline && _canSeek && e.Key is Key.Left or Key.Right)
         {
             var points = _series.SelectMany(series => series.Points).Select(point => point.Seconds).Distinct().Order().ToArray();
             var next = e.Key == Key.Left ? points.Where(time => time < _cursor).LastOrDefault(_cursor) : points.Where(time => time > _cursor).FirstOrDefault(_cursor);

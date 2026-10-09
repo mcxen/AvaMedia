@@ -81,7 +81,7 @@
       </Border>
     </Grid>
     <Grid Grid.Row="2" x:Name="ControlsBar" RowDefinitions="Auto,Auto,Auto" Background="{DynamicResource UiToolbar}">
-      <Slider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" SmallChange="5" LargeChange="30" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
+      <local:SeekSlider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" SmallChange="5" LargeChange="30" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
       <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiPlayerBarPadding}">
         <StackPanel Orientation="Horizontal">
           <Button x:Name="PlayerPlayButton" Classes="player-transport" Click="PlayClick" ToolTip.Tip="播放 / 暂停（Space）" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayerPlayIcon" Kind="play"/></Button>

@@ -34,6 +34,7 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
     private readonly StackPanel _sceneThresholdRow = new() { Spacing = 2 };
     private bool _syncingThresholds, _writingTxt;
+    private int _sampleSelectionGeneration;
     private MediaTagResult? _indexedResult;
     private Dictionary<string, int> _scoreIndices = new(StringComparer.OrdinalIgnoreCase);
     private double CurrentJoyValue(MediaTagResult result, string tag)
@@ -236,10 +237,19 @@ public sealed partial class MediaAiWindow
     }
     private async Task SelectSampleAsync(double seconds)
     {
-        if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var result)) return;
-        _positions[result.Path] = seconds; _followLive.IsChecked = false; RenderSelectedResult();
-        if (_scoreMode.SelectedIndex == 3) RefreshDisplayedResults();
-        await RefreshSelectedPreviewAsync(seconds);
+        if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var result)
+            || !VideoFormats.IsVideo(result.Path) || !double.IsFinite(seconds)) return;
+        var generation = ++_sampleSelectionGeneration;
+        seconds = Math.Clamp(seconds, 0, Math.Max(0, result.DurationSeconds - .001));
+        _positions[result.Path] = seconds; _followLive.IsChecked = false;
+        _peakCurve.UpdateCursor(seconds); _sampleSummary.Text = MediaTime.Format(seconds);
+        var sample = _legendValues.Values.SelectMany(value => value.Points).Where(point => point.Score.HasValue)
+            .MinBy(point => Math.Abs(point.Seconds - seconds));
+        RefreshLegendSample(sample?.Seconds);
+        await RefreshSelectedPreviewAsync(seconds, debounce: true);
+        if (_closed || generation != _sampleSelectionGeneration || _list.SelectedItem != entry || _peakCurve.IsSeeking || _scoreMode.SelectedIndex != 3) return;
+        if (_results.TryGetValue(entry.Path, out var completed)) ShowResult(entry, completed);
+        RenderSelectedResult();
     }
     private async Task SaveTextReportsAsync(string[]? requested = null)
     {

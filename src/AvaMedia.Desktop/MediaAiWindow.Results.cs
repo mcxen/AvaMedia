@@ -21,6 +21,9 @@ public sealed partial class MediaAiWindow
     private readonly Expander _details = new() { Header = "识别详情", IsVisible = false };
     private Bitmap? _previewBitmap;
     private CancellationTokenSource? _previewRequest;
+    private string? _previewPath;
+    private double? _previewSeconds;
+    private readonly SemaphoreSlim _previewGate = new(1, 1);
 
     private Control BuildResultPane()
     {
@@ -104,25 +107,42 @@ public sealed partial class MediaAiWindow
         _details.Content = new ScrollViewer { Content = details, MaxHeight = 140 };
         _details.IsVisible = true; UpdateActions();
     }
-    private async Task RefreshSelectedPreviewAsync(double? seconds = null)
+    private async Task RefreshSelectedPreviewAsync(double? seconds = null, bool debounce = false)
     {
         _previewRequest?.Cancel();
-        _preview.Source = null; _preview.IsVisible = false; _previewBitmap?.Dispose(); _previewBitmap = null;
-        if (_closed || _list.SelectedItem is not MediaFileEntry entry) return;
-        if (TryDisplayedResult(entry.Path, out var result))
+        if (_closed) return;
+        var entry = _list.SelectedItem as MediaFileEntry;
+        if (!BatchRename.PathComparer.Equals(_previewPath, entry?.Path))
         {
-            try { MediaTagService.ValidateSource(result); }
-            catch (IOException error) { _status.Text = error.Message; return; }
+            _preview.Source = null; _previewBitmap?.Dispose(); _previewBitmap = null; _previewPath = entry?.Path; _previewSeconds = null;
         }
+        // Reserve the preview space while decoding; seeking within a file keeps its last frame visible.
+        _preview.IsVisible = entry is not null;
+        if (entry is null) return;
         using var request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _previewRequest = request;
+        var acquired = false;
         try
         {
-            var bytes = await _engine.Thumbnail(entry.Path, seconds ?? _positions.GetValueOrDefault(entry.Path), 280, 140, request.Token, pad: false);
+            if (debounce) await Task.Delay(90, request.Token);
+            await _previewGate.WaitAsync(request.Token); acquired = true;
+            request.Token.ThrowIfCancellationRequested();
+            if (TryDisplayedResult(entry.Path, out var result)) MediaTagService.ValidateSource(result);
+            var position = seconds ?? _positions.GetValueOrDefault(entry.Path);
+            if (_previewBitmap is not null && _previewSeconds is { } shown && Math.Abs(shown - position) < .0001) return;
+            var bytes = await _engine.Thumbnail(entry.Path, position, 280, 140, request.Token, pad: false);
             if (_closed || request.IsCancellationRequested || _previewRequest != request) return;
-            using var stream = new MemoryStream(bytes); _previewBitmap = new Bitmap(stream); _preview.Source = _previewBitmap; _preview.IsVisible = true;
+            using var stream = new MemoryStream(bytes);
+            var next = new Bitmap(stream); var previous = _previewBitmap;
+            _previewBitmap = next; _preview.Source = next; _previewSeconds = position; previous?.Dispose();
         }
+        catch (OperationCanceledException) { }
+        catch (IOException error) { if (!_closed && _previewRequest == request) _status.Text = error.Message; }
         // A failed thumbnail does not block analysis or replace the tag result with an error.
         catch (Exception) { }
-        finally { if (_previewRequest == request) _previewRequest = null; }
+        finally
+        {
+            if (acquired) _previewGate.Release();
+            if (_previewRequest == request) _previewRequest = null;
+        }
     }
 }
