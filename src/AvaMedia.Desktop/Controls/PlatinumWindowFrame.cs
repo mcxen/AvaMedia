@@ -13,6 +13,7 @@ public sealed class PlatinumWindowFrame : Border
 {
     private readonly Window _window;
     private readonly ContentControl _body;
+    internal ContentControl Body => _body;
     private readonly Grid _layout;
     private readonly PlatinumGlyph _growBox;
     private readonly CustomWindowResize _resize;

@@ -15,6 +15,7 @@ public sealed class WindowsXPWindowFrame : Border
 {
     private readonly Window _window;
     private readonly ContentControl _body;
+    internal ContentControl Body => _body;
     private readonly WindowsXPFace _maximizeFace;
     private readonly WindowsXPFace _grip;
     private readonly CustomWindowResize _resize;

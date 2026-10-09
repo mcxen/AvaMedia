@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -47,6 +48,7 @@ public sealed partial class MediaAiWindow
         }));
         toolbar.Children.Add(_imports); Grid.SetColumn(_advanced, 1); toolbar.Children.Add(_advanced); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
+        ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
@@ -59,7 +61,7 @@ public sealed partial class MediaAiWindow
             var name = Ui.Text(""); name.FontWeight = FontWeight.SemiBold; name.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(name, true); name.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Name))); content.Children.Add(name);
             var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status))); content.Children.Add(status);
-            var summary = Ui.Text("", "caption"); summary.MaxLines = 2; summary.TextTrimming = TextTrimming.CharacterEllipsis;
+            var summary = Ui.Text("", "caption"); summary.MaxLines = 2; summary.TextWrapping = TextWrapping.Wrap; summary.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(summary, true); summary.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Details))); content.Children.Add(summary);
             Grid.SetColumn(content, 1); row.Children.Add(content); return row;
         });

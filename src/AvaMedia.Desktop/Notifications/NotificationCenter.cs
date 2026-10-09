@@ -90,8 +90,15 @@ internal sealed class NotificationCenter
         if (Avalonia.Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop
             || desktop.MainWindow is not {} primary) return;
         Attach(primary);
-        // Standalone playback also presents notifications inside its application window.
-        if (primary is MainWindow || primary.Content is not Control content) return;
+        // Insert into the application body without replacing the skin's owned window frame.
+        if (primary is MainWindow) return;
+        ContentControl body = primary.Content switch
+        {
+            Controls.PlatinumWindowFrame platinum => platinum.Body,
+            Controls.WindowsXPWindowFrame xp => xp.Body,
+            _ => primary
+        };
+        if (body.Content is not Control content) return;
         var notifications = new NotificationPanel { Width = 364, MaxHeight = 420, Margin = new(12),
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom };
         if (content is Grid grid)
@@ -102,8 +109,8 @@ internal sealed class NotificationCenter
         }
         else
         {
-            primary.Content = null;
-            var root = new Grid(); root.Children.Add(content); root.Children.Add(notifications); primary.Content = root;
+            body.Content = null;
+            var root = new Grid(); root.Children.Add(content); root.Children.Add(notifications); body.Content = root;
         }
     }
     public void OpenHistory(Window? owner = null)
