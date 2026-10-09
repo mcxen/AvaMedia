@@ -124,13 +124,13 @@ public static class MediaTagText
                 MediaTagService.TagSignal(result, score), ScoreKind(result, [score.Tag]), ModelCatalog.JoyTagId, [score.Tag]));
 
         var scenes = result.Scenes?.Frames.SelectMany(frame => frame.Candidates)
-            .Where(candidate => candidate.Label is not ("其他室内" or "照明不明")).DistinctBy(candidate => candidate.Label) ?? [];
+            .Where(candidate => !WordLibraryCatalog.IsSemanticBaseline(candidate.Label)).DistinctBy(candidate => candidate.Label) ?? [];
         foreach (var candidate in scenes)
         {
             var peak = result.Scenes!.Frames.SelectMany(frame => frame.Candidates.Where(item => item.Label == candidate.Label))
                 .Select(item => item.Similarity).DefaultIfEmpty(double.NegativeInfinity).Max();
             var qualifies = peak >= sceneThreshold && result.Scenes.Frames.Any(frame => frame.Candidates.Any(item =>
-                item.Label == candidate.Label && item.Similarity >= sceneThreshold && item.Margin >= sceneMargin));
+                item.Label == candidate.Label && item.Qualifies(sceneThreshold, sceneMargin)));
             if (!qualifies) continue;
             if (onlyLibrary && candidates.All(entry => entry.Label != candidate.Label)) continue;
             tags = tags.Append(new MediaTagTextLabel(candidate.Label, candidate.Category, peak, "cosine_similarity",

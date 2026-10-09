@@ -56,14 +56,14 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
                 : ["准备标签模型", "识别媒体标签", "保存报告"]);
         activity.Stage("等待 AI 标签"); job.ProgressDetail = "等待 AI 标签"; progress(0);
 
-        var report = new Progress<MediaTagProgress>(update =>
+        var report = new InlineProgress(update =>
         {
             if (update.Activity is { } snapshot)
             {
                 job.Activity = snapshot;
                 if (snapshot.Stage.Length > 0) job.ProgressDetail = snapshot.Stage;
                 if (snapshot.Current is { } current && snapshot.Total is > 0 and var total)
-                    progress(Math.Clamp(5 + 75 * current / total, 5, 80));
+                    progress(Math.Max(job.Progress, Math.Clamp(5 + 75 * current / total, 5, 80)));
                 else progress(Math.Max(job.Progress, 8));
             }
             else if (update.PreviewResult is not null) progress(Math.Max(job.Progress, 40));
@@ -105,4 +105,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         if (result.CaptionError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "") + "画面描述失败";
         activity.Finish("标签分析完成"); progress(100);
     }
+
+    private sealed class InlineProgress(Action<MediaTagProgress> report) : IProgress<MediaTagProgress>
+    { public void Report(MediaTagProgress value) => report(value); }
 }

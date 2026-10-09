@@ -7,7 +7,8 @@ public partial class MainWindow
     private Job? _editingJob;
 
     internal bool CanEditTask(Job job) => CanManageTasks && !_queue.IsExecuting(job)
-        && job.State is not (JobState.Running or JobState.Stopping) && _jobs.Contains(job);
+        && job.State is not (JobState.Running or JobState.Stopping) && _jobs.Contains(job)
+        && Catalog.Find(job.FeatureId).Operation != Operation.MediaTag;
 
     private void UpdateTaskEditingActions()
     {
@@ -70,11 +71,6 @@ public partial class MainWindow
             if (feature.Operation == Operation.VideoSlim) { await ConfigureVideoSlimmingAsync(job.Inputs, job); return; }
             if (feature.Operation == Operation.VideoSummary) { await ConfigureVideoSummaryAsync(job.Inputs, job); return; }
             if (feature.Operation == Operation.PersonClip) { await ConfigurePersonClipAsync(job.Inputs, job); return; }
-            if (feature.Operation == Operation.MediaTag)
-            {
-                await ConfigureMediaAiAsync(job.Inputs);
-                return;
-            }
             if (PdfTools.Supports(feature.Operation))
             {
                 var request = await new PdfWorkspaceWindow(feature, Path.GetDirectoryName(job.Output)!, job.Inputs,

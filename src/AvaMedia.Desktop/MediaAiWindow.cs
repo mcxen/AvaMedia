@@ -136,6 +136,21 @@ public sealed partial class MediaAiWindow : Window
         await RefreshModelAsync();
     }
     private bool CanAnalyzeNotification(string[] paths) => !_closed && !_busy && _entries.Any(entry => paths.Contains(entry.Path, BatchRename.PathComparer));
+    private async Task EnsureTagModelAsync(CancellationTokenSource operation)
+    {
+        if (_modelReady) return;
+        var started = DateTime.UtcNow;
+        var download = new Progress<ModelDownloadProgress>(update =>
+        {
+            if (_closed || _operation != operation) return;
+            _status.Text = Localization.Text(update.Stage);
+            _activity.Update(new("下载标签模型", "JoyTag", started, DateTime.UtcNow)
+            { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
+        });
+        await new ModelStore().DownloadAsync(ModelCatalog.JoyTagId, download, operation.Token);
+        _modelReady = true; _modelStatus.IsVisible = false;
+    }
+
     private async Task AnalyzeAsync(string[]? requestedPaths = null)
     {
         if (_busy || _writingTxt) return;
@@ -188,19 +203,7 @@ public sealed partial class MediaAiWindow : Window
         });
         try
         {
-            if (!_modelReady)
-            {
-                var started = DateTime.UtcNow;
-                var download = new Progress<ModelDownloadProgress>(update =>
-                {
-                    if (_closed || _operation != operation) return;
-                    _status.Text = Localization.Text(update.Stage);
-                    _activity.Update(new("下载标签模型", "JoyTag", started, DateTime.UtcNow)
-                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
-                });
-                await new ModelStore().DownloadAsync(ModelCatalog.JoyTagId, download, operation.Token);
-                _modelReady = true; _modelStatus.IsVisible = false;
-            }
+            await EnsureTagModelAsync(operation);
             if (downloadSemantic)
             {
                 var started = DateTime.UtcNow;
@@ -293,6 +296,13 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var options = ReadTaskOptions();
+            if (!_modelReady)
+            {
+                using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
+                try { await EnsureTagModelAsync(operation); }
+                finally { _operation = null; if (!_closed) SetBusy(false); }
+                if (_closed) return;
+            }
             // Queue workers never prompt or download; ask here, otherwise the job records that scenes were skipped.
             if (options.Analysis.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
             {

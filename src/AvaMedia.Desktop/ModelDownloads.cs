@@ -5,9 +5,10 @@ using AvaMedia.Desktop.Notifications;
 
 namespace AvaMedia.Desktop;
 
-internal sealed class ModelDownloadState(DownloadableModel model, Window? owner)
+internal sealed class ModelDownloadState(DownloadableModel model, Window? owner, ModelSourcePreference sourcePreference)
 {
     public DownloadableModel Model { get; } = model;
+    public ModelSourcePreference SourcePreference { get; } = sourcePreference;
     public string NotificationKey { get; } = "model:" + model.Id + ":" + Guid.NewGuid().ToString("N");
     public WeakReference<Window>? Owner { get; } = owner is null ? null : new(owner);
     public CancellationTokenSource? Cancellation { get; set; }
@@ -30,11 +31,13 @@ internal sealed class ModelDownloads
     public bool CanStart(string id) => !_stopped && ModelCatalog.Find(id).Supported && Find(id)?.Active != true
         && !_store.IsBusy(id) && (id != ModelCatalog.LamaId || !ModelInstallation.Installing);
 
-    public void Start(DownloadableModel model, Window? owner = null)
+    public void Start(DownloadableModel model, Window? owner = null, ModelSourcePreference? sourcePreference = null)
     {
         Dispatcher.UIThread.VerifyAccess();
         if (!CanStart(model.Id)) return;
-        var state = new ModelDownloadState(model, owner)
+        sourcePreference ??= ModelDownloadSources.Preference;
+        sourcePreference.Validate();
+        var state = new ModelDownloadState(model, owner, sourcePreference)
         {
             Cancellation = new(), Progress = new(_store.DownloadedBytes(model.Id), model.DownloadSize, "校验模型")
         };
@@ -65,7 +68,7 @@ internal sealed class ModelDownloads
         });
         try
         {
-            await Task.Run(() => _store.DownloadAsync(model.Id, progress, cancellation.Token), cancellation.Token);
+            await Task.Run(() => _store.DownloadAsync(model.Id, progress, cancellation.Token, state.SourcePreference), cancellation.Token);
             state.Outcome = "已下载";
             if (model.Id == ModelCatalog.LamaId) ModelInstallation.ClearFailure();
         }
@@ -84,7 +87,7 @@ internal sealed class ModelDownloads
         if (state.Error is { } errorMessage)
             NotificationCenter.Shared.Publish(Owner(state), new(state.NotificationKey, "模型操作失败",
                 (FormattableString)$"{model.Name}\n{errorMessage}", NotificationKind.Error, [
-                    new("重试", () => { Start(model); return Task.CompletedTask; }, Primary: true, DismissOnSuccess: true,
+                    new("重试", () => { Start(model, Owner(state), state.SourcePreference); return Task.CompletedTask; }, Primary: true, DismissOnSuccess: true,
                         Enabled: () => CanStart(model.Id)),
                     new("模型管理", ModelNotifications.OpenManagementAsync)]));
         else if (state.Outcome == "已停止")

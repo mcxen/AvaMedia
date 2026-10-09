@@ -311,7 +311,22 @@ public sealed partial class SettingsWindow
         var row = _modelRows[model.Id];
         if (ModelDownloads.Shared.Find(model.Id)?.Active == true || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing)
             CancelModelDownload(model);
-        else if (row.Cancellation is null) ModelDownloads.Shared.Start(model, this);
+        else if (row.Cancellation is null)
+        {
+            try
+            {
+                var preference = new ModelSourcePreference((ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex),
+                    ModelSourceUrlInput.Text?.Trim() ?? "");
+                ModelDownloads.Shared.Start(model, this, preference);
+                StatusText.IsVisible = false;
+            }
+            catch (ArgumentException error)
+            {
+                StatusText.Text = error.Message; StatusText.IsVisible = true;
+                ModelSourceUrlInput.Focus();
+                if (_settings.PlayErrorSound) _services.PlaySound(UiSound.Error);
+            }
+        }
     }
 
     private void CancelModelDownload(DownloadableModel model)

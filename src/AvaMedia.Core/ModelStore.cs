@@ -83,10 +83,14 @@ public sealed class ModelStore(string? root = null)
         catch { gate.Release(); throw; }
     }
 
-    public async Task DownloadAsync(string id, IProgress<ModelDownloadProgress>? progress = null, CancellationToken ct = default)
+    public async Task DownloadAsync(string id, IProgress<ModelDownloadProgress>? progress = null, CancellationToken ct = default,
+        ModelSourcePreference? sourcePreference = null)
     {
         var model = ModelCatalog.Find(id);
         if (!model.Supported) throw new PlatformNotSupportedException("当前平台不支持此模型的本地推理工具。");
+        sourcePreference ??= ModelDownloadSources.Preference;
+        sourcePreference.Validate();
+        var china = ModelDownloadSources.PrefersChinaSources();
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
@@ -120,7 +124,7 @@ public sealed class ModelStore(string? root = null)
                     const int attempts = 3;
                     for (var attempt = 1; attempt <= attempts; attempt++)
                     {
-                        var sources = ModelDownloadSources.Resolve(artifact)
+                        var sources = ModelDownloadSources.Resolve(artifact, sourcePreference, china)
                             .Where(source => !rejected.Contains(source))
                             .OrderBy(source => new Uri(source).GetLeftPart(UriPartial.Authority) == preferredOrigin ? 0 : 1).ToArray();
                         if (sources.Length == 0) break;
