@@ -12,17 +12,22 @@ public static partial class WordLibraryCatalog
                     + string.Join(" and ", tags.Select(tag => tag.Replace('_', ' '))) + ".", tags);
             }).ToArray();
 
-    private static Dictionary<string, string> CreateTagCategories() => Common()
+    private static IEnumerable<WordCandidate> DisplayWords() => NsfwEntries.Concat(SceneEntries).Concat(Common());
+
+    private static Dictionary<string, string> CreateTagCategories() => DisplayWords()
             .SelectMany(entry => entry.Tags.Select(tag => (Tag: tag, entry.Category)))
             .GroupBy(entry => entry.Tag, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().Category, StringComparer.OrdinalIgnoreCase);
 
     public static string TagCategory(string tag) => TagCategories.GetValueOrDefault(tag) ?? "其他标签";
 
-    private static Dictionary<string, string> CreateTagLabels() => Common()
+    private static Dictionary<string, string> CreateTagLabels() => DisplayWords()
             .Where(entry => entry.Tags.Length == 1)
             .GroupBy(entry => entry.Tags[0], StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().Label, StringComparer.OrdinalIgnoreCase);
 
     public static string TagLabel(string tag) => TagLabels.GetValueOrDefault(tag) ?? tag;
+
+    public static bool UsesSamplePeak(string tag) => NsfwModeration.ContainsTag(tag)
+        || SceneEntries.Any(entry => entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
 }

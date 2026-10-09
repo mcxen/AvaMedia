@@ -1,0 +1,43 @@
+场景空间	酒店	A hotel guest room with a made bed, bedside furniture and hotel furnishings.
+场景空间	卧室	A bedroom in a private home with a bed and personal bedroom furnishings.	bedroom
+场景空间	浴室	A bathroom with a bathtub, shower or washbasin.	bathroom
+场景空间	客厅	A living room with a sofa, coffee table and home furnishings.
+场景空间	厨房	A kitchen with cooking appliances, cabinets and countertops.	kitchen
+场景空间	办公室	An office workspace with desks, computers and office furniture.
+场景空间	教室	A classroom with student desks and a teaching board.	classroom
+场景空间	更衣室	A changing room with lockers and benches.	locker_room
+场景空间	餐厅	A restaurant dining area with tables and chairs.	restaurant
+场景空间	车内	The interior of a vehicle with seats, windows and a dashboard.	car_interior
+场景空间	阳台	An outdoor balcony attached to a building with a railing.	balcony
+场景空间	走廊	An indoor corridor or hallway connecting rooms.
+场景空间	海边	A beach or seaside scene with sand and water.	beach
+场景空间	泳池	A swimming pool and the surrounding poolside area.	pool
+场景空间	户外	An outdoor street, garden or open natural environment.	outdoors
+场景空间	其他室内	An indoor space without recognizable bedroom, hotel, bathroom or other room features.
+照明状态	开灯	An indoor room illuminated by artificial electric lights that are switched on.
+照明状态	关灯	A dark indoor room with the electric lights switched off.
+照明状态	自然光	A scene illuminated mainly by natural daylight coming through windows.
+照明状态	夜视画面	A monochrome infrared night-vision camera image.
+照明状态	照明不明	A scene whose lighting source cannot be determined from the image.
+场景物体	床	A bed with a mattress and bedding.	bed
+场景物体	床单	Bed sheets covering a mattress.	bed_sheet
+场景物体	枕头	A pillow on a bed or sofa.	pillow
+场景物体	被子	A blanket or duvet.	blanket
+场景物体	沙发	A sofa or couch.	couch
+场景物体	浴缸	A bathtub.	bathtub
+场景物体	马桶	A toilet.	toilet
+场景物体	淋浴喷头	A shower head.	shower_head
+场景物体	镜子	A mirror.	mirror
+场景物体	窗户	A window.	window
+场景物体	窗帘	Window curtains.	curtains
+场景物体	灯具	A lamp.	lamp
+场景物体	地板	A floor.	floor
+场景位置	床上	on a bed.	on_bed
+场景位置	沙发上	on a sofa.	on_couch
+场景位置	地板上	on the floor.	on_floor
+场景位置	室内	An indoor scene.	indoors
+画面照明	画面昏暗	A dark or dimly lit image.	dark
+画面照明	光亮	Light visible in the image.	light
+画面照明	阳光	Sunlight illuminating the scene.	sunlight
+画面照明	逆光	A backlit scene.	backlighting
+画面照明	夜间	A nighttime scene.	night

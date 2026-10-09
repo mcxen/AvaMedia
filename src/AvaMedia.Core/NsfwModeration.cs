@@ -14,6 +14,8 @@ public static class NsfwModeration
     private static readonly byte[] DictionaryBytes = ReadResource("nsfw-review.tsv");
     public static string DictionarySha256 { get; } = Convert.ToHexString(SHA256.HashData(DictionaryBytes)).ToLowerInvariant();
     public static IReadOnlyList<NsfwTagRule> Rules { get; } = ReadRules();
+    private static readonly HashSet<string> Tags = Rules.Select(rule => rule.Tag).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    public static bool ContainsTag(string tag) => Tags.Contains(tag);
     public static WordCandidate[] Candidates() => Rules.Select(rule => new WordCandidate(rule.Label, rule.Category,
         "An image tagged as " + rule.Tag.Replace('_', ' ') + ".", [rule.Tag])).ToArray();
 

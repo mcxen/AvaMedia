@@ -22,6 +22,7 @@ public static partial class WordLibraryCatalog
     public static readonly WordLibrary[] BuiltIns;
     private static readonly WordCandidate[] FeatureEntries;
     private static readonly WordCandidate[] NsfwEntries;
+    public static IReadOnlyList<WordCandidate> SceneEntries { get; }
     private static readonly Dictionary<string, string> TagCategories;
     private static readonly Dictionary<string, string> TagLabels;
 
@@ -30,6 +31,7 @@ public static partial class WordLibraryCatalog
         JoyTags = ReadText("joytag.txt").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         FeatureEntries = ReadFeatureWords();
         NsfwEntries = NsfwModeration.Candidates();
+        SceneEntries = ReadSceneWords();
         if (NsfwEntries.Any(entry => !entry.Supports(WordLibraryTarget.JoyTag))) throw new InvalidDataException("NSFW 识别词库包含模型不支持的标签。");
         TagCategories = CreateTagCategories();
         TagLabels = CreateTagLabels();
@@ -37,6 +39,7 @@ public static partial class WordLibraryCatalog
         {
         new("person-features", "人物特征", "AvaMedia · 外观、配饰、动作、神态与体毛特征", FeatureEntries),
         new("nsfw-review", "NSFW 识别标签", "JoyTag / Danbooru · Apache-2.0 · AvaMedia 风险分组", NsfwEntries),
+        new("scene-context", "场景与照明", "AvaMedia · JoyTag 标签与本地语义场景描述", SceneEntries.ToArray()),
         new("nudenet-review", "NudeNet 分类", "notAI-tech/NudeNet · AGPL-3.0 · 18 类语义候选，非 JoyTag 检测输出", ReadNudeNetWords()),
         new("common", "常用分类", "AvaMedia · 中文名称与模型标签映射", Common()),
         new("ratings", "内容分级候选", "AvaMedia · 语义描述，需人工确认", [
@@ -123,7 +126,7 @@ public static partial class WordLibraryCatalog
 物体	室外	outdoors
 成人标签	生殖器	genitals
 """;
-        return FeatureEntries.Concat(NsfwEntries).Concat(text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
+        return FeatureEntries.Concat(NsfwEntries).Concat(SceneEntries).Concat(text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(line =>
         {
             var fields = line.Split('\t'); var tags = fields[2].Split('+');
             return new WordCandidate(fields[1], fields[0], "A photo showing " + string.Join(" and ", tags.Select(tag => tag.Replace('_', ' '))) + ".",

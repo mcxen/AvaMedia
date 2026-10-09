@@ -102,7 +102,8 @@ public sealed partial class MediaAiWindow
         _list.SelectionChanged += async (_, _) => { RenderSelectedResult(); await RefreshSelectedPreviewAsync(); };
         _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
         AddSettingRow("标签阈值", _threshold); AddSettingRow("视频采样帧数", _frames);
-        _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
+        _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
+        _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
         _settingsPanel.Children.Add(Ui.Button("选择词库 / 类别…", async () =>
         {
             await new WordLibraryWindow(WordLibraryTarget.JoyTag).ShowDialog(_settingsOwner ?? this);

@@ -46,16 +46,18 @@ public sealed partial class MediaAiWindow
         edits.Children.Add(Ui.Button("编辑标签…",async()=>await EditTagsAsync(result)));
         if(_editedTags.ContainsKey(result.Path))edits.Children.Add(Ui.Button("恢复识别标签",()=>{_editedTags.Remove(result.Path);RefreshDisplayedResults();}));
         _tagGroups.Children.Add(edits);
+        if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("场景识别失败：") + result.SceneError, "error"));
         var tags = ResultTags(result, search: true).ToArray();
         _detailState.Text = Localization.Format($"识别到 {tags.Length} 个标签");
         if (tags.Length == 0) _tagGroups.Children.Add(Ui.Text(string.IsNullOrWhiteSpace(_tagSearch.Text) ? "未找到达标标签" : "未找到匹配标签", "caption"));
-        foreach (var group in tags.GroupBy(tag => tag.Category).OrderBy(group => group.Key == "其他标签" ? 1 : 0))
+        foreach (var group in tags.GroupBy(tag => tag.Category))
         {
             var section = new StackPanel { Spacing = 6 }; section.Children.Add(Ui.Text(Localization.Text(group.Key), "heading"));
             var chips = new WrapPanel();
             foreach (var tag in group)
             {
-                var label = Ui.Text(tag.Label + (_showScores.IsChecked == true ? $" · {tag.Score:0.00}" : "")); Localization.SetIsUserText(label, true);
+                var label = Ui.Text(tag.Label + (_showScores.IsChecked == true ? " · " + Localization.Text(tag.ScoreKind switch
+                    { "sample_peak" => "峰值", "cosine_similarity" => "相似度", _ => "分数" }) + $" {tag.Score:0.00}" : "")); Localization.SetIsUserText(label, true);
                 var chip = new Button { Content = label, Padding = new(9, 5), Margin = new(0, 0, 6, 6), BorderThickness = new(1) };
                 chip.Click += async (_,_)=>await ShowEvidenceAsync(result,tag);
                 chip.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
@@ -67,6 +69,11 @@ public sealed partial class MediaAiWindow
         var details = new StackPanel { Spacing = 5 };
         details.Children.Add(Ui.Text(Localization.Format($"采样 {result.SampledFrames} 帧 · 计算 {result.InferredFrames} 帧 · {result.Backend}"), "caption"));
         if (result.FallbackReason is not null) details.Children.Add(Ui.Text(Localization.Text("已回退 CPU") + " · " + result.FallbackReason, "caption"));
+        if (result.Scenes is { } scenes)
+        {
+            details.Children.Add(Ui.Text(Localization.Text("场景与照明") + " · " + scenes.Backend, "caption"));
+            if (scenes.FallbackReason is not null) details.Children.Add(Ui.Text(scenes.FallbackReason, "caption"));
+        }
         details.Children.Add(Ui.Text(NsfwStateText(moderation.State), "caption"));
         if (moderation.Evidence.Count > 0) details.Children.Add(Ui.Text(string.Join(" · ", moderation.Evidence.Select(item => $"{item.Label} {item.Signal:0.00}")), "caption"));
         if (moderation.State == NsfwSignalState.Suspected) _tagGroups.Children.Insert(0, Ui.Text("疑似 NSFW", "error"));

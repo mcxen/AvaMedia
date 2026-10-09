@@ -22,6 +22,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Value = 8, Increment = 1 };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU" };
     private readonly CheckBox _reuse = new() { Content = "复用相似画面", IsChecked = true };
+    private readonly CheckBox _sceneTags = new() { Content = "识别场景与照明", IsChecked = true };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
@@ -43,6 +44,7 @@ public sealed partial class MediaAiWindow : Window
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
         LoadPreferences();
+        if (!ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported) { _sceneTags.IsChecked = false; _sceneTags.IsEnabled = false; }
         // These inputs live in the optional settings dialog, so initialize text before any template is attached.
         _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat);
         _frames.Text = _frames.Value?.ToString(_frames.NumberFormat);
@@ -99,8 +101,12 @@ public sealed partial class MediaAiWindow : Window
             var installed = await new ModelStore().IsInstalledAsync(ModelCatalog.JoyTagId, ct: _lifetime.Token);
             if (_closed) return;
             _modelReady = installed;
-            _modelStatus.Text = Localization.Text(installed ? "" : "首次分析需要下载标签模型 · 约 366 MB");
-            _modelStatus.IsVisible = !installed; UpdateActions();
+            var missingBytes = installed ? 0 : ModelCatalog.Find(ModelCatalog.JoyTagId).DownloadSize;
+            if (_sceneTags.IsChecked == true && !await new ModelStore().IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token))
+                missingBytes += ModelCatalog.Find(ModelCatalog.EmbeddingId).DownloadSize;
+            if (_closed) return;
+            _modelStatus.Text = missingBytes == 0 ? "" : Localization.Format($"首次分析需要下载模型 · 约 {Math.Ceiling(missingBytes / 1_000_000d):0} MB");
+            _modelStatus.IsVisible = missingBytes > 0; UpdateActions();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) _modelStatus.Text = error.Message; }
@@ -129,7 +135,7 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true); options.Validate(); Number(_threshold); SavePreferences();
+            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true); options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
@@ -208,12 +214,13 @@ public sealed partial class MediaAiWindow : Window
                     new("模型管理", ManageModelsAsync, Enabled: () => !_closed)]));
             }
         }
-        finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); } }
+        finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); await RefreshModelAsync(); } }
     }
     private void ShowResult(MediaFileEntry entry, MediaTagResult result)
     {
         var tags = ResultTags(result).ToArray();
-        entry.Status = Localization.Format($"已识别 {tags.Length} 个标签");
+        entry.Status = result.SceneError is null ? Localization.Format($"已识别 {tags.Length} 个标签")
+            : Localization.Format($"已识别 {tags.Length} 个标签 · 场景识别失败");
         entry.Details = string.Join(" · ", tags.Take(5).Select(tag => tag.Label));
     }
     private static string NsfwStateText(NsfwSignalState state) => Localization.Text(state switch
@@ -254,7 +261,7 @@ public sealed partial class MediaAiWindow : Window
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, Results = _results.Values.Select(result => new
             { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
                 DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),
-                Tags = ResultTags(result).ToArray(), Evidence=result.Frames }) };
+                Tags = ResultTags(result).ToArray(), Evidence=result.Frames, result.Scenes, result.SceneError }) };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception error) { await Ui.Message(this, "导出失败", error.Message); }
