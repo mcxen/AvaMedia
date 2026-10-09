@@ -44,10 +44,8 @@ public sealed partial class SettingsWindow
         public required Button Verify { get; init; }
         public required Button Delete { get; init; }
         public CancellationTokenSource? Cancellation { get; set; }
-        public string? Action { get; set; }
         public string? Outcome { get; set; }
         public string? ErrorMessage { get; set; }
-        public bool DownloadFailed { get; set; }
         public bool Installed { get; set; }
         public bool Busy { get; set; }
         public long Downloaded { get; set; }
@@ -104,11 +102,13 @@ public sealed partial class SettingsWindow
         ModelStatus.IsVisible = false;
         Opened += async (_, _) => { FocusModelTarget(); await RefreshModelsSafelyAsync(); };
         ModelInstallation.Changed += RepairModelChanged;
+        ModelDownloads.Shared.Changed += ModelDownloadChanged;
         Localization.Changed += ModelsLanguageChanged;
         Closed += (_, _) =>
         {
             _modelsClosed = true;
             ModelInstallation.Changed -= RepairModelChanged;
+            ModelDownloads.Shared.Changed -= ModelDownloadChanged;
             Localization.Changed -= ModelsLanguageChanged;
         };
     }
@@ -116,6 +116,14 @@ public sealed partial class SettingsWindow
     private void ModelsLanguageChanged(object? sender, EventArgs args)
     {
         foreach (var model in ModelCatalog.All) UpdateModelRow(model, _modelRows[model.Id]);
+    }
+
+    private void ModelDownloadChanged(string id)
+    {
+        if (_modelsClosed) return;
+        var row = _modelRows[id]; row.Outcome = row.ErrorMessage = null;
+        UpdateModelRow(ModelCatalog.Find(id), row);
+        if (ModelDownloads.Shared.Find(id)?.Active != true) _ = RefreshModelsSafelyAsync();
     }
 
     private void RepairModelChanged() => Dispatcher.UIThread.Post(() =>
@@ -126,7 +134,7 @@ public sealed partial class SettingsWindow
             var installing = ModelInstallation.Installing;
             var row = _modelRows[ModelCatalog.LamaId];
             if (installing && !_repairWasInstalling && row.Cancellation is null)
-            { row.Outcome = row.ErrorMessage = null; row.DownloadFailed = false; }
+            { row.Outcome = row.ErrorMessage = null; }
             UpdateModelRow(ModelCatalog.Find(ModelCatalog.LamaId), row);
             // Byte progress updates only this row. Re-read local state when installation starts or ends.
             if (installing != _repairWasInstalling || ModelInstallation.Failed) _ = RefreshModelsSafelyAsync();
@@ -167,10 +175,12 @@ public sealed partial class SettingsWindow
         {
             if (_modelsClosed) return;
             var row = _modelRows[model.Id];
-            if (row.Cancellation is not null) continue;
+            if (row.Cancellation is not null || ModelDownloads.Shared.Find(model.Id)?.Active == true)
+            { UpdateModelRow(model, row); continue; }
             var installed = await _modelStore.IsInstalledAsync(model.Id, ct: _lifetime.Token);
             if (_modelsClosed) return;
-            if (row.Cancellation is not null) continue;
+            if (row.Cancellation is not null || ModelDownloads.Shared.Find(model.Id)?.Active == true)
+            { UpdateModelRow(model, row); continue; }
             row.Installed = installed; row.Busy = _modelStore.IsBusy(model.Id);
             row.Downloaded = _modelStore.DownloadedBytes(model.Id);
             UpdateModelRow(model, row);
@@ -179,27 +189,28 @@ public sealed partial class SettingsWindow
 
     private void UpdateModelRow(DownloadableModel model, ModelRow row)
     {
+        var download = ModelDownloads.Shared.Find(model.Id);
         var background = model.Id == ModelCatalog.LamaId && ModelInstallation.Installing;
         var backgroundFailure = model.Id == ModelCatalog.LamaId && ModelInstallation.Failed && !row.Installed;
-        var active = row.Cancellation is not null;
-        var downloading = background || active && row.Action == "download";
+        var active = row.Cancellation is not null || download?.Active == true;
+        var downloading = background || download?.Active == true;
         var busy = active || background || row.Busy;
-        var progress = row.Progress;
+        var progress = download?.Active == true ? download.Progress : row.Progress;
         if (background)
             progress = (ModelInstallation.Progress ?? new(ModelInstallation.Received, ModelInstallation.Total, ModelInstallation.Stage,
                 ModelInstallation.RetryAttempt, ModelInstallation.MaxAttempts)) with { Stage = ModelInstallation.Stage };
         var status = !model.Supported ? "当前平台不可用" : background ? ModelInstallation.Stage
-            : active ? progress?.Stage ?? "处理中…" : row.Busy ? "使用中" : row.Outcome ?? (backgroundFailure ? "下载失败" : row.Installed ? "已下载" : "未下载");
+            : active ? progress?.Stage ?? "处理中…" : row.Busy ? "使用中" : row.Outcome ?? download?.Outcome ?? (backgroundFailure ? "下载失败" : row.Installed ? "已下载" : "未下载");
         row.Status.Text = Localization.Text(status);
         ToolTip.SetTip(row.Status, row.Status.Text);
         row.Download.IsEnabled = downloading
-            ? row.Cancellation?.IsCancellationRequested != true && (!background || !ModelInstallation.CancellationRequested)
+            ? download?.CancellationRequested != true && (!background || !ModelInstallation.CancellationRequested)
             : model.Supported && !busy;
         row.Download.Content = Localization.Text(downloading ? "取消下载" : row.Downloaded > 0 && !row.Installed ? "继续下载"
-            : row.DownloadFailed || backgroundFailure ? "重试下载" : row.Installed ? "修复下载" : "下载");
+            : download?.Error is not null || backgroundFailure ? "重试下载" : row.Installed ? "修复下载" : "下载");
         row.Verify.IsEnabled = row.Installed && !busy;
         row.Delete.IsEnabled = !busy && _modelStore.HasLocalData(model.Id);
-        row.Error.Text = Localization.Text(row.ErrorMessage ?? (backgroundFailure ? ModelInstallation.Error ?? "图片修复模型安装失败，请检查网络后重试。" : ""));
+        row.Error.Text = Localization.Text(row.ErrorMessage ?? download?.Error ?? (backgroundFailure ? ModelInstallation.Error ?? "图片修复模型安装失败，请检查网络后重试。" : ""));
         row.Error.IsVisible = !string.IsNullOrEmpty(row.Error.Text);
         ToolTip.SetTip(row.Error, row.Error.IsVisible ? row.Error.Text : null);
 
@@ -223,15 +234,15 @@ public sealed partial class SettingsWindow
     private void DownloadOrCancelModel(DownloadableModel model)
     {
         var row = _modelRows[model.Id];
-        if (row.Cancellation is not null && row.Action == "download" || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing)
+        if (ModelDownloads.Shared.Find(model.Id)?.Active == true || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing)
             CancelModelDownload(model);
-        else _ = RunModelActionAsync(model, "download");
+        else if (row.Cancellation is null) ModelDownloads.Shared.Start(model, this);
     }
 
     private void CancelModelDownload(DownloadableModel model)
     {
         var row = _modelRows[model.Id];
-        if (row.Cancellation is not null) row.Cancellation.Cancel();
+        if (ModelDownloads.Shared.Find(model.Id)?.Active == true) ModelDownloads.Shared.Cancel(model.Id);
         else if (model.Id == ModelCatalog.LamaId) ModelInstallation.Cancel();
         row.Download.IsEnabled = false;
         row.Status.Text = Localization.Text("正在停止…");
@@ -242,44 +253,30 @@ public sealed partial class SettingsWindow
     {
         if (_modelsClosed) return;
         var row = _modelRows[model.Id];
-        if (row.Cancellation is not null || _modelStore.IsBusy(model.Id) || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing) return;
+        if (row.Cancellation is not null || ModelDownloads.Shared.Find(model.Id)?.Active == true
+            || _modelStore.IsBusy(model.Id) || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing) return;
         if (action == "delete" && model.Id == ModelCatalog.LamaId && _settings.AutoDownloadRepairModel)
         {
             row.ErrorMessage = "请先关闭自动下载图片修复模型并应用，再删除。";
             UpdateModelRow(model, row); return;
         }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        ModelDownloads.Shared.ClearResult(model.Id);
         var notificationKey = "model:" + model.Id + ":" + Guid.NewGuid().ToString("N");
-        row.Cancellation = cancellation; row.Action = action;
-        row.Outcome = row.ErrorMessage = null; row.DownloadFailed = false;
+        row.Cancellation = cancellation;
+        row.Outcome = row.ErrorMessage = null;
         row.Progress = new(0, 0, action == "delete" ? "删除中…" : "校验模型");
-        void NotifyProgress(ModelDownloadProgress value) => Notifications.NotificationCenter.Shared.Publish(this,
-            new(notificationKey, "下载模型", (FormattableString)$"{model.Name}\n{Localization.Key(value.Stage)} · {value.Received / 1048576d:0.0} / {value.Total / 1048576d:0.0} MB",
-                Notifications.NotificationKind.Progress,
-                [new("停止下载", () => { CancelModelDownload(model); return Task.CompletedTask; }, Enabled: () => row.Cancellation is not null && !row.Cancellation.IsCancellationRequested)],
-                value.Total > 0 ? value.Percent : null, value.Total <= 0));
-        if (action == "download") NotifyProgress(row.Progress);
         try
         {
             ModelStatus.IsVisible = false;
             UpdateModelRow(model, row);
-            if (action == "download")
-            {
-                var progress = new Progress<ModelDownloadProgress>(value =>
-                {
-                    if (_modelsClosed || cancellation.IsCancellationRequested || row.Cancellation != cancellation) return;
-                    try { row.Progress = value; UpdateModelRow(model, row); NotifyProgress(value); }
-                    catch (Exception error) { AppDiagnostics.Record("Model download progress", error); }
-                });
-                await Task.Run(() => _modelStore.DownloadAsync(model.Id, progress, cancellation.Token), cancellation.Token);
-            }
-            else if (action == "verify")
+            if (action == "verify")
             {
                 using var lease = await Task.Run(() => _modelStore.AcquireAsync(model.Id, cancellation.Token), cancellation.Token);
             }
             else await _modelStore.DeleteAsync(model.Id, cancellation.Token);
             if (model.Id == ModelCatalog.LamaId && action != "delete") ModelInstallation.ClearFailure();
-            row.Outcome = action == "verify" ? "校验通过" : action == "delete" ? "未下载" : "已下载";
+            row.Outcome = action == "verify" ? "校验通过" : "未下载";
             Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作完成",
                 (FormattableString)$"{model.Name} · {Localization.Key(row.Outcome)}", Notifications.NotificationKind.Success,
                 [new("模型管理", Notifications.ModelNotifications.OpenManagementAsync)]));
@@ -291,8 +288,8 @@ public sealed partial class SettingsWindow
         }
         catch (Exception error)
         {
-            row.Outcome = action == "download" ? "下载失败" : action == "verify" ? "校验失败" : "删除失败";
-            row.DownloadFailed = action == "download"; row.ErrorMessage = error.Message;
+            row.Outcome = action == "verify" ? "校验失败" : "删除失败";
+            row.ErrorMessage = error.Message;
             AppDiagnostics.Record("Model management " + action + " " + model.Id, error);
             Notifications.NotificationCenter.Shared.Publish(this, new(notificationKey, "模型操作失败",
                 (FormattableString)$"{model.Name}\n{error.Message}", Notifications.NotificationKind.Error, [
@@ -302,7 +299,7 @@ public sealed partial class SettingsWindow
         }
         finally
         {
-            row.Cancellation = null; row.Action = null; row.Progress = null;
+            row.Cancellation = null; row.Progress = null;
             if (!_modelsClosed) await RefreshModelsSafelyAsync();
         }
     }

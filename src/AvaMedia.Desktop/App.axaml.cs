@@ -24,7 +24,11 @@ public sealed partial class App : Application
         {
             var args = desktop.Args ?? [];
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
-            desktop.Exit += (_, _) => Notifications.NotificationCenter.Shared.Shutdown();
+            desktop.Exit += (_, _) =>
+            {
+                ModelDownloads.Shared.Shutdown();
+                Notifications.NotificationCenter.Shared.Shutdown();
+            };
             var previewExport = Array.IndexOf(args, SetupPreviewExporter.Argument);
             if (previewExport >= 0)
             {
