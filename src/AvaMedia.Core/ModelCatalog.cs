@@ -16,19 +16,20 @@ public static class ModelCatalog
     public const string PersonId = "yolox";
     public const string NanoDetId = "nanodet-person";
     public const string MediaPipePersonId = "mediapipe-person";
-    public const string EmbeddingId = "embeddinggemma-2";
+    public const string EmbeddingId = "embeddinggemma-2-onnx";
     public const string LamaId = "lama";
     public const string JoyTagId = "joytag";
     public const string SummaryTextId = "summary-qwen3";
     public const string SummaryVisionId = "summary-smolvlm";
     public const string SummaryRuntimeId = "summary-runtime";
-    public static bool IncludesRuntime(string id) => id is EmbeddingId or SummaryRuntimeId;
+    public static bool IncludesRuntime(string id) => id is SummaryRuntimeId;
     public const string JoyTagFile = "model.onnx";
     public const string JoyTagLabels = "top_tags.txt";
     private const string JoyTagRevision = "6b7f16331a6ccf0fdce37d5a9564715f6e772b22";
-    private const string GemmaRevision = "bfcd298762cc34d0357ece5ebdd31791a3a374d8";
-    public const string GemmaFile = "embeddinggemma-2-Q8_0.gguf";
-    public const string ProjectorFile = "mmproj-embeddinggemma-2-Q8_0.gguf";
+    private const string GemmaRevision = "daa72c51243991dfcaf9f9137d2c573d8f7790c0";
+    public const string GemmaTextFile = "model_q4.onnx";
+    public const string GemmaVisionFile = "vision_encoder_q4.onnx";
+    public const string GemmaTokenizerFile = "tokenizer.json";
     public const string PersonFile = "object_detection_yolox_2022nov.onnx";
     public static IReadOnlyList<DownloadableModel> All { get; } = Build();
     public static DownloadableModel Find(string id) => All.First(model => model.Id == id);
@@ -36,9 +37,9 @@ public static class ModelCatalog
     private static IReadOnlyList<DownloadableModel> Build()
     {
         // ModelScope mirrors only expose master; the pinned size and SHA-256 still reject any other revision.
-        ModelArtifact Gemma(string name, long size, string hash) => new(name, size, hash,
-            [$"https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/{GemmaRevision}/{name}",
-             $"https://modelscope.cn/models/ggml-org/embeddinggemma-2-GGUF/resolve/master/{name}"]);
+        ModelArtifact Gemma(string name, long size, string hash, string folder = "onnx/") => new(name, size, hash,
+            [$"https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/{GemmaRevision}/{folder}{name}",
+             $"https://modelscope.cn/models/onnx-community/embeddinggemma-2-ONNX/resolve/master/{folder}{name}"]);
         var runtime = Runtime();
         DownloadableModel Speech(SpeechModel model)
         {
@@ -67,12 +68,15 @@ public static class ModelCatalog
             new(MediaPipePersonId, "MediaPipe · 人体", "自动保留有人片段", "Apache-2.0", "https://github.com/opencv/opencv_zoo/tree/main/models/person_detection_mediapipe",
                 [new("person_detection_mediapipe_2023mar.onnx", 11990159, "47fd5599d6fa17608f03e0eb0ae230baa6e597d7e8a2c8199fe00abea55a701f",
                     ["https://huggingface.co/opencv/opencv_zoo/resolve/d4938dfc9d4ec5d098bfa33e98b3f3345a236586/models/person_detection_mediapipe/person_detection_mediapipe_2023mar.onnx"])]),
-            new(EmbeddingId, "EmbeddingGemma 2 · Q8", "可选语义辅助 · 含本地推理工具", "Apache-2.0 / MIT",
-                "https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2",
-                new[] {
-                    Gemma(GemmaFile, 309855456, "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135"),
-                    Gemma(ProjectorFile, 554821024, "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f")
-                }.Concat(runtime is null ? [] : new[] { runtime }).ToArray(), runtime is not null)
+            new(EmbeddingId, "EmbeddingGemma 2 · ONNX q4", "可选语义辅助 · 场景识别", "Apache-2.0",
+                "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX",
+                [
+                    Gemma(GemmaTextFile, 490742, "f9eeba97acddf139b8ee2ddf04bc30dceafa88de93fadf74d7644e0d61a477a9"),
+                    Gemma(GemmaTextFile + "_data", 174028800, "c3975f2d1ab7a1878ae31a7d7a9b7804a827aff3800b60dfceafce21cac3df49"),
+                    Gemma(GemmaVisionFile, 159400, "7ea284226d4938f0ad921ab091f1d80a9ca699aa802984ef5cd5eec4f4761d96"),
+                    Gemma(GemmaVisionFile + "_data", 108957696, "0a9d6c927334f152a33dd90874f65d6ea5228999abe6a450d3f7813677fa704c"),
+                    Gemma(GemmaTokenizerFile, 32170510, "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", "")
+                ])
         };
         using var stream = typeof(ModelCatalog).Assembly.GetManifestResourceStream("AvaMedia.Core.SummaryModels.json")!;
         using var summary = JsonDocument.Parse(stream);

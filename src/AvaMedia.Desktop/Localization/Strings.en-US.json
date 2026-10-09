@@ -1897,7 +1897,6 @@
   "保存字幕": "Saving subtitles",
   "字幕已生成": "Subtitles generated",
   "自动保留有人片段": "Automatically keep scenes with people",
-  "可选语义辅助 · 含本地推理工具": "Optional semantic assistance · Includes local inference tools",
   "Whisper · 标准": "Whisper · Standard",
   "Whisper · 轻量": "Whisper · Lightweight",
   "关键词匹配重命名 · Beta": "Keyword matching rename · Beta",
@@ -2823,5 +2822,7 @@
   "优先使用所选来源；失败或该模型没有此来源时回退到其它来源。所有文件都校验大小与 SHA-256。": "The selected source is tried first; other sources are used if it fails or does not host the model. Every file is checked by size and SHA-256.",
   "请填写自定义模型下载源地址。": "Enter the custom model download source URL.",
   "所选位置没有可导入的文件。": "No files to import were found at the selected location.",
-  "模型正在下载或使用，请稍后重试。": "The model is downloading or in use. Try again later."
+  "模型正在下载或使用，请稍后重试。": "The model is downloading or in use. Try again later.",
+  "可选语义辅助 · 场景识别": "Optional semantic assistance · Scene recognition",
+  "加载分词器": "Loading the tokenizer"
 }

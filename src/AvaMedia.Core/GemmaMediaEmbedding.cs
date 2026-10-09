@@ -1,101 +1,124 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text.Json;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace AvaMedia.Core;
 
-/// <summary>Optional, owned loopback llama.cpp process. No remote video uploads or implicit downloads.</summary>
+/// <summary>
+/// EmbeddingGemma 2 (onnx-community q4) in-process through ONNX Runtime. Images go through the vision encoder; its
+/// image_features fill the &lt;|image|&gt; placeholders of the text model, whose sentence_embedding is the 768-d vector.
+/// Text uses the classification task prefix. No remote uploads, helper processes or implicit downloads.
+/// </summary>
 public sealed class GemmaMediaEmbedding : IAsyncDisposable
 {
-    private readonly Process _process;
-    private readonly HttpClient _client;
-    private readonly Task _stdout;
-    private readonly Task _stderr;
+    public const int Dimensions = 768;
+    /// <summary>Vision soft-token budget (supported: 70, 140, 280, 560, 1120). See docs/MODELS.md for the measured trade-off.</summary>
+    public const int VisionTokens = 140;
+    private const string TaskPrefix = "task: classification | query: ";
+    private const int FeatureSize = 512;
     private readonly ModelLease _model;
+    private readonly GemmaTokenizer _tokenizer;
+    private readonly int _imageToken, _imageStart, _imageEnd;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private InferenceSession _vision, _text;
     private float[][] _labels = [];
-    private readonly object _diagnosticsGate = new();
-    private readonly Queue<string> _accelerationDetails = new();
     private string _backend;
+    private bool _disposed;
     public string Backend => Volatile.Read(ref _backend);
     public string? FallbackReason { get; private set; }
-    public string[] AccelerationDetails { get { lock (_diagnosticsGate) return _accelerationDetails.ToArray(); } }
-    private GemmaMediaEmbedding(Process process, HttpClient client, ModelLease model, bool preferGpu)
+    public string[] AccelerationDetails => [];
+
+    private GemmaMediaEmbedding(ModelLease model, GemmaTokenizer tokenizer, InferenceSession vision, InferenceSession text, string backend)
     {
-        _process = process; _client = client; _model = model;
-        _backend = preferGpu ? "GPU (auto) / CPU" : "CPU";
-        _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
+        _model = model; _tokenizer = tokenizer; _vision = vision; _text = text; _backend = backend;
+        _imageToken = tokenizer.TokenId("<|image|>"); _imageStart = tokenizer.TokenId("<|image>"); _imageEnd = tokenizer.TokenId("<image|>");
     }
 
-    public static async Task<GemmaMediaEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
-    {
-        try { return await StartCoreAsync(store, ct, preferGpu, status).ConfigureAwait(false); }
-        catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
-            && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
+    public static Task<GemmaMediaEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
+        => Task.Run(async () =>
         {
-            status?.Invoke("GPU 启动未成功，切换 CPU");
-            var cpu = await StartCoreAsync(store, ct, false, status).ConfigureAwait(false);
-            cpu.FallbackReason = error.Message;
-            return cpu;
-        }
-    }
-
-    private static async Task<GemmaMediaEmbedding> StartCoreAsync(ModelStore store, CancellationToken ct, bool preferGpu, Action<string>? status)
-    {
-        status?.Invoke("校验嵌入模型");
-        var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId, ct).ConfigureAwait(false);
-        GemmaMediaEmbedding? backend = null;
-        HttpClient? client = null;
-        try
-        {
-            var executable = ModelStore.FindRuntime(lease.Directory) ?? throw new InvalidDataException("缺少嵌入模型推理工具。");
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start(); var port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop();
-            var key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            client = new HttpClient(new SocketsHttpHandler { UseProxy = false })
-                { BaseAddress = new Uri($"http://127.0.0.1:{port}/"), Timeout = TimeSpan.FromMinutes(2) };
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            string[] arguments = ["-m", Path.Combine(lease.Directory, ModelCatalog.GemmaFile),
-                "--mmproj", Path.Combine(lease.Directory, ModelCatalog.ProjectorFile), "--embedding", "--pooling", "mean",
-                "--ctx-size", "8192", "--batch-size", "2048", "--ubatch-size", "2048", "--parallel", "1",
-                "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(),
-                "--log-verbosity", "4", "--log-colors", "off",
-                "--host", "127.0.0.1", "--port", port.ToString(), "--api-key", key];
-            arguments = arguments.Concat(preferGpu ? ["--gpu-layers", "auto", "--mmproj-offload"]
-                : new[] { "--gpu-layers", "0", "--device", "none", "--no-mmproj-offload" }).ToArray();
-            status?.Invoke("启动推理工具");
-            var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
-            backend = new(process, client, lease, preferGpu);
-            status?.Invoke("等待嵌入模型就绪");
-            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            deadline.CancelAfter(TimeSpan.FromMinutes(2));
-            while (true)
+            status?.Invoke("校验嵌入模型");
+            var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId, ct).ConfigureAwait(false);
+            InferenceSession? vision = null, text = null;
+            try
             {
-                deadline.Token.ThrowIfCancellationRequested();
-                if (process.HasExited) throw new InvalidOperationException("嵌入模型启动失败，请在模型管理中重新下载。");
+                status?.Invoke("加载分词器");
+                var tokenizer = GemmaTokenizer.Load(Path.Combine(lease.Directory, ModelCatalog.GemmaTokenizerFile));
+                ct.ThrowIfCancellationRequested();
+                status?.Invoke("加载嵌入模型");
+                string? fallback = null; var backend = "CPU";
+                if (preferGpu && AcceleratedOptions() is { } accelerated)
+                {
+                    try
+                    {
+                        using (accelerated.Options)
+                        {
+                            vision = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), accelerated.Options);
+                            text = new(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), accelerated.Options);
+                        }
+                        backend = accelerated.Name;
+                    }
+                    catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or DllNotFoundException or EntryPointNotFoundException)
+                    { vision?.Dispose(); text?.Dispose(); vision = text = null; fallback = error.Message; }
+                }
+                else if (preferGpu) fallback = OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
+                    : OperatingSystem.IsMacOS() ? "Core ML execution provider is unavailable." : "No supported GPU execution provider on this platform.";
+                if (vision is null || text is null)
+                {
+                    using var options = CpuOptions();
+                    vision = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), options);
+                    text = new(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), options);
+                }
+                var embedding = new GemmaMediaEmbedding(lease, tokenizer, vision, text, backend) { FallbackReason = fallback };
+                vision = text = null; lease = null!;
                 try
                 {
-                    using var probe = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-                    probe.CancelAfter(TimeSpan.FromSeconds(2));
-                    using var response = await client.GetAsync("health", probe.Token).ConfigureAwait(false);
-                    if (response.IsSuccessStatusCode) break;
+                    // Warm up and validate: accelerated providers that cannot run the q4 contrib ops fall back to CPU here.
+                    status?.Invoke("等待嵌入模型就绪");
+                    await embedding.EmbedLabelsAsync(["A photo."], ct).ConfigureAwait(false);
                 }
-                catch (HttpRequestException) { }
-                catch (OperationCanceledException) when (!deadline.IsCancellationRequested) { }
-                await Task.Delay(250, deadline.Token).ConfigureAwait(false);
+                catch { await embedding.DisposeAsync().ConfigureAwait(false); throw; }
+                return embedding;
             }
-            return backend;
-        }
-        catch
+            catch
+            {
+                vision?.Dispose(); text?.Dispose(); lease?.Dispose();
+                throw;
+            }
+        }, ct);
+
+    private static (string Name, SessionOptions Options)? AcceleratedOptions()
+    {
+        try
         {
-            if (backend is not null) await backend.DisposeAsync();
-            else { client?.Dispose(); lease.Dispose(); }
-            throw;
+            var providers = OrtEnv.Instance().GetAvailableProviders();
+            var options = CpuOptions();
+            try
+            {
+                if (OperatingSystem.IsWindows() && providers.Contains("DmlExecutionProvider"))
+                {
+                    options.EnableMemoryPattern = false; options.ExecutionMode = ExecutionMode.ORT_SEQUENTIAL;
+                    options.AppendExecutionProvider_DML();
+                    return ("DirectML / CPU", options);
+                }
+                if (OperatingSystem.IsMacOS() && providers.Contains("CoreMLExecutionProvider"))
+                {
+                    options.AppendExecutionProvider("CoreML", new() { ["MLComputeUnits"] = "ALL", ["ModelFormat"] = "MLProgram" });
+                    return ("Core ML / CPU", options);
+                }
+            }
+            catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or EntryPointNotFoundException) { }
+            options.Dispose();
         }
+        catch (Exception error) when (error is OnnxRuntimeException or DllNotFoundException or TypeInitializationException) { }
+        return null;
     }
+
+    private static SessionOptions CpuOptions() => new()
+    {
+        IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 8),
+        InterOpNumThreads = 1,
+        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+    };
 
     /// <returns>Similarity margin for person versus empty-scene descriptions; not a probability.</returns>
     public async Task<double> PersonMarginAsync(byte[] png, CancellationToken ct)
@@ -114,63 +137,117 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
     {
         if (descriptions.Count is < 1 or > 32 || descriptions.Any(text => string.IsNullOrWhiteSpace(text) || text.Length > 512))
             throw new ArgumentException("请输入 1–32 个关键词，描述不超过 512 字符。");
-        return EmbedAsync(descriptions.Select(text => (object)("task: classification | query: " + text)).ToArray(), ct);
+        var tokens = descriptions.Select(text => _tokenizer.Encode(TaskPrefix + text)).ToArray();
+        return RunAsync(() =>
+        {
+            var length = tokens.Max(item => item.Count);
+            var ids = new long[tokens.Length * length]; var mask = new long[ids.Length];
+            for (var row = 0; row < tokens.Length; row++)
+                for (var column = 0; column < tokens[row].Count; column++)
+                { ids[row * length + column] = tokens[row][column]; mask[row * length + column] = 1; }
+            return Text(ids, mask, tokens.Length, length, null, 0);
+        }, ct);
     }
 
     public async Task<float[]> EmbedImageAsync(byte[] png, CancellationToken ct)
         => (await EmbedImagesAsync([png], ct).ConfigureAwait(false))[0];
 
-    public Task<float[][]> EmbedImagesAsync(IReadOnlyList<byte[]> images, CancellationToken ct)
+    public async Task<float[][]> EmbedImagesAsync(IReadOnlyList<byte[]> images, CancellationToken ct)
     {
         if (images.Count is < 1 or > 4 || images.Any(image => image.Length == 0)) throw new ArgumentException("每批须包含 1–4 个有效画面。");
-        return EmbedAsync(images.Select(png => (object)new
+        var vectors = new float[images.Count][];
+        for (var index = 0; index < images.Count; index++)
         {
-            content = new[] { new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(png) } } }
-        }).ToArray(), ct);
+            var image = await Task.Run(() => GemmaImageProcessor.Process(images[index], VisionTokens), ct).ConfigureAwait(false);
+            vectors[index] = (await RunAsync(() =>
+            {
+                float[] features;
+                using (var pixels = OrtValue.CreateTensorValueFromMemory(image.Pixels, [1, image.MaxPatches, GemmaImageProcessor.PatchSize * GemmaImageProcessor.PatchSize * 3]))
+                using (var positions = OrtValue.CreateTensorValueFromMemory(image.Positions, [1, image.MaxPatches, 2]))
+                using (var run = new RunOptions())
+                using (var outputs = _vision.Run(run, ["pixel_values", "pixel_position_ids"], [pixels, positions], ["image_features"]))
+                    features = outputs[0].GetTensorDataAsSpan<float>().ToArray();
+                var count = features.Length / FeatureSize;
+                if (count != image.SoftTokens || count == 0) throw new InvalidDataException("视觉编码器输出的画面标记数量不符。");
+                var ids = new long[count + 4]; var mask = new long[ids.Length];
+                ids[0] = GemmaTokenizer.BosId; ids[1] = _imageStart; ids[^2] = _imageEnd; ids[^1] = GemmaTokenizer.EosId;
+                for (var token = 0; token < count; token++) ids[token + 2] = _imageToken;
+                Array.Fill(mask, 1L);
+                return Text(ids, mask, 1, ids.Length, features, count);
+            }, ct).ConfigureAwait(false))[0];
+        }
+        return vectors;
     }
 
-    private async Task<float[][]> EmbedAsync(object[] input, CancellationToken ct)
+    private float[][] Text(long[] ids, long[] mask, int batch, int length, float[]? features, int featureCount)
     {
-        if (_process.HasExited) throw new InvalidOperationException("嵌入模型推理工具已退出。");
-        using var response = await _client.PostAsJsonAsync("v1/embeddings", new { input, encoding_format = "float" }, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        using var json = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
-        var data = json.RootElement.GetProperty("data").EnumerateArray().OrderBy(item => item.GetProperty("index").GetInt32()).ToArray();
-        if (data.Length != input.Length) throw new InvalidDataException("嵌入模型返回的向量数量不符。");
-        var vectors = data.Select(item => item.GetProperty("embedding").EnumerateArray().Select(value => value.GetSingle()).ToArray()).ToArray();
-        if (vectors.Any(vector => vector.Length != 768 || vector.Any(value => !float.IsFinite(value)) || vector.All(value => value == 0)))
-            throw new InvalidDataException("嵌入模型返回了无效向量。");
+        using var input = OrtValue.CreateTensorValueFromMemory(ids, [batch, length]);
+        using var attention = OrtValue.CreateTensorValueFromMemory(mask, [batch, length]);
+        using var image = features is null ? Empty() : OrtValue.CreateTensorValueFromMemory(features, [featureCount, FeatureSize]);
+        using var video = Empty();
+        using var audio = Empty();
+        using var run = new RunOptions();
+        using var outputs = _text.Run(run, ["input_ids", "attention_mask", "image_features", "video_features", "audio_features"],
+            [input, attention, image, video, audio], ["sentence_embedding"]);
+        var data = outputs[0].GetTensorDataAsSpan<float>();
+        if (data.Length != batch * Dimensions) throw new InvalidDataException("嵌入模型返回的向量数量不符。");
+        var vectors = new float[batch][];
+        for (var row = 0; row < batch; row++)
+        {
+            var vector = data.Slice(row * Dimensions, Dimensions).ToArray();
+            double norm = 0; foreach (var value in vector) norm += value * value;
+            if (vector.Any(value => !float.IsFinite(value)) || norm == 0) throw new InvalidDataException("嵌入模型返回了无效向量。");
+            var scale = (float)(1 / Math.Sqrt(norm));
+            for (var index = 0; index < vector.Length; index++) vector[index] *= scale;
+            vectors[row] = vector;
+        }
         return vectors;
+    }
+
+    private static OrtValue Empty() => OrtValue.CreateAllocatedTensorValue(OrtAllocator.DefaultInstance, TensorElementType.Float, [0, FeatureSize]);
+
+    private async Task<float[][]> RunAsync(Func<float[][]> run, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            ct.ThrowIfCancellationRequested();
+            return await Task.Run(() =>
+            {
+                try { return run(); }
+                catch (OnnxRuntimeException error) when (Backend != "CPU" && !ct.IsCancellationRequested)
+                {
+                    // Accelerated providers may reject quantized contrib ops at run time; continue on CPU.
+                    using var options = CpuOptions();
+                    var vision = new InferenceSession(Path.Combine(_model.Directory, ModelCatalog.GemmaVisionFile), options);
+                    var text = new InferenceSession(Path.Combine(_model.Directory, ModelCatalog.GemmaTextFile), options);
+                    _vision.Dispose(); _text.Dispose(); _vision = vision; _text = text;
+                    Volatile.Write(ref _backend, "CPU"); FallbackReason = error.Message;
+                    return run();
+                }
+            }, ct).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
     }
 
     public static double Cosine(float[] left, float[] right)
     {
-        if (left.Length != 768 || right.Length != 768) throw new ArgumentException("嵌入向量维度不符。");
+        if (left.Length != Dimensions || right.Length != Dimensions) throw new ArgumentException("嵌入向量维度不符。");
         double dot = 0, a = 0, b = 0;
         for (var index = 0; index < left.Length; index++) { dot += left[index] * right[index]; a += left[index] * left[index]; b += right[index] * right[index]; }
         return dot / Math.Sqrt(a * b);
     }
-    private async Task DrainAsync(StreamReader reader)
-    {
-        while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
-        {
-            // Retain only hardware dispatch lines; never retain requests or API credentials.
-            if (!System.Text.RegularExpressions.Regex.IsMatch(line,
-                @"^\S+\s+I\s+(?:load_tensors: offloaded |ggml_metal_init: found device:|ggml_metal_device_init: GPU name:)")) continue;
-            lock (_diagnosticsGate)
-            {
-                if (_accelerationDetails.Count == 12) _accelerationDetails.Dequeue();
-                _accelerationDetails.Enqueue(line.Length > 500 ? line[..500] : line);
-            }
-            var match = System.Text.RegularExpressions.Regex.Match(line, @"offloaded (\d+)/\d+ layers to GPU");
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var layers) && layers > 0)
-                Volatile.Write(ref _backend, OperatingSystem.IsMacOS() ? "Metal / CPU" : "GPU / CPU");
-        }
-    }
+
     public async ValueTask DisposeAsync()
     {
-        try { if (!_process.HasExited) _process.Kill(true); await _process.WaitForExitAsync().ConfigureAwait(false); await Task.WhenAll(_stdout, _stderr).ConfigureAwait(false); }
-        finally { _client.Dispose(); _process.Dispose(); _model.Dispose(); }
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _vision.Dispose(); _text.Dispose(); _model.Dispose();
+        }
+        finally { _gate.Release(); }
     }
 }

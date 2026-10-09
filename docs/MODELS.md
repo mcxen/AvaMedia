@@ -40,10 +40,10 @@ $env:HF_ENDPOINT = "https://hf-mirror.com"
 | MediaPipe | 专用人体检测，默认勾选 | 手动下载，约 11.44 MiB |
 | YOLOX | 通用人物检测，可选联合分析 | 手动下载，约 34.2 MiB |
 | JoyTag | 图片 / 视频多标签与关键词筛选 | 手动下载，约 349.2 MiB |
-| EmbeddingGemma 2 Q8 | 可选本地语义辅助 | 手动下载，权重与投影约 824.6 MiB，另含匹配平台的 llama.cpp 工具 |
+| EmbeddingGemma 2 ONNX q4 | 可选本地语义辅助、场景识别 | 确认后下载，文本模型、视觉编码器与分词器共约 316 MB（301.2 MiB），由内置 ONNX Runtime 运行，不需要额外推理工具 |
 | LaMa | 图片修复 | 保留启动自动下载选项，可关闭后删除 |
 
-Google 模型下载完成后不会自动启用。自动剪辑窗口中可勾选“使用 EmbeddingGemma 2 语义辅助”。未下载时此选项不可用；任一种人体检测模型都可独立完成分析。所选检测模型必须全部下载完成，不会静默跳过缺失模型。视频不上传到远程服务；语义辅助使用仅绑定 `127.0.0.1` 的临时本地进程，带随机访问密钥，结束或取消时关闭。
+Google 模型下载完成后不会自动启用。自动剪辑窗口中可勾选“使用 EmbeddingGemma 2 语义辅助”。未下载时此选项不可用；任一种人体检测模型都可独立完成分析。所选检测模型必须全部下载完成，不会静默跳过缺失模型。视频不上传到远程服务；语义辅助在应用进程内用 ONNX Runtime 计算，不启动本地服务或子进程。
 
 分析默认每秒采样 2 帧，默认使用轻量 NanoDet（约 1.07 MiB），也可单选或同时勾选全部三种检测。只解码需要检测的区间，每个模型按自身输入大小、颜色顺序和归一化方式计算同一画面。加载前对固定上游图中NanoDet 的空 Resize 输入做规范化，权重和下载文件保持不变，缓存按规范化图的哈希隔离。进度和结果显示实际模型、后端、每个模型的计算次数和有人帧数；GPU 初始化或执行失败时独立回退 CPU。
 
@@ -85,11 +85,33 @@ NSFW 自动判断使用独立识别词库解释 JoyTag 分数：图片取该图�
 
 「识别场景、照明与面部」默认关闭；已有偏好中保存的选择保持不变。勾选场景识别或所选词库含纯语义候选而语义模型未安装时，开始分析前弹窗询问「场景识别需要下载约 N MB 的语义模型，是否下载？」，同意后下载再分析；拒绝时本次只运行标签识别，并提示已跳过场景识别。加入任务队列时也在窗口内先询问；队列任务本身从不弹窗或下载，运行时缺少语义模型就跳过场景，并在 TXT/JSON 报告的「语义模型」一行和任务状态中记录。批量重命名的关键词匹配与自动剪辑的语义辅助同样先询问再下载：重命名拒绝时取消匹配，自动剪辑拒绝时只用人体检测模型分析。酒店与照明状态通过语义描述匹配，复用 JoyTag 已抽出的画面；不增加抽帧次数，不上传媒体。语义相似度、后端和时间证据在结果及 JSON 中独立记录，详见 [NSFW 标签识别](NSFW-REVIEW.md)。
 
+### 语义模型实现与验证
+
+语义模型使用 EmbeddingGemma 2 的 ONNX q4 导出，在 ONNX Runtime 1.23.2 中运行：Windows 先尝试 DirectML，macOS 先尝试 Core ML，创建或运行失败时回退 CPU，并在结果中记录实际后端与回退原因。分词器按 `tokenizer.json` 的 BPE（字节回退）规则实现；文本前缀为 `task: classification | query: `。画面按 Gemma 4 图像处理规则保持比例缩放（边长为 48 的倍数，双三次抗锯齿）、按 0–1 缩放后切成 16×16 图块，每帧使用 140 个视觉标记；视觉编码器输出与文本模型拼接，得到已归一化的 768 维向量。
+
+旧版 Q8 GGUF 与 llama.cpp 文件不再使用，也不会自动删除；如需释放空间，可手动删除模型目录下的 `embeddinggemma-2` 文件夹（约 865 MB）。
+
+2026-10 在 Linux x64 CPU 上用 60 张 SUN397 场景图片（15 类，每类 4 张）与 20 张日常照片，对比旧 Q8 GGUF（llama.cpp）与 ONNX q4：
+
+| 指标 | Q8 GGUF | ONNX q4（140 视觉标记） |
+| --- | --- | --- |
+| 与 GGUF 向量余弦（文本 47 条 / 图片 80 张，平均） | — | 0.987 / 0.965（最低 0.958 / 0.931） |
+| 全部图片 × 场景描述相似度相关系数 | — | 0.921，平均绝对差 0.013 |
+| 场景空间 Top-1 与 GGUF 一致 | — | 85.0% |
+| 场景空间 Top-1 正确率（60 张） | 90.0% | 83.3% |
+| 场景空间达到 0.55 / 0.03 的数量、准确率、召回率 | 42 张，100%，70.0% | 43 张，100%，71.7% |
+| 照明状态达标数量（80 张） | 7 | 7（结论一致率 92.5%） |
+| 面部可见性达标数量（80 张） | 10 | 21（结论一致率 83.8%） |
+| 自动剪辑人物分差 ≥ 0.03 的决定一致率 | — | 95.0% |
+| 单帧耗时（CPU） | 约 1.8 秒（与另一推理进程并行时测得） | 约 1.6 秒 |
+
+C# 实现与 Python 参考实现（transformers 图像处理器 + 同一 ONNX 文件）对比：分词结果 56 条全部一致；像素值最大差 2/255；向量余弦平均 0.99999。视觉标记 280 时与 GGUF 的场景一致率相当，但单帧约 4.1 秒；70 时约 1.2 秒，但达标准确率降为 97.4%。阈值保持 0.55 / 0.03：在 0.55–0.57、分差 0.03–0.04 范围内，0.55 / 0.03 的场景准确率与召回率最接近旧模型。面部可见性在没有人物的画面上更常给出「未露脸」（旧模型也有同样倾向），面部识别仍属未验收功能。
+
 来源与固定版本：
 
 - [OpenCV YOLOX](https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox)，Apache-2.0；ONNX 权重使用 OpenCV Hugging Face 修订 `d4938dfc9d4ec5d098bfa33e98b3f3345a236586`。
-- [EmbeddingGemma 2 模型卡](https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2)，Apache-2.0；[GGUF 转换](https://huggingface.co/ggml-org/embeddinggemma-2-GGUF)使用修订 `bfcd298762cc34d0357ece5ebdd31791a3a374d8`。
-- [llama.cpp b11476](https://github.com/ggml-org/llama.cpp/releases/tag/b11476)，MIT；使用官方平台归档和 Release asset SHA-256。
+- [EmbeddingGemma 2 模型卡](https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2)，Apache-2.0；[ONNX 转换](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX)使用修订 `daa72c51243991dfcaf9f9137d2c573d8f7790c0` 的 q4 文件（`onnx/model_q4.onnx`、`onnx/vision_encoder_q4.onnx` 及其 `_data`、`tokenizer.json`），大小与 SHA-256 固定；ModelScope 同名仓库的文件与之逐字节一致。
+- [llama.cpp b11476](https://github.com/ggml-org/llama.cpp/releases/tag/b11476)，MIT；仅用于本地视频总结，使用官方平台归档和 Release asset SHA-256。
 - [LaMa](https://huggingface.co/opencv/inpainting_lama)，Apache-2.0；使用固定文件大小和 SHA-256。
 - [JoyTag](https://github.com/fpgaminer/joytag)，Apache-2.0；[ONNX 权重及标签](https://huggingface.co/fancyfeast/joytag)使用修订 `6b7f16331a6ccf0fdce37d5a9564715f6e772b22`，大小与 SHA-256 固定，详见 `licenses/joytag/`。
 
