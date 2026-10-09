@@ -54,13 +54,25 @@ public sealed partial class MediaAiWindow
     }
     private bool TagQualifies(MediaTagResult result, ResultTag tag) => double.IsFinite(tag.Score)
         && (tag.Model == ModelCatalog.EmbeddingId ? SceneQualifies(result, tag) : tag.Score >= (double)(_threshold.Value ?? .4m));
-    private IEnumerable<ResultTag> ResultTags(MediaTagResult result, bool search = false)
+    private IEnumerable<ResultTag> DetectedTags(MediaTagResult result, string? model = null)
     {
         IEnumerable<ResultTag> tags = JoyCandidates(result).Concat(SceneCandidates(result)).Where(tag => TagQualifies(result, tag));
         if(_editedTags.TryGetValue(result.Path,out var edited))tags=edited;
+        if (model is not null) tags = tags.Where(tag => tag.Model == model);
+        return MediaTagText.NormalizeLabels(tags.Select(tag => new MediaTagTextLabel(tag.Label, tag.Category, tag.Score, tag.ScoreKind, tag.Model, tag.RawTags ?? [])))
+            .Select(tag => new ResultTag(tag.Label, tag.Category, tag.Score, tag.ScoreKind, tag.Model, tag.Tags));
+    }
+    private IEnumerable<ResultTag> FilterResultTags(IEnumerable<ResultTag> tags, bool search)
+    {
         var query = search ? _tagSearch.Text?.Trim() ?? "" : "";
-        return tags.Where(tag => (!search || ScopeMatches(tag)) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(tag => tag.Category.StartsWith("NSFW", StringComparison.Ordinal) ? 0 : tag.Category.StartsWith("场景", StringComparison.Ordinal) || tag.Category == "照明状态" ? 1 : 2)
-            .ThenByDescending(tag => tag.Score).DistinctBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase);
+        return tags.Where(tag => (!search || ScopeMatches(tag)) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.RawTags?.Any(raw => raw.Contains(query, StringComparison.OrdinalIgnoreCase)) == true));
+    }
+    private IEnumerable<ResultTag> ResultTags(MediaTagResult result, bool search = false)
+    {
+        var tags = FilterResultTags(DetectedTags(result), search);
+        return search && _tagSort.SelectedIndex == 1
+            ? tags.OrderBy(tag => MediaTagText.CategoryOrder(tag.Category)).ThenBy(tag => tag.Category, StringComparer.Ordinal).ThenBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase)
+            : tags;
     }
 }

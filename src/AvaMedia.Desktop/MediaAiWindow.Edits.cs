@@ -43,7 +43,7 @@ public sealed partial class MediaAiWindow
     {
         var matches = tag.Model == ModelCatalog.EmbeddingId
             ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == tag.Label
-                && candidate.Similarity >= _sceneThreshold.Value && candidate.Margin >= (double)(_sceneMargin.Value ?? .03m))).Select(frame => frame.Seconds).ToArray() ?? []
+                && candidate.Qualifies(_sceneThreshold.Value, (double)(_sceneMargin.Value ?? .03m)))).Select(frame => frame.Seconds).Distinct().Order().ToArray() ?? []
             : TagPoints(result, tag).Where(point => point.Score >= (double)(_threshold.Value ?? .4m)).Select(point => point.Seconds).Distinct().Order().ToArray();
         var window = new Window { Title = tag.Label, Width = 500, Height = 420, MinWidth = 380, MinHeight = 300, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Localization.SetIsUserText(window, true);

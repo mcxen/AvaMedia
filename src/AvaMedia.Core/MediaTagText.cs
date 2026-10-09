@@ -122,18 +122,14 @@ public static class MediaTagText
         if (!double.IsFinite(sceneThreshold) || sceneThreshold is < 0 or > 1) throw new ArgumentException("场景相似度须为 0–1。");
         if (!double.IsFinite(sceneMargin) || sceneMargin < 0) throw new ArgumentException("场景分差不能为负。");
         var candidates = library ?? [];
-        IEnumerable<MediaTagTextLabel> tags;
-        if (onlyLibrary)
-        {
-            var scores = result.Scores.ToDictionary(score => score.Tag, score => MediaTagService.TagSignal(result, score), StringComparer.OrdinalIgnoreCase);
-            tags = candidates.Where(entry => entry.Tags.Length > 0 && entry.Tags.All(tag => scores.TryGetValue(tag, out var value) && value >= threshold))
-                .Select(entry => new MediaTagTextLabel(entry.Label, entry.Category, entry.Tags.Min(tag => scores.GetValueOrDefault(tag)),
-                    ScoreKind(result, entry.Tags), ModelCatalog.JoyTagId, entry.Tags));
-        }
-        else tags = result.Scores.Where(score => (!result.RealPeopleOnly || WordLibraryCatalog.RealPeopleTags.Contains(score.Tag)
+        var scores = result.Scores.ToDictionary(score => score.Tag, score => MediaTagService.TagSignal(result, score), StringComparer.OrdinalIgnoreCase);
+        IEnumerable<MediaTagTextLabel> tags = candidates.Where(entry => entry.Tags.Length > 0 && entry.Tags.All(tag => scores.TryGetValue(tag, out var value) && value >= threshold))
+            .Select(entry => new MediaTagTextLabel(entry.Label, entry.Category, entry.Tags.Min(tag => scores[tag]),
+                ScoreKind(result, entry.Tags), ModelCatalog.JoyTagId, entry.Tags));
+        if (!onlyLibrary) tags = tags.Concat(result.Scores.Where(score => (!result.RealPeopleOnly || WordLibraryCatalog.RealPeopleTags.Contains(score.Tag)
                 || candidates.Any(entry => entry.Tags.Contains(score.Tag, StringComparer.OrdinalIgnoreCase))) && MediaTagService.TagSignal(result, score) >= threshold)
             .Select(score => new MediaTagTextLabel(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag),
-                MediaTagService.TagSignal(result, score), ScoreKind(result, [score.Tag]), ModelCatalog.JoyTagId, [score.Tag]));
+                MediaTagService.TagSignal(result, score), ScoreKind(result, [score.Tag]), ModelCatalog.JoyTagId, [score.Tag])));
 
         var scenes = result.Scenes?.Frames.SelectMany(frame => frame.Candidates)
             .Where(candidate => !WordLibraryCatalog.IsSemanticBaseline(candidate.Label)).DistinctBy(candidate => candidate.Label) ?? [];
@@ -149,13 +145,26 @@ public static class MediaTagText
                 ModelCatalog.EmbeddingId, []));
         }
 
-        return tags
-            .OrderBy(tag => tag.Category.StartsWith("NSFW", StringComparison.Ordinal) ? 0
-                : tag.Category.StartsWith("场景", StringComparison.Ordinal) || tag.Category is "照明状态" or "画面照明" ? 1 : 2)
-            .ThenByDescending(tag => tag.Score)
-            .DistinctBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return NormalizeLabels(tags);
     }
+
+    public static int CategoryOrder(string category) => category.StartsWith("NSFW", StringComparison.Ordinal) ? 0
+        : category.StartsWith("场景", StringComparison.Ordinal) || category is "照明状态" or "画面照明" ? 1
+        : category == "其他标签" ? 3 : 2;
+
+    /// <summary>Preferred library labels come first; equivalent raw tags and display labels share one result.</summary>
+    public static IReadOnlyList<MediaTagTextLabel> NormalizeLabels(IEnumerable<MediaTagTextLabel> labels) => labels
+            .Where(tag => double.IsFinite(tag.Score) && !string.IsNullOrWhiteSpace(tag.Label))
+            .Select(tag => tag with { Label = tag.Label.Trim() })
+            .DistinctBy(tag => tag.Tags.Length > 0
+                ? tag.Model + "/tags/" + string.Join('\u001f', tag.Tags.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
+                : tag.Model + "/label/" + tag.Label, StringComparer.OrdinalIgnoreCase)
+            .DistinctBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(tag => CategoryOrder(tag.Category))
+            .ThenBy(tag => tag.Category, StringComparer.Ordinal)
+            .ThenByDescending(tag => tag.Score)
+            .ThenBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private static string ScoreKind(MediaTagResult result, string[] tags) => !VideoFormats.IsVideo(result.Path) ? "score"
         : tags.All(WordLibraryCatalog.UsesSamplePeak) ? "sample_peak" : "sample_average";

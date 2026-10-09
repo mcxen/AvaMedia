@@ -23,6 +23,7 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _fileCount = Ui.Text("", "caption");
     private readonly TextBlock _empty = Ui.Text("拖入图片或视频", "caption");
     private readonly StackPanel _settingsPanel = new() { Spacing = 12 };
+    private readonly Expander _batchActions = new() { Header = "批量操作", IsExpanded = false, HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private bool _updatingSelection;
     private Window? _settingsOwner;
 
@@ -50,7 +51,7 @@ public sealed partial class MediaAiWindow
         if (_enqueue is not null) workbenchActions.Add(_enqueueQueue);
         if (_showQueue is not null) workbenchActions.Add(_viewQueue);
         workbenchActions.Add(_chooseTagGroups); workbenchActions.Add(_advanced);
-        toolbar.Children.Add(WorkbenchActions(workbenchActions.ToArray())); toolbar.Children.Add(_librarySummary); root.Children.Add(toolbar);
+        toolbar.Children.Add(WorkbenchActions(workbenchActions.ToArray())); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
@@ -69,12 +70,14 @@ public sealed partial class MediaAiWindow
             Localization.SetIsUserText(summary, true); summary.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Details))); content.Children.Add(summary);
             Grid.SetColumn(content, 1); row.Children.Add(content); return row;
         });
-        var files = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
+        var files = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 };
         var selection = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
         selection.Children.Add(_selectAll); Grid.SetColumn(_fileCount, 1); _fileCount.HorizontalAlignment = HorizontalAlignment.Right; selection.Children.Add(_fileCount); files.Children.Add(selection);
         var fileBody = new Grid(); fileBody.Children.Add(_list);
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; fileBody.Children.Add(_empty);
         Grid.SetRow(fileBody, 1); files.Children.Add(fileBody);
+        _batchActions.Content = WorkbenchActions(_saveTxt, _export, _rename, _undo);
+        Grid.SetRow(_batchActions, 2); files.Children.Add(_batchActions);
         var body = new Grid { ColumnDefinitions = new("248,*"), ColumnSpacing = 12 };
         var filePanel = ChartPanel(files); filePanel.VerticalAlignment = VerticalAlignment.Stretch;
         body.Children.Add(filePanel); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
@@ -110,6 +113,7 @@ public sealed partial class MediaAiWindow
         _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
         AddSettingRow("视频采样帧数", _frames); AddSettingRow("类别分差", _sceneMargin);
         _settingsPanel.Children.Add(_autoTxt);
+        _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(_realPeople);
         _settingsPanel.Children.Add(_generateCaptions); _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
         _realPeople.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RefreshDisplayedResults(); await RefreshModelAsync(); } };
@@ -190,10 +194,11 @@ public sealed partial class MediaAiWindow
         _rename.IsEnabled = !_busy && !_writingTxt && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
         _copy.IsVisible = _results.Count + _liveResults.Count > 0;
         _export.IsVisible = _rename.IsVisible = _results.Count > 0;
-        _export.IsEnabled = !_busy && _results.Count > 0; _undo.IsEnabled = !_busy && !_writingTxt && _canRename();
+        _export.IsEnabled = !_busy && _entries.Any(entry => entry.Include && _results.ContainsKey(entry.Path)); _undo.IsEnabled = !_busy && !_writingTxt && _canRename();
         _copy.IsEnabled = _list.SelectedItem is MediaFileEntry selected && TryDisplayedResult(selected.Path, out var value) && ResultTags(value, search: true).Any();
         _saveTxt.IsEnabled = !_busy && !_writingTxt && _entries.Any(entry => entry.Include && _results.ContainsKey(entry.Path));
         _saveTxt.IsVisible = _results.Count > 0;
+        _batchActions.IsVisible = _results.Count > 0 || _undo.IsVisible;
         _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
         // One primary call to action: Analyze, replaced in place by Stop while an analysis runs.
         _stop.IsVisible = _busy && _operation is not null; _analyze.IsVisible = !_stop.IsVisible;

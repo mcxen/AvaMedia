@@ -18,6 +18,7 @@ public sealed partial class MediaAiWindow
     private readonly ComboBox _chartSource = Ui.Combo(["标签分数（JoyTag）", "语义相似度（场景/面部）"], "标签分数（JoyTag）");
     private readonly ComboBox _scoreMode = Ui.Combo(["推荐分数", "采样峰值", "采样平均", "当前画面"], "推荐分数");
     private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征", "姿态 / 体位"], "全部标签");
+    private readonly ComboBox _tagSort = Ui.Combo(["按分数排序", "按名称排序"], "按分数排序");
     private readonly Slider _tagThreshold = new() { Minimum = .05, Maximum = .95, Value = .4, TickFrequency = .01 };
     private readonly Slider _sceneThreshold = new() { Minimum = .05, Maximum = .95, Value = .55, TickFrequency = .01 };
     private readonly NumericUpDown _sceneMargin = new() { Minimum = 0, Maximum = .5m, Value = .03m, Increment = .01m };
@@ -38,10 +39,6 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
     private readonly StackPanel _sceneThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly StackPanel _tagThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    // The pass line follows the chart source; the other model's threshold waits in the collapsed advanced area.
-    private readonly ContentControl _primaryThreshold = new() { VerticalAlignment = VerticalAlignment.Center };
-    private readonly ContentControl _secondaryThreshold = new();
-    private readonly Expander _advancedThresholds = new() { Header = "高级阈值", IsExpanded = false, HorizontalAlignment = HorizontalAlignment.Stretch };
     private bool _syncingThresholds, _writingTxt;
     private int _sampleSelectionGeneration;
     private MediaTagResult? _indexedResult;
@@ -114,28 +111,23 @@ public sealed partial class MediaAiWindow
     };
     private Control BuildWorkbench()
     {
-        var panel = new WrapPanel();
-        var options = new WrapPanel { Margin = new(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
-        _chartSource.Width = 236; _scoreMode.Width = 138; _tagScope.Width = 128;
-        foreach (var selector in new[] { _chartSource, _scoreMode, _tagScope })
-        {
-            selector.Margin = new(0, 0, 8, 6); options.Children.Add(selector);
-        }
-        panel.Children.Add(options);
+        _chartSource.Width = 212; _scoreMode.Width = 132; _tagScope.Width = 128; _tagSort.Width = 140;
+        _tagSort.Name = "MediaAiTagSort";
+        AutomationProperties.SetName(_tagSearch, "查找标签"); AutomationProperties.SetName(_tagScope, "标签类别");
+        AutomationProperties.SetName(_tagSort, "标签排序"); AutomationProperties.SetName(_scoreMode, "分数来源");
+        AutomationProperties.SetName(_chartSource, "图表来源");
+        var panel = WorkbenchActions(_chartSource, _scoreMode, _tagScope, _sampleSummary, _playSample, _followLive);
         foreach (var slider in new[] { _tagThreshold, _sceneThreshold })
         {
-            slider.Width = 184; slider.Height = 24; slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
+            slider.Width = 148; slider.Height = 24; slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
         }
-        foreach (var caption in new[] { _thresholdCaption, _sceneCaption }) caption.MinWidth = 132;
+        foreach (var caption in new[] { _thresholdCaption, _sceneCaption }) caption.MinWidth = 110;
         AutomationProperties.SetName(_tagThreshold, "JoyTag 标签分数阈值"); AutomationProperties.SetName(_sceneThreshold, "语义相似度阈值");
         _tagThresholdRow.Children.Add(_thresholdCaption); _tagThresholdRow.Children.Add(_tagThreshold);
         _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold);
-        var passLine = new WrapPanel { Margin = new(0, 0, 0, 2) }; passLine.Children.Add(_primaryThreshold);
-        var hint = Ui.Text("影响达标标签、TXT 与重命名", "caption"); hint.Margin = new(12, 0, 0, 0); hint.TextWrapping = TextWrapping.NoWrap; passLine.Children.Add(hint);
-        var thresholds = new StackPanel { Spacing = 4 }; thresholds.Children.Add(passLine);
-        _secondaryThreshold.Margin = new(0, 4, 0, 0); _advancedThresholds.Content = _secondaryThreshold; thresholds.Children.Add(_advancedThresholds);
-        var layout = new StackPanel { Spacing = 4 }; layout.Children.Add(panel); layout.Children.Add(thresholds);
-        PlaceThresholds();
+        var layout = new StackPanel { Spacing = 2 }; layout.Children.Add(panel);
+        layout.Children.Add(WorkbenchActions(_tagThresholdRow, _sceneThresholdRow));
+        layout.Children.Add(WorkbenchActions(_tagSearch, _tagSort, _editTags, _restoreTags));
         _tagThreshold.Value = (double)(_threshold.Value ?? .4m);
         _threshold.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty) SetThreshold((double)(_threshold.Value ?? .4m), false); };
         _tagThreshold.PropertyChanged += (_, change) => { if (change.Property == Slider.ValueProperty) SetThreshold(_tagThreshold.Value, false); };
@@ -144,6 +136,7 @@ public sealed partial class MediaAiWindow
         _chartSource.SelectionChanged += (_, _) => RenderSelectedResult();
         _scoreMode.SelectionChanged += (_, _) => RefreshDisplayedResults();
         _tagScope.SelectionChanged += (_, _) => RenderSelectedResult();
+        _tagSort.SelectionChanged += (_, _) => RenderSelectedResult();
         _scoreBars.ThresholdEdited += value => SetThreshold(value, _chartSource.SelectedIndex == 1);
         _peakCurve.ModelThresholdEdited += (model, value) => SetThreshold(value, model == ModelCatalog.EmbeddingId);
         _scoreBars.TagSelected += key => SelectTrace(key);
@@ -162,13 +155,6 @@ public sealed partial class MediaAiWindow
         };
         _saveTxt.Click += async (_, _) => await SaveTextReportsAsync();
         return layout;
-    }
-    private void PlaceThresholds()
-    {
-        var semantic = _chartSource.SelectedIndex == 1;
-        Control primary = semantic ? _sceneThresholdRow : _tagThresholdRow, secondary = semantic ? _tagThresholdRow : _sceneThresholdRow;
-        if (!ReferenceEquals(_primaryThreshold.Content, primary)) { _primaryThreshold.Content = null; _secondaryThreshold.Content = null; _primaryThreshold.Content = primary; _secondaryThreshold.Content = secondary; }
-        _advancedThresholds.IsVisible = secondary.IsVisible;
     }
     private Control BuildCharts()
     {
@@ -193,26 +179,29 @@ public sealed partial class MediaAiWindow
     }
     private ResultTag[] PlotCandidates(MediaTagResult result, bool? semantic = null)
     {
-        var tags = (semantic ?? _chartSource.SelectedIndex == 1) ? SceneCandidates(result) : JoyCandidates(result);
-        var query = _tagSearch.Text?.Trim() ?? "";
-        return tags.Where(tag => TagQualifies(result, tag) && ScopeMatches(tag) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(tag => tag.Score).DistinctBy(TagKey, StringComparer.OrdinalIgnoreCase).ToArray();
+        var model = (semantic ?? _chartSource.SelectedIndex == 1) ? ModelCatalog.EmbeddingId : ModelCatalog.JoyTagId;
+        // Keep both models' observations when they share a display label in the result list.
+        return FilterResultTags(DetectedTags(result, model), search: true).OrderByDescending(tag => tag.Score).ToArray();
     }
     private void RenderCharts(MediaTagResult? result)
     {
         var semantic = _chartSource.SelectedIndex == 1; var threshold = semantic ? _sceneThreshold.Value : (double)(_threshold.Value ?? .4m);
-        _thresholdCaption.Text = semantic ? Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}") : Localization.Format($"合格线 {(_threshold.Value ?? .4m):0.00}");
-        _sceneCaption.Text = semantic ? Localization.Format($"合格线 {_sceneThreshold.Value:0.00}") : Localization.Format($"语义相似度 {_sceneThreshold.Value:0.00}");
-        _sceneThresholdRow.IsVisible = semantic || _sceneTags.IsChecked == true || result?.Scenes is not null; PlaceThresholds();
+        _thresholdCaption.Text = Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}");
+        _sceneCaption.Text = Localization.Format($"语义相似度 {_sceneThreshold.Value:0.00}");
+        _sceneThresholdRow.IsVisible = _sceneTags.IsChecked == true || result?.Scenes is not null;
+        _scoreMode.IsVisible = result is not null && VideoFormats.IsVideo(result.Path);
+        _playSample.IsVisible = _followLive.IsVisible = _scoreMode.IsVisible;
+        _resultFilters.IsVisible = result is not null;
         var candidates = result is null ? [] : PlotCandidates(result);
         _barReadout.Text = "";
-        _chartSection.IsVisible = result is not null;
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
         var selected = result is null ? [] : new[] { false, true }.SelectMany(scene =>
         {
             var model = scene ? ModelCatalog.EmbeddingId : ModelCatalog.JoyTagId;
             var modelKeys = keys.Where(key => key.StartsWith(model + "/", StringComparison.Ordinal)).ToArray();
-            return PlotCandidates(result, scene).Where(tag => modelKeys.Length == 0 || modelKeys.Contains(TagKey(tag))).Take(3);
+            var ranked = PlotCandidates(result, scene);
+            var retained = ranked.Where(tag => modelKeys.Contains(TagKey(tag))).ToArray();
+            return (retained.Length > 0 ? retained : ranked).Take(3);
         }).ToArray();
         var series = result is null ? [] : selected.GroupBy(tag => tag.Model).SelectMany(group => group.Select((tag, variant) =>
             new TagChartSeries(TagKey(tag), TagPoints(result, tag), tag.Model,
@@ -230,8 +219,9 @@ public sealed partial class MediaAiWindow
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
         _scorePanel.IsVisible = bars.Length > 0;
-        _curvePanel.IsVisible = series.Any(trace => trace.Points.Any(point => point.Score.HasValue));
+        _curvePanel.IsVisible = result is not null && VideoFormats.IsVideo(result.Path) && series.Any(trace => trace.Points.Any(point => point.Score.HasValue));
         _charts.IsVisible = _scorePanel.IsVisible || _curvePanel.IsVisible;
+        _chartSection.IsVisible = _charts.IsVisible;
         _charts.ColumnDefinitions[0].Width = _scorePanel.IsVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
         _charts.ColumnDefinitions[1].Width = _curvePanel.IsVisible ? new GridLength(1.25, GridUnitType.Star) : new GridLength(0);
         _charts.ColumnSpacing = _scorePanel.IsVisible && _curvePanel.IsVisible ? 12 : 0;
@@ -297,9 +287,9 @@ public sealed partial class MediaAiWindow
                 token.ThrowIfCancellationRequested(); var entry = report.Entry;
                 try
                 {
-                    var output = await MediaTagText.SaveAsync(report.Result, report.Labels, threshold, sceneThreshold,
+                    await MediaTagText.SaveAsync(report.Result, report.Labels, threshold, sceneThreshold,
                         sceneMargin, token, _reportSources.GetValueOrDefault(entry.Path));
-                    _reportSources[entry.Path] = entry.Path; saved++; entry.Details = Path.GetFileName(output);
+                    _reportSources[entry.Path] = entry.Path; saved++; ShowResult(entry, report.Result);
                 }
                 catch (Exception error) when (error is not OperationCanceledException) { failures.Add(entry.Name + " · " + error.Message); }
             }

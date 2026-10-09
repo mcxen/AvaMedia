@@ -395,13 +395,14 @@ public sealed partial class MediaAiWindow : Window
     }
     private async Task ExportAsync()
     {
-        if (_results.Count == 0) return;
+        var results = _entries.Where(entry => entry.Include && _results.ContainsKey(entry.Path)).Select(entry => _results[entry.Path]).ToArray();
+        if (results.Length == 0) return;
         try
         {
             var threshold = Number(_threshold); SavePreferences();
             var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
             if (file is null) return;
-            var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = _results.Values.Select(result => new
+            var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = results.Select(result => new
             { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
                 result.RealPeopleOnly, result.Nsfw,
                 DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),

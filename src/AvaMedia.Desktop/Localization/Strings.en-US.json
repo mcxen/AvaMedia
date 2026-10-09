@@ -2957,5 +2957,11 @@
   "成年人": "Adults",
   "老年人": "Older adults",
   "类别画面描述须为 1–512 个字符且不能换行。": "Category scene descriptions must contain 1–512 characters on one line.",
-  "请为“{0}”填写画面描述。": "Enter a scene description for “{0}”."
+  "请为“{0}”填写画面描述。": "Enter a scene description for “{0}”.",
+  "批量操作": "Batch actions",
+  "按分数排序": "Sort by score",
+  "标签类别": "Tag category",
+  "标签排序": "Tag sorting",
+  "分数来源": "Score source",
+  "图表来源": "Chart source"
 }
