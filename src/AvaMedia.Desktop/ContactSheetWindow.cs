@@ -38,7 +38,7 @@ public sealed class ContactSheetWindow : Window
     private readonly TextBox _cellHeight = Ui.Input("180");
     private readonly TextBox _sheets = Ui.Input("1");
     private readonly TextBox _start = Ui.Input("0");
-    private readonly TextBox _end = Ui.Input("0");
+    private readonly TextBox _end = Ui.Input();
     private readonly ComboBox _format = Ui.Combo(["jpg", "png"], "jpg");
     private readonly CheckBox _timestamps = new() { Content = "显示每帧时间戳", IsChecked = true };
     private CancellationTokenSource? _operation;
@@ -111,14 +111,18 @@ public sealed class ContactSheetWindow : Window
         _list.SelectionChanged += (_, _) => { if (_list.SelectedItem is MediaFileEntry entry && entry.LastSheet is { } path) ShowPreview(path); };
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); body.Children.Add(filesArea);
         _sheetPanel = new() { Spacing = 9, Margin = new(9) };
-        var preset = Ui.Combo(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], "3 × 3");
+        var saved = new Storage().LoadToolOptions<ContactSheetOptions>("contact-sheet");
+        if(saved is not null){_columns.Text=saved.Columns.ToString();_rows.Text=saved.Rows.ToString();_cellWidth.Text=saved.CellWidth.ToString();_cellHeight.Text=saved.CellHeight.ToString();_sheets.Text=saved.SheetsPerVideo.ToString();_format.SelectedItem=saved.Format;_timestamps.IsChecked=saved.Timestamps;}
+        var preset = Ui.Combo(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], saved is null ? "3 × 3" : new[]{"2 × 2","3 × 3","4 × 4","5 × 4"}.Contains($"{saved.Columns} × {saved.Rows}")?$"{saved.Columns} × {saved.Rows}":"自定义");
         preset.SelectionChanged += (_, _) => { if (preset.SelectedItem is string value && value != "自定义") { var p = value.Split('×'); _columns.Text = p[0].Trim(); _rows.Text = p[1].Trim(); } };
         AddRow(_sheetPanel, "宫格预设", preset);
-        var customGrid=AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows));customGrid.IsVisible=false;
+        var customGrid=AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows));customGrid.IsVisible=preset.SelectedItem as string=="自定义";
         preset.SelectionChanged+=(_,_)=>customGrid.IsVisible=preset.SelectedItem as string=="自定义";
-        AddRow(_sheetPanel, "单格宽 / 高（像素）", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
-        AddRow(_sheetPanel, "开始 / 结束秒", Pair(_start, _end)); AddRow(_sheetPanel, "图片格式", _format); _sheetPanel.Children.Add(_timestamps);
-        _sheetPanel.Children.Add(new TextBlock { Text = "结束为 0 表示视频末尾", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
+        var advanced=new StackPanel { Spacing=9 };
+        _end.Watermark=Localization.Text("视频结尾");
+        AddRow(advanced, "单格宽 / 高（像素）", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
+        AddRow(advanced, "开始 / 结束秒", Pair(_start, _end)); AddRow(advanced, "图片格式", _format); advanced.Children.Add(_timestamps);
+        _sheetPanel.Children.Add(new Expander { Header="更多选项",Content=advanced,HorizontalAlignment=HorizontalAlignment.Stretch });
         _output = Ui.Input(outputFolder);
         var outputRow=new Grid{ColumnDefinitions=new("*,Auto"),ColumnSpacing=8};outputRow.Children.Add(_output);
         var browse = new Button { Content = "浏览…", Classes={"field-action"} };
@@ -185,8 +189,8 @@ public sealed class ContactSheetWindow : Window
         try
         {
             if (selected.Length == 0) throw new ArgumentException("请先勾选视频。");
-            options = new(Integer(_columns), Integer(_rows), Integer(_cellWidth), Integer(_cellHeight), Integer(_sheets), (string?)_format.SelectedItem ?? "jpg", _timestamps.IsChecked == true, Number(_start), Number(_end));
-            BatchVideoTools.ValidateContactSheet(options); if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择输出目录。"); folder = System.IO.Path.GetFullPath(_output.Text);
+            options = new(Integer(_columns), Integer(_rows), Integer(_cellWidth), Integer(_cellHeight), Integer(_sheets), (string?)_format.SelectedItem ?? "jpg", _timestamps.IsChecked == true, Number(_start), string.IsNullOrWhiteSpace(_end.Text)?0:Number(_end));
+            BatchVideoTools.ValidateContactSheet(options);new Storage().SaveToolOptions("contact-sheet",options with { StartSeconds=0,EndSeconds=0 }); if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择输出目录。"); folder = System.IO.Path.GetFullPath(_output.Text);
         }
         catch (Exception ex) { await Ui.Message(this, "截图参数错误", ex.Message); return; }
         _operation = new(); var token = _operation.Token; SetBusy(true); _stop.IsEnabled = true; int success = 0, failed = 0;

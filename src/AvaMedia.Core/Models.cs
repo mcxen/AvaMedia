@@ -23,8 +23,8 @@ public static class Catalog
         Add("mp4","格式转换","视频","mp4","video",Operation.Convert,2);
         Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress,2);
         Add("video-slim","视频瘦身","视频","mkv","gear",Operation.VideoSlim,2);
-        Add("join","视频合并 & 混流","视频","mp4","join",Operation.Join,2);
-        Add("split","分离器","视频","m4a","split",Operation.SplitAudio);
+        Add("join","视频合并","视频","mp4","join",Operation.Join,2);
+        Add("split","提取音频","视频","m4a","split",Operation.SplitAudio);
         Add("clip","快速剪辑","视频","mp4","clip");
         Add("person-clip","保留有人片段 · Beta","视频","mp4","clip",Operation.PersonClip);
         Add("delogo","去除水印","视频","mp4","erase");

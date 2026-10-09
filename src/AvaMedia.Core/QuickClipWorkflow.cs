@@ -8,7 +8,7 @@ public static class QuickClipWorkflow
     public static void ValidateJoinedExports(IEnumerable<ClipEditResult> edits, string preset)
     {
         if(!QuickClipBatch.Presets.Contains(preset))throw new ArgumentException("请选择有效的导出格式。");
-        if(edits.Any(edit=>edit.Segments.Count>64))throw new ArgumentException("单个视频合并最多 64 个片段，请选择分别导出。");
+        if(preset!="Fast Copy" && edits.Any(edit=>edit.Segments.Count>64))throw new ArgumentException("单个视频合并最多 64 个片段，请选择分别导出。");
     }
 
     public static IReadOnlyList<Job> PrepareJoinedJobs(IEnumerable<ClipEditResult> edits, string preset, ConversionOptions exportOptions,

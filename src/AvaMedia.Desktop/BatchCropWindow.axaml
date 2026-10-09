@@ -58,7 +58,9 @@
     <Border Grid.Row="2" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" CornerRadius="{DynamicResource UiControlRadius}" Padding="12">
       <StackPanel Spacing="8">
         <TextBlock x:Name="ReferenceText" Text="选区参考：尚未选择视频" Classes="caption"/>
-        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto,2*" ColumnSpacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="12"><TextBlock Text="应用到勾选视频" VerticalAlignment="Center"/><ComboBox x:Name="ModeCombo" SelectionChanged="ModeChanged" AutomationProperties.Name="裁剪区域应用方式" MinWidth="220"/></StackPanel>
+        <Expander Header="精确坐标" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*" ColumnSpacing="8">
           <TextBlock Text="X" VerticalAlignment="Center"/>
           <NumericUpDown Grid.Column="1" x:Name="CropXInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域 X"/>
           <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center"/>
@@ -67,9 +69,8 @@
           <NumericUpDown Grid.Column="5" x:Name="CropWidthInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域宽度"/>
           <TextBlock Grid.Column="6" Text="高度" VerticalAlignment="Center"/>
           <NumericUpDown Grid.Column="7" x:Name="CropHeightInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域高度"/>
-          <TextBlock Grid.Column="8" Text="应用方式" VerticalAlignment="Center"/>
-          <ComboBox Grid.Column="9" x:Name="ModeCombo" SelectionChanged="ModeChanged" AutomationProperties.Name="裁剪区域应用方式"/>
         </Grid>
+        </Expander>
       </StackPanel>
     </Border>
     <Grid Grid.Row="3" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,160,Auto,*,Auto,Auto" ColumnSpacing="8" RowSpacing="6">

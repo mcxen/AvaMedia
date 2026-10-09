@@ -11,7 +11,7 @@ public sealed partial class RenameWindow
 
     private void InitializeSemanticWordLibraries()
     {
-        _semanticParameters.Children.Add(Ui.Button("选择词库 / 类别…", async () =>
+        _semanticParameters.Children.Add(Ui.Button("从词库添加…", async () =>
         {
             var picker = new WordLibraryWindow(WordLibraryTarget.Semantic);
             await picker.ShowDialog(this);
@@ -19,7 +19,7 @@ public sealed partial class RenameWindow
             ReloadSemanticCandidates(); ClearSemanticMatches();
         }));
         _semanticParameters.Children.Add(_semanticLibrarySummary);
-        _semanticParameters.Children.Add(Ui.Text("在「选项 → 词库管理」编辑；下方可补充关键词。", "caption"));
+
         Opened += (_, _) => ReloadSemanticCandidates();
     }
     private void ReloadSemanticCandidates()
@@ -28,7 +28,7 @@ public sealed partial class RenameWindow
         {
             _semanticCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.Semantic);
             _semanticLibraryError = null;
-            _semanticLibrarySummary.Text = Localization.Format($"词库候选 {_semanticCandidates.Length} 个");
+            _semanticLibrarySummary.Text = Localization.Format($"词库候选 {_semanticCandidates.Length} 个");_semanticLibrarySummary.IsVisible=_semanticCandidates.Length>0;
         }
         catch (Exception error) { _semanticLibraryError = error.Message; _semanticCandidates = []; _semanticLibrarySummary.Text = "词库读取失败：" + error.Message; }
     }

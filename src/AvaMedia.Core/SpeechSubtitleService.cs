@@ -26,8 +26,10 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     {
         var temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-transcript-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
+        var recognition = source.Options.Clone(); recognition.Format = "srt"; recognition.Transcription = speech.Clone();
+        recognition.AudioStreamIndex = audioTrack; recognition.VoiceEnhancement = false;
         var task = new Job { FeatureId = "auto-subtitle", Inputs = source.Inputs,
-            Output = Path.Combine(temporary, "subtitles.srt"), Options = new() { Format = "srt", Transcription = speech.Clone(), AudioStreamIndex = audioTrack } };
+            Output = Path.Combine(temporary, "subtitles.srt"), Options = recognition };
         task.PropertyChanged += (_, change) =>
         {
             if (change.PropertyName == nameof(Job.Activity) && task.Activity is { } activity)
@@ -68,11 +70,15 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         activity.Node("语音模型");
         activity.Stage("准备语音模型");
         var models = installer ?? new();
-        var model = await models.EnsureInstalledAsync(speech.Model, value =>
+        string? model = null;
+        if (speech.ReviewedCues is null)
+        {
+        model = await models.EnsureInstalledAsync(speech.Model, value =>
         {
             if (value.Stage == "下载") { activity.Stage("下载语音模型", value.Received, value.Total, "字节"); progress(value.Percent * .15); }
             else activity.Stage(value.Stage == "完成" ? "语音模型已就绪" : value.Stage);
         }, ct).ConfigureAwait(false);
+        }
         progress(15);
         var temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-subtitles-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
@@ -81,8 +87,18 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         {
             job.ProgressDetail = "等待语音识别";
             activity.Stage("等待语音识别", detail: "前一个识别任务完成后开始");
-            await RecognitionGate.WaitAsync(ct).ConfigureAwait(false);
             List<SubtitleCue> cues;
+            if (speech.ReviewedCues is { } reviewed)
+            {
+                var source = new FileInfo(job.Inputs[0]);
+                if (!source.Exists || source.Length != speech.ReviewedSourceLength || source.LastWriteTimeUtc != speech.ReviewedSourceWriteUtc)
+                    throw new IOException("校对后源文件已改变，请重新识别字幕。");
+                if (reviewed.Any(cue => cue.End.TotalSeconds > job.Duration + .1)) throw new ArgumentException("字幕时间超出视频范围。");
+                cues = reviewed.ToList(); activity.Stage("应用校对字幕",cues.Count,cues.Count,"条字幕");progress(75);
+            }
+            else
+            {
+            await RecognitionGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 using var lease = await models.AcquireAsync(speech.Model, ct).ConfigureAwait(false);
@@ -90,7 +106,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 cues = await Task.Run(async () =>
                 {
                     activity.Stage("加载语音模型");
-                    using var factory = WhisperFactory.FromPath(model);
+                    using var factory = WhisperFactory.FromPath(model!);
                     using var vadFactory = WhisperVadFactory.FromPath(SpeechAssets.EnsureVadModel());
                     using var vad = vadFactory.CreateBuilder().WithUseGpu(false)
                         .WithThreads(engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 4) : 1).WithThreshold(.5f)
@@ -183,6 +199,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 }, ct).ConfigureAwait(false);
             }
             finally { RecognitionGate.Release(); }
+            }
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
             activity.Node("保存结果");
             if (options.Format is "srt" or "ass")

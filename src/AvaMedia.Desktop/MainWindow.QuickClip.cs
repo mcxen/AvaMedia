@@ -20,17 +20,19 @@ public partial class MainWindow
         var paths=selectedPaths.Select(Path.GetFullPath).Distinct(OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal).ToArray();
         if(paths.Length==0)return;
         _last=Catalog.Find("clip");
-        var edits=paths.Select(path=>initialEdits?.FirstOrDefault(edit=>edit.Path==path)).ToArray();ClipExportState? exportState=new(QuickClipBatch.DefaultPreset,_settings.OutputFolder,_settings.OutputToSource,new(),_settings.AddSettingName,JoinSegments:allowJoin);
+        var edits=paths.Select(path=>initialEdits?.FirstOrDefault(edit=>edit.Path==path)).ToArray();var saved=new Storage().LoadToolOptions<ClipExportState>("clip-export");ClipExportState? exportState=new(saved?.Preset??QuickClipBatch.DefaultPreset,_settings.OutputFolder,_settings.OutputToSource,saved?.Options.Clone()??new(),_settings.AddSettingName,JoinSegments:allowJoin);
         while(true)
         {
-            for(var i=0;i<paths.Length;i++)
+            if(paths.Length>1)
             {
-                var previous=edits[i];
-                var editor=new EditorWindow(Engine,paths[i],previous?.Segments.FirstOrDefault()??new(),"quick-workflow",previous?.Segments);
-                editor.SetWorkflowStep(i+1,paths.Length);
-                var result=await editor.ShowDialog<ClipEditResult?>(this);
-                if(result is null)return;
-                edits[i]=result;
+                var reviewed=await new QuickClipWorkspaceWindow(Engine,paths,edits.OfType<ClipEditResult>()).ShowDialog<ClipEditResult[]?>(this);
+                if(reviewed is null)return;paths=reviewed.Select(edit=>edit.Path).ToArray();edits=reviewed;
+            }
+            else
+            {
+                var previous=edits[0];
+                var editor=new EditorWindow(Engine,paths[0],previous?.Segments.FirstOrDefault()??new(),"quick-workflow",previous?.Segments);
+                var result=await editor.ShowDialog<ClipEditResult?>(this);if(result is null)return;edits[0]=result;
             }
             var decision=await new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin,previewFrames:Engine).ShowDialog<ClipExportDecision?>(this);
             if(decision is null)return;
@@ -43,8 +45,7 @@ public partial class MainWindow
                 var jobs=decision.State.JoinSegments
                     ? QuickClipWorkflow.PrepareJoinedJobs(edits.OfType<ClipEditResult>(),decision.State.Preset,decision.State.Options,request.OutputFolder,request.OutputToSource,request.SettingName,_jobs.Select(j=>j.Output))
                     : QuickClipBatch.CreateJobs(request.ClipInputs!,request.OutputFolder,request.OutputToSource,request.SettingName,_jobs.Select(j=>j.Output));
-                foreach(var job in jobs)_jobs.Add(job);
-                Save();Refresh();
+                AddToolJobs(jobs,request.StartImmediately);
             }
             catch(Exception ex){await Ui.Message(this,"导出参数错误",ex.Message);continue;}
             return;

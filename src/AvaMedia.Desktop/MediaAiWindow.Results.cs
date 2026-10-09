@@ -42,6 +42,10 @@ public sealed partial class MediaAiWindow
             if (entry?.Status == Localization.Text("失败") && entry.Details.Length > 0) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
             UpdateActions(); return;
         }
+        var edits=new StackPanel { Orientation=Orientation.Horizontal, Spacing=8 };
+        var edit=Ui.Button("编辑标签…",async()=>await EditTagsAsync(result));edit.IsEnabled=!_busy;edits.Children.Add(edit);
+        if(_editedTags.ContainsKey(result.Path))edits.Children.Add(Ui.Button("恢复识别标签",()=>{_editedTags.Remove(result.Path);RefreshDisplayedResults();}));
+        _tagGroups.Children.Add(edits);
         var tags = ResultTags(result, search: true).ToArray();
         _detailState.Text = Localization.Format($"识别到 {tags.Length} 个标签");
         if (tags.Length == 0) _tagGroups.Children.Add(Ui.Text(string.IsNullOrWhiteSpace(_tagSearch.Text) ? "未找到达标标签" : "未找到匹配标签", "caption"));
@@ -52,9 +56,10 @@ public sealed partial class MediaAiWindow
             foreach (var tag in group)
             {
                 var label = Ui.Text(tag.Label + (_showScores.IsChecked == true ? $" · {tag.Score:0.00}" : "")); Localization.SetIsUserText(label, true);
-                var chip = new Border { Child = label, Padding = new(9, 5), Margin = new(0, 0, 6, 6), BorderThickness = new(1) };
-                chip.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
-                chip.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("UiBorder")); chips.Children.Add(chip);
+                var chip = new Button { Content = label, Padding = new(9, 5), Margin = new(0, 0, 6, 6), BorderThickness = new(1) };
+                chip.Click += async (_,_)=>await ShowEvidenceAsync(result,tag);
+                chip.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
+                chip.Bind(Button.BorderBrushProperty, new DynamicResourceExtension("UiBorder")); chips.Children.Add(chip);
             }
             section.Children.Add(chips); _tagGroups.Children.Add(section);
         }

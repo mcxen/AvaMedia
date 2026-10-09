@@ -23,7 +23,7 @@ public sealed partial class MediaAiWindow
     }
     private async Task OpenRenameDialogAsync()
     {
-        if (_busy) return;
+        if (_busy || !_canRename()) return;
         var selected = _entries.Where(entry => entry.Include).ToArray();
         var rows = selected.Where(entry => _results.ContainsKey(entry.Path))
             .Select(entry => new RenameDraft(entry.Path, ResultTags(_results[entry.Path]).Select(tag => tag.Label).ToArray())).ToArray();

@@ -41,7 +41,7 @@ public sealed partial class MediaAiWindow
         }));
         _imports.Children.Add(Ui.Button("移除勾选", () =>
         {
-            foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _entries.Remove(entry); }
+            foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _editedTags.Remove(entry.Path); _entries.Remove(entry); }
             if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
             RenderSelectedResult(); UpdateActions();
         }));
@@ -130,7 +130,7 @@ public sealed partial class MediaAiWindow
             try { Number(_threshold); var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。"); }
             catch (Exception error) { args.Cancel = true; _ = Ui.Message(window, "参数错误", error.Message); }
         };
-        window.Closed += (_, _) => scroll.Content = null;
+        window.Closed += (_, _) => { scroll.Content = null; try{SavePreferences();}catch(Exception error){_status.Text=error.Message;} };
         _settingsOwner = window;
         try { await window.ShowDialog(this); }
         finally { _settingsOwner = null; }
@@ -148,12 +148,12 @@ public sealed partial class MediaAiWindow
         _updatingSelection = true; _selectAll.IsChecked = _entries.Count > 0 && included == _entries.Count; _updatingSelection = false;
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
-        _imports.IsEnabled = _advanced.IsEnabled = _list.IsEnabled = !_busy;
+        _imports.IsEnabled = _advanced.IsEnabled = !_busy;
         _analyze.IsEnabled = !_busy && included > 0; _analyze.Content = Localization.Text(!_modelReady ? "下载模型并分析" : "开始分析");
-        _rename.IsEnabled = !_busy && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
+        _rename.IsEnabled = !_busy && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
         _copy.IsVisible = _export.IsVisible = _rename.IsVisible = _results.Count > 0;
-        _export.IsEnabled = !_busy && _results.Count > 0; _undo.IsEnabled = !_busy;
-        _copy.IsEnabled = !_busy && _list.SelectedItem is MediaFileEntry selected && _results.TryGetValue(selected.Path, out var value) && ResultTags(value, search: true).Any();
+        _export.IsEnabled = !_busy && _results.Count > 0; _undo.IsEnabled = !_busy && _canRename();
+        _copy.IsEnabled = _list.SelectedItem is MediaFileEntry selected && _results.TryGetValue(selected.Path, out var value) && ResultTags(value, search: true).Any();
         _stop.IsVisible = _busy && _operation is not null;
     }
 }

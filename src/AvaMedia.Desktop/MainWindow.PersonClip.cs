@@ -24,12 +24,10 @@ public partial class MainWindow
         try
         {
             var reserved = (editing is null ? _jobs.Select(job => job.Output) : EditingReservations(editing)).ToArray();
-            var inputs = request.Inputs;
-            var jobs = ConversionBatch.CreateJobs(Catalog.Find("person-clip"), inputs.Select(input => input.Path).ToArray(),
-                request.OutputFolder, inputs[0].Options, inputs.Select(input => input.Options).ToArray(), reserved);
-            OutputPreferences.Apply(jobs, _settings, reserved, request.OutputToSource, "People");
+            var jobs = QuickClipWorkflow.PrepareJoinedJobs(request.Edits, request.Preset, new(), request.OutputFolder,
+                request.OutputToSource, "People", reserved);
             if (editing is not null) ApplyEditedJobs(editing, jobs);
-            else { foreach (var job in jobs) _jobs.Add(job); Save(); Refresh(); }
+            else AddToolJobs(jobs, request.StartImmediately);
         }
         catch (Exception error) { await Ui.Message(this, "人物检测参数错误", error.Message); }
     }

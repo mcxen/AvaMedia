@@ -13,7 +13,9 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false
 }
 public sealed record MediaTagScore(string Tag, double Score, double Maximum);
 public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Scores, int SampledFrames, int InferredFrames,
-    string Backend, long Length, DateTime LastWriteUtc, string? FallbackReason = null);
+    string Backend, long Length, DateTime LastWriteUtc, string? FallbackReason = null)
+{ public IReadOnlyList<MediaTagFrame> Frames { get; init; } = []; }
+public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores);
 public sealed record MediaTagProgress(string Path, MediaTagResult? Result, string? Error, int Completed, int Total)
 {
     public AiActivity? Activity { get; init; }
@@ -165,11 +167,14 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var count = (int)Math.Min(options.VideoFrames, Math.Max(1, Math.Ceiling(duration * 2)));
                 var unique = new List<(byte[] Image, byte[] Signature, double Seconds)>();
                 var samples = new int[count];
+                var sampleSeconds = new double[count];
+                var evidence = new IReadOnlyList<MediaTagScore>[count];
                 activity.Stage("采样画面", 0, count, "帧");
                 for (var i = 0; i < count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
                     var seconds = Math.Min(duration * (i + .5) / count, Math.Max(0, duration - Math.Max(.1, 1 / frameRate)));
+                    sampleSeconds[i] = seconds;
                     var png = await engine.Thumbnail(path, seconds, 768, 768, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
                     var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromEncoded(png) : [];
                     var reused = options.ReuseSimilarFrames ? unique.FindIndex(item => VideoFrameSimilarity.Similar(item.Signature, signature)) : -1;
@@ -186,6 +191,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     var vectors = Predict(session, unique.Skip(offset).Take(options.BatchSize).Select(item => item.Image).ToArray(), options.BatchSize, tags.Length, ct);
                     for (var i = 0; i < vectors.Length; i++)
                     {
+                        var frameScores=tags.Select((tag,j)=>new MediaTagScore(tag,vectors[i][j],vectors[i][j])).Where(score=>score.Score>=.1).OrderByDescending(score=>score.Score).Take(128).ToArray();
+                        for(var sample=0;sample<count;sample++)if(samples[sample]==offset+i)evidence[sample]=frameScores;
                         var weight = samples.Count(sample => sample == offset + i);
                         scored += weight;
                         for (var j = 0; j < tags.Length; j++) { mean[j] += vectors[i][j] * weight / count; maximum[j] = Math.Max(maximum[j], vectors[i][j]); }
@@ -198,7 +205,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Advance(scored, count, "帧", session.FallbackReason is null ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");
                 }
                 CheckSource(file, length, modified);
-                Report(path, new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j], maximum[j])).ToArray(), count, unique.Count, session.Backend, length, modified, session.FallbackReason), null);
+                Report(path, new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j], maximum[j])).ToArray(), count, unique.Count, session.Backend, length, modified, session.FallbackReason) { Frames=sampleSeconds.Select((seconds,i)=>new MediaTagFrame(seconds,evidence[i])).ToArray() }, null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }
         }

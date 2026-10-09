@@ -51,11 +51,11 @@ public partial class VideoCompressionWindow : Window
     public VideoCompressionWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null, bool editing = false)
     {
-        InitializeComponent(); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        InitializeComponent(); ToolExecution.Configure(this,ConfirmButton,"开始压缩",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
         if (editing) { Title = "编辑视频压缩任务"; ConfirmButton.Content = "保存修改"; }
         SourceList.ItemsSource = _entries;
         SourceList.SelectionChanged += (_, _) => RemoveButton.IsEnabled = SourceList.SelectedItems?.Count > 0;
-        var options = VideoCompression.Effective(initial ?? new());
+        var options = VideoCompression.Effective(initial ?? new Storage().LoadToolOptions<VideoCompressionOptions>("video-compress") ?? new());
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = !_closed && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
@@ -251,8 +251,8 @@ public partial class VideoCompressionWindow : Window
             else Localization.SetText(TotalSummary, $"{_entries.Count} 个视频 · 原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 预计 {_entries.Sum(entry => entry.Plan?.EstimatedBytes ?? 0) / 1000000d:0.##} MB");
             var hasFolder = SourceFolderInput.IsChecked == true || !string.IsNullOrWhiteSpace(OutputInput.Text);
             ValidationText.Text = Localization.Text(_entries.Count == 0 ? "" : pending > 0 ? "正在读取…" :
-                invalid > 0 ? "请调整目标或移除有错误的视频。" : !hasFolder ? "请选择输出目录。" : "");
-            ConfirmButton.IsEnabled = ready > 0 && ready == _entries.Count && pending == 0 && invalid == 0 && hasFolder;
+                invalid > 0 ? Localization.Format($"处理 {ready} 个视频，跳过 {invalid} 个错误文件") : !hasFolder ? "请选择输出目录。" : "");
+            ConfirmButton.IsEnabled = ready > 0 && pending == 0 && hasFolder;
         }
         catch (Exception exception)
         {
@@ -294,14 +294,16 @@ public partial class VideoCompressionWindow : Window
         try
         {
             var options = ReadOptions();
-            foreach (var entry in _entries)
+            var available = _entries.Where(entry => entry.Plan is not null && !entry.HasError && !entry.Loading).ToArray();
+            foreach (var entry in available)
             {
                 if (!File.Exists(entry.Path)) throw new FileNotFoundException("源视频已移走，请重新添加。", entry.Path);
                 _ = VideoCompression.Plan(new FileInfo(entry.Path).Length, entry.Info!, options);
             }
-            var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(_entries[0].Path)! : OutputInput.Text;
+            var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(available[0].Path)! : OutputInput.Text;
             if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
-            Close(new VideoCompressionRequest(_entries.Select(entry => entry.Path).ToArray(), options,
+            new Storage().SaveToolOptions("video-compress",options);
+            Close(new VideoCompressionRequest(available.Select(entry => entry.Path).ToArray(), options,
                 Path.GetFullPath(folder), SourceFolderInput.IsChecked == true, SettingNameInput.IsChecked == true));
         }
         catch (Exception exception) { await Ui.Message(this, "压缩参数错误", exception.Message); }

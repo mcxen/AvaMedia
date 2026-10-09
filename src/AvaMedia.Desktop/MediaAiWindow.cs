@@ -31,15 +31,17 @@ public sealed partial class MediaAiWindow : Window
     private readonly Button _stop = new() { Content = "停止", IsVisible = false };
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<Window, Task> _manageModels;
+    private readonly Func<bool> _canRename;
     private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "ai-rename.json");
     private CancellationTokenSource? _operation;
     private bool _closed, _renaming, _busy, _modelReady;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
-    public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels)
+    public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null)
     {
-        _manageModels = manageModels;
+        _manageModels = manageModels; _canRename=canRename??(()=>true);
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
+        LoadPreferences();
         // These inputs live in the optional settings dialog, so initialize text before any template is attached.
         _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat);
         _frames.Text = _frames.Value?.ToString(_frames.NumberFormat);
@@ -47,6 +49,8 @@ public sealed partial class MediaAiWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
         BuildInterface();
+        var queueState=new Avalonia.Threading.DispatcherTimer { Interval=TimeSpan.FromSeconds(1) };
+        queueState.Tick+=(_,_)=>UpdateActions();Opened+=(_,_)=>queueState.Start();Closed+=(_,_)=>queueState.Stop();
         InitializeWordLibraries();
         Opened += async (_, _) => await RefreshModelAsync();
         DragDrop.SetAllowDrop(this, true);
@@ -124,11 +128,11 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true); options.Validate(); Number(_threshold);
+            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true); options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
-        { _results.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
+        { _results.Remove(entry.Path); _editedTags.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); RenderSelectedResult();
         _status.Text = Localization.Text(_modelReady ? "准备分析…" : "下载标签模型");
         _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
@@ -219,16 +223,19 @@ public sealed partial class MediaAiWindow : Window
     });
     private async Task RenameAsync(bool undo, RenameItem[]? plan = null)
     {
-        if (_busy || !undo && plan is null) return;
+        if (_busy || !_canRename() || !undo && plan is null) return;
         _renaming = true; SetBusy(true);
         try
         {
             var mappings = await Task.Run(() => undo ? BatchRename.UndoRename(_journal) : BatchRename.ApplyRename(plan!, _journal));
-            foreach (var mapping in mappings)
+            var retained=mappings.Select(mapping=>(Mapping:mapping,Result:_results.GetValueOrDefault(mapping.Source),
+                Tags:_editedTags.GetValueOrDefault(mapping.Source),Entry:_entries.FirstOrDefault(entry=>BatchRename.PathComparer.Equals(entry.Path,mapping.Source)))).ToArray();
+            foreach(var item in retained){_results.Remove(item.Mapping.Source);_editedTags.Remove(item.Mapping.Source);}
+            foreach(var item in retained)
             {
-                _results.Remove(mapping.Source);
-                var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, mapping.Source));
-                if (entry is not null) { entry.Renamed(mapping.Target); entry.Status = Localization.Text("已重命名"); entry.Details = ""; entry.Keyword = ""; }
+                if(item.Result is {} result)_results[item.Mapping.Target]=result with { Path=item.Mapping.Target };
+                if(item.Tags is {} tags)_editedTags[item.Mapping.Target]=tags;
+                if(item.Entry is {} entry){entry.Renamed(item.Mapping.Target);entry.Status=Localization.Text("已重命名");entry.Keyword="";}
             }
             Renamed?.Invoke(mappings); _status.Text = Localization.Format($"已更新 {mappings.Length} 个文件名"); _undo.IsVisible = CanUndo();
         }
@@ -240,13 +247,13 @@ public sealed partial class MediaAiWindow : Window
         if (_results.Count == 0) return;
         try
         {
-            var threshold = Number(_threshold);
+            var threshold = Number(_threshold); SavePreferences();
             var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
             if (file is null) return;
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, Results = _results.Values.Select(result => new
             { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
                 DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),
-                Tags = result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score) }) };
+                Tags = ResultTags(result).ToArray(), Evidence=result.Frames }) };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception error) { await Ui.Message(this, "导出失败", error.Message); }

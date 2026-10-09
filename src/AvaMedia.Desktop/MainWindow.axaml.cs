@@ -78,17 +78,19 @@ public partial class MainWindow : Window
         }
         if(feature.Id=="rotate")
         {
-            var request=await new BatchRotateWindow(Engine,_settings.OutputFolder,files).ShowDialog<BatchRotateRequest?>(this);
+            var window=new BatchRotateWindow(Engine,_settings.OutputFolder,files);
+            var request=await window.ShowDialog<BatchRotateRequest?>(this);
             if(request is null)return;
-            try{var jobs=BatchRotate.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
+            try{var jobs=BatchRotate.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);AddToolJobs(jobs,ToolExecution.StartImmediately(window));}
             catch(Exception ex){await Ui.Message(this,"批量旋转参数错误",ex.Message);}
             return;
         }
         if(feature.Id=="crop")
         {
-            var request=await new BatchCropWindow(Engine,_settings.OutputFolder,files).ShowDialog<BatchCropRequest?>(this);
+            var window=new BatchCropWindow(Engine,_settings.OutputFolder,files);
+            var request=await window.ShowDialog<BatchCropRequest?>(this);
             if(request is null)return;
-            try{var jobs=BatchCrop.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);foreach(var job in jobs)_jobs.Add(job);Save();Refresh();}
+            try{var jobs=BatchCrop.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);AddToolJobs(jobs,ToolExecution.StartImmediately(window));}
             catch(Exception ex){await Ui.Message(this,"批量裁剪参数错误",ex.Message);}
             return;
         }
@@ -106,6 +108,10 @@ public partial class MainWindow : Window
             catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
             return;
         }
+        if(feature.Operation==Operation.Info)
+        {
+            files??=await Ui.Pick(this,"选择媒体文件",true);new MediaInfoWindow(Engine,files).Show(this);return;
+        }
         if(feature.Operation==Operation.Player)
         {
             files??=await Ui.Pick(this,"打开媒体文件",true);if(files.Length>0)new PlayerWindow(Engine,files).Show(this);return;
@@ -116,11 +122,11 @@ public partial class MainWindow : Window
         var result=await dialog.ShowDialog<ConversionRequest?>(this);if(result is null)return;
         if(result.ClipInputs is not null)
         {
-            try{foreach(var job in QuickClipBatch.CreateJobs(result.ClipInputs,result.OutputFolder,result.OutputToSource,result.SettingName,_jobs.Select(j=>j.Output)))_jobs.Add(job);}
+            try{AddToolJobs(QuickClipBatch.CreateJobs(result.ClipInputs,result.OutputFolder,result.OutputToSource,result.SettingName,_jobs.Select(j=>j.Output)),result.StartImmediately);}
             catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
             Save();Refresh();return;
         }
-        try{var jobs=ConversionBatch.CreateJobs(result.Feature,result.Files,result.OutputFolder,result.Options,result.InputOptions,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),result.OutputToSource,result.SettingName);foreach(var job in jobs)_jobs.Add(job);}
+        try{var jobs=ConversionBatch.CreateJobs(result.Feature,result.Files,result.OutputFolder,result.Options,result.InputOptions,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),result.OutputToSource,result.SettingName);AddToolJobs(jobs,result.StartImmediately);}
         catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
         Save();Refresh();
     }

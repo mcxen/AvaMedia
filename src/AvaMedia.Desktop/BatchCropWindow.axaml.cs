@@ -48,7 +48,7 @@ public sealed partial class BatchCropWindow : Window
     public BatchCropWindow() : this(new MediaEngine(new()),new AppSettings().OutputFolder) { }
     public BatchCropWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null)
     {
-        InitializeComponent(); _engine = engine;
+        InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始裁剪"); _engine = engine;
         FileList.ItemsSource = _entries;
         ModeCombo.ItemsSource = new[] { PixelMode, RelativeMode }; ModeCombo.SelectedIndex = 0;
         CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;

@@ -14,11 +14,13 @@ using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 public sealed record ConversionRequest(Feature Feature,string[] Files,string OutputFolder,ConversionOptions Options,
-    IReadOnlyList<QuickClipInput>? ClipInputs=null,bool OutputToSource=false,string SettingName="",IReadOnlyList<ConversionOptions>? InputOptions=null);
+    IReadOnlyList<QuickClipInput>? ClipInputs=null,bool OutputToSource=false,string SettingName="",IReadOnlyList<ConversionOptions>? InputOptions=null,bool StartImmediately=false);
 public sealed class ConversionEntry(string path,ConversionOptions? options=null) : Observable
 {
     public string Path { get; }=path;
     public ConversionOptions? Options { get; private set; }=options?.Clone();
+    private bool _include=true;
+    public bool Include { get=>_include;set=>Set(ref _include,value); }
     public void SetOptions(ConversionOptions options){Options=options.Clone();Raise(nameof(Summary));}
     public string Summary
     {
@@ -49,7 +51,7 @@ public sealed class ConvertWindow : Window
         Title=feature.Label.Replace("\n"," ");Width=830;Height=620;MinWidth=650;MinHeight=440;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, feature.Icon);
         Closed+=(_,_)=>_lifetime.Cancel();
-        _options=initialOptions?.Clone()??new(){Format=feature.Format};
+        _options=initialOptions?.Clone()??new Storage().LoadToolOptions<ConversionOptions>(feature.Id)??new(){Format=feature.Format};
         _entries=new(files.Select((path,index)=>new ConversionEntry(path,inputOptions?.ElementAtOrDefault(index)??(editing&&!ConversionBatch.IsGrouped(feature)?_options:null))));
         if(initialOptions is null){if(feature.Id=="repair")_options.CopyStreams=true;if(feature.Operation==Operation.SplitVideo)_options.VideoCodec="copy";}
         if(editing)Title=Localization.Format($"编辑任务 · {Localization.Key(Title)}");
@@ -68,7 +70,7 @@ public sealed class ConvertWindow : Window
         var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(20)};
         var sourceOutput=feature.Id is "crop" or "rotate";
         var initialFormat=sourceOutput?SourceVideoExport.Selection(_options):_options.Format;
-        var top=new StackPanel{Orientation=Orientation.Horizontal,Spacing=10,IsVisible=feature.Operation!=Operation.Unzip};
+        var top=new WrapPanel{Orientation=Orientation.Horizontal,IsVisible=feature.Operation!=Operation.Unzip};
         var formatChoices=GetFormats(feature).Append(_options.Format).Distinct().ToArray();
         var formats=Ui.Combo(formatChoices,initialFormat);formats.MinWidth=sourceOutput?240:130;
         if(formatChoices.Length>1){top.Children.Add(Ui.Text("输出格式"));top.Children.Add(formats);}
@@ -82,7 +84,7 @@ public sealed class ConvertWindow : Window
                 var single=!ConversionBatch.IsGrouped(feature)&&_entries.Count==1;
                 var current=single?_entries[0].Options??_options:_options;
                 var draft=SelectOutput(current,feature,selection,_entries.FirstOrDefault()?.Path??"");
-                var dialog=new OptionsWindow(draft,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:draft.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality,previewEngine:engine,previewSource:_entries.FirstOrDefault()?.Path);
+                var dialog=new OptionsWindow(draft,copyStreamsMode:feature.Id=="repair"?true:null,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:draft.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality,previewEngine:engine,previewSource:_entries.FirstOrDefault()?.Path);
                 var changed=await dialog.ShowDialog<ConversionOptions?>(this);
                 if(changed is null)return;
                 _options=SelectOutput(changed,feature,selection,_entries.FirstOrDefault()?.Path??"");
@@ -111,24 +113,32 @@ public sealed class ConvertWindow : Window
             catch(Exception ex){formats.SelectedItem=previous;await Ui.Message(this,"参数错误",ex.Message);}
             finally{changingFormat=false;}
         };
-        var mode=Ui.Combo(["视频合并","混流：视频 + 音频"],"视频合并");if(feature.Id=="join"){mode.Width=200;top.Children.Add(mode);}panel.Children.Add(top);
+        panel.Children.Add(top);
         var toolbar=new WrapPanel{Orientation=Orientation.Horizontal,Margin=new(0,15,0,2)};
         var list=new ListBox{ItemsSource=_entries,SelectionMode=SelectionMode.Multiple,BorderThickness=new(1)};
-        list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{var row=new StackPanel{Spacing=4,Margin=new(2,4)};var pathText=new TextBlock{Text=entry?.Path,TextTrimming=TextTrimming.CharacterEllipsis};Localization.SetIsUserText(pathText,true);ToolTip.SetTip(pathText,entry?.Path);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"}};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));row.Children.Add(summary);}return row;});
-        var add=new Button{Content="添加文件…"};add.Click+=async(_,_)=>AddPaths(await Ui.Pick(this,"添加文件"));toolbar.Children.Add(add);
-        var folder=new Button{Content="添加文件夹…"};folder.Click+=async(_,_)=>{if(await Ui.Folder(this,"添加文件夹") is {} path)AddPaths(Directory.EnumerateFiles(path));};toolbar.Children.Add(folder);
+        list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{var row=new StackPanel{Spacing=4,Margin=new(2,4)};if(feature.Operation==Operation.Mux)row.Children.Add(Ui.Text(_entries.IndexOf(entry!)==0?"视频来源":"音频来源","heading"));if(feature.Operation!=Operation.Mux){var include=new CheckBox { Content="处理此文件",IsChecked=entry!.Include };include.Bind(CheckBox.IsCheckedProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Include)) { Mode=Avalonia.Data.BindingMode.TwoWay });row.Children.Add(include);}
+            var pathText=new TextBlock{Text=System.IO.Path.GetFileName(entry?.Path),TextTrimming=TextTrimming.CharacterEllipsis};Localization.SetIsUserText(pathText,true);ToolTip.SetTip(pathText,entry?.Path);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"}};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));row.Children.Add(summary);}return row;});
+        var add=new Button{Content=feature.Operation==Operation.Mux?"选择视频来源…":"添加文件…"};
+        add.Click+=async(_,_)=>
+        {
+            var picked=await Ui.Pick(this,feature.Operation==Operation.Mux?"选择视频来源":"添加文件",feature.Operation!=Operation.Mux);
+            if(feature.Operation==Operation.Mux){if(picked.Length==0)return;if(_entries.Count>0)_entries[0]=new(picked[0]);else _entries.Add(new(picked[0]));}else AddPaths(picked);
+        };toolbar.Children.Add(add);
+        if(feature.Operation==Operation.Mux)toolbar.Children.Add(Ui.Button("选择音频来源…",async()=>
+        {var picked=await Ui.Pick(this,"选择音频来源",false);if(picked.Length==0)return;if(_entries.Count==0){await Ui.Message(this,"混流","请先选择视频来源。");return;}if(_entries.Count>1)_entries[1]=new(picked[0]);else _entries.Add(new(picked[0]));}));
+        var folder=new Button{Content="添加文件夹…"};folder.Click+=async(_,_)=>{if(await Ui.Folder(this,"添加文件夹") is {} path)AddPaths(Directory.EnumerateFiles(path));};folder.IsVisible=feature.Operation!=Operation.Mux;toolbar.Children.Add(folder);
         var remove=Ui.Button("移除选中",()=>{foreach(var x in list.SelectedItems?.Cast<ConversionEntry>().ToArray()??[])_entries.Remove(x);});toolbar.Children.Add(remove);
-        var ordered=feature.Operation is Operation.Join or Operation.Mux or Operation.AudioMix;
+        var ordered=feature.Operation is Operation.Join or Operation.AudioMix;
         var up=Ui.Button("上移",()=>{if(list.SelectedIndex>0){var index=list.SelectedIndex;_entries.Move(index,index-1);list.SelectedIndex=index-1;}});up.IsVisible=ordered;toolbar.Children.Add(up);
         var down=Ui.Button("下移",()=>{if(list.SelectedIndex>=0 && list.SelectedIndex<_entries.Count-1){var index=list.SelectedIndex;_entries.Move(index,index+1);list.SelectedIndex=index+1;}});down.IsVisible=ordered;toolbar.Children.Add(down);
-        var edit=new Button{Content="编辑选中…"};edit.Click+=async(_,_)=>
+        var edit=new Button{Content=feature.Id=="delogo"?"框选水印区域…":"编辑选中…"};edit.Click+=async(_,_)=>
         {
             if(list.SelectedItem is not ConversionEntry entry)return;var path=entry.Path;
             var inputEdit=feature.Operation is Operation.Join or Operation.AudioMix or Operation.Mux;
             try
             {
                 var draft=SelectOutput(entry.Options??(inputEdit?new ConversionOptions():_options),feature,(string?)formats.SelectedItem??feature.Format,path);
-                var audioInput=(feature.Operation==Operation.Mux || feature.Id=="join"&&mode.SelectedIndex==1)&&_entries.IndexOf(entry)>0;
+                var audioInput=feature.Operation==Operation.Mux&&_entries.IndexOf(entry)>0;
                 var w=new EditorWindow(engine,path,draft,audioInput?"input-audio":inputEdit?"input":feature.Id);var result=await w.ShowDialog<ConversionOptions?>(this);
                 if(result is not null && _entries.Contains(entry))entry.SetOptions(result);
             }
@@ -137,6 +147,49 @@ public sealed class ConvertWindow : Window
         if(media && feature.Operation!=Operation.ImagesPdf)toolbar.Children.Add(edit);
         foreach(var control in toolbar.Children)control.Margin=new(0,0,10,8);
         Grid.SetRow(toolbar,1);panel.Children.Add(toolbar);Grid.SetRow(list,2);panel.Children.Add(list);
+        if(feature.Operation==Operation.Frames)
+        {
+            var durations=new Dictionary<string,double>(VideoFolderScanner.PathComparer);var expected=Ui.Text("","caption");var generation=0;
+            void CountFrames()
+            {
+                if(durations.Count!=_entries.Count){expected.Text="";return;}
+                var selected=_entries.Where(entry=>entry.Include).ToArray();double frames=0;
+                foreach(var entry in selected)
+                {
+                    var options=entry.Options??_options;var end=options.End>0?Math.Min(options.End,durations[entry.Path]):durations[entry.Path];
+                    frames+=Math.Max(0,Math.Ceiling((end-options.Start)/options.FrameInterval));
+                }
+                expected.Text=selected.Length>0?Localization.Format($"预计 {frames} 帧"):"";
+            }
+            void WatchFrames(ConversionEntry entry)=>entry.PropertyChanged+=(_,change)=>{if(change.PropertyName is nameof(ConversionEntry.Include) or nameof(ConversionEntry.Summary))CountFrames();};
+            foreach(var entry in _entries)WatchFrames(entry);
+            _entries.CollectionChanged+=(_,change)=>{foreach(var entry in change.NewItems?.OfType<ConversionEntry>()??[])WatchFrames(entry);};
+            async Task ReadDurations()
+            {
+                var revision=++generation;
+                try{foreach(var entry in _entries.ToArray()){if(!durations.ContainsKey(entry.Path)){var info=await engine.Probe(entry.Path,_lifetime.Token);if(revision!=generation)return;durations[entry.Path]=info.Duration;}}if(revision==generation)CountFrames();}
+                catch(Exception){if(revision==generation)expected.Text="";}
+            }
+            _entries.CollectionChanged+=(_,_)=>{durations.Clear();_=ReadDurations();};Opened+=(_,_)=>_=ReadDurations();
+
+            var frameInterval=new NumericUpDown { Minimum=.1m,Maximum=86400,Value=(decimal)_options.FrameInterval,Text=MediaEngine.Number(_options.FrameInterval),Increment=1,Width=120 };
+            top.Children.Add(Ui.Text("每隔几秒导出一帧"));top.Children.Add(frameInterval);
+            frameInterval.ValueChanged+=(_,_)=>{if(frameInterval.Value is {} value){_options.FrameInterval=(double)value;foreach(var entry in _entries.Where(entry=>entry.Options is not null)){var options=entry.Options!.Clone();options.FrameInterval=(double)value;entry.SetOptions(options);}CountFrames();}};
+            top.Children.Add(expected);
+        }
+        if(feature.Id=="mp4")
+        {
+            var preset=Ui.Combo(["保持原尺寸","通用 MP4 · 1080p","手机视频 · 720p","无损转封装","自定义设置"],_options.CopyStreams?"无损转封装":_options.Height==1080?"通用 MP4 · 1080p":_options.Height==720?"手机视频 · 720p":_options.Width==0&&_options.Height==0?"保持原尺寸":"自定义设置");
+            preset.SelectionChanged+=(_,_)=>
+            {
+                if(preset.SelectedIndex==4)return;
+                var option=_options.Clone();option.Width=option.Height=0;option.CopyStreams=preset.SelectedIndex==3;
+                if(preset.SelectedIndex is 1 or 2){option.Format="mp4";option.VideoCodec="h264";option.AudioCodec="aac";option.Height=preset.SelectedIndex==1?1080:720;formats.SelectedItem="mp4";}
+                else if(preset.SelectedIndex==3){option.VideoCodec=option.AudioCodec="copy";}
+                else{option.VideoCodec=option.AudioCodec="自动";}
+                _options=option;foreach(var entry in _entries.Where(entry=>entry.Options is not null)){var old=entry.Options!;var edit=option.Clone();edit.Start=old.Start;edit.End=old.End;entry.SetOptions(edit);}
+            };top.Children.Add(preset);
+        }
         var special=Ui.Input(files.FirstOrDefault()??"");
         if(feature.Operation is Operation.Download or Operation.IsoCopy)
         {
@@ -153,20 +206,21 @@ public sealed class ConvertWindow : Window
         var addName=new CheckBox{Name="ConversionAddSettingName",Content="添加设置名称",IsChecked=initialOptions is null&&engine.Settings.AddSettingName};
         sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
         outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;outputFlags.Children.Add(sourceFolder);outputFlags.Children.Add(addName);Grid.SetRow(outputFlags,1);Grid.SetColumnSpan(outputFlags,3);output.Children.Add(outputFlags);
+        var validation=Ui.Text("","error");validation.TextWrapping=TextWrapping.Wrap;
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=16,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(0,12,0,0)};
         buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content=editing?"保存修改":"加入队列",IsDefault=true,Classes={"primary","dialog-action"}};ok.Click+=async(_,_)=>
         {
-            if(_preparing)return;_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=false;
+            if(_preparing)return;validation.Text="";_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=false;
             try
             {
-                var selection=(string?)formats.SelectedItem??feature.Format;var selected=feature;string[] inputs=_entries.Select(entry=>entry.Path).ToArray();
-                if(feature.Id=="join" && mode.SelectedIndex==1)selected=Catalog.Find("mux");
+                var selection=(string?)formats.SelectedItem??feature.Format;var selected=feature;var selectedEntries=_entries.Where(entry=>entry.Include||feature.Operation==Operation.Mux).ToArray();string[] inputs=selectedEntries.Select(entry=>entry.Path).ToArray();
                 if(feature.Operation is Operation.Download or Operation.IsoCopy)inputs=[special.Text??""];
                 _options=SelectOutput(_options,feature,selection,inputs.FirstOrDefault()??"");
                 var folderPath=Path.GetFullPath(outputBox.Text??"");var name=Path.Combine(folderPath,"validation."+(_options.Format.Length>0?_options.Format:"out"));
-                var perInput=_entries.Select(entry=>SelectOutput(entry.Options??(selected.Operation is Operation.Join or Operation.AudioMix or Operation.Mux?new ConversionOptions():_options),feature,selection,entry.Path)).ToArray();
-                var edits=sourceOutput||_entries.Any(entry=>entry.Options is not null)?perInput:null;
+                var perInput=selectedEntries.Select(entry=>SelectOutput(entry.Options??(selected.Operation is Operation.Join or Operation.AudioMix or Operation.Mux?new ConversionOptions():_options),feature,selection,entry.Path)).ToArray();
+                var edits=sourceOutput||selectedEntries.Any(entry=>entry.Options is not null)?perInput:null;
                 var candidate=new Job{FeatureId=selected.Id,Inputs=inputs,Output=name,Options=_options.Clone(),InputOptions=ConversionBatch.IsGrouped(selected)?edits?.ToList():null};
+                if(feature.Id=="delogo"&&perInput.Any(options=>options.DelogoWidth<=0||options.DelogoHeight<=0))throw new ArgumentException("请为每个勾选视频框选水印区域。");
                 if(ConversionBatch.IsGrouped(selected))MediaEngine.Validate(candidate);
                 else
                 {
@@ -185,13 +239,17 @@ public sealed class ConvertWindow : Window
                     }
                     if(ConversionBatch.IsGrouped(selected))MediaEngine.ValidateEdits(candidate,infos);
                 }
-                _lifetime.Token.ThrowIfCancellationRequested();Close(new ConversionRequest(selected,inputs,folderPath,candidate.Options,OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits));
+                var remembered=candidate.Options.Clone();remembered.Start=remembered.End=0;remembered.Subtitle="";remembered.CropX=remembered.CropY=remembered.CropWidth=remembered.CropHeight=0;remembered.DelogoX=remembered.DelogoY=remembered.DelogoWidth=remembered.DelogoHeight=0;
+                new Storage().SaveToolOptions(feature.Id,remembered);
+                _lifetime.Token.ThrowIfCancellationRequested();Close(new ConversionRequest(selected,inputs,folderPath,candidate.Options,OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits,StartImmediately:ToolExecution.StartImmediately(this)));
             }
             catch(OperationCanceledException){}
-            catch(Exception ex){if(IsVisible)await Ui.Message(this,"参数错误",ex.Message);}
+            catch(Exception ex){if(IsVisible)validation.Text=ex.Message;}
             finally{_preparing=false;if(IsVisible){foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;RefreshActions();}}
-        };buttons.Children.Add(ok);Grid.SetRow(buttons,4);panel.Children.Add(buttons);Content=panel;
-        _entries.CollectionChanged+=(_,_)=>RefreshActions();list.SelectionChanged+=(_,_)=>RefreshActions();special.TextChanged+=(_,_)=>RefreshActions();
+        };buttons.Children.Add(ok);var footer=new Grid { ColumnDefinitions=new("*,Auto"),ColumnSpacing=12 };footer.Children.Add(validation);Grid.SetColumn(buttons,1);footer.Children.Add(buttons);Grid.SetRow(footer,4);panel.Children.Add(footer);Content=panel;if(feature.Category=="视频")ToolExecution.Configure(this,ok,"开始处理",editing);
+        foreach(var entry in _entries)entry.PropertyChanged+=(_,_)=>RefreshActions();
+        _entries.CollectionChanged+=(_,change)=>{foreach(var entry in change.NewItems?.OfType<ConversionEntry>()??[])entry.PropertyChanged+=(_,_)=>RefreshActions();RefreshActions();};list.SelectionChanged+=(_,_)=>RefreshActions();special.TextChanged+=(_,_)=>RefreshActions();
+        foreach(var child in top.Children)child.Margin=new(0,0,10,8);
         top.IsVisible=top.Children.Any(control=>control.IsVisible);RefreshActions();
         void AddPaths(IEnumerable<string> paths)
         {
@@ -203,7 +261,7 @@ public sealed class ConvertWindow : Window
             var selected=list.SelectedItems?.Count??0;
             remove.IsEnabled=selected>0;edit.IsEnabled=selected==1;
             up.IsEnabled=selected==1&&list.SelectedIndex>0;down.IsEnabled=selected==1&&list.SelectedIndex>=0&&list.SelectedIndex<_entries.Count-1;
-            ok.IsEnabled=!_preparing&&(feature.Operation is Operation.Download or Operation.IsoCopy?!string.IsNullOrWhiteSpace(special.Text):_entries.Count>0);
+            ok.IsEnabled=!_preparing&&(feature.Operation is Operation.Download or Operation.IsoCopy?!string.IsNullOrWhiteSpace(special.Text):_entries.Any(entry=>entry.Include)||feature.Operation==Operation.Mux&&_entries.Count>0);
         }
     }
     private static ConversionOptions SelectOutput(ConversionOptions options,Feature feature,string selection,string path)

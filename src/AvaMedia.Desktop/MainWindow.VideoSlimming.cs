@@ -6,8 +6,9 @@ public partial class MainWindow
 {
     private async Task ConfigureVideoSlimmingAsync(string[]? files, Job? editing = null)
     {
-        var request = await new VideoSlimmingWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,
-            files ?? [], editing?.Options.VideoSlimming, editing is not null).ShowDialog<VideoSlimmingRequest?>(this);
+        var window = new VideoSlimmingWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,
+            files ?? [], editing?.Options.VideoSlimming, editing is not null);
+        var request = await window.ShowDialog<VideoSlimmingRequest?>(this);
         if (request is null) return;
         try
         {
@@ -20,8 +21,7 @@ public partial class MainWindow
             if (editing is not null) ApplyEditedJobs(editing, jobs);
             else
             {
-                foreach (var job in jobs) _jobs.Add(job);
-                Save(); Refresh();
+                AddToolJobs(jobs, ToolExecution.StartImmediately(window));
             }
         }
         catch (Exception exception) { await Ui.Message(this, "瘦身参数错误", exception.Message); }

@@ -16,7 +16,7 @@ public sealed partial class MediaAiWindow
         try
         {
             _libraryCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.JoyTag);
-            _librarySummary.Text = Localization.Format($"词库候选 {_libraryCandidates.Length} 个");
+            _librarySummary.Text = Localization.Format($"词库候选 {_libraryCandidates.Length} 个");_librarySummary.IsVisible=_libraryCandidates.Length>0;
             _onlyLibrary.IsEnabled = _libraryCandidates.Length > 0;
             if (_libraryCandidates.Length == 0) _onlyLibrary.IsChecked = false;
         }
@@ -38,6 +38,7 @@ public sealed partial class MediaAiWindow
         }
         else tags = result.Scores.Where(score => score.Score >= threshold)
             .Select(score => new ResultTag(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag), score.Score));
+        if(_editedTags.TryGetValue(result.Path,out var edited))tags=edited;
         var query = search ? _tagSearch.Text?.Trim() ?? "" : "";
         return tags.Where(tag => query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(tag => tag.Score).DistinctBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase);

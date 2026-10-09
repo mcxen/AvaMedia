@@ -55,8 +55,8 @@ public partial class VideoSlimmingWindow : Window
     public VideoSlimmingWindow(IMediaEngine engine, string outputFolder, string[] files,
         VideoSlimmingOptions? initial = null, bool editing = false)
     {
-        InitializeComponent(); _engine = engine; WindowArtwork.SetKind(this, "gear");
-        var options = initial ?? new();
+        InitializeComponent(); ToolExecution.Configure(this,ConfirmButton,"开始瘦身",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        var options = initial ?? new Storage().LoadToolOptions<VideoSlimmingOptions>("video-slim") ?? new();
         PresetInput.ItemsSource = new[] { "保真", "均衡", "更小" };
         CodecInput.ItemsSource = new[] { "HEVC（H.265）", "H.264（兼容性优先）" };
         FormatInput.ItemsSource = new[] { "MKV", "MP4" };
@@ -130,12 +130,13 @@ public partial class VideoSlimmingWindow : Window
         SourceFolderInput.IsEnabled = !_busy;
         OutputInput.IsEnabled = BrowseButton.IsEnabled = !_busy && SourceFolderInput.IsChecked != true;
         AnalysisProgress.IsVisible = _busy;
-        var valid = _entries.Count > 0 && _entries.All(entry => !entry.Loading && !entry.HasError);
+        var available = _entries.Where(entry => !entry.Loading && !entry.HasError && entry.Analysis?.Worthwhile != false).ToArray();
+        var valid = available.Length > 0 && !_entries.Any(entry => entry.Loading);
         var stopping = _analysisCancellation?.IsCancellationRequested == true;
         AnalyzeButton.Content = Localization.Text(_busy ? stopping ? "正在停止…" : "停止分析" : "预估体积");
         AnalyzeButton.IsEnabled = _busy ? !stopping : !_adding && _entries.Any(entry => !entry.Loading && entry.InspectionError.Length == 0 && entry.ValidationError.Length == 0);
         var hasFolder = SourceFolderInput.IsChecked == true || !string.IsNullOrWhiteSpace(OutputInput.Text);
-        ConfirmButton.IsEnabled = !_busy && !_adding && valid && hasFolder && _entries.All(entry => entry.Analysis?.Worthwhile != false);
+        ConfirmButton.IsEnabled = !_busy && !_adding && valid && hasFolder;
         var analyzed = _entries.Count(entry => entry.Analysis is not null);
         FileCountText.Text = _entries.Count > 0 ? Localization.Format($"{_entries.Count} 个视频") : "";
         EmptyText.IsVisible = _entries.Count == 0;
@@ -146,7 +147,7 @@ public partial class VideoSlimmingWindow : Window
         {
             var unavailable = _entries.Count(entry => entry.Unavailable);
             StatusText.Text = _adding ? Localization.Text("正在读取媒体信息…") : unavailable > 0
-                ? Localization.Format($"{unavailable} 个视频不可处理，请移除或调整参数。") : !hasFolder && _entries.Count > 0
+                ? Localization.Format($"处理 {available.Length} 个视频，跳过 {unavailable} 个不可处理文件") : !hasFolder && _entries.Count > 0
                 ? Localization.Text("请选择输出目录。") : _completionStatus.Length > 0 ? Localization.Text(_completionStatus)
                 : _entries.Count > 0 && analyzed < _entries.Count ? Localization.Text("未预估的视频将在执行时自动分析。") : "";
         }
@@ -273,10 +274,12 @@ public partial class VideoSlimmingWindow : Window
         try
         {
             var options = ReadOptions(); options.Validate();
-            var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(_entries[0].Path)! : OutputInput.Text;
+            var available=_entries.Where(entry=>!entry.Loading&&!entry.HasError&&entry.Analysis?.Worthwhile!=false).ToArray();
+            new Storage().SaveToolOptions("video-slim",options with { Analysis=null });
+            var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(available[0].Path)! : OutputInput.Text;
             if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
-            Close(new VideoSlimmingRequest(_entries.Select(entry => entry.Path).ToArray(), options, Path.GetFullPath(folder),
-                SourceFolderInput.IsChecked == true, _entries.Where(entry => entry.Analysis is not null)
+            Close(new VideoSlimmingRequest(available.Select(entry => entry.Path).ToArray(), options, Path.GetFullPath(folder),
+                SourceFolderInput.IsChecked == true, available.Where(entry => entry.Analysis is not null)
                     .ToDictionary(entry => entry.Path, entry => entry.Analysis!)));
         }
         catch (Exception exception) { await Ui.Message(this, "瘦身参数错误", exception.Message); }

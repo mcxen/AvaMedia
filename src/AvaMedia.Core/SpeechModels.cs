@@ -8,11 +8,27 @@ public sealed class TranscriptionOptions
 {
     public string Language { get; set; } = "auto";
     public SpeechModel Model { get; set; }
-    public TranscriptionOptions Clone() => (TranscriptionOptions)MemberwiseClone();
+    public SubtitleCue[]? ReviewedCues { get; set; }
+    public long ReviewedSourceLength { get; set; }
+    public DateTime ReviewedSourceWriteUtc { get; set; }
+    public TranscriptionOptions Clone()
+    {
+        var result = (TranscriptionOptions)MemberwiseClone(); result.ReviewedCues = ReviewedCues?.ToArray(); return result;
+    }
     public void Validate()
     {
         if (!Enum.IsDefined(Model) || !Languages.Contains(Language))
             throw new ArgumentException("请选择有效的识别语言和模型。");
+        if (ReviewedCues is not null)
+        {
+            var previous = TimeSpan.Zero;
+            foreach (var cue in ReviewedCues)
+            {
+                if (cue.Start < previous || cue.End <= cue.Start || string.IsNullOrWhiteSpace(cue.Text))
+                    throw new ArgumentException("字幕时间无效或重叠，请先校对字幕。");
+                previous = cue.End;
+            }
+        }
     }
     public static readonly string[] Languages = ["auto", "zh", "en", "ja", "ko", "fr", "de", "es", "ru"];
 }

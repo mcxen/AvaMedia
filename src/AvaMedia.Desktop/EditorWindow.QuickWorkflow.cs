@@ -52,6 +52,7 @@ public partial class EditorWindow
     private bool QuickWorkflow => _mode == "quick-workflow";
     public IReadOnlyList<ClipSegmentEntry> Segments => _segments;
     public Task DirectionReady => _directionReady;
+    public void SetWorkflowCompletion(string action) => ConfirmButton.Content=Localization.Text(action);
 
     private void InitializeQuickWorkflow(IReadOnlyList<ConversionOptions>? segments, IVideoOrientationDetector? detector)
     {

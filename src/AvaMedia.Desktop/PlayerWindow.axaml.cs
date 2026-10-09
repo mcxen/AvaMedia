@@ -319,7 +319,7 @@ public partial class PlayerWindow : Window
             case PlayerCommand.Stop: await SeekAsync(0, false); break;
             case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; ShowChrome(); break;
             case PlayerCommand.Playlist: TogglePlaylist(); break;
-            case PlayerCommand.Settings: OpenMenu(BuildMenu(), PlayerSettingsButton); break;
+            case PlayerCommand.Settings: OpenMenu(BuildSettingsMenu(), PlayerSettingsButton); break;
             case PlayerCommand.CaptureFrame: await CaptureFrameAsync(); break;
             case PlayerCommand.DeleteFile: await DeleteCurrentAsync(); break;
             case PlayerCommand.VrSettings: ToggleVrPanel(); break;
@@ -524,7 +524,7 @@ public partial class PlayerWindow : Window
                 {
                     var stream=choice.Stream;var index=choice.Index;
                     var codec = stream.GetProperty("codec_name").GetString();
-                    var item = new MenuItem { Header = $"{index + 1}: {codec}", ToggleType = MenuItemToggleType.Radio, IsChecked = index == (type == "video" ? info.VideoStreamIndex : info.AudioStreamIndex) };
+                    var item = new MenuItem { Header = TrackSelector.Label(stream,index), ToggleType = MenuItemToggleType.Radio, IsChecked = index == (type == "video" ? info.VideoStreamIndex : info.AudioStreamIndex) };
                     item.Click += (_, _) => CommandReady = StartOpen(CurrentPath, type == "video" ? index : info.VideoStreamIndex, type == "audio" ? index : info.AudioStreamIndex, _position, _playIntent);
                     return item;
                 }).ToArray();
@@ -552,9 +552,15 @@ public partial class PlayerWindow : Window
         var close = new MenuItem { Header = "关闭" }; close.Click += (_, _) => Close(); items.Add(close);
         return new ContextMenu { ItemsSource = items };
     }
+    private ContextMenu BuildSettingsMenu()
+    {
+        var menu=BuildMenu();
+        menu.ItemsSource=menu.ItemsSource!.OfType<MenuItem>().Where(item=>item.Header is string header && header is "播放速度" or "视频轨" or "音频轨" or "画面比例" or "VR 视频" or "原生 GPU / HDR 播放…" or "4K / HDR 优先原生播放" or "原生播放输出为 SDR" or "解码与色彩信息…" or "删除到回收站前确认").ToArray();
+        return menu;
+    }
     private void MenuClick(object? sender, RoutedEventArgs e) => OpenMenu(BuildMenu(), PlayerMenuButton);
     private void SpeedClick(object? sender, RoutedEventArgs e) => OpenMenu(SpeedMenu(), PlayerSpeed);
-    private void SettingsClick(object? sender, RoutedEventArgs e) => OpenMenu(BuildMenu(), PlayerSettingsButton);
+    private void SettingsClick(object? sender, RoutedEventArgs e) => OpenMenu(BuildSettingsMenu(), PlayerSettingsButton);
     private void PlaylistClick(object? sender, RoutedEventArgs e) => TogglePlaylist();
     private void MinimizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void MaximizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;

@@ -20,23 +20,28 @@ public sealed partial class RenameWindow
     private readonly StackPanel _semanticPanel = new() { Spacing = 8, IsVisible = false };
     private readonly Controls.AiActivityView _semanticActivity = new();
     private readonly StackPanel _semanticParameters = new() { Spacing = 8, IsVisible = false };
-    private readonly TextBlock _semanticModelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly Dictionary<string, MediaKeywordResult> _semanticResults = new(BatchRename.PathComparer);
     private readonly Dictionary<string, string> _semanticDetails = new(BatchRename.PathComparer);
     private readonly CancellationTokenSource _semanticLifetime = new();
     private Button? _matchKeywords;
-    private bool _semanticInstalled;
-    private bool _semanticApplying;
+        private bool _semanticApplying;
     private string _ordinaryPattern = "{name}_{index}";
     private string _keywordPattern = "{keyword}_{index}";
     private bool SemanticEnabled => _settings.EnableBetaFeatures == true && _semantic.IsChecked == true;
 
+    private sealed record SemanticPreferences(string Keywords,MediaKeywordOptions Options,bool PreferGpu);
     private void InitializeSemanticRename()
     {
         if (_settings.EnableBetaFeatures == true)
         {
+            if(new Storage().LoadToolOptions<SemanticPreferences>("semantic-rename") is {} saved)
+            {
+                _keywords.Text=saved.Keywords;_semanticFrames.Value=saved.Options.Frames;_semanticThreshold.Value=(decimal)saved.Options.MinimumSimilarity;
+                _semanticMargin.Value=(decimal)saved.Options.MinimumMargin;_semanticReuse.IsChecked=saved.Options.ReuseSimilarFrames;_semanticGpu.IsChecked=saved.PreferGpu;
+            }
+            foreach(var input in new[]{_semanticFrames,_semanticThreshold,_semanticMargin})input.Text=input.Value?.ToString(input.NumberFormat);
             _semanticPanel.IsVisible = true;
-            _semanticGpu.IsChecked = _settings.AutoDetectGpu;
+
             _semanticPanel.Children.Add(_semantic);
             _semantic.IsCheckedChanged += (_, _) =>
             {
@@ -48,41 +53,33 @@ public sealed partial class RenameWindow
             Localization.SetIsUserText(_keywords, true);
             InitializeSemanticWordLibraries();
             _semanticParameters.Children.Add(_keywords);
-            _semanticParameters.Children.Add(Ui.Text("逗号或换行分隔；可写“海边=人在海边散步”。", "caption"));
-            AddRow(_semanticParameters, "每视频采样帧数", _semanticFrames);
-            AddRow(_semanticParameters, "最低相似度", _semanticThreshold);
-            AddRow(_semanticParameters, "关键词分差", _semanticMargin);
-            _semanticParameters.Children.Add(_semanticGpu); _semanticParameters.Children.Add(_semanticReuse);
-            _semanticParameters.Children.Add(Ui.Text("相似度不是概率；不确定结果可手动勾选和修改标签。", "caption"));
-            _semanticParameters.Children.Add(Ui.Text("{keyword} 匹配关键词", "caption"));
-            _semanticParameters.Children.Add(_semanticModelStatus);
+            var advanced=new StackPanel { Spacing=8 };
+            AddRow(advanced, "每视频采样帧数", _semanticFrames);
+            AddRow(advanced, "最低相似度", _semanticThreshold);
+            AddRow(advanced, "关键词分差", _semanticMargin);
+            advanced.Children.Add(_semanticGpu); advanced.Children.Add(_semanticReuse);
+
+            _semanticParameters.Children.Add(new Expander { Header="高级设置", Content=advanced, HorizontalAlignment=HorizontalAlignment.Stretch });
             var models = Ui.Button("模型管理…", async () =>
             {
                 try
                 {
                     if (_manageModels is not null) await _manageModels(this);
                     if (_closed) return;
-                    if (_settings.EnableBetaFeatures) await RefreshSemanticModelAsync();
-                    else { _semantic.IsChecked = false; _semanticPanel.IsVisible = false; }
+                    if (!_settings.EnableBetaFeatures) { _semantic.IsChecked = false; _semanticPanel.IsVisible = false; }
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception error) { if (!_closed) _progressText.Text = error.Message; }
             });
-            models.IsVisible = _manageModels is not null; _semanticParameters.Children.Add(models);
+            models.IsVisible = _manageModels is not null; advanced.Children.Add(models);
             _matchKeywords = Ui.Button("匹配并预览", async () => await MatchKeywordsAsync());
-            _matchKeywords.IsEnabled = false; _semanticParameters.Children.Add(_matchKeywords);
+            _matchKeywords.IsEnabled = true; _semanticParameters.Children.Add(_matchKeywords);
             _semanticPanel.Children.Add(_semanticParameters); _renamePanel.Children.Add(_semanticPanel);
             _keywords.TextChanged += (_, _) => ClearSemanticMatches();
             _semanticGpu.IsCheckedChanged += (_, _) => ClearSemanticMatches(); _semanticReuse.IsCheckedChanged += (_, _) => ClearSemanticMatches();
             foreach (var number in new[] { _semanticFrames, _semanticThreshold, _semanticMargin })
                 number.PropertyChanged += (_, change) =>
                 { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) ClearSemanticMatches(); };
-            Opened += async (_, _) =>
-            {
-                try { await RefreshSemanticModelAsync(); }
-                catch (OperationCanceledException) { }
-                catch (Exception error) { if (!_closed) _semanticModelStatus.Text = error.Message; }
-            };
         }
         Closed += (_, _) => { _semanticLifetime.Cancel(); _semanticLifetime.Dispose(); };
     }
@@ -93,15 +90,6 @@ public sealed partial class RenameWindow
         if (!decimal.TryParse(input.Text, System.Globalization.NumberStyles.Number, input.NumberFormat, out var value)
             || value < input.Minimum || value > input.Maximum) throw new ArgumentException("请输入范围内的语义匹配参数。");
         return (double)value;
-    }
-    private async Task RefreshSemanticModelAsync()
-    {
-        var token = _semanticLifetime.Token;
-        var installed = await Task.Run(() => new ModelStore().IsInstalledAsync(ModelCatalog.EmbeddingId, ct: token), token);
-        if (_closed) return;
-        _semanticInstalled = installed;
-        _semanticModelStatus.Text = Localization.Text(installed ? "EmbeddingGemma 2 已下载" : "请先在模型管理中下载 EmbeddingGemma 2");
-        if (_matchKeywords is not null) _matchKeywords.IsEnabled = installed;
     }
     private void ClearSemanticMatches()
     {
@@ -124,7 +112,7 @@ public sealed partial class RenameWindow
     }
     private async Task MatchKeywordsAsync()
     {
-        if (!SemanticEnabled || !_semanticInstalled || _operation is not null || _renaming || _importing) return;
+        if (!SemanticEnabled || _operation is not null || _renaming || _importing) return;
         SemanticKeyword[] keywords; MediaKeywordOptions options;
         try
         {
@@ -144,6 +132,10 @@ public sealed partial class RenameWindow
         var matched = 0; var failed = 0;
         try
         {
+            var store=new ModelStore();
+            if(!await store.IsInstalledAsync(ModelCatalog.EmbeddingId,ct:operation.Token))
+                await store.DownloadAsync(ModelCatalog.EmbeddingId,new Progress<ModelDownloadProgress>(value=>{if(!_closed)_progressText.Text=Localization.Text("下载模型")+$" · {value.Percent:0}%";}),operation.Token);
+            new Storage().SaveToolOptions("semantic-rename",new SemanticPreferences(_keywords.Text??"",options,_semanticGpu.IsChecked==true));
             var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) _semanticActivity.Update(activity); });
             await using var matcher = await MediaKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true, progress: modelProgress);
             for (var index = 0; index < selected.Length; index++)

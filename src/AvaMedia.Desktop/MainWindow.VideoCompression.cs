@@ -15,14 +15,13 @@ public partial class MainWindow
 
     private async Task ConfigureVideoCompressionAsync(string[]? files, VideoCompressionOptions? options = null)
     {
-        var request = await new VideoCompressionWindow(Engine, _settings.OutputFolder, files ?? [], options)
-            .ShowDialog<VideoCompressionRequest?>(this);
+        var window = new VideoCompressionWindow(Engine, _settings.OutputFolder, files ?? [], options);
+        var request = await window.ShowDialog<VideoCompressionRequest?>(this);
         if (request is null) return;
         try
         {
             var jobs = CreateCompressionJobs(request, _jobs.Select(job => job.Output));
-            foreach (var job in jobs) _jobs.Add(job);
-            Save(); Refresh();
+            AddToolJobs(jobs, ToolExecution.StartImmediately(window));
         }
         catch (Exception exception) { await Ui.Message(this, "压缩参数错误", exception.Message); }
     }

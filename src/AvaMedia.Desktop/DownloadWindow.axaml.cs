@@ -55,7 +55,7 @@ public partial class DownloadWindow : Window
     public DownloadWindow() : this(new(),MediaFolders.DefaultOutput) { }
     public DownloadWindow(AppSettings settings,string folder,IEnumerable<string>? links=null,IVideoDownloadService? service=null,Job? editingJob=null)
     {
-        InitializeComponent();_service=service??new VideoDownloadService(settings);_editing=editingJob is not null;
+        InitializeComponent();ToolExecution.Configure(this,AddDownloadsButton,"开始下载",editingJob is not null);_service=service??new VideoDownloadService(settings);_editing=editingJob is not null;
         var options=editingJob?.Options.Download??new();
         _qualityHeights=new[]{0,2160,1440,1080,720,480,360}.Append(options.MaxHeight).Distinct().OrderBy(height=>height==0?int.MaxValue:height).Reverse().ToArray();
         DownloadList.ItemsSource=_entries;DownloadFolder.Text=folder;LinksInput.Text=string.Join(Environment.NewLine,links??[]);

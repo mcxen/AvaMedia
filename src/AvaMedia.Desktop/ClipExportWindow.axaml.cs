@@ -19,7 +19,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     public ClipExportWindow(IEnumerable<ClipEditResult> edits,string folder,ClipExportState? state=null,bool allowJoin=false,IMediaPreview? previewFrames=null)
     {
         _previewFrames=previewFrames??new MediaEngine(new());
-        InitializeComponent();_edits=edits.ToArray();_options=state?.Options.Clone()??new();
+        InitializeComponent();ToolExecution.Configure(this,JoinQueueButton,"开始导出");_edits=edits.ToArray();_options=state?.Options.Clone()??new();
         Closed+=(_,_)=>{_lifetime.Cancel();_lifetime.Dispose();};
         Avalonia.Automation.AutomationProperties.SetName(FormatCombo,"快速剪辑输出格式");
         Avalonia.Automation.AutomationProperties.SetName(ExportFolder,"快速剪辑保存位置");
@@ -51,7 +51,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         if(!state.OutputToSource)_=Path.GetFullPath(state.Folder);
         var inputs=QuickClipWorkflow.PrepareExports(_edits,state.Preset,state.Options);
         if(state.JoinSegments)QuickClipWorkflow.ValidateJoinedExports(_edits,state.Preset);
-        return new(Catalog.Find("clip"),_edits.Select(e=>e.Path).ToArray(),state.Folder,state.Options.Clone(),inputs,state.OutputToSource,state.AddSettingName?(state.Preset=="Fast Copy"?"FastCopy":state.Preset):"");
+        return new(Catalog.Find("clip"),_edits.Select(e=>e.Path).ToArray(),state.Folder,state.Options.Clone(),inputs,state.OutputToSource,state.AddSettingName?(state.Preset=="Fast Copy"?"FastCopy":state.Preset):"",StartImmediately:ToolExecution.StartImmediately(this));
     }
     private void ValidateExport()
     {
@@ -88,7 +88,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     private void CancelClick(object? sender,RoutedEventArgs e)=>Close(null);
     private void ConfirmClick(object? sender,RoutedEventArgs e)
     {
-        try{Close(new ClipExportDecision(false,ReadState(),CreateRequest()));}
+        try{var request=CreateRequest();var state=ReadState();new Storage().SaveToolOptions("clip-export",state);Close(new ClipExportDecision(false,state,request));}
         catch(Exception ex){ExportError.Text=ex.Message;JoinQueueButton.IsEnabled=false;}
     }
 }

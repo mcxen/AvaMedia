@@ -43,7 +43,7 @@ public sealed class VideoSummaryWindow : Window
     public VideoSummaryWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, VideoSummaryOptions? initial = null,
         string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null)
     {
-        _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new();
+        _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new Storage().LoadToolOptions<VideoSummaryOptions>("video-summary") ?? new() { ExtractSubtitles=false, AnalyzeContent=false,Speech=new(){Model=SpeechModel.Base} };
         Title = _editing ? "编辑任务 · 视频总结" : "视频总结";
         Width = 960; Height = 800; MinWidth = 780; MinHeight = 620;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "document");
@@ -93,7 +93,7 @@ public sealed class VideoSummaryWindow : Window
         _subtitles.IsChecked = options.ExtractSubtitles; _analysis.IsChecked = options.AnalyzeContent;
         foreach (var choice in new[] { _abstract, _summary, _subtitles, _analysis })
         { choice.Margin = new(0, 0, 20, 0); choice.IsCheckedChanged += (_, _) => Refresh(); outputs.Children.Add(choice); }
-        fields.Children.Add(outputs);
+        fields.Children.Add(new Expander { Header="输出内容", Content=outputs, HorizontalAlignment=HorizontalAlignment.Stretch });
         _provider = Ui.Combo(["本地模型", "线上 AI"], "本地模型");
         _provider.SelectedIndex = (int)options.Provider; _provider.Name = "SummaryProvider";
         Add(fields, "总结模型", _provider);
@@ -103,7 +103,8 @@ public sealed class VideoSummaryWindow : Window
         Add(_onlineProviderRow, "供应商", _onlineProvider); fields.Children.Add(_onlineProviderRow);
         _source = Ui.Combo(["自动：优先字幕，否则识别语音", "视频字幕轨", "语音识别", "外部字幕文件"], "自动：优先字幕，否则识别语音");
         _source.SelectedIndex = (int)options.TranscriptSource; _source.Name = "SummaryTranscriptSource";
-        Add(fields, "字幕来源", _source);
+        var recognition = new StackPanel { Spacing=8 };
+        Add(recognition, "字幕来源", _source);
         _external.Text = options.SubtitleFile; Localization.SetIsUserText(_external, true);
         var pickSubtitle = new Button { Content = "浏览…", Classes = { "field-action" } };
         pickSubtitle.Click += async (_, _) =>
@@ -117,13 +118,13 @@ public sealed class VideoSummaryWindow : Window
             catch (Exception error) { ShowError(error); }
         };
         _externalRow = new() { Spacing = 8 };
-        Add(_externalRow, "字幕文件", WithButton(_external, pickSubtitle)); fields.Children.Add(_externalRow);
+        Add(_externalRow, "字幕文件", WithButton(_external, pickSubtitle)); recognition.Children.Add(_externalRow);
         _speechLanguage = Ui.Combo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别");
         _speechLanguage.SelectedIndex = Math.Max(0, Array.IndexOf(TranscriptionOptions.Languages, options.Speech.Language));
         _speechModel = Ui.Combo(["轻量 · Tiny · 32 MB", "标准 · Base · 60 MB", "Small · 190 MB"], options.Speech.Model switch
         { SpeechModel.Base => "标准 · Base · 60 MB", SpeechModel.Small => "Small · 190 MB", _ => "轻量 · Tiny · 32 MB" });
         _speechFields = new() { Spacing = 8 };
-        Add(_speechFields, "识别语言", _speechLanguage); Add(_speechFields, "语音模型", _speechModel); fields.Children.Add(_speechFields);
+        Add(_speechFields, "识别语言", _speechLanguage); Add(_speechFields, "语音模型", _speechModel); recognition.Children.Add(_speechFields);
         _frames.IsChecked = options.AnalyzeFrames; _frames.IsCheckedChanged += (_, _) => Refresh(); fields.Children.Add(_frames);
         _language = Ui.Combo(["简体中文", "English", "日本語"], options.OutputLanguage); Add(fields, "输出语言", _language);
         _focus.Text = options.Focus; _focus.AcceptsReturn = true; _focus.TextWrapping = Avalonia.Media.TextWrapping.Wrap; _focus.MinHeight = 64;
@@ -154,9 +155,13 @@ public sealed class VideoSummaryWindow : Window
         var advanced = new StackPanel { Spacing = 8 };
         _frameCount.Value = options.FrameCount; _subtitleTrack.Value = options.SubtitleTrack;
         _audioTrack.Value = options.AudioTrack; _chunkSize.Value = options.ChunkCharacters; _gpu.IsChecked = options.PreferGpu;
-        Add(advanced, "采样画面数", _frameCount); Add(advanced, "字幕轨（-1 自动）", _subtitleTrack);
-        Add(advanced, "音轨（从 0 起）", _audioTrack); Add(advanced, "分段字符数", _chunkSize); advanced.Children.Add(_gpu);
-        fields.Children.Add(new Expander { Header = "更多选项", Content = advanced, HorizontalAlignment = HorizontalAlignment.Stretch });
+        Add(advanced, "采样画面数", _frameCount); var subtitle=new TrackSelector(engine,files?.FirstOrDefault(),"subtitle",options.SubtitleTrack,_lifetime.Token);
+        var audio=new TrackSelector(engine,files?.FirstOrDefault(),"audio",options.AudioTrack,_lifetime.Token);
+        subtitle.SelectionChanged+=(_,_)=>{if(subtitle.SelectedItem is not null)_subtitleTrack.Value=subtitle.Index;};audio.SelectionChanged+=(_,_)=>{if(audio.SelectedItem is not null)_audioTrack.Value=audio.Index;};
+        _sources.SelectionChanged+=(_,_)=>{var path=_sources.SelectedItem as string;subtitle.SetSource(engine,path,"subtitle",(int)(_subtitleTrack.Value??-1),_lifetime.Token);audio.SetSource(engine,path,"audio",(int)(_audioTrack.Value??0),_lifetime.Token);};
+        Add(advanced,"字幕轨",subtitle);Add(advanced,"音轨",audio); Add(advanced, "分段字符数", _chunkSize); advanced.Children.Add(_gpu);
+        foreach(var child in advanced.Children.ToArray()){advanced.Children.Remove(child);recognition.Children.Add(child);}
+        fields.Children.Add(new Expander { Header = "识别设置", Content = recognition, HorizontalAlignment = HorizontalAlignment.Stretch });
         var saving = new StackPanel { Spacing = 8 }; _folder = Ui.Input(outputFolder); Localization.SetIsUserText(_folder, true);
         var browse = new Button { Content = "浏览…", Classes = { "field-action" } };
         browse.Click += async (_, _) =>
@@ -182,6 +187,9 @@ public sealed class VideoSummaryWindow : Window
                     var info = await _engine.Probe(file, _lifetime.Token, audioStreamIndex: request.Options.VideoSummary!.AudioTrack);
                     if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有画面和有效时长的视频。");
                 }
+                var remembered=request.Options.VideoSummary!.Clone();remembered.SubtitleFile="";
+                if(remembered.TranscriptSource==VideoTranscriptSource.External)remembered.TranscriptSource=VideoTranscriptSource.Automatic;
+                new Storage().SaveToolOptions("video-summary",remembered);
                 if (!_lifetime.IsCancellationRequested) Close(request);
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -192,7 +200,7 @@ public sealed class VideoSummaryWindow : Window
             }
         };
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
-        Content = root;
+        Content = root; ToolExecution.Configure(this,_confirm,"开始总结",_editing);
         _source.SelectionChanged += (_, _) => Refresh(); _provider.SelectionChanged += (_, _) => Refresh();
         _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
         DragDrop.SetAllowDrop(root, true);
@@ -207,6 +215,7 @@ public sealed class VideoSummaryWindow : Window
         if (_busy || _lifetime.IsCancellationRequested) return;
         var known = _files.ToHashSet(VideoFolderScanner.PathComparer);
         foreach (var path in files.Where(File.Exists).Where(VideoFormats.IsVideo).Select(Path.GetFullPath).Where(known.Add)) _files.Add(path);
+        if(_sources.SelectedItem is null&&_files.Count>0)_sources.SelectedIndex=0;
         _notice.Text = ""; Refresh();
     }
     private ConversionRequest ReadRequest()
@@ -233,7 +242,7 @@ public sealed class VideoSummaryWindow : Window
         if (options.TranscriptSource == VideoTranscriptSource.External && _files.Count != 1) throw new ArgumentException("使用外部字幕时请选择一个视频。");
         var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(_files[0])! : _folder.Text?.Trim() ?? "";
         if (folder.Length == 0) throw new ArgumentException("请选择输出目录。");
-        return new(Catalog.Find("video-summary"), _files.ToArray(), folder, new() { Format = "", VideoSummary = options }, OutputToSource: _sourceFolder.IsChecked == true);
+        return new(Catalog.Find("video-summary"), _files.ToArray(), folder, new() { Format = "", VideoSummary = options }, OutputToSource: _sourceFolder.IsChecked == true, StartImmediately: ToolExecution.StartImmediately(this));
     }
     private void ShowError(Exception error) { if (!_lifetime.IsCancellationRequested) _notice.Text = Localization.Text(error.Message); }
     private void Refresh()

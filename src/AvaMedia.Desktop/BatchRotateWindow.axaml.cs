@@ -57,7 +57,7 @@ public sealed partial class BatchRotateWindow : Window
     public BatchRotateWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder) { }
     public BatchRotateWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, IVideoOrientationDetector? detector = null)
     {
-        InitializeComponent(); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
+        InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
         FileList.ItemsSource = _entries; RotationTransform.LayoutTransform = _rotation;
         ModeCombo.ItemsSource = new[] { "统一旋转", "逐个调整" }; ModeCombo.SelectedIndex = 0;
         DirectionCombo.ItemsSource = new[] { BatchRotate.Direction(90), BatchRotate.Direction(270), BatchRotate.Direction(180), BatchRotate.Direction(0) }; DirectionCombo.SelectedIndex = 0;
@@ -215,6 +215,7 @@ public sealed partial class BatchRotateWindow : Window
         OkButton.IsEnabled = changed > 0 && invalid == 0 && unresolved == 0 && pending == 0 && outputValid && !_detecting;
         DetectButton.IsEnabled = included.Length > 0 && pending == 0 && invalid == 0 && !_detecting;
         CancelDetectionButton.IsVisible = _detecting;
+        UncertainOnly.IsEnabled=!_detecting&&_entries.Any(entry=>entry.Detection is not null||entry.Rotation is null);
         AddButton.IsEnabled = SelectAllButton.IsEnabled = ModeCombo.IsEnabled = !_detecting;
         RemoveButton.IsEnabled=!_detecting&&FileList.SelectedItems?.Count>0;SelectAllButton.IsVisible=_entries.Count>1;
         DirectionCombo.IsEnabled = !_detecting && (!PerFile || _active?.Info is not null);
@@ -289,7 +290,7 @@ public sealed partial class BatchRotateWindow : Window
                     entry.DetectionMessage = "检测未完成，请手动选择方向。";
             }
             if (ReferenceEquals(_detectionCancellation, cancellation)) _detectionCancellation = null;
-            _detecting = false; RefreshValidation();
+            _detecting = false; if(UncertainOnly.IsChecked==true)UncertainFilterChanged(null,null!);RefreshValidation();
         }
     }
 
@@ -366,6 +367,12 @@ public sealed partial class BatchRotateWindow : Window
         RefreshValidation();
     }
     private void ModeChanged(object? sender, SelectionChangedEventArgs args) => RefreshValidation();
+    private void UncertainFilterChanged(object? sender,Avalonia.Interactivity.RoutedEventArgs args)
+    {
+        var selected=FileList.SelectedItem;
+        FileList.ItemsSource=UncertainOnly.IsChecked==true?_entries.Where(entry=>entry.Rotation is null).ToArray():_entries;
+        if(selected is BatchRotateEntry entry && (UncertainOnly.IsChecked!=true||entry.Rotation is null))FileList.SelectedItem=entry;
+    }
     private async void DetectClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => await DetectDirectionsAsync();
     private void CancelDetectionClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => CancelDetection();
     private void FormatChanged(object? sender, SelectionChangedEventArgs args) => RefreshValidation();

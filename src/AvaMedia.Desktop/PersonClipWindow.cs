@@ -6,14 +6,19 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed record PersonClipRequest(IReadOnlyList<QuickClipInput> Inputs, string OutputFolder, bool OutputToSource);
+public sealed record PersonClipRequest(IReadOnlyList<ClipEditResult> Edits, string OutputFolder, bool OutputToSource, string Preset, bool StartImmediately);
 
-public sealed class PersonClipWindow : Window
+public sealed partial class PersonClipWindow : Window
 {
     private sealed class Entry(string path)
     {
         public string Path { get; } = path;
         public PersonClipRange[] Excluded { get; set; } = [];
+        public ClipEditResult? Result { get; set; }
+        public string Status { get; set; } = "待分析";
+        public string Error { get; set; } = "";
+        public long Length { get; set; }
+        public DateTime WriteUtc { get; set; }
     }
     private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
@@ -30,7 +35,7 @@ public sealed class PersonClipWindow : Window
     private readonly NumericUpDown _minimum = Number(0, 30, .5m, .1m);
     private readonly NumericUpDown _darkThreshold = Number(1, 32, 8, 1);
     private readonly CheckBox _uncertain = new() { Content = "保留不确定片段" };
-    private readonly CheckBox _embedding = new() { Content = "使用 EmbeddingGemma 2 语义辅助", IsEnabled = false };
+    private readonly CheckBox _embedding = new() { Content = "使用 EmbeddingGemma 2 语义辅助", IsEnabled = true };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU", IsChecked = true };
     private readonly CheckBox _reuseFrames = new() { Content = "复用相似画面", IsChecked = true };
     private readonly CheckBox _dark = new() { Content = "快速排除黑灯画面", IsChecked = true };
@@ -61,7 +66,7 @@ public sealed class PersonClipWindow : Window
         _engine = engine; _settings = settings; _manageModels = manageModels;
         Title = "保留有人片段 · Beta"; Width = 920; Height = 740; MinWidth = 760; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var defaults = initial?.Detection ?? new();
+        var defaults = initial?.Detection ?? new Storage().LoadToolOptions<PersonClipOptions>("person-clip") ?? new();
         _fps.Value = (decimal)defaults.FramesPerSecond; _threshold.Value = (decimal)defaults.Threshold;
         _padding.Value = (decimal)defaults.PaddingSeconds; _gap.Value = (decimal)defaults.MergeGapSeconds;
         _minimum.Value = (decimal)defaults.MinimumSeconds; _darkThreshold.Value = (decimal)defaults.DarkLumaThreshold;
@@ -69,6 +74,7 @@ public sealed class PersonClipWindow : Window
         _gpu.IsChecked = initial is null ? settings.AutoDetectGpu : defaults.PreferGpu;
         _reuseFrames.IsChecked = defaults.ReuseSimilarFrames; _dark.IsChecked = defaults.SkipDarkFrames; _blank.IsChecked = defaults.SkipBlankFrames;
         _detectionMode.SelectedIndex = (int)defaults.DetectionMode;
+        foreach (var input in new[] { _fps, _threshold, _padding, _gap, _minimum, _darkThreshold }) input.Text = input.Value?.ToString(input.NumberFormat);
         _folder.Text = outputFolder ?? settings.OutputFolder; _sourceFolder.IsChecked = outputToSource ?? settings.OutputToSource;
         _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _sourceFolder.IsCheckedChanged += (_, _) => _folder.IsEnabled = _sourceFolder.IsChecked != true;
@@ -81,8 +87,8 @@ public sealed class PersonClipWindow : Window
         var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         tools.Children.Add(Ui.Button("添加视频…", async () => await AddFilesAsync()));
-        tools.Children.Add(Ui.Button("移除", () => { if (_files.SelectedIndex >= 0) { _entries.RemoveAt(_files.SelectedIndex); RefreshFiles(); } }));
-        tools.Children.Add(Ui.Button("模型管理…", async () => await OpenModelsAsync(null))); layout.Children.Add(tools);
+        tools.Children.Add(Ui.Button("移除", () => { if (!_busy && _files.SelectedIndex >= 0) { _entries.RemoveAt(_files.SelectedIndex); RefreshFiles(); } }));
+        tools.Children.Add(Ui.Button("高级设置…", async () => await OpenAdvancedAsync())); layout.Children.Add(tools);
         var parameters = new StackPanel { Spacing = 8 };
         parameters.Children.Add(Ui.Text("检测模型", "settingsHeading"));
         foreach (var detector in PersonDetectorCatalog.All)
@@ -97,7 +103,7 @@ public sealed class PersonClipWindow : Window
             parameters.Children.Add(row); _detectorBoxes.Add(detector.Id, checkbox); _detectorStates.Add(detector.Id, state); _detectorDownloads.Add(detector.Id, download);
             checkbox.IsCheckedChanged += (_, _) => UpdateDetectorSelection();
         }
-        AddField(parameters, "联合策略", _detectionMode);
+
         _detectionMode.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => Ui.Text(value ?? ""));
         foreach (var (label, input) in new[] { ("每秒采样帧数", _fps), ("检测阈值", _threshold), ("前后保留秒数", _padding),
             ("合并间隔秒数", _gap), ("最短片段秒数", _minimum) }) AddField(parameters, label, input);
@@ -105,10 +111,17 @@ public sealed class PersonClipWindow : Window
         _darkThreshold.IsEnabled = _dark.IsChecked == true;
         _dark.IsCheckedChanged += (_, _) => _darkThreshold.IsEnabled = _dark.IsChecked == true;
         parameters.Children.Add(_uncertain); parameters.Children.Add(_embedding); parameters.Children.Add(_gpu); parameters.Children.Add(_reuseFrames); parameters.Children.Add(_modelStatus);
-        var left = new Grid { RowDefinitions = new("130,*"), RowSpacing = 12 }; left.Children.Add(_files);
-        var scroll = new ScrollViewer { Content = parameters }; Grid.SetRow(scroll, 1); left.Children.Add(scroll);
+        _advancedParameters = parameters;
+        parameters.Children.Add(Ui.Button("模型管理…", async () => await OpenModelsAsync(null)));
+        var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 12 };
+        var profile = new StackPanel { Spacing = 8 }; AddField(profile, "检测档位", _detectionMode); left.Children.Add(profile);
+        Grid.SetRow(_files, 1); left.Children.Add(_files);
+        var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        _analyze = Ui.Button("开始分析", async () => await AnalyzeAsync()); _analyze.Classes.Add("primary");
+        _stop = Ui.Button("停止", () => _analysis?.Cancel()); _stop.IsVisible = false;
+        analyzeActions.Children.Add(_analyze); analyzeActions.Children.Add(_stop); Grid.SetRow(analyzeActions, 2); left.Children.Add(analyzeActions);
         var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 }; body.Children.Add(left);
-        _rangePanel.Children.Add(Ui.Text("免检测区间", "settingsHeading")); _rangePanel.Children.Add(_ranges);
+        _rangePanel.Children.Add(Ui.Text("排除这些区间", "settingsHeading")); _rangePanel.Children.Add(_ranges);
         _ranges.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<PersonClipRange>((range, _) => Ui.Text(range is null ? "" : MediaTime.Format(range.Start) + " – " + MediaTime.Format(range.End)));
         AddField(_rangePanel, "开始时间", _start); AddField(_rangePanel, "结束时间", _end);
         var rangeActions = new WrapPanel { Orientation = Orientation.Horizontal };
@@ -116,7 +129,12 @@ public sealed class PersonClipWindow : Window
             Ui.Button("移除区间", RemoveRange), Ui.Button("从视频标记…", async () => await MarkRangeAsync()) })
         { button.Margin = new(0, 0, 8, 8); rangeActions.Children.Add(button); }
         _rangePanel.Children.Add(rangeActions);
-        var rangeScroll = new ScrollViewer { Content = _rangePanel }; Grid.SetColumn(rangeScroll, 1); body.Children.Add(rangeScroll);
+        var results = new StackPanel { Spacing = 10 };
+        results.Children.Add(Ui.Text("保留片段", "settingsHeading")); results.Children.Add(_resultSummary); results.Children.Add(_retained);
+        _review = Ui.Button("播放和调整片段…", async () => await ReviewAsync()); results.Children.Add(_review);
+        results.Children.Add(new Expander { Header = "排除区间", Content = _rangePanel, HorizontalAlignment = HorizontalAlignment.Stretch });
+        results.Children.Add(_activity);
+        var rangeScroll = new ScrollViewer { Content = results }; Grid.SetColumn(rangeScroll, 1); body.Children.Add(rangeScroll);
         Grid.SetRow(body, 1); layout.Children.Add(body);
         var output = new Grid { ColumnDefinitions = new("Auto,140,Auto,*,Auto"), ColumnSpacing = 8 };
         output.Children.Add(Ui.Text("输出格式")); Grid.SetColumn(_format, 1); output.Children.Add(_format);
@@ -126,12 +144,13 @@ public sealed class PersonClipWindow : Window
         var footer = new StackPanel { Spacing = 6 }; footer.Children.Add(_sourceFolder); footer.Children.Add(_status); Grid.SetRow(footer, 3); layout.Children.Add(footer);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(Ui.DialogButton("取消", () => Close(null))); actions.Children.Add(_submit); Grid.SetRow(actions, 4); layout.Children.Add(actions); Content = layout;
-        _files.SelectionChanged += (_, _) => RefreshRanges();
+        _files.SelectionChanged += (_, _) => { RefreshRanges(); RefreshResults(); };
+        ToolExecution.Configure(this, _submit, "导出保留片段", editing);
         _ranges.SelectionChanged += (_, _) => { if (_ranges.SelectedItem is PersonClipRange range) { _start.Text = MediaTime.Format(range.Start); _end.Text = MediaTime.Format(range.End); } };
         if (paths is not null) AddPaths(paths);
         if (initial is not null && _entries.Count == 1) { _entries[0].Excluded = PersonClipExclusions.Normalize(defaults.ExcludedRanges); RefreshRanges(); }
         Opened += async (_, _) => { try { await RefreshModelsAsync(); } catch (Exception error) { if (!_closed) _status.Text = error.Message; } };
-        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
+        Closed += (_, _) => { _analysis?.Cancel(); _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
     }
 
     private static NumericUpDown Number(decimal min, decimal max, decimal value, decimal step) => new()
@@ -154,8 +173,8 @@ public sealed class PersonClipWindow : Window
     }
     private void RefreshFiles()
     {
-        var index = _files.SelectedIndex; _files.ItemsSource = _entries.Select(entry => Path.GetFileName(entry.Path)).ToArray();
-        _files.SelectedIndex = _entries.Count == 0 ? -1 : Math.Clamp(index, 0, _entries.Count - 1); RefreshRanges(); UpdateDetectorSelection();
+        var index = _files.SelectedIndex; _files.ItemsSource = _entries.Select(entry => Path.GetFileName(entry.Path) + " · " + Localization.Text(entry.Status)).ToArray();
+        _files.SelectedIndex = _entries.Count == 0 ? -1 : Math.Clamp(index, 0, _entries.Count - 1); RefreshRanges(); RefreshResults(); UpdateDetectorSelection();
     }
     private void RefreshRanges()
     {
@@ -171,14 +190,14 @@ public sealed class PersonClipWindow : Window
             var ranges = entry.Excluded.ToList();
             if (replace) { if (_ranges.SelectedIndex < 0) throw new ArgumentException("请选择要修改的区间。"); ranges[_ranges.SelectedIndex] = range; }
             else ranges.Add(range);
-            entry.Excluded = PersonClipExclusions.Normalize(ranges); RefreshRanges(); _status.Text = "";
+            entry.Excluded = PersonClipExclusions.Normalize(ranges); entry.Result = null; entry.Status = "待分析"; RefreshFiles(); _status.Text = "";
         }
         catch (Exception error) { _status.Text = error.Message; }
     }
     private void RemoveRange()
     {
         if (Selected is not { } entry || _ranges.SelectedIndex < 0) return;
-        entry.Excluded = entry.Excluded.Where((_, index) => index != _ranges.SelectedIndex).ToArray(); RefreshRanges();
+        entry.Excluded = entry.Excluded.Where((_, index) => index != _ranges.SelectedIndex).ToArray(); entry.Result = null; entry.Status = "待分析"; RefreshFiles();
     }
     private async Task MarkRangeAsync()
     {
@@ -188,10 +207,11 @@ public sealed class PersonClipWindow : Window
         var result = await editor.ShowDialog<ConversionOptions?>(this);
         if (_closed || result is null || !_entries.Contains(entry)) return;
         var ranges = entry.Excluded.Where(range => range != previous).Append(new PersonClipRange(result.Start, result.End));
-        entry.Excluded = PersonClipExclusions.Normalize(ranges); RefreshRanges();
+        entry.Excluded = PersonClipExclusions.Normalize(ranges); entry.Result = null; entry.Status = "待分析"; RefreshFiles();
     }
     private async Task AddFilesAsync()
     {
+        if (_busy) return;
         var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择视频"), AllowMultiple = true,
             FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(extension => "*." + extension).ToArray() }] });
         if (!_closed) AddPaths(files.Select(file => file.TryGetLocalPath()).OfType<string>());
@@ -209,7 +229,7 @@ public sealed class PersonClipWindow : Window
         }
         var embedding = await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: _lifetime.Token);
         if (_closed) return;
-        _embedding.IsEnabled = embedding; if (!embedding) _embedding.IsChecked = false; UpdateDetectorSelection();
+        _embedding.IsEnabled = true; UpdateDetectorSelection();
     }
     private async Task OpenModelsAsync(string? modelId)
     {
@@ -219,11 +239,9 @@ public sealed class PersonClipWindow : Window
     private void UpdateDetectorSelection()
     {
         if (_closed) return;
-        var selected = SelectedDetectors; var missing = selected.Where(id => !_installedDetectors.Contains(id)).ToArray();
-        _modelStatus.Text = selected.Length == 0 ? Localization.Text("请选择至少一种检测模型。")
-            : missing.Length > 0 ? Localization.Format($"请先下载：{string.Join("、", missing.Select(id => PersonDetectorCatalog.Find(id).Name))}") : "";
-        _modelStatus.IsVisible = _modelStatus.Text.Length > 0;
-        _submit.IsEnabled = _settings.EnableBetaFeatures && _entries.Count > 0 && selected.Length > 0 && missing.Length == 0;
+        _modelStatus.IsVisible = false; _detectionMode.IsEnabled=!_busy;
+        if (_analyze is not null) { _analyze.IsEnabled = !_busy && _entries.Count > 0 && SelectedDetectors.Length > 0; _analyze.Content = Localization.Text(_entries.All(entry => entry.Result is not null) && _entries.Count > 0 ? "重新分析" : "开始分析"); }
+        _submit.IsEnabled = !_busy && _entries.Any(entry => entry.Result?.Segments.Count > 0);
     }
     private static double Value(NumericUpDown input)
     {
@@ -236,17 +254,15 @@ public sealed class PersonClipWindow : Window
         try
         {
             if (!_settings.EnableBetaFeatures) return;
-            var detection = new PersonClipOptions(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum),
-                _uncertain.IsChecked == true, _embedding.IsChecked == true, _gpu.IsChecked == true, _reuseFrames.IsChecked == true,
-                SelectedDetectors, (PersonDetectionMode)_detectionMode.SelectedIndex, SkipDarkFrames: _dark.IsChecked == true,
-                SkipBlankFrames: _blank.IsChecked == true, DarkLumaThreshold: Value(_darkThreshold)); detection.Validate();
+            var edits = _entries.Where(entry => entry.Result?.Segments.Count > 0).ToArray();
+            if (edits.Length == 0) throw new ArgumentException("请先分析并保留片段。");
+            foreach (var entry in edits) CheckSource(entry);
             var preset = _format.SelectedItem as string ?? QuickClipBatch.DefaultPreset;
-            if (string.IsNullOrWhiteSpace(_folder.Text)) throw new ArgumentException("请选择输出目录。");
-            var inputs = _entries.Select(entry => new QuickClipInput(entry.Path, QuickClipBatch.ResolveOptions(entry.Path, preset,
-                new() { PersonClip = new() { Detection = detection with { ExcludedRanges = entry.Excluded.ToArray() }, ExportPreset = preset } }))).ToArray();
-            foreach (var input in inputs) MediaEngine.Validate(new() { FeatureId = "person-clip", Inputs = [input.Path], Options = input.Options,
-                Output = Path.Combine(Path.GetTempPath(), "AvaMedia-person-validation." + input.Options.Format) });
-            Close(new PersonClipRequest(inputs, Path.GetFullPath(_folder.Text), _sourceFolder.IsChecked == true));
+            QuickClipWorkflow.ValidateJoinedExports(edits.Select(entry => entry.Result!), preset);
+            var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(edits[0].Path)! : _folder.Text?.Trim() ?? "";
+            if (folder.Length == 0) throw new ArgumentException("请选择输出目录。");
+            Close(new PersonClipRequest(edits.Select(entry => entry.Result!).ToArray(), Path.GetFullPath(folder),
+                _sourceFolder.IsChecked == true, preset, ToolExecution.StartImmediately(this)));
         }
         catch (Exception error) { _status.Text = error.Message; }
     }

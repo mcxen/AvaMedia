@@ -13,6 +13,7 @@
         <Button x:Name="AddButton" Content="添加视频…" Click="AddClick"/>
         <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
         <Button x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
+        <CheckBox x:Name="UncertainOnly" Content="只看待确认" IsCheckedChanged="UncertainFilterChanged"/>
       </StackPanel>
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="12">
@@ -70,7 +71,7 @@
           <ComboBox x:Name="ModeCombo" Width="140" SelectionChanged="ModeChanged" Margin="0,0,16,0" AutomationProperties.Name="旋转处理方式"/>
           <TextBlock x:Name="DirectionLabel" Text="旋转方向" VerticalAlignment="Center" Margin="0,0,8,0"/>
           <ComboBox x:Name="DirectionCombo" Width="170" PlaceholderText="请选择方向" SelectionChanged="DirectionChanged" Margin="0,0,16,0" AutomationProperties.Name="批量旋转方向"/>
-          <Button x:Name="DetectButton" Content="自动检测方向" Click="DetectClick" Margin="0,0,8,0" AutomationProperties.Name="自动检测勾选视频的方向"/>
+          <Button x:Name="DetectButton" Content="自动转正" Click="DetectClick" Margin="0,0,8,0" AutomationProperties.Name="自动检测勾选视频的方向"/>
           <Button x:Name="CancelDetectionButton" Content="停止检测" Click="CancelDetectionClick" IsVisible="False"/>
         </WrapPanel>
         <TextBlock x:Name="DetectionStatus" Classes="caption" Text="尚未检测方向" TextWrapping="Wrap"/>

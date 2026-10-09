@@ -19,13 +19,14 @@ public sealed class OptionsWindow : Window
     private readonly IMediaEngine? _previewEngine;
     private readonly string? _previewSource;
     private readonly List<Action<ConversionOptions>> _readers = [];
+    private readonly CancellationTokenSource _lifetime=new();
     private ConversionOptions _draft;
     private SubtitleStyleEditor? _subtitleStyle;
     public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null, IMediaEngine? previewEngine=null, string? previewSource=null)
     {
         Title="输出配置";Width=760;Height=660;MinWidth=550;MinHeight=420;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         _draft=options.Clone();_copyMode=copyStreamsMode;_kind=kind;_format=options.Format;_presets=presetStorage??new();_allowAllAudioStreams=allowAllAudioStreams;_imageQualityDefault=imageQualityDefault;_previewEngine=previewEngine;_previewSource=previewSource;Build();
-        Closed+=(_,_)=>_subtitleStyle?.Dispose();
+        Closed+=(_,_)=>{_lifetime.Cancel();_subtitleStyle?.Dispose();};
     }
     public ConversionOptions ReadOptions()
     {
@@ -68,7 +69,7 @@ public sealed class OptionsWindow : Window
         if(!audioOnly)
         {
             var video=Page(image?"图片":"视频");
-            if(!image && !outputOnly && _kind!=MediaOptionsKind.ClipEdit)Number(video,"视频轨索引 (从 0 开始)",_draft.VideoStreamIndex,(o,v)=>o.VideoStreamIndex=(int)v,true,0,255);
+            if(!image && !outputOnly && _kind!=MediaOptionsKind.ClipEdit)Track(video,"视频轨", "video",_draft.VideoStreamIndex,(o,v)=>o.VideoStreamIndex=v);
             if(!image && !input && _kind!=MediaOptionsKind.Frames && _format!="gif")Choice(video,"视频编码器",["copy",..VideoCodecs(_format)],_copyMode==true?"copy":_draft.VideoCodec,(o,v)=>o.VideoCodec=v,_copyMode!=true);
             if(_kind!=MediaOptionsKind.ClipEdit)
             {
@@ -97,7 +98,7 @@ public sealed class OptionsWindow : Window
         if(hasAudio && _format!="gif")
         {
             var audio=Page("音频");
-            if(!outputOnly && _kind!=MediaOptionsKind.ClipEdit)Number(audio,"音频轨索引 (从 0 开始)",_draft.AudioStreamIndex,(o,v)=>o.AudioStreamIndex=(int)v,true,0,255);
+            if(!outputOnly && _kind!=MediaOptionsKind.ClipEdit)Track(audio,"音轨", "audio",_draft.AudioStreamIndex,(o,v)=>o.AudioStreamIndex=v);
             if(!input)
             {
                 Choice(audio,"音频编码器",["copy",..AudioCodecs(_format)],_copyMode==true?"copy":_draft.AudioCodec,(o,v)=>o.AudioCodec=v,_copyMode!=true);
@@ -150,15 +151,13 @@ public sealed class OptionsWindow : Window
                 if(external && o.Subtitle.Length==0)throw new ArgumentException("请选择字幕文件。");
             });
             var defaultTrack=new CheckBox{Name="SubtitleDefaultTrack",IsChecked=_draft.SubtitleStreamIndex==-1};trackPanel.Children.Add(defaultTrack);
-            var track=new NumericUpDown{Name="SubtitleStreamIndex",Minimum=0,Maximum=255,Value=Math.Max(0,_draft.SubtitleStreamIndex),Increment=1,FormatString="0"};
-            ToolTip.SetTip(track,"从 0 开始");Add(trackPanel,"字幕轨索引",track);
+            var track=new TrackSelector(_previewEngine,_previewSource,"subtitle",Math.Max(0,_draft.SubtitleStreamIndex),_lifetime.Token){Name="SubtitleStreamIndex"};
+            Add(trackPanel,"字幕轨",track);
             _readers.Add(o=>
             {
                 if(!trackPanel.IsVisible)return;
                 if(defaultTrack.IsChecked==true){o.SubtitleStreamIndex=-1;return;}
-                if(track.Value is not {} value || DataValidationErrors.GetHasErrors(track) || value<0 || value>255 || value!=decimal.Truncate(value))
-                    throw new ArgumentException("请选择有效的字幕轨索引。");
-                o.SubtitleStreamIndex=(int)value;
+                o.SubtitleStreamIndex=track.Index;
             });
             var language=Ui.Input(_draft.SubtitleLanguage);language.Name="SubtitleLanguage";language.Watermark="zho / eng";
             Add(languagePanel,"轨道语言",language);_readers.Add(o=>{if(languagePanel.IsVisible)o.SubtitleLanguage=language.Text?.Trim()??"";});
@@ -187,7 +186,7 @@ public sealed class OptionsWindow : Window
             Check(other,"保留元数据",_draft.KeepMetadata,(o,v)=>o.KeepMetadata=v);
             if(_kind==MediaOptionsKind.Frames)Number(other,"导出帧间隔 (秒)",_draft.FrameInterval,(o,v)=>o.FrameInterval=v,false,.01,86400);
         }
-        if(!audioOnly && !outputOnly)
+        if(!audioOnly && !outputOnly && _draft.DelogoWidth>0)
         {
             var watermark=Page("水印");
             Number(watermark,"区域 X",_draft.DelogoX,(o,v)=>o.DelogoX=(int)v,true,0,32768);Number(watermark,"区域 Y",_draft.DelogoY,(o,v)=>o.DelogoY=(int)v,true,0,32768);
@@ -234,6 +233,11 @@ public sealed class OptionsWindow : Window
         }
         mode.SelectionChanged+=(_,_)=>Refresh();Refresh();
     }
+    private void Track(Panel panel,string label,string type,int value,Action<ConversionOptions,int> set)
+    {
+        var selector=new TrackSelector(_previewEngine,_previewSource,type,value,_lifetime.Token);Add(panel,label,selector);
+        _readers.Add(options=>{if(panel.IsVisible)set(options,selector.Index);});
+    }
     private void Number(Panel panel,string label,double value,Action<ConversionOptions,double> set,bool integer,double min,double max)
     {
         var box=Ui.Input(MediaEngine.Number(value));if(label=="音量 (%)")box.Name="VolumePercent";if(label=="音频淡入时长 (秒)")box.Name="AudioFadeInInput";if(label=="音频淡出时长 (秒)")box.Name="AudioFadeOutInput";Add(panel,label,box);_readers.Add(o=>{if(!panel.IsVisible)return;var number=double.Parse(box.Text??"",CultureInfo.InvariantCulture);if(!double.IsFinite(number)||number<min||number>max||integer&&number!=Math.Truncate(number))throw new ArgumentException(integer ? Localization.Format($"{Localization.Key(label)}：请输入有效整数。") : Localization.Format($"{Localization.Key(label)}：请输入有效数值。"));set(o,number);});
@@ -242,6 +246,7 @@ public sealed class OptionsWindow : Window
     private void Choice(Panel panel,string label,string[] items,string value,Action<ConversionOptions,string> set,bool enabled=true)
     {
         var control=Ui.Combo(items,value);control.IsEnabled=enabled;
+        if(label is "视频编码器" or "音频编码器")control.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((codec,_)=>Ui.Text(codec switch { "copy"=>"保留原编码", "自动"=>"自动选择", "h264"=>"H.264 · 通用", "hevc"=>"H.265 · 小体积", "av1"=>"AV1", "aac"=>"AAC", _=>codec??"" }));
         if(label=="视频编码器")control.Name="VideoCodecCombo";if(label=="音频编码器")control.Name="AudioCodecCombo";if(label=="音频采样率")control.Name="AudioSampleRateCombo";if(label=="声道")control.Name="AudioChannelsCombo";
         Add(panel,label,control);if(enabled)_readers.Add(o=>{if(panel.IsVisible)set(o,(string)control.SelectedItem!);});
     }

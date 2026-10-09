@@ -39,7 +39,7 @@ public partial class MainWindow
             var jobs = ConversionBatch.CreateJobs(request.Feature, request.Files, request.OutputFolder, request.Options, reserved: reserved);
             OutputPreferences.Apply(jobs, _settings, reserved, request.OutputToSource, "总结");
             if (editing is not null) ApplyEditedJobs(editing, jobs);
-            else { foreach (var job in jobs) _jobs.Add(job); Save(); Refresh(); }
+            else AddToolJobs(jobs, request.StartImmediately);
         }
         catch (Exception exception) { await Ui.Message(this, "视频总结", exception.Message); }
     }
