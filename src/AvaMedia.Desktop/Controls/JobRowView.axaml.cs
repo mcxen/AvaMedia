@@ -75,7 +75,7 @@ public partial class JobRowView : UserControl
         OutputDragHandle.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
         ToolTip.SetTip(OutputDragGrip, Localization.Text("拖到左侧工具继续处理"));
         ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖到左侧工具继续处理") : null);
-        ViewResultButton.IsVisible = _owner.CanViewSummaryResult(job);
+        ViewResultButton.IsVisible = _owner.CanViewSummaryResult(job) || _owner.CanViewMediaTagResult(job);
         CoverButton.IsEnabled = _owner.CanEditTask(job);
         var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
@@ -141,7 +141,12 @@ public partial class JobRowView : UserControl
     private async void CoverClick(object? sender, RoutedEventArgs e)
     { e.Handled = true; if (_owner is not null && _details is not null) await _owner.EditJob(_details.Job); }
     private async void ViewResultClick(object? sender, RoutedEventArgs e)
-    { e.Handled = true; if (_owner is not null && _details is not null) await _owner.ShowSummaryResultAsync(_details.Job); }
+    {
+        e.Handled = true;
+        if (_owner is null || _details is null) return;
+        if (_owner.CanViewMediaTagResult(_details.Job)) await _owner.ShowMediaTagResultAsync(_details.Job);
+        else await _owner.ShowSummaryResultAsync(_details.Job);
+    }
     private void OutputPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_draggingOutput || _owner is null || _details is null || !_owner.CanDragOutput(_details.Job)

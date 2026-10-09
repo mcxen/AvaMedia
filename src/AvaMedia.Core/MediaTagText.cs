@@ -103,4 +103,48 @@ public static class MediaTagText
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
+    /// <summary>Recommended-score labels for queue TXT reports (matches workbench default score mode).</summary>
+    public static IReadOnlyList<MediaTagTextLabel> QualifyingLabels(MediaTagResult result, double threshold, double sceneThreshold, double sceneMargin,
+        bool onlyLibrary = false, IReadOnlyList<WordCandidate>? library = null)
+    {
+        if (!double.IsFinite(threshold) || threshold is < 0 or > 1) throw new ArgumentException("标签阈值须为 0–1。");
+        if (!double.IsFinite(sceneThreshold) || sceneThreshold is < 0 or > 1) throw new ArgumentException("场景相似度须为 0–1。");
+        if (!double.IsFinite(sceneMargin) || sceneMargin < 0) throw new ArgumentException("场景分差不能为负。");
+        var candidates = library ?? [];
+        IEnumerable<MediaTagTextLabel> tags;
+        if (onlyLibrary)
+        {
+            var scores = result.Scores.ToDictionary(score => score.Tag, score => MediaTagService.TagSignal(result, score), StringComparer.OrdinalIgnoreCase);
+            tags = candidates.Where(entry => entry.Tags.Length > 0 && entry.Tags.All(tag => scores.TryGetValue(tag, out var value) && value >= threshold))
+                .Select(entry => new MediaTagTextLabel(entry.Label, entry.Category, entry.Tags.Min(tag => scores.GetValueOrDefault(tag)),
+                    ScoreKind(result, entry.Tags), ModelCatalog.JoyTagId, entry.Tags));
+        }
+        else tags = result.Scores.Where(score => MediaTagService.TagSignal(result, score) >= threshold)
+            .Select(score => new MediaTagTextLabel(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag),
+                MediaTagService.TagSignal(result, score), ScoreKind(result, [score.Tag]), ModelCatalog.JoyTagId, [score.Tag]));
+
+        var scenes = result.Scenes?.Frames.SelectMany(frame => frame.Candidates)
+            .Where(candidate => candidate.Label is not ("其他室内" or "照明不明")).DistinctBy(candidate => candidate.Label) ?? [];
+        foreach (var candidate in scenes)
+        {
+            var peak = result.Scenes!.Frames.SelectMany(frame => frame.Candidates.Where(item => item.Label == candidate.Label))
+                .Select(item => item.Similarity).DefaultIfEmpty(double.NegativeInfinity).Max();
+            var qualifies = peak >= sceneThreshold && result.Scenes.Frames.Any(frame => frame.Candidates.Any(item =>
+                item.Label == candidate.Label && item.Similarity >= sceneThreshold && item.Margin >= sceneMargin));
+            if (!qualifies) continue;
+            if (onlyLibrary && candidates.All(entry => entry.Label != candidate.Label)) continue;
+            tags = tags.Append(new MediaTagTextLabel(candidate.Label, candidate.Category, peak, "cosine_similarity",
+                ModelCatalog.EmbeddingId, []));
+        }
+
+        return tags
+            .OrderBy(tag => tag.Category.StartsWith("NSFW", StringComparison.Ordinal) ? 0
+                : tag.Category.StartsWith("场景", StringComparison.Ordinal) || tag.Category is "照明状态" or "画面照明" ? 1 : 2)
+            .ThenByDescending(tag => tag.Score)
+            .DistinctBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string ScoreKind(MediaTagResult result, string[] tags) => !VideoFormats.IsVideo(result.Path) ? "score"
+        : tags.All(WordLibraryCatalog.UsesSamplePeak) ? "sample_peak" : "sample_average";
 }

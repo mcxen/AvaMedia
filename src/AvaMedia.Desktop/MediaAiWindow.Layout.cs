@@ -50,7 +50,11 @@ public sealed partial class MediaAiWindow
         foreach (var button in _imports.Children) button.Margin = new(0, 0, 6, 6);
         _imports.Margin = new(0, 0, 10, 0);
         var toolbar = new WrapPanel(); toolbar.Children.Add(_imports);
-        toolbar.Children.Add(WorkbenchActions(_analyze, _stop, _chooseTagGroups, _advanced)); toolbar.Children.Add(_librarySummary); root.Children.Add(toolbar);
+        var workbenchActions = new List<Control> { _analyze, _stop };
+        if (_enqueue is not null) workbenchActions.Add(_enqueueQueue);
+        if (_showQueue is not null) workbenchActions.Add(_viewQueue);
+        workbenchActions.Add(_chooseTagGroups); workbenchActions.Add(_advanced);
+        toolbar.Children.Add(WorkbenchActions(workbenchActions.ToArray())); toolbar.Children.Add(_librarySummary); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
@@ -83,6 +87,8 @@ public sealed partial class MediaAiWindow
         Grid.SetRow(state, 3); root.Children.Add(state); Content = root;
         _activity.Update(null); _undo.IsVisible = CanUndo();
         _analyze.Click += async (_, _) => await AnalyzeAsync();
+        _enqueueQueue.Click += async (_, _) => await EnqueueSelectedAsync();
+        _viewQueue.Click += (_, _) => ShowQueuedTasks();
         _rename.Click += async (_, _) => await OpenRenameDialogAsync(); _undo.Click += async (_, _) => await RenameAsync(true);
         _stop.Click += (_, _) => _operation?.Cancel(); _export.Click += async (_, _) => await ExportAsync();
         _copy.Click += async (_, _) =>
@@ -171,6 +177,8 @@ public sealed partial class MediaAiWindow
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
         _imports.IsEnabled = _advanced.IsEnabled = _chooseTagGroups.IsEnabled = !_busy && !_writingTxt;
         _analyze.IsEnabled = !_busy && !_writingTxt && included > 0; _analyze.Content = Localization.Text(!_modelReady ? "下载模型并分析" : "开始分析");
+        _enqueueQueue.IsEnabled = !_busy && !_writingTxt && included > 0 && _enqueue is not null;
+        _viewQueue.IsEnabled = _showQueue is not null;
         _rename.IsEnabled = !_busy && !_writingTxt && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
         _copy.IsVisible = _results.Count + _liveResults.Count > 0;
         _export.IsVisible = _rename.IsVisible = _results.Count > 0;

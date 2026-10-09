@@ -80,6 +80,15 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
                 if (summary.NeedsAi) parts.Add(summary.AnalyzeFrames ? "语音与画面" : "字幕与语音");
                 return Localization.Join(" · ", parts);
             }
+            if (feature.Operation == Operation.MediaTag && o.MediaTag is { } mediaTag)
+            {
+                parts.Add(Localization.Format($"采样 {mediaTag.Analysis.VideoFrames} 帧"));
+                if (mediaTag.Analysis.RecognizeScenes) parts.Add("场景");
+                if (mediaTag.Analysis.GenerateCaptions) parts.Add("画面描述");
+                if (mediaTag.WriteTextReport) parts.Add("同目录 TXT");
+                if (mediaTag.OnlyLibrary) parts.Add("所选词库");
+                return Localization.Join(" · ", parts);
+            }
             if (o.VideoSlimming is { } slim)
             {
                 parts.Add(slim.Preset switch { VideoSlimmingPreset.Preserve => "保真", VideoSlimmingPreset.Smaller => "更小", _ => "均衡" });

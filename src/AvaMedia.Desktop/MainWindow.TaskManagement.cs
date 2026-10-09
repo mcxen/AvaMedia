@@ -50,6 +50,7 @@ public partial class MainWindow
         MoveTaskBottomMenu.IsEnabled = MoveTaskDownMenu.IsEnabled = moving.Any(job => _jobs.IndexOf(job) < _jobs.Count - 1 && !moving.Contains(_jobs[_jobs.IndexOf(job) + 1]));
         var one = selected.Length == 1 ? selected[0] : null;
         ViewSummaryResultMenu.IsVisible = one is not null && CanViewSummaryResult(one);
+        ViewMediaTagResultMenu.IsVisible = one is not null && CanViewMediaTagResult(one);
         PlayOutputMenu.IsVisible = SelectedPlayableOutputs().Length > 0;
         OpenTaskSourceMenu.IsVisible = OpenTaskSourceFolderMenu.IsVisible = OpenTaskOutputMenu.IsVisible
             = OpenTaskOutputFolderMenu.IsVisible = CopyTaskPathsMenu.IsVisible = TaskLogMenu.IsVisible

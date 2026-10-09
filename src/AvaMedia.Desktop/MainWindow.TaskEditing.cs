@@ -14,6 +14,7 @@ public partial class MainWindow
         var enabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job job && CanEditTask(job);
         EditTaskButton.IsEnabled = EditTaskMenuItem.IsEnabled = EditTaskContextMenu.IsEnabled = enabled;
         ViewSummaryResultMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job result && CanViewSummaryResult(result);
+        ViewMediaTagResultMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job tag && CanViewMediaTagResult(tag);
         RetryTaskMenu.IsEnabled = SelectedJobs().Any(item => CanRequeueTask(item) && item.State == JobState.Failed);
         UpdateTaskManagementActions();
     }
@@ -69,6 +70,11 @@ public partial class MainWindow
             if (feature.Operation == Operation.VideoSlim) { await ConfigureVideoSlimmingAsync(job.Inputs, job); return; }
             if (feature.Operation == Operation.VideoSummary) { await ConfigureVideoSummaryAsync(job.Inputs, job); return; }
             if (feature.Operation == Operation.PersonClip) { await ConfigurePersonClipAsync(job.Inputs, job); return; }
+            if (feature.Operation == Operation.MediaTag)
+            {
+                await ConfigureMediaAiAsync(job.Inputs);
+                return;
+            }
             if (PdfTools.Supports(feature.Operation))
             {
                 var request = await new PdfWorkspaceWindow(feature, Path.GetDirectoryName(job.Output)!, job.Inputs,

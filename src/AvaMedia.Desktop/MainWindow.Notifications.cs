@@ -68,6 +68,15 @@ public partial class MainWindow
                     new("打开目录", () => OpenNotificationOutputAsync([item.Output])),
                     new("重新处理", () => RetryNotificationAsync([item]), Enabled: () => CanRetryNotification([item]))]));
         }
+        foreach (var job in batch.Where(job => job.State == JobState.Completed && Catalog.Find(job.FeatureId).Operation == Operation.MediaTag))
+        {
+            var item = job;
+            NotificationCenter.Shared.Publish(this, new("media-tag:" + id + ":" + item.Id, "AI 标签已完成", (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}",
+                NotificationKind.Success, [
+                    new("打开报告", () => { RestoreFromTray(); return ShowMediaTagResultAsync(item); }, Primary: true, Enabled: () => !_closing),
+                    new("查看任务", () => FocusJobsAsync([item])),
+                    new("重新处理", () => RetryNotificationAsync([item]), Enabled: () => CanRetryNotification([item]))]));
+        }
         var failed = batch.Where(job => job.State == JobState.Failed).ToArray();
         foreach (var job in failed)
         {
@@ -75,11 +84,11 @@ public partial class MainWindow
             var failureActions = new List<NotificationAction> {
                     new("重试任务", () => RetryNotificationAsync([item]), Primary: true, Enabled: () => CanRetryNotification([item])),
                     new("查看任务", () => FocusJobsAsync([item])) };
-            if (Catalog.Find(item.FeatureId).Operation is Operation.VideoSummary or Operation.Transcribe) failureActions.Add(new("模型管理", ModelNotifications.OpenManagementAsync));
+            if (Catalog.Find(item.FeatureId).Operation is Operation.VideoSummary or Operation.Transcribe or Operation.MediaTag) failureActions.Add(new("模型管理", ModelNotifications.OpenManagementAsync));
             NotificationCenter.Shared.Publish(this, new("task-failure:" + id + ":" + item.Id, "任务执行失败",
                 (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}\n{item.Error}", NotificationKind.Error, failureActions));
         }
-        if (batch.All(job => job.State == JobState.Completed && Catalog.Find(job.FeatureId).Operation == Operation.VideoSummary)) return;
+        if (batch.All(job => job.State == JobState.Completed && Catalog.Find(job.FeatureId).Operation is (Operation.VideoSummary or Operation.MediaTag))) return;
         var actions = new List<NotificationAction> { new("查看任务", () => FocusJobsAsync(batch), Primary: true),
             new("打开输出目录", () => OpenNotificationOutputAsync(completion.OutputFolders.ToArray())) };
         if (failed.Length > 0) actions.Add(new("重试失败任务", () => RetryNotificationAsync(failed), Enabled: () => CanRetryNotification(failed)));

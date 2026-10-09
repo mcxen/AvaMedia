@@ -179,6 +179,7 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation==Operation.Transcribe){SpeechSubtitleService.Validate(job);return;}
         if(feature.Operation==Operation.VideoSummary){VideoSummaryService.Validate(job);return;}
         if(feature.Operation==Operation.PersonClip){PersonClipService.Validate(job);return;}
+        if(feature.Operation==Operation.MediaTag){MediaTagJobService.Validate(job);return;}
         ValidateEncodingOptions(o);
         SourceVideoExport.ValidateJob(job);
         SourceClipCopy.Validate(job);
@@ -258,6 +259,8 @@ public sealed class MediaEngine : IMediaEngine
         {await new VideoSummaryService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.PersonClip)
         {await new PersonClipService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
+        if(f.Operation==Operation.MediaTag)
+        {await new MediaTagJobService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.ImagesPdf)
         {
             var temporary=new List<string>();var inputs=new List<string>();

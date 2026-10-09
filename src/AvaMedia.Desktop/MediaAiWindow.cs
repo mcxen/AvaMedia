@@ -34,14 +34,20 @@ public sealed partial class MediaAiWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<Window, Task> _manageModels;
     private readonly Func<bool> _canRename;
+    private readonly Action<IReadOnlyList<Job>, bool>? _enqueue;
+    private readonly Action? _showQueue;
+    private readonly Button _enqueueQueue = new() { Content = "加入任务队列", Classes = { "dialog-action" } };
+    private readonly Button _viewQueue = new() { Content = "查看任务队列" };
     private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "ai-rename.json");
     private CancellationTokenSource? _operation;
     private bool _closed, _renaming, _busy, _modelReady;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
-    public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null, Storage? storage=null)
+    public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null, Storage? storage=null,
+        Action<IReadOnlyList<Job>, bool>? enqueue = null, Action? showQueue = null)
     {
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
+        _enqueue = enqueue; _showQueue = showQueue;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
         LoadPreferences();
         if (!ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported) { _sceneTags.IsChecked = false; _sceneTags.IsEnabled = false; }
@@ -231,6 +237,52 @@ public sealed partial class MediaAiWindow : Window
         }
         finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); await RefreshModelAsync(); } }
     }
+
+    private MediaTagTaskOptions ReadTaskOptions()
+    {
+        var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
+        var analysis = new MediaTagOptions((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true,
+            RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
+            { SemanticCandidates = SemanticLibraryCandidates };
+        var options = new MediaTagTaskOptions
+        {
+            Analysis = analysis,
+            Threshold = Number(_threshold),
+            SceneThreshold = _sceneThreshold.Value,
+            SceneMargin = (double)(_sceneMargin.Value ?? .03m),
+            WriteTextReport = true,
+            OnlyLibrary = _onlyLibrary.IsChecked == true,
+            LibraryCandidates = _onlyLibrary.IsChecked == true ? _libraryCandidates.ToArray() : []
+        };
+        options.Validate(); SavePreferences();
+        return options;
+    }
+
+    private async Task EnqueueSelectedAsync()
+    {
+        if (_busy || _writingTxt || _enqueue is null) return;
+        var paths = _entries.Where(entry => entry.Include).Select(entry => entry.Path).ToArray();
+        if (paths.Length == 0) { await Ui.Message(this, "AI 标签", "请添加并勾选图片或视频。"); return; }
+        try
+        {
+            var options = ReadTaskOptions();
+            var feature = Catalog.Find("media-ai");
+            var folder = Path.GetDirectoryName(paths[0])!;
+            var jobs = ConversionBatch.CreateJobs(feature, paths, folder,
+                new ConversionOptions { Format = "txt", MediaTag = options });
+            OutputPreferences.Apply(jobs, _settings, outputToSource: true, settingName: "标签");
+            _enqueue(jobs, true);
+            _status.Text = Localization.Format($"已加入任务队列 {jobs.Count} 个");
+        }
+        catch (Exception error) { await Ui.Message(this, "加入任务队列", error.Message); }
+    }
+
+    private void ShowQueuedTasks()
+    {
+        if (_showQueue is null) return;
+        _showQueue();
+    }
+
     private void ShowResult(MediaFileEntry entry, MediaTagResult result)
     {
         var tags = ResultTags(result).ToArray();
