@@ -173,6 +173,7 @@ public sealed partial class MediaAiWindow
             if (scenes.FallbackReason is not null) details.Children.Add(Ui.Text(scenes.FallbackReason, "caption"));
         }
         UpdateNsfwBadge(moderation);
+        if (_nsfwEvidence.Parent is Panel previous) previous.Children.Remove(_nsfwEvidence);
         details.Children.Add(_nsfwEvidence);
         _details.Content = new ScrollViewer { Content = details, MaxHeight = 320 };
         _details.IsVisible = true; UpdateActions();
