@@ -1,4 +1,5 @@
 using Microsoft.ML.OnnxRuntime;
+using System.Diagnostics;
 
 namespace AvaMedia.Core;
 
@@ -11,6 +12,7 @@ internal sealed class ModelInferenceSession : IDisposable
     private InferenceSession _session;
     public string Backend { get; private set; } = "CPU";
     public string? FallbackReason { get; private set; }
+    public string? BackendSelectionReason { get; private set; }
     public string InputName => _session.InputMetadata.Keys.First();
 
     public ModelInferenceSession(string path, string modelHash, bool preferGpu, int? batchSize = null, byte[]? modelData = null)
@@ -65,6 +67,48 @@ internal sealed class ModelInferenceSession : IDisposable
             _session = CpuSession();
             ct.ThrowIfCancellationRequested();
             return _session.Run([input]);
+        }
+    }
+
+    /// <summary>Partially accelerated small detectors can run faster on CPU. Compare warmed sessions on a real input.</summary>
+    public void SelectFastestBackend(NamedOnnxValue input, CancellationToken ct)
+    {
+        if (Backend == "CPU") return;
+        using var options = Options();
+        InferenceSession? cpu = null;
+        try
+        {
+            cpu = CreateSession(options);
+            using (Run(input, ct)) { }
+            if (Backend == "CPU") return; // An execution failure already selected a CPU session.
+            using (cpu.Run([input])) { }
+            var accelerated = Measure(_session);
+            var software = Measure(cpu);
+            var acceleratedName = Backend;
+            if (software < accelerated * .85)
+            {
+                _session.Dispose(); _session = cpu; cpu = null; Backend = "CPU";
+            }
+            BackendSelectionReason = FormattableString.Invariant(
+                $"{acceleratedName} {accelerated:F2} ms/frame; CPU {software:F2} ms/frame; selected {Backend}.");
+        }
+        catch (OnnxRuntimeException) when (!ct.IsCancellationRequested)
+        {
+            // A failed optional CPU comparison leaves the working accelerated session available.
+        }
+        finally { cpu?.Dispose(); }
+
+        double Measure(InferenceSession session)
+        {
+            Span<double> times = stackalloc double[3];
+            for (var index = 0; index < times.Length; index++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var start = Stopwatch.GetTimestamp();
+                using (session.Run([input])) { }
+                times[index] = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            }
+            times.Sort(); return times[1];
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Diagnostics;
 
 namespace AvaMedia.Core;
 
@@ -46,6 +47,7 @@ public sealed class PersonClipService(MediaEngine engine)
         activity.Stage("等待人物检测"); job.ProgressDetail = "等待人物检测"; progress(0);
         PersonClipResult result;
         await DetectionGate.WaitAsync(ct).ConfigureAwait(false);
+        var analysisClock = Stopwatch.StartNew();
         try
         {
             var latest = 0d;
@@ -61,9 +63,13 @@ public sealed class PersonClipService(MediaEngine engine)
                 }), ct).ConfigureAwait(false);
         }
         finally { DetectionGate.Release(); }
+        analysisClock.Stop();
         ct.ThrowIfCancellationRequested(); CheckSource();
         job.Duration = result.Info.Duration;
         job.AppendLog($"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {MediaTime.Format(result.ExcludedSeconds)}；{result.Backend}");
+        job.AppendLog($"人物检测耗时：{MediaEngine.Number(analysisClock.Elapsed.TotalSeconds)} 秒");
+        foreach (var detector in result.Detectors)
+            if (detector.BackendSelectionReason is { } reason) job.AppendLog($"{detector.Name}: {reason}");
         foreach (var segment in result.Segments) job.AppendLog($"保留 {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}");
         if (result.Segments.Count == 0)
         {
@@ -71,6 +77,7 @@ public sealed class PersonClipService(MediaEngine engine)
             activity.Finish(job.ProgressDetail); job.AppendLog(job.ProgressDetail); progress(100); return;
         }
         activity.Node("导出片段"); activity.Stage("导出片段", 0, 100, "%"); progress(90);
+        var exportClock = Stopwatch.StartNew();
         var folder = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!, ".AvaMedia-people-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         try
@@ -107,6 +114,7 @@ public sealed class PersonClipService(MediaEngine engine)
             CheckSource(); ct.ThrowIfCancellationRequested();
             if (!File.Exists(output) || new FileInfo(output).Length == 0) throw new InvalidDataException("保留片段未生成有效输出。");
             File.Move(output, job.Output);
+            job.AppendLog($"导出片段耗时：{MediaEngine.Number(exportClock.Elapsed.TotalSeconds)} 秒");
             job.ProgressDetail = $"保留 {result.Segments.Count} 个片段";
             activity.Result(job.ProgressDetail, result.Segments.Count); activity.Finish("导出完成"); progress(100);
 

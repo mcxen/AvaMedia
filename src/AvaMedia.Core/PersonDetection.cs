@@ -6,7 +6,10 @@ namespace AvaMedia.Core;
 public enum PersonDetectionMode { Balanced, Recall, Consensus }
 public sealed record PersonDetectorDefinition(string Id, string Name, int InputSize);
 public sealed record PersonDetectionEvidence(string Id, double Score, double Threshold, string Backend);
-public sealed record PersonDetectorStatistics(string Id, string Name, int Evaluations, int PositiveFrames, string Backend, string? FallbackReason);
+public sealed record PersonDetectorStatistics(string Id, string Name, int Evaluations, int PositiveFrames, string Backend, string? FallbackReason)
+{
+    public string? BackendSelectionReason { get; init; }
+}
 public sealed record PersonDetectionDecision(bool Keep, bool Uncertain, int Votes);
 
 public static class PersonDetectorCatalog
@@ -50,6 +53,8 @@ internal sealed class PersonDetectorSet : IDisposable
         public PersonDetectorDefinition Definition { get; } = definition;
         public ModelLease Lease { get; } = lease;
         public ModelInferenceSession Session { get; } = session;
+        public DenseTensor<float> Input { get; } = new(new[] { 1, 3, definition.InputSize, definition.InputSize });
+        public bool BackendSelected;
         public int Evaluations, PositiveFrames;
     }
     private readonly List<Detector> _detectors = [];
@@ -58,7 +63,8 @@ internal sealed class PersonDetectorSet : IDisposable
     public string Backend => string.Join(" · ", _detectors.Select(detector => detector.Definition.Name + ": " + detector.Session.Backend));
     public PersonDetectorStatistics[] Statistics => _detectors.Select(detector => new PersonDetectorStatistics(
         detector.Definition.Id, detector.Definition.Name, detector.Evaluations, detector.PositiveFrames,
-        detector.Session.Backend, detector.Session.FallbackReason)).ToArray();
+        detector.Session.Backend, detector.Session.FallbackReason)
+        { BackendSelectionReason = detector.Session.BackendSelectionReason }).ToArray();
 
     public static async Task<PersonDetectorSet> CreateAsync(ModelStore store, PersonClipOptions options, CancellationToken ct)
     {
@@ -92,8 +98,14 @@ internal sealed class PersonDetectorSet : IDisposable
         {
             ct.ThrowIfCancellationRequested();
             var definition = detector.Definition;
-            var tensor = Preprocess(rgb, FrameSize, definition);
-            using var output = detector.Session.Run(NamedOnnxValue.CreateFromTensor(detector.Session.InputName, tensor), ct);
+            Preprocess(rgb, FrameSize, definition, detector.Input);
+            var input = NamedOnnxValue.CreateFromTensor(detector.Session.InputName, detector.Input);
+            if (!detector.BackendSelected)
+            {
+                detector.Session.SelectFastestBackend(input, ct);
+                detector.BackendSelected = true;
+            }
+            using var output = detector.Session.Run(input, ct);
             ct.ThrowIfCancellationRequested();
             double score = 0;
             if (definition.Id == ModelCatalog.MediaPipePersonId)
@@ -112,6 +124,12 @@ internal sealed class PersonDetectorSet : IDisposable
                 var scores = output.Select(value => value.AsTensor<float>()).Where(value => value.Rank == 3 && value.Dimensions[2] == width).ToArray();
                 if (scores.Length == 0) throw new InvalidDataException("人物检测模型输出格式无效。");
                 foreach (var predictions in scores)
+                {
+                    if (predictions is DenseTensor<float> dense)
+                    {
+                        score = Math.Max(score, PersonScore(dense.Buffer.Span, predictions.Dimensions[1], width));
+                        continue;
+                    }
                     for (var index = 0; index < predictions.Dimensions[1]; index++)
                     {
                         var offset = width == 85 ? 5 : 0;
@@ -121,6 +139,7 @@ internal sealed class PersonDetectorSet : IDisposable
                             if (predictions[0, index, cls] > person) { bestClass = false; break; }
                         if (bestClass) score = Math.Max(score, person * (width == 85 ? predictions[0, index, 4] : 1));
                     }
+                }
             }
             if (!double.IsFinite(score) || score is < 0 or > 1) throw new InvalidDataException("人物检测返回了无效分数。");
             // Use a conservative .6 baseline for MediaPipe; YOLOX and NanoDet use .35.
@@ -132,14 +151,56 @@ internal sealed class PersonDetectorSet : IDisposable
         return evidence.ToArray();
     }
 
-    private static DenseTensor<float> Preprocess(byte[] rgb, int sourceSize, PersonDetectorDefinition definition)
+    private static double PersonScore(ReadOnlySpan<float> predictions, int count, int width)
+    {
+        double score = 0;
+        var offset = width == 85 ? 5 : 0;
+        for (var index = 0; index < count; index++)
+        {
+            var row = predictions.Slice(index * width, width);
+            var person = row[offset];
+            var candidate = person * (width == 85 ? row[4] : 1);
+            if (candidate <= score) continue;
+            var bestClass = true;
+            for (var cls = offset + 1; cls < width; cls++)
+                if (row[cls] > person) { bestClass = false; break; }
+            if (bestClass) score = Math.Max(score, candidate);
+        }
+        return score;
+    }
+
+    private static void Preprocess(byte[] rgb, int sourceSize, PersonDetectorDefinition definition, DenseTensor<float> tensor)
     {
         var size = definition.InputSize;
         if (rgb.Length != sourceSize * sourceSize * 3) throw new InvalidDataException("人物检测画面尺寸无效。");
-        var tensor = new DenseTensor<float>(new[] { 1, 3, size, size });
         ReadOnlySpan<float> mean = [103.53f, 116.28f, 123.675f], std = [57.375f, 57.12f, 58.395f];
         var plane = size * size;
         var pixels = tensor.Buffer.Span;
+        if (sourceSize == size)
+        {
+            // A single detector already receives its exact input size from FFmpeg; no interpolation is needed.
+            for (var index = 0; index < plane; index++)
+            {
+                var source = index * 3;
+                if (definition.Id == ModelCatalog.NanoDetId)
+                {
+                    pixels[index] = (rgb[source + 2] - mean[0]) / std[0];
+                    pixels[plane + index] = (rgb[source + 1] - mean[1]) / std[1];
+                    pixels[2 * plane + index] = (rgb[source] - mean[2]) / std[2];
+                }
+                else if (definition.Id == ModelCatalog.MediaPipePersonId)
+                {
+                    pixels[index] = rgb[source] / 127.5f - 1;
+                    pixels[plane + index] = rgb[source + 1] / 127.5f - 1;
+                    pixels[2 * plane + index] = rgb[source + 2] / 127.5f - 1;
+                }
+                else
+                {
+                    pixels[index] = rgb[source]; pixels[plane + index] = rgb[source + 1]; pixels[2 * plane + index] = rgb[source + 2];
+                }
+            }
+            return;
+        }
         for (var y = 0; y < size; y++)
             for (var x = 0; x < size; x++)
             {
@@ -162,7 +223,6 @@ internal sealed class PersonDetectorSet : IDisposable
                     };
                 }
             }
-        return tensor;
     }
 
     public void Dispose()
