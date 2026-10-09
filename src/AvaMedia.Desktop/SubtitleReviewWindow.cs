@@ -46,6 +46,8 @@ public sealed class SubtitleReviewWindow : Window
     private readonly TextBox _start = Ui.Input(), _end = Ui.Input(), _text = Ui.Input();
     private readonly TextBlock _notice = Ui.Text("", "caption");
     private readonly ComboBox _format;
+    private readonly TextBox _folder;
+    private readonly CheckBox _sourceFolder;
     private readonly Button _export, _retry, _stop;
     private readonly StackPanel _editor = new() { Spacing = 10 };
     private readonly AiActivityView _activity = new() { Compact = true };
@@ -119,6 +121,17 @@ public sealed class SubtitleReviewWindow : Window
         _format = Ui.Combo(["字幕文件 · SRT", "样式字幕 · ASS", "带字幕视频 · MP4", "带字幕视频 · MKV"], "字幕文件 · SRT");
         _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", "mp4", "mkv" }, request.Options.Format));
         side.Children.Add(Ui.Text("输出内容")); side.Children.Add(_format);
+        _folder = Ui.Input(request.OutputFolder); Localization.SetIsUserText(_folder, true);
+        Avalonia.Automation.AutomationProperties.SetName(_folder, "字幕保存位置");
+        _sourceFolder = new CheckBox { Content = "输出至源文件目录", IsChecked = request.OutputToSource };
+        side.Children.Add(Ui.Text("保存位置")); side.Children.Add(_folder);
+        side.Children.Add(Ui.Button("浏览…", async () =>
+        {
+            if (await Ui.Folder(this, "选择输出目录") is {} folder) { _folder.Text = folder; _sourceFolder.IsChecked = false; }
+        }));
+        side.Children.Add(_sourceFolder);
+        _sourceFolder.IsCheckedChanged += (_, _) => _folder.IsEnabled = _sourceFolder.IsChecked != true;
+        _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _style = new SubtitleStyleEditor(request.Options);
         var styles=Ui.Button("字幕样式…",async()=>
         {
@@ -197,8 +210,10 @@ public sealed class SubtitleReviewWindow : Window
                 edit.Transcription.ReviewedSourceLength = source.Length; edit.Transcription.ReviewedSourceWriteUtc = source.WriteUtc;
                 edit.Transcription.Validate(); return edit;
             }).ToArray();
-            _ = ConversionBatch.CreateJobs(_request.Feature, sources.Select(source => source.Path).ToArray(), _request.OutputFolder, options[0], options);
-            Close(_request with { Files = sources.Select(source => source.Path).ToArray(), Options = options[0], InputOptions = options, StartImmediately = ToolExecution.StartImmediately(this) });
+            var folder = _sourceFolder.IsChecked == true ? System.IO.Path.GetDirectoryName(sources[0].Path)! : _folder.Text?.Trim() ?? "";
+            _ = ConversionBatch.CreateJobs(_request.Feature, sources.Select(source => source.Path).ToArray(), folder, options[0], options);
+            Close(_request with { Files = sources.Select(source => source.Path).ToArray(), Options = options[0], InputOptions = options,
+                OutputFolder = folder, OutputToSource = _sourceFolder.IsChecked == true, StartImmediately = ToolExecution.StartImmediately(this) });
         }
         catch(Exception error) { _notice.Text = error.Message; }
     }
