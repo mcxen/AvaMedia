@@ -12,13 +12,15 @@ internal static class Program
 {
     public static string Root { get; private set; } = "";
     private static string InventoryPath = "";
+    public static bool RealPeopleUi { get; private set; }
     [STAThread]
     public static int Main(string[] args)
     {
         Root = Path.GetFullPath(args.ElementAtOrDefault(1) ?? "artifacts/ai-e2e");
         InventoryPath = Path.GetFullPath(args.ElementAtOrDefault(2) ?? "artifacts/pikpak-model-validation/inventory.json");
         Directory.CreateDirectory(Root);
-        if (args.FirstOrDefault() == "ui")
+        RealPeopleUi = args.FirstOrDefault() == "real-ui";
+        if (args.FirstOrDefault() == "ui" || RealPeopleUi)
             return AppBuilder.Configure<AiTestApp>().UsePlatformDetect().LogToTrace().StartWithClassicDesktopLifetime(args);
         try { RunAsync(args.FirstOrDefault() ?? "core").GetAwaiter().GetResult(); return 0; }
         catch (Exception error) { File.WriteAllText(Path.Combine(Root, "error.txt"), error.ToString()); Console.Error.WriteLine(error); return 1; }
@@ -31,6 +33,7 @@ internal static class Program
     };
     private static async Task RunAsync(string mode)
     {
+        if (mode == "real-people") { await RealPeopleAcceptance.RunAsync(Root, InventoryPath, Settings()); return; }
         var store = new ModelStore();
         if (mode == "download")
         {
@@ -166,7 +169,15 @@ public sealed class AiTestApp : Application
         {
             var storage = new Storage(Path.Combine(Program.Root, "ui-state"));
             if (!File.Exists(Path.Combine(Program.Root, "ui-state", "settings.json"))) storage.SaveSettings(Program.Settings());
-            desktop.MainWindow = new MainWindow(storage);
+            if (Program.RealPeopleUi)
+            {
+                var settings = storage.LoadSettings();
+                Localization.Apply("zh-CN"); Skin.Apply("Light");
+                desktop.MainWindow = new MediaAiWindow(new MediaEngine(settings), settings,
+                    Directory.EnumerateFiles(Path.Combine(Program.Root, "media")).Where(MediaTagService.Supports),
+                    _ => Task.CompletedTask, storage: storage);
+            }
+            else desktop.MainWindow = new MainWindow(storage);
         }
         base.OnFrameworkInitializationCompleted();
     }
