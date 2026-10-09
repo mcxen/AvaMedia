@@ -60,7 +60,7 @@ internal static class Program
                 await using (var backend = await GemmaMediaEmbedding.StartAsync(store, CancellationToken.None))
                 {
                     Console.WriteLine(JsonSerializer.Serialize(new { backend.Backend, backend.FallbackReason, backend.AccelerationDetails }));
-                    Check(!OperatingSystem.IsMacOS() || backend.Backend.Contains("Metal"), "actual Metal GPU layer dispatch");
+                    Check(!OperatingSystem.IsMacOS() || backend.Backend.Contains("Core ML"), "Core ML session for semantic model");
                     report.Add(new { backend.Backend, backend.FallbackReason, backend.AccelerationDetails });
                 }
                 var keywords = WordLibraryCatalog.BuiltIns.Single(library => library.Id == "common").Entries.Take(33)
