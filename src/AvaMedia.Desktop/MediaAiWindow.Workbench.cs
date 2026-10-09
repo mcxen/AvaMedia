@@ -14,7 +14,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, List<string>> _traces = new(BatchRename.PathComparer);
     private readonly Dictionary<string, double> _positions = new(BatchRename.PathComparer);
     private readonly Dictionary<string, string> _reportSources = new(BatchRename.PathComparer);
-    private readonly ComboBox _chartSource = Ui.Combo(["柱状图 · 标签分数", "柱状图 · 场景相似度"], "柱状图 · 标签分数");
+    private readonly ComboBox _chartSource = Ui.Combo(["JoyTag · 标签分数", "EmbeddingGemma · 语义相似度"], "JoyTag · 标签分数");
     private readonly ComboBox _scoreMode = Ui.Combo(["推荐分数", "采样峰值", "采样平均", "当前画面"], "推荐分数");
     private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征"], "全部标签");
     private readonly Slider _tagThreshold = new() { Minimum = .05, Maximum = .95, Value = .4, TickFrequency = .01 };
@@ -27,7 +27,7 @@ public sealed partial class MediaAiWindow
     private readonly AiTagChart _scoreBars = new() { Height = 310 };
     private readonly AiTagChart _peakCurve = new() { Timeline = true, Height = 230 };
     private readonly Grid _traceLegend = new() { ColumnSpacing = 8, RowSpacing = 4 };
-    private readonly TextBlock _barReadout = Ui.Text("", "caption");
+    private readonly TextBlock _barReadout = new() { Classes = { "caption" }, MinHeight = 32, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _thresholdCaption = Ui.Text("", "caption");
     private readonly TextBlock _sceneCaption = Ui.Text("", "caption");
     private readonly TextBlock _chartSummary = Ui.Text("", "caption");
@@ -58,7 +58,7 @@ public sealed partial class MediaAiWindow
         };
     }
     private IEnumerable<ResultTag> SceneCandidates(MediaTagResult result) => result.Scenes?.Frames.SelectMany(frame => frame.Candidates)
-        .Where(candidate => candidate.Label is not ("其他室内" or "照明不明")).DistinctBy(candidate => candidate.Label)
+        .Where(candidate => !WordLibraryCatalog.IsSemanticBaseline(candidate.Label)).DistinctBy(candidate => candidate.Label)
         .Select(candidate => new ResultTag(candidate.Label, candidate.Category, SceneValue(result, candidate.Label), "cosine_similarity", ModelCatalog.EmbeddingId)) ?? [];
     private bool SceneQualifies(MediaTagResult result, ResultTag tag)
     {
@@ -74,7 +74,7 @@ public sealed partial class MediaAiWindow
     {
         1 => tag.Category.StartsWith("NSFW", StringComparison.Ordinal),
         2 => tag.Category.StartsWith("场景", StringComparison.Ordinal) || tag.Category is "照明状态" or "画面照明",
-        3 => !tag.Category.StartsWith("NSFW", StringComparison.Ordinal) && tag.Category.Contains("特征", StringComparison.Ordinal),
+        3 => !tag.Category.StartsWith("NSFW", StringComparison.Ordinal) && (tag.Category.Contains("特征", StringComparison.Ordinal) || tag.Category == "面部可见性"),
         _ => true
     };
     private double CursorFor(MediaTagResult result) => _positions.GetValueOrDefault(result.Path);
@@ -122,7 +122,11 @@ public sealed partial class MediaAiWindow
         _scoreBars.TagSelected += key => SelectTrace(key);
         _peakCurve.SampleSelected += seconds => { _ = SelectSampleAsync(seconds); };
         _peakCurve.SampleHovered += RefreshLegendSample;
-        _scoreBars.BarHovered += bar => _barReadout.Text = bar is null ? "" : Localization.Text("峰值") + $" {bar.Peak:0.000} · " + Localization.Text("平均") + $" {bar.Average:0.000}";
+        _scoreBars.BarHovered += bar =>
+        {
+            _barReadout.Text = bar is null ? "" : bar.Label + " · " + Localization.Text("峰值") + $" {bar.Peak:0.000} · " + Localization.Text("平均") + $" {bar.Average:0.000}";
+            Localization.SetIsUserText(_barReadout, true);
+        };
         _playSample.Click += async (_, _) =>
         {
             if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var result)) return;
@@ -135,7 +139,7 @@ public sealed partial class MediaAiWindow
     private Control BuildCharts()
     {
         var charts = new Grid { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
-        var bars = new StackPanel { Spacing = 8 }; bars.Children.Add(Ui.Text("标签柱状图", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
+        var bars = new StackPanel { Spacing = 8 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
         charts.Children.Add(ChartPanel(bars));
         var curve = new StackPanel { Spacing = 8 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
         var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; sample.Children.Add(_sampleSummary); Grid.SetColumn(_playSample, 1); sample.Children.Add(_playSample); curve.Children.Add(sample);
@@ -143,7 +147,7 @@ public sealed partial class MediaAiWindow
     }
     private static Border ChartPanel(Control content)
     {
-        var panel = new Border { Child = content, Padding = new(12), CornerRadius = new(6), BorderThickness = new(1) };
+        var panel = new Border { Child = content, Padding = new(12), CornerRadius = new(6), BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
         panel.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("UiControlRadius"));
         panel.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised")); panel.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("UiBorder")); return panel;
     }
@@ -174,7 +178,7 @@ public sealed partial class MediaAiWindow
     {
         var semantic = _chartSource.SelectedIndex == 1; var threshold = semantic ? _sceneThreshold.Value : (double)(_threshold.Value ?? .4m);
         _thresholdCaption.Text = Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}");
-        _sceneCaption.Text = Localization.Format($"场景相似度 {_sceneThreshold.Value:0.00}"); _sceneThresholdRow.IsVisible = _sceneTags.IsChecked == true || result?.Scenes is not null;
+        _sceneCaption.Text = Localization.Format($"语义相似度 {_sceneThreshold.Value:0.00}"); _sceneThresholdRow.IsVisible = _sceneTags.IsChecked == true || result?.Scenes is not null;
         var candidates = result is null ? [] : PlotCandidates(result);
         _barReadout.Text = "";
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
@@ -188,7 +192,7 @@ public sealed partial class MediaAiWindow
             new TagChartSeries(TagKey(tag), TagPoints(result, tag), tag.Model,
                 tag.Model == ModelCatalog.EmbeddingId, variant))).ToArray();
         RenderTraceLegend(selected, series);
-        var bars = candidates.Take(12).Select(tag =>
+        var bars = candidates.Take(8).Select(tag =>
         {
             var points = TagPoints(result!, tag).Where(point => point.Score.HasValue).Select(point => point.Score!.Value).ToArray();
             return new TagChartBar(TagKey(tag), tag.Label, tag.Score, points.Length > 0 ? points.Max() : tag.Score,
@@ -199,6 +203,7 @@ public sealed partial class MediaAiWindow
         _sampleSummary.Text = result is null ? "" : MediaTime.Format(cursor);
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
+        _scoreBars.Height = bars.Length == 0 ? 180 : 28 + bars.Length * 36;
         _scoreBars.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic);
         var thresholds = new List<TagChartThreshold>();
         if (result?.Scores.Count > 0) thresholds.Add(new(ModelCatalog.JoyTagId, (double)(_threshold.Value ?? .4m), false));

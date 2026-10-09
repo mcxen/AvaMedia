@@ -52,7 +52,7 @@ public sealed partial class MediaAiWindow
         if(_editedTags.ContainsKey(result.Path))edits.Children.Add(Ui.Button("恢复识别标签",()=>{_editedTags.Remove(result.Path);RefreshDisplayedResults();}));
         if (_results.ContainsKey(result.Path)) _tagGroups.Children.Add(edits);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
-        if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("场景识别失败：") + result.SceneError, "error"));
+        if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
         var tags = ResultTags(result, search: true).ToArray();
         _detailState.Text = _liveResults.ContainsKey(result.Path) ? (_busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签")) : Localization.Format($"识别到 {tags.Length} 个标签");
         if (tags.Length == 0) _tagGroups.Children.Add(Ui.Text(string.IsNullOrWhiteSpace(_tagSearch.Text) ? "未找到达标标签" : "未找到匹配标签", "caption"));
@@ -79,7 +79,7 @@ public sealed partial class MediaAiWindow
         if (result.FallbackReason is not null) details.Children.Add(Ui.Text(Localization.Text("已回退 CPU") + " · " + result.FallbackReason, "caption"));
         if (result.Scenes is { } scenes)
         {
-            details.Children.Add(Ui.Text(Localization.Text("场景与照明") + " · " + scenes.Backend, "caption"));
+            details.Children.Add(Ui.Text(Localization.Text("场景、照明与面部") + " · " + scenes.Backend, "caption"));
             if (scenes.FallbackReason is not null) details.Children.Add(Ui.Text(scenes.FallbackReason, "caption"));
         }
         details.Children.Add(Ui.Text(NsfwStateText(moderation.State), "caption"));

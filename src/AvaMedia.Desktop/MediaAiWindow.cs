@@ -22,7 +22,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Value = 8, Increment = 1 };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU" };
     private readonly CheckBox _reuse = new() { Content = "复用相似画面", IsChecked = true };
-    private readonly CheckBox _sceneTags = new() { Content = "识别场景与照明", IsChecked = true };
+    private readonly CheckBox _sceneTags = new() { Content = "识别场景、照明与面部", IsChecked = true };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
@@ -194,11 +194,11 @@ public sealed partial class MediaAiWindow : Window
                     new("重新分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Enabled: () => CanAnalyzeNotification(paths)) };
             if (failedPaths.Length > 0) resultActions.Insert(0, new("重试失败文件", () => { _ = AnalyzeAsync(failedPaths); return Task.CompletedTask; }, Primary: true,
                 Enabled: () => CanAnalyzeNotification(failedPaths)));
-            if (sceneFailedPaths.Length > 0) resultActions.Insert(0, new("重试场景识别", () => { _ = AnalyzeAsync(sceneFailedPaths); return Task.CompletedTask; },
+            if (sceneFailedPaths.Length > 0) resultActions.Insert(0, new("重试语义识别", () => { _ = AnalyzeAsync(sceneFailedPaths); return Task.CompletedTask; },
                 Enabled: () => CanAnalyzeNotification(sceneFailedPaths)));
             Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "标签分析完成",
                 sceneFailedPaths.Length == 0 ? (FormattableString)$"成功 {results.Count} 个，失败 {failedPaths.Length} 个。"
-                    : $"标签完成 {results.Count}/{paths.Length} 个 · 场景失败 {sceneFailedPaths.Length} 个",
+                    : $"标签完成 {results.Count}/{paths.Length} 个 · 语义识别失败 {sceneFailedPaths.Length} 个",
                 failedPaths.Length == 0 && sceneFailedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
             foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
                 if (_results.TryGetValue(entry.Path, out var result)) ShowResult(entry, result);
@@ -233,7 +233,7 @@ public sealed partial class MediaAiWindow : Window
     {
         var tags = ResultTags(result).ToArray();
         entry.Status = result.SceneError is null ? Localization.Format($"已识别 {tags.Length} 个标签")
-            : Localization.Format($"已识别 {tags.Length} 个标签 · 场景识别失败");
+            : Localization.Format($"已识别 {tags.Length} 个标签 · 语义识别失败");
         entry.Details = string.Join(" · ", tags.Take(5).Select(tag => tag.Label));
     }
     private static string NsfwStateText(NsfwSignalState state) => Localization.Text(state switch

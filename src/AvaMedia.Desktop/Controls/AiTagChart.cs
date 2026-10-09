@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -33,7 +34,7 @@ public sealed class AiTagChart : Control
     private TagChartThreshold? _draggedThreshold;
     private string? _activeThresholdModel;
     private double _threshold = .4, _duration = 1, _cursor, _minimum;
-    private string? _selected;
+    private string? _selected, _hovered;
     private bool _draggingThreshold;
     public event Action<string>? TagSelected;
     public event Action<double>? SampleSelected;
@@ -55,10 +56,10 @@ public sealed class AiTagChart : Control
     public void Update(IReadOnlyList<TagChartBar> bars, IReadOnlyList<TagChartSeries> series, double threshold, double duration, double cursor, string? selected, bool semantic, IReadOnlyList<TagChartThreshold>? thresholds = null)
     {
         _bars = bars; _series = series; _threshold = threshold; _duration = Math.Max(1, duration); _cursor = cursor; _selected = selected;
-        _thresholds = thresholds ?? []; _minimum = semantic ? -1 : 0; InvalidateVisual();
+        _thresholds = thresholds ?? []; _minimum = semantic ? -1 : 0; _hovered = null; InvalidateVisual();
     }
     private Rect Plot => Timeline ? new(38, 28, Math.Max(1, Bounds.Width - 92), Math.Max(1, Bounds.Height - 62))
-        : new(148, 24, Math.Max(1, Bounds.Width - 194), Math.Max(1, Bounds.Height - 50));
+        : new(24, 24, Math.Max(1, Bounds.Width - 24), Math.Max(1, Bounds.Height - 28));
     private double X(double seconds) => Plot.X + seconds / _duration * Plot.Width;
     private double ScoreX(double score) => Plot.X + (score - _minimum) / (1 - _minimum) * Plot.Width;
     private double Y(double score, bool semantic = false)
@@ -67,10 +68,12 @@ public sealed class AiTagChart : Control
         return Plot.Bottom - (score - minimum) / (1 - minimum) * Plot.Height;
     }
     private IBrush ModelBrush(string model) => model == ModelCatalog.EmbeddingId ? SuccessBrush ?? Brushes.SeaGreen : AccentBrush ?? Brushes.DodgerBlue;
+    private FormattedText FormatText(string text, double size = 11, IBrush? brush = null, FontWeight? weight = null)
+        => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+            new Typeface(TextElement.GetFontFamily(this), weight: weight ?? FontWeight.Normal), size, brush ?? TextBrush ?? Brushes.Black);
     private void Text(DrawingContext context, string text, Point point, double size = 11, IBrush? brush = null)
     {
-        var value = new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default), size, brush ?? TextBrush ?? Brushes.Black);
-        context.DrawText(value, point);
+        context.DrawText(FormatText(text, size, brush), point);
     }
     public override void Render(DrawingContext context)
     {
@@ -78,39 +81,56 @@ public sealed class AiTagChart : Control
         if (Bounds.Width < 200 || Bounds.Height < 80) return;
         var plot = Plot; var grid = new Pen(GridBrush, 1);
         if (Timeline) RenderTimeline(context, plot, grid);
-        else
+        else RenderBars(context, plot);
+    }
+    private void RenderBars(DrawingContext context, Rect plot)
+    {
+        var color = ModelBrush(_minimum < 0 ? ModelCatalog.EmbeddingId : ModelCatalog.JoyTagId);
+        using (context.PushOpacity(.55))
         {
-            for (var i = 0; i <= 4; i++)
-            {
-                var x = plot.X + plot.Width * i / 4; context.DrawLine(grid, new(x, plot.Y), new(x, plot.Bottom));
-                Text(context, (_minimum + (1 - _minimum) * i / 4d).ToString("0.00"), new(x - 10, plot.Bottom + 8), 10);
-            }
-            var row = plot.Height / Math.Max(1, _bars.Count);
-            for (var index = 0; index < _bars.Count; index++)
-            {
-                var item = _bars[index]; var y = plot.Y + index * row + 3;
-                using (context.PushClip(new Rect(0, y, 140, row))) Text(context, item.Label, new(0, y + 2), 12);
-                var scoreX = ScoreX(Math.Clamp(item.Score, _minimum, 1)); var zeroX = ScoreX(0);
-                var rect = new Rect(Math.Min(scoreX, zeroX), y, Math.Abs(scoreX - zeroX), Math.Max(2, Math.Min(18, row - 5)));
-                context.DrawRectangle(item.Score >= _threshold ? (_minimum < 0 ? SuccessBrush : AccentBrush) : GridBrush, item.Key == _selected ? new Pen(TextBrush, 1) : null, rect, 2, 2);
-                Text(context, item.Score.ToString("0.000"), new(plot.Right + 5, y + 2), 10);
-            }
-            var thresholdX = ScoreX(_threshold);
-            context.DrawLine(new Pen(WarningBrush, 1, new DashStyle([5, 4], 0)), new(thresholdX, plot.Y), new(thresholdX, plot.Bottom));
-            if (_bars.Count == 0) Text(context, Localization.Text("等待标签分数"), new(plot.X, plot.Y + 20));
+            Text(context, _minimum < 0 ? "−1" : "0", new(plot.X, 0), 10);
+            var end = FormatText("1", 10); context.DrawText(end, new(plot.Right - end.Width, 0));
+            if (_minimum < 0) Text(context, "0", new(ScoreX(0) - 3, 0), 10);
         }
+        var row = plot.Height / Math.Max(1, _bars.Count);
+        for (var index = 0; index < _bars.Count; index++)
+        {
+            var item = _bars[index]; var y = plot.Y + index * row;
+            var selected = item.Key == _selected; var hovered = item.Key == _hovered;
+            if (selected || hovered)
+                using (context.PushOpacity(selected ? .09 : .05))
+                    context.DrawRectangle(color, null, new Rect(0, y - 4, Bounds.Width, row - 4), 4, 4);
+            using (context.PushOpacity(.5)) Text(context, (index + 1).ToString("00"), new(0, y + 2), 10);
+            var value = FormatText(item.Score.ToString("0.000"), 12, color, FontWeight.SemiBold);
+            var label = FormatText(item.Label, 12, weight: selected ? FontWeight.SemiBold : FontWeight.Normal);
+            label.MaxTextWidth = Math.Max(1, plot.Width - value.Width - 16);
+            label.MaxLineCount = 1; label.Trimming = TextTrimming.CharacterEllipsis;
+            context.DrawText(label, new(plot.X, y));
+            context.DrawText(value, new(plot.Right - value.Width, y));
+            var track = new Rect(plot.X, y + 22, plot.Width, 5);
+            using (context.PushOpacity(.35)) context.DrawRectangle(GridBrush, null, track, 2.5, 2.5);
+            var scoreX = ScoreX(Math.Clamp(item.Score, _minimum, 1)); var zeroX = ScoreX(0);
+            var filled = new Rect(Math.Min(scoreX, zeroX), track.Y, Math.Abs(scoreX - zeroX), track.Height);
+            using (context.PushOpacity(item.Score >= _threshold ? .9 : .35))
+                context.DrawRectangle(color, null, filled, 2.5, 2.5);
+            if (_minimum < 0) context.DrawLine(new Pen(GridBrush, 1), new(zeroX, track.Y - 1), new(zeroX, track.Bottom + 1));
+            var thresholdX = ScoreX(_threshold);
+            context.DrawLine(new Pen(WarningBrush, 1.5), new(thresholdX, track.Y - 2), new(thresholdX, track.Bottom + 2));
+        }
+        if (_bars.Count == 0) Text(context, Localization.Text("等待标签分数"), new(plot.X, plot.Y + 20));
     }
     private void RenderTimeline(DrawingContext context, Rect plot, Pen grid)
     {
         var semantic = _thresholds.Any(threshold => threshold.Semantic) || _series.Any(series => series.Semantic);
         Text(context, Localization.Text("标签分数"), new(plot.X, 4), 10, ModelBrush(ModelCatalog.JoyTagId));
-        if (semantic) Text(context, Localization.Text("场景相似度"), new(Math.Max(plot.X, plot.Right - 90), 4), 10, ModelBrush(ModelCatalog.EmbeddingId));
+        if (semantic) Text(context, Localization.Text("语义相似度"), new(Math.Max(plot.X, plot.Right - 90), 4), 10, ModelBrush(ModelCatalog.EmbeddingId));
         for (var i = 0; i <= 4; i++)
         {
-            var score = i / 4d; var y = Y(score); context.DrawLine(grid, new(plot.X, y), new(plot.Right, y));
+            var score = i / 4d; var y = Y(score);
+            using (context.PushOpacity(.5)) context.DrawLine(grid, new(plot.X, y), new(plot.Right, y));
             Text(context, score.ToString("0.00"), new(0, y - 7), brush: ModelBrush(ModelCatalog.JoyTagId));
             if (semantic) Text(context, (score * 2 - 1).ToString("0.00"), new(plot.Right + 5, y - 7), brush: ModelBrush(ModelCatalog.EmbeddingId));
-            var x = plot.X + plot.Width * i / 4; context.DrawLine(grid, new(x, plot.Y), new(x, plot.Bottom));
+            var x = plot.X + plot.Width * i / 4; context.DrawLine(grid, new(x, plot.Bottom), new(x, plot.Bottom + 3));
         }
         DrawTimeLabels(context, plot);
         foreach (var threshold in _thresholds)
@@ -140,9 +160,9 @@ public sealed class AiTagChart : Control
     }
     private void DrawTimeLabels(DrawingContext context, Rect plot)
     {
-        var labels = Enumerable.Range(0, 5).Select(index => (Index: index, Caption: MediaTime.Format(_duration * index / 4)))
-            .Select(item => (item.Index, item.Caption, Text: new FormattedText(item.Caption, CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight, new Typeface(FontFamily.Default), 10, TextBrush ?? Brushes.Black))).ToArray();
+        // Axis ticks need whole seconds; sample readouts retain their exact timestamps.
+        var labels = Enumerable.Range(0, 5).Select(index => (Index: index, Caption: MediaTime.Format(Math.Round(_duration * index / 4))[..^4]))
+            .Select(item => (item.Index, item.Caption, Text: FormatText(item.Caption, 10))).ToArray();
         var end = labels[^1]; var endX = plot.Right - end.Text.Width; var y = plot.Bottom + 8;
         var previousEnd = plot.X + labels[0].Text.Width;
         if (previousEnd + 8 > endX) { context.DrawText(end.Text, new(endX, y)); return; }
@@ -165,6 +185,16 @@ public sealed class AiTagChart : Control
         }
         else if (!Timeline) ThresholdEdited?.Invoke(Math.Clamp(_minimum + (point.X - Plot.X) / Plot.Width * (1 - _minimum), .05, .95));
     }
+    private TagChartBar? BarAt(Point point)
+        => !Timeline && _bars.Count > 0 && new Rect(0, Plot.Y - 4, Bounds.Width, Plot.Height + 4).Contains(point)
+            ? _bars[Math.Clamp((int)((point.Y - Plot.Y) / Plot.Height * _bars.Count), 0, _bars.Count - 1)] : null;
+    private bool OnBarThreshold(Point point)
+    {
+        if (BarAt(point) is null || Math.Abs(point.X - ScoreX(_threshold)) >= 7) return false;
+        var row = Plot.Height / _bars.Count;
+        var relativeY = (point.Y - Plot.Y) % row;
+        return relativeY is >= 16 and <= 32;
+    }
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
@@ -181,10 +211,9 @@ public sealed class AiTagChart : Control
             }
             else Seek(point.X);
         }
-        else if (!Timeline && Plot.Contains(point) && Math.Abs(point.X - ScoreX(_threshold)) < 7)
+        else if (!Timeline && OnBarThreshold(point))
         { _draggingThreshold = true; e.Pointer.Capture(this); SetThreshold(point); }
-        else if (!Timeline && _bars.Count > 0 && point.Y >= Plot.Y && point.Y <= Plot.Bottom)
-            TagSelected?.Invoke(_bars[Math.Clamp((int)((point.Y - Plot.Y) / Plot.Height * _bars.Count), 0, _bars.Count - 1)].Key);
+        else if (BarAt(point) is { } bar) TagSelected?.Invoke(bar.Key);
         e.Handled = true;
     }
     private void Seek(double x)
@@ -203,16 +232,18 @@ public sealed class AiTagChart : Control
             var nearest = _series.SelectMany(series => series.Points).Where(sample => sample.Score.HasValue).MinBy(sample => Math.Abs(sample.Seconds - time));
             SampleHovered?.Invoke(nearest?.Seconds);
         }
-        else if (!Timeline && _bars.Count > 0 && point.Y >= Plot.Y && point.Y < Plot.Bottom)
+        else if (!Timeline)
         {
-            var item = _bars[Math.Clamp((int)((point.Y - Plot.Y) / Plot.Height * _bars.Count), 0, _bars.Count - 1)];
+            var item = BarAt(point);
+            if (_hovered != item?.Key) { _hovered = item?.Key; InvalidateVisual(); }
+            Cursor = new Cursor(OnBarThreshold(point) ? StandardCursorType.SizeWestEast : item is null ? StandardCursorType.Arrow : StandardCursorType.Hand);
             BarHovered?.Invoke(item);
         }
         else { SampleHovered?.Invoke(null); BarHovered?.Invoke(null); }
     }
     protected override void OnPointerExited(PointerEventArgs e)
     {
-        base.OnPointerExited(e); SampleHovered?.Invoke(null); BarHovered?.Invoke(null);
+        base.OnPointerExited(e); _hovered = null; InvalidateVisual(); SampleHovered?.Invoke(null); BarHovered?.Invoke(null);
     }
     protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); _draggingThreshold = false; _draggedThreshold = null; e.Pointer.Capture(null); }
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); _draggingThreshold = false; _draggedThreshold = null; }

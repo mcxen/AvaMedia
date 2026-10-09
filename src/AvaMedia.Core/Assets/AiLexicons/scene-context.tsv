@@ -19,6 +19,10 @@
 照明状态	自然光	A scene illuminated mainly by natural daylight coming through windows.
 照明状态	夜视画面	A monochrome infrared night-vision camera image.
 照明状态	照明不明	A scene whose lighting source cannot be determined from the image.
+面部可见性	露脸	A person with a clearly visible, unobstructed face, showing the eyes, nose and mouth.
+面部可见性	挡脸	A person whose face is obscured by hands, clothing or an object that hides facial features.	covering_face
+面部可见性	未露脸	A person whose face is outside the picture, turned away from the camera or not shown.	faceless
+面部可见性	面部不明	An image without a person or with a face too small, blurred or dark to assess visibility.
 场景物体	床	A bed with a mattress and bedding.	bed
 场景物体	床单	Bed sheets covering a mattress.	bed_sheet
 场景物体	枕头	A pillow on a bed or sofa.	pillow

@@ -7,7 +7,7 @@ public sealed record MediaSceneScore(string Label, string Category, double Simil
 public sealed record MediaSceneResult(string Model, string Backend, string? FallbackReason,
     double MinimumSimilarity, double MinimumMargin, IReadOnlyList<MediaSceneScore> Scores, IReadOnlyList<MediaSceneFrame> Frames);
 
-/// <summary>Local scene candidates share the tagger's samples; cosine scores are separate from JoyTag outputs.</summary>
+/// <summary>Local scene and face-visibility candidates share the tagger's samples; cosine scores are separate from JoyTag outputs.</summary>
 internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCandidate[] candidates, float[][] labels) : IAsyncDisposable
 {
     private const double MinimumSimilarity = .55;
@@ -17,16 +17,16 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     {
         if (!await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: ct).ConfigureAwait(false))
         {
-            activity.Stage("下载场景模型");
+            activity.Stage("下载语义模型");
             await store.DownloadAsync(ModelCatalog.EmbeddingId, new DownloadProgress(activity), ct).ConfigureAwait(false);
         }
         var embedding = await GemmaMediaEmbedding.StartAsync(store, ct, preferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
         try
         {
-            var candidates = WordLibraryCatalog.SceneEntries.Where(entry => entry.Category is "场景空间" or "照明状态").ToArray();
+            var candidates = WordLibraryCatalog.SceneEntries.Where(entry => entry.Category is "场景空间" or "照明状态" or "面部可见性").ToArray();
             var labels = new List<float[]>();
             activity.Backend(embedding.Backend);
-            activity.Stage("准备场景描述", 0, candidates.Length, "词");
+            activity.Stage("准备语义描述", 0, candidates.Length, "词");
             for (var offset = 0; offset < candidates.Length; offset += 16)
             {
                 labels.AddRange(await embedding.EmbedLabelsAsync(candidates.Skip(offset).Take(16).Select(entry => entry.Description).ToArray(), ct).ConfigureAwait(false));
@@ -40,7 +40,7 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     public async Task<MediaSceneResult> AnalyzeAsync(IReadOnlyList<byte[]> images, IReadOnlyList<double> seconds,
         IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null)
     {
-        activity.Stage("识别场景与照明", 0, images.Count, "帧");
+        activity.Stage("识别场景、照明与面部", 0, images.Count, "帧");
         activity.Backend(embedding.Backend);
         var matches = new List<MediaSceneMatch[]>();
         var observations = new List<MediaSceneMatch[]>();
@@ -68,9 +68,9 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
                     var best = ranked[0]; var margin = scores[best] - scores[ranked[1]];
                     raw.AddRange(ranked.Select(index => new MediaSceneMatch(candidates[index].Label, candidates[index].Category,
                         scores[index], scores[index] - scores[index == best ? ranked[1] : best])));
-                    // Baselines compete with named scenes, but are not presented as positive findings.
+                    // Baselines compete with named findings, but are not presented as positive tags.
                     if (scores[best] < MinimumSimilarity || margin < MinimumMargin
-                        || candidates[best].Label is "其他室内" or "照明不明") continue;
+                        || WordLibraryCatalog.IsSemanticBaseline(candidates[best].Label)) continue;
                     selected.Add(new(candidates[best].Label, candidates[best].Category, scores[best], margin));
                 }
                 matches.Add(selected.ToArray());
@@ -86,6 +86,6 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     public ValueTask DisposeAsync() => embedding.DisposeAsync();
     private sealed class DownloadProgress(AiActivityReporter activity) : IProgress<ModelDownloadProgress>
     {
-        public void Report(ModelDownloadProgress value) => activity.Stage("下载场景模型", value.Received, value.Total, "字节", value.Stage);
+        public void Report(ModelDownloadProgress value) => activity.Stage("下载语义模型", value.Received, value.Total, "字节", value.Stage);
     }
 }

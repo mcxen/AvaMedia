@@ -2,6 +2,8 @@ namespace AvaMedia.Core;
 
 public static partial class WordLibraryCatalog
 {
+    public static bool IsSemanticBaseline(string label) => label is "其他室内" or "照明不明" or "面部不明";
+
     private static WordCandidate[] ReadSceneWords() => ReadText("scene-context.tsv")
         .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line =>
         {

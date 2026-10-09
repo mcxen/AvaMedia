@@ -39,7 +39,7 @@ public static partial class WordLibraryCatalog
         {
         new("person-features", "人物特征", "AvaMedia · 外观、配饰、动作、神态与体毛特征", FeatureEntries),
         new("nsfw-review", "NSFW 识别标签", "JoyTag / Danbooru · Apache-2.0 · AvaMedia 风险分组", NsfwEntries),
-        new("scene-context", "场景与照明", "AvaMedia · JoyTag 标签与本地语义场景描述", SceneEntries.ToArray()),
+        new("scene-context", "场景、照明与面部", "AvaMedia · JoyTag 标签与本地语义描述", SceneEntries.ToArray()),
         new("nudenet-review", "NudeNet 分类", "notAI-tech/NudeNet · AGPL-3.0 · 18 类语义候选，非 JoyTag 检测输出", ReadNudeNetWords()),
         new("common", "常用分类", "AvaMedia · 中文名称与模型标签映射", Common()),
         new("ratings", "内容分级候选", "AvaMedia · 语义描述，需人工确认", [

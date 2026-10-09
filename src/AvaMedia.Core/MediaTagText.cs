@@ -72,8 +72,8 @@ public static class MediaTagText
             .AppendLine("标签：" + string.Join("，", labels.Select(label => label.Label)))
             .AppendLine("生成时间：" + DateTime.UtcNow.ToString("u", CultureInfo.InvariantCulture))
             .AppendLine("时长：" + MediaTime.Format(result.DurationSeconds))
-            .AppendLine(FormattableString.Invariant($"标签阈值：{threshold:0.00}；场景相似度：{sceneThreshold:0.00}；场景分差：{sceneMargin:0.00}"))
-            .AppendLine("标签模型：" + result.Backend).AppendLine("场景模型：" + (result.Scenes?.Backend ?? result.SceneError ?? "未启用"))
+            .AppendLine(FormattableString.Invariant($"标签阈值：{threshold:0.00}；语义相似度：{sceneThreshold:0.00}；类别分差：{sceneMargin:0.00}"))
+            .AppendLine("标签模型：" + result.Backend).AppendLine("语义模型：" + (result.Scenes?.Backend ?? result.SceneError ?? "未启用"))
             .AppendLine().AppendLine("类别\t标签\t分数\t分数类型\t模型\t达标采样时间");
         foreach (var label in labels)
         {
