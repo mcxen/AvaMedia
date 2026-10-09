@@ -30,7 +30,6 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _nsfwBadgeText = new() { FontWeight = FontWeight.SemiBold };
     private readonly Button _nsfwBadge = new() { Name = "MediaAiNsfwBadge", IsVisible = false, Padding = new(8, 2), MinHeight = 0, BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
     private readonly StackPanel _nsfwEvidence = new() { Spacing = 5, Width = 340 };
-    private readonly Flyout _nsfwFlyout = new();
     private readonly Expander _chartSection = new() { Header = "分数与曲线", IsExpanded = true, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
 
     private Control BuildResultPane()
@@ -43,8 +42,7 @@ public sealed partial class MediaAiWindow
         titleRow.Children.Add(_detailTitle); Grid.SetColumn(_nsfwBadge, 1); titleRow.Children.Add(_nsfwBadge);
         _nsfwBadge.Content = _nsfwBadgeText; ToolTip.SetTip(_nsfwBadge, "点击查看 NSFW 判断依据");
         _nsfwBadge.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
-        _nsfwFlyout.Content = new ScrollViewer { Content = _nsfwEvidence, MaxHeight = 320 };
-        _nsfwBadge.Click += (_, _) => _nsfwFlyout.ShowAt(_nsfwBadge);
+        _nsfwBadge.Click += (_, _) => { _details.IsExpanded = !_details.IsExpanded; _details.BringIntoView(); };
         var title = new StackPanel { Spacing = 6 };
         title.Children.Add(titleRow); title.Children.Add(_detailState);
         _sampleSummary.Classes.Add("time");
@@ -79,7 +77,7 @@ public sealed partial class MediaAiWindow
     private void UpdateNsfwBadge(NsfwAssessment? moderation)
     {
         _nsfwBadge.IsVisible = moderation is not null; _nsfwEvidence.Children.Clear();
-        if (moderation is null) { _nsfwFlyout.Hide(); return; }
+        if (moderation is null) return;
         var (text, brush) = moderation.State switch
         {
             NsfwSignalState.Suspected => ("疑似 NSFW", "UiDanger"),
@@ -175,7 +173,8 @@ public sealed partial class MediaAiWindow
             if (scenes.FallbackReason is not null) details.Children.Add(Ui.Text(scenes.FallbackReason, "caption"));
         }
         UpdateNsfwBadge(moderation);
-        _details.Content = new ScrollViewer { Content = details, MaxHeight = 140 };
+        details.Children.Add(_nsfwEvidence);
+        _details.Content = new ScrollViewer { Content = details, MaxHeight = 320 };
         _details.IsVisible = true; UpdateActions();
     }
     private async Task RefreshSelectedPreviewAsync(double? seconds = null, bool debounce = false)
