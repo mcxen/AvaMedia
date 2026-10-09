@@ -73,7 +73,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
         bool Media(MediaRouteSource source) => source.Kind is MediaFileKind.Video or MediaFileKind.Audio or MediaFileKind.Image;
         bool Extension(MediaRouteSource source, string extension) => Path.GetExtension(source.Path).Equals(extension, StringComparison.OrdinalIgnoreCase);
         var subtitleTitle = selected.Any(Video) ? "自动字幕" : "语音转字幕";
-        Add("media-ai", "媒体 AI 标签 · Beta", "图片 / 视频标签、关键词筛选与重命名", source => Video(source) || Image(source));
+        Add("media-ai", "AI 标签工作台", "实时分数、采样曲线与同目录标签 TXT", source => Video(source) || Image(source));
         var groups = selected.GroupBy(source => source.Kind).OrderByDescending(group => group.Count()).Select(group => group.Key);
         foreach (var group in groups)
             switch (group)

@@ -15,7 +15,7 @@ public sealed record Feature(string Id, string Label, string Category, string Fo
 public static class Catalog
 {
     public static IReadOnlyList<Feature> All { get; } = Build();
-    public static string[] Categories { get; } = ["视频", "音频", "图片", "文档", "光驱设备\\DVD\\CD\\ISO", "工具集"];
+    public static string[] Categories { get; } = ["视频", "音频", "图片", "AI 标签", "文档", "光驱设备\\DVD\\CD\\ISO", "工具集"];
     private static List<Feature> Build()
     {
         List<Feature> f = [];
@@ -42,7 +42,7 @@ public static class Catalog
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
         Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
         Add("image-tools","缩放 / 旋转","图片","png","crop");
-        Add("image-ai","图片 AI 标签 · Beta","图片","","image",Operation.BatchTools);
+        Add("image-ai","图片 AI 标签","图片","","image",Operation.BatchTools);
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
         Add("pdf-merge","PDF 合并","文档","pdf","pdf-merge",Operation.PdfMerge);
         Add("pdf-split","PDF 拆分","文档","pdf","pdf-split",Operation.PdfSplit);
@@ -55,7 +55,7 @@ public static class Catalog
         Add("crop","批量裁剪","工具集","mp4","crop");
         Add("rotate","批量旋转","工具集","mp4","rotate");
         Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
-        Add("media-ai","媒体 AI 标签 · Beta","工具集","","gear",Operation.BatchTools);
+        Add("media-ai","AI 标签工作台","AI 标签","","image",Operation.BatchTools,2);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
         Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
@@ -68,7 +68,7 @@ public static class Catalog
         return f;
     }
     public static Feature Find(string id) => All.First(f=>f.Id == id);
-    public static bool IsBeta(Feature feature) => feature.Id is "person-clip" or "image-ai" or "media-ai";
+    public static bool IsBeta(Feature feature) => feature.Id is "person-clip";
     public static bool DirectoryOutput(Operation operation) => operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip or Operation.VideoSummary;
 }
 public sealed class ConversionOptions

@@ -41,7 +41,7 @@ public sealed partial class MediaAiWindow
         }));
         _imports.Children.Add(Ui.Button("移除勾选", () =>
         {
-            foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _editedTags.Remove(entry.Path); _entries.Remove(entry); }
+            foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _reportSources.Remove(entry.Path); _editedTags.Remove(entry.Path); _entries.Remove(entry); }
             if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
             RenderSelectedResult(); UpdateActions();
         }));
@@ -69,13 +69,13 @@ public sealed partial class MediaAiWindow
         var fileBody = new Grid(); fileBody.Children.Add(_list);
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; fileBody.Children.Add(_empty);
         Grid.SetRow(fileBody, 1); files.Children.Add(fileBody);
-        var body = new Grid { ColumnDefinitions = new("300,*"), ColumnSpacing = 18 };
+        var body = new Grid { ColumnDefinitions = new("270,*"), ColumnSpacing = 18 };
         body.Children.Add(files); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
         Grid.SetRow(_activity, 2); root.Children.Add(_activity);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
         var state = new StackPanel { Spacing = 4 }; state.Children.Add(_status); state.Children.Add(_modelStatus); footer.Children.Add(state);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        actions.Children.Add(_copy); actions.Children.Add(_export); actions.Children.Add(_rename); actions.Children.Add(_undo); actions.Children.Add(_stop); actions.Children.Add(_analyze);
+        actions.Children.Add(_stop); actions.Children.Add(_analyze);
         Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
         _activity.Update(null); _undo.IsVisible = CanUndo();
         _analyze.Click += async (_, _) => await AnalyzeAsync();
@@ -83,7 +83,7 @@ public sealed partial class MediaAiWindow
         _stop.Click += (_, _) => _operation?.Cancel(); _export.Click += async (_, _) => await ExportAsync();
         _copy.Click += async (_, _) =>
         {
-            if (_list.SelectedItem is not MediaFileEntry entry || !_results.TryGetValue(entry.Path, out var value) || Clipboard is null) return;
+            if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var value) || Clipboard is null) return;
             try
             {
                 await Clipboard.SetTextAsync(string.Join("，", ResultTags(value, search: true).Select(tag => tag.Label)));
@@ -101,15 +101,18 @@ public sealed partial class MediaAiWindow
         };
         _list.SelectionChanged += async (_, _) => { RenderSelectedResult(); await RefreshSelectedPreviewAsync(); };
         _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
-        AddSettingRow("标签阈值", _threshold); AddSettingRow("视频采样帧数", _frames);
+        AddSettingRow("视频采样帧数", _frames); AddSettingRow("场景分差", _sceneMargin);
+        _settingsPanel.Children.Add(_autoTxt);
         _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
-        _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
+        _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
         _settingsPanel.Children.Add(Ui.Button("选择词库 / 类别…", async () =>
         {
             await new WordLibraryWindow(WordLibraryTarget.JoyTag).ShowDialog(_settingsOwner ?? this);
             if (_closed) return;
             ReloadWordCandidates(); RefreshDisplayedResults();
         }));
+        _showScores.IsCheckedChanged += (_, _) => RenderSelectedResult();
+        _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();
         _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync(_settingsOwner ?? this)));
     }
@@ -129,7 +132,7 @@ public sealed partial class MediaAiWindow
         window.Closed += (_, _) =>
         {
             scroll.Content = null;
-            ToolInputs.CommitNumber(_threshold); ToolInputs.CommitNumber(_frames, integer: true);
+            ToolInputs.CommitNumber(_sceneMargin); ToolInputs.CommitNumber(_frames, integer: true);
             try { SavePreferences(); } catch (Exception error) { _status.Text = error.Message; }
         };
         _settingsOwner = window;
@@ -149,12 +152,15 @@ public sealed partial class MediaAiWindow
         _updatingSelection = true; _selectAll.IsChecked = _entries.Count > 0 && included == _entries.Count; _updatingSelection = false;
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
-        _imports.IsEnabled = _advanced.IsEnabled = !_busy;
-        _analyze.IsEnabled = !_busy && included > 0; _analyze.Content = Localization.Text(!_modelReady ? "下载模型并分析" : "开始分析");
-        _rename.IsEnabled = !_busy && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
-        _copy.IsVisible = _export.IsVisible = _rename.IsVisible = _results.Count > 0;
-        _export.IsEnabled = !_busy && _results.Count > 0; _undo.IsEnabled = !_busy && _canRename();
-        _copy.IsEnabled = _list.SelectedItem is MediaFileEntry selected && _results.TryGetValue(selected.Path, out var value) && ResultTags(value, search: true).Any();
+        _imports.IsEnabled = _advanced.IsEnabled = !_busy && !_writingTxt;
+        _analyze.IsEnabled = !_busy && !_writingTxt && included > 0; _analyze.Content = Localization.Text(!_modelReady ? "下载模型并分析" : "开始分析");
+        _rename.IsEnabled = !_busy && !_writingTxt && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
+        _copy.IsVisible = _results.Count + _liveResults.Count > 0;
+        _export.IsVisible = _rename.IsVisible = _results.Count > 0;
+        _export.IsEnabled = !_busy && _results.Count > 0; _undo.IsEnabled = !_busy && !_writingTxt && _canRename();
+        _copy.IsEnabled = _list.SelectedItem is MediaFileEntry selected && TryDisplayedResult(selected.Path, out var value) && ResultTags(value, search: true).Any();
+        _saveTxt.IsEnabled = !_busy && !_writingTxt && _entries.Any(entry => entry.Include && _results.ContainsKey(entry.Path));
+        _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
         _stop.IsVisible = _busy && _operation is not null;
     }
 }

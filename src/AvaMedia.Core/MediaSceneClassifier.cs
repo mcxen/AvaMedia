@@ -1,7 +1,8 @@
 namespace AvaMedia.Core;
 
 public sealed record MediaSceneMatch(string Label, string Category, double Similarity, double Margin);
-public sealed record MediaSceneFrame(double Seconds, IReadOnlyList<MediaSceneMatch> Matches);
+public sealed record MediaSceneFrame(double Seconds, IReadOnlyList<MediaSceneMatch> Matches)
+{ public IReadOnlyList<MediaSceneMatch> Candidates { get; init; } = []; }
 public sealed record MediaSceneScore(string Label, string Category, double Similarity, int MatchedFrames);
 public sealed record MediaSceneResult(string Model, string Backend, string? FallbackReason,
     double MinimumSimilarity, double MinimumMargin, IReadOnlyList<MediaSceneScore> Scores, IReadOnlyList<MediaSceneFrame> Frames);
@@ -37,12 +38,22 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     }
 
     public async Task<MediaSceneResult> AnalyzeAsync(IReadOnlyList<byte[]> images, IReadOnlyList<double> seconds,
-        IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct)
+        IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null)
     {
         activity.Stage("识别场景与照明", 0, images.Count, "帧");
         activity.Backend(embedding.Backend);
         var matches = new List<MediaSceneMatch[]>();
+        var observations = new List<MediaSceneMatch[]>();
         var groups = candidates.Select((entry, index) => (entry.Category, Index: index)).GroupBy(entry => entry.Category).ToArray();
+        MediaSceneResult Snapshot()
+        {
+            var frames = seconds.Select((time, index) => (time, index)).Where(item => samples[item.index] < matches.Count)
+                .Select(item => new MediaSceneFrame(item.time, matches[samples[item.index]]) { Candidates = observations[samples[item.index]] }).ToArray();
+            var totals = frames.SelectMany(frame => frame.Matches).GroupBy(match => (match.Label, match.Category))
+                .Select(group => new MediaSceneScore(group.Key.Label, group.Key.Category, group.Max(match => match.Similarity), group.Count()))
+                .OrderByDescending(score => score.Similarity).ToArray();
+            return new(ModelCatalog.EmbeddingId, embedding.Backend, embedding.FallbackReason, MinimumSimilarity, MinimumMargin, totals, frames);
+        }
         for (var offset = 0; offset < images.Count; offset += 4)
         {
             var vectors = await embedding.EmbedImagesAsync(images.Skip(offset).Take(4).ToArray(), ct).ConfigureAwait(false);
@@ -50,26 +61,26 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
             {
                 var scores = labels.Select(label => GemmaMediaEmbedding.Cosine(vector, label)).ToArray();
                 var selected = new List<MediaSceneMatch>();
+                var raw = new List<MediaSceneMatch>();
                 foreach (var group in groups)
                 {
                     var ranked = group.Select(entry => entry.Index).OrderByDescending(index => scores[index]).ToArray();
                     var best = ranked[0]; var margin = scores[best] - scores[ranked[1]];
+                    raw.AddRange(ranked.Select(index => new MediaSceneMatch(candidates[index].Label, candidates[index].Category,
+                        scores[index], scores[index] - scores[index == best ? ranked[1] : best])));
                     // Baselines compete with named scenes, but are not presented as positive findings.
                     if (scores[best] < MinimumSimilarity || margin < MinimumMargin
                         || candidates[best].Label is "其他室内" or "照明不明") continue;
                     selected.Add(new(candidates[best].Label, candidates[best].Category, scores[best], margin));
                 }
                 matches.Add(selected.ToArray());
+                observations.Add(raw.ToArray());
             }
             activity.Backend(embedding.Backend);
             activity.Advance(matches.Count, images.Count, "帧");
+            updated?.Invoke(Snapshot());
         }
-        var frames = seconds.Select((time, index) => new MediaSceneFrame(time, matches[samples[index]])).ToArray();
-        var totals = frames.SelectMany(frame => frame.Matches).GroupBy(match => (match.Label, match.Category))
-            .Select(group => new MediaSceneScore(group.Key.Label, group.Key.Category, group.Max(match => match.Similarity), group.Count()))
-            .OrderByDescending(score => score.Similarity).ToArray();
-        return new(ModelCatalog.EmbeddingId, embedding.Backend, embedding.FallbackReason,
-            MinimumSimilarity, MinimumMargin, totals, frames);
+        return Snapshot();
     }
 
     public ValueTask DisposeAsync() => embedding.DisposeAsync();

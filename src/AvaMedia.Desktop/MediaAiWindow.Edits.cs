@@ -7,7 +7,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly Dictionary<string, ResultTag[]> _editedTags = new(BatchRename.PathComparer);
-    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = true);
+    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = true, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false);
     private void LoadPreferences()
     {
         if(_storage.LoadToolOptions<Preferences>("media-ai") is not {} saved) return;
@@ -15,9 +15,11 @@ public sealed partial class MediaAiWindow
         _gpu.IsChecked = saved.Gpu; _reuse.IsChecked = saved.Reuse; _recursive.IsChecked = saved.Recursive;
         _showScores.IsChecked = saved.Scores; _onlyLibrary.IsChecked = saved.OnlyLibrary;
         _sceneTags.IsChecked = saved.RecognizeScenes;
+        _sceneThreshold.Value = Math.Clamp(saved.SceneThreshold, .05, .95); _sceneMargin.Value = Math.Clamp(saved.SceneMargin, 0, .5m);
+        _scoreMode.SelectedIndex = Math.Clamp(saved.ScoreMode, 0, 3); _autoTxt.IsChecked = saved.AutoTxt;
     }
     private void SavePreferences() => _storage.SaveToolOptions("media-ai", new Preferences(_threshold.Value ?? .4m, _frames.Value ?? 8,
-        _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true, _sceneTags.IsChecked == true));
+        _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true, _sceneTags.IsChecked == true, _sceneThreshold.Value, _sceneMargin.Value ?? .03m, _scoreMode.SelectedIndex, _autoTxt.IsChecked == true));
     private async Task EditTagsAsync(MediaTagResult result)
     {
         var original = ResultTags(result).ToArray();
@@ -37,11 +39,10 @@ public sealed partial class MediaAiWindow
     }
     private async Task ShowEvidenceAsync(MediaTagResult result, ResultTag tag)
     {
-        var matches = result.Frames.Where(frame => frame.Scores.Any(score => WordLibraryCatalog.TagLabel(score.Tag) == tag.Label && score.Score >= (double)(_threshold.Value ?? .4m))
-            || _libraryCandidates.Any(candidate => candidate.Label == tag.Label && candidate.Tags.Length > 0 && candidate.Tags.All(raw => frame.Scores.Any(score => score.Tag == raw && score.Score >= (double)(_threshold.Value ?? .4m)))))
-            .Select(frame => frame.Seconds).Concat(VideoFormats.IsVideo(result.Path)
-                ? result.Scenes?.Frames.Where(frame => frame.Matches.Any(match => match.Label == tag.Label)).Select(frame => frame.Seconds) ?? [] : [])
-            .Distinct().Order().ToArray();
+        var matches = tag.Model == ModelCatalog.EmbeddingId
+            ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == tag.Label
+                && candidate.Similarity >= _sceneThreshold.Value && candidate.Margin >= (double)(_sceneMargin.Value ?? .03m))).Select(frame => frame.Seconds).ToArray() ?? []
+            : TagPoints(result, tag).Where(point => point.Score >= (double)(_threshold.Value ?? .4m)).Select(point => point.Seconds).Distinct().Order().ToArray();
         var window = new Window { Title = tag.Label, Width = 500, Height = 420, MinWidth = 380, MinHeight = 300, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Localization.SetIsUserText(window, true);
         var content = new StackPanel { Spacing = 8, Margin = new(20) };

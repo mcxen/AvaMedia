@@ -21,13 +21,17 @@ public sealed partial class MediaAiWindow
 
     private Control BuildResultPane()
     {
-        var result = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 10 };
-        var heading = new Grid { ColumnDefinitions = new("*,170"), ColumnSpacing = 12 };
+        var result = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 10 };
+        var content = new StackPanel { Spacing = 14 };
+        var heading = new Grid { ColumnDefinitions = new("*,190"), ColumnSpacing = 12 };
         var title = new StackPanel { Spacing = 5 }; title.Children.Add(_detailTitle); title.Children.Add(_detailState); heading.Children.Add(title);
-        Grid.SetColumn(_preview, 1); heading.Children.Add(_preview); result.Children.Add(heading);
-        Grid.SetRow(_tagSearch, 1); result.Children.Add(_tagSearch);
-        var tags = new ScrollViewer { Content = _tagGroups, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
-        Grid.SetRow(tags, 2); result.Children.Add(tags); Grid.SetRow(_details, 3); result.Children.Add(_details); return result;
+        Grid.SetColumn(_preview, 1); heading.Children.Add(_preview); content.Children.Add(heading);
+        content.Children.Add(BuildWorkbench()); content.Children.Add(BuildCharts()); content.Children.Add(_tagSearch);
+        content.Children.Add(_tagGroups); content.Children.Add(_details);
+        result.Children.Add(new ScrollViewer { Content = content, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
+        var actions = new WrapPanel();
+        foreach (var button in new[] { _saveTxt, _copy, _export, _rename, _undo }) { button.Margin = new(0, 0, 8, 6); actions.Children.Add(button); }
+        Grid.SetRow(actions, 1); result.Children.Add(actions); return result;
     }
     private void RenderSelectedResult()
     {
@@ -35,20 +39,22 @@ public sealed partial class MediaAiWindow
         _tagGroups.Children.Clear(); _details.IsVisible = false;
         var entry = _list.SelectedItem as MediaFileEntry;
         _detailTitle.Text = entry?.Name ?? Localization.Text("识别结果"); Localization.SetIsUserText(_detailTitle, true);
-        _tagSearch.IsVisible = entry is not null && _results.ContainsKey(entry.Path);
-        if (entry is null || !_results.TryGetValue(entry.Path, out var result))
+        _tagSearch.IsVisible = entry is not null && TryDisplayedResult(entry.Path, out _);
+        if (entry is null || !TryDisplayedResult(entry.Path, out var result))
         {
             _detailState.Text = entry?.Status ?? Localization.Text("尚未添加文件");
             if (entry?.Status == Localization.Text("失败") && entry.Details.Length > 0) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
-            UpdateActions(); return;
+            RenderCharts(null); UpdateActions(); return;
         }
+        RenderCharts(result);
         var edits=new StackPanel { Orientation=Orientation.Horizontal, Spacing=8 };
         edits.Children.Add(Ui.Button("编辑标签…",async()=>await EditTagsAsync(result)));
         if(_editedTags.ContainsKey(result.Path))edits.Children.Add(Ui.Button("恢复识别标签",()=>{_editedTags.Remove(result.Path);RefreshDisplayedResults();}));
-        _tagGroups.Children.Add(edits);
+        if (_results.ContainsKey(result.Path)) _tagGroups.Children.Add(edits);
+        if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
         if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("场景识别失败：") + result.SceneError, "error"));
         var tags = ResultTags(result, search: true).ToArray();
-        _detailState.Text = Localization.Format($"识别到 {tags.Length} 个标签");
+        _detailState.Text = _liveResults.ContainsKey(result.Path) ? (_busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签")) : Localization.Format($"识别到 {tags.Length} 个标签");
         if (tags.Length == 0) _tagGroups.Children.Add(Ui.Text(string.IsNullOrWhiteSpace(_tagSearch.Text) ? "未找到达标标签" : "未找到匹配标签", "caption"));
         foreach (var group in tags.GroupBy(tag => tag.Category))
         {
@@ -59,7 +65,9 @@ public sealed partial class MediaAiWindow
                 var label = Ui.Text(tag.Label + (_showScores.IsChecked == true ? " · " + Localization.Text(tag.ScoreKind switch
                     { "sample_peak" => "峰值", "cosine_similarity" => "相似度", _ => "分数" }) + $" {tag.Score:0.00}" : "")); Localization.SetIsUserText(label, true);
                 var chip = new Button { Content = label, Padding = new(9, 5), Margin = new(0, 0, 6, 6), BorderThickness = new(1) };
-                chip.Click += async (_,_)=>await ShowEvidenceAsync(result,tag);
+                chip.Click += (_, _) => SelectTrace(TagKey(tag));
+                var evidence = new MenuItem { Header = "查看达标采样…" }; evidence.Click += async (_, _) => await ShowEvidenceAsync(result, tag);
+                chip.ContextMenu = new ContextMenu { Items = { evidence } };
                 chip.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
                 chip.Bind(Button.BorderBrushProperty, new DynamicResourceExtension("UiBorder")); chips.Children.Add(chip);
             }
@@ -80,15 +88,20 @@ public sealed partial class MediaAiWindow
         _details.Content = new ScrollViewer { Content = details, MaxHeight = 140 };
         _details.IsVisible = true; UpdateActions();
     }
-    private async Task RefreshSelectedPreviewAsync()
+    private async Task RefreshSelectedPreviewAsync(double? seconds = null)
     {
         _previewRequest?.Cancel();
         _preview.Source = null; _preview.IsVisible = false; _previewBitmap?.Dispose(); _previewBitmap = null;
         if (_closed || _list.SelectedItem is not MediaFileEntry entry) return;
+        if (TryDisplayedResult(entry.Path, out var result))
+        {
+            try { MediaTagService.ValidateSource(result); }
+            catch (IOException error) { _status.Text = error.Message; return; }
+        }
         using var request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _previewRequest = request;
         try
         {
-            var bytes = await _engine.Thumbnail(entry.Path, 0, 220, 140, request.Token, pad: false);
+            var bytes = await _engine.Thumbnail(entry.Path, seconds ?? _positions.GetValueOrDefault(entry.Path), 280, 140, request.Token, pad: false);
             if (_closed || request.IsCancellationRequested || _previewRequest != request) return;
             using var stream = new MemoryStream(bytes); _previewBitmap = new Bitmap(stream); _preview.Source = _previewBitmap; _preview.IsVisible = true;
         }

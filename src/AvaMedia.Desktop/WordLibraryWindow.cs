@@ -48,7 +48,7 @@ public sealed class WordLibraryWindow : Window
         _target = target;
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
-        Title = target is null ? "词库管理 · Beta" : "选择候选词 · " + (target == WordLibraryTarget.JoyTag ? "JoyTag" : "语义匹配");
+        Title = target is null ? "词库管理" : "选择候选词 · " + (target == WordLibraryTarget.JoyTag ? "JoyTag" : "语义匹配");
         Width = 930; Height = 710; MinWidth = 760; MinHeight = 580; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), RowSpacing = 10, Margin = new(20) };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };

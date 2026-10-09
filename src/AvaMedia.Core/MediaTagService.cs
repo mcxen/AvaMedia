@@ -18,11 +18,17 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public IReadOnlyList<MediaTagFrame> Frames { get; init; } = [];
     public MediaSceneResult? Scenes { get; init; }
     public string? SceneError { get; init; }
+    public double DurationSeconds { get; init; }
 }
-public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores);
+public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores)
+{
+    // Compact values follow MediaTagResult.Scores order, including scores below the display threshold.
+    public float[] Values { get; init; } = [];
+}
 public sealed record MediaTagProgress(string Path, MediaTagResult? Result, string? Error, int Completed, int Total)
 {
     public AiActivity? Activity { get; init; }
+    public MediaTagResult? PreviewResult { get; init; }
 }
 public sealed record MediaTagQuery(string Label, string[] Tags);
 
@@ -116,10 +122,10 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             { sceneSetupError = error.Message; return null; }
         }
         await using var scenes = await PrepareScenesAsync().ConfigureAwait(false);
-        async Task<(MediaSceneResult? Result, string? Error)> SceneResultAsync(byte[][] images, double[] seconds, int[] samples)
+        async Task<(MediaSceneResult? Result, string? Error)> SceneResultAsync(byte[][] images, double[] seconds, int[] samples, Action<MediaSceneResult>? updated = null)
         {
             if (scenes is null) return (null, sceneSetupError);
-            try { return (await scenes.AnalyzeAsync(images, seconds, samples, activity, ct).ConfigureAwait(false), null); }
+            try { return (await scenes.AnalyzeAsync(images, seconds, samples, activity, ct, updated).ConfigureAwait(false), null); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { return (null, error.Message); }
         }
@@ -156,7 +162,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     var scene = await SceneResultAsync([item.Image], [0], [0]).ConfigureAwait(false);
                     CheckSource(item.File, item.Length, item.Modified);
                     Report(item.File.FullName, new(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
-                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error }, null);
+                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error, Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }] }, null);
                 }
                 catch (IOException error) { Report(item.File.FullName, null, error.Message); }
             }
@@ -196,6 +202,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var samples = new int[count];
                 var sampleSeconds = new double[count];
                 var evidence = new IReadOnlyList<MediaTagScore>[count];
+                var frameValues = new float[count][];
                 activity.Stage("采样画面", 0, count, "帧");
                 for (var i = 0; i < count; i++)
                 {
@@ -212,6 +219,14 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 }
                 var mean = new double[tags.Length]; var maximum = new double[tags.Length];
                 var scored = 0;
+                MediaTagResult Snapshot() => new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / Math.Max(1, scored), maximum[j])).ToArray(),
+                    count, samples.Where((_, index) => frameValues[index] is not null).Distinct().Count(), session.Backend, length, modified, session.FallbackReason)
+                {
+                    DurationSeconds = duration,
+                    Frames = sampleSeconds.Select((seconds, index) => (seconds, index)).Where(item => frameValues[item.index] is not null)
+                        .Select(item => new MediaTagFrame(item.seconds, evidence[item.index]) { Values = frameValues[item.index] }).ToArray()
+                };
+                void PublishPreview(MediaTagResult value) => progress?.Report(new(path, null, null, completed, files.Length) { PreviewResult = value });
                 activity.Stage("识别视频标签", 0, count, "帧");
                 activity.Backend(session.Backend);
                 for (var offset = 0; offset < unique.Count; offset += options.BatchSize)
@@ -220,7 +235,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     for (var i = 0; i < vectors.Length; i++)
                     {
                         var frameScores=tags.Select((tag,j)=>new MediaTagScore(tag,vectors[i][j],vectors[i][j])).Where(score=>score.Score>=.1).OrderByDescending(score=>score.Score).Take(128).ToArray();
-                        for(var sample=0;sample<count;sample++)if(samples[sample]==offset+i)evidence[sample]=frameScores;
+                        for(var sample=0;sample<count;sample++)if(samples[sample]==offset+i) { evidence[sample]=frameScores; frameValues[sample]=vectors[i]; }
                         var weight = samples.Count(sample => sample == offset + i);
                         scored += weight;
                         for (var j = 0; j < tags.Length; j++) { mean[j] += vectors[i][j] * weight / count; maximum[j] = Math.Max(maximum[j], vectors[i][j]); }
@@ -231,11 +246,13 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Result("当前标签 · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / scored, maximum[j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     activity.Advance(scored, count, "帧", session.FallbackReason is null ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");
+                    PublishPreview(Snapshot());
                 }
-                var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples).ConfigureAwait(false);
+                var tagResult = Snapshot();
+                var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,
+                    value => PublishPreview(tagResult with { Scenes = value })).ConfigureAwait(false);
                 CheckSource(file, length, modified);
-                Report(path, new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j], maximum[j])).ToArray(), count, unique.Count, session.Backend, length, modified, session.FallbackReason)
-                { Frames=sampleSeconds.Select((seconds,i)=>new MediaTagFrame(seconds,evidence[i])).ToArray(), Scenes = scene.Result, SceneError = scene.Error }, null);
+                Report(path, tagResult with { Scenes = scene.Result, SceneError = scene.Error }, null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }
         }

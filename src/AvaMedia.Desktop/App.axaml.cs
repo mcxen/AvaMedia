@@ -34,6 +34,11 @@ public sealed partial class App : Application
                 return;
             }
             if (!args.Contains("--capture")) desktop.Exit += (_, _) => ApplicationUpdater.Shared.InstallOnExit();
+            if (args.Contains("--ai-tags"))
+            {
+                StartMediaAi(desktop, args);
+                base.OnFrameworkInitializationCompleted(); return;
+            }
             if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
             {
                 var settings = new Storage().LoadSettings();
@@ -167,13 +172,19 @@ public sealed partial class App : Application
     {
         if (args is not FileActivatedEventArgs files) return;
         var paths = files.Files.Select(file => file.TryGetLocalPath()).OfType<string>()
-            .Where(path => File.Exists(path) && SystemPlayerIntegration.Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            .Where(File.Exists)
             .Distinct(VideoFolderScanner.PathComparer).ToArray();
         if (paths.Length == 0) return;
         // Finder can deliver files during startup; defer until the desktop window exists.
         Dispatcher.UIThread.Post(() =>
         {
             if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
+            if (desktop.MainWindow is MediaAiWindow tags)
+            {
+                tags.ImportPaths(paths); tags.Show(); tags.Activate(); return;
+            }
+            paths = paths.Where(path => SystemPlayerIntegration.Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)).ToArray();
+            if (paths.Length == 0) return;
             var player = desktop.Windows.OfType<PlayerWindow>().FirstOrDefault(window => window.CanOpenFiles);
             if (player is null)
             {

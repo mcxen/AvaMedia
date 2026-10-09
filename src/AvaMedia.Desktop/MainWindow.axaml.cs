@@ -56,7 +56,7 @@ public partial class MainWindow : Window
     {
         if(feature.Id is "image-ai" or "media-ai")
         {
-            if(_settings.EnableBetaFeatures)await ConfigureMediaAiAsync(files);
+            await ConfigureMediaAiAsync(files);
             return;
         }
         if(feature.Id=="person-clip")

@@ -230,7 +230,7 @@
       <TabItem x:Name="WordLibrariesTab" Header="词库管理" IsVisible="False">
         <Border Classes="settingsPage">
           <StackPanel Spacing="12">
-            <TextBlock Text="AI 重命名候选词 · Beta" Classes="settingLabel"/>
+            <TextBlock Text="AI 标签候选词" Classes="settingLabel"/>
             <TextBlock Text="常用分类、内容分级候选、Open Images、JoyTag 完整标签" TextWrapping="Wrap" Classes="caption"/>
             <Button Content="管理词库…" Click="ManageWordLibraries" HorizontalAlignment="Left"/>
           </StackPanel>
