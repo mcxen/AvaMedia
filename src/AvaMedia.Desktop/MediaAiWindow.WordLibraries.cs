@@ -5,41 +5,41 @@ namespace AvaMedia.Desktop;
 
 public sealed partial class MediaAiWindow
 {
+    private sealed record ResultTag(string Label, string Category, double Score);
     private WordCandidate[] _libraryCandidates = [];
-    private string? _libraryError;
-    private readonly TextBlock _librarySummary = Ui.Text("尚未选择词库候选", "caption");
+    private readonly CheckBox _onlyLibrary = new() { Content = "仅显示所选词库" };
+    private readonly TextBlock _librarySummary = Ui.Text("", "caption");
 
-    private void InitializeWordLibraries()
-    {
-        _parameters.Children.Add(Ui.Button("选择词库 / 类别…", async () =>
-        {
-            var picker = new WordLibraryWindow(WordLibraryTarget.JoyTag);
-            await picker.ShowDialog(this);
-            if (_closed) return;
-            ReloadWordCandidates(); InvalidatePlan();
-        }));
-        _parameters.Children.Add(_librarySummary);
-        _parameters.Children.Add(Ui.Text("在「选项 → 词库管理」编辑；下方可补充关键词。", "caption"));
-        Opened += (_, _) => ReloadWordCandidates();
-    }
+    private void InitializeWordLibraries() => Opened += (_, _) => ReloadWordCandidates();
     private void ReloadWordCandidates()
     {
         try
         {
             _libraryCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.JoyTag);
-            _libraryError = null;
-            _librarySummary.Text = Localization.Format($"词库候选 {_libraryCandidates.Length} 个 · 使用全部达标标签");
+            _librarySummary.Text = Localization.Format($"词库候选 {_libraryCandidates.Length} 个");
+            _onlyLibrary.IsEnabled = _libraryCandidates.Length > 0;
+            if (_libraryCandidates.Length == 0) _onlyLibrary.IsChecked = false;
         }
-        catch (Exception error) { _libraryError = error.Message; _libraryCandidates = []; _librarySummary.Text = "词库读取失败：" + error.Message; }
+        catch (Exception error)
+        {
+            _libraryCandidates = []; _onlyLibrary.IsChecked = false; _onlyLibrary.IsEnabled = false;
+            _librarySummary.Text = Localization.Text("词库读取失败：") + error.Message;
+        }
     }
-    private MediaTagQuery[] CandidateQueries(IEnumerable<string> vocabulary)
+    private IEnumerable<ResultTag> ResultTags(MediaTagResult result, bool search = false)
     {
-        ReloadWordCandidates();
-        if (_libraryError is not null) throw new InvalidDataException("词库读取失败：" + _libraryError);
-        var manual = MediaTagService.ParseQueries(_keywords.Text ?? "", vocabulary);
-        var candidates = manual.Concat(_libraryCandidates.Select(entry => new MediaTagQuery(entry.Label, entry.Tags)))
-            .DistinctBy(query => query.Label, StringComparer.OrdinalIgnoreCase).ToArray();
-        if (candidates.Length > WordLibraryCatalog.MaximumCandidates) throw new ArgumentException("最多选择 20000 个候选词。");
-        return candidates;
+        var threshold = (double)(_threshold.Value ?? .4m);
+        IEnumerable<ResultTag> tags;
+        if (_onlyLibrary.IsChecked == true)
+        {
+            var scores = result.Scores.ToDictionary(score => score.Tag, score => score.Score, StringComparer.OrdinalIgnoreCase);
+            tags = _libraryCandidates.Where(entry => entry.Tags.Length > 0 && entry.Tags.All(tag => scores.GetValueOrDefault(tag) >= threshold))
+                .Select(entry => new ResultTag(entry.Label, entry.Category, entry.Tags.Min(tag => scores.GetValueOrDefault(tag))));
+        }
+        else tags = result.Scores.Where(score => score.Score >= threshold)
+            .Select(score => new ResultTag(WordLibraryCatalog.TagLabel(score.Tag), WordLibraryCatalog.TagCategory(score.Tag), score.Score));
+        var query = search ? _tagSearch.Text?.Trim() ?? "" : "";
+        return tags.Where(tag => query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(tag => tag.Score).DistinctBy(tag => tag.Label, StringComparer.OrdinalIgnoreCase);
     }
 }

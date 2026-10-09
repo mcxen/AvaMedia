@@ -2,13 +2,9 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
-using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Styling;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
@@ -19,11 +15,8 @@ public sealed partial class MediaAiWindow : Window
     private readonly AppSettings _settings;
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
-    private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple };
+    private readonly ListBox _list = new() { Name = "MediaAiFiles" };
     private readonly StackPanel _imports = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    private readonly StackPanel _parameters = new() { Spacing = 9 };
-    private readonly TextBox _keywords = new() { AcceptsReturn = true, Height = 78, Watermark = "黑长发，眼镜" };
-    private readonly TextBox _pattern = Ui.Input("{keyword}_{index}");
     private readonly NumericUpDown _threshold = new() { Minimum = .05m, Maximum = .95m, Value = .4m, Increment = .05m };
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Value = 8, Increment = 1 };
     private readonly CheckBox _gpu = new() { Content = "自动适配 GPU" };
@@ -31,102 +24,37 @@ public sealed partial class MediaAiWindow : Window
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
-    private readonly Controls.AiActivityView _activity = new();
-    private readonly Button _analyze;
-    private readonly Button _rename;
-    private readonly Button _undo;
-    private readonly Button _stop;
+    private readonly Controls.AiActivityView _activity = new() { Compact = true };
+    private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary", "dialog-action" } };
+    private readonly Button _rename = new() { Content = "标签重命名…" };
+    private readonly Button _undo = new() { Content = "撤销重命名" };
+    private readonly Button _stop = new() { Content = "停止", IsVisible = false };
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<Window, Task> _manageModels;
     private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "ai-rename.json");
     private CancellationTokenSource? _operation;
-    private RenameItem[]? _plan;
-    private bool _closed, _renaming, _busy;
+    private bool _closed, _renaming, _busy, _modelReady;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
     public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels)
     {
         _manageModels = manageModels;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
-        ToolTip.SetTip(_gpu, Localization.Text("macOS 由 Core ML 自动选择 CPU、GPU 或神经网络引擎；首次编译可能较慢。"));
+        // These inputs live in the optional settings dialog, so initialize text before any template is attached.
+        _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat);
+        _frames.Text = _frames.Value?.ToString(_frames.NumberFormat);
         Title = "媒体 AI 标签 · Beta"; Width = 1120; Height = 740; MinWidth = 920; MinHeight = 600;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), Margin = new(20), RowSpacing = 12 };
-        _imports.Children.Add(Ui.Button("添加图片 / 视频…", async () =>
-        {
-            var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true });
-            AddPaths(files.Select(file => file.TryGetLocalPath()).OfType<string>());
-        }));
-        _imports.Children.Add(Ui.Button("添加文件夹…", async () =>
-        {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
-            await AddFoldersAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
-        }));
-        _imports.Children.Add(_recursive);
-        _imports.Children.Add(Ui.Button("移除选中", () =>
-        {
-            foreach (var entry in _list.SelectedItems?.Cast<MediaFileEntry>().ToArray() ?? []) { _results.Remove(entry.Path); _entries.Remove(entry); }
-            InvalidatePlan();
-        }));
-        root.Children.Add(_imports);
-        _list.ItemsSource = _entries;
-        _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
-        { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
-        _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
-        {
-            var row = new Grid { ColumnDefinitions = new("28,*,200"), Margin = new(0, 7), ColumnSpacing = 8 };
-            var check = new CheckBox(); check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaFileEntry.Include)) { Mode = BindingMode.TwoWay }); row.Children.Add(check);
-            var content = new StackPanel { Spacing = 4 };
-            foreach (var property in new[] { nameof(MediaFileEntry.Name), nameof(MediaFileEntry.Details), nameof(MediaFileEntry.NewName) })
-            {
-                var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "caption" } };
-                Localization.SetIsUserText(text, true); text.Bind(TextBlock.TextProperty, new Binding(property)); content.Children.Add(text);
-            }
-            Grid.SetColumn(content, 1); row.Children.Add(content);
-            var edits = new StackPanel { Spacing = 5 };
-            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status))); edits.Children.Add(status);
-            var label = Ui.Input(); label.Watermark = Localization.Text("命名标签"); Localization.SetIsUserText(label, true);
-            label.Bind(TextBox.TextProperty, new Binding(nameof(MediaFileEntry.Keyword)) { Mode = BindingMode.TwoWay }); edits.Children.Add(label);
-            Grid.SetColumn(edits, 2); row.Children.Add(edits); return row;
-        });
-        var body = new Grid { ColumnDefinitions = new("*,310"), ColumnSpacing = 16 };
-        var analysis = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8 };
-        analysis.Children.Add(_list); Grid.SetRow(_activity, 1); analysis.Children.Add(_activity); body.Children.Add(analysis);
-        _parameters.Children.Add(Ui.Text("JoyTag · 本地推理", "caption"));
-        _parameters.Children.Add(_modelStatus);
-        _parameters.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync()));
-        AddRow("标签阈值", _threshold); AddRow("视频采样帧数", _frames);
-        _parameters.Children.Add(_gpu); _parameters.Children.Add(_reuse);
-        _analyze = Ui.Button("分析标签", async () => await AnalyzeAsync()); _analyze.IsEnabled = false; _parameters.Children.Add(_analyze);
+        BuildInterface();
         InitializeWordLibraries();
-        _parameters.Children.Add(Ui.Text("关键词", "caption")); Localization.SetIsUserText(_keywords, true); _parameters.Children.Add(_keywords);
-        _parameters.Children.Add(Ui.Text("逗号或换行分隔；组合用 +，如 黑长发=black_hair+long_hair。", "caption"));
-        _parameters.Children.Add(Ui.Button("筛选匹配", async () => { try { Match(); } catch (Exception error) { await Ui.Message(this, "标签筛选失败", error.Message); } }));
-        _parameters.Children.Add(Ui.Text("标签分数可能误判；视频按采样平均分筛选。", "caption"));
-        AddRow("命名模板", _pattern); Localization.SetIsUserText(_pattern, true);
-        _parameters.Children.Add(Ui.Button("预览新名称", async () => await PreviewAsync()));
-        _rename = Ui.Button("执行重命名", async () => await RenameAsync(false)); _rename.IsEnabled = false; _parameters.Children.Add(_rename);
-        _undo = Ui.Button("撤销上次重命名", async () => await RenameAsync(true)); _undo.IsVisible = CanUndo(); _parameters.Children.Add(_undo);
-        _parameters.Children.Add(Ui.Button("导出标签 JSON…", async () => await ExportAsync()));
-        _parameters.Children.Add(Ui.Text("NSFW 判断 · 未检出风险标签不代表安全。", "caption"));
-        var scroll = new ScrollViewer { Content = _parameters }; Grid.SetColumn(scroll, 1); body.Children.Add(scroll); Grid.SetRow(body, 1); root.Children.Add(body);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_status);
-        _stop = Ui.Button("停止", () => _operation?.Cancel()); _stop.IsVisible = false; Grid.SetColumn(_stop, 1); footer.Children.Add(_stop);
-        var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); footer.Children.Add(close); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
-        _keywords.TextChanged += (_, _) => InvalidatePlan(); _pattern.TextChanged += (_, _) => InvalidatePlan();
-        _threshold.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty || change.Property == NumericUpDown.TextProperty) InvalidatePlan(); };
         Opened += async (_, _) => await RefreshModelAsync();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _busy ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (!_busy) await AddFoldersAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); _lifetime.Cancel(); };
+        Closed += (_, _) => { _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
         AddPaths(initial ?? []);
-    }
-    private void AddRow(string label, Control control)
-    {
-        var row = new Grid { ColumnDefinitions = new("110,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label));
-        Grid.SetColumn(control, 1); row.Children.Add(control); _parameters.Children.Add(row);
     }
     private void AddPaths(IEnumerable<string> paths)
     {
@@ -137,23 +65,23 @@ public sealed partial class MediaAiWindow : Window
             var entry = new MediaFileEntry(path) { Details = "", Status = "待分析" };
             entry.PropertyChanged += (_, change) =>
             {
-                if (change.PropertyName is nameof(MediaFileEntry.Include) or nameof(MediaFileEntry.Keyword)) InvalidatePlan();
+                if (change.PropertyName == nameof(MediaFileEntry.Include)) UpdateActions();
             };
             _entries.Add(entry);
         }
-        InvalidatePlan();
+        if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
+        UpdateActions();
     }
     private async Task AddFoldersAsync(IEnumerable<string> paths)
     {
         if (_busy || _closed) return;
         var recursive = _recursive.IsChecked == true;
-        SetBusy(true);
+        SetBusy(true); _status.Text = Localization.Text("读取文件…");
         try
         {
-            var files = await Task.Run(() => paths.SelectMany(path => Directory.Exists(path)
-                ? Directory.EnumerateFiles(path, "*", new EnumerationOptions { RecurseSubdirectories = recursive, IgnoreInaccessible = true })
-                : [path]).Where(MediaTagService.Supports).ToArray(), _lifetime.Token);
+            var files = await Task.Run(() => BatchRename.CollectMedia(paths, recursive, _lifetime.Token), _lifetime.Token);
             AddPaths(files);
+            if (!_closed) _status.Text = Localization.Format($"已添加 {files.Length} 个文件");
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) await Ui.Message(this, "导入失败", error.Message); }
@@ -165,7 +93,9 @@ public sealed partial class MediaAiWindow : Window
         {
             var installed = await new ModelStore().IsInstalledAsync(ModelCatalog.JoyTagId, ct: _lifetime.Token);
             if (_closed) return;
-            _modelStatus.Text = Localization.Text(installed ? "JoyTag 已下载" : "请先下载 JoyTag · 约 366 MB"); _analyze.IsEnabled = installed;
+            _modelReady = installed;
+            _modelStatus.Text = Localization.Text(installed ? "" : "首次分析需要下载标签模型 · 约 366 MB");
+            _modelStatus.IsVisible = !installed; UpdateActions();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) _modelStatus.Text = error.Message; }
@@ -176,9 +106,10 @@ public sealed partial class MediaAiWindow : Window
             || number < control.Minimum || number > control.Maximum) throw new ArgumentException("请输入范围内的参数。");
         return (double)number;
     }
-    private async Task ManageModelsAsync()
+    private Task ManageModelsAsync() => ManageModelsAsync(this);
+    private async Task ManageModelsAsync(Window owner)
     {
-        await _manageModels(this);
+        await _manageModels(owner);
         if (_closed) return;
         if (!_settings.EnableBetaFeatures) { Close(); return; }
         await RefreshModelAsync();
@@ -194,13 +125,12 @@ public sealed partial class MediaAiWindow : Window
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
             options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true); options.Validate(); Number(_threshold);
-            CandidateQueries(WordLibraryCatalog.JoyTags);
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
         foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
         { _results.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
-        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); InvalidatePlan();
-        _status.Text = Localization.Text(options.PreferGpu ? "加载 JoyTag · 首次 GPU 编译可能较慢…" : "加载 JoyTag…");
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); RenderSelectedResult();
+        _status.Text = Localization.Text(_modelReady ? "准备分析…" : "下载标签模型");
         _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
         var progress = new Progress<MediaTagProgress>(update =>
         {
@@ -213,11 +143,25 @@ public sealed partial class MediaAiWindow : Window
             var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, update.Path)); if (entry is null) return;
             if (update.Result is null && update.Error is null) { entry.Status = Localization.Text(update.Activity?.Stage ?? "处理中"); return; }
             if (update.Result is { } result) { _results[result.Path] = result; ShowResult(entry, result); }
-            else { entry.Status = Localization.Text("失败"); entry.Details = update.Error ?? ""; entry.Include = false; }
+            else { entry.Status = Localization.Text("失败"); entry.Details = update.Error ?? ""; }
             _status.Text = $"{update.Completed} / {update.Total}";
+            RenderSelectedResult();
         });
         try
         {
+            if (!_modelReady)
+            {
+                var started = DateTime.UtcNow;
+                var download = new Progress<ModelDownloadProgress>(update =>
+                {
+                    if (_closed || _operation != operation) return;
+                    _status.Text = Localization.Text(update.Stage);
+                    _activity.Update(new("下载标签模型", "JoyTag", started, DateTime.UtcNow)
+                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.Source });
+                });
+                await new ModelStore().DownloadAsync(ModelCatalog.JoyTagId, download, operation.Token);
+                _modelReady = true; _modelStatus.IsVisible = false;
+            }
             var results = await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);
             if (_closed) return;
             foreach (var result in results) _results[result.Path] = result;
@@ -233,38 +177,39 @@ public sealed partial class MediaAiWindow : Window
             Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "标签分析完成",
                 (FormattableString)$"成功 {results.Count} 个，失败 {failedPaths.Length} 个。",
                 failedPaths.Length == 0 ? Notifications.NotificationKind.Success : Notifications.NotificationKind.Warning, resultActions));
-            try { Match(); }
-            catch (Exception error) { await Ui.Message(this, "标签筛选失败", error.Message); }
+            foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
+                if (_results.TryGetValue(entry.Path, out var result)) ShowResult(entry, result);
+            RenderSelectedResult();
         }
-        catch (OperationCanceledException) { if (!_closed) { _activity.Finish(AiActivityState.Cancelled, "已停止"); _status.Text = Localization.Text("已停止，已完成结果已保留"); } }
+        catch (OperationCanceledException)
+        {
+            if (!_closed)
+            {
+                _activity.Finish(AiActivityState.Cancelled, "已停止"); _status.Text = Localization.Text("已停止，已完成结果已保留");
+                foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer) && !_results.ContainsKey(entry.Path)))
+                    if (entry.Status != Localization.Text("失败")) entry.Status = Localization.Text("已停止");
+            }
+        }
         catch (Exception error)
         {
             if (!_closed)
             {
                 _activity.Finish(AiActivityState.Failed, "分析失败");
+                _status.Text = Localization.Text("分析失败");
+                foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer) && !_results.ContainsKey(entry.Path)))
+                { entry.Status = Localization.Text("失败"); entry.Details = error.Message; }
                 Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "分析失败", error.Message, Notifications.NotificationKind.Error, [
                     new("重试分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Primary: true, Enabled: () => CanAnalyzeNotification(paths)),
                     new("模型管理", ManageModelsAsync, Enabled: () => !_closed)]));
             }
         }
-        finally { _operation = null; if (!_closed) { SetBusy(false); InvalidatePlan(); } }
+        finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); } }
     }
     private void ShowResult(MediaFileEntry entry, MediaTagResult result)
     {
-        entry.Status = $"{result.Backend} · {result.InferredFrames}/{result.SampledFrames}";
-        if (result.FallbackReason is { } reason) entry.Status += " · " + Localization.Text("已回退 CPU") + ": " + reason;
-        var threshold = Number(_threshold);
-        var moderation = NsfwModeration.Evaluate(result, threshold);
-        entry.Status += " · " + NsfwStateText(moderation.State);
-        entry.Details = string.Join(Environment.NewLine, result.Scores.Where(score => score.Score >= threshold).OrderByDescending(score => score.Score)
-            .GroupBy(score => WordLibraryCatalog.TagCategory(score.Tag))
-            .Select(group => Localization.Text(group.Key) + " · " + string.Join(" · ", group.Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}"))));
-        if (moderation.Evidence.Count > 0)
-        {
-            var basis = Localization.Text(moderation.SignalBasis == "sample_peak" ? "采样峰值" : "图片分数");
-            entry.Details = Localization.Text("NSFW 证据") + " · " + basis + " · "
-                + string.Join(" · ", moderation.Evidence.Select(item => $"{item.Label} {item.Signal:0.00}")) + Environment.NewLine + entry.Details;
-        }
+        var tags = ResultTags(result).ToArray();
+        entry.Status = Localization.Format($"已识别 {tags.Length} 个标签");
+        entry.Details = string.Join(" · ", tags.Take(5).Select(tag => tag.Label));
     }
     private static string NsfwStateText(NsfwSignalState state) => Localization.Text(state switch
     {
@@ -272,40 +217,10 @@ public sealed partial class MediaAiWindow : Window
         NsfwSignalState.ContextOnly => "仅命中提示标签",
         _ => "未检出风险标签"
     });
-    private void Match()
+    private async Task RenameAsync(bool undo, RenameItem[]? plan = null)
     {
-        var vocabulary = _results.Values.FirstOrDefault()?.Scores.Select(score => score.Tag) ?? [];
-        var queries = CandidateQueries(vocabulary); var threshold = Number(_threshold);
-        foreach (var entry in _entries)
-        {
-            if (!_results.TryGetValue(entry.Path, out var result)) { entry.Include = false; continue; }
-            ShowResult(entry, result); entry.Keyword = MediaTagService.MatchLabel(result, queries, threshold); entry.Include = entry.Keyword.Length > 0;
-        }
-        InvalidatePlan();
-    }
-    private void InvalidatePlan()
-    {
-        _plan = null; _rename.IsEnabled = false; foreach (var entry in _entries) entry.NewName = "";
-    }
-    private async Task PreviewAsync()
-    {
-        if (_busy) return;
-        try
-        {
-            var selected = _entries.Where(entry => entry.Include).ToArray();
-            if (selected.Length == 0) throw new ArgumentException("请勾选要重命名的文件。");
-            foreach (var entry in selected) if (_results.TryGetValue(entry.Path, out var result)) MediaTagService.ValidateSource(result);
-            _plan = BatchRename.PreviewRename(selected.Select(entry => entry.Path), new(_pattern.Text ?? ""),
-                selected.ToDictionary(entry => entry.Path, entry => entry.Keyword.Trim(), BatchRename.PathComparer));
-            foreach (var item in _plan) _entries.First(entry => BatchRename.PathComparer.Equals(entry.Path, item.Source)).NewName = Path.GetFileName(item.Target);
-            _rename.IsEnabled = _plan.Any(item => item.Source != item.Target);
-        }
-        catch (Exception error) { InvalidatePlan(); await Ui.Message(this, "重命名预览失败", error.Message); }
-    }
-    private async Task RenameAsync(bool undo)
-    {
-        if (_busy || !undo && _plan is null) return;
-        var plan = _plan; _renaming = true; SetBusy(true);
+        if (_busy || !undo && plan is null) return;
+        _renaming = true; SetBusy(true);
         try
         {
             var mappings = await Task.Run(() => undo ? BatchRename.UndoRename(_journal) : BatchRename.ApplyRename(plan!, _journal));
@@ -313,12 +228,12 @@ public sealed partial class MediaAiWindow : Window
             {
                 _results.Remove(mapping.Source);
                 var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, mapping.Source));
-                if (entry is not null) { entry.Renamed(mapping.Target); entry.Status = Localization.Text("已重命名"); entry.Keyword = ""; }
+                if (entry is not null) { entry.Renamed(mapping.Target); entry.Status = Localization.Text("已重命名"); entry.Details = ""; entry.Keyword = ""; }
             }
             Renamed?.Invoke(mappings); _status.Text = Localization.Format($"已更新 {mappings.Length} 个文件名"); _undo.IsVisible = CanUndo();
         }
         catch (Exception error) { await Ui.Message(this, "重命名失败", error.Message); }
-        finally { _renaming = false; SetBusy(false); InvalidatePlan(); }
+        finally { _renaming = false; SetBusy(false); RenderSelectedResult(); }
     }
     private async Task ExportAsync()
     {
@@ -338,8 +253,7 @@ public sealed partial class MediaAiWindow : Window
     }
     private void SetBusy(bool busy)
     {
-        _busy = busy; _imports.IsEnabled = !busy; _parameters.IsEnabled = !busy; _list.IsEnabled = !busy;
-        _stop.IsVisible = busy && _operation is not null;
+        _busy = busy; UpdateActions();
     }
     private bool CanUndo()
     {
