@@ -17,6 +17,7 @@ public sealed class WindowsXPWindowFrame : Border
     private readonly ContentControl _body;
     private readonly WindowsXPFace _maximizeFace;
     private readonly WindowsXPFace _grip;
+    private readonly CustomWindowResize _resize;
     private readonly ContextMenu _systemMenu;
     private readonly MenuItem _restore;
     private readonly MenuItem _minimize;
@@ -82,9 +83,8 @@ public sealed class WindowsXPWindowFrame : Border
         };
         window.PropertyChanged += WindowChanged;
         window.AddHandler(KeyDownEvent, WindowKeyDown, RoutingStrategies.Tunnel);
-        AddHandler(PointerPressedEvent, Resize, RoutingStrategies.Tunnel);
-        PointerMoved += UpdateResizeCursor;
-        PointerExited += (_, _) => Cursor = Cursor.Default;
+        _resize = new CustomWindowResize(window, this, _grip);
+        AddHandler(PointerPressedEvent, (_, _) => _systemAction = 0, RoutingStrategies.Tunnel, handledEventsToo: true);
         UpdateActivity();
     }
 
@@ -174,38 +174,10 @@ public sealed class WindowsXPWindowFrame : Border
         _grip.IsVisible = _window.CanResize && _window.WindowState == WindowState.Normal;
     }
 
-    private WindowEdge? Edge(Point point)
-    {
-        if (!_window.CanResize || _window.WindowState != WindowState.Normal) return null;
-        const int edgeSize = 4;
-        var left = point.X < edgeSize; var right = point.X >= Bounds.Width - edgeSize;
-        var top = point.Y < edgeSize; var bottom = point.Y >= Bounds.Height - edgeSize;
-        return top ? left ? WindowEdge.NorthWest : right ? WindowEdge.NorthEast : WindowEdge.North
-            : bottom ? left ? WindowEdge.SouthWest : right ? WindowEdge.SouthEast : WindowEdge.South
-            : left ? WindowEdge.West : right ? WindowEdge.East : null;
-    }
-
-    private void Resize(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        _systemAction = 0;
-        var edge = ReferenceEquals(e.Source, _grip) && _grip.IsVisible ? WindowEdge.SouthEast : Edge(e.GetPosition(this));
-        if (edge is not { } direction) return;
-        _window.BeginResizeDrag(direction, e); e.Handled = true;
-    }
-
-    private void UpdateResizeCursor(object? sender, PointerEventArgs e) => Cursor = Edge(e.GetPosition(this)) switch
-    {
-        WindowEdge.North or WindowEdge.South => new Cursor(StandardCursorType.SizeNorthSouth),
-        WindowEdge.West or WindowEdge.East => new Cursor(StandardCursorType.SizeWestEast),
-        WindowEdge.NorthWest or WindowEdge.SouthEast => new Cursor(StandardCursorType.TopLeftCorner),
-        WindowEdge.NorthEast or WindowEdge.SouthWest => new Cursor(StandardCursorType.TopRightCorner),
-        _ => Cursor.Default
-    };
-
     public object? ReleaseContent()
     {
         _systemMenu.Close();
+        _resize.Dispose();
         _window.PropertyChanged -= WindowChanged;
         _window.RemoveHandler(KeyDownEvent, WindowKeyDown);
         var content = _body.Content; _body.Content = null;

@@ -3,7 +3,6 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
@@ -16,6 +15,7 @@ public sealed class PlatinumWindowFrame : Border
     private readonly ContentControl _body;
     private readonly Grid _layout;
     private readonly PlatinumGlyph _growBox;
+    private readonly CustomWindowResize _resize;
     private double _expandedHeight;
     private double _expandedMinHeight;
     private SizeToContent _expandedSizeToContent;
@@ -57,7 +57,7 @@ public sealed class PlatinumWindowFrame : Border
         Grid.SetRow(_growBox, 1); _layout.Children.Add(_growBox); Child = _layout;
         window.PropertyChanged += WindowChanged;
         UpdateActivity();
-        AddHandler(PointerPressedEvent, Resize, RoutingStrategies.Tunnel);
+        _resize = new CustomWindowResize(window, this, _growBox, () => !IsShaded);
     }
     private Button CaptionButton(string kind, string description, string name, Action click, bool enabled = true)
     {
@@ -97,7 +97,7 @@ public sealed class PlatinumWindowFrame : Border
     }
     public object? ReleaseContent()
     {
-        RestoreShade(); _window.PropertyChanged -= WindowChanged;
+        _resize.Dispose(); RestoreShade(); _window.PropertyChanged -= WindowChanged;
         var content = _body.Content; _body.Content = null;
         return content;
     }
@@ -109,16 +109,6 @@ public sealed class PlatinumWindowFrame : Border
     {
         Classes.Set("inactive", !_window.IsActive);
         _growBox.IsVisible = !IsShaded && _window.CanResize && _window.WindowState == WindowState.Normal;
-    }
-    private void Resize(object? sender, PointerPressedEventArgs e)
-    {
-        if (IsShaded || !_window.CanResize || _window.WindowState != WindowState.Normal || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if (ReferenceEquals(e.Source, _growBox)) { _window.BeginResizeDrag(WindowEdge.SouthEast, e); e.Handled = true; return; }
-        var p = e.GetPosition(this); var left = p.X < 4; var right = p.X > Bounds.Width - 4; var top = p.Y < 4; var bottom = p.Y > Bounds.Height - 4;
-        WindowEdge? edge = top ? left ? WindowEdge.NorthWest : right ? WindowEdge.NorthEast : WindowEdge.North
-            : bottom ? left ? WindowEdge.SouthWest : right ? WindowEdge.SouthEast : WindowEdge.South
-            : left ? WindowEdge.West : right ? WindowEdge.East : null;
-        if (edge is { } direction) { _window.BeginResizeDrag(direction, e); e.Handled = true; }
     }
 }
 
