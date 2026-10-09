@@ -14,7 +14,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, List<string>> _traces = new(BatchRename.PathComparer);
     private readonly Dictionary<string, double> _positions = new(BatchRename.PathComparer);
     private readonly Dictionary<string, string> _reportSources = new(BatchRename.PathComparer);
-    private readonly ComboBox _chartSource = Ui.Combo(["标签分数", "场景相似度"], "标签分数");
+    private readonly ComboBox _chartSource = Ui.Combo(["柱状图 · 标签分数", "柱状图 · 场景相似度"], "柱状图 · 标签分数");
     private readonly ComboBox _scoreMode = Ui.Combo(["推荐分数", "采样峰值", "采样平均", "当前画面"], "推荐分数");
     private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征"], "全部标签");
     private readonly Slider _tagThreshold = new() { Minimum = .05, Maximum = .95, Value = .4, TickFrequency = .01 };
@@ -117,7 +117,7 @@ public sealed partial class MediaAiWindow
         _scoreMode.SelectionChanged += (_, _) => RefreshDisplayedResults();
         _tagScope.SelectionChanged += (_, _) => RenderSelectedResult();
         _scoreBars.ThresholdEdited += value => SetThreshold(value, _chartSource.SelectedIndex == 1);
-        _peakCurve.ThresholdEdited += value => SetThreshold(value, _chartSource.SelectedIndex == 1);
+        _peakCurve.ModelThresholdEdited += (model, value) => SetThreshold(value, model == ModelCatalog.EmbeddingId);
         _scoreBars.TagSelected += key => SelectTrace(key);
         _peakCurve.SampleSelected += seconds => { _ = SelectSampleAsync(seconds); };
         _playSample.Click += async (_, _) =>
@@ -152,10 +152,10 @@ public sealed partial class MediaAiWindow
         else { _threshold.Value = (decimal)Math.Round(value, 2); _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat); _tagThreshold.Value = (double)_threshold.Value!; }
         _syncingThresholds = false; RefreshDisplayedResults();
     }
-    private ResultTag[] PlotCandidates(MediaTagResult result)
+    private ResultTag[] PlotCandidates(MediaTagResult result, bool? semantic = null)
     {
         IEnumerable<ResultTag> tags;
-        if (_chartSource.SelectedIndex == 1) tags = SceneCandidates(result);
+        if (semantic ?? _chartSource.SelectedIndex == 1) tags = SceneCandidates(result);
         else if (_onlyLibrary.IsChecked == true)
         {
             var scores = result.Scores.ToDictionary(score => score.Tag, score => JoyValue(result, score), StringComparer.OrdinalIgnoreCase);
@@ -175,15 +175,26 @@ public sealed partial class MediaAiWindow
         var candidates = result is null ? [] : PlotCandidates(result);
         _traceLegend.Children.Clear();
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
-        keys = keys.Where(key => key.StartsWith(ModelCatalog.EmbeddingId + "/", StringComparison.Ordinal) == semantic).ToList();
-        // Automatic candidates remain derived from the latest scores, rather than becoming a manual selection.
-        var selected = candidates.Where(tag => keys.Count == 0 || keys.Contains(TagKey(tag))).Take(3).ToArray();
-        var series = result is null ? [] : selected.Select(tag => new TagChartSeries(TagKey(tag), tag.Label, TagPoints(result, tag))).ToArray();
-        foreach (var tag in selected)
+        var selected = result is null ? [] : new[] { false, true }.SelectMany(scene =>
         {
-            var legend = Ui.Button(tag.Label + $" · {tag.Score:0.000}", () => SelectTrace(TagKey(tag))); legend.Margin = new(0, 0, 6, 4);
-            legend.Bind(Button.BorderBrushProperty, new DynamicResourceExtension(new[] { "UiAccent", "UiSuccess", "UiWarning" }[Array.IndexOf(selected, tag)])); legend.BorderThickness = new(2);
-            Localization.SetIsUserText(legend, true); _traceLegend.Children.Add(legend);
+            var model = scene ? ModelCatalog.EmbeddingId : ModelCatalog.JoyTagId;
+            var modelKeys = keys.Where(key => key.StartsWith(model + "/", StringComparison.Ordinal)).ToArray();
+            return PlotCandidates(result, scene).Where(tag => modelKeys.Length == 0 || modelKeys.Contains(TagKey(tag))).Take(3);
+        }).ToArray();
+        var series = result is null ? [] : selected.GroupBy(tag => tag.Model).SelectMany(group => group.Select((tag, variant) =>
+            new TagChartSeries(TagKey(tag), ModelLabel(tag.Model) + " · " + tag.Label, TagPoints(result, tag), tag.Model,
+                tag.Model == ModelCatalog.EmbeddingId, variant))).ToArray();
+        foreach (var group in selected.GroupBy(tag => tag.Model))
+        {
+            var variant = 0;
+            foreach (var tag in group)
+            {
+                var line = new[] { "━", "┄", "┈" }[variant++];
+                var legend = Ui.Button(line + " " + ModelLabel(tag.Model) + " · " + tag.Label + $" · {tag.Score:0.000}", () => SelectTrace(TagKey(tag)));
+                legend.Margin = new(0, 0, 6, 4);
+                legend.Bind(Button.BorderBrushProperty, new DynamicResourceExtension(ModelColor(tag.Model))); legend.BorderThickness = new(2);
+                Localization.SetIsUserText(legend, true); _traceLegend.Children.Add(legend);
+            }
         }
         var bars = candidates.Take(12).Select(tag =>
         {
@@ -197,22 +208,30 @@ public sealed partial class MediaAiWindow
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
         _scoreBars.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic);
-        _peakCurve.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic);
+        var thresholds = new List<TagChartThreshold>();
+        if (result?.Scores.Count > 0) thresholds.Add(new(ModelCatalog.JoyTagId, "JoyTag", (double)(_threshold.Value ?? .4m), false));
+        if (result?.Scenes is not null) thresholds.Add(new(ModelCatalog.EmbeddingId, ModelLabel(ModelCatalog.EmbeddingId), _sceneThreshold.Value, true));
+        _peakCurve.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic, thresholds);
     }
+    private static string ModelLabel(string model) => model == ModelCatalog.EmbeddingId ? "EmbeddingGemma" : "JoyTag";
+    private static string ModelColor(string model) => model == ModelCatalog.EmbeddingId ? "UiSuccess" : "UiAccent";
     private void SelectTrace(string key)
     {
         if (_list.SelectedItem is not MediaFileEntry entry) return;
         var semantic = key.StartsWith(ModelCatalog.EmbeddingId + "/", StringComparison.Ordinal);
         _chartSource.SelectedIndex = semantic ? 1 : 0;
-        var keys = _traces.GetValueOrDefault(entry.Path)?.ToList() ?? [];
-        keys.RemoveAll(value => value.StartsWith(ModelCatalog.EmbeddingId + "/", StringComparison.Ordinal) != semantic);
+        var model = semantic ? ModelCatalog.EmbeddingId : ModelCatalog.JoyTagId;
+        var stored = _traces.GetValueOrDefault(entry.Path)?.ToList() ?? [];
+        var keys = stored.Where(value => value.StartsWith(model + "/", StringComparison.Ordinal)).ToList();
+        stored.RemoveAll(value => value.StartsWith(model + "/", StringComparison.Ordinal));
         if (TryDisplayedResult(entry.Path, out var result))
         {
-            var ranked = PlotCandidates(result);
+            var ranked = PlotCandidates(result, semantic);
             keys = ranked.Where(tag => keys.Count == 0 || keys.Contains(TagKey(tag))).Take(3).Select(TagKey).ToList();
         }
         if (!keys.Remove(key)) { if (keys.Count >= 3) keys.RemoveAt(keys.Count - 1); keys.Add(key); }
-        if (keys.Count == 0) _traces.Remove(entry.Path); else _traces[entry.Path] = keys;
+        stored.AddRange(keys);
+        if (stored.Count == 0) _traces.Remove(entry.Path); else _traces[entry.Path] = stored;
         RenderSelectedResult();
     }
     private async Task SelectSampleAsync(double seconds)
