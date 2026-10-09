@@ -21,12 +21,10 @@ public sealed class TranscriptionOptions
             throw new ArgumentException("请选择有效的识别语言和模型。");
         if (ReviewedCues is not null)
         {
-            var previous = TimeSpan.Zero;
             foreach (var cue in ReviewedCues)
             {
-                if (cue.Start < previous || cue.End <= cue.Start || string.IsNullOrWhiteSpace(cue.Text))
-                    throw new ArgumentException("字幕时间无效或重叠，请先校对字幕。");
-                previous = cue.End;
+                if (cue.Start < TimeSpan.Zero || cue.End <= cue.Start || string.IsNullOrWhiteSpace(cue.Text))
+                    throw new ArgumentException("字幕须包含文字，结束时间须晚于开始时间。");
             }
         }
     }
