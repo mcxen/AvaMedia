@@ -66,9 +66,10 @@ public sealed class PersonClipService(MediaEngine engine)
         analysisClock.Stop();
         ct.ThrowIfCancellationRequested(); CheckSource();
         job.Duration = result.Info.Duration;
-        job.AppendLog($"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {MediaTime.Format(result.ExcludedSeconds)}；{result.Backend}");
+        job.AppendLog(result.FromCache ? $"复用检测缓存：{result.Segments.Count} 个片段，本次无需模型计算。"
+            : $"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {MediaTime.Format(result.ExcludedSeconds)}；{result.Backend}");
         job.AppendLog($"人物检测耗时：{MediaEngine.Number(analysisClock.Elapsed.TotalSeconds)} 秒");
-        foreach (var detector in result.Detectors)
+        foreach (var detector in result.FromCache ? [] : result.Detectors)
             if (detector.BackendSelectionReason is { } reason) job.AppendLog($"{detector.Name}: {reason}");
         foreach (var segment in result.Segments) job.AppendLog($"保留 {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}");
         if (result.Segments.Count == 0)

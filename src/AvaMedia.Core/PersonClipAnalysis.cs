@@ -32,6 +32,7 @@ public sealed record PersonClipProgress(double Seconds, double Duration, string 
 public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList<ConversionOptions> Segments, int SampledFrames, int UncertainFrames,
     int InferredFrames, int BoundaryFrames, string Backend)
 {
+    public bool FromCache { get; init; }
     public int DarkFrames { get; init; }
     public int BlankFrames { get; init; }
     public double ExcludedSeconds { get; init; }
@@ -52,6 +53,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         IProgress<PersonClipProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
         options.Validate();
+        var cache = new PersonClipCache(path, options);
         double observedSeconds = 0, duration = 0;
         IReadOnlyList<PersonDetectionEvidence> evidence = [];
         var modelName = string.Join(" + ", options.SelectedDetectors.Select(id => PersonDetectorCatalog.Find(id).Name));
@@ -74,6 +76,15 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             observedSeconds = duration;
             activity.Finish("没有可保留的片段");
             return new PersonClipResult(path, info, [], 0, 0, 0, 0, "") { ExcludedSeconds = duration, DetectionMode = options.DetectionMode };
+        }
+        if (await cache.ReadAsync(info, options, ct).ConfigureAwait(false) is { } cached)
+        {
+            observedSeconds = duration;
+            activity.Node("保留片段"); activity.Backend("检测缓存");
+            foreach (var segment in cached.Segments)
+                activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", cached.Segments.Count);
+            activity.Finish("复用检测结果");
+            return cached;
         }
         activity.Node("准备检测模型");
         activity.Stage("校验模型");
@@ -173,12 +184,13 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 return samples[index].Seconds;
             }
             double low = samples[index - 1].Seconds, high = samples[index].Seconds;
+            var decoded = high - low > .1 ? await PersonBoundaryFrames.ReadAsync(engine, path, info.VideoStreamIndex, low, high, size, ct) : null;
             while (high - low > .1)
             {
                 ct.ThrowIfCancellationRequested();
                 var middle = (low + high) / 2;
                 activity.Advance(refined, boundaries, "处", $"正在定位 {MediaTime.Format(low)} – {MediaTime.Format(high)}");
-                var frame = await ReadAtAsync(path, info.VideoStreamIndex, middle, size, ct);
+                var frame = decoded!.At(middle);
                 var result = await ClassifyAsync(detectors, frame, middle, options, bounds, embedding, ct);
                 evidence = result.Evidence;
                 if (previewClock.Elapsed >= nextPreview)
@@ -217,34 +229,14 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
         activity.Stage("分析完成", detail: $"保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
         activity.Finish("分析完成");
-        return new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
+        var result = new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
             inferredFrames, boundaryFrames, detectors.Backend)
         { Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
             ExcludedSeconds = excludedSeconds };
+        await cache.WriteAsync(result, ct).ConfigureAwait(false);
+        return result;
     }, ct);
 
-    private async Task<byte[]> ReadAtAsync(string path, int stream, double seconds, int size, CancellationToken ct)
-    {
-        using var process = await ProcessRunner.StartAsync(engine.FFmpeg,
-            ["-v", "error", "-nostdin", "-ss", MediaEngine.Number(seconds), "-i", path, "-map", $"0:v:{stream}", "-frames:v", "1",
-                "-vf", PersonClipFrameSource.Filter(size), "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"], ct);
-        using var cancellation = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
-        var error = process.StandardError.ReadToEndAsync();
-        var frame = new byte[size * size * 3];
-        try
-        {
-            if (!await PersonClipFrameSource.ReadFrameAsync(process.StandardOutput.BaseStream, frame, ct)) throw new InvalidDataException("无法读取片段边界画面。");
-            await process.WaitForExitAsync(ct);
-            if (process.ExitCode != 0) throw new InvalidDataException("边界画面解码失败：" + await error);
-            return frame;
-        }
-        finally
-        {
-            if (!process.HasExited) { try { process.Kill(true); } catch (InvalidOperationException) { } }
-            await process.WaitForExitAsync();
-            await error;
-        }
-    }
     private static async Task<PersonFrame> ClassifyAsync(PersonDetectorSet detectors, byte[] rgb, double seconds,
         PersonClipOptions options, PersonFrameBounds bounds, GemmaMediaEmbedding? embedding, CancellationToken ct, bool checkVisibility = true)
     {
