@@ -155,10 +155,11 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                 if (!online) await EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct).ConfigureAwait(false);
                 if (options.AnalyzeFrames && samples is not null)
                 {
-                    await using var vision = await OpenModelAsync(ModelCatalog.SummaryVisionId, onlineModels, options, activity, ct).ConfigureAwait(false);
-                    var visionName = online ? onlineModels!.VisionProvider.Name + " · " + onlineModels.VisionModel : ModelCatalog.Find(ModelCatalog.SummaryVisionId).Name;
+                    var visionId = online ? ModelCatalog.SummaryVisionId : options.LocalVisionModelId;
+                    await using var vision = await OpenModelAsync(visionId, onlineModels, options, activity, ct).ConfigureAwait(false);
+                    var visionName = online ? onlineModels!.VisionProvider.Name + " · " + onlineModels.VisionModel : ModelCatalog.Find(visionId).Name;
                     var visionProviderId = online ? onlineModels!.VisionProvider.Id : null;
-                    var visionModelId = online ? onlineModels!.VisionModel : ModelCatalog.SummaryVisionId;
+                    var visionModelId = online ? onlineModels!.VisionModel : visionId;
                     usedModels.Add(visionName);
                     activity.Backend(vision.Backend);
                     Directory.CreateDirectory(Path.Combine(staging, "frames"));
@@ -171,8 +172,8 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                         var label = MediaTime.Format(sample.Seconds);
                         job.ProgressDetail = "分析画面"; activity.Stage("分析画面", index, samples.Frames.Count, "帧", label);
                         activity.Frame(sample.Image, label);
-                        // Local SmolVLM2 keeps its short English prompt; online/Ollama models get the adult-allowed Chinese prompt.
-                        var reply = online
+                        // SmolVLM2 needs its short English prompt; Qwen and providers use the grounded Chinese prompt.
+                        var reply = online || visionId != ModelCatalog.SummaryVisionId
                             ? await vision.CompleteAsync(VideoSummaryPipeline.FrameSystemPrompt, VideoSummaryPipeline.FramePrompt, ct, sample.Image, 256).ConfigureAwait(false)
                             : await vision.CompleteAsync("", "Describe only the clearly visible objects and actions in one short sentence. Do not read or interpret signs.",
                                 ct, sample.Image, 128).ConfigureAwait(false);
@@ -199,7 +200,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                         var window = described.Skip(start).Take(3).ToArray(); var id = $"V{sequences.Count + 1:000}";
                         var gaps = string.Join(", ", window.Skip(1).Zip(window, (next, prior) => MediaEngine.Number(next.Seconds - prior.Seconds) + "s"));
                         job.ProgressDetail = "联合分析画面"; activity.Stage("联合分析画面", start, described.Count, "帧");
-                        var reply = online
+                        var reply = online || visionId != ModelCatalog.SummaryVisionId
                             ? await vision.CompleteAsync(VideoSummaryPipeline.FrameSystemPrompt, VideoSummaryPipeline.SequencePrompt + gaps + "。",
                                 ct, tokens: 192, images: modelImages.Skip(start).Take(3).ToArray()).ConfigureAwait(false)
                             : await vision.CompleteAsync("",

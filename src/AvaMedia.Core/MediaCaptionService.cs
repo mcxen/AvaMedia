@@ -1,6 +1,6 @@
 namespace AvaMedia.Core;
 
-/// <summary>Optional free-form vision captions after JoyTag. Uses OpenAI-compatible vision (prefer local Ollama). Never writes source media.</summary>
+/// <summary>Optional local or OpenAI-compatible vision captions after JoyTag. Never writes source media.</summary>
 public static class MediaCaptionService
 {
     public const string DefaultSystemPrompt =
@@ -21,6 +21,8 @@ public static class MediaCaptionService
         if (options.CaptionMaxTokens is < 64 or > 4096) throw new ArgumentException("画面描述最大输出须为 64–4096。");
         if (options.CaptionPrompt is { Length: > 4000 }) throw new ArgumentException("画面描述提示过长。");
         if (options.CaptionSystemPrompt is { Length: > 8000 }) throw new ArgumentException("画面描述系统提示过长。");
+        if (options.CaptionLocalModelId is not null and not ModelCatalog.SummaryQwen35Id)
+            throw new ArgumentException("所选本地画面描述模型无效。");
         if (options.CaptionProviderId is { Length: > 0 } && !Guid.TryParseExact(options.CaptionProviderId, "N", out _))
             throw new ArgumentException("画面描述供应商标识无效。");
     }
@@ -43,7 +45,7 @@ public static class MediaCaptionService
     }
 
     public static async Task<(string Caption, string Model)> GenerateAsync(
-        OnlineAiOptions provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
+        OnlineAiOptions? provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
         ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0,
         OnlineSummaryTool? frameTool = null)
     {
@@ -53,7 +55,6 @@ public static class MediaCaptionService
             || frameSeconds.Zip(frameSeconds.Skip(1), (previous, next) => previous > next).Any(unordered => unordered)))
             throw new ArgumentException("视频描述采样时间无效。");
         ValidateOptions(options);
-        var prepared = PrepareProvider(provider);
         var system = string.IsNullOrWhiteSpace(options.CaptionSystemPrompt) ? DefaultSystemPrompt : options.CaptionSystemPrompt.Trim();
         var prompt = string.IsNullOrWhiteSpace(options.CaptionPrompt) ? DefaultUserPrompt : options.CaptionPrompt.Trim();
         if (frameSeconds is not null)
@@ -64,21 +65,26 @@ public static class MediaCaptionService
             : frames.Select((png, index) => new SummaryModelImage(frameSeconds is null ? $"画面 {index + 1}"
                 : $"采样画面 {index + 1} · {MediaTime.Format(frameSeconds[index])}", png)).ToArray();
 
+        if (frameTool is not null && frameSeconds is not null)
+            system += "遇到采样间动作、遮挡或局部细节无法确认时，可用 get_video_frames 查看指定时间的画面，必要时指定局部区域。" +
+                "最多补充 8 帧、2 轮；工具结果后的图像是实际画面证据。工具失败或仍看不清时省略该细节，不能把工具参数或请求目的当作事实。";
         if (model is not null)
         {
-            if (frameTool is not null) throw new ArgumentException("按需补帧需要支持工具调用的线上视觉模型。");
-            var caption = await model.CompleteAsync(system, prompt, ct,
-                image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
-            return (RequireCaption(caption), prepared.EffectiveVisionModel);
+            var caption = frameTool is not null && frameSeconds is not null
+                ? model is LocalSummaryModel local
+                    ? await local.CompleteWithToolsAsync(system, prompt, images!, [frameTool], ct, options.CaptionMaxTokens).ConfigureAwait(false)
+                    : throw new ArgumentException("所选模型不支持画面工具。")
+                : await model.CompleteAsync(system, prompt, ct,
+                    image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
+            return (RequireCaption(caption), model is LocalSummaryModel session ? session.ModelId
+                : PrepareProvider(provider ?? throw new ArgumentException("缺少画面描述供应商。")).EffectiveVisionModel);
         }
 
+        var prepared = PrepareProvider(provider ?? throw new ArgumentException("缺少画面描述供应商。"));
         await using var vision = new OnlineSummaryModel(prepared, vision: true);
         {
             var caption = frameTool is not null && frameSeconds is not null
-                ? await vision.CompleteWithToolsAsync(system +
-                    "遇到采样间动作、遮挡或局部细节无法确认时，可用 get_video_frames 查看指定时间的画面，必要时指定局部区域。" +
-                    "最多补充 8 帧、2 轮；工具结果后的图像是实际画面证据。工具失败或仍看不清时省略该细节，不能把工具参数或请求目的当作事实。",
-                    prompt, images!, [frameTool], ct).ConfigureAwait(false)
+                ? await vision.CompleteWithToolsAsync(system, prompt, images!, [frameTool], ct).ConfigureAwait(false)
                 : await vision.CompleteAsync(system, prompt, ct,
                     image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
             return (RequireCaption(caption), prepared.EffectiveVisionModel);

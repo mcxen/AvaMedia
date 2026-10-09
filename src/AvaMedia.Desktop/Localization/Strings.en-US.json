@@ -3121,5 +3121,17 @@
   "成人内容": "Adult content",
   "等待本地模型": "Waiting for local models",
   "加载成人内容模型": "Loading adult content model",
-  "预热成人内容模型": "Warming up adult content model"
+  "预热成人内容模型": "Warming up adult content model",
+  "本地图片与视频描述 · Metal / Vulkan": "Local image and video descriptions · Metal / Vulkan",
+  "所选本地画面描述模型无效。": "The selected local visual description model is invalid.",
+  "请先在模型管理下载画面描述模型和本地推理工具。": "Download the visual description model and local runtime in model management first.",
+  "本地画面模型": "Local vision model",
+  "在描述设置中选择本地模型或 AI 供应商。": "Choose a local model or AI provider in description settings.",
+  "画面描述模型未下载，请打开模型管理。": "The visual description model is not installed. Open model management.",
+  "所选本地模型不支持画面工具。": "The selected local model does not support frame tools.",
+  "所选模型不支持画面工具。": "The selected model does not support frame tools.",
+  "缺少画面描述供应商。": "No visual description provider is selected.",
+  "画面描述工具调用超时。": "The visual description tool call timed out.",
+  "画面描述达到输出长度限制，请减少采样帧数或缩短描述要求。": "The description reached its output limit. Reduce sampled frames or shorten the instructions.",
+  "画面联合分析每次需要 1–32 帧。": "Joint visual analysis requires 1–32 frames per request."
 }

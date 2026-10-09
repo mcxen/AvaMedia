@@ -19,6 +19,7 @@ public sealed class LocalSummaryModel : ISummaryModel
     private readonly ModelLease _model, _runtime;
     private readonly Task _stdout, _stderr;
     private readonly string _id;
+    public string ModelId => _id;
     public string Backend { get; private set; } = "CPU";
     private LocalSummaryModel(Process process, HttpClient client, ModelLease model, ModelLease runtime, string id)
     {
@@ -59,13 +60,15 @@ public sealed class LocalSummaryModel : ISummaryModel
             { BaseAddress = new Uri($"http://127.0.0.1:{port}/"), Timeout = TimeSpan.FromMinutes(10) };
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
             var arguments = new List<string> { "-m", Path.Combine(model.Directory, definition.Files[0].Path), "--alias", id,
-                "--ctx-size", id == ModelCatalog.SummaryVisionId ? "4096" : "8192", "--parallel", "1", "--batch-size", "512", "--ubatch-size", "128",
+                "--ctx-size", id == ModelCatalog.SummaryVisionId ? "4096" : id == ModelCatalog.SummaryQwen35Id ? "16384" : "8192",
+                "--parallel", "1", "--batch-size", "512", "--ubatch-size", "128",
                 "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(), "--host", "127.0.0.1", "--port", port.ToString(),
                 "--api-key", key, "--no-context-shift", "--log-colors", "off", "--gpu-layers", gpu ? "auto" : "0" };
             if (!gpu) arguments.AddRange(["--device", "none"]);
-            if (id == ModelCatalog.SummaryVisionId)
+            if (ModelCatalog.IsSummaryVision(id))
                 arguments.AddRange(["--mmproj", Path.Combine(model.Directory, definition.Files[1].Path), gpu ? "--mmproj-offload" : "--no-mmproj-offload"]);
-            else arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
+            if (id != ModelCatalog.SummaryVisionId)
+                arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
             status?.Invoke("加载本地模型");
             var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
             backend = new(process, client, model, runtime, id);
@@ -100,12 +103,15 @@ public sealed class LocalSummaryModel : ISummaryModel
         if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
         object content = prompt;
         if (image is not null && images is not null) throw new ArgumentException("不能同时传入单帧和多帧。");
+        if ((image is not null || images is not null) && !ModelCatalog.IsSummaryVision(_id))
+            throw new ArgumentException("请选择支持图像输入的视觉模型。");
         if (image is not null) content = new object[] {
             new { type = "text", text = prompt }, new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(image) } } };
         if (images is not null)
         {
-            if (_id != ModelCatalog.SummaryVisionId || images.Count is < 1 or > 3)
-                throw new ArgumentException("画面联合分析每次需要 1–3 帧。");
+            var maximum = _id == ModelCatalog.SummaryVisionId ? 3 : 32;
+            if (images.Count < 1 || images.Count > maximum)
+                throw new ArgumentException($"画面联合分析每次需要 1–{maximum} 帧。");
             var parts = new List<object> { new { type = "text", text = prompt } };
             foreach (var frame in images)
             {
@@ -118,30 +124,12 @@ public sealed class LocalSummaryModel : ISummaryModel
         object[] messages = _id == ModelCatalog.SummaryVisionId
             ? [new { role = "user", content }]
             : [new { role = "system", content = (object)system }, new { role = "user", content }];
-        HttpResponseMessage response;
         // SmolVLM publishes greedy visual decoding. Text-model penalties must not
         // push its very small decoder towards unrelated objects or invented events.
         var visual = _id == ModelCatalog.SummaryVisionId;
-        var request = new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
-            ["max_tokens"] = tokens, ["temperature"] = visual ? 0 : .2, ["top_p"] = .8,
-            ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 0 };
-        if (visual)
-        {
-            request["repeat_penalty"] = 1.1;
-            request["stop"] = new[] { "\n" };
-        }
+        var request = Request(messages, tokens);
         if (schema is { } shape) request["response_format"] = new { type = "json_object", schema = shape };
-        try
-        {
-            response = await _client.PostAsJsonAsync("v1/chat/completions", request, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        { throw new InvalidOperationException("本地总结超时，请减小分段字符数后重试。"); }
-        using var completedResponse = response;
-        if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"本地总结失败（HTTP {(int)response.StatusCode}），请减小分段字符数或修复模型。");
-        await response.Content.LoadIntoBufferAsync(1024 * 1024).ConfigureAwait(false);
-        await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        using var json = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+        using var json = await SendAsync(request, ct).ConfigureAwait(false);
         if (!json.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0
             || !choices[0].TryGetProperty("message", out var message) || !message.TryGetProperty("content", out var body)
             || body.ValueKind != JsonValueKind.String) throw new InvalidDataException("本地总结模型未返回有效文本。");
@@ -160,6 +148,40 @@ public sealed class LocalSummaryModel : ISummaryModel
         }
         else if (limited) throw new InvalidDataException("总结超过输出长度，请缩小分段字符数或分析重点后重试。");
         return text;
+    }
+
+    public Task<string> CompleteWithToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
+        IReadOnlyList<OnlineSummaryTool> tools, CancellationToken ct, int tokens = 2048)
+    {
+        if (_id != ModelCatalog.SummaryQwen35Id) throw new ArgumentException("所选本地模型不支持画面工具。");
+        return OnlineSummaryModel.RunToolsAsync(system, prompt, images, tools, ct, 600,
+            (messages, _, _) => Request(messages, tokens), SendAsync);
+    }
+
+    private Dictionary<string, object> Request(IReadOnlyList<object> messages, int tokens)
+    {
+        var smol = _id == ModelCatalog.SummaryVisionId;
+        var request = new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
+            ["max_tokens"] = tokens, ["temperature"] = smol ? 0 : .2, ["top_p"] = .8,
+            ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 0 };
+        if (smol) { request["repeat_penalty"] = 1.1; request["stop"] = new[] { "\n" }; }
+        else request["chat_template_kwargs"] = new { enable_thinking = false };
+        return request;
+    }
+
+    private async Task<JsonDocument> SendAsync(Dictionary<string, object> request, CancellationToken ct)
+    {
+        if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
+        HttpResponseMessage response;
+        try { response = await _client.PostAsJsonAsync("v1/chat/completions", request, ct).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        { throw new InvalidOperationException("本地总结超时，请减小分段字符数后重试。"); }
+        using var completedResponse = response;
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"本地总结失败（HTTP {(int)response.StatusCode}），请减小采样画面数或修复模型。");
+        await response.Content.LoadIntoBufferAsync(1024 * 1024).ConfigureAwait(false);
+        await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        return await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
     }
 
     private async Task DrainAsync(StreamReader reader)

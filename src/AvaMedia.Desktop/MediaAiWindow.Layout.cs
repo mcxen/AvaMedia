@@ -121,7 +121,8 @@ public sealed partial class MediaAiWindow
         _settingsPanel.Children.Add(_realPeople);
         _settingsPanel.Children.Add(WorkbenchActions(_generateCaptions, Ui.Button("描述设置…", async () => await OpenCaptionSettingsAsync())));
         _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
-        ToolTip.SetTip(_generateCaptions, "使用 AI 供应商中配置的视觉模型。");
+        ToolTip.SetTip(_generateCaptions, "在描述设置中选择本地模型或 AI 供应商。");
+        _generateCaptions.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(prepare: false); };
         _realPeople.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RefreshDisplayedResults(); await RefreshModelAsync(); } };
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
         _gpu.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };

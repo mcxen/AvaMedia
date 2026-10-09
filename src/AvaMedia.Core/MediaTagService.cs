@@ -12,6 +12,7 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false
     public bool RecognizeNsfw { get; init; }
     public string? CaptionSystemPrompt { get; init; }
     public bool CaptionUseFrameTools { get; init; } = true;
+    public string? CaptionLocalModelId { get; init; }
     public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
     public void Validate()
     {
@@ -173,13 +174,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { return (null, error.Message); }
         }
-        OnlineAiOptions? captionProvider = null;
-        if (options.GenerateCaptions)
-        {
-            try { captionProvider = MediaCaptionService.PrepareProvider(engine.Settings.OnlineAi.Resolve(options.CaptionProviderId)); }
-            catch (Exception error) when (error is not OperationCanceledException)
-            { captionProvider = null; /* per-file CaptionError set when GenerateCaptions runs */ }
-        }
+        await using var captionSession = new MediaCaptionSession(_store, engine.Settings.OnlineAi, options,
+            stage => activity.Stage(stage), value => activity.Backend(value));
         async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null, int videoStreamIndex = 0)
         {
             if (!options.GenerateCaptions) return result;
@@ -187,9 +183,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             activity.Stage("生成画面描述", detail: Path.GetFileName(result.Path));
             try
             {
-                var provider = captionProvider ?? MediaCaptionService.PrepareProvider(engine.Settings.OnlineAi.Resolve(options.CaptionProviderId));
-                captionProvider ??= provider;
-                var (caption, model) = await MediaCaptionService.GenerateAsync(provider, images, options, ct,
+                var (caption, model) = await captionSession.GenerateAsync(images, ct,
                     frameSeconds: frameSeconds, videoDurationSeconds: result.DurationSeconds,
                     frameTool: frameSeconds is not null && options.CaptionUseFrameTools
                         ? new MediaCaptionFrameTool(engine, result, videoStreamIndex,

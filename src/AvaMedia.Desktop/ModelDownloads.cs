@@ -44,6 +44,9 @@ internal sealed class ModelDownloads
         _states[model.Id] = state;
         NotifyChanged(model.Id); PublishProgress(state);
         _ = DownloadAsync(state);
+        // A user-requested local model download also prepares its small, separately cancellable runtime.
+        if (ModelCatalog.RequiresSummaryRuntime(model.Id))
+            Start(ModelCatalog.Find(ModelCatalog.SummaryRuntimeId), owner, sourcePreference);
     }
 
     public void Cancel(string id)

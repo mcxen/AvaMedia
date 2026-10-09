@@ -122,6 +122,11 @@ public sealed partial class MediaAiWindow : Window
                 parts.Add(Localization.Format($"首次分析需要下载标签模型 · 约 {SemanticModelConsent.Megabytes(missing.Sum(id => ModelCatalog.Find(id).DownloadSize))} MB"));
             if (semanticMissing)
                 parts.Add(Localization.Format($"场景识别另需语义模型 · 约 {SemanticModelConsent.Megabytes(SemanticModelConsent.Model.DownloadSize)} MB（开始前询问）"));
+            if (_generateCaptions.IsChecked == true && _captionLocalModelId is { } captionId
+                && (!await store.IsInstalledAsync(captionId, ct: _lifetime.Token)
+                    || !await store.IsInstalledAsync(ModelCatalog.SummaryRuntimeId, ct: _lifetime.Token)))
+                parts.Add(Localization.Text("画面描述模型未下载，请打开模型管理。"));
+            if (_closed) return;
             _modelStatus.Text = string.Join(Environment.NewLine, parts);
             _modelStatus.IsVisible = parts.Count > 0; UpdateActions();
             UpdateModelPreparationActions();
@@ -180,6 +185,7 @@ public sealed partial class MediaAiWindow : Window
             options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
+        if (!await EnsureCaptionSelectionAsync(options) || _closed || _busy) return;
         var (downloadSemantic, scenesSkipped) = (false, false);
         if (options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
         {
@@ -317,8 +323,23 @@ public sealed partial class MediaAiWindow : Window
         {
             SemanticCandidates = SemanticLibraryCandidates,
             RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true,
-            CaptionSystemPrompt = _captionSystemPrompt, CaptionUseFrameTools = _captionUseFrameTools
+            CaptionSystemPrompt = _captionSystemPrompt, CaptionUseFrameTools = _captionUseFrameTools,
+            CaptionLocalModelId = _captionLocalModelId
         };
+    }
+
+    private async Task<bool> EnsureCaptionSelectionAsync(MediaTagOptions options)
+    {
+        if (!options.GenerateCaptions || options.CaptionLocalModelId is not { } id) return true;
+        var store = new ModelStore();
+        try
+        {
+            if (await store.IsInstalledAsync(id, ct: _lifetime.Token)
+                && await store.IsInstalledAsync(ModelCatalog.SummaryRuntimeId, ct: _lifetime.Token)) return true;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return false; }
+        if (!_closed) await Ui.Message(this, "模型未下载", "请先在模型管理下载画面描述模型和本地推理工具。");
+        return false;
     }
 
     private async Task EnqueueSelectedAsync()
@@ -329,6 +350,7 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var options = ReadTaskOptions();
+            if (!await EnsureCaptionSelectionAsync(options.Analysis) || _closed || _busy) return;
             if (!_modelReady)
             {
                 using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);

@@ -27,6 +27,9 @@ public sealed class VideoSummaryWindow : Window
     private readonly ComboBox _source, _language, _speechLanguage, _speechModel, _provider;
     private readonly ComboBox _onlineProvider = new() { Name = "SummaryOnlineProvider", HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel _onlineProviderRow = new();
+    private readonly ComboBox _localVision = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly StackPanel _localVisionRow = new();
+    private sealed record LocalVisionChoice(string Id, string Name);
     private sealed record OnlineProviderChoice(string Id, string Name, bool UserText = true);
     private readonly TextBlock _modelNotice = Ui.Text("", "caption");
     private readonly Button? _configureOnline;
@@ -102,6 +105,13 @@ public sealed class VideoSummaryWindow : Window
         _provider = Ui.Combo(["本地模型", "线上 AI"], "本地模型");
         _provider.SelectedIndex = (int)options.Provider; _provider.Name = "SummaryProvider";
         Add(fields, "总结模型", _provider);
+        var localChoices = new[] { ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryVisionId }
+            .Select(id => new LocalVisionChoice(id, ModelCatalog.Find(id).Name)).ToArray();
+        _localVision.ItemsSource = localChoices;
+        _localVision.ItemTemplate = new FuncDataTemplate<LocalVisionChoice>((item, _) =>
+        { var label = Ui.Text(item?.Name ?? ""); Localization.SetIsUserText(label, true); return label; });
+        _localVision.SelectedItem = localChoices.FirstOrDefault(choice => choice.Id == options.LocalVisionModelId) ?? localChoices[0];
+        Add(_localVisionRow, "本地画面模型", _localVision); fields.Children.Add(_localVisionRow);
         _onlineProvider.ItemTemplate = new FuncDataTemplate<OnlineProviderChoice>((item, _) =>
         { var label = Ui.Text(item?.Name ?? ""); Localization.SetIsUserText(label, item?.UserText == true); return label; });
         RefreshOnlineProviders(options.OnlineProviderId);
@@ -229,6 +239,7 @@ public sealed class VideoSummaryWindow : Window
         if (_files.Count == 0) throw new ArgumentException("请添加视频。");
         var options = new VideoSummaryOptions {
             Provider = (VideoSummaryProvider)_provider.SelectedIndex,
+            LocalVisionModelId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id,
             OnlineProviderId = (_onlineProvider.SelectedItem as OnlineProviderChoice)?.Id ?? "",
             ExtractAbstract = _abstract.IsChecked == true, SummarizeContent = _summary.IsChecked == true,
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
@@ -258,6 +269,7 @@ public sealed class VideoSummaryWindow : Window
         var ai = _abstract.IsChecked == true || _summary.IsChecked == true || _analysis.IsChecked == true;
         var online = _provider.SelectedIndex == (int)VideoSummaryProvider.Online;
         _onlineProviderRow.IsVisible = ai && online;
+        _localVisionRow.IsVisible = ai && !online && _frames.IsChecked == true;
         _provider.IsEnabled = ai; _gpu.IsEnabled = ai && !online;
         _modelNotice.IsVisible = ai;
         _modelNotice.Text = Localization.Text(online ? "发送采样画面和转录内容到线上 AI" : "本地模型 · 首次使用自动下载");

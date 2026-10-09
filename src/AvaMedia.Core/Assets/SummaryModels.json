@@ -35,6 +35,27 @@
           "url": "https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF/resolve/ccd7aae53bcb1997355c2f094959e72b3642ce17/mmproj-SmolVLM2-500M-Video-Instruct-Q8_0.gguf"
         }
       ]
+    },
+    {
+      "id": "summary-qwen35-abliterated",
+      "name": "Qwen3.5 · 4B · abliterated · Q4",
+      "purpose": "本地图片与视频描述 · Metal / Vulkan",
+      "license": "Apache-2.0",
+      "page": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-4B-abliterated",
+      "files": [
+        {
+          "path": "Huihui-Qwen3.5-4B-abliterated.Q4_K_M.gguf",
+          "size": 2707514688,
+          "sha256": "423f10b6ec2d99c3378143d7cd3b80eb4887b3ed92103103ac59173b404f4f7c",
+          "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF/resolve/4a5daa6fbefca5fe822dc65fcb95cc4576fa9720/Huihui-Qwen3.5-4B-abliterated.Q4_K_M.gguf"
+        },
+        {
+          "path": "Huihui-Qwen3.5-4B-abliterated.mmproj-f16.gguf",
+          "size": 672423552,
+          "sha256": "f14643c11f1e8244c59bca670e2a4c843be4234aa6bb88d0647dae7297798686",
+          "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF/resolve/4a5daa6fbefca5fe822dc65fcb95cc4576fa9720/Huihui-Qwen3.5-4B-abliterated.mmproj-f16.gguf"
+        }
+      ]
     }
   ]
 }

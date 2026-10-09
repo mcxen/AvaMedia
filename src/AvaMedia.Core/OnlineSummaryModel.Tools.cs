@@ -13,7 +13,18 @@ public sealed partial class OnlineSummaryModel
     public async Task<string> CompleteWithToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
         IReadOnlyList<OnlineSummaryTool> tools, CancellationToken ct)
     {
-        if (!_vision || images.Count is < 1 or > 32) throw new ArgumentException("线上画面联合分析每次需要 1–32 帧。");
+        if (!_vision) throw new ArgumentException("请选择支持图像输入的视觉模型。");
+        return await RunToolsAsync(system, prompt, images, tools, ct, _options.TimeoutSeconds, ConversationRequest,
+            _client.CompleteAsync).ConfigureAwait(false);
+    }
+
+    // Local llama.cpp and remote providers share the same bounded, validated frame-tool conversation.
+    internal static async Task<string> RunToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
+        IReadOnlyList<OnlineSummaryTool> tools, CancellationToken ct, int timeoutSeconds,
+        Func<IReadOnlyList<object>, long, int, Dictionary<string, object>> conversationRequest,
+        Func<Dictionary<string, object>, CancellationToken, Task<JsonDocument>> complete)
+    {
+        if (images.Count is < 1 or > 32) throw new ArgumentException("画面联合分析每次需要 1–32 帧。");
         if (tools.Count is < 1 or > 8 || tools.Select(tool => tool.Name).Distinct(StringComparer.Ordinal).Count() != tools.Count)
             throw new ArgumentException("画面描述工具配置无效。");
         var messages = new List<object> { new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },
@@ -25,21 +36,21 @@ public sealed partial class OnlineSummaryModel
             + Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(definitions));
         var imageCount = images.Count;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        deadline.CancelAfter(TimeSpan.FromSeconds(_options.TimeoutSeconds));
+        deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         try
         {
             for (var round = 0; round <= 2; round++)
             {
-                var request = ConversationRequest(messages, textBytes, imageCount);
+                var request = conversationRequest(messages, textBytes, imageCount);
                 request["tools"] = definitions;
                 request["tool_choice"] = round < 2 ? "auto" : "none";
-                using var response = await _client.CompleteAsync(request, deadline.Token).ConfigureAwait(false);
+                using var response = await complete(request, deadline.Token).ConfigureAwait(false);
                 var message = ToolMessage(response.RootElement);
                 if (!message.TryGetProperty("tool_calls", out var calls) || calls.ValueKind == JsonValueKind.Null
                     || calls.ValueKind == JsonValueKind.Array && calls.GetArrayLength() == 0)
                 {
                     if (!message.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String
-                        || string.IsNullOrWhiteSpace(content.GetString())) throw new InvalidDataException("线上 AI 未返回有效内容。");
+                        || string.IsNullOrWhiteSpace(content.GetString())) throw new InvalidDataException("画面描述模型未返回有效内容。");
                     return content.GetString()!.Trim();
                 }
                 if (round == 2 || calls.ValueKind != JsonValueKind.Array || calls.GetArrayLength() > 8)
@@ -89,10 +100,10 @@ public sealed partial class OnlineSummaryModel
                     textBytes += Encoding.UTF8.GetByteCount(final);
                 }
             }
-            throw new InvalidDataException("线上 AI 未返回有效内容。");
+            throw new InvalidDataException("画面描述模型未返回有效内容。");
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        { throw new InvalidOperationException("供应商请求超时。"); }
+        { throw new InvalidOperationException("画面描述工具调用超时。"); }
     }
 
     private static JsonElement ToolMessage(JsonElement root)
@@ -102,7 +113,7 @@ public sealed partial class OnlineSummaryModel
             throw new InvalidDataException("画面描述工具响应格式无效。");
         var choice = choices[0];
         if (choice.TryGetProperty("finish_reason", out var reason) && reason.ValueKind == JsonValueKind.String && reason.GetString() == "length")
-            throw new InvalidDataException("线上 AI 输出达到长度限制，请选择输出更简洁的模型。");
+            throw new InvalidDataException("画面描述达到输出长度限制，请减少采样帧数或缩短描述要求。");
         if (!choice.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
             || !message.TryGetProperty("role", out var role) || role.ValueKind != JsonValueKind.String || role.GetString() != "assistant")
             throw new InvalidDataException("画面描述工具响应格式无效。");

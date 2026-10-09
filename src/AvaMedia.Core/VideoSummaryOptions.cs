@@ -6,6 +6,7 @@ public enum VideoSummaryProvider { Local, Online }
 public sealed class VideoSummaryOptions
 {
     public VideoSummaryProvider Provider { get; set; }
+    public string LocalVisionModelId { get; set; } = ModelCatalog.SummaryQwen35Id;
     public string OnlineProviderId { get; set; } = "";
     /// <summary>Online provider for per-frame descriptions; empty uses OnlineProviderId.</summary>
     public string VisionProviderId { get; set; } = "";
@@ -42,6 +43,7 @@ public sealed class VideoSummaryOptions
         if (!NeedsAi && !ExtractSubtitles) throw new ArgumentException("请至少选择一种输出内容。");
         if (!Enum.IsDefined(Provider) || !Enum.IsDefined(TranscriptSource) || SubtitleTrack < -1 || AudioTrack < 0)
             throw new ArgumentException("字幕来源或轨道索引无效。");
+        if (!ModelCatalog.IsSummaryVision(LocalVisionModelId)) throw new ArgumentException("所选本地画面描述模型无效。");
         if (new[] { OnlineProviderId, VisionProviderId, SummaryProviderId }.Any(id => id.Length != 0 && !Guid.TryParseExact(id, "N", out _)))
             throw new ArgumentException("所选 AI 供应商无效。");
         if (new[] { VisionModel, SummaryModel }.Any(name => name.Length > 128 || name.Any(char.IsControl)))

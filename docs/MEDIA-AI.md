@@ -74,7 +74,11 @@ v1.1.51 已完成相关编译、词库及语言资源静态检查，并按用户
 
 ## 画面描述
 
-高级设置可开启「生成画面描述」。JoyTag 标签分析完成后，会用设置中的 AI 供应商（推荐本机 Ollama 视觉模型）对采样画面生成自由文本描述，成人/NSFW 内容允许如实描写。描述写入同目录 `.ai-tags.txt` 的「画面描述」区段，并包含在「导出标签 JSON」中；不修改源文件 EXIF 或媒体内容。需先在设置 → AI 供应商中配置可用的视觉模型（例如 Ollama `http://localhost:11434/v1` + `moondream` / `llava`）。
+高级设置可开启「生成画面描述」，在「描述设置」选择内置本地模型或 AI 供应商。JoyTag 标签分析完成后，对采样画面生成中立、非露骨的自由文本描述。描述写入同目录 `.ai-tags.txt` 的「画面描述」区段，并包含在「导出标签 JSON」中；不修改源文件 EXIF 或媒体内容。使用供应商时，需在设置 → AI 供应商中配置可用的视觉模型，也可连接本机 Ollama。
+
+本地描述默认选择 [Huihui-Qwen3.5-4B-abliterated](https://huggingface.co/huihui-ai/Huihui-Qwen3.5-4B-abliterated)，无需 Ollama 或 API Key。设置 → 模型管理提供下载、导入、校验和删除；点击下载模型时同时准备独立可停止的 llama.cpp 推理工具，打开工作台及切换选择均不下载。模型使用 [mradermacher 的 GGUF](https://huggingface.co/mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF)：Q4_K_M 主模型 2,707,514,688 字节，加 f16 视觉文件 672,423,552 字节，总计约 3.38 GB，固定仓库版本 `4a5daa6fbefca5fe822dc65fcb95cc4576fa9720` 与逐文件 SHA256。
+
+勾选「自动适配 GPU」后，macOS 使用 Metal，Windows / Linux 使用 Vulkan；运行时加载失败会尝试 CPU。Qwen3.5 使用 16K 上下文、关闭思考输出，单次可联合分析 1–32 帧，并复用同一批分析中的本地进程；分析结束、停止或关闭工作台后释放。补帧与局部放大沿用已有的每次 1–4 帧、最多 8 帧及 2 轮限制。队列保存所选本地模型，视频总结也可选择该模型作为本地画面分析模型。下载体积不等于运行内存；模型标签 uncensored 不保证完全不拒答或更准确。本次仅验证相关编译与下载清单、运行时接口，未下载权重或实测推理、GPU 和描述质量。
 
 线上配置提供「小红书 Dots」预设，新用户默认显示该预设。点击「注册 / 获取密钥」进入 [Dots API Keys](https://dots.ai/platform/apikeys)，登录或注册后创建自己的 API Key，再粘贴到设置中并点击「连接并获取模型」，应用设置后即可使用。预设已填入 `https://note3-prev-api.askdiandian.com/v1` 与文本、视觉模型 `dots3-note-prev`，使用官方 `api-key` 请求头和提示词约束输出。已有供应商配置保持原样。2026-10-09 [官方文档](https://dots.ai/platform/docs#model-pricing)标明当前免费体验、暂不收费，恢复收费前会提前公告；免费安排以官方最新公告为准。
 
