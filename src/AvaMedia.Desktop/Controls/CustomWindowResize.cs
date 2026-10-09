@@ -30,10 +30,9 @@ internal sealed class CustomWindowResize : IDisposable
     {
         _window = window; _frame = frame; _grip = grip;
         _canResize = canResize ?? (() => true);
-        // The window owns edge input even where the content frame has no hit-test geometry.
-        window.AddHandler(InputElement.PointerPressedEvent, Pressed, RoutingStrategies.Tunnel, handledEventsToo: true);
-        window.AddHandler(InputElement.PointerMovedEvent, Moved, RoutingStrategies.Tunnel, handledEventsToo: true);
-        window.AddHandler(InputElement.PointerReleasedEvent, Released, RoutingStrategies.Tunnel, handledEventsToo: true);
+        frame.AddHandler(InputElement.PointerPressedEvent, Pressed, RoutingStrategies.Tunnel);
+        frame.AddHandler(InputElement.PointerMovedEvent, Moved, RoutingStrategies.Tunnel, handledEventsToo: true);
+        frame.AddHandler(InputElement.PointerReleasedEvent, Released, RoutingStrategies.Tunnel, handledEventsToo: true);
         frame.PointerCaptureLost += CaptureLost;
         frame.PointerExited += Exited;
         window.PropertyChanged += WindowChanged;
@@ -88,14 +87,7 @@ internal sealed class CustomWindowResize : IDisposable
     {
         if (_pointer is null) { SetCursor(Edge(args)); return; }
         if (!ReferenceEquals(args.Pointer, _pointer)) return;
-        // Captured drags finish on release/capture loss. Native move events may omit button flags.
-        if (!CanResize) { End(); return; }
-        Resize(args);
-        args.Handled = true;
-    }
-
-    private void Resize(PointerEventArgs args)
-    {
+        if (!CanResize || !args.GetCurrentPoint(_frame).Properties.IsLeftButtonPressed) { End(); return; }
         var current = _frame.PointToScreen(args.GetPosition(_frame));
         var dx = (current.X - _origin.X) / _scaling;
         var dy = (current.Y - _origin.Y) / _scaling;
@@ -114,13 +106,12 @@ internal sealed class CustomWindowResize : IDisposable
             _window.Position = new(_position.X + (left ? (int)Math.Round((_size.Width - actual.Width) * _scaling) : 0),
                 _position.Y + (top ? (int)Math.Round((_size.Height - actual.Height) * _scaling) : 0));
         }
+        args.Handled = true;
     }
 
     private void Released(object? sender, PointerReleasedEventArgs args)
     {
         if (!ReferenceEquals(args.Pointer, _pointer) || args.InitialPressMouseButton != MouseButton.Left) return;
-        // A fast drag can coalesce movement events; commit the final pointer position too.
-        if (CanResize) Resize(args);
         End(); args.Handled = true;
     }
 
@@ -156,9 +147,9 @@ internal sealed class CustomWindowResize : IDisposable
     public void Dispose()
     {
         End();
-        _window.RemoveHandler(InputElement.PointerPressedEvent, Pressed);
-        _window.RemoveHandler(InputElement.PointerMovedEvent, Moved);
-        _window.RemoveHandler(InputElement.PointerReleasedEvent, Released);
+        _frame.RemoveHandler(InputElement.PointerPressedEvent, Pressed);
+        _frame.RemoveHandler(InputElement.PointerMovedEvent, Moved);
+        _frame.RemoveHandler(InputElement.PointerReleasedEvent, Released);
         _frame.PointerCaptureLost -= CaptureLost;
         _frame.PointerExited -= Exited;
         _window.PropertyChanged -= WindowChanged;

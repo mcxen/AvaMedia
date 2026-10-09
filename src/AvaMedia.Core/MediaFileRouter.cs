@@ -94,7 +94,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                     Add("contact-sheet", "多宫格截图", "按时间采样，拼成多宫格图片", Video);
                     Add("auto-subtitle", subtitleTitle, "识别语音并生成字幕", Speech);
                     Add("video-summary", "视频总结", "本地摘要、内容总结、字幕提取与分析", Video);
-                    Add("voice-enhance", "视频人声增强", "增强讲话并减少背景杂音", Video);
+                    Add("voice-enhance", "人声增强", "增强讲话并减少背景杂音", Video);
                     Add("delogo", "去除水印", "选择区域并进行插值修复", Video);
                     Add("repair", "重新封装", "复制媒体流并更换容器", Video);
                     break;
@@ -107,7 +107,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                 case MediaFileKind.Audio:
                     Add("audio-mp3", "音频格式转换", "MP3 / AAC / FLAC / WAV 等格式", Audio);
                     Add("audio-clip", "音频剪辑", "截取区间并调整音频参数", Audio);
-                    Add("audio-enhance", "音频人声增强", "增强讲话并减少背景杂音", Audio);
+                    Add("audio-enhance", "人声增强", "增强讲话并减少背景杂音", Audio);
                     Add("auto-subtitle", subtitleTitle, "识别语音并生成字幕", Speech);
                     Add("audio-join", "音频合并", "按文件顺序连接音频", Audio, 2, "请至少选择两个音频。");
                     Add("audio-mix", "音频混合", "把多个声音混合到同一音轨", Audio, 2, "请至少选择两个音频。");

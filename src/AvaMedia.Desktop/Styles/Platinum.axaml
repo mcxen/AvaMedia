@@ -99,7 +99,6 @@
           <ControlTheme x:Key="UiMenuItemTheme" TargetType="MenuItem" BasedOn="{StaticResource PlatinumMenuItemTheme}"/>
           <ControlTheme x:Key="UiContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource PlatinumContextMenuTheme}"/>
           <ControlTheme x:Key="UiToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource PlatinumToolTipTheme}"/>
-          <ControlTheme x:Key="UiToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource PlatinumToggleButtonTheme}"/>
           <SolidColorBrush x:Key="ThemeForegroundBrush" Color="#111111"/>
           <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="ThemeControlLowBrush" Color="#DDDDDD"/>
