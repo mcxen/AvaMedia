@@ -176,8 +176,8 @@ public sealed partial class MediaAiWindow
         _traceLegend.Children.Clear();
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
         keys = keys.Where(key => key.StartsWith(ModelCatalog.EmbeddingId + "/", StringComparison.Ordinal) == semantic).ToList();
-        if (keys.Count == 0 && candidates.Length > 0) { keys = [TagKey(candidates[0])]; _traces[result!.Path] = keys; }
-        var selected = keys.Select(key => candidates.FirstOrDefault(tag => TagKey(tag) == key)).OfType<ResultTag>().Take(3).ToArray();
+        // Automatic candidates remain derived from the latest scores, rather than becoming a manual selection.
+        var selected = candidates.Where(tag => keys.Count == 0 || keys.Contains(TagKey(tag))).Take(3).ToArray();
         var series = result is null ? [] : selected.Select(tag => new TagChartSeries(TagKey(tag), tag.Label, TagPoints(result, tag))).ToArray();
         foreach (var tag in selected)
         {
@@ -203,10 +203,17 @@ public sealed partial class MediaAiWindow
     {
         if (_list.SelectedItem is not MediaFileEntry entry) return;
         var semantic = key.StartsWith(ModelCatalog.EmbeddingId + "/", StringComparison.Ordinal);
-        var keys = _traces.GetValueOrDefault(entry.Path) ?? [];
+        _chartSource.SelectedIndex = semantic ? 1 : 0;
+        var keys = _traces.GetValueOrDefault(entry.Path)?.ToList() ?? [];
         keys.RemoveAll(value => value.StartsWith(ModelCatalog.EmbeddingId + "/", StringComparison.Ordinal) != semantic);
-        if (!keys.Remove(key)) { if (keys.Count >= 3) keys.RemoveAt(0); keys.Add(key); }
-        _traces[entry.Path] = keys; _chartSource.SelectedIndex = semantic ? 1 : 0; RenderSelectedResult();
+        if (TryDisplayedResult(entry.Path, out var result))
+        {
+            var ranked = PlotCandidates(result);
+            keys = ranked.Where(tag => keys.Count == 0 || keys.Contains(TagKey(tag))).Take(3).Select(TagKey).ToList();
+        }
+        if (!keys.Remove(key)) { if (keys.Count >= 3) keys.RemoveAt(keys.Count - 1); keys.Add(key); }
+        if (keys.Count == 0) _traces.Remove(entry.Path); else _traces[entry.Path] = keys;
+        RenderSelectedResult();
     }
     private async Task SelectSampleAsync(double seconds)
     {
