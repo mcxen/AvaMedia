@@ -3,7 +3,13 @@ using System.Text;
 namespace AvaMedia.Core;
 
 /// <summary>Opens a description or summary model on demand so nothing is started before the safety check passes.</summary>
-public sealed record VideoSummaryModelSource(string Name, Func<CancellationToken, Task<ISummaryModel>> Open);
+public sealed record VideoSummaryModelSource(string Name, Func<CancellationToken, Task<ISummaryModel>> Open)
+{
+    /// <summary>Online provider id recorded on results; null for local models.</summary>
+    public string? ProviderId { get; init; }
+    /// <summary>Model identifier recorded on results.</summary>
+    public string? ModelId { get; init; }
+}
 
 /// <summary>
 /// Two-step frame pipeline: hard minor-safety check (JoyTag) → per-frame description by a vision model →
@@ -45,7 +51,7 @@ public static class VideoSummaryPipeline
     /// <summary>Describe each frame independently. Refusals and empty replies are kept as Refused=true; transport errors propagate.</summary>
     public static async Task<IReadOnlyList<FrameCaption>> DescribeFramesAsync(IReadOnlyList<VideoSummaryFrame> frames, ISummaryModel vision,
         string modelName, CancellationToken ct, string system = FrameSystemPrompt, string prompt = FramePrompt, int tokens = 256,
-        Action<int, FrameCaption>? described = null)
+        Action<int, FrameCaption>? described = null, string? providerId = null, string? modelId = null)
     {
         var captions = new List<FrameCaption>(frames.Count);
         for (var index = 0; index < frames.Count; index++)
@@ -54,7 +60,7 @@ public static class VideoSummaryPipeline
             var frame = frames[index];
             var reply = await vision.CompleteAsync(system, prompt, ct, frame.Image, tokens).ConfigureAwait(false);
             var accepted = AcceptReply(reply);
-            var caption = new FrameCaption(frame.Timestamp, accepted, accepted is null, modelName);
+            var caption = new FrameCaption(frame.Timestamp, accepted, accepted is null, modelName) { ProviderId = providerId, ModelId = modelId };
             captions.Add(caption); described?.Invoke(index, caption);
         }
         return captions;
@@ -100,9 +106,10 @@ public static class VideoSummaryPipeline
         if (verdict.Blocked) return VideoSummaryResult.Abort(verdict.Reason!);
         IReadOnlyList<FrameCaption> captions;
         await using (var model = await vision.Open(ct).ConfigureAwait(false))
-            captions = await DescribeFramesAsync(frames, model, vision.Name, ct).ConfigureAwait(false);
+            captions = await DescribeFramesAsync(frames, model, vision.Name, ct, providerId: vision.ProviderId, modelId: vision.ModelId).ConfigureAwait(false);
         await using var text = await summary.Open(ct).ConfigureAwait(false);
         var (result, refused) = await SummarizeAsync(captions, text, ct, transcript, focus).ConfigureAwait(false);
-        return new(captions, result, summary.Name, false, null) { SummaryRefused = refused };
+        return new(captions, result, summary.Name, false, null)
+            { SummaryRefused = refused, SummaryProviderId = summary.ProviderId, SummaryModelId = summary.ModelId };
     }
 }

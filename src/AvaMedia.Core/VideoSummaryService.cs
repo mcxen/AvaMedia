@@ -157,6 +157,8 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                 {
                     await using var vision = await OpenModelAsync(ModelCatalog.SummaryVisionId, onlineModels, options, activity, ct).ConfigureAwait(false);
                     var visionName = online ? onlineModels!.VisionProvider.Name + " · " + onlineModels.VisionModel : ModelCatalog.Find(ModelCatalog.SummaryVisionId).Name;
+                    var visionProviderId = online ? onlineModels!.VisionProvider.Id : null;
+                    var visionModelId = online ? onlineModels!.VisionModel : ModelCatalog.SummaryVisionId;
                     usedModels.Add(visionName);
                     activity.Backend(vision.Backend);
                     Directory.CreateDirectory(Path.Combine(staging, "frames"));
@@ -175,9 +177,10 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                             : await vision.CompleteAsync("", "Describe only the clearly visible objects and actions in one short sentence. Do not read or interpret signs.",
                                 ct, sample.Image, 128).ConfigureAwait(false);
                         var description = VideoSummaryPipeline.AcceptReply(reply);
-                        captions.Add(new(TimeSpan.FromSeconds(sample.Seconds), description, description is null, visionName));
                         var relative = $"frames/frame-{index + 1:000}.png";
                         await File.WriteAllBytesAsync(Path.Combine(staging, relative), sample.Image, ct).ConfigureAwait(false);
+                        captions.Add(new(TimeSpan.FromSeconds(sample.Seconds), description, description is null, visionName)
+                            { FramePath = relative, ProviderId = visionProviderId, ModelId = visionModelId });
                         var observation = new VideoFrameObservation(sample.Seconds, description ?? RefusedFrameText, relative) { Id = id, SamplingReason = sample.Reason };
                         frames.Add(observation);
                         if (description is not null)
@@ -218,12 +221,14 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             progress(60);
             var sections = new List<VideoSummarySection>();
             var outline = new VideoSummaryOutline([], [], []);
-            string? summary = null, summaryModel = null; var summaryRefused = false;
+            string? summary = null, summaryModel = null, summaryProviderId = null, summaryModelId = null; var summaryRefused = false;
             if (options.NeedsAi)
             {
                 activity.Node("内容总结");
                 await using var textModel = await OpenModelAsync(ModelCatalog.SummaryTextId, onlineModels, options, activity, ct).ConfigureAwait(false);
                 summaryModel = online ? onlineModels!.SummaryProvider.Name + " · " + onlineModels.SummaryModel : ModelCatalog.Find(ModelCatalog.SummaryTextId).Name;
+                summaryProviderId = online ? onlineModels!.SummaryProvider.Id : null;
+                summaryModelId = online ? onlineModels!.SummaryModel : ModelCatalog.SummaryTextId;
                 usedModels.Add(summaryModel);
                 activity.Backend(textModel.Backend);
                 job.ProgressDetail = "生成总结"; activity.Stage("生成总结", detail: summaryModel);
@@ -250,7 +255,8 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                     }
                 }
             }
-            var result = new VideoSummaryResult(captions, summary, summaryModel, false, null) { SummaryRefused = summaryRefused };
+            var result = new VideoSummaryResult(captions, summary, summaryModel, false, null)
+                { SummaryRefused = summaryRefused, SummaryProviderId = summaryProviderId, SummaryModelId = summaryModelId };
             var limitations = new List<string> { "模型的结论需复核，内容分析不构成事实核验。" };
             if (frames.Count > 0) limitations.Add(sequences.Count > 0
                 ? "画面依据自适应采样与有序多帧观察，未连续观察全部视频；像素变化不代表镜头切换。"

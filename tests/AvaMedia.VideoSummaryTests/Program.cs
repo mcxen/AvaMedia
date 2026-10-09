@@ -77,9 +77,12 @@ if (mode == "mock")
     // 3. Frame refusal kept, summary notes it.
     var vision = new MockModel(call => call == 2 ? "Sorry, but I cannot describe this image." : $"一名成年人站在房间里（帧{call}）。");
     var text = new MockModel(_ => "视频展示了成年人在房间内的活动。");
-    var ok = await VideoSummaryPipeline.RunAsync(frames, new MockTagger(_ => .01f), Source("vision-model", vision), Source("summary-model", text), CancellationToken.None);
+    var ok = await VideoSummaryPipeline.RunAsync(frames, new MockTagger(_ => .01f), Source("vision-model", vision) with { ProviderId = "p-vision", ModelId = "vision-id" },
+        Source("summary-model", text) with { ProviderId = "p-summary", ModelId = "summary-id" }, CancellationToken.None);
     Check(!ok.Aborted && ok.Frames.Count == 3 && ok.Frames[1].Refused && ok.Frames[1].Description is null && !ok.Frames[0].Refused, "refused frame kept with Refused=true");
     Check(ok.Frames.All(frame => frame.Model == "vision-model") && ok.SummaryModel == "summary-model" && ok.Summary is { Length: > 0 }, "models recorded separately");
+    Check(ok.Frames.All(frame => frame is { ProviderId: "p-vision", ModelId: "vision-id", FramePath: null }) &&
+        ok is { SummaryProviderId: "p-summary", SummaryModelId: "summary-id" }, "pipeline records provider/model ids; no frame path without saved image");
     Check(text.Prompts.Single().Contains("拒绝描述") && text.Prompts.Single().Contains("00:01"), "summary prompt notes refused frames");
     Check(vision.Systems.All(system => system.Contains("成人/NSFW")) && text.Systems.Single().Contains("成人/NSFW"), "adult-allowed prompts");
 
@@ -119,6 +122,27 @@ if (mode == "mock")
     var markdown = File.ReadAllText(Path.Combine(output, "summary.md"));
     Check(markdown.Contains("## 总结") && markdown.Contains("拒绝描述"), "summary.md shows summary and refused frames");
     Check(Directory.GetFiles(Path.Combine(output, "frames")).Length == result.Frames.Count, "frame images written for non-aborted job");
+    var providerId = engine.Settings.OnlineAi.Providers[0].Id;
+    Check(result.Frames.All(frame => frame.FramePath is { Length: > 0 } path && path.StartsWith("frames/") && File.Exists(Path.Combine(output, path))),
+        "FramePath points at saved frame image");
+    Check(result.Frames.All(frame => frame.ProviderId == providerId && frame.ModelId == "moondream" && frame.Model.Contains("moondream")) &&
+        result.SummaryProviderId == providerId && result.SummaryModelId == "moondream" && result.SummaryModel!.Contains(" · "), "job records provider/model ids");
+    Check(report.Frames.Select(frame => (frame.FramePath, frame.ProviderId, frame.ModelId)).SequenceEqual(result.Frames.Select(frame => (frame.FramePath, frame.ProviderId, frame.ModelId))) &&
+        report.SummaryProviderId == result.SummaryProviderId && report.SummaryModelId == result.SummaryModelId, "report.json round-trips FramePath and ids");
+
+    // 7. Old report.json without FramePath / ProviderId / ModelId / SummaryProviderId / SummaryModelId still loads.
+    var legacy = Path.Combine(root, "legacy-" + Guid.NewGuid().ToString("N")[..8]); Directory.CreateDirectory(legacy);
+    File.WriteAllText(Path.Combine(legacy, "report.json"), """
+        {"Source":"old.mp4","Duration":6,"TranscriptSource":"","Language":"zh","Models":["Ollama · moondream"],"SubtitleCount":0,
+         "Frames":[],"Sections":[],"SegmentNotes":[],"Limitations":[],
+         "Result":{"Frames":[{"Timestamp":"00:00:01","Description":"成年人。","Refused":false,"Model":"Ollama · moondream"},
+                             {"Timestamp":"00:00:03","Description":null,"Refused":true,"Model":"Ollama · moondream"}],
+                   "Summary":"旧总结。","SummaryModel":"Ollama · moondream","Aborted":false,"AbortReason":null,"SummaryRefused":false}}
+        """);
+    var old = VideoSummaryService.LoadResult(legacy);
+    Check(old is { Summary: "旧总结。", SummaryModel: "Ollama · moondream", SummaryProviderId: null, SummaryModelId: null, Frames.Count: 2 } &&
+        old.Frames[1].Refused && old.Frames.All(frame => frame is { FramePath: null, ProviderId: null, ModelId: null, Model: "Ollama · moondream" }),
+        "old report.json without new fields loads with nulls");
     Console.WriteLine("ALL MOCK TESTS PASSED");
     return 0;
 }
