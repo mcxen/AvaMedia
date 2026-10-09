@@ -46,6 +46,7 @@ public sealed class ConvertWindow : Window
     private ConversionOptions _options;
     private readonly CancellationTokenSource _lifetime=new();
     private bool _preparing;
+    private readonly ImageCropEditor? _imageCrop;
     public ConvertWindow(IMediaEngine engine,Feature feature,string outputFolder,string[] files,ConversionOptions? initialOptions=null,IReadOnlyList<ConversionOptions>? inputOptions=null,bool editing=false)
     {
         Title=feature.Label.Replace("\n"," ");Width=830;Height=620;MinWidth=650;MinHeight=440;WindowStartupLocation=WindowStartupLocation.CenterOwner;
@@ -63,7 +64,7 @@ public sealed class ConvertWindow : Window
             {
                 e.Handled=true;if(_preparing)return;
                 var known=_entries.Select(entry=>Path.GetFullPath(entry.Path)).ToHashSet(VideoFolderScanner.PathComparer);
-                foreach(var path in e.DataTransfer.TryGetFiles()?.Select(file=>file.TryGetLocalPath()).OfType<string>().Where(File.Exists).Select(Path.GetFullPath).Where(known.Add)??[])
+                foreach(var path in e.DataTransfer.TryGetFiles()?.Select(file=>file.TryGetLocalPath()).OfType<string>().Where(File.Exists).Where(AcceptPath).Select(Path.GetFullPath).Where(known.Add)??[])
                     _entries.Add(new(path));
             },RoutingStrategies.Bubble,handledEventsToo:true);
         }
@@ -94,6 +95,7 @@ public sealed class ConvertWindow : Window
                     var old=entry.Options!;var next=changed.Clone();next.Start=old.Start;next.End=old.End;next.CropX=old.CropX;next.CropY=old.CropY;next.CropWidth=old.CropWidth;next.CropHeight=old.CropHeight;next.DelogoX=old.DelogoX;next.DelogoY=old.DelogoY;next.DelogoWidth=old.DelogoWidth;next.DelogoHeight=old.DelogoHeight;
                     entry.SetOptions(SelectOutput(next,feature,selection,entry.Path));
                 }
+                _imageCrop?.Refresh();
             }
             catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
         };top.Children.Add(setting);
@@ -108,14 +110,14 @@ public sealed class ConvertWindow : Window
                 var changed=SelectOutput(_options,feature,selection,_entries.FirstOrDefault()?.Path??"");
                 var entries=_entries.Where(entry=>entry.Options is not null)
                     .Select(entry=>(Entry:entry,Options:SelectOutput(entry.Options!,feature,selection,entry.Path))).ToArray();
-                _options=changed;foreach(var entry in entries)entry.Entry.SetOptions(entry.Options);
+                _options=changed;foreach(var entry in entries)entry.Entry.SetOptions(entry.Options);_imageCrop?.Refresh();
             }
             catch(Exception ex){formats.SelectedItem=previous;await Ui.Message(this,"参数错误",ex.Message);}
             finally{changingFormat=false;}
         };
         panel.Children.Add(top);
         var toolbar=new WrapPanel{Orientation=Orientation.Horizontal,Margin=new(0,15,0,2)};
-        var list=new ListBox{ItemsSource=_entries,SelectionMode=SelectionMode.Multiple,BorderThickness=new(1)};
+        var list=new ListBox{ItemsSource=_entries,SelectionMode=feature.Id=="image-tools"?SelectionMode.Single:SelectionMode.Multiple,BorderThickness=new(1)};
         list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{var row=new StackPanel{Spacing=4,Margin=new(2,4)};if(feature.Operation==Operation.Mux)row.Children.Add(Ui.Text(_entries.IndexOf(entry!)==0?"视频来源":"音频来源","heading"));if(feature.Operation!=Operation.Mux){var include=new CheckBox { Content="处理此文件",IsChecked=entry!.Include };include.Bind(CheckBox.IsCheckedProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Include)) { Mode=Avalonia.Data.BindingMode.TwoWay });row.Children.Add(include);}
             var pathText=new TextBlock{Text=System.IO.Path.GetFileName(entry?.Path),TextTrimming=TextTrimming.CharacterEllipsis};Localization.SetIsUserText(pathText,true);ToolTip.SetTip(pathText,entry?.Path);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"}};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));row.Children.Add(summary);}return row;});
         var add=new Button{Content=feature.Operation==Operation.Mux?"选择视频来源…":"添加文件…"};
@@ -144,9 +146,22 @@ public sealed class ConvertWindow : Window
             }
             catch(Exception ex){await Ui.Message(this,"媒体打开失败",ex.Message);}
         };
-        if(media && feature.Operation!=Operation.ImagesPdf)toolbar.Children.Add(edit);
+        if(media && feature.Operation!=Operation.ImagesPdf && feature.Id!="image-tools")toolbar.Children.Add(edit);
         foreach(var control in toolbar.Children)control.Margin=new(0,0,10,8);
-        Grid.SetRow(toolbar,1);panel.Children.Add(toolbar);Grid.SetRow(list,2);panel.Children.Add(list);
+        Grid.SetRow(toolbar,1);panel.Children.Add(toolbar);
+        Control inputArea=list;
+        if(feature.Id=="image-tools")
+        {
+            Width=1120;Height=800;MinWidth=900;MinHeight=650;
+            _imageCrop=new ImageCropEditor(engine,entry=>entry.Options??_options,_lifetime.Token);
+            var workspace=new Grid{ColumnDefinitions=new("250,*"),ColumnSpacing=12};
+            workspace.Children.Add(list);Grid.SetColumn(_imageCrop,1);workspace.Children.Add(_imageCrop);inputArea=workspace;
+            list.SelectionChanged+=(_,_)=>_imageCrop.Select(list.SelectedItem as ConversionEntry);
+            _entries.CollectionChanged+=(_,_)=>{if(list.SelectedItem is null && _entries.Count>0)list.SelectedIndex=0;};
+            Closed+=(_,_)=>_imageCrop.Dispose();
+            Opened+=(_,_)=>{if(_entries.Count>0)list.SelectedIndex=0;};
+        }
+        Grid.SetRow(inputArea,2);panel.Children.Add(inputArea);
         if(feature.Operation==Operation.Frames)
         {
             var durations=new Dictionary<string,double>(VideoFolderScanner.PathComparer);var expected=Ui.Text("","caption");var generation=0;
@@ -210,9 +225,10 @@ public sealed class ConvertWindow : Window
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=16,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(0,12,0,0)};
         buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content=editing?"保存修改":"加入队列",IsDefault=true,Classes={"primary","dialog-action"}};ok.Click+=async(_,_)=>
         {
-            if(_preparing)return;validation.Text="";_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=false;
+            if(_preparing)return;validation.Text="";_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,inputArea,output})control.IsEnabled=false;
             try
             {
+                _imageCrop?.ValidateSelection();
                 var selection=(string?)formats.SelectedItem??feature.Format;var selected=feature;var selectedEntries=_entries.Where(entry=>entry.Include||feature.Operation==Operation.Mux).ToArray();string[] inputs=selectedEntries.Select(entry=>entry.Path).ToArray();
                 if(feature.Operation is Operation.Download or Operation.IsoCopy)inputs=[special.Text??""];
                 _options=SelectOutput(_options,feature,selection,inputs.FirstOrDefault()??"");
@@ -245,23 +261,25 @@ public sealed class ConvertWindow : Window
             }
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)validation.Text=ex.Message;}
-            finally{_preparing=false;if(IsVisible){foreach(var control in new Control[]{top,toolbar,list,output})control.IsEnabled=true;RefreshActions();}}
+            finally{_preparing=false;if(IsVisible){foreach(var control in new Control[]{top,toolbar,inputArea,output})control.IsEnabled=true;RefreshActions();}}
         };buttons.Children.Add(ok);var footer=new Grid { ColumnDefinitions=new("*,Auto"),ColumnSpacing=12 };footer.Children.Add(validation);Grid.SetColumn(buttons,1);footer.Children.Add(buttons);Grid.SetRow(footer,4);panel.Children.Add(footer);Content=panel;if(feature.Category=="视频")ToolExecution.Configure(this,ok,"开始处理",editing);
         foreach(var entry in _entries)entry.PropertyChanged+=(_,_)=>RefreshActions();
         _entries.CollectionChanged+=(_,change)=>{foreach(var entry in change.NewItems?.OfType<ConversionEntry>()??[])entry.PropertyChanged+=(_,_)=>RefreshActions();RefreshActions();};list.SelectionChanged+=(_,_)=>RefreshActions();special.TextChanged+=(_,_)=>RefreshActions();
+        if(_imageCrop is not null)_imageCrop.Changed+=RefreshActions;
         foreach(var child in top.Children)child.Margin=new(0,0,10,8);
         top.IsVisible=top.Children.Any(control=>control.IsVisible);RefreshActions();
         void AddPaths(IEnumerable<string> paths)
         {
             var known=_entries.Select(entry=>Path.GetFullPath(entry.Path)).ToHashSet(VideoFolderScanner.PathComparer);
-            foreach(var path in paths.Select(Path.GetFullPath).Where(File.Exists).Where(known.Add))_entries.Add(new(path));
+            foreach(var path in paths.Select(Path.GetFullPath).Where(File.Exists).Where(AcceptPath).Where(known.Add))_entries.Add(new(path));
         }
+        bool AcceptPath(string path)=>feature.Id!="image-tools" || MediaEngine.IsImage(Path.GetExtension(path).TrimStart('.').ToLowerInvariant()) || Path.GetExtension(path).Equals(".gif",StringComparison.OrdinalIgnoreCase);
         void RefreshActions()
         {
             var selected=list.SelectedItems?.Count??0;
             remove.IsEnabled=selected>0;edit.IsEnabled=selected==1;
             up.IsEnabled=selected==1&&list.SelectedIndex>0;down.IsEnabled=selected==1&&list.SelectedIndex>=0&&list.SelectedIndex<_entries.Count-1;
-            ok.IsEnabled=!_preparing&&(feature.Operation is Operation.Download or Operation.IsoCopy?!string.IsNullOrWhiteSpace(special.Text):_entries.Any(entry=>entry.Include)||feature.Operation==Operation.Mux&&_entries.Count>0);
+            ok.IsEnabled=!_preparing&&(_imageCrop?.CanConfirm??true)&&(feature.Operation is Operation.Download or Operation.IsoCopy?!string.IsNullOrWhiteSpace(special.Text):_entries.Any(entry=>entry.Include)||feature.Operation==Operation.Mux&&_entries.Count>0);
         }
     }
     private static ConversionOptions SelectOutput(ConversionOptions options,Feature feature,string selection,string path)

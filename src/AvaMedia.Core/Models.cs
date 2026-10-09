@@ -41,7 +41,7 @@ public static class Catalog
         Add("audio-enhance","人声增强","音频","wav","audio");
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
         Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
-        Add("image-tools","缩放 / 旋转","图片","png","crop");
+        Add("image-tools","裁剪 / 缩放 / 旋转","图片","png","crop");
         Add("image-ai","图片 AI 标签","图片","txt","image",Operation.MediaTag);
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
         Add("pdf-merge","PDF 合并","文档","pdf","pdf-merge",Operation.PdfMerge);

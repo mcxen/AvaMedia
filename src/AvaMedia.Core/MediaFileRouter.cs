@@ -101,7 +101,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                     break;
                 case MediaFileKind.Image:
                     Add("image-compress", "图片压缩", "真实压缩与滑动 / 并排对比", source => Image(source) && ImageCompression.Supports(source.Path));
-                    Add("image-tools", "图片缩放 / 旋转", "调整尺寸、裁剪与旋转", Image);
+                    Add("image-tools", "图片裁剪 / 缩放 / 旋转", "调整尺寸、裁剪与旋转", Image);
                     Add("image-png", "图片格式转换", "JPEG / PNG / WebP / AVIF 等格式", Image);
                     Add("images-pdf", "图片合成 PDF", "按文件顺序排成 PDF 页面", Image);
                     break;
