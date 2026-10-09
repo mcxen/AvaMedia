@@ -10,10 +10,20 @@ public sealed class OnlineSummaryModel : ISummaryModel
     private readonly bool _vision;
     private readonly string _model;
     public string Backend => "线上 API";
+    /// <summary>Model name sent in requests.</summary>
+    public string Model => _model;
 
-    public OnlineSummaryModel(OnlineAiOptions options, bool vision = false)
+    /// <param name="model">Explicit model name; defaults to the provider's vision or text model.</param>
+    public OnlineSummaryModel(OnlineAiOptions options, bool vision = false, string? model = null)
     {
-        _options = options.Clone(); _options.Validate(); _vision = vision;
+        _options = options.Clone(); _vision = vision;
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            if (vision) _options.VisionModel = model.Trim(); else _options.TextModel = model.Trim();
+        }
+        // A vision-only provider (e.g. Ollama with moondream) may leave the text model empty.
+        if (vision && string.IsNullOrWhiteSpace(_options.TextModel)) _options.TextModel = _options.EffectiveVisionModel;
+        _options.Validate();
         _model = vision ? _options.EffectiveVisionModel : _options.TextModel;
         _client = new(_options);
     }

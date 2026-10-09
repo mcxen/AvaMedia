@@ -83,8 +83,10 @@ public static class MediaCaptionService
     {
         ReadOnlySpan<string> markers =
         [
-            "i cannot", "i can't", "i'm unable", "i am unable", "as an ai", "sorry, but",
-            "无法协助", "无法描述", "不能描述", "我不能", "抱歉，我无法", "作为人工智能", "内容违规", "违反政策"
+            "i cannot", "i can't", "i'm unable", "i am unable", "as an ai", "sorry, but", "i won't", "i will not",
+            "cannot assist", "can't assist", "cannot help with", "can't help with", "not able to provide", "against my guidelines",
+            "无法协助", "无法描述", "不能描述", "我不能", "抱歉，我无法", "作为人工智能", "内容违规", "违反政策",
+            "无法满足", "不便描述", "无法为你", "无法为您", "不能提供"
         ];
         var lower = caption.ToLowerInvariant();
         foreach (var marker in markers)

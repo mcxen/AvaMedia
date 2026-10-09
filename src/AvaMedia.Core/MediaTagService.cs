@@ -306,7 +306,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         file.Refresh();
         if (!file.Exists || file.Length != length || file.LastWriteTimeUtc != modified) throw new IOException("分析后源文件已改变，请重新分析。");
     }
-    private static float[][] Predict(ModelInferenceSession session, byte[][] images, int batch, int tagCount, CancellationToken ct)
+    internal static float[][] Predict(ModelInferenceSession session, byte[][] images, int batch, int tagCount, CancellationToken ct)
     {
         var input = new DenseTensor<float>(new[] { batch, 3, Size, Size });
         var normalized = input.Buffer.Span;
