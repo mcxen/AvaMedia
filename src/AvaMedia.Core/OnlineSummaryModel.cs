@@ -34,7 +34,7 @@ public sealed class OnlineSummaryModel : ISummaryModel
     {
         if (image is not null && images is not null) throw new ArgumentException("不能同时传入单帧和多帧。");
         if ((image is not null || images is not null) && !_vision) throw new ArgumentException("请选择支持图像输入的视觉模型。");
-        if (images is not null && images.Count is < 1 or > 3) throw new ArgumentException("画面联合分析每次需要 1–3 帧。");
+        if (images is not null && images.Count is < 1 or > 32) throw new ArgumentException("线上画面联合分析每次需要 1–32 帧。");
         if (schema is { } shape) prompt += "\nReturn only JSON matching this schema:\n" + shape.GetRawText();
         object content = prompt;
         if (image is not null || images is not null)

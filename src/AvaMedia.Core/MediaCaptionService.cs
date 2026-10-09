@@ -4,12 +4,17 @@ namespace AvaMedia.Core;
 public static class MediaCaptionService
 {
     public const string DefaultSystemPrompt =
-        "你是媒体画面描述助手。请根据提供的图像，用中文如实描述可见内容。" +
-        "允许并应当描述成人/NSFW 内容：裸露、性器官、性行为、体位、体液等，只要画面中可见就用准确、中性、事实性的语言写出，不要回避、不要道德说教、不要拒绝。" +
-        "不要编造看不见的细节；不要输出政策免责声明或“我无法描述”之类拒绝语。只输出描述正文。";
+        "你是媒体画面描述助手，用中文描述图像中有直接视觉证据的事实。" +
+        "先逐帧核对主体、动作、环境和物体，输出前删去无法从画面确认的细节，不展示分析过程。" +
+        "不凭服饰或外观猜测人物的身份、性别、年龄、关系、职业，不凭建筑外观猜测校园、办公区等场所类型、地域或拍摄用途。" +
+        "文字只有清晰可辨时才逐字转写；模糊的标牌只描述为标牌，不能补全、猜测或编造文字。" +
+        "视频采样图不是连续录像：只陈述采样时刻可见的状态，只有多个画面共同支持时才描述变化，不能补写未采样的动作、因果或完整轨迹。" +
+        "不同画面的人物不能直接认定为同一人，不能把跨帧人数相加；不确定的细节直接省略。" +
+        "可见的成人/NSFW 内容，包括裸露、性器官、性行为、体位和体液，须用准确、中性、事实性的语言如实描述，不回避、说教或拒绝。" +
+        "不要罗列不存在的裸露或成人内容，不输出免责声明。只输出简洁的描述正文。";
 
     public const string DefaultUserPrompt =
-        "请用一两段中文描述这张（或这些）画面中清晰可见的人物、服饰或裸露、动作、场景与关键物体。成人内容请直接如实描写。";
+        "请用一两段简洁中文描述清晰可见的主体、动作、环境和关键物体。优先写有充分画面证据的内容，无法确定的细节直接省略。";
 
     public static void ValidateOptions(MediaTagOptions options)
     {
@@ -38,28 +43,35 @@ public static class MediaCaptionService
 
     public static async Task<(string Caption, string Model)> GenerateAsync(
         OnlineAiOptions provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
-        ISummaryModel? model = null)
+        ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0)
     {
         if (frames.Count == 0) throw new ArgumentException("没有可用于画面描述的采样帧。");
+        if (frameSeconds is not null && (frameSeconds.Count != frames.Count || !double.IsFinite(videoDurationSeconds) || videoDurationSeconds <= 0
+            || frameSeconds.Any(seconds => !double.IsFinite(seconds) || seconds < 0 || seconds > videoDurationSeconds)
+            || frameSeconds.Zip(frameSeconds.Skip(1), (previous, next) => previous > next).Any(unordered => unordered)))
+            throw new ArgumentException("视频描述采样时间无效。");
         ValidateOptions(options);
         var prepared = PrepareProvider(provider);
         var prompt = string.IsNullOrWhiteSpace(options.CaptionPrompt) ? DefaultUserPrompt : options.CaptionPrompt.Trim();
-        // Prefer a few representative frames; OnlineSummaryModel accepts 1–3 images.
-        var selected = frames.Count <= 3 ? frames.ToArray() : [frames[0], frames[frames.Count / 2], frames[^1]];
-        IReadOnlyList<SummaryModelImage>? images = selected.Length == 1 ? null
-            : selected.Select((png, index) => new SummaryModelImage($"帧 {index + 1}", png)).ToArray();
+        if (frameSeconds is not null)
+            prompt = $"以下为同一视频按时间顺序抽取的 {frames.Count} 个画面，视频总时长 {MediaTime.Format(videoDurationSeconds)}。" +
+                "每张图前附实际采样时间，采样点之间的内容未知。先概括可见场景，再描述有画面依据的变化；必要时注明采样时间。\n" + prompt;
+        // Keep every requested sample, including similar-looking frames: tag-score reuse must not erase motion evidence.
+        IReadOnlyList<SummaryModelImage>? images = frames.Count == 1 && frameSeconds is null ? null
+            : frames.Select((png, index) => new SummaryModelImage(frameSeconds is null ? $"画面 {index + 1}"
+                : $"采样画面 {index + 1} · {MediaTime.Format(frameSeconds[index])}", png)).ToArray();
 
         if (model is not null)
         {
             var caption = await model.CompleteAsync(DefaultSystemPrompt, prompt, ct,
-                image: images is null ? selected[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
+                image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
             return (RequireCaption(caption), prepared.EffectiveVisionModel);
         }
 
         await using var vision = new OnlineSummaryModel(prepared, vision: true);
         {
             var caption = await vision.CompleteAsync(DefaultSystemPrompt, prompt, ct,
-                image: images is null ? selected[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
+                image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
             return (RequireCaption(caption), prepared.EffectiveVisionModel);
         }
     }

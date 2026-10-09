@@ -179,7 +179,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             catch (Exception error) when (error is not OperationCanceledException)
             { captionProvider = null; /* per-file CaptionError set when GenerateCaptions runs */ }
         }
-        async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images)
+        async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null)
         {
             if (!options.GenerateCaptions) return result;
             activity.Node("生成画面描述");
@@ -188,7 +188,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             {
                 var provider = captionProvider ?? MediaCaptionService.PrepareProvider(engine.Settings.OnlineAi.Resolve(options.CaptionProviderId));
                 captionProvider ??= provider;
-                var (caption, model) = await MediaCaptionService.GenerateAsync(provider, images, options, ct).ConfigureAwait(false);
+                var (caption, model) = await MediaCaptionService.GenerateAsync(provider, images, options, ct,
+                    frameSeconds: frameSeconds, videoDurationSeconds: result.DurationSeconds).ConfigureAwait(false);
                 activity.Result(Path.GetFileName(result.Path) + " · 画面描述");
                 return result with { Caption = caption, CaptionModel = model };
             }
@@ -281,6 +282,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var unique = new List<(byte[] Image, byte[] Signature, double Seconds)>();
                 var samples = new int[count];
                 var sampleSeconds = new double[count];
+                var captionImages = options.GenerateCaptions ? new byte[count][] : [];
                 var evidence = new IReadOnlyList<MediaTagScore>[count];
                 var frameValues = new float[count][];
                 activity.Stage("采样画面", 0, count, "帧");
@@ -290,6 +292,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     var seconds = Math.Min(duration * (i + .5) / count, Math.Max(0, duration - Math.Max(.1, 1 / frameRate)));
                     sampleSeconds[i] = seconds;
                     var png = await engine.Thumbnail(path, seconds, 768, 768, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
+                    if (options.GenerateCaptions) captionImages[i] = png;
                     var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromEncoded(png) : [];
                     var reused = options.ReuseSimilarFrames ? unique.FindIndex(item => VideoFrameSimilarity.Similar(item.Signature, signature)) : -1;
                     samples[i] = reused >= 0 ? reused : unique.Count;
@@ -342,7 +345,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     value => PublishPreview(tagResult with { Scenes = value }), video: true).ConfigureAwait(false);
                 CheckSource(file, length, modified);
                 var completedVideo = tagResult with { Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped };
-                Report(path, await WithCaptionAsync(completedVideo, unique.Select(frame => frame.Image).ToArray()).ConfigureAwait(false), null);
+                Report(path, await WithCaptionAsync(completedVideo, captionImages, sampleSeconds).ConfigureAwait(false), null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }
         }

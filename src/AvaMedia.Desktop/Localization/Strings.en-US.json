@@ -3066,5 +3066,7 @@
   "不使用代理": "No proxy",
   "本机代理 · 7890": "Local proxy · 7890",
   "本机代理 · 1080": "Local proxy · 1080",
-  "自定义代理": "Custom proxy"
+  "自定义代理": "Custom proxy",
+  "视频描述采样时间无效。": "Invalid sample timestamps for the video caption.",
+  "线上画面联合分析每次需要 1–32 帧。": "Online multi-image analysis requires 1–32 frames per request."
 }
