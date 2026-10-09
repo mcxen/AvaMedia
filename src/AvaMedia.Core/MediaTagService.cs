@@ -4,7 +4,8 @@ using SkiaSharp;
 
 namespace AvaMedia.Core;
 
-public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false, bool ReuseSimilarFrames = true, int BatchSize = 4, bool RecognizeScenes = false)
+public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false, bool ReuseSimilarFrames = true, int BatchSize = 4, bool RecognizeScenes = false,
+    bool GenerateCaptions = false, string? CaptionProviderId = null, string? CaptionPrompt = null, int CaptionMaxTokens = 512)
 {
     public WordCandidate[] SemanticCandidates { get; init; } = [];
     public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
@@ -12,6 +13,7 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false
     {
         if (VideoFrames is < 1 or > 32 || BatchSize is < 1 or > 8) throw new ArgumentException("采样帧数须为 1–32，批次大小须为 1–8。");
         if (SemanticCandidates.Length > 0) WordLibraryCatalog.Validate(SemanticCandidates);
+        if (GenerateCaptions) MediaCaptionService.ValidateOptions(this);
     }
 }
 public sealed record MediaTagScore(string Tag, double Score, double Maximum);
@@ -22,6 +24,9 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public MediaSceneResult? Scenes { get; init; }
     public string? SceneError { get; init; }
     public double DurationSeconds { get; init; }
+    public string? Caption { get; init; }
+    public string? CaptionModel { get; init; }
+    public string? CaptionError { get; init; }
 }
 public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores)
 {
@@ -105,8 +110,12 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         var files = paths.Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
         var completed = 0;
         var currentPath = files.FirstOrDefault() ?? "";
+        var stages = new List<string> { "准备标签模型" };
+        if (options.NeedsSemanticModel) stages.Add("准备场景模型");
+        stages.Add("识别媒体标签");
+        if (options.GenerateCaptions) stages.Add("生成画面描述");
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果",
-            options.NeedsSemanticModel ? ["准备标签模型", "准备场景模型", "识别媒体标签"] : ["准备标签模型", "识别媒体标签"]);
+            stages.ToArray());
         activity.Stage("校验模型");
         using var lease = await _store.AcquireAsync(ModelCatalog.JoyTagId, ct).ConfigureAwait(false);
         var tags = (await File.ReadAllLinesAsync(Path.Combine(lease.Directory, ModelCatalog.JoyTagLabels), ct).ConfigureAwait(false))
@@ -131,6 +140,29 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             try { return (await scenes.AnalyzeAsync(images, seconds, samples, activity, ct, updated).ConfigureAwait(false), null); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { return (null, error.Message); }
+        }
+        OnlineAiOptions? captionProvider = null;
+        if (options.GenerateCaptions)
+        {
+            try { captionProvider = MediaCaptionService.PrepareProvider(engine.Settings.OnlineAi.Resolve(options.CaptionProviderId)); }
+            catch (Exception error) when (error is not OperationCanceledException)
+            { captionProvider = null; /* per-file CaptionError set when GenerateCaptions runs */ }
+        }
+        async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images)
+        {
+            if (!options.GenerateCaptions) return result;
+            activity.Node("生成画面描述");
+            activity.Stage("生成画面描述", detail: Path.GetFileName(result.Path));
+            try
+            {
+                var provider = captionProvider ?? MediaCaptionService.PrepareProvider(engine.Settings.OnlineAi.Resolve(options.CaptionProviderId));
+                captionProvider ??= provider;
+                var (caption, model) = await MediaCaptionService.GenerateAsync(provider, images, options, ct).ConfigureAwait(false);
+                activity.Result(Path.GetFileName(result.Path) + " · 画面描述");
+                return result with { Caption = caption, CaptionModel = model };
+            }
+            catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
+            { return result with { CaptionError = error.Message }; }
         }
         activity.Node("识别媒体标签");
         activity.Backend(session.Backend);
@@ -164,8 +196,9 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     var scene = await SceneResultAsync([item.Image], [0], [0]).ConfigureAwait(false);
                     CheckSource(item.File, item.Length, item.Modified);
-                    Report(item.File.FullName, new(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
-                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error, Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }] }, null);
+                    var tagged = new MediaTagResult(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
+                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason) { Scenes = scene.Result, SceneError = scene.Error, Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }] };
+                    Report(item.File.FullName, await WithCaptionAsync(tagged, [item.Image]).ConfigureAwait(false), null);
                 }
                 catch (IOException error) { Report(item.File.FullName, null, error.Message); }
             }
@@ -255,7 +288,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,
                     value => PublishPreview(tagResult with { Scenes = value })).ConfigureAwait(false);
                 CheckSource(file, length, modified);
-                Report(path, tagResult with { Scenes = scene.Result, SceneError = scene.Error }, null);
+                var completedVideo = tagResult with { Scenes = scene.Result, SceneError = scene.Error };
+                Report(path, await WithCaptionAsync(completedVideo, unique.Select(frame => frame.Image).ToArray()).ConfigureAwait(false), null);
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested) { Report(path, null, error.Message); }
         }

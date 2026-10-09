@@ -135,7 +135,7 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true)
+            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
                 { SemanticCandidates = SemanticLibraryCandidates };
             options.Validate(); Number(_threshold); SavePreferences();
         }
@@ -276,10 +276,10 @@ public sealed partial class MediaAiWindow : Window
             var threshold = Number(_threshold); SavePreferences();
             var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
             if (file is null) return;
-            var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, Results = _results.Values.Select(result => new
+            var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = _results.Values.Select(result => new
             { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
                 DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),
-                Tags = ResultTags(result).ToArray(), result.DurationSeconds, Vocabulary = result.Scores.Select(score => score.Tag).ToArray(), Evidence=result.Frames, result.Scenes, result.SceneError }) };
+                Tags = ResultTags(result).ToArray(), result.DurationSeconds, Vocabulary = result.Scores.Select(score => score.Tag).ToArray(), Evidence=result.Frames, result.Scenes, result.SceneError, result.Caption, result.CaptionModel, result.CaptionError }) };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception error) { await Ui.Message(this, "导出失败", error.Message); }

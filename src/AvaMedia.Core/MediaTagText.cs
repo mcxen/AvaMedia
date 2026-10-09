@@ -27,7 +27,8 @@ public static class MediaTagTimeline
 /// <summary>Searchable sidecars own a header and source key. Only matching AvaMedia reports are replaced.</summary>
 public static class MediaTagText
 {
-    private const string Header = "AvaMedia AI Tags / 1";
+    private const string Header = "AvaMedia AI Tags / 2";
+    private static readonly string[] OwnedHeaders = ["AvaMedia AI Tags / 1", "AvaMedia AI Tags / 2"];
     private static string Key(string source) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(source)))).ToLowerInvariant()[..12];
     private static string Safe(string value) => new(value.Where(character => !char.IsControl(character) && !"<>:\"/\\|?*".Contains(character)).ToArray());
     private static string Fit(string value, int bytes)
@@ -51,7 +52,8 @@ public static class MediaTagText
     private static bool Owned(string path, string key)
     {
         using var reader = new StreamReader(path, Encoding.UTF8);
-        return reader.ReadLine() == Header && reader.ReadLine() == "SourceKey: " + key;
+        var header = reader.ReadLine();
+        return header is not null && OwnedHeaders.Contains(header) && reader.ReadLine() == "SourceKey: " + key;
     }
     public static async Task<string> SaveAsync(MediaTagResult result, IReadOnlyList<MediaTagTextLabel> labels,
         double threshold, double sceneThreshold, double sceneMargin, CancellationToken ct, string? previousSource = null)
@@ -74,6 +76,7 @@ public static class MediaTagText
             .AppendLine("时长：" + MediaTime.Format(result.DurationSeconds))
             .AppendLine(FormattableString.Invariant($"标签阈值：{threshold:0.00}；语义相似度：{sceneThreshold:0.00}；类别分差：{sceneMargin:0.00}"))
             .AppendLine("标签模型：" + result.Backend).AppendLine("语义模型：" + (result.Scenes?.Backend ?? result.SceneError ?? "未启用"))
+            .AppendLine("描述模型：" + (result.CaptionModel ?? result.CaptionError ?? (string.IsNullOrWhiteSpace(result.Caption) ? "未启用" : "未知")))
             .AppendLine().AppendLine("类别\t标签\t分数\t分数类型\t模型\t达标采样时间");
         foreach (var label in labels)
         {
@@ -82,6 +85,12 @@ public static class MediaTagText
                 ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == label.Label && candidate.Qualifies(sceneThreshold, sceneMargin))).Select(frame => MediaTime.Format(frame.Seconds)) ?? []
                 : points.Where(point => point.Score >= threshold).Select(point => MediaTime.Format(point.Seconds));
             body.AppendLine(FormattableString.Invariant($"{label.Category}\t{label.Label}\t{label.Score:0.000}\t{label.ScoreKind}\t{label.Model}\t{string.Join("，", times)}"));
+        }
+        if (!string.IsNullOrWhiteSpace(result.Caption) || result.CaptionError is not null)
+        {
+            body.AppendLine().AppendLine("画面描述");
+            if (!string.IsNullOrWhiteSpace(result.Caption)) body.AppendLine(result.Caption);
+            if (result.CaptionError is not null) body.AppendLine("描述失败：" + result.CaptionError);
         }
         var temporary = Path.Combine(folder, ".avamedia-tags-" + Guid.NewGuid().ToString("N") + ".tmp");
         try

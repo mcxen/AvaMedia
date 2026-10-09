@@ -108,7 +108,7 @@ public sealed partial class MediaAiWindow
         _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
         AddSettingRow("视频采样帧数", _frames); AddSettingRow("类别分差", _sceneMargin);
         _settingsPanel.Children.Add(_autoTxt);
-        _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
+        _settingsPanel.Children.Add(_generateCaptions); _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
         _showScores.IsCheckedChanged += (_, _) => RenderSelectedResult();
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();

@@ -72,6 +72,16 @@ public sealed partial class MediaAiWindow
         RenderCharts(result);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
         if (result.SceneError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
+        if (result.CaptionError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("画面描述失败：") + result.CaptionError, "error"));
+        else if (!string.IsNullOrWhiteSpace(result.Caption))
+        {
+            var caption = new StackPanel { Spacing = 4 };
+            caption.Children.Add(Ui.Text("画面描述", "heading"));
+            var body = Ui.Text(result.Caption, "caption"); body.TextWrapping = TextWrapping.Wrap; Localization.SetIsUserText(body, true);
+            caption.Children.Add(body);
+            if (result.CaptionModel is not null) caption.Children.Add(Ui.Text(Localization.Text("描述模型") + " · " + result.CaptionModel, "caption"));
+            _tagGroups.Children.Add(caption);
+        }
         var tags = ResultTags(result, search: true).ToArray();
         _detailState.Text = _liveResults.ContainsKey(result.Path) ? (_busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签")) : Localization.Format($"识别到 {tags.Length} 个标签");
         if (tags.Length == 0) _tagGroups.Children.Add(Ui.Text(string.IsNullOrWhiteSpace(_tagSearch.Text) ? "未找到达标标签" : "未找到匹配标签", "caption"));
