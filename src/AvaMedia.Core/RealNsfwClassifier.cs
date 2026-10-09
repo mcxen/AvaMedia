@@ -17,21 +17,12 @@ public sealed record RealNsfwResult(double Average, double Maximum, IReadOnlyLis
 internal sealed class RealNsfwClassifier : IDisposable
 {
     private const int Size = 384;
-    private readonly ModelLease _lease;
     private readonly ModelInferenceSession _session;
-    private RealNsfwClassifier(ModelLease lease, bool gpu)
+    internal RealNsfwClassifier(string directory, bool gpu)
     {
-        _lease = lease;
-        try
-        {
-            _session = new(Path.Combine(lease.Directory, ModelCatalog.NsfwFile),
-                ModelCatalog.Find(ModelCatalog.NsfwId).Files[0].Sha256, gpu, 1);
-        }
-        catch { lease.Dispose(); throw; }
+        _session = new(Path.Combine(directory, ModelCatalog.NsfwFile),
+            ModelCatalog.Find(ModelCatalog.NsfwId).Files[0].Sha256, gpu, 1);
     }
-
-    public static async Task<RealNsfwClassifier> CreateAsync(ModelStore store, bool gpu, CancellationToken ct) =>
-        new(await store.AcquireAsync(ModelCatalog.NsfwId, ct).ConfigureAwait(false), gpu);
 
     public RealNsfwResult Analyze(byte[][] images, double[] seconds, int[] samples, CancellationToken ct,
         Action<int, int>? progress = null)
@@ -81,5 +72,5 @@ internal sealed class RealNsfwClassifier : IDisposable
         return 1 / (1 + Math.Exp(Math.Clamp((double)safe - nsfw, -80, 80)));
     }
 
-    public void Dispose() { _session.Dispose(); _lease.Dispose(); }
+    public void Dispose() => _session.Dispose();
 }

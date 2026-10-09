@@ -14,6 +14,8 @@ public sealed partial class MediaAiWindow : Window
     private readonly IMediaEngine _engine;
     private readonly Storage _storage;
     private readonly AppSettings _settings;
+    private readonly MediaTagService _tagService;
+    private readonly IDisposable _modelRetention;
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
     private readonly ListBox _list = new() { Name = "MediaAiFiles" };
@@ -49,12 +51,13 @@ public sealed partial class MediaAiWindow : Window
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _enqueue = enqueue; _showQueue = showQueue;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
+        _tagService = new(engine); _modelRetention = _tagService.KeepModelsWarm();
         LoadPreferences();
         if (!ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported) { _sceneTags.IsChecked = false; _sceneTags.IsEnabled = false; }
         // These inputs live in the optional settings dialog, so initialize text before any template is attached.
         _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat);
         _frames.Text = _frames.Value?.ToString(_frames.NumberFormat);
-        Title = "AI 标签工作台"; Width = 1440; Height = 900; MinWidth = 1100; MinHeight = 650;
+        Title = "AI 标签工作台"; Width = 1240; Height = 820; MinWidth = 1000; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
         BuildInterface();
@@ -66,7 +69,7 @@ public sealed partial class MediaAiWindow : Window
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _busy ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (!_busy) await AddFoldersAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); _lifetime.Cancel(); };
-        Closed += (_, _) => { try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
+        Closed += (_, _) => { try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _modelRetention.Dispose(); _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
         AddPaths(initial ?? []);
     }
     public void ImportPaths(IEnumerable<string> paths) => AddPaths(paths);
@@ -101,7 +104,7 @@ public sealed partial class MediaAiWindow : Window
         catch (Exception error) { if (!_closed) await Ui.Message(this, "导入失败", error.Message); }
         finally { if (!_closed) SetBusy(false); }
     }
-    private async Task RefreshModelAsync()
+    private async Task RefreshModelAsync(bool prepare = true)
     {
         try
         {
@@ -122,6 +125,7 @@ public sealed partial class MediaAiWindow : Window
                 parts.Add(Localization.Format($"场景识别另需语义模型 · 约 {SemanticModelConsent.Megabytes(SemanticModelConsent.Model.DownloadSize)} MB（开始前询问）"));
             _modelStatus.Text = string.Join(Environment.NewLine, parts);
             _modelStatus.IsVisible = parts.Count > 0; UpdateActions();
+            if (prepare) await PrepareModelsAsync();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) _modelStatus.Text = error.Message; }
@@ -168,9 +172,7 @@ public sealed partial class MediaAiWindow : Window
         MediaTagOptions options;
         try
         {
-            var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-            options = new((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true, RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
-                { SemanticCandidates = SemanticLibraryCandidates, RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true };
+            options = ReadAnalysisOptions(paths.Any(VideoFormats.IsVideo));
             options.Validate(); Number(_threshold); SavePreferences();
         }
         catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
@@ -224,7 +226,7 @@ public sealed partial class MediaAiWindow : Window
                     { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
                 }), operation.Token);
             }
-            var results = await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);
+            var results = await _tagService.AnalyzeAsync(paths, options, progress, operation.Token);
             if (_closed) return;
             foreach (var result in results) { _results[result.Path] = result; _liveResults.Remove(result.Path); }
             _status.Text = scenesSkipped ? Localization.Format($"完成 {results.Count} / {paths.Length} 个文件 · 已跳过场景识别")
@@ -274,15 +276,12 @@ public sealed partial class MediaAiWindow : Window
                     new("模型管理", ManageModelsAsync, Enabled: () => !_closed)]));
             }
         }
-        finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); await RefreshModelAsync(); } }
+        finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); await RefreshModelAsync(prepare: false); } }
     }
 
     private MediaTagTaskOptions ReadTaskOptions()
     {
-        var frames = Number(_frames); if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-        var analysis = new MediaTagOptions((int)frames, _gpu.IsChecked == true, _reuse.IsChecked == true,
-            RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
-            { SemanticCandidates = SemanticLibraryCandidates, RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true };
+        var analysis = ReadAnalysisOptions(_entries.Any(entry => entry.Include && VideoFormats.IsVideo(entry.Path)));
         var options = new MediaTagTaskOptions
         {
             Analysis = analysis,
@@ -295,6 +294,18 @@ public sealed partial class MediaAiWindow : Window
         };
         options.Validate(); SavePreferences();
         return options;
+    }
+
+    private MediaTagOptions ReadAnalysisOptions(bool hasVideo)
+    {
+        var frames = hasVideo ? Number(_frames) : 1;
+        if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
+        return new((int)frames, _gpu.IsChecked == true, hasVideo && _reuse.IsChecked == true, BatchSize: 1,
+            RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true)
+        {
+            SemanticCandidates = SemanticLibraryCandidates,
+            RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true
+        };
     }
 
     private async Task EnqueueSelectedAsync()

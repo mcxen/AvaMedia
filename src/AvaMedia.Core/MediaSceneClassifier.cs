@@ -12,39 +12,32 @@ public sealed record MediaSceneResult(string Model, string Backend, string? Fall
     double MinimumSimilarity, double MinimumMargin, IReadOnlyList<MediaSceneScore> Scores, IReadOnlyList<MediaSceneFrame> Frames);
 
 /// <summary>Built-in scenes and selected semantic candidates share the tagger's samples.</summary>
-internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCandidate[] candidates, float[][] labels) : IAsyncDisposable
+internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCandidate[] candidates, float[][] labels)
 {
     private const double MinimumSimilarity = .55;
     private const double MinimumMargin = .03;
 
-    public static async Task<MediaSceneClassifier> CreateAsync(ModelStore store, MediaTagOptions options, AiActivityReporter activity, CancellationToken ct)
+    public static async Task<MediaSceneClassifier> CreateAsync(GemmaMediaEmbedding embedding, MediaTagOptions options, AiActivityReporter activity, CancellationToken ct)
     {
-        // Never download here: the UI asks before fetching the semantic model; workers skip scenes instead.
-        if (!await store.IsInstalledAsync(ModelCatalog.EmbeddingId, ct: ct).ConfigureAwait(false))
-            throw new SemanticModelMissingException();
-        var embedding = await GemmaMediaEmbedding.StartAsync(store, ct, options.PreferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
-        try
+        var defaults = options.RecognizeScenes
+            ? WordLibraryCatalog.SceneEntries.Where(entry => entry.Category is "场景空间" or "照明状态" or "面部可见性") : [];
+        var candidates = defaults.Concat(options.SemanticCandidates).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
+        var labels = new List<float[]>();
+        activity.Backend(embedding.Backend);
+        activity.Stage("准备语义描述", 0, candidates.Length, "词");
+        for (var offset = 0; offset < candidates.Length; offset += 16)
         {
-            var defaults = options.RecognizeScenes
-                ? WordLibraryCatalog.SceneEntries.Where(entry => entry.Category is "场景空间" or "照明状态" or "面部可见性") : [];
-            var candidates = defaults.Concat(options.SemanticCandidates).DistinctBy(entry => entry.Label, StringComparer.OrdinalIgnoreCase).ToArray();
-            var labels = new List<float[]>();
-            activity.Backend(embedding.Backend);
-            activity.Stage("准备语义描述", 0, candidates.Length, "词");
-            for (var offset = 0; offset < candidates.Length; offset += 16)
-            {
-                labels.AddRange(await embedding.EmbedLabelsAsync(candidates.Skip(offset).Take(16).Select(entry => entry.Description).ToArray(), ct).ConfigureAwait(false));
-                activity.Advance(labels.Count, candidates.Length, "词");
-            }
-            return new(embedding, candidates, labels.ToArray());
+            labels.AddRange(await embedding.EmbedLabelsAsync(candidates.Skip(offset).Take(16).Select(entry => entry.Description).ToArray(), ct).ConfigureAwait(false));
+            activity.Advance(labels.Count, candidates.Length, "词");
         }
-        catch { await embedding.DisposeAsync(); throw; }
+        return new(embedding, candidates, labels.ToArray());
     }
 
     public async Task<MediaSceneResult> AnalyzeAsync(IReadOnlyList<byte[]> images, IReadOnlyList<double> seconds,
-        IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null)
+        IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null, bool video = true)
     {
-        activity.Stage("识别语义标签", 0, images.Count, "帧");
+        var unit = video ? "帧" : "张";
+        activity.Stage("识别语义标签", 0, images.Count, unit);
         activity.Backend(embedding.Backend);
         var matches = new List<MediaSceneMatch[]>();
         var observations = new List<MediaSceneMatch[]>();
@@ -83,13 +76,12 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
                 observations.Add(raw.ToArray());
             }
             activity.Backend(embedding.Backend);
-            activity.Advance(matches.Count, images.Count, "帧");
+            activity.Advance(matches.Count, images.Count, unit);
             updated?.Invoke(Snapshot());
         }
         return Snapshot();
     }
 
-    public ValueTask DisposeAsync() => embedding.DisposeAsync();
 }
 
 /// <summary>The optional semantic model is not installed; callers skip scene/semantic work rather than download implicitly.</summary>

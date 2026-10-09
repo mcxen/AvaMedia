@@ -24,7 +24,7 @@ public sealed partial class MediaAiWindow
     private readonly NumericUpDown _sceneMargin = new() { Minimum = 0, Maximum = .5m, Value = .03m, Increment = .01m };
     private readonly CheckBox _followLive = new() { Content = "跟随识别", IsChecked = true };
     private readonly CheckBox _autoTxt = new() { Content = "分析完成自动生成 TXT" };
-    private readonly CheckBox _generateCaptions = new() { Content = "生成画面描述（本地视觉模型，可含成人内容）" };
+    private readonly CheckBox _generateCaptions = new() { Content = "生成画面描述" };
     private readonly Button _saveTxt = new() { Content = "生成同目录 TXT" };
     private readonly Button _playSample = new() { Content = "播放此时间" };
     private readonly AiTagChart _scoreBars = new() { Height = 310 };
@@ -39,7 +39,7 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
     private readonly StackPanel _sceneThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly StackPanel _tagThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    private bool _syncingThresholds, _writingTxt;
+    private bool _syncingThresholds, _writingTxt, _syncingChartSource;
     private int _sampleSelectionGeneration;
     private MediaTagResult? _indexedResult;
     private Dictionary<string, int> _scoreIndices = new(StringComparer.OrdinalIgnoreCase);
@@ -133,7 +133,7 @@ public sealed partial class MediaAiWindow
         _tagThreshold.PropertyChanged += (_, change) => { if (change.Property == Slider.ValueProperty) SetThreshold(_tagThreshold.Value, false); };
         _sceneThreshold.PropertyChanged += (_, change) => { if (change.Property == Slider.ValueProperty && !_syncingThresholds) RefreshDisplayedResults(); };
         _sceneMargin.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty) RefreshDisplayedResults(); };
-        _chartSource.SelectionChanged += (_, _) => RenderSelectedResult();
+        _chartSource.SelectionChanged += (_, _) => { if (!_syncingChartSource) RenderSelectedResult(); };
         _scoreMode.SelectionChanged += (_, _) => RefreshDisplayedResults();
         _tagScope.SelectionChanged += (_, _) => RenderSelectedResult();
         _tagSort.SelectionChanged += (_, _) => RenderSelectedResult();
@@ -144,7 +144,10 @@ public sealed partial class MediaAiWindow
         _peakCurve.SampleHovered += RefreshLegendSample;
         _scoreBars.BarHovered += bar =>
         {
-            _barReadout.Text = bar is null ? "" : bar.Label + " · " + Localization.Text("峰值") + $" {bar.Peak:0.000} · " + Localization.Text("平均") + $" {bar.Average:0.000}";
+            var video = _list.SelectedItem is MediaFileEntry entry && VideoFormats.IsVideo(entry.Path);
+            _barReadout.Text = bar is null ? "" : video
+                ? bar.Label + " · " + Localization.Text("峰值") + $" {bar.Peak:0.000} · " + Localization.Text("平均") + $" {bar.Average:0.000}"
+                : bar.Label + " · " + Localization.Text(_chartSource.SelectedIndex == 1 ? "相似度" : "分数") + $" {bar.Score:0.000}";
             Localization.SetIsUserText(_barReadout, true);
         };
         _playSample.Click += async (_, _) =>
@@ -185,11 +188,20 @@ public sealed partial class MediaAiWindow
     }
     private void RenderCharts(MediaTagResult? result)
     {
+        if (result is not null && result.Scenes is null && _chartSource.SelectedIndex == 1)
+        {
+            _syncingChartSource = true;
+            try { _chartSource.SelectedIndex = 0; }
+            finally { _syncingChartSource = false; }
+        }
+        _chartSource.IsVisible = result?.Scenes is not null;
+        var video = result is not null && VideoFormats.IsVideo(result.Path);
         var semantic = _chartSource.SelectedIndex == 1; var threshold = semantic ? _sceneThreshold.Value : (double)(_threshold.Value ?? .4m);
         _thresholdCaption.Text = Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}");
         _sceneCaption.Text = Localization.Format($"语义相似度 {_sceneThreshold.Value:0.00}");
         _sceneThresholdRow.IsVisible = _sceneTags.IsChecked == true || result?.Scenes is not null;
         _scoreMode.IsVisible = result is not null && VideoFormats.IsVideo(result.Path);
+        _barReadout.MinHeight = video ? 32 : 18;
         _playSample.IsVisible = _followLive.IsVisible = _scoreMode.IsVisible;
         _resultFilters.IsVisible = result is not null;
         var candidates = result is null ? [] : PlotCandidates(result);
@@ -203,10 +215,10 @@ public sealed partial class MediaAiWindow
             var retained = ranked.Where(tag => modelKeys.Contains(TagKey(tag))).ToArray();
             return (retained.Length > 0 ? retained : ranked).Take(3);
         }).ToArray();
-        var series = result is null ? [] : selected.GroupBy(tag => tag.Model).SelectMany(group => group.Select((tag, variant) =>
+        var series = result is null || !video ? [] : selected.GroupBy(tag => tag.Model).SelectMany(group => group.Select((tag, variant) =>
             new TagChartSeries(TagKey(tag), TagPoints(result, tag), tag.Model,
                 tag.Model == ModelCatalog.EmbeddingId, variant))).ToArray();
-        RenderTraceLegend(selected, series);
+        RenderTraceLegend(video ? selected : [], series);
         var bars = candidates.Take(8).Select(tag =>
         {
             var points = TagPoints(result!, tag).Where(point => point.Score.HasValue).Select(point => point.Score!.Value).ToArray();

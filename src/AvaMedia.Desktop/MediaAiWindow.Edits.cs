@@ -41,6 +41,7 @@ public sealed partial class MediaAiWindow
     }
     private async Task ShowEvidenceAsync(MediaTagResult result, ResultTag tag)
     {
+        if (!VideoFormats.IsVideo(result.Path)) return;
         var matches = tag.Model == ModelCatalog.EmbeddingId
             ? result.Scenes?.Frames.Where(frame => frame.Candidates.Any(candidate => candidate.Label == tag.Label
                 && candidate.Qualifies(_sceneThreshold.Value, (double)(_sceneMargin.Value ?? .03m)))).Select(frame => frame.Seconds).Distinct().Order().ToArray() ?? []

@@ -16,6 +16,9 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
     private const string TaskPrefix = "task: classification | query: ";
     private const int FeatureSize = 512;
     private readonly ModelLease _model;
+    private readonly bool _ownsModel;
+    private readonly Dictionary<string, float[]> _labelCache = new(StringComparer.Ordinal);
+    private readonly Queue<string> _labelOrder = new();
     private readonly GemmaTokenizer _tokenizer;
     private readonly int _imageToken, _imageStart, _imageEnd;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -27,17 +30,24 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
     public string? FallbackReason { get; private set; }
     public string[] AccelerationDetails => [];
 
-    private GemmaMediaEmbedding(ModelLease model, GemmaTokenizer tokenizer, InferenceSession vision, InferenceSession text, string backend)
+    private GemmaMediaEmbedding(ModelLease model, GemmaTokenizer tokenizer, InferenceSession vision, InferenceSession text, string backend, bool ownsModel)
     {
-        _model = model; _tokenizer = tokenizer; _vision = vision; _text = text; _backend = backend;
+        _model = model; _ownsModel = ownsModel; _tokenizer = tokenizer; _vision = vision; _text = text; _backend = backend;
         _imageToken = tokenizer.TokenId("<|image|>"); _imageStart = tokenizer.TokenId("<|image>"); _imageEnd = tokenizer.TokenId("<image|>");
     }
 
     public static Task<GemmaMediaEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
+        => LoadAsync(() => store.AcquireAsync(ModelCatalog.EmbeddingId, ct), ct, preferGpu, status, ownsModel: true);
+
+    internal static Task<GemmaMediaEmbedding> StartCachedAsync(ModelLease model, CancellationToken ct, bool preferGpu, Action<string>? status)
+        => LoadAsync(() => Task.FromResult(model), ct, preferGpu, status, ownsModel: false);
+
+    private static Task<GemmaMediaEmbedding> LoadAsync(Func<Task<ModelLease>> acquire, CancellationToken ct, bool preferGpu,
+        Action<string>? status, bool ownsModel)
         => Task.Run(async () =>
         {
             status?.Invoke("校验嵌入模型");
-            var lease = await store.AcquireAsync(ModelCatalog.EmbeddingId, ct).ConfigureAwait(false);
+            var lease = await acquire().ConfigureAwait(false);
             InferenceSession? vision = null, text = null;
             try
             {
@@ -68,7 +78,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                     vision = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), options);
                     text = new(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), options);
                 }
-                var embedding = new GemmaMediaEmbedding(lease, tokenizer, vision, text, backend) { FallbackReason = fallback };
+                var embedding = new GemmaMediaEmbedding(lease, tokenizer, vision, text, backend, ownsModel) { FallbackReason = fallback };
                 vision = text = null; lease = null!;
                 try
                 {
@@ -81,7 +91,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
             }
             catch
             {
-                vision?.Dispose(); text?.Dispose(); lease?.Dispose();
+                vision?.Dispose(); text?.Dispose(); if (ownsModel) lease?.Dispose();
                 throw;
             }
         }, ct);
@@ -102,11 +112,16 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                 }
                 if (OperatingSystem.IsMacOS() && providers.Contains("CoreMLExecutionProvider"))
                 {
-                    options.AppendExecutionProvider("CoreML", new() { ["MLComputeUnits"] = "ALL", ["ModelFormat"] = "MLProgram" });
+                    var model = ModelCatalog.Find(ModelCatalog.EmbeddingId);
+                    var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "inference-cache",
+                        typeof(InferenceSession).Assembly.GetName().Version!.ToString(), model.Files.First(file => file.Path == ModelCatalog.GemmaTextFile).Sha256);
+                    Directory.CreateDirectory(cache);
+                    options.AppendExecutionProvider("CoreML", new() { ["MLComputeUnits"] = "ALL", ["ModelFormat"] = "MLProgram", ["ModelCacheDirectory"] = cache });
                     return ("Core ML / CPU", options);
                 }
             }
-            catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or EntryPointNotFoundException) { }
+            catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or EntryPointNotFoundException
+                or IOException or UnauthorizedAccessException) { }
             options.Dispose();
         }
         catch (Exception error) when (error is OnnxRuntimeException or DllNotFoundException or TypeInitializationException) { }
@@ -137,15 +152,26 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
     {
         if (descriptions.Count is < 1 or > 32 || descriptions.Any(text => string.IsNullOrWhiteSpace(text) || text.Length > 512))
             throw new ArgumentException("请输入 1–32 个关键词，描述不超过 512 字符。");
-        var tokens = descriptions.Select(text => _tokenizer.Encode(TaskPrefix + text)).ToArray();
         return RunAsync(() =>
         {
-            var length = tokens.Max(item => item.Count);
-            var ids = new long[tokens.Length * length]; var mask = new long[ids.Length];
-            for (var row = 0; row < tokens.Length; row++)
-                for (var column = 0; column < tokens[row].Count; column++)
-                { ids[row * length + column] = tokens[row][column]; mask[row * length + column] = 1; }
-            return Text(ids, mask, tokens.Length, length, null, 0);
+            var retained = descriptions.Select(text => _labelCache.GetValueOrDefault(text)).ToArray();
+            var missing = descriptions.Where(text => !_labelCache.ContainsKey(text)).Distinct(StringComparer.Ordinal).ToArray();
+            if (missing.Length > 0)
+            {
+                var tokens = missing.Select(text => _tokenizer.Encode(TaskPrefix + text)).ToArray();
+                var length = tokens.Max(item => item.Count);
+                var ids = new long[tokens.Length * length]; var mask = new long[ids.Length];
+                for (var row = 0; row < tokens.Length; row++)
+                    for (var column = 0; column < tokens[row].Count; column++)
+                    { ids[row * length + column] = tokens[row][column]; mask[row * length + column] = 1; }
+                var vectors = Text(ids, mask, tokens.Length, length, null, 0);
+                for (var index = 0; index < missing.Length; index++)
+                {
+                    while (_labelCache.Count >= 32768) _labelCache.Remove(_labelOrder.Dequeue());
+                    _labelCache.Add(missing[index], vectors[index]); _labelOrder.Enqueue(missing[index]);
+                }
+            }
+            return descriptions.Select((text, index) => (retained[index] ?? _labelCache[text]).ToArray()).ToArray();
         }, ct);
     }
 
@@ -246,7 +272,8 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
         {
             if (_disposed) return;
             _disposed = true;
-            _vision.Dispose(); _text.Dispose(); _model.Dispose();
+            _vision.Dispose(); _text.Dispose(); if (_ownsModel) _model.Dispose();
+            _labelCache.Clear(); _labelOrder.Clear();
         }
         finally { _gate.Release(); }
     }

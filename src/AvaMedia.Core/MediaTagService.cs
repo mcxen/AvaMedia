@@ -51,6 +51,29 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
 {
     private const int Size = 448;
     private readonly ModelStore _store = modelStore ?? new();
+    public IDisposable KeepModelsWarm() => MediaTagModelCache.Retain(_store);
+    public Task ResetPreparedModelsAsync(CancellationToken ct = default) => MediaTagModelCache.InvalidateAsync(_store.Root, ModelCatalog.JoyTagId, ct);
+
+    /// <summary>Prepare installed models and selected descriptions without files, downloads or source changes.</summary>
+    public Task<bool> WarmAsync(MediaTagOptions options, IProgress<AiActivity>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
+    {
+        options.Validate();
+        if (!await _store.IsInstalledAsync(ModelCatalog.JoyTagId, ct: ct).ConfigureAwait(false)) return false;
+        var installed = options with
+        {
+            GenerateCaptions = false,
+            RecognizeNsfw = options.RecognizeNsfw && await _store.IsInstalledAsync(ModelCatalog.NsfwId, ct: ct).ConfigureAwait(false)
+        };
+        var activity = new AiActivityReporter(value => progress?.Report(value), "AI 标签");
+        using var models = await MediaTagModelCache.AcquireAsync(_store, installed, stage => activity.Stage(stage), ct).ConfigureAwait(false);
+        if (models.SemanticError is { } error) throw new InvalidOperationException(error);
+        if (installed.NeedsSemanticModel && models.Embedding is not null)
+        {
+            await MediaSceneClassifier.CreateAsync(models.Embedding, installed, activity, ct).ConfigureAwait(false);
+        }
+        activity.Finish("模型已就绪");
+        return true;
+    }, ct);
     public static bool Supports(string path) => new MediaFileRouter().Classify(path) is MediaFileKind.Image or MediaFileKind.Video;
     private static readonly Dictionary<string, string[]> Aliases = CreateAliases();
     private static Dictionary<string, string[]> CreateAliases()
@@ -123,30 +146,29 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         if (options.GenerateCaptions) stages.Add("生成画面描述");
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = value }), "JoyTag", "次标签结果",
             stages.ToArray());
-        activity.Stage("校验模型");
-        using var lease = await _store.AcquireAsync(ModelCatalog.JoyTagId, ct).ConfigureAwait(false);
-        var tags = (await File.ReadAllLinesAsync(Path.Combine(lease.Directory, ModelCatalog.JoyTagLabels), ct).ConfigureAwait(false))
-            .Where(tag => !string.IsNullOrWhiteSpace(tag)).ToArray();
-        if (tags.Length != 5813) throw new InvalidDataException("模型标签文件无效，请重新下载 JoyTag。");
-        activity.Stage("加载标签模型");
-        using var session = new ModelInferenceSession(Path.Combine(lease.Directory, ModelCatalog.JoyTagFile),
-            ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256, options.PreferGpu, options.BatchSize);
-        using var nsfw = options.RecognizeNsfw ? await RealNsfwClassifier.CreateAsync(_store, options.PreferGpu, ct).ConfigureAwait(false) : null;
+        using var prepared = await MediaTagModelCache.AcquireAsync(_store, options, stage => activity.Stage(stage), ct).ConfigureAwait(false);
+        var tags = prepared.Vocabulary; var session = prepared.Tags;
+        var nsfw = options.RecognizeNsfw ? prepared.Nsfw : null;
         string? sceneSetupError = null; var sceneSkipped = false;
         async Task<MediaSceneClassifier?> PrepareScenesAsync()
         {
             if (!options.NeedsSemanticModel) return null;
             activity.Node("准备场景模型");
-            try { return await MediaSceneClassifier.CreateAsync(_store, options, activity, ct).ConfigureAwait(false); }
+            try
+            {
+                if (prepared.SemanticError is { } error) throw new InvalidOperationException(error);
+                if (prepared.Embedding is null) throw new SemanticModelMissingException();
+                return await MediaSceneClassifier.CreateAsync(prepared.Embedding, options, activity, ct).ConfigureAwait(false);
+            }
             catch (SemanticModelMissingException error) { sceneSetupError = error.Message; sceneSkipped = true; return null; }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { sceneSetupError = error.Message; return null; }
         }
-        await using var scenes = await PrepareScenesAsync().ConfigureAwait(false);
-        async Task<(MediaSceneResult? Result, string? Error)> SceneResultAsync(byte[][] images, double[] seconds, int[] samples, Action<MediaSceneResult>? updated = null)
+        var scenes = await PrepareScenesAsync().ConfigureAwait(false);
+        async Task<(MediaSceneResult? Result, string? Error)> SceneResultAsync(byte[][] images, double[] seconds, int[] samples, Action<MediaSceneResult>? updated = null, bool video = false)
         {
             if (scenes is null) return (null, sceneSetupError);
-            try { return (await scenes.AnalyzeAsync(images, seconds, samples, activity, ct, updated).ConfigureAwait(false), null); }
+            try { return (await scenes.AnalyzeAsync(images, seconds, samples, activity, ct, updated, video).ConfigureAwait(false), null); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { return (null, error.Message); }
         }
@@ -317,7 +339,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     PublishPreview(tagResult);
                 }
                 var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,
-                    value => PublishPreview(tagResult with { Scenes = value })).ConfigureAwait(false);
+                    value => PublishPreview(tagResult with { Scenes = value }), video: true).ConfigureAwait(false);
                 CheckSource(file, length, modified);
                 var completedVideo = tagResult with { Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped };
                 Report(path, await WithCaptionAsync(completedVideo, unique.Select(frame => frame.Image).ToArray()).ConfigureAwait(false), null);

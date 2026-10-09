@@ -26,6 +26,9 @@ public sealed partial class MediaAiWindow
     private readonly Expander _batchActions = new() { Header = "批量操作", IsExpanded = false, HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private bool _updatingSelection;
     private Window? _settingsOwner;
+    private Control? _videoFramesSetting;
+    private readonly Grid _workspaceBody = new() { ColumnDefinitions = new("248,*"), ColumnSpacing = 12 };
+    private Control? _resultPane;
 
     private void BuildInterface()
     {
@@ -78,11 +81,14 @@ public sealed partial class MediaAiWindow
         Grid.SetRow(fileBody, 1); files.Children.Add(fileBody);
         _batchActions.Content = WorkbenchActions(_saveTxt, _export, _rename, _undo);
         Grid.SetRow(_batchActions, 2); files.Children.Add(_batchActions);
-        var body = new Grid { ColumnDefinitions = new("248,*"), ColumnSpacing = 12 };
+        var body = _workspaceBody;
         var filePanel = ChartPanel(files); filePanel.VerticalAlignment = VerticalAlignment.Stretch;
-        body.Children.Add(filePanel); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
+        body.Children.Add(filePanel); var result = BuildResultPane(); _resultPane = result; Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
         Grid.SetRow(_activity, 2); root.Children.Add(_activity);
         var state = new StackPanel { Spacing = 3 }; state.Children.Add(_status); state.Children.Add(_modelStatus);
+        state.Children.Add(WorkbenchActions(_warmStatus, _warmRetry));
+        _warmStatus.IsVisible = false;
+        _warmRetry.Click += async (_, _) => await PrepareModelsAsync(reset: true);
         Grid.SetRow(state, 3); root.Children.Add(state); Content = root;
         _activity.Update(null); _undo.IsVisible = CanUndo();
         _analyze.Click += async (_, _) => await AnalyzeAsync();
@@ -111,13 +117,15 @@ public sealed partial class MediaAiWindow
         };
         _list.SelectionChanged += async (_, _) => { RenderSelectedResult(); await RefreshSelectedPreviewAsync(); };
         _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
-        AddSettingRow("视频采样帧数", _frames); AddSettingRow("类别分差", _sceneMargin);
+        _videoFramesSetting = AddSettingRow("视频采样帧数", _frames); AddSettingRow("类别分差", _sceneMargin);
         _settingsPanel.Children.Add(_autoTxt);
         _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(_realPeople);
         _settingsPanel.Children.Add(_generateCaptions); _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
+        ToolTip.SetTip(_generateCaptions, "使用 AI 供应商中配置的视觉模型。");
         _realPeople.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RefreshDisplayedResults(); await RefreshModelAsync(); } };
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
+        _gpu.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
         _showScores.IsCheckedChanged += (_, _) => RenderSelectedResult();
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();
         _settingsPanel.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync(_settingsOwner ?? this)));
@@ -151,10 +159,11 @@ public sealed partial class MediaAiWindow
         }
         return row;
     }
-    private void AddSettingRow(string label, Control control)
+    private Control AddSettingRow(string label, Control control)
     {
         var row = new Grid { ColumnDefinitions = new("140,*"), ColumnSpacing = 12 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); _settingsPanel.Children.Add(row);
+        return row;
     }
     private async Task OpenAdvancedAsync()
     {
@@ -184,6 +193,16 @@ public sealed partial class MediaAiWindow
     {
         if (_updatingSelection) return;
         var included = _entries.Count(entry => entry.Include);
+        var hasFiles = _entries.Count > 0;
+        _workspaceBody.ColumnDefinitions[0].Width = hasFiles ? new GridLength(248) : new GridLength(1, GridUnitType.Star);
+        _workspaceBody.ColumnDefinitions[1].Width = hasFiles ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        _workspaceBody.ColumnSpacing = hasFiles ? 12 : 0;
+        if (_resultPane is not null) _resultPane.IsVisible = hasFiles;
+        _selectAll.IsVisible = _fileCount.IsVisible = hasFiles;
+        var hasVideo = _entries.Any(entry => entry.Include && VideoFormats.IsVideo(entry.Path));
+        if (_videoFramesSetting is not null) _videoFramesSetting.IsVisible = hasVideo;
+        _reuse.IsVisible = hasVideo;
+        _warmRetry.IsEnabled = !_busy && _warmRequest is null;
         _updatingSelection = true; _selectAll.IsChecked = _entries.Count > 0 && included == _entries.Count; _updatingSelection = false;
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;

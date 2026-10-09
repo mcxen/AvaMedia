@@ -71,13 +71,13 @@ public sealed class ModelStore(string? root = null)
         catch (Exception error) when (error is IOException or JsonException or ArgumentException or UnauthorizedAccessException) { return false; }
     }
 
-    public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default)
+    public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true)
     {
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
         {
-            if (!await IsInstalledAsync(id, true, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
+            if (!await IsInstalledAsync(id, verify, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
             return new(DirectoryFor(id), gate);
         }
         catch { gate.Release(); throw; }
@@ -91,6 +91,7 @@ public sealed class ModelStore(string? root = null)
         sourcePreference ??= ModelDownloadSources.Preference;
         sourcePreference.Validate();
         var china = ModelDownloadSources.PrefersChinaSources();
+        await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
@@ -179,6 +180,7 @@ public sealed class ModelStore(string? root = null)
     {
         var model = ModelCatalog.Find(id);
         if (!model.Supported) throw new PlatformNotSupportedException("当前平台不支持此模型的本地推理工具。");
+        await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
@@ -265,6 +267,7 @@ public sealed class ModelStore(string? root = null)
 
     public async Task DeleteAsync(string id, CancellationToken ct = default)
     {
+        await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try

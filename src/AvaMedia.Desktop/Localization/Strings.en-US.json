@@ -2667,7 +2667,6 @@
   "请先分析并保留片段。": "Analyze and retain clips first.",
   "字幕校对": "Review subtitles",
   "识别并校对": "Transcribe and review",
-  "识别设置": "Recognition settings",
   "待校对": "Ready for review",
   "待识别": "Waiting for transcription",
   "识别中": "Transcribing",
@@ -2982,5 +2981,14 @@
   "分数来源": "Score source",
   "图表来源": "Chart source",
   "成人内容（NSFW）": "Adult content (NSFW)",
-  "日常内容（SFW）": "Everyday content (SFW)"
+  "日常内容（SFW）": "Everyday content (SFW)",
+  "预热标签模型": "Warming up tag model",
+  "预热图片嵌入模型": "Warming up image embedding model",
+  "标签模型已预热": "Tag model warmed up",
+  "图片识别": "Image recognition",
+  "图片预览": "Image preview",
+  "视频预览": "Video preview",
+  "生成画面描述": "Generate image descriptions",
+  "预热 NSFW 模型": "Warming up NSFW model",
+  "使用 AI 供应商中配置的视觉模型。": "Uses the vision model configured in AI providers."
 }
