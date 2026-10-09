@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
@@ -14,7 +15,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, List<string>> _traces = new(BatchRename.PathComparer);
     private readonly Dictionary<string, double> _positions = new(BatchRename.PathComparer);
     private readonly Dictionary<string, string> _reportSources = new(BatchRename.PathComparer);
-    private readonly ComboBox _chartSource = Ui.Combo(["JoyTag · 标签分数", "EmbeddingGemma · 语义相似度"], "JoyTag · 标签分数");
+    private readonly ComboBox _chartSource = Ui.Combo(["标签分数（JoyTag）", "语义相似度（场景/面部）"], "标签分数（JoyTag）");
     private readonly ComboBox _scoreMode = Ui.Combo(["推荐分数", "采样峰值", "采样平均", "当前画面"], "推荐分数");
     private readonly ComboBox _tagScope = Ui.Combo(["全部标签", "NSFW", "场景", "人物特征"], "全部标签");
     private readonly Slider _tagThreshold = new() { Minimum = .05, Maximum = .95, Value = .4, TickFrequency = .01 };
@@ -23,7 +24,7 @@ public sealed partial class MediaAiWindow
     private readonly CheckBox _followLive = new() { Content = "跟随识别", IsChecked = true };
     private readonly CheckBox _autoTxt = new() { Content = "分析完成自动生成 TXT" };
     private readonly CheckBox _generateCaptions = new() { Content = "生成画面描述（本地视觉模型，可含成人内容）" };
-    private readonly Button _saveTxt = new() { Content = "生成同目录 TXT", Classes = { "primary" } };
+    private readonly Button _saveTxt = new() { Content = "生成同目录 TXT" };
     private readonly Button _playSample = new() { Content = "播放此时间" };
     private readonly AiTagChart _scoreBars = new() { Height = 310 };
     private readonly AiTagChart _peakCurve = new() { Timeline = true, Height = 230 };
@@ -33,7 +34,12 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _sceneCaption = Ui.Text("", "caption");
     private readonly TextBlock _chartSummary = Ui.Text("", "caption");
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
-    private readonly StackPanel _sceneThresholdRow = new() { Spacing = 2 };
+    private readonly StackPanel _sceneThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly StackPanel _tagThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    // The pass line follows the chart source; the other model's threshold waits in the collapsed advanced area.
+    private readonly ContentControl _primaryThreshold = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly ContentControl _secondaryThreshold = new();
+    private readonly Expander _advancedThresholds = new() { Header = "高级阈值", IsExpanded = false, HorizontalAlignment = HorizontalAlignment.Stretch };
     private bool _syncingThresholds, _writingTxt;
     private int _sampleSelectionGeneration;
     private MediaTagResult? _indexedResult;
@@ -115,13 +121,18 @@ public sealed partial class MediaAiWindow
         panel.Children.Add(options);
         foreach (var slider in new[] { _tagThreshold, _sceneThreshold })
         {
-            slider.Width = 184; slider.Height = 24; slider.HorizontalAlignment = HorizontalAlignment.Left;
+            slider.Width = 184; slider.Height = 24; slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
         }
-        var thresholds = new WrapPanel();
-        var tagRow = new StackPanel { Spacing = 2, Margin = new(0, 0, 12, 6) };
-        tagRow.Children.Add(_thresholdCaption); tagRow.Children.Add(_tagThreshold); thresholds.Children.Add(tagRow);
-        _sceneThresholdRow.Margin = new(0, 0, 0, 6);
-        _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold); thresholds.Children.Add(_sceneThresholdRow); panel.Children.Add(thresholds);
+        foreach (var caption in new[] { _thresholdCaption, _sceneCaption }) caption.MinWidth = 132;
+        AutomationProperties.SetName(_tagThreshold, "JoyTag 标签分数阈值"); AutomationProperties.SetName(_sceneThreshold, "语义相似度阈值");
+        _tagThresholdRow.Children.Add(_thresholdCaption); _tagThresholdRow.Children.Add(_tagThreshold);
+        _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold);
+        var passLine = new WrapPanel { Margin = new(0, 0, 0, 2) }; passLine.Children.Add(_primaryThreshold);
+        var hint = Ui.Text("影响达标标签、TXT 与重命名", "caption"); hint.Margin = new(12, 0, 0, 0); hint.TextWrapping = TextWrapping.NoWrap; passLine.Children.Add(hint);
+        var thresholds = new StackPanel { Spacing = 4 }; thresholds.Children.Add(passLine);
+        _secondaryThreshold.Margin = new(0, 4, 0, 0); _advancedThresholds.Content = _secondaryThreshold; thresholds.Children.Add(_advancedThresholds);
+        var layout = new StackPanel { Spacing = 4 }; layout.Children.Add(panel); layout.Children.Add(thresholds);
+        PlaceThresholds();
         _tagThreshold.Value = (double)(_threshold.Value ?? .4m);
         _threshold.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty) SetThreshold((double)(_threshold.Value ?? .4m), false); };
         _tagThreshold.PropertyChanged += (_, change) => { if (change.Property == Slider.ValueProperty) SetThreshold(_tagThreshold.Value, false); };
@@ -147,7 +158,14 @@ public sealed partial class MediaAiWindow
             catch (Exception error) { await Ui.Message(this, "无法播放", error.Message); }
         };
         _saveTxt.Click += async (_, _) => await SaveTextReportsAsync();
-        return panel;
+        return layout;
+    }
+    private void PlaceThresholds()
+    {
+        var semantic = _chartSource.SelectedIndex == 1;
+        Control primary = semantic ? _sceneThresholdRow : _tagThresholdRow, secondary = semantic ? _tagThresholdRow : _sceneThresholdRow;
+        if (!ReferenceEquals(_primaryThreshold.Content, primary)) { _primaryThreshold.Content = null; _secondaryThreshold.Content = null; _primaryThreshold.Content = primary; _secondaryThreshold.Content = secondary; }
+        _advancedThresholds.IsVisible = secondary.IsVisible;
     }
     private Control BuildCharts()
     {
@@ -155,7 +173,9 @@ public sealed partial class MediaAiWindow
         var bars = new StackPanel { Spacing = 6 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_chartSummary); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
         var left = ChartPanel(bars); left.VerticalAlignment = VerticalAlignment.Stretch; charts.Children.Add(left);
         var curve = new StackPanel { Spacing = 6 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
-        var right = ChartPanel(curve); right.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(right, 1); charts.Children.Add(right); return charts;
+        var right = ChartPanel(curve); right.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(right, 1); charts.Children.Add(right);
+        var section = new StackPanel { Spacing = 6 }; section.Children.Add(charts);
+        section.Children.Add(Ui.Text("拖动阈值线可即时筛选，无需重新分析", "caption")); return section;
     }
     private static Border ChartPanel(Control? content = null)
     {
@@ -181,8 +201,9 @@ public sealed partial class MediaAiWindow
     private void RenderCharts(MediaTagResult? result)
     {
         var semantic = _chartSource.SelectedIndex == 1; var threshold = semantic ? _sceneThreshold.Value : (double)(_threshold.Value ?? .4m);
-        _thresholdCaption.Text = Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}");
-        _sceneCaption.Text = Localization.Format($"语义相似度 {_sceneThreshold.Value:0.00}"); _sceneThresholdRow.IsVisible = _sceneTags.IsChecked == true || result?.Scenes is not null;
+        _thresholdCaption.Text = semantic ? Localization.Format($"标签阈值 {(_threshold.Value ?? .4m):0.00}") : Localization.Format($"合格线 {(_threshold.Value ?? .4m):0.00}");
+        _sceneCaption.Text = semantic ? Localization.Format($"合格线 {_sceneThreshold.Value:0.00}") : Localization.Format($"语义相似度 {_sceneThreshold.Value:0.00}");
+        _sceneThresholdRow.IsVisible = semantic || _sceneTags.IsChecked == true || result?.Scenes is not null; PlaceThresholds();
         var candidates = result is null ? [] : PlotCandidates(result);
         _barReadout.Text = "";
         var keys = result is null ? new List<string>() : _traces.GetValueOrDefault(result.Path) ?? [];
@@ -209,6 +230,7 @@ public sealed partial class MediaAiWindow
         Localization.SetIsUserText(_sampleSummary, true);
         _playSample.IsEnabled = result is not null && VideoFormats.IsVideo(result.Path) && result.Frames.Count > 0;
         _scoreBars.Height = bars.Length == 0 ? 180 : 28 + bars.Length * 36;
+        _scoreBars.EmptyText = result is null ? null : "未找到匹配标签";
         _scoreBars.Update(bars, series, threshold, result?.DurationSeconds ?? 0, cursor, keys.LastOrDefault(), semantic);
         var thresholds = new List<TagChartThreshold>();
         if (result?.Scores.Count > 0) thresholds.Add(new(ModelCatalog.JoyTagId, (double)(_threshold.Value ?? .4m), false));

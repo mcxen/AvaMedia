@@ -22,17 +22,23 @@ public sealed class AiTagChart : Control
     public static readonly StyledProperty<IBrush?> GridBrushProperty = AvaloniaProperty.Register<AiTagChart, IBrush?>(nameof(GridBrush));
     public static readonly StyledProperty<IBrush?> SuccessBrushProperty = AvaloniaProperty.Register<AiTagChart, IBrush?>(nameof(SuccessBrush));
     public static readonly StyledProperty<IBrush?> WarningBrushProperty = AvaloniaProperty.Register<AiTagChart, IBrush?>(nameof(WarningBrush));
+    public static readonly StyledProperty<IBrush?> SurfaceBrushProperty = AvaloniaProperty.Register<AiTagChart, IBrush?>(nameof(SurfaceBrush));
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
     public IBrush? TextBrush { get => GetValue(TextBrushProperty); set => SetValue(TextBrushProperty, value); }
     public IBrush? GridBrush { get => GetValue(GridBrushProperty); set => SetValue(GridBrushProperty, value); }
     public IBrush? SuccessBrush { get => GetValue(SuccessBrushProperty); set => SetValue(SuccessBrushProperty, value); }
     public IBrush? WarningBrush { get => GetValue(WarningBrushProperty); set => SetValue(WarningBrushProperty, value); }
+    public IBrush? SurfaceBrush { get => GetValue(SurfaceBrushProperty); set => SetValue(SurfaceBrushProperty, value); }
+    /// <summary>Overrides the empty-state text once data exists but nothing matches; null shows the pre-analysis hint.</summary>
+    public string? EmptyText { get => _emptyText; set { _emptyText = value; InvalidateVisual(); } }
     public bool Timeline { get; init; }
     private IReadOnlyList<TagChartBar> _bars = [];
     private IReadOnlyList<TagChartSeries> _series = [];
     private IReadOnlyList<TagChartThreshold> _thresholds = [];
     private TagChartThreshold? _draggedThreshold;
-    private string? _activeThresholdModel;
+    private string? _activeThresholdModel, _hoveredThresholdModel, _emptyText;
+    private bool _thresholdHovered;
+    private const double ThresholdHitSlop = 10;
     private double _threshold = .4, _duration = 1, _cursor, _minimum;
     private string? _selected, _hovered;
     private bool _draggingThreshold, _seeking, _canSeek;
@@ -43,7 +49,7 @@ public sealed class AiTagChart : Control
     public event Action<TagChartBar?>? BarHovered;
     public event Action<double>? ThresholdEdited;
     public event Action<string, double>? ModelThresholdEdited;
-    static AiTagChart() => AffectsRender<AiTagChart>(AccentBrushProperty, TextBrushProperty, GridBrushProperty, SuccessBrushProperty, WarningBrushProperty);
+    static AiTagChart() => AffectsRender<AiTagChart>(AccentBrushProperty, TextBrushProperty, GridBrushProperty, SuccessBrushProperty, WarningBrushProperty, SurfaceBrushProperty);
     public AiTagChart()
     {
         Focusable = true;
@@ -52,6 +58,7 @@ public sealed class AiTagChart : Control
         Bind(GridBrushProperty, new DynamicResourceExtension("UiDivider"));
         Bind(SuccessBrushProperty, new DynamicResourceExtension("UiSuccess"));
         Bind(WarningBrushProperty, new DynamicResourceExtension("UiWarning"));
+        Bind(SurfaceBrushProperty, new DynamicResourceExtension("UiSurfaceRaised"));
         AutomationProperties.SetName(this, "AI 标签图表");
     }
     public void Update(IReadOnlyList<TagChartBar> bars, IReadOnlyList<TagChartSeries> series, double threshold, double duration, double cursor, string? selected, bool semantic, IReadOnlyList<TagChartThreshold>? thresholds = null)
@@ -122,9 +129,23 @@ public sealed class AiTagChart : Control
                 context.DrawRectangle(color, null, filled, 2.5, 2.5);
             if (_minimum < 0) context.DrawLine(new Pen(GridBrush, 1), new(zeroX, track.Y - 1), new(zeroX, track.Bottom + 1));
             var thresholdX = ScoreX(_threshold);
-            context.DrawLine(new Pen(WarningBrush, 1.5), new(thresholdX, track.Y - 2), new(thresholdX, track.Bottom + 2));
+            context.DrawLine(new Pen(WarningBrush, _thresholdHovered || _draggingThreshold ? 3.5 : 2.5), new(thresholdX, track.Y - 4), new(thresholdX, track.Bottom + 4));
         }
-        if (_bars.Count == 0) Text(context, Localization.Text("等待标签分数"), new(plot.X, plot.Y + 20));
+        if (_bars.Count == 0) { Text(context, _emptyText is { } empty ? Localization.Text(empty) : Localization.Text("分析完成后显示标签排名"), new(plot.X, plot.Y + 20)); return; }
+        // A continuous pass line plus a labelled handle make the draggable threshold visible across all rows.
+        var lineX = ScoreX(_threshold);
+        using (context.PushOpacity(_thresholdHovered || _draggingThreshold ? .9 : .55))
+            context.DrawLine(new Pen(WarningBrush, 1, new DashStyle([4, 3], 0)), new(lineX, plot.Y - 6), new(lineX, plot.Bottom));
+        ThresholdHandle(context, _threshold.ToString("0.00", CultureInfo.InvariantCulture), new(lineX, 6), WarningBrush, plot);
+    }
+    private void ThresholdHandle(DrawingContext context, string value, Point anchor, IBrush? brush, Rect plot, bool rightAligned = false)
+    {
+        var text = FormatText(value, 10, brush, FontWeight.SemiBold);
+        var width = text.Width + 10; var height = text.Height + 2;
+        var x = rightAligned ? plot.Right - width : Math.Clamp(anchor.X - width / 2, plot.X, Math.Max(plot.X, plot.Right - width));
+        var box = new Rect(x, anchor.Y, width, height);
+        context.DrawRectangle(SurfaceBrush ?? Brushes.White, new Pen(brush, _thresholdHovered || _draggingThreshold ? 2 : 1), box, 4, 4);
+        context.DrawText(text, new(box.X + 5, box.Y + 1));
     }
     private void RenderTimeline(DrawingContext context, Rect plot, Pen grid)
     {
@@ -143,7 +164,8 @@ public sealed class AiTagChart : Control
         foreach (var threshold in _thresholds)
         {
             var color = ModelBrush(threshold.Model); var y = Y(threshold.Value, threshold.Semantic);
-            context.DrawLine(new Pen(color, 1, new DashStyle([5, 4], 0)), new(plot.X, y), new(plot.Right, y));
+            var active = threshold.Model == _hoveredThresholdModel || threshold.Model == _draggedThreshold?.Model;
+            context.DrawLine(new Pen(color, active ? 3 : 2, new DashStyle([6, 4], 0)), new(plot.X, y), new(plot.Right, y));
         }
         using (context.PushClip(plot.Inflate(4)))
             foreach (var series in _series)
@@ -163,7 +185,13 @@ public sealed class AiTagChart : Control
                 }
             }
         if (_canSeek) context.DrawLine(new Pen(TextBrush, 1), new(X(_cursor), plot.Y), new(X(_cursor), plot.Bottom));
-        if (_series.Count == 0) Text(context, Localization.Text("选择标签查看采样曲线"), new(plot.X + 12, plot.Y + plot.Height / 2));
+        foreach (var threshold in _thresholds)
+        {
+            var y = Y(threshold.Value, threshold.Semantic);
+            ThresholdHandle(context, threshold.Value.ToString("0.00", CultureInfo.InvariantCulture), new(threshold.Semantic ? plot.Right : plot.X, Math.Max(plot.Y - 6, y - 18)), ModelBrush(threshold.Model), plot,
+                rightAligned: threshold.Semantic);
+        }
+        if (_series.Count == 0) Text(context, Localization.Text(_thresholds.Count == 0 && _bars.Count == 0 ? "分析完成后显示采样曲线" : "点击下方标签或柱条添加对比曲线"), new(plot.X + 12, plot.Y + plot.Height / 2));
     }
     private void DrawTimeLabels(DrawingContext context, Rect plot)
     {
@@ -197,26 +225,35 @@ public sealed class AiTagChart : Control
             ? _bars[Math.Clamp((int)((point.Y - Plot.Y) / Plot.Height * _bars.Count), 0, _bars.Count - 1)] : null;
     private bool OnBarThreshold(Point point)
     {
-        if (BarAt(point) is null || Math.Abs(point.X - ScoreX(_threshold)) >= 7) return false;
+        if (Timeline || _bars.Count == 0 || Math.Abs(point.X - ScoreX(_threshold)) >= ThresholdHitSlop) return false;
+        if (point.Y >= 0 && point.Y < Plot.Y - 4) return true; // value handle above the rows
+        if (BarAt(point) is null) return false;
+        // Lower part of each row (track and its margin); the label line above stays a tag-selection target.
         var row = Plot.Height / _bars.Count;
         var relativeY = (point.Y - Plot.Y) % row;
-        return relativeY is >= 16 and <= 32;
+        return relativeY >= 12;
+    }
+    private TagChartThreshold? ThresholdAt(Point point)
+    {
+        if (!Timeline) return null;
+        var plot = Plot;
+        if (point.X < plot.X || point.X > plot.Right + 4 || point.Y < plot.Y - ThresholdHitSlop || point.Y > plot.Bottom + ThresholdHitSlop) return null;
+        return _thresholds.Where(threshold => Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)) < ThresholdHitSlop)
+            .OrderBy(threshold => Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)))
+            .ThenBy(threshold => threshold.Semantic == (point.X > plot.Center.X) ? 0 : 1).FirstOrDefault();
     }
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         var point = e.GetPosition(this); Focus();
-        if (Timeline && new Rect(Plot.X, Plot.Y, Plot.Width, Bounds.Height - Plot.Y).Contains(point))
+        if (Timeline && ThresholdAt(point) is { } hit)
         {
-            _draggedThreshold = _thresholds.Where(threshold => Plot.Contains(point) && Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)) < 7)
-                .OrderBy(threshold => Math.Abs(point.Y - Y(threshold.Value, threshold.Semantic)))
-                .ThenBy(threshold => threshold.Semantic == (point.X > Plot.Center.X) ? 0 : 1).FirstOrDefault();
-            if (_draggedThreshold is { } threshold)
-            {
-                _activeThresholdModel = threshold.Model; _draggingThreshold = true; e.Pointer.Capture(this); SetThreshold(point);
-            }
-            else if (_canSeek) { _seeking = true; e.Pointer.Capture(this); Seek(point.X, force: true); }
+            _draggedThreshold = hit; _activeThresholdModel = hit.Model; _draggingThreshold = true; e.Pointer.Capture(this); SetThreshold(point);
+        }
+        else if (Timeline && new Rect(Plot.X, Plot.Y, Plot.Width, Bounds.Height - Plot.Y).Contains(point))
+        {
+            if (_canSeek) { _seeking = true; e.Pointer.Capture(this); Seek(point.X, force: true); }
         }
         else if (!Timeline && OnBarThreshold(point))
         { _draggingThreshold = true; e.Pointer.Capture(this); SetThreshold(point); }
@@ -234,6 +271,12 @@ public sealed class AiTagChart : Control
         base.OnPointerMoved(e); var point = e.GetPosition(this);
         if (_seeking) { Seek(point.X); e.Handled = true; return; }
         if (_draggingThreshold) { SetThreshold(point); return; }
+        if (Timeline)
+        {
+            var hovered = ThresholdAt(point)?.Model;
+            if (hovered != _hoveredThresholdModel) { _hoveredThresholdModel = hovered; InvalidateVisual(); }
+            Cursor = new Cursor(hovered is not null ? StandardCursorType.SizeNorthSouth : StandardCursorType.Arrow);
+        }
         if (Timeline && Plot.Contains(point))
         {
             var time = (point.X - Plot.X) / Plot.Width * _duration;
@@ -243,15 +286,16 @@ public sealed class AiTagChart : Control
         else if (!Timeline)
         {
             var item = BarAt(point);
-            if (_hovered != item?.Key) { _hovered = item?.Key; InvalidateVisual(); }
-            Cursor = new Cursor(OnBarThreshold(point) ? StandardCursorType.SizeWestEast : item is null ? StandardCursorType.Arrow : StandardCursorType.Hand);
+            var onThreshold = OnBarThreshold(point);
+            if (_hovered != item?.Key || _thresholdHovered != onThreshold) { _hovered = item?.Key; _thresholdHovered = onThreshold; InvalidateVisual(); }
+            Cursor = new Cursor(onThreshold ? StandardCursorType.SizeWestEast : item is null ? StandardCursorType.Arrow : StandardCursorType.Hand);
             BarHovered?.Invoke(item);
         }
         else { SampleHovered?.Invoke(null); BarHovered?.Invoke(null); }
     }
     protected override void OnPointerExited(PointerEventArgs e)
     {
-        base.OnPointerExited(e); _hovered = null; InvalidateVisual(); SampleHovered?.Invoke(null); BarHovered?.Invoke(null);
+        base.OnPointerExited(e); _hovered = _hoveredThresholdModel = null; _thresholdHovered = false; InvalidateVisual(); SampleHovered?.Invoke(null); BarHovered?.Invoke(null);
     }
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {

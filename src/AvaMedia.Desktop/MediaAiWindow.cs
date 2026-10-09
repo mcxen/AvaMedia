@@ -27,16 +27,16 @@ public sealed partial class MediaAiWindow : Window
     private readonly TextBlock _status = Ui.Text("就绪", "caption");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly Controls.AiActivityView _activity = new() { Compact = true };
-    private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary" } };
+    private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary", "dialog-action" } };
     private readonly Button _rename = new() { Content = "标签重命名…" };
     private readonly Button _undo = new() { Content = "撤销重命名" };
-    private readonly Button _stop = new() { Content = "停止", IsVisible = false };
+    private readonly Button _stop = new() { Name = "MediaAiStop", Content = "停止分析", IsVisible = false, Classes = { "primary", "dialog-action" } };
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<Window, Task> _manageModels;
     private readonly Func<bool> _canRename;
     private readonly Action<IReadOnlyList<Job>, bool>? _enqueue;
     private readonly Action? _showQueue;
-    private readonly Button _enqueueQueue = new() { Content = "加入任务队列", Classes = { "dialog-action" } };
+    private readonly Button _enqueueQueue = new() { Content = "加入任务队列" };
     private readonly Button _viewQueue = new() { Content = "查看任务队列" };
     private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "ai-rename.json");
     private CancellationTokenSource? _operation;
@@ -293,7 +293,7 @@ public sealed partial class MediaAiWindow : Window
     private static string NsfwStateText(NsfwSignalState state) => Localization.Text(state switch
     {
         NsfwSignalState.Suspected => "疑似 NSFW",
-        NsfwSignalState.ContextOnly => "仅命中提示标签",
+        NsfwSignalState.ContextOnly => "命中 NSFW 相关提示，未达风险阈值",
         _ => "未检出风险标签"
     });
     private async Task RenameAsync(bool undo, RenameItem[]? plan = null)

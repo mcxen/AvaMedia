@@ -41,12 +41,7 @@ public sealed partial class MediaAiWindow
             var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
             await AddFoldersAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
         }));
-        _imports.Children.Add(Ui.Button("移除勾选", () =>
-        {
-            foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _reportSources.Remove(entry.Path); _editedTags.Remove(entry.Path); _entries.Remove(entry); }
-            if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
-            RenderSelectedResult(); UpdateActions();
-        }));
+        _imports.Children.Add(Ui.Button("从列表移除", async () => await RemoveCheckedAsync()));
         foreach (var button in _imports.Children) button.Margin = new(0, 0, 6, 6);
         _imports.Margin = new(0, 0, 10, 0);
         var toolbar = new WrapPanel(); toolbar.Children.Add(_imports);
@@ -120,6 +115,16 @@ public sealed partial class MediaAiWindow
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();
         _settingsPanel.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync(_settingsOwner ?? this)));
     }
+    private async Task RemoveCheckedAsync()
+    {
+        var count = _entries.Count(entry => entry.Include);
+        if (count == 0 || _busy || _closed) return;
+        if (!await Ui.Confirm(this, "从列表移除", Localization.Format($"从列表移除勾选的 {count} 个文件？这些文件的分析结果和手动编辑的标签将一并清除，源文件不会被删除。"), "从列表移除")
+            || _busy || _closed) return;
+        foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _reportSources.Remove(entry.Path); _editedTags.Remove(entry.Path); _entries.Remove(entry); }
+        if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
+        RenderSelectedResult(); UpdateActions();
+    }
     private void ConfigureWorkbenchScrollbars()
     {
         Resources["ScrollBarThickness"] = 10d;
@@ -187,6 +192,7 @@ public sealed partial class MediaAiWindow
         _saveTxt.IsEnabled = !_busy && !_writingTxt && _entries.Any(entry => entry.Include && _results.ContainsKey(entry.Path));
         _saveTxt.IsVisible = _results.Count > 0;
         _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
-        _stop.IsVisible = _busy && _operation is not null;
+        // One primary call to action: Analyze, replaced in place by Stop while an analysis runs.
+        _stop.IsVisible = _busy && _operation is not null; _analyze.IsVisible = !_stop.IsVisible;
     }
 }

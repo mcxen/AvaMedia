@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
@@ -25,31 +26,80 @@ public sealed partial class MediaAiWindow
     private double? _previewSeconds;
     private readonly SemaphoreSlim _previewGate = new(1, 1);
 
+    private readonly TextBlock _nsfwBadgeText = new() { FontWeight = FontWeight.SemiBold };
+    private readonly Button _nsfwBadge = new() { Name = "MediaAiNsfwBadge", IsVisible = false, Padding = new(8, 2), MinHeight = 0, BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
+    private readonly StackPanel _nsfwEvidence = new() { Spacing = 5, Width = 340 };
+    private readonly Expander _chartSection = new() { Header = "分数与曲线", IsExpanded = true, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+
     private Control BuildResultPane()
     {
-        var content = new StackPanel { Spacing = 10 };
+        // Fixed summary: file, state, preview and the actions that act on the result.
         var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
         heading.Children.Add(_preview);
         _detailTitle.MaxLines = 2; _detailTitle.TextTrimming = TextTrimming.CharacterEllipsis;
+        var titleRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
+        titleRow.Children.Add(_detailTitle); Grid.SetColumn(_nsfwBadge, 1); titleRow.Children.Add(_nsfwBadge);
+        _nsfwBadge.Content = _nsfwBadgeText; ToolTip.SetTip(_nsfwBadge, "点击查看 NSFW 判断依据");
+        _nsfwBadge.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
+        _nsfwBadge.Flyout = new Flyout { Content = new ScrollViewer { Content = _nsfwEvidence, MaxHeight = 320 } };
         var title = new StackPanel { Spacing = 6 };
-        title.Children.Add(_detailTitle); title.Children.Add(_detailState);
+        title.Children.Add(titleRow); title.Children.Add(_detailState);
         _sampleSummary.Classes.Add("time");
         title.Children.Add(WorkbenchActions(_sampleSummary, _playSample, _followLive));
         title.Children.Add(WorkbenchActions(_saveTxt, _export, _rename, _undo));
-        Grid.SetColumn(title, 1); heading.Children.Add(title); content.Children.Add(ChartPanel(heading));
-        content.Children.Add(ChartPanel(BuildWorkbench())); content.Children.Add(BuildCharts());
+        Grid.SetColumn(title, 1); heading.Children.Add(title);
+        // Scrollable detail: scores/curves can be collapsed; tags are their own section.
+        var content = new StackPanel { Spacing = 10 };
+        var analysis = new StackPanel { Spacing = 10, Margin = new(0, 8, 0, 0) };
+        analysis.Children.Add(ChartPanel(BuildWorkbench())); analysis.Children.Add(BuildCharts());
+        _chartSection.Content = analysis; content.Children.Add(_chartSection);
         var tags = new StackPanel { Spacing = 6 };
+        tags.Children.Add(Ui.Text("标签", "heading"));
         tags.Children.Add(WorkbenchActions(_tagSearch, _editTags, _restoreTags, _copy));
         tags.Children.Add(_tagGroups); tags.Children.Add(_details); _tagPanel.Child = tags; content.Children.Add(_tagPanel);
         _editTags.Click += async (_, _) =>
         {
             if (_list.SelectedItem is MediaFileEntry entry && _results.TryGetValue(entry.Path, out var result)) await EditTagsAsync(result);
         };
-        _restoreTags.Click += (_, _) =>
+        _restoreTags.Click += async (_, _) =>
         {
-            if (_list.SelectedItem is MediaFileEntry entry) { _editedTags.Remove(entry.Path); RefreshDisplayedResults(); }
+            if (_list.SelectedItem is not MediaFileEntry entry || !_editedTags.ContainsKey(entry.Path)) return;
+            if (!await Ui.Confirm(this, "恢复识别标签", "恢复为模型识别的标签？此文件手动编辑的标签将被丢弃。", "恢复识别标签") || _closed) return;
+            _editedTags.Remove(entry.Path); RefreshDisplayedResults();
         };
-        return new ScrollViewer { Content = content, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        var pane = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 10 };
+        pane.Children.Add(ChartPanel(heading));
+        var scroll = new ScrollViewer { Content = content, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        Grid.SetRow(scroll, 1); pane.Children.Add(scroll);
+        return pane;
+    }
+    private void UpdateNsfwBadge(NsfwAssessment? moderation)
+    {
+        _nsfwBadge.IsVisible = moderation is not null; _nsfwEvidence.Children.Clear();
+        if (moderation is null) { _nsfwBadge.Flyout?.Hide(); return; }
+        var (text, brush) = moderation.State switch
+        {
+            NsfwSignalState.Suspected => ("疑似 NSFW", "UiDanger"),
+            NsfwSignalState.ContextOnly => ("提示", "UiWarning"),
+            _ => ("未检出", "UiTextSecondary")
+        };
+        _nsfwBadgeText.Text = Localization.Text(text);
+        _nsfwBadge.Bind(Button.ForegroundProperty, new DynamicResourceExtension(brush));
+        _nsfwBadge.Bind(Button.BorderBrushProperty, new DynamicResourceExtension(brush == "UiTextSecondary" ? "UiBorder" : brush));
+        AutomationProperties.SetName(_nsfwBadge, "NSFW · " + Localization.Text(text));
+        var state = Ui.Text(NsfwStateText(moderation.State)); state.FontWeight = FontWeight.SemiBold; _nsfwEvidence.Children.Add(state);
+        _nsfwEvidence.Children.Add(Ui.Text(Localization.Format($"判断阈值 {moderation.Threshold:0.00}"), "caption"));
+        if (moderation.Evidence.Count == 0) _nsfwEvidence.Children.Add(Ui.Text("没有识别词库标签达到阈值", "caption"));
+        foreach (var item in moderation.Evidence)
+        {
+            var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };
+            var kind = Ui.Text(item.Risk ? "风险" : "提示", item.Risk ? "error" : "caption"); row.Children.Add(kind);
+            var label = Ui.Text(item.Label + " · " + Localization.Text(item.Category)); Localization.SetIsUserText(label, true);
+            Grid.SetColumn(label, 1); row.Children.Add(label);
+            var score = Ui.Text($"{item.Signal:0.00}", "caption"); Localization.SetIsUserText(score, true); Grid.SetColumn(score, 2); row.Children.Add(score);
+            _nsfwEvidence.Children.Add(row);
+        }
+        _nsfwEvidence.Children.Add(Ui.Text("未检出风险标签不代表安全。", "caption"));
     }
     private void RenderSelectedResult()
     {
@@ -67,7 +117,7 @@ public sealed partial class MediaAiWindow
         {
             _detailState.Text = entry?.Status ?? Localization.Text("尚未添加文件");
             if (entry?.Status == Localization.Text("失败") && entry.Details.Length > 0) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
-            RenderCharts(null); UpdateActions(); return;
+            RenderCharts(null); UpdateNsfwBadge(null); UpdateActions(); return;
         }
         RenderCharts(result);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
@@ -113,7 +163,7 @@ public sealed partial class MediaAiWindow
         }
         details.Children.Add(Ui.Text(NsfwStateText(moderation.State), "caption"));
         if (moderation.Evidence.Count > 0) details.Children.Add(Ui.Text(string.Join(" · ", moderation.Evidence.Select(item => $"{item.Label} {item.Signal:0.00}")), "caption"));
-        if (moderation.State == NsfwSignalState.Suspected) _tagGroups.Children.Insert(0, Ui.Text("疑似 NSFW", "error"));
+        UpdateNsfwBadge(moderation);
         _details.Content = new ScrollViewer { Content = details, MaxHeight = 140 };
         _details.IsVisible = true; UpdateActions();
     }

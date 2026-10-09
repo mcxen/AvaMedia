@@ -22,6 +22,18 @@ internal static class Ui
     {var files=await owner.StorageProvider.OpenFilePickerAsync(new(){Title=Localization.Text(title),AllowMultiple=multiple});return files.Select(f=>f.TryGetLocalPath()).OfType<string>().ToArray();}
     public static async Task<string?> Folder(Window owner,string title)
     {var folders=await owner.StorageProvider.OpenFolderPickerAsync(new(){Title=Localization.Text(title),AllowMultiple=false});return folders.FirstOrDefault()?.TryGetLocalPath();}
+    // Modal yes/no confirmation for destructive in-window actions; the action button keeps the dialog's single primary role.
+    public static async Task<bool> Confirm(Window owner,string title,string message,string action)
+    {
+        var dialog=new Window{Title=title,Width=480,Height=220,MinWidth=400,MinHeight=200,CanResize=false,WindowStartupLocation=WindowStartupLocation.CenterOwner};
+        var body=new Grid{RowDefinitions=new("*,Auto"),RowSpacing=16,Margin=new(20)};
+        body.Children.Add(new ScrollViewer{Content=Text(message)});
+        var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8};
+        buttons.Children.Add(DialogButton("取消",()=>dialog.Close(false)));
+        var confirm=DialogButton(action,()=>dialog.Close(true));confirm.Classes.Add("primary");buttons.Children.Add(confirm);
+        Grid.SetRow(buttons,1);body.Children.Add(buttons);dialog.Content=body;
+        return await dialog.ShowDialog<bool>(owner);
+    }
     public static Task Message(Window owner,string title,string message)
         => Notify(owner,title,message);
     public static Task MessageFormatted(Window owner,string title,FormattableString message)
