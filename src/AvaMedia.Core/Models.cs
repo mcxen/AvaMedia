@@ -55,6 +55,7 @@ public static class Catalog
         Add("crop","批量裁剪","工具集","mp4","crop");
         Add("rotate","批量旋转","工具集","mp4","rotate");
         Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
+        Add("folder-classification","文件夹分类","工具集","","gear",Operation.BatchTools);
         Add("media-ai","AI 标签工作台","AI 标签","txt","image",Operation.MediaTag,2);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);

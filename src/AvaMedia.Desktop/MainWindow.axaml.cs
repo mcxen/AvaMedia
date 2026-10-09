@@ -54,6 +54,11 @@ public partial class MainWindow : Window
     }
     private async Task Configure(Feature feature,string[]? files=null)
     {
+        if(feature.Id=="folder-classification")
+        {
+            await ConfigureFolderClassificationAsync(files);
+            return;
+        }
         if(feature.Id is "image-ai" or "media-ai")
         {
             await ConfigureMediaAiAsync(files);
