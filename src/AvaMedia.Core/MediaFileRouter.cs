@@ -57,19 +57,23 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
     public IReadOnlyList<MediaRouteOption> Routes(IReadOnlyList<MediaRouteSource> selected)
     {
         List<MediaRouteOption> routes = [];
+        HashSet<string> added = new(StringComparer.Ordinal);
         void Add(string id, string title, string description, Func<MediaRouteSource, bool> accepts, int minimum = 1, string? requirement = null, int maximum = int.MaxValue)
         {
-            var files = selected.Where(accepts).Select(item => item.Path).ToArray();
-            if (files.Length == 0) return;
-            routes.Add(new(Catalog.Find(id), title, description, files, selected.Count - files.Length,
+            var feature = Catalog.Find(id);
+            var files = selected.Where(source => Accepts(feature, source) && accepts(source)).Select(item => item.Path).ToArray();
+            if (files.Length == 0 || !added.Add(id)) return;
+            routes.Add(new(feature, title, description, files, selected.Count - files.Length,
                 files.Length > maximum ? "请选择一个文件。" : files.Length < minimum ? requirement ?? "请至少选择两个文件。" : ""));
         }
         bool Video(MediaRouteSource source) => source.Kind == MediaFileKind.Video;
         bool Image(MediaRouteSource source) => source.Kind == MediaFileKind.Image;
         bool Audio(MediaRouteSource source) => source.Kind == MediaFileKind.Audio;
+        bool Speech(MediaRouteSource source) => Video(source) || Audio(source);
         bool Media(MediaRouteSource source) => source.Kind is MediaFileKind.Video or MediaFileKind.Audio or MediaFileKind.Image;
         bool Extension(MediaRouteSource source, string extension) => Path.GetExtension(source.Path).Equals(extension, StringComparison.OrdinalIgnoreCase);
-        if (enableBeta) Add("media-ai", "媒体 AI 标签 · Beta", "图片 / 视频标签、关键词筛选与重命名", source => Video(source) || Image(source));
+        var subtitleTitle = selected.Any(Video) ? "自动字幕" : "语音转字幕";
+        Add("media-ai", "媒体 AI 标签 · Beta", "图片 / 视频标签、关键词筛选与重命名", source => Video(source) || Image(source));
         var groups = selected.GroupBy(source => source.Kind).OrderByDescending(group => group.Count()).Select(group => group.Key);
         foreach (var group in groups)
             switch (group)
@@ -78,13 +82,17 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                     Add("video-compress", "视频压缩", "自动画质档、质量、码率与目标体积", Video);
                     Add("video-slim", "视频瘦身", "采样分析，按画面内容减少体积", Video);
                     Add("clip", "快速剪辑", "截取片段、调整速度、分段导出", Video);
+                    Add("person-clip", "保留有人片段 · Beta", "多模型检测、免检测区间与片段导出", Video);
                     Add("rotate", "批量旋转", "统一或逐个旋转，自动识别方向", Video);
                     Add("crop", "画面裁剪", "框选画面，共享或逐个调整", Video);
                     Add("mp4", "视频格式转换", "MP4 / MOV / MKV / TS 等格式与编码", Video);
                     Add("join", "视频合并", "按文件顺序连接为一个视频", Video, 2, "请至少选择两个视频。");
+                    Add("dvd", "DVD / VOB 转换", "按顺序合并 VOB 并转换视频", source => Extension(source, ".vob"));
                     Add("split", "提取音频", "把视频声音导出为独立音频", Video);
+                    Add("extract-video", "提取视频流", "复制视频轨道，移除音频", Video);
                     Add("frames", "导出视频帧", "按时间间隔保存画面", Video);
-                    Add("auto-subtitle", "自动字幕", "识别语音并生成字幕", Video);
+                    Add("contact-sheet", "多宫格截图", "按时间采样，拼成多宫格图片", Video);
+                    Add("auto-subtitle", subtitleTitle, "识别语音并生成字幕", Speech);
                     Add("video-summary", "视频总结", "本地摘要、内容总结、字幕提取与分析", Video);
                     Add("voice-enhance", "人声增强", "增强讲话并减少背景杂音", Video);
                     Add("delogo", "去除水印", "选择区域并进行插值修复", Video);
@@ -100,7 +108,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                     Add("audio-mp3", "音频格式转换", "MP3 / AAC / FLAC / WAV 等格式", Audio);
                     Add("audio-clip", "音频剪辑", "截取区间并调整音频参数", Audio);
                     Add("audio-enhance", "人声增强", "增强讲话并减少背景杂音", Audio);
-                    Add("auto-subtitle", "语音转字幕", "识别语音并生成字幕", Audio);
+                    Add("auto-subtitle", subtitleTitle, "识别语音并生成字幕", Speech);
                     Add("audio-join", "音频合并", "按文件顺序连接音频", Audio, 2, "请至少选择两个音频。");
                     Add("audio-mix", "音频混合", "把多个声音混合到同一音轨", Audio, 2, "请至少选择两个音频。");
                     break;
