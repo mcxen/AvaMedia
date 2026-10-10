@@ -66,9 +66,6 @@ internal sealed class Playback : IPlaybackSession
         Frame = new(size, new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
         old.Dispose();
     }
-    // Editor compatibility: audio is decoded on demand, never to a whole-file WAV.
-    public Task PrepareAudio(CancellationToken ct) { ct.ThrowIfCancellationRequested(); _hasAudio = true; return Task.CompletedTask; }
-
     public async Task Play(double seconds, bool video, double end)
     {
         if (!double.IsFinite(seconds) || !double.IsFinite(end) || seconds < 0 || end <= seconds || !double.IsFinite(Speed) || Speed < .25 || Speed > 4)

@@ -21,7 +21,7 @@ public partial class PlayerWindow
         if (!_closed) FocusPlayback();
         if (source is not null && !_closed)
         {
-            _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel(); CancelFrameStep(); _revision++; _folderGeneration++;
+            _load?.Cancel(); _seek.Cancel(); _folderLoad?.Cancel(); CancelFrameStep(); _revision++; _folderGeneration++;
             _firstFrame.TrySetCanceled(); _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _opening.Restart(); FirstFrameUtc = null; FirstFrameLatencyMs = 0; PlaybackError = "";
             SetFiles([source.Path]); CurrentPath = source.Path; _info = null; _position = 0;
@@ -34,7 +34,7 @@ public partial class PlayerWindow
     {
         if (_nativeBusy || _closed) return;
         _nativeBusy = true;
-        _load?.Cancel(); _seek?.Cancel(); CancelFrameStep();
+        _load?.Cancel(); _seek.Cancel(); CancelFrameStep();
         _nativeDisc = disc;
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _nativeLifetime = NativeLifetimeAsync(path, disc, position, playing, started);

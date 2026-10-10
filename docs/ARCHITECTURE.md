@@ -28,6 +28,10 @@ Core 内部的 `HeifImage` 从 FFprobe 选择静态主图，识别完整 Tile Gr
 
 `PresentationVisible` 控制视频像素交付，隐藏 / 最小化时保持媒体时钟和音频，恢复窗口沿用当前解码会话。BGRA 使用池化帧缓冲，连续行跨度一次复制，非连续跨度按行处理；窗口的时间文字与滑块最多每秒刷新十次，画面按源帧率呈现。
 
+剪辑器与天池播放器共用 `PreviewRequest` 的过期请求取消、`MediaFrameView` 的静态位图所有权及 `EditorTime` 的时间轴刷新节流。静态预览切换到流式帧时释放旧位图，播放会话继续拥有流式帧。编辑页与导出页的片段缩略图共用加载与并发限制。
+
+`MediaEngine` 的逐帧浏览与剪辑终点预览共用真实时间戳查询。`MediaPreviewCache` 复用 `PreviewCacheStore` 保存原始 PNG 预览和时间戳；源路径、大小、修改时间、视频轨、尺寸、填充、定位方式及工具路径参与标识。时间戳窗口按整秒对齐，邻近定位复用已查询范围，媒体探测结果只在内存中限量保留。视频预览最多两个并发生成请求，同一缓存标识合并生成；缓存单项上限 8 MB，沿用总体 16 MB 内存 / 128 MB 磁盘容量。
+
 `ProcessRunner.StartAsync` 把进程创建移出调用窗口线程，探测和缩略图从该入口启动；播放器已在后台的解码工作仍使用同步创建。`MediaEngine.Probe` 完整读取结构化 JSON，进程普通日志继续保留长度限制。
 
 任务行通过 `MetadataReady` 跟踪后台文件大小读取，进度通知只更新状态字段。`Storage.SaveJobsAsync` 在后台序列化并原子替换队列文件，以递增版本阻止旧保存覆盖新编辑；主窗口退出等待最终 `PersistenceReady`。SHA256 工具通过 `FileHashing` 流式读取，池化 1 MiB 缓冲，并报告节流进度和取消。

@@ -13,7 +13,6 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     private readonly ClipEditResult[] _edits;
     private readonly IMediaPreview _previewFrames;
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly SemaphoreSlim _thumbnailGate = new(2, 2);
     private ConversionOptions _options;
     public ClipExportWindow() : this([],MediaFolders.DefaultOutput) { }
     public ClipExportWindow(IEnumerable<ClipEditResult> edits,string folder,ClipExportState? state=null,bool allowJoin=false,IMediaPreview? previewFrames=null)
@@ -35,13 +34,8 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
-    async Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
-    {
-        using var request = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
-        await _thumbnailGate.WaitAsync(request.Token);
-        try { return await _previewFrames.Thumbnail(path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
-        finally { _thumbnailGate.Release(); }
-    }
+    Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
+        => SegmentThumbnail.ReadAsync(_previewFrames,path,options,ct,_lifetime.Token);
     private string Preset=>FormatCombo.SelectedItem as string??QuickClipBatch.DefaultPreset;
     public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,JoinSegments.IsVisible && JoinSegments.IsChecked==true);
     public ConversionRequest CreateRequest()

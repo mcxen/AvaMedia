@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using AvaMedia.Core;
 
@@ -15,11 +14,22 @@ internal interface ISegmentThumbnailSource
 /// <summary>Only realized list rows decode thumbnails; detached rows release their image and request.</summary>
 public sealed class SegmentThumbnail : Image
 {
+    private static readonly SemaphoreSlim DecodeGate = new(2, 2);
+    private readonly MediaFrameView _view;
     private ClipSegmentEntry? _entry;
     private ISegmentThumbnailSource? _owner;
-    private CancellationTokenSource? _request;
+    private readonly PreviewRequest _request = new();
     private (double Start, int Stream)? _loaded;
-    public SegmentThumbnail() => DataContextChanged += (_, _) => Bind();
+    public SegmentThumbnail() { _view = new(this); DataContextChanged += (_, _) => Bind(); }
+    internal static async Task<byte[]> ReadAsync(IMediaPreview preview, string path, ConversionOptions options,
+        CancellationToken token, CancellationToken lifetime, Task? ready = null)
+    {
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime);
+        if (ready is not null) await ready.WaitAsync(request.Token);
+        await DecodeGate.WaitAsync(request.Token);
+        try { return await preview.Thumbnail(path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
+        finally { DecodeGate.Release(); }
+    }
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
@@ -32,8 +42,8 @@ public sealed class SegmentThumbnail : Image
     private void Unbind()
     {
         if (_entry is not null) _entry.PropertyChanged -= EntryChanged;
-        _entry = null; _loaded = null; _request?.Cancel(); _request?.Dispose(); _request = null;
-        var old = Source as Bitmap; Source = null; old?.Dispose();
+        _entry = null; _loaded = null; _request.Cancel();
+        _view.Clear();
     }
     private void Bind()
     {
@@ -50,17 +60,16 @@ public sealed class SegmentThumbnail : Image
         if (_entry is not { } entry || _owner is not { } owner) return;
         var key = (entry.Options.Start, entry.Options.VideoStreamIndex);
         if (_loaded == key) return;
-        _loaded = key; _request?.Cancel(); _request?.Dispose();
-        var request = _request = new CancellationTokenSource(); var token = request.Token;
-        var old = Source as Bitmap; Source = null; old?.Dispose();
+        _loaded = key; var token = _request.Restart(CancellationToken.None);
+        _view.Clear();
         try
         {
             var data = await owner.ReadSegmentThumbnail(entry.SourcePath, entry.Options.Clone(), token);
             token.ThrowIfCancellationRequested();
-            if (!ReferenceEquals(_entry, entry) || !ReferenceEquals(_request, request)) return;
-            using var stream = new MemoryStream(data); Source = new Bitmap(stream);
+            if (!ReferenceEquals(_entry, entry) || !_request.IsCurrent(token)) return;
+            _view.Show(data);
         }
         catch (OperationCanceledException) { }
-        catch (Exception) { if (ReferenceEquals(_request, request)) _loaded = null; }
+        catch (Exception) { if (_request.IsCurrent(token)) _loaded = null; }
     }
 }

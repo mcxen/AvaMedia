@@ -94,7 +94,7 @@ public partial class PlayerWindow
 
     private void PresentFrame(Bitmap frame)
     {
-        VideoImage.Source = frame;
+        _videoView.Show(frame);
         if (Panorama.IsImmersive)
         {
             try { PanoramaImage.SetFrame(frame); }
@@ -104,10 +104,9 @@ public partial class PlayerWindow
                 UpdatePanoramaVisibility(); SyncPanoramaControls(); Notice(error.Message);
             }
         }
-        else VideoImage.InvalidateVisual();
     }
 
-    private void ClearVideoFrame() { PanoramaImage.ClearFrame(); VideoImage.Source = null; }
+    private void ClearVideoFrame() { PanoramaImage.ClearFrame(); _videoView.Clear(); }
     private void UpdatePanoramaVisibility()
     {
         PanoramaImage.IsVisible = _info?.HasVideo == true && Panorama.IsImmersive;

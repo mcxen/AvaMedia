@@ -2,7 +2,6 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
@@ -16,10 +15,9 @@ public partial class EditorWindow : Window
     private ConversionOptions _options;
     private MediaInfo? _info;
     private readonly Playback _player;
+    private readonly MediaFrameView _previewView,_startView,_endView;
     private readonly CancellationTokenSource _lifetime=new();
-    private CancellationTokenSource? _seek;
-    private CancellationTokenSource? _thumbs;
-    private CancellationTokenSource? _frameStep;
+    private readonly PreviewRequest _seek=new(),_thumbs=new(),_frameStep=new();
     private readonly TaskCompletionSource _ready=new();
     private bool _updating;
     private bool _closed;
@@ -36,9 +34,9 @@ public partial class EditorWindow : Window
     private Task _thumbnailsReady=Task.CompletedTask;
     private Task _positionReady=Task.CompletedTask;
     private double _position;
+    private long _positionPublished;
     private readonly string _mode;
     private double[] _speedValues=[],_fadeInValues=[],_fadeOutValues=[];
-    private Task _audioReady=Task.CompletedTask;
     private bool AudioEditing=>MediaEngine.IsAudio(_options.Format)||_mode=="input-audio";
     public Task Ready=>_ready.Task;
     public Task ThumbnailsReady=>_thumbnailsReady;
@@ -61,87 +59,82 @@ public partial class EditorWindow : Window
     public EditorWindow() : this(new MediaEngine(new()),"",new()) { }
     public EditorWindow(IMediaEngine engine,string path,ConversionOptions options,string mode="", IReadOnlyList<ConversionOptions>? segments=null, IVideoOrientationDetector? orientationDetector=null, IMediaPreview? previewFrames=null)
     {
-        InitializeComponent();_engine=engine;_previewFrames=previewFrames??engine;_path=path;_mode=mode;_options=options.Clone();_player=new(engine,path);Title=path;RefreshOptionControls();PlayButton.IsEnabled=false;SoundButton.IsEnabled=false;
+        InitializeComponent();_previewView=new(PreviewImage);_startView=new(StartImage);_endView=new(EndImage);_engine=engine;_previewFrames=previewFrames??engine;_path=path;_mode=mode;_options=options.Clone();_player=new(engine,path);Title=path;RefreshOptionControls();PlayButton.IsEnabled=false;SoundButton.IsEnabled=false;
         WindowArtwork.SetKind(this, Catalog.All.FirstOrDefault(f => f.Id == mode)?.Icon ?? (mode == "input-audio" ? "audio" : "clip"));
         InitializeQuickWorkflow(segments,orientationDetector);
         PrecisionCombo.ItemsSource=new[]{"0.01 s","0.1 s","1 s","1 帧"};PrecisionCombo.SelectedIndex=1;PrecisionCombo.SelectionChanged+=(_,_)=>TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;
         CropRatio.ItemsSource=new[]{"自由选区","原画面比例","16:9","4:3","1:1","9:16"};CropRatio.SelectedIndex=0;
-        foreach(var box in new[]{StartTime,EndTime,CropX,CropY,CropWidth,CropHeight})box.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty && !_updating){if(ReferenceEquals(box,StartTime)||ReferenceEquals(box,EndTime))_frameStep?.Cancel();ValidateInputs();}};
+        foreach(var box in new[]{StartTime,EndTime,CropX,CropY,CropWidth,CropHeight})box.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty && !_updating){if(ReferenceEquals(box,StartTime)||ReferenceEquals(box,EndTime))_frameStep.Cancel();ValidateInputs();}};
         SpeedCombo.SelectionChanged+=(_,_)=>{if(!_updating && SpeedCombo.SelectedIndex>=0 && SpeedCombo.SelectedIndex<_speedValues.Length){_options.Speed=_speedValues[SpeedCombo.SelectedIndex];UpdateTimes();}};
-        TrimBar.Changed+=(s,e)=>{_frameStep?.Cancel();_options.Start=s;_options.End=e;UpdateTimes();ScheduleThumbs();};
+        TrimBar.Changed+=(s,e)=>{_frameStep.Cancel();_options.Start=s;_options.End=e;UpdateTimes();ScheduleThumbs();};
         SeekBar.PropertyChanged+=(_,e)=>{if(e.Property==Slider.ValueProperty && !_updating && _info is not null)Seek(SeekBar.Value);};
-        _player.Updated+=p=>{var revision=_playRevision;if(_closed||revision!=_previewRevision)return;SetPosition(p);PreviewImage.Source=_player.Frame;PreviewImage.InvalidateVisual();if(_previewEnd is {} end && p>=end && !_stoppingSelection)_previewReady=FinishSelection(end,revision);};
+        _player.Updated+=p=>{var revision=_playRevision;if(_closed||revision!=_previewRevision)return;SetPosition(p,false);_previewView.Show(_player.Frame);if(_previewEnd is {} end && p>=end && !_stoppingSelection)_previewReady=FinishSelection(end,revision);};
         _player.Finished+=()=>{var revision=_playRevision;if(_closed||revision!=_previewRevision)return;if(_previewEnd is {} end){if(!_stoppingSelection)_previewReady=FinishSelection(end,revision);}else _previewReady=FinishPlayback(revision);};
         _player.Error+=message=>{if(!_closed){CancelSegmentSequence();_previewFailed=true;PreviewStatus.Text=message;PreviewStatus.IsVisible=true;}};
         CropLayer.Changed+=rect=>{_updating=true;CropX.Text=((int)rect.X).ToString();CropY.Text=((int)rect.Y).ToString();CropWidth.Text=((int)rect.Width).ToString();CropHeight.Text=((int)rect.Height).ToString();_updating=false;ValidateInputs();};
         Opened+=async(_,_)=>{await Load();if(mode is "crop" or "delogo"){EditTabs.SelectedIndex=1;if(mode=="delogo")DelogoMode.IsChecked=true;}};
         if (mode == "person-exclusion") ConfigureIntervalSelection();
-        Closed+=(_,_)=>{_closed=true;_previewRevision++;_thumbnailRevision++;_playRevision=-1;_lifetime.Cancel();_seek?.Cancel();_thumbs?.Cancel();_frameStep?.Cancel();_player.Dispose();foreach(var image in new[]{PreviewImage,StartImage,EndImage})if(image.Source is Bitmap b && b!=_player.Frame)b.Dispose();_seek?.Dispose();_thumbs?.Dispose();_frameStep?.Dispose();_lifetime.Dispose();};
+        PropertyChanged+=(_,e)=>{if(e.Property==WindowStateProperty||e.Property==IsVisibleProperty)_player.PresentationVisible=IsVisible&&WindowState!=WindowState.Minimized;};
+        Closed+=(_,_)=>{_closed=true;_previewRevision++;_thumbnailRevision++;_playRevision=-1;_lifetime.Cancel();_seek.Dispose();_thumbs.Dispose();_frameStep.Dispose();_player.Dispose();_previewView.Dispose();_startView.Dispose();_endView.Dispose();_lifetime.Dispose();};
     }
     private async Task Load()
     {
         try
         {
-            _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_options.VideoStreamIndex=_info.VideoStreamIndex;_player.SetStreams(_options.VideoStreamIndex,_options.AudioStreamIndex);
-            var oldPreview=PreviewImage.Source as Bitmap;PreviewImage.Source=null;if(oldPreview!=_player.Frame)oldPreview?.Dispose();_player.Configure(_info);
-            TrimBar.Duration=Math.Max(0,_info.Duration);if(_options.End==0)_options.End=TrimBar.Duration;_updating=true;SeekBar.Maximum=Math.Max(0,_info.Duration);SetPosition(double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,SeekBar.Maximum):0);TotalTime.Text=ShortTime(_info.Duration);UpdateTimes();
+            _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_options.VideoStreamIndex=_info.VideoStreamIndex;
+            _previewView.Clear();_player.Configure(_info);
+            TrimBar.Duration=Math.Max(0,_info.Duration);if(_options.End==0)_options.End=TrimBar.Duration;_updating=true;SeekBar.Maximum=Math.Max(0,_info.Duration);SetPosition(double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,SeekBar.Maximum):0);TotalTime.Text=EditorTime.Format(_info.Duration);UpdateTimes();
             CropLayer.SourceWidth=Math.Max(1,_info.Width);CropLayer.SourceHeight=Math.Max(1,_info.Height);ApplyRatio();
             CropLayer.PixelStep=MediaEngine.IsImage(_options.Format)?1:2;
             CropX.Text=_options.CropX.ToString();CropY.Text=_options.CropY.ToString();CropWidth.Text=(_options.CropWidth>0?_options.CropWidth:_info.Width).ToString();CropHeight.Text=(_options.CropHeight>0?_options.CropHeight:_info.Height).ToString();UpdateCropLayer();
-            Localization.SetText(MediaDescription,$"{Path.GetFileName(_path)}\n时长: {TimeText(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}");
-            if(_info.HasVideo){_previewReady=Frame(PreviewImage,_options.Start,_lifetime.Token);await _previewReady;_thumbnailsReady=Thumbnails(_lifetime.Token);await _thumbnailsReady;PreviewStatus.IsVisible=false;}else PreviewStatus.Text="♫ 音频预览";
+            Localization.SetText(MediaDescription,$"{Path.GetFileName(_path)}\n时长: {EditorTime.Format(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}");
+            if(_info.HasVideo){_previewReady=Frame(_previewView,_options.Start,_lifetime.Token);await _previewReady;_thumbnailsReady=Thumbnails(_lifetime.Token);await _thumbnailsReady;PreviewStatus.IsVisible=false;}else PreviewStatus.Text="♫ 音频预览";
             SoundButton.IsEnabled=_info.HasAudio;PlayButton.IsEnabled=_info.Duration>0;((TabItem)EditTabs.Items[0]!).IsVisible=_info.Duration>0;((TabItem)EditTabs.Items[1]!).IsVisible=_info.HasVideo&&!AudioEditing;if(_info.Duration<=0)EditTabs.SelectedIndex=1;
             if (_mode == "person-exclusion") ConfigureIntervalSelection();
-            if(_info.HasAudio)_audioReady=PrepareAudio();else AudioStatus.Text="此文件不含音轨";
-            RefreshSegments();ValidateInputs();TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;_ready.TrySetResult();await _audioReady;
-            async Task PrepareAudio()
-            {
-                try{await _player.PrepareAudio(_lifetime.Token);if(!_closed)AudioStatus.Text="音频预览已就绪";}catch(OperationCanceledException){}catch(Exception e){if(!_closed)AudioStatus.Text=Localization.Format($"音频预览不可用: {e.Message}");}
-            }
+            AudioStatus.Text=_info.HasAudio?"音频预览已就绪":"此文件不含音轨";
+            RefreshSegments();ValidateInputs();TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;_ready.TrySetResult();
         }
         catch(OperationCanceledException){_ready.TrySetResult();}
         catch(Exception e){PreviewStatus.Text=Localization.Format($"媒体读取失败：{e.Message}");_ready.TrySetResult();if(!_closed)await Ui.Message(this,"媒体读取失败",e.Message);}
     }
-    private async Task Frame(Image target,double seconds,CancellationToken ct,bool endExclusive=false,int? revision=null,int? thumbnailRevision=null)
+    private async Task Frame(MediaFrameView target,double seconds,CancellationToken ct,bool endExclusive=false,int? revision=null,int? thumbnailRevision=null)
     {
-        var info=_info;if(info?.HasVideo!=true)return;var expectedRevision=revision??_previewRevision;var expectedThumbnailRevision=thumbnailRevision??_thumbnailRevision;var streamIndex=_options.VideoStreamIndex;var time=info.Duration>0&&double.IsFinite(seconds)?Math.Clamp(seconds,0,info.Duration):0;var data=await _previewFrames.Thumbnail(_path,time,960,540,ct,pad:false,videoStreamIndex:streamIndex,endExclusive:endExclusive || info.Duration>0 && time>=info.Duration);ct.ThrowIfCancellationRequested();if(_closed||!ReferenceEquals(info,_info)||streamIndex!=_options.VideoStreamIndex||(ReferenceEquals(target,PreviewImage)?expectedRevision!=_previewRevision:expectedThumbnailRevision!=_thumbnailRevision))return;
-        if(ReferenceEquals(target,PreviewImage))PreviewStatus.IsVisible=false;var old=target.Source as Bitmap;using var stream=new MemoryStream(data);target.Source=new Bitmap(stream);if(old!=_player.Frame)old?.Dispose();
+        var info=_info;if(info?.HasVideo!=true)return;var expectedRevision=revision??_previewRevision;var expectedThumbnailRevision=thumbnailRevision??_thumbnailRevision;var streamIndex=_options.VideoStreamIndex;var time=info.Duration>0&&double.IsFinite(seconds)?Math.Clamp(seconds,0,info.Duration):0;var data=await _previewFrames.Thumbnail(_path,time,960,540,ct,pad:false,videoStreamIndex:streamIndex,endExclusive:endExclusive || info.Duration>0 && time>=info.Duration);ct.ThrowIfCancellationRequested();if(_closed||!ReferenceEquals(info,_info)||streamIndex!=_options.VideoStreamIndex||(ReferenceEquals(target,_previewView)?expectedRevision!=_previewRevision:expectedThumbnailRevision!=_thumbnailRevision))return;
+        if(ReferenceEquals(target,_previewView))PreviewStatus.IsVisible=false;target.Show(data);
     }
     private (int Revision,CancellationToken Token) BeginPreview(bool keepSequence=false)
     {
         if(!keepSequence)CancelSegmentSequence();_previewFailed=false;
-        _seek?.Cancel();_seek?.Dispose();_seek=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _frameStep?.Cancel();_playRevision=-1;_previewEnd=null;_stoppingSelection=false;
-        return (++_previewRevision,_seek.Token);
+        var token=_seek.Restart(_lifetime.Token);
+        _frameStep.Cancel();_playRevision=-1;_previewEnd=null;_stoppingSelection=false;
+        return (++_previewRevision,token);
     }
     private bool CurrentPreview(int revision)=>!_closed&&revision==_previewRevision;
-    private void SetPosition(double seconds)
-    {_position=Math.Clamp(seconds,0,SeekBar.Maximum);_updating=true;SeekBar.Value=_position;_updating=false;CurrentTime.Text=TimeText(_position);if(QuickWorkflow){SegmentTrack.SetPosition(_position);UpdateSegmentActions();}}
+    private void SetPosition(double seconds,bool immediate=true)
+    {_position=Math.Clamp(seconds,0,SeekBar.Maximum);if(!EditorTime.ShouldRefresh(ref _positionPublished,immediate))return;_updating=true;SeekBar.Value=_position;_updating=false;CurrentTime.Text=EditorTime.Format(_position);if(QuickWorkflow){SegmentTrack.SetPosition(_position);UpdateSegmentActions();}}
     private void Seek(double seconds,bool keepSequence=false)
     {
         if(_closed||_info is null)return;var (revision,token)=BeginPreview(keepSequence);SetPosition(seconds);
         async Task Run()
         {
-            try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);await Task.Delay(120,token);await Frame(PreviewImage,seconds,token,revision:revision);}catch(OperationCanceledException){}catch(Exception e){if(CurrentPreview(revision)){PreviewStatus.Text=e.Message;PreviewStatus.IsVisible=true;}}
+            try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);await Task.Delay(120,token);await Frame(_previewView,seconds,token,revision:revision);}catch(OperationCanceledException){}catch(Exception e){if(CurrentPreview(revision)){PreviewStatus.Text=e.Message;PreviewStatus.IsVisible=true;}}
         }
         _previewReady=Run();
     }
     private Task Thumbnails(CancellationToken ct)=>Thumbnails(_options.Clone(),++_thumbnailRevision,ct);
     private async Task Thumbnails(ConversionOptions options,int revision,CancellationToken ct)
-    {if(_info?.HasVideo==true){await Frame(StartImage,options.Start,ct,thumbnailRevision:revision);await Frame(EndImage,options.End,ct,endExclusive:options.End>0,thumbnailRevision:revision);}}
-    private void ScheduleThumbs(){_thumbs?.Cancel();_thumbs?.Dispose();_thumbs=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_thumbs.Token;var revision=++_thumbnailRevision;var options=_options.Clone();async Task Run(){try{await Task.Delay(180,token);await Thumbnails(options,revision,token);}catch(OperationCanceledException){}catch(Exception e){if(!_closed&&revision==_thumbnailRevision){PreviewStatus.Text=Localization.Format($"边界预览失败：{e.Message}");PreviewStatus.IsVisible=true;}}}_thumbnailsReady=Run();}
-    private void UpdateTimes(){_updating=true;StartTime.Text=TimeText(_options.Start);EndTime.Text=TimeText(_options.End);_updating=false;SelectionDuration.Text=TimeText(Math.Max(0,_options.End-_options.Start));OutputDuration.Text=TimeText(Math.Max(0,_options.End-_options.Start)/_options.Speed);TrimBar.Start=double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,TrimBar.Duration):0;TrimBar.End=double.IsFinite(_options.End)?Math.Clamp(_options.End,TrimBar.Start,TrimBar.Duration):TrimBar.Duration;TrimBar.InvalidateVisual();ValidateInputs();}
+    {if(_info?.HasVideo==true){await Frame(_startView,options.Start,ct,thumbnailRevision:revision);await Frame(_endView,options.End,ct,endExclusive:options.End>0,thumbnailRevision:revision);}}
+    private void ScheduleThumbs(){var token=_thumbs.Restart(_lifetime.Token);var revision=++_thumbnailRevision;var options=_options.Clone();async Task Run(){try{await Task.Delay(180,token);await Thumbnails(options,revision,token);}catch(OperationCanceledException){}catch(Exception e){if(!_closed&&revision==_thumbnailRevision){PreviewStatus.Text=Localization.Format($"边界预览失败：{e.Message}");PreviewStatus.IsVisible=true;}}}_thumbnailsReady=Run();}
+    private void UpdateTimes(){_updating=true;StartTime.Text=EditorTime.Format(_options.Start);EndTime.Text=EditorTime.Format(_options.End);_updating=false;SelectionDuration.Text=EditorTime.Format(Math.Max(0,_options.End-_options.Start));OutputDuration.Text=EditorTime.Format(Math.Max(0,_options.End-_options.Start)/_options.Speed);TrimBar.Start=double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,TrimBar.Duration):0;TrimBar.End=double.IsFinite(_options.End)?Math.Clamp(_options.End,TrimBar.Start,TrimBar.Duration):TrimBar.Duration;TrimBar.InvalidateVisual();ValidateInputs();}
     private void SetPlaybackButton(bool playing)
     {
         PlayIcon.Kind=playing?"pause":"play";
         ToolTip.SetTip(PlayButton,playing?"暂停":"播放");
         Avalonia.Automation.AutomationProperties.SetName(PlayButton,playing?"暂停":"播放");
     }
-    private static string ShortTime(double s)=>EditorTime.Format(s);
-    private static string TimeText(double s)=>EditorTime.Format(s);
     private double Precision=>PrecisionCombo.SelectedIndex switch{0=>.01,2=>1,3=>1/(_info?.FrameRate>0?_info.FrameRate:25),_=>.1};
-    private void ShiftStart(double delta){if(_info is null)return;_frameStep?.Cancel();_options.Start=Math.Clamp(_options.Start+delta,0,Math.Max(0,_options.End-Math.Min(.01,_info.Duration)));UpdateTimes();ScheduleThumbs();}
-    private void ShiftEnd(double delta){if(_info is null)return;_frameStep?.Cancel();_options.End=Math.Clamp(_options.End+delta,Math.Min(_info.Duration,_options.Start+Math.Min(.01,_info.Duration)),_info.Duration);UpdateTimes();ScheduleThumbs();}
+    private void ShiftStart(double delta){if(_info is null)return;_frameStep.Cancel();_options.Start=Math.Clamp(_options.Start+delta,0,Math.Max(0,_options.End-Math.Min(.01,_info.Duration)));UpdateTimes();ScheduleThumbs();}
+    private void ShiftEnd(double delta){if(_info is null)return;_frameStep.Cancel();_options.End=Math.Clamp(_options.End+delta,Math.Min(_info.Duration,_options.Start+Math.Min(.01,_info.Duration)),_info.Duration);UpdateTimes();ScheduleThumbs();}
     private void StartMinus(object? s,Avalonia.Interactivity.RoutedEventArgs e)=>_positionReady=StepBoundary(true,-1);
     private void StartPlus(object? s,Avalonia.Interactivity.RoutedEventArgs e)=>_positionReady=StepBoundary(true,1);
     private void EndMinus(object? s,Avalonia.Interactivity.RoutedEventArgs e)=>_positionReady=StepBoundary(false,-1);
@@ -150,7 +143,7 @@ public partial class EditorWindow : Window
     {
         if(_info is null)return;
         if(PrecisionCombo.SelectedIndex!=3 || !_info.HasVideo){if(start)ShiftStart(direction*Precision);else ShiftEnd(direction*Precision);return;}
-        _frameStep?.Cancel();_frameStep?.Dispose();_frameStep=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_frameStep.Token;
+        var token=_frameStep.Restart(_lifetime.Token);
         try
         {
             var range=ReadTimes();var value=await _previewFrames.AdjacentFrameTime(_path,start?range.Start:range.End,direction,token,_options.VideoStreamIndex);
@@ -166,11 +159,11 @@ public partial class EditorWindow : Window
     private void PlayClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_playbackReady=TogglePlayback();
     private async Task TogglePlayback()
     {
-        if (_player.IsPlaying) { _player.Pause(); SetPlaybackButton(false); return; }
-        if (_player.IsPaused) { _player.Resume(); SetPlaybackButton(true); return; }
+        if (_player.IsPlaying) { _player.Pause(); SetPosition(_position); SetPlaybackButton(false); return; }
+        if (_player.IsPaused) { _player.Resume(); SetPosition(_position); SetPlaybackButton(true); return; }
         if(QuickWorkflow){await PlaySelection(fromPosition:true);return;}
-        if(_info is null||_playBusy)return;var wasPlaying=_player.IsPlaying;var (revision,token)=BeginPreview();_playBusy=true;
-        try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);if(wasPlaying)return;await _audioReady.WaitAsync(token);if(!CurrentPreview(revision))return;if(_position>=_info.Duration-.04)SetPosition(0);_playRevision=revision;await _player.Play(_position,_info.HasVideo,_info.Duration);if(CurrentPreview(revision))SetPlaybackButton(true);}
+        if(_info is null||_playBusy)return;var (revision,token)=BeginPreview();_playBusy=true;
+        try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);if(_position>=_info.Duration-.04)SetPosition(0);_playRevision=revision;await _player.Play(_position,_info.HasVideo,_info.Duration);if(CurrentPreview(revision))SetPlaybackButton(true);}
         catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text=Localization.Format($"播放失败：{ex.Message}");PreviewStatus.IsVisible=true;}}finally{_playBusy=false;}
     }
     private void PlaySelectionClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>_playbackReady=PlaySelection();
@@ -183,7 +176,7 @@ public partial class EditorWindow : Window
             var (start,end)=ReadTimes();_options.Start=start;_options.End=end;UpdateTimes();ScheduleThumbs();
             var request=BeginPreview(keepSequence);revision=request.Revision;
             await _player.Stop();request.Token.ThrowIfCancellationRequested();
-            await _audioReady.WaitAsync(request.Token);if(!CurrentPreview(revision))return false;
+            if(!CurrentPreview(revision))return false;
             var position=fromPosition&&_position>=start&&_position<end?_position:start;
             SetPosition(position);_previewEnd=end;_playRevision=revision;_player.Speed=QuickWorkflow?_options.Speed:1;
             PreviewStatus.IsVisible=false;await _player.Play(position,_info.HasVideo,end);
@@ -200,8 +193,8 @@ public partial class EditorWindow : Window
     }
     private async Task FinishSelection(double end,int revision)
     {
-        if(!CurrentPreview(revision))return;_stoppingSelection=true;var token=_seek?.Token??_lifetime.Token;
-        try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;_previewEnd=null;_playRevision=-1;SetPlaybackButton(false);if(await ContinueSegmentPreview())return;if(!CurrentPreview(revision))return;SetPosition(end);await Frame(PreviewImage,end,token,true,revision);}
+        if(!CurrentPreview(revision))return;_stoppingSelection=true;var token=_seek.Token;
+        try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;_previewEnd=null;_playRevision=-1;SetPlaybackButton(false);if(await ContinueSegmentPreview())return;if(!CurrentPreview(revision))return;SetPosition(end);await Frame(_previewView,end,token,true,revision);}
         catch(OperationCanceledException){}catch(Exception ex){if(CurrentPreview(revision)){PreviewStatus.Text=Localization.Format($"区间预览失败：{ex.Message}");PreviewStatus.IsVisible=true;}}finally{if(CurrentPreview(revision))_stoppingSelection=false;}
     }
     private async Task FinishPlayback(int revision)
@@ -213,7 +206,7 @@ public partial class EditorWindow : Window
     {
         if(_info is null)return;
         if(PrecisionCombo.SelectedIndex!=3 || !_info.HasVideo){SeekBar.Value=Math.Clamp(SeekBar.Value+direction*Precision,0,SeekBar.Maximum);return;}
-        _frameStep?.Cancel();_frameStep?.Dispose();_frameStep=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);var token=_frameStep.Token;
+        var token=_frameStep.Restart(_lifetime.Token);
         try{var position=await _previewFrames.AdjacentFrameTime(_path,SeekBar.Value,direction,token,_options.VideoStreamIndex);if(!_closed&&!token.IsCancellationRequested)SeekBar.Value=position;}
         catch(OperationCanceledException){}catch(Exception ex){if(!_closed){PreviewStatus.Text=Localization.Format($"逐帧定位失败：{ex.Message}");PreviewStatus.IsVisible=true;}}
     }
@@ -254,7 +247,7 @@ public partial class EditorWindow : Window
         if(TimeError is null || CropError is null || ConfirmButton is null)return;
         TimeError.Text="";CropError.Text="";
         if(_info is null){ConfirmButton.IsEnabled=false;PlaySelectionButton.IsEnabled=false;return;}
-        if(_info.Duration>0)try{var range=ReadTimes();SelectionDuration.Text=TimeText(range.End-range.Start);OutputDuration.Text=TimeText((range.End-range.Start)/_options.Speed);}catch(ArgumentException ex){TimeError.Text=ex.Message;SelectionDuration.Text="—";OutputDuration.Text="—";}
+        if(_info.Duration>0)try{var range=ReadTimes();SelectionDuration.Text=EditorTime.Format(range.End-range.Start);OutputDuration.Text=EditorTime.Format((range.End-range.Start)/_options.Speed);}catch(ArgumentException ex){TimeError.Text=ex.Message;SelectionDuration.Text="—";OutputDuration.Text="—";}
         if(_info.HasVideo && !AudioEditing)try{ReadRegion();}catch(ArgumentException ex){CropError.Text=ex.Message;}
         ConfirmButton.IsEnabled=string.IsNullOrEmpty(TimeError.Text)&&string.IsNullOrEmpty(CropError.Text);
         PlaySelectionButton.IsEnabled=_info.Duration>0 && string.IsNullOrEmpty(TimeError.Text);
@@ -277,7 +270,7 @@ public partial class EditorWindow : Window
         {
             var draft=ReadDraft();var kind=QuickWorkflow?MediaOptionsKind.ClipEdit:_mode is "input" or "input-audio"?(_info?.HasVideo==true&&!AudioEditing?MediaOptionsKind.InputVideo:MediaOptionsKind.InputAudio):_mode=="frames"?MediaOptionsKind.Frames:MediaEngine.IsAudio(draft.Format)?MediaOptionsKind.Audio:MediaEngine.IsImage(draft.Format)?MediaOptionsKind.Image:MediaOptionsKind.Video;
             var result=await new OptionsWindow(draft,kind:kind,previewEngine:_engine,previewSource:_path).ShowDialog<ConversionOptions?>(this);
-            if(result is not null){var tracksChanged=result.VideoStreamIndex!=_options.VideoStreamIndex || result.AudioStreamIndex!=_options.AudioStreamIndex;if(tracksChanged)await _engine.Probe(_path,_lifetime.Token,result.VideoStreamIndex,result.AudioStreamIndex);_options=result;if(tracksChanged){ClearDirectionDetection();await _player.Stop();await _audioReady;await Load();}if(_info is not null && _options.End==0)_options.End=_info.Duration;RefreshOptionControls();UpdateTimes();LoadRegion();SyncDirectionControls();}
+            if(result is not null){var tracksChanged=result.VideoStreamIndex!=_options.VideoStreamIndex || result.AudioStreamIndex!=_options.AudioStreamIndex;if(tracksChanged)await _engine.Probe(_path,_lifetime.Token,result.VideoStreamIndex,result.AudioStreamIndex);_options=result;if(tracksChanged){ClearDirectionDetection();await _player.Stop();await Load();}if(_info is not null && _options.End==0)_options.End=_info.Duration;RefreshOptionControls();UpdateTimes();LoadRegion();SyncDirectionControls();}
         }catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
     }
     private void RefreshOptionControls()

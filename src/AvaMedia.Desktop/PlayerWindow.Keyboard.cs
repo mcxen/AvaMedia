@@ -225,31 +225,26 @@ public partial class PlayerWindow
     private async Task StepFrameAsync(int direction)
     {
         if (_info is not { HasVideo: true } info || _player is not { } player) return;
-        CancelFrameStep(); _seek?.Cancel(); _seekGeneration++; _pendingSeek = true;
-        using var request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _frameStep = request;
+        CancelFrameStep(); _seek.Cancel(); _pendingSeek = true;
+        var token = _frameStep.Restart(_lifetime.Token);
         var revision = _revision;
         _playIntent = false; player.Pause(); RefreshTransport();
         try
         {
-            var frame = await _engine.AdjacentFrameTime(CurrentPath, _position, direction, request.Token, info.VideoStreamIndex);
-            request.Token.ThrowIfCancellationRequested();
+            var frame = await _engine.AdjacentFrameTime(CurrentPath, _position, direction, token, info.VideoStreamIndex);
+            token.ThrowIfCancellationRequested();
             if (Current(revision)) await SeekAsync(frame, false);
         }
         catch (OperationCanceledException) { }
         finally
         {
-            if (ReferenceEquals(_frameStep, request))
+            if (_frameStep.IsCurrent(token))
             {
-                _frameStep = null; _pendingSeek = false;
+                _frameStep.Cancel(); _pendingSeek = false;
                 if (!_closed) RefreshCapture();
             }
         }
     }
 
-    private void CancelFrameStep()
-    {
-        _frameStep?.Cancel();
-        _frameStep = null;
-    }
+    private void CancelFrameStep() => _frameStep.Cancel();
 }

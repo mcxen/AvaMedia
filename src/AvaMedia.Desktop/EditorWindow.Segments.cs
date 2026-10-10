@@ -14,7 +14,6 @@ public partial class EditorWindow : ISegmentThumbnailSource
     private sealed record SegmentSnapshot(ConversionOptions[] Drafts, int SelectedIndex);
     private readonly List<SegmentSnapshot> _segmentUndo = [], _segmentRedo = [];
     private readonly DispatcherTimer _segmentEditTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
-    private readonly SemaphoreSlim _segmentThumbnailGate = new(2, 2);
     private Task _segmentReady = Task.CompletedTask;
     private bool _restoringSegments, _previewAllSegments, _loadingSegmentControls;
 
@@ -32,14 +31,8 @@ public partial class EditorWindow : ISegmentThumbnailSource
         Opened += (_, _) => RefreshSegments();
     }
 
-    async Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
-    {
-        using var request = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
-        await _ready.Task.WaitAsync(request.Token);
-        await _segmentThumbnailGate.WaitAsync(request.Token);
-        try { return await _previewFrames.Thumbnail(path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
-        finally { _segmentThumbnailGate.Release(); }
-    }
+    Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
+        => SegmentThumbnail.ReadAsync(_previewFrames,path,options,ct,_lifetime.Token,_ready.Task);
 
     private void ScheduleSegmentUpdate()
     {
@@ -102,7 +95,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
             if (tracksChanged)
             {
                 SegmentPane.IsEnabled = EditTabs.IsEnabled = false;
-                try { ClearDirectionDetection(); await _audioReady; token.ThrowIfCancellationRequested(); await Load(); }
+                try { ClearDirectionDetection(); token.ThrowIfCancellationRequested(); await Load(); }
                 finally { SegmentPane.IsEnabled = EditTabs.IsEnabled = true; }
             }
             if (!CurrentPreview(revision)) return false;
@@ -258,7 +251,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
             await _player.Stop(); token.ThrowIfCancellationRequested();
             if (!CurrentPreview(revision)) return;
             SetPosition(end); SetPlaybackButton(false);
-            await Frame(PreviewImage, end, token, endExclusive: true, revision: revision);
+            await Frame(_previewView, end, token, endExclusive: true, revision: revision);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (!_closed) { PreviewStatus.Text = ex.Message; PreviewStatus.IsVisible = true; } }

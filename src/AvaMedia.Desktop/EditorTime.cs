@@ -1,10 +1,18 @@
 using System.Globalization;
+using System.Diagnostics;
 
 namespace AvaMedia.Desktop;
 
 /// <summary>Stable timecode presentation; unchanged fields retain the exact media boundary.</summary>
 public static class EditorTime
 {
+    internal static bool ShouldRefresh(ref long published, bool immediate)
+    {
+        var now = Stopwatch.GetTimestamp();
+        if (!immediate && now - published < Stopwatch.Frequency / 10) return false;
+        published = now; return true;
+    }
+
     public static string Format(double seconds)
     {
         if (!double.IsFinite(seconds) || seconds < 0) return "—";

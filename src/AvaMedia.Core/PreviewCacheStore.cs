@@ -6,7 +6,7 @@ namespace AvaMedia.Core;
 /// <summary>Shared bounded storage for derived images and queue summaries.</summary>
 internal sealed class PreviewCacheStore(string? root = null)
 {
-    private const int MaximumEntryBytes = 512 * 1024;
+    private const int MaximumEntryBytes = 8 * 1024 * 1024;
     private readonly string _root = root ?? Path.Combine(Storage.DefaultRoot, "preview-cache");
     private readonly object _memoryLock = new();
     private readonly Dictionary<string, byte[]> _memory = [];

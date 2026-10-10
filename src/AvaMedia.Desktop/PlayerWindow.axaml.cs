@@ -24,9 +24,10 @@ public partial class PlayerWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _chromeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
-    private CancellationTokenSource? _load, _seek, _folderLoad, _frameStep;
+    private CancellationTokenSource? _load, _folderLoad;
+    private readonly PreviewRequest _seek = new(), _frameStep = new();
     private IPlaybackSession? _player;
-    private Bitmap? _still;
+    private readonly Controls.MediaFrameView _videoView;
     private MediaInfo? _info;
     private readonly Stopwatch _opening = new();
     private TaskCompletionSource _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -34,7 +35,7 @@ public partial class PlayerWindow : Window
     private string[] _explicitFiles = [];
     private string? _loadedFolder;
     private int _folderGeneration;
-    private int _fileIndex, _revision, _seekGeneration;
+    private int _fileIndex, _revision;
     private bool _updating, _closed, _muted, _playIntent, _pendingSeek, _deleting;
     private double _position, _speed = 1, _lastSpeed = 1;
     private long _positionPublished;
@@ -59,7 +60,7 @@ public partial class PlayerWindow : Window
     public PlayerWindow() : this(new MediaEngine(new())) { }
     public PlayerWindow(IMediaEngine engine, IEnumerable<string>? files = null, Func<IMediaEngine, string, IPlaybackSession>? factory = null, IVideoFolderScanner? folderScanner = null, IRecycleBin? recycleBin = null, Storage? preferences = null)
     {
-        InitializeComponent(); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p) { MaximumVideoSize = new(4096, 2160) });
+        InitializeComponent(); _videoView = new(VideoImage); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p) { MaximumVideoSize = new(4096, 2160) });
         _folderScanner = folderScanner ?? new VideoFolderScanner();
         _recycleBin = recycleBin ?? new RecycleBin(); _preferences = preferences ?? new Storage();
         var playerSettings = _preferences.LoadSettings(); ConfirmDeletion = playerSettings.ConfirmPlayerDeletion;
@@ -104,10 +105,10 @@ public partial class PlayerWindow : Window
         Closed += (_, _) =>
         {
             Localization.Changed -= LanguageChanged;
-            _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek?.Cancel(); _folderLoad?.Cancel(); CancelFrameStep();
-            _player?.Dispose(); VideoImage.Source = null; PanoramaImage.Dispose(); _still?.Dispose(); _firstFrame.TrySetCanceled();
+            _closed = true; _revision++; _folderGeneration++; _chromeTimer.Stop(); _noticeTimer.Stop(); _lifetime.Cancel(); _load?.Cancel(); _seek.Cancel(); _folderLoad?.Cancel(); CancelFrameStep();
+            _player?.Dispose(); _videoView.Dispose(); _frameStep.Dispose(); PanoramaImage.Dispose(); _firstFrame.TrySetCanceled();
             _nativeCancellation?.Cancel();
-            _load?.Dispose(); _seek?.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
+            _load?.Dispose(); _seek.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
         };
         RefreshTransport(); RefreshPlaylist(); ShowChrome();
     }
@@ -146,9 +147,9 @@ public partial class PlayerWindow : Window
     private Task StartOpen(string path, int video, int audio, double position, bool playing, bool allowDeleting = false)
     {
         if (_closed || _nativeBusy || _deleting && !allowDeleting) return Task.CompletedTask;
-        _load?.Cancel(); _load?.Dispose(); _seek?.Cancel(); CancelFrameStep();
+        _load?.Cancel(); _load?.Dispose(); _seek.Cancel(); CancelFrameStep();
         _load = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _seekGeneration++; _pendingSeek = false;
+        _pendingSeek = false;
         var revision = ++_revision;
         var index = Array.FindIndex(_playlist, p => VideoFolderScanner.PathComparer.Equals(p, Path.GetFullPath(path)));
         if (index >= 0) _fileIndex = index; else SetFiles([path]);
@@ -166,7 +167,7 @@ public partial class PlayerWindow : Window
             if (old is not null) { await old.Stop(); old.Dispose(); }
             if (!Current(revision)) return;
             CurrentPath = path; Title = Path.GetFileName(path) + " — " + AppIdentity.PlayerTitle; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
-            PlaybackError = ""; _nativeDiagnostics.Clear(); PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; ClearVideoFrame(); _still?.Dispose(); _still = null;
+            PlaybackError = ""; _nativeDiagnostics.Clear(); PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; ClearVideoFrame();
             if (DetectDisc(path) is { } disc) { await PlayNativeAsync(path, disc, position, playing); return; }
             var info = await _engine.Probe(path, token, video, audio); token.ThrowIfCancellationRequested();
             if (!Current(revision)) return;
@@ -226,9 +227,7 @@ public partial class PlayerWindow : Window
     private void SetPosition(double position, bool immediate = true)
     {
         _position = Math.Clamp(position, 0, _info?.Duration ?? 0);
-        var now = Stopwatch.GetTimestamp();
-        if (!immediate && (!ControlsBar.IsVisible || now - _positionPublished < Stopwatch.Frequency / 10)) return;
-        _positionPublished = now;
+        if (!immediate && !ControlsBar.IsVisible || !EditorTime.ShouldRefresh(ref _positionPublished, immediate)) return;
         _updating = true; PlayerSeek.Value = _position; _updating = false; PlayerTime.Text = EditorTime.Format(_position);
     }
     private void Notice(string message) { PlayerNotice.Text = message; ShowNotice(); }
@@ -255,7 +254,7 @@ public partial class PlayerWindow : Window
         if (_player is null && !_nativeBusy && !string.IsNullOrEmpty(CurrentPath))
         { await StartOpen(CurrentPath, 0, 0, _info is not null && _position >= _info.Duration - .1 ? 0 : _position, true); return; }
         if (_player is not { } player || _info is not { } info) return;
-        _seek?.Cancel(); CancelFrameStep(); _seekGeneration++; _pendingSeek = false;
+        _seek.Cancel(); CancelFrameStep(); _pendingSeek = false;
         _playIntent = !_playIntent;
         if (!_playIntent) { player.Pause(); SetPosition(_position); }
         else if (player.IsPaused) player.Resume();
@@ -268,10 +267,9 @@ public partial class PlayerWindow : Window
         if (_player is not { } player || _info is not { } info) return;
         CancelFrameStep();
         var playing = resume ?? _playIntent; var revision = _revision;
-        _playIntent = playing; var generation = ++_seekGeneration; _pendingSeek = true;
+        _playIntent = playing; _pendingSeek = true;
         RefreshCapture();
-        _seek?.Cancel(); _seek?.Dispose(); _seek = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        var token = _seek.Token;
+        var token = _seek.Restart(_lifetime.Token);
         var position = Math.Clamp(seconds, 0, Math.Max(0, info.Duration - (info.FrameRate > 0 ? 1 / info.FrameRate : .001)));
         SetPosition(position);
         try
@@ -285,13 +283,13 @@ public partial class PlayerWindow : Window
             {
                 await player.Play(position, true, info.Duration); player.Pause();
                 await player.FirstFrame.WaitAsync(token); token.ThrowIfCancellationRequested(); if (!Current(revision)) return;
-                PresentFrame(player.Frame); _still?.Dispose(); _still = null; PlayerStatus.IsVisible = false;
+                PresentFrame(player.Frame); PlayerStatus.IsVisible = false;
             }
             token.ThrowIfCancellationRequested(); _pendingSeek = false; RefreshTransport();
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (Current(revision)) { PlaybackError = ex.Message; Notice(ex.Message); } }
-        finally { if (generation == _seekGeneration) { _pendingSeek = false; if (!_closed) RefreshCapture(); } }
+        catch (Exception ex) { if (Current(revision) && _seek.IsCurrent(token)) { PlaybackError = ex.Message; Notice(ex.Message); } }
+        finally { if (_seek.IsCurrent(token)) { _pendingSeek = false; if (!_closed) RefreshCapture(); } }
     }
     public async Task SetSpeedAsync(double speed)
     {
@@ -391,7 +389,7 @@ public partial class PlayerWindow : Window
             await PlaylistReady.WaitAsync(token);
             if (!Current(revision)) return;
             position = _position; playing = _playIntent;
-            _folderLoad?.Cancel(); _folderGeneration++; _seek?.Cancel(); CancelFrameStep(); _seekGeneration++; _pendingSeek = false;
+            _folderLoad?.Cancel(); _folderGeneration++; _seek.Cancel(); CancelFrameStep(); _pendingSeek = false;
             if (_player is { } player) await player.Stop();
             await _recycleBin.MoveAsync(path, token);
             if (_closed) return;
@@ -399,7 +397,7 @@ public partial class PlayerWindow : Window
             _playlist = _playlist.Where(p => !VideoFolderScanner.PathComparer.Equals(p, path)).ToArray();
             _explicitFiles = _explicitFiles.Where(p => !VideoFolderScanner.PathComparer.Equals(p, path)).ToArray();
             _player?.Dispose(); _player = null; _info = null; _playIntent = false;
-            ClearVideoFrame(); _still?.Dispose(); _still = null;
+            ClearVideoFrame();
             Localization.SetText(PlaylistStatus,$"{_playlist.Length} 个文件");
             if (_playlist.Length > 0)
             {

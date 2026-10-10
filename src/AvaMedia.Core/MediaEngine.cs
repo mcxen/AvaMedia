@@ -6,6 +6,7 @@ namespace AvaMedia.Core;
 public sealed class MediaEngine : IMediaEngine
 {
     public AppSettings Settings { get; }
+    private readonly MediaPreviewCache _previews = new();
     private readonly Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>> _hardwareTest;
     public MediaEngine(AppSettings settings,Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>>? hardwareTest=null)
     {Settings=settings;_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
@@ -80,57 +81,68 @@ public sealed class MediaEngine : IMediaEngine
     {
         if(!double.IsFinite(seconds) || seconds<0 || width<1 || height<1 || videoStreamIndex<0)throw new ArgumentException("逐帧定位参数无效。");
         if(ImageFormats.Supports(input))return await ImageCodec.ThumbnailAsync(input,width,height,pad,ct).ConfigureAwait(false);
-        if(endExclusive && seconds>0)
+        var cacheOptions=new { Frame=true, Seconds=seconds, Width=width, Height=height, Pad=pad, Stream=videoStreamIndex, EndExclusive=endExclusive, Tool=FFmpeg,
+            Probe=endExclusive || HeifImage.Supports(input)?FFprobe:"" };
+        var identity=await _previews.IdentityAsync(input,cacheOptions,ct).ConfigureAwait(false);
+        var frame=await _previews.ThumbnailAsync(identity,Render,ct).ConfigureAwait(false);
+        if(identity is not null && identity!=await _previews.IdentityAsync(input,cacheOptions,ct).ConfigureAwait(false))
+            throw new IOException("源文件在读取预览时发生变化。");
+        return frame;
+
+        async Task<byte[]> Render()
         {
-            var media=await Probe(input,ct,videoStreamIndex);var origin=TimelineOrigin(media);
-            videoStreamIndex=media.VideoStreamIndex;
-            var lookback=1d;double? last=null;
-            while(last is null)
+            if(endExclusive && seconds>0)
             {
-                var fromTime=Math.Max(0,seconds-lookback);
-                foreach(var time in await FrameTimes(input,fromTime,seconds,origin,videoStreamIndex,ct))
-                    if(time>=0 && time<seconds-.0000001)last=last is null?time:Math.Max(last.Value,time);
-                if(last is not null || fromTime==0)break;
-                lookback*=2;
+                var previous=await FindFrameTime(input,seconds,-1,ct,videoStreamIndex,requireFrame:true).ConfigureAwait(false);
+                videoStreamIndex=previous.Stream;seconds=Math.Max(0,previous.Time-.000001);
             }
-            if(last is null)throw new InvalidDataException("结束时间之前没有可预览的视频帧。");
-            seconds=Math.Max(0,last.Value-.000001);
+            var from=Math.Max(0,seconds);
+            var map="0:"+MediaStreams.VideoSpecifier(videoStreamIndex);
+            var prefix="";
+            List<string> args=["-v","error","-nostdin","-filter_complex_threads","1"];
+            if(HeifImage.Supports(input))
+            {
+                var primary=HeifImage.Parse((await Probe(input,ct).ConfigureAwait(false)).RawJson);map=primary.Map();
+                if(primary.PreFilter.Length>0){args.Add("-noautorotate");prefix=primary.PreFilter+",";}
+            }
+            else args.AddRange(["-ss",Number(from)]);
+            args.AddRange(["-i",input]);
+            HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
+            args.AddRange(["-frames:v","1","-f","image2pipe","-c:v","png","pipe:1"]);
+            using var p=await ProcessRunner.StartAsync(FFmpeg,args,ct).ConfigureAwait(false);
+            using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
+            var error=p.StandardError.ReadToEndAsync();using var output=new MemoryStream();
+            await p.StandardOutput.BaseStream.CopyToAsync(output,ct);await p.WaitForExitAsync(ct);
+            if(p.ExitCode!=0) throw new InvalidDataException(await error);
+            return output.ToArray();
         }
-        var from=Math.Max(0,seconds);
-        var map="0:"+MediaStreams.VideoSpecifier(videoStreamIndex);
-        var prefix="";
-        List<string> args=["-v","error","-nostdin","-filter_complex_threads","1"];
-        if(HeifImage.Supports(input))
-        {
-            var primary=HeifImage.Parse((await Probe(input,ct).ConfigureAwait(false)).RawJson);map=primary.Map();
-            if(primary.PreFilter.Length>0){args.Add("-noautorotate");prefix=primary.PreFilter+",";}
-        }
-        else args.AddRange(["-ss",Number(from)]);
-        args.AddRange(["-i",input]);
-        HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
-        args.AddRange(["-frames:v","1","-f","image2pipe","-c:v","png","pipe:1"]);
-        using var p=await ProcessRunner.StartAsync(FFmpeg,args,ct).ConfigureAwait(false);
-        using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
-        var error=p.StandardError.ReadToEndAsync();using var output=new MemoryStream();
-        await p.StandardOutput.BaseStream.CopyToAsync(output,ct);await p.WaitForExitAsync(ct);
-        if(p.ExitCode!=0) throw new InvalidDataException(await error);
-        return output.ToArray();
     }
     public async Task<double> AdjacentFrameTime(string input,double seconds,int direction,CancellationToken ct=default,int videoStreamIndex=0)
     {
         if(!double.IsFinite(seconds) || seconds<0 || direction is not (-1 or 1))throw new ArgumentException("逐帧定位参数无效。");
-        var media=await Probe(input,ct,videoStreamIndex);
+        return (await FindFrameTime(input,seconds,direction,ct,videoStreamIndex).ConfigureAwait(false)).Time;
+    }
+    private async Task<(double Time,int Stream)> FindFrameTime(string input,double seconds,int direction,CancellationToken ct,int videoStreamIndex,bool requireFrame=false)
+    {
+        var mediaIdentity=await _previews.IdentityAsync(input,new { Media=true, Stream=videoStreamIndex, Tool=FFprobe },ct).ConfigureAwait(false);
+        var media=await _previews.MediaAsync(mediaIdentity,()=>Probe(input,ct,videoStreamIndex),ct).ConfigureAwait(false);
         if(!media.HasVideo || media.Duration<=0)throw new ArgumentException("文件没有可定位的视频帧。");
         videoStreamIndex=media.VideoStreamIndex;
-        seconds=Math.Min(seconds,media.Duration);var origin=TimelineOrigin(media);var span=1d;
+        if(!requireFrame)seconds=Math.Min(seconds,media.Duration);
+        var origin=TimelineOrigin(media);var span=1d;
         while(true)
         {
-            var from=direction<0?Math.Max(0,seconds-span):Math.Max(0,seconds-.1);
-            var to=direction<0?seconds:Math.Min(media.Duration,seconds+span);
-            var candidates=(await FrameTimes(input,from,to,origin,videoStreamIndex,ct)).Where(t=>t>=0 && t<=media.Duration && (direction<0?t<seconds-.0000001:t>seconds+.0000001)).ToArray();
-            if(candidates.Length>0)return direction<0?candidates.Max():candidates.Min();
-            if(direction<0 && from==0)return 0;
-            if(direction>0 && to>=media.Duration)return media.Duration;
+            // Align windows to whole seconds so adjacent steps reuse the same timestamp range.
+            var from=direction<0?Math.Max(0,Math.Floor(seconds)-span):Math.Max(0,Math.Floor(seconds)-.1);
+            var to=direction<0?(requireFrame?seconds:Math.Min(media.Duration,Math.Ceiling(seconds))):Math.Min(media.Duration,Math.Floor(seconds)+span+1);
+            var candidates=(await FrameTimes(input,from,to,origin,videoStreamIndex,ct)).Where(t=>t>=0 && (requireFrame || t<=media.Duration) && (direction<0?t<seconds-.0000001:t>seconds+.0000001)).ToArray();
+            if(candidates.Length>0)return (direction<0?candidates.Max():candidates.Min(),videoStreamIndex);
+            if(direction<0 && from==0)
+            {
+                if(requireFrame)throw new InvalidDataException("结束时间之前没有可预览的视频帧。");
+                return (0,videoStreamIndex);
+            }
+            if(direction>0 && to>=media.Duration)return (media.Duration,videoStreamIndex);
             span*=2;
         }
     }
@@ -141,16 +153,22 @@ public sealed class MediaEngine : IMediaEngine
     }
     private async Task<double[]> FrameTimes(string input,double from,double to,double origin,int videoStreamIndex,CancellationToken ct)
     {
-        // Long GOPs and high frame rates can exceed the bounded process log. Parse timestamps
-        // as they arrive instead of parsing a JSON document whose beginning may be discarded.
-        var times=new List<double>();
-        var result=await ProcessRunner.Run(FFprobe,["-v","error","-select_streams",MediaStreams.VideoSpecifier(videoStreamIndex),"-read_intervals",Number(origin+from)+"%"+Number(origin+to),"-show_frames","-show_entries","frame=best_effort_timestamp_time","-of","csv=p=0",input],ct,line=>
+        var identity=await _previews.IdentityAsync(input,new { Times=true, From=from, To=to, Origin=origin, Stream=videoStreamIndex, Tool=FFprobe },ct).ConfigureAwait(false);
+        return await _previews.TimesAsync(identity,Read,ct).ConfigureAwait(false);
+
+        async Task<double[]> Read()
         {
-            var value=line.Split(',')[0];
-            if(double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var time) && double.IsFinite(time))times.Add(time-origin);
-        },maximumOutputChars:4096);
-        if(result.ExitCode!=0)throw new InvalidDataException(result.Error);
-        return times.ToArray();
+            // Long GOPs and high frame rates can exceed the bounded process log. Parse timestamps
+            // as they arrive instead of parsing a JSON document whose beginning may be discarded.
+            var times=new List<double>();
+            var result=await ProcessRunner.Run(FFprobe,["-v","error","-select_streams",MediaStreams.VideoSpecifier(videoStreamIndex),"-read_intervals",Number(origin+from)+"%"+Number(origin+to),"-show_frames","-show_entries","frame=best_effort_timestamp_time","-of","csv=p=0",input],ct,line=>
+            {
+                var value=line.Split(',')[0];
+                if(double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var time) && double.IsFinite(time))times.Add(time-origin);
+            },maximumOutputChars:4096);
+            if(result.ExitCode!=0)throw new InvalidDataException(result.Error);
+            return times.ToArray();
+        }
     }
     public static bool IsAudio(string format) => new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}.Contains(format);
     public static bool IsImage(string format) => format is "jpg" or "jpeg" or "png" or "webp" or "bmp" or "tif" or "tiff" or "ico" or "avif" or "heic" or "heif";
