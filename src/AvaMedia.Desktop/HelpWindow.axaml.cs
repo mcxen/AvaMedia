@@ -21,7 +21,7 @@ public partial class HelpWindow : Window
         FeatureList.Children.Add(FeatureCard("图片", "转换格式、压缩体积、缩放或旋转图片。", "image"));
         FeatureList.Children.Add(FeatureCard("文档", "拆分、合并或压缩 PDF，把图片或文字做成 PDF。", "document"));
         FeatureList.Children.Add(FeatureCard(Catalog.Find("download"), "粘贴视频链接，选择画质，下载视频或音频。"));
-        FeatureList.Children.Add(FeatureCard("工具集", "批量裁剪、旋转、重命名，生成截图，压缩或解压 ZIP。", "gear"));
+        FeatureList.Children.Add(FeatureCard("工具集", "自动标签分类、媒体整理，批量裁剪、旋转、重命名，生成截图，压缩或解压 ZIP。", "gear"));
         FeatureList.Children.Add(FeatureCard(Catalog.Find("player"), "播放视频和音乐，调整倍速、切换音轨或截图。"));
         FeatureList.Children.Add(FeatureCard("WiFi 传文件", "手机与电脑连同一 WiFi，扫码互传文件。", "wifi"));
 

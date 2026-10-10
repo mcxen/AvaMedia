@@ -59,7 +59,7 @@ public partial class MainWindow : Window
             await ConfigureFolderClassificationAsync(files);
             return;
         }
-        if(feature.Id is "image-ai" or "media-ai")
+        if(feature.Id=="media-ai")
         {
             await ConfigureMediaAiAsync(files);
             return;

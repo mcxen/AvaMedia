@@ -74,7 +74,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
         bool Media(MediaRouteSource source) => source.Kind is MediaFileKind.Video or MediaFileKind.Audio or MediaFileKind.Image;
         bool Extension(MediaRouteSource source, string extension) => Path.GetExtension(source.Path).Equals(extension, StringComparison.OrdinalIgnoreCase);
         var subtitleTitle = selected.Any(Video) ? "自动字幕" : "语音转字幕";
-        Add("media-ai", "AI 标签工作台", "实时分数、采样曲线与同目录标签 TXT", source => Video(source) || Image(source));
+        Add("media-ai", Catalog.Find("media-ai").Label, "实时分数、采样曲线与同目录标签 TXT", source => Video(source) || Image(source));
         var groups = selected.GroupBy(source => source.Kind).OrderByDescending(group => group.Count()).Select(group => group.Key);
         foreach (var group in groups)
             switch (group)
@@ -131,7 +131,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                 files.Length == 2 ? "" : "请选中一个视频和一个音频。"));
         }
         Add("batch-rename", "批量重命名", "图片 / 视频 · 组合规则与名称预览", source => Video(source) || Image(source));
-        Add("folder-classification", "文件夹分类", "图片 / 视频 · 自动标签、多分类与封面整理", source => Video(source) || Image(source));
+        Add("folder-classification", Catalog.Find("folder-classification").Label, "图片 / 视频 · 自动标签、多分类与封面整理", source => Video(source) || Image(source));
         Add("player", "打开播放器", "立即播放视频或音频", source => Video(source) || Audio(source));
         Add("info", "媒体信息", "查看编码、时长、尺寸与轨道", Media);
         Add("unzip", "解压 ZIP", "解压到独立文件夹", source => Extension(source, ".zip"));

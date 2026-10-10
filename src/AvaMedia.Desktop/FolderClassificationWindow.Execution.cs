@@ -23,7 +23,7 @@ public sealed partial class FolderClassificationWindow
             var store = new ModelStore();
             if (options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(operation.Token))
             {
-                if (!await SemanticModelConsent.ConfirmAsync(this, "文件夹分类"))
+                if (!await SemanticModelConsent.ConfirmAsync(this, Catalog.Find("folder-classification").Label))
                 { _status.Text = Localization.Text("已取消。可移除语义规则后只识别标签。"); return; }
                 await SemanticModelConsent.DownloadAsync(DownloadProgress(), operation.Token);
             }

@@ -45,7 +45,7 @@ public sealed partial class FolderClassificationWindow : Window
         Func<Window, Task> manageModels)
     {
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
-        Title = "文件夹分类"; Width = 1360; Height = 840; MinWidth = 1160; MinHeight = 660;
+        Title = Catalog.Find("folder-classification").Label; Width = 1360; Height = 840; MinWidth = 1160; MinHeight = 660;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         LoadPreferences(); BuildInterface(); UpdateActions();
         _files.SelectionChanged += (_, _) => { if (!_renderingBoard) RenderDetails(); };

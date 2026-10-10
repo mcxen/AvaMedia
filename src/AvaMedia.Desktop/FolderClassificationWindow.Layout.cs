@@ -152,7 +152,7 @@ public sealed partial class FolderClassificationWindow
     {
         try { await action(); }
         catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("已停止"); }
-        catch (Exception error) { if (!_closed) await Ui.Message(this, "文件夹分类", error.Message); }
+        catch (Exception error) { if (!_closed) await Ui.Message(this, Catalog.Find("folder-classification").Label, error.Message); }
     }
 
 }

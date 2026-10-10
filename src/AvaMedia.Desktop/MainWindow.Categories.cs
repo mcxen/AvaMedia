@@ -30,7 +30,7 @@ public partial class MainWindow
             var header = new CategoryHeader(category, category switch
             {
                 "视频" => "▣", "音频" => "♫", "图片" => "▧", "文档" => "▤",
-                "AI 标签" => "✦", "工具集" => "⚙", _ => "◉"
+                "工具集" => "⚙", _ => "◉"
             });
             _categoryHeaders.Add(category, header);
             Grid.SetRow(header, index * 2);

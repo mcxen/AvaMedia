@@ -8,7 +8,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class SettingsWindow
 {
     private static readonly int[] ModelIdleChoices = [1, 5, 15, 30, -1];
-    private readonly ComboBox _modelWarmChoice = Ui.Combo(["打开 AI 标签工作台时", "开始分析时"], "打开 AI 标签工作台时");
+    private readonly ComboBox _modelWarmChoice = Ui.Combo(["打开自动标签分类时", "开始分析时"], "打开自动标签分类时");
     private readonly ComboBox _modelIdleChoice = Ui.Combo(["空闲 1 分钟", "空闲 5 分钟（推荐）", "空闲 15 分钟", "空闲 30 分钟", "保持到退出应用"], "空闲 5 分钟（推荐）");
     private readonly Button _releaseModels = new() { Content = "释放空闲模型", Classes = { "field-action" } };
     private bool _releasingModels;

@@ -56,7 +56,7 @@ public sealed partial class MediaAiWindow : Window
         // These inputs live in the optional settings dialog, so initialize text before any template is attached.
         _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat);
         _frames.Text = _frames.Value?.ToString(_frames.NumberFormat);
-        Title = "AI 标签工作台"; Width = 1240; Height = 820; MinWidth = 1000; MinHeight = 650;
+        Title = Catalog.Find("media-ai").Label; Width = 1240; Height = 820; MinWidth = 1000; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
         BuildInterface();

@@ -15,7 +15,7 @@ public sealed record Feature(string Id, string Label, string Category, string Fo
 public static class Catalog
 {
     public static IReadOnlyList<Feature> All { get; } = Build();
-    public static string[] Categories { get; } = ["视频", "音频", "图片", "AI 标签", "文档", "光驱设备\\DVD\\CD\\ISO", "工具集"];
+    public static string[] Categories { get; } = ["视频", "音频", "图片", "文档", "光驱设备\\DVD\\CD\\ISO", "工具集"];
     private static List<Feature> Build()
     {
         List<Feature> f = [];
@@ -42,7 +42,6 @@ public static class Catalog
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
         Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
         Add("image-tools","裁剪 / 缩放 / 旋转","图片","png","crop");
-        Add("image-ai","图片 AI 标签","图片","txt","image",Operation.MediaTag);
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
         Add("pdf-merge","PDF 合并","文档","pdf","pdf-merge",Operation.PdfMerge);
         Add("pdf-split","PDF 拆分","文档","pdf","pdf-split",Operation.PdfSplit);
@@ -55,8 +54,8 @@ public static class Catalog
         Add("crop","批量裁剪","工具集","mp4","crop");
         Add("rotate","批量旋转","工具集","mp4","rotate");
         Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
-        Add("folder-classification","文件夹分类","工具集","","gear",Operation.BatchTools);
-        Add("media-ai","AI 标签工作台","AI 标签","txt","image",Operation.MediaTag,2);
+        Add("media-ai","自动标签分类","工具集","txt","image",Operation.MediaTag,2);
+        Add("folder-classification","自动媒体整理","工具集","","gear",Operation.BatchTools);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
         Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
@@ -178,7 +177,7 @@ public sealed partial class Job : Observable
     public string Source => string.Join(Environment.NewLine, Inputs);
     public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {Output}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "image-ai"?"分析中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai" or "image-ai") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId=="media-ai"?"分析中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

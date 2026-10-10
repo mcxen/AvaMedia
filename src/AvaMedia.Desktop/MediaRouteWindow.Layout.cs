@@ -27,7 +27,8 @@ public partial class MediaRouteWindow
         "video-compress" or "video-slim" or "mp4" or "join" or "dvd" or "repair" or "mux" => ("video", "转换与体积"),
         "clip" or "person-clip" or "crop" or "rotate" or "delogo" => ("edit", "剪辑与画面"),
         "split" or "extract-video" or "frames" or "contact-sheet" => ("extract", "提取与截图"),
-        "auto-subtitle" or "video-summary" or "media-ai" or "image-ai" => ("analysis", "字幕与分析"),
+        "auto-subtitle" or "video-summary" => ("analysis", "字幕与分析"),
+        "media-ai" or "folder-classification" => ("tools", "工具集"),
         "voice-enhance" => ("audio", "音频处理"),
         _ when feature.Category == "音频" => ("audio", "音频处理"),
         _ when feature.Category == "图片" => ("image", "图片处理"),
@@ -48,10 +49,10 @@ public partial class MediaRouteWindow
         var majorKind = _selected.GroupBy(source => source.Kind).OrderByDescending(group => group.Count()).FirstOrDefault()?.Key;
         string[] order = majorKind switch
         {
-            MediaFileKind.Audio => ["audio", "analysis", "video", "edit", "extract", "image", "document", "files"],
-            MediaFileKind.Image => ["image", "analysis", "video", "edit", "extract", "audio", "document", "files"],
-            MediaFileKind.Document => ["document", "image", "video", "edit", "extract", "audio", "analysis", "files"],
-            _ => ["video", "edit", "extract", "analysis", "audio", "image", "document", "files"]
+            MediaFileKind.Audio => ["audio", "analysis", "video", "edit", "extract", "image", "document", "tools", "files"],
+            MediaFileKind.Image => ["image", "analysis", "video", "edit", "extract", "audio", "document", "tools", "files"],
+            MediaFileKind.Document => ["document", "image", "video", "edit", "extract", "audio", "analysis", "tools", "files"],
+            _ => ["video", "edit", "extract", "analysis", "audio", "image", "document", "tools", "files"]
         };
         _cards.Clear(); _sections.Clear(); _positions.Clear(); RouteSections.Children.Clear();
         foreach (var group in filtered.GroupBy(route => SectionFor(route.Feature)).OrderBy(group => Array.IndexOf(order, group.Key.Key)))
