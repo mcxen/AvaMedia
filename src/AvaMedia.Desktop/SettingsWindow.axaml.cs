@@ -23,6 +23,7 @@ public sealed partial class SettingsWindow : Window
     {
         InitializeComponent(); _settings = settings; _services = services ?? new AppOptionsServices(); _ownsServices = services is null;
         Localization.Changed += LanguageChanged;
+        InitializeMcpSettings();
         Populate(settings);
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
@@ -92,6 +93,7 @@ public sealed partial class SettingsWindow : Window
         draft.EnableNsfwContent = NsfwContentInput.IsChecked == true;
         draft.PrewarmTagModels = _modelWarmChoice.SelectedIndex == 0;
         draft.TagModelIdleMinutes = ModelIdleChoices[Math.Clamp(_modelIdleChoice.SelectedIndex, 0, ModelIdleChoices.Length - 1)];
+        draft.Mcp = ReadMcp();
         draft.OnlineAi = _providerDraft.Clone();
         draft.ModelSource = ((ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex)).ToString();
         draft.ModelSourceUrl = ModelSourceUrlInput.Text?.Trim() ?? "";
@@ -125,6 +127,7 @@ public sealed partial class SettingsWindow : Window
         AutoUpdateInput.IsChecked = source.AutoUpdate; SilentUpdateInput.IsChecked = source.SilentUpdate;
         BetaInput.IsChecked = source.EnableBetaFeatures; AutoRepairModelInput.IsChecked = source.AutoDownloadRepairModel;
         NsfwContentInput.IsChecked = source.EnableNsfwContent;
+        PopulateMcp(source.Mcp);
         PopulateProviders(source.OnlineAi);
         PopulateModelSource(source);
         PopulateModelLifecycle(source);

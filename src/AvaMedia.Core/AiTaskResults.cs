@@ -33,6 +33,12 @@ public static class AiTaskResults
         await using var stream = File.OpenRead(path);
         return await JsonSerializer.DeserializeAsync<T>(stream, cancellationToken: ct).ConfigureAwait(false);
     }
+
+    public static void ClearForRetry(Job job)
+    {
+        var folder = Path.GetDirectoryName(PathFor(job, "tags"))!;
+        if (Directory.Exists(folder)) Directory.Delete(folder, true);
+    }
 }
 
 public partial class Job

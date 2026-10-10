@@ -129,6 +129,10 @@ public partial class MainWindow
                 }
                 ResetTask(job); continue;
             }
+            if (job.HasInternalOutput)
+            {
+                AiTaskResults.ClearForRetry(job); ResetTask(job); job.Output = AiTaskResults.InternalOutputFor(job); continue;
+            }
             var output = NextTaskOutput(job); ResetTask(job); job.Output = output;
         }
         Save(); Refresh(); await StartQueueAsync(restarting);

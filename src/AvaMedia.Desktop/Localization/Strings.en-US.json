@@ -3264,5 +3264,14 @@
   "分类任务须包含图片或视频。": "A classification task requires images or videos.",
   "分类任务不支持逐文件编辑参数。": "Classification tasks do not support per-file conversion settings.",
   "分类任务结果目录无效。": "The classification task result directory is invalid.",
-  "请在模型管理中安装语义模型后重试。": "Install the semantic model in model management, then retry."
+  "请在模型管理中安装语义模型后重试。": "Install the semantic model in model management, then retry.",
+  "启用 MCP 服务": "Enable MCP service",
+  "允许局域网连接": "Allow LAN connections",
+  "MCP 端口": "MCP port",
+  "复制 MCP 配置": "Copy MCP configuration",
+  "无需令牌，可访问本机全部文件与服务。": "No token required. All local files and services are accessible.",
+  "运行中 · 局域网": "Running · LAN",
+  "运行中 · 本机": "Running · Local",
+  "已关闭": "Off",
+  "端口": "Port"
 }

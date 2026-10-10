@@ -72,7 +72,7 @@ public static class Catalog
     public static bool IsBeta(Feature feature) => feature.Id is "person-clip";
     public static bool DirectoryOutput(Operation operation) => operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip or Operation.VideoSummary;
 }
-public sealed class ConversionOptions
+public sealed partial class ConversionOptions
 {
     public PdfToolOptions? Pdf { get; set; }
     public DownloadOptions? Download { get; set; }
@@ -142,7 +142,7 @@ public sealed class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public sealed partial class Job : Observable
@@ -234,11 +234,11 @@ public sealed partial class AppSettings
     public int WebpQuality { get; set; } = 90;
     public AppSettings Clone()
     {
-        var copy = (AppSettings)MemberwiseClone(); copy.NsfwContentChanged = null; copy.OnlineAi = OnlineAi.Clone(); return copy;
+        var copy = (AppSettings)MemberwiseClone(); copy.NsfwContentChanged = null; copy.OnlineAi = OnlineAi.Clone(); copy.Mcp = Mcp.Clone(); return copy;
     }
     public void CopyFrom(AppSettings source)
     {
-        OnlineAi = source.OnlineAi.Clone();
+        OnlineAi = source.OnlineAi.Clone(); Mcp = source.Mcp.Clone();
         OutputFolder=source.OutputFolder;FFmpegPath=source.FFmpegPath;FFprobePath=source.FFprobePath;YtDlpPath=source.YtDlpPath;
         OutputToSource=source.OutputToSource;AddSettingName=source.AddSettingName;OpenOutputFolderOnComplete=source.OpenOutputFolderOnComplete;
         ShutdownOnComplete=source.ShutdownOnComplete;PlayOperationSound=source.PlayOperationSound;PlayCompleteSound=source.PlayCompleteSound;

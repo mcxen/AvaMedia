@@ -71,6 +71,7 @@ public partial class MainWindow
         try
         {
             if (_wifiTransferWindow is { } transfer) await transfer.ShutdownAsync();
+            if (_mcp is { } mcp) await mcp.DisposeAsync();
             await _running;
             foreach (var window in _classificationWindows.Values.Distinct().ToArray()) await window.FlushTaskEditsAsync();
             foreach (var window in _personClipWindows.ToArray()) await window.FlushTaskEditsAsync();

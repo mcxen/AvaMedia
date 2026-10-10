@@ -75,6 +75,7 @@ public partial class MainWindow
                 job.Activity = null;
                 if (MediaPrivacy.IsSensitiveText(job.ProgressDetail)) job.ProgressDetail = "";
             }
+        _ = ConfigureMcpAsync();
         ApplicationUpdater.Shared.PreferencesChanged(_settings);
         _appliedSettings = _settings.Clone();
         RefreshOutputPath(); Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;

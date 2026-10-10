@@ -8,6 +8,7 @@ public partial class MainWindow
 
     internal bool CanEditTask(Job job) => CanManageTasks && !_queue.IsExecuting(job)
         && job.State is not (JobState.Running or JobState.Stopping) && _jobs.Contains(job)
+        && !AutomationTasks.Supports(job)
         && !job.HasInternalOutput
         && Catalog.Find(job.FeatureId).Operation is not (Operation.MediaTag or Operation.FolderClassify);
 

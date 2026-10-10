@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         UpdateLanguageMenu();Localization.Changed+=LanguageChanged;
         Closed+=(_,_)=>Localization.Changed-=LanguageChanged;
         _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
+        InitializeMcp();
         InitializeTaskManagement();
         InitializeOptions();
         RefreshOutputPath();Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
@@ -185,6 +186,7 @@ public partial class MainWindow : Window
     {
         _appliedSettings=_settings.Clone();
         var w=new SettingsWindow(_settings,_optionServices);
+        w.SetMcpStatus(() => _mcp?.Status ?? "已关闭");
         w.Applied+=(_,_)=>ApplyOptions();
         await w.ShowDialog<bool>(this);
     }

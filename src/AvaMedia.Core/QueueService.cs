@@ -89,7 +89,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         {
             lock (execution.Gate)
             {
-                if (execution.Stopping || token.IsCancellationRequested) { state = JobState.Cancelled; error = "用户停止了任务。"; }
+                if (!job.FileChangesCommitted && (execution.Stopping || token.IsCancellationRequested)) { state = JobState.Cancelled; error = "用户停止了任务。"; }
                 execution.Active = false; job.Error = error; job.Estimate = null; job.DownloadSpeed = null;
                 if (state == JobState.Completed) job.Progress = 100;
                 job.State = state;
@@ -104,12 +104,13 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 token.ThrowIfCancellationRequested();
                 if (execution.Stopping) throw new OperationCanceledException(token);
                 job.Activity = null; job.Progress = 0; job.Estimate = null; job.DownloadSpeed = null;
+                job.FileChangesCommitted = false;
                 job.State = JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
             }
             Publish(0);
             using var timer = _time.CreateTimer(_ => Publish(job.Progress), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
             await engine.Execute(job, Publish, token);
-            token.ThrowIfCancellationRequested(); Finish(JobState.Completed);
+            if (!job.FileChangesCommitted) token.ThrowIfCancellationRequested(); Finish(JobState.Completed);
         }
         catch (OperationCanceledException) { Finish(JobState.Cancelled, "用户停止了任务。"); }
         catch (Exception error)
