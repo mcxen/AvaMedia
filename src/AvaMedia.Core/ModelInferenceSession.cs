@@ -17,6 +17,7 @@ internal sealed class ModelInferenceSession : IDisposable
     public ModelInferenceSession(string path, string modelHash, int? batchSize = null, byte[]? modelData = null, int? imageSize = null)
     {
         _path = path; _batchSize = batchSize; _modelData = modelData; _imageSize = imageSize;
+        string? coreMlCache = null;
         // Acceleration is always attempted. CPU is reserved for unavailable or failing providers.
         try
         {
@@ -25,16 +26,16 @@ internal sealed class ModelInferenceSession : IDisposable
             if (OperatingSystem.IsMacOS() && providers.Contains("CoreMLExecutionProvider"))
             {
                 // Separate caches by model content and runtime version, not the mutable file path.
-                var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                coreMlCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "AvaMedia", "inference-cache", typeof(InferenceSession).Assembly.GetName().Version!.ToString(), modelHash,
                     (batchSize is { } size ? $"batch-{size}" : "dynamic") + (imageSize is { } pixels ? $"-image-{pixels}" : ""));
-                Directory.CreateDirectory(cache);
+                Directory.CreateDirectory(coreMlCache);
                 options.AppendExecutionProvider("CoreML", new()
                 {
                     ["MLComputeUnits"] = "ALL",
                     ["ModelFormat"] = OperatingSystem.IsMacOSVersionAtLeast(12) ? "MLProgram" : "NeuralNetwork",
                     ["RequireStaticInputShapes"] = "1",
-                    ["ModelCacheDirectory"] = cache
+                    ["ModelCacheDirectory"] = coreMlCache
                 });
                 _session = CreateSession(options); Backend = "Core ML / CPU"; return;
             }
@@ -50,7 +51,29 @@ internal sealed class ModelInferenceSession : IDisposable
                 : "No supported GPU execution provider on this platform.";
         }
         catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or DllNotFoundException
-            or EntryPointNotFoundException or IOException or UnauthorizedAccessException) { FallbackReason = error.Message; }
+            or EntryPointNotFoundException or IOException or UnauthorizedAccessException)
+        {
+            FallbackReason = error.Message;
+            if (coreMlCache is not null && OperatingSystem.IsMacOSVersionAtLeast(12))
+            {
+                try
+                {
+                    using var options = Options();
+                    options.AppendExecutionProvider("CoreML", new()
+                    {
+                        ["MLComputeUnits"] = "ALL", ["ModelFormat"] = "NeuralNetwork",
+                        ["RequireStaticInputShapes"] = "1", ["ModelCacheDirectory"] = coreMlCache
+                    });
+                    _session = CreateSession(options); Backend = "Core ML (NeuralNetwork) / CPU";
+                    FallbackReason = null;
+                    System.Diagnostics.Trace.TraceInformation("Core ML model format retry: {0}", error.Message);
+                    return;
+                }
+                catch (Exception retry) when (retry is OnnxRuntimeException or NotSupportedException or DllNotFoundException
+                    or EntryPointNotFoundException or IOException or UnauthorizedAccessException)
+                { FallbackReason = "MLProgram: " + error.Message + " · NeuralNetwork: " + retry.Message; }
+            }
+        }
         _session = CpuSession();
     }
 
@@ -92,9 +115,10 @@ internal sealed class ModelInferenceSession : IDisposable
         options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
         options.AddSessionConfigEntry("session.inter_op.allow_spinning", "0");
         if (_batchSize is { } batch) options.AddFreeDimensionOverrideByName("batch_size", batch);
-        // YuNet's dynamic height/width must be fixed for each sampling size so Core ML can claim the graph.
+        // Fixed sampling sizes let Core ML claim YuNet and DINOv2 graphs with dynamic input dimensions.
         if (_imageSize is { } size)
         {
+            options.AddFreeDimensionOverrideByName("num_channels", 3);
             options.AddFreeDimensionOverrideByName("height", size);
             options.AddFreeDimensionOverrideByName("width", size);
         }

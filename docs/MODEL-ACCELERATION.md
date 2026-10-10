@@ -2,14 +2,16 @@
 
 所有实际加载的本地 AI 模型统一先尝试平台加速后端。后端不可用、初始化失败或推理失败时才回退 CPU；不再通过首次测速主动选择 CPU。分析、模型缓存、后台预热和队列任务采用同一策略，AI 参数及窗口中的 GPU 开关已移除。视频编码的硬件加速选项独立保留。
 
+Core ML 的 MLProgram 初始化失败时，先尝试同一后端的 NeuralNetwork 格式，再回退 CPU；后端字段区分这次格式重试。服装特征的 DINOv2 输入固定为 1×3×224×224，确保 Core ML 可以接管其计算图。实际视频运行结果见 [2026-10-11 服装分析验收](OUTFIT-VIDEO-ACCEPTANCE-20261011.md)。
+
 ## 全量清单
 
 清单覆盖 `ModelCatalog`、`Assets/SummaryModels.json` 和三个内置模型；llama.cpp 运行库是执行工具，单独列出。
 
 | 模型 / 文件 | 推理入口 | Windows | macOS | CPU 回退 / 现状 |
 | --- | --- | --- | --- | --- |
-| MediaPipe clothes | `OutfitAppearanceService` → `ModelInferenceSession` | DirectML | Core ML | 初始化或执行失败；视频采样帧也使用同一路径 |
-| DINOv2 small | `OutfitAppearanceService` → `ModelInferenceSession` | DirectML | Core ML | 初始化或执行失败；与服装分割模型分别回退 |
+| MediaPipe clothes | `OutfitAppearanceService` → `ModelInferenceSession` | DirectML | Core ML | MLProgram 编译失败先重试 NeuralNetwork；视频采样帧也使用同一路径 |
+| DINOv2 small | `OutfitAppearanceService` → `ModelInferenceSession` | DirectML | Core ML | 固定通道数与 224×224 输入；初始化或执行失败时与服装分割模型分别回退 |
 | JoyTag | `MediaTagModelCache` → `ModelInferenceSession` | DirectML | Core ML | 初始化或执行失败 |
 | Marqo NSFW | `RealNsfwClassifier` → `ModelInferenceSession` | DirectML | Core ML | 初始化或执行失败 |
 | YOLOX | `PersonDetectorSet` → `ModelInferenceSession` | DirectML | Core ML | 初始化或执行失败 |

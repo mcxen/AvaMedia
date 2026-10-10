@@ -27,7 +27,7 @@ public sealed class OutfitAppearanceService : IDisposable
         try
         {
             _session = new(Path.Combine(lease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitId).Files[0].Sha256, 1);
-            try { _features = new(Path.Combine(featureLease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitFeaturesId).Files[0].Sha256, 1); }
+            try { _features = new(Path.Combine(featureLease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitFeaturesId).Files[0].Sha256, 1, imageSize: 224); }
             catch { _session.Dispose(); throw; }
         }
         catch { lease.Dispose(); featureLease.Dispose(); throw; }
