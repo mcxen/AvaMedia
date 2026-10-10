@@ -1,4 +1,5 @@
 using AvaMedia.Core;
+using Avalonia.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -8,7 +9,7 @@ public partial class MainWindow
     private readonly HashSet<PersonClipWindow> _personClipWindows = [];
     private readonly HashSet<SubtitleReviewWindow> _subtitleReviewWindows = [];
     internal static bool IsAiFeature(Feature feature) => feature.Operation is Operation.MediaTag or Operation.FolderClassify
-        or Operation.PersonClip or Operation.VideoSummary or Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance" or "delogo";
+        or Operation.PersonClip or Operation.VideoSummary or Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance" or "delogo" or "rotate";
     internal bool CanViewAiTask(Job job) => !_closing && _jobs.Contains(job) && IsAiFeature(Catalog.Find(job.FeatureId));
     private Task StartToolWorkflow(Func<Task> workflow)
     {
@@ -38,8 +39,46 @@ public partial class MainWindow
         OutputPreferences.Apply(jobs, _settings, reserved, request.OutputToSource, request.SettingName);
         AddToolJobs(jobs, request.StartImmediately);
     });
+    internal void SubmitOrientationJob(Job job) => AddToolJobs([job], true);
+    internal void StopOrientationJob(Job job) { _queue.Stop(job); Save(); Refresh(); }
+
+    private BatchRotateWindow CreateRotateWindow(string[]? files, string? output = null) =>
+        new(Engine, output ?? _settings.OutputFolder, files, submitDetection: AddToolJobs, stopDetection: job => _queue.Stop(job));
+
+    private Task ConfigureRotateAsync(string[]? files) => StartToolWorkflow(async () =>
+    {
+        var window = CreateRotateWindow(files);
+        await SubmitRotationAsync(window);
+    });
+
+    private async Task SubmitRotationAsync(BatchRotateWindow window)
+    {
+        var request = await ToolExecution.ShowAsync<BatchRotateRequest>(this, window);
+        if (request is null || _closing) return;
+        var jobs = BatchRotate.CreateJobs(request, _jobs.Select(job => job.Output));
+        OutputPreferences.Apply(jobs, _settings, _jobs.Select(job => job.Output), request.OutputToSource, request.SettingName);
+        AddToolJobs(jobs, ToolExecution.StartImmediately(window));
+    }
+
+    private async Task ShowOrientationResultAsync(Job job)
+    {
+        var result = job.OrientationResult ?? await AiTaskResults.LoadAsync<OrientationTaskResult>(job.Output);
+        if (result is null) throw new IOException("方向检测结果缺失，请重新检测。");
+        var source = new FileInfo(job.Inputs[0]);
+        if (!source.Exists || source.Length != result.SourceLength || source.LastWriteTimeUtc != result.SourceWriteUtc)
+            throw new IOException("源视频发生变化，请重新检测方向。");
+        var spec = job.Options.Orientation!;
+        var window = CreateRotateWindow(job.Inputs, spec.OutputFolder);
+        window.FindControl<Avalonia.Controls.ComboBox>("FormatCombo")!.SelectedItem = spec.Format;
+        window.FindControl<Avalonia.Controls.CheckBox>("SourceOutputInput")!.IsChecked = spec.OutputToSource;
+        window.FindControl<Avalonia.Controls.CheckBox>("SettingNameInput")!.IsChecked = spec.SettingName;
+        window.ApplyDetection(job.Inputs[0], result);
+        await SubmitRotationAsync(window);
+    }
+
     private static bool HasAiResult(Job job) => job.FeatureId switch
     {
+        "rotate" when job.Options.Orientation is not null => job.OrientationResult is not null || !Active(job) && File.Exists(job.Output),
         "media-ai" => job.MediaTagResult is not null || !Active(job) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "tags")),
         "person-clip" => job.PersonDetectionResult is not null || !Active(job) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "people")),
         "auto-subtitle" => job.SubtitleResult is not null || !Active(job) && File.Exists(AiTaskResults.PathFor(job, "subtitles")),
@@ -73,6 +112,7 @@ public partial class MainWindow
         try
         {
             if (!_jobs.Contains(job) || !HasAiResult(job)) return;
+            if (job.Options.Orientation is not null) { await ShowOrientationResultAsync(job); return; }
             switch (Catalog.Find(job.FeatureId).Operation)
             {
                 case Operation.MediaTag: await ShowMediaTagResultAsync(job); break;

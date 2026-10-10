@@ -43,18 +43,18 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         };
         try
         {
-            await ExecuteAsync(task, progress, ct, allowEmpty: true).ConfigureAwait(false);
+            await ExecuteAsync(task, progress, ct, allowEmpty: true, saveTaskResult: false).ConfigureAwait(false);
             return SubtitleTranscript.Parse(await File.ReadAllTextAsync(task.Output, ct).ConfigureAwait(false));
         }
         finally { Directory.Delete(temporary, true); }
     }
 
-    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false)
+    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false, bool saveTaskResult = true)
     {
         var options = job.Options;
         var speech = options.Transcription ?? new();
         job.SubtitleResult = null;
-        File.Delete(AiTaskResults.PathFor(job, "subtitles"));
+        if (saveTaskResult) AiTaskResults.DeleteResult(job, "subtitles");
         var sourceFile = new FileInfo(job.Inputs[0]);
         var sourceLength = sourceFile.Length; var sourceWriteUtc = sourceFile.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "Whisper " + speech.Model, "条字幕",
@@ -211,7 +211,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             if (!sourceFile.Exists || sourceFile.Length != sourceLength || sourceFile.LastWriteTimeUtc != sourceWriteUtc)
                 throw new IOException("识别期间源文件发生变化，请重新识别字幕。");
             var transcript = new SubtitleTaskResult(cues.ToArray(), sourceLength, sourceWriteUtc);
-            await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), transcript, ct).ConfigureAwait(false);
+            if (saveTaskResult)
+                await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), transcript, ct).ConfigureAwait(false);
             job.SubtitleResult = transcript;
             activity.Node("保存结果");
             if (options.Format is "srt" or "ass")
@@ -225,6 +226,9 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 var ass = Path.Combine(temporary, "subtitles.ass");
                 var rendered = options.Clone(); rendered.Transcription = null;
                 rendered.SubtitleMode = SubtitleMode.BurnIn; rendered.Subtitle = ass; rendered.SubtitleStreamIndex = 0;
+                // Text adds detail that a static source's tiny bitrate cannot retain.
+                // An explicitly chosen output bitrate still takes precedence.
+                if (rendered.VideoRateMode == VideoRateMode.Source) rendered.VideoRateMode = VideoRateMode.Quality;
                 // Cues already use the output clock. Keep original-time timestamps for the existing seek/speed filter.
                 var originalCues = cues.Select(cue => new SubtitleCue(TimeSpan.FromSeconds(cue.Start.TotalSeconds * options.Speed + options.Start),
                     TimeSpan.FromSeconds(cue.End.TotalSeconds * options.Speed + options.Start), cue.Text)).ToArray();

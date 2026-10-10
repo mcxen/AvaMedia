@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
@@ -45,8 +46,9 @@ public partial class EditorWindow
     private readonly ObservableCollection<ClipSegmentEntry> _segments = [];
     private ClipSegmentEntry? _activeSegment;
     private bool _selectingSegment;
-    private IVideoOrientationDetector? _directionDetector;
-    private CancellationTokenSource? _directionCancellation;
+    private QueueService? _directionQueue;
+    private MainWindow? _directionOwner;
+    private Job? _directionJob;
     private VideoOrientationResult? _directionResult;
     private Task _directionReady = Task.CompletedTask;
     private bool QuickWorkflow => _mode == "quick-workflow";
@@ -57,7 +59,7 @@ public partial class EditorWindow
     private void InitializeQuickWorkflow(IReadOnlyList<ConversionOptions>? segments, IVideoOrientationDetector? detector)
     {
         if (!QuickWorkflow) return;
-        _directionDetector = detector ?? new VideoOrientationDetector(_engine);
+        _directionQueue = new(new OrientationTaskService(_engine, detector));
         DirectionTab.IsVisible = SegmentFooter.IsVisible = SegmentPane.IsVisible = SegmentPaneSplitter.IsVisible = SegmentTrackScroll.IsVisible = LoopSegmentCheck.IsVisible = true;
         EditorLayout.ColumnDefinitions[1].Width = new Avalonia.Controls.GridLength(10);
         EditorLayout.ColumnDefinitions[2].Width = new Avalonia.Controls.GridLength(320);
@@ -79,7 +81,7 @@ public partial class EditorWindow
         _activeSegment = _segments[0]; _options = _activeSegment.Options.Clone();
         _selectingSegment = true; SegmentList.SelectedItem = _activeSegment; _selectingSegment = false;
         SyncDirectionControls(); InitializeSegmentEditing(); RefreshSegments();
-        Closed += (_, _) => { _directionCancellation?.Cancel(); _segmentEditTimer.Stop(); };
+        Closed += (_, _) => { ClearDirectionDetection(); _segmentEditTimer.Stop(); };
     }
 
     public void SetWorkflowStep(int current, int total)
@@ -227,28 +229,65 @@ public partial class EditorWindow
     private void DetectDirectionClick(object? sender,RoutedEventArgs e)=>_directionReady=DetectDirection();
     private async Task DetectDirection()
     {
-        if(_info?.HasVideo!=true || _directionDetector is null || _directionCancellation is not null)return;
-        var cancellation=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);_directionCancellation=cancellation;
-        DetectDirectionButton.IsEnabled=false;CancelDetectionButton.IsVisible=true;ApplyDirectionButton.IsEnabled=false;_directionResult=null;
-        DirectionStatus.Text="正在分析视频人脸方向…";
+        if (_info?.HasVideo != true || _directionQueue is null || _directionJob is not null) return;
+        var job = new Job { FeatureId = "rotate", Inputs = [_path], Options = new() { Format = "json", VideoStreamIndex = _options.VideoStreamIndex,
+            Orientation = new(SourceVideoExport.Original, _engine.Settings.OutputFolder, _engine.Settings.OutputToSource, _engine.Settings.AddSettingName) } };
+        job.Output = AiTaskResults.InternalOutputFor(job); _directionJob = job;
+        _directionOwner = null;
+        for (var owner = Owner as Window; owner is not null; owner = owner.Owner as Window)
+            if (owner is MainWindow main) { _directionOwner = main; break; }
+        DetectDirectionButton.IsEnabled = false; CancelDetectionButton.IsVisible = true; ApplyDirectionButton.IsEnabled = false; _directionResult = null;
+        DirectionStatus.Text = "后台检测中 · 关闭此窗口后继续运行";
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        System.ComponentModel.PropertyChangedEventHandler? finished = null;
+        finished = (_, change) =>
+        {
+            if (change.PropertyName != nameof(Job.State) || job.State is not (JobState.Completed or JobState.Failed or JobState.Cancelled)) return;
+            job.PropertyChanged -= finished; completion.TrySetResult();
+        };
+        job.PropertyChanged += finished; job.PropertyChanged += DirectionTaskChanged;
         try
         {
-            var progress=new Progress<OrientationDetectionProgress>(p=>{if(!_closed && !cancellation.IsCancellationRequested)Localization.SetText(DirectionStatus,$"正在分析 {p.CompletedFrames}/{p.TotalFrames} 帧…");});
-            var result=await _directionDetector.DetectAsync(_path,_info,progress,cancellation.Token);
-            cancellation.Token.ThrowIfCancellationRequested();if(_closed)return;
-            _directionResult=result;ApplyDirectionButton.IsEnabled=result.IsCertain;
-            DirectionStatus.Text=Localization.Join("\n", new[] { result.IsCertain ? Localization.Format($"建议：{Localization.Key(result.Description)}") : "无法确定方向", Localization.OrientationReason(result) });
+            if (_directionOwner is { } main) main.SubmitOrientationJob(job);
+            else if (_directionQueue.IsRunning) _directionQueue.Enqueue([job]);
+            else _ = _directionQueue.Run([job], 1);
+            await completion.Task;
+            if (_closed || !ReferenceEquals(_directionJob, job)) return;
+            if (job.State != JobState.Completed) { DirectionStatus.Text = job.State == JobState.Cancelled ? "识别已取消" : job.Error; return; }
+            _directionResult = job.OrientationResult?.Detection;
+            ApplyDirectionButton.IsEnabled = _directionResult?.IsCertain == true;
+            if (_directionResult is { } result)
+                DirectionStatus.Text = Localization.Join("\n", [result.IsCertain ? Localization.Format($"建议：{Localization.Key(result.Description)}") : "无法确定方向", Localization.OrientationReason(result)]);
         }
-        catch(OperationCanceledException){if(!_closed)DirectionStatus.Text="识别已取消";}
-        catch(Exception ex){if(!_closed)DirectionStatus.Text=Localization.Format($"方向识别失败：{ex.Message}");}
+        catch (Exception error) { if (!_closed) DirectionStatus.Text = Localization.Format($"方向识别失败：{error.Message}"); }
         finally
         {
-            if(ReferenceEquals(_directionCancellation,cancellation))_directionCancellation=null;
-            cancellation.Dispose();if(!_closed){DetectDirectionButton.IsEnabled=true;CancelDetectionButton.IsVisible=false;}
+            job.PropertyChanged -= finished; job.PropertyChanged -= DirectionTaskChanged;
+            if (ReferenceEquals(_directionJob, job))
+            {
+                _directionJob = null;
+                if (!_closed) { DetectDirectionButton.IsEnabled = true; CancelDetectionButton.IsVisible = false; }
+            }
         }
     }
-    private void CancelDetectionClick(object? sender,RoutedEventArgs e)=>_directionCancellation?.Cancel();
-    private void ClearDirectionDetection(){_directionCancellation?.Cancel();_directionResult=null;if(ApplyDirectionButton is not null)ApplyDirectionButton.IsEnabled=false;}
+    private void DirectionTaskChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs change)
+    {
+        if (change.PropertyName != nameof(Job.ProgressDetail)) return;
+        Dispatcher.UIThread.Post(() =>
+        { if (!_closed && sender is Job job && ReferenceEquals(_directionJob, job)) DirectionStatus.Text = Localization.Text(job.ProgressDetail); });
+    }
+    private void CancelDetectionClick(object? sender, RoutedEventArgs e)
+    {
+        if (_directionJob is not { } job) return;
+        if (_directionOwner is { } main) main.StopOrientationJob(job); else _directionQueue?.Stop(job);
+    }
+    private void ClearDirectionDetection()
+    {
+        if (_directionJob is { } job) job.PropertyChanged -= DirectionTaskChanged;
+        _directionJob = null; _directionResult = null;
+        if (!_closed && ApplyDirectionButton is not null)
+        { ApplyDirectionButton.IsEnabled = false; DetectDirectionButton.IsEnabled = true; CancelDetectionButton.IsVisible = false; }
+    }
     private void ApplyDirectionClick(object? sender,RoutedEventArgs e)
     {
         if(_directionResult?.Rotation is not (0 or 90 or 180 or 270))return;

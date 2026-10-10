@@ -77,12 +77,12 @@ public partial class MainWindow
                     new("查看任务", () => FocusJobsAsync([item])),
                     new("重新处理", () => RetryNotificationAsync([item]), Enabled: () => CanRetryNotification([item]))]));
         }
-        foreach (var job in batch.Where(job => job.State == JobState.Completed && job.FeatureId is "person-clip" or "auto-subtitle"))
+        foreach (var job in batch.Where(job => job.State == JobState.Completed && (job.FeatureId is "person-clip" or "auto-subtitle" || job.Options.Orientation is not null)))
         {
             var item = job;
             NotificationCenter.Shared.Publish(this, new("ai-result:" + id + ":" + item.Id,
-                item.FeatureId == "auto-subtitle" ? "字幕识别完成" : "人物检测完成", (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}",
-                NotificationKind.Success, [new(item.FeatureId == "auto-subtitle" ? "校对字幕" : "调整片段",
+                item.Options.Orientation is not null ? "方向检测完成" : item.FeatureId == "auto-subtitle" ? "字幕识别完成" : "人物检测完成", (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}",
+                NotificationKind.Success, [new(item.Options.Orientation is not null ? "确认方向" : item.FeatureId == "auto-subtitle" ? "校对字幕" : "调整片段",
                     () => { RestoreFromTray(); return ShowAiResultAsync(item); }, Primary: true, Enabled: () => !_closing),
                     new("查看任务", () => ShowAiTaskAsync(item), Enabled: () => !_closing)]));
         }

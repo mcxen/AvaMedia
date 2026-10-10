@@ -43,7 +43,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
         body.Children.Add(new ScrollViewer { Content = _segments, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_status);
         var cancel = Ui.DialogButton("取消", () => Close(null)); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
-        _export = Ui.DialogButton("导出选项…", () => Close(_sources.Where(source => source.Include).Select(source => source.Edit!).ToArray())); _export.Classes.Add("primary");_export.IsDefault=true;
+        _export = Ui.DialogButton("导出选项…", () => ToolExecution.Complete(this,_sources.Where(source => source.Include).Select(source => source.Edit!).ToArray())); _export.Classes.Add("primary");_export.IsDefault=true;
         Grid.SetColumn(_export, 2); footer.Children.Add(_export); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
         _files.SelectionChanged += (_, _) => Refresh(); RefreshFiles();
     }
@@ -54,7 +54,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
         {
             var editor = new EditorWindow(_engine, source.Path, source.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", source.Edit?.Segments);
             editor.SetWorkflowCompletion("保存剪辑");
-            if(await editor.ShowDialog<ClipEditResult?>(this) is {} result) source.Edit = result;
+            if(await ToolExecution.ShowAsync<ClipEditResult>(this,editor) is {} result) source.Edit = result;
             RefreshFiles();
         }
         catch(Exception error) { _status.Text = error.Message; }

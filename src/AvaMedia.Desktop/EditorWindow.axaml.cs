@@ -321,7 +321,7 @@ public partial class EditorWindow : Window
     {
         try
         {
-            if(QuickWorkflow){Close(ReadClipEdit());return;}
+            if(QuickWorkflow){ToolExecution.Complete(this,ReadClipEdit());return;}
             var draft=ReadDraft();var feature=Catalog.All.FirstOrDefault(item=>item.Id==_mode)??Catalog.Find("mp4");
             MediaEngine.ValidateEdits(new(){FeatureId=feature.Id,Inputs=[_path],Output=Path.Combine(Path.GetTempPath(),"validate-output."+draft.Format),Options=draft},[_info!]);Close(draft);
         }

@@ -47,7 +47,7 @@ public static class MediaCaptionService
     public static async Task<(string Caption, string Model)> GenerateAsync(
         OnlineAiOptions? provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
         ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0,
-        OnlineSummaryTool? frameTool = null)
+        OnlineSummaryTool? frameTool = null, Action<int, int>? frameProgress = null)
     {
         if (frames.Count == 0) throw new ArgumentException("没有可用于画面描述的采样帧。");
         if (frameSeconds is not null && (frameSeconds.Count != frames.Count || !double.IsFinite(videoDurationSeconds) || videoDurationSeconds <= 0
@@ -70,6 +70,29 @@ public static class MediaCaptionService
                 "最多补充 8 帧、2 轮；工具结果后的图像是实际画面证据。工具失败或仍看不清时省略该细节，不能把工具参数或请求目的当作事实。";
         if (model is not null)
         {
+            if (model is LocalSummaryModel localVideo && frameSeconds is not null)
+            {
+                // Joint image input can carry a subject from one sample into an unrelated sample.
+                // Observe each frame independently before asking the same session to organize the evidence.
+                var observations = new System.Text.StringBuilder();
+                for (var index = 0; index < frames.Count; index++)
+                {
+                    ct.ThrowIfCancellationRequested(); frameProgress?.Invoke(index, frames.Count);
+                    var observation = RequireCaption(await localVideo.CompleteAsync(system,
+                        $"这是视频 {MediaTime.Format(frameSeconds[index])} 的单张采样画面。" +
+                        "只用一两句话记录这张图中清晰可见的主体、环境和物体；纯色或看不清的画面照实说明。" +
+                        "精确人数和细节只有看清时才写，不能描述之前、之后或采样间的动作。",
+                        ct, image: frames[index], tokens: 256).ConfigureAwait(false));
+                    observations.Append('[').Append(MediaTime.Format(frameSeconds[index])).Append("] ").AppendLine(observation);
+                    frameProgress?.Invoke(index + 1, frames.Count);
+                }
+                var evidencePrompt = prompt + "\n\n以下是每张采样图独立观察的记录，请按时间整理成简洁描述。" +
+                    "各时间点只使用对应记录，不能把前一帧的主体延续到下一帧；不要补写采样间的动作。\n" + observations;
+                var videoCaption = frameTool is not null
+                    ? await localVideo.CompleteWithToolsAsync(system, evidencePrompt, [], [frameTool], ct, options.CaptionMaxTokens).ConfigureAwait(false)
+                    : await localVideo.CompleteAsync(system, evidencePrompt, ct, tokens: options.CaptionMaxTokens).ConfigureAwait(false);
+                return (RequireCaption(videoCaption), localVideo.ModelId);
+            }
             var caption = frameTool is not null && frameSeconds is not null
                 ? model is LocalSummaryModel local
                     ? await local.CompleteWithToolsAsync(system, prompt, images!, [frameTool], ct, options.CaptionMaxTokens).ConfigureAwait(false)

@@ -147,6 +147,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         stages.Add("识别媒体标签");
         if (options.RecognizeNsfw) stages.Add("识别真人 NSFW");
         if (options.GenerateCaptions) stages.Add("生成画面描述");
+        if (options.GenerateCaptions && options.CaptionUseFrameTools && files.Any(VideoFormats.IsVideo)) stages.Add("补充描述画面");
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = MediaPrivacy.Filter(value, engine.Settings.EnableNsfwContent) }), "JoyTag", "次标签结果",
             stages.ToArray());
         using var prepared = await MediaTagModelCache.AcquireAsync(_store, options, stage => activity.Stage(stage), ct).ConfigureAwait(false);

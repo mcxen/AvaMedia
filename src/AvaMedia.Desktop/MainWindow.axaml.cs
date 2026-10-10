@@ -88,12 +88,7 @@ public partial class MainWindow : Window
         }
         if(feature.Id=="rotate")
         {
-            var window=new BatchRotateWindow(Engine,_settings.OutputFolder,files);
-            var request=await window.ShowDialog<BatchRotateRequest?>(this);
-            if(request is null)return;
-            try{var jobs=BatchRotate.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);AddToolJobs(jobs,ToolExecution.StartImmediately(window));}
-            catch(Exception ex){await Ui.Message(this,"批量旋转参数错误",ex.Message);}
-            return;
+            await ConfigureRotateAsync(files); return;
         }
         if(feature.Id=="crop")
         {

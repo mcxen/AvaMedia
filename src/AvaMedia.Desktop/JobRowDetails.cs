@@ -69,6 +69,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         {
             var feature = Catalog.Find(Job.FeatureId);
             var o = Job.Options;
+            if (o.Orientation is not null) return Localization.Text("AI 自动转正 · 检测方向");
             var label = feature.Label.StartsWith('→') ? o.Format.ToUpperInvariant() : feature.Label.Replace("\n", " ");
             var parts = new List<string> { label };
             if (feature.Operation == Operation.VideoSummary && o.VideoSummary is { } summary)
@@ -178,7 +179,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         JobState.Waiting => "等待开始",
         JobState.Running when Job.Activity is not null => Localization.Text("处理中"),
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
-        JobState.Completed => Localization.Join(" · ", new[] { "已完成", _outputSize, Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
+        JobState.Completed => Localization.Join(" · ", new[] { "已完成", Job.HasInternalOutput ? "" : _outputSize, Job.Options.Orientation is not null || Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         JobState.Paused => "已暂停排队",
         JobState.Stopping => "正在终止",

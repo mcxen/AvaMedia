@@ -37,7 +37,11 @@ public sealed partial class BatchRotateWindow : Window
     private readonly SemaphoreSlim _loadSlots = new(2);
     private readonly RotateTransform _rotation = new();
     private readonly IVideoOrientationDetector _detector;
-    private CancellationTokenSource? _detectionCancellation;
+    private readonly Action<IReadOnlyList<Job>, bool> _submitDetection;
+    private readonly Action<Job> _stopDetection;
+    private readonly Dictionary<Job, BatchRotateEntry> _detectionJobs = [];
+    private readonly QueueService _localQueue;
+
     private Task _detectionReady = Task.CompletedTask;
     private int _sharedRotation = 90;
     private bool _detecting;
@@ -55,9 +59,13 @@ public sealed partial class BatchRotateWindow : Window
     public Task Ready => WaitForReady();
 
     public BatchRotateWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder) { }
-    public BatchRotateWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, IVideoOrientationDetector? detector = null)
+    public BatchRotateWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, IVideoOrientationDetector? detector = null,
+        Action<IReadOnlyList<Job>, bool>? submitDetection = null, Action<Job>? stopDetection = null)
     {
         InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
+        _localQueue = new(new OrientationTaskService(engine, _detector));
+        _submitDetection = submitDetection ?? ((jobs, startImmediately) => { if (_localQueue.IsRunning) _localQueue.Enqueue(jobs); else _ = _localQueue.Run(jobs, 2); });
+        _stopDetection = stopDetection ?? (job => _localQueue.Stop(job));
         FileList.ItemsSource = _entries; RotationTransform.LayoutTransform = _rotation;
         ModeCombo.ItemsSource = new[] { "统一旋转", "逐个调整" }; ModeCombo.SelectedIndex = 0;
         DirectionCombo.ItemsSource = new[] { BatchRotate.Direction(90), BatchRotate.Direction(270), BatchRotate.Direction(180), BatchRotate.Direction(0) }; DirectionCombo.SelectedIndex = 0;
@@ -75,7 +83,7 @@ public sealed partial class BatchRotateWindow : Window
         AddHandler(DragDrop.DragOverEvent, (_, args) => args.DragEffects = _detecting ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, (_, args) =>
         { if (!_detecting) ReportSkipped(AddFiles(args.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? [])); });
-        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); _detectionCancellation?.Cancel(); _previewCancellation?.Cancel(); DisposePreview(); };
+        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); foreach (var job in _detectionJobs.Keys) job.PropertyChanged -= DetectionChanged; _previewCancellation?.Cancel(); DisposePreview(); };
         if (files is not null) AddFiles(files);
         RefreshValidation();
     }
@@ -239,62 +247,83 @@ public sealed partial class BatchRotateWindow : Window
 
     private async Task DetectDirectionsCore()
     {
-        var targets = _entries.Where(e => e.Include).ToArray();
+        var targets = _entries.Where(entry => entry.Include).ToArray();
         if (targets.Length == 0) return;
-        _detecting = true;
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _detectionCancellation = cancellation;
-        RefreshValidation();
+        _detecting = true; RefreshValidation();
         try
         {
-            await WaitForReady(); cancellation.Token.ThrowIfCancellationRequested();
-            if (targets.Any(e => e.Error is not null || e.Info is null))
+            await WaitForReady();
+            if (_closed) return;
+            if (targets.Any(entry => entry.Error is not null || entry.Info is null))
             { DetectionStatus.Text = "请先移除或取消勾选无法读取的视频。"; return; }
-            foreach (var entry in targets) { entry.Rotation = null; entry.Detection = null; entry.DetectionMessage = "等待检测，请稍候。"; }
             ModeCombo.SelectedIndex = 1;
-            for (var index = 0; index < targets.Length; index++)
-            {
-                cancellation.Token.ThrowIfCancellationRequested();
-                var entry = targets[index]; entry.IsDetecting = true;
-                entry.DetectionMessage = "正在检测方向…";
-                Localization.SetText(DetectionStatus,$"正在检测 {index + 1}/{targets.Length}：{entry.Name}");
-                RefreshValidation();
-                var progress = new Progress<OrientationDetectionProgress>(p =>
-                {
-                    if (_closed || !ReferenceEquals(_detectionCancellation, cancellation) || cancellation.IsCancellationRequested || !entry.IsDetecting) return;
-                    entry.DetectionProgress = p; entry.DetectionMessage = $"正在检测 {p.CompletedFrames}/{p.TotalFrames} 帧…";
-                    RefreshValidation();
-                });
-                try
-                {
-                    var result = await _detector.DetectAsync(entry.Path, entry.Info!, progress, cancellation.Token);
-                    cancellation.Token.ThrowIfCancellationRequested();
-                    entry.Detection = result; entry.Rotation = result.Rotation; entry.DetectionMessage = null;
-                }
-                catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { throw; }
-                catch (Exception ex) { entry.DetectionMessage = $"检测失败：{ex.Message} 请手动选择方向。"; }
-                finally { entry.IsDetecting = false; }
-                RefreshValidation();
-            }
-            var certain = targets.Count(e => e.Rotation is not null);
-            var unchanged = targets.Count(e => e.Rotation == 0);
-            Localization.SetText(DetectionStatus,$"检测完成：{certain} 个已确定（{unchanged} 个无需旋转），{targets.Length - certain} 个需手动检查。请对比预览。");
-        }
-        catch (OperationCanceledException) { if (!_closed) DetectionStatus.Text = "检测已停止"; }
-        finally
-        {
+            foreach (var job in _detectionJobs.Keys) job.PropertyChanged -= DetectionChanged;
+            _detectionJobs.Clear();
+            var completions = new List<Task>();
             foreach (var entry in targets)
             {
-                entry.IsDetecting = false;
-                if (entry.Rotation is null && entry.Detection is null && (entry.DetectionMessage is null || entry.DetectionMessage.StartsWith("等待") || entry.DetectionMessage.StartsWith("正在")))
-                    entry.DetectionMessage = "检测未完成，请手动选择方向。";
+                entry.Rotation = null; entry.Detection = null; entry.IsDetecting = true;
+                var job = new Job { FeatureId = "rotate", Inputs = [entry.Path], Options = new() { Format = "json",
+                    Orientation = new(Format, OutputInput.Text ?? "", SourceOutputInput.IsChecked == true, SettingNameInput.IsChecked == true) } };
+                job.Output = AiTaskResults.InternalOutputFor(job); _detectionJobs.Add(job, entry);
+                job.PropertyChanged += DetectionChanged;
+                var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                System.ComponentModel.PropertyChangedEventHandler? finished = null;
+                finished = (_, args) =>
+                {
+                    if (args.PropertyName != nameof(Job.State) || job.State is not (JobState.Completed or JobState.Cancelled or JobState.Failed)) return;
+                    job.PropertyChanged -= finished; completion.TrySetResult();
+                };
+                job.PropertyChanged += finished; completions.Add(completion.Task);
             }
-            if (ReferenceEquals(_detectionCancellation, cancellation)) _detectionCancellation = null;
-            _detecting = false; if(UncertainOnly.IsChecked==true)UncertainFilterChanged(null,null!);RefreshValidation();
+            RefreshValidation();
+            _submitDetection(_detectionJobs.Keys.ToArray(), true);
+            await Task.WhenAll(completions);
+        }
+        catch
+        {
+            foreach (var pair in _detectionJobs)
+            { pair.Key.PropertyChanged -= DetectionChanged; pair.Value.IsDetecting = false; }
+            _detectionJobs.Clear();
+            throw;
+        }
+        finally
+        {
+            if (!_closed)
+            {
+                _detecting = _detectionJobs.Keys.Any(job => job.State is JobState.Waiting or JobState.Running or JobState.Stopping or JobState.Paused);
+                RefreshValidation();
+            }
         }
     }
 
-    public void CancelDetection() => _detectionCancellation?.Cancel();
+    private void DetectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is not (nameof(Job.State) or nameof(Job.ProgressDetail) or nameof(Job.OrientationResult))) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_closed || sender is not Job job || !_detectionJobs.TryGetValue(job, out var entry)) return;
+            entry.IsDetecting = job.State is JobState.Waiting or JobState.Running or JobState.Stopping or JobState.Paused;
+            entry.DetectionMessage = job.State is JobState.Failed or JobState.Cancelled ? job.Error : job.ProgressDetail;
+            if (job.State == JobState.Completed && job.OrientationResult is { } result)
+            { entry.Detection = result.Detection; entry.Rotation = result.Detection.Rotation; entry.DetectionMessage = null; }
+            _detecting = _detectionJobs.Keys.Any(task => task.State is JobState.Waiting or JobState.Running or JobState.Stopping or JobState.Paused);
+            DetectionStatus.Text = _detecting ? "后台检测中 · 关闭此窗口后继续运行" : "检测完成 · 请对比预览，确认旋转方向";
+            RefreshValidation();
+        });
+    }
+
+    public void CancelDetection()
+    { foreach (var job in _detectionJobs.Keys.Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused)) _stopDetection(job); }
+
+    public void ApplyDetection(string path, OrientationTaskResult result)
+    {
+        var entry = _entries.Single(entry => BatchRename.PathComparer.Equals(entry.Path, path));
+        ModeCombo.SelectedIndex = 1; entry.Detection = result.Detection; entry.Rotation = result.Detection.Rotation;
+        entry.DetectionMessage = null;
+        DetectionStatus.Text = result.Detection.IsCertain ? "检测完成 · 请对比预览，确认旋转方向" : "检测完成 · 方向待确认";
+        RefreshValidation();
+    }
 
     public BatchRotateRequest CreateRequest()
     {
@@ -381,7 +410,7 @@ public sealed partial class BatchRotateWindow : Window
     private void CancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => Close(null);
     private void ConfirmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
-        try { Close(CreateRequest()); }
+        try { ToolExecution.Complete(this, CreateRequest()); }
         catch (Exception ex) { ValidationText.Text = ex.Message; ValidationText.Classes.Set("error", true); }
     }
 }

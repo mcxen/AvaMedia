@@ -24,7 +24,8 @@ public sealed partial class OnlineSummaryModel
         Func<IReadOnlyList<object>, long, int, Dictionary<string, object>> conversationRequest,
         Func<Dictionary<string, object>, CancellationToken, Task<JsonDocument>> complete)
     {
-        if (images.Count is < 1 or > 32) throw new ArgumentException("画面联合分析每次需要 1–32 帧。");
+        // A local video can start with independently observed frame text, then request pixels as needed.
+        if (images.Count > 32) throw new ArgumentException("画面联合分析每次最多 32 帧。");
         if (tools.Count is < 1 or > 8 || tools.Select(tool => tool.Name).Distinct(StringComparer.Ordinal).Count() != tools.Count)
             throw new ArgumentException("画面描述工具配置无效。");
         var messages = new List<object> { new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },

@@ -10,7 +10,8 @@ public static class AiTaskResults
 {
     public static string PathFor(Job job, string kind, string extension = "json") =>
         Path.Combine(Storage.DefaultRoot, "ai-task-results", job.Id.ToString("N"), kind + "." + extension);
-    public static string InternalOutputFor(Job job) => job.Options.PersonClip?.AnalysisOnly == true ? PathFor(job, "people")
+    public static string InternalOutputFor(Job job) => job.Options.Orientation is not null ? PathFor(job, "orientation")
+        : job.Options.PersonClip?.AnalysisOnly == true ? PathFor(job, "people")
         : job.Options.Transcription?.RecognitionOnly == true ? PathFor(job, "draft", "srt") : PathFor(job, "tags");
 
     public static async Task SaveAsync<T>(string path, T result, CancellationToken ct)
@@ -34,6 +35,12 @@ public static class AiTaskResults
         return await JsonSerializer.DeserializeAsync<T>(stream, cancellationToken: ct).ConfigureAwait(false);
     }
 
+    public static void DeleteResult(Job job, string kind)
+    {
+        var path = PathFor(job, kind);
+        if (File.Exists(path)) File.Delete(path);
+    }
+
     public static void ClearForRetry(Job job)
     {
         var folder = Path.GetDirectoryName(PathFor(job, "tags"))!;
@@ -43,11 +50,13 @@ public static class AiTaskResults
 
 public partial class Job
 {
+    private OrientationTaskResult? _orientationResult;
+    [JsonIgnore] public OrientationTaskResult? OrientationResult { get => Volatile.Read(ref _orientationResult); set { Volatile.Write(ref _orientationResult, value); Raise(); } }
     private MediaTagResult? _mediaTagResult;
     private PersonDetectionTaskResult? _personDetectionResult;
     private SubtitleTaskResult? _subtitleResult;
     [JsonIgnore] public MediaTagResult? MediaTagResult { get => Volatile.Read(ref _mediaTagResult); set { Volatile.Write(ref _mediaTagResult, value); Raise(); } }
     [JsonIgnore] public PersonDetectionTaskResult? PersonDetectionResult { get => Volatile.Read(ref _personDetectionResult); set { Volatile.Write(ref _personDetectionResult, value); Raise(); } }
     [JsonIgnore] public SubtitleTaskResult? SubtitleResult { get => Volatile.Read(ref _subtitleResult); set { Volatile.Write(ref _subtitleResult, value); Raise(); } }
-    [JsonIgnore] public bool HasInternalOutput => Options.PersonClip?.AnalysisOnly == true || Options.Transcription?.RecognitionOnly == true || Options.MediaTag?.WriteTextReport == false;
+    [JsonIgnore] public bool HasInternalOutput => Options.Orientation is not null || Options.PersonClip?.AnalysisOnly == true || Options.Transcription?.RecognitionOnly == true || Options.MediaTag?.WriteTextReport == false;
 }

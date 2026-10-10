@@ -158,6 +158,7 @@ public sealed class MediaEngine : IMediaEngine
     public static void Validate(Job job)
     {
         var feature=Catalog.Find(job.FeatureId);var o=job.Options;
+        if(o.Orientation is not null){OrientationTaskService.Validate(job);return;}
         if(AutomationTasks.Supports(job)){AutomationTasks.Validate(job);return;}
         if(feature.Operation==Operation.FolderClassify){FolderClassificationJobService.Validate(job);return;}
         if(job.Inputs.Length==0) throw new ArgumentException("请添加文件。");
@@ -252,6 +253,7 @@ public sealed class MediaEngine : IMediaEngine
     public async Task Execute(Job job,Action<double> progress,CancellationToken ct)
     {
         Validate(job);var f=Catalog.Find(job.FeatureId);
+        if(job.Options.Orientation is not null){await new OrientationTaskService(this).Execute(job,progress,ct).ConfigureAwait(false);return;}
         if(AutomationTasks.Supports(job)){await AutomationTasks.ExecuteAsync(this,job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.FolderClassify)
         {await new FolderClassificationJobService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}

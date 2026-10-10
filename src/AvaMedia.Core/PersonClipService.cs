@@ -49,7 +49,7 @@ public sealed class PersonClipService(MediaEngine engine)
         Validate(job);
         var spec = job.Options.PersonClip!;
         job.PersonDetectionResult = null;
-        if (!spec.AnalysisOnly) File.Delete(AiTaskResults.PathFor(job, "people"));
+        if (!spec.AnalysisOnly) AiTaskResults.DeleteResult(job, "people");
         var source = new FileInfo(job.Inputs[0]); var bytes = source.Length; var modified = source.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "保留有人片段", "个片段", ["人物检测", "导出片段"]);
         activity.Stage("等待人物检测"); job.ProgressDetail = "等待人物检测"; progress(0);

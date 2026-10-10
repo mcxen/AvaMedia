@@ -84,11 +84,11 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         if(await new OptionsWindow(options,copyStreamsMode:Preset=="Fast Copy",kind:MediaOptionsKind.ClipExport).ShowDialog<ConversionOptions?>(this) is {} result)
         {_options=result;RefreshFormatNote();ValidateExport();}
     }
-    private void BackClick(object? sender,RoutedEventArgs e)=>Close(new ClipExportDecision(true,ReadState()));
+    private void BackClick(object? sender,RoutedEventArgs e)=>ToolExecution.Complete(this,new ClipExportDecision(true,ReadState()));
     private void CancelClick(object? sender,RoutedEventArgs e)=>Close(null);
     private void ConfirmClick(object? sender,RoutedEventArgs e)
     {
-        try{var request=CreateRequest();var state=ReadState();new Storage().SaveToolOptions("clip-export",state);Close(new ClipExportDecision(false,state,request));}
+        try{var request=CreateRequest();var state=ReadState();new Storage().SaveToolOptions("clip-export",state);ToolExecution.Complete(this,new ClipExportDecision(false,state,request));}
         catch(Exception ex){ExportError.Text=ex.Message;JoinQueueButton.IsEnabled=false;}
     }
 }

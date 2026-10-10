@@ -23,7 +23,8 @@ internal sealed class MediaCaptionSession(ModelStore store, OnlineAiSettings pro
         else _provider ??= MediaCaptionService.PrepareProvider(providers.Resolve(options.CaptionProviderId));
         backend(_local?.Backend ?? "线上 API");
         return await MediaCaptionService.GenerateAsync(_provider, frames, options, ct, _local,
-            frameSeconds, videoDurationSeconds, frameTool).ConfigureAwait(false);
+            frameSeconds, videoDurationSeconds, frameTool,
+            (current, total) => status($"描述采样画面 {current}/{total}")).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()

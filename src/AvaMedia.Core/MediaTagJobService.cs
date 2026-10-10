@@ -54,7 +54,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         Validate(job);
         var spec = job.Options.MediaTag!;
         job.MediaTagResult = null;
-        if (spec.WriteTextReport) File.Delete(AiTaskResults.PathFor(job, "tags"));
+        if (spec.WriteTextReport) AiTaskResults.DeleteResult(job, "tags");
         bool PrivateEnabled() => engine.Settings.EnableNsfwContent;
         var activity = new AiActivityReporter(value => job.Activity = MediaPrivacy.Filter(value, PrivateEnabled()), "AI 标签", "个标签",
             spec.Analysis.GenerateCaptions
@@ -84,7 +84,10 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
             if (update.Result is { } completed) job.MediaTagResult = MediaPrivacy.Filter(completed, PrivateEnabled());
             if (update.Activity is { } snapshot)
             {
-                job.Activity = MediaPrivacy.Filter(snapshot, PrivateEnabled());
+                var node = snapshot.Nodes.ElementAtOrDefault(snapshot.CurrentNode)?.Title;
+                activity.Node(node is "生成画面描述" or "补充描述画面" ? "生成画面描述"
+                    : node == "准备标签模型" ? "准备标签模型" : "识别媒体标签");
+                activity.Observe(snapshot);
                 if (snapshot.Stage.Length > 0) job.ProgressDetail = snapshot.Stage;
                 if (snapshot.Current is { } current && snapshot.Total is > 0 and var total)
                     progress(Math.Max(job.Progress, Math.Clamp(5 + 75 * current / total, 5, 80)));

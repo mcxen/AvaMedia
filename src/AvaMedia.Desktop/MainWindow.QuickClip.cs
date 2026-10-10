@@ -25,16 +25,16 @@ public partial class MainWindow
         {
             if(paths.Length>1)
             {
-                var reviewed=await new QuickClipWorkspaceWindow(Engine,paths,edits.OfType<ClipEditResult>()).ShowDialog<ClipEditResult[]?>(this);
+                var reviewed=await ToolExecution.ShowAsync<ClipEditResult[]>(this,new QuickClipWorkspaceWindow(Engine,paths,edits.OfType<ClipEditResult>()));
                 if(reviewed is null)return;paths=reviewed.Select(edit=>edit.Path).ToArray();edits=reviewed;
             }
             else
             {
                 var previous=edits[0];
                 var editor=new EditorWindow(Engine,paths[0],previous?.Segments.FirstOrDefault()??new(),"quick-workflow",previous?.Segments);
-                var result=await editor.ShowDialog<ClipEditResult?>(this);if(result is null)return;edits[0]=result;
+                var result=await ToolExecution.ShowAsync<ClipEditResult>(this,editor);if(result is null)return;edits[0]=result;
             }
-            var decision=await new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin,previewFrames:Engine).ShowDialog<ClipExportDecision?>(this);
+            var decision=await ToolExecution.ShowAsync<ClipExportDecision>(this,new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin,previewFrames:Engine));
             if(decision is null)return;
             exportState=decision.State;
             if(decision.BackToEditing)continue;

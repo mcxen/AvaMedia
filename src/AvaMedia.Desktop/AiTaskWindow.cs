@@ -60,7 +60,7 @@ public sealed class AiTaskWindow : Window
         _error.Text = _job.Error; _error.IsVisible = _job.Error.Length > 0;
         _activity.Update(_job.Activity);
         _result.IsEnabled = _hasResult();
-        _result.Content = Localization.Text(_job.FeatureId == "auto-subtitle" ? "校对字幕" : _job.FeatureId == "person-clip" ? "调整片段" : "查看结果");
+        _result.Content = Localization.Text(_job.Options.Orientation is not null ? "确认方向" : _job.FeatureId == "auto-subtitle" ? "校对字幕" : _job.FeatureId == "person-clip" ? "调整片段" : "查看结果");
         _stop.IsVisible = _job.State is JobState.Waiting or JobState.Paused or JobState.Running;
         _run.IsEnabled = _canRun();
         _run.IsVisible = _job.State is not (JobState.Running or JobState.Stopping);

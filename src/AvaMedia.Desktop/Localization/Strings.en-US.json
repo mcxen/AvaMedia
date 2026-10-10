@@ -3290,5 +3290,12 @@
   "运行中 · 局域网": "Running · LAN",
   "运行中 · 本机": "Running · Local",
   "已关闭": "Off",
-  "端口": "Port"
+  "端口": "Port",
+  "AI 自动转正 · 检测方向": "AI orientation · Detect direction",
+  "后台检测中 · 关闭此窗口后继续运行": "Detecting in the background · Continues after this window closes",
+  "方向检测完成": "Orientation detection complete",
+  "确认方向": "Review orientation",
+  "检测完成 · 方向待确认": "Detection complete · Review orientation",
+  "待确认 · 请手动选择方向": "Needs review · Choose the direction manually",
+  "描述采样画面 {0}/{1}": "Describing sampled frame {0}/{1}"
 }

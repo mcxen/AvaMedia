@@ -84,6 +84,7 @@ public sealed partial class ConversionOptions
     public PersonClipTaskOptions? PersonClip { get; set; }
     public MediaTagTaskOptions? MediaTag { get; set; }
     public FolderClassificationTaskOptions? FolderClassification { get; set; }
+    public OrientationTaskOptions? Orientation { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;

@@ -64,7 +64,7 @@ public sealed partial class PersonClipWindow
         try
         {
             editor.SetWorkflowCompletion("保存片段");
-            var revised = await editor.ShowDialog<ClipEditResult?>(this);
+            var revised = await ToolExecution.ShowAsync<ClipEditResult>(this,editor);
             if (!_closed && revised is not null) { CheckSource(entry); entry.Result = revised; RefreshResults(); UpdateDetectorSelection(); }
         }
         catch(Exception error){ _status.Text=error.Message; }
