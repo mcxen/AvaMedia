@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 
@@ -47,7 +48,17 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
                     + "Create tasks with a fresh UUID requestId and poll their durable queue IDs. File paths are absolute paths on this server's machine. "
                     + "For renaming: analyze labels, preview exact names, then apply the plan. File/service access is unrestricted; no authentication is required.";
             }).WithHttpTransport(options => options.SessionMode = HttpServerSessionMode.Stateless)
-              .WithTools<McpTools>();
+              .WithTools<McpTools>()
+              .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, token) =>
+              {
+                  try { return await next(request, token).ConfigureAwait(false); }
+                  catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException
+                      or UnauthorizedAccessException or System.Text.Json.JsonException)
+                  {
+                      // Return actionable service/validation errors without exposing stack traces.
+                      throw new McpException(error.Message, error);
+                  }
+              }));
             var app = builder.Build();
             app.UseCors();
             app.MapMcp("/mcp");

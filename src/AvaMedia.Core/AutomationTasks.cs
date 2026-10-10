@@ -27,8 +27,7 @@ public static class AutomationTasks
             var spec = job.Options.ContactSheet ?? throw new ArgumentException("缺少多宫格参数。");
             if (job.Inputs.Length != 1 || !VideoFormats.IsVideo(job.Inputs[0]) || !File.Exists(job.Inputs[0]))
                 throw new ArgumentException("多宫格任务须包含一个视频。");
-            if (spec.Columns is < 1 or > 12 || spec.Rows is < 1 or > 12 || spec.CellWidth is < 80 or > 1920)
-                throw new ArgumentException("多宫格参数超出范围。");
+            BatchVideoTools.ValidateContactSheet(SheetOptions(spec));
         }
     }
 
@@ -50,7 +49,7 @@ public static class AutomationTasks
             try
             {
                 var outputs = await BatchVideoTools.GenerateContactSheets(engine, job.Inputs[0], folder,
-                    new(spec.Columns, spec.Rows, spec.CellWidth, Math.Min(spec.CellWidth, 180), Format: "png"),
+                    SheetOptions(spec),
                     new SheetProgress(value => progress(value.Percent)), ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested(); Directory.CreateDirectory(Path.GetDirectoryName(job.Output)!);
                 File.Move(outputs.Single(), job.Output, false);
@@ -59,6 +58,8 @@ public static class AutomationTasks
         }
         progress(100);
     }
+    private static ContactSheetOptions SheetOptions(ContactSheetTaskOptions spec) =>
+        new(spec.Columns, spec.Rows, spec.CellWidth, Math.Min(spec.CellWidth, 180), Format: "png");
     private sealed class SheetProgress(Action<ContactSheetProgress> report) : IProgress<ContactSheetProgress>
     { public void Report(ContactSheetProgress value) => report(value); }
 }

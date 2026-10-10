@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text.Json;
 using AvaMedia.Core;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace AvaMedia.Mcp;
@@ -32,7 +33,7 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
     [Description("List local files. Skips directory symlinks when scanning recursively. Paginate with offset/limit; mediaOnly selects images/videos suitable for AI tagging. Paths refer to the machine running AvaMedia.")]
     public McpFilePage ListFiles(string folder, bool recursive = false, bool mediaOnly = true, int offset = 0, int limit = 100, CancellationToken ct = default)
     {
-        Page(offset, limit); var files = _files.Collect([folder], recursive, mediaOnly, ct);
+        Page(offset, limit); var files = _files.Collect([folder], recursive, mediaOnly, ct, allowEmpty: true);
         return new(files.Skip(offset).Take(limit).ToArray(), files.Length, offset, offset + limit < files.Length ? offset + limit : null);
     }
 
@@ -41,17 +42,23 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
     public Task<MediaInfo> Probe(string path, CancellationToken ct = default) => workspace.Engine.Probe(_files.Check(path, true), ct);
 
     [McpServerTool(Name = "avamedia_create_task", Title = "创建任务", Destructive = true, UseStructuredContent = true)]
-    [Description("Create shared desktop queue tasks for any capability with canCreateTask=true. Provide a fresh UUID requestId; reuse it with identical arguments to recover tasks after a lost response. Returns immediately; poll avamedia_get_task. paths may include folders for media-ai/folder-classification. batch-rename must use preview/apply tools. ConversionOptions uses AvaMedia's service parameters; use feature's format when options is omitted. ")]
+    [Description("Create shared desktop queue tasks for any capability with canCreateTask=true. Provide a fresh UUID requestId; reuse it with identical arguments to recover tasks after a lost response. Returns immediately; poll avamedia_get_task. paths may include folders for media-ai/folder-classification. batch-rename must use preview/apply tools. ConversionOptions uses AvaMedia's service parameters; omitted options.format defaults to the feature's format.")]
     public Task<McpSubmission> CreateTask(string requestId, string featureId, string[] paths, string? outputFolder = null,
-        ConversionOptions? options = null, bool recursive = false, bool startImmediately = true, CancellationToken ct = default)
+        ConversionOptions? options = null, bool recursive = false, bool startImmediately = true, CancellationToken ct = default,
+        RequestContext<CallToolRequestParams>? context = null)
     {
         var feature = Catalog.All.FirstOrDefault(feature => feature.Id == featureId) ?? throw new ArgumentException("未知服务：" + featureId);
         if (!CanCreate(feature) || feature.Id == "batch-rename") throw new ArgumentException("该服务请使用专用接口或桌面窗口。");
         if (Catalog.IsBeta(feature) && !workspace.Engine.Settings.EnableBetaFeatures) throw new InvalidOperationException("Beta 功能已关闭。");
         var spec = options?.Clone() ?? Defaults(feature);
+        // Deserializing a partial ConversionOptions otherwise supplies its generic MP4 default.
+        // Inspect the wire object to preserve an explicitly chosen format, including MP4.
+        if (context?.Params?.Arguments?.TryGetValue("options", out var raw) == true && raw.ValueKind == JsonValueKind.Object
+            && !raw.EnumerateObject().Any(property => property.Name.Equals("format", StringComparison.OrdinalIgnoreCase)))
+            spec.Format = Defaults(feature).Format;
         var folder = outputFolder ?? workspace.Engine.Settings.OutputFolder;
         string[] inputs = [];
-        return Submit(requestId, new { featureId, paths, outputFolder, options, recursive, startImmediately }, reserved =>
+        return Submit(requestId, new { featureId, paths, outputFolder, options = spec, recursive, startImmediately }, reserved =>
         {
             var local = new McpFiles();
             Job[] jobs;

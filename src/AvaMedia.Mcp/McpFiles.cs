@@ -13,7 +13,7 @@ public sealed class McpFiles
         return full;
     }
 
-    public string[] Collect(string[] paths, bool recursive, bool mediaOnly, CancellationToken ct)
+    public string[] Collect(string[] paths, bool recursive, bool mediaOnly, CancellationToken ct, bool allowEmpty = false)
     {
         if (paths.Length == 0) throw new ArgumentException("请提供文件或目录路径。");
         var seen = new HashSet<string>(BatchRename.PathComparer);
@@ -30,7 +30,7 @@ public sealed class McpFiles
             else foreach (var file in Directory.EnumerateFiles(full, "*", new EnumerationOptions
             { RecurseSubdirectories = recursive, IgnoreInaccessible = false, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System }).OrderBy(file => file, BatchRename.PathComparer)) Add(file);
         }
-        if (files.Count == 0) throw new ArgumentException("没有可处理的文件。");
+        if (files.Count == 0 && !allowEmpty) throw new ArgumentException("没有可处理的文件。");
         return files.ToArray();
     }
 }
