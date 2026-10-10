@@ -24,7 +24,7 @@ public static class ModelCatalog
     public const string OutfitFeaturesId = "dinov2-small";
     public const string NsfwId = "marqo-nsfw";
     public const string NsfwFile = "marqo-nsfw-384.onnx";
-    public const string SummaryTextId = "summary-qwen3";
+    public const string SummaryTextId = "summary-qwen35-text-abliterated";
     public const string SummaryVisionId = "summary-smolvlm";
     public const string SummaryQwen35Id = "summary-qwen35-abliterated";
     public const string SummaryRuntimeId = "summary-runtime";

@@ -1,17 +1,17 @@
 {
   "models": [
     {
-      "id": "summary-qwen3",
-      "name": "Qwen3 · 1.7B · Q4",
+      "id": "summary-qwen35-text-abliterated",
+      "name": "Qwen3.5 · 0.8B · abliterated · Q8",
       "purpose": "本地视频摘要与中文总结",
       "license": "Apache-2.0",
-      "page": "https://huggingface.co/Qwen/Qwen3-1.7B",
+      "page": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-0.8B-abliterated",
       "files": [
         {
-          "path": "Qwen3-1.7B-Q4_K_M.gguf",
-          "size": 1282439264,
-          "sha256": "d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5",
-          "url": "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/daeb8e2d528a760970442092f6bf1e55c3b659eb/Qwen3-1.7B-Q4_K_M.gguf"
+          "path": "Huihui-Qwen3.5-0.8B-abliterated.Q8_0.gguf",
+          "size": 811844064,
+          "sha256": "54e2a3903cbd0ff264b770f29ac59c1fc547d2865db2b42e4e3ef36700767946",
+          "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-0.8B-abliterated-GGUF/resolve/2fabc82874616f44cdc494ec8ddc0e8ee10654b3/Huihui-Qwen3.5-0.8B-abliterated.Q8_0.gguf"
         }
       ]
     },

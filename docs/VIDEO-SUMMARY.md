@@ -36,13 +36,13 @@
 
 | 模型 | 用途 | 文件体积 |
 | --- | --- | --- |
-| Qwen3 1.7B Q4_K_M | 中文摘要、分段总结与内容分析 | 1,282,439,264 字节，约 1.28 GB |
+| Huihui Qwen3.5 0.8B abliterated Q8_0 | 中文摘要、分段总结与内容分析 | 811,844,064 字节，约 812 MB |
 | Qwen3.5 4B abliterated Q4 + 投影（默认视觉模型） | 抽样画面描述 | 3,379,938,240 字节，约 3.38 GB |
 | SmolVLM2 500M Q8_0 + Q8 投影（可选） | 抽样画面描述 | 545,593,888 字节，约 546 MB |
 | Whisper Small / Base / Tiny Q5_1 | 语音转录 | 190,085,487 / 59,707,625 / 32,152,673 字节，约 190 / 60 / 32 MB |
 | llama.cpp b11476 | 本地推理工具 | 下载归档 Mac 约 12 MB、Windows 约 33 MB；下载后在缓存中解压 |
 
-下载体积由选定模型决定，占用下载缓存而不增加安装包体积。关闭画面分析后不下载视觉模型；使用视频或外部字幕时不需要语音模型。Qwen3.5 用中文描述采样帧，可选 SmolVLM2 使用简短英语描述，再由 Qwen3 结合字幕生成所选语言的总结。视觉和文本模型按实际阶段租用已预热进程，任务结束后保留至空闲释放；GPU 启动或首次推理失败时尝试 CPU。SmolVLM2 描述使用贪心解码、1.1 重复惩罚和换行停止，最多保留单帧一句、多帧两句完整观察。达到输出长度上限时，有完整句子的视觉结果仍可使用；不完整视觉片段和被截断的结构化总结不作为有效结果。
+下载体积由选定模型决定，占用下载缓存而不增加安装包体积。关闭画面分析后不下载视觉模型；使用视频或外部字幕时不需要语音模型。Qwen3.5 4B 用中文描述采样帧，可选 SmolVLM2 使用简短英语描述，再由 Huihui Qwen3.5 0.8B 结合字幕生成所选语言的总结。文本模型只下载语言 GGUF，不下载投影文件；abliterated 版本降低拒答，但不保证完全不拒答或提高内容准确性。视觉和文本模型按实际阶段租用已预热进程，任务结束后保留至空闲释放；GPU 启动或首次推理失败时尝试 CPU。SmolVLM2 描述使用贪心解码、1.1 重复惩罚和换行停止，最多保留单帧一句、多帧两句完整观察。达到输出长度上限时，有完整句子的视觉结果仍可使用；不完整视觉片段和被截断的结构化总结不作为有效结果。
 
 模型取用复用进程内已验证且文件未变化的校验结果，避免反复读取整个权重；首次取用、文件改变、下载和手动校验仍完整检查。llama.cpp 关闭自带空跑，改由工具打开时初始化已安装的大模型解码器，选择素材后用一张画面初始化视觉编码；预热每次最多生成一个 token，正式任务直接复用进程。选项中的“本地大模型预热”可分别设置初始和选择素材后的 CPU / GPU 工作节奏及增加用时；默认 30% 逐步增加到 60%，实际利用率由原生运行时及系统调度。标签、人物检测和语音等模型不自动预热。语音识别沿用已经读取的媒体信息；总结中同一表述及同一引用的审核结果也复用，新增表述仍按自己的引用核对。
 
@@ -76,11 +76,13 @@
 
 总结和视觉模型文件来源、固定 revision、大小和 SHA256 位于 `src/AvaMedia.Core/Assets/SummaryModels.json`；语音模型和推理工具沿用现有固定来源清单。任务通过共享 `ModelStore` 下载和管理，运行时只监听带临时认证的本机回环地址。许可证与归属说明保存在 `licenses/local-summary/` 和 `licenses/speech/`。
 
-参考：[Qwen3 模型说明](https://huggingface.co/Qwen/Qwen3-1.7B)、[SmolVLM2 模型说明](https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct)、[量化视觉文件](https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF)、[llama.cpp 本地服务](https://github.com/ggml-org/llama.cpp/blob/b11476/tools/server/README.md)。
+参考：[Huihui Qwen3.5 0.8B 模型说明](https://huggingface.co/huihui-ai/Huihui-Qwen3.5-0.8B-abliterated)、[量化文本文件](https://huggingface.co/mradermacher/Huihui-Qwen3.5-0.8B-abliterated-GGUF)、[SmolVLM2 模型说明](https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct)、[量化视觉文件](https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF)、[llama.cpp 本地服务](https://github.com/ggml-org/llama.cpp/blob/b11476/tools/server/README.md)。
 
 界面参考：[BiliNote](https://github.com/JefferyHcool/BiliNote/blob/master/README.md) 的图文笔记、封面与原片跳转；[Eightify](https://eightify.app/) 的关键要点与带时间主题；[Notta AI Notes](https://support.notta.ai/hc/en-us/articles/15451756393243-Generate-AI-Notes-with-templates) 的总结、逐字稿与时间来源导航。AvaMedia 使用原生 Avalonia 控件实现以上阅读结构，沿用本地队列、模型和播放器。
 
-2026-10-08 在本机实际下载并校验以上模型，通过生产视频总结流程处理 32 秒样片：OpenCV `vtest.avi` 的真实行人画面配本机合成中文旁白，没有内嵌或外部字幕。最终运行耗时约 27 秒，完整保留 6 条语音转录、12 帧观察、摘要和要点，源视频 SHA256 不变。
+2026-10-10 文本模型切换为 Huihui Qwen3.5 0.8B abliterated Q8_0。本次仅核对上游文件元数据、下载地址及相关编译；以下历史样片记录使用当时的 Qwen3 1.7B，不代表新文本模型的推理或内容质量验收。
+
+2026-10-08 在本机实际下载并校验当时的模型，通过生产视频总结流程处理 32 秒样片：OpenCV `vtest.avi` 的真实行人画面配本机合成中文旁白，没有内嵌或外部字幕。最终运行耗时约 27 秒，完整保留 6 条语音转录、12 帧观察、摘要和要点，源视频 SHA256 不变。
 
 内容核对结论为部分通过：摘要和关键要点保留了行人活动、保留有人片段与删除空白片段的建议，以及“不统计行人数量、不识别个人身份”的限制。章节仍可能把画面边缘进出误写成进出建筑，内容分析也可能把抽样帧误写成镜头切换；部分转录仍有错字。因此没有将完整内容质量判为验收通过。结果与逐项核对记录保存在本地 `artifacts/video-summary-sample/`。
 
