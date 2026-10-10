@@ -11,18 +11,20 @@ namespace AvaMedia.Desktop;
 
 public partial class EditorWindow : ISegmentThumbnailSource
 {
-    private sealed record SegmentSnapshot(ConversionOptions[] Drafts, int SelectedIndex);
+    private sealed record SegmentSnapshot(ConversionOptions[] Drafts, int SelectedIndex, bool RemoveSelected);
     private readonly List<SegmentSnapshot> _segmentUndo = [], _segmentRedo = [];
     private readonly DispatcherTimer _segmentEditTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private Task _segmentReady = Task.CompletedTask;
     private bool _restoringSegments, _previewAllSegments, _loadingSegmentControls;
+    private IReadOnlyList<ConversionOptions> _outputPreview = [];
+    private int _outputPreviewIndex;
 
     private void InitializeSegmentEditing()
     {
         _segmentEditTimer.Tick += (_, _) =>
         {
             _segmentEditTimer.Stop();
-            try { CommitActiveSegment(); SegmentError.Text = ""; }
+            try { CommitActiveSegment(); if (_hasSegmentOutput) SegmentError.Text = ""; }
             catch (ArgumentException) { } // Keep invalid text in the editor until the user fixes it.
         };
         SegmentTrack.NavigateRequested += (index, seconds) => _segmentReady = NavigateSegment(index, seconds);
@@ -46,7 +48,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
         UpdateSegmentActions();
     }
     private static bool SameSegmentOptions(ConversionOptions a, ConversionOptions b) => JsonSerializer.Serialize(a) == JsonSerializer.Serialize(b);
-    private SegmentSnapshot SegmentState() => new(_segments.Select(s => s.Options.Clone()).ToArray(), Math.Max(0, _activeSegment is null ? 0 : _segments.IndexOf(_activeSegment)));
+    private SegmentSnapshot SegmentState() => new(_segments.Select(s => s.Options.Clone()).ToArray(), Math.Max(0, _activeSegment is null ? 0 : _segments.IndexOf(_activeSegment)), _removeSelected);
     private void RememberSegmentEdit()
     {
         if (_restoringSegments) return;
@@ -60,7 +62,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
         UndoSegmentButton.IsEnabled = _segmentUndo.Count > 0;
         RedoSegmentButton.IsEnabled = _segmentRedo.Count > 0;
         var ready = _info?.Duration > 0 && _activeSegment is not null;
-        PlayAllSegmentsButton.IsEnabled = ready;
+        PlayAllSegmentsButton.IsEnabled = ready && _hasSegmentOutput;
         AddSegmentButton.IsEnabled = DuplicateSegmentButton.IsEnabled = SplitSegmentButton.IsEnabled = ready && ConfirmButton.IsEnabled;
         var validRange = ready && string.IsNullOrEmpty(TimeError.Text);
         SplitAtPositionButton.IsEnabled = validRange && EditorTime.TryRead(StartTime.Text, _options.Start, out var start)
@@ -88,7 +90,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
             {
                 RefreshOptionControls(); UpdateTimes();
                 _updating = true; _regionDelogo = false; DelogoMode.IsChecked = false; LoadRegion(); _updating = false;
-                SyncDirectionControls(); RefreshSegments(); SegmentError.Text = "";
+                SegmentError.Text = ""; SyncDirectionControls(); RefreshSegments();
             }
             finally { _loadingSegmentControls = false; }
             await _player.Stop(); token.ThrowIfCancellationRequested();
@@ -140,12 +142,22 @@ public partial class EditorWindow : ISegmentThumbnailSource
         if (_previewAllSegments) { Seek(_options.Start); return; }
         _playbackReady = StartSegmentSequence();
     }
-    private async Task StartSegmentSequence()
+    private async Task StartSegmentSequence(bool fromPosition = false)
     {
         try
         {
             CommitActiveSegment();
             if (_segments.Count == 0) return;
+            if (_removeSelected)
+            {
+                _outputPreview = OutputSegmentDrafts();
+                if (_outputPreview.Count == 0) throw new ArgumentException("已去除整个视频，请缩短或删除去除片段。");
+                _outputPreviewIndex = fromPosition ? _outputPreview.ToList().FindIndex(range => range.End > _position) : 0;
+                if (_outputPreviewIndex < 0) _outputPreviewIndex = 0;
+                _previewAllSegments = true; PlayAllSegmentsButton.Content = "停止预览";
+                if (!await PlayOutputRange(fromPosition)) CancelSegmentSequence();
+                return;
+            }
             _previewAllSegments = true; PlayAllSegmentsButton.Content = "停止预览";
             if (!await SelectSegment(_segments[0], play: true, sequence: true)) CancelSegmentSequence();
         }
@@ -154,13 +166,45 @@ public partial class EditorWindow : ISegmentThumbnailSource
     private void CancelSegmentSequence()
     {
         _previewAllSegments = false;
-        if (PlayAllSegmentsButton is not null) PlayAllSegmentsButton.Content = "预览全部";
+        _outputPreview = [];
+        if (PlayAllSegmentsButton is not null) PlayAllSegmentsButton.Content = "预览结果";
+    }
+    private async Task<bool> PlayOutputRange(bool fromPosition = false)
+    {
+        if (_info is null || _playBusy || _outputPreviewIndex >= _outputPreview.Count) return false;
+        _playBusy = true;
+        var (revision, token) = BeginPreview(keepSequence: true);
+        try
+        {
+            var range = _outputPreview[_outputPreviewIndex];
+            await _player.Stop(); token.ThrowIfCancellationRequested();
+            if (!CurrentPreview(revision)) return false;
+            var position = fromPosition && _position >= range.Start && _position < range.End ? _position : range.Start;
+            SetPosition(position); _previewEnd = range.End; _playRevision = revision; _player.Speed = 1;
+            PreviewStatus.IsVisible = false;
+            await _player.Play(position, _info.HasVideo, range.End);
+            if (!CurrentPreview(revision)) return false;
+            SetPlaybackButton(true); return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex)
+        {
+            if (CurrentPreview(revision)) { _previewFailed = true; PreviewStatus.Text = ex.Message; PreviewStatus.IsVisible = true; }
+            return false;
+        }
+        finally { _playBusy = false; }
     }
     private async Task<bool> ContinueSegmentPreview()
     {
         if (!QuickWorkflow || _activeSegment is null || _previewFailed) return false;
         if (_previewAllSegments)
         {
+            if (_removeSelected)
+            {
+                _outputPreviewIndex++;
+                if (_outputPreviewIndex < _outputPreview.Count && await PlayOutputRange()) return true;
+                CancelSegmentSequence(); return false;
+            }
             var index = _segments.IndexOf(_activeSegment) + 1;
             if (index < _segments.Count) return await SelectSegment(_segments[index], play: true, sequence: true);
             CancelSegmentSequence(); return false;
@@ -206,6 +250,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
             _restoringSegments = true; _segmentEditTimer.Stop();
             var snapshot = source[^1]; source.RemoveAt(source.Count - 1); target.Add(SegmentState());
             BeginPreview();
+            _removeSelected = snapshot.RemoveSelected; InvertSelectionCheck.IsChecked = _removeSelected; ApplySelectionMode();
             _selectingSegment = true; _segments.Clear();
             foreach (var draft in snapshot.Drafts) _segments.Add(new(draft, _path));
             _activeSegment = null; _selectingSegment = false;

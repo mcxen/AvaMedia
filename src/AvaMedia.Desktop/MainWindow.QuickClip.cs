@@ -31,7 +31,7 @@ public partial class MainWindow
             else
             {
                 var previous=edits[0];
-                var editor=new EditorWindow(Engine,paths[0],previous?.Segments.FirstOrDefault()??new(),"quick-workflow",previous?.Segments);
+                var editor=new EditorWindow(Engine,paths[0],previous?.Segments.FirstOrDefault()??new(),"quick-workflow",previous?.Segments,removeSelected:previous?.RemoveSelected??false);
                 var result=await ToolExecution.ShowAsync<ClipEditResult>(this,editor);if(result is null)return;edits[0]=result;
             }
             var decision=await ToolExecution.ShowAsync<ClipExportDecision>(this,new ClipExportWindow(edits.OfType<ClipEditResult>(),_settings.OutputFolder,exportState,allowJoin,previewFrames:Engine));

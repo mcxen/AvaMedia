@@ -38,7 +38,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
             var row = new StackPanel { Spacing = 6, Margin = new(0, 5) };
             var include = new CheckBox { Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include }; Localization.SetIsUserText(include, true);
             include.IsCheckedChanged += (_, _) => { source.Include = include.IsChecked == true; Refresh(); }; row.Children.Add(include);
-            row.Children.Add(Ui.Text(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.Segments.Count} 个片段"), "caption")); return row;
+            row.Children.Add(Ui.Text(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption")); return row;
         });
         var body = new Grid { ColumnDefinitions = new("280,*"), ColumnSpacing = 20 }; body.Children.Add(_files);
         body.Children.Add(new ScrollViewer { Content = _segments, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
@@ -53,7 +53,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
         if(_editing) return; _editing = true;
         try
         {
-            var editor = new EditorWindow(_engine, source.Path, source.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", source.Edit?.Segments);
+            var editor = new EditorWindow(_engine, source.Path, source.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", source.Edit?.Segments, removeSelected: source.Edit?.RemoveSelected ?? false);
             editor.SetWorkflowCompletion("保存剪辑");
             if(await ToolExecution.ShowAsync<ClipEditResult>(this,editor) is {} result) source.Edit = result;
             RefreshFiles();
@@ -69,9 +69,9 @@ internal sealed class QuickClipWorkspaceWindow : Window
         {
             var name = Ui.Text(System.IO.Path.GetFileName(source.Path), "heading"); Localization.SetIsUserText(name, true); _segments.Children.Add(name);
             _segments.Children.Add(Ui.Button(source.Edit is null ? "剪辑此视频…" : "继续编辑…", async () => await EditAsync(source)));
-            foreach(var segment in source.Edit?.Segments ?? []) _segments.Children.Add(Ui.Text(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
+            foreach(var segment in source.Edit?.OutputSegments ?? []) _segments.Children.Add(Ui.Text(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
         }
-        var selected = _sources.Where(source => source.Include).ToArray(); var ready = selected.Count(source => source.Edit?.Segments.Count > 0);
+        var selected = _sources.Where(source => source.Include).ToArray(); var ready = selected.Count(source => source.Edit?.OutputSegments.Count > 0);
         _status.Text = Localization.Format($"已剪辑 {ready} / {selected.Length} 个视频"); _export.IsEnabled = ready > 0 && ready == selected.Length;
     }
 }

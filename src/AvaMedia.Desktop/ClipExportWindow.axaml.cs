@@ -5,13 +5,14 @@ using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
-public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false,bool JoinSegments=false);
+public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false,bool JoinSegments=false,bool RemoveSelected=false);
 public sealed record ClipExportDecision(bool BackToEditing,ClipExportState State,ConversionRequest? Request=null);
 
 public partial class ClipExportWindow : Window, ISegmentThumbnailSource
 {
     private readonly ClipEditResult[] _edits;
     private readonly IMediaPreview _previewFrames;
+    private readonly bool _requiresJoin;
     private readonly CancellationTokenSource _lifetime = new();
     private ConversionOptions _options;
     public ClipExportWindow() : this([],MediaFolders.DefaultOutput) { }
@@ -19,25 +20,27 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     {
         _previewFrames=previewFrames??new MediaEngine(new());
         InitializeComponent();ToolExecution.Configure(this,JoinQueueButton,"开始导出");_edits=edits.ToArray();_options=state?.Options.Clone()??new();
+        _requiresJoin = _edits.Any(edit => edit.RemoveSelected);
         Closed+=(_,_)=>{_lifetime.Cancel();_lifetime.Dispose();};
         Avalonia.Automation.AutomationProperties.SetName(FormatCombo,"快速剪辑输出格式");
         Avalonia.Automation.AutomationProperties.SetName(ExportFolder,"快速剪辑保存位置");
         Avalonia.Automation.AutomationProperties.SetName(ExportSegments,"待导出的剪辑片段");
-        Localization.SetText(ExportSummary,$"{_edits.Length} 个视频 · {_edits.Sum(e=>e.Segments.Count)} 个片段");
-        ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.Segments.Select((segment,i)=>new ClipSegmentEntry(segment,edit.Path){Number=i+1,SourceDuration=edit.Info.Duration})).ToArray();
+        Localization.SetText(ExportSummary,$"{_edits.Length} 个视频 · {_edits.Sum(e=>e.OutputSegments.Count)} 个片段");
+        ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.OutputSegments.Select((segment,i)=>new ClipSegmentEntry(segment,edit.Path){Number=i+1,SourceDuration=edit.Info.Duration})).ToArray();
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
         AddSettingName.IsChecked=state?.AddSettingName??false;
-        JoinSegments.IsVisible=allowJoin;JoinSegments.IsChecked=allowJoin && (state?.JoinSegments??true);
+        JoinSegments.IsVisible=allowJoin || _requiresJoin;JoinSegments.IsChecked=_requiresJoin || allowJoin && (state?.JoinSegments??true);
+        JoinSegments.IsEnabled=!_requiresJoin;
         JoinSegments.IsCheckedChanged+=(_,_)=>ValidateExport();
         FormatCombo.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset,_)=>Ui.Text(QuickClipBatch.PresetLabel(preset??QuickClipBatch.DefaultPreset)));
-        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??QuickClipBatch.DefaultPreset;
+        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=_requiresJoin && state?.RemoveSelected!=true && (state?.Preset is null or "Fast Copy") ? "MP4" : state?.Preset??QuickClipBatch.DefaultPreset;
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
     Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
         => SegmentThumbnail.ReadAsync(_previewFrames,path,options,ct,_lifetime.Token);
     private string Preset=>FormatCombo.SelectedItem as string??QuickClipBatch.DefaultPreset;
-    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,JoinSegments.IsVisible && JoinSegments.IsChecked==true);
+    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,_requiresJoin || JoinSegments.IsVisible && JoinSegments.IsChecked==true,_requiresJoin);
     public ConversionRequest CreateRequest()
     {
         var state=ReadState();

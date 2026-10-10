@@ -10,9 +10,9 @@
       <local:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
     </ScrollViewer>
     <Slider Grid.Row="2" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" Height="{DynamicResource UiFieldHeight}" Margin="0,1"/>
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,*" MinHeight="{DynamicResource UiTransportRowHeight}" VerticalAlignment="Center">
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{DynamicResource UiSpacingMedium}" MinHeight="{DynamicResource UiTransportRowHeight}" VerticalAlignment="Center">
       <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Left">
         <Button x:Name="BackwardButton" Classes="transport" Click="BackwardClick" ToolTip.Tip="按当前精度向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
         <Button x:Name="PlayButton" Classes="transport" Click="PlayClick" ToolTip.Tip="播放" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
         <Button x:Name="StopButton" Classes="transport" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop" /></Button>
@@ -30,26 +30,24 @@
           <local:RangeBar x:Name="TrimBar" Grid.ColumnSpan="2"/>
           <Button x:Name="SetStartButton" Classes="field-action" Grid.Row="1" Content="设为起点" Click="SetStartClick" ToolTip.Tip="使用当前位置作为开始时间（I）"/>
           <Button x:Name="SetEndButton" Classes="field-action" Grid.Row="1" Grid.Column="1" Content="设为终点" Click="SetEndClick" ToolTip.Tip="使用当前位置作为结束时间（O）"/>
-          <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
+          <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
             <Button x:Name="StartMinusButton" Classes="step" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
             <TextBox x:Name="StartTime" Classes="time" Grid.Column="1" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
             <Button x:Name="StartPlusButton" Classes="step" Grid.Column="2" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
           </Grid>
-          <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
+          <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
             <Button x:Name="EndMinusButton" Classes="step" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
             <TextBox x:Name="EndTime" Classes="time" Grid.Column="1" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
             <Button x:Name="EndPlusButton" Classes="step" Grid.Column="2" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
           </Grid>
-          <Button Grid.Row="3" Classes="boundary-preview" Click="JumpStartClick" ToolTip.Tip="定位到片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
-          <Button Grid.Row="3" Grid.Column="1" Classes="boundary-preview" Click="JumpEndClick" ToolTip.Tip="定位到片段最后一帧" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
+          <Button Grid.Row="2" Classes="boundary-preview" Click="JumpStartClick" ToolTip.Tip="定位到片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
+          <Button Grid.Row="2" Grid.Column="1" Classes="boundary-preview" Click="JumpEndClick" ToolTip.Tip="定位到片段最后一帧" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
           <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}"><TextBlock Text="淡入效果" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FadeInCombo" Width="{DynamicResource UiTimeFieldWidth}"/></Grid>
           <Grid Grid.Row="4" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}"><TextBlock Text="淡出效果" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FadeOutCombo" Width="{DynamicResource UiTimeFieldWidth}"/></Grid>
-          <Grid Grid.Row="5" Grid.ColumnSpan="2" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,*,Auto" RowSpacing="6" ColumnSpacing="8">
-            <TextBlock Text="持续时间" VerticalAlignment="Center"/><TextBlock FontFeatures="tnum" x:Name="SelectionDuration" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Grid.Column="1"/>
-            <TextBlock Grid.Column="2" Text="输出时长" VerticalAlignment="Center"/><TextBlock FontFeatures="tnum" Grid.Column="3" x:Name="OutputDuration" i18n:StableLayout.Samples="888:88:88.888" Classes="time"/>
-            <TextBlock Grid.Row="1" Text="精度" VerticalAlignment="Center"/><ComboBox Grid.Row="1" Grid.Column="1" x:Name="PrecisionCombo"/>
-            <TextBlock Grid.Row="1" Grid.Column="2" Text="速度" VerticalAlignment="Center"/><ComboBox Grid.Row="1" Grid.Column="3" x:Name="SpeedCombo"/>
-            <Button Grid.Column="4" Grid.RowSpan="2" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
+          <Grid Grid.Row="5" Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto,*,Auto" ColumnSpacing="8">
+            <TextBlock Text="精度" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="PrecisionCombo"/>
+            <TextBlock Grid.Column="2" Text="速度" VerticalAlignment="Center"/><ComboBox Grid.Column="3" x:Name="SpeedCombo"/>
+            <Button Grid.Column="4" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
           </Grid>
           <TextBlock Grid.Row="6" Grid.ColumnSpan="2" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
         </Grid></ScrollViewer>
@@ -84,10 +82,11 @@
     <GridSplitter Grid.Column="1" x:Name="SegmentPaneSplitter" IsVisible="False" ResizeDirection="Columns" HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Transparent"/>
     <Border Grid.Column="2" x:Name="SegmentPane" IsVisible="False" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1">
       <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8" Margin="10">
-        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
+        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
           <TextBlock x:Name="SegmentCount" FontWeight="SemiBold" VerticalAlignment="Center"/>
-          <Button Grid.Column="1" x:Name="PlayAllSegmentsButton" i18n:StableLayout.Samples="预览全部|停止预览" Content="预览全部" Click="PlayAllSegmentsClick" ToolTip.Tip="按列表顺序播放全部片段"/>
-          <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="SegmentTotalDuration" Classes="caption"/>
+          <Button Grid.Column="1" x:Name="PlayAllSegmentsButton" i18n:StableLayout.Samples="预览结果|停止预览" Content="预览结果" Click="PlayAllSegmentsClick" ToolTip.Tip="预览将要导出的视频"/>
+          <CheckBox Grid.Row="1" Grid.ColumnSpan="2" x:Name="InvertSelectionCheck" Content="反选：去除所选片段" IsCheckedChanged="InvertSelectionChanged"/>
+          <TextBlock Grid.Row="2" Grid.ColumnSpan="2" x:Name="SegmentTotalDuration" FontFeatures="tnum" i18n:StableLayout.Samples="总输出时长：888:88:88.888" Classes="caption"/>
         </Grid>
         <ListBox Grid.Row="1" x:Name="SegmentList" Classes="clip-segments" SelectionChanged="SegmentChanged" DoubleTapped="SegmentDoubleTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemTemplate>
