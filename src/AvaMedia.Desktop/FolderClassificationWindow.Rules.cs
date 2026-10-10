@@ -82,9 +82,9 @@ public sealed partial class FolderClassificationWindow
     }
 
     private static bool SameRules(IEnumerable<FolderClassificationRule> first, IEnumerable<FolderClassificationRule> second)
-        => first.Select(rule => (rule.Id, rule.Name, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
+        => first.Select(rule => (rule.Id, rule.Name, rule.NippleDetection, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
             Categories: string.Join("\n", rule.Categories.Select(category => category.Id + "\t" + category.Name + "\t" + category.Description))))
-        .SequenceEqual(second.Select(rule => (rule.Id, rule.Name, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
+        .SequenceEqual(second.Select(rule => (rule.Id, rule.Name, rule.NippleDetection, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
             Categories: string.Join("\n", rule.Categories.Select(category => category.Id + "\t" + category.Name + "\t" + category.Description)))));
 
     private FolderClassificationRule[] ReplaceSelectedGroup(FolderClassificationRule rule)
@@ -137,19 +137,24 @@ public sealed partial class FolderClassificationWindow
         var agreement = new NumericUpDown { Minimum = 51, Maximum = 100, Increment = 5, FormatString = "0'%'", Value = (decimal)((existing?.MinimumAgreement ?? FolderClassificationRule.DefaultMinimumAgreement) * 100) };
         var mode = Ui.Combo(["自动", "手动调整"], existing?.UseAutomaticSettings == false ? "手动调整" : "自动");
         var categories = new List<CategoryEditor>();
+        var existingDetection = existing is null ? null : FolderNippleClassification.Resolve(existing);
         foreach (var category in existing?.Categories ?? [new("", "", ""), new("", "", "")])
         {
             var label = Ui.Input(category.Name); var description = Ui.Input(category.Description); description.AcceptsReturn = true; description.MinHeight = 48;
             Localization.SetIsUserText(label, true); Localization.SetIsUserText(description, true);
             categories.Add(new(category.Id.Length == 0 ? Guid.NewGuid().ToString("N") : category.Id, label, description));
         }
+        FolderNippleDetection? CurrentDetection() => existingDetection ?? FolderNippleClassification.Resolve(categories
+            .Select(category => new FolderClassificationCategory(category.Id, category.Name.Text?.Trim() ?? "", "")).ToArray());
         var rows = new StackPanel { Spacing = 10 };
+        Action? updateSettings = null;
         var add = new Button { Content = "添加类别", HorizontalAlignment = HorizontalAlignment.Left };
         add.Click += (_, _) =>
         {
             var label = Ui.Input(""); var description = Ui.Input(""); description.AcceptsReturn = true; description.MinHeight = 48;
             Localization.SetIsUserText(label, true); Localization.SetIsUserText(description, true);
-            categories.Add(new(Guid.NewGuid().ToString("N"), label, description)); RebuildCategories(); label.Focus();
+            label.TextChanged += (_, _) => updateSettings?.Invoke();
+            categories.Add(new(Guid.NewGuid().ToString("N"), label, description)); RebuildCategories(); updateSettings?.Invoke(); label.Focus();
         };
         void RebuildCategories()
         {
@@ -160,41 +165,64 @@ public sealed partial class FolderClassificationWindow
                 var row = new Avalonia.Controls.Grid { ColumnDefinitions = new("140,*,Auto"), ColumnSpacing = 8 };
                 category.Name.Watermark = Localization.Text("类别名称"); category.Description.Watermark = Localization.Text("画面特征，如：床、枕头和被褥");
                 row.Children.Add(category.Name); Avalonia.Controls.Grid.SetColumn(category.Description, 1); row.Children.Add(category.Description);
-                var remove = Ui.Button("移除", () => { categories.Remove(category); RebuildCategories(); });
+                var remove = Ui.Button("移除", () => { categories.Remove(category); RebuildCategories(); updateSettings?.Invoke(); });
                 remove.IsEnabled = categories.Count > 2; Avalonia.Controls.Grid.SetColumn(remove, 2); row.Children.Add(remove); rows.Children.Add(row);
             }
-            add.IsEnabled = categories.Count < 12;
+            add.IsEnabled = categories.Count < 12 && CurrentDetection() is null;
         }
         RebuildCategories();
         var body = new StackPanel { Spacing = 10 };
         body.Children.Add(Ui.Text("分类名称", "caption")); body.Children.Add(name);
         body.Children.Add(Ui.Text("类别与画面描述", "settingsHeading")); body.Children.Add(rows); body.Children.Add(add);
         body.Children.Add(Ui.Text("类别名称用作文件夹名，不确定的文件放入待确认。", "caption"));
+        var detectionHint = Ui.Text("按乳头是否裸露分类；视频采样中检出一次即归入露点。", "caption"); body.Children.Add(detectionHint);
         var modeRow = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
         modeRow.Children.Add(Ui.Text("识别设置", "caption")); Grid.SetColumn(mode, 1); modeRow.Children.Add(mode); body.Children.Add(modeRow);
         var limits = new Avalonia.Controls.Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 12 };
         var fields = new[] { ("最低匹配分数", threshold), ("与其他类别的最小差距", margin), ("视频画面一致率", agreement) };
+        var fieldLabels = new List<TextBlock>(); var fieldPanels = new List<StackPanel>();
         for (var index = 0; index < fields.Length; index++)
-        { var field = new StackPanel { Spacing = 6 }; field.Children.Add(Ui.Text(fields[index].Item1, "caption")); field.Children.Add(Ui.Parameter(fields[index].Item2,fields[index].Item1)); Avalonia.Controls.Grid.SetColumn(field, index); limits.Children.Add(field); }
+        {
+            var field = new StackPanel { Spacing = 6 }; var label = Ui.Text(fields[index].Item1, "caption");
+            fieldLabels.Add(label); fieldPanels.Add(field); field.Children.Add(label);
+            field.Children.Add(Ui.Parameter(fields[index].Item2,fields[index].Item1)); Grid.SetColumn(field, index); limits.Children.Add(field);
+        }
         ToolTip.SetTip(threshold, Localization.Text("匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
         ToolTip.SetTip(margin, Localization.Text("第一名与第二名的分数差距小于此值时，画面进入待确认。"));
         ToolTip.SetTip(agreement, Localization.Text("视频中至少有这一比例的采样画面命中同一类别，才自动归类。"));
         var advancedBody = new StackPanel { Spacing = 10 };
-        advancedBody.Children.Add(limits); advancedBody.Children.Add(Ui.Text("数值越高，分类越谨慎。", "caption"));
+        var advancedHint = Ui.Text("数值越高，分类越谨慎。", "caption");
+        advancedBody.Children.Add(limits); advancedBody.Children.Add(advancedHint);
         var makeDefault = new CheckBox { Content = "设为默认分类" }; advancedBody.Children.Add(makeDefault);
         ToolTip.SetTip(makeDefault, Localization.Text("将当前分类规则设为下次打开时的默认分类"));
         var advanced = new Expander { Header = "高级设置", Content = advancedBody, HorizontalAlignment = HorizontalAlignment.Stretch };
         void UpdateMode()
         {
             var automatic = mode.SelectedIndex == 0;
+            var detectsNipples = CurrentDetection() is not null;
+            detectionHint.IsVisible = detectsNipples; fieldPanels[2].IsVisible = !detectsNipples;
+            limits.ColumnDefinitions = new(detectsNipples ? "*,*" : "*,*,*");
+            fieldLabels[0].Text = Localization.Text(detectsNipples ? "露点判定分数" : "最低匹配分数");
+            fieldLabels[1].Text = Localization.Text(detectsNipples ? "待确认分数范围" : "与其他类别的最小差距");
+            for (var index = 0; index < 2; index++)
+                if (fieldPanels[index].Children[1] is Panel parameter)
+                    foreach (var control in parameter.Children) Avalonia.Automation.AutomationProperties.SetName(control, fieldLabels[index].Text);
+            advancedHint.Text = Localization.Text(detectsNipples ? "判定分数下方的这段范围进入待确认。" : "数值越高，分类越谨慎。");
+            ToolTip.SetTip(threshold, Localization.Text(detectsNipples ? "露点标签分数达到此值时，归入露点。"
+                : "匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
+            ToolTip.SetTip(margin, Localization.Text(detectsNipples ? "判定分数下方的这段范围进入待确认。"
+                : "第一名与第二名的分数差距小于此值时，画面进入待确认。"));
             if (automatic)
             {
-                threshold.Value = (decimal)FolderClassificationRule.DefaultThreshold;
-                margin.Value = (decimal)FolderClassificationRule.DefaultMargin;
+                threshold.Value = (decimal)(detectsNipples ? FolderNippleClassification.DefaultThreshold : FolderClassificationRule.DefaultThreshold);
+                margin.Value = (decimal)(detectsNipples ? FolderNippleClassification.DefaultReviewRange : FolderClassificationRule.DefaultMargin);
                 agreement.Value = (decimal)(FolderClassificationRule.DefaultMinimumAgreement * 100);
             }
+            add.IsEnabled = categories.Count < 12 && !detectsNipples;
             limits.IsEnabled = !automatic; advanced.IsExpanded = !automatic;
         }
+        updateSettings = UpdateMode;
+        foreach (var category in categories) category.Name.TextChanged += (_, _) => UpdateMode();
         mode.SelectionChanged += (_, _) => UpdateMode(); UpdateMode(); body.Children.Add(advanced);
         if (existing?.Id == "age-appearance") body.Children.Add(Ui.Text("外观年龄段是粗略判断，无法确认真实年龄。多人或不清晰画面请人工核对。", "caption"));
         var errorText = Ui.Text("", "caption"); errorText.IsVisible = false; body.Children.Add(errorText);
@@ -210,13 +238,17 @@ public sealed partial class FolderClassificationWindow
                 var missingName = categories.FirstOrDefault(category => string.IsNullOrWhiteSpace(category.Name.Text));
                 if (missingName is not null)
                 { missingName.Name.Focus(); ShowError(Localization.Text("请填写类别名称。")); return; }
-                var missing = categories.FirstOrDefault(category => string.IsNullOrWhiteSpace(category.Description.Text));
+                var detection = CurrentDetection();
+                var missing = detection is null ? categories.FirstOrDefault(category => string.IsNullOrWhiteSpace(category.Description.Text)) : null;
                 if (missing is not null)
                 { missing.Description.Focus(); ShowError(Localization.Format($"请为“{missing.Name.Text}”填写画面描述。")); return; }
                 var choices = categories.Select(category => new FolderClassificationCategory(category.Id, category.Name.Text?.Trim() ?? "",
-                    string.Join(" ", (category.Description.Text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))).ToArray();
+                    string.IsNullOrWhiteSpace(category.Description.Text) && detection is not null
+                        ? category.Id == detection.ExposedCategoryId ? "画面中能看到裸露乳头。" : "乳头未露出或被衣物遮住。"
+                        : string.Join(" ", (category.Description.Text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))).ToArray();
                 var rule = new FolderClassificationRule(existing?.Id ?? Guid.NewGuid().ToString("N"), name.Text?.Trim() ?? "", choices)
                 {
+                    NippleDetection = detection,
                     UseAutomaticSettings = mode.SelectedIndex == 0,
                     Threshold = (double)(threshold.Value ?? (decimal)FolderClassificationRule.DefaultThreshold),
                     Margin = (double)(margin.Value ?? (decimal)FolderClassificationRule.DefaultMargin),

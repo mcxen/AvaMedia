@@ -101,9 +101,18 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
             if (decision.Frames.Count > 0)
             {
                 var scores = new StackPanel { Spacing = 4 };
-                scores.Children.Add(Ui.Text(Localization.Format($"采样一致率 {decision.Agreement:P0} · {decision.Frames.Count} 帧"), "caption"));
-                foreach (var score in decision.Scores.OrderByDescending(score => score.Similarity))
-                    scores.Children.Add(UserText($"{score.Name}  {score.Similarity:0.000}  ·  {score.MatchedFrames}/{decision.Frames.Count}"));
+                if (FolderNippleClassification.Resolve(rule) is { } detection)
+                {
+                    scores.Children.Add(Ui.Text(Localization.Format($"露点命中 {decision.Frames.Count(frame => frame.CategoryId == detection.ExposedCategoryId)} / {decision.Frames.Count} 帧"), "caption"));
+                    if (decision.Scores.FirstOrDefault() is { } score)
+                        scores.Children.Add(Ui.Text(Localization.Format($"露点标签最高分 {score.Similarity:0.000}"), "caption"));
+                }
+                else
+                {
+                    scores.Children.Add(Ui.Text(Localization.Format($"采样一致率 {decision.Agreement:P0} · {decision.Frames.Count} 帧"), "caption"));
+                    foreach (var score in decision.Scores.OrderByDescending(score => score.Similarity))
+                        scores.Children.Add(UserText($"{score.Name}  {score.Similarity:0.000}  ·  {score.MatchedFrames}/{decision.Frames.Count}"));
+                }
                 _details.Children.Add(new Expander { Header = "匹配详情", Content = scores, HorizontalAlignment = HorizontalAlignment.Stretch });
             }
             if (rule.Id == "age-appearance") _details.Children.Add(Ui.Text("外观年龄段供参考，请人工核对。", "caption"));

@@ -8,6 +8,7 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
     public const double DefaultThreshold = .5;
     public const double DefaultMargin = .04;
     public const double DefaultMinimumAgreement = .8;
+    public FolderNippleDetection? NippleDetection { get; init; }
     public bool UseAutomaticSettings { get; init; } = true;
     public double Threshold { get; init; } = DefaultThreshold;
     public double Margin { get; init; } = DefaultMargin;
@@ -37,7 +38,13 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
             || !double.IsFinite(Margin) || Margin is < 0 or > 1
             || !double.IsFinite(MinimumAgreement) || MinimumAgreement is <= .5 or > 1)
             throw new ArgumentException("分类阈值无效。");
-        WordLibraryCatalog.Validate(Candidates());
+        if (FolderNippleClassification.Resolve(this) is { } detection
+            && (Categories.Length != 2 || detection.ExposedCategoryId == detection.CoveredCategoryId
+                || !Categories.Any(category => category.Id == detection.ExposedCategoryId)
+                || !Categories.Any(category => category.Id == detection.CoveredCategoryId)))
+            throw new ArgumentException("露点分类须包含露点和非露点两个类别。");
+        var candidates = Candidates();
+        if (candidates.Length > 0) WordLibraryCatalog.Validate(candidates);
     }
 
     private static void ValidateId(string id)
@@ -46,10 +53,14 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
             throw new ArgumentException("分类标识无效。");
     }
 
-    public WordCandidate[] Candidates() => Categories.Select(category =>
+    public WordCandidate[] Candidates() => FolderNippleClassification.Resolve(this) is not null ? [] : Categories.Select(category =>
         new WordCandidate(Label(category.Id), "分类-" + Id, category.Description, [])).ToArray();
 
     public static IReadOnlyList<FolderClassificationRule> Presets { get; } = [
+        new("nipple-visibility", "露点与否", [
+            new("exposed", "露点", "画面中能看到裸露乳头。"),
+            new("covered", "非露点", "乳头未露出或被衣物遮住。")])
+            { NippleDetection = new("exposed", "covered") },
         new("scenery", "场景", [
             new("forest", "森林", "A forest or woodland scene with dense trees, leafy canopies, undergrowth or a wooded trail."),
             new("coast", "海边", "A coastal scene showing the ocean, a sandy or rocky beach, sea waves or a seaside shoreline."),
@@ -68,7 +79,7 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
             new("young", "儿童或青少年", "A visible person with the appearance of a child or adolescent, showing a youthful face and body proportions."),
             new("adult", "成年人", "A visible person with the appearance of an adult, showing a mature face without prominent elderly facial features."),
             new("older", "老年人", "A visible person with the appearance of an older adult, showing pronounced age-related wrinkles, grey hair or elderly facial features.")])];
-    public static FolderClassificationRule[] DefaultRules() => [Presets[0]];
+    public static FolderClassificationRule[] DefaultRules() => [Presets.Single(rule => rule.Id == "scenery")];
 }
 
 public sealed record FolderCategoryScore(string CategoryId, string Name, double Similarity, int MatchedFrames);
@@ -111,7 +122,10 @@ public static class FolderClassification
                 // Never follow links outside the selected tree or traverse link cycles.
                 if ((attributes & FileAttributes.ReparsePoint) != 0) continue;
                 if ((attributes & FileAttributes.Directory) == 0)
-                { if (MediaTagService.Supports(path)) files.Add(path); continue; }
+                {
+                    if (!Path.GetFileName(path).StartsWith("._", StringComparison.Ordinal) && MediaTagService.Supports(path)) files.Add(path);
+                    continue;
+                }
                 if (!visited.Add(path)) continue;
                 foreach (var child in Directory.EnumerateFileSystemEntries(path))
                 {
@@ -147,6 +161,8 @@ public static class FolderClassification
 
     private static FolderClassificationDecision Decide(MediaTagResult media, FolderClassificationRule rule)
     {
+        if (FolderNippleClassification.Resolve(rule) is { } detection)
+            return FolderNippleClassification.Decide(media, rule, detection);
         var threshold = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultThreshold : rule.Threshold;
         var margin = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultMargin : rule.Margin;
         var minimumAgreement = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultMinimumAgreement : rule.MinimumAgreement;
