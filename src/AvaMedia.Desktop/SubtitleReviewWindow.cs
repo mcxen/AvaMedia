@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -38,13 +39,15 @@ public sealed class SubtitleReviewWindow : Window
         public long Length { get; set; }
         public DateTime WriteUtc { get; set; }
         public string Status { get => _status; set => Set(ref _status, value); }
+        public override string ToString() => System.IO.Path.GetFileName(Path);
     }
     private readonly IMediaEngine _engine;
     private readonly ConversionRequest _request;
     private readonly Source[] _sources;
-    private readonly ListBox _files = new(), _cues = new();
+    private readonly ComboBox _files = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ListBox _cues = new();
     private readonly TextBox _start = Ui.Input(), _end = Ui.Input(), _text = Ui.Input();
-    private readonly TextBlock _notice = Ui.Text("", "caption");
+    private readonly TextBlock _notice = Ui.Status();
     private readonly ComboBox _format;
     private readonly TextBox _folder;
     private readonly CheckBox _sourceFolder;
@@ -74,18 +77,19 @@ public sealed class SubtitleReviewWindow : Window
             }
             return source;
         }).ToArray();
-        Title = "字幕校对"; Width = 1100; Height = 780; MinWidth = 850; MinHeight = 600;
+        Title = "字幕校对"; Width = 1060; Height = 760; MinWidth = 850; MinHeight = 600;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "document");
         ToolExecution.SaveOnClose(this, FlushTaskEditsAsync);
-        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(20), RowSpacing = 12 };
-        var content = new Grid { ColumnDefinitions = new("230,*,310"), ColumnSpacing = 16 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(20), RowSpacing = 12 };
+        root.Children.Add(_files);
+        var content = new Grid { ColumnDefinitions = new("*,320"), ColumnSpacing = 16 };
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>
         {
             if (source is null) return new TextBlock();
-            var row = new StackPanel { Spacing = 4, Margin = new(0, 4) };
+            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
             var name = Ui.Text(System.IO.Path.GetFileName(source.Path)); Localization.SetIsUserText(name, true);
             name.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; row.Children.Add(name);
-            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(Source.Status))); row.Children.Add(status); return row;
+            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(Source.Status))); Grid.SetColumn(status, 1); row.Children.Add(status); return row;
         });
         _cues.ItemTemplate = new FuncDataTemplate<CueDraft>((cue, _) =>
         {
@@ -94,7 +98,7 @@ public sealed class SubtitleReviewWindow : Window
             var text = Ui.Text(""); text.Bind(TextBlock.TextProperty, new Binding(nameof(CueDraft.Text)));
             Localization.SetIsUserText(text, true); text.TextWrapping = Avalonia.Media.TextWrapping.Wrap; row.Children.Add(text); return row;
         });
-        content.Children.Add(_files); Grid.SetColumn(_cues, 1); content.Children.Add(_cues);
+        content.Children.Add(_cues);
         Avalonia.Automation.AutomationProperties.SetName(_files,"字幕源文件");Avalonia.Automation.AutomationProperties.SetName(_cues,"字幕列表");
         Avalonia.Automation.AutomationProperties.SetName(_start,"开始时间");Avalonia.Automation.AutomationProperties.SetName(_end,"结束时间");Avalonia.Automation.AutomationProperties.SetName(_text,"字幕文字");
         _text.AcceptsReturn = true; _text.MinHeight = 100; _text.TextWrapping = Avalonia.Media.TextWrapping.Wrap; Localization.SetIsUserText(_text, true);
@@ -110,7 +114,8 @@ public sealed class SubtitleReviewWindow : Window
         _start.Bind(TextBox.TextProperty, new Binding(nameof(CueDraft.Start)) { Mode = BindingMode.TwoWay });
         _end.Bind(TextBox.TextProperty, new Binding(nameof(CueDraft.End)) { Mode = BindingMode.TwoWay });
         _text.Bind(TextBox.TextProperty, new Binding(nameof(CueDraft.Text)) { Mode = BindingMode.TwoWay });
-        _editor.Children.Add(Ui.Button("播放此处", async () =>
+        var cueActions = new WrapPanel();
+        cueActions.Children.Add(Ui.Button("播放此处", async () =>
         {
             if (Selected is not {} source || _cues.SelectedItem is not CueDraft draft) return;
             try
@@ -121,7 +126,14 @@ public sealed class SubtitleReviewWindow : Window
             }
             catch(Exception error) { _notice.Text = error.Message; }
         }));
-        _editor.Children.Add(Ui.Button("删除此条", () => { if (_cues.SelectedItem is CueDraft cue) Selected?.Cues?.Remove(cue); Refresh(); }));
+        cueActions.Children.Add(Ui.Button("删除此条", () =>
+        {
+            if (_busy || _cues.SelectedItem is not CueDraft cue || Selected?.Cues is not {} cues) return;
+            var index = cues.IndexOf(cue); cues.Remove(cue);
+            _cues.SelectedIndex = Math.Min(index, cues.Count - 1); Refresh();
+        }));
+        foreach (var button in cueActions.Children) button.Margin = new(0, 0, 8, 0);
+        _editor.Children.Add(cueActions);
         var side = new StackPanel { Spacing = 12 }; side.Children.Add(_editor);
         side.Children.Add(Ui.Button("添加字幕", () =>
         {
@@ -130,20 +142,25 @@ public sealed class SubtitleReviewWindow : Window
             if (cues.LastOrDefault() is {} last && EditorTime.TryRead(last.End, 0, out var seconds)) begin = TimeSpan.FromSeconds(seconds);
             var cue = new CueDraft(new(begin, begin + TimeSpan.FromSeconds(1), "新字幕")); cues.Add(cue); _cues.SelectedItem = cue; Refresh();
         }));
+        var output = new StackPanel { Spacing = 8 };
+        var formatRow = new Grid { ColumnDefinitions = new("88,*,Auto"), ColumnSpacing = 8 };
+        formatRow.Children.Add(Ui.Text("输出内容"));
         _format = Ui.Combo(["字幕文件 · SRT", "样式字幕 · ASS", "带字幕视频 · MP4", "带字幕视频 · MKV"], "字幕文件 · SRT");
+        AutomationProperties.SetName(_format, "输出内容");
         _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", "mp4", "mkv" }, request.Options.Format));
-        side.Children.Add(Ui.Text("输出内容")); side.Children.Add(_format);
+        Grid.SetColumn(_format, 1); formatRow.Children.Add(_format); output.Children.Add(formatRow);
         _folder = Ui.Input(request.OutputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
         Avalonia.Automation.AutomationProperties.SetName(_folder, "字幕保存位置");
         _sourceFolder = new CheckBox { Content = "输出至源文件目录", IsChecked = request.OutputToSource };
-        side.Children.Add(Ui.Text("保存位置")); side.Children.Add(_folder);
-        side.Children.Add(Ui.Button("浏览…", async () =>
+        var folderRow = new Grid { ColumnDefinitions = new("88,*,Auto"), ColumnSpacing = 8 };
+        folderRow.Children.Add(Ui.Text("保存位置")); Grid.SetColumn(_folder, 1); folderRow.Children.Add(_folder);
+        var browse = Ui.Button("浏览…", async () =>
         {
             if (await Ui.Folder(this, "选择输出目录") is {} folder) { _folder.Text = folder; _sourceFolder.IsChecked = false; }
-        }));
-        side.Children.Add(_sourceFolder);
-        _sourceFolder.IsCheckedChanged += (_, _) => _folder.IsEnabled = _sourceFolder.IsChecked != true;
-        _folder.IsEnabled = _sourceFolder.IsChecked != true;
+        });
+        Grid.SetColumn(browse, 2); folderRow.Children.Add(browse); output.Children.Add(folderRow); output.Children.Add(_sourceFolder);
+        void RefreshFolder() => _folder.IsEnabled = browse.IsEnabled = _sourceFolder.IsChecked != true;
+        _sourceFolder.IsCheckedChanged += (_, _) => RefreshFolder(); RefreshFolder();
         _style = new SubtitleStyleEditor(request.Options);
         var styles=Ui.Button("字幕样式…",async()=>
         {
@@ -152,19 +169,18 @@ public sealed class SubtitleReviewWindow : Window
             var done=Ui.DialogButton("关闭",window.Close);done.HorizontalAlignment=HorizontalAlignment.Right;Grid.SetRow(done,1);layout.Children.Add(done);window.Content=layout;
             window.Opened+=async(_,_)=>await _style.SetVideoAsync(_engine,Selected?.Path,_request.Options.VideoStreamIndex,_lifetime.Token);
             window.Closed+=(_,_)=>scroll.Content=null;await window.ShowDialog(this);
-        });side.Children.Add(styles);
-        _format.SelectionChanged+=(_,_)=>styles.IsVisible=_format.SelectedIndex!=0;styles.IsVisible=_format.SelectedIndex!=0;
-        Grid.SetColumn(side, 2); content.Children.Add(new ScrollViewer { Content = side, [Grid.ColumnProperty] = 2 }); root.Children.Add(content);
+        }); Grid.SetColumn(styles, 2); formatRow.Children.Add(styles);
+        _format.SelectionChanged+=(_,_)=>styles.IsEnabled=_format.SelectedIndex!=0;styles.IsEnabled=_format.SelectedIndex!=0;
+        content.Children.Add(new ScrollViewer { Content = side, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, [Grid.ColumnProperty] = 1 });
+        Grid.SetRow(content, 1); root.Children.Add(content); Grid.SetRow(output, 2); root.Children.Add(output);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         _retry = Ui.Button("后台重新识别", async () => await RecognizeAsync()); actions.Children.Add(_retry);
-        actions.Children.Add(Ui.DialogButton("取消", () => Close(null)));
+        var cancel = Ui.DialogButton("取消", () => Close(null)); cancel.MinWidth = 88; actions.Children.Add(cancel);
         _export = Ui.DialogButton(editing ? "保存修改" : "导出字幕", Export); _export.Classes.Add("primary");_export.IsDefault=true;actions.Children.Add(_export);
         ToolExecution.Configure(this, _export, "导出字幕", editing);
-        Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 1); root.Children.Add(footer); Content = root;
-        _files.SelectionChanged += async (_, _) => { _preview.SetSource(Selected?.Path);
-            if(Selected is {} source)try {var info=await engine.Probe(source.Path,_lifetime.Token);if(Selected==source){_duration=Math.Max(.01,(info.Duration-request.Options.Start)/request.Options.Speed);UpdateTiming();}}catch(OperationCanceledException){}catch(Exception error){_notice.Text=error.Message;}
-             _cues.ItemsSource = Selected?.Cues; _cues.SelectedIndex = Selected?.Cues?.Count > 0 ? 0 : -1; _notice.Text = Localization.Text(Selected?.Status ?? ""); Refresh(); };
+        Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
+        _files.SelectionChanged += async (_, _) => await SelectSourceAsync();
         _cues.SelectionChanged += (_, _) =>
         {
             _editor.DataContext = _cues.SelectedItem; UpdateTiming();
@@ -172,6 +188,25 @@ public sealed class SubtitleReviewWindow : Window
         };
         Closed += (_, _) => { _lifetime.Cancel(); _style.Dispose(); _preview.Dispose(); };
         RefreshFiles(); _files.SelectedIndex = 0; Refresh();
+    }
+
+    private async Task SelectSourceAsync()
+    {
+        var source = Selected;
+        _preview.SetSource(source?.Path);
+        _cues.ItemsSource = source?.Cues;
+        _cues.SelectedIndex = source?.Cues?.Count > 0 ? 0 : -1;
+        _notice.Text = Localization.Text(source?.Status ?? ""); Refresh();
+        if (source is null) return;
+        try
+        {
+            var info = await _engine.Probe(source.Path, _lifetime.Token);
+            if (_lifetime.IsCancellationRequested || Selected != source) return;
+            _duration = Math.Max(.01, (info.Duration - _request.Options.Start) / _request.Options.Speed);
+            UpdateTiming();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { if (!_lifetime.IsCancellationRequested && Selected == source) _notice.Text = error.Message; }
     }
 
     private void UpdateTiming()
@@ -246,7 +281,7 @@ public sealed class SubtitleReviewWindow : Window
     private void RefreshFiles() { _files.ItemsSource ??= _sources; }
     private void Refresh()
     {
-        _retry.IsVisible = !_busy && _recognize is not null;
+        _retry.IsVisible = _recognize is not null; _retry.IsEnabled = !_busy;
         _export.IsEnabled = !_busy && _sources.Any(source => source.Cues?.Count > 0); _editor.IsEnabled = !_busy && _cues.SelectedItem is CueDraft;
         _format.IsEnabled = !_busy;
     }

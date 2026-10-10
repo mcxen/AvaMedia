@@ -45,9 +45,9 @@ public sealed class SpeechToolsWindow : Window
         _initial = options?.Clone() ?? saved?.Options ?? new() { Format = _transcribe ? "srt" : feature.Format, Transcription = _transcribe ? new() : null, SubtitleFontSize = 48, SubtitleMargin = 36, VoiceEnhancement = !_transcribe, VoiceEnhancementStrength=50 };
         _outputChosen = options is not null || saved is not null;
         Title = editing ? Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}") : feature.Label;
-        Width = _transcribe ? 820 : 960; Height = 520; MinWidth = 720; MinHeight = 460;
+        Width = _transcribe ? 940 : 1120; Height = _transcribe ? 540 : 520; MinWidth = _transcribe ? 800 : 980; MinHeight = _transcribe ? 480 : 460;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, feature.Icon);
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(20), RowSpacing = 16 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(20), RowSpacing = 12, ColumnSpacing = 20 };
         var source = new StackPanel { Spacing = 8 }; root.Children.Add(source);
         var toolbar = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
         var imports = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -76,8 +76,8 @@ public sealed class SpeechToolsWindow : Window
         });
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
         var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); source.Children.Add(fileArea);
-        var fields = new StackPanel { Spacing = 16 };
-        Width = Math.Max(Width,1120); MinWidth = 980; root.ColumnDefinitions = new("*,420");
+        var fields = new StackPanel { Spacing = 12 };
+        root.ColumnDefinitions = new(_transcribe ? "*,300" : "*,420");
         _preview = new MediaPreviewPanel(engine); Grid.SetRow(_preview,1); Grid.SetColumn(_preview,1); root.Children.Add(_preview);
         _sources.SelectionChanged += (_,_) => _preview.SetSource(_sources.SelectedItem as string);
         Closed += (_,_) => _preview.Dispose();
@@ -97,8 +97,7 @@ public sealed class SpeechToolsWindow : Window
         if (_transcribe)
         {
             Add(fields, "识别语言", _language);
-            var recognition = new StackPanel(); Add(recognition, "识别模型", _model);
-            fields.Children.Add(new Expander { Header = "识别设置", Content = recognition, HorizontalAlignment = HorizontalAlignment.Stretch });
+            Add(fields, "识别模型", _model);
         }
         else
         {
@@ -123,8 +122,8 @@ public sealed class SpeechToolsWindow : Window
         root.Children.Add(saving);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        actions.Children.Add(Ui.DialogButton("取消", () => Close(null)));
-        _confirm = new Button { Name = "SpeechConfirm", Content = editing ? "保存修改" : "加入队列", IsDefault = true, Classes = { "primary", "dialog-action" } };
+        var cancel = Ui.DialogButton("取消", () => Close(null)); cancel.MinWidth = 88; actions.Children.Add(cancel);
+        _confirm = new Button { Name = "SpeechConfirm", Content = editing ? "保存修改" : "加入队列", IsDefault = true, MinWidth = 112, Classes = { "primary", "dialog-action" } };
         _confirm.Click += (_, _) =>
         {
             if (_busy) return; _busy = true; _error = ""; Refresh(); fields.IsEnabled = source.IsEnabled = saving.IsEnabled = false;
@@ -217,6 +216,7 @@ public sealed class SpeechToolsWindow : Window
         _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
         _remove.IsEnabled = !_busy && _sources.SelectedItems?.Count > 0;
         _empty.IsVisible = _files.Count == 0;
+        _preview.IsVisible = _files.Count > 0;
         _count.Text = _files.Count > 0 ? Localization.Format($"{_files.Count} 个文件") : "";
         _folder.IsEnabled = _browse.IsEnabled = !_busy && _sourceFolder.IsChecked != true;
         if (!_busy)
