@@ -11,8 +11,6 @@ namespace AvaMedia.Desktop.Controls;
 
 public partial class JobRowView : UserControl
 {
-    // Limit background FFmpeg processes even when many rows become visible at once.
-    private static readonly SemaphoreSlim PreviewSlots = new(2);
     private MainWindow? _owner;
     private JobRowDetails? _details;
     private CancellationTokenSource? _load;
@@ -106,35 +104,27 @@ public partial class JobRowView : UserControl
     private async Task LoadAsync(JobRowDetails details, IMediaEngine engine, PreviewKey key, CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;
-        bool acquired = false;
-        MediaInfo? media = null;
         try
         {
-            await PreviewSlots.WaitAsync(token); acquired = true;
-            if (!await Task.Run(() => File.Exists(key.Path), token))
-            { if (ReferenceEquals(details, _details)) details.SetMedia(null, "源文件缺失或不可访问"); return; }
-            media = await engine.Probe(key.Path, token, key.Video, key.Audio);
-            byte[]? cover = null;
-            if (media.HasVideo)
-            {
-                var end = key.End > key.Start ? Math.Min(key.End, media.Duration) : media.Duration;
-                var position = media.Duration > 0 ? Math.Clamp(key.Start + Math.Min(1, Math.Max(0, end - key.Start) * .1), 0, Math.Max(0, media.Duration - .05)) : 0;
-                cover = await engine.Thumbnail(key.Path, position, 228, 144, token, pad: false, videoStreamIndex: key.Video);
-            }
-            if (!token.IsCancellationRequested && ReferenceEquals(details, _details)) details.SetMedia(media, "", cover);
+            var preview = await TaskPreviewCache.Shared.GetAsync(engine, key.Path, key.Video, key.Audio, key.Start, key.End, token);
+            if (!token.IsCancellationRequested && ReferenceEquals(details, _details)) details.SetMedia(preview.Media, "", preview.Cover);
+        }
+        catch (FileNotFoundException error) when (string.Equals(error.FileName, Path.GetFullPath(key.Path),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
+            if (!token.IsCancellationRequested && ReferenceEquals(details, _details)) details.SetMedia(null, "源文件缺失或不可访问");
         }
         catch (OperationCanceledException)
         {
-            if (ReferenceEquals(details, _details) && ReferenceEquals(cancellation, _load)) details.SetMedia(media, "媒体信息读取超时");
+            if (ReferenceEquals(details, _details) && ReferenceEquals(cancellation, _load)) details.SetMedia(null, "媒体信息读取超时");
         }
         catch (Exception)
         {
             // Inspection failures never change the job state or prevent conversion.
-            if (!token.IsCancellationRequested && ReferenceEquals(details, _details)) details.SetMedia(media, "媒体信息不可用，请检查外部工具或源文件");
+            if (!token.IsCancellationRequested && ReferenceEquals(details, _details)) details.SetMedia(null, "媒体信息不可用，请检查外部工具或源文件");
         }
         finally
         {
-            if (acquired) PreviewSlots.Release();
             if (ReferenceEquals(_load, cancellation)) _load = null;
             cancellation.Dispose();
         }

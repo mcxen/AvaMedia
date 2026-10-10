@@ -27,6 +27,29 @@ public static class ImageViewerCodec
         try { return await Task.Run(() => Decode(bytes, token), token).ConfigureAwait(false); }
         finally { DecodeGate.Release(); }
     }
+    /// <summary>Compress an already scaled preview without another media decode or FFmpeg process.</summary>
+    public static async Task<byte[]> CompressThumbnailAsync(byte[] preview, CancellationToken token)
+    {
+        await DecodeGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                using var image = new MagickImage(preview, new MagickReadSettings { FrameCount = 1 });
+                ValidateSize(image.Width, image.Height);
+                if (image.GetColorProfile() is not null) image.TransformColorSpace(ColorProfiles.SRGB);
+                else if (image.ColorSpace is ColorSpace.CMYK or ColorSpace.Lab) image.ColorSpace = ColorSpace.sRGB;
+                image.Strip(); image.Quality = 82;
+                var opaque = image.IsOpaque;
+                if (opaque) image.Alpha(AlphaOption.Remove);
+                var compressed = image.ToByteArray(opaque ? MagickFormat.Jpeg : MagickFormat.Png);
+                token.ThrowIfCancellationRequested();
+                return compressed.Length < preview.Length ? compressed : preview;
+            }, token).ConfigureAwait(false);
+        }
+        finally { DecodeGate.Release(); }
+    }
     private static ImageViewerDocument Decode(byte[] bytes, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
