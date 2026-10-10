@@ -21,25 +21,21 @@ public sealed class CategoryHeader : Button
     public bool IsExpanded { get => GetValue(IsExpandedProperty); set => SetValue(IsExpandedProperty, value); }
     protected override Type StyleKeyOverride => typeof(Button);
 
-    public CategoryHeader(string category, string glyph)
+    public CategoryHeader(string category, string iconKind)
     {
         Classes.Add("category");
-        var content = new Grid { ColumnDefinitions = new("24,*,20") };
-        var glyphText = new TextBlock
+        var content = new Grid { ColumnDefinitions = new("Auto,*,20"), ColumnSpacing = 8 };
+        var icon = new FeatureIcon
         {
-            Text = glyph, Classes = { "muted-icon" }, VerticalAlignment = VerticalAlignment.Center
+            Kind = iconKind, Label = "", HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center
         };
-        content.Children.Add(glyphText);
-        var xpIcon = new FeatureIcon
-        {
-            Kind = category switch { "音频" => "audio", "图片" => "image", "文档" => "document", "工具集" => "gear", "视频" => "video", _ => "disc" },
-            Label = "", Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center, IsVisible = false
-        };
-        content.Children.Add(xpIcon);
+        icon.Bind(WidthProperty, new DynamicResourceExtension("UiCategoryIconSize"));
+        icon.Bind(HeightProperty, new DynamicResourceExtension("UiCategoryIconSize"));
+        content.Children.Add(icon);
         var title = new TextBlock
         {
-            Text = category, Classes = { "category-title" }, TextAlignment = TextAlignment.Center,
+            Text = category, Classes = { "category-title" }, TextAlignment = TextAlignment.Left,
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(title, 1);
@@ -71,8 +67,6 @@ public sealed class CategoryHeader : Button
         void UpdateChevron()
         {
             var xp = ActualThemeVariant == Skin.WindowsXP;
-            title.TextAlignment = xp ? TextAlignment.Left : TextAlignment.Center;
-            glyphText.IsVisible = !xp; xpIcon.IsVisible = xp;
             chevron.IsVisible = !xp; xpToggle.IsVisible = xp; xpToggle.IsSelected = IsExpanded;
             var classic = ActualThemeVariant == Skin.MacOS9;
             chevron.Data = classic ? Geometry.Parse(IsExpanded ? "M 1,3 L 11,3 L 6,9 Z" : "M 3,1 L 9,6 L 3,11 Z") : IsExpanded ? OpenChevron : ClosedChevron;

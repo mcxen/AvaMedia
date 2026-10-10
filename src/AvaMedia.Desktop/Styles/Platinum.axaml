@@ -74,7 +74,7 @@
           <Thickness x:Key="UiDialogPadding">12</Thickness>
           <Thickness x:Key="UiSectionPadding">10</Thickness>
           <x:Double x:Key="UiSettingSectionHeight">70</x:Double>
-          <x:Double x:Key="UiCategoryHeight">22</x:Double>
+          <x:Double x:Key="UiCategoryHeight">24</x:Double>
           <x:Double x:Key="UiMenuBarHeight">20</x:Double>
           <x:Int32 x:Key="UiMainMenuRow">0</x:Int32>
           <x:Int32 x:Key="UiMainToolbarRow">1</x:Int32>
@@ -85,7 +85,11 @@
           <x:Double x:Key="UiToolbarSeparatorHeight">22</x:Double>
           <GridLength x:Key="UiSidebarWidth">360</GridLength>
           <x:Double x:Key="UiFeatureIconHeight">32</x:Double>
-          <x:Double x:Key="UiFeatureRowHeight">74</x:Double>
+          <x:Double x:Key="UiFeatureRowHeight">80</x:Double>
+          <x:Double x:Key="UiFormatIconSize">28</x:Double>
+          <x:Double x:Key="UiFormatRowHeight">64</x:Double>
+          <x:Double x:Key="UiCategoryIconSize">16</x:Double>
+          <x:Double x:Key="UiFeatureGroupHeight">20</x:Double>
           <Thickness x:Key="UiToolbarPadding">5,0</Thickness>
           <Thickness x:Key="UiStatusPadding">4,0,18,0</Thickness>
           <x:Double x:Key="UiPlayerButtonSize">24</x:Double>
@@ -129,7 +133,7 @@
   <Style Selector="Window.mac-os9 Button.tool"><Setter Property="Theme" Value="{DynamicResource PlatinumBevelButtonTheme}"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Margin" Value="1,0"/><Setter Property="MinHeight" Value="24"/><Setter Property="Padding" Value="6,1"/></Style>
   <Style Selector="Window.mac-os9 Button.category"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/></Style>
   <Style Selector="Window.mac-os9 Button.tile"><Setter Property="Theme" Value="{DynamicResource PlatinumBevelButtonTheme}"/><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Padding" Value="3,2"/></Style>
-  <Style Selector="Window.mac-os9 Button.category"><Setter Property="Theme" Value="{DynamicResource PlatinumBevelButtonTheme}"/><Setter Property="Height" Value="22"/><Setter Property="MinHeight" Value="22"/><Setter Property="Padding" Value="4,0"/></Style>
+  <Style Selector="Window.mac-os9 Button.category"><Setter Property="Theme" Value="{DynamicResource PlatinumBevelButtonTheme}"/><Setter Property="Height" Value="{DynamicResource UiCategoryHeight}"/><Setter Property="MinHeight" Value="{DynamicResource UiCategoryHeight}"/><Setter Property="Padding" Value="4,0"/></Style>
   <Style Selector="Window.mac-os9 Button.tile:pressed"><Setter Property="RenderTransform" Value="scale(1)"/></Style>
   <Style Selector="Window.mac-os9 Button /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Transitions" Value="{x:Null}"/></Style>
   <Style Selector="Window.mac-os9 Button:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Window.mac-os9 Button:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Window.mac-os9 Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Transitions" Value="{x:Null}"/></Style>

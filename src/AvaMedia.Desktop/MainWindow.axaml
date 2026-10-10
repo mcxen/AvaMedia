@@ -39,7 +39,7 @@
       <Border Classes="feature-sidebar" Grid.Column="0" Background="{DynamicResource UiFeaturePanel}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="0,0,1,0">
         <Grid x:Name="Categories">
           <ScrollViewer x:Name="FeatureScroll" IsVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <Grid x:Name="FeatureGrid" Margin="12" ColumnDefinitions="*,*,*,*"/>
+            <Grid x:Name="FeatureGrid" Margin="12"/>
           </ScrollViewer>
         </Grid>
       </Border>

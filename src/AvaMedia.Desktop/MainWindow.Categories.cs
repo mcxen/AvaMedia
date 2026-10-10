@@ -18,20 +18,18 @@ public partial class MainWindow
     private readonly Dictionary<string, Button> _featureButtons = [];
     private bool _updatingCategories;
     private bool _windowsXPFeatures, _featureRefreshQueued;
+    private int _featureColumns, _formatColumns;
     private int _categoryRevision;
 
     private void InitializeCategories()
     {
+        FeatureScroll.SizeChanged += (_, _) => RefreshFeatureMetrics();
         for (var index = 0; index < Catalog.Categories.Length; index++)
         {
             var category = Catalog.Categories[index];
             Categories.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             Categories.RowDefinitions.Add(new RowDefinition(0, GridUnitType.Pixel));
-            var header = new CategoryHeader(category, category switch
-            {
-                "视频" => "▣", "音频" => "♫", "图片" => "▧", "文档" => "▤",
-                "工具集" => "⚙", _ => "◉"
-            });
+            var header = new CategoryHeader(FeatureNavigation.CategoryTitle(category), FeatureNavigation.CategoryIcon(category));
             _categoryHeaders.Add(category, header);
             Grid.SetRow(header, index * 2);
             Categories.Children.Add(header);
@@ -63,55 +61,70 @@ public partial class MainWindow
     private void BuildFeatureGrid(string category)
     {
         _windowsXPFeatures = ActualThemeVariant == Skin.WindowsXP;
-        var columns = _windowsXPFeatures ? 3 : 4;
         FeatureGrid.Children.Clear();
         _featureButtons.Clear();
         FeatureGrid.RowDefinitions.Clear();
         FeatureGrid.ColumnDefinitions.Clear();
-        for (var index = 0; index < columns; index++)
+        // Twelve tracks support 2 / 3 / 4 / 6 equal-width tiles in each section.
+        for (var index = 0; index < 12; index++)
             FeatureGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
         FeatureGrid.Margin = _windowsXPFeatures ? new Thickness(6) : new Thickness(12);
         FeatureScroll.Margin = _windowsXPFeatures ? new Thickness(10, 0, 10, 6) : default;
-        int column = 0, row = 0;
-        foreach (var feature in Catalog.All.Where(feature => feature.Category == category && (!Catalog.IsBeta(feature) || _settings.EnableBetaFeatures)))
+        (_featureColumns, _formatColumns) = FeatureColumns();
+        var sections = FeatureNavigation.Sections(category, _settings.EnableBetaFeatures).ToArray();
+        var row = 0;
+        foreach (var section in sections)
         {
-            var span = _windowsXPFeatures ? 1 : feature.Span;
-            if (column + span > columns) { column = 0; row++; }
-            while (FeatureGrid.RowDefinitions.Count <= row)
-                FeatureGrid.RowDefinitions.Add(new RowDefinition(FeatureRowHeight, GridUnitType.Pixel));
-            var content = _windowsXPFeatures
-                ? new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 4 }
-                : new Grid { RowDefinitions = new("*,Auto") };
-            var icon = new FeatureIcon { Kind = feature.Icon, Label = feature.Id == "mp4" ? "" : feature.Format.ToUpperInvariant() };
-            icon.Bind(HeightProperty, new DynamicResourceExtension("UiFeatureIconHeight"));
-            if (_windowsXPFeatures)
+            if (sections.Length > 1)
             {
-                icon.Bind(WidthProperty, new DynamicResourceExtension("UiFeatureIconHeight"));
-                icon.HorizontalAlignment = HorizontalAlignment.Center;
+                FeatureGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8,
+                    Margin = new Thickness(3, row == 0 ? 0 : 8, 3, 4) };
+                heading.Bind(MinHeightProperty, new DynamicResourceExtension("UiFeatureGroupHeight"));
+                heading.Children.Add(new TextBlock { Text = section.Title, Classes = { "feature-group-title" },
+                    VerticalAlignment = VerticalAlignment.Center });
+                var divider = new Border { Height = 1, VerticalAlignment = VerticalAlignment.Center };
+                divider.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiDivider"));
+                Grid.SetColumn(divider, 1); heading.Children.Add(divider);
+                Grid.SetRow(heading, row++); Grid.SetColumnSpan(heading, 12);
+                FeatureGrid.Children.Add(heading);
             }
-            content.Children.Add(icon);
-            var text = new TextBlock
+            var columns = section.Compact ? _formatColumns : _featureColumns;
+            var span = 12 / columns;
+            var column = 0;
+            foreach (var feature in section.Features)
             {
-                Text = feature.Label, TextWrapping = TextWrapping.Wrap,
-                Classes = { "feature-label" }, Margin = new(1, 0),
-                VerticalAlignment = _windowsXPFeatures ? VerticalAlignment.Top : VerticalAlignment.Bottom
-            };
-            Grid.SetRow(text, 1);
-            content.Children.Add(text);
-            var tile = new Button { Name = "Feature_" + feature.Id.Replace('-', '_'), Content = content,
-                Margin = new Thickness(3), Classes = { "tile" } };
-            AutomationProperties.SetName(tile, feature.Label);
-            ToolTip.SetTip(tile, feature.Label);
-            tile.Click += async (_, _) => await Configure(feature);
-            EnableFeatureDrop(tile, content, feature);
-            if (_windowsXPFeatures) tile.KeyDown += (_, args) => NavigateFeatureIcons(feature.Id, args);
-            _featureButtons.Add(feature.Id, tile);
-            Grid.SetColumn(tile, column);
-            Grid.SetRow(tile, row);
-            Grid.SetColumnSpan(tile, span);
-            FeatureGrid.Children.Add(tile);
-            column += span;
-            if (column == columns) { column = 0; row++; }
+                if (column == 0) FeatureGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                var content = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 6 };
+                var icon = new FeatureIcon { Kind = feature.Icon,
+                    Label = feature.Icon is "pdf-text" or "pdf-docx" or "pdf-xlsx" or "text-pdf" ? feature.Format.ToUpperInvariant() : "",
+                    HorizontalAlignment = HorizontalAlignment.Center };
+                var iconResource = section.Compact ? "UiFormatIconSize" : "UiFeatureIconHeight";
+                icon.Bind(HeightProperty, new DynamicResourceExtension(iconResource));
+                icon.Bind(WidthProperty, new DynamicResourceExtension(iconResource));
+                content.Children.Add(icon);
+                var text = new TextBlock
+                {
+                    Text = section.Compact ? feature.Format.ToUpperInvariant() : feature.Label,
+                    TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 2,
+                    Classes = { "feature-label" }, VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetRow(text, 1); content.Children.Add(text);
+                var tile = new Button { Name = "Feature_" + feature.Id.Replace('-', '_'), Content = content,
+                    Margin = new Thickness(3), Classes = { "tile", "feature-tile" } };
+                tile.Bind(MinHeightProperty, new DynamicResourceExtension(section.Compact ? "UiFormatRowHeight" : "UiFeatureRowHeight"));
+                AutomationProperties.SetName(tile, feature.Label);
+                ToolTip.SetTip(tile, feature.Label);
+                tile.Click += async (_, _) => await Configure(feature);
+                EnableFeatureDrop(tile, content, feature);
+                tile.KeyDown += (_, args) => NavigateFeatureIcons(feature.Id, args);
+                _featureButtons.Add(feature.Id, tile);
+                Grid.SetColumn(tile, column * span); Grid.SetRow(tile, row); Grid.SetColumnSpan(tile, span);
+                FeatureGrid.Children.Add(tile);
+                column++;
+                if (column == columns) { column = 0; row++; }
+            }
+            if (column != 0) row++;
         }
     }
 
@@ -128,18 +141,30 @@ public partial class MainWindow
         }, DispatcherPriority.Loaded);
     }
 
-    private double FeatureRowHeight => this.TryFindResource("UiFeatureRowHeight", out var value) && value is double height ? height : 91;
+    private (int Tools, int Formats) FeatureColumns()
+    {
+        var width = FeatureScroll.Bounds.Width;
+        if (width <= 0 && this.TryFindResource("UiSidebarWidth", out var value) && value is GridLength length)
+            width = length.Value - FeatureScroll.Margin.Left - FeatureScroll.Margin.Right;
+        var available = width - FeatureGrid.Margin.Left - FeatureGrid.Margin.Right - 16;
+        var tools = available >= 420 ? 4 : available >= 280 ? 3 : 2;
+        var formats = _windowsXPFeatures ? tools : available >= 420 ? 6 : available >= 280 ? 4 : 3;
+        return (tools, formats);
+    }
+
     private void RefreshFeatureMetrics()
     {
-        if (_windowsXPFeatures != (ActualThemeVariant == Skin.WindowsXP))
+        if (_categoryHeaders.Count == 0 || !FeatureScroll.IsVisible) return;
+        if (_windowsXPFeatures != (ActualThemeVariant == Skin.WindowsXP) || (_featureColumns, _formatColumns) != FeatureColumns())
         {
             if (_featureRefreshQueued) return;
             _featureRefreshQueued = true;
-            // Rebuild after theme inheritance has settled, outside the skin-switch event.
+            // Rebuild after theme inheritance and sidebar layout have settled.
             Dispatcher.UIThread.Post(() =>
             {
                 _featureRefreshQueued = false;
-                if (_closing || _windowsXPFeatures == (ActualThemeVariant == Skin.WindowsXP)) return;
+                if (_closing || !FeatureScroll.IsVisible || _windowsXPFeatures == (ActualThemeVariant == Skin.WindowsXP)
+                    && (_featureColumns, _formatColumns) == FeatureColumns()) return;
                 var focused = _featureButtons.FirstOrDefault(item => item.Value.IsKeyboardFocusWithin).Key;
                 RememberCategoryOffset();
                 var revision = ++_categoryRevision;
@@ -148,7 +173,6 @@ public partial class MainWindow
             }, DispatcherPriority.Loaded);
             return;
         }
-        foreach (var row in FeatureGrid.RowDefinitions) row.Height = new GridLength(FeatureRowHeight);
     }
 
     private void CollapseCategory()
@@ -171,29 +195,44 @@ public partial class MainWindow
         var keys = _featureButtons.Keys.ToArray();
         var index = Array.IndexOf(keys, featureId);
         if (index < 0) return;
-        var columns = FeatureGrid.ColumnDefinitions.Count;
+        var current = _featureButtons[featureId];
+        var row = Grid.GetRow(current);
+        var column = Grid.GetColumn(current);
+        var target = current;
         switch (args.Key)
         {
-            case Key.Up when index < columns:
-            case Key.Left when index % columns == 0:
             case Key.Escape:
                 _categoryHeaders[_category].Focus(NavigationMethod.Directional);
                 args.Handled = true;
                 return;
-            case Key.Up: index -= columns; break;
+            case Key.Up:
             case Key.Down:
-                if (index / columns < (keys.Length - 1) / columns)
-                    index = Math.Min(keys.Length - 1, index + columns);
+                var rows = _featureButtons.Values.Select(Grid.GetRow).Distinct().Order().ToArray();
+                var rowIndex = Array.IndexOf(rows, row) + (args.Key == Key.Up ? -1 : 1);
+                if (rowIndex < 0)
+                {
+                    _categoryHeaders[_category].Focus(NavigationMethod.Directional);
+                    args.Handled = true;
+                    return;
+                }
+                if (rowIndex < rows.Length)
+                {
+                    var center = column + Grid.GetColumnSpan(current) / 2d;
+                    target = _featureButtons.Values.Where(button => Grid.GetRow(button) == rows[rowIndex])
+                        .MinBy(button => Math.Abs(Grid.GetColumn(button) + Grid.GetColumnSpan(button) / 2d - center))!;
+                }
                 break;
-            case Key.Left: index--; break;
+            case Key.Left:
+                if (index > 0 && Grid.GetRow(_featureButtons[keys[index - 1]]) == row) target = _featureButtons[keys[index - 1]];
+                break;
             case Key.Right:
-                if (index % columns < columns - 1 && index + 1 < keys.Length) index++;
+                if (index + 1 < keys.Length && Grid.GetRow(_featureButtons[keys[index + 1]]) == row) target = _featureButtons[keys[index + 1]];
                 break;
-            case Key.Home: index = 0; break;
-            case Key.End: index = keys.Length - 1; break;
+            case Key.Home: target = _featureButtons[keys[0]]; break;
+            case Key.End: target = _featureButtons[keys[^1]]; break;
             default: return;
         }
-        _featureButtons[keys[index]].Focus(NavigationMethod.Directional);
+        target.Focus(NavigationMethod.Directional);
         args.Handled = true;
     }
 

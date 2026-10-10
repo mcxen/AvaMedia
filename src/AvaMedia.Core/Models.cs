@@ -11,19 +11,19 @@ public abstract class Observable : INotifyPropertyChanged
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
 public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary, PersonClip, MediaTag, ImageView, FolderClassify }
-public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
+public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert);
 public static class Catalog
 {
     public static IReadOnlyList<Feature> All { get; } = Build();
-    public static string[] Categories { get; } = ["视频", "音频", "图片", "文档", "光驱设备\\DVD\\CD\\ISO", "工具集"];
+    public static string[] Categories { get; } = ["视频", "音频", "图片", "文档", "工具集", "光驱设备\\DVD\\CD\\ISO"];
     private static List<Feature> Build()
     {
         List<Feature> f = [];
-        void Add(string id, string text, string cat, string ext, string icon, Operation op = Operation.Convert, int span = 1) => f.Add(new(id,text,cat,ext,icon,op,span));
-        Add("mp4","格式转换","视频","mp4","video",Operation.Convert,2);
-        Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress,2);
-        Add("video-slim","视频瘦身","视频","mkv","gear",Operation.VideoSlim,2);
-        Add("join","视频合并","视频","mp4","join",Operation.Join,2);
+        void Add(string id, string text, string cat, string ext, string icon, Operation op = Operation.Convert) => f.Add(new(id,text,cat,ext,icon,op));
+        Add("mp4","格式转换","视频","mp4","video");
+        Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress);
+        Add("video-slim","视频瘦身","视频","mkv","gear",Operation.VideoSlim);
+        Add("join","视频合并","视频","mp4","join",Operation.Join);
         Add("split","提取音频","视频","m4a","split",Operation.SplitAudio);
         Add("clip","快速剪辑","视频","mp4","clip");
         Add("person-clip","保留有人片段 · Beta","视频","mp4","clip",Operation.PersonClip);
@@ -40,7 +40,7 @@ public static class Catalog
         Add("audio-clip","音频剪辑","音频","mp3","clip");
         Add("audio-enhance","人声增强","音频","wav","audio");
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
-        Add("image-viewer","天池看图","图片","","image",Operation.ImageView,2);
+        Add("image-viewer","天池看图","图片","","image",Operation.ImageView);
         Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
         Add("image-tools","裁剪 / 缩放 / 旋转","图片","png","crop");
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
@@ -55,7 +55,7 @@ public static class Catalog
         Add("crop","批量裁剪","工具集","mp4","crop");
         Add("rotate","批量旋转","工具集","mp4","rotate");
         Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
-        Add("media-ai","自动标签分类","工具集","txt","image",Operation.MediaTag,2);
+        Add("media-ai","自动标签分类","工具集","txt","image",Operation.MediaTag);
         Add("folder-classification","自动媒体整理","工具集","","gear",Operation.FolderClassify);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
