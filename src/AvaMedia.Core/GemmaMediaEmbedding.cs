@@ -123,12 +123,18 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
         return null;
     }
 
-    private static SessionOptions CpuOptions() => new()
+    private static SessionOptions CpuOptions()
     {
-        IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 8),
-        InterOpNumThreads = 1,
-        GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
-    };
+        var options = new SessionOptions
+        {
+            IntraOpNumThreads = CpuResourcePolicy.Threads(Math.Clamp(Environment.ProcessorCount / 2, 1, 8)),
+            InterOpNumThreads = 1,
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+        };
+        options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
+        options.AddSessionConfigEntry("session.inter_op.allow_spinning", "0");
+        return options;
+    }
 
     /// <returns>Similarity margin for person versus empty-scene descriptions; not a probability.</returns>
     public async Task<double> PersonMarginAsync(byte[] png, CancellationToken ct)
@@ -234,6 +240,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             ct.ThrowIfCancellationRequested();
+            if (Backend == "CPU") await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
             return await Task.Run(() =>
             {
                 try { return run(); }

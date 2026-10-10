@@ -66,6 +66,7 @@ internal sealed class SpeechInferenceSession : IDisposable
     public async Task<IReadOnlyList<VadSegmentData>> DetectSpeechAsync(Stream audio, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
         var start = audio.Position;
         try { return await _vad!.DetectSpeechAsync(audio, ct).ConfigureAwait(false); }
         catch (WhisperProcessingException error) when (_vadGpu && !ct.IsCancellationRequested)
@@ -78,6 +79,7 @@ internal sealed class SpeechInferenceSession : IDisposable
     public async IAsyncEnumerable<SegmentData> ProcessAsync(Stream audio, [EnumeratorCancellation] CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
         var start = audio.Position;
         var emittedUntil = TimeSpan.Zero;
         var reader = _processor!.ProcessAsync(audio, ct).GetAsyncEnumerator(ct);

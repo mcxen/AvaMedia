@@ -1277,6 +1277,8 @@
   "1–8 个任务": "1–8 tasks",
   "使用多线程转码": "Use multithreaded conversion",
   "每个任务的线程数": "Threads per task",
+  "CPU 预留比例（%）": "CPU headroom (%)",
+  "CPU 预留比例必须在 0 到 80 之间。": "CPU headroom must be between 0 and 80%.",
   "1–16；关闭多线程时使用 1": "1–16; use 1 when multithreading is off",
   "默认图片质量": "Default image quality",
   "JPEG 质量": "JPEG quality",

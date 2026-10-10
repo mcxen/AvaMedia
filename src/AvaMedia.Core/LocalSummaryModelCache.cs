@@ -249,5 +249,6 @@ public static class LocalSummaryModelCache
         catch (Exception error) { Trace.TraceError("Local model expiration: {0}", error); }
         finally { expiration.Dispose(); }
     }
-    private static string Stamp(ModelStore store, string id) => store.InstalledStamp(id) + "|" + store.InstalledStamp(ModelCatalog.SummaryRuntimeId);
+    private static string Stamp(ModelStore store, string id) => store.InstalledStamp(id) + "|" + store.InstalledStamp(ModelCatalog.SummaryRuntimeId)
+        + "|cpu:" + CpuResourcePolicy.PolicyKey;
 }

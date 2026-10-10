@@ -86,7 +86,10 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             var arguments = new List<string> { "-m", Path.Combine(model.Directory, definition.Files[0].Path), "--alias", id,
                 "--ctx-size", id == ModelCatalog.SummaryVisionId ? "4096" : id == ModelCatalog.SummaryQwen35Id ? "16384" : "8192",
                 "--parallel", "1", "--batch-size", "512", "--ubatch-size", "128",
-                "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(), "--host", "127.0.0.1", "--port", port.ToString(),
+                "--threads", CpuResourcePolicy.Threads(Math.Clamp(Environment.ProcessorCount / 2, 1, 8)).ToString(),
+                "--threads-batch", CpuResourcePolicy.Threads(Math.Clamp(Environment.ProcessorCount / 2, 1, 8)).ToString(),
+                "--poll", "0", "--poll-batch", "0",
+                "--host", "127.0.0.1", "--port", port.ToString(),
                 "--api-key", key, "--no-context-shift", "--no-warmup", "--log-colors", "off", "--log-verbosity", "4", "--gpu-layers", gpu ? "auto" : "0" };
             if (!gpu) arguments.AddRange(["--device", "none"]);
             if (ModelCatalog.IsSummaryVision(id))
@@ -200,8 +203,9 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     internal void SetBackground(bool background)
     {
         if (_cpuFallback is { } fallback) { fallback.SetBackground(background); return; }
-        if (!OperatingSystem.IsWindows()) return; // Unix nice reductions cannot reliably be reversed by an unprivileged process.
-        try { if (IsAlive) _process.PriorityClass = background ? ProcessPriorityClass.Idle : ProcessPriorityClass.Normal; }
+        if (!OperatingSystem.IsWindows()) { if (IsAlive) CpuResourcePolicy.LowerWorkerPriority(_process); return; }
+        try { if (IsAlive) _process.PriorityClass = background ? ProcessPriorityClass.Idle
+            : CpuResourcePolicy.Enabled ? ProcessPriorityClass.BelowNormal : ProcessPriorityClass.Normal; }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
         { Trace.TraceInformation("Model process priority: {0}", error.Message); }
     }

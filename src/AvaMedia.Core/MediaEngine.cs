@@ -9,7 +9,7 @@ public sealed class MediaEngine : IMediaEngine
     private readonly MediaPreviewCache _previews = new();
     private readonly Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>> _hardwareTest;
     public MediaEngine(AppSettings settings,Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>>? hardwareTest=null)
-    {Settings=settings;_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
+    {Settings=settings;CpuResourcePolicy.Configure(settings);_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
     public string FFmpeg => Resolve(Settings.FFmpegPath,"ffmpeg");
     public string FFprobe => Resolve(Settings.FFprobePath,"ffprobe");
     public static string Number(double n) => n.ToString("0.######",CultureInfo.InvariantCulture);

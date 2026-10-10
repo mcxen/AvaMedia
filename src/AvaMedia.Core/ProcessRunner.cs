@@ -9,8 +9,11 @@ public static class ProcessRunner
     public static Process Start(string executable,IEnumerable<string> arguments,bool input=false)
     {
         var p=new Process {StartInfo=new ProcessStartInfo(executable) {UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,RedirectStandardInput=input,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8}};
-        foreach(var arg in arguments) p.StartInfo.ArgumentList.Add(arg);
-        p.Start();return p;
+        foreach(var arg in CpuResourcePolicy.ToolArguments(executable,arguments)) p.StartInfo.ArgumentList.Add(arg);
+        p.Start();
+        if(JobExecutionControl.IsTaskContext || Path.GetFileNameWithoutExtension(executable).Equals("llama-server",StringComparison.OrdinalIgnoreCase))
+            CpuResourcePolicy.LowerWorkerPriority(p);
+        return p;
     }
     public static async Task<Process> StartAsync(string executable,IEnumerable<string> arguments,CancellationToken ct=default,bool input=false)
     {

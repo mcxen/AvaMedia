@@ -26,6 +26,7 @@ internal static class MediaTagModelCache
         public GemmaMediaEmbedding? Embedding;
         public string? SemanticError;
         public int BatchSize;
+        public int CpuPolicyKey;
         public readonly ConcurrentDictionary<string, ModelRuntimeStatus> States = new();
         public DateTime LastUsedUtc = DateTime.UtcNow;
         public void State(string id, ModelLoadState state, string backend = "", string? error = null)
@@ -151,10 +152,11 @@ internal static class MediaTagModelCache
         try
         {
             entry.CancelExpiration();
-            if (entry.BatchSize != options.BatchSize
+            if (entry.BatchSize != options.BatchSize || entry.CpuPolicyKey != CpuResourcePolicy.PolicyKey
                 || entry.Stamps.Any(item => item.Value != Stamp(store, item.Key)))
                 await entry.ClearAsync().ConfigureAwait(false);
             entry.BatchSize = options.BatchSize;
+            entry.CpuPolicyKey = CpuResourcePolicy.PolicyKey;
             entry.SemanticError = null;
             async Task<ModelLease> AcquireFile(string id)
             {

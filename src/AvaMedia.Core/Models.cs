@@ -237,6 +237,7 @@ public sealed partial class AppSettings
     public bool PlayerNativeSdr { get; set; }
     public bool AutoDetectGpu { get; set; } = true;
     public int CpuThreads { get; set; } = 8;
+    public int CpuReservePercent { get; set; } = 25;
     public int JpegQuality { get; set; } = 90;
     public int WebpQuality { get; set; } = 90;
     public AppSettings Clone()
@@ -261,6 +262,6 @@ public sealed partial class AppSettings
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         PlayerNativeHighResolution=source.PlayerNativeHighResolution;PlayerNativeSdr=source.PlayerNativeSdr;
-        CpuThreads=source.CpuThreads;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
+        CpuThreads=source.CpuThreads;CpuReservePercent=source.CpuReservePercent;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
     }
 }

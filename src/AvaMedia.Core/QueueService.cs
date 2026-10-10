@@ -53,6 +53,8 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                     while (_accepting && _pending.Count > 0)
                     {
                         var job = _pending.FirstOrDefault(candidate => !FilesReserved(candidate) && !MutationConflict(candidate)
+                            && (!CpuResourcePolicy.Enabled || candidate.FeatureId == "download" || _active.Values.Count(execution =>
+                                !execution.Control.IsParked && execution.Job.FeatureId != "download") < CpuResourcePolicy.ParallelLimit(concurrency))
                             && _active.Values.Count(execution =>
                             !execution.Control.IsParked && Lane(execution.Job) == Lane(candidate)) < Math.Clamp(concurrency, 1, 8));
                         if (job is null) break;

@@ -40,3 +40,13 @@ DirectML 可用于支持 DirectX 12 的 Intel、AMD 和 NVIDIA GPU。Core ML 的
 Whisper Windows x64 同时携带 `Whisper.net.Runtime.Vulkan` 和原有 CPU 包，使用库的默认 GPU 优先加载顺序。macOS 原有 `Whisper.net.Runtime` 已携带 Metal 后端，不需要额外的 Core ML 编码器权重。
 
 资料：[ONNX Runtime DirectML](https://onnxruntime.ai/docs/execution-providers/DirectML-ExecutionProvider.html)、[Whisper.net 运行库](https://github.com/sandrohanea/whisper.net)。本次仅进行相关项目编译和静态检查，没有执行模型推理、媒体验收或性能测试。
+
+## CPU 余量
+
+选项 → 转换 → 任务与线程中的“CPU 预留比例（%）”默认 25，可调 0–80；0 关闭余量控制。GPU 优先策略保持不变，CPU 预算也覆盖 GPU 模型的预处理及 CPU 节点。
+
+开启后，计算任务共用按逻辑处理器数量折算的工作线程预算。每任务线程上限同时受手动线程数、并行任务数和预留比例限制；跨工具计算并发也受预算限制，下载仍使用独立队列。FFmpeg 解码最多 2 线程、滤镜 1 线程，编码线程服从预算及较低的手动限制；Whisper / VAD、ONNX 和 llama.cpp 的 CPU 线程采用同一预算。
+
+模型线程关闭等待空转；FFmpeg 任务与 llama.cpp 子进程降低调度优先级。整机 CPU 超过目标占用时，在任务安全检查点、CPU 推理和语音分块之间短暂退让。设置保存后应用于后续调度和处理单元；原生模型缓存按 CPU 配置重建，正在执行的推理不强制中断。
+
+这是应用的资源预算和调度提示，不能保证整机固定有 25% 空闲：原生库额外线程、正在执行的计算和其他应用仍会使实际占用波动。没有执行性能或响应性测试。等待空转参数依据 [ONNX Runtime 线程配置](https://onnxruntime.ai/docs/performance/tune-performance/threading.html) 与 [llama.cpp b11476 参数](https://github.com/ggml-org/llama.cpp/blob/b11476/common/arg.cpp)。

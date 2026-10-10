@@ -21,6 +21,11 @@ public sealed partial class SystemResourceMonitor : IDisposable
         }
     }
 
+    internal double? SampleCpu()
+    {
+        lock (_gate) return _disposed ? null : TryRead(ReadCpu);
+    }
+
     private static double? TryRead(Func<double?> read)
     {
         try

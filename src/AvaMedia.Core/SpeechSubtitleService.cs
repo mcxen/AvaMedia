@@ -132,11 +132,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                     {
                         var builder = factory.CreateBuilder().WithLanguage(speech.Language).WithNoContext()
                             .WithProgressHandler(percent => Recognized(chunkBegin + (chunkEnd - chunkBegin) * Math.Clamp(percent, 0, 100) / 100d))
-                            .WithThreads(Math.Clamp(engine.Settings.MultiThread ? engine.Settings.CpuThreads : 1, 1, 8))
+                            .WithThreads(CpuResourcePolicy.Threads(Math.Clamp(engine.Settings.CpuThreads, 1, 8), engine.Settings))
                             .WithNoSpeechThreshold(.6f).WithTokenTimestamps().WithMaxSegmentLength(42);
                         if (speech.Language == "zh") builder.WithPrompt("以下是简体中文普通话的转录。");
                         return builder.Build();
-                    }, engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 4) : 1, (backend, reason) =>
+                    }, CpuResourcePolicy.Threads(Math.Clamp(engine.Settings.CpuThreads, 1, 4), engine.Settings), (backend, reason) =>
                     {
                         activity.Backend(backend);
                         if (reason is not null) { job.AppendLog(reason); activity.Stage("语音模型回退 CPU", detail: reason); }

@@ -64,6 +64,7 @@ internal sealed class ModelInferenceSession : IDisposable
     private T RunWithFallback<T>(Func<RunOptions, T> execute, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if (Backend == "CPU") CpuResourcePolicy.Yield(ct);
         using var run = new RunOptions();
         using var cancellation = ct.Register(() => run.Terminate = true);
         try { return execute(run); }
@@ -84,10 +85,12 @@ internal sealed class ModelInferenceSession : IDisposable
     {
         var options = new SessionOptions
         {
-            IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4),
+            IntraOpNumThreads = CpuResourcePolicy.Threads(Math.Clamp(Environment.ProcessorCount / 2, 1, 4)),
             InterOpNumThreads = 1,
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
         };
+        options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
+        options.AddSessionConfigEntry("session.inter_op.allow_spinning", "0");
         if (_batchSize is { } batch) options.AddFreeDimensionOverrideByName("batch_size", batch);
         // YuNet's dynamic height/width must be fixed for each sampling size so Core ML can claim the graph.
         if (_imageSize is { } size)

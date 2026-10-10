@@ -32,7 +32,7 @@ public sealed partial class SettingsWindow : Window
         foreach (var input in new[] { AutoGpuInput, MultithreadInput, NotifyInput, ReducedMotionInput, OutputToSourceInput, AddSettingNameInput,
             ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput, BetaInput, AutoRepairModelInput })
         { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
-        foreach (var input in new[] { ThreadsInput, JpegQualityInput, WebpQualityInput, ParallelInput })
+        foreach (var input in new[] { ThreadsInput, CpuReserveInput, JpegQualityInput, WebpQualityInput, ParallelInput })
         { _values.Add(()=>NumericDraftValue(input)); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         _values.Add(() => NsfwContentInput.IsChecked);
@@ -83,6 +83,7 @@ public sealed partial class SettingsWindow : Window
         draft.YtDlpPath = MediaEngine.UsesBundledTools ? "" : YtdlpInput.Text?.Trim() ?? "";
         draft.ParallelJobs = Number(ParallelInput, "每工具同时执行任务数");
         draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput, "每个任务的线程数");
+        draft.CpuReservePercent = Number(CpuReserveInput, "CPU 预留比例（%）");
         draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput, "JPEG 质量"); draft.WebpQuality = Number(WebpQualityInput, "WebP 质量");
         draft.NotifyComplete = NotifyInput.IsChecked == true; draft.ReduceMotion = ReducedMotionInput.IsChecked == true;
         draft.OutputToSource = OutputToSourceInput.IsChecked == true; draft.AddSettingName = AddSettingNameInput.IsChecked == true;
@@ -126,6 +127,7 @@ public sealed partial class SettingsWindow : Window
         OutputInput.Text = source.OutputFolder; FfmpegInput.Text = source.FFmpegPath; FfprobeInput.Text = source.FFprobePath; YtdlpInput.Text = source.YtDlpPath;
         ParallelInput.Value = Math.Clamp(source.ParallelJobs, 1, 8); AutoGpuInput.IsChecked = source.AutoDetectGpu;
         MultithreadInput.IsChecked = source.MultiThread; ThreadsInput.Value = Math.Clamp(source.CpuThreads, 1, 16); ThreadsInput.IsEnabled = source.MultiThread;
+        CpuReserveInput.Value = Math.Clamp(source.CpuReservePercent, 0, 80);
         JpegQualityInput.Value = Math.Clamp(source.JpegQuality, 1, 100); WebpQualityInput.Value = Math.Clamp(source.WebpQuality, 1, 100);
         NotifyInput.IsChecked = source.NotifyComplete; ReducedMotionInput.IsChecked = source.ReduceMotion;
         OutputToSourceInput.IsChecked = source.OutputToSource; AddSettingNameInput.IsChecked = source.AddSettingName;

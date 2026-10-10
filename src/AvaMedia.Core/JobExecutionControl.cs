@@ -4,6 +4,7 @@ namespace AvaMedia.Core;
 internal sealed class JobExecutionControl
 {
     private static readonly AsyncLocal<JobExecutionControl?> Current = new();
+    internal static bool IsTaskContext => Current.Value is not null;
     private readonly object _gate = new();
     private TaskCompletionSource? _resume;
     private int _deferred;
@@ -34,11 +35,12 @@ internal sealed class JobExecutionControl
             await resume.WaitAsync(ct).ConfigureAwait(false);
         }
     }
-    public static Task CheckpointAsync(CancellationToken ct)
+    public static async Task CheckpointAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return Current.Value is { } current && Volatile.Read(ref current._deferred) == 0
-            ? current.WaitAsync(ct) : Task.CompletedTask;
+        if (Current.Value is { } current && Volatile.Read(ref current._deferred) == 0)
+            await current.WaitAsync(ct).ConfigureAwait(false);
+        await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
     }
     // Never park while owning a shared inference session. Release it at the end of
     // the current analysis unit, then checkpoint before acquiring the next unit.
