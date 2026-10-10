@@ -10,7 +10,12 @@
           <SolidColorBrush x:Key="UiToolbar" Color="#ECE9D8"/>
           <SolidColorBrush x:Key="UiMenuSurface" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiStatusText" Color="#000000"/>
-          <SolidColorBrush x:Key="UiModelActivity" Color="#6BAEE1"/>
+          <LinearGradientBrush x:Key="UiModelActivity" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Color="#C6E3FA" Offset="0"/><GradientStop Color="#8CBBE1" Offset="0.45"/><GradientStop Color="#6B9CC5" Offset="1"/>
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="UiModelActivityShadow" Color="#52789A"/>
+          <SolidColorBrush x:Key="UiModelActivityTrack" Color="#F1F5FA"/>
+          <SolidColorBrush x:Key="UiModelActivityHighlight" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiSurfaceRaised" Color="#F5F4EA"/>
           <SolidColorBrush x:Key="UiText" Color="#000000"/>
           <SolidColorBrush x:Key="UiTextSecondary" Color="#716F64"/>

@@ -207,7 +207,8 @@ public sealed class ModelActivityIndicator : Control
         if (value is null) return;
         var brush = Foreground ?? Brushes.White;
         var classic = ActualThemeVariant == Skin.MacOS9;
-        var glyphBrush = classic ? ShadowBrush ?? brush : brush;
+        var xp = ActualThemeVariant == Skin.WindowsXP;
+        var glyphBrush = classic || xp ? ShadowBrush ?? brush : brush;
         var pen = new Pen(glyphBrush, 1.2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         var top = (Bounds.Height - 16) / 2;
         if (value.State == ModelLoadState.Ready)
@@ -236,11 +237,11 @@ public sealed class ModelActivityIndicator : Control
         var time = Stopwatch.GetElapsedTime(_effectStarted).TotalSeconds;
         var motion = Motion.CanAnimate(this);
         var fraction = value.Preparation?.Fraction;
-        var radius = classic ? 1.5 : 2.5;
+        var radius = classic ? 1.5 : xp ? 2 : 2.5;
         var classicShadow = classic && ShadowBrush is { } shadow ? new Pen(shadow, 1, new DashStyle([1, 1], 0)) : null;
-        var classicOutline = classicShadow is not null ? new Pen(ShadowBrush, .8) : null;
-        var highlight = classic ? HighlightBrush ?? brush : brush;
-        var bevelPen = classic ? new Pen(highlight, .8) : null;
+        var outline = (classic || xp) && ShadowBrush is { } edge ? new Pen(edge, .8) : null;
+        var highlight = HighlightBrush ?? brush;
+        var bevelPen = classic || xp ? new Pen(highlight, .8) : null;
         for (var i = 0; i < 24; i++)
         {
             var column = i % 12; var row = i / 12;
@@ -250,17 +251,16 @@ public sealed class ModelActivityIndicator : Control
                 context.DrawLine(classicShadow, new(rect.Right + 1, rect.Y + 4), new(rect.Right + 1, rect.Bottom + 1));
                 context.DrawLine(classicShadow, new(rect.X + 2, rect.Bottom + 1), new(rect.Right + 1, rect.Bottom + 1));
             }
-            if (classic) context.DrawRectangle(TrackBrush ?? brush, null, rect, radius, radius);
-            else using (context.PushOpacity(.18)) context.DrawRectangle(brush, null, rect, radius, radius);
+            context.DrawRectangle(TrackBrush ?? brush, null, rect, radius, radius);
             var fill = value.Preparing ? fraction is { } progress ? Math.Clamp(progress * 24 - i, 0, 1) : 0 : value.Loaded ? 1 : 0;
             if (fill > 0)
             {
                 using var clip = context.PushClip(new Rect(rect.X, rect.Y, rect.Width * fill, rect.Height));
-                using var opacity = context.PushOpacity(classic ? 1 : value.State == ModelLoadState.InUse ? .55 : .9);
+                using var opacity = context.PushOpacity(classic || xp ? 1 : value.State == ModelLoadState.InUse ? .78 : 1);
                 context.DrawRectangle(brush, null, rect, radius, radius);
             }
             var light = value.State == ModelLoadState.InUse
-                ? motion ? ActivityLight(column, row, time) * .45 : (column is 4 or 7 ? .35 : 0)
+                ? motion ? ActivityLight(column, row, time) * (classic ? .45 : .55) : (column is 4 or 7 ? classic ? .35 : .4 : 0)
                 : value.Preparing && fraction is null
                     ? motion ? Gaussian(column - (time * 4 % 16 - 2), 1.15) * .7 : (column is 5 or 6 ? .55 : 0) : 0;
             if (light > .005)
@@ -268,9 +268,9 @@ public sealed class ModelActivityIndicator : Control
                 using var opacity = context.PushOpacity(light);
                 context.DrawRectangle(highlight, null, rect, radius, radius);
             }
-            if (classicOutline is not null)
+            if (outline is not null)
             {
-                context.DrawRectangle(null, classicOutline, rect, radius, radius);
+                context.DrawRectangle(null, outline, rect, radius, radius);
                 context.DrawLine(bevelPen!, new(rect.X + 2, rect.Y + .8), new(rect.Right - 2, rect.Y + .8));
             }
         }
