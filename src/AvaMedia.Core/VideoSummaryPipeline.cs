@@ -2,7 +2,7 @@ using System.Text;
 
 namespace AvaMedia.Core;
 
-/// <summary>Opens a description or summary model on demand so nothing is started before the safety check passes.</summary>
+/// <summary>Opens a description or summary model on demand.</summary>
 public sealed record VideoSummaryModelSource(string Name, Func<CancellationToken, Task<ISummaryModel>> Open)
 {
     /// <summary>Online provider id recorded on results; null for local models.</summary>
@@ -12,7 +12,7 @@ public sealed record VideoSummaryModelSource(string Name, Func<CancellationToken
 }
 
 /// <summary>
-/// Two-step frame pipeline: hard minor-safety check (JoyTag) → per-frame description by a vision model →
+/// Two-step frame pipeline: per-frame description by a vision model →
 /// final summary by a text model. Refusals are recorded per frame and never dropped.
 /// </summary>
 public static class VideoSummaryPipeline
@@ -98,20 +98,18 @@ public static class VideoSummaryPipeline
     }
 
     /// <summary>
-    /// Complete pipeline for callers that already have sampled frames. The safety check always runs first and cannot be
-    /// skipped; when it blocks, neither model source is opened.
+    /// Complete pipeline for callers that already have sampled frames.
     /// </summary>
-    public static async Task<VideoSummaryResult> RunAsync(IReadOnlyList<VideoSummaryFrame> frames, IVideoFrameTagger tagger,
+    public static async Task<VideoSummaryResult> RunAsync(IReadOnlyList<VideoSummaryFrame> frames,
         VideoSummaryModelSource vision, VideoSummaryModelSource summary, CancellationToken ct, string? transcript = null, string focus = "")
     {
-        var verdict = await MinorSafetyGuard.CheckAsync(frames, tagger, ct).ConfigureAwait(false);
-        if (verdict.Blocked) return VideoSummaryResult.Abort(verdict.Reason!);
+        ct.ThrowIfCancellationRequested();
         IReadOnlyList<FrameCaption> captions;
         await using (var model = await vision.Open(ct).ConfigureAwait(false))
             captions = await DescribeFramesAsync(frames, model, vision.Name, ct, providerId: vision.ProviderId, modelId: vision.ModelId).ConfigureAwait(false);
         await using var text = await summary.Open(ct).ConfigureAwait(false);
         var (result, refused) = await SummarizeAsync(captions, text, ct, transcript, focus).ConfigureAwait(false);
-        return new(captions, result, summary.Name, false, null)
+        return new(captions, result, summary.Name)
             { SummaryRefused = refused, SummaryProviderId = summary.ProviderId, SummaryModelId = summary.ModelId };
     }
 }

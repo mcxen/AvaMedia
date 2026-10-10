@@ -27,20 +27,17 @@ public sealed record VideoSummaryReport(string Source, double Duration, string T
     public VideoSummaryClaim[] HighlightClaims { get; init; } = [];
     public VideoSummarySamplingInfo? Sampling { get; init; }
     public int RejectedClaims { get; init; }
-    /// <summary>Two-step pipeline result (per-frame captions, final summary, refusal and abort state); null for subtitle-only jobs.</summary>
+    /// <summary>Two-step pipeline result (per-frame captions, final summary and refusal state); null for subtitle-only jobs.</summary>
     public VideoSummaryResult? Result { get; init; }
 }
 
 public sealed record VideoSummaryOnlineModels(OnlineAiOptions VisionProvider, string VisionModel, OnlineAiOptions SummaryProvider, string SummaryModel);
 
-/// <param name="tagger">Safety tagger override (tests); defaults to JoyTag. The safety check itself cannot be disabled.</param>
 /// <param name="modelFactory">Model override (tests) keyed by ModelCatalog.SummaryVisionId / SummaryTextId.</param>
-public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models = null, IVideoFrameTagger? tagger = null,
+public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models = null,
     Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null)
 {
     private readonly ModelStore _models = models ?? new();
-    /// <summary>Uniform frames JoyTag checks in addition to the frames sent to the vision model.</summary>
-    public const int SafetyFrames = 16;
     private const int TranscriptExcerpt = 6000;
     private const string RefusedFrameText = "〔视觉模型拒绝描述此帧〕";
 
@@ -69,7 +66,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         return new(vision, visionModel, summary, summaryModel);
     }
 
-    /// <summary>Read the pipeline result (frames, summary, abort state) from a finished or aborted output folder.</summary>
+    /// <summary>Read the pipeline result (frames, summary and refusal state) from a finished output folder.</summary>
     public static VideoSummaryResult? LoadResult(string outputFolder)
     {
         var path = Path.Combine(outputFolder, "report.json");
@@ -82,7 +79,6 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         var online = options.Provider == VideoSummaryProvider.Online;
         var onlineModels = online && options.NeedsAi ? ResolveOnlineModels(engine.Settings.OnlineAi, options) : null;
         var nodes = new List<string> { "读取视频" };
-        if (options.NeedsAi) nodes.Add("安全检查");
         nodes.Add("字幕与语音");
         if (options.NeedsAi && options.AnalyzeFrames) nodes.Add("画面分析");
         if (options.NeedsAi) nodes.Add("内容总结");
@@ -98,39 +94,6 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             var info = await engine.Probe(job.Inputs[0], ct, audioStreamIndex: options.AudioTrack).ConfigureAwait(false);
             if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有画面和有效时长的视频。");
             job.Duration = info.Duration;
-            SummarySamples? samples = null;
-            if (options.NeedsAi)
-            {
-                // Hard rule: the minor-safety check runs before transcription and before any description or summary model.
-                activity.Node("安全检查");
-                samples = await VideoSummarySampling.SelectAsync(engine, job.Inputs[0], info, options.FrameCount,
-                    (fraction, stage) => { job.ProgressDetail = stage; activity.Stage(stage); }, ct).ConfigureAwait(false);
-                job.ProgressDetail = "安全检查"; activity.Stage("安全检查", detail: "JoyTag");
-                var safetyFrames = samples.Frames.Select(sample => new VideoSummaryFrame(TimeSpan.FromSeconds(sample.Seconds), sample.Image)).ToList();
-                for (var index = 0; index < SafetyFrames; index++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var seconds = Math.Max(0, Math.Min(info.Duration * (index + .5) / SafetyFrames, info.Duration - .05));
-                    safetyFrames.Add(new(TimeSpan.FromSeconds(seconds), await engine.Thumbnail(job.Inputs[0], seconds, 448, 448, ct, pad: false,
-                        videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false)));
-                }
-                if (tagger is null) await EnsureModelAsync(ModelCatalog.JoyTagId, activity, ct).ConfigureAwait(false);
-                var verdict = await MinorSafetyGuard.CheckAsync(safetyFrames, tagger ?? new JoyTagFrameTagger(_models, options.PreferGpu), ct).ConfigureAwait(false);
-                if (verdict.Blocked)
-                {
-                    // Only the abort record is kept: no frame images, descriptions, transcript or summary.
-                    var aborted = VideoSummaryResult.Abort(verdict.Reason!);
-                    var record = new VideoSummaryReport(Path.GetFileName(job.Inputs[0]), info.Duration, "", options.OutputLanguage, [], 0, [], [], [],
-                        ["按安全规则中止：未调用任何描述或总结模型。"]) { Result = aborted };
-                    await File.WriteAllTextAsync(Path.Combine(staging, "report.json"), JsonSerializer.Serialize(record, new JsonSerializerOptions { WriteIndented = true }),
-                        new UTF8Encoding(false), ct).ConfigureAwait(false);
-                    ct.ThrowIfCancellationRequested(); Directory.Move(staging, job.Output);
-                    job.Log = "Video summary aborted by minor-safety check · " + verdict.Hits.Count + " hits";
-                    job.ProgressDetail = "已安全中止"; activity.Result("已安全中止");
-                    throw new VideoSummaryAbortedException(aborted);
-                }
-                activity.Result($"安全检查通过 · {verdict.CheckedFrames} 帧");
-            }
             activity.Node("字幕与语音");
             var (cues, source) = await ReadTranscriptAsync(job, info, staging, progress, activity, ct).ConfigureAwait(false);
             activity.Result($"{source} · {cues.Count} 条字幕", cues.Count);
@@ -140,7 +103,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             var captions = new List<FrameCaption>();
             var sequences = new List<VideoSequenceObservation>();
             var evidence = new List<VideoSummaryEvidence>();
-            var sampling = options.AnalyzeFrames ? samples?.Info : null;
+            VideoSummarySamplingInfo? sampling = null;
             var rejectedClaims = 0;
             foreach (var cue in cues.Where(cue => cue.Start.TotalSeconds < info.Duration && cue.End.TotalSeconds >= 0))
                 foreach (var piece in Split(cue.Text, 600))
@@ -151,8 +114,11 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             if (options.NeedsAi)
             {
                 if (!online) await EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct).ConfigureAwait(false);
-                if (options.AnalyzeFrames && samples is not null)
+                if (options.AnalyzeFrames)
                 {
+                    var samples = await VideoSummarySampling.SelectAsync(engine, job.Inputs[0], info, options.FrameCount,
+                        (fraction, stage) => { job.ProgressDetail = stage; activity.Stage(stage); }, ct).ConfigureAwait(false);
+                    sampling = samples.Info;
                     var visionId = online ? ModelCatalog.SummaryVisionId : options.LocalVisionModelId;
                     await using var vision = await OpenModelAsync(visionId, onlineModels, options, activity, ct).ConfigureAwait(false);
                     var visionName = online ? onlineModels!.VisionProvider.Name + " · " + onlineModels.VisionModel : ModelCatalog.Find(visionId).Name;
@@ -255,7 +221,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                     }
                 }
             }
-            var result = new VideoSummaryResult(captions, summary, summaryModel, false, null)
+            var result = new VideoSummaryResult(captions, summary, summaryModel)
                 { SummaryRefused = summaryRefused, SummaryProviderId = summaryProviderId, SummaryModelId = summaryModelId };
             var limitations = new List<string> { "模型的结论需复核，内容分析不构成事实核验。" };
             if (frames.Count > 0) limitations.Add(sequences.Count > 0
@@ -463,8 +429,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             .Append("  \n字幕来源：").Append(report.TranscriptSource).Append("  \n模型：").Append(string.Join(" / ", report.Models)).Append("\n\n");
         if (report.Result is { } result)
         {
-            if (result.Aborted) builder.Append("## 已安全中止\n\n").Append(result.AbortReason).Append("\n\n");
-            else if (result.SummaryRefused) builder.Append("## 总结\n\n总结模型拒绝生成总结（").Append(result.SummaryModel).Append("），请更换本地未审查文本模型。\n\n");
+            if (result.SummaryRefused) builder.Append("## 总结\n\n总结模型拒绝生成总结（").Append(result.SummaryModel).Append("），请更换本地未审查文本模型。\n\n");
             else if (result.Summary is { Length: > 0 }) builder.Append("## 总结\n\n").Append(result.Summary).Append("\n\n");
             if (result.RefusedFrames > 0) builder.Append("> ").Append(VideoSummaryPipeline.RefusedFrameNote(result.Frames)).Append("\n\n");
         }
