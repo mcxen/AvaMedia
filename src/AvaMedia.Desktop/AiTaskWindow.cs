@@ -41,6 +41,13 @@ public sealed class AiTaskWindow : Window
         job.PropertyChanged += Changed;
         Opened += async (_, _) => await ReadLogAsync();
         Closed += (_, _) => { _closed = true; job.PropertyChanged -= Changed; };
+        StableLayout.Reserve(_status, "运行中 100%", "Running 100%", "等待中", "完成", "失败", "已暂停", "正在终止", "已停止");
+        _status.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
+        _status.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
+        _status.Bind(ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(TextBlock.Text)) { Source = _status });
+        _status.FontFeatures = new Avalonia.Media.FontFeatureCollection { Avalonia.Media.FontFeature.Parse("tnum") };
+        var executionLabels = new[] { "开始任务", "继续任务", "暂停任务", "重新执行", "重新检测" };
+        StableLayout.Reserve(_run, executionLabels); StableLayout.Reserve(_pause, executionLabels);
         Refresh();
     }
 

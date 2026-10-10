@@ -103,7 +103,9 @@ internal sealed class AiActivityFlowView : StackPanel
             header.Children.Add(_title); Grid.SetColumn(_status, 1); header.Children.Add(_status);
             _expander.Header = header;
             var body = new StackPanel { Spacing = 7, Margin = new(0, 8, 0, 0) };
-            body.Children.Add(_stage); body.Children.Add(_progress); body.Children.Add(_meta);
+            var progressSlot = new Grid { Height = 6 };
+            progressSlot.Children.Add(_progress);
+            body.Children.Add(_stage); body.Children.Add(progressSlot); body.Children.Add(_meta);
             body.Children.Add(_latest);
             _latest.MaxLines = 5; _latest.TextTrimming = TextTrimming.CharacterEllipsis;
             _observations.Content = _history; body.Children.Add(_observations);

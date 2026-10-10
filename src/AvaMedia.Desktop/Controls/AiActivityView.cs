@@ -45,6 +45,7 @@ public sealed class AiActivityView : Border
         Padding = new(10);
         _title.FontWeight = FontWeight.SemiBold;
         StableLayout.SetStatusLines(_meta, 2);
+        Localization.SetIsUserText(_clock, false); Localization.SetIsUserText(_compactClock, false);
         StableLayout.Reserve(_clock, "已用时 888:88:88", "Elapsed 888:88:88");
         _clock.TextWrapping = TextWrapping.NoWrap; _clock.TextTrimming = TextTrimming.CharacterEllipsis;
         StableLayout.Reserve(_collapse, "收起", "展开");
@@ -119,10 +120,8 @@ public sealed class AiActivityView : Border
         _meta.Text = string.Join(" · ", new[] { Localization.Text(activity.Model), activity.Backend }.Where(text => text.Length > 0));
         _compactStage.Text = string.Join(" · ", new[] { Localization.Text(activity.Stage), Count(activity) }.Where(text => text.Length > 0));
         ToolTip.SetTip(_compactStage, _compactStage.Text);
-        _compactStage.IsVisible = activity.State is AiActivityState.Running or AiActivityState.Paused;
-        _compactTrack.IsVisible = activity.State == AiActivityState.Running;
         foreach (var state in Enum.GetValues<AiActivityState>()) _compactStage.Classes.Set(state.ToString().ToLowerInvariant(), state == activity.State);
-        _compactProgress.IsVisible = Quantified(activity);
+        _compactProgress.IsVisible = activity.State == AiActivityState.Running && Quantified(activity);
         _compactProgress.Value = Quantified(activity) ? Math.Clamp(activity.Current!.Value / activity.Total!.Value * 100, 0, 100) : 0;
         _detailsButton.Content = Localization.Text("详情"); ToolTip.SetTip(_detailsButton, Localization.Text("进度详情"));
         _flow.Update(activity); RefreshClock(); RefreshExpansion();

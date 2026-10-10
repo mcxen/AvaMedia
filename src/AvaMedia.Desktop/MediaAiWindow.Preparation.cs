@@ -25,15 +25,27 @@ public sealed partial class MediaAiWindow
             var view = new Controls.ModelRuntimeView(_runtimeStore.Root, id, label) { Margin = new(0, 0, 18, 0) };
             _runtimeModels.Add(id, view); badges.Children.Add(view);
         }
-        var actions = WorkbenchActions(_warmStatus, _warmStart, _warmStop, _warmRelease, Ui.Button("模型管理…", async () => await ManageModelsAsync()));
-        var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(badges); panel.Children.Add(_warmProgress); panel.Children.Add(actions);
-        _warmStatus.IsVisible = false;
+        StableLayout.Reserve(_warmStart, "预热模型", "重试预热", "停止预热");
+        StableLayout.Reserve(_warmStop, "预热模型", "重试预热", "停止预热");
+        StableLayout.Reserve(_warmRelease, "释放模型");
+        StableLayout.SetStatusLines(_warmStatus, 2);
+        var primary = new Grid(); primary.Children.Add(_warmStart); primary.Children.Add(_warmStop);
+        primary.Bind(WidthProperty, new Avalonia.Data.Binding(nameof(Button.Width)) { Source = _warmStart });
+        var release = new Border { Child = _warmRelease };
+        release.Bind(WidthProperty, new Avalonia.Data.Binding(nameof(Button.Width)) { Source = _warmRelease });
+        var actions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto,*"), ColumnSpacing = 8 };
+        actions.Children.Add(primary); Grid.SetColumn(release, 1); actions.Children.Add(release);
+        var management = Ui.Button("模型管理…", async () => await ManageModelsAsync());
+        Grid.SetColumn(management, 2); actions.Children.Add(management);
+        Grid.SetColumn(_warmStatus, 3); actions.Children.Add(_warmStatus);
+        var progressSlot = new Grid { Height = 3 }; progressSlot.Children.Add(_warmProgress);
+        var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(badges); panel.Children.Add(progressSlot); panel.Children.Add(actions);
         _warmStart.Click += async (_, _) => await PrepareModelsAsync(reset: _warmFailed);
         _warmStop.Click += (_, _) =>
         {
             var request = _warmRequest; _warmRequest = null;
             _warmStatus.Text = Localization.Text("预热已停止，开始分析时将按需加载");
-            _warmStatus.IsVisible = true; UpdateModelPreparationActions();
+            UpdateModelPreparationActions();
             request?.Cancel();
         };
         _warmRelease.Click += async (_, _) =>
@@ -100,7 +112,7 @@ public sealed partial class MediaAiWindow
     {
         using (request)
         {
-            _warmStatus.Text = Localization.Text("准备本地模型"); _warmStatus.IsVisible = true;
+            _warmStatus.Text = Localization.Text("准备本地模型");
             ToolTip.SetTip(_warmStatus, null);
             var progress = new Progress<AiActivity>(value =>
             {
@@ -113,7 +125,7 @@ public sealed partial class MediaAiWindow
                 if (reset) await _tagService.ResetPreparedModelsAsync(request.Token);
                 var ready = await _tagService.WarmAsync(options, progress, request.Token);
                 if (_closed || _busy || _warmRequest != request || request.IsCancellationRequested) return;
-                _warmStatus.IsVisible = false;
+                _warmStatus.Text = "";
                 if (ready && !_modelStatus.IsVisible && !_busy && _status.Text == Localization.Text("就绪"))
                     _status.Text = Localization.Text("模型已就绪");
             }
@@ -121,7 +133,7 @@ public sealed partial class MediaAiWindow
             {
                 if (!_closed && _warmRequest == request)
                 {
-                    _warmStatus.IsVisible = false;
+                    _warmStatus.Text = "";
                     if (!_busy) _status.Text = Localization.Text("预热已停止，开始分析时将按需加载");
                 }
             }
@@ -130,7 +142,7 @@ public sealed partial class MediaAiWindow
                 AppDiagnostics.Record("AI model preparation", error);
                 if (_closed || _busy || _warmRequest != request) return;
                 _warmStatus.Text = Localization.Text("模型准备失败");
-                ToolTip.SetTip(_warmStatus, error.Message); _warmStatus.IsVisible = true; _warmFailed = true;
+                ToolTip.SetTip(_warmStatus, error.Message); _warmFailed = true;
             }
             finally
             {
