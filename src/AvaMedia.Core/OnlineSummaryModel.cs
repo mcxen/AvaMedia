@@ -55,6 +55,17 @@ public sealed partial class OnlineSummaryModel : ISummaryModel
                 throw new InvalidDataException("线上 AI 输出达到长度限制，请选择输出更简洁的模型。");
             var result = choice.GetProperty("message").GetProperty("content").GetString()?.Trim();
             if (string.IsNullOrWhiteSpace(result)) throw new InvalidDataException("线上 AI 未返回有效内容。");
+            if (schema is not null && result.StartsWith("```", StringComparison.Ordinal))
+            {
+                var headerEnd = result.IndexOf('\n');
+                var closing = result.LastIndexOf("\n```", StringComparison.Ordinal);
+                if (headerEnd < 3 || closing <= headerEnd || result[(closing + 4)..].Trim().Length != 0)
+                    throw new InvalidDataException("线上 AI 响应格式无效，请使用 Chat Completions 兼容接口。");
+                var language = result[3..headerEnd].Trim();
+                if (language.Length != 0 && !language.Equals("json", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("线上 AI 响应格式无效，请使用 Chat Completions 兼容接口。");
+                result = result[(headerEnd + 1)..closing].Trim();
+            }
             return result;
         }
         catch (Exception error) when (error is JsonException or KeyNotFoundException or IndexOutOfRangeException or InvalidOperationException)

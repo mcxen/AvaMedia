@@ -236,7 +236,8 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                 var transcript = cues.Count == 0 ? null : SubtitleTranscript.Timeline(cues);
                 if (transcript is { Length: > TranscriptExcerpt }) transcript = transcript[..TranscriptExcerpt] + "\n……";
                 if (captions.Count > 0 || transcript is not null)
-                    (summary, summaryRefused) = await VideoSummaryPipeline.SummarizeAsync(captions, textModel, ct, transcript, options.Focus).ConfigureAwait(false);
+                    (summary, summaryRefused) = await VideoSummaryPipeline.SummarizeAsync(captions, textModel, ct, transcript, options.Focus,
+                        language: options.OutputLanguage).ConfigureAwait(false);
                 if (summaryRefused) { notes.Add("总结模型拒绝生成总结，请更换本地未审查文本模型。"); activity.Result("总结模型拒绝生成总结"); }
                 else if (summary is not null) activity.Result(summary);
                 progress(65);
