@@ -44,17 +44,19 @@ public sealed class AiActivityView : Border
         Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         Padding = new(10);
         _title.FontWeight = FontWeight.SemiBold;
-        StableLayout.SetStatusLines(_meta, 2);
+        _meta.TextWrapping = TextWrapping.NoWrap; _meta.MaxLines = 1;
+        _meta.TextTrimming = TextTrimming.CharacterEllipsis; _meta.VerticalAlignment = VerticalAlignment.Center;
         Localization.SetIsUserText(_clock, false); Localization.SetIsUserText(_compactClock, false);
         StableLayout.Reserve(_clock, "已用时 888:88:88", "Elapsed 888:88:88");
         _clock.TextWrapping = TextWrapping.NoWrap; _clock.TextTrimming = TextTrimming.CharacterEllipsis;
         StableLayout.Reserve(_collapse, "收起", "展开");
         _clock.FontFeatures = _compactClock.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") };
         _title.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiText"));
-        var heading = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
-        heading.Children.Add(_title); Grid.SetColumn(_clock, 1); heading.Children.Add(_clock); Grid.SetColumn(_collapse, 2); heading.Children.Add(_collapse);
+        var heading = new Grid { ColumnDefinitions = new("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
+        heading.Children.Add(_title); Grid.SetColumn(_meta, 1); heading.Children.Add(_meta);
+        Grid.SetColumn(_clock, 2); heading.Children.Add(_clock); Grid.SetColumn(_collapse, 3); heading.Children.Add(_collapse);
         _collapse.Click += (_, _) => { _expanded = !_expanded; RefreshExpansion(); };
-        _content.Children.Add(heading); _content.Children.Add(_meta);
+        _content.Children.Add(heading);
         _detailScroll.Content = _flow; _content.Children.Add(_detailScroll); Child = _content;
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         _compactClock.VerticalAlignment = VerticalAlignment.Center;
@@ -118,6 +120,7 @@ public sealed class AiActivityView : Border
         if (activity is null) { _timer.Stop(); _flyout.Hide(); _flow.Clear(); return; }
         _title.Text = Localization.Text("任务进度");
         _meta.Text = string.Join(" · ", new[] { Localization.Text(activity.Model), activity.Backend }.Where(text => text.Length > 0));
+        ToolTip.SetTip(_meta, _meta.Text);
         _compactStage.Text = string.Join(" · ", new[] { Localization.Text(activity.Stage), Count(activity) }.Where(text => text.Length > 0));
         ToolTip.SetTip(_compactStage, _compactStage.Text);
         foreach (var state in Enum.GetValues<AiActivityState>()) _compactStage.Classes.Set(state.ToString().ToLowerInvariant(), state == activity.State);
@@ -132,7 +135,7 @@ public sealed class AiActivityView : Border
         _collapse.IsVisible = Collapsible && !Compact;
         _collapse.Content = Localization.Text(_expanded ? "收起" : "展开");
         _detailScroll.IsVisible = !Collapsible || _expanded;
-        _meta.IsVisible = !Collapsible || !_expanded;
+        _meta.IsVisible = _meta.Text?.Length > 0;
     }
     public void Finish(AiActivityState state, string stage)
     {

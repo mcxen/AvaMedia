@@ -79,7 +79,8 @@ internal sealed class AiActivityFlowView : StackPanel
         private readonly TextBlock _history = AiActivityView.Text();
         private readonly TextBlock _caption = AiActivityView.Text();
         private readonly ProgressBar _progress = new() { Maximum = 100, Height = 6 };
-        private readonly Image _image = new() { Height = 132, Stretch = Stretch.Uniform, IsVisible = false };
+        private readonly Image _image = new() { Width = 128, Height = 132, Stretch = Stretch.Uniform, IsVisible = false };
+        private readonly StackPanel _previewPanel = new() { Width = 128, Spacing = 4, VerticalAlignment = VerticalAlignment.Top, Margin = new(0, 8, 0, 0), IsVisible = false };
         private readonly Expander _observations = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
         private AiActivity? _snapshot;
         private Bitmap? _bitmap;
@@ -109,17 +110,11 @@ internal sealed class AiActivityFlowView : StackPanel
             body.Children.Add(_latest);
             _latest.MaxLines = 5; _latest.TextTrimming = TextTrimming.CharacterEllipsis;
             _observations.Content = _history; body.Children.Add(_observations);
-            var preview = new StackPanel { Spacing = 4, MaxWidth = 220, VerticalAlignment = VerticalAlignment.Top };
-            preview.Children.Add(_image); preview.Children.Add(_caption);
+            _previewPanel.Children.Add(_image); _previewPanel.Children.Add(_caption);
             _caption.MaxLines = 2; _caption.TextTrimming = TextTrimming.CharacterEllipsis;
-            var content = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 12 };
-            content.Children.Add(body); content.Children.Add(preview); Grid.SetColumn(preview, 1);
-            content.SizeChanged += (_, _) =>
-            {
-                var narrow = content.Bounds.Width < 460;
-                Grid.SetColumn(preview, narrow ? 0 : 1); Grid.SetRow(preview, narrow ? 1 : 0);
-                Grid.SetColumnSpan(body, narrow ? 2 : 1);
-            };
+            StableLayout.SetStatusLines(_caption, 2);
+            var content = new Grid { ColumnDefinitions = new("Auto,*") };
+            content.Children.Add(_previewPanel); content.Children.Add(body); Grid.SetColumn(body, 1);
             _expander.Content = content;
             _card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurface"));
             _card.Child = _expander; Grid.SetColumn(_card, 1); Children.Add(_card);
@@ -178,12 +173,15 @@ internal sealed class AiActivityFlowView : StackPanel
                 catch (Exception error) when (error is ArgumentException or InvalidDataException) { }
             }
             _image.IsVisible = _bitmap is not null;
+            _previewPanel.IsVisible = _image.IsVisible;
+            _previewPanel.Margin = new(0, 8, _image.IsVisible ? 12 : 0, 0);
             _caption.Text = _snapshot.PreviewCaption; _caption.IsVisible = _image.IsVisible && _caption.Text.Length > 0;
+            ToolTip.SetTip(_previewPanel, _snapshot.PreviewCaption);
         }
         public void ReleasePreview()
         {
             _image.Source = null; _bitmap?.Dispose(); _bitmap = null; _preview = null;
-            _image.IsVisible = _caption.IsVisible = false;
+            _previewPanel.IsVisible = _image.IsVisible = _caption.IsVisible = false;
         }
     }
     private sealed class FlowConnector : Control
