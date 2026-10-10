@@ -9,6 +9,8 @@
           <SolidColorBrush x:Key="UiToolbar" Color="#FFFFFF" />
           <SolidColorBrush x:Key="UiMenuSurface" Color="#FFFFFF" />
           <SolidColorBrush x:Key="UiStatusText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiModelActivity" Color="#8CCFFF" />
+          <SolidColorBrush x:Key="UiModelActivityShadow" Color="#426B8A" />
           <SolidColorBrush x:Key="UiSurfaceRaised" Color="#F4F4F4" />
           <SolidColorBrush x:Key="UiText" Color="#202428" />
           <SolidColorBrush x:Key="UiTextSecondary" Color="#666666" />
@@ -45,6 +47,8 @@
           <SolidColorBrush x:Key="UiToolbar" Color="#282828" />
           <SolidColorBrush x:Key="UiMenuSurface" Color="#282828" />
           <SolidColorBrush x:Key="UiStatusText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiModelActivity" Color="#8CCFFF" />
+          <SolidColorBrush x:Key="UiModelActivityShadow" Color="#426B8A" />
           <SolidColorBrush x:Key="UiSurfaceRaised" Color="#303030" />
           <SolidColorBrush x:Key="UiText" Color="#F3F3F3" />
           <SolidColorBrush x:Key="UiTextSecondary" Color="#BDBDBD" />
@@ -75,6 +79,8 @@
           <FontFamily x:Key="UiFont">Microsoft YaHei UI, Segoe UI</FontFamily>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
+      <SolidColorBrush x:Key="UiModelActivityTrack" Color="#8CCFFF" />
+      <SolidColorBrush x:Key="UiModelActivityHighlight" Color="#8CCFFF" />
       <x:Double x:Key="UiFontBody">13</x:Double>
       <x:Double x:Key="UiFontCaption">12</x:Double>
       <x:Double x:Key="UiFontTitle">18</x:Double>

@@ -9,6 +9,10 @@
           <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiToolbar" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="UiStatusText" Color="#111111"/>
+          <SolidColorBrush x:Key="UiModelActivity" Color="#AAAACC"/>
+          <SolidColorBrush x:Key="UiModelActivityShadow" Color="#555577"/>
+          <SolidColorBrush x:Key="UiModelActivityTrack" Color="#AAAAAA"/>
+          <SolidColorBrush x:Key="UiModelActivityHighlight" Color="#DDDDEE"/>
           <SolidColorBrush x:Key="UiSurfaceRaised" Color="#DDDDDD"/>
           <SolidColorBrush x:Key="UiText" Color="#111111"/>
           <SolidColorBrush x:Key="UiTextSecondary" Color="#555555"/>

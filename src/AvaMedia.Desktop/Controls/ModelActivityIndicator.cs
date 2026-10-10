@@ -15,6 +15,15 @@ public sealed class ModelActivityIndicator : Control
     public static readonly StyledProperty<IBrush?> ForegroundProperty =
         AvaloniaProperty.Register<ModelActivityIndicator, IBrush?>(nameof(Foreground));
     public IBrush? Foreground { get => GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
+    public static readonly StyledProperty<IBrush?> ShadowBrushProperty =
+        AvaloniaProperty.Register<ModelActivityIndicator, IBrush?>(nameof(ShadowBrush));
+    public IBrush? ShadowBrush { get => GetValue(ShadowBrushProperty); set => SetValue(ShadowBrushProperty, value); }
+    public static readonly StyledProperty<IBrush?> TrackBrushProperty =
+        AvaloniaProperty.Register<ModelActivityIndicator, IBrush?>(nameof(TrackBrush));
+    public IBrush? TrackBrush { get => GetValue(TrackBrushProperty); set => SetValue(TrackBrushProperty, value); }
+    public static readonly StyledProperty<IBrush?> HighlightBrushProperty =
+        AvaloniaProperty.Register<ModelActivityIndicator, IBrush?>(nameof(HighlightBrush));
+    public IBrush? HighlightBrush { get => GetValue(HighlightBrushProperty); set => SetValue(HighlightBrushProperty, value); }
     private static readonly string[] Effects = ["chase", "spark", "neural", "layers", "ripple", "converge"];
     private readonly DispatcherTimer _frames = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer _retire = new();
@@ -31,7 +40,7 @@ public sealed class ModelActivityIndicator : Control
     private double _nextEffectSeconds = 6;
     private double _fadeFrom;
 
-    static ModelActivityIndicator() => AffectsRender<ModelActivityIndicator>(ForegroundProperty);
+    static ModelActivityIndicator() => AffectsRender<ModelActivityIndicator>(ForegroundProperty, ShadowBrushProperty, TrackBrushProperty, HighlightBrushProperty);
 
     public ModelActivityIndicator()
     {
@@ -197,7 +206,9 @@ public sealed class ModelActivityIndicator : Control
         var value = _current ?? _paint;
         if (value is null) return;
         var brush = Foreground ?? Brushes.White;
-        var pen = new Pen(brush, 1.2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        var classic = ActualThemeVariant == Skin.MacOS9;
+        var glyphBrush = classic ? ShadowBrush ?? brush : brush;
+        var pen = new Pen(glyphBrush, 1.2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         var top = (Bounds.Height - 16) / 2;
         if (value.State == ModelLoadState.Ready)
         {
@@ -207,7 +218,7 @@ public sealed class ModelActivityIndicator : Control
         else if (value.State == ModelLoadState.Failed)
         {
             context.DrawLine(pen, new(7, top + 2), new(7, top + 10));
-            context.DrawEllipse(brush, null, new(7, top + 14), 1, 1);
+            context.DrawEllipse(glyphBrush, null, new(7, top + 14), 1, 1);
         }
         else
         {
@@ -219,23 +230,34 @@ public sealed class ModelActivityIndicator : Control
                 context.DrawLine(pen, new(x, top + 13), new(x, top + 16));
             }
             context.DrawLine(pen, new(5, top + 6), new(9, top + 10));
-            context.DrawEllipse(brush, null, new(5, top + 6), 1, 1);
-            context.DrawEllipse(brush, null, new(9, top + 10), 1, 1);
+            context.DrawEllipse(glyphBrush, null, new(5, top + 6), 1, 1);
+            context.DrawEllipse(glyphBrush, null, new(9, top + 10), 1, 1);
         }
         var time = Stopwatch.GetElapsedTime(_effectStarted).TotalSeconds;
         var motion = Motion.CanAnimate(this);
         var fraction = value.Preparation?.Fraction;
+        var radius = classic ? 1.5 : 2.5;
+        var classicShadow = classic && ShadowBrush is { } shadow ? new Pen(shadow, 1, new DashStyle([1, 1], 0)) : null;
+        var classicOutline = classicShadow is not null ? new Pen(ShadowBrush, .8) : null;
+        var highlight = classic ? HighlightBrush ?? brush : brush;
+        var bevelPen = classic ? new Pen(highlight, .8) : null;
         for (var i = 0; i < 24; i++)
         {
             var column = i % 12; var row = i / 12;
-            var rect = new Rect(20 + column * 9.5, top + row * 9, 7.5, 7);
-            using (context.PushOpacity(.18)) context.DrawRectangle(brush, null, rect, 2.5, 2.5);
+            var rect = new Rect((classic ? 18.5 : 20) + column * 9.5, top + row * 9, 7.5, 7);
+            if (classicShadow is not null)
+            {
+                context.DrawLine(classicShadow, new(rect.Right + 1, rect.Y + 4), new(rect.Right + 1, rect.Bottom + 1));
+                context.DrawLine(classicShadow, new(rect.X + 2, rect.Bottom + 1), new(rect.Right + 1, rect.Bottom + 1));
+            }
+            if (classic) context.DrawRectangle(TrackBrush ?? brush, null, rect, radius, radius);
+            else using (context.PushOpacity(.18)) context.DrawRectangle(brush, null, rect, radius, radius);
             var fill = value.Preparing ? fraction is { } progress ? Math.Clamp(progress * 24 - i, 0, 1) : 0 : value.Loaded ? 1 : 0;
             if (fill > 0)
             {
                 using var clip = context.PushClip(new Rect(rect.X, rect.Y, rect.Width * fill, rect.Height));
-                using var opacity = context.PushOpacity(value.State == ModelLoadState.InUse ? .55 : .9);
-                context.DrawRectangle(brush, null, rect, 2.5, 2.5);
+                using var opacity = context.PushOpacity(classic ? 1 : value.State == ModelLoadState.InUse ? .55 : .9);
+                context.DrawRectangle(brush, null, rect, radius, radius);
             }
             var light = value.State == ModelLoadState.InUse
                 ? motion ? ActivityLight(column, row, time) * .45 : (column is 4 or 7 ? .35 : 0)
@@ -244,7 +266,12 @@ public sealed class ModelActivityIndicator : Control
             if (light > .005)
             {
                 using var opacity = context.PushOpacity(light);
-                context.DrawRectangle(brush, null, rect, 2.5, 2.5);
+                context.DrawRectangle(highlight, null, rect, radius, radius);
+            }
+            if (classicOutline is not null)
+            {
+                context.DrawRectangle(null, classicOutline, rect, radius, radius);
+                context.DrawLine(bevelPen!, new(rect.X + 2, rect.Y + .8), new(rect.Right - 2, rect.Y + .8));
             }
         }
     }
