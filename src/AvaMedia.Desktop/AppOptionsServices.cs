@@ -24,6 +24,7 @@ public sealed partial class AppOptionsServices : IAppOptionsServices
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(12) };
     private readonly ReleaseUpdateClient _updates;
+    private readonly CancellationTokenSource _lifetime = new();
     private TrayIcon? _tray;
     public AppOptionsServices() { _updates = new(_http); Localization.Changed += LanguageChanged; }
     public bool CanUseTray => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime &&
@@ -68,7 +69,17 @@ public sealed partial class AppOptionsServices : IAppOptionsServices
                 : throw new PlatformNotSupportedException("当前平台不支持自动关机。");
         if (result.ExitCode != 0) throw new IOException("系统未能关机：" + result.Error);
     }
-    public Task<UpdateResult> CheckUpdatesAsync(CancellationToken ct) => _updates
-        .CheckAsync(typeof(AppOptionsServices).Assembly.GetName().Version ?? new Version(1, 0, 0), ct);
-    public void Dispose() { Localization.Changed -= LanguageChanged; DisposeTray(); _http.Dispose(); }
+    public async Task<UpdateResult> CheckUpdatesAsync(CancellationToken ct)
+    {
+        var version = typeof(AppOptionsServices).Assembly.GetName().Version ?? new Version(1, 0, 0);
+        var result = await _updates.CheckAsync(version, ct);
+        if (!result.CheckSucceeded)
+            ApplicationUpdater.Shared.ScheduleCheckRetry(result, token => _updates.CheckAsync(version, token), _lifetime.Token);
+        return result;
+    }
+    public void Dispose()
+    {
+        _lifetime.Cancel(); _lifetime.Dispose();
+        Localization.Changed -= LanguageChanged; DisposeTray(); _http.Dispose();
+    }
 }

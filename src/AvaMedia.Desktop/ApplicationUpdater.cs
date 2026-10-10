@@ -1,16 +1,16 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-internal enum UpdatePhase { Idle, Downloading, Preparing, Ready, Failed }
+internal enum UpdatePhase { Idle, Downloading, Retrying, Preparing, Ready, Failed }
 internal sealed record UpdateProgress(UpdatePhase Phase, long ReceivedBytes = 0, long TotalBytes = 0, string? Error = null)
 {
-    public bool IsBusy => Phase is UpdatePhase.Downloading or UpdatePhase.Preparing;
+    public bool IsBusy => Phase is UpdatePhase.Downloading or UpdatePhase.Retrying or UpdatePhase.Preparing;
 }
 
 internal sealed class ApplicationUpdater
@@ -22,6 +22,10 @@ internal sealed class ApplicationUpdater
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _automaticDownload;
     private CancellationTokenSource? _activeDownload;
+    private Task? _checkRetry;
+    private CancellationToken _checkRetryOwner;
+    private WeakReference<Window>? _startupOwner;
+    private AppSettings? _startupSettings;
     private volatile PreparedUpdate? _pending;
     private volatile bool _exiting;
     private volatile UpdateProgress _progress = new(UpdatePhase.Idle);
@@ -60,8 +64,46 @@ internal sealed class ApplicationUpdater
         }
     }
     private volatile bool _preparedAutomatically;
+    public void ScheduleCheckRetry(UpdateResult result, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
+    {
+        lock (_stateGate)
+        {
+            if (_exiting || ct.IsCancellationRequested || _checkRetry is { IsCompleted: false } && !_checkRetryOwner.IsCancellationRequested) return;
+            _checkRetryOwner = ct;
+            _checkRetry = RetryCheckAsync(result, check, ct);
+        }
+    }
+    private async Task RetryCheckAsync(UpdateResult result, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        ct = linked.Token;
+        try
+        {
+            var delay = TimeSpan.FromMinutes(1);
+            while (!result.CheckSucceeded)
+            {
+                var wait = result.RetryAt is { } retry && retry - DateTimeOffset.UtcNow > delay ? retry - DateTimeOffset.UtcNow : delay;
+                await Task.Delay(wait, ct);
+                result = await check(ct);
+                delay = TimeSpan.FromMinutes(Math.Min(5, delay.TotalMinutes * 2));
+            }
+            ct.ThrowIfCancellationRequested();
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (_exiting || ct.IsCancellationRequested) return;
+                var manual = Notifications.UpdateNotifications.CheckCompleted(result);
+                if (_startupSettings is { CheckForUpdates: true } settings && result.HasUpdate &&
+                    _startupOwner?.TryGetTarget(out var owner) == true)
+                    await HandleUpdateAsync(owner, settings, result, ct, showNotification: !manual);
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Trace.TraceWarning("后台更新检查失败：{0}", ex.Message); }
+    }
+
     public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
     {
+        _startupOwner = new(owner); _startupSettings = settings;
         bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
         try
         {
@@ -75,18 +117,7 @@ internal sealed class ApplicationUpdater
             if (!settings.CheckForUpdates) return;
             var result = await check(ct);
             if (!settings.CheckForUpdates || !result.HasUpdate || !result.CheckSucceeded || _exiting) return;
-            if (settings.AutoUpdate && result.Asset is not null && CanInstall)
-            {
-                using var download = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
-                _automaticDownload = download;
-                try
-                {
-                    Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
-                    await PrepareAsync(result, automatic: true, download.Token);
-                }
-                finally { _automaticDownload = null; }
-            }
-            else Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
+            await HandleUpdateAsync(owner, settings, result, ct);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -95,6 +126,17 @@ internal sealed class ApplicationUpdater
             if (!Silent() && !_exiting && Progress.Phase != UpdatePhase.Failed)
                 Notifications.UpdateNotifications.Error(owner, "更新失败", ex.Message);
         }
+    }
+
+    private async Task HandleUpdateAsync(Window owner, AppSettings settings, UpdateResult result, CancellationToken ct, bool showNotification = true)
+    {
+        if (_exiting || !result.HasUpdate || !result.CheckSucceeded) return;
+        if (showNotification) Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
+        if (!settings.AutoUpdate || result.Asset is null || !CanInstall || IsDownloading || IsPrepared) return;
+        using var download = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        _automaticDownload = download;
+        try { await PrepareAsync(result, automatic: true, download.Token); }
+        finally { _automaticDownload = null; }
     }
 
     public Task PrepareAsync(UpdateResult result, bool automatic, CancellationToken ct) =>
@@ -135,33 +177,22 @@ internal sealed class ApplicationUpdater
             Directory.CreateDirectory(stage);
             work = Path.Combine(Root, id); Directory.CreateDirectory(work);
             var package = Path.Combine(work, asset.Name);
-            using var request = new HttpRequestMessage(HttpMethod.Get, asset.DownloadUrl);
-            request.Headers.UserAgent.ParseAdd("AvaMedia/" + AppIdentity.Version);
-            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-            if (response.Content.Headers.ContentLength is { } length && length != asset.Size)
-                throw new InvalidDataException("安装包大小不匹配。");
-            await using (var input = await response.Content.ReadAsStreamAsync(ct))
-            await using (var output = new FileStream(package, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-            using (var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+            var retryDelay = TimeSpan.FromMinutes(1);
+            while (true)
             {
-                var buffer = new byte[81920]; long received = 0;
-                var lastReport = Environment.TickCount64;
-                int count;
-                while ((count = await input.ReadAsync(buffer, ct)) > 0)
+                try
                 {
-                    received += count;
-                    if (received > asset.Size) throw new InvalidDataException("安装包大小不匹配。");
-                    hash.AppendData(buffer, 0, count); await output.WriteAsync(buffer.AsMemory(0, count), ct);
-                    var now = Environment.TickCount64;
-                    if (now - lastReport >= 100 || received == asset.Size)
-                    {
-                        ReportProgress(new(UpdatePhase.Downloading, received, asset.Size));
-                        lastReport = now;
-                    }
+                    await GitHubUpdateRoutes.Shared.DownloadAsync(_http, asset, package, Version.Parse(AppIdentity.Version),
+                        received => ReportProgress(new(UpdatePhase.Downloading, received, asset.Size)), ct);
+                    break;
                 }
-                if (received != asset.Size || !Convert.ToHexString(hash.GetHashAndReset()).Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("安装包 SHA256 校验失败。");
+                catch (HttpRequestException ex)
+                {
+                    Trace.TraceWarning("后台重试更新下载：{0}", ex.Message);
+                    ReportProgress(new(UpdatePhase.Retrying, TotalBytes: asset.Size));
+                    await Task.Delay(retryDelay, ct);
+                    retryDelay = TimeSpan.FromMinutes(Math.Min(5, retryDelay.TotalMinutes * 2));
+                }
             }
             ReportProgress(new(UpdatePhase.Preparing, asset.Size, asset.Size));
             if (kind == "portable")
