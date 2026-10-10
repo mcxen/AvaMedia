@@ -18,6 +18,7 @@ public sealed partial class FolderClassificationWindow
     private const string AllBasket = "@all", PendingBasket = "@pending", ReviewBasket = "@review";
     private readonly ComboBox _boardRule = new() { MinWidth = 130 };
     private readonly StackPanel _baskets = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly Dictionary<string, BasketView> _basketViews = [];
     private readonly TextBox _search = Ui.Input();
     private readonly CheckBox _onlyIncluded = new() { Content = "仅看已选" };
     private readonly Button _allFilter = new();
@@ -119,7 +120,9 @@ public sealed partial class FolderClassificationWindow
         {
             var rule = _rules.FirstOrDefault(item => item.Id == _boardRuleId) ?? _rules.FirstOrDefault();
             _boardRuleId = rule?.Id;
-            _boardRule.ItemsSource = _rules.ToArray(); _boardRule.SelectedItem = rule;
+            if (_boardRule.ItemsSource is not FolderClassificationRule[] oldRules || !oldRules.SequenceEqual(_rules))
+                _boardRule.ItemsSource = _rules.ToArray();
+            _boardRule.SelectedItem = rule;
             _boardRule.IsVisible = _rules.Count > 1;
             var categories = rule is null ? [] : GroupCategories(rule);
             var categoriesById = categories.ToDictionary(category => category.Id);
@@ -127,13 +130,22 @@ public sealed partial class FolderClassificationWindow
             var options = new List<(string Id, string Name)> { (AllBasket, Localization.Text("全部")), (PendingBasket, Localization.Text("待分析")), (ReviewBasket, Localization.Text("待确认")) };
             options.AddRange(categories.Select(category => (category.Id, category.Name)));
             if (!options.Any(option => option.Id == _basketId)) _basketId = AllBasket;
-            _baskets.Children.Clear();
             _baskets.IsVisible = rule is not null;
+            var basketButtons = new List<Button>();
+            var basketIds = new HashSet<string>();
             foreach (var option in options.Where(option => option.Id != AllBasket && option.Id != PendingBasket).OrderBy(option => option.Id == ReviewBasket))
             {
                 var members = membersByBasket.GetValueOrDefault(option.Id) ?? [];
-                _baskets.Children.Add(BuildBasket(option.Id, option.Name, members, rule, categoriesById.GetValueOrDefault(option.Id)));
+                var category = categoriesById.GetValueOrDefault(option.Id);
+                if (!_basketViews.TryGetValue(option.Id, out var view) || view.Name != option.Name
+                    || !ReferenceEquals(view.Rule, rule) || view.Category != category)
+                    _basketViews[option.Id] = view = BuildBasket(option.Id, option.Name, rule, category);
+                UpdateBasket(view, option.Id, members);
+                basketButtons.Add(view.Button); basketIds.Add(option.Id);
             }
+            foreach (var id in _basketViews.Keys.Where(id => !basketIds.Contains(id)).ToArray()) _basketViews.Remove(id);
+            if (!_baskets.Children.SequenceEqual(basketButtons))
+            { _baskets.Children.Clear(); _baskets.Children.AddRange(basketButtons); }
             _allFilter.Content = Localization.Format($"全部 {_entries.Count}");
             _pendingFilter.Content = Localization.Format($"待分析 {_entries.Count(entry => AnalysisPending(entry, rule))}");
             _allFilter.Classes.Set("primary", _basketId == AllBasket); _pendingFilter.Classes.Set("primary", _basketId == PendingBasket);
@@ -153,28 +165,56 @@ public sealed partial class FolderClassificationWindow
         RenderDetails();
     }
 
-    private Button BuildBasket(string id, string name, MediaFileEntry[] members, FolderClassificationRule? rule, FolderClassificationCategory? category)
+    private sealed class BasketView(Button button, Canvas fan, TextBlock count, string name,
+        FolderClassificationRule? rule, FolderClassificationCategory? category)
+    {
+        public Button Button { get; } = button;
+        public Canvas Fan { get; } = fan;
+        public TextBlock Count { get; } = count;
+        public string Name { get; } = name;
+        public FolderClassificationRule? Rule { get; } = rule;
+        public FolderClassificationCategory? Category { get; } = category;
+        public (string Path, double Seconds)[] Samples = [];
+        public bool? Selected;
+    }
+
+    private void UpdateBasket(BasketView view, string id, MediaFileEntry[] members)
+    {
+        var samples = members.Take(3).Select(entry => (entry.Path, Seconds: CoverSeconds(entry))).ToArray();
+        if (!view.Samples.SequenceEqual(samples))
+        {
+            view.Samples = samples; view.Fan.Children.Clear();
+            for (var index = 0; index < samples.Length; index++)
+            {
+                var cover = new ClassificationCover { Width = 63, Height = 43, Path = samples[index].Path, Seconds = samples[index].Seconds,
+                    ResolutionWidth = 120, IsHitTestVisible = false, RenderTransform = new RotateTransform((index - 1) * 7) };
+                Canvas.SetLeft(cover, 8 + index * 23); Canvas.SetTop(cover, index == 1 ? 1 : 5); view.Fan.Children.Add(cover);
+            }
+        }
+        view.Count.Text = Localization.Format($"{members.Length} 个 · 已选 {members.Count(entry => entry.Include)} 个");
+        var selected = id == _basketId;
+        if (view.Selected != selected)
+        {
+            view.Selected = selected;
+            view.Button.Bind(BorderBrushProperty, new DynamicResourceExtension(selected ? "UiAccent" : "UiBorder"));
+        }
+    }
+
+    private BasketView BuildBasket(string id, string name, FolderClassificationRule? rule, FolderClassificationCategory? category)
     {
         var content = new StackPanel { Spacing = 3, Width = 126 };
         var fan = new Canvas { Height = 49, ClipToBounds = false };
-        var samples = members.Take(3).ToArray();
-        for (var index = 0; index < samples.Length; index++)
-        {
-            var cover = new ClassificationCover { Width = 63, Height = 43, Path = samples[index].Path, Seconds = CoverSeconds(samples[index]),
-                ResolutionWidth = 120, IsHitTestVisible = false, RenderTransform = new RotateTransform((index - 1) * 7) };
-            Canvas.SetLeft(cover, 8 + index * 23); Canvas.SetTop(cover, index == 1 ? 1 : 5); fan.Children.Add(cover);
-        }
         content.Children.Add(fan);
         var weave = new ClassificationBasketWeave { Height = 24, IsHitTestVisible = false };
         weave.Bind(ClassificationBasketWeave.StrokeProperty, new DynamicResourceExtension("UiBorder")); content.Children.Add(weave);
         var title = UserText(name); title.FontWeight = FontWeight.SemiBold; title.TextWrapping = TextWrapping.NoWrap;
         title.TextTrimming = TextTrimming.CharacterEllipsis; ToolTip.SetTip(title, name); content.Children.Add(title);
-        content.Children.Add(Ui.Text(Localization.Format($"{members.Length} 个 · 已选 {members.Count(entry => entry.Include)} 个"), "caption"));
-        var button = new Button { Content = content, Padding = new(8), HorizontalContentAlignment = HorizontalAlignment.Stretch };
-        button.Bind(BorderBrushProperty, new DynamicResourceExtension(id == _basketId ? "UiAccent" : "UiBorder"));
-        button.BorderThickness = new(id == _basketId ? 2 : 1);
+        var count = Ui.Text("", "caption"); count.TextWrapping = TextWrapping.NoWrap;
+        content.Children.Add(count);
+        var button = new Button { Content = content, Padding = new(8), BorderThickness = new(2), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var view = new BasketView(button, fan, count, name, rule, category);
         button.Click += (_, _) => { _basketId = id; RenderBoard(); };
-        if (rule is null || id is AllBasket or PendingBasket) return button;
+        if (rule is null || id is AllBasket or PendingBasket) return view;
         DragDrop.SetAllowDrop(button, true);
         button.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
@@ -188,7 +228,7 @@ public sealed partial class FolderClassificationWindow
             if (_busy || _dragEntry is not { } entry || e.DataTransfer.TryGetText() != _dragToken) return;
             e.Handled = true; await GuardAsync(() => PlaceInBasketAsync(entry, rule, category));
         });
-        return button;
+        return view;
     }
 
     private void AddCoverDrag(Control cover, MediaFileEntry entry)

@@ -7,43 +7,23 @@ namespace AvaMedia.Desktop;
 
 public sealed partial class FolderClassificationWindow : IClassificationCoverSource
 {
-    private readonly SemaphoreSlim _coverGate = new(2, 2);
-    private readonly Dictionary<(string Path, double Seconds, int Width, long Length, DateTime Modified), byte[]> _coverCache = [];
-    private readonly Queue<(string Path, double Seconds, int Width, long Length, DateTime Modified)> _coverOrder = [];
-    private long _coverBytes;
+    private readonly ClassificationCoverCache _coverCache = new();
     private readonly ClassificationCover _selectedCover = new() { Height = 180, ResolutionWidth = 640 };
     private readonly StackPanel _coverPanel = new() { Spacing = 6 };
     private double _coverPosition;
     private string? _coverPath;
     private bool _coverTouched;
     private string? _coverControlsKey;
+    private MediaFileEntry? _detailsEntry;
+    private FolderClassifiedFile? _detailsResult;
+    private FolderClassificationRule[] _detailsRules = [];
+    private FolderClassificationCategory[] _detailsCategories = [];
+    private (string? Path, string? Destination, string? Status, string? Output, bool Split, bool Busy)? _detailsPresentation;
 
-    async Task<byte[]> IClassificationCoverSource.ReadClassificationCoverAsync(string path, double seconds, int width, CancellationToken ct)
+    Task<ClassificationCoverCache.Lease> IClassificationCoverSource.ReadClassificationCoverAsync(string path, double seconds, int width, CancellationToken ct)
     {
         if (_closed) throw new OperationCanceledException(ct);
-        using var request = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
-        await _coverGate.WaitAsync(request.Token);
-        try
-        {
-            request.Token.ThrowIfCancellationRequested();
-            var media = _results.GetValueOrDefault(path)?.Media;
-            var key = await Task.Run(() =>
-            {
-                if (media is not null) MediaTagService.ValidateSource(media);
-                var info = new FileInfo(path);
-                if (!info.Exists) throw new FileNotFoundException();
-                return (path, seconds, width, info.Length, info.LastWriteTimeUtc);
-            }, request.Token);
-            if (_coverCache.TryGetValue(key, out var cached)) return cached;
-            var bytes = await Task.Run(() => _engine.Thumbnail(path, seconds, width, width * 9 / 16, request.Token, pad: false), request.Token);
-            request.Token.ThrowIfCancellationRequested();
-            if (_coverCache.TryGetValue(key, out cached)) return cached;
-            _coverCache[key] = bytes; _coverOrder.Enqueue(key); _coverBytes += bytes.Length;
-            while (_coverOrder.Count > 96 || _coverBytes > 24 * 1024 * 1024)
-                if (_coverCache.Remove(_coverOrder.Dequeue(), out var old)) _coverBytes -= old.Length;
-            return bytes;
-        }
-        finally { _coverGate.Release(); }
+        return _coverCache.AcquireAsync(_engine, path, seconds, width, _results.GetValueOrDefault(path)?.Media, ct);
     }
 
     private double CoverSeconds(MediaFileEntry entry) => _results.TryGetValue(entry.Path, out var result)
@@ -81,16 +61,27 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
 
     private void RenderDetails()
     {
+        var entry = _files.SelectedItem as MediaFileEntry;
+        var result = entry is null ? null : _results.GetValueOrDefault(entry.Path);
+        var presentation = (entry?.Path, entry?.NewName, entry?.Status, _output.Text, _splitTypes.IsChecked == true, _busy);
+        var categoriesByRule = _rules.Select(GroupCategories).ToArray();
+        var categorySnapshot = categoriesByRule.SelectMany(categories => categories).ToArray();
+        if (ReferenceEquals(entry, _detailsEntry) && ReferenceEquals(result, _detailsResult)
+            && _detailsPresentation == presentation && _detailsRules.SequenceEqual(_rules)
+            && _detailsCategories.SequenceEqual(categorySnapshot)) return;
+        _detailsEntry = entry; _detailsResult = result; _detailsPresentation = presentation; _detailsRules = _rules.ToArray();
+        _detailsCategories = categorySnapshot;
         _details.Children.Clear();
-        var entry = _files.SelectedItem as MediaFileEntry; RenderCover(entry);
+        RenderCover(entry);
         if (entry is null) { _details.Children.Add(Ui.Text("选择封面查看分类结果", "caption")); return; }
         var title = UserText(entry.Name, "settingsHeading"); title.MaxLines = 2; title.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; ToolTip.SetTip(title, entry.Path); _details.Children.Add(title);
-        if (!_results.TryGetValue(entry.Path, out var result)) _details.Children.Add(Ui.Text(entry.Status, "caption"));
-        foreach (var rule in _rules)
+        if (result is null) _details.Children.Add(Ui.Text(entry.Status, "caption"));
+        for (var ruleIndex = 0; ruleIndex < _rules.Count; ruleIndex++)
         {
+            var rule = _rules[ruleIndex];
             var decision = result?.Decisions.FirstOrDefault(item => item.RuleId == rule.Id);
             _details.Children.Add(UserText(rule.Name, "settingsHeading"));
-            var categories = GroupCategories(rule);
+            var categories = categoriesByRule[ruleIndex];
             var choice = new ComboBox { ItemsSource = new[] { Localization.Text("待确认") }.Concat(categories.Select(category => category.Name)).ToArray(),
                 SelectedIndex = decision?.CategoryId is { } id ? Array.FindIndex(categories, category => category.Id == id) + 1 : 0, IsEnabled = !_busy };
             Localization.SetIsUserText(choice, true);

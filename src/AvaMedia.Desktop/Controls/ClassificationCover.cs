@@ -1,17 +1,16 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 
 namespace AvaMedia.Desktop.Controls;
 
 internal interface IClassificationCoverSource
 {
-    Task<byte[]> ReadClassificationCoverAsync(string path, double seconds, int width, CancellationToken ct);
+    Task<ClassificationCoverCache.Lease> ReadClassificationCoverAsync(string path, double seconds, int width, CancellationToken ct);
 }
 
-/// <summary>Realized covers own their bitmap; virtualized or removed cards cancel and release it.</summary>
+/// <summary>Visible covers lease shared decoded pixels; off-screen cards release their lease and request.</summary>
 internal sealed class ClassificationCover : Grid
 {
     public static readonly StyledProperty<string?> PathProperty = AvaloniaProperty.Register<ClassificationCover, string?>(nameof(Path));
@@ -23,7 +22,7 @@ internal sealed class ClassificationCover : Grid
     private readonly TextBlock _placeholder = Ui.Text("加载封面…", "caption");
     private IClassificationCoverSource? _owner;
     private CancellationTokenSource? _request;
-    private Bitmap? _bitmap;
+    private ClassificationCoverCache.Lease? _lease;
     private bool _inViewport;
 
     public ClassificationCover()
@@ -44,6 +43,7 @@ internal sealed class ClassificationCover : Grid
     {
         base.OnAttachedToVisualTree(e);
         _owner = this.GetVisualAncestors().OfType<IClassificationCoverSource>().FirstOrDefault();
+        if (_inViewport) Refresh();
     }
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -57,25 +57,25 @@ internal sealed class ClassificationCover : Grid
     }
     private void Release()
     {
-        _request?.Cancel(); _image.Source = null; _bitmap?.Dispose(); _bitmap = null;
+        _request?.Cancel(); _image.Source = null; _lease?.Dispose(); _lease = null;
     }
     private async void Refresh()
     {
         if (!_inViewport || _owner is not { } owner || Path is not { Length: > 0 } path) return;
         _request?.Cancel();
         using var request = new CancellationTokenSource(); _request = request;
-        _placeholder.Text = Localization.Text("加载封面…"); _placeholder.IsVisible = _bitmap is null;
+        _placeholder.Text = Localization.Text("加载封面…"); _placeholder.IsVisible = _lease is null;
         try
         {
-            var bytes = await owner.ReadClassificationCoverAsync(path, Seconds, ResolutionWidth, request.Token);
-            if (request.IsCancellationRequested || _request != request || _owner != owner) return;
-            using var stream = new MemoryStream(bytes); var next = new Bitmap(stream);
-            var previous = _bitmap; _bitmap = next; _image.Source = next; previous?.Dispose(); _placeholder.IsVisible = false;
+            var next = await owner.ReadClassificationCoverAsync(path, Seconds, ResolutionWidth, request.Token);
+            if (request.IsCancellationRequested || _request != request || _owner != owner)
+            { next.Dispose(); return; }
+            var previous = _lease; _lease = next; _image.Source = next.Bitmap; previous?.Dispose(); _placeholder.IsVisible = false;
         }
         catch (OperationCanceledException) { }
         catch (Exception)
         {
-            if (_request == request) { _placeholder.Text = Localization.Text("预览不可用"); _placeholder.IsVisible = _bitmap is null; }
+            if (_request == request) { _placeholder.Text = Localization.Text("预览不可用"); _placeholder.IsVisible = _lease is null; }
         }
         finally { if (_request == request) _request = null; }
     }

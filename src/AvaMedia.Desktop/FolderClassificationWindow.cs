@@ -71,12 +71,12 @@ public sealed partial class FolderClassificationWindow : Window
             if (!_closingView && !TaskActive && _taskJob is not null)
             { args.Cancel = true; _ = SaveAndCloseAsync(); return; }
             _closed = true; _boardTimer.Stop(); _lifetime.Cancel(); _operation?.Cancel();
-            _coverCache.Clear(); _coverOrder.Clear(); _coverBytes = 0;
+            _coverCache.Dispose();
         };
         Closed += (_, _) =>
         {
             if (_taskJob is { } task) task.PropertyChanged -= TaskChanged;
-            _settings.NsfwContentChanged -= PrivacyChanged; _files.ItemsSource = null; _baskets.Children.Clear(); _selectedCover.Path = null; _lifetime.Dispose();
+            _settings.NsfwContentChanged -= PrivacyChanged; _files.ItemsSource = null; _baskets.Children.Clear(); _basketViews.Clear(); _selectedCover.Path = null; _lifetime.Dispose();
         };
         if (initial is not null) Opened += async (_, _) => await ImportPathsAsync(initial);
     }
