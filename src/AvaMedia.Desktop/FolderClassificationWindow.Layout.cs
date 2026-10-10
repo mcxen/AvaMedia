@@ -38,7 +38,7 @@ public sealed partial class FolderClassificationWindow
     private readonly TextBlock _scanErrors = Ui.Text("", "caption");
     private readonly AiActivityView _activity = new() { Collapsible = true, DetailHeight = 170 };
     private readonly StackPanel _videoSettings = new() { Spacing = 6, IsVisible = false };
-    private readonly Button _analyze = new() { Content = "自动标签与分类", Classes = { "primary" } };
+    private readonly Button _analyze = new() { Content = "后台运行分类", Classes = { "primary" } };
     private readonly Button _retry = new() { Content = "重试未完成" };
     private readonly Button _preview = new() { Content = "预览分类目录" };
     private readonly Button _organize = new() { Content = "执行整理", Classes = { "primary" } };
@@ -62,7 +62,13 @@ public sealed partial class FolderClassificationWindow
         AddImport("全选", () => { SelectEntries(_ => true); return Task.CompletedTask; });
         AddImport("取消全选", () => { SelectEntries(_ => false); return Task.CompletedTask; });
         AddImport("仅选已完成", () => { SelectEntries(entry => _results.ContainsKey(entry.Path)); return Task.CompletedTask; });
-        _recursive.Margin = new(8, 0, 0, 0); _imports.Children.Add(_recursive); root.Children.Add(_imports);
+        _recursive.Margin = new(8, 0, 0, 0); _imports.Children.Add(_recursive);
+        var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
+        header.Children.Add(_imports);
+        var tasks = new WrapPanel();
+        foreach (var (label, action) in new (string, Action)[] { ("新建分类任务", _newTask), ("查看任务列表", _showTasks) })
+        { var button = Ui.Button(label, action); button.Margin = new(6, 0, 0, 6); tasks.Children.Add(button); }
+        Grid.SetColumn(tasks, 1); header.Children.Add(tasks); root.Children.Add(header);
         var body = new Grid { ColumnDefinitions = new("228,*,260"), ColumnSpacing = 12 };
         _settingsPanel.Children.Add(Ui.Text("分类规则", "settingsHeading"));
         _rulesPanel.Children.Add(Ui.Text("选择需要的分组，最多同时使用 8 组。", "caption"));
@@ -142,7 +148,7 @@ public sealed partial class FolderClassificationWindow
         _organize.Click += async (_, _) => await GuardAsync(OrganizeAsync);
         _undo.Click += async (_, _) => await GuardAsync(UndoAsync);
         _export.Click += async (_, _) => await GuardAsync(ExportAsync);
-        _stop.Click += (_, _) => _operation?.Cancel();
+        _stop.Click += (_, _) => { if (TaskActive && _taskJob is { } task) _stopTask(task); else _operation?.Cancel(); };
         _output.TextChanged += (_, _) => InvalidatePlan();
         _splitTypes.IsCheckedChanged += (_, _) => InvalidatePlan(); _writeText.IsCheckedChanged += (_, _) => InvalidatePlan();
         _frames.ValueChanged += (_, _) => InvalidateAnalysis(); _tagThreshold.ValueChanged += (_, _) => Reclassify();
@@ -154,7 +160,7 @@ public sealed partial class FolderClassificationWindow
     { var button = Ui.Button(label, async () => await GuardAsync(action)); button.Margin = new(0, 0, 6, 6); _imports.Children.Add(button); }
     private async Task GuardAsync(Func<Task> action)
     {
-        try { await action(); }
+        try { await action(); if (!_closed && !_busy) await SaveTaskViewAsync(); }
         catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("已停止"); }
         catch (Exception error) { if (!_closed) await Ui.Message(this, Catalog.Find("folder-classification").Label, error.Message); }
     }

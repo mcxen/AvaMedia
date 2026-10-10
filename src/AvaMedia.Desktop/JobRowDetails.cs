@@ -24,12 +24,12 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool HasCover => Cover is not null;
     public bool NoCover => !HasCover;
     public bool IsRunning => Job.State == JobState.Running;
-    public bool CanPreview => !IsRunning;
-    public string PreviewTip => IsRunning ? "任务正在运行" : "编辑任务";
+    public bool CanPreview => Job.FeatureId == "folder-classification" || !IsRunning;
+    public string PreviewTip => Job.FeatureId == "folder-classification" ? "查看分类任务…" : IsRunning ? "任务正在运行" : "编辑任务";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
-    public string Name => Job.FeatureId == "download" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
-    public string OutputName => Path.GetFileName(Job.Output.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    public string Name => Job.FeatureId is "download" or "folder-classification" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
+    public string OutputName => Path.GetFileName(Job.UserOutput.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     public string FileSummary => _fileSummary;
     public string MediaSummary
     {
@@ -78,6 +78,12 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
                 if (summary.ExtractSubtitles) parts.Add("字幕");
                 if (summary.AnalyzeContent) parts.Add("内容分析");
                 if (summary.NeedsAi) parts.Add(summary.AnalyzeFrames ? "语音与画面" : "字幕与语音");
+                return Localization.Join(" · ", parts);
+            }
+            if (feature.Operation == Operation.FolderClassify && o.FolderClassification is { } classification)
+            {
+                parts.Add(Localization.Format($"{Job.Inputs.Length} 个文件"));
+                parts.Add(Localization.Format($"{classification.Rules.Length} 组分类"));
                 return Localization.Join(" · ", parts);
             }
             if (feature.Operation == Operation.MediaTag && o.MediaTag is { } mediaTag)
@@ -189,7 +195,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public void Refresh()
     {
         if (_disposed) return;
-        var output = Job.State == JobState.Completed ? Job.Output : "";
+        var output = Job.State == JobState.Completed && Job.FeatureId != "folder-classification" ? Job.Output : "";
         if (!ReferenceEquals(_sizeInputs, Job.Inputs) || _sizeOutput != output)
         {
             _sizeInputs = Job.Inputs; _sizeOutput = output;

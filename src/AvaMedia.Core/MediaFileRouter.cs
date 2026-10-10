@@ -48,7 +48,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
             Operation.Info => video || audio || processImage,
             Operation.Player or Operation.Transcribe or Operation.Mux => video || audio,
             Operation.BatchTools => feature.Id == "contact-sheet" ? video : video || image,
-            Operation.MediaTag => video || image,
+            Operation.MediaTag or Operation.FolderClassify => video || image,
             _ when feature.Id is "crop" or "rotate" or "person-clip" => video,
             _ when feature.Id is "voice-enhance" or "audio-enhance" => video || audio,
             _ when feature.Category == "图片" => processImage,

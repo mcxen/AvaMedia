@@ -38,8 +38,9 @@ public sealed record QueueCompletion(int Completed, int Failed, int Cancelled, I
     public static QueueCompletion From(IEnumerable<Job> jobs)
     {
         var batch = jobs.ToArray();
-        var folders = batch.Where(j => j.State == JobState.Completed)
-            .Select(j => Directory.Exists(j.Output) ? j.Output : Path.GetDirectoryName(Path.GetFullPath(j.Output))!)
+        var folders = batch.Where(j => j.State == JobState.Completed && !string.IsNullOrWhiteSpace(j.UserOutput))
+            .Select(j => j.FeatureId == "folder-classification" || Directory.Exists(j.UserOutput) ? j.UserOutput : Path.GetDirectoryName(Path.GetFullPath(j.UserOutput))!)
+            .Where(Directory.Exists)
             .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToArray();
         // An interrupted queue also includes jobs that never acquired a concurrency slot.
         return new(batch.Count(j => j.State == JobState.Completed), batch.Count(j => j.State == JobState.Failed),

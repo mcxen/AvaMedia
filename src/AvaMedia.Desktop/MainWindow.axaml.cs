@@ -189,8 +189,8 @@ public partial class MainWindow : Window
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
-    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed){try{if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
-    private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j]){try{var path=Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;if(Directory.Exists(path))Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed){try{if(CanViewClassificationTask(j))await ShowClassificationTaskAsync(j);else if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j]){try{var path=j.FeatureId=="folder-classification"?j.UserOutput:Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;if(Directory.Exists(path))Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         if(JobList.SelectedItem is not Job job)return;
@@ -202,14 +202,15 @@ public partial class MainWindow : Window
     private async void JobDoubleClick(object? sender,TappedEventArgs e)
     {
         if(JobList.SelectedItems?.Count!=1 || JobList.SelectedItem is not Job j)return;
-        await EditJob(j);
+        if (CanViewClassificationTask(j)) await ShowClassificationTaskAsync(j);
+        else await EditJob(j);
     }
     private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e)=>Refresh();
     private async void ExportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         var file=await StorageProvider.SaveFilePickerAsync(new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});
         if(file?.TryGetLocalPath() is not {} path)return;
-        try{await _storage.ExportJobsAsync(path,_jobs);}
+        try{await _storage.ExportJobsAsync(path,_jobs,includeNsfw:_settings.EnableNsfwContent);}
         catch(Exception ex){await Ui.Message(this,"保存任务列表",ex.Message);}
     }
     private async void ImportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)

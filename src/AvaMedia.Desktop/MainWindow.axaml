@@ -77,6 +77,7 @@
               </MenuItem>
               <Separator x:Name="TaskFilesSeparator"/>
               <MenuItem x:Name="ViewSummaryResultMenu" Header="查看视频总结结果…" Click="ViewSummaryResultClick" IsEnabled="False"/>
+              <MenuItem x:Name="ViewClassificationTaskMenu" Header="查看分类任务…" Click="ViewClassificationTaskClick" IsEnabled="False"/>
               <MenuItem x:Name="ViewMediaTagResultMenu" Header="打开 AI 标签报告…" Click="ViewMediaTagResultClick" IsEnabled="False"/>
               <MenuItem x:Name="PlayOutputMenu" Header="用天池播放器播放输出视频" Click="PlayOutputSelectedClick" IsEnabled="False" ToolTip.Tip="任务完成且输出视频存在时可播放。支持多选。">
                 <MenuItem.Icon><local:ActionIcon Kind="play"/></MenuItem.Icon>

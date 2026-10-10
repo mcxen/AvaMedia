@@ -30,7 +30,7 @@
     <StackPanel Grid.Column="2" Spacing="4" Margin="8,2" VerticalAlignment="Center">
       <Grid x:Name="OutputDragHandle" ColumnDefinitions="Auto,*" ColumnSpacing="4" Background="Transparent">
         <TextBlock x:Name="OutputDragGrip" Text="⋮⋮" Classes="queue-secondary" IsVisible="False" VerticalAlignment="Center"/>
-        <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Output}"/>
+        <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.UserOutput}"/>
       </Grid>
       <TextBlock Text="{Binding SettingsSummary}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
       <Grid>

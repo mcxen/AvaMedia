@@ -3250,5 +3250,19 @@
   "柔化": "Soften",
   "柔化与锐化": "Soften and sharpen",
   "伽马": "Gamma",
-  "点击筛选；拖动封面调整分类": "Click to filter; drag a cover to change its category"
+  "点击筛选；拖动封面调整分类": "Click to filter; drag a cover to change its category",
+  "后台运行分类": "Run classification in background",
+  "新建分类任务": "New classification task",
+  "查看任务列表": "Show task list",
+  "查看分类任务…": "View classification task…",
+  "分类任务 · {0}": "Classification task · {0}",
+  "{0} 组分类": "{0} classification groups",
+  "关闭窗口后任务继续运行": "The task continues after closing this window",
+  "保存分类任务失败": "Failed to save classification task",
+  "打开分类任务失败": "Failed to open classification task",
+  "缺少分类任务参数。": "Classification task options are missing.",
+  "分类任务须包含图片或视频。": "A classification task requires images or videos.",
+  "分类任务不支持逐文件编辑参数。": "Classification tasks do not support per-file conversion settings.",
+  "分类任务结果目录无效。": "The classification task result directory is invalid.",
+  "请在模型管理中安装语义模型后重试。": "Install the semantic model in model management, then retry."
 }

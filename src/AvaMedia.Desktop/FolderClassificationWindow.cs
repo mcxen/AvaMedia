@@ -43,9 +43,11 @@ public sealed partial class FolderClassificationWindow : Window
     }
 
     public FolderClassificationWindow(IMediaEngine engine, IEnumerable<string>? initial, Func<bool> canMove,
-        Func<Window, Task> manageModels, AppSettings? settings = null)
+        Func<Window, Task> manageModels, Action<Job> enqueueTask, Func<Job, Task> resumeTask,
+        Action<Job> stopTask, Action newTask, Action showTasks, AppSettings? settings = null)
     {
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
+        _enqueueTask = enqueueTask; _resumeTask = resumeTask; _stopTask = stopTask; _newTask = newTask; _showTasks = showTasks;
         _settings = settings ?? engine.Settings;
         Title = Catalog.Find("folder-classification").Label; Width = 1360; Height = 840; MinWidth = 920; MinHeight = 540;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
@@ -63,11 +65,16 @@ public sealed partial class FolderClassificationWindow : Window
         Closing += (_, args) =>
         {
             if (_writing) { args.Cancel = true; _operation?.Cancel(); return; }
+            if (!_closingView && !TaskActive && _taskJob is not null)
+            { args.Cancel = true; _ = SaveAndCloseAsync(); return; }
             _closed = true; _boardTimer.Stop(); _lifetime.Cancel(); _operation?.Cancel();
             _coverCache.Clear(); _coverOrder.Clear(); _coverBytes = 0;
         };
         Closed += (_, _) =>
-        { _settings.NsfwContentChanged -= PrivacyChanged; _files.ItemsSource = null; _baskets.Children.Clear(); _selectedCover.Path = null; _lifetime.Dispose(); };
+        {
+            if (_taskJob is { } task) task.PropertyChanged -= TaskChanged;
+            _settings.NsfwContentChanged -= PrivacyChanged; _files.ItemsSource = null; _baskets.Children.Clear(); _selectedCover.Path = null; _lifetime.Dispose();
+        };
         if (initial is not null) Opened += async (_, _) => await ImportPathsAsync(initial);
     }
 

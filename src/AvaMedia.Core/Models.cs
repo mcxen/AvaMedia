@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary, PersonClip, MediaTag, ImageView }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary, PersonClip, MediaTag, ImageView, FolderClassify }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert, int Span = 1);
 public static class Catalog
 {
@@ -56,7 +56,7 @@ public static class Catalog
         Add("rotate","批量旋转","工具集","mp4","rotate");
         Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
         Add("media-ai","自动标签分类","工具集","txt","image",Operation.MediaTag,2);
-        Add("folder-classification","自动媒体整理","工具集","","gear",Operation.BatchTools);
+        Add("folder-classification","自动媒体整理","工具集","","gear",Operation.FolderClassify);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
         Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
@@ -83,6 +83,7 @@ public sealed class ConversionOptions
     public VideoSummaryOptions? VideoSummary { get; set; }
     public PersonClipTaskOptions? PersonClip { get; set; }
     public MediaTagTaskOptions? MediaTag { get; set; }
+    public FolderClassificationTaskOptions? FolderClassification { get; set; }
     public string Format { get; set; } = "mp4";
     public string VideoCodec { get; set; } = "自动";
     public int Quality { get; set; } = 23;
@@ -141,7 +142,7 @@ public sealed class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public sealed partial class Job : Observable
@@ -176,9 +177,11 @@ public sealed partial class Job : Observable
     public string Error { get => _error; set => _error = JobLogStore.Summarize(value); }
     public string Name => string.IsNullOrWhiteSpace(DownloadTitle)?string.Join(" + ", Inputs.Select(Path.GetFileName)):DownloadTitle;
     public string Source => string.Join(Environment.NewLine, Inputs);
-    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {Output}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId=="media-ai"?"分析中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
+    public string UserOutput => Options.FolderClassification?.OutputFolder ?? Output;
+    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {UserOutput}";
+    [JsonIgnore]
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification"?"分析中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai" or "folder-classification") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

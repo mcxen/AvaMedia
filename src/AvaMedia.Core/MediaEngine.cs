@@ -158,6 +158,7 @@ public sealed class MediaEngine : IMediaEngine
     public static void Validate(Job job)
     {
         var feature=Catalog.Find(job.FeatureId);var o=job.Options;
+        if(feature.Operation==Operation.FolderClassify){FolderClassificationJobService.Validate(job);return;}
         if(job.Inputs.Length==0) throw new ArgumentException("请添加文件。");
         if(feature.Operation is not (Operation.Download or Operation.IsoCopy)) foreach(var path in job.Inputs) if(!File.Exists(path)) throw new FileNotFoundException("源文件不存在",path);
         if(string.IsNullOrWhiteSpace(job.Output)) throw new ArgumentException("输出路径不能为空。");
@@ -250,6 +251,8 @@ public sealed class MediaEngine : IMediaEngine
     public async Task Execute(Job job,Action<double> progress,CancellationToken ct)
     {
         Validate(job);var f=Catalog.Find(job.FeatureId);
+        if(f.Operation==Operation.FolderClassify)
+        {await new FolderClassificationJobService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         if(File.Exists(job.Output) || Directory.Exists(job.Output)) throw new IOException("输出已存在，请重试以生成新的名称。");
         if(f.Operation==Operation.VideoSlim)

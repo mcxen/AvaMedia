@@ -17,6 +17,7 @@ public partial class MainWindow
     private readonly Dictionary<string, string[]> _featureDropFiles = [];
 
     internal bool CanDragOutput(Job job) => !_closing && job.State == JobState.Completed && _jobs.Contains(job)
+        && job.FeatureId != "folder-classification"
         && (File.Exists(job.Output) || Directory.Exists(job.Output));
 
     internal void SelectOutputForDrag(Job job)

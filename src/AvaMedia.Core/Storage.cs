@@ -67,7 +67,7 @@ public sealed partial class Storage
         return Task.Run(() => { foreach (var job in snapshot) job.Log = ""; });
     }
 
-    public async Task ExportJobsAsync(string path, IEnumerable<Job> jobs, CancellationToken ct = default)
+    public async Task ExportJobsAsync(string path, IEnumerable<Job> jobs, CancellationToken ct = default, bool includeNsfw = false)
     {
         var snapshot = jobs.ToArray();
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -82,7 +82,19 @@ public sealed partial class Storage
                 {
                     ct.ThrowIfCancellationRequested();
                     writer.WriteStartObject();
-                    foreach (var property in JsonSerializer.SerializeToElement(job, Json).EnumerateObject()) property.WriteTo(writer);
+                    foreach (var property in JsonSerializer.SerializeToElement(job, Json).EnumerateObject())
+                    {
+                        if (!includeNsfw && property.Name == nameof(Job.Options) && job.Options.FolderClassification is { } classification)
+                        {
+                            var options = job.Options.Clone(); var safe = classification.Clone();
+                            safe.Rules = safe.Rules.Where(rule => !MediaPrivacy.IsSensitiveRule(rule)).ToArray();
+                            safe.IncludeNsfw = false;
+                            safe.Analysis = safe.Analysis with { SemanticCandidates = safe.Rules.SelectMany(rule => rule.Candidates()).ToArray() };
+                            options.FolderClassification = safe;
+                            writer.WritePropertyName(nameof(Job.Options)); JsonSerializer.Serialize(writer, options, Json);
+                        }
+                        else property.WriteTo(writer);
+                    }
                     writer.WriteString(nameof(Job.Log), await job.ReadLogAsync(ct).ConfigureAwait(false));
                     writer.WriteEndObject();
                     await writer.FlushAsync(ct).ConfigureAwait(false);
@@ -110,6 +122,11 @@ public sealed partial class Storage
                 if (job.Inputs is null || job.Options is null || string.IsNullOrWhiteSpace(job.Output))
                     throw new InvalidDataException("任务列表格式无效。");
                 job.Id = Guid.NewGuid();
+                if (job.FeatureId == "folder-classification")
+                {
+                    job.Output = FolderClassificationTaskStore.Folder(job); job.State = JobState.Waiting;
+                    if (job.Options.FolderClassification is { } classification) classification.LastJournal = null;
+                }
                 job.AttachLogs(_logs);
                 if (job.State is JobState.Running or JobState.Stopping) job.State = JobState.Cancelled;
                 jobs.Add(job);

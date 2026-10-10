@@ -50,6 +50,7 @@ public partial class MainWindow
         MoveTaskBottomMenu.IsEnabled = MoveTaskDownMenu.IsEnabled = moving.Any(job => _jobs.IndexOf(job) < _jobs.Count - 1 && !moving.Contains(_jobs[_jobs.IndexOf(job) + 1]));
         var one = selected.Length == 1 ? selected[0] : null;
         ViewSummaryResultMenu.IsVisible = one is not null && CanViewSummaryResult(one);
+        ViewClassificationTaskMenu.IsVisible = one is not null && CanViewClassificationTask(one);
         ViewMediaTagResultMenu.IsVisible = one is not null && CanViewMediaTagResult(one);
         PlayOutputMenu.IsVisible = SelectedPlayableOutputs().Length > 0;
         OpenTaskSourceMenu.IsVisible = OpenTaskSourceFolderMenu.IsVisible = OpenTaskOutputMenu.IsVisible
@@ -58,7 +59,7 @@ public partial class MainWindow
         OpenTaskSourceMenu.IsEnabled = one?.Inputs.Any(IsAccessibleSource) == true;
         OpenTaskSourceFolderMenu.IsEnabled = one?.Inputs.Any(path => File.Exists(path) || Directory.Exists(path)) == true;
         OpenTaskOutputMenu.IsEnabled = one?.State == JobState.Completed && (File.Exists(one.Output) || Directory.Exists(one.Output));
-        OpenTaskOutputFolderMenu.IsEnabled = one is not null && Directory.Exists(Path.GetDirectoryName(one.Output));
+        OpenTaskOutputFolderMenu.IsEnabled = one is not null && Directory.Exists(one.FeatureId == "folder-classification" ? one.UserOutput : Path.GetDirectoryName(one.Output));
         CopyTaskPathsMenu.IsEnabled = selected.Length > 0;
         TaskLogMenu.IsEnabled = one is not null;
         RemoveTaskMenu.IsEnabled = selected.Any(CanRemoveTask);
@@ -115,6 +116,17 @@ public partial class MainWindow
         foreach (var job in restarting)
         {
             // Keep the job ID for download staging and allocate a fresh destination if a prior output exists.
+            if (job.FeatureId == "folder-classification")
+            {
+                if (_classificationWindows.TryGetValue(job.Id, out var window)) await window.FlushTaskEditsAsync();
+                if (!CanRequeueTask(job)) continue;
+                if (job.State == JobState.Completed)
+                {
+                    FolderClassificationTaskStore.Delete(job);
+                    job.ClassificationSnapshot = new(job.Inputs.Select(path => new FolderClassificationTaskFile(path)).ToArray());
+                }
+                ResetTask(job); continue;
+            }
             var output = NextTaskOutput(job); ResetTask(job); job.Output = output;
         }
         Save(); Refresh(); await StartQueueAsync(restarting);
@@ -130,7 +142,13 @@ public partial class MainWindow
             {
                 var copy = new Job { FeatureId = original.FeatureId, Inputs = original.Inputs.ToArray(), Options = original.Options.Clone(),
                     InputOptions = original.InputOptions?.Select(options => options.Clone()).ToList(),
-                    Output = NextTaskOutput(original, reserveOriginal: true), DownloadTitle = original.DownloadTitle, Duration = original.Duration };
+                    Output = original.FeatureId == "folder-classification" ? "" : NextTaskOutput(original, reserveOriginal: true),
+                    DownloadTitle = original.DownloadTitle, Duration = original.Duration };
+                if (copy.FeatureId == "folder-classification")
+                {
+                    copy.Output = FolderClassificationTaskStore.Folder(copy);
+                    copy.Options.FolderClassification!.LastJournal = null;
+                }
                 _jobs.Insert(_jobs.IndexOf(original) + 1, copy); copies.Add(copy);
             }
             JobList.SelectedItems?.Clear();
@@ -166,7 +184,11 @@ public partial class MainWindow
     {
         var removed = jobs.Distinct().Where(job => CanRemoveTask(job) && _queue.Withdraw(job)).ToArray();
         if (removed.Length == 0) return;
-        foreach (var job in removed) _jobs.Remove(job);
+        foreach (var job in removed)
+        {
+            if (_classificationWindows.TryGetValue(job.Id, out var window)) window.Close();
+            _jobs.Remove(job);
+        }
         Save(); Refresh(); await _queueSave; await _storage.DeleteJobLogsAsync(removed);
     }
     private async void ClearCompletedTasksClick(object? sender, RoutedEventArgs args)

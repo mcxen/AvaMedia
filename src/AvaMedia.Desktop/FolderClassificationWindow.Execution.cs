@@ -9,118 +9,37 @@ public sealed partial class FolderClassificationWindow
     private async Task AnalyzeAsync(bool retryOnly)
     {
         if (_busy) return;
-        var paths = _entries.Where(entry => entry.Include && (!retryOnly || !_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path))).Select(entry => entry.Path).ToArray();
+        if (retryOnly && _taskJob is { } previous && previous.State is JobState.Failed or JobState.Cancelled)
+        { await SaveTaskViewAsync(); await _resumeTask(previous); return; }
+        var paths = _entries.Where(entry => entry.Include).Select(entry => entry.Path).ToArray();
         if (paths.Length == 0) return;
-        var rules = _rules.ToArray(); FolderClassification.ValidateRules(rules);
-        var metadataOnly = rules.Length > 0 && rules.All(rule => rule.ByDuration);
-        var options = new MediaTagOptions((int)(_frames.Value ?? 12), _gpu.IsChecked == true)
-        { SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
-        options.Validate();
-        var threshold = (double)(_tagThreshold.Value ?? .5m);
-        var previous = _results.ToDictionary(pair => pair.Key, pair => pair.Value, BatchRename.PathComparer);
-        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
+        using var preparation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _operation = preparation; SetBusy(true);
         try
         {
-            var store = new ModelStore();
-            if (options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(operation.Token))
-            {
-                if (!await SemanticModelConsent.ConfirmAsync(this, Catalog.Find("folder-classification").Label))
-                { _status.Text = Localization.Text("已取消。可移除语义规则后只识别标签。"); return; }
-                await SemanticModelConsent.DownloadAsync(DownloadProgress(), operation.Token);
-            }
-            if (!metadataOnly && !await store.IsInstalledAsync(ModelCatalog.JoyTagId, ct: operation.Token))
-                await store.DownloadAsync(ModelCatalog.JoyTagId, DownloadProgress(), operation.Token);
-            _attempted = true; SavePreferences(); InvalidatePlan();
-            foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
-            { _analysisPending.Add(entry.Path); _results.Remove(entry.Path); entry.Status = Localization.Text("待分析"); entry.Details = ""; }
-            var progress = new Progress<MediaTagProgress>(update =>
-            {
-                if (_closed || _operation != operation) return;
-                if (update.Activity is { } activity) _activity.Update(MediaPrivacy.Filter(activity, _settings.EnableNsfwContent));
-                _status.Text = $"{update.Completed} / {update.Total} · {Path.GetFileName(update.Path)}";
-                var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, update.Path));
-                if (entry is null) return;
-                if (update.Result is { } result)
-                { _results[result.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result, _rules.ToArray(), threshold, _settings.EnableNsfwContent), previous.GetValueOrDefault(result.Path)); _analysisPending.Remove(result.Path); UpdateEntry(entry); }
-                else if (update.Error is { } error) { entry.Status = Localization.Text("失败"); entry.Details = error; }
-                else entry.Status = Localization.Text(update.Activity?.Stage ?? "处理中");
-                if (_files.SelectedItem == entry && (update.Result is not null || update.Error is not null)) RenderDetails();
-            });
-            var results = metadataOnly ? await ReadDurationsAsync(paths, operation.Token) : await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);
+            var rules = _rules.ToArray(); FolderClassification.ValidateRules(rules);
+            var options = new MediaTagOptions((int)(_frames.Value ?? 12), _gpu.IsChecked == true)
+            { SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
+            options.Validate();
+            var downloadSemantic = options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(preparation.Token);
+            if (downloadSemantic && !await SemanticModelConsent.ConfirmAsync(this, Catalog.Find("folder-classification").Label)) return;
             if (_closed) return;
-            foreach (var result in results)
-            { _results[result.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result, _rules.ToArray(), threshold, _settings.EnableNsfwContent), previous.GetValueOrDefault(result.Path)); _analysisPending.Remove(result.Path); }
-            foreach (var entry in _entries) UpdateEntry(entry);
-            var failed = paths.Count(path => !_results.ContainsKey(path));
-            var review = results.Count(result => _results[result.Path].Decisions.Any(decision => decision.NeedsReview));
-            _status.Text = Localization.Format($"完成 {results.Count} 个，待确认 {review} 个，失败 {failed} 个");
-            _activity.Finish(AiActivityState.Completed, "分类完成");
+            var selected = paths.ToHashSet(BatchRename.PathComparer);
+            var job = new Job { FeatureId = "folder-classification", Inputs = _entries.Select(entry => entry.Path).ToArray(),
+                DownloadTitle = Localization.Format($"分类任务 · {DateTime.Now:HH:mm:ss}"),
+                Options = new() { Format = "", FolderClassification = CaptureTaskOptions(options) } };
+            job.Output = FolderClassificationTaskStore.Folder(job);
+            job.Options.FolderClassification!.AllowSemanticDownload = downloadSemantic;
+            job.ClassificationSnapshot = new(_entries.Select(entry => new FolderClassificationTaskFile(entry.Path,
+                _results.GetValueOrDefault(entry.Path), Pending: selected.Contains(entry.Path)
+                    && (!retryOnly || !_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path)))).ToArray());
+            foreach (var file in job.ClassificationSnapshot.Files)
+                await FolderClassificationTaskStore.SaveFileAsync(job, file, preparation.Token);
+            SavePreferences(); _attempted = true; InvalidatePlan();
+            preparation.Token.ThrowIfCancellationRequested();
+            AttachTask(job); _enqueueTask(job);
         }
-        catch (OperationCanceledException)
-        { if (!_closed) { _status.Text = Localization.Text("已停止，已完成结果已保留"); _activity.Finish(AiActivityState.Cancelled, "已停止"); } }
-        catch (Exception error)
-        {
-            if (!_closed)
-            {
-                _activity.Finish(AiActivityState.Failed, "分析失败"); _status.Text = error.Message;
-                await Ui.Message(this, "分析失败", error.Message);
-            }
-        }
-        finally
-        {
-            _operation = null;
-            if (!_closed)
-            {
-                foreach (var path in paths.Where(path => !_results.ContainsKey(path)))
-                {
-                    if (!previous.TryGetValue(path, out var preserved) || !preserved.Decisions.Any(decision => decision.Manual)) continue;
-                    try
-                    {
-                        MediaTagService.ValidateSource(preserved.Media); _results[path] = FolderClassification.KeepManual(FolderClassification.Classify(preserved.Media, _rules.ToArray(), threshold, _settings.EnableNsfwContent), preserved);
-                        if (_entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, path)) is { } row)
-                        { var state = row.Status; UpdateEntry(row); row.Status = state; }
-                    }
-                    catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
-                }
-                SetBusy(false); RenderDetails();
-            }
-        }
-
-        IProgress<ModelDownloadProgress> DownloadProgress()
-        {
-            var started = DateTime.UtcNow;
-            return new Progress<ModelDownloadProgress>(update =>
-            {
-                if (_closed || _operation != operation) return;
-                _status.Text = Localization.Text(update.Stage);
-                _activity.Update(new("下载分类模型", "", started, DateTime.UtcNow)
-                { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
-            });
-        }
-    }
-
-    private async Task<IReadOnlyList<MediaTagResult>> ReadDurationsAsync(string[] paths, CancellationToken ct)
-    {
-        var results = new List<MediaTagResult>();
-        foreach (var path in paths)
-        {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                var source = new FileInfo(path);
-                var length = source.Length; var modified = source.LastWriteTimeUtc;
-                var seconds = VideoFormats.IsVideo(path) ? (await _engine.Probe(path, ct)).Duration : 0;
-                var media = new MediaTagResult(path, [], 0, 0, "文件信息", length, modified) { DurationSeconds = seconds };
-                MediaTagService.ValidateSource(media); results.Add(media);
-            }
-            catch (Exception error) when (error is not OperationCanceledException)
-            {
-                if (_entries.FirstOrDefault(entry => entry.Path == path) is { } entry)
-                { entry.Status = Localization.Text("失败"); entry.Details = error.Message; }
-            }
-            _status.Text = $"{results.Count} / {paths.Length} · {Path.GetFileName(path)}";
-        }
-        return results;
+        finally { _operation = null; if (!_closed) SetBusy(TaskActive); }
     }
 
     private async Task PreviewAsync()

@@ -71,7 +71,9 @@ public partial class MainWindow
         try
         {
             if (_wifiTransferWindow is { } transfer) await transfer.ShutdownAsync();
-            await _running; Save(); await _queueSave; _optionLifetime.Cancel(); _timer.Stop(); _exitFinished = true; Close();
+            await _running;
+            foreach (var window in _classificationWindows.Values.Distinct().ToArray()) await window.FlushTaskEditsAsync();
+            Save(); await _queueSave; _optionLifetime.Cancel(); _timer.Stop(); _exitFinished = true; Close();
             if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
                 ReferenceEquals(desktop.MainWindow, this) && desktop.Windows.Count > 0) desktop.Shutdown();
         }
