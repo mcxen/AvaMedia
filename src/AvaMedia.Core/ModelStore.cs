@@ -18,24 +18,24 @@ public sealed record ModelDownloadProgress(long Received, long Total, string Sta
     public int SourceCount { get; init; }
 }
 
-public sealed class ModelLease(string directory, SemaphoreSlim gate) : IDisposable
+public sealed class ModelLease(string directory, Action release) : IDisposable
 {
     public string Directory { get; } = directory;
-    private SemaphoreSlim? _gate = gate;
-    public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
+    private Action? _release = release;
+    public void Dispose() => Interlocked.Exchange(ref _release, null)?.Invoke();
 }
 
 /// <summary>Shared download/use/delete locks, resumable staging, verified atomic publication.</summary>
 public sealed class ModelStore(string? root = null)
 {
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new();
+    private static readonly ConcurrentDictionary<string, ModelAccessGate> Gates = new(BatchRename.PathComparer);
     private sealed record InstalledFile(string Path, long Size, string Sha256);
     public string Root { get; } = Path.GetFullPath(root ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "models"));
     public string DirectoryFor(string id) { _ = ModelCatalog.Find(id); return Path.Combine(Root, id); }
     public string FileFor(string id, string file) => SafePath(DirectoryFor(id), file);
-    private SemaphoreSlim Gate(string id) => Gates.GetOrAdd(DirectoryFor(id), _ => new(1, 1));
-    public bool IsBusy(string id) => Gate(id).CurrentCount == 0;
+    private ModelAccessGate Gate(string id) => Gates.GetOrAdd(DirectoryFor(id), _ => new());
+    public bool IsBusy(string id) => Gate(id).IsBusy;
     public bool HasLocalData(string id) => Directory.Exists(DirectoryFor(id)) || Directory.Exists(DirectoryFor(id) + ".download");
     public long DownloadedBytes(string id)
     {
@@ -74,13 +74,14 @@ public sealed class ModelStore(string? root = null)
     public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true)
     {
         var gate = Gate(id);
-        await gate.WaitAsync(ct).ConfigureAwait(false);
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        var release = await gate.AcquireReadAsync(ct).ConfigureAwait(false);
         try
         {
             if (!await IsInstalledAsync(id, verify, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
-            return new(DirectoryFor(id), gate);
+            return new(DirectoryFor(id), release);
         }
-        catch { gate.Release(); throw; }
+        catch { release(); throw; }
     }
 
     public async Task DownloadAsync(string id, IProgress<ModelDownloadProgress>? progress = null, CancellationToken ct = default,

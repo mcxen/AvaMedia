@@ -330,7 +330,7 @@ public partial class DownloadWindow : Window
         {
             var request=ReadRequest();
             foreach(var video in request.Videos)if(video.WebView is {} web)_retainedSnapshots.Add(web.CookieSnapshotId);
-            Close(request);
+            ToolExecution.Complete(this, request);
         }
         catch(Exception ex){SetError(ex.Message);}
     }

@@ -79,7 +79,7 @@
             <ContextMenu Opening="JobContextMenuOpening">
               <MenuItem x:Name="StartTaskMenu" Header="开始任务" Click="StartSelectedClick"/>
               <MenuItem x:Name="ContinueTaskMenu" Header="继续任务" Click="ContinueSelectedClick"/>
-              <MenuItem x:Name="PauseTaskMenu" Header="暂停排队" Click="PauseSelectedClick"/>
+              <MenuItem x:Name="PauseTaskMenu" Header="暂停任务" Click="PauseSelectedClick"/>
               <MenuItem x:Name="TerminateTaskMenu" Header="终止任务" Click="TerminateSelectedClick"/>
               <MenuItem x:Name="RetryTaskMenu" Header="重试任务" Click="RetryClick"/>
               <MenuItem x:Name="RerunTaskMenu" Header="重新执行" Click="RerunSelectedClick"/>

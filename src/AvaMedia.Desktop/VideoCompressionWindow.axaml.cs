@@ -313,7 +313,7 @@ public partial class VideoCompressionWindow : Window
             var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(available[0].Path)! : OutputInput.Text;
             if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
             new Storage().SaveToolOptions("video-compress",options);
-            Close(new VideoCompressionRequest(available.Select(entry => entry.Path).ToArray(), options,
+            ToolExecution.Complete(this, new VideoCompressionRequest(available.Select(entry => entry.Path).ToArray(), options,
                 Path.GetFullPath(folder), SourceFolderInput.IsChecked == true, SettingNameInput.IsChecked == true));
         }
         catch (Exception exception) { await Ui.Message(this, "压缩参数错误", exception.Message); }

@@ -60,6 +60,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
     /// <summary>Prepare installed models and selected descriptions without files, downloads or source changes.</summary>
     public Task<bool> WarmAsync(MediaTagOptions options, IProgress<AiActivity>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        using var pauseBoundary = JobExecutionControl.DeferPause();
         options.Validate();
         if (!await _store.IsInstalledAsync(ModelCatalog.JoyTagId, ct: ct).ConfigureAwait(false)) return false;
         var installed = options with
@@ -138,6 +140,8 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
     public Task<IReadOnlyList<MediaTagResult>> AnalyzeAsync(IEnumerable<string> paths, MediaTagOptions options,
         IProgress<MediaTagProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        using var pauseBoundary = JobExecutionControl.DeferPause();
         options.Validate();
         var files = paths.Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
         var completed = 0;

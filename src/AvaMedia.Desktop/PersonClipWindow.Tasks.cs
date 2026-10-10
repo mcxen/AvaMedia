@@ -7,7 +7,8 @@ namespace AvaMedia.Desktop;
 public sealed partial class PersonClipWindow
 {
     private readonly Action<IReadOnlyList<Job>, bool>? _enqueue;
-    private readonly Action<Job>? _stopTask;
+    private readonly Action<Job>? _stopTask, _pauseTask, _resumeTask;
+    private readonly Avalonia.Controls.Button _pause = new() { Content = "暂停任务", IsVisible = false };
     private int _detectionRefreshPosted;
     private static bool DetectionTaskActive(Job job) => job.State is JobState.Waiting or JobState.Paused or JobState.Running or JobState.Stopping;
     private bool SelectedTaskActive => Selected?.Task is { } job && DetectionTaskActive(job);
@@ -83,6 +84,9 @@ public sealed partial class PersonClipWindow
         }
         var selected = Selected?.Task;
         if (selected is not null) { _activity.Update(selected.Activity); _status.Text = selected.Status; }
+        var jobs = _entries.Select(entry => entry.Task).OfType<Job>().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
+        _pause.IsVisible = _pauseTask is not null && _resumeTask is not null && jobs.Length > 0;
+        _pause.Content = Localization.Text(jobs.Length > 0 && jobs.All(job => job.State == JobState.Paused) ? "继续任务" : "暂停任务");
         _stop.IsVisible = _entries.Any(entry => entry.Task is { } job && DetectionTaskActive(job));
         RefreshFiles();
     }

@@ -159,6 +159,7 @@ public sealed partial class RenameWindow
         var plan = _renamePlan; _revision++; _previewCancellation?.Cancel(); _renaming = true; SetBusy(true);
         try
         {
+            using var reservation = _reserveFiles?.Invoke(await SourceFileChanges.RenamePathsAsync(_journal, undo, plan));
             var mappings = await Task.Run(() => undo ? BatchRename.UndoRename(_journal) : BatchRename.ApplyRename(plan!, _journal));
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             _semanticResults.Clear(); _semanticDetails.Clear(); _mediaInfo.Clear();

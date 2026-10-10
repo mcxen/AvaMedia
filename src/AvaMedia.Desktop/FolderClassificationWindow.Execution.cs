@@ -67,11 +67,13 @@ public sealed partial class FolderClassificationWindow
     {
         if (_busy || _plan is not { Length: > 0 } plan) return;
         var move = _mode.SelectedIndex == 1;
-        if (move && !_canMove()) throw new InvalidOperationException("请在当前转换任务完成或停止后移动文件。");
+        if (move && !_canMove()) throw new InvalidOperationException("应用正在退出，请稍后操作。");
         if (move && !await Ui.Confirm(this, "移动分类文件", Localization.Format($"将移动 {plan.Length} 个文件到预览目录。是否执行？"), "移动")) return;
-        if (move && !_canMove()) throw new InvalidOperationException("请在当前转换任务完成或停止后移动文件。");
+        if (move && !_canMove()) throw new InvalidOperationException("应用正在退出，请稍后操作。");
         var journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "folder-classification",
             DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N") + ".json");
+        using var reservation = _reserveFiles?.Invoke(plan.SelectMany(item => move
+            ? new[] { item.File.Media.Path, item.Target } : [item.Target]).Append(journal));
         _lastJournal = journal; SavePreferences();
         try { await RunOrganizationAsync((operation, progress) => FolderOrganization.ExecuteAsync(plan, move, journal, progress, operation.Token), "整理完成"); }
         finally
@@ -104,9 +106,11 @@ public sealed partial class FolderClassificationWindow
     private async Task UndoAsync()
     {
         if (_lastJournal is not { } journal || !FolderOrganization.CanUndo(journal)) return;
-        if (!_canMove()) throw new InvalidOperationException("请在当前转换任务完成或停止后撤销整理。");
+        if (!_canMove()) throw new InvalidOperationException("应用正在退出，请稍后操作。");
         if (!await Ui.Confirm(this, "撤销分类整理", "将还原移动的源文件，并移除上次整理产生的副本与标签 TXT。已修改的文件将保留。", "撤销")) return;
         var before = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
+        using var reservation = _reserveFiles?.Invoke(before.Entries.SelectMany(entry => before.Move
+            ? new[] { entry.Source, entry.Target } : [entry.Target]).Append(journal));
         try { await RunOrganizationAsync((operation, progress) => FolderOrganization.UndoAsync(journal, progress, operation.Token), "撤销完成"); }
         finally
         {

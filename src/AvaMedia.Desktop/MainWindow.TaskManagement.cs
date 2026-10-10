@@ -8,15 +8,17 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    private bool CanManageTasks => !_closing && _editingJob is null;
+    private bool CanManageTasks => !_closing;
     private bool CanClearCompletedTasks => _jobs.Any(job => job.State == JobState.Completed && CanRemoveTask(job));
-    private bool CanClearAllTasks => CanManageTasks && !_queue.IsRunning && _jobs.Count > 0;
+    private bool CanClearAllTasks => CanManageTasks && _editingJobs.Count == 0 && !_queue.IsRunning && _jobs.Count > 0;
     private Job[] SelectedJobs() => _jobs.Where(job => JobList.SelectedItems?.Contains(job) == true).ToArray();
-    private bool CanStartTask(Job job) => CanManageTasks && !_queue.IsStopping && job.State == JobState.Waiting && !_queue.IsScheduled(job);
-    private bool CanRemoveTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_queue.IsExecuting(job) && job.State != JobState.Stopping;
-    private bool CanRequeueTask(Job job) => CanManageTasks && !_queue.IsStopping && !_queue.IsExecuting(job)
+    private bool CanStartTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && job.State == JobState.Waiting && !_queue.IsScheduled(job);
+    private bool CanRemoveTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && _jobs.Contains(job) && !_queue.IsExecuting(job) && job.State != JobState.Stopping;
+    private bool CanRequeueTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && !_queue.IsExecuting(job)
         && job.State is JobState.Paused or JobState.Cancelled or JobState.Failed or JobState.Completed;
-    private bool CanMoveTask(Job job) => CanManageTasks && !_queue.IsExecuting(job) && job.State is JobState.Waiting or JobState.Paused;
+    private bool CanContinueTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && job.State == JobState.Paused
+        || CanRequeueTask(job) && job.State == JobState.Cancelled;
+    private bool CanMoveTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && !_queue.IsExecuting(job) && job.State is JobState.Waiting or JobState.Paused;
 
     private void InitializeTaskManagement()
     {
@@ -37,11 +39,11 @@ public partial class MainWindow
     {
         var selected = SelectedJobs();
         StartTaskMenu.IsVisible = selected.Any(CanStartTask);
-        ContinueTaskMenu.IsVisible = selected.Any(job => CanRequeueTask(job) && job.State is JobState.Paused or JobState.Cancelled);
+        ContinueTaskMenu.IsVisible = selected.Any(CanContinueTask);
         ContinueTaskMenu.Header = Localization.Text(selected.Any(job => job.State == JobState.Cancelled && job.FeatureId != "download")
             ? "继续任务（重新执行）" : "继续任务");
-        PauseTaskMenu.IsVisible = selected.Any(job => CanManageTasks && job.State == JobState.Waiting && !_queue.IsExecuting(job));
-        TerminateTaskMenu.IsVisible = selected.Any(job => CanManageTasks && job.State is JobState.Waiting or JobState.Running or JobState.Paused);
+        PauseTaskMenu.IsVisible = selected.Any(job => CanManageTasks && !_editingJobs.Contains(job) && job.State is JobState.Waiting or JobState.Running);
+        TerminateTaskMenu.IsVisible = selected.Any(job => CanManageTasks && !_editingJobs.Contains(job) && job.State is JobState.Waiting or JobState.Running or JobState.Paused);
         RetryTaskMenu.IsVisible = selected.Any(job => CanRequeueTask(job) && job.State == JobState.Failed);
         RerunTaskMenu.IsVisible = selected.Any(job => CanRequeueTask(job) && job.State == JobState.Completed);
         TaskExecutionSeparator.IsVisible = StartTaskMenu.IsVisible || ContinueTaskMenu.IsVisible || PauseTaskMenu.IsVisible
@@ -84,7 +86,7 @@ public partial class MainWindow
 
     private async void ContinueSelectedClick(object? sender, RoutedEventArgs args)
     {
-        try { await RestartTasksAsync(SelectedJobs().Where(job => job.State is JobState.Paused or JobState.Cancelled).ToArray()); }
+        try { await ContinueTasksAsync(SelectedJobs()); }
         catch (Exception error) { await Ui.Message(this, "继续任务", error.Message); }
     }
 
@@ -97,14 +99,31 @@ public partial class MainWindow
     private void PauseSelectedClick(object? sender, RoutedEventArgs args)
     {
         if (!CanManageTasks) return;
-        foreach (var job in SelectedJobs()) _queue.PauseQueued(job);
+        foreach (var job in SelectedJobs().Where(job => !_editingJobs.Contains(job))) _queue.Pause(job);
         Save(); Refresh();
     }
+
+    private async Task ContinueTasksAsync(IEnumerable<Job> jobs)
+    {
+        var selected = jobs.Where(CanContinueTask).ToArray();
+        foreach (var job in selected.Where(job => job.State == JobState.Paused)) _queue.Resume(job);
+        Save(); Refresh();
+        await RestartTasksAsync(selected.Where(job => job.State is JobState.Paused or JobState.Cancelled).ToArray());
+    }
+
+    private Task RequestTaskRunAsync(Job job) => StartToolWorkflow(async () =>
+    {
+        if (job.State == JobState.Waiting) await StartQueueAsync([job]);
+        else if (CanContinueTask(job)) await ContinueTasksAsync([job]);
+        else if (CanRequeueTask(job)) await RestartTasksAsync([job]);
+    });
+
+    private void PauseTask(Job job) { _queue.Pause(job); Save(); Refresh(); }
 
     private void TerminateSelectedClick(object? sender, RoutedEventArgs args)
     {
         if (!CanManageTasks) return;
-        foreach (var job in SelectedJobs()) _queue.Stop(job);
+        foreach (var job in SelectedJobs().Where(job => !_editingJobs.Contains(job))) _queue.Stop(job);
         Save(); Refresh();
     }
 

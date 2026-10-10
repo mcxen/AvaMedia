@@ -282,7 +282,7 @@ public partial class VideoSlimmingWindow : Window
             new Storage().SaveToolOptions("video-slim",options with { Analysis=null });
             var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(available[0].Path)! : OutputInput.Text;
             if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
-            Close(new VideoSlimmingRequest(available.Select(entry => entry.Path).ToArray(), options, Path.GetFullPath(folder),
+            ToolExecution.Complete(this, new VideoSlimmingRequest(available.Select(entry => entry.Path).ToArray(), options, Path.GetFullPath(folder),
                 SourceFolderInput.IsChecked == true, available.Where(entry => entry.Analysis is not null)
                     .ToDictionary(entry => entry.Path, entry => entry.Analysis!)));
         }

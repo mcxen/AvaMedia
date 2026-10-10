@@ -78,7 +78,7 @@ public sealed partial class SettingsWindow : Window
         draft.FFmpegPath = MediaEngine.UsesBundledTools ? "" : FfmpegInput.Text?.Trim() ?? "";
         draft.FFprobePath = MediaEngine.UsesBundledTools ? "" : FfprobeInput.Text?.Trim() ?? "";
         draft.YtDlpPath = MediaEngine.UsesBundledTools ? "" : YtdlpInput.Text?.Trim() ?? "";
-        draft.ParallelJobs = Number(ParallelInput, "同时执行任务数");
+        draft.ParallelJobs = Number(ParallelInput, "每工具同时执行任务数");
         draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput, "每个任务的线程数");
         draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput, "JPEG 质量"); draft.WebpQuality = Number(WebpQualityInput, "WebP 质量");
         draft.NotifyComplete = NotifyInput.IsChecked == true; draft.ReduceMotion = ReducedMotionInput.IsChecked == true;

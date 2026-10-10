@@ -54,6 +54,8 @@ public sealed class PersonClipService(MediaEngine engine)
         var activity = new AiActivityReporter(value => job.Activity = value, "保留有人片段", "个片段", ["人物检测", "导出片段"]);
         activity.Stage("等待人物检测"); job.ProgressDetail = "等待人物检测"; progress(0);
         PersonClipResult result;
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        using var pauseBoundary = JobExecutionControl.DeferPause();
         await DetectionGate.WaitAsync(ct).ConfigureAwait(false);
         var analysisClock = Stopwatch.StartNew();
         try
@@ -77,7 +79,8 @@ public sealed class PersonClipService(MediaEngine engine)
                     latest = Math.Max(latest, fraction); progress(latest);
                 }), ct).ConfigureAwait(false);
         }
-        finally { DetectionGate.Release(); }
+        finally { DetectionGate.Release(); pauseBoundary.Dispose(); }
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         analysisClock.Stop();
         ct.ThrowIfCancellationRequested(); CheckSource();
         job.Duration = result.Info.Duration;

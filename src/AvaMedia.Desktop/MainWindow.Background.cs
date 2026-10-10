@@ -122,7 +122,7 @@ public partial class MainWindow
     private void ConfigureTaskTray()
     {
         if (_optionServices is not IBackgroundTaskTray tray) return;
-        tray.SetTaskActions(new(() => _ = InvokeTrayActionAsync(StartQueueAsync), () => { _queue.Stop(); Save(); Refresh(); },
+        tray.SetTaskActions(new(() => _ = InvokeTrayActionAsync(StartQueueAsync), () => { _startsAfterSession.Clear(); _queue.Stop(); Save(); Refresh(); },
             () => _ = InvokeTrayActionAsync(OpenBackgroundOutputAsync), () => _ = InvokeTrayActionAsync(ShowLastCompletionAsync), MoveToBackground));
         RefreshTaskState();
     }
@@ -151,31 +151,40 @@ public partial class MainWindow
         tray.UpdateTaskState(new(summary, _jobs.Any(CanStartTask), !_closing && _queue.IsRunning && !_queue.IsStopping, _lastCompletion is not null, !IsVisible));
     }
     private readonly List<Job> _runningBatch = [];
+    private readonly HashSet<Job> _startsAfterSession = [];
+    private bool _queueSessionActive;
     private Task StartQueueAsync() => StartQueueAsync(_jobs.Where(CanStartTask).ToArray());
     private async Task StartQueueAsync(Job[] requested)
     {
-        if (!CanManageTasks || _queue.IsStopping) return;
+        if (!CanManageTasks) return;
         var batch = requested.Where(job => _jobs.Contains(job) && CanStartTask(job)).Distinct().ToArray(); if (batch.Length == 0) return;
-        if (_queue.IsRunning)
+        if (_queueSessionActive)
         {
             var added = _queue.Enqueue(batch);
             _runningBatch.AddRange(added.Where(job => !_runningBatch.Contains(job)));
+            foreach (var job in batch.Where(job => !_queue.IsScheduled(job))) _startsAfterSession.Add(job);
+            if (_startsAfterSession.Count > 0) _completionCancellation?.Cancel();
             _queue.ReorderPending(_jobs); Save(); Refresh(); return;
         }
         _runningBatch.Clear(); _runningBatch.AddRange(batch);
         if (batch.Any(j => j.FeatureId == "download")) ResetDownloadSpeedMonitor();
         _completionCancellation?.Cancel(); _lastCompletion = null; Save(); _elapsed.Restart();
-        _timer.Start();
+        _timer.Start(); _queueSessionActive = true;
         try
         {
             _running = _queue.Run(batch, _settings.MultiThread ? _settings.ParallelJobs : 1); Refresh();
             await _running;
         }
+        catch { _queueSessionActive = false; throw; }
         finally { _elapsed.Stop(); _timer.Stop(); _running = Task.CompletedTask; SampleDownloadSpeedMonitor(); }
-        if (_closing) return;
+        if (_closing) { _queueSessionActive = false; return; }
         Interlocked.Exchange(ref _queueDirty, 0);
         var finished = _runningBatch.Where(_jobs.Contains).Distinct().ToArray(); _runningBatch.Clear();
+        _queueSessionActive = false;
         Save(); _lastCompletion = QueueCompletion.From(finished); Refresh();
+        var deferred = _startsAfterSession.Where(job => _jobs.Contains(job) && CanStartTask(job)).ToArray();
+        _startsAfterSession.Clear();
+        if (deferred.Length > 0) { _ = StartToolJobsAsync(deferred); return; }
         CompletionActions = FinishQueueOptionsAsync(finished, _settings.Clone()); await CompletionActions;
     }
     private async Task ShowLastCompletionAsync()

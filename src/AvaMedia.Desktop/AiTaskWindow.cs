@@ -12,14 +12,14 @@ public sealed class AiTaskWindow : Window
     private readonly Job _job;
     private readonly TextBlock _status = Ui.Text(""), _error = Ui.Text("", "caption");
     private readonly AiActivityView _activity = new();
-    private readonly Button _result, _stop, _run;
+    private readonly Button _result, _stop, _run, _pause;
     private readonly Func<bool> _hasResult, _canRun;
     private JobState? _shownLogState;
     private readonly TextBox _log = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     private bool _closed;
     private int _refreshPosted;
 
-    public AiTaskWindow(Job job, Func<bool> hasResult, Func<Task> showResult, Action stop, Func<Task> run, Func<bool> canRun, Action newTask)
+    public AiTaskWindow(Job job, Func<bool> hasResult, Func<Task> showResult, Action stop, Func<Task> run, Func<bool> canRun, Action newTask, Action? pause = null)
     {
         _job = job; _hasResult = hasResult; _canRun = canRun;
         Title = Localization.Format($"任务 · {Localization.Key(Catalog.Find(job.FeatureId).Label)}");
@@ -34,6 +34,7 @@ public sealed class AiTaskWindow : Window
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(Ui.Button("新建任务", newTask));
         _run = Ui.Button("开始任务", async () => await RunActionAsync(run)); actions.Children.Add(_run);
+        _pause = Ui.Button("暂停任务", () => pause?.Invoke()); _pause.Tag = pause; actions.Children.Add(_pause);
         _stop = Ui.Button("停止任务", stop); actions.Children.Add(_stop);
         _result = Ui.Button("查看结果", async () => await RunActionAsync(showResult)); _result.Classes.Add("primary"); actions.Children.Add(_result);
         actions.Children.Add(Ui.DialogButton("关闭", Close)); Grid.SetRow(actions, 3); root.Children.Add(actions); Content = root;
@@ -61,6 +62,7 @@ public sealed class AiTaskWindow : Window
         _activity.Update(_job.Activity);
         _result.IsEnabled = _hasResult();
         _result.Content = Localization.Text(_job.Options.Orientation is not null ? "确认方向" : _job.FeatureId == "auto-subtitle" ? "校对字幕" : _job.FeatureId == "person-clip" ? "调整片段" : "查看结果");
+        _pause.IsVisible = _pause.Tag is not null && _job.State is JobState.Waiting or JobState.Running;
         _stop.IsVisible = _job.State is JobState.Waiting or JobState.Paused or JobState.Running;
         _run.IsEnabled = _canRun();
         _run.IsVisible = _job.State is not (JobState.Running or JobState.Stopping);

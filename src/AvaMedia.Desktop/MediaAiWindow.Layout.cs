@@ -50,7 +50,7 @@ public sealed partial class MediaAiWindow
         foreach (var button in _imports.Children) button.Margin = new(0, 0, 6, 6);
         _imports.Margin = new(0, 0, 10, 0);
         var toolbar = new WrapPanel(); toolbar.Children.Add(_imports);
-        var workbenchActions = new List<Control> { _analyze, _stop };
+        var workbenchActions = new List<Control> { _analyze, _pause, _stop };
         if (_enqueue is not null) workbenchActions.Add(_enqueueQueue);
         if (_showQueue is not null) workbenchActions.Add(_viewQueue);
         if (_newTask is not null) workbenchActions.Add(Ui.Button("新建标签任务", _newTask));
@@ -94,6 +94,13 @@ public sealed partial class MediaAiWindow
         _enqueueQueue.Click += async (_, _) => await EnqueueSelectedAsync();
         _viewQueue.Click += (_, _) => ShowQueuedTasks();
         _rename.Click += async (_, _) => await OpenRenameDialogAsync(); _undo.Click += async (_, _) => await RenameAsync(true);
+        _pause.Click += (_, _) =>
+        {
+            var tasks = _taskJobs.Values.Distinct().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
+            var resume = tasks.Length > 0 && tasks.All(job => job.State == JobState.Paused);
+            foreach (var job in tasks) { if (resume) _resumeTask?.Invoke(job); else if (job.State != JobState.Paused) _pauseTask?.Invoke(job); }
+            UpdateActions();
+        };
         _stop.Click += (_, _) => StopAnalysisTasks(); _export.Click += async (_, _) => await ExportAsync();
         _copy.Click += async (_, _) =>
         {
@@ -221,6 +228,9 @@ public sealed partial class MediaAiWindow
         _saveTxt.IsVisible = _results.Count > 0;
         _batchActions.IsVisible = _results.Count > 0 || _undo.IsVisible;
         _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
+        var tasks = _taskJobs.Values.Distinct().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
+        _pause.IsVisible = _pauseTask is not null && _resumeTask is not null && tasks.Length > 0;
+        _pause.Content = Localization.Text(tasks.Length > 0 && tasks.All(job => job.State == JobState.Paused) ? "继续任务" : "暂停任务");
         _stop.IsVisible = _taskJobs.Values.Any(AnalysisTaskActive) || _busy && _operation is not null;
         _analyze.Content = Localization.Text("后台分析");
     }

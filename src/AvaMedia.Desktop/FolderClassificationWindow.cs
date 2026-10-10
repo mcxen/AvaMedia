@@ -12,6 +12,7 @@ public sealed partial class FolderClassificationWindow : Window
     private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
     private readonly Func<bool> _canMove;
+    private readonly Func<IEnumerable<string>, IDisposable>? _reserveFiles;
     private readonly Func<Window, Task> _manageModels;
     private readonly Storage _storage = new();
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
@@ -44,9 +45,11 @@ public sealed partial class FolderClassificationWindow : Window
 
     public FolderClassificationWindow(IMediaEngine engine, IEnumerable<string>? initial, Func<bool> canMove,
         Func<Window, Task> manageModels, Action<Job> enqueueTask, Func<Job, Task> resumeTask,
-        Action<Job> stopTask, Action newTask, Action showTasks, AppSettings? settings = null)
+        Action<Job> stopTask, Action newTask, Action showTasks, AppSettings? settings = null,
+        Action<Job>? pauseTask = null, Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
+        _pauseTask = pauseTask; _reserveFiles = reserveFiles;
         _enqueueTask = enqueueTask; _resumeTask = resumeTask; _stopTask = stopTask; _newTask = newTask; _showTasks = showTasks;
         _settings = settings ?? engine.Settings;
         Title = Catalog.Find("folder-classification").Label; Width = 1360; Height = 840; MinWidth = 920; MinHeight = 540;

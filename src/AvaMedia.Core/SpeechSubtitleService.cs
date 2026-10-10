@@ -104,6 +104,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             }
             else
             {
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+            using var pauseBoundary = JobExecutionControl.DeferPause();
             await RecognitionGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -206,6 +208,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             }
             finally { RecognitionGate.Release(); }
             }
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
             sourceFile.Refresh();
             if (!sourceFile.Exists || sourceFile.Length != sourceLength || sourceFile.LastWriteTimeUtc != sourceWriteUtc)

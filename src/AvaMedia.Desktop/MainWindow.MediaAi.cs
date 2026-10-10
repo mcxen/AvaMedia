@@ -16,9 +16,10 @@ public partial class MainWindow
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
             await settings.ShowDialog<bool>(owner);
-        }, () => !_queue.IsRunning,
+        }, () => !_closing,
             enqueue: EnqueueMediaTagJobs, showQueue: ShowMediaTagQueue,
-            stopTask: job => { _queue.Stop(job); Save(); Refresh(); }, newTask: () => { _ = ConfigureMediaAiAsync(null); });
+            stopTask: job => { _queue.Stop(job); Save(); Refresh(); }, newTask: () => { _ = ConfigureMediaAiAsync(null); },
+            pauseTask: PauseTask, resumeTask: job => { _ = RequestTaskRunAsync(job); }, reserveFiles: _queue.ReserveFiles);
         window.Renamed += mappings =>
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);

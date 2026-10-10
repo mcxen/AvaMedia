@@ -17,7 +17,7 @@ public partial class MainWindow
         var window = new PersonClipWindow(Engine, _settings, files, ManageModels, folder,
             editing?.Options.PersonClip, editing is not null && !editing.HasInternalOutput && !review,
             enqueue: (jobs, start) => AddToolJobs(jobs, start), stopTask: job => { _queue.Stop(job); Save(); Refresh(); },
-            newTask: () => { _ = ConfigurePersonClipAsync(null); });
+            newTask: () => { _ = ConfigurePersonClipAsync(null); }, pauseTask: PauseTask, resumeTask: job => { _ = RequestTaskRunAsync(job); });
         _personClipWindows.Add(window); window.Closed += (_, _) => _personClipWindows.Remove(window);
         return window;
     }
@@ -28,8 +28,7 @@ public partial class MainWindow
     private async Task ConfigurePersonClipWindowAsync(string[]? files, Job? editing = null)
     {
         var window = CreatePersonClipWindow(files, editing);
-        var request = editing is null ? await ToolExecution.ShowAsync<PersonClipRequest>(this, window)
-            : await window.ShowDialog<PersonClipRequest?>(this);
+        var request = await ToolExecution.ShowAsync<PersonClipRequest>(this, window);
         if (request is not null && !_closing) await SubmitPersonClipsAsync(request, editing);
     }
 

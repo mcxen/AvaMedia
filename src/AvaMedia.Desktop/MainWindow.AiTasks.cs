@@ -43,7 +43,7 @@ public partial class MainWindow
     internal void StopOrientationJob(Job job) { _queue.Stop(job); Save(); Refresh(); }
 
     private BatchRotateWindow CreateRotateWindow(string[]? files, string? output = null) =>
-        new(Engine, output ?? _settings.OutputFolder, files, submitDetection: AddToolJobs, stopDetection: job => _queue.Stop(job));
+        new(Engine, output ?? _settings.OutputFolder, files, submitDetection: AddToolJobs, stopDetection: job => _queue.Stop(job), pauseDetection: PauseTask, resumeDetection: job => { _ = RequestTaskRunAsync(job); });
 
     private Task ConfigureRotateAsync(string[]? files) => StartToolWorkflow(async () =>
     {
@@ -92,12 +92,9 @@ public partial class MainWindow
         if (CanViewClassificationTask(job)) return ShowClassificationTaskAsync(job);
         if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return Task.CompletedTask; }
         var window = new AiTaskWindow(job, () => HasAiResult(job), () => ShowAiResultAsync(job),
-            () => { _queue.Stop(job); Save(); Refresh(); }, async () =>
-            {
-                if (job.State == JobState.Waiting) await StartQueueAsync([job]);
-                else if (job.State == JobState.Paused) { job.State = JobState.Waiting; Save(); await StartQueueAsync([job]); }
-                else if (CanRequeueTask(job)) await RestartTasksAsync([job]);
-            }, () => job.State == JobState.Waiting ? CanStartTask(job) : CanRequeueTask(job), () => { _ = Configure(Catalog.Find(job.FeatureId)); });
+            () => { _queue.Stop(job); Save(); Refresh(); }, () => RequestTaskRunAsync(job),
+            () => job.State == JobState.Waiting ? CanStartTask(job) : CanContinueTask(job) || CanRequeueTask(job),
+            () => { _ = Configure(Catalog.Find(job.FeatureId)); }, () => PauseTask(job));
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         window.Show(this);

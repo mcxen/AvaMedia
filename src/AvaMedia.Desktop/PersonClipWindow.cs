@@ -64,9 +64,9 @@ public sealed partial class PersonClipWindow : Window
 
     public PersonClipWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? paths,
         Func<Window, string?, Task> manageModels, string? outputFolder = null, PersonClipTaskOptions? initial = null,
-        bool editing = false, bool? outputToSource = null, Action<IReadOnlyList<Job>, bool>? enqueue = null, Action<Job>? stopTask = null, Action? newTask = null)
+        bool editing = false, bool? outputToSource = null, Action<IReadOnlyList<Job>, bool>? enqueue = null, Action<Job>? stopTask = null, Action? newTask = null, Action<Job>? pauseTask = null, Action<Job>? resumeTask = null)
     {
-        _engine = engine; _settings = settings; _manageModels = manageModels; _enqueue = enqueue; _stopTask = stopTask;
+        _engine = engine; _settings = settings; _manageModels = manageModels; _enqueue = enqueue; _stopTask = stopTask; _pauseTask = pauseTask; _resumeTask = resumeTask;
         Title = "保留有人片段 · Beta"; Width = 1120; Height = 850; MinWidth = 980; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ToolExecution.SaveOnClose(this, FlushTaskEditsAsync);
@@ -126,7 +126,14 @@ public sealed partial class PersonClipWindow : Window
         var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _analyze = Ui.Button("开始分析", async () => await AnalyzeAsync()); _analyze.Classes.Add("primary");
         _stop = Ui.Button("停止任务", StopDetectionTasks); _stop.IsVisible = false;
-        analyzeActions.Children.Add(_analyze); analyzeActions.Children.Add(_stop);
+        _pause.Click += (_, _) =>
+        {
+            var jobs = _entries.Select(entry => entry.Task).OfType<Job>().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
+            var resume = jobs.Length > 0 && jobs.All(job => job.State == JobState.Paused);
+            foreach (var job in jobs) { if (resume) _resumeTask?.Invoke(job); else if (job.State != JobState.Paused) _pauseTask?.Invoke(job); }
+            RefreshDetectionTasks();
+        };
+        analyzeActions.Children.Add(_analyze); analyzeActions.Children.Add(_pause); analyzeActions.Children.Add(_stop);
         if (newTask is not null) analyzeActions.Children.Add(Ui.Button("新建检测任务", newTask)); Grid.SetRow(analyzeActions, 2); left.Children.Add(analyzeActions);
         var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 }; body.Children.Add(left);
         _rangePanel.Children.Add(Ui.Text("排除这些区间", "settingsHeading")); _rangePanel.Children.Add(_ranges);

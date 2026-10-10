@@ -92,7 +92,7 @@ public partial class MainWindow
     }
 
     private bool CanDropOnFeature(Feature feature, string[] files) => !_closing && !_openingDroppedTool
-        && _editingJob is null && files.Length > 0 && (feature.Operation != Operation.BatchTools || !_queue.IsRunning);
+        && files.Length > 0;
 
     private void EnableFeatureDrop(Button tile, Grid content, Feature feature)
     {
@@ -123,7 +123,7 @@ public partial class MainWindow
             ResetOutputDropSession();
             if (!accepted) return;
             _openingDroppedTool = true;
-            // Finish the native drop before opening a modal parameter window.
+            // Finish the native drop before opening the tool window.
             Dispatcher.UIThread.Post(async () =>
             {
                 try

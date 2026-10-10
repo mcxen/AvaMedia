@@ -38,8 +38,6 @@ public sealed record VideoSummaryOnlineModels(OnlineAiOptions VisionProvider, st
 public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models = null, IVideoFrameTagger? tagger = null,
     Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null)
 {
-    // Own one summarization model at a time, including downloads and CPU fallback.
-    private static readonly SemaphoreSlim Gate = new(1, 1);
     private readonly ModelStore _models = models ?? new();
     /// <summary>Uniform frames JoyTag checks in addition to the frames sent to the vision model.</summary>
     public const int SafetyFrames = 16;
@@ -92,7 +90,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         var activity = new AiActivityReporter(value => job.Activity = value, online ? "线上视频总结" : "本地视频总结", "项结果", nodes.ToArray());
         activity.Stage("等待视频总结"); progress(0);
         var staging = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!, ".AvaMedia-summary-" + Guid.NewGuid().ToString("N"));
-        await Gate.WaitAsync(ct).ConfigureAwait(false);
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         try
         {
             Directory.CreateDirectory(staging);
@@ -296,14 +294,14 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             return result;
             async Task WriteAsync(string name, string value)
             {
+                await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                 await File.WriteAllTextAsync(Path.Combine(staging, name), value, new UTF8Encoding(false), ct);
                 activity.Result(name);
             }
         }
         finally
         {
-            try { if (Directory.Exists(staging)) Directory.Delete(staging, true); }
-            finally { Gate.Release(); }
+            if (Directory.Exists(staging)) Directory.Delete(staging, true);
         }
     }
 

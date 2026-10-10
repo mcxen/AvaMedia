@@ -44,6 +44,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
 
     private static async Task<LocalSummaryModel> StartCoreAsync(ModelStore store, string id, bool gpu, CancellationToken ct, Action<string>? status)
     {
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         ModelLease? model = null, runtime = null; HttpClient? client = null; LocalSummaryModel? backend = null;
         try
         {
@@ -148,6 +149,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
 
     private async Task<JsonDocument> SendAsync(Dictionary<string, object> request, CancellationToken ct)
     {
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
         HttpResponseMessage response;
         try { response = await _client.PostAsJsonAsync("v1/chat/completions", request, ct).ConfigureAwait(false); }
@@ -158,7 +160,9 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             throw new InvalidOperationException($"本地总结失败（HTTP {(int)response.StatusCode}），请减小采样画面数或修复模型。");
         await response.Content.LoadIntoBufferAsync(1024 * 1024).ConfigureAwait(false);
         await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        return await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+        var result = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+        try { await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false); return result; }
+        catch { result.Dispose(); throw; }
     }
 
     private async Task DrainAsync(StreamReader reader)

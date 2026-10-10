@@ -16,7 +16,7 @@ public partial class MainWindow
     private async Task ConfigureVideoCompressionAsync(string[]? files, VideoCompressionOptions? options = null)
     {
         var window = new VideoCompressionWindow(Engine, _settings.OutputFolder, files ?? [], options);
-        var request = await window.ShowDialog<VideoCompressionRequest?>(this);
+        var request = await ToolExecution.ShowAsync<VideoCompressionRequest>(this, window);
         if (request is null) return;
         try
         {
@@ -28,8 +28,8 @@ public partial class MainWindow
 
     private async Task EditVideoCompressionAsync(Job job)
     {
-        var request = await new VideoCompressionWindow(Engine, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options.VideoCompression, editing: true)
-            .ShowDialog<VideoCompressionRequest?>(this);
+        var window = new VideoCompressionWindow(Engine, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options.VideoCompression, editing: true);
+        var request = await ToolExecution.ShowAsync<VideoCompressionRequest>(this, window);
         if (request is null || job.State == JobState.Running) return;
         try
         {

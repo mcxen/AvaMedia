@@ -53,7 +53,9 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent,Drop,Avalonia.Interactivity.RoutingStrategies.Bubble,handledEventsToo:true);
         AddHandler(DragDrop.DragOverEvent,DragOver,Avalonia.Interactivity.RoutingStrategies.Bubble,handledEventsToo:true);
     }
-    private async Task Configure(Feature feature,string[]? files=null)
+    private Task Configure(Feature feature, string[]? files = null) => StartToolWorkflow(() => ConfigureCoreAsync(feature, files));
+
+    private async Task ConfigureCoreAsync(Feature feature,string[]? files=null)
     {
         if(feature.Operation==Operation.ImageView)
         {
@@ -93,7 +95,7 @@ public partial class MainWindow : Window
         if(feature.Id=="crop")
         {
             var window=new BatchCropWindow(Engine,_settings.OutputFolder,files);
-            var request=await window.ShowDialog<BatchCropRequest?>(this);
+            var request=await ToolExecution.ShowAsync<BatchCropRequest>(this, window);
             if(request is null)return;
             try{var jobs=BatchCrop.CreateJobs(request,_jobs.Select(j=>j.Output));OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),request.OutputToSource,request.SettingName);AddToolJobs(jobs,ToolExecution.StartImmediately(window));}
             catch(Exception ex){await Ui.Message(this,"批量裁剪参数错误",ex.Message);}
@@ -101,14 +103,14 @@ public partial class MainWindow : Window
         }
         if(PdfTools.Supports(feature.Operation))
         {
-            var pdfResult=await new PdfWorkspaceWindow(feature,_settings.OutputFolder,files,engine:Engine).ShowDialog<PdfWorkspaceRequest?>(this);
+            var pdfWindow = new PdfWorkspaceWindow(feature,_settings.OutputFolder,files,engine:Engine);
+            var pdfResult=await ToolExecution.ShowAsync<PdfWorkspaceRequest>(this, pdfWindow);
             if(pdfResult is null)return;
             try
             {
                 var jobs=ConversionBatch.CreateJobs(feature,pdfResult.Files,pdfResult.OutputFolder,pdfResult.Options,reserved:_jobs.Select(j=>j.Output));
                 OutputPreferences.Apply(jobs,_settings,_jobs.Select(j=>j.Output),outputToSource:false,settingName:"");
-                foreach(var job in jobs)_jobs.Add(job);
-                Save();Refresh();
+                AddToolJobs(jobs, ToolExecution.StartImmediately(pdfWindow));
             }
             catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}
             return;
@@ -125,7 +127,7 @@ public partial class MainWindow : Window
         { await ConfigureSpeechAsync(feature,files); return; }
         if(IsAiFeature(feature)) { await ConfigureAiConversionAsync(feature,files); return; }
         Window dialog=new ConvertWindow(Engine,feature,_settings.OutputFolder,files??[]);
-        var result=await dialog.ShowDialog<ConversionRequest?>(this);if(result is null)return;
+        var result=await ToolExecution.ShowAsync<ConversionRequest>(this, dialog);if(result is null)return;
         if(result.ClipInputs is not null)
         {
             try{AddToolJobs(QuickClipBatch.CreateJobs(result.ClipInputs,result.OutputFolder,result.OutputToSource,result.SettingName,_jobs.Select(j=>j.Output)),result.StartImmediately);}
@@ -153,14 +155,14 @@ public partial class MainWindow : Window
         RefreshTaskList();
         UpdateElapsed();
         PresentDownloadSpeedMonitor();
-        StartButton.IsEnabled=CanManageTasks && !_queue.IsStopping && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
+        StartButton.IsEnabled=CanManageTasks && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
         UpdateTaskEditingActions();
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
         if(refreshRows)JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
         => await StartQueueAsync();
-    private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){_queue.Stop();Save();Refresh();}
+    private void StopClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){_startsAfterSession.Clear();_queue.Stop();Save();Refresh();}
     private async void AddClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Configure(_last);
     private async void RemoveClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {

@@ -3,14 +3,8 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
-    private async Task ConfigureBatchToolsAsync(string[]? files, bool screenshots)
+    private Task ConfigureBatchToolsAsync(string[]? files, bool screenshots)
     {
-        // Source file names must stay stable while FFmpeg has running queue jobs.
-        if (_queue.IsRunning)
-        {
-            await Ui.Message(this, "批量工具", "请在当前转换任务完成或停止后打开批量工具，以便同步重命名后的源文件路径。");
-            return;
-        }
         async Task ManageModels(Avalonia.Controls.Window owner)
         {
             var settings = new SettingsWindow(_settings, _optionServices);
@@ -20,16 +14,17 @@ public partial class MainWindow
         }
         if (screenshots)
         {
-            await new ContactSheetWindow(Engine, _settings.OutputFolder, files).ShowDialog(this);
-            return;
+            new ContactSheetWindow(Engine, _settings.OutputFolder, files).Show(this);
+            return Task.CompletedTask;
         }
-        var window = new RenameWindow(Engine, _settings, files, manageModels: ManageModels);
+        var window = new RenameWindow(Engine, _settings, files, manageModels: ManageModels, reserveFiles: _queue.ReserveFiles);
         window.Renamed += mappings =>
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
             Save(); Refresh();
         };
-        await window.ShowDialog(this);
+        window.Show(this);
+        return Task.CompletedTask;
     }
 }

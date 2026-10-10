@@ -9,6 +9,7 @@ public sealed partial class FolderClassificationWindow
     private readonly Action<Job> _enqueueTask;
     private readonly Func<Job, Task> _resumeTask;
     private readonly Action<Job> _stopTask;
+    private readonly Action<Job>? _pauseTask;
     private readonly Action _newTask, _showTasks;
     private Job? _taskJob;
     private FolderClassificationTaskSnapshot? _seenSnapshot;
@@ -107,8 +108,10 @@ public sealed partial class FolderClassificationWindow
         _activity.Update(job.Activity is { } activity ? MediaPrivacy.Filter(activity, _settings.EnableNsfwContent) : null);
         _status.Text = TaskActive ? Localization.Join(" · ", [Localization.Text(job.Status), Localization.Text("关闭窗口后任务继续运行")])
             : Localization.Join(" · ", [Localization.Text(job.Status), job.Error]);
-        _stop.IsVisible = job.State is JobState.Waiting or JobState.Running;
-        _stop.IsEnabled = job.State is JobState.Waiting or JobState.Running;
+        _stop.IsVisible = job.State is JobState.Waiting or JobState.Running or JobState.Paused;
+        _stop.IsEnabled = _stop.IsVisible;
+        _pause.IsVisible = _pauseTask is not null && job.State is JobState.Waiting or JobState.Running or JobState.Paused;
+        _pause.Content = Localization.Text(job.State == JobState.Paused ? "继续任务" : "暂停任务");
     }
 
     private async Task SaveTaskViewAsync()

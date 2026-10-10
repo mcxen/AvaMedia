@@ -129,15 +129,18 @@ public partial class MainWindow
             var (job, operation) = await Ui(() =>
             {
                 var job = Find(id);
-                if (!owner.CanManageTasks) throw new InvalidOperationException("正在编辑任务，请稍后操作。");
+                if (!owner.CanManageTasks) throw new InvalidOperationException("应用正在退出，请稍后操作。");
+                if (owner._editingJobs.Contains(job)) throw new InvalidOperationException("正在编辑此任务，请关闭其编辑窗口后再操作。");
                 Task operation = Task.CompletedTask;
                 switch (action)
                 {
                     case "start" when owner.CanStartTask(job):
                         McpTools.ValidatePaths(job, new()); _ = owner.StartToolJobsAsync([job]); break;
-                    case "pause" when owner._queue.PauseQueued(job): break;
-                    case "resume" when job.State == JobState.Paused && !owner._queue.IsStopping:
-                        McpTools.ValidatePaths(job, new()); job.State = JobState.Waiting; _ = owner.StartToolJobsAsync([job]); break;
+                    case "pause" when owner._queue.Pause(job): break;
+                    case "resume" when job.State == JobState.Paused:
+                        McpTools.ValidatePaths(job, new());
+                        if (!owner._queue.Resume(job)) { job.State = JobState.Waiting; _ = owner.StartToolJobsAsync([job]); }
+                        break;
                     case "stop" when owner._queue.Stop(job): break;
                     case "retry" when job.State is JobState.Failed or JobState.Cancelled && owner.CanRequeueTask(job):
                         if (job.FeatureId == "batch-rename") throw new ArgumentException("请重新预览并提交新的重命名计划。");

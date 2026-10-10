@@ -6,6 +6,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
     private readonly object _gate = new();
     private readonly List<Job> _pending = [];
     private readonly Dictionary<Job, Execution> _active = [];
+    private readonly Dictionary<Guid, string[]> _fileChanges = [];
     private TaskCompletionSource _wake = NewSignal();
     private CancellationTokenSource? _cts;
     private bool _accepting;
@@ -49,17 +50,22 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 lock (_gate)
                 {
                     _pending.RemoveAll(job => job.State != JobState.Waiting);
-                    while (_accepting && _pending.Count > 0 && _active.Count < Math.Clamp(concurrency, 1, 8))
+                    while (_accepting && _pending.Count > 0)
                     {
-                        var job = _pending[0]; _pending.RemoveAt(0);
+                        var job = _pending.FirstOrDefault(candidate => !FilesReserved(candidate) && !MutationConflict(candidate)
+                            && _active.Values.Count(execution =>
+                            !execution.Control.IsParked && Lane(execution.Job) == Lane(candidate)) < Math.Clamp(concurrency, 1, 8));
+                        if (job is null) break;
+                        _pending.Remove(job);
                         var execution = new Execution(job, session.Token);
+                        execution.Control.Parked += () => { lock (_gate) WakeLocked(); };
                         _active.Add(job, execution); starting.Add(execution);
                     }
                     // Close admission before releasing the lock, without exposing an idle session early.
                     if (_pending.Count == 0 && _active.Count == 0) { _accepting = false; break; }
                     wait = _wake.Task;
                 }
-                foreach (var execution in starting) executions.Add(ExecuteAsync(execution));
+                foreach (var execution in starting) executions.Add(Task.Run(() => ExecuteAsync(execution)));
                 await wait;
             }
             await Task.WhenAll(executions);
@@ -71,19 +77,55 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         }
     }
 
+    private static string Lane(Job job) => job.Options.Orientation is not null ? "orientation" : job.FeatureId;
+    private static string[] JobFiles(Job job) => job.Inputs.Append(job.Output)
+        .Concat(job.Options.Rename?.Plan.SelectMany(item => new[] { item.Source, item.Target }) ?? []).ToArray();
+    private static bool Overlap(IEnumerable<string> left, IEnumerable<string> right) => left.Any(first => right.Any(second =>
+    {
+        if (!Path.IsPathFullyQualified(first) || !Path.IsPathFullyQualified(second)) return false;
+        var a = Path.TrimEndingDirectorySeparator(Path.GetFullPath(first));
+        var b = Path.TrimEndingDirectorySeparator(Path.GetFullPath(second));
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        return string.Equals(a, b, comparison) || a.StartsWith(b + Path.DirectorySeparatorChar, comparison)
+            || b.StartsWith(a + Path.DirectorySeparatorChar, comparison);
+    }));
+    private bool FilesReserved(Job job) => _fileChanges.Values.Any(paths => Overlap(paths, JobFiles(job)));
+    private bool MutationConflict(Job job) => _active.Keys.Any(active => (job.FeatureId == "batch-rename" || active.FeatureId == "batch-rename")
+        && Overlap(JobFiles(job), JobFiles(active)));
+
+    public IDisposable ReserveFiles(IEnumerable<string> paths)
+    {
+        var files = paths.Where(Path.IsPathFullyQualified).Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
+        var id = Guid.NewGuid();
+        lock (_gate)
+        {
+            if (_active.Keys.Any(job => Overlap(files, JobFiles(job))) || _fileChanges.Values.Any(other => Overlap(files, other)))
+                throw new InvalidOperationException("部分文件仍被任务使用，请完成或终止相关任务后再修改文件。");
+            _fileChanges.Add(id, files);
+        }
+        return new FileReservation(() => { lock (_gate) { _fileChanges.Remove(id); WakeLocked(); } });
+    }
+
+    private sealed class FileReservation(Action release) : IDisposable
+    {
+        private Action? _release = release;
+        public void Dispose() => Interlocked.Exchange(ref _release, null)?.Invoke();
+    }
+
     private async Task ExecuteAsync(Execution execution)
     {
         var job = execution.Job; var token = execution.Cancellation.Token;
+        using var context = execution.Control.Enter();
         var estimator = new ProgressEstimator(); var started = _time.GetTimestamp();
         void Publish(double value)
         {
             lock (execution.Gate)
             {
-                if (!execution.Active || execution.Stopping || token.IsCancellationRequested || !double.IsFinite(value)) return;
+                if (!execution.Active || execution.Stopping || execution.Control.IsPaused || token.IsCancellationRequested || !double.IsFinite(value)) return;
                 job.Progress = Math.Clamp(value, 0, 100);
                 if (job.FeatureId != "download") job.Estimate = job.Activity is null ? estimator.Update(job.Progress, _time.GetElapsedTime(started)) : null;
-                Changed?.Invoke(job);
             }
+            Changed?.Invoke(job);
         }
         void Finish(JobState state, string error = "")
         {
@@ -105,12 +147,23 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 if (execution.Stopping) throw new OperationCanceledException(token);
                 job.Activity = null; job.Progress = 0; job.Estimate = null; job.DownloadSpeed = null;
                 job.FileChangesCommitted = false;
-                job.State = JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
+                job.State = execution.Control.IsPaused ? JobState.Paused : JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
             }
             Publish(0);
             using var timer = _time.CreateTimer(_ => Publish(job.Progress), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
-            await engine.Execute(job, Publish, token);
-            if (!job.FileChangesCommitted) token.ThrowIfCancellationRequested(); Finish(JobState.Completed);
+            await execution.Control.WaitAsync(token).ConfigureAwait(false);
+            await engine.Execute(job, Publish, token).ConfigureAwait(false);
+            while (true)
+            {
+                // A late native result must not silently resume a paused task.
+                await execution.Control.WaitAsync(job.FileChangesCommitted ? CancellationToken.None : token).ConfigureAwait(false);
+                lock (execution.Gate)
+                {
+                    if (execution.Control.IsPaused) continue;
+                    if (!job.FileChangesCommitted) token.ThrowIfCancellationRequested();
+                    Finish(JobState.Completed); break;
+                }
+            }
         }
         catch (OperationCanceledException) { Finish(JobState.Cancelled, "用户停止了任务。"); }
         catch (Exception error)
@@ -150,9 +203,17 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             if (!execution.Active || execution.Stopping) return;
             execution.Stopping = true; execution.Job.State = JobState.Stopping;
             execution.Job.Estimate = null; execution.Job.DownloadSpeed = null;
+            execution.Control.Resume();
         }
-        try { execution.Cancellation.Cancel(); } catch (ObjectDisposedException) { }
+        _ = CancelAsync(execution.Cancellation);
         Changed?.Invoke(execution.Job);
+    }
+
+    private static async Task CancelAsync(CancellationTokenSource cancellation)
+    {
+        try { await cancellation.CancelAsync().ConfigureAwait(false); }
+        catch (ObjectDisposedException) { }
+        catch (Exception error) { System.Diagnostics.Trace.TraceError("Task cancellation: {0}", error); }
     }
 
     public void Stop()
@@ -166,16 +227,43 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             active = _active.Values.ToArray(); WakeLocked();
         }
         foreach (var execution in active) Cancel(execution);
-        try { session?.Cancel(); } catch (ObjectDisposedException) { }
+        if (session is not null) _ = CancelAsync(session);
     }
 
-    public bool PauseQueued(Job job)
+    public bool Pause(Job job)
     {
+        Execution? execution;
         lock (_gate)
         {
-            if (_active.ContainsKey(job) || job.State != JobState.Waiting) return false;
-            _pending.Remove(job); job.State = JobState.Paused; WakeLocked();
+            if (!_active.TryGetValue(job, out execution))
+            {
+                if (job.State != JobState.Waiting) return false;
+                _pending.Remove(job); job.State = JobState.Paused; WakeLocked();
+            }
         }
+        if (execution is not null)
+        {
+            lock (execution.Gate)
+            {
+                if (!execution.Active || execution.Stopping || execution.Control.IsPaused) return false;
+                execution.Control.Pause(); job.State = JobState.Paused;
+            }
+            lock (_gate) WakeLocked();
+        }
+        Changed?.Invoke(job); return true;
+    }
+
+    public bool Resume(Job job)
+    {
+        Execution? execution;
+        lock (_gate)
+            if (!_accepting || !_active.TryGetValue(job, out execution)) return false;
+        lock (execution.Gate)
+        {
+            if (!execution.Active || execution.Stopping || !execution.Control.IsPaused) return false;
+            execution.Control.Resume(); job.State = JobState.Running;
+        }
+        lock (_gate) WakeLocked();
         Changed?.Invoke(job); return true;
     }
 
@@ -199,6 +287,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         public Job Job { get; } = job;
         public object Gate { get; } = new();
         public CancellationTokenSource Cancellation { get; } = CancellationTokenSource.CreateLinkedTokenSource(session);
+        public JobExecutionControl Control { get; } = new();
         public bool Active = true;
         public bool Stopping;
     }

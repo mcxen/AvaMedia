@@ -23,6 +23,7 @@ public sealed class BatchRotateEntry(string path) : Observable
     public int? Rotation { get; internal set; } = 90;
     public VideoOrientationResult? Detection { get; internal set; }
     internal bool IsDetecting { get; set; }
+    internal bool IsPaused { get; set; }
     internal string? DetectionMessage { get; set; }
     internal OrientationDetectionProgress? DetectionProgress { get; set; }
     internal Task Ready { get; set; } = Task.CompletedTask;
@@ -38,7 +39,7 @@ public sealed partial class BatchRotateWindow : Window
     private readonly RotateTransform _rotation = new();
     private readonly IVideoOrientationDetector _detector;
     private readonly Action<IReadOnlyList<Job>, bool> _submitDetection;
-    private readonly Action<Job> _stopDetection;
+    private readonly Action<Job> _stopDetection, _pauseDetection, _resumeDetection;
     private readonly Dictionary<Job, BatchRotateEntry> _detectionJobs = [];
     private readonly QueueService _localQueue;
 
@@ -60,12 +61,18 @@ public sealed partial class BatchRotateWindow : Window
 
     public BatchRotateWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder) { }
     public BatchRotateWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, IVideoOrientationDetector? detector = null,
-        Action<IReadOnlyList<Job>, bool>? submitDetection = null, Action<Job>? stopDetection = null)
+        Action<IReadOnlyList<Job>, bool>? submitDetection = null, Action<Job>? stopDetection = null, Action<Job>? pauseDetection = null, Action<Job>? resumeDetection = null)
     {
         InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
         _localQueue = new(new OrientationTaskService(engine, _detector));
         _submitDetection = submitDetection ?? ((jobs, startImmediately) => { if (_localQueue.IsRunning) _localQueue.Enqueue(jobs); else _ = _localQueue.Run(jobs, 2); });
         _stopDetection = stopDetection ?? (job => _localQueue.Stop(job));
+        _pauseDetection = pauseDetection ?? (job => _localQueue.Pause(job));
+        _resumeDetection = resumeDetection ?? (job =>
+        {
+            if (_localQueue.Resume(job) || job.State != JobState.Paused) return;
+            job.State = JobState.Waiting; _submitDetection([job], true);
+        });
         FileList.ItemsSource = _entries; RotationTransform.LayoutTransform = _rotation;
         ModeCombo.ItemsSource = new[] { "统一旋转", "逐个调整" }; ModeCombo.SelectedIndex = 0;
         DirectionCombo.ItemsSource = new[] { BatchRotate.Direction(90), BatchRotate.Direction(270), BatchRotate.Direction(180), BatchRotate.Direction(0) }; DirectionCombo.SelectedIndex = 0;
@@ -204,6 +211,7 @@ public sealed partial class BatchRotateWindow : Window
             if (!entry.Include) { entry.Status = "不处理"; continue; }
             if (entry.Error is not null) { entry.Status = Localization.Format($"读取失败：{entry.Error}"); invalid++; continue; }
             if (entry.Info is null) { entry.Status = "正在读取…"; pending++; continue; }
+            if (entry.IsPaused) { entry.Status = Localization.Text("已暂停"); continue; }
             if (entry.IsDetecting) { entry.Status = entry.DetectionProgress is { } progress
                 ? Localization.Format($"正在检测 {progress.CompletedFrames}/{progress.TotalFrames} 帧…") : entry.DetectionMessage ?? "正在检测方向…"; continue; }
             var correction = EffectiveRotation(entry);
@@ -221,6 +229,9 @@ public sealed partial class BatchRotateWindow : Window
         var outputValid = !string.IsNullOrWhiteSpace(OutputInput.Text);
         ExportHint.Text = Format == SourceVideoExport.FastRotation ? SourceVideoExport.FastHint : Format == SourceVideoExport.Original ? SourceVideoExport.OriginalHint : "按所选格式重新编码视频和音频。";
         OkButton.IsEnabled = changed > 0 && invalid == 0 && unresolved == 0 && pending == 0 && outputValid && !_detecting;
+        var tasks = _detectionJobs.Keys.Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
+        PauseDetectButton.IsVisible = tasks.Length > 0;
+        PauseDetectButton.Content = Localization.Text(tasks.Length > 0 && tasks.All(job => job.State == JobState.Paused) ? "继续任务" : "暂停任务");
         DetectButton.IsEnabled = included.Length > 0 && pending == 0 && invalid == 0 && !_detecting;
         CancelDetectionButton.IsVisible = _detecting;
         UncertainOnly.IsEnabled=!_detecting&&_entries.Any(entry=>entry.Detection is not null||entry.Rotation is null);
@@ -262,7 +273,7 @@ public sealed partial class BatchRotateWindow : Window
             var completions = new List<Task>();
             foreach (var entry in targets)
             {
-                entry.Rotation = null; entry.Detection = null; entry.IsDetecting = true;
+                entry.Rotation = null; entry.Detection = null; entry.IsDetecting = true; entry.IsPaused = false;
                 var job = new Job { FeatureId = "rotate", Inputs = [entry.Path], Options = new() { Format = "json",
                     Orientation = new(Format, OutputInput.Text ?? "", SourceOutputInput.IsChecked == true, SettingNameInput.IsChecked == true) } };
                 job.Output = AiTaskResults.InternalOutputFor(job); _detectionJobs.Add(job, entry);
@@ -303,12 +314,14 @@ public sealed partial class BatchRotateWindow : Window
         Dispatcher.UIThread.Post(() =>
         {
             if (_closed || sender is not Job job || !_detectionJobs.TryGetValue(job, out var entry)) return;
+            entry.IsPaused = job.State == JobState.Paused;
             entry.IsDetecting = job.State is JobState.Waiting or JobState.Running or JobState.Stopping or JobState.Paused;
             entry.DetectionMessage = job.State is JobState.Failed or JobState.Cancelled ? job.Error : job.ProgressDetail;
             if (job.State == JobState.Completed && job.OrientationResult is { } result)
             { entry.Detection = result.Detection; entry.Rotation = result.Detection.Rotation; entry.DetectionMessage = null; }
             _detecting = _detectionJobs.Keys.Any(task => task.State is JobState.Waiting or JobState.Running or JobState.Stopping or JobState.Paused);
-            DetectionStatus.Text = _detecting ? "后台检测中 · 关闭此窗口后继续运行" : "检测完成 · 请对比预览，确认旋转方向";
+            DetectionStatus.Text = _detectionJobs.Keys.Any(job => job.State == JobState.Paused) && _detectionJobs.Keys.All(job => job.State is not (JobState.Waiting or JobState.Running))
+                ? Localization.Text("已暂停") : _detecting ? "后台检测中 · 关闭此窗口后继续运行" : "检测完成 · 请对比预览，确认旋转方向";
             RefreshValidation();
         });
     }
@@ -316,10 +329,17 @@ public sealed partial class BatchRotateWindow : Window
     public void CancelDetection()
     { foreach (var job in _detectionJobs.Keys.Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused)) _stopDetection(job); }
 
+    private void PauseDetectionClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
+    {
+        var jobs = _detectionJobs.Keys.Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
+        var resume = jobs.Length > 0 && jobs.All(job => job.State == JobState.Paused);
+        foreach (var job in jobs) { if (resume) _resumeDetection(job); else if (job.State != JobState.Paused) _pauseDetection(job); }
+    }
+
     public void ApplyDetection(string path, OrientationTaskResult result)
     {
         var entry = _entries.Single(entry => BatchRename.PathComparer.Equals(entry.Path, path));
-        ModeCombo.SelectedIndex = 1; entry.Detection = result.Detection; entry.Rotation = result.Detection.Rotation;
+        ModeCombo.SelectedIndex = 1; entry.IsPaused = false; entry.Detection = result.Detection; entry.Rotation = result.Detection.Rotation;
         entry.DetectionMessage = null;
         DetectionStatus.Text = result.Detection.IsCertain ? "检测完成 · 请对比预览，确认旋转方向" : "检测完成 · 方向待确认";
         RefreshValidation();

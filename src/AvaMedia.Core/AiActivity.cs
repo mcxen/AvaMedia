@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace AvaMedia.Core;
 
-public enum AiActivityState { Running, Completed, Cancelled, Failed }
+public enum AiActivityState { Running, Completed, Cancelled, Failed, Paused }
 
 /// <summary>A planned processing node; a missing snapshot means it has not started.</summary>
 public sealed record AiActivityNode(string Title, AiActivity? Snapshot = null);
@@ -108,7 +108,14 @@ public sealed partial class Job
     [JsonIgnore]
     public AiActivity? Activity
     {
-        get => Volatile.Read(ref _activity);
+        get
+        {
+            var value = Volatile.Read(ref _activity);
+            if (value is null || State != JobState.Paused) return value;
+            return value with { State = AiActivityState.Paused, Stage = "已暂停",
+                Nodes = value.Nodes.Select((node, index) => index == value.CurrentNode && node.Snapshot is { } snapshot
+                    ? node with { Snapshot = snapshot with { State = AiActivityState.Paused } } : node).ToArray() };
+        }
         set { Volatile.Write(ref _activity, value); Raise(); }
     }
 }

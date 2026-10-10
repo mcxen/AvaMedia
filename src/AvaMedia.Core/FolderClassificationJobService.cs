@@ -94,7 +94,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             {
                 foreach (var path in pending)
                 {
-                    ct.ThrowIfCancellationRequested();
+                    await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                     MediaTagResult? media = null; string? error = null;
                     try
                     {
@@ -109,18 +109,24 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             }
             else if (pending.Count > 0)
             {
-                // AnalyzeAsync reports file completion synchronously; checkpoints finish before the next file starts.
-                var report = new InlineProgress<MediaTagProgress>(update =>
+                var service = new MediaTagService(engine);
+                foreach (var path in pending)
                 {
-                    if (update.Activity is { } activity)
+                    await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+                    MediaTagResult? result = null; string? error = null;
+                    var report = new InlineProgress<MediaTagProgress>(update =>
                     {
-                        job.Activity = MediaPrivacy.Filter(activity, PrivateEnabled());
-                        job.ProgressDetail = activity.Stage; progress(job.Progress);
-                    }
-                    if (update.Result is not null || update.Error is not null)
-                        RecordAsync(update.Path, update.Result, update.Error).GetAwaiter().GetResult();
-                });
-                await new MediaTagService(engine).AnalyzeAsync(pending, options, report, ct).ConfigureAwait(false);
+                        if (update.Activity is { } activity)
+                        {
+                            job.Activity = MediaPrivacy.Filter(activity, PrivateEnabled());
+                            job.ProgressDetail = activity.Stage; progress(job.Progress);
+                        }
+                        if (update.Result is not null) result = update.Result;
+                        if (update.Error is not null) error = update.Error;
+                    });
+                    await service.AnalyzeAsync([path], options, report, ct).ConfigureAwait(false);
+                    await RecordAsync(path, result, error).ConfigureAwait(false);
+                }
             }
             ct.ThrowIfCancellationRequested();
             if (rules.Any(rule => rule.ByOutfit))
@@ -143,7 +149,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     using var appearance = await OutfitAppearanceService.CreateAsync(engine, store, ct).ConfigureAwait(false);
                     foreach (var file in missing)
                     {
-                        ct.ThrowIfCancellationRequested();
+                        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                         job.Activity = new("识别服装区域", "", DateTime.UtcNow, DateTime.UtcNow) { Detail = Path.GetFileName(file.Path) };
                         job.ProgressDetail = "识别服装区域 · " + Path.GetFileName(file.Path); progress(job.Progress);
                         FolderClassificationTaskFile updated;

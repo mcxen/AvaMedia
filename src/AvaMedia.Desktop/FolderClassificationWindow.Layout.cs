@@ -44,6 +44,7 @@ public sealed partial class FolderClassificationWindow
     private readonly Button _organize = new() { Content = "执行整理", Classes = { "primary" } };
     private readonly Button _undo = new() { Content = "撤销上次整理" };
     private readonly Button _export = new() { Content = "导出分类结果…" };
+    private readonly Button _pause = new() { Content = "暂停任务", IsVisible = false };
     private readonly Button _stop = new() { Content = "停止", IsVisible = false };
 
     private void BuildInterface()
@@ -134,7 +135,7 @@ public sealed partial class FolderClassificationWindow
         _scanErrors.IsVisible = false; _scanErrors.MaxHeight = 60; footer.Children.Add(new ScrollViewer { Content = _scanErrors, MaxHeight = 60 });
         footer.Children.Add(_status);
         var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
-        foreach (var button in new[] { _stop, _undo, _export, _retry, _analyze, _preview, _organize })
+        foreach (var button in new[] { _pause, _stop, _undo, _export, _retry, _analyze, _preview, _organize })
         { button.Margin = new(6, 0, 0, 6); actions.Children.Add(button); }
         actions.Children.Add(Ui.DialogButton("关闭", Close)); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = root;
@@ -150,6 +151,11 @@ public sealed partial class FolderClassificationWindow
         _organize.Click += async (_, _) => await GuardAsync(OrganizeAsync);
         _undo.Click += async (_, _) => await GuardAsync(UndoAsync);
         _export.Click += async (_, _) => await GuardAsync(ExportAsync);
+        _pause.Click += async (_, _) =>
+        {
+            if (_taskJob is not { } job) return;
+            if (job.State == JobState.Paused) await _resumeTask(job); else _pauseTask?.Invoke(job);
+        };
         _stop.Click += (_, _) => { if (TaskActive && _taskJob is { } task) _stopTask(task); else _operation?.Cancel(); };
         _output.TextChanged += (_, _) => InvalidatePlan();
         _splitTypes.IsCheckedChanged += (_, _) => InvalidatePlan(); _writeText.IsCheckedChanged += (_, _) => InvalidatePlan();

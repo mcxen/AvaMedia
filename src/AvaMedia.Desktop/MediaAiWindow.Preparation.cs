@@ -29,7 +29,13 @@ public sealed partial class MediaAiWindow
         var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(badges); panel.Children.Add(_warmProgress); panel.Children.Add(actions);
         _warmStatus.IsVisible = false;
         _warmStart.Click += async (_, _) => await PrepareModelsAsync(reset: _warmFailed);
-        _warmStop.Click += (_, _) => { _warmRequest?.Cancel(); _warmStatus.Text = Localization.Text("正在停止预热…"); UpdateModelPreparationActions(); };
+        _warmStop.Click += (_, _) =>
+        {
+            var request = _warmRequest; _warmRequest = null;
+            _warmStatus.Text = Localization.Text("预热已停止，开始分析时将按需加载");
+            _warmStatus.IsVisible = true; UpdateModelPreparationActions();
+            request?.Cancel();
+        };
         _warmRelease.Click += async (_, _) =>
         {
             _releasingWarmModels = true; UpdateModelPreparationActions();

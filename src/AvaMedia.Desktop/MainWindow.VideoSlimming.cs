@@ -8,7 +8,7 @@ public partial class MainWindow
     {
         var window = new VideoSlimmingWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,
             files ?? [], editing?.Options.VideoSlimming, editing is not null);
-        var request = await window.ShowDialog<VideoSlimmingRequest?>(this);
+        var request = await ToolExecution.ShowAsync<VideoSlimmingRequest>(this, window);
         if (request is null) return;
         try
         {

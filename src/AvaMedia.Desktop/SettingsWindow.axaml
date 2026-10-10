@@ -72,7 +72,7 @@
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
-                      <TextBlock Text="同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                      <TextBlock Text="每工具同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap"/>
                       <NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/>
                       <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #ParallelInput}"/>
                       <TextBlock Grid.Column="2" Classes="caption" Text="1–8 个任务" VerticalAlignment="Center" TextWrapping="Wrap"/>

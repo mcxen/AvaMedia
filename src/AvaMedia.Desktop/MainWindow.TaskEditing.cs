@@ -4,9 +4,9 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    private Job? _editingJob;
+    private readonly HashSet<Job> _editingJobs = [];
 
-    internal bool CanEditTask(Job job) => CanManageTasks && !_queue.IsExecuting(job)
+    internal bool CanEditTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && !_queue.IsExecuting(job)
         && job.State is not (JobState.Running or JobState.Stopping) && _jobs.Contains(job)
         && !AutomationTasks.Supports(job)
         && !job.HasInternalOutput
@@ -64,7 +64,7 @@ public partial class MainWindow
         if (!CanEditTask(job)) return;
         var scheduled = _queue.IsScheduled(job);
         if (!_queue.Withdraw(job)) return;
-        _editingJob = job; Refresh();
+        _editingJobs.Add(job); Refresh();
         try
         {
             var feature = Catalog.Find(job.FeatureId);
@@ -77,8 +77,9 @@ public partial class MainWindow
             if (feature.Operation == Operation.PersonClip) { await ConfigurePersonClipAsync(job.Inputs, job); return; }
             if (PdfTools.Supports(feature.Operation))
             {
-                var request = await new PdfWorkspaceWindow(feature, Path.GetDirectoryName(job.Output)!, job.Inputs,
-                    job.Options, Engine, editing: true).ShowDialog<PdfWorkspaceRequest?>(this);
+                var window = new PdfWorkspaceWindow(feature, Path.GetDirectoryName(job.Output)!, job.Inputs,
+                    job.Options, Engine, editing: true);
+                var request = await ToolExecution.ShowAsync<PdfWorkspaceRequest>(this, window);
                 if (request is null) return;
                 var replacements = ConversionBatch.CreateJobs(feature, request.Files, request.OutputFolder,
                     request.Options, reserved: EditingReservations(job));
@@ -87,7 +88,7 @@ public partial class MainWindow
             var dialog = feature.Operation == Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance"
                 ? (Avalonia.Controls.Window)new SpeechToolsWindow(Engine, feature, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options, editing: true)
                 : new ConvertWindow(Engine, feature, Path.GetDirectoryName(job.Output)!, job.Inputs, job.Options, job.InputOptions, editing: true);
-            var result = await dialog.ShowDialog<ConversionRequest?>(this);
+            var result = await ToolExecution.ShowAsync<ConversionRequest>(this, dialog);
             if (result is null) return;
             var jobs = ConversionBatch.CreateJobs(result.Feature, result.Files, result.OutputFolder, result.Options,
                 result.InputOptions, EditingReservations(job));
@@ -97,7 +98,7 @@ public partial class MainWindow
         catch (Exception exception) { await Ui.Message(this, "任务编辑失败", exception.Message); }
         finally
         {
-            _editingJob = null;
+            _editingJobs.Remove(job);
             if (scheduled && _jobs.Contains(job) && job.State == JobState.Waiting)
             { _queue.Enqueue([job]); _queue.ReorderPending(_jobs); }
             Save(); Refresh();

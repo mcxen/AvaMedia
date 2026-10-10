@@ -17,7 +17,7 @@ public partial class MainWindow
         if (task is not null && _classificationWindows.TryGetValue(task.Id, out var existing))
         { existing.Show(); existing.Activate(); return; }
         FolderClassificationWindow? window = null;
-        window = new FolderClassificationWindow(Engine, files, () => !_queue.IsRunning, async owner =>
+        window = new FolderClassificationWindow(Engine, files, () => !_closing, async owner =>
         {
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
@@ -27,8 +27,8 @@ public partial class MainWindow
             foreach (var id in _classificationWindows.Where(pair => ReferenceEquals(pair.Value, window)).Select(pair => pair.Key).ToArray())
                 _classificationWindows.Remove(id);
             _classificationWindows[job.Id] = window!; AddToolJobs([job], startImmediately: true);
-        }, job => RestartTasksAsync([job]), job => { _queue.Stop(job); Save(); Refresh(); },
-            () => OpenClassificationWindow(), ShowClassificationTasks, _settings);
+        }, RequestTaskRunAsync, job => { _queue.Stop(job); Save(); Refresh(); },
+            () => OpenClassificationWindow(), ShowClassificationTasks, _settings, pauseTask: PauseTask, reserveFiles: _queue.ReserveFiles);
         window.Moved += mappings =>
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);

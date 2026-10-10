@@ -7,7 +7,7 @@ public partial class MainWindow
     public async Task ConfigureDownloadAsync(IEnumerable<string>? links=null,IVideoDownloadService? service=null)
     {
         var window=new DownloadWindow(_settings,_settings.OutputFolder,links,service);
-        var request=await window.ShowDialog<VideoDownloadRequest?>(this);
+        var request=await ToolExecution.ShowAsync<VideoDownloadRequest>(this, window);
         if(request is null)return;
         try
         {
@@ -19,8 +19,8 @@ public partial class MainWindow
 
     private async Task EditDownloadAsync(Job job)
     {
-        var request=await new DownloadWindow(_settings,Path.GetDirectoryName(job.Output)!,editingJob:job)
-            .ShowDialog<VideoDownloadRequest?>(this);
+        var window = new DownloadWindow(_settings,Path.GetDirectoryName(job.Output)!,editingJob:job);
+        var request=await ToolExecution.ShowAsync<VideoDownloadRequest>(this, window);
         if(request is null)return;
         ApplyEditedJobs(job,DownloadBatch.CreateJobs(request,EditingReservations(job)));
     }

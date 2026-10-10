@@ -356,7 +356,7 @@ public sealed partial class BatchCropWindow : Window
     private void CancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => Close(null);
     private void ConfirmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
-        try { Close(CreateRequest()); }
+        try { ToolExecution.Complete(this, CreateRequest()); }
         catch (Exception ex) { ValidationText.Text = ex.Message; ValidationText.Classes.Set("error", true); }
     }
 }

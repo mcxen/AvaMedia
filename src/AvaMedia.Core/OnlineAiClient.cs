@@ -49,8 +49,13 @@ public sealed class OnlineAiClient : IDisposable
     private sealed class ProviderHttpException(int statusCode, string message) : IOException(message)
     { public int StatusCode { get; } = statusCode; }
 
-    internal async Task<JsonDocument> CompleteAsync(object request, CancellationToken ct) =>
-        await SendAsync(HttpMethod.Post, _options.CompletionUri(), request, ct, _options.TimeoutSeconds).ConfigureAwait(false);
+    internal async Task<JsonDocument> CompleteAsync(object request, CancellationToken ct)
+    {
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        var result = await SendAsync(HttpMethod.Post, _options.CompletionUri(), request, ct, _options.TimeoutSeconds).ConfigureAwait(false);
+        try { await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false); return result; }
+        catch { result.Dispose(); throw; }
+    }
 
     private async Task<JsonDocument> SendAsync(HttpMethod method, Uri uri, object? payload, CancellationToken ct, int timeout)
     {

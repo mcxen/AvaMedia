@@ -33,6 +33,7 @@ public sealed partial class RenameWindow : Window
     private readonly Button _rename, _undo, _stop, _previewButton;
     private readonly TextBox _pattern = Ui.Input("{name}_{index}");
     private readonly string _journal;
+    private readonly Func<IEnumerable<string>, IDisposable>? _reserveFiles;
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _previewCancellation, _operation;
     private RenameItem[]? _renamePlan;
@@ -53,9 +54,10 @@ public sealed partial class RenameWindow : Window
     }
 
     public RenameWindow(IMediaEngine engine, AppSettings? settings = null, IEnumerable<string>? initial = null,
-        string? journalPath = null, Func<Window, Task>? manageModels = null)
+        string? journalPath = null, Func<Window, Task>? manageModels = null, Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
         _engine = engine; _settings = settings ?? new(); _manageModels = manageModels;
+        _reserveFiles = reserveFiles;
         _journal = journalPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "batch-rename.json");
         Title = "批量重命名"; Width = 1280; Height = 780; MinWidth = 1060; MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;

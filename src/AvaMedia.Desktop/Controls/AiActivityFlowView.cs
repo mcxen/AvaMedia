@@ -157,7 +157,7 @@ internal sealed class AiActivityFlowView : StackPanel
         public void RefreshClock(DateTime now)
         {
             if (_snapshot is not { } snapshot) return;
-            var state = snapshot.State switch { AiActivityState.Completed => "已完成", AiActivityState.Failed => "失败", AiActivityState.Cancelled => "已停止", _ => "进行中" };
+            var state = snapshot.State switch { AiActivityState.Completed => "已完成", AiActivityState.Failed => "失败", AiActivityState.Cancelled => "已停止", AiActivityState.Paused => "已暂停", _ => "进行中" };
             var until = snapshot.State == AiActivityState.Running ? now : snapshot.UpdatedUtc;
             _status.Text = Localization.Text(state) + " · " + AiActivity.FormatElapsed((until - snapshot.StartedUtc).TotalSeconds);
         }

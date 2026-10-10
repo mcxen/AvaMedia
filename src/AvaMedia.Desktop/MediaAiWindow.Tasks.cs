@@ -6,7 +6,7 @@ namespace AvaMedia.Desktop;
 
 public sealed partial class MediaAiWindow
 {
-    private readonly Action<Job>? _stopTask;
+    private readonly Action<Job>? _stopTask, _pauseTask, _resumeTask;
     private readonly Action? _newTask;
     private readonly Dictionary<string, Job> _taskJobs = new(BatchRename.PathComparer);
     private readonly Dictionary<Guid, MediaTagResult> _seenTaskResults = [];

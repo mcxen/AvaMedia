@@ -34,7 +34,7 @@ public partial class MainWindow
                 settings.OpenOnlineAiSettings(); settings.Applied += (_, _) => ApplyOptions();
                 await settings.ShowDialog<bool>(owner);
             });
-        var request = editing is null ? await ToolExecution.ShowAsync<ConversionRequest>(this, window) : await window.ShowDialog<ConversionRequest?>(this);
+        var request = await ToolExecution.ShowAsync<ConversionRequest>(this, window);
         if (request is null) return;
         try
         {

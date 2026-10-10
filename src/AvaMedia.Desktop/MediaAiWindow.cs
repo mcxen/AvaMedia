@@ -31,10 +31,12 @@ public sealed partial class MediaAiWindow : Window
     private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary", "dialog-action" } };
     private readonly Button _rename = new() { Content = "标签重命名…" };
     private readonly Button _undo = new() { Content = "撤销重命名" };
+    private readonly Button _pause = new() { Content = "暂停任务", IsVisible = false };
     private readonly Button _stop = new() { Name = "MediaAiStop", Content = "停止分析", IsVisible = false, Classes = { "primary", "dialog-action" } };
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<Window, Task> _manageModels;
     private readonly Func<bool> _canRename;
+    private readonly Func<IEnumerable<string>, IDisposable>? _reserveFiles;
     private readonly Action<IReadOnlyList<Job>, bool>? _enqueue;
     private readonly Action? _showQueue;
     private readonly Button _enqueueQueue = new() { Content = "加入任务队列" };
@@ -45,10 +47,12 @@ public sealed partial class MediaAiWindow : Window
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
     public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null, Storage? storage=null,
-        Action<IReadOnlyList<Job>, bool>? enqueue = null, Action? showQueue = null, Action<Job>? stopTask = null, Action? newTask = null)
+        Action<IReadOnlyList<Job>, bool>? enqueue = null, Action? showQueue = null, Action<Job>? stopTask = null, Action? newTask = null, Action<Job>? pauseTask = null, Action<Job>? resumeTask = null,
+        Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _enqueue = enqueue; _showQueue = showQueue; _stopTask = stopTask; _newTask = newTask;
+        _pauseTask = pauseTask; _resumeTask = resumeTask; _reserveFiles = reserveFiles;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
         _tagService = new(engine); MediaTagRuntime.Configure(settings);
         LoadPreferences();
@@ -216,6 +220,7 @@ public sealed partial class MediaAiWindow : Window
         _renaming = true; SetBusy(true);
         try
         {
+            using var reservation = _reserveFiles?.Invoke(await SourceFileChanges.RenamePathsAsync(_journal, undo, plan));
             var mappings = await Task.Run(() => undo ? BatchRename.UndoRename(_journal) : BatchRename.ApplyRename(plan!, _journal));
             var retained=mappings.Select(mapping=>(Mapping:mapping,Result:_results.GetValueOrDefault(mapping.Source),
                 Tags:_editedTags.GetValueOrDefault(mapping.Source),Position:_positions.GetValueOrDefault(mapping.Source),Traces:_traces.GetValueOrDefault(mapping.Source),ReportSource:_reportSources.GetValueOrDefault(mapping.Source),Entry:_entries.FirstOrDefault(entry=>BatchRename.PathComparer.Equals(entry.Path,mapping.Source)))).ToArray();

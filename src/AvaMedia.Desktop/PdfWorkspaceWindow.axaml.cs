@@ -79,6 +79,7 @@ public partial class PdfWorkspaceWindow : Window
     public PdfWorkspaceWindow(Feature feature, string outputFolder, IEnumerable<string>? initial = null, ConversionOptions? initialOptions = null, IMediaEngine? engine = null, bool editing = false)
     {
         _feature = feature; _engine = engine ?? new MediaEngine(new()); InitializeComponent();
+        ToolExecution.Configure(this, ConfirmButton, "开始处理", editing);
         Title = feature.Label; OutputFolder.Text = outputFolder;
         if (editing) { Title = Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}"); ConfirmButton.Content = "保存修改"; }
         WindowArtwork.SetKind(this, feature.Icon);
@@ -658,7 +659,7 @@ public partial class PdfWorkspaceWindow : Window
             var files = selectedInputs.Select(index => _files[index]).ToArray();
             options.Pdf.Pages = options.Pdf.Pages.Select(page => page with { InputIndex = remap[page.InputIndex] }).ToList();
             PdfTools.Validate(new Job { FeatureId = _feature.Id, Inputs = files, Options = options });
-            Close(new PdfWorkspaceRequest(files, Path.GetFullPath(OutputFolder.Text), options));
+            ToolExecution.Complete(this, new PdfWorkspaceRequest(files, Path.GetFullPath(OutputFolder.Text), options));
         }
         catch (Exception ex) { await Ui.Message(this, "参数错误", ex.Message); }
     }

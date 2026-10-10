@@ -72,6 +72,7 @@
           <TextBlock x:Name="DirectionLabel" Text="旋转方向" VerticalAlignment="Center" Margin="0,0,8,0"/>
           <ComboBox x:Name="DirectionCombo" Width="170" PlaceholderText="请选择方向" SelectionChanged="DirectionChanged" Margin="0,0,16,0" AutomationProperties.Name="批量旋转方向"/>
           <Button x:Name="DetectButton" Content="自动转正" Click="DetectClick" Margin="0,0,8,0" AutomationProperties.Name="自动检测勾选视频的方向"/>
+          <Button x:Name="PauseDetectButton" Content="暂停任务" Click="PauseDetectionClick" IsVisible="False" Margin="0,0,8,0"/>
           <Button x:Name="CancelDetectionButton" Content="停止检测" Click="CancelDetectionClick" IsVisible="False"/>
         </WrapPanel>
         <TextBlock x:Name="DetectionStatus" Classes="caption" Text="尚未检测方向" TextWrapping="Wrap"/>

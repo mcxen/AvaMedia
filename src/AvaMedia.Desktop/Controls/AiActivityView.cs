@@ -114,7 +114,8 @@ public sealed class AiActivityView : Border
         _meta.Text = string.Join(" · ", new[] { Localization.Text(activity.Model), activity.Backend }.Where(text => text.Length > 0));
         _compactStage.Text = string.Join(" · ", new[] { Localization.Text(activity.Stage), Count(activity) }.Where(text => text.Length > 0));
         ToolTip.SetTip(_compactStage, _compactStage.Text);
-        _compactStage.IsVisible = _compactTrack.IsVisible = activity.State == AiActivityState.Running;
+        _compactStage.IsVisible = activity.State is AiActivityState.Running or AiActivityState.Paused;
+        _compactTrack.IsVisible = activity.State == AiActivityState.Running;
         foreach (var state in Enum.GetValues<AiActivityState>()) _compactStage.Classes.Set(state.ToString().ToLowerInvariant(), state == activity.State);
         _compactProgress.IsVisible = Quantified(activity);
         _compactProgress.Value = Quantified(activity) ? Math.Clamp(activity.Current!.Value / activity.Total!.Value * 100, 0, 100) : 0;

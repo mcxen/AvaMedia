@@ -7,7 +7,7 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    internal bool CanExitForUpdate => !_closing && !_queue.IsRunning && _editingJob is null;
+    internal bool CanExitForUpdate => !_closing && !_queue.IsRunning && _editingJobs.Count == 0;
     private void NotificationsClick(object? sender, RoutedEventArgs args) => NotificationCenter.Shared.OpenHistory(this);
     private void ToggleNotificationsClick(object? sender, RoutedEventArgs args)
     {

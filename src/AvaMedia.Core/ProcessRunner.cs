@@ -11,10 +11,11 @@ public static class ProcessRunner
         foreach(var arg in arguments) p.StartInfo.ArgumentList.Add(arg);
         p.Start();return p;
     }
-    public static Task<Process> StartAsync(string executable,IEnumerable<string> arguments,CancellationToken ct=default,bool input=false)
+    public static async Task<Process> StartAsync(string executable,IEnumerable<string> arguments,CancellationToken ct=default,bool input=false)
     {
         var snapshot=arguments.ToArray();
-        return Task.Run(()=>Start(executable,snapshot,input),ct);
+        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        return await Task.Run(()=>Start(executable,snapshot,input),ct).ConfigureAwait(false);
     }
     public static async Task<ProcessResult> Run(string executable,IEnumerable<string> args,CancellationToken ct=default,Action<string>? line=null,int maximumOutputChars=160000)
     {

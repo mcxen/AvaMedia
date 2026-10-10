@@ -3312,5 +3312,11 @@
   "确认方向": "Review orientation",
   "检测完成 · 方向待确认": "Detection complete · Review orientation",
   "待确认 · 请手动选择方向": "Needs review · Choose the direction manually",
-  "描述采样画面 {0}/{1}": "Describing sampled frame {0}/{1}"
+  "描述采样画面 {0}/{1}": "Describing sampled frame {0}/{1}",
+  "暂停任务": "Pause task",
+  "已暂停": "Paused",
+  "每工具同时执行任务数": "Concurrent tasks per tool",
+  "部分文件仍被任务使用，请完成或终止相关任务后再修改文件。": "Some files are still in use by tasks. Finish or stop those tasks before changing the files.",
+  "应用正在退出，请稍后操作。": "The application is closing. Try again later.",
+  "正在编辑此任务，请关闭其编辑窗口后再操作。": "This task is being edited. Close its editor before controlling it."
 }

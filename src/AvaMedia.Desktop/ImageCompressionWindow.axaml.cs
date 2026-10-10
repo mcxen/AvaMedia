@@ -49,7 +49,7 @@ public sealed partial class ImageCompressionWindow : Window
 
     public ImageCompressionWindow() : this(new MediaEngine(new()), MediaFolders.DefaultOutput) { }
     public ImageCompressionWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null,
-        ImageCompressionOptions? initialOptions = null, bool canStart = true, IImageCompressor? compressor = null, bool editing = false)
+        ImageCompressionOptions? initialOptions = null, IImageCompressor? compressor = null, bool editing = false)
     {
         _editing = editing;
         _compressor = compressor ?? new ImageCompressor(engine);
@@ -57,9 +57,8 @@ public sealed partial class ImageCompressionWindow : Window
         FileList.ItemsSource = _entries;
         OutputInput.Text = outputFolder;
         SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource;
-        StartInput.IsChecked = canStart && !editing; StartInput.IsEnabled = canStart;
+        StartInput.IsChecked = !editing;
         if (editing) { Title = "编辑图片压缩任务"; ConfirmButton.Content = "保存修改"; StartInput.IsVisible = false; }
-        else if (!canStart) ToolTip.SetTip(StartInput, "已有任务正在运行；本次图片先加入等待队列。");
         if (initialOptions is { } options) SetOptions(options);
         foreach (var check in new[] { LosslessInput, ResizeInput }) check.IsCheckedChanged += (_, _) => ParametersChanged(null, null!);
         SourceFolderInput.IsCheckedChanged += (_, _) => RefreshControls();
@@ -320,7 +319,7 @@ public sealed partial class ImageCompressionWindow : Window
                     if (string.IsNullOrWhiteSpace(request.OutputFolder)) throw new ArgumentException("请选择保存文件夹。");
                     _ = Path.GetFullPath(request.OutputFolder);
                 }
-                Close(request);
+                ToolExecution.Complete(this, request);
             }
             catch (Exception ex) { StatusText.Text = ex.Message; }
             return;
@@ -329,7 +328,7 @@ public sealed partial class ImageCompressionWindow : Window
         if (!await task || _closed) return;
         var inputs = _entries.Where(entry => entry.Include && entry.Result?.IsSmaller == true && entry.Error is null).Select(entry => entry.Path).ToArray();
         if (inputs.Length == 0) { StatusText.Text = Localization.Text("没有体积减小的图片"); return; }
-        try { Close(new ImageCompressionRequest(inputs, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true, StartInput.IsChecked == true)); }
+        try { ToolExecution.Complete(this, new ImageCompressionRequest(inputs, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true, StartInput.IsChecked == true)); }
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }
     private async void AddClick(object? sender, RoutedEventArgs args)
