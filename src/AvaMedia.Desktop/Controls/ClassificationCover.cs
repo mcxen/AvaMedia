@@ -24,6 +24,7 @@ internal sealed class ClassificationCover : Grid
     private IClassificationCoverSource? _owner;
     private CancellationTokenSource? _request;
     private Bitmap? _bitmap;
+    private bool _inViewport;
 
     public ClassificationCover()
     {
@@ -31,15 +32,22 @@ internal sealed class ClassificationCover : Grid
         _placeholder.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
         _placeholder.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         Children.Add(_placeholder); Children.Add(_image);
+        EffectiveViewportChanged += (_, args) =>
+        {
+            var visible = args.EffectiveViewport.Intersects(new Rect(Bounds.Size));
+            if (_inViewport == visible) return;
+            _inViewport = visible;
+            if (visible) Refresh(); else Release();
+        };
     }
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        _owner = this.GetVisualAncestors().OfType<IClassificationCoverSource>().FirstOrDefault(); Refresh();
+        _owner = this.GetVisualAncestors().OfType<IClassificationCoverSource>().FirstOrDefault();
     }
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        Release(); _owner = null; base.OnDetachedFromVisualTree(e);
+        _inViewport = false; Release(); _owner = null; base.OnDetachedFromVisualTree(e);
     }
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -53,7 +61,7 @@ internal sealed class ClassificationCover : Grid
     }
     private async void Refresh()
     {
-        if (_owner is not { } owner || Path is not { Length: > 0 } path) return;
+        if (!_inViewport || _owner is not { } owner || Path is not { Length: > 0 } path) return;
         _request?.Cancel();
         using var request = new CancellationTokenSource(); _request = request;
         _placeholder.Text = Localization.Text("加载封面…"); _placeholder.IsVisible = _bitmap is null;

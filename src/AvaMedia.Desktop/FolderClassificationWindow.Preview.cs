@@ -26,12 +26,16 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
         try
         {
             request.Token.ThrowIfCancellationRequested();
-            if (_results.TryGetValue(path, out var classified)) MediaTagService.ValidateSource(classified.Media);
-            var info = new FileInfo(path);
-            if (!info.Exists) throw new FileNotFoundException();
-            var key = (path, seconds, width, info.Length, info.LastWriteTimeUtc);
+            var media = _results.GetValueOrDefault(path)?.Media;
+            var key = await Task.Run(() =>
+            {
+                if (media is not null) MediaTagService.ValidateSource(media);
+                var info = new FileInfo(path);
+                if (!info.Exists) throw new FileNotFoundException();
+                return (path, seconds, width, info.Length, info.LastWriteTimeUtc);
+            }, request.Token);
             if (_coverCache.TryGetValue(key, out var cached)) return cached;
-            var bytes = await _engine.Thumbnail(path, seconds, width, width * 9 / 16, request.Token, pad: false);
+            var bytes = await Task.Run(() => _engine.Thumbnail(path, seconds, width, width * 9 / 16, request.Token, pad: false), request.Token);
             request.Token.ThrowIfCancellationRequested();
             if (_coverCache.TryGetValue(key, out cached)) return cached;
             _coverCache[key] = bytes; _coverOrder.Enqueue(key); _coverBytes += bytes.Length;

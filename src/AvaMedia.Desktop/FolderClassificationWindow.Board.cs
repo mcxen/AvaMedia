@@ -112,15 +112,18 @@ public sealed partial class FolderClassificationWindow
             _boardRuleId = rule?.Id;
             _boardRule.ItemsSource = _rules.ToArray(); _boardRule.SelectedItem = rule;
             _boardRule.IsVisible = _rules.Count > 1;
+            var categories = rule is null ? [] : GroupCategories(rule);
+            var categoriesById = categories.ToDictionary(category => category.Id);
+            var membersByBasket = _entries.GroupBy(entry => BasketFor(entry, rule)).ToDictionary(group => group.Key, group => group.ToArray());
             var options = new List<(string Id, string Name)> { (AllBasket, Localization.Text("全部")), (PendingBasket, Localization.Text("待分析")), (ReviewBasket, Localization.Text("待确认")) };
-            if (rule is not null) options.AddRange(GroupCategories(rule).Select(category => (category.Id, category.Name)));
+            options.AddRange(categories.Select(category => (category.Id, category.Name)));
             if (!options.Any(option => option.Id == _basketId)) _basketId = AllBasket;
             _baskets.Children.Clear();
             _baskets.IsVisible = rule is not null;
             foreach (var option in options.Where(option => option.Id != AllBasket && option.Id != PendingBasket).OrderBy(option => option.Id == ReviewBasket))
             {
-                var members = _entries.Where(entry => option.Id == AllBasket || BasketFor(entry, rule) == option.Id).ToArray();
-                _baskets.Children.Add(BuildBasket(option.Id, option.Name, members, rule));
+                var members = membersByBasket.GetValueOrDefault(option.Id) ?? [];
+                _baskets.Children.Add(BuildBasket(option.Id, option.Name, members, rule, categoriesById.GetValueOrDefault(option.Id)));
             }
             _allFilter.Content = Localization.Format($"全部 {_entries.Count}");
             _pendingFilter.Content = Localization.Format($"待分析 {_entries.Count(entry => !_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path))}");
@@ -141,7 +144,7 @@ public sealed partial class FolderClassificationWindow
         RenderDetails();
     }
 
-    private Button BuildBasket(string id, string name, MediaFileEntry[] members, FolderClassificationRule? rule)
+    private Button BuildBasket(string id, string name, MediaFileEntry[] members, FolderClassificationRule? rule, FolderClassificationCategory? category)
     {
         var content = new StackPanel { Spacing = 3, Width = 126 };
         var fan = new Canvas { Height = 49, ClipToBounds = false };
@@ -163,7 +166,6 @@ public sealed partial class FolderClassificationWindow
         button.BorderThickness = new(id == _basketId ? 2 : 1);
         button.Click += (_, _) => { _basketId = id; RenderBoard(); };
         if (rule is null || id is AllBasket or PendingBasket) return button;
-        var category = GroupCategories(rule).FirstOrDefault(item => item.Id == id);
         DragDrop.SetAllowDrop(button, true);
         button.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {

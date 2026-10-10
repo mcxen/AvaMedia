@@ -38,7 +38,7 @@ public static class FolderOutfitClassification
     };
     private static readonly string[] ColorLabels = ["白色", "黑色", "红色", "蓝色", "绿色", "黄色", "粉色", "紫色", "棕色", "灰色", "橙色", "多色"];
     private sealed record Feature(string Tag, double Weight, bool Garment, string? ColorPart = null, string? Color = null);
-    private static readonly Feature[] Features = WordLibraryCatalog.JoyTags.Order(StringComparer.Ordinal).Select(Describe).OfType<Feature>().ToArray();
+    private static readonly Lazy<Feature[]> Features = new(() => WordLibraryCatalog.JoyTags.Order(StringComparer.Ordinal).Select(Describe).OfType<Feature>().ToArray());
     private sealed record Sample(double Seconds, double[] Values, double[] Colors, double[] Embedding);
     private sealed record Profile(FolderClassifiedFile File, Sample[] Samples, double[] Values, double[] Colors, double[] Embedding, string? Error);
 
@@ -94,7 +94,7 @@ public static class FolderOutfitClassification
 
     private static Dictionary<string, FolderClassificationDecision> Group(FolderClassifiedFile[] files, FolderClassificationRule rule, bool includeNsfw, CancellationToken ct)
     {
-        var features = Features.Where(feature => includeNsfw || !MediaPrivacy.IsSensitiveTag(feature.Tag)).ToArray();
+        var features = Features.Value.Where(feature => includeNsfw || !MediaPrivacy.IsSensitiveTag(feature.Tag)).ToArray();
         var threshold = rule.OutfitSimilarity;
         var profiles = files.Select(file => Build(file, features)).ToArray();
         // Common accessories carry less information than an outfit-specific color, garment or pattern.
