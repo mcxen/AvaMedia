@@ -10,6 +10,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class FolderClassificationWindow : Window
 {
     private readonly IMediaEngine _engine;
+    private readonly AppSettings _settings;
     private readonly Func<bool> _canMove;
     private readonly Func<Window, Task> _manageModels;
     private readonly Storage _storage = new();
@@ -42,12 +43,14 @@ public sealed partial class FolderClassificationWindow : Window
     }
 
     public FolderClassificationWindow(IMediaEngine engine, IEnumerable<string>? initial, Func<bool> canMove,
-        Func<Window, Task> manageModels)
+        Func<Window, Task> manageModels, AppSettings? settings = null)
     {
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
+        _settings = settings ?? engine.Settings;
         Title = Catalog.Find("folder-classification").Label; Width = 1360; Height = 840; MinWidth = 1160; MinHeight = 660;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         LoadPreferences(); BuildInterface(); UpdateActions();
+        RefreshSavedVisibility(); _settings.NsfwContentChanged += PrivacyChanged;
         _files.SelectionChanged += (_, _) => { if (!_renderingBoard) RenderDetails(); };
         _files.DoubleTapped += (_, _) => OpenSelected();
         DragDrop.SetAllowDrop(this, true);
@@ -64,7 +67,7 @@ public sealed partial class FolderClassificationWindow : Window
             _coverCache.Clear(); _coverOrder.Clear(); _coverBytes = 0;
         };
         Closed += (_, _) =>
-        { _files.ItemsSource = null; _baskets.Children.Clear(); _selectedCover.Path = null; _lifetime.Dispose(); };
+        { _settings.NsfwContentChanged -= PrivacyChanged; _files.ItemsSource = null; _baskets.Children.Clear(); _selectedCover.Path = null; _lifetime.Dispose(); };
         if (initial is not null) Opened += async (_, _) => await ImportPathsAsync(initial);
     }
 
@@ -76,7 +79,8 @@ public sealed partial class FolderClassificationWindow : Window
         try { ValidateSavedRules(saved.SavedRules); }
         catch (Exception error) when (error is ArgumentException or NullReferenceException) { saved.SavedRules = []; }
         _defaultRules = saved.SceneRules;
-        foreach (var rule in saved.SceneRules) _rules.Add(rule);
+        foreach (var rule in saved.SceneRules)
+            if (RuleVisible(rule)) _rules.Add(rule); else _disabledNsfwRules.Add(rule);
         foreach (var rule in saved.SavedRules) _savedRules.Add(rule);
         _output.Text = saved.OutputFolder; _recursive.IsChecked = saved.Recursive;
         _splitTypes.IsChecked = saved.SplitTypes; _writeText.IsChecked = saved.WriteText; _gpu.IsChecked = saved.PreferGpu;
@@ -154,7 +158,7 @@ public sealed partial class FolderClassificationWindow : Window
     {
         if (_syncing) return;
         _attempted = false;
-        _results.Clear(); _analysisPending.Clear();
+        _results.Clear(); _hiddenPrivateResults.Clear(); _analysisPending.Clear();
         foreach (var entry in _entries) { entry.Status = Localization.Text("待分析"); entry.Details = entry.Path; }
         InvalidatePlan(); RenderDetails();
     }

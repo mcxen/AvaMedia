@@ -30,6 +30,8 @@ public sealed partial class MediaAiWindow
     private async Task EditTagsAsync(MediaTagResult result)
     {
         var original = ResultTags(result).ToArray();
+        var hidden = !_settings.EnableNsfwContent ? (_editedTags.GetValueOrDefault(result.Path) ?? JoyCandidates(result).Concat(SceneCandidates(result)).Where(tag => TagQualifies(result, tag)).ToArray())
+            .Where(tag => MediaPrivacy.IsSensitiveLabel(tag.Label, tag.Category, tag.RawTags)).ToArray() : [];
         var labels=new System.Collections.ObjectModel.ObservableCollection<string>(original.Select(tag=>tag.Label));
         var input=Ui.Input();input.Watermark="新增标签";Localization.SetIsUserText(input,true);
         var window = new Window { Title="编辑标签",Width=820,Height=580,MinWidth=720,MinHeight=480,WindowStartupLocation=WindowStartupLocation.CenterOwner };
@@ -38,7 +40,7 @@ public sealed partial class MediaAiWindow
         var fields=new Grid { RowDefinitions=new("Auto,Auto,*,Auto"),RowSpacing=8 };fields.Children.Add(Ui.Text("已选标签"));
         var list=new ListBox{ItemsSource=labels};Grid.SetRow(list,2);fields.Children.Add(list);
         var search=Ui.Input();search.Watermark="搜索标签";Grid.SetRow(search,1);fields.Children.Add(search);
-        var known=WordLibraryCatalog.BuiltIns.Where(library=>library.Id is "real-people" or "scene-context" or "common" or "outdoor-scenery" or "person-features").SelectMany(library=>library.Entries).Select(WordLibraryCatalog.CandidateLabel).Concat(original.Select(tag=>tag.Label)).Distinct().Order().ToArray();
+        var known=WordLibraryCatalog.BuiltIns.Where(library=>library.Id is "real-people" or "scene-context" or "common" or "outdoor-scenery" or "person-features").SelectMany(library=>library.Entries).Where(entry => _settings.EnableNsfwContent || !MediaPrivacy.IsSensitive(entry)).Select(WordLibraryCatalog.CandidateLabel).Concat(original.Select(tag=>tag.Label)).Distinct().Order().ToArray();
         var choices=new ComboBox { HorizontalAlignment=HorizontalAlignment.Stretch };
         choices.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((label,_)=>Ui.Text(label??""));
         void Filter()=>choices.ItemsSource=known.Where(label=>label.Contains(search.Text??"",StringComparison.OrdinalIgnoreCase)).Take(150).ToArray();
@@ -49,11 +51,13 @@ public sealed partial class MediaAiWindow
         edits.Children.Add(Ui.Button("移除标签",()=>{if(list.SelectedItem is string label)labels.Remove(label);}));Grid.SetRow(edits,3);fields.Children.Add(edits);body.Children.Add(fields);
         var preview=new Controls.MediaPreviewPanel(_engine);preview.SetSource(result.Path);Grid.SetColumn(preview,1);body.Children.Add(preview);window.Closed+=(_,_)=>preview.Dispose();
         root.Children.Add(body);
+        EventHandler privacy = (_, _) => window.Close();
+        _settings.NsfwContentChanged += privacy; window.Closed += (_, _) => _settings.NsfwContentChanged -= privacy;
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(Ui.DialogButton("取消", window.Close));
         actions.Children.Add(Ui.DialogButton("保存", () =>
         {
-            _editedTags[result.Path] = labels.Distinct(StringComparer.OrdinalIgnoreCase).Select(label => original.FirstOrDefault(tag => tag.Label.Equals(label, StringComparison.OrdinalIgnoreCase)) ?? new ResultTag(label, "手动标签", 1, "manual", "manual")).ToArray();
+            _editedTags[result.Path] = labels.Distinct(StringComparer.OrdinalIgnoreCase).Select(label => original.FirstOrDefault(tag => tag.Label.Equals(label, StringComparison.OrdinalIgnoreCase)) ?? new ResultTag(label, "手动标签", 1, "manual", "manual")).Concat(hidden).ToArray();
             window.Close(); RefreshDisplayedResults();
         }));
         Grid.SetRow(actions, 1); root.Children.Add(actions); window.Content = root; await window.ShowDialog(this);

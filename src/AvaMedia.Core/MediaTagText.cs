@@ -56,8 +56,10 @@ public static class MediaTagText
         return header is not null && OwnedHeaders.Contains(header) && reader.ReadLine() == "SourceKey: " + key;
     }
     public static async Task<string> SaveAsync(MediaTagResult result, IReadOnlyList<MediaTagTextLabel> labels,
-        double threshold, double sceneThreshold, double sceneMargin, CancellationToken ct, string? previousSource = null)
+        double threshold, double sceneThreshold, double sceneMargin, CancellationToken ct, string? previousSource = null, bool includeNsfw = false)
     {
+        result = MediaPrivacy.Filter(result, includeNsfw);
+        labels = labels.Where(label => includeNsfw || !MediaPrivacy.IsSensitiveLabel(label.Label, label.Category, label.Tags)).ToArray();
         MediaTagService.ValidateSource(result);
         var folder = Path.GetDirectoryName(result.Path)!; var key = Key(result.Path);
         string? old = Directory.EnumerateFiles(folder, "*" + key + ".ai-tags.txt").FirstOrDefault(path => Owned(path, key));

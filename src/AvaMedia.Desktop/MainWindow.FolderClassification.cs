@@ -11,7 +11,7 @@ public partial class MainWindow
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
             await settings.ShowDialog<bool>(owner);
-        });
+        }, _settings);
         window.Moved += mappings =>
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);

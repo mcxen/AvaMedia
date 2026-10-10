@@ -141,7 +141,7 @@ public sealed partial class MediaAiWindow
         if (result.SceneError is not null) _tagGroups.Children.Add(result.SceneSkipped ? Ui.Text(Localization.Text(result.SceneError), "caption")
             : Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
         if (result.CaptionError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("画面描述失败：") + result.CaptionError, "error"));
-        else if (!string.IsNullOrWhiteSpace(result.Caption))
+        else if (!string.IsNullOrWhiteSpace(result.Caption) && (_settings.EnableNsfwContent || !MediaPrivacy.IsSensitiveText(result.Caption)))
         {
             var caption = new StackPanel { Spacing = 4 };
             caption.Children.Add(Ui.Text("画面描述", "heading"));
@@ -184,7 +184,7 @@ public sealed partial class MediaAiWindow
             }
             section.Children.Add(chips); _tagGroups.Children.Add(section);
         }
-        var moderation = NsfwModeration.Evaluate(result, (double)(_threshold.Value ?? .4m));
+        var moderation = _settings.EnableNsfwContent ? NsfwModeration.Evaluate(result, (double)(_threshold.Value ?? .4m)) : null;
         var details = new StackPanel { Spacing = 5 };
         details.Children.Add(Ui.Text(video
             ? Localization.Format($"采样 {result.SampledFrames} 帧 · 计算 {result.InferredFrames} 帧 · {result.Backend}")

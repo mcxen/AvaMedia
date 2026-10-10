@@ -48,9 +48,12 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
+        using var privacyCancellation = new PrivacyCancellation(engine.Settings, ct);
+        ct = privacyCancellation.Token;
         Validate(job);
         var spec = job.Options.MediaTag!;
-        var activity = new AiActivityReporter(value => job.Activity = value, "AI 标签", "个标签",
+        bool PrivateEnabled() => engine.Settings.EnableNsfwContent;
+        var activity = new AiActivityReporter(value => job.Activity = MediaPrivacy.Filter(value, PrivateEnabled()), "AI 标签", "个标签",
             spec.Analysis.GenerateCaptions
                 ? ["准备标签模型", "识别媒体标签", "生成画面描述", "保存报告"]
                 : ["准备标签模型", "识别媒体标签", "保存报告"]);
@@ -60,7 +63,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         {
             if (update.Activity is { } snapshot)
             {
-                job.Activity = snapshot;
+                job.Activity = MediaPrivacy.Filter(snapshot, PrivateEnabled());
                 if (snapshot.Stage.Length > 0) job.ProgressDetail = snapshot.Stage;
                 if (snapshot.Current is { } current && snapshot.Total is > 0 and var total)
                     progress(Math.Max(job.Progress, Math.Clamp(5 + 75 * current / total, 5, 80)));
@@ -71,18 +74,22 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         });
 
         var results = await new MediaTagService(engine, _models)
-            .AnalyzeAsync([job.Inputs[0]], spec.Analysis, report, ct).ConfigureAwait(false);
+            .AnalyzeAsync([job.Inputs[0]], spec.Analysis with
+            {
+                RecognizeNsfw = PrivateEnabled() && spec.Analysis.RecognizeNsfw,
+                SemanticCandidates = spec.Analysis.SemanticCandidates.Where(entry => PrivateEnabled() || !MediaPrivacy.IsSensitive(entry)).ToArray()
+            }, report, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
         if (results.Count == 0) throw new InvalidDataException("未能完成标签分析。");
-        var result = results[0];
+        var result = MediaPrivacy.Filter(results[0], PrivateEnabled());
         activity.Node("保存报告");
         job.ProgressDetail = "保存报告"; progress(90);
         var labels = MediaTagText.QualifyingLabels(result, spec.Threshold, spec.SceneThreshold, spec.SceneMargin,
-            spec.OnlyLibrary, spec.LibraryCandidates);
-        activity.Result(labels.Count == 0 ? "未命中标签" : string.Join(" · ", labels.Take(8).Select(label => label.Label)), labels.Count);
+            spec.OnlyLibrary, spec.LibraryCandidates).Where(label => PrivateEnabled() || !MediaPrivacy.IsSensitiveLabel(label.Label, label.Category, label.Tags)).ToArray();
+        activity.Result(labels.Length == 0 ? "未命中标签" : string.Join(" · ", labels.Take(8).Select(label => label.Label)), labels.Length);
         if (spec.WriteTextReport)
         {
-            var reportPath = await MediaTagText.SaveAsync(result, labels, spec.Threshold, spec.SceneThreshold, spec.SceneMargin, ct)
+            var reportPath = await MediaTagText.SaveAsync(result, labels, spec.Threshold, spec.SceneThreshold, spec.SceneMargin, ct, includeNsfw: PrivateEnabled())
                 .ConfigureAwait(false);
             job.Output = reportPath;
             job.ProgressDetail = Path.GetFileName(reportPath);
@@ -93,10 +100,16 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
             var folder = Path.GetDirectoryName(result.Path)!;
             var destination = MediaEngine.UniqueOutput(folder, Path.GetFileNameWithoutExtension(result.Path) + ".ai-tags", "json",
                 [result.Path, job.Output]);
-            await File.WriteAllTextAsync(destination, System.Text.Json.JsonSerializer.Serialize(new
+            var temporary = Path.Combine(folder, ".avamedia-tags-" + Guid.NewGuid().ToString("N") + ".tmp");
+            try
             {
-                result.Path, result.Backend, Labels = labels, result.RealPeopleOnly, result.Nsfw, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError, result.SceneSkipped
-            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), ct).ConfigureAwait(false);
+                await File.WriteAllTextAsync(temporary, System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    result.Path, result.Backend, Labels = labels, result.RealPeopleOnly, result.Nsfw, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError, result.SceneSkipped
+                }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested(); File.Move(temporary, destination);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
             job.Output = destination;
             job.ProgressDetail = Path.GetFileName(destination);
         }
@@ -108,4 +121,23 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
 
     private sealed class InlineProgress(Action<MediaTagProgress> report) : IProgress<MediaTagProgress>
     { public void Report(MediaTagProgress value) => report(value); }
+
+    private sealed class PrivacyCancellation : IDisposable
+    {
+        private readonly AppSettings _settings;
+        private readonly CancellationTokenSource _operation;
+        public CancellationToken Token => _operation.Token;
+        public PrivacyCancellation(AppSettings settings, CancellationToken ct)
+        {
+            _settings = settings; _operation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _settings.NsfwContentChanged += Changed;
+        }
+        private void Changed(object? sender, EventArgs args)
+        {
+            if (_settings.EnableNsfwContent) return;
+            try { _operation.Cancel(); }
+            catch (ObjectDisposedException) { } // Completion can unsubscribe while an event invocation is already queued.
+        }
+        public void Dispose() { _settings.NsfwContentChanged -= Changed; _operation.Dispose(); }
+    }
 }

@@ -40,12 +40,12 @@ public sealed partial class FolderClassificationWindow
     {
         _savedRules.Clear(); foreach (var rule in saved) _savedRules.Add(rule);
         _savedSelector.SelectedItem = _savedRules.FirstOrDefault(rule => rule.Id == selectedId) ?? _savedRules.FirstOrDefault();
-        RefreshRuleActions();
+        RefreshSavedVisibility();
     }
 
     private void ApplyActiveRules(FolderClassificationRule[] active, string? selectedId = null)
     {
-        _rules.Clear(); foreach (var rule in active) _rules.Add(rule);
+        _rules.Clear(); foreach (var rule in active.Where(RuleVisible)) _rules.Add(rule);
         _ruleList.SelectedItem = _rules.FirstOrDefault(rule => rule.Id == selectedId) ?? _rules.FirstOrDefault();
         InvalidateAnalysis();
     }
@@ -53,10 +53,10 @@ public sealed partial class FolderClassificationWindow
     private void RefreshRuleActions()
     {
         _saveRule.IsEnabled = !_busy && _ruleList.SelectedItem is FolderClassificationRule;
-        var currentIsDefault = SameRules(_rules, _defaultRules);
+        var currentIsDefault = SameRules(_rules, VisibleDefaults);
         _setDefault.IsEnabled = _restoreDefault.IsEnabled = !_busy && !currentIsDefault;
         _useSaved.IsEnabled = _deleteSaved.IsEnabled = !_busy && _savedSelector.SelectedItem is FolderClassificationRule;
-        _defaultSummary.Text = Localization.Format($"默认分类：{(_defaultRules.Length == 0 ? Localization.Text("仅按类型分类") : string.Join(" · ", _defaultRules.Select(rule => rule.Name)))}");
+        _defaultSummary.Text = Localization.Format($"默认分类：{(VisibleDefaults.Length == 0 ? Localization.Text("仅按类型分类") : string.Join(" · ", VisibleDefaults.Select(rule => rule.Name)))}");
     }
 
     private Task SaveSelectedRuleAsync()
@@ -78,14 +78,11 @@ public sealed partial class FolderClassificationWindow
     private void RestoreDefaultRules()
     {
         if (_busy) return;
-        ApplyActiveRules(_defaultRules); _status.Text = Localization.Text("已载入默认分类");
+        ApplyActiveRules(VisibleDefaults); _status.Text = Localization.Text("已载入默认分类");
     }
 
     private static bool SameRules(IEnumerable<FolderClassificationRule> first, IEnumerable<FolderClassificationRule> second)
-        => first.Select(rule => (rule.Id, rule.Name, rule.NippleDetection, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
-            Categories: string.Join("\n", rule.Categories.Select(category => category.Id + "\t" + category.Name + "\t" + category.Description))))
-        .SequenceEqual(second.Select(rule => (rule.Id, rule.Name, rule.NippleDetection, rule.UseAutomaticSettings, rule.Threshold, rule.Margin, rule.MinimumAgreement,
-            Categories: string.Join("\n", rule.Categories.Select(category => category.Id + "\t" + category.Name + "\t" + category.Description)))));
+        => System.Text.Json.JsonSerializer.Serialize(first.ToArray()) == System.Text.Json.JsonSerializer.Serialize(second.ToArray());
 
     private FolderClassificationRule[] ReplaceSelectedGroup(FolderClassificationRule rule)
     {
@@ -128,6 +125,7 @@ public sealed partial class FolderClassificationWindow
 
     private async Task EditRuleAsync(FolderClassificationRule? existing)
     {
+        if (existing is { ByDuration: true }) { await Ui.Message(this, "视频长短", "视频长短按源文件时长分类，无需填写画面描述。"); return; }
         var dialog = new Window { Title = "分类设置", Width = 760, Height = 560, MinWidth = 650, MinHeight = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var name = Ui.Input(existing?.Name ?? ""); Localization.SetIsUserText(name, true);
@@ -194,14 +192,17 @@ public sealed partial class FolderClassificationWindow
         var advancedHint = Ui.Text("数值越高，分类越谨慎。", "caption");
         advancedBody.Children.Add(limits); advancedBody.Children.Add(advancedHint);
         var makeDefault = new CheckBox { Content = "设为默认分类" }; advancedBody.Children.Add(makeDefault);
+        var privateGroup = new CheckBox { Content = "NSFW 私密分组", IsChecked = existing is not null && MediaPrivacy.IsSensitiveRule(existing), IsVisible = _settings.EnableNsfwContent };
+        advancedBody.Children.Add(privateGroup);
         ToolTip.SetTip(makeDefault, Localization.Text("将当前分类规则设为下次打开时的默认分类"));
         var advanced = new Expander { Header = "高级设置", Content = advancedBody, HorizontalAlignment = HorizontalAlignment.Stretch };
         void UpdateMode()
         {
             var automatic = mode.SelectedIndex == 0;
             var detectsNipples = CurrentDetection() is not null;
-            detectionHint.IsVisible = detectsNipples; fieldPanels[2].IsVisible = !detectsNipples;
-            limits.ColumnDefinitions = new(detectsNipples ? "*,*" : "*,*,*");
+            var usesTags = existing?.UsesTagScores == true;
+            detectionHint.IsVisible = detectsNipples; fieldPanels[2].IsVisible = !detectsNipples && existing?.UsePeakEvidence != true;
+            limits.ColumnDefinitions = new(detectsNipples || existing?.UsePeakEvidence == true ? "*,*" : "*,*,*");
             fieldLabels[0].Text = Localization.Text(detectsNipples ? "露点判定分数" : "最低匹配分数");
             fieldLabels[1].Text = Localization.Text(detectsNipples ? "待确认分数范围" : "与其他类别的最小差距");
             for (var index = 0; index < 2; index++)
@@ -209,20 +210,23 @@ public sealed partial class FolderClassificationWindow
                     foreach (var control in parameter.Children) Avalonia.Automation.AutomationProperties.SetName(control, fieldLabels[index].Text);
             advancedHint.Text = Localization.Text(detectsNipples ? "判定分数下方的这段范围进入待确认。" : "数值越高，分类越谨慎。");
             ToolTip.SetTip(threshold, Localization.Text(detectsNipples ? "露点标签分数达到此值时，归入露点。"
-                : "匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
+                : usesTags ? "标签分数达到此值时参与分类。" : "匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
             ToolTip.SetTip(margin, Localization.Text(detectsNipples ? "判定分数下方的这段范围进入待确认。"
                 : "第一名与第二名的分数差距小于此值时，画面进入待确认。"));
             if (automatic)
             {
-                threshold.Value = (decimal)(detectsNipples ? FolderNippleClassification.DefaultThreshold : FolderClassificationRule.DefaultThreshold);
+                threshold.Value = (decimal)(detectsNipples ? FolderNippleClassification.DefaultThreshold : usesTags ? .4 : FolderClassificationRule.DefaultThreshold);
                 margin.Value = (decimal)(detectsNipples ? FolderNippleClassification.DefaultReviewRange : FolderClassificationRule.DefaultMargin);
-                agreement.Value = (decimal)(FolderClassificationRule.DefaultMinimumAgreement * 100);
+                agreement.Value = (decimal)((usesTags ? .6 : FolderClassificationRule.DefaultMinimumAgreement) * 100);
             }
-            add.IsEnabled = categories.Count < 12 && !detectsNipples;
+            add.IsEnabled = categories.Count < 12 && !detectsNipples && !usesTags;
             limits.IsEnabled = !automatic; advanced.IsExpanded = !automatic;
         }
         updateSettings = UpdateMode;
         foreach (var category in categories) category.Name.TextChanged += (_, _) => UpdateMode();
+        dialog.Closed += (_, _) => _settings.NsfwContentChanged -= ClosePrivateEditor;
+        void ClosePrivateEditor(object? sender, EventArgs args) { if (!_settings.EnableNsfwContent) dialog.Close(); }
+        _settings.NsfwContentChanged += ClosePrivateEditor;
         mode.SelectionChanged += (_, _) => UpdateMode(); UpdateMode(); body.Children.Add(advanced);
         if (existing?.Id == "age-appearance") body.Children.Add(Ui.Text("外观年龄段是粗略判断，无法确认真实年龄。多人或不清晰画面请人工核对。", "caption"));
         var errorText = Ui.Text("", "caption"); errorText.IsVisible = false; body.Children.Add(errorText);
@@ -245,15 +249,21 @@ public sealed partial class FolderClassificationWindow
                 var choices = categories.Select(category => new FolderClassificationCategory(category.Id, category.Name.Text?.Trim() ?? "",
                     string.IsNullOrWhiteSpace(category.Description.Text) && detection is not null
                         ? category.Id == detection.ExposedCategoryId ? "画面中能看到裸露乳头。" : "乳头未露出或被衣物遮住。"
-                        : string.Join(" ", (category.Description.Text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))).ToArray();
+                        : string.Join(" ", (category.Description.Text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
+                    { Tags = existing?.Categories.FirstOrDefault(item => item.Id == category.Id)?.Tags ?? [],
+                        SupersededBy = existing?.Categories.FirstOrDefault(item => item.Id == category.Id)?.SupersededBy.Where(id => categories.Any(other => other.Id == id)).ToArray() ?? [] }).ToArray();
                 var rule = new FolderClassificationRule(existing?.Id ?? Guid.NewGuid().ToString("N"), name.Text?.Trim() ?? "", choices)
                 {
                     NippleDetection = detection,
+                    IsNsfw = privateGroup.IsChecked == true || detection is not null,
+                    FallbackCategoryId = choices.Any(category => category.Id == existing?.FallbackCategoryId) ? existing?.FallbackCategoryId : null,
+                    UsePeakEvidence = existing?.UsePeakEvidence == true,
                     UseAutomaticSettings = mode.SelectedIndex == 0,
                     Threshold = (double)(threshold.Value ?? (decimal)FolderClassificationRule.DefaultThreshold),
                     Margin = (double)(margin.Value ?? (decimal)FolderClassificationRule.DefaultMargin),
                     MinimumAgreement = (double)(agreement.Value ?? (decimal)(FolderClassificationRule.DefaultMinimumAgreement * 100)) / 100
                 };
+                if (!RuleVisible(rule)) { ShowError(Localization.Text("请先在设置中启用 NSFW 分组与标签。")); return; }
                 var activeRules = ActiveWith(rule); var savedRules = SavedWith(rule);
                 var defaults = makeDefault.IsChecked == true ? activeRules : DefaultsWith(rule);
                 SavePreferences(defaults, savedRules); dialog.Close(new RuleEditResult(rule, makeDefault.IsChecked == true));
@@ -275,7 +285,7 @@ public sealed partial class FolderClassificationWindow
         foreach (var path in _results.Keys.ToArray())
         {
             var previous = _results[path];
-            var classified = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m));
+            var classified = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
             _results[path] = FolderClassification.KeepManual(classified, previous);
         }
         foreach (var entry in _entries) UpdateEntry(entry);

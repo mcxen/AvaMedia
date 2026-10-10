@@ -7,6 +7,7 @@ public sealed partial class MediaAiWindow
 {
     private sealed record ResultTag(string Label, string Category, double Score, string ScoreKind = "score", string Model = ModelCatalog.JoyTagId, string[]? RawTags = null);
     private WordCandidate[] _libraryCandidates = [];
+    private HashSet<string> _privateLibraryLabels = [];
     private readonly CheckBox _onlyLibrary = new() { Content = "仅显示所选词库" };
     private readonly TextBlock _librarySummary = Ui.Text("", "caption");
     private WordCandidate[] SemanticLibraryCandidates => _libraryCandidates.Where(entry => !entry.Supports(WordLibraryTarget.JoyTag)).ToArray();
@@ -17,7 +18,9 @@ public sealed partial class MediaAiWindow
     {
         try
         {
-            _libraryCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.JoyTag, includeSemantic: ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported);
+            var candidates = new WordLibraryStore().Resolve(WordLibraryTarget.JoyTag, includeSemantic: ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported);
+            _privateLibraryLabels = candidates.Where(MediaPrivacy.IsSensitive).Select(entry => entry.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _libraryCandidates = candidates.Where(entry => _settings.EnableNsfwContent || !MediaPrivacy.IsSensitive(entry)).ToArray();
             var semanticCount = SemanticLibraryCandidates.Length;
             _librarySummary.Text = Localization.Format($"已选 {_libraryCandidates.Length} 个标签 · 语义候选 {semanticCount} 个");
             _librarySummary.IsVisible = _libraryCandidates.Length > 0;
@@ -33,7 +36,7 @@ public sealed partial class MediaAiWindow
     }
     private async Task OpenTagGroupsAsync()
     {
-        await new WordLibraryWindow(WordLibraryTarget.JoyTag, includeSemantic: ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported).ShowDialog(this);
+        await new WordLibraryWindow(WordLibraryTarget.JoyTag, includeSemantic: ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported, settings: _settings).ShowDialog(this);
         if (_closed) return;
         ReloadWordCandidates(); RefreshDisplayedResults();
         if (_results.Values.Any(result => SemanticLibraryCandidates.Any(entry =>
@@ -59,7 +62,8 @@ public sealed partial class MediaAiWindow
         IEnumerable<ResultTag> tags = JoyCandidates(result).Concat(SceneCandidates(result)).Where(tag => TagQualifies(result, tag));
         if(_editedTags.TryGetValue(result.Path,out var edited))tags=edited;
         if (model is not null) tags = tags.Where(tag => tag.Model == model);
-        return MediaTagText.NormalizeLabels(tags.Select(tag => new MediaTagTextLabel(tag.Label, tag.Category, tag.Score, tag.ScoreKind, tag.Model, tag.RawTags ?? [])))
+        return MediaTagText.NormalizeLabels(tags.Where(tag => _settings.EnableNsfwContent || !MediaPrivacy.IsSensitiveLabel(tag.Label, tag.Category, tag.RawTags))
+            .Select(tag => new MediaTagTextLabel(tag.Label, tag.Category, tag.Score, tag.ScoreKind, tag.Model, tag.RawTags ?? [])))
             .Select(tag => new ResultTag(tag.Label, tag.Category, tag.Score, tag.ScoreKind, tag.Model, tag.Tags));
     }
     private IEnumerable<ResultTag> FilterResultTags(IEnumerable<ResultTag> tags, bool search)

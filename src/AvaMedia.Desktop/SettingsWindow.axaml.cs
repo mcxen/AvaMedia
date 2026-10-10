@@ -32,6 +32,24 @@ public sealed partial class SettingsWindow : Window
         foreach (var input in new[] { ThreadsInput, JpegQualityInput, WebpQualityInput, ParallelInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
+        _values.Add(() => NsfwContentInput.IsChecked);
+        var privacyValueIndex = _values.Count - 1;
+        NsfwContentInput.IsCheckedChanged += (_, _) =>
+        {
+            if (_initializing) return;
+            var previous = _settings.EnableNsfwContent;
+            try
+            {
+                _settings.EnableNsfwContent = NsfwContentInput.IsChecked == true;
+                Applied?.Invoke(this, EventArgs.Empty); _applied = true;
+                _appliedValues[privacyValueIndex] = NsfwContentInput.IsChecked; MarkDirty();
+            }
+            catch (Exception error)
+            {
+                _settings.EnableNsfwContent = previous; _initializing = true; NsfwContentInput.IsChecked = previous; _initializing = false;
+                StatusText.Text = error.Message; StatusText.IsVisible = true;
+            }
+        };
         AutoUpdateInput.IsCheckedChanged += (_, _) => SilentUpdateInput.IsEnabled = AutoUpdateInput.IsChecked == true;
         InitializeProviderManagement();
         _appliedValues=_values.Select(value=>value()).ToArray();
@@ -71,6 +89,7 @@ public sealed partial class SettingsWindow : Window
         draft.CloseToTray = CloseToTrayInput.IsChecked == true;
         draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
         draft.EnableBetaFeatures = BetaInput.IsChecked == true; draft.AutoDownloadRepairModel = AutoRepairModelInput.IsChecked == true;
+        draft.EnableNsfwContent = NsfwContentInput.IsChecked == true;
         draft.PrewarmTagModels = _modelWarmChoice.SelectedIndex == 0;
         draft.TagModelIdleMinutes = ModelIdleChoices[Math.Clamp(_modelIdleChoice.SelectedIndex, 0, ModelIdleChoices.Length - 1)];
         draft.OnlineAi = _providerDraft.Clone();
@@ -105,6 +124,7 @@ public sealed partial class SettingsWindow : Window
         CloseToTrayInput.IsChecked = source.CloseToTray;
         AutoUpdateInput.IsChecked = source.AutoUpdate; SilentUpdateInput.IsChecked = source.SilentUpdate;
         BetaInput.IsChecked = source.EnableBetaFeatures; AutoRepairModelInput.IsChecked = source.AutoDownloadRepairModel;
+        NsfwContentInput.IsChecked = source.EnableNsfwContent;
         PopulateProviders(source.OnlineAi);
         PopulateModelSource(source);
         PopulateModelLifecycle(source);

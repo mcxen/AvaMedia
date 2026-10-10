@@ -11,6 +11,6 @@ public sealed partial class SettingsWindow
     }
     private async void ManageWordLibraries(object? sender, RoutedEventArgs args)
     {
-        await new WordLibraryWindow().ShowDialog(this);
+        await new WordLibraryWindow(settings: _settings).ShowDialog(this);
     }
 }

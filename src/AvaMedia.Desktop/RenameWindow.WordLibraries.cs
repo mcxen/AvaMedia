@@ -13,7 +13,7 @@ public sealed partial class RenameWindow
     {
         _semanticParameters.Children.Add(Ui.Button("从词库添加…", async () =>
         {
-            var picker = new WordLibraryWindow(WordLibraryTarget.Semantic);
+            var picker = new WordLibraryWindow(WordLibraryTarget.Semantic, settings: _settings);
             await picker.ShowDialog(this);
             if (_closed) return;
             ReloadSemanticCandidates();
@@ -26,7 +26,7 @@ public sealed partial class RenameWindow
     {
         try
         {
-            _semanticCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.Semantic);
+            _semanticCandidates = new WordLibraryStore().Resolve(WordLibraryTarget.Semantic).Where(entry => _settings.EnableNsfwContent || !MediaPrivacy.IsSensitive(entry)).ToArray();
             _semanticLibraryError = null;
             _semanticLibrarySummary.Text = Localization.Format($"词库候选 {_semanticCandidates.Length} 个");_semanticLibrarySummary.IsVisible=_semanticCandidates.Length>0;
         }

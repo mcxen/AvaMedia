@@ -60,6 +60,7 @@ public sealed partial class MediaAiWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
         BuildInterface();
+        _settings.NsfwContentChanged += PrivacyChanged; UpdatePrivacyScopes();
         var queueState=new Avalonia.Threading.DispatcherTimer { Interval=TimeSpan.FromSeconds(1) };
         queueState.Tick+=(_,_)=>UpdateActions();Opened+=(_,_)=>queueState.Start();Closed+=(_,_)=>queueState.Stop();
         InitializeWordLibraries();
@@ -68,7 +69,7 @@ public sealed partial class MediaAiWindow : Window
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _busy ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (!_busy) await AddFoldersAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); _lifetime.Cancel(); };
-        Closed += (_, _) => { try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
+        Closed += (_, _) => { _settings.NsfwContentChanged -= PrivacyChanged; try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
         AddPaths(initial ?? []);
     }
     public void ImportPaths(IEnumerable<string> paths) => AddPaths(paths);
@@ -108,7 +109,7 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var store = new ModelStore();
-            var required = _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
+            var required = _settings.EnableNsfwContent && _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
             var missing = new List<string>();
             foreach (var id in required) if (!await store.IsInstalledAsync(id, ct: _lifetime.Token)) missing.Add(id);
             var installed = missing.Count == 0;
@@ -156,7 +157,7 @@ public sealed partial class MediaAiWindow : Window
     private async Task EnsureTagModelAsync(CancellationTokenSource operation)
     {
         var store = new ModelStore();
-        var required = _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
+        var required = _settings.EnableNsfwContent && _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
         foreach (var id in required)
         {
             if (await store.IsInstalledAsync(id, ct: operation.Token)) continue;
@@ -206,7 +207,7 @@ public sealed partial class MediaAiWindow : Window
             if (_closed || _operation != operation) return;
             if (update.Activity is { } activity)
             {
-                _activity.Update(activity);
+                _activity.Update(MediaPrivacy.Filter(activity, _settings.EnableNsfwContent));
                 _status.Text = $"{update.Completed} / {update.Total} · {Path.GetFileName(update.Path)}";
             }
             var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, update.Path)); if (entry is null) return;
@@ -322,7 +323,7 @@ public sealed partial class MediaAiWindow : Window
             RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true, CaptionPrompt: _captionPrompt)
         {
             SemanticCandidates = SemanticLibraryCandidates,
-            RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _realPeople.IsChecked == true,
+            RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _settings.EnableNsfwContent && _realPeople.IsChecked == true,
             CaptionSystemPrompt = _captionSystemPrompt, CaptionUseFrameTools = _captionUseFrameTools,
             CaptionLocalModelId = _captionLocalModelId
         };
@@ -449,11 +450,15 @@ public sealed partial class MediaAiWindow : Window
             var threshold = Number(_threshold); SavePreferences();
             var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
             if (file is null) return;
-            var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = results.Select(result => new
-            { result.Path, result.Backend, result.FallbackReason, result.SampledFrames, result.InferredFrames,
-                result.RealPeopleOnly, result.Nsfw,
-                DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = NsfwModeration.Evaluate(result, threshold),
-                Tags = ResultTags(result).ToArray(), result.DurationSeconds, Vocabulary = result.Scores.Select(score => score.Tag).ToArray(), Evidence=result.Frames, result.Scenes, result.SceneError, result.Caption, result.CaptionModel, result.CaptionError }).ToArray() };
+            var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = results.Select(result =>
+            {
+                var safe = MediaPrivacy.Filter(result, _settings.EnableNsfwContent, _privateLibraryLabels);
+                return new { safe.Path, safe.Backend, safe.FallbackReason, safe.SampledFrames, safe.InferredFrames,
+                    safe.RealPeopleOnly, safe.Nsfw,
+                    DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = _settings.EnableNsfwContent ? NsfwModeration.Evaluate(result, threshold) : null,
+                    Tags = ResultTags(result).ToArray(), safe.DurationSeconds, Vocabulary = safe.Scores.Select(score => score.Tag).ToArray(), Evidence = safe.Frames,
+                    safe.Scenes, safe.SceneError, safe.Caption, safe.CaptionModel, safe.CaptionError };
+            }).ToArray() };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
         catch (Exception error) { await Ui.Message(this, "导出失败", error.Message); }

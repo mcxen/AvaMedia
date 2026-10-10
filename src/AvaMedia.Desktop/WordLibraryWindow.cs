@@ -15,6 +15,7 @@ namespace AvaMedia.Desktop;
 public sealed class WordLibraryWindow : Window
 {
     private readonly WordLibraryStore _store = new();
+    private readonly AppSettings _settings;
     private readonly WordLibraryTarget? _target;
     private readonly bool _includeSemantic;
     private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -44,8 +45,10 @@ public sealed class WordLibraryWindow : Window
         public bool Selected { get => _selected; set => Set(ref _selected, value); }
     }
 
-    public WordLibraryWindow(WordLibraryTarget? target = null, bool includeSemantic = false)
+    public WordLibraryWindow(WordLibraryTarget? target = null, bool includeSemantic = false, AppSettings? settings = null)
     {
+        _settings = settings ?? new Storage().LoadSettings();
+        _settings.NsfwContentChanged += PrivacyChanged;
         _target = target; _includeSemantic = includeSemantic;
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
@@ -102,7 +105,7 @@ public sealed class WordLibraryWindow : Window
         };
         _search.TextChanged += (_, _) => Filter(); _selectedOnly.IsCheckedChanged += (_, _) => Filter();
         Localization.Changed += WordLanguageChanged;
-        Closed += (_, _) => Localization.Changed -= WordLanguageChanged;
+        Closed += (_, _) => { Localization.Changed -= WordLanguageChanged; _settings.NsfwContentChanged -= PrivacyChanged; };
         Opened += async (_, _) =>
         {
             try
@@ -122,7 +125,7 @@ public sealed class WordLibraryWindow : Window
                 var view = new WordLibraryView(library.Id, _categoryValue);
                 if (target is not null)
                 {
-                    var valid = _catalog.SelectMany(item => item.Entries.Where(entry => _includeSemantic || entry.Supports(target.Value))
+                    var valid = _store.Libraries().SelectMany(item => item.Entries.Where(entry => _includeSemantic || entry.Supports(target.Value))
                         .Select(entry => new SelectedWord(item.Id, entry.Label))).ToHashSet();
                     _store.SaveSelection(target.Value, _selected.Where(valid.Contains).ToArray(), view);
                 }
@@ -131,11 +134,17 @@ public sealed class WordLibraryWindow : Window
             catch (Exception error) { args.Cancel = true; await Ui.Message(this, "词库保存失败", error.Message); }
         };
     }
+    private void PrivacyChanged(object? sender, EventArgs args) => Reload();
     private void WordLanguageChanged(object? sender, EventArgs args) => RefreshRows();
     private void Reload(string? id = null)
     {
         id ??= (_libraries.SelectedItem as WordLibrary)?.Id;
-        _catalog = _store.Libraries(); _libraries.ItemsSource = _catalog;
+        _catalog = _store.Libraries().Select(library => _settings.EnableNsfwContent ? library : library with
+        {
+            Entries = library.Entries.Where(entry => !MediaPrivacy.IsSensitive(entry)).ToArray(),
+            Name = MediaPrivacy.IsSensitiveText(library.Name) ? "人物与姿态" : library.Name,
+            Source = MediaPrivacy.IsSensitiveText(library.Source) ? "内置词库" : library.Source
+        }).Where(library => library.Entries.Length > 0).ToArray(); _libraries.ItemsSource = _catalog;
         _libraries.SelectedItem = _catalog.FirstOrDefault(library => library.Id == id) ?? _catalog[0];
     }
     private void RefreshRows()
@@ -175,7 +184,7 @@ public sealed class WordLibraryWindow : Window
     private void Filter()
     { if (!_updating) { _list.ItemsSource = VisibleRows(); UpdateCount(); } }
     private void UpdateCount() => _count.Text = _target is null ? Localization.Format($"当前显示 {VisibleRows().Length} 个词")
-        : Localization.Format($"已选 {_selected.Count} 个词 · 当前显示 {VisibleRows().Length} · 上限 {WordLibraryCatalog.MaximumCandidates}");
+        : Localization.Format($"已选 {_catalog.Sum(library => library.Entries.Count(entry => _selected.Contains(new(library.Id, entry.Label))))} 个词 · 当前显示 {VisibleRows().Length} · 上限 {WordLibraryCatalog.MaximumCandidates}");
     private void SelectVisible(bool value)
     {
         _updating = true;
@@ -191,7 +200,13 @@ public sealed class WordLibraryWindow : Window
     {
         var editor = new WordLibraryEditorWindow(library);
         if (await editor.ShowDialog<WordLibrary?>(this) is not { } updated) return;
-        try { _store.Save(updated); Reload(updated.Id); }
+        try
+        {
+            var original = _store.Libraries().FirstOrDefault(item => item.Id == updated.Id);
+            if (!_settings.EnableNsfwContent && original is { BuiltIn: false })
+                updated = updated with { Entries = updated.Entries.Concat(original.Entries.Where(MediaPrivacy.IsSensitive)).DistinctBy(entry => entry.Label).ToArray() };
+            _store.Save(updated); Reload(updated.Id);
+        }
         catch (Exception error) { await Ui.Message(this,"词库保存失败",error.Message); }
     }
     private async Task ImportAsync()

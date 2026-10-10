@@ -12,6 +12,7 @@ public sealed partial class FolderClassificationWindow
         var paths = _entries.Where(entry => entry.Include && (!retryOnly || !_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path))).Select(entry => entry.Path).ToArray();
         if (paths.Length == 0) return;
         var rules = _rules.ToArray(); FolderClassification.ValidateRules(rules);
+        var metadataOnly = rules.Length > 0 && rules.All(rule => rule.ByDuration);
         var options = new MediaTagOptions((int)(_frames.Value ?? 12), _gpu.IsChecked == true)
         { SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
         options.Validate();
@@ -27,7 +28,7 @@ public sealed partial class FolderClassificationWindow
                 { _status.Text = Localization.Text("已取消。可移除语义规则后只识别标签。"); return; }
                 await SemanticModelConsent.DownloadAsync(DownloadProgress(), operation.Token);
             }
-            if (!await store.IsInstalledAsync(ModelCatalog.JoyTagId, ct: operation.Token))
+            if (!metadataOnly && !await store.IsInstalledAsync(ModelCatalog.JoyTagId, ct: operation.Token))
                 await store.DownloadAsync(ModelCatalog.JoyTagId, DownloadProgress(), operation.Token);
             _attempted = true; SavePreferences(); InvalidatePlan();
             foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
@@ -35,20 +36,20 @@ public sealed partial class FolderClassificationWindow
             var progress = new Progress<MediaTagProgress>(update =>
             {
                 if (_closed || _operation != operation) return;
-                if (update.Activity is { } activity) _activity.Update(activity);
+                if (update.Activity is { } activity) _activity.Update(MediaPrivacy.Filter(activity, _settings.EnableNsfwContent));
                 _status.Text = $"{update.Completed} / {update.Total} · {Path.GetFileName(update.Path)}";
                 var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, update.Path));
                 if (entry is null) return;
                 if (update.Result is { } result)
-                { _results[result.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result, rules, threshold), previous.GetValueOrDefault(result.Path)); _analysisPending.Remove(result.Path); UpdateEntry(entry); }
+                { _results[result.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result, _rules.ToArray(), threshold, _settings.EnableNsfwContent), previous.GetValueOrDefault(result.Path)); _analysisPending.Remove(result.Path); UpdateEntry(entry); }
                 else if (update.Error is { } error) { entry.Status = Localization.Text("失败"); entry.Details = error; }
                 else entry.Status = Localization.Text(update.Activity?.Stage ?? "处理中");
                 if (_files.SelectedItem == entry && (update.Result is not null || update.Error is not null)) RenderDetails();
             });
-            var results = await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);
+            var results = metadataOnly ? await ReadDurationsAsync(paths, operation.Token) : await new MediaTagService(_engine).AnalyzeAsync(paths, options, progress, operation.Token);
             if (_closed) return;
             foreach (var result in results)
-            { _results[result.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result, rules, threshold), previous.GetValueOrDefault(result.Path)); _analysisPending.Remove(result.Path); }
+            { _results[result.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result, _rules.ToArray(), threshold, _settings.EnableNsfwContent), previous.GetValueOrDefault(result.Path)); _analysisPending.Remove(result.Path); }
             foreach (var entry in _entries) UpdateEntry(entry);
             var failed = paths.Count(path => !_results.ContainsKey(path));
             var review = results.Count(result => _results[result.Path].Decisions.Any(decision => decision.NeedsReview));
@@ -75,7 +76,7 @@ public sealed partial class FolderClassificationWindow
                     if (!previous.TryGetValue(path, out var preserved) || !preserved.Decisions.Any(decision => decision.Manual)) continue;
                     try
                     {
-                        MediaTagService.ValidateSource(preserved.Media); _results[path] = preserved;
+                        MediaTagService.ValidateSource(preserved.Media); _results[path] = FolderClassification.KeepManual(FolderClassification.Classify(preserved.Media, _rules.ToArray(), threshold, _settings.EnableNsfwContent), preserved);
                         if (_entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, path)) is { } row)
                         { var state = row.Status; UpdateEntry(row); row.Status = state; }
                     }
@@ -98,13 +99,37 @@ public sealed partial class FolderClassificationWindow
         }
     }
 
+    private async Task<IReadOnlyList<MediaTagResult>> ReadDurationsAsync(string[] paths, CancellationToken ct)
+    {
+        var results = new List<MediaTagResult>();
+        foreach (var path in paths)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var source = new FileInfo(path);
+                var length = source.Length; var modified = source.LastWriteTimeUtc;
+                var seconds = VideoFormats.IsVideo(path) ? (await _engine.Probe(path, ct)).Duration : 0;
+                var media = new MediaTagResult(path, [], 0, 0, "文件信息", length, modified) { DurationSeconds = seconds };
+                MediaTagService.ValidateSource(media); results.Add(media);
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                if (_entries.FirstOrDefault(entry => entry.Path == path) is { } entry)
+                { entry.Status = Localization.Text("失败"); entry.Details = error.Message; }
+            }
+            _status.Text = $"{results.Count} / {paths.Length} · {Path.GetFileName(path)}";
+        }
+        return results;
+    }
+
     private async Task PreviewAsync()
     {
         var selected = _entries.Where(entry => entry.Include).ToArray();
         if (selected.Length == 0) throw new ArgumentException("请勾选要整理的文件。");
         if (selected.Any(entry => !_results.ContainsKey(entry.Path))) throw new ArgumentException("部分勾选文件尚未分析完成，请重试或取消勾选。");
         if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择分类目录。");
-        var files = selected.Select(entry => _results[entry.Path]).ToArray();
+        var files = selected.Select(entry => _results[entry.Path] with { Media = MediaPrivacy.Filter(_results[entry.Path].Media, _settings.EnableNsfwContent, PrivateSemanticLabels) }).ToArray();
         var output = Path.GetFullPath(_output.Text);
         var split = _splitTypes.IsChecked == true; var writeText = _writeText.IsChecked == true;
         SetBusy(true);
@@ -238,7 +263,7 @@ public sealed partial class FolderClassificationWindow
         var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出分类结果"), SuggestedFileName = "folder-classification.json", DefaultExtension = "json" });
         if (file is null) return;
         var report = new { Rules = _rules.ToArray(), VideoFrames = _frames.Value, TagThreshold = _tagThreshold.Value,
-            OutputFolder = _output.Text, Plan = _plan, Results = _results.Values.ToArray() };
+            OutputFolder = _output.Text, Plan = _plan, Results = _results.Values.Select(result => result with { Media = MediaPrivacy.Filter(result.Media, _settings.EnableNsfwContent, PrivateSemanticLabels) }).ToArray() };
         await using var stream = await file.OpenWriteAsync(); stream.SetLength(0);
         await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         _status.Text = Localization.Text("分类结果已导出");

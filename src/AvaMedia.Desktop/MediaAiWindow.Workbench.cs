@@ -65,6 +65,7 @@ public sealed partial class MediaAiWindow
         };
     }
     private IEnumerable<ResultTag> SceneCandidates(MediaTagResult result) => result.Scenes?.Frames.SelectMany(frame => frame.Candidates)
+        .Where(candidate => _settings.EnableNsfwContent || !_privateLibraryLabels.Contains(candidate.Label))
         .Where(candidate => !WordLibraryCatalog.IsSemanticBaseline(candidate.Label)
             && (_onlyLibrary.IsChecked != true || _libraryCandidates.Any(entry => entry.Label.Equals(candidate.Label, StringComparison.OrdinalIgnoreCase))))
         .DistinctBy(candidate => candidate.Label)
@@ -300,7 +301,7 @@ public sealed partial class MediaAiWindow
                 try
                 {
                     await MediaTagText.SaveAsync(report.Result, report.Labels, threshold, sceneThreshold,
-                        sceneMargin, token, _reportSources.GetValueOrDefault(entry.Path));
+                        sceneMargin, token, _reportSources.GetValueOrDefault(entry.Path), _settings.EnableNsfwContent);
                     _reportSources[entry.Path] = entry.Path; saved++; ShowResult(entry, report.Result);
                 }
                 catch (Exception error) when (error is not OperationCanceledException) { failures.Add(entry.Name + " · " + error.Message); }

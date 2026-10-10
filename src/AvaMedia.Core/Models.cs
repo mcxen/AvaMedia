@@ -199,6 +199,13 @@ public sealed partial class AppSettings
     public bool AutoUpdate { get; set; }
     public bool SilentUpdate { get; set; }
     public bool EnableBetaFeatures { get; set; } = true;
+    private bool _enableNsfwContent;
+    public event EventHandler? NsfwContentChanged;
+    public bool EnableNsfwContent
+    {
+        get => _enableNsfwContent;
+        set { if (_enableNsfwContent == value) return; _enableNsfwContent = value; NsfwContentChanged?.Invoke(this, EventArgs.Empty); }
+    }
     public bool AutoDownloadRepairModel { get; set; } = true;
     public bool PrewarmTagModels { get; set; } = true;
     public int TagModelIdleMinutes { get; set; } = 5;
@@ -223,7 +230,7 @@ public sealed partial class AppSettings
     public int WebpQuality { get; set; } = 90;
     public AppSettings Clone()
     {
-        var copy = (AppSettings)MemberwiseClone(); copy.OnlineAi = OnlineAi.Clone(); return copy;
+        var copy = (AppSettings)MemberwiseClone(); copy.NsfwContentChanged = null; copy.OnlineAi = OnlineAi.Clone(); return copy;
     }
     public void CopyFrom(AppSettings source)
     {
@@ -235,6 +242,7 @@ public sealed partial class AppSettings
         CloseToTray=source.CloseToTray;AutoUpdate=source.AutoUpdate;SilentUpdate=source.SilentUpdate;
         EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;ModelSource=source.ModelSource;ModelSourceUrl=source.ModelSourceUrl;
         PrewarmTagModels=source.PrewarmTagModels;TagModelIdleMinutes=source.TagModelIdleMinutes;
+        EnableNsfwContent=source.EnableNsfwContent;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;

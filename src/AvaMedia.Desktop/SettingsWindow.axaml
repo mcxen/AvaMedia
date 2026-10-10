@@ -18,6 +18,15 @@
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="16">
               <StackPanel Spacing="8">
+                <TextBlock Classes="settingsHeading" Text="隐私"/>
+                <Border Classes="settingSection">
+                  <StackPanel Spacing="6">
+                    <ToggleSwitch x:Name="NsfwContentInput" Content="启用 NSFW 分组与标签"/>
+                    <TextBlock Classes="caption" Text="关闭后隐藏成人分组、标签与相关判断；不删除已导出的文件。" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <StackPanel Spacing="8">
                 <TextBlock Classes="settingsHeading" Text="文件保存"/>
                 <Border Classes="settingSection">
                   <StackPanel Spacing="10">

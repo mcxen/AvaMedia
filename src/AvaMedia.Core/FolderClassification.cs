@@ -1,6 +1,11 @@
 namespace AvaMedia.Core;
 
-public sealed record FolderClassificationCategory(string Id, string Name, string Description);
+public sealed record FolderClassificationCategory(string Id, string Name, string Description)
+{
+    // Alternatives are OR; tags within an alternative are AND.
+    public string[][] Tags { get; init; } = [];
+    public string[] SupersededBy { get; init; } = [];
+}
 
 /// <summary>Categories in a group compete for one destination; uncertainty has its own basket.</summary>
 public sealed record FolderClassificationRule(string Id, string Name, FolderClassificationCategory[] Categories)
@@ -9,6 +14,11 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
     public const double DefaultMargin = .04;
     public const double DefaultMinimumAgreement = .8;
     public FolderNippleDetection? NippleDetection { get; init; }
+    public bool IsNsfw { get; init; }
+    public bool ByDuration { get; init; }
+    public string? FallbackCategoryId { get; init; }
+    public bool UsePeakEvidence { get; init; }
+    public bool UsesTagScores => Categories.Any(category => category.Tags.Length > 0);
     public bool UseAutomaticSettings { get; init; } = true;
     public double Threshold { get; init; } = DefaultThreshold;
     public double Margin { get; init; } = DefaultMargin;
@@ -34,6 +44,17 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
         if (Categories.Select(category => category.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != Categories.Length
             || Categories.Select(category => category.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != Categories.Length)
             throw new ArgumentException("同组类别名称或标识重复。");
+        if (FallbackCategoryId is not null && !Categories.Any(category => category.Id == FallbackCategoryId && category.Tags.Length == 0))
+            throw new ArgumentException("其他类别标识无效。");
+        foreach (var category in Categories)
+        {
+            if (category.Tags.Any(alternative => alternative.Length == 0 || alternative.Any(tag => !WordLibraryCatalog.JoyTags.Contains(tag))))
+                throw new ArgumentException("分类包含模型不支持的标签。");
+            if (category.SupersededBy.Any(id => id == category.Id || !Categories.Any(other => other.Id == id)))
+                throw new ArgumentException("分类优先级标识无效。");
+        }
+        if (ByDuration && !Categories.Select(category => category.Id).SequenceEqual(FolderClassificationPresets.DurationCategoryIds))
+            throw new ArgumentException("视频时长类别无效。");
         if (!double.IsFinite(Threshold) || Threshold is < 0 or > 1
             || !double.IsFinite(Margin) || Margin is < 0 or > 1
             || !double.IsFinite(MinimumAgreement) || MinimumAgreement is <= .5 or > 1)
@@ -53,14 +74,14 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
             throw new ArgumentException("分类标识无效。");
     }
 
-    public WordCandidate[] Candidates() => FolderNippleClassification.Resolve(this) is not null ? [] : Categories.Select(category =>
+    public WordCandidate[] Candidates() => ByDuration || UsesTagScores || FolderNippleClassification.Resolve(this) is not null ? [] : Categories.Select(category =>
         new WordCandidate(Label(category.Id), "分类-" + Id, category.Description, [])).ToArray();
 
-    public static IReadOnlyList<FolderClassificationRule> Presets { get; } = [
+    private static IReadOnlyList<FolderClassificationRule> ScenePresets { get; } = [
         new("nipple-visibility", "露点与否", [
             new("exposed", "露点", "画面中能看到裸露乳头。"),
             new("covered", "非露点", "乳头未露出或被衣物遮住。")])
-            { NippleDetection = new("exposed", "covered") },
+            { NippleDetection = new("exposed", "covered"), IsNsfw = true },
         new("scenery", "场景", [
             new("forest", "森林", "A forest or woodland scene with dense trees, leafy canopies, undergrowth or a wooded trail."),
             new("coast", "海边", "A coastal scene showing the ocean, a sandy or rocky beach, sea waves or a seaside shoreline."),
@@ -79,6 +100,7 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
             new("young", "儿童或青少年", "A visible person with the appearance of a child or adolescent, showing a youthful face and body proportions."),
             new("adult", "成年人", "A visible person with the appearance of an adult, showing a mature face without prominent elderly facial features."),
             new("older", "老年人", "A visible person with the appearance of an older adult, showing pronounced age-related wrinkles, grey hair or elderly facial features.")])];
+    public static IReadOnlyList<FolderClassificationRule> Presets { get; } = ScenePresets.Concat(FolderClassificationPresets.Additional).ToArray();
     public static FolderClassificationRule[] DefaultRules() => [Presets.Single(rule => rule.Id == "scenery")];
 }
 
@@ -149,20 +171,22 @@ public static class FolderClassification
             && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
-    public static FolderClassifiedFile Classify(MediaTagResult media, IReadOnlyList<FolderClassificationRule> rules, double tagThreshold)
+    public static FolderClassifiedFile Classify(MediaTagResult media, IReadOnlyList<FolderClassificationRule> rules, double tagThreshold, bool includeNsfw = false)
     {
         ValidateRules(rules);
         if (!double.IsFinite(tagThreshold) || tagThreshold is < 0 or > 1) throw new ArgumentException("标签阈值须为 0–1。");
-        var tags = media.Scores.Where(score => MediaTagService.TagSignal(media, score) >= tagThreshold)
+        var tags = media.Scores.Where(score => (includeNsfw || !MediaPrivacy.IsSensitiveTag(score.Tag)) && MediaTagService.TagSignal(media, score) >= tagThreshold)
             .OrderByDescending(score => MediaTagService.TagSignal(media, score)).Take(80)
             .Select(score => WordLibraryCatalog.TagLabel(score.Tag)).Distinct().ToArray();
-        return new(media, rules.Select(rule => Decide(media, rule)).ToArray(), tags);
+        return new(media, rules.Where(rule => includeNsfw || !MediaPrivacy.IsSensitiveRule(rule)).Select(rule => Decide(media, rule)).ToArray(), tags);
     }
 
     private static FolderClassificationDecision Decide(MediaTagResult media, FolderClassificationRule rule)
     {
+        if (rule.ByDuration) return FolderClassificationPresets.DecideDuration(media, rule);
         if (FolderNippleClassification.Resolve(rule) is { } detection)
             return FolderNippleClassification.Decide(media, rule, detection);
+        if (rule.UsesTagScores) return FolderTagClassification.Decide(media, rule);
         var threshold = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultThreshold : rule.Threshold;
         var margin = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultMargin : rule.Margin;
         var minimumAgreement = rule.UseAutomaticSettings ? FolderClassificationRule.DefaultMinimumAgreement : rule.MinimumAgreement;

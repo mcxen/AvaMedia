@@ -215,7 +215,7 @@ public static class FolderOrganization
             if (decision.Manual) text.Append(" · 人工确认");
             else
             {
-                text.Append(FormattableString.Invariant($" · 采样一致率 {decision.Agreement:P0}"));
+                if (decision.Frames.Count > 0) text.Append(FormattableString.Invariant($" · 采样一致率 {decision.Agreement:P0}"));
                 if (decision.Seconds is { } seconds) text.Append(FormattableString.Invariant($" · {seconds:0.00}s"));
             }
             foreach (var score in decision.Scores)
@@ -223,8 +223,8 @@ public static class FolderOrganization
             text.AppendLine().AppendLine(decision.Evidence);
         }
         text.AppendLine().AppendLine("标签: " + string.Join(" · ", file.Tags));
-        text.AppendLine($"视频采样帧数: {file.Media.SampledFrames}");
-        text.AppendLine("分类来自采样识别，需人工核对。");
+        if (file.Media.SampledFrames > 0)
+        { text.AppendLine($"视频采样帧数: {file.Media.SampledFrames}"); text.AppendLine("分类来自采样识别，需人工核对。"); }
         return text.ToString();
     }
 

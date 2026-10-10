@@ -69,6 +69,12 @@ public partial class MainWindow
             finally { _settings.CopyFrom(prior); }
             throw;
         }
+        if (prior.EnableNsfwContent && !_settings.EnableNsfwContent)
+            foreach (var job in _jobs.Where(job => job.Options.MediaTag is not null))
+            {
+                job.Activity = null;
+                if (MediaPrivacy.IsSensitiveText(job.ProgressDetail)) job.ProgressDetail = "";
+            }
         ApplicationUpdater.Shared.PreferencesChanged(_settings);
         _appliedSettings = _settings.Clone();
         RefreshOutputPath(); Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;

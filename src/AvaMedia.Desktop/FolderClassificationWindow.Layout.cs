@@ -57,14 +57,14 @@ public sealed partial class FolderClassificationWindow
         AddImport("添加图片 / 视频…", async () => await ImportPathsAsync(await Ui.Pick(this, "选择图片或视频")));
         AddImport("重新扫描", ScanAsync);
         AddImport("清空列表", () =>
-        { _inputs.Clear(); _entries.Clear(); _results.Clear(); _analysisPending.Clear(); InvalidatePlan(); RenderDetails(); return Task.CompletedTask; });
+        { _inputs.Clear(); _entries.Clear(); _results.Clear(); _hiddenPrivateResults.Clear(); _analysisPending.Clear(); InvalidatePlan(); RenderDetails(); return Task.CompletedTask; });
         AddImport("全选", () => { SelectEntries(_ => true); return Task.CompletedTask; });
         AddImport("取消全选", () => { SelectEntries(_ => false); return Task.CompletedTask; });
         AddImport("仅选已完成", () => { SelectEntries(entry => _results.ContainsKey(entry.Path)); return Task.CompletedTask; });
         _recursive.Margin = new(8, 0, 0, 0); _imports.Children.Add(_recursive); root.Children.Add(_imports);
         var body = new Grid { ColumnDefinitions = new("260,*,300"), ColumnSpacing = 12 };
         _settingsPanel.Children.Add(Ui.Text("分类规则", "settingsHeading"));
-        _rulesPanel.Children.Add(Ui.Text("每组可含 2–12 类；多组按顺序生成子目录。", "caption"));
+        _rulesPanel.Children.Add(Ui.Text("选择需要的分组，最多同时使用 8 组。", "caption"));
         _ruleList.ItemsSource = _rules;
         _ruleList.ItemTemplate = new FuncDataTemplate<FolderClassificationRule>((rule, _) =>
         {
@@ -73,11 +73,8 @@ public sealed partial class FolderClassificationWindow
         });
         _rulesPanel.Children.Add(_ruleList); _ruleList.SelectedItem = _rules.FirstOrDefault();
         var ruleActions = new WrapPanel();
-        foreach (var preset in FolderClassificationRule.Presets)
-        {
-            var button = Ui.Button(preset.Name, async () => await GuardAsync(() => AddPresetAsync(preset)));
-            ToolTip.SetTip(button, "替换选中的分类组"); button.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(button);
-        }
+        var selectPresets = Ui.Button("选择预设分组…", async () => await GuardAsync(SelectPresetsAsync));
+        selectPresets.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(selectPresets);
         foreach (var (label, action) in new (string, Func<Task>)[] {
             ("添加分类组…", () => EditRuleAsync(null)), ("编辑…", () => EditRuleAsync(_ruleList.SelectedItem as FolderClassificationRule)),
             ("移除", () => { if (_ruleList.SelectedItem is FolderClassificationRule rule) { _rules.Remove(rule); InvalidateAnalysis(); SavePreferences(); } return Task.CompletedTask; }) })

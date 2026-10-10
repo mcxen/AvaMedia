@@ -212,7 +212,7 @@ public sealed partial class FolderClassificationWindow
             var info = new FileInfo(entry.Path);
             if (!info.Exists) throw new FileNotFoundException("源文件不存在。", entry.Path);
             var media = new MediaTagResult(entry.Path, [], 0, 0, "manual", info.Length, info.LastWriteTimeUtc);
-            result = FolderClassification.Classify(media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m));
+            result = FolderClassification.Classify(media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
         }
         MediaTagService.ValidateSource(result.Media);
         _results[entry.Path] = result with { Decisions = result.Decisions.Select(decision => decision.RuleId == rule.Id
@@ -226,7 +226,7 @@ public sealed partial class FolderClassificationWindow
     private void RestoreAutomatic(MediaFileEntry entry, FolderClassificationRule rule)
     {
         if (_busy || !_results.TryGetValue(entry.Path, out var previous)) return;
-        var automatic = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m));
+        var automatic = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
         _results[entry.Path] = previous with { Decisions = previous.Decisions.Select(decision => decision.RuleId == rule.Id
             ? automatic.Decisions.First(item => item.RuleId == rule.Id) : decision).ToArray() };
         _basketId = AllBasket; UpdateEntry(entry); InvalidatePlan(); RenderBoard();

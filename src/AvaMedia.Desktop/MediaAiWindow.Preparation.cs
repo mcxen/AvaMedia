@@ -60,7 +60,7 @@ public sealed partial class MediaAiWindow
     private void UpdateModelPreparationActions()
     {
         if (_runtimeModels.Count == 0) return;
-        _runtimeModels[ModelCatalog.NsfwId].IsVisible = _realPeople.IsChecked == true;
+        _runtimeModels[ModelCatalog.NsfwId].IsVisible = _settings.EnableNsfwContent && _realPeople.IsChecked == true;
         _runtimeModels[ModelCatalog.EmbeddingId].IsVisible = NeedsSemanticModel;
         var states = _runtimeModels.Select(item => (Status: MediaTagRuntime.Status(_runtimeStore.Root, item.Key), Visible: item.Value.IsVisible)).ToArray();
         var loading = _warmRequest is not null;
@@ -85,7 +85,7 @@ public sealed partial class MediaAiWindow
         var options = new MediaTagOptions(PreferGpu: _gpu.IsChecked == true, BatchSize: 1, RecognizeScenes: _sceneTags.IsChecked == true)
         {
             SemanticCandidates = SemanticLibraryCandidates,
-            RecognizeNsfw = _realPeople.IsChecked == true
+            RecognizeNsfw = _settings.EnableNsfwContent && _realPeople.IsChecked == true
         };
         return PrepareModelsAsync(options, request, reset);
     }
