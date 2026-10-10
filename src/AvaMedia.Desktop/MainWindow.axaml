@@ -131,9 +131,9 @@
       <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" ToolTip.Tip="任务完成后在主界面右下角显示通知。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <Grid Grid.Column="5" ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Center" Margin="16,0,4,0" ToolTip.Tip="整机 CPU、GPU 占用率">
         <TextBlock Text="CPU" i18n:Localization.IsUserText="True" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
-        <local:RollingPercentage x:Name="CpuUsage" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" AutomationProperties.Name="CPU" Margin="4,0,12,0"/>
+        <local:SplitFlapPercentage x:Name="CpuUsage" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Background="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiDivider}" FontSize="{DynamicResource UiFontCaption}" AutomationProperties.Name="CPU" Margin="4,0,12,0"/>
         <TextBlock Grid.Column="2" Text="GPU" i18n:Localization.IsUserText="True" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
-        <local:RollingPercentage x:Name="GpuUsage" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" AutomationProperties.Name="GPU" Margin="4,0,0,0"/>
+        <local:SplitFlapPercentage x:Name="GpuUsage" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Background="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiDivider}" FontSize="{DynamicResource UiFontCaption}" AutomationProperties.Name="GPU" Margin="4,0,0,0"/>
       </Grid>
       <local:ModelActivityIndicator x:Name="ModelActivity" Grid.Column="6" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center"/>
       <Border Grid.Column="7" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0" Margin="4,0,0,0">
