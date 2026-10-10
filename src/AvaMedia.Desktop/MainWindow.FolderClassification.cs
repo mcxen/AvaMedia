@@ -29,12 +29,7 @@ public partial class MainWindow
             _classificationWindows[job.Id] = window!; AddToolJobs([job], startImmediately: true);
         }, RequestTaskRunAsync, job => { _queue.Stop(job); Save(); Refresh(); },
             () => OpenClassificationWindow(), ShowClassificationTasks, _settings, pauseTask: PauseTask, reserveFiles: _queue.ReserveFiles);
-        window.Moved += mappings =>
-        {
-            var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
-            foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            Save(); Refresh();
-        };
+        window.Moved += SynchronizeFileChanges;
         window.Closed += (_, _) =>
         {
             foreach (var id in _classificationWindows.Where(pair => ReferenceEquals(pair.Value, window)).Select(pair => pair.Key).ToArray())

@@ -18,12 +18,7 @@ public partial class MainWindow
             return Task.CompletedTask;
         }
         var window = new RenameWindow(Engine, _settings, files, manageModels: ManageModels, reserveFiles: _queue.ReserveFiles);
-        window.Renamed += mappings =>
-        {
-            var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
-            foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            Save(); Refresh();
-        };
+        window.Renamed += SynchronizeFileChanges;
         window.Show(this);
         return Task.CompletedTask;
     }

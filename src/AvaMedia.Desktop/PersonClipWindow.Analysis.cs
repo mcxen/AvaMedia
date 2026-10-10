@@ -50,7 +50,7 @@ public sealed partial class PersonClipWindow
             row.Children.Add(Ui.Text(MediaTime.Format(segment!.Start) + " – " + MediaTime.Format(segment.End)));
             var remove=Ui.Button("移除",()=>
             {
-                if(entry.Result is not {} current)return;
+                if(_busy || SelectedTaskActive || entry.Result is not {} current)return;
                 entry.Result=current with { Segments=current.Segments.Where(item=>!ReferenceEquals(item,segment)).ToArray() };RefreshResults();UpdateDetectorSelection();
             });remove.IsEnabled=!_busy && !SelectedTaskActive;Grid.SetColumn(remove,1);row.Children.Add(remove);return row;
         });
@@ -59,7 +59,7 @@ public sealed partial class PersonClipWindow
 
     private async Task ReviewAsync()
     {
-        if (_busy || Selected is not { Result: { } result } entry || result.Segments.Count == 0) return;
+        if (_busy || SelectedTaskActive || Selected is not { Result: { } result } entry || result.Segments.Count == 0) return;
         var editor = new EditorWindow(_engine, entry.Path, result.Segments[0], "quick-workflow", result.Segments);
         try
         {

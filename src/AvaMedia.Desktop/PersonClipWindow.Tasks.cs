@@ -12,7 +12,7 @@ public sealed partial class PersonClipWindow
     private int _detectionRefreshPosted;
     private static bool DetectionTaskActive(Job job) => job.State is JobState.Waiting or JobState.Paused or JobState.Running or JobState.Stopping;
     private static bool DetectionTaskUpdating(Job job) => job.State is JobState.Waiting or JobState.Running or JobState.Stopping;
-    private bool SelectedTaskActive => Selected?.Task is { } job && DetectionTaskUpdating(job);
+    private bool SelectedTaskActive => Selected?.Task is { } job && DetectionTaskActive(job);
 
     public async Task ObserveTaskAsync(Job job)
     {

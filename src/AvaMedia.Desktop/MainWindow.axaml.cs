@@ -45,6 +45,7 @@ public partial class MainWindow : Window
         InitializeOptions();
         RefreshOutputPath();Multithread.IsChecked=_settings.MultiThread;Notify.IsChecked=_settings.NotifyComplete;
         _queue.Changed+=QueueJobChanged;
+        _queue.FilesChanged+=QueueFilesChangedAsync;
         _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();
         InitializeSystemResourceMonitor();
         InitializeModelActivity();
@@ -61,7 +62,7 @@ public partial class MainWindow : Window
     {
         if(feature.Operation==Operation.ImageView)
         {
-            var viewer = new ImageViewerWindow(files); viewer.Show(this); return;
+            var viewer = CreateImageViewerWindow(files); viewer.Show(this); return;
         }
         if(feature.Id=="folder-classification")
         {

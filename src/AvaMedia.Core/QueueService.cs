@@ -15,6 +15,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
     public bool IsExecuting(Job job) { lock (_gate) return _active.ContainsKey(job); }
     public bool IsScheduled(Job job) { lock (_gate) return _active.ContainsKey(job) || _pending.Contains(job); }
     public event Action<Job>? Changed;
+    public event Func<IReadOnlyList<RenameItem>, Task>? FilesChanged;
 
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private void WakeLocked() { _wake.TrySetResult(); _wake = NewSignal(); }
@@ -95,6 +96,24 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
     private bool MutationConflict(Job job) => _active.Keys.Any(active => (job.FeatureId == "batch-rename" || active.FeatureId == "batch-rename")
         && Overlap(JobFiles(job), JobFiles(active)));
 
+    public void ApplyFileChanges(IEnumerable<Job> jobs, IReadOnlyList<RenameItem> mappings)
+    {
+        var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
+        lock (_gate)
+        {
+            foreach (var job in jobs.Concat(_pending).Concat(_active.Keys).Distinct())
+            {
+                // Keep the committed rename plan as the historical operation it describes.
+                if (job.CommittedFileChanges is not null) continue;
+                job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
+                if (job.Options.Rename is { } rename && job.State is JobState.Waiting or JobState.Paused)
+                    job.Options.Rename = rename with { Plan = rename.Plan.Select(item => item with
+                        { Source = map.GetValueOrDefault(item.Source) ?? item.Source }).ToArray() };
+                if (job.State == JobState.Completed && map.TryGetValue(job.Output, out var output)) job.Output = output;
+            }
+        }
+    }
+
     public IDisposable ReserveFiles(IEnumerable<string> paths)
     {
         var files = paths.Where(Path.IsPathFullyQualified).Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
@@ -154,7 +173,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 token.ThrowIfCancellationRequested();
                 if (execution.Stopping) throw new OperationCanceledException(token);
                 job.Activity = null; job.Progress = 0; job.Estimate = null; job.DownloadSpeed = null;
-                job.FileChangesCommitted = false; job.OutputIsPartial = false;
+                job.FileChangesCommitted = false; job.CommittedFileChanges = null; job.OutputIsPartial = false;
                 job.State = execution.Control.IsPaused ? JobState.Paused : JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
             }
             Publish(0);
@@ -189,8 +208,23 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         }
         finally
         {
-            lock (_gate) { _active.Remove(job); WakeLocked(); }
-            execution.Cancellation.Dispose(); Changed?.Invoke(job);
+            try
+            {
+                // Synchronize references before admitting tasks that depend on the renamed files.
+                if (job.CommittedFileChanges is { Length: > 0 } mappings)
+                {
+                    if (FilesChanged is { } handlers)
+                        foreach (Func<IReadOnlyList<RenameItem>, Task> handler in handlers.GetInvocationList())
+                            await handler(mappings).ConfigureAwait(false);
+                    else ApplyFileChanges([], mappings);
+                }
+            }
+            finally
+            {
+                job.CommittedFileChanges = null;
+                lock (_gate) { _active.Remove(job); WakeLocked(); }
+                execution.Cancellation.Dispose(); Changed?.Invoke(job);
+            }
         }
     }
 

@@ -205,7 +205,9 @@ public sealed partial class FolderClassificationWindow : Window
         if (_files.SelectedItem is not MediaFileEntry entry || !File.Exists(entry.Path)) return;
         if (ImageFormats.Supports(entry.Path))
         {
-            var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path);
+            var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path,
+                reserveFiles: _reserveFiles);
+            viewer.Moved += ApplyViewerMoves;
             viewer.Show(this); return;
         }
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(entry.Path) { UseShellExecute = true }); }

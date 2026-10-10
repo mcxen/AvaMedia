@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 
 namespace AvaMedia.Core;
 
@@ -26,6 +27,7 @@ public static class FolderOrganization
         public long Length { get; set; }
         public DateTime LastWriteUtc { get; set; }
         public DateTime TargetWriteUtc { get; set; }
+        public string Sha256 { get; set; } = "";
         public string Stage { get; set; } = "planned";
     }
 
@@ -101,7 +103,7 @@ public static class FolderOrganization
                         ReportText = item.ReportPath is null ? null : TextReport(item.File), Length = media.Length, LastWriteUtc = media.LastWriteUtc };
                     journal.Entries.Add(entry);
                     await SaveJournalAsync(journalPath, journal).ConfigureAwait(false);
-                    await CopyAsync(media.Path, item.Target, media.Length, media.LastWriteUtc, ct).ConfigureAwait(false);
+                    entry.Sha256 = await CopyAsync(media.Path, item.Target, media.Length, media.LastWriteUtc, ct).ConfigureAwait(false);
                     entry.TargetWriteUtc = File.GetLastWriteTimeUtc(item.Target);
                     entry.Stage = "copied";
                     // Persist ownership of the copy before any source can be removed.
@@ -115,7 +117,8 @@ public static class FolderOrganization
                     ct.ThrowIfCancellationRequested();
                     if (move)
                     {
-                        CheckSource(media);
+                        await CheckContentAsync(item.Target, entry.Length, entry.TargetWriteUtc, entry.Sha256, ct).ConfigureAwait(false);
+                        await CheckContentAsync(media.Path, entry.Length, entry.LastWriteUtc, entry.Sha256, ct).ConfigureAwait(false);
                         File.Delete(media.Path);
                     }
                     entry.Stage = "completed";
@@ -162,14 +165,18 @@ public static class FolderOrganization
                     EnsureRegularDirectory(Path.GetDirectoryName(entry.Target)!);
                     if (entry.Stage == "undoing" && !File.Exists(entry.Target))
                     {
-                        if (journal.Move) { EnsureRegularDirectory(Path.GetDirectoryName(entry.Source)!); CheckFile(entry.Source, entry.Length, entry.LastWriteUtc); }
+                        if (journal.Move)
+                        {
+                            EnsureRegularDirectory(Path.GetDirectoryName(entry.Source)!);
+                            await CheckContentAsync(entry.Source, entry.Length, entry.LastWriteUtc, entry.Sha256, ct).ConfigureAwait(false);
+                        }
                         entry.Stage = "undone";
                         await SaveJournalAsync(journalPath, journal).ConfigureAwait(false);
                         completed++;
                         progress?.Report(new(entry.Target, entry.Source, completed, entries.Length));
                         continue;
                     }
-                    CheckFile(entry.Target, entry.Length, entry.TargetWriteUtc);
+                    await CheckContentAsync(entry.Target, entry.Length, entry.TargetWriteUtc, entry.Sha256, ct).ConfigureAwait(false);
                     // A changed report must not be removed by undo.
                     if (entry.ReportPath is not null && File.Exists(entry.ReportPath))
                     {
@@ -180,13 +187,15 @@ public static class FolderOrganization
                     if (journal.Move)
                     {
                         EnsureRegularDirectory(Path.GetDirectoryName(entry.Source)!);
-                        if (File.Exists(entry.Source)) CheckFile(entry.Source, entry.Length, entry.LastWriteUtc);
-                        else await CopyAsync(entry.Target, entry.Source, entry.Length, entry.TargetWriteUtc, ct).ConfigureAwait(false);
+                        if (File.Exists(entry.Source))
+                            await CheckContentAsync(entry.Source, entry.Length, entry.LastWriteUtc, entry.Sha256, ct).ConfigureAwait(false);
+                        else await CopyAsync(entry.Target, entry.Source, entry.Length, entry.TargetWriteUtc, ct, entry.Sha256).ConfigureAwait(false);
                         File.SetLastWriteTimeUtc(entry.Source, entry.LastWriteUtc);
                     }
                     ct.ThrowIfCancellationRequested();
                     entry.Stage = "undoing";
                     await SaveJournalAsync(journalPath, journal).ConfigureAwait(false);
+                    await CheckContentAsync(entry.Target, entry.Length, entry.TargetWriteUtc, entry.Sha256, ct).ConfigureAwait(false);
                     if (entry.ReportPath is not null && File.Exists(entry.ReportPath)) File.Delete(entry.ReportPath);
                     File.Delete(entry.Target);
                     entry.Stage = "undone";
@@ -249,25 +258,37 @@ public static class FolderOrganization
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
-    private static async Task CopyAsync(string source, string target, long length, DateTime modified, CancellationToken ct)
+    private static async Task<string> CopyAsync(string source, string target, long length, DateTime modified, CancellationToken ct,
+        string? expectedHash = null)
     {
         var temporary = target + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             await using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, true))
             await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 131072, true))
             {
-                await input.CopyToAsync(output, ct).ConfigureAwait(false);
+                var buffer = new byte[131072];
+                int read;
+                while ((read = await input.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                {
+                    hash.AppendData(buffer, 0, read);
+                    await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                }
                 await output.FlushAsync(ct).ConfigureAwait(false);
                 output.Flush(true);
                 CheckFile(source, length, modified);
                 if (output.Length != length) throw new IOException("文件复制不完整。");
             }
+            var digest = Convert.ToHexString(hash.GetHashAndReset());
+            if (expectedHash is not null && !string.Equals(digest, expectedHash, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("文件内容已改变，无法还原：" + source);
             File.SetLastWriteTimeUtc(temporary, modified);
             ct.ThrowIfCancellationRequested();
             EnsureRegularDirectory(Path.GetDirectoryName(target)!);
             File.Move(temporary, target); // Publish without replacing an existing file.
+            return digest;
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
@@ -285,6 +306,16 @@ public static class FolderOrganization
     }
 
     private static void CheckSource(MediaTagResult media) => CheckFile(media.Path, media.Length, media.LastWriteUtc);
+    private static async Task CheckContentAsync(string path, long length, DateTime modified, string digest, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(digest)) throw new IOException("分类记录缺少文件内容校验信息，无法安全撤销。");
+        CheckFile(path, length, modified);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, true);
+        var actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false));
+        CheckFile(path, length, modified);
+        if (!string.Equals(actual, digest, StringComparison.OrdinalIgnoreCase))
+            throw new IOException("文件内容已改变，请重新分析：" + path);
+    }
     private static void CheckFile(string path, long length, DateTime modified)
     {
         var file = new FileInfo(path);

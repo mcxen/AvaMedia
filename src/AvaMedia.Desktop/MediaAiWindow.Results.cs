@@ -42,7 +42,9 @@ public sealed partial class MediaAiWindow
         _preview.DoubleTapped += (_, _) =>
         {
             if (_list.SelectedItem is not MediaFileEntry entry || !ImageFormats.Supports(entry.Path)) return;
-            var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path);
+            var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path,
+                reserveFiles: _reserveFiles);
+            viewer.Moved += mappings => { ApplyFileMappings(mappings, "已移动"); RenderSelectedResult(); };
             viewer.Show(this);
         };
         // Fixed summary: file, state, preview and the actions that act on the result.

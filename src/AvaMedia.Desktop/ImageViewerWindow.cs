@@ -38,6 +38,8 @@ public sealed partial class ImageViewerWindow : Window
     private readonly DispatcherTimer _slideshow = new();
     private readonly Storage _storage = new();
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly Func<IEnumerable<string>, IDisposable>? _reserveFiles;
+    public event Action<IReadOnlyList<RenameItem>>? Moved;
     private CancellationTokenSource? _loading, _opening;
     private string[] _sources = [];
     private ImageViewerEntry[] _entries = [];
@@ -62,8 +64,10 @@ public sealed partial class ImageViewerWindow : Window
         public string Editor { get; set; } = "";
         public bool LockZoom { get; set; }
     }
-    public ImageViewerWindow(IEnumerable<string>? initial = null, string? selected = null)
+    public ImageViewerWindow(IEnumerable<string>? initial = null, string? selected = null,
+        Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
+        _reserveFiles = reserveFiles;
         Avalonia.Media.RenderOptions.SetBitmapInterpolationMode(_viewport, BitmapInterpolationMode.HighQuality);
         Title = "天池看图"; Width = 1120; Height = 780; MinWidth = 760; MinHeight = 500;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "image");

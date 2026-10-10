@@ -117,8 +117,10 @@ public partial class MainWindow
                 result = job.PersonDetectionResult ?? await AiTaskResults.LoadAsync<PersonDetectionTaskResult>(AiTaskResults.PathFor(job, "people"), ct).ConfigureAwait(false);
             else if (job.FeatureId == "auto-subtitle")
                 result = job.SubtitleResult ?? await AiTaskResults.LoadAsync<SubtitleTaskResult>(AiTaskResults.PathFor(job, "subtitles"), ct).ConfigureAwait(false);
-            else if (job.FeatureId == "video-summary" && Directory.Exists(job.Output))
-                result = await AiTaskResults.LoadAsync<VideoSummaryReport>(Path.Combine(job.Output, "report.json"), ct).ConfigureAwait(false);
+            else if (job.FeatureId == "video-summary")
+                result = job.SummaryReport
+                    ?? await AiTaskResults.LoadAsync<VideoSummaryReport>(Path.Combine(
+                        job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job), "report.json"), ct).ConfigureAwait(false);
             else if (job.FeatureId == "batch-rename")
                 result = new { Plan = job.Options.Rename?.Plan, Journal = job.Output, Applied = job.State == JobState.Completed };
             else if (job.State == JobState.Completed) result = new { Output = job.Output };

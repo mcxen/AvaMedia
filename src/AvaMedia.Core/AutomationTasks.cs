@@ -9,6 +9,12 @@ public sealed partial class ConversionOptions
     public ContactSheetTaskOptions? ContactSheet { get; set; }
 }
 
+public partial class Job
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public RenameItem[]? CommittedFileChanges { get; set; }
+}
+
 /// <summary>Queue execution for tools which previously ran only inside their own windows.</summary>
 public static class AutomationTasks
 {
@@ -40,6 +46,7 @@ public static class AutomationTasks
             // Do not interrupt between its staging and commit/rollback phases.
             var changed = await Task.Run(() => BatchRename.ApplyRename(job.Options.Rename!.Plan, job.Output), CancellationToken.None).ConfigureAwait(false);
             job.FileChangesCommitted = true;
+            job.CommittedFileChanges = changed;
             job.ProgressDetail = $"重命名 {changed.Length} 个文件";
         }
         else

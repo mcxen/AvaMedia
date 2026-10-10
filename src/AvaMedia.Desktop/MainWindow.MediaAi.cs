@@ -20,12 +20,7 @@ public partial class MainWindow
             enqueue: EnqueueMediaTagJobs, showQueue: ShowMediaTagQueue,
             stopTask: job => { _queue.Stop(job); Save(); Refresh(); }, newTask: () => { _ = ConfigureMediaAiAsync(null); },
             pauseTask: PauseTask, resumeTask: job => { _ = RequestTaskRunAsync(job); }, reserveFiles: _queue.ReserveFiles);
-        window.Renamed += mappings =>
-        {
-            var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
-            foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            Save(); Refresh();
-        };
+        window.Renamed += SynchronizeFileChanges;
         window.Show(this); return window;
     }
 

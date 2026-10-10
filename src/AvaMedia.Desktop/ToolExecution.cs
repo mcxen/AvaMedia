@@ -31,7 +31,15 @@ internal static class ToolExecution
         async Task SaveAndCloseAsync()
         {
             try { await draft.Save(); }
-            catch (Exception error) { AppDiagnostics.Record("AI task draft", error); await Ui.Message(window, "保存任务结果失败", error.Message); }
+            catch (Exception error)
+            {
+                AppDiagnostics.Record("AI task draft", error);
+                draft.Result = null;
+                window.IsEnabled = true;
+                try { await Ui.Message(window, "保存任务结果失败", error.Message); }
+                finally { draft.Saving = false; }
+                return;
+            }
             draft.Finished = true;
             if (Completions.TryGetValue(window, out var completion)) completion.Resolve(draft.Result);
             window.Close(draft.Result);

@@ -23,8 +23,12 @@ public sealed partial class ImageViewerWindow
         var destination = MediaEngine.UniqueOutput(folder, stem, extension);
         if (move)
         {
+            using var reservation = _reserveFiles?.Invoke([entry.Container, destination]);
+            var source = new FileInfo(entry.Container);
+            var mapping = new RenameItem(entry.Container, destination, source.Length, source.LastWriteTimeUtc);
             // File.Move leaves the source untouched if the destination cannot be written.
             await Task.Run(() => File.Move(entry.Container, destination, overwrite: false), _lifetime.Token);
+            Moved?.Invoke([mapping]);
             _preferences.Bookmarks = _preferences.Bookmarks.Select(item => item.Identity == entry.Identity
                 ? new ImageViewerEntry(destination, Bytes: entry.Bytes) : item).ToArray(); SavePreferences();
             _entries = _entries.Where(item => item.Identity != entry.Identity).ToArray(); RenderFiles();
