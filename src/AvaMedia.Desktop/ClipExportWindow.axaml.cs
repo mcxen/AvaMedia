@@ -5,7 +5,7 @@ using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
-public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false,bool JoinSegments=false,bool RemoveSelected=false);
+public sealed record ClipExportState(string Preset,string Folder,bool OutputToSource,ConversionOptions Options,bool AddSettingName=false,bool JoinSegments=false);
 public sealed record ClipExportDecision(bool BackToEditing,ClipExportState State,ConversionRequest? Request=null);
 
 public partial class ClipExportWindow : Window, ISegmentThumbnailSource
@@ -33,14 +33,14 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         JoinSegments.IsEnabled=!_requiresJoin;
         JoinSegments.IsCheckedChanged+=(_,_)=>ValidateExport();
         FormatCombo.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset,_)=>Ui.Text(QuickClipBatch.PresetLabel(preset??QuickClipBatch.DefaultPreset)));
-        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=_requiresJoin && state?.RemoveSelected!=true && (state?.Preset is null or "Fast Copy") ? "MP4" : state?.Preset??QuickClipBatch.DefaultPreset;
+        FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??QuickClipBatch.DefaultPreset;
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();
     }
     Task<byte[]> ISegmentThumbnailSource.ReadSegmentThumbnail(string path, ConversionOptions options, CancellationToken ct)
         => SegmentThumbnail.ReadAsync(_previewFrames,path,options,ct,_lifetime.Token);
     private string Preset=>FormatCombo.SelectedItem as string??QuickClipBatch.DefaultPreset;
-    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,_requiresJoin || JoinSegments.IsVisible && JoinSegments.IsChecked==true,_requiresJoin);
+    public ClipExportState ReadState()=>new(Preset,ExportFolder.Text?.Trim()??"",OutputToSource.IsChecked==true,_options.Clone(),AddSettingName.IsChecked==true,_requiresJoin || JoinSegments.IsVisible && JoinSegments.IsChecked==true);
     public ConversionRequest CreateRequest()
     {
         var state=ReadState();
