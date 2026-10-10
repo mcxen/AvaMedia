@@ -1,4 +1,3 @@
-using System.Globalization;
 using Avalonia.Threading;
 using AvaMedia.Core;
 
@@ -27,7 +26,11 @@ public partial class MainWindow
     {
         if (visible && !_resourceMonitorClosed)
         { _resourceTimer.Start(); _ = RefreshSystemResourcesAsync(); }
-        else { _resourceTimer.Stop(); _resetResourceSample = true; }
+        else
+        {
+            _resourceTimer.Stop(); _resetResourceSample = true;
+            Motion.Cancel(CpuUsage); Motion.Cancel(GpuUsage);
+        }
     }
 
     private async Task RefreshSystemResourcesAsync()
@@ -39,11 +42,10 @@ public partial class MainWindow
         {
             var usage = await Task.Run(() => _systemResourceMonitor.Sample(reset));
             if (!_closing && !_resourceMonitorClosed && IsQueuePresentationVisible)
-                ResourceUsageText.Text = $"CPU {FormatResourceUsage(usage.Cpu)}   GPU {FormatResourceUsage(usage.Gpu)}";
+            {
+                CpuUsage.Update(usage.Cpu); GpuUsage.Update(usage.Gpu);
+            }
         }
         finally { _resourceSampling = false; }
     }
-
-    private static string FormatResourceUsage(double? value) => value is { } percent
-        ? percent.ToString("0", CultureInfo.InvariantCulture) + "%" : "—";
 }

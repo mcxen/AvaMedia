@@ -73,8 +73,8 @@
       <ProgressBar x:Name="AnalysisProgress" Minimum="0" Maximum="100" Height="5" IsVisible="False"/>
     </StackPanel>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="StatusText" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
-      <Button x:Name="AnalyzeButton" Grid.Column="1" Content="预估体积" Click="AnalyzeClick" Classes="dialog-action"/>
+      <TextBlock x:Name="StatusText" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <Button x:Name="AnalyzeButton" i18n:StableLayout.Samples="预估体积|停止分析|正在停止…" Grid.Column="1" Content="预估体积" Click="AnalyzeClick" Classes="dialog-action"/>
       <Button Grid.Column="2" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
       <Button x:Name="ConfirmButton" Grid.Column="3" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="dialog-action primary"/>
     </Grid>

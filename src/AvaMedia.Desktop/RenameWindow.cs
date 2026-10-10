@@ -29,7 +29,7 @@ public sealed partial class RenameWindow : Window
     private static readonly string[] SortLabels = ["导入顺序", "名称升序", "名称降序", "修改时间"];
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _summary = Ui.Text("", "caption");
-    private readonly TextBlock _progressText = Ui.Text("就绪", "caption");
+    private readonly TextBlock _progressText = Ui.Status("就绪");
     private readonly Button _rename, _undo, _stop, _previewButton;
     private readonly TextBox _pattern = Ui.Input("{name}_{index}");
     private readonly string _journal;

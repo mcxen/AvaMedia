@@ -19,6 +19,7 @@
   </Style>
   <Style Selector="Button.media-action"><Setter Property="Background" Value="{DynamicResource UiHover}"/><Setter Property="BorderBrush" Value="{DynamicResource UiTileBorder}"/></Style>
   <Style Selector="TextBlock.time">
+    <Setter Property="FontFeatures" Value="tnum"/>
     <Setter Property="FontFamily" Value="{DynamicResource UiNumericFont}"/>
     <Setter Property="FontSize" Value="{DynamicResource UiTimeFontSize}"/>
     <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}"/>

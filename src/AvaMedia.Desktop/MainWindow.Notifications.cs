@@ -24,7 +24,7 @@ public partial class MainWindow
     private void RefreshNotificationBadge()
     {
         var entries = NotificationCenter.Shared.Entries;
-        NotificationBadge.Text = entries.Count.ToString(); NotificationBadge.IsVisible = entries.Count > 0;
+        NotificationBadge.Text = entries.Count > 999 ? "999+" : entries.Count > 0 ? entries.Count.ToString() : "";
         NotificationBadge.FontWeight = entries.Any(entry => !entry.Read) ? FontWeight.Bold : FontWeight.Normal;
     }
 

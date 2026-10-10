@@ -45,7 +45,7 @@
       </Border>
     </Grid>
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="BrowserStatus" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <TextBlock x:Name="BrowserStatus" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <Button Grid.Column="1" x:Name="InstallRuntimeButton" Content="安装 WebView2" Click="InstallRuntimeClick" Classes="tool" IsVisible="False"/>
       <Button Grid.Column="2" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
       <Button Grid.Column="3" x:Name="UseMediaButton" Content="使用选中视频" Click="UseMediaClick" Classes="primary dialog-action" IsEnabled="False"/>

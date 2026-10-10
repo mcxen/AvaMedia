@@ -110,7 +110,7 @@
       </StackPanel>
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="ValidationText" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
         <Button Content="取消" Classes="dialog-action" IsCancel="True" Click="CancelClick"/>
         <Button x:Name="ConfirmButton" Content="加入队列" Classes="dialog-action primary" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>

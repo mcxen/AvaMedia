@@ -32,6 +32,7 @@ public sealed partial class MediaAiWindow
 
     private void BuildInterface()
     {
+        StableLayout.Reserve(_pause, "暂停任务", "继续任务");
         ConfigureWorkbenchScrollbars();
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 10 };
         _imports.Children.Add(Ui.Button("添加文件…", async () =>

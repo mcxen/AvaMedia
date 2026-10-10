@@ -19,7 +19,7 @@ public sealed class VideoSummaryWindow : Window
     private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SummaryFiles", MinHeight = 72, MaxHeight = 130, SelectionMode = SelectionMode.Multiple };
     private readonly TextBlock _empty = Ui.Text("添加或拖入视频", "caption");
-    private readonly TextBlock _notice = Ui.Text("", "caption");
+    private readonly TextBlock _notice = Ui.Status();
     private readonly CheckBox _abstract = new() { Content = "摘要" }, _summary = new() { Content = "视频内容总结" },
         _subtitles = new() { Content = "字幕提取" }, _analysis = new() { Content = "内容分析" },
         _frames = new() { Content = "分析视频画面" }, _gpu = new() { Content = "优先使用 GPU" },

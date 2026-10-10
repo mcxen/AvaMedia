@@ -40,6 +40,7 @@ public partial class JobRowView : UserControl
         _owner = this.GetVisualAncestors().OfType<MainWindow>().FirstOrDefault();
         if (_owner is null || DataContext is not Job job) return;
         _details = new(job);
+        ProgressSlot.Height = _owner.CanViewAiTask(job) ? 54 : 5;
         RowRoot.DataContext = _details;
         job.PropertyChanged += JobChanged;
         _owner.JobDisplayChanged += Refresh;

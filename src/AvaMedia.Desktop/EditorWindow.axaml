@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="860" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="860" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
   <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto" ColumnDefinitions="*,0,0">
     <Grid RowDefinitions="*,Auto,Auto,Auto,*" MinWidth="620">
     <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="200">
@@ -11,7 +11,7 @@
     </ScrollViewer>
     <Slider Grid.Row="2" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" Height="{DynamicResource UiFieldHeight}" Margin="0,1"/>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,*" MinHeight="{DynamicResource UiTransportRowHeight}" VerticalAlignment="Center">
-      <TextBlock x:Name="CurrentTime" Classes="time" Text="00:00:00.000"/>
+      <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
         <Button x:Name="BackwardButton" Classes="transport" Click="BackwardClick" ToolTip.Tip="按当前精度向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
         <Button x:Name="PlayButton" Classes="transport" Click="PlayClick" ToolTip.Tip="播放" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
@@ -21,7 +21,7 @@
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" HorizontalAlignment="Right" VerticalAlignment="Center">
         <CheckBox x:Name="LoopSegmentCheck" Content="循环" IsVisible="False" ToolTip.Tip="循环播放当前片段"/>
         <Button x:Name="SoundButton" Classes="transport" Click="SoundClick" ToolTip.Tip="静音" AutomationProperties.Name="静音"><local:ActionIcon x:Name="SoundIcon" Kind="speaker" /></Button>
-        <TextBlock x:Name="TotalTime" Classes="time" Text="00:00:00.000"/>
+        <TextBlock FontFeatures="tnum" x:Name="TotalTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       </StackPanel>
     </Grid>
     <TabControl Grid.Row="4" x:Name="EditTabs" MinHeight="300" SelectionChanged="TabChanged">
@@ -45,8 +45,8 @@
           <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}"><TextBlock Text="淡入效果" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FadeInCombo" Width="{DynamicResource UiTimeFieldWidth}"/></Grid>
           <Grid Grid.Row="4" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource UiSpacingSmall}"><TextBlock Text="淡出效果" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FadeOutCombo" Width="{DynamicResource UiTimeFieldWidth}"/></Grid>
           <Grid Grid.Row="5" Grid.ColumnSpan="2" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,*,Auto" RowSpacing="6" ColumnSpacing="8">
-            <TextBlock Text="持续时间" VerticalAlignment="Center"/><TextBlock x:Name="SelectionDuration" Classes="time" Grid.Column="1"/>
-            <TextBlock Grid.Column="2" Text="输出时长" VerticalAlignment="Center"/><TextBlock Grid.Column="3" x:Name="OutputDuration" Classes="time"/>
+            <TextBlock Text="持续时间" VerticalAlignment="Center"/><TextBlock FontFeatures="tnum" x:Name="SelectionDuration" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Grid.Column="1"/>
+            <TextBlock Grid.Column="2" Text="输出时长" VerticalAlignment="Center"/><TextBlock FontFeatures="tnum" Grid.Column="3" x:Name="OutputDuration" i18n:StableLayout.Samples="888:88:88.888" Classes="time"/>
             <TextBlock Grid.Row="1" Text="精度" VerticalAlignment="Center"/><ComboBox Grid.Row="1" Grid.Column="1" x:Name="PrecisionCombo"/>
             <TextBlock Grid.Row="1" Grid.Column="2" Text="速度" VerticalAlignment="Center"/><ComboBox Grid.Row="1" Grid.Column="3" x:Name="SpeedCombo"/>
             <Button Grid.Column="4" Grid.RowSpan="2" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
@@ -86,7 +86,7 @@
       <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8" Margin="10">
         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
           <TextBlock x:Name="SegmentCount" FontWeight="SemiBold" VerticalAlignment="Center"/>
-          <Button Grid.Column="1" x:Name="PlayAllSegmentsButton" Content="预览全部" Click="PlayAllSegmentsClick" ToolTip.Tip="按列表顺序播放全部片段"/>
+          <Button Grid.Column="1" x:Name="PlayAllSegmentsButton" i18n:StableLayout.Samples="预览全部|停止预览" Content="预览全部" Click="PlayAllSegmentsClick" ToolTip.Tip="按列表顺序播放全部片段"/>
           <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="SegmentTotalDuration" Classes="caption"/>
         </Grid>
         <ListBox Grid.Row="1" x:Name="SegmentList" Classes="clip-segments" SelectionChanged="SegmentChanged" DoubleTapped="SegmentDoubleTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -124,7 +124,7 @@
         <TextBlock x:Name="ActiveSegmentLabel" VerticalAlignment="Center"/>
       </StackPanel>
       <Button Grid.Column="1" x:Name="EditorCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+      <Button Grid.Column="2" x:Name="ConfirmButton" i18n:StableLayout.Samples="确定|下一个视频 →|下一步：导出选项 →" Classes="primary dialog-action" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
   </Grid>
 </Window>

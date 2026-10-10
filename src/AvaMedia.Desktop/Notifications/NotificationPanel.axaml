@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.Notifications.NotificationPanel">
+<UserControl xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.Notifications.NotificationPanel">
   <UserControl.Styles>
     <Style Selector="Button.notification-action"><Setter Property="MinHeight" Value="26"/><Setter Property="Padding" Value="8,3"/><Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/></Style>
     <Style Selector="Button.notification-action.primary"><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/></Style>
@@ -22,19 +22,19 @@
         <TextBlock x:Name="EmptyText" Text="暂无通知" Classes="caption" Margin="0,4" IsVisible="False"/>
         <Grid x:Name="ProgressPanel" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="False">
           <ProgressBar x:Name="ProgressBar" Maximum="100" Height="8" VerticalAlignment="Center"/>
-          <TextBlock x:Name="ProgressText" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
+          <TextBlock FontFeatures="tnum" x:Name="ProgressText" i18n:StableLayout.Samples="100%" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
         </Grid>
         <WrapPanel x:Name="Actions"/>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-          <StackPanel x:Name="Navigation" Orientation="Horizontal" Spacing="2">
+          <Grid x:Name="Navigation" ColumnDefinitions="24,*,24" ColumnSpacing="2">
             <Button x:Name="Previous" Classes="tool notification-action notification-icon" Content="‹" Click="PreviousClick" AutomationProperties.Name="上一条通知"/>
-            <TextBlock x:Name="Counter" VerticalAlignment="Center" Classes="caption"/>
-            <Button x:Name="Next" Classes="tool notification-action notification-icon" Content="›" Click="NextClick" AutomationProperties.Name="下一条通知"/>
-          </StackPanel>
+            <TextBlock FontFeatures="tnum" x:Name="Counter" Grid.Column="1" TextAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Text, RelativeSource={RelativeSource Self}}" VerticalAlignment="Center" Classes="caption"/>
+            <Button x:Name="Next" Grid.Column="2" Classes="tool notification-action notification-icon" Content="›" Click="NextClick" AutomationProperties.Name="下一条通知"/>
+          </Grid>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <Button x:Name="RemoveButton" Classes="tool notification-action notification-utility" Content="移除" Click="RemoveClick" AutomationProperties.Name="移除通知"/>
             <Button x:Name="ClearButton" Classes="tool notification-action notification-utility" Content="清空" Click="ClearClick" AutomationProperties.Name="清除全部通知" ToolTip.Tip="清除全部通知"/>
-            <Button x:Name="HistoryButton" Classes="tool notification-action notification-utility" Content="所有通知" Click="HistoryClick"/>
+            <Button x:Name="HistoryButton" i18n:StableLayout.Samples="所有通知|收起" Classes="tool notification-action notification-utility" Content="所有通知" Click="HistoryClick"/>
           </StackPanel>
         </Grid>
       </StackPanel>

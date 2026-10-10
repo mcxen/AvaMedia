@@ -17,7 +17,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
     private readonly List<Source> _sources;
     private readonly ListBox _files = new();
     private readonly StackPanel _segments = new() { Spacing = 10 };
-    private readonly TextBlock _status = Ui.Text("", "caption");
+    private readonly TextBlock _status = Ui.Status();
     private readonly Button _export;
     private bool _editing;
     public QuickClipWorkspaceWindow(IMediaEngine engine, IEnumerable<string> paths, IEnumerable<ClipEditResult>? edits)

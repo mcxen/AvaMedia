@@ -8,11 +8,24 @@ namespace AvaMedia.Desktop;
 internal static class Ui
 {
     public static Button Button(string text,Action action)
-    {var b=new Button{Content=text};b.Click+=(_,_)=>action();return b;}
+    {
+        var b=new Button{Content=text};b.Click+=(_,_)=>action();
+        var states=text switch
+        {
+            "开始任务" => new[]{"开始任务","继续任务","重新检测","重新执行"},
+            "查看结果" => new[]{"查看结果","校对字幕","调整片段"},
+            "暂停任务" => new[]{"暂停任务","继续任务"},
+            _ => Array.Empty<string>()
+        };
+        if(states.Length>0)StableLayout.Reserve(b,states);
+        return b;
+    }
     public static Button DialogButton(string text,Action action)
     {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=text is "确定" or "保存";button.IsCancel=text is "取消" or "关闭";if(button.IsDefault)button.Classes.Add("primary");return button;}
     public static TextBlock Text(string text,string? role=null)
     {var label=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center};if(role is not null)label.Classes.Add(role);return label;}
+    public static TextBlock Status(string text="", string? role="caption")
+    {var label=Text(text,role);StableLayout.SetStatusLines(label,2);return label;}
     public static TextBlock FormattedText(FormattableString text,string? role=null)
     {var label=Text("",role);Localization.SetText(label,text);return label;}
     public static TextBox Input(string value="",int width=0) => new(){Text=value,MinWidth=width,HorizontalAlignment=HorizontalAlignment.Stretch};

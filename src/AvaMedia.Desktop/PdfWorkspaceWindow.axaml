@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls"
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.PdfWorkspaceWindow" Width="1260" Height="840" MinWidth="1020" MinHeight="680" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="Border.pdf-card"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/></Style>
@@ -136,7 +136,7 @@
       <Button Grid.Column="2" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="StatusText" TextWrapping="Wrap" Classes="caption" VerticalAlignment="Center"/>
+      <TextBlock x:Name="StatusText" i18n:StableLayout.StatusLines="2" TextWrapping="Wrap" Classes="caption" VerticalAlignment="Center"/>
       <Button Grid.Column="1" Content="取消" Classes="dialog-action" IsCancel="True" Click="CancelClick"/>
       <Button Grid.Column="2" x:Name="ConfirmButton" Content="加入队列" Classes="primary dialog-action" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>
     </Grid>

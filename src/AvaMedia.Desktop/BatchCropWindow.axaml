@@ -84,7 +84,7 @@
       <TextBlock Grid.Row="2" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
     </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="ValidationText" Classes="cropValidation" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="cropValidation" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
       <Button Grid.Column="2" x:Name="OkButton" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="primary dialog-action" IsEnabled="False"/>
     </Grid>

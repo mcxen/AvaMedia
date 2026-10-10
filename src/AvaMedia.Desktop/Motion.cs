@@ -70,8 +70,6 @@ public sealed class Motion : AvaloniaObject
         if (!control.TryFindResource(durationResource, out var resource) || resource is not TimeSpan duration)
             throw new InvalidOperationException($"Missing motion duration: {durationResource}");
 
-        var cancellation = new CancellationTokenSource();
-        Animations[control] = cancellation;
         // FillMode.None restores the original opacity on completion and cancellation.
         var animation = new Animation { Duration = duration, Easing = new CubicEaseOut(), FillMode = FillMode.None };
         var start = new KeyFrame { Cue = new Cue(0) };
@@ -80,6 +78,19 @@ public sealed class Motion : AvaloniaObject
         end.Setters.Add(new Setter(Visual.OpacityProperty, control.Opacity));
         animation.Children.Add(start);
         animation.Children.Add(end);
+        Run(control, animation);
+    }
+
+    internal static bool CanAnimate(Control control) => !_userReducedMotion && !_systemReducedMotion
+        && control.IsEffectivelyVisible && TopLevel.GetTopLevel(control) is Window { IsVisible: true, WindowState: not WindowState.Minimized };
+
+    internal static void Run(Control control, Animation animation)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        Cancel(control);
+        if (!CanAnimate(control)) return;
+        var cancellation = new CancellationTokenSource();
+        Animations[control] = cancellation;
         control.DetachedFromVisualTree += Detached;
         control.PropertyChanged += VisibilityChanged;
         _ = Run();
@@ -105,7 +116,7 @@ public sealed class Motion : AvaloniaObject
         }
     }
 
-    private static void Cancel(Control control)
+    internal static void Cancel(Control control)
     {
         if (Animations.TryGetValue(control, out var cancellation))
             cancellation.Cancel();

@@ -94,6 +94,11 @@ internal sealed class AiActivityFlowView : StackPanel
             _title.FontWeight = FontWeight.SemiBold;
             _title.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiText"));
             _status.VerticalAlignment = VerticalAlignment.Center;
+            StableLayout.Reserve(_status, "已完成 · 888:88:88", "进行中 · 888:88:88", "失败 · 888:88:88", "已停止 · 888:88:88", "已暂停 · 888:88:88",
+                "Completed · 888:88:88", "Running · 888:88:88", "Stopped · 888:88:88", "Paused · 888:88:88");
+            _status.TextWrapping = TextWrapping.NoWrap;
+            _status.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") };
+            StableLayout.SetStatusLines(_stage, 2); StableLayout.SetStatusLines(_meta, 2);
             var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
             header.Children.Add(_title); Grid.SetColumn(_status, 1); header.Children.Add(_status);
             _expander.Header = header;

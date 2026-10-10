@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.ImageCompressionWindow" Title="图片压缩" Width="1280" Height="820"
         MinWidth="1080" MinHeight="660" WindowStartupLocation="CenterOwner">
@@ -96,7 +96,7 @@
       </StackPanel>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="StatusText" TextWrapping="Wrap"/>
+      <TextBlock x:Name="StatusText" i18n:StableLayout.StatusLines="2" TextWrapping="Wrap"/>
       <Button Grid.Column="1" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
       <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" Content="加入队列" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>

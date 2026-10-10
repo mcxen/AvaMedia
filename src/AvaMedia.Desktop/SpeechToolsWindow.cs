@@ -31,7 +31,7 @@ public sealed class SpeechToolsWindow : Window
     private readonly TextBox _folder;
     private readonly CheckBox _sourceFolder;
     private readonly Button _browse, _confirm;
-    private readonly TextBlock _notice = Ui.Text("", "caption");
+    private readonly TextBlock _notice = Ui.Status();
     private readonly CancellationTokenSource _lifetime = new();
     private bool _busy, _outputChosen;
     private string _error = "";

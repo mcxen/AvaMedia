@@ -46,7 +46,7 @@ public sealed partial class PersonClipWindow : Window
     private readonly CheckBox _sourceFolder = new() { Content = "输出至源文件目录" };
     private readonly TextBox _folder = new() { IsReadOnly = true, Name = "PersonClipOutputFolder" };
     private readonly TextBlock _modelStatus = Ui.Text("", "caption");
-    private readonly TextBlock _status = Ui.Text("");
+    private readonly TextBlock _status = Ui.Status();
     private readonly StackPanel _rangePanel = new() { Spacing = 8 };
     private readonly Dictionary<string, CheckBox> _detectorBoxes = [];
     private readonly Dictionary<string, TextBlock> _detectorStates = [];
@@ -125,6 +125,8 @@ public sealed partial class PersonClipWindow : Window
         _files.SelectionChanged += (_,_) => preview.SetSource(Selected?.Path); Closed += (_,_) => preview.Dispose();
         var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _analyze = Ui.Button("开始分析", async () => await AnalyzeAsync()); _analyze.Classes.Add("primary");
+        StableLayout.Reserve(_analyze, "开始分析", "后台检测", "后台重新检测");
+        StableLayout.Reserve(_pause, "暂停任务", "继续任务");
         _stop = Ui.Button("停止任务", StopDetectionTasks); _stop.IsVisible = false;
         _pause.Click += (_, _) =>
         {

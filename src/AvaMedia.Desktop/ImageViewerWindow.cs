@@ -17,7 +17,7 @@ public sealed partial class ImageViewerWindow : Window
 {
     private readonly ImageViewport _viewport = new();
     private readonly ListBox _files = new();
-    private readonly TextBlock _status = Ui.Text("", "caption");
+    private readonly TextBlock _status = Ui.Status();
     private readonly TextBlock _empty = Ui.Text("打开图片、文件夹或压缩包");
     private readonly TextBox _search = Ui.Input("");
     private readonly StackPanel _metadata = new() { Spacing = 6 };
@@ -90,6 +90,9 @@ public sealed partial class ImageViewerWindow : Window
     }
     private void BuildInterface()
     {
+        StableLayout.Reserve(_slideshowButton, "幻灯片", "停止幻灯片");
+        StableLayout.Reserve(_bookmarkButton, "收藏", "取消收藏");
+        StableLayout.Reserve(_animationButton, "播放动画", "暂停动画");
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(10) };
         AddToolbar("打开…", PickAsync); AddToolbar("文件夹…", async () => { if (await Ui.Folder(this, "打开图片文件夹") is { } path) await OpenAsync([path]); });
         AddToolbar("最近", ShowRecentAsync); AddToolbar("收藏夹", () => { _showBookmarks = !_showBookmarks; RenderFiles(); return Task.CompletedTask; });

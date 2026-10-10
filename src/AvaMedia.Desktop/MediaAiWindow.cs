@@ -25,7 +25,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly CheckBox _reuse = new() { Content = "复用相似画面", IsChecked = true };
     private readonly CheckBox _sceneTags = new() { Content = "识别场景、照明与面部", IsChecked = false };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
-    private readonly TextBlock _status = Ui.Text("就绪", "caption");
+    private readonly TextBlock _status = Ui.Status("就绪");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
     private readonly Controls.AiActivityView _activity = new() { Compact = true };
     private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary", "dialog-action" } };

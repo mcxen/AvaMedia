@@ -58,6 +58,7 @@ internal static class ToolExecution
 
     public static void Configure(Window owner, Button button, string action, bool editing = false)
     {
+        StableLayout.Reserve(button, action, "加入队列", "保存修改", "检查文件…");
         if (editing) return;
         var choice = new CheckBox { Content = "仅加入队列", VerticalAlignment = VerticalAlignment.Center };
         Choices.Add(owner, choice);

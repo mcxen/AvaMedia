@@ -34,7 +34,7 @@ public sealed partial class FolderClassificationWindow
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Increment = 1, FormatString = "0" };
     private readonly NumericUpDown _tagThreshold = new() { Minimum = 0, Maximum = 1, Increment = .05m, FormatString = "0.00" };
     private readonly ComboBox _mode = Ui.Combo(["复制到分类目录", "移动到分类目录"], "复制到分类目录");
-    private readonly TextBlock _status = Ui.Text("选择文件夹或拖入媒体", "caption");
+    private readonly TextBlock _status = Ui.Status("选择文件夹或拖入媒体");
     private readonly TextBlock _scanErrors = Ui.Text("", "caption");
     private readonly AiActivityView _activity = new() { Collapsible = true, DetailHeight = 170 };
     private readonly StackPanel _videoSettings = new() { Spacing = 6, IsVisible = false };
@@ -49,6 +49,9 @@ public sealed partial class FolderClassificationWindow
 
     private void BuildInterface()
     {
+        StableLayout.Reserve(_pause, "暂停任务", "继续任务");
+        StableLayout.Reserve(_allFilter, "全部 888888", "All 888888");
+        StableLayout.Reserve(_pendingFilter, "待分析 888888", "Pending 888888");
         _mode.ItemsSource = new[] { "复制到分类目录", "移动到分类目录" }.Select(Localization.Text).ToArray(); _mode.SelectedIndex = 0;
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         AddImport("添加文件夹…", async () =>

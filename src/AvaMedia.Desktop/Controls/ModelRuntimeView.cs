@@ -21,12 +21,15 @@ internal sealed class ModelRuntimeView : Grid
     public ModelRuntimeView(string root, string id, string? label = null)
     {
         _root = root; _id = id;
-        ColumnDefinitions = new("Auto,*"); RowDefinitions = new("Auto,Auto"); ColumnSpacing = 7; RowSpacing = 4;
+        ColumnDefinitions = new("Auto,*"); RowDefinitions = new("Auto,3"); ColumnSpacing = 7; RowSpacing = 4;
         _light.Child = _symbol; Children.Add(_light);
-        var text = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var text = new Grid { ColumnDefinitions = new("Auto,Auto,*"), ColumnSpacing = 8 };
         if (label is not null) text.Children.Add(Ui.Text(label, "caption"));
+        StableLayout.Reserve(_state, "未加载", "加载中", "预热中", "已就绪", "使用中", "加载失败");
+        _detail.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") };
         _state.TextWrapping = _detail.TextWrapping = TextWrapping.NoWrap;
         _detail.TextTrimming = TextTrimming.CharacterEllipsis;
+        Grid.SetColumn(_state, 1); Grid.SetColumn(_detail, 2);
         text.Children.Add(_state); text.Children.Add(_detail); Grid.SetColumn(text, 1); Children.Add(text);
         Grid.SetRow(_progress, 1); Grid.SetColumn(_progress, 1); Children.Add(_progress);
         _timer.Tick += (_, _) => Refresh();

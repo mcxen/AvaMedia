@@ -30,6 +30,8 @@ public partial class MainWindow
 
     private void PresentDownloadSpeedMonitor()
     {
+        NetworkMonitor.IsVisible = _jobs.Any(job => job.FeatureId == "download" && job.State == JobState.Running);
+        if (!NetworkMonitor.IsVisible) return;
         if (_presentedDownloadSpeedRevision == _downloadSpeedRevision) return;
         NetworkMonitor.Update(_downloadSpeedTotals, _downloadSpeedHistory);
         _presentedDownloadSpeedRevision = _downloadSpeedRevision;

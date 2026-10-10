@@ -92,8 +92,8 @@
           <Button x:Name="PlayerCaptureButton" Classes="player-transport" Click="CaptureClick" IsEnabled="False" ToolTip.Tip="截取当前帧，保存到视频目录（Ctrl+E / Cmd+E）" AutomationProperties.Name="截取当前帧"><local:ActionIcon Kind="camera"/></Button>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="{DynamicResource UiPlayerInlinePadding}" VerticalAlignment="Center">
-          <TextBlock x:Name="PlayerTime" Classes="time" Text="00:00:00.000"/>
-          <StackPanel x:Name="PlayerTotalGroup" Orientation="Horizontal"><TextBlock Classes="time" Text=" / "/><TextBlock x:Name="PlayerTotal" Classes="time" Text="00:00:00.000"/></StackPanel>
+          <TextBlock FontFeatures="tnum" x:Name="PlayerTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
+          <StackPanel x:Name="PlayerTotalGroup" Orientation="Horizontal"><TextBlock Classes="time" Text=" / "/><TextBlock FontFeatures="tnum" x:Name="PlayerTotal" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/></StackPanel>
         </StackPanel>
         <Button Grid.Column="3" x:Name="PlayerMuteButton" Classes="player-transport" Click="MuteClick" ToolTip.Tip="静音（M）" AutomationProperties.Name="静音"><local:ActionIcon x:Name="PlayerMuteIcon" Kind="speaker"/></Button>
         <Slider Grid.Column="4" x:Name="PlayerVolume" Minimum="0" Maximum="100" Value="100" SmallChange="5" LargeChange="10" Width="{DynamicResource UiPlayerVolumeWidth}" AutomationProperties.Name="音量"/>

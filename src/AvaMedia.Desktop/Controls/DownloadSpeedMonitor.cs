@@ -24,7 +24,7 @@ public sealed class DownloadSpeedMonitor : Border
         ToolTip.SetTip(this, "曲线显示最近 60 秒的下载总速度；峰值与平均值按本轮下载统计，平均值包含停顿，不包含媒体整理。");
         AutomationProperties.SetName(this, "下载网速监控");
         var layout = new Grid { RowDefinitions = new("Auto,Auto"), RowSpacing = 5 };
-        var header = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 16 };
+        var header = new Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 12 };
         AddMetric(header, 0, "下载", _current);
         AddMetric(header, 1, "峰值", _peak);
         AddMetric(header, 2, "平均", _average);
@@ -34,7 +34,8 @@ public sealed class DownloadSpeedMonitor : Border
 
     private static TextBlock Value(double size)
     {
-        var value = new TextBlock { FontSize = size, FontWeight = FontWeight.SemiBold };
+        var value = new TextBlock { FontSize = size, FontWeight = FontWeight.SemiBold,
+            FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") }, TextTrimming = TextTrimming.CharacterEllipsis };
         value.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiText"));
         Localization.SetIsUserText(value, true);
         return value;

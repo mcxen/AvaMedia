@@ -16,7 +16,7 @@
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,12">
       <CheckBox x:Name="AutoCloseInput" Content="空闲 5 分钟自动关闭" IsChecked="True"
                 IsCheckedChanged="AutoCloseChanged" VerticalAlignment="Center"/>
-      <TextBlock x:Name="ConnectionStatus" Grid.Column="1" Text="传输已关闭"
+      <TextBlock x:Name="ConnectionStatus" i18n:StableLayout.StatusLines="2" Grid.Column="1" Text="传输已关闭"
                  Margin="16,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="240,16,*">

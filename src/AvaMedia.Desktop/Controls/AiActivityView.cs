@@ -15,7 +15,7 @@ public sealed class AiActivityView : Border
     public bool Compact { get => GetValue(CompactProperty); set => SetValue(CompactProperty, value); }
     public bool Collapsible { get; set; }
     public bool DetailsExpanded { get => _expanded; set { _expanded = value; RefreshExpansion(); } }
-    public double DetailHeight { get => _detailScroll.MaxHeight; set => _detailScroll.MaxHeight = value; }
+    public double DetailHeight { get => _detailScroll.MaxHeight; set => _detailScroll.Height = _detailScroll.MaxHeight = value; }
     private bool _expanded = true;
     private readonly Button _collapse = new() { Classes = { "tool" }, Padding = new(6, 2), IsVisible = false };
     private readonly TextBlock _title = Text();
@@ -30,7 +30,7 @@ public sealed class AiActivityView : Border
     private readonly StackPanel _compactContent = new() { Spacing = 4 };
     private readonly ScrollViewer _detailScroll = new()
     {
-        MaxHeight = 280, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+        Height = 280, MaxHeight = 280, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
     };
     private readonly Flyout _flyout = new();
     private readonly Button _detailsButton = new() { Classes = { "tool" }, MinHeight = 20, Padding = new(5, 1) };
@@ -44,6 +44,11 @@ public sealed class AiActivityView : Border
         Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         Padding = new(10);
         _title.FontWeight = FontWeight.SemiBold;
+        StableLayout.SetStatusLines(_meta, 2);
+        StableLayout.Reserve(_clock, "已用时 888:88:88", "Elapsed 888:88:88");
+        _clock.TextWrapping = TextWrapping.NoWrap; _clock.TextTrimming = TextTrimming.CharacterEllipsis;
+        StableLayout.Reserve(_collapse, "收起", "展开");
+        _clock.FontFeatures = _compactClock.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") };
         _title.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiText"));
         var heading = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
         heading.Children.Add(_title); Grid.SetColumn(_clock, 1); heading.Children.Add(_clock); Grid.SetColumn(_collapse, 2); heading.Children.Add(_collapse);
@@ -69,7 +74,7 @@ public sealed class AiActivityView : Border
         if (change.Property != CompactProperty) return;
         _flyout.Hide(); Child = null; _flyout.Content = null;
         _detailScroll.Width = Compact ? 520 : double.NaN;
-        _detailScroll.MaxHeight = Compact ? 520 : 280;
+        _detailScroll.Height = _detailScroll.MaxHeight = Compact ? 520 : 280;
         if (Compact)
         {
             Background = Brushes.Transparent; Padding = new(0);
@@ -140,9 +145,11 @@ public sealed class AiActivityView : Border
         var now = activity.State == AiActivityState.Running ? DateTime.UtcNow : activity.UpdatedUtc;
         var elapsed = AiActivity.FormatElapsed((now - activity.StartedUtc).TotalSeconds);
         var quiet = Math.Max(0, (now - activity.UpdatedUtc).TotalSeconds);
-        _clock.Text = Localization.Format($"已用时 {elapsed}") + (activity.State == AiActivityState.Running && quiet >= 10
+        _clock.Text = Localization.Format($"已用时 {elapsed}");
+        var clockDetail = _clock.Text + (activity.State == AiActivityState.Running && quiet >= 10
             ? " · " + Localization.Format($"最近进展 {quiet:0} 秒前") : "");
-        _compactClock.Text = _clock.Text; ToolTip.SetTip(_compactClock, _clock.Text);
+        _compactClock.Text = _clock.Text;
+        ToolTip.SetTip(_clock, clockDetail); ToolTip.SetTip(_compactClock, clockDetail);
         _flow.RefreshClock(now);
     }
 }
