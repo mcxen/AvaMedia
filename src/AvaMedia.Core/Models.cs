@@ -178,10 +178,10 @@ public sealed partial class Job : Observable
     public string Name => string.IsNullOrWhiteSpace(DownloadTitle)?string.Join(" + ", Inputs.Select(Path.GetFileName)):DownloadTitle;
     public string Source => string.Join(Environment.NewLine, Inputs);
     [JsonIgnore]
-    public string UserOutput => Options.FolderClassification?.OutputFolder ?? Output;
-    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {UserOutput}";
+    public string UserOutput => HasInternalOutput ? "" : Options.FolderClassification?.OutputFolder ?? Output;
+    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {(HasInternalOutput ? "任务结果" : UserOutput)}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification"?"分析中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai" or "folder-classification") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary"?"分析中":FeatureId=="auto-subtitle"?"识别中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停排队",JobState.Stopping=>"正在终止",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

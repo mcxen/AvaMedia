@@ -48,21 +48,22 @@ public sealed class SubtitleReviewWindow : Window
     private readonly ComboBox _format;
     private readonly TextBox _folder;
     private readonly CheckBox _sourceFolder;
-    private readonly Button _export, _retry, _stop;
+    private readonly Button _export, _retry;
     private readonly StackPanel _editor = new() { Spacing = 10 };
-    private readonly AiActivityView _activity = new() { Compact = true };
     private readonly SubtitleStyleEditor _style;
     private readonly TimeRangePicker _timing = new();
     private readonly MediaPreviewPanel _preview;
     private double _duration = 1;
     private readonly CancellationTokenSource _lifetime = new();
-    private CancellationTokenSource? _recognition;
+    private readonly Func<ConversionRequest, Task>? _recognize;
+    private readonly Func<SubtitleTaskResult, Task>? _saveDraft;
     private bool _busy;
     private Source? Selected => _files.SelectedItem as Source;
 
-    public SubtitleReviewWindow(IMediaEngine engine, ConversionRequest request, bool editing)
+    public SubtitleReviewWindow(IMediaEngine engine, ConversionRequest request, bool editing, Func<ConversionRequest, Task>? recognize = null,
+        Func<SubtitleTaskResult, Task>? saveDraft = null)
     {
-        _engine = engine; _request = request; _sources = request.Files.Select((path,index) =>
+        _engine = engine; _request = request; _recognize = recognize; _saveDraft = saveDraft; _sources = request.Files.Select((path,index) =>
         {
             var source=new Source(path);var options=request.InputOptions?.ElementAtOrDefault(index)??request.Options;
             if(options.Transcription is { ReviewedCues: {} cues } speech)
@@ -75,7 +76,8 @@ public sealed class SubtitleReviewWindow : Window
         }).ToArray();
         Title = "字幕校对"; Width = 1100; Height = 780; MinWidth = 850; MinHeight = 600;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "document");
-        var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(20), RowSpacing = 12 };
+        ToolExecution.SaveOnClose(this, FlushTaskEditsAsync);
+        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(20), RowSpacing = 12 };
         var content = new Grid { ColumnDefinitions = new("230,*,310"), ColumnSpacing = 16 };
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>
         {
@@ -153,15 +155,13 @@ public sealed class SubtitleReviewWindow : Window
         });side.Children.Add(styles);
         _format.SelectionChanged+=(_,_)=>styles.IsVisible=_format.SelectedIndex!=0;styles.IsVisible=_format.SelectedIndex!=0;
         Grid.SetColumn(side, 2); content.Children.Add(new ScrollViewer { Content = side, [Grid.ColumnProperty] = 2 }); root.Children.Add(content);
-        Grid.SetRow(_activity, 1); root.Children.Add(_activity);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        _retry = Ui.Button("重试失败文件", async () => await RecognizeAsync()); actions.Children.Add(_retry);
-        _stop = Ui.Button("停止识别", () => _recognition?.Cancel()); actions.Children.Add(_stop);
+        _retry = Ui.Button("后台重新识别", async () => await RecognizeAsync()); actions.Children.Add(_retry);
         actions.Children.Add(Ui.DialogButton("取消", () => Close(null)));
         _export = Ui.DialogButton(editing ? "保存修改" : "导出字幕", Export); _export.Classes.Add("primary");_export.IsDefault=true;actions.Children.Add(_export);
         ToolExecution.Configure(this, _export, "导出字幕", editing);
-        Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
+        Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 1); root.Children.Add(footer); Content = root;
         _files.SelectionChanged += async (_, _) => { _preview.SetSource(Selected?.Path);
             if(Selected is {} source)try {var info=await engine.Probe(source.Path,_lifetime.Token);if(Selected==source){_duration=Math.Max(.01,(info.Duration-request.Options.Start)/request.Options.Speed);UpdateTiming();}}catch(OperationCanceledException){}catch(Exception error){_notice.Text=error.Message;}
              _cues.ItemsSource = Selected?.Cues; _cues.SelectedIndex = Selected?.Cues?.Count > 0 ? 0 : -1; _notice.Text = Localization.Text(Selected?.Status ?? ""); Refresh(); };
@@ -170,8 +170,7 @@ public sealed class SubtitleReviewWindow : Window
             _editor.DataContext = _cues.SelectedItem; UpdateTiming();
             Refresh();
         };
-        Opened += async (_, _) => await RecognizeAsync();
-        Closed += (_, _) => { _lifetime.Cancel(); _recognition?.Cancel(); _style.Dispose(); _preview.Dispose(); };
+        Closed += (_, _) => { _lifetime.Cancel(); _style.Dispose(); _preview.Dispose(); };
         RefreshFiles(); _files.SelectedIndex = 0; Refresh();
     }
 
@@ -182,33 +181,26 @@ public sealed class SubtitleReviewWindow : Window
         { _timing.SetRange(start,end,_duration); _preview.SetPosition(_request.Options.Start+start*_request.Options.Speed); }
     }
 
+    public async Task FlushTaskEditsAsync()
+    {
+        if (_saveDraft is null || _sources.Length != 1 || _sources[0].Cues is null) return;
+        var source = _sources[0];
+        await _saveDraft(new(ReadCues(source), source.Length, source.WriteUtc));
+    }
+
     private async Task RecognizeAsync()
     {
-        if (_busy || _lifetime.IsCancellationRequested) return;
-        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _recognition = operation; _busy = true; Refresh();
+        if (_busy || _lifetime.IsCancellationRequested || _recognize is null) return;
+        _busy = true; Refresh();
         try
         {
-            foreach (var source in _sources.Where(source => source.Cues is null))
-            {
-                operation.Token.ThrowIfCancellationRequested(); source.Status = "识别中"; RefreshFiles();
-                try
-                {
-                    var file = new FileInfo(source.Path); source.Length = file.Length; source.WriteUtc = file.LastWriteTimeUtc;
-                    var options = (_request.InputOptions?.ElementAtOrDefault(Array.IndexOf(_sources,source))??_request.Options).Clone(); var speech = options.Transcription?.Clone() ?? new(); speech.ReviewedCues = null;
-                    var job = new Job { Inputs = [source.Path], Options = options };
-                    var cues = await new SpeechSubtitleService(_engine).TranscribeAsync(job, speech, options.AudioStreamIndex,
-                        percent => Dispatcher.UIThread.Post(() => _notice.Text = System.IO.Path.GetFileName(source.Path) + $" · {percent:0}%"), operation.Token,
-                        activity => Dispatcher.UIThread.Post(() => { if (!_lifetime.IsCancellationRequested) _activity.Update(activity); }));
-                    CheckSource(source); source.Cues = new(cues.Select(cue => new CueDraft(cue))); source.Status = cues.Count == 0 ? "未识别到语音" : "待校对";
-                }
-                catch (OperationCanceledException) { source.Status = "待识别"; throw; }
-                catch (Exception error) { source.Status = error.Message; }
-                RefreshFiles(); if (Selected == source) { _cues.ItemsSource = source.Cues; _cues.SelectedIndex = source.Cues?.Count > 0 ? 0 : -1; }
-            }
+            var options = _request.Options.Clone(); options.Format = "srt"; options.Transcription ??= new();
+            options.Transcription.RecognitionOnly = true; options.Transcription.ReviewedCues = null;
+            await _recognize(_request with { Options = options, InputOptions = null, StartImmediately = true });
+            Close();
         }
-        catch (OperationCanceledException) { if (!_lifetime.IsCancellationRequested) _notice.Text = Localization.Text("识别已停止，已完成结果保留"); }
-        finally { _busy = false; _recognition = null; if (!_lifetime.IsCancellationRequested) Refresh(); }
+        catch (Exception error) { _notice.Text = error.Message; }
+        finally { _busy = false; if (!_lifetime.IsCancellationRequested) Refresh(); }
     }
     private void Export()
     {
@@ -221,13 +213,13 @@ public sealed class SubtitleReviewWindow : Window
             {
                 CheckSource(source); var edit = (_request.InputOptions?.ElementAtOrDefault(Array.IndexOf(_sources,source))??_request.Options).Clone(); edit.Format = new[] { "srt", "ass", "mp4", "mkv" }[_format.SelectedIndex];
                 if (edit.Format != "srt") _style.ReadInto(edit);
-                edit.Transcription ??= new(); edit.Transcription.ReviewedCues = ReadCues(source);
+                edit.Transcription ??= new(); edit.Transcription.RecognitionOnly = false; edit.Transcription.ReviewedCues = ReadCues(source);
                 edit.Transcription.ReviewedSourceLength = source.Length; edit.Transcription.ReviewedSourceWriteUtc = source.WriteUtc;
                 edit.Transcription.Validate(); return edit;
             }).ToArray();
             var folder = _sourceFolder.IsChecked == true ? System.IO.Path.GetDirectoryName(sources[0].Path)! : _folder.Text?.Trim() ?? "";
             _ = ConversionBatch.CreateJobs(_request.Feature, sources.Select(source => source.Path).ToArray(), folder, options[0], options);
-            Close(_request with { Files = sources.Select(source => source.Path).ToArray(), Options = options[0], InputOptions = options,
+            ToolExecution.Complete(this, _request with { Files = sources.Select(source => source.Path).ToArray(), Options = options[0], InputOptions = options,
                 OutputFolder = folder, OutputToSource = _sourceFolder.IsChecked == true, StartImmediately = ToolExecution.StartImmediately(this) });
         }
         catch(Exception error) { _notice.Text = error.Message; }
@@ -254,7 +246,7 @@ public sealed class SubtitleReviewWindow : Window
     private void RefreshFiles() { _files.ItemsSource ??= _sources; }
     private void Refresh()
     {
-        _stop.IsVisible = _busy; _retry.IsVisible = !_busy && _sources.Any(source => source.Cues is null);
+        _retry.IsVisible = !_busy && _recognize is not null;
         _export.IsEnabled = !_busy && _sources.Any(source => source.Cues?.Count > 0); _editor.IsEnabled = !_busy && _cues.SelectedItem is CueDraft;
         _format.IsEnabled = !_busy;
     }

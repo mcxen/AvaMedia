@@ -16,6 +16,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         if (job.Inputs.Length != 1) throw new ArgumentException("每个字幕任务处理一个文件。");
         if (job.Options.Format is not ("mp4" or "mkv" or "srt" or "ass")) throw new ArgumentException("自动字幕支持 MP4、MKV、SRT 和 ASS。");
         (job.Options.Transcription ?? new()).Validate();
+        if (job.Options.Transcription?.RecognitionOnly == true && job.Options.Format != "srt")
+            throw new ArgumentException("后台识别任务使用 SRT 草稿。");
         var style = job.Options.Clone();
         style.SubtitleMode = SubtitleMode.None; style.Subtitle = "";
         MediaEngine.ValidateEncodingOptions(style);
@@ -51,6 +53,10 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     {
         var options = job.Options;
         var speech = options.Transcription ?? new();
+        job.SubtitleResult = null;
+        File.Delete(AiTaskResults.PathFor(job, "subtitles"));
+        var sourceFile = new FileInfo(job.Inputs[0]);
+        var sourceLength = sourceFile.Length; var sourceWriteUtc = sourceFile.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "Whisper " + speech.Model, "条字幕",
             ["读取音轨", "语音模型", "语音识别", "保存结果"]);
         activity.Stage("读取音轨");
@@ -201,6 +207,12 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             finally { RecognitionGate.Release(); }
             }
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
+            sourceFile.Refresh();
+            if (!sourceFile.Exists || sourceFile.Length != sourceLength || sourceFile.LastWriteTimeUtc != sourceWriteUtc)
+                throw new IOException("识别期间源文件发生变化，请重新识别字幕。");
+            var transcript = new SubtitleTaskResult(cues.ToArray(), sourceLength, sourceWriteUtc);
+            await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), transcript, ct).ConfigureAwait(false);
+            job.SubtitleResult = transcript;
             activity.Node("保存结果");
             if (options.Format is "srt" or "ass")
             {
@@ -226,7 +238,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             }
             ct.ThrowIfCancellationRequested();
             File.Move(output, job.Output);
-            job.ProgressDetail = "字幕已生成";
+            job.ProgressDetail = speech.RecognitionOnly ? "识别完成 · 可校对后导出" : "字幕已生成";
             job.Log += $"\n{speech.Model} · {speech.Language} · {cues.Count} subtitles";
             progress(100);
             activity.Finish("字幕已生成");

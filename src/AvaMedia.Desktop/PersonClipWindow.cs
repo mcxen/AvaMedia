@@ -18,6 +18,8 @@ public sealed partial class PersonClipWindow : Window
         public ClipEditResult? Result { get; set; }
         public string Status { get; set; } = "待分析";
         public string Error { get; set; } = "";
+        public Job? Task { get; set; }
+        public PersonDetectionTaskResult? Observed { get; set; }
         public long Length { get; set; }
         public DateTime WriteUtc { get; set; }
     }
@@ -62,11 +64,12 @@ public sealed partial class PersonClipWindow : Window
 
     public PersonClipWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? paths,
         Func<Window, string?, Task> manageModels, string? outputFolder = null, PersonClipTaskOptions? initial = null,
-        bool editing = false, bool? outputToSource = null)
+        bool editing = false, bool? outputToSource = null, Action<IReadOnlyList<Job>, bool>? enqueue = null, Action<Job>? stopTask = null, Action? newTask = null)
     {
-        _engine = engine; _settings = settings; _manageModels = manageModels;
+        _engine = engine; _settings = settings; _manageModels = manageModels; _enqueue = enqueue; _stopTask = stopTask;
         Title = "保留有人片段 · Beta"; Width = 1120; Height = 850; MinWidth = 980; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        ToolExecution.SaveOnClose(this, FlushTaskEditsAsync);
         var defaults = initial?.Detection ?? new Storage().LoadToolOptions<PersonClipOptions>("person-clip") ?? new();
         _fps.Value = (decimal)defaults.FramesPerSecond; _threshold.Value = (decimal)defaults.Threshold;
         _padding.Value = (decimal)defaults.PaddingSeconds; _gap.Value = (decimal)defaults.MergeGapSeconds;
@@ -88,7 +91,7 @@ public sealed partial class PersonClipWindow : Window
         var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         tools.Children.Add(Ui.Button("添加视频…", async () => await AddFilesAsync()));
-        tools.Children.Add(Ui.Button("移除", () => { if (!_busy && _files.SelectedIndex >= 0) { _entries.RemoveAt(_files.SelectedIndex); RefreshFiles(); } }));
+        tools.Children.Add(Ui.Button("移除", () => { if (!_busy && _files.SelectedIndex >= 0) { if (!SelectedTaskActive) _entries.RemoveAt(_files.SelectedIndex); RefreshFiles(); } }));
         tools.Children.Add(Ui.Button("高级设置…", async () => await OpenAdvancedAsync())); layout.Children.Add(tools);
         var parameters = new StackPanel { Spacing = 8 };
         parameters.Children.Add(Ui.Text("检测模型", "settingsHeading"));
@@ -122,8 +125,9 @@ public sealed partial class PersonClipWindow : Window
         _files.SelectionChanged += (_,_) => preview.SetSource(Selected?.Path); Closed += (_,_) => preview.Dispose();
         var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _analyze = Ui.Button("开始分析", async () => await AnalyzeAsync()); _analyze.Classes.Add("primary");
-        _stop = Ui.Button("停止", () => _analysis?.Cancel()); _stop.IsVisible = false;
-        analyzeActions.Children.Add(_analyze); analyzeActions.Children.Add(_stop); Grid.SetRow(analyzeActions, 2); left.Children.Add(analyzeActions);
+        _stop = Ui.Button("停止任务", StopDetectionTasks); _stop.IsVisible = false;
+        analyzeActions.Children.Add(_analyze); analyzeActions.Children.Add(_stop);
+        if (newTask is not null) analyzeActions.Children.Add(Ui.Button("新建检测任务", newTask)); Grid.SetRow(analyzeActions, 2); left.Children.Add(analyzeActions);
         var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 }; body.Children.Add(left);
         _rangePanel.Children.Add(Ui.Text("排除这些区间", "settingsHeading")); _rangePanel.Children.Add(_ranges);
         _ranges.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<PersonClipRange>((range, _) => Ui.Text(range is null ? "" : MediaTime.Format(range.Start) + " – " + MediaTime.Format(range.End)));
@@ -153,7 +157,7 @@ public sealed partial class PersonClipWindow : Window
         if (paths is not null) AddPaths(paths);
         if (initial is not null && _entries.Count == 1) { _entries[0].Excluded = PersonClipExclusions.Normalize(defaults.ExcludedRanges); RefreshRanges(); }
         Opened += async (_, _) => { try { await RefreshModelsAsync(); } catch (Exception error) { if (!_closed) _status.Text = error.Message; } };
-        Closed += (_, _) => { _analysis?.Cancel(); _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
+        Closed += (_, _) => { DetachDetectionTasks(); _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
     }
 
     private static NumericUpDown Number(decimal min, decimal max, decimal value, decimal step) => new()
@@ -181,17 +185,17 @@ public sealed partial class PersonClipWindow : Window
     }
     private void RefreshRanges()
     {
-        _ranges.ItemsSource = Selected?.Excluded ?? []; _rangePanel.IsEnabled = Selected is not null;
+        _ranges.ItemsSource = Selected?.Excluded ?? []; _rangePanel.IsEnabled = Selected is not null && !SelectedTaskActive;
         _start.Text = _end.Text = "00:00:00.000";
     }
     private void RemoveRange()
     {
-        if (Selected is not { } entry || _ranges.SelectedIndex < 0) return;
+        if (SelectedTaskActive || Selected is not { } entry || _ranges.SelectedIndex < 0) return;
         entry.Excluded = entry.Excluded.Where((_, index) => index != _ranges.SelectedIndex).ToArray(); entry.Result = null; entry.Status = "待分析"; RefreshFiles();
     }
     private async Task MarkRangeAsync()
     {
-        if (Selected is not { } entry) return;
+        if (SelectedTaskActive || Selected is not { } entry) return;
         var previous = _ranges.SelectedItem as PersonClipRange;
         var editor = new EditorWindow(_engine, entry.Path, new() { Start = previous?.Start ?? 0, End = previous?.End ?? 0 }, "person-exclusion");
         var result = await editor.ShowDialog<ConversionOptions?>(this);
@@ -230,8 +234,8 @@ public sealed partial class PersonClipWindow : Window
     {
         if (_closed) return;
         _modelStatus.IsVisible = false; _detectionMode.IsEnabled=!_busy;
-        if (_analyze is not null) { _analyze.IsEnabled = !_busy && _entries.Count > 0 && SelectedDetectors.Length > 0; _analyze.Content = Localization.Text(_entries.All(entry => entry.Result is not null) && _entries.Count > 0 ? "重新分析" : "开始分析"); }
-        _submit.IsEnabled = !_busy && _entries.Any(entry => entry.Result?.Segments.Count > 0);
+        if (_analyze is not null) { _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Task is null || !DetectionTaskActive(entry.Task)) && SelectedDetectors.Length > 0; _analyze.Content = Localization.Text(_entries.All(entry => entry.Result is not null) && _entries.Count > 0 ? "后台重新检测" : "后台检测"); }
+        _submit.IsEnabled = !_busy && _entries.Any(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskActive(entry.Task)));
     }
     private static double Value(NumericUpDown input)
     {
@@ -244,14 +248,14 @@ public sealed partial class PersonClipWindow : Window
         try
         {
             if (!_settings.EnableBetaFeatures) return;
-            var edits = _entries.Where(entry => entry.Result?.Segments.Count > 0).ToArray();
+            var edits = _entries.Where(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskActive(entry.Task))).ToArray();
             if (edits.Length == 0) throw new ArgumentException("请先分析并保留片段。");
             foreach (var entry in edits) CheckSource(entry);
             var preset = _format.SelectedItem as string ?? QuickClipBatch.DefaultPreset;
             QuickClipWorkflow.ValidateJoinedExports(edits.Select(entry => entry.Result!), preset);
             var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(edits[0].Path)! : _folder.Text?.Trim() ?? "";
             if (folder.Length == 0) throw new ArgumentException("请选择输出目录。");
-            Close(new PersonClipRequest(edits.Select(entry => entry.Result!).ToArray(), Path.GetFullPath(folder),
+            ToolExecution.Complete(this, new PersonClipRequest(edits.Select(entry => entry.Result!).ToArray(), Path.GetFullPath(folder),
                 _sourceFolder.IsChecked == true, preset, ToolExecution.StartImmediately(this)));
         }
         catch (Exception error) { _status.Text = error.Message; }

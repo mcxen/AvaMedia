@@ -53,6 +53,7 @@ public sealed partial class MediaAiWindow
         var workbenchActions = new List<Control> { _analyze, _stop };
         if (_enqueue is not null) workbenchActions.Add(_enqueueQueue);
         if (_showQueue is not null) workbenchActions.Add(_viewQueue);
+        if (_newTask is not null) workbenchActions.Add(Ui.Button("新建标签任务", _newTask));
         workbenchActions.Add(_chooseTagGroups); workbenchActions.Add(_advanced);
         toolbar.Children.Add(WorkbenchActions(workbenchActions.ToArray())); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
@@ -93,7 +94,7 @@ public sealed partial class MediaAiWindow
         _enqueueQueue.Click += async (_, _) => await EnqueueSelectedAsync();
         _viewQueue.Click += (_, _) => ShowQueuedTasks();
         _rename.Click += async (_, _) => await OpenRenameDialogAsync(); _undo.Click += async (_, _) => await RenameAsync(true);
-        _stop.Click += (_, _) => _operation?.Cancel(); _export.Click += async (_, _) => await ExportAsync();
+        _stop.Click += (_, _) => StopAnalysisTasks(); _export.Click += async (_, _) => await ExportAsync();
         _copy.Click += async (_, _) =>
         {
             if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var value) || Clipboard is null) return;
@@ -208,8 +209,8 @@ public sealed partial class MediaAiWindow
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
         _imports.IsEnabled = _advanced.IsEnabled = _chooseTagGroups.IsEnabled = !_busy && !_writingTxt;
-        _analyze.IsEnabled = !_busy && !_writingTxt && included > 0;
-        _enqueueQueue.IsEnabled = !_busy && !_writingTxt && included > 0 && _enqueue is not null;
+        _analyze.IsEnabled = !_busy && !_writingTxt && _entries.Any(entry => entry.Include && !HasActiveTask(entry.Path));
+        _enqueueQueue.IsEnabled = _analyze.IsEnabled && _enqueue is not null;
         _viewQueue.IsEnabled = _showQueue is not null;
         _rename.IsEnabled = !_busy && !_writingTxt && _canRename() && _entries.Any(entry => entry.Include && _results.TryGetValue(entry.Path, out var result) && ResultTags(result).Any());
         _copy.IsVisible = _results.Count + _liveResults.Count > 0;
@@ -220,7 +221,7 @@ public sealed partial class MediaAiWindow
         _saveTxt.IsVisible = _results.Count > 0;
         _batchActions.IsVisible = _results.Count > 0 || _undo.IsVisible;
         _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
-        // One primary call to action: Analyze, replaced in place by Stop while an analysis runs.
-        _stop.IsVisible = _busy && _operation is not null; _analyze.IsVisible = !_stop.IsVisible;
+        _stop.IsVisible = _taskJobs.Values.Any(AnalysisTaskActive) || _busy && _operation is not null;
+        _analyze.Content = Localization.Text("后台分析");
     }
 }

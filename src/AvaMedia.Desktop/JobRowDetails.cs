@@ -24,12 +24,12 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool HasCover => Cover is not null;
     public bool NoCover => !HasCover;
     public bool IsRunning => Job.State == JobState.Running;
-    public bool CanPreview => Job.FeatureId == "folder-classification" || !IsRunning;
-    public string PreviewTip => Job.FeatureId == "folder-classification" ? "查看分类任务…" : IsRunning ? "任务正在运行" : "编辑任务";
+    public bool CanPreview => MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) || !IsRunning;
+    public string PreviewTip => MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) ? "查看任务…" : IsRunning ? "任务正在运行" : "编辑任务";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
     public string Name => Job.FeatureId is "download" or "folder-classification" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
-    public string OutputName => Path.GetFileName(Job.UserOutput.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    public string OutputName => Job.HasInternalOutput ? Localization.Text("任务结果") : Path.GetFileName(Job.UserOutput.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     public string FileSummary => _fileSummary;
     public string MediaSummary
     {

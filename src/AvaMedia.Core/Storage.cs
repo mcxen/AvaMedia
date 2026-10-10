@@ -127,6 +127,7 @@ public sealed partial class Storage
                     job.Output = FolderClassificationTaskStore.Folder(job); job.State = JobState.Waiting;
                     if (job.Options.FolderClassification is { } classification) classification.LastJournal = null;
                 }
+                else if (job.HasInternalOutput) { job.Output = AiTaskResults.InternalOutputFor(job); job.State = JobState.Waiting; }
                 job.AttachLogs(_logs);
                 if (job.State is JobState.Running or JobState.Stopping) job.State = JobState.Cancelled;
                 jobs.Add(job);

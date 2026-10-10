@@ -125,9 +125,10 @@ public partial class MainWindow : Window
         {
             files??=await Ui.Pick(this,"打开媒体文件",true);if(files.Length>0)new PlayerWindow(Engine,files).ShowForPlayback(this);return;
         }
-        Window dialog=feature.Operation==Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance"
-            ? new SpeechToolsWindow(Engine,feature,_settings.OutputFolder,files)
-            : new ConvertWindow(Engine,feature,_settings.OutputFolder,files??[]);
+        if(feature.Operation==Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance")
+        { await ConfigureSpeechAsync(feature,files); return; }
+        if(IsAiFeature(feature)) { await ConfigureAiConversionAsync(feature,files); return; }
+        Window dialog=new ConvertWindow(Engine,feature,_settings.OutputFolder,files??[]);
         var result=await dialog.ShowDialog<ConversionRequest?>(this);if(result is null)return;
         if(result.ClipInputs is not null)
         {
@@ -189,7 +190,7 @@ public partial class MainWindow : Window
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
-    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed){try{if(CanViewClassificationTask(j))await ShowClassificationTaskAsync(j);else if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed){try{if(CanViewClassificationTask(j))await ShowClassificationTaskAsync(j);else if(j.HasInternalOutput)await ShowAiTaskAsync(j);else if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j]){try{var path=j.FeatureId=="folder-classification"?j.UserOutput:Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;if(Directory.Exists(path))Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -202,7 +203,7 @@ public partial class MainWindow : Window
     private async void JobDoubleClick(object? sender,TappedEventArgs e)
     {
         if(JobList.SelectedItems?.Count!=1 || JobList.SelectedItem is not Job j)return;
-        if (CanViewClassificationTask(j)) await ShowClassificationTaskAsync(j);
+        if (CanViewAiTask(j)) await ShowAiTaskAsync(j);
         else await EditJob(j);
     }
     private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e)=>Refresh();

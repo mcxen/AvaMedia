@@ -8,6 +8,7 @@ public partial class MainWindow
 
     internal bool CanEditTask(Job job) => CanManageTasks && !_queue.IsExecuting(job)
         && job.State is not (JobState.Running or JobState.Stopping) && _jobs.Contains(job)
+        && !job.HasInternalOutput
         && Catalog.Find(job.FeatureId).Operation is not (Operation.MediaTag or Operation.FolderClassify);
 
     private void UpdateTaskEditingActions()
@@ -27,6 +28,7 @@ public partial class MainWindow
     {
         job.Log = "";
         job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.DownloadSpeed = null; job.Error = ""; job.Activity = null;
+        job.MediaTagResult = null; job.PersonDetectionResult = null; job.SubtitleResult = null;
         job.State = JobState.Waiting;
     }
 

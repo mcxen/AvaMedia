@@ -269,7 +269,7 @@ public sealed class ConvertWindow : Window
                 }
                 var remembered=candidate.Options.Clone();remembered.Start=remembered.End=0;remembered.Subtitle="";remembered.CropX=remembered.CropY=remembered.CropWidth=remembered.CropHeight=0;remembered.DelogoX=remembered.DelogoY=remembered.DelogoWidth=remembered.DelogoHeight=0;
                 new Storage().SaveToolOptions(feature.Id,remembered);
-                _lifetime.Token.ThrowIfCancellationRequested();Close(new ConversionRequest(selected,inputs,folderPath,candidate.Options,OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits,StartImmediately:ToolExecution.StartImmediately(this)));
+                _lifetime.Token.ThrowIfCancellationRequested();ToolExecution.Complete(this, new ConversionRequest(selected,inputs,folderPath,candidate.Options,OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits,StartImmediately:ToolExecution.StartImmediately(this)));
             }
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)validation.Text=ex.Message;}

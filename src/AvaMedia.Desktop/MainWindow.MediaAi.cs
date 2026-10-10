@@ -4,30 +4,28 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    private MediaAiWindow? _mediaAiWorkspace;
-    private Task ConfigureMediaAiAsync(string[]? files)
+    internal Task ConfigureMediaAiAsync(string[]? files)
     {
-        if (_mediaAiWorkspace is { } existing)
-        {
-            existing.ImportPaths(files ?? []); existing.Show(); existing.Activate(); return Task.CompletedTask;
-        }
+        CreateMediaAiWindow(files); return Task.CompletedTask;
+    }
+
+    private MediaAiWindow CreateMediaAiWindow(string[]? files)
+    {
         var window = new MediaAiWindow(Engine, _settings, files, async owner =>
         {
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
             await settings.ShowDialog<bool>(owner);
         }, () => !_queue.IsRunning,
-            enqueue: EnqueueMediaTagJobs,
-            showQueue: ShowMediaTagQueue);
+            enqueue: EnqueueMediaTagJobs, showQueue: ShowMediaTagQueue,
+            stopTask: job => { _queue.Stop(job); Save(); Refresh(); }, newTask: () => { _ = ConfigureMediaAiAsync(null); });
         window.Renamed += mappings =>
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
             JobList.ItemsSource = null; JobList.ItemsSource = _jobs; Save(); Refresh();
         };
-        _mediaAiWorkspace = window;
-        window.Closed += (_, _) => _mediaAiWorkspace = null;
-        window.Show(this); return Task.CompletedTask;
+        window.Show(this); return window;
     }
 
     private void EnqueueMediaTagJobs(IReadOnlyList<Job> jobs, bool startImmediately)
@@ -51,7 +49,7 @@ public partial class MainWindow
             JobList.ScrollIntoView(first);
     }
 
-    internal bool CanViewMediaTagResult(Job job) => !_closing && job.State == JobState.Completed
+    internal bool CanViewMediaTagResult(Job job) => !_closing && HasAiResult(job)
         && Catalog.Find(job.FeatureId).Operation == Operation.MediaTag
         && (File.Exists(job.Output) || job.Inputs.Any(File.Exists));
 
@@ -60,8 +58,8 @@ public partial class MainWindow
         if (!CanViewMediaTagResult(job)) return;
         try
         {
-            if (File.Exists(job.Output)) Open(job.Output);
-            else await ConfigureMediaAiAsync(job.Inputs);
+            var window = CreateMediaAiWindow(job.Inputs);
+            await window.ObserveTaskAsync(job);
         }
         catch (Exception error) { await Ui.Message(this, "AI 标签结果", error.Message); }
     }

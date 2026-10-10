@@ -73,9 +73,18 @@ public partial class MainWindow
             var item = job;
             NotificationCenter.Shared.Publish(this, new("media-tag:" + id + ":" + item.Id, "AI 标签已完成", (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}",
                 NotificationKind.Success, [
-                    new("打开报告", () => { RestoreFromTray(); return ShowMediaTagResultAsync(item); }, Primary: true, Enabled: () => !_closing),
+                    new("查看结果", () => { RestoreFromTray(); return ShowMediaTagResultAsync(item); }, Primary: true, Enabled: () => !_closing),
                     new("查看任务", () => FocusJobsAsync([item])),
                     new("重新处理", () => RetryNotificationAsync([item]), Enabled: () => CanRetryNotification([item]))]));
+        }
+        foreach (var job in batch.Where(job => job.State == JobState.Completed && job.FeatureId is "person-clip" or "auto-subtitle"))
+        {
+            var item = job;
+            NotificationCenter.Shared.Publish(this, new("ai-result:" + id + ":" + item.Id,
+                item.FeatureId == "auto-subtitle" ? "字幕识别完成" : "人物检测完成", (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}",
+                NotificationKind.Success, [new(item.FeatureId == "auto-subtitle" ? "校对字幕" : "调整片段",
+                    () => { RestoreFromTray(); return ShowAiResultAsync(item); }, Primary: true, Enabled: () => !_closing),
+                    new("查看任务", () => ShowAiTaskAsync(item), Enabled: () => !_closing)]));
         }
         var failed = batch.Where(job => job.State == JobState.Failed).ToArray();
         foreach (var job in failed)

@@ -12,7 +12,6 @@ public sealed partial class PersonClipWindow
     private readonly ListBox _retained = new() { MaxHeight=260, BorderThickness=new(0) };
     private readonly TextBlock _resultSummary = Ui.Text("尚未分析", "caption");
     private readonly AiActivityView _activity = new() { Compact = true };
-    private CancellationTokenSource? _analysis;
     private bool _busy;
 
     private PersonClipOptions ReadDetection() => new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum),
@@ -37,76 +36,12 @@ public sealed partial class PersonClipWindow
         await window.ShowDialog(this);
     }
 
-    private async Task AnalyzeAsync()
-    {
-        if (_busy || _closed || !_engine.Settings.EnableBetaFeatures) return;
-        PersonClipOptions options;
-        try { options = ReadDetection(); options.Validate(); new Storage().SaveToolOptions("person-clip", options with { ExcludedRanges = null }); }
-        catch (Exception error) { _status.Text = error.Message; return; }
-        var embeddingSkipped = false;
-        if (options.UseEmbedding && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
-        {
-            if (_busy || _closed) return;
-            // Ask before fetching the optional semantic model; declining analyses with the detectors only.
-            if (!await SemanticModelConsent.ConfirmAsync(this, "语义辅助")) { options = options with { UseEmbedding = false }; embeddingSkipped = true; }
-            if (_busy || _closed) return;
-        }
-        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _analysis = operation; _busy = true; _stop.IsVisible = true; _rangePanel.IsEnabled = false; UpdateDetectorSelection();
-        try
-        {
-            var store = new ModelStore();
-            foreach (var id in options.SelectedDetectors.Concat(options.UseEmbedding ? new[] { ModelCatalog.EmbeddingId } : []))
-            {
-                if (await store.IsInstalledAsync(id, ct: operation.Token)) continue;
-                var progress = new Progress<ModelDownloadProgress>(value =>
-                { if (!_closed && _analysis == operation) _status.Text = Localization.Text("下载模型") + $" · {value.Percent:0}%"; });
-                await store.DownloadAsync(id, progress, operation.Token);
-            }
-            var repeat = _entries.All(entry => entry.Result is not null);
-            foreach (var entry in _entries.ToArray())
-            {
-                operation.Token.ThrowIfCancellationRequested();
-                if (entry.Result is not null && !repeat) continue;
-                entry.Error="";
-                entry.Status = "分析中"; RefreshFiles();
-                var progress = new Progress<PersonClipProgress>(value =>
-                {
-                    if (_closed || _analysis != operation) return;
-                    _status.Text = Path.GetFileName(entry.Path) + " · " + Localization.Text(value.Stage);
-                    if (value.Activity is not null) _activity.Update(value.Activity);
-                });
-                try
-                {
-                    var file = new FileInfo(entry.Path); entry.Length=file.Length;entry.WriteUtc=file.LastWriteTimeUtc;
-                    entry.Result=null;
-                    var result = await new PersonClipAnalysis(_engine, store).AnalyzeAsync(entry.Path, options with { ExcludedRanges = entry.Excluded }, progress, operation.Token);
-                    CheckSource(entry); entry.Result = new(entry.Path, result.Info, result.Segments);
-                    entry.Status = result.Segments.Count > 0 ? "已分析" : "没有可保留片段";
-                }
-                catch (OperationCanceledException) { entry.Status = entry.Result is null ? "待分析" : "已分析"; throw; }
-                catch (Exception error) { entry.Status = "失败"; entry.Error=error.Message; _status.Text = Path.GetFileName(entry.Path) + " · " + error.Message; }
-                RefreshFiles();
-            }
-            _status.Text = embeddingSkipped
-                ? Localization.Format($"已分析 {_entries.Count(entry => entry.Result is not null)} / {_entries.Count} 个视频 · 未下载语义模型，已跳过语义辅助")
-                : Localization.Format($"已分析 {_entries.Count(entry => entry.Result is not null)} / {_entries.Count} 个视频");
-        }
-        catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("分析已停止，已完成结果保留"); }
-        catch (Exception error) { if (!_closed) _status.Text = error.Message; }
-        finally
-        {
-            _analysis = null; _busy = false;
-            if (!_closed) { _stop.IsVisible = false; RefreshFiles(); }
-        }
-    }
-
     private void RefreshResults()
     {
         _retained.ItemsSource=null;
         var entry = Selected;
-        _review.IsEnabled = !_busy && entry?.Result?.Segments.Count > 0;
-        _rangePanel.IsEnabled = !_busy && entry is not null;
+        _review.IsEnabled = !_busy && !SelectedTaskActive && entry?.Result?.Segments.Count > 0;
+        _rangePanel.IsEnabled = !_busy && !SelectedTaskActive && entry is not null;
         if (entry?.Result is not { } result) { _resultSummary.Text = entry?.Error.Length>0?entry.Error:Localization.Text(entry?.Status ?? "尚未分析"); return; }
         _resultSummary.Text = Localization.Format($"保留 {result.Segments.Count} 个片段 · {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))}");
         _retained.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionOptions>((segment,_)=>
@@ -117,7 +52,7 @@ public sealed partial class PersonClipWindow
             {
                 if(entry.Result is not {} current)return;
                 entry.Result=current with { Segments=current.Segments.Where(item=>!ReferenceEquals(item,segment)).ToArray() };RefreshResults();UpdateDetectorSelection();
-            });remove.IsEnabled=!_busy;Grid.SetColumn(remove,1);row.Children.Add(remove);return row;
+            });remove.IsEnabled=!_busy && !SelectedTaskActive;Grid.SetColumn(remove,1);row.Children.Add(remove);return row;
         });
         _retained.ItemsSource=result.Segments;
     }

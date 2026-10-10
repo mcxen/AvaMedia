@@ -13,7 +13,7 @@ public sealed partial class MediaAiWindow
     private WordCandidate[] SemanticLibraryCandidates => _libraryCandidates.Where(entry => !entry.Supports(WordLibraryTarget.JoyTag)).ToArray();
     private bool NeedsSemanticModel => _sceneTags.IsChecked == true || SemanticLibraryCandidates.Length > 0;
 
-    private void InitializeWordLibraries() => Opened += (_, _) => ReloadWordCandidates();
+    private void InitializeWordLibraries() => Opened += (_, _) => { if (_taskJobs.Count == 0) ReloadWordCandidates(); };
     private void ReloadWordCandidates()
     {
         try

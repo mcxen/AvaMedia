@@ -8,13 +8,14 @@ public sealed class MediaTagTaskOptions
     public double SceneThreshold { get; set; } = .55;
     public double SceneMargin { get; set; } = .03;
     public bool WriteTextReport { get; set; } = true;
+    public bool AllowSemanticDownload { get; set; }
     public bool OnlyLibrary { get; set; }
     public WordCandidate[] LibraryCandidates { get; set; } = [];
 
     public MediaTagTaskOptions Clone()
     {
         var copy = (MediaTagTaskOptions)MemberwiseClone();
-        copy.Analysis = Analysis with { };
+        copy.Analysis = Analysis with { SemanticCandidates = Analysis.SemanticCandidates.ToArray() };
         copy.LibraryCandidates = LibraryCandidates.ToArray();
         return copy;
     }
@@ -52,6 +53,8 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         ct = privacyCancellation.Token;
         Validate(job);
         var spec = job.Options.MediaTag!;
+        job.MediaTagResult = null;
+        if (spec.WriteTextReport) File.Delete(AiTaskResults.PathFor(job, "tags"));
         bool PrivateEnabled() => engine.Settings.EnableNsfwContent;
         var activity = new AiActivityReporter(value => job.Activity = MediaPrivacy.Filter(value, PrivateEnabled()), "AI 标签", "个标签",
             spec.Analysis.GenerateCaptions
@@ -59,8 +62,26 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
                 : ["准备标签模型", "识别媒体标签", "保存报告"]);
         activity.Stage("等待 AI 标签"); job.ProgressDetail = "等待 AI 标签"; progress(0);
 
+        var required = new List<string> { ModelCatalog.JoyTagId };
+        if (PrivateEnabled() && spec.Analysis.RecognizeNsfw) required.Add(ModelCatalog.NsfwId);
+        if (spec.Analysis.NeedsSemanticModel && spec.AllowSemanticDownload) required.Add(ModelCatalog.EmbeddingId);
+        if (spec.Analysis.GenerateCaptions && spec.Analysis.CaptionLocalModelId is { } captionId)
+        { required.Add(captionId); required.Add(ModelCatalog.SummaryRuntimeId); }
+        foreach (var id in required)
+        {
+            if (await _models.IsInstalledAsync(id, ct: ct).ConfigureAwait(false)) continue;
+            job.ProgressDetail = "下载模型 · " + ModelCatalog.Find(id).Name;
+            await _models.DownloadAsync(id, new DownloadProgress(value =>
+            {
+                activity.Stage(job.ProgressDetail, value.Received, value.Total, "字节");
+                progress(Math.Max(job.Progress, value.Percent * .05));
+            }), ct).ConfigureAwait(false);
+        }
+
         var report = new InlineProgress(update =>
         {
+            if (update.PreviewResult is { } preview) job.MediaTagResult = MediaPrivacy.Filter(preview, PrivateEnabled());
+            if (update.Result is { } completed) job.MediaTagResult = MediaPrivacy.Filter(completed, PrivateEnabled());
             if (update.Activity is { } snapshot)
             {
                 job.Activity = MediaPrivacy.Filter(snapshot, PrivateEnabled());
@@ -82,6 +103,8 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         ct.ThrowIfCancellationRequested();
         if (results.Count == 0) throw new InvalidDataException("未能完成标签分析。");
         var result = MediaPrivacy.Filter(results[0], PrivateEnabled());
+        await AiTaskResults.SaveAsync(spec.WriteTextReport ? AiTaskResults.PathFor(job, "tags") : job.Output, result, ct).ConfigureAwait(false);
+        job.MediaTagResult = result;
         activity.Node("保存报告");
         job.ProgressDetail = "保存报告"; progress(90);
         var labels = MediaTagText.QualifyingLabels(result, spec.Threshold, spec.SceneThreshold, spec.SceneMargin,
@@ -96,22 +119,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         }
         else
         {
-            // Persist a minimal machine-readable sidecar when TXT is disabled, still not touching source media.
-            var folder = Path.GetDirectoryName(result.Path)!;
-            var destination = MediaEngine.UniqueOutput(folder, Path.GetFileNameWithoutExtension(result.Path) + ".ai-tags", "json",
-                [result.Path, job.Output]);
-            var temporary = Path.Combine(folder, ".avamedia-tags-" + Guid.NewGuid().ToString("N") + ".tmp");
-            try
-            {
-                await File.WriteAllTextAsync(temporary, System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    result.Path, result.Backend, Labels = labels, result.RealPeopleOnly, result.Nsfw, result.Caption, result.CaptionModel, result.CaptionError, result.SceneError, result.SceneSkipped
-                }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), ct).ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested(); File.Move(temporary, destination);
-            }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
-            job.Output = destination;
-            job.ProgressDetail = Path.GetFileName(destination);
+            job.ProgressDetail = "标签分析完成";
         }
         if (result.SceneError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "")
             + (result.SceneSkipped ? "未下载语义模型，已跳过场景" : "语义识别失败");
@@ -121,6 +129,8 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
 
     private sealed class InlineProgress(Action<MediaTagProgress> report) : IProgress<MediaTagProgress>
     { public void Report(MediaTagProgress value) => report(value); }
+    private sealed class DownloadProgress(Action<ModelDownloadProgress> report) : IProgress<ModelDownloadProgress>
+    { public void Report(ModelDownloadProgress value) => report(value); }
 
     private sealed class PrivacyCancellation : IDisposable
     {

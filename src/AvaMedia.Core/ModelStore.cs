@@ -74,7 +74,7 @@ public sealed class ModelStore(string? root = null)
     public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true)
     {
         var gate = Gate(id);
-        if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
+        await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             if (!await IsInstalledAsync(id, verify, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
@@ -91,9 +91,12 @@ public sealed class ModelStore(string? root = null)
         sourcePreference ??= ModelDownloadSources.Preference;
         sourcePreference.Validate();
         var china = ModelDownloadSources.PrefersChinaSources();
+        if (await IsInstalledAsync(id, true, ct).ConfigureAwait(false))
+        { progress?.Report(new(model.DownloadSize, model.DownloadSize, "完成")); return; }
+        progress?.Report(new(0, model.DownloadSize, "等待模型"));
         await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
-        if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
+        await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             progress?.Report(new(0, model.DownloadSize, "校验模型"));

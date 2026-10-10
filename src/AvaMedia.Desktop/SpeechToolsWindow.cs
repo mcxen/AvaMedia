@@ -120,12 +120,12 @@ public sealed class SpeechToolsWindow : Window
         Grid.SetColumn(_browse, 2); outputRow.Children.Add(_browse); saving.Children.Add(outputRow);
         _sourceFolder = new CheckBox { Name = "SpeechSourceFolder", Content = "输出至源文件目录", IsChecked = !editing && engine.Settings.OutputToSource };
         saving.Children.Add(_sourceFolder); Grid.SetRow(saving, 2);
-        if (!_transcribe) root.Children.Add(saving);
+        root.Children.Add(saving);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         actions.Children.Add(Ui.DialogButton("取消", () => Close(null)));
         _confirm = new Button { Name = "SpeechConfirm", Content = editing ? "保存修改" : "加入队列", IsDefault = true, Classes = { "primary", "dialog-action" } };
-        _confirm.Click += async (_, _) =>
+        _confirm.Click += (_, _) =>
         {
             if (_busy) return; _busy = true; _error = ""; Refresh(); fields.IsEnabled = source.IsEnabled = saving.IsEnabled = false;
             try
@@ -138,24 +138,22 @@ public sealed class SpeechToolsWindow : Window
                 var remembered=request.Options.Clone();remembered.Start=remembered.End=0;
                 if(remembered.Transcription is {} speech){speech.ReviewedCues=null;speech.ReviewedSourceLength=0;speech.ReviewedSourceWriteUtc=default;}
                 _storage.SaveToolOptions(feature.Id,new Preferences(remembered,_output.SelectedIndex));
-                if(_transcribe)
+                if (_transcribe && !editing)
                 {
-                    var reviewed=await new SubtitleReviewWindow(engine,request,editing).ShowDialog<ConversionRequest?>(this);
-                    if(reviewed is not null)
-                    {
-                        remembered.Format = reviewed.Options.Format;
-                        _storage.SaveToolOptions(feature.Id,new Preferences(remembered, Math.Max(0, Array.IndexOf(new[] { "mp4", "mkv", "srt", "ass" }, remembered.Format))));
-                        Close(reviewed);
-                    }
+                    request.Options.Format = "srt";
+                    request.Options.Transcription!.RecognitionOnly = true;
+                    request.Options.Transcription.ReviewedCues = null;
                 }
-                else Close(request);
+                ToolExecution.Complete(this, request);
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
             catch (Exception error) { _error = error.Message; }
             finally { _busy = false; if (IsVisible) { fields.IsEnabled = source.IsEnabled = saving.IsEnabled = true; Refresh(); } }
         };
-        actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
-        if(!_transcribe)ToolExecution.Configure(this,_confirm,"开始增强",editing);
+        actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
+        foreach (var child in root.Children.Where(child => Grid.GetRow(child) != 1)) Grid.SetColumnSpan(child, 2);
+        Content = root;
+        ToolExecution.Configure(this,_confirm,_transcribe ? "后台识别" : "后台增强",editing);
         _sources.SelectionChanged += (_, _) =>
         {
             _remove.IsEnabled = !_busy && _sources.SelectedItems?.Count > 0;
@@ -187,7 +185,7 @@ public sealed class SpeechToolsWindow : Window
     {
         if (_files.Count == 0) throw new ArgumentException("请添加音视频文件。");
         var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(_files[0])! : _folder.Text?.Trim() ?? "";
-        if (!_transcribe && string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
+        if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");
         var options = _initial.Clone(); options.CopyStreams = false; options.SubtitleMode = SubtitleMode.None; options.Subtitle = "";
         _voice.ReadInto(options);
         if (_transcribe)
@@ -215,15 +213,15 @@ public sealed class SpeechToolsWindow : Window
     private void Refresh()
     {
         var hasFolder = _sourceFolder.IsChecked == true || !string.IsNullOrWhiteSpace(_folder.Text);
-        _confirm.IsEnabled = !_busy && _files.Count > 0 && (_transcribe || hasFolder);
-        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : _transcribe ? "识别并校对" : "加入队列");
+        _confirm.IsEnabled = !_busy && _files.Count > 0 && hasFolder;
+        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
         _remove.IsEnabled = !_busy && _sources.SelectedItems?.Count > 0;
         _empty.IsVisible = _files.Count == 0;
         _count.Text = _files.Count > 0 ? Localization.Format($"{_files.Count} 个文件") : "";
         _folder.IsEnabled = _browse.IsEnabled = !_busy && _sourceFolder.IsChecked != true;
         if (!_busy)
         {
-            _notice.Text = _error.Length > 0 ? _error : !_transcribe && !hasFolder && _files.Count > 0 ? Localization.Text("请选择输出目录。") : "";
+            _notice.Text = _error.Length > 0 ? _error : !hasFolder && _files.Count > 0 ? Localization.Text("请选择输出目录。") : "";
             _notice.IsVisible = _notice.Text.Length > 0;
         }
     }

@@ -8,6 +8,9 @@ public sealed class TranscriptionOptions
 {
     public string Language { get; set; } = "auto";
     public SpeechModel Model { get; set; }
+    public bool RecognitionOnly { get; set; }
+    public string? ReviewOutputFolder { get; set; }
+    public bool ReviewOutputToSource { get; set; }
     public SubtitleCue[]? ReviewedCues { get; set; }
     public long ReviewedSourceLength { get; set; }
     public DateTime ReviewedSourceWriteUtc { get; set; }

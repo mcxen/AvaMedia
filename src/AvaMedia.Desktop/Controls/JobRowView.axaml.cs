@@ -75,9 +75,9 @@ public partial class JobRowView : UserControl
         OutputDragHandle.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
         ToolTip.SetTip(OutputDragGrip, Localization.Text("拖到左侧工具继续处理"));
         ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖到左侧工具继续处理") : null);
-        ViewResultButton.IsVisible = _owner.CanViewSummaryResult(job) || _owner.CanViewMediaTagResult(job) || _owner.CanViewClassificationTask(job);
-        ViewResultButton.Content = Localization.Text(_owner.CanViewClassificationTask(job) ? "查看任务" : "查看结果");
-        CoverButton.IsEnabled = _owner.CanEditTask(job) || _owner.CanViewClassificationTask(job);
+        ViewResultButton.IsVisible = _owner.CanViewAiTask(job);
+        ViewResultButton.Content = Localization.Text(_owner.CanViewAiTask(job) ? "查看任务" : "查看结果");
+        CoverButton.IsEnabled = _owner.CanEditTask(job) || _owner.CanViewAiTask(job);
         var path = job.FeatureId=="download" ? job.State == JobState.Completed ? job.Output : "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
         var key = new PreviewKey(path, o.VideoStreamIndex, o.AudioStreamIndex, o.Start, o.End, _owner.Engine.Settings.FFmpegPath, _owner.Engine.Settings.FFprobePath);
@@ -143,16 +143,14 @@ public partial class JobRowView : UserControl
     {
         e.Handled = true;
         if (_owner is null || _details is null) return;
-        if (_owner.CanViewClassificationTask(_details.Job)) await _owner.ShowClassificationTaskAsync(_details.Job);
+        if (_owner.CanViewAiTask(_details.Job)) await _owner.ShowAiTaskAsync(_details.Job);
         else await _owner.EditJob(_details.Job);
     }
     private async void ViewResultClick(object? sender, RoutedEventArgs e)
     {
         e.Handled = true;
         if (_owner is null || _details is null) return;
-        if (_owner.CanViewClassificationTask(_details.Job)) await _owner.ShowClassificationTaskAsync(_details.Job);
-        else if (_owner.CanViewMediaTagResult(_details.Job)) await _owner.ShowMediaTagResultAsync(_details.Job);
-        else await _owner.ShowSummaryResultAsync(_details.Job);
+        await _owner.ShowAiTaskAsync(_details.Job);
     }
     private void OutputPointerPressed(object? sender, PointerPressedEventArgs e)
     {

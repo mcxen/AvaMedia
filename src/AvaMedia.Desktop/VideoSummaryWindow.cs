@@ -73,9 +73,9 @@ public sealed class VideoSummaryWindow : Window
         if (resultFolder is not null && File.Exists(Path.Combine(resultFolder, "report.json")))
         {
             var results = new Button { Content = "查看结果", Classes = { "field-action" } };
-            results.Click += async (_, _) =>
+            results.Click += (_, _) =>
             {
-                try { await new VideoSummaryResultWindow(resultFolder, engine, _files.FirstOrDefault()).ShowDialog(this); }
+                try { new VideoSummaryResultWindow(resultFolder, engine, _files.FirstOrDefault()).Show(this); }
                 catch (Exception error) { ShowError(error); }
             };
             toolbar.Children.Add(results);
@@ -205,7 +205,7 @@ public sealed class VideoSummaryWindow : Window
                 var remembered=request.Options.VideoSummary!.Clone();remembered.SubtitleFile="";
                 if(remembered.TranscriptSource==VideoTranscriptSource.External)remembered.TranscriptSource=VideoTranscriptSource.Automatic;
                 new Storage().SaveToolOptions("video-summary",remembered);
-                if (!_lifetime.IsCancellationRequested) Close(request);
+                if (!_lifetime.IsCancellationRequested) ToolExecution.Complete(this, request);
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
             catch (Exception error) { ShowError(error); }
@@ -216,7 +216,7 @@ public sealed class VideoSummaryWindow : Window
         };
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         foreach (var child in root.Children.Where(child => Grid.GetRow(child) != 1)) Grid.SetColumnSpan(child,2);
-        Content = root; ToolExecution.Configure(this,_confirm,"开始总结",_editing);
+        Content = root; ToolExecution.Configure(this,_confirm,"后台总结",_editing);
         _source.SelectionChanged += (_, _) => Refresh(); _provider.SelectionChanged += (_, _) => Refresh();
         _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
         DragDrop.SetAllowDrop(root, true);

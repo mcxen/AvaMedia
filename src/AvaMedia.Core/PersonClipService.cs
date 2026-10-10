@@ -7,6 +7,7 @@ public sealed record PersonClipTaskOptions
 {
     public PersonClipOptions Detection { get; init; } = new();
     public string ExportPreset { get; init; } = QuickClipBatch.DefaultPreset;
+    public bool AnalysisOnly { get; init; }
     public PersonClipTaskOptions Copy() => this with
     {
         Detection = Detection with { DetectorIds = Detection.DetectorIds?.ToArray(), ExcludedRanges = Detection.ExcludedRanges?.ToArray() }
@@ -31,6 +32,11 @@ public sealed class PersonClipService(MediaEngine engine)
         spec.Validate();
         if (job.Options.Start != 0 || job.Options.End != 0 || MediaEngine.HasFilters(job.Options))
             throw new ArgumentException("人物检测使用源视频时间轴，请在免检测区间中标记要排除的部分。");
+        if (spec.AnalysisOnly)
+        {
+            if (job.Options.Format != "json") throw new ArgumentException("人物检测结果须为 JSON。");
+            return;
+        }
         var export = QuickClipBatch.ResolveOptions(job.Inputs[0], spec.ExportPreset, job.Options);
         if (export.Format != job.Options.Format || export.CopyStreams != job.Options.CopyStreams)
             throw new ArgumentException("人物检测的导出格式与队列参数不一致。");
@@ -42,6 +48,8 @@ public sealed class PersonClipService(MediaEngine engine)
     {
         Validate(job);
         var spec = job.Options.PersonClip!;
+        job.PersonDetectionResult = null;
+        if (!spec.AnalysisOnly) File.Delete(AiTaskResults.PathFor(job, "people"));
         var source = new FileInfo(job.Inputs[0]); var bytes = source.Length; var modified = source.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "保留有人片段", "个片段", ["人物检测", "导出片段"]);
         activity.Stage("等待人物检测"); job.ProgressDetail = "等待人物检测"; progress(0);
@@ -50,6 +58,13 @@ public sealed class PersonClipService(MediaEngine engine)
         var analysisClock = Stopwatch.StartNew();
         try
         {
+            var models = new ModelStore();
+            foreach (var id in spec.Detection.SelectedDetectors.Concat(spec.Detection.UseEmbedding ? new[] { ModelCatalog.EmbeddingId } : []))
+            {
+                if (await models.IsInstalledAsync(id, ct: ct).ConfigureAwait(false)) continue;
+                job.ProgressDetail = "下载模型 · " + ModelCatalog.Find(id).Name;
+                await models.DownloadAsync(id, new DownloadProgress(value => activity.Stage(job.ProgressDetail, value.Received, value.Total, "字节")), ct).ConfigureAwait(false);
+            }
             var latest = 0d;
             result = await new PersonClipAnalysis(engine).AnalyzeAsync(job.Inputs[0], spec.Detection,
                 new InlineProgress(value =>
@@ -72,6 +87,14 @@ public sealed class PersonClipService(MediaEngine engine)
         foreach (var detector in result.FromCache ? [] : result.Detectors)
             if (detector.BackendSelectionReason is { } reason) job.AppendLog($"{detector.Name}: {reason}");
         foreach (var segment in result.Segments) job.AppendLog($"保留 {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}");
+        var detected = new PersonDetectionTaskResult(result, bytes, modified);
+        await AiTaskResults.SaveAsync(spec.AnalysisOnly ? job.Output : AiTaskResults.PathFor(job, "people"), detected, ct).ConfigureAwait(false);
+        job.PersonDetectionResult = detected;
+        if (spec.AnalysisOnly)
+        {
+            job.ProgressDetail = result.Segments.Count > 0 ? $"保留 {result.Segments.Count} 个片段 · 可调整后导出" : "没有可保留片段";
+            activity.Finish("人物检测完成"); progress(100); return;
+        }
         if (result.Segments.Count == 0)
         {
             job.ProgressDetail = "没有可保留片段，已跳过输出";
@@ -159,4 +182,6 @@ public sealed class PersonClipService(MediaEngine engine)
 
     private sealed class InlineProgress(Action<PersonClipProgress> report) : IProgress<PersonClipProgress>
     { public void Report(PersonClipProgress value) => report(value); }
+    private sealed class DownloadProgress(Action<ModelDownloadProgress> report) : IProgress<ModelDownloadProgress>
+    { public void Report(ModelDownloadProgress value) => report(value); }
 }

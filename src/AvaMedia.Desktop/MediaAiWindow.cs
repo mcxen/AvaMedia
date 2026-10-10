@@ -45,10 +45,10 @@ public sealed partial class MediaAiWindow : Window
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
 
     public MediaAiWindow(IMediaEngine engine, AppSettings settings, IEnumerable<string>? initial, Func<Window, Task> manageModels, Func<bool>? canRename=null, Storage? storage=null,
-        Action<IReadOnlyList<Job>, bool>? enqueue = null, Action? showQueue = null)
+        Action<IReadOnlyList<Job>, bool>? enqueue = null, Action? showQueue = null, Action<Job>? stopTask = null, Action? newTask = null)
     {
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
-        _enqueue = enqueue; _showQueue = showQueue;
+        _enqueue = enqueue; _showQueue = showQueue; _stopTask = stopTask; _newTask = newTask;
         _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
         _tagService = new(engine); MediaTagRuntime.Configure(settings);
         LoadPreferences();
@@ -69,7 +69,7 @@ public sealed partial class MediaAiWindow : Window
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _busy ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, async (_, e) => { if (!_busy) await AddFoldersAsync(e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, e) => { if (_renaming) { e.Cancel = true; return; } _closed = true; _operation?.Cancel(); _lifetime.Cancel(); };
-        Closed += (_, _) => { _settings.NsfwContentChanged -= PrivacyChanged; try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
+        Closed += (_, _) => { _settings.NsfwContentChanged -= PrivacyChanged; DetachTaskObservers(); try { SavePreferences(); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { AppDiagnostics.Record("AI tag preferences", error); } _previewRequest?.Cancel(); _preview.Source = null; _previewBitmap?.Dispose(); _lifetime.Dispose(); };
         AddPaths(initial ?? []);
     }
     public void ImportPaths(IEnumerable<string> paths) => AddPaths(paths);
@@ -126,7 +126,7 @@ public sealed partial class MediaAiWindow : Window
             if (_generateCaptions.IsChecked == true && _captionLocalModelId is { } captionId
                 && (!await store.IsInstalledAsync(captionId, ct: _lifetime.Token)
                     || !await store.IsInstalledAsync(ModelCatalog.SummaryRuntimeId, ct: _lifetime.Token)))
-                parts.Add(Localization.Text("画面描述模型未下载，请打开模型管理。"));
+                parts.Add(Localization.Format($"首次生成画面描述需要下载模型 · 约 {SemanticModelConsent.Megabytes(ModelCatalog.Find(captionId).DownloadSize + ModelCatalog.Find(ModelCatalog.SummaryRuntimeId).DownloadSize)} MB"));
             if (_closed) return;
             _modelStatus.Text = string.Join(Environment.NewLine, parts);
             _modelStatus.IsVisible = parts.Count > 0; UpdateActions();
@@ -153,150 +153,7 @@ public sealed partial class MediaAiWindow : Window
         if (_closed) return;
         await RefreshModelAsync();
     }
-    private bool CanAnalyzeNotification(string[] paths) => !_closed && !_busy && _entries.Any(entry => paths.Contains(entry.Path, BatchRename.PathComparer));
-    private async Task EnsureTagModelAsync(CancellationTokenSource operation)
-    {
-        var store = new ModelStore();
-        var required = _settings.EnableNsfwContent && _realPeople.IsChecked == true ? new[] { ModelCatalog.JoyTagId, ModelCatalog.NsfwId } : [ModelCatalog.JoyTagId];
-        foreach (var id in required)
-        {
-            if (await store.IsInstalledAsync(id, ct: operation.Token)) continue;
-            var started = DateTime.UtcNow;
-            var download = new Progress<ModelDownloadProgress>(update =>
-            {
-                if (_closed || _operation != operation) return;
-                _status.Text = Localization.Text(update.Stage);
-                _activity.Update(new("下载标签模型", ModelCatalog.Find(id).Name, started, DateTime.UtcNow)
-                { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
-            });
-            await store.DownloadAsync(id, download, operation.Token);
-        }
-        _modelReady = true; _modelStatus.IsVisible = false;
-    }
-
-    private async Task AnalyzeAsync(string[]? requestedPaths = null)
-    {
-        if (_busy || _writingTxt) return;
-        var paths = _entries.Where(entry => requestedPaths is null ? entry.Include : requestedPaths.Contains(entry.Path, BatchRename.PathComparer)).Select(entry => entry.Path).ToArray();
-        if (paths.Length == 0) { await Ui.Message(this, "AI 标签", "请添加并勾选图片或视频。"); return; }
-        MediaTagOptions options;
-        try
-        {
-            options = ReadAnalysisOptions(paths.Any(VideoFormats.IsVideo));
-            options.Validate(); Number(_threshold); SavePreferences();
-        }
-        catch (Exception error) { await Ui.Message(this, "参数错误", error.Message); return; }
-        if (!await EnsureCaptionSelectionAsync(options) || _closed || _busy) return;
-        var (downloadSemantic, scenesSkipped) = (false, false);
-        if (options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
-        {
-            if (_closed || _busy) return;
-            downloadSemantic = await SemanticModelConsent.ConfirmAsync(this, "场景识别");
-            if (_closed || _busy) return;
-            // Declined: keep the saved choice but run tags only for this analysis.
-            if (!downloadSemantic) { options = options with { RecognizeScenes = false, SemanticCandidates = [] }; scenesSkipped = true; }
-        }
-        foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
-        { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _editedTags.Remove(entry.Path); entry.Status = "待分析"; entry.Details = ""; entry.Keyword = ""; }
-        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true); RenderSelectedResult();
-        _warmStatus.IsVisible = false;
-        _status.Text = Localization.Text(_modelReady ? "准备分析…" : "下载标签模型");
-        _activity.Update(new("加载标签模型", "JoyTag", DateTime.UtcNow, DateTime.UtcNow));
-        var progress = new Progress<MediaTagProgress>(update =>
-        {
-            if (_closed || _operation != operation) return;
-            if (update.Activity is { } activity)
-            {
-                _activity.Update(MediaPrivacy.Filter(activity, _settings.EnableNsfwContent));
-                _status.Text = $"{update.Completed} / {update.Total} · {Path.GetFileName(update.Path)}";
-            }
-            var entry = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, update.Path)); if (entry is null) return;
-            if (update.PreviewResult is { } preview)
-            {
-                _liveResults[preview.Path] = preview;
-                if (_followLive.IsChecked == true) _positions[preview.Path] = (preview.Scenes?.Frames.LastOrDefault()?.Seconds ?? preview.Frames.LastOrDefault()?.Seconds) ?? 0;
-                entry.Details = string.Join(" · ", ResultTags(preview).Take(5).Select(tag => tag.Label));
-                if (_list.SelectedItem == entry) { RenderSelectedResult(); if (_followLive.IsChecked == true) _ = RefreshSelectedPreviewAsync(CursorFor(preview)); }
-            }
-            if (update.Result is null && update.Error is null) { entry.Status = Localization.Text(update.Activity?.Stage ?? "处理中"); return; }
-            if (update.Result is { } result) { _results[result.Path] = result; _liveResults.Remove(result.Path); ShowResult(entry, result); }
-            else { entry.Status = Localization.Text("失败"); entry.Details = update.Error ?? ""; }
-            _status.Text = $"{update.Completed} / {update.Total}";
-            RenderSelectedResult();
-        });
-        try
-        {
-            await EnsureTagModelAsync(operation);
-            if (downloadSemantic)
-            {
-                var started = DateTime.UtcNow;
-                await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(update =>
-                {
-                    if (_closed || _operation != operation) return;
-                    _status.Text = Localization.Text("下载语义模型") + " · " + Localization.Text(update.Stage);
-                    _activity.Update(new("下载语义模型", SemanticModelConsent.Model.Name, started, DateTime.UtcNow)
-                    { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName });
-                }), operation.Token);
-            }
-            var results = await _tagService.AnalyzeAsync(paths, options, progress, operation.Token);
-            if (_closed) return;
-            foreach (var result in results) { _results[result.Path] = result; _liveResults.Remove(result.Path); }
-            var failedPaths = paths.Where(path => !_results.ContainsKey(path)).ToArray();
-            var sceneFailedPaths = results.Where(result => result.SceneError is not null && !result.SceneSkipped).Select(result => result.Path).ToArray();
-            var captionFailedPaths = results.Where(result => result.CaptionError is not null).Select(result => result.Path).ToArray();
-            var incompletePaths = failedPaths.Concat(sceneFailedPaths).Concat(captionFailedPaths).Distinct(BatchRename.PathComparer).ToArray();
-            var hasFailures = incompletePaths.Length > 0;
-            var completionTitle = hasFailures ? results.Count == 0 ? "分析失败" : "分析部分失败" : "标签分析完成";
-            scenesSkipped |= results.Any(result => result.SceneSkipped);
-            var completionDetails = new List<string>();
-            if (sceneFailedPaths.Length > 0) completionDetails.Add(Localization.Format($"语义识别失败 {sceneFailedPaths.Length} 个"));
-            if (captionFailedPaths.Length > 0) completionDetails.Add(Localization.Format($"画面描述失败 {captionFailedPaths.Length} 个"));
-            if (scenesSkipped) completionDetails.Add(Localization.Text("已跳过场景识别"));
-            _status.Text = Localization.Join(" · ", new[] { Localization.Format($"完成 {results.Count} / {paths.Length} 个文件") }.Concat(completionDetails));
-            _activity.Finish(hasFailures ? AiActivityState.Failed : AiActivityState.Completed, completionTitle);
-            var resultActions = new List<Notifications.NotificationAction> {
-                    new("查看结果", () => Notifications.NotificationCenter.ShowOwnerAsync(this), Primary: !hasFailures, Enabled: () => !_closed),
-                    new("生成同目录 TXT", () => SaveTextReportsAsync(paths), Enabled: () => !_closed && !_busy && !_writingTxt),
-                    new("导出标签 JSON…", ExportAsync, Enabled: () => !_closed && !_busy),
-                    new("重新分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Enabled: () => CanAnalyzeNotification(paths)) };
-            if (hasFailures) resultActions.Insert(0, new("重试失败文件", () => { _ = AnalyzeAsync(incompletePaths); return Task.CompletedTask; }, Primary: true,
-                Enabled: () => CanAnalyzeNotification(incompletePaths)));
-            var notificationBody = Localization.Join(" · ", new[] { Localization.Format($"成功 {paths.Length - incompletePaths.Length} 个，失败 {incompletePaths.Length} 个。") }.Concat(completionDetails));
-            Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), completionTitle,
-                notificationBody, hasFailures ? Notifications.NotificationKind.Warning : Notifications.NotificationKind.Success, resultActions));
-            foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer)))
-                if (_results.TryGetValue(entry.Path, out var result)) ShowResult(entry, result);
-            RenderSelectedResult();
-            if (_autoTxt.IsChecked == true)
-            {
-                await SaveTextReportsAsync(results.Select(result => result.Path).ToArray());
-                if (completionDetails.Count > 0) _status.Text = Localization.Join(" · ", new[] { _status.Text }.Concat(completionDetails));
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (!_closed)
-            {
-                _activity.Finish(AiActivityState.Cancelled, "已停止"); _status.Text = Localization.Text("已停止，已完成结果已保留");
-                foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer) && !_results.ContainsKey(entry.Path)))
-                    if (entry.Status != Localization.Text("失败")) entry.Status = Localization.Text("已停止");
-            }
-        }
-        catch (Exception error)
-        {
-            if (!_closed)
-            {
-                _activity.Finish(AiActivityState.Failed, "分析失败");
-                _status.Text = Localization.Text("分析失败");
-                foreach (var entry in _entries.Where(entry => paths.Contains(entry.Path, BatchRename.PathComparer) && !_results.ContainsKey(entry.Path)))
-                { entry.Status = Localization.Text("失败"); entry.Details = error.Message; }
-                Notifications.NotificationCenter.Shared.Publish(this, new(Guid.NewGuid().ToString("N"), "分析失败", error.Message, Notifications.NotificationKind.Error, [
-                    new("重试分析", () => { _ = AnalyzeAsync(paths); return Task.CompletedTask; }, Primary: true, Enabled: () => CanAnalyzeNotification(paths)),
-                    new("模型管理", ManageModelsAsync, Enabled: () => !_closed)]));
-            }
-        }
-        finally { _operation = null; if (!_closed) { SetBusy(false); RenderSelectedResult(); await RefreshModelAsync(prepare: false); } }
-    }
+    private Task AnalyzeAsync(string[]? requestedPaths = null) => QueueAnalysisAsync(true, requestedPaths);
 
     private MediaTagTaskOptions ReadTaskOptions()
     {
@@ -307,9 +164,9 @@ public sealed partial class MediaAiWindow : Window
             Threshold = Number(_threshold),
             SceneThreshold = _sceneThreshold.Value,
             SceneMargin = (double)(_sceneMargin.Value ?? .03m),
-            WriteTextReport = true,
+            WriteTextReport = _autoTxt.IsChecked == true,
             OnlyLibrary = _onlyLibrary.IsChecked == true,
-            LibraryCandidates = _onlyLibrary.IsChecked == true ? _libraryCandidates.ToArray() : []
+            LibraryCandidates = _libraryCandidates.ToArray()
         };
         options.Validate(); SavePreferences();
         return options;
@@ -325,76 +182,12 @@ public sealed partial class MediaAiWindow : Window
             SemanticCandidates = SemanticLibraryCandidates,
             RealPeopleOnly = _realPeople.IsChecked == true, RecognizeNsfw = _settings.EnableNsfwContent && _realPeople.IsChecked == true,
             CaptionSystemPrompt = _captionSystemPrompt, CaptionUseFrameTools = _captionUseFrameTools,
-            CaptionLocalModelId = _captionLocalModelId
+            CaptionLocalModelId = _captionLocalModelId,
+            CaptionProviderId = _captionLocalModelId is null ? _settings.OnlineAi.DefaultProviderId : null
         };
     }
 
-    private async Task<bool> EnsureCaptionSelectionAsync(MediaTagOptions options)
-    {
-        if (!options.GenerateCaptions || options.CaptionLocalModelId is not { } id) return true;
-        var store = new ModelStore();
-        try
-        {
-            if (await store.IsInstalledAsync(id, ct: _lifetime.Token)
-                && await store.IsInstalledAsync(ModelCatalog.SummaryRuntimeId, ct: _lifetime.Token)) return true;
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return false; }
-        if (!_closed) await Ui.Message(this, "模型未下载", "请先在模型管理下载画面描述模型和本地推理工具。");
-        return false;
-    }
-
-    private async Task EnqueueSelectedAsync()
-    {
-        if (_busy || _writingTxt || _enqueue is null) return;
-        var paths = _entries.Where(entry => entry.Include).Select(entry => entry.Path).ToArray();
-        if (paths.Length == 0) { await Ui.Message(this, "AI 标签", "请添加并勾选图片或视频。"); return; }
-        try
-        {
-            var options = ReadTaskOptions();
-            if (!await EnsureCaptionSelectionAsync(options.Analysis) || _closed || _busy) return;
-            if (!_modelReady)
-            {
-                using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
-                try { await EnsureTagModelAsync(operation); }
-                finally { _operation = null; if (!_closed) SetBusy(false); }
-                if (_closed) return;
-            }
-            // Queue workers never prompt or download; ask here, otherwise the job records that scenes were skipped.
-            if (options.Analysis.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(_lifetime.Token))
-            {
-                if (_closed || _busy) return;
-                if (await SemanticModelConsent.ConfirmAsync(this, "场景识别"))
-                {
-                    if (_closed || _busy) return;
-                    using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
-                    try
-                    {
-                        await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(update =>
-                        {
-                            if (!_closed && _operation == operation)
-                                _status.Text = Localization.Text("下载语义模型") + $" · {update.Percent}%";
-                        }), operation.Token);
-                    }
-                    finally { _operation = null; if (!_closed) SetBusy(false); }
-                }
-                else
-                {
-                    options.Analysis = options.Analysis with { RecognizeScenes = false, SemanticCandidates = [] };
-                    _status.Text = Localization.Text("未下载语义模型，任务将跳过场景识别");
-                }
-                if (_closed) return;
-            }
-            var feature = Catalog.Find("media-ai");
-            var folder = Path.GetDirectoryName(paths[0])!;
-            var jobs = ConversionBatch.CreateJobs(feature, paths, folder,
-                new ConversionOptions { Format = "txt", MediaTag = options });
-            OutputPreferences.Apply(jobs, _settings, outputToSource: true, settingName: "标签");
-            _enqueue(jobs, true);
-            _status.Text = Localization.Format($"已加入任务队列 {jobs.Count} 个");
-        }
-        catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("已停止"); }
-        catch (Exception error) { if (!_closed) await Ui.Message(this, "加入任务队列", error.Message); }
-    }
+    private Task EnqueueSelectedAsync() => QueueAnalysisAsync(false);
 
     private void ShowQueuedTasks()
     {

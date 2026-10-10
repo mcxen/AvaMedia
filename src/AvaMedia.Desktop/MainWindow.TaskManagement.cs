@@ -49,6 +49,8 @@ public partial class MainWindow
         MoveTaskTopMenu.IsEnabled = MoveTaskUpMenu.IsEnabled = moving.Any(job => _jobs.IndexOf(job) > 0 && !moving.Contains(_jobs[_jobs.IndexOf(job) - 1]));
         MoveTaskBottomMenu.IsEnabled = MoveTaskDownMenu.IsEnabled = moving.Any(job => _jobs.IndexOf(job) < _jobs.Count - 1 && !moving.Contains(_jobs[_jobs.IndexOf(job) + 1]));
         var one = selected.Length == 1 ? selected[0] : null;
+        ViewAiTaskMenu.IsVisible = one is not null && CanViewAiTask(one);
+        ViewAiTaskMenu.IsEnabled = ViewAiTaskMenu.IsVisible;
         ViewSummaryResultMenu.IsVisible = one is not null && CanViewSummaryResult(one);
         ViewClassificationTaskMenu.IsVisible = one is not null && CanViewClassificationTask(one);
         ViewMediaTagResultMenu.IsVisible = one is not null && CanViewMediaTagResult(one);
@@ -59,7 +61,7 @@ public partial class MainWindow
         OpenTaskSourceMenu.IsEnabled = one?.Inputs.Any(IsAccessibleSource) == true;
         OpenTaskSourceFolderMenu.IsEnabled = one?.Inputs.Any(path => File.Exists(path) || Directory.Exists(path)) == true;
         OpenTaskOutputMenu.IsEnabled = one?.State == JobState.Completed && (File.Exists(one.Output) || Directory.Exists(one.Output));
-        OpenTaskOutputFolderMenu.IsEnabled = one is not null && Directory.Exists(one.FeatureId == "folder-classification" ? one.UserOutput : Path.GetDirectoryName(one.Output));
+        OpenTaskOutputFolderMenu.IsEnabled = one is not null && !one.HasInternalOutput && Directory.Exists(one.FeatureId == "folder-classification" ? one.UserOutput : Path.GetDirectoryName(one.Output));
         CopyTaskPathsMenu.IsEnabled = selected.Length > 0;
         TaskLogMenu.IsEnabled = one is not null;
         RemoveTaskMenu.IsEnabled = selected.Any(CanRemoveTask);
@@ -149,6 +151,7 @@ public partial class MainWindow
                     copy.Output = FolderClassificationTaskStore.Folder(copy);
                     copy.Options.FolderClassification!.LastJournal = null;
                 }
+                else if (copy.HasInternalOutput) copy.Output = AiTaskResults.InternalOutputFor(copy);
                 _jobs.Insert(_jobs.IndexOf(original) + 1, copy); copies.Add(copy);
             }
             JobList.SelectedItems?.Clear();
@@ -187,6 +190,7 @@ public partial class MainWindow
         foreach (var job in removed)
         {
             if (_classificationWindows.TryGetValue(job.Id, out var window)) window.Close();
+            if (_aiTaskWindows.TryGetValue(job.Id, out var aiWindow)) aiWindow.Close();
             _jobs.Remove(job);
         }
         Save(); Refresh(); await _queueSave; await _storage.DeleteJobLogsAsync(removed);

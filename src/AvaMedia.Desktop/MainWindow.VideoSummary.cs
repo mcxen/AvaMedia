@@ -17,7 +17,10 @@ public partial class MainWindow
     private async void ViewSummaryResultClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     { if (JobList.SelectedItem is Job job) await ShowSummaryResultAsync(job); }
 
-    private async Task ConfigureVideoSummaryAsync(string[]? files, Job? editing = null)
+    private Task ConfigureVideoSummaryAsync(string[]? files, Job? editing = null) => editing is null
+        ? StartToolWorkflow(() => ConfigureVideoSummaryWindowAsync(files)) : ConfigureVideoSummaryWindowAsync(files, editing);
+
+    private async Task ConfigureVideoSummaryWindowAsync(string[]? files, Job? editing = null)
     {
         var window = new VideoSummaryWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,
             files, editing?.Options.VideoSummary, editing?.Output, async owner =>
@@ -31,7 +34,7 @@ public partial class MainWindow
                 settings.OpenOnlineAiSettings(); settings.Applied += (_, _) => ApplyOptions();
                 await settings.ShowDialog<bool>(owner);
             });
-        var request = await window.ShowDialog<ConversionRequest?>(this);
+        var request = editing is null ? await ToolExecution.ShowAsync<ConversionRequest>(this, window) : await window.ShowDialog<ConversionRequest?>(this);
         if (request is null) return;
         try
         {
