@@ -28,6 +28,8 @@
           <SolidColorBrush x:Key="UiWarning" Color="#8A5700" />
           <SolidColorBrush x:Key="UiDanger" Color="#B42318" />
           <SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="UiPrimaryHover" Color="#006CBD" />
+          <SolidColorBrush x:Key="UiPrimaryPressed" Color="#005A9E" />
           <SolidColorBrush x:Key="UiSelection" Color="#D7EAFB" />
           <SolidColorBrush x:Key="UiSelectionText" Color="#202428" />
           <SolidColorBrush x:Key="UiMediaSurface" Color="#000000" />
@@ -68,6 +70,8 @@
           <SolidColorBrush x:Key="UiWarning" Color="#F2C66D" />
           <SolidColorBrush x:Key="UiDanger" Color="#FFB4AB" />
           <SolidColorBrush x:Key="UiAccentText" Color="#202020" />
+          <SolidColorBrush x:Key="UiPrimaryHover" Color="#82D8FF" />
+          <SolidColorBrush x:Key="UiPrimaryPressed" Color="#3DBCF3" />
           <SolidColorBrush x:Key="UiSelection" Color="#244C66" />
           <SolidColorBrush x:Key="UiSelectionText" Color="#F3F3F3" />
           <SolidColorBrush x:Key="UiMediaSurface" Color="#000000" />

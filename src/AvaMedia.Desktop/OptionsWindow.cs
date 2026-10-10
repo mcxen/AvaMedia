@@ -255,7 +255,7 @@ public sealed class OptionsWindow : Window
         string[] software=format switch{"ts" or "mts" or "m2ts" or "m2t"=>["自动","libx264","libx265","mpeg2video","mpeg4","h264_mf"],"3gp" or "3g2"=>["自动","mpeg4","h264_mf","libx264"],"webm"=>["自动","libvpx-vp9","libaom-av1"],"wmv"=>["自动","wmv2"],"mpg"=>["自动","mpeg2video"],"flv"=>["自动","flv","h264_mf","libx264"],"avi"=>["自动","mpeg4","h264_mf","libx264"],_=>["自动","mpeg4","h264_mf","libvpx-vp9","libaom-av1","libx264","libx265"]};
         return [..software,..HardwareAcceleration.CompatibleCodecs(format)];
     }
-    private static void Add(Panel panel,string label,Control control){var row=new Grid{ColumnDefinitions=new("160,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}
+    private static void Add(Panel panel,string label,Control control){Avalonia.Automation.AutomationProperties.SetName(control,label);var row=new Grid{ColumnDefinitions=new("160,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}
     private void VideoEncodingFields(StackPanel panel)
     {
         var labels=new[]{"参考源视频码率（默认）","按质量编码","自定义视频码率"};

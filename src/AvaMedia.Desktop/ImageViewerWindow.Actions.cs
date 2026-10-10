@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using Avalonia.Media.Imaging;
 using AvaMedia.Core;
@@ -123,11 +124,15 @@ public sealed partial class ImageViewerWindow
     private async Task ShowEffectsAsync()
     {
         if (_document is null) return;
-        var dialog = new Window { Title = "预览效果", Width = 360, Height = 280, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var dialog = new Window { Title = "预览效果", Width = 440, Height = 280, MinWidth = 400, MinHeight = 240, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var effect = new ComboBox { ItemsSource = new[] { "原图", "反色", "柔化", "柔化与锐化" }, SelectedIndex = 0 };
         var gamma = new NumericUpDown { Minimum = .1m, Maximum = 5, Value = 1, Increment = .1m };
-        var apply = Ui.Button("应用", () => dialog.Close(true));
-        dialog.Content = new StackPanel { Spacing = 10, Margin = new(16), Children = { effect, Ui.Text("伽马", "caption"), Ui.Adjust(gamma), apply } };
+        var fields = new StackPanel { Spacing = 10, Children = { Ui.Text("预览效果", "caption"), Ui.Parameter(effect, "预览效果"), Ui.Text("伽马", "caption"), Ui.Parameter(gamma, "伽马") } };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        actions.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
+        actions.Children.Add(Ui.DialogButton("应用", () => dialog.Close(true), isDefault: true));
+        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(16), RowSpacing = 12 };
+        root.Children.Add(new ScrollViewer { Content = fields }); Grid.SetRow(actions, 1); root.Children.Add(actions); dialog.Content = root;
         var generation = _loadGeneration; var document = _document;
         if (!await dialog.ShowDialog<bool>(this) || document != _document || generation != _loadGeneration) return;
         ToolInputs.CommitNumber(gamma);

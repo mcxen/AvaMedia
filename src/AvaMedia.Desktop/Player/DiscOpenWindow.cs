@@ -29,7 +29,7 @@ internal sealed class DiscOpenWindow : Window
                 FileTypeFilter = [new("ISO") { Patterns = ["*.iso"] }] });
             if (selected.FirstOrDefault()?.TryGetLocalPath() is { } path) _path.Text = path;
         })); content.Children.Add(browse);
-        content.Children.Add(_kind); content.Children.Add(Ui.Text("标题编号（0 为最长标题）")); content.Children.Add(Ui.Adjust(_title));
+        content.Children.Add(_kind); content.Children.Add(Ui.Text("标题编号（0 为最长标题）")); content.Children.Add(Ui.Parameter(_title, "标题编号（0 为最长标题）"));
         content.Children.Add(Ui.Text("播放正片标题；不提供光盘菜单。", "caption")); content.Children.Add(_error);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         actions.Children.Add(Ui.DialogButton("取消", () => Close()));
@@ -44,6 +44,6 @@ internal sealed class DiscOpenWindow : Window
             if (_kind.SelectedIndex == 0 && Directory.Exists(path) && Path.GetFileName(Path.TrimEndingDirectorySeparator(path)).Equals("BDMV", StringComparison.OrdinalIgnoreCase))
                 path = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(path))!;
             Close(new DiscPlayback(path, _kind.SelectedIndex == 0 ? DiscKind.Bluray : DiscKind.Dvd, (int)title));
-        })); content.Children.Add(actions); Content = content;
+        }, isDefault: true)); content.Children.Add(actions); Content = content;
     }
 }

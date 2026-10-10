@@ -21,11 +21,11 @@ public sealed partial class FolderClassificationWindow
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var similarity = new NumericUpDown { Minimum = .5m, Maximum = .95m, Increment = .02m, FormatString = "0.00", Value = (decimal)rule.OutfitSimilarity };
         var body = new StackPanel { Margin = new(18), Spacing = 12 };
-        body.Children.Add(Ui.Text("服装相似度", "settingsHeading")); body.Children.Add(Ui.Adjust(similarity));
+        body.Children.Add(Ui.Text("服装相似度", "settingsHeading")); body.Children.Add(Ui.Parameter(similarity, "服装相似度"));
         body.Children.Add(Ui.Text("调高可拆分更多款式，调低可合并相近服装。", "caption"));
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
-        buttons.Children.Add(Ui.DialogButton("应用", () => dialog.Close(true))); body.Children.Add(buttons); dialog.Content = body;
+        buttons.Children.Add(Ui.DialogButton("应用", () => dialog.Close(true), isDefault: true)); body.Children.Add(buttons); dialog.Content = body;
         if (!await dialog.ShowDialog<bool>(this)) return;
         var updated = rule with { OutfitSimilarity = (double)(similarity.Value ?? .64m) };
         updated.Validate();

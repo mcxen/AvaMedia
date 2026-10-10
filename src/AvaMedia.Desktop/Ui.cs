@@ -20,8 +20,8 @@ internal static class Ui
         if(states.Length>0)StableLayout.Reserve(b,states);
         return b;
     }
-    public static Button DialogButton(string text,Action action)
-    {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=text is "确定" or "保存";button.IsCancel=text is "取消" or "关闭";if(button.IsDefault)button.Classes.Add("primary");return button;}
+    public static Button DialogButton(string text,Action action,bool isDefault=false)
+    {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=isDefault||text is "确定" or "保存";button.IsCancel=text is "取消" or "关闭";if(button.IsDefault)button.Classes.Add("primary");return button;}
     public static TextBlock Text(string text,string? role=null)
     {var label=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center};if(role is not null)label.Classes.Add(role);return label;}
     public static TextBlock Status(string text="", string? role="caption")
@@ -33,8 +33,9 @@ internal static class Ui
     {Value=(decimal)value,Minimum=(decimal)minimum,Maximum=(decimal)maximum,Increment=(decimal)step,FormatString=step>=1?"0":"0.##"};
     public static Control Parameter(Control control,string label)
     {
+        Avalonia.Automation.AutomationProperties.SetName(control,label);
         if(control is not NumericUpDown number)return control;
-        Avalonia.Automation.AutomationProperties.SetName(number,label);return Adjust(number);
+        return Adjust(number);
     }
     public static Control Adjust(NumericUpDown input,double? maximum=null)
     {

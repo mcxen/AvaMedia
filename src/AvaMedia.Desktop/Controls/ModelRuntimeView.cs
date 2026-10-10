@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AvaMedia.Core;
@@ -12,7 +13,7 @@ internal sealed class ModelRuntimeView : Grid
 {
     private readonly string _root, _id;
     private readonly Border _light = new() { Width = 18, Height = 18, CornerRadius = new(9), VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock _symbol = new() { FontSize = 11, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _symbol = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _state = Ui.Text("", "caption");
     private readonly TextBlock _detail = Ui.Text("", "caption");
     private readonly ProgressBar _progress = new() { Height = 3, MinHeight = 3, IsIndeterminate = true, IsVisible = false };
@@ -21,6 +22,8 @@ internal sealed class ModelRuntimeView : Grid
     public ModelRuntimeView(string root, string id, string? label = null)
     {
         _root = root; _id = id;
+        _symbol.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("UiFontCaption"));
+        _symbol.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiAccentText"));
         ColumnDefinitions = new("Auto,*"); RowDefinitions = new("Auto,3"); ColumnSpacing = 7; RowSpacing = 4;
         _light.Child = _symbol; Children.Add(_light);
         var text = new Grid { ColumnDefinitions = new("Auto,Auto,*"), ColumnSpacing = 8 };
@@ -54,14 +57,15 @@ internal sealed class ModelRuntimeView : Grid
         var value = MediaTagRuntime.Status(_root, _id);
         var (title, symbol, color) = value.State switch
         {
-            ModelLoadState.Loading => ("加载中", "↓", "#2379B5"),
-            ModelLoadState.Warming => ("预热中", "◌", "#2379B5"),
-            ModelLoadState.Ready => ("已就绪", "✓", "#24835A"),
-            ModelLoadState.InUse => ("使用中", "▶", "#2379B5"),
-            ModelLoadState.Failed => ("加载失败", "!", "#C74444"),
-            _ => ("未加载", "—", "#7A7A7A")
+            ModelLoadState.Loading => ("加载中", "↓", "UiAccent"),
+            ModelLoadState.Warming => ("预热中", "◌", "UiAccent"),
+            ModelLoadState.Ready => ("已就绪", "✓", "UiSuccess"),
+            ModelLoadState.InUse => ("使用中", "▶", "UiAccent"),
+            ModelLoadState.Failed => ("加载失败", "!", "UiDanger"),
+            _ => ("未加载", "—", "UiTextSecondary")
         };
-        _state.Text = Localization.Text(title); _symbol.Text = symbol; _light.Background = Brush.Parse(color);
+        _state.Text = Localization.Text(title); _symbol.Text = symbol;
+        if (_stateColor != color) { _stateColor = color; _light.Bind(Border.BackgroundProperty, new DynamicResourceExtension(color)); }
         _detail.Text = value.Preparing && value.StartedUtc is { } start
             ? AiActivity.FormatElapsed((DateTime.UtcNow - start).TotalSeconds)
             : value.State == ModelLoadState.Ready && value.ReleaseUtc is { } release
@@ -73,4 +77,5 @@ internal sealed class ModelRuntimeView : Grid
         ToolTip.SetTip(this, value.Error);
         Avalonia.Automation.AutomationProperties.SetName(this, Localization.Text(ModelCatalog.Find(_id).Name) + " · " + _state.Text + " · " + _detail.Text);
     }
+    private string? _stateColor;
 }

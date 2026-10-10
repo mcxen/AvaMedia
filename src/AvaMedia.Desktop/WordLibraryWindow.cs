@@ -82,6 +82,7 @@ public sealed class WordLibraryWindow : Window
             if (row is null) return new TextBlock();
             var grid = new Grid { ColumnDefinitions = new("28,190,*"), ColumnSpacing = 8, Margin = new(2, 5) };
             var check = new CheckBox { IsEnabled = row.Supported, IsVisible = target is not null };
+            Avalonia.Automation.AutomationProperties.SetName(check, WordLibraryCatalog.CandidateLabel(row.Entry));
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(WordRow.Selected)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);
             var label = new TextBlock { Text = WordLibraryCatalog.CandidateLabel(row.Entry), TextTrimming = TextTrimming.CharacterEllipsis };
             ToolTip.SetTip(label, label.Text);
@@ -94,7 +95,8 @@ public sealed class WordLibraryWindow : Window
         });
         Grid.SetRow(_list, 3); root.Children.Add(_list);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_count);
-        var close = Ui.DialogButton(target is null ? "关闭" : "应用选择", Close); Grid.SetColumn(close, 1); footer.Children.Add(close);
+        var close = Ui.DialogButton(target is null ? "关闭" : "应用选择", Close, isDefault: target is not null);
+        Grid.SetColumn(close, 1); footer.Children.Add(close);
         Grid.SetRow(footer, 4); root.Children.Add(footer); Content = root;
         _libraries.SelectionChanged += (_, _) => RefreshRows();
         _category.SelectionChanged += (_, _) =>

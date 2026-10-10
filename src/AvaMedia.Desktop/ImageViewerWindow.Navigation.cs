@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
@@ -184,10 +186,23 @@ public sealed partial class ImageViewerWindow
         && _preferences.Bookmarks.Any(item => item.Identity == _entries[_index].Identity) ? "取消收藏" : "收藏");
     private async Task ShowRecentAsync()
     {
-        var window = new Window { Title = "最近打开", Width = 600, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var list = new ListBox { ItemsSource = _preferences.Recent.Where(path => File.Exists(path) || Directory.Exists(path)).ToArray(), Margin = new(12) };
-        Localization.SetIsUserText(list, true); window.Content = list;
-        list.DoubleTapped += (_, _) => { if (list.SelectedItem is string path) window.Close(path); };
+        var window = new Window { Title = "最近打开", Width = 600, Height = 420, MinWidth = 480, MinHeight = 300, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var list = new ListBox { ItemsSource = _preferences.Recent.Where(path => File.Exists(path) || Directory.Exists(path)).ToArray() };
+        ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        list.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((path, _) =>
+        {
+            var label = new TextBlock { Text = path, TextTrimming = TextTrimming.CharacterEllipsis };
+            Localization.SetIsUserText(label, true); ToolTip.SetTip(label, path); return label;
+        });
+        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(16), RowSpacing = 12 }; root.Children.Add(list);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        actions.Children.Add(Ui.DialogButton("取消", () => window.Close(null)));
+        void OpenSelected() { if (list.SelectedItem is string path) window.Close(path); }
+        var open = Ui.DialogButton("打开文件", OpenSelected, isDefault: true); open.IsEnabled = false; actions.Children.Add(open);
+        list.SelectionChanged += (_, _) => open.IsEnabled = list.SelectedItem is string;
+        list.DoubleTapped += (_, _) => OpenSelected();
+        Grid.SetRow(actions, 1); root.Children.Add(actions); window.Content = root;
+        window.Opened += (_, _) => list.Focus();
         if (await window.ShowDialog<string?>(this) is { } chosen) await OpenAsync([chosen]);
     }
     private void ToggleFullscreen()

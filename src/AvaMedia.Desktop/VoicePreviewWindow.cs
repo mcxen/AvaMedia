@@ -19,9 +19,12 @@ internal sealed class VoicePreviewWindow : Window
     {
         _engine = engine; _source = source; _options = options.Clone();
         Title = "人声试听 · 10 秒"; Width = 450; Height = 240; MinWidth = 400; MinHeight = 220; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new StackPanel { Margin = new(20), Spacing = 16 }; root.Children.Add(_status);
+        var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(20), RowSpacing = 16 };
+        root.Children.Add(new ScrollViewer { Content = _status });
         _actions.Children.Add(Ui.Button("试听原声", async () => await PlayAsync(false))); _actions.Children.Add(Ui.Button("试听增强", async () => await PlayAsync(true)));
-        root.Children.Add(_actions); root.Children.Add(Ui.DialogButton("关闭", Close)); Content = root;
+        Grid.SetRow(_actions, 1); root.Children.Add(_actions);
+        var close = Ui.DialogButton("关闭", Close); close.HorizontalAlignment = HorizontalAlignment.Right;
+        Grid.SetRow(close, 2); root.Children.Add(close); Content = root;
         Closed += (_, _) => { _lifetime.Cancel(); _player?.Close(); _ = CleanupAsync(); };
     }
     private Task _preparing = Task.CompletedTask;

@@ -43,7 +43,8 @@ public sealed class DownloadSpeedMonitor : Border
 
     private static void AddMetric(Grid header, int column, string label, TextBlock value)
     {
-        var caption = new TextBlock { Text = label, FontSize = 10 };
+        var caption = new TextBlock { Text = label };
+        caption.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("UiFontCaption"));
         caption.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiTextSecondary"));
         var metric = new StackPanel { Spacing = 1 };
         metric.Children.Add(caption); metric.Children.Add(value);

@@ -58,7 +58,6 @@ public sealed partial class FolderClassificationWindow
         if (_busy) return;
         var dialog = new Window { Title = "选择分组", Width = 650, Height = 620, MinWidth = 500, MinHeight = 420, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var body = new StackPanel { Spacing = 14 };
-        body.Children.Add(Ui.Text("选择要用的分组，类别已经准备好。", "caption"));
         var choices = new List<(FolderClassificationRule Rule, CheckBox Check)>();
         foreach (var nsfw in new[] { false, true })
         {
@@ -73,7 +72,7 @@ public sealed partial class FolderClassificationWindow
                 body.Children.Add(new StackPanel { Spacing = 2, Children = { check, names } }); choices.Add((rule, check));
             }
         }
-        var error = Ui.Text("", "caption"); error.IsVisible = false;
+        var error = Ui.Text("", "error"); error.IsVisible = false;
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
         buttons.Children.Add(Ui.DialogButton("应用选择", () =>
@@ -83,7 +82,7 @@ public sealed partial class FolderClassificationWindow
                 .Select(choice => _rules.FirstOrDefault(rule => rule.Id == choice.Rule.Id) ?? choice.Rule)).ToArray();
             try { FolderClassification.ValidateRules(active); ApplyActiveRules(active); if (active.Any(rule => rule.ByOutfit)) _splitTypes.IsChecked = false; dialog.Close(true); }
             catch (ArgumentException exception) { error.Text = Localization.Text(exception.Message); error.IsVisible = true; }
-        }));
+        }, isDefault: true));
         var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(18), RowSpacing = 10 };
         root.Children.Add(new ScrollViewer { Content = body }); Grid.SetRow(error, 1); root.Children.Add(error); Grid.SetRow(buttons, 2); root.Children.Add(buttons); dialog.Content = root;
         EventHandler privacy = (_, _) => dialog.Close(false);

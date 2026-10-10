@@ -75,7 +75,7 @@ internal sealed class WordLibraryEditorWindow : Window
                 Close(new WordLibrary(library is { BuiltIn: false } ? library.Id : Guid.NewGuid().ToString("N"), _name.Text?.Trim() ?? "", library?.Source ?? "自定义 · 本地", _entries.ToArray()));
             }
             catch (Exception error) { _error.Text = error.Message; }
-        }));
+        }, isDefault: true));
         Grid.SetRow(footer,3); root.Children.Add(footer); Content = root;
         _list.SelectionChanged += (_, _) =>
         {
