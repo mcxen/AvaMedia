@@ -66,7 +66,7 @@ Chinese interfaces captured after running a local Release development build on m
 | **Player · Platinum** | **Video downloads · Light** |
 | [![Platinum player with compact playback controls](docs/assets/screenshots/player-macos9.png)](docs/assets/screenshots/player-macos9.png) | [![Video downloads with URLs, quality, subtitles and login options](docs/assets/screenshots/download-light.png)](docs/assets/screenshots/download-light.png) |
 
-Click an image for full size. The [complete gallery](docs/assets/screenshots/README.md) contains 44 captures across all four skins, including routing, settings, conversion, editing, export, playback and component previews. See the [appearance review](docs/APPEARANCE-REVIEW.md) for scope and fixes.
+Click an image for full size. The [complete gallery](docs/assets/screenshots/README.md) contains 44 captures across all four skins, including routing, settings, conversion, editing, export, playback and component previews. See the [appearance review](docs/acceptance/APPEARANCE-REVIEW.md) for scope and fixes.
 
 ## Run from source
 
@@ -99,11 +99,14 @@ See the [architecture notes](docs/ARCHITECTURE.md) for interface boundaries, [`B
 
 The detailed project documents below are currently in Chinese.
 
+Browse the [documentation index](docs/README.md), [acceptance records](docs/acceptance/README.md), and [release records](docs/releases/README.md).
+
 | Topic | Documents |
 | --- | --- |
 | Conversion and compression | [Video compression](docs/VIDEO-COMPRESSION.md) · [Image compression](docs/IMAGE-COMPRESSION.md) · [HEIC](docs/HEIC.md) · [TS video](docs/TS-VIDEO.md) · [GPU transcoding](docs/GPU-TRANSCODING.md) |
 | Editing and playback | [Quick Clip](docs/QUICK-CLIP.md) · [Video editing](docs/VIDEO-EDITING.md) · [Batch crop](docs/BATCH-CROP.md) · [Batch rotate](docs/BATCH-ROTATE.md) · [Subtitles and tracks](docs/SUBTITLE-OPTIONS.md) · [Player](docs/PLAYER.md) |
 | Files and utilities | [File routing](docs/MEDIA-ROUTING.md) · [WiFi transfer](docs/WIFI-TRANSFER.md) · [PDF workspace](docs/PDF-WORKSPACE.md) · [Downloads](docs/VIDEO-DOWNLOAD.md) · [Batch tools](docs/BATCH-TOOLS.md) |
+| AI and models | [Tag workspace](docs/MEDIA-AI.md) · [Media organization](docs/FOLDER-CLASSIFICATION.md) · [Video summaries](docs/VIDEO-SUMMARY.md) · [Speech tools](docs/SPEECH-TOOLS.md) · [Model management](docs/MODELS.md) |
 | Development and releases | [Architecture](docs/ARCHITECTURE.md) · [Settings](docs/SETTINGS.md) · [Mac OS 9](docs/MACOS9-SKIN.md) · [Windows XP](docs/WINDOWS-XP-SKIN.md) · [Platforms](docs/PLATFORMS.md) · [Git workflow](docs/GIT-WORKFLOW.md) · [Releases](docs/RELEASE.md) |
 
 Report bugs and suggest improvements through [Issues](https://github.com/mcxen/AvaMedia/issues). For media-related problems, include your OS and app versions, input format, reproduction steps and error logs.

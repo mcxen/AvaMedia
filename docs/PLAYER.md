@@ -65,7 +65,7 @@ Windows 发布启用 ReadyToRun，减少应用冷启动的即时编译；普通�
 ./scripts/Measure-PlayerStartup.ps1 -Application artifacts/release/1.1.0/win-x64/AvaMedia.Desktop.exe -Media '视频.mp4' -Runs 5 -Skin Dark
 ```
 
-每次启动独立应用进程，记录从进程创建到窗口打开、到首帧发布的延迟，输出各次结果、中位数和 P95；默认不生成截图。保留操作系统文件缓存，不把这组测量描述为重启系统或清空磁盘缓存后的结果。媒体编码、磁盘、CPU 与音频设备会影响数值。大文件准备、可复现命令与 2026-10-06 的前后数据见 [性能记录](PLAYER-PERFORMANCE.md)。
+每次启动独立应用进程，记录从进程创建到窗口打开、到首帧发布的延迟，输出各次结果、中位数和 P95；默认不生成截图。保留操作系统文件缓存，不把这组测量描述为重启系统或清空磁盘缓存后的结果。媒体编码、磁盘、CPU 与音频设备会影响数值。大文件准备、可复现命令与 2026-10-06 的前后数据见 [性能记录](acceptance/PLAYER-PERFORMANCE.md)。
 
 `tests/AvaMedia.PlayerTests` 检查真实解码 PCM、首帧源时间、缓冲上限、暂停复用、倍速边界、长音频启动、定位取消、连续播放、键盘操作和三套皮肤的默认 / 最小布局；音频专项使用可读取实际 PCM 的测试输出设备。Windows 原生窗口与实际 WaveOut 通过启动测量另外检查。已加入 `scripts/Verify.ps1`。
 

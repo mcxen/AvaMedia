@@ -20,7 +20,7 @@ Captured from real Avalonia windows in a locally compiled macOS client, rendered
 | 公共控件 / Common controls | [Light](components-light.png) | [Dark](components-dark.png) | [Platinum](components-macos9.png) | [Luna](components-winxp.png) |
 | 媒体控件 / Media controls | [Light](media-components-light.png) | [Dark](media-components-dark.png) | [Platinum](media-components-macos9.png) | [Luna](media-components-winxp.png) |
 
-[捕获清单 / Capture manifest](captures.json) 记录构建版本、平台、窗口尺寸、源码基线和图像 SHA256。[外观检查记录](../../APPEARANCE-REVIEW.md) 列出组件范围、实际交互与修正。
+[捕获清单 / Capture manifest](captures.json) 记录构建版本、平台、窗口尺寸、源码基线和图像 SHA256。[外观检查记录](../../acceptance/APPEARANCE-REVIEW.md) 列出组件范围、实际交互与修正。
 
 示例使用仓库的 `astronaut.png`，照片由 NASA 提供，属于公共领域；来源见 [素材说明](../../../tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。图表与下载监控使用标明的示例数据。捕获工具使用独立状态目录，队列保持等待状态，不执行媒体导出、下载或模型推理。
 

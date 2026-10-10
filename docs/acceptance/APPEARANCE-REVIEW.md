@@ -1,6 +1,6 @@
 # 四套外观检查 · 2026-10-09
 
-本次按用户要求，在 macOS 上编译并运行 Release 开发构建，检查 Light、Dark、Mac OS 9 · Platinum、Windows XP · Luna 的公共模板、主要媒体组件和实际窗口。源码基线为 `4543d84`，包含本次修正；版本 1.1.51。四套皮肤共 44 张配图见 [截图目录](assets/screenshots/README.md)，平台、尺寸及图像 SHA256 见 [捕获清单](assets/screenshots/captures.json)。
+本次按用户要求，在 macOS 上编译并运行 Release 开发构建，检查 Light、Dark、Mac OS 9 · Platinum、Windows XP · Luna 的公共模板、主要媒体组件和实际窗口。源码基线为 `4543d84`，包含本次修正；版本 1.1.51。四套皮肤共 44 张配图见 [截图目录](../assets/screenshots/README.md)，平台、尺寸及图像 SHA256 见 [捕获清单](../assets/screenshots/captures.json)。
 
 ## 覆盖范围
 
@@ -30,6 +30,6 @@
 - 实际控件操作确认：勾选和单选更新、数值 1280→1281、滑块 42→约 67.80、视频 / 音频标签切换；Platinum 切换按钮及展开项分别更新状态，内部展开模板保持完整。实际进度条显示正常。
 - 早期 144 DPI 离屏渲染造成 Platinum 文字裁切和 XP 进度块缺失；与真实窗口对照后改用 96 DPI。静态 PNG 不记录不确定进度条的动画相位。
 
-截图工具位于 [`tools/AvaMedia.UiCapture`](../tools/AvaMedia.UiCapture/Program.cs)，复用真实 App 样式和窗口，使用独立状态目录。`--review-only --theme=MacOS9` 可直接打开指定皮肤的原生组件预览；`--trace-pointer` 将输入与尺寸写到输出目录，便于复现缩放问题。
+截图工具位于 [`tools/AvaMedia.UiCapture`](../../tools/AvaMedia.UiCapture/Program.cs)，复用真实 App 样式和窗口，使用独立状态目录。`--review-only --theme=MacOS9` 可直接打开指定皮肤的原生组件预览；`--trace-pointer` 将输入与尺寸写到输出目录，便于复现缩放问题。
 
 本次检查覆盖 macOS 主机上的四套外观和上述组件状态。Windows 主机、所有功能的媒体输出、下载与模型推理未在本次运行；图表配图不表示模型推理结果。历史性能与功能验收记录保持各自范围。

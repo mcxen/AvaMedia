@@ -1,43 +1,38 @@
 # Windows 与 macOS
 
-维护日期：2026-10-06。[v1.0.5 Release](https://github.com/mcxen/AvaMedia/releases/tag/v1.0.5) 已完成 Windows 全部 18 套测试、安装、原生启动和卸载验证；macOS 两个架构已在对应 GitHub runner 上完成接口、皮肤与发布应用原生启动验证。设备声音、Retina 与 Finder 交互仍需设备验收。记录见 [1.0.5 验收记录](releases/1.0.5-verified.json)。
+当前发布目标为 **Windows x64** 和 **macOS Apple Silicon（ARM64）**。安装包从项目首页的 Release 入口下载；构建与工具版本以 [发布流程](RELEASE.md) 和对应包内清单为准。
 
-后续 macOS 发布仅提供 Apple Silicon（ARM64），使用 ARM64 runner 完成构建与启动验证。v1.0.5 的两个架构包和验收记录保留为历史结果。
+## 安装包与运行时
 
-当前开发构建改为独立原生启动器与不含 .NET 的应用包：首次启动缺少完整 .NET 8 时点击“安装运行时”，下载、校验并安装 .NET / ASP.NET Core 后自动进入应用。已有可用运行时直接启动；运行时缓存位于当前用户目录，无需管理员权限。详见 [运行时与打包流程](RELEASE.md)。
+- Windows：portable ZIP 或每用户 setup 安装包。
+- macOS：包含 `AvaMedia.app` 的 ARM64 DMG；最低系统版本声明为 **macOS 13.4**。应用使用 ad-hoc 签名，尚未进行 Developer ID 签名和公证。
+- 当前应用包不包含 .NET。首次启动缺少可用的 .NET 8／ASP.NET Core 运行时时，由原生启动器下载、校验并安装到当前用户缓存，再启动应用；无需开发 SDK 或管理员权限。
 
-当前应用最低系统版本声明为 **macOS 13.4**：打包的 ONNX Runtime 1.23.2 ARM64 原生库在 `LC_BUILD_VERSION` 中要求 13.4；.NET、Avalonia、Skia 与 HarfBuzz 组件要求 11.0，独立 FFmpeg 配方的部署目标为 12.0。QuickJS 官方 ARM64 二进制要求 macOS 26，已改为从同版本固定源码构建、指定 13.4 部署目标。归档检查同时核对组件和下载工具的实际部署版本，避免旧系统在加载人脸识别或解析下载链接时暴露依赖错误。此声明与配方仍须通过原生构建，macOS 13.4 的完整设备运行仍需验收。
-
-## v1.0.5 应用包
-
-- Windows x64：`AvaMedia-1.0.5-win-x64-setup.exe` 每用户安装，或 ZIP 解压运行 `AvaMedia.Desktop.exe`。
-- Apple Silicon：`AvaMedia-1.0.5-osx-arm64.pkg` / `.dmg` / `.zip`，包含 `AvaMedia.app`。
-- Intel Mac：`AvaMedia-1.0.5-osx-x64.pkg` / `.dmg` / `.zip`，包含 `AvaMedia.app`。
-
-应用包含 .NET 运行时，不要求用户安装开发 SDK。macOS 包含原生 apphost、Avalonia/Skia/HarfBuzz dylib、Info.plist、许可与说明；ZIP 保存 Unix 创建平台和执行权限。构建方式依据 [Avalonia macOS 部署说明](https://docs.avaloniaui.net/docs/deployment/macos)。Mac 包使用 ad-hoc 签名，尚未进行 Developer ID 签名和公证；初次安装的系统放行和最低系统版本仍需设备验收。
+macOS 13.4 的下限来自打包 ONNX Runtime ARM64 原生库的部署要求。QuickJS 从固定源码构建并指定 13.4 部署目标；归档检查核对依赖实际部署版本。该声明不代表已经完成 macOS 13.4 设备上的全部功能验收。
 
 ## 工具与平台行为
 
-新构建在 Windows portable / setup 和 macOS DMG 中内置 FFmpeg / FFprobe 8.1.3、官方 yt-dlp 和 QuickJS-NG。配置留空时直接使用应用 `tools` 中的引擎，无需再次安装；用户指定路径和环境变量仍优先。引擎及动态库、版本清单、组件许可证一并打包，对应源码保存在主 Release 链接的媒体归档页。见 [macOS FFmpeg 配方与验证](FFMPEG-MACOS.md) 和 [自动发布](RELEASE.md)。
+新构建内置 FFmpeg／FFprobe **9.0.2**、yt-dlp 和 QuickJS-NG。FFmpeg 版本来自共用的 [源码锁](../scripts/macos/ffmpeg-sources.lock.json)，各平台打包引擎、动态库、版本清单和许可证；精确对应源码由 Release 链接的媒体归档提供。见 [FFmpeg 配方](FFMPEG-MACOS.md)。
 
-工具查找支持配置路径、环境变量、Mac 应用资源的 tools、用户工具目录、Homebrew 的 `/opt/homebrew/bin` 或 `/usr/local/bin`、项目工具目录和 PATH。Finder 启动应用时也可找到 Homebrew 工具。
+工具查找支持配置路径、环境变量、应用 `tools`、用户工具目录、项目工具目录、PATH 和 macOS Homebrew 路径；用户指定路径优先。开发构建需要自行准备工具，安装包直接使用内置工具。
 
-HEIC / HEIF 可进入图片路由、压缩、转换、缩放 / 旋转与图片合成 PDF。macOS 信息读取及不填边的 HEIC / JPEG / PNG / TIFF 预览使用系统 ImageIO，无需启动媒体进程；压缩编码仍由 FFmpeg 完成。分块 HEIC 需要 FFprobe 的 stream_groups 信息与 FFmpeg 8.1 系列的 Tile Grid 合成能力（含 `xstack`），定制 ARM64 引擎固定 8.1.3 并检查该滤镜，Windows 安装脚本使用含这些能力的当前构建。自行指定旧引擎时需升级到支持上述能力的版本。当前 Windows 主机只完成源码编译和静态检查，ImageIO 的真实运行与 Apple Silicon 性能仍待实机验证；实现见 [HEIC](HEIC.md)。
+HEIC／HEIF 可进入图片路由、压缩、转换、缩放／旋转及图片合成 PDF。macOS 信息读取与支持的静态图片预览使用系统 ImageIO；压缩编码沿用 FFmpeg。分块 HEIC 需要所用 FFmpeg 支持 Tile Grid、`stream_groups` 与 `xstack`，见 [HEIC](HEIC.md)。
 
-Windows 声音使用 WaveOut；macOS 声音接入系统 AudioToolbox 的 AudioQueue，读取共享的 16 位 PCM 缓存。轨道选择、定位、静音与停止使用同一套播放流程，音频设备错误会显示在预览中。实现依据 [Apple Audio Queue Services](https://developer.apple.com/documentation/audiotoolbox/audio-queue-services)；Mac 听感、停止回调及音画同步尚待真机验证。
+Windows 内嵌声音使用 WaveOut，macOS 使用 AudioQueue；播放器与编辑器共享轨道选择、定位、静音及停止流程。高分辨率／HDR 还可使用独立 mpv 原生窗口，见 [原生播放](PLAYER-NATIVE.md)。设备听感、回调及音画同步的覆盖以具体验收记录为准。
 
-当前开发版已移除屏幕录制功能及采集代码；Mac 应用不再声明摄像头与麦克风采集权限。
+文件定位使用 Windows Explorer 或 macOS Finder 的 `open -R`。Mac 默认输出目录为用户 Movies/AvaMedia，工具与预览缓存位于用户目录。大小写敏感卷、路径权限、Finder、字体、Retina 和设备能力应按实际环境核对。
 
-文件定位在 Windows 使用 Explorer，在 macOS 使用 Finder 的 `open -R`。Mac 默认输出目录为用户 Movies/AvaMedia，工具与预览缓存独立于应用包；这些路径的真实权限、大小写卷及升级行为仍需 Mac 验收。
+当前开发版已移除屏幕录制及采集代码，Mac 应用不再声明摄像头与麦克风采集权限。
 
-## 开发与验收
+## 开发检查与历史证据
+
+日常只检查受影响项目和必要静态诊断，执行范围遵循 [AGENTS.md](../AGENTS.md)。打包入口为：
 
 ```powershell
 ./scripts/Publish.ps1 -Runtime win-x64
 ./scripts/Publish.ps1 -Runtime osx-arm64
-./scripts/Verify-MacPackages.ps1
 ```
 
-Mac 包检查通过 64 项：两个架构的八种关键 Mach-O 二进制（含 .NET CoreCLR、hostpolicy 与 ONNX Runtime）、执行权限、Info.plist、应用 ICNS 图标、工具脚本、许可和 ZIP 元数据。该脚本只检查归档，原生运行验证由 [Release 工作流](https://github.com/mcxen/AvaMedia/actions/runs/37384638311) 在两种架构 runner 完成。发布包哈希和验证范围保存在 [验收记录](releases/1.0.5-verified.json)。
+归档检查与原生运行各自记录结果；构建通过不能替代设备操作或媒体输出验收。真实模型、原生窗口、VR、WebView 和媒体验证见 [验收索引](acceptance/README.md)。
 
-后续 Mac 真机验收以 Apple Silicon（ARM64）为目标，需记录 OS、CPU、FFmpeg 版本，运行共同的字幕/音频/转换样例，并实测窗口、声音、定位/静音/停止、Finder、中文文件名与字幕、系统动效、文档中文字体。完成前不宣称设备验收已完成。
+早期 [v1.0.5 验收](releases/1.0.5-verified.json) 包含 Windows 测试、安装、启动／卸载和 macOS 两种架构 runner 的原生启动。当时的包包含 .NET、提供 Intel Mac 架构，与当前打包方式不同；记录保留作历史追溯。后续 macOS 验收以 ARM64 为目标，未覆盖的设备及最低系统版本不从这些历史结果推定。

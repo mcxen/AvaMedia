@@ -1,6 +1,8 @@
 # FFmpeg 体积比较
 
-2026-10-06 实测。比较对象为本机 FormatFactory X64 5.10.0、原开发用 BtbN 静态 LGPL 构建与新安装的 BtbN 共享 LGPL 构建。MiB = 1,048,576 字节；原始文件尺寸与能力对照见 [测量记录](engine/ffmpeg-size-20261006.json)。
+本文保留 2026-10-06 的旧工具测量。当前发布使用固定源码的 GPL FFmpeg，并内置到安装包；现行配方与许可见 [FFmpeg 构建](../FFMPEG-MACOS.md) 和 [第三方声明](../../THIRD-PARTY-NOTICES.md)。下文的 BtbN 安装方式和“未嵌入”描述仅属于当日版本。
+
+2026-10-06 实测。比较对象为本机 FormatFactory X64 5.10.0、原开发用 BtbN 静态 LGPL 构建与新安装的 BtbN 共享 LGPL 构建。MiB = 1,048,576 字节；原始文件尺寸与能力对照见 [测量记录](../engine/ffmpeg-size-20261006.json)。
 
 | 对象 | FFmpeg 程序 | 探测程序 | 媒体运行文件合计 |
 | --- | ---: | ---: | ---: |
@@ -18,4 +20,4 @@
 
 FFmpeg 与 FFprobe 仍作为外部可替换工具安装，未嵌入客户端应用包；格式工厂的专有文件没有被复制。以上 Windows 工具方案使用不启用 gpl/nonfree 的 LGPL 构建，原应用许可证保持 AGPL-3.0-only。[FFmpeg 许可说明](https://ffmpeg.org/legal.html)
 
-macOS ARM64 使用另行定制的源码构建配方，按客户端能力选取依赖，并输出独立运行包、对应源码和体积报告。它保留 x264 / x265，许可为 GPL-3.0-or-later；尚未取得原生构建体积，不套用 Windows 的测量数字。详见 [macOS 定制方案](FFMPEG-MACOS.md)。
+macOS ARM64 使用另行定制的源码构建配方，按客户端能力选取依赖，并输出独立运行包、对应源码和体积报告。它保留 x264 / x265，许可为 GPL-3.0-or-later；尚未取得原生构建体积，不套用 Windows 的测量数字。详见 [macOS 定制方案](../FFMPEG-MACOS.md)。

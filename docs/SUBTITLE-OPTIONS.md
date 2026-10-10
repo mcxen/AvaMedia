@@ -1,6 +1,6 @@
 # 字幕与轨道选择
 
-维护日期：2026-10-05。本页记录 AvaMedia 已实现行为，原格式工厂字幕分页尚未现场核对。
+本页记录 AvaMedia 的字幕与轨道配置。自动识别、字幕校对及结果导出见 [语音工具](SPEECH-TOOLS.md)。
 
 输出配置的视频、音频页可指定各自类型内的轨道索引：0 为第一条，1 为第二条。转换、流复制、提取、混流、合并输入、编辑器声音与画面预览均使用所选轨道。保留全部音轨时输出全部轨道；预览仍显示所选单轨。FFmpeg 显式映射规则见[官方说明](https://ffmpeg.org/ffmpeg.html#Advanced-options)。
 
@@ -17,4 +17,4 @@
 
 专项测试为 `tests/AvaMedia.SubtitleTests`，生成含两条视频、两条声音、两条字幕的独立素材。32 项检查通过：包哈希、PCM 内容、字幕文本/语言/编码、软字幕剪辑时间、烧录像素/颜色/位置、剪辑变速同步、逐输入合并、预览选轨、预设、界面草稿隔离以及不适用参数提前拒绝。浅/深色渲染已查看。
 
-最新报告：[32 项报告](../artifacts/subtitles-20261005-201827/report.json)，[浅色](../artifacts/subtitles-20261005-201827/subtitles-light.png) / [深色](../artifacts/subtitles-20261005-201827/subtitles-dark.png)。这些是 Windows 上的实际验证，尚未证明 macOS 真机效果。
+上述专项属于 2026-10-05 的 Windows 历史验证，本地 `artifacts/subtitles-20261005-201827/` 已不在当前工作区。后续 macOS 自动字幕、校对、SRT／ASS 和烧录的真实执行记录见 [AI 任务验收](acceptance/AI-RUNTIME-ACCEPTANCE-20261010.md)。

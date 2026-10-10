@@ -458,7 +458,7 @@ GPU 分组默认勾选「自动适配 GPU」，输出编码器默认「自动」
 
 业务窗口通过组件角色选择样式，颜色、字体、圆角、控件尺寸与图标尺寸通过 `DynamicResource` 获取；资源值集中定义，业务 XAML / C# 不再另设 UI 色值或字号。普通字段使用 `UiFieldHeight`，时间字段使用 `UiTimeFieldWidth` / `UiTimeFontSize`，操作按钮使用 `dialog-action`、`field-action`、`transport`、`step` 或 `row-icon`。窗口初始尺寸、媒体比例和绘制路径属于各自布局与图形结构。
 
-四套皮肤的本地运行、公共与媒体组件预览、截图更新范围见 [2026-10-09 外观检查](docs/APPEARANCE-REVIEW.md)。Platinum 的独立切换按钮通过 `UiToggleButtonTheme` 使用经典按钮面，选中时保持按下状态；ComboBox、Expander 与 TreeView 的内部按钮保留各自模板。
+四套皮肤的本地运行、公共与媒体组件预览、截图更新范围见 [2026-10-09 外观检查](docs/acceptance/APPEARANCE-REVIEW.md)。Platinum 的独立切换按钮通过 `UiToggleButtonTheme` 使用经典按钮面，选中时保持按下状态；ComboBox、Expander 与 TreeView 的内部按钮保留各自模板。
 
 `ControlRoles.axaml` 是通用角色入口，转换、编辑、设置、导出和批量工具共同复用。列表表面、选中项、辅助文字与错误文字使用语义颜色。`UiFont` 由每套皮肤提供，数值文字使用 `UiNumericFont`。设置页继承这些资源及皮肤 TabItem 模板，禁止在窗口内重建固定外观。
 
@@ -486,7 +486,7 @@ GPU 分组默认勾选「自动适配 GPU」，输出编码器默认「自动」
 
 Light、Dark、Mac OS 9 共享布局与 `UiPlayer*` 资源。播放器按钮使用独立的紧凑角色 `player-transport`：浅 / 深色 32×32 DIP，20 DIP 原创矢量，时间沿用 `UiNumericFont`、14 DIP；Mac OS 9 按现有经典角色统一覆盖为 24×24 DIP 和 12 DIP 时间字号。时间格式为 `HH:mm:ss.fff`，与各自按钮垂直居中。浅 / 深色时间轴 16 DIP，音量滑块 80 DIP，速度按钮 48 DIP，列表宽 264 DIP；普通窗口 1100×720，最小 760×460。小于 900 DIP 时收起音量滑块，保留静音和键盘音量操作。尺寸检查读取实际皮肤角色；皮肤不能改变动作位置或单独放大某个按钮。
 
-播放画面与时间控件独立更新：帧按播放时钟呈现，时间文字与滑块最多 10 Hz，暂停和主动定位立即更新。全屏隐藏控制栏时跳过时间控件刷新，独立窗口隐藏 / 最小化时停止像素复制；恢复沿用原解码会话。播放列表数据仅在集合变化时重新绑定。具体测量范围与数据见 [播放器性能](docs/PLAYER-PERFORMANCE.md)。
+播放画面与时间控件独立更新：帧按播放时钟呈现，时间文字与滑块最多 10 Hz，暂停和主动定位立即更新。全屏隐藏控制栏时跳过时间控件刷新，独立窗口隐藏 / 最小化时停止像素复制；恢复沿用原解码会话。播放列表数据仅在集合变化时重新绑定。具体测量范围与数据见 [播放器性能](docs/acceptance/PLAYER-PERFORMANCE.md)。
 
 标题栏支持拖动、双击最大化、最小化与关闭；Mac OS 9 复用 Platinum 标题栏，不叠加第二条标题。全屏隐藏标题，闲置两秒收起控制栏并隐藏指针；移动指针恢复操作区。短暂反馈显示在画面左上角，不占用额外工具行；快捷键帮助覆盖画面并可关闭。全屏、倍速、静音和播放状态同时更新图标 / 数值、Tooltip 与可访问名称。
 

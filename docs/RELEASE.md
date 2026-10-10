@@ -1,5 +1,7 @@
 # 自动发布
 
+版本说明保存在 `docs/releases/<版本>.md`，`Publish-Release.ps1` 按待发布版本读取对应文件；历史变更汇总保存在 [版本目录](releases/README.md)。
+
 日常 CI 仅在客户端源码、界面模板、项目或依赖配置改变时编译 `AvaMedia.Desktop` 及其 Core 依赖，不编译测试项目、不下载 FFmpeg、不运行媒体、截图或消融回归。只改文档、图片等资源时跳过。需要全量回归时，在 CI 的 **Run workflow** 中勾选 `full_verification`；该模式独立运行原有 `scripts/Verify.ps1`，不会先重复编译客户端。
 
 Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：

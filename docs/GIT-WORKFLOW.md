@@ -21,7 +21,7 @@
 
 变更行数使用候选提交相对上次已发布 tag 的 `git diff --numstat`，累加新增行与删除行。只统计源码、界面模板、测试及构建/发布脚本；文档、许可证、资源文件和生成文件不计入，不为凑数制造改动。未达到 1200 行时继续正常提交和推送，保留当前版本 tag。
 
-单独复现消融：`./scripts/Verify.ps1 -Suite Ablation`。测试说明和已测结果见 [ABLATION.md](ABLATION.md)。
+单独复现消融：`./scripts/Verify.ps1 -Suite Ablation`。测试说明和已测结果见 [ABLATION.md](acceptance/ABLATION.md)。
 
 ## 协作与备份
 

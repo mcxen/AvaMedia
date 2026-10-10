@@ -9,10 +9,14 @@
 | `IMediaPreview` | 缩略图、结束边界帧、相邻帧时间 | 编辑器，可独立注入帧预览实现 |
 | `IMediaEngine` | 继承执行与预览契约，提供探测、设置与工具路径 | 主窗口、编辑器、转换、播放器和批量工具 |
 | `IVideoOrientationDetector` | 方向建议、证据、进度与取消 | 编辑器方向页、批量旋转 |
+| `ISummaryModel` | 本地／线上模型标识、后端、文本与多图请求、结构化输出和资源释放 | 视频总结、画面描述与 `MediaCaptionSession` |
+| `ISummaryToolModel` | 带工具的多轮请求与实际工具结果 | 视频描述的指定时间取帧 |
 | `IPlaybackSession` | 首帧、时钟、暂停 / 恢复、定位、速度、音量、呈现可见性与资源释放 | 独立播放器；可替换窗口的解码会话 |
 | `IAudioOutput` | PCM 播放、暂停、音量、停止和资源释放 | `Playback`；桌面程序集内部的平台接口 |
 
 生产实现为 `MediaEngine`。主窗口接受可选 `IMediaEngine`，其余业务窗口通过构造参数依赖接口；Windows 与 macOS 音频分别使用 WaveOut 和 AudioQueue。静态的参数校验、格式判断和文件命名仍作为纯业务规则，不增加转发接口。`PlayerWindow` 通过会话工厂使用 `IPlaybackSession`，生产会话 `Playback` 使用 FFmpeg 流式解码，也被剪辑器复用；无需让窗口依赖 FFmpeg 进程生命周期。实现与键位见 [播放器](PLAYER.md)。
+
+AI 文本与视觉请求共用 `SummaryChatProtocol` 的图像内容和响应解析；`SummaryToolConversation` 管理多轮工具调用。`MediaCaptionSession` 在一次分析批次内复用同一个本地／线上模型，并在结束时释放；调用方借用模型时不负责销毁。实现的协议与真实模型对照见 [AI 复用消融](acceptance/ABLATION.md#2026-10-10-ai-代码复用消融)。
 
 HEIC 仍通过 `IImageCompressor` 与 `IMediaPreview` 接入窗口。Core 内部的 `HeifImage` 从 FFprobe 选择静态主图，识别完整 Tile Grid、方向、位深及单块派生图裁剪，统一供预览、编码、转换与 PDF 使用。`AppleImageIO` 仅在 macOS 延迟加载系统框架，以 SafeHandle 管理原生资源，后台读取信息并按请求尺寸下采样；窗口不直接调用原生 API。图片压缩窗口只缓存当前原图位图，不缓存整个文件夹。详见 [HEIC](HEIC.md)。
 

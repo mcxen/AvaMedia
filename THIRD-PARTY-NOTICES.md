@@ -44,7 +44,7 @@ NudeNet class candidates do not imply a bundled NudeNet detector or weights.
 
 ## External tools
 
-FFmpeg and FFprobe 8.1.3 are bundled in the application `tools` directory as independent, replaceable processes. Both platform builds enable GPL and version3 for x264/x265 and are distributed under GPL-3.0-or-later; no nonfree component is enabled. Original component notices accompany the binaries in `licenses/media-tools/`. The original AvaMedia application remains AGPL-3.0-only. See [FFmpeg legal information](https://ffmpeg.org/legal.html). No FormatFactory FFmpeg binary is redistributed.
+New builds bundle FFmpeg and FFprobe 9.0.2 in the application `tools` directory as independent, replaceable processes; the exact version is pinned in [the shared source lock](scripts/macos/ffmpeg-sources.lock.json) and recorded in each package. Both platform builds enable GPL and version3 for x264/x265 and are distributed under GPL-3.0-or-later; no nonfree component is enabled. Original component notices accompany the binaries in `licenses/media-tools/`. The original AvaMedia application remains AGPL-3.0-only. See [FFmpeg legal information](https://ffmpeg.org/legal.html). No FormatFactory FFmpeg binary is redistributed.
 
 If you choose to distribute FFmpeg yourself, preserve its actual notices and license texts and provide the complete corresponding source for the precise binaries, build configuration, changes and external libraries, in accordance with their licenses. A link to a floating project homepage is not a substitute for corresponding source. A build with `--enable-nonfree` must not be included in the release.
 

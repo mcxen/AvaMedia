@@ -8,6 +8,7 @@ $taskRoot=Split-Path -Parent $PSScriptRoot
 $artifacts=Join-Path $taskRoot 'artifacts'
 $tag="v$Version"
 $mediaTag="media-$tag"
+$notes=(Get-Content -LiteralPath (Join-Path $taskRoot "docs/releases/$Version.md") -Raw).Trim()
 $names=@("AvaMedia-$Version-osx-arm64.dmg","AvaMedia-$Version-win-x64-portable.zip","AvaMedia-$Version-win-x64-setup.exe")
 $packages=@($names | ForEach-Object { Join-Path $artifacts $_ })
 foreach($path in $packages){if(!(Test-Path -LiteralPath $path)){throw "Release package missing: $path"}}
@@ -39,11 +40,9 @@ Application and build scripts: [commit $Revision](https://github.com/$Repository
 "@ | Set-Content -LiteralPath $mediaNotes -Encoding utf8
 Publish-Assets $mediaTag "AvaMedia $tag · Media tools and corresponding sources" $mediaNotes $media.FullName $false
 $releaseNotes=Join-Path $artifacts 'app-release-notes.md'
-$notes=Get-Content -LiteralPath (Join-Path $taskRoot 'docs/RELEASE-NOTES.md') -Raw
-$firstSection=[regex]::Match($notes,'(?s)\A.*?(?=\r?\n## v|\z)').Value.Trim()
 $hashes=($packages | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+[IO.Path]::GetFileName($_) }) -join "`n"
 @"
-$firstSection
+$notes
 
 | Platform | Download |
 | --- | --- |

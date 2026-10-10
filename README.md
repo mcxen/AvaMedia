@@ -66,7 +66,7 @@ macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；�
 | **播放器 · Platinum** | **视频下载 · Light** |
 | [![Platinum 播放器与紧凑播放控制栏](docs/assets/screenshots/player-macos9.png)](docs/assets/screenshots/player-macos9.png) | [![视频下载：链接、画质、字幕和登录选项](docs/assets/screenshots/download-light.png)](docs/assets/screenshots/download-light.png) |
 
-点击配图查看原图。[完整截图目录](docs/assets/screenshots/README.md) 收录四套皮肤的 44 张截图，包含路由、设置、转换、编辑、导出、播放及组件预览；检查范围与修正记录见 [外观检查](docs/APPEARANCE-REVIEW.md)。
+点击配图查看原图。[完整截图目录](docs/assets/screenshots/README.md) 收录四套皮肤的 44 张截图，包含路由、设置、转换、编辑、导出、播放及组件预览；检查范围与修正记录见 [外观检查](docs/acceptance/APPEARANCE-REVIEW.md)。
 
 ## 从源码运行
 
@@ -97,11 +97,14 @@ dotnet run --project src/AvaMedia.Desktop -c Release --no-build
 
 ## 文档与贡献
 
+完整资料见 [文档索引](docs/README.md)，实际验证见 [验收记录](docs/acceptance/README.md)，历史发布见 [版本记录](docs/releases/README.md)。
+
 | 主题 | 文档 |
 | --- | --- |
 | 转换与压缩 | [视频压缩](docs/VIDEO-COMPRESSION.md) · [图片压缩](docs/IMAGE-COMPRESSION.md) · [HEIC](docs/HEIC.md) · [TS 视频](docs/TS-VIDEO.md) · [GPU 转码](docs/GPU-TRANSCODING.md) |
 | 编辑与播放 | [快速剪辑](docs/QUICK-CLIP.md) · [视频编辑](docs/VIDEO-EDITING.md) · [批量裁剪](docs/BATCH-CROP.md) · [批量旋转](docs/BATCH-ROTATE.md) · [字幕与选轨](docs/SUBTITLE-OPTIONS.md) · [播放器](docs/PLAYER.md) |
 | 文件与工具 | [文件路由](docs/MEDIA-ROUTING.md) · [WiFi 传文件](docs/WIFI-TRANSFER.md) · [PDF 工作区](docs/PDF-WORKSPACE.md) · [视频下载](docs/VIDEO-DOWNLOAD.md) · [批量工具](docs/BATCH-TOOLS.md) |
+| AI 与模型 | [标签工作台](docs/MEDIA-AI.md) · [自动媒体整理](docs/FOLDER-CLASSIFICATION.md) · [视频总结](docs/VIDEO-SUMMARY.md) · [语音工具](docs/SPEECH-TOOLS.md) · [模型管理](docs/MODELS.md) |
 | 开发与发布 | [架构](docs/ARCHITECTURE.md) · [设置](docs/SETTINGS.md) · [Mac OS 9](docs/MACOS9-SKIN.md) · [Windows XP](docs/WINDOWS-XP-SKIN.md) · [平台](docs/PLATFORMS.md) · [Git 工作流](docs/GIT-WORKFLOW.md) · [自动发布](docs/RELEASE.md) |
 
 欢迎通过 [Issues](https://github.com/mcxen/AvaMedia/issues) 报告问题或提出建议。媒体相关问题请附系统版本、应用版本、输入格式、操作步骤和错误日志。
