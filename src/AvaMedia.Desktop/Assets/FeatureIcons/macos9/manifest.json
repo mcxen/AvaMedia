@@ -18,9 +18,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-4a1caf45-5105-41ed-a763-44f0295256fe.png",
-      "sha256": "AA0A1FFB5FF44667EBFF0EBD894F1725FA102AF385A109572ED5FEFFAEABEF59",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "3220D3D032ACC7FA81F4566056EE833D83F56F1E31FA84412CB1D46DCCBB1A20",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "AA0A1FFB5FF44667EBFF0EBD894F1725FA102AF385A109572ED5FEFFAEABEF59",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "formats",
@@ -32,9 +39,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-3944bf3c-6d8f-4d9f-86fc-69254c5f707f.png",
-      "sha256": "58EAD148C18A8BF52C4C8A2B2C875F4E4AC4FF3032FB0B01271C446E07D12488",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "720D44D93C0DCEAE69997629232D4E31C725DFF2E7986C752870DF13E92931AD",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "58EAD148C18A8BF52C4C8A2B2C875F4E4AC4FF3032FB0B01271C446E07D12488",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "join",
@@ -46,9 +60,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-7b9796f8-c622-4cda-a985-0caeea030568.png",
-      "sha256": "263253C9CB5DD29C2485ECB22E931870226AC5B51926867932FEDB18029C05AE",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "DFAC91F5D86D1F982E85F56E89AF471922897614BBCEB520FB28A31DFC366DE4",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "263253C9CB5DD29C2485ECB22E931870226AC5B51926867932FEDB18029C05AE",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "gear",
@@ -60,9 +81,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-d24017c6-d875-482d-947b-68cd0f4e42a5.png",
-      "sha256": "00FB7485C3EEF22751E60CD3F1D6D9C908C802845F3837DBEA9DABB130B3A39F",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "0F4757CCBC2D5898B25C980E93F9DB9891FB314A0B2E810AC7714011A24D570F",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "00FB7485C3EEF22751E60CD3F1D6D9C908C802845F3837DBEA9DABB130B3A39F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "split",
@@ -74,9 +102,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-76cf54f0-a6c1-4a18-ac75-7859a6651fd1.png",
-      "sha256": "ACAF9D7584B2A1916332B0A49CD484A217ADB30C207AA9FCF127FC821B2D9D59",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "DF5D4F8DC152A93FBC1DD4C62B7F6146BCDFA3E89DD3B11342F1C450150B36A2",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "ACAF9D7584B2A1916332B0A49CD484A217ADB30C207AA9FCF127FC821B2D9D59",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "crop",
@@ -88,9 +123,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-d3c1aef4-bf61-4cfd-9554-8f29fb9da08b.png",
-      "sha256": "C8BB01F618A23D58D912DFCFC21FA8106DFAA4A5A815024F068C4A9A3FBBE0E7",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "70FEBC55C67EC81679970EBE7476245A05151E205EC1E151D81FDB6C9515A7C3",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "C8BB01F618A23D58D912DFCFC21FA8106DFAA4A5A815024F068C4A9A3FBBE0E7",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "rotate",
@@ -102,9 +144,16 @@
         "../v2/rotate.png"
       ],
       "sourceFile": "exec-5f1a6f0a-5e81-4c40-8d15-4f602628fba1.png",
-      "sha256": "02F949356117A6303459EA8B4F405F8906554F5F71E70EA43B88FBFEAB89C6D7",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "BBA8E68A3BDD4FC1B59D5AE808AA40A7BA6D3912F3C12CE5147588B00864F34E",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "02F949356117A6303459EA8B4F405F8906554F5F71E70EA43B88FBFEAB89C6D7",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "clip",
@@ -116,9 +165,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-81ef1014-29c7-470e-8b1b-cffa6a8c261f.png",
-      "sha256": "220A4699BF10B70FF1B9239303E55DFC60C0EDC0504AD48ABD933E8366E7B74F",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "DA611CF75ECF121F0B2C5ABBE885484E3139495A82DD0EB39EC2CC157A8352BE",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "220A4699BF10B70FF1B9239303E55DFC60C0EDC0504AD48ABD933E8366E7B74F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "erase",
@@ -130,9 +186,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-4661e226-5007-46bb-a223-ad2272bce173.png",
-      "sha256": "F5BDAC5E0DAAF15CA742C0A5DC8D1BC5BAC97FD642F93E46D72D91001D60B2B3",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "BA1B92DF0293D05B54B42FC1E96905BA7FAC74780D2F240D87812F9719122C3B",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "F5BDAC5E0DAAF15CA742C0A5DC8D1BC5BAC97FD642F93E46D72D91001D60B2B3",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "frames",
@@ -144,9 +207,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-3e6278b9-e84c-4d9e-8a15-af7778b2d478.png",
-      "sha256": "28F799727FBCB8E08CDE16B8453679804D3781E3703A56A0D3B29B0DE5E25B3A",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "B74B4DDC438541470379B60F49EF6AB9FB4E48DD9B0BD3552A3563093549FCFE",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "28F799727FBCB8E08CDE16B8453679804D3781E3703A56A0D3B29B0DE5E25B3A",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "player",
@@ -158,9 +228,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-4ac022d4-954b-4692-891e-54f13700913e.png",
-      "sha256": "7B9F38850985707BB23200013ECD16ED8D16F18296B60EE7BE6E68FEC0B4D02C",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "6D5B740F7593937A2E6FE6F991701A658ED9B2598B91E56CCC6BB919701F6B9E",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "7B9F38850985707BB23200013ECD16ED8D16F18296B60EE7BE6E68FEC0B4D02C",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "download",
@@ -172,9 +249,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-e8cdbd78-e8e6-44df-9c0a-e593a685eb6f.png",
-      "sha256": "51A1DEDECA43CA7033C59B36AC6CF627FBF0D952A08903B708CF488B162BE240",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "E8D1AE29403F53939B0DF5C82EB906F634FB5BBE134422BB238248CE62050BA6",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "51A1DEDECA43CA7033C59B36AC6CF627FBF0D952A08903B708CF488B162BE240",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "audio",
@@ -186,9 +270,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-a4f19e26-a59a-49ba-9b92-8e175b7d50df.png",
-      "sha256": "F2A950003CFAD2B7EF75D31DA5228BF4DDDF0891336E6E26541F2C06801F9B8B",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "ACD42E82D722B92516DC054AA49BFC486954BED8B6A796723A9D786B22222EA6",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "F2A950003CFAD2B7EF75D31DA5228BF4DDDF0891336E6E26541F2C06801F9B8B",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "image",
@@ -200,9 +291,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-eecd65d8-b579-4c1f-aa45-4f8fbe275b54.png",
-      "sha256": "AFBC99BE6F0FF8D431E2744F2C2B819D4D51FF1675F30052852BE567E89D133D",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "4DD36580B1301E75227446E0CF3BC90EF54538044938276ACECB3DF944572CC6",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "AFBC99BE6F0FF8D431E2744F2C2B819D4D51FF1675F30052852BE567E89D133D",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "document",
@@ -214,9 +312,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-8eb87097-3a5c-4e7b-a456-bdc320c5dda0.png",
-      "sha256": "1713035239D21F3E9ABEC0A17FEBEE2BA1469188DB126D374BF7D8D0E030D057",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "FBD3897124151F0FCC2540EDC899752EFE98664A5B863C20474DDFE37CED40E4",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "1713035239D21F3E9ABEC0A17FEBEE2BA1469188DB126D374BF7D8D0E030D057",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "archive",
@@ -228,9 +333,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-864337f3-ebc0-47ff-8543-eddfd5396b94.png",
-      "sha256": "A01EB0D1E24D04F6E1B7A3C128CEE47B452AC7374F3B9A27E5BFEAB52C8F938F",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "DF4E257971796B7A4AADFCED6F5E79EE8F7C61C9B17BB82C2628935E5DE8AE88",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "A01EB0D1E24D04F6E1B7A3C128CEE47B452AC7374F3B9A27E5BFEAB52C8F938F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "disc",
@@ -242,9 +354,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-e4583fb7-dddb-485e-93dc-e6264601a9de.png",
-      "sha256": "314C7F68ABD237C30D8FDE58D4E72B6EB649FE40AC0BB61D6428FFA31145D2DE",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "7E1EFF575ADD7EAB429FD10AA8A580DE3F764FC73CBB770AE17F4D7283EA5A3F",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "314C7F68ABD237C30D8FDE58D4E72B6EB649FE40AC0BB61D6428FFA31145D2DE",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "info",
@@ -256,9 +375,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-1b1cfce4-2b3a-4012-99c3-4901ac96db31.png",
-      "sha256": "DC669293482B2BA1B312C65958BC908C0AA1CD040ED8360DA264BFBC527727E5",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "C697A8907C8DDF42C9758F9FA6A21AD539629FCC4B116CFF0B7ADB8D217B8E2E",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "DC669293482B2BA1B312C65958BC908C0AA1CD040ED8360DA264BFBC527727E5",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "clip-list",
@@ -270,9 +396,16 @@
         "../../../../../docs/assets/feature-icons-v2-preview.png"
       ],
       "sourceFile": "exec-1a0f7d05-97a8-4bd4-a6f4-a3d40208e16a.png",
-      "sha256": "FDD4CDB0E44CBA698F7606C2348275CAD01617C2D7BDFDCBB448F3FF0ABD0CE6",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "D373380E6839F42978617E113C9CD72CDC157F4978B2923E89A9D7A4DB321954",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "FDD4CDB0E44CBA698F7606C2348275CAD01617C2D7BDFDCBB448F3FF0ABD0CE6",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-merge",
@@ -283,9 +416,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-b65b5968-6478-49b3-85a2-a7918bf564e5.png",
-      "sha256": "3B0C09C6D7F19EADDBF299DBE6425601784DD8ED25546009EB2EB4CC10B17417",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "E1EAE96E522B93F4B043AE273806B34D0B6FD0226761987720CEEEA9F3BC0C8D",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "3B0C09C6D7F19EADDBF299DBE6425601784DD8ED25546009EB2EB4CC10B17417",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-split",
@@ -296,9 +436,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-e007979c-3b4b-41a5-bd56-1f44baf9c4b4.png",
-      "sha256": "130697187B8CF7E9C2FA47204113C4AE5F86EDC5DED90F310DAB3016D8DB6B9D",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "2562DAC2962E2C1404EE44CC1BDCD933E7BC1BAFEC8B73D6AA2269D0042C76CD",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "130697187B8CF7E9C2FA47204113C4AE5F86EDC5DED90F310DAB3016D8DB6B9D",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-text",
@@ -309,9 +456,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-00165500-1e2f-40fd-b433-3f14dd11b2af.png",
-      "sha256": "C2543EF44C7B669C4DC1642590F671FB1FE24424F85A5CE1844B8D2EC4BF1720",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "ECB58B7A0B7FE46201F5DEF682433AAADAD81964792689E640EF629859BF9509",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "C2543EF44C7B669C4DC1642590F671FB1FE24424F85A5CE1844B8D2EC4BF1720",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-docx",
@@ -322,9 +476,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-7643bd05-9bc5-4e67-8e80-9db7a6e3777d.png",
-      "sha256": "EB0E15266221B8AABA489493A1875CCF8660E635064AF17EEA141035FC95528F",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "C008550B5C85F2E7677D0F2F888C7DC79F1F0EB55BF022D8C127E7082C9840F5",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "EB0E15266221B8AABA489493A1875CCF8660E635064AF17EEA141035FC95528F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-xlsx",
@@ -335,9 +496,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-2e392b1e-69cb-4fb8-83e4-cf3a75bdcc76.png",
-      "sha256": "381E252CB6FFDD44697D081DFA0B37B91D2F1D6FEE23499DF65CE00D48526AF6",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "9C5495A1AFCBEF13E44E5D9ED96C1B4E5B23E9A47AD2A475524659943C39BAC5",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "381E252CB6FFDD44697D081DFA0B37B91D2F1D6FEE23499DF65CE00D48526AF6",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "text-pdf",
@@ -348,9 +516,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-7e7ff152-4a38-4841-b429-d5d53c5369ce.png",
-      "sha256": "7C97DC7963506F2BBD1A6D6E5571F3B9C2F17067988EA7CA650EB76BC66E3403",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "6B7E952E2E8A18135D83453F04C9188342B8D92A24EF0056238AB814C3A66E08",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "7C97DC7963506F2BBD1A6D6E5571F3B9C2F17067988EA7CA650EB76BC66E3403",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "zip",
@@ -361,9 +536,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-280e81dc-45bc-4a69-836d-97dbd78d6d6e.png",
-      "sha256": "A74565A2DFD886136D1FA5DE0F3473DE7D52C6072ABCDFB33E51C1CF781AD644",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "F16ACC3EE066BC38594E6376B3BC826D895DD09E4281EA88877AF7AA036511E3",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "A74565A2DFD886136D1FA5DE0F3473DE7D52C6072ABCDFB33E51C1CF781AD644",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "unzip",
@@ -374,9 +556,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-33fa8953-e9c5-4534-a58c-7bfef497a15c.png",
-      "sha256": "5607D6E3BFF10EB332795C3CA2946833595B4B22B4618385EBE16BEEDA622664",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "C470FA0698521A1BD744B72750F891D487D6B426763DE5155F7C4BD74CCEFF84",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "5607D6E3BFF10EB332795C3CA2946833595B4B22B4618385EBE16BEEDA622664",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     }
   ]
 }

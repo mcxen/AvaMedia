@@ -65,6 +65,8 @@ git push origin v1.0.5
 
 版本统一传入 MSBuild、安装器、Info.plist 和文件名。源码默认版本位于 `Directory.Build.props`。
 
+功能图标随包保留 256 × 256 的透明 PNG，应用图标保留完整的标准与 Retina 档位。生成新图片后可用 `python3 scripts/Optimize-ImageAssets.py` 优化素材（需要 Pillow）；脚本更新图标 manifest 的尺寸、哈希和原图记录，文档 PNG 只优化编码、不缩小。LibArchive 由 SDK 按发布 RID 选择原生库，不导入会重复复制所有平台的上游 build targets；Whisper 在最终发布文件清单再次按 RID 筛选，以覆盖项目引用带入的内容文件。普通无 RID 的开发构建保留 SDK 的平台解析。
+
 ```powershell
 ./scripts/Publish.ps1 -Runtime win-x64 -Version 1.0.5
 ./scripts/Package-Windows.ps1 -Version 1.0.5

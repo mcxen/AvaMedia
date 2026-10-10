@@ -1,14 +1,21 @@
 <Project>
-  <!-- NuGet's native package contains every desktop platform. Ship only the requested RID. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <_SpeechNativeRid>$(RuntimeIdentifier)</_SpeechNativeRid>
+    <_SpeechNativeRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">macos-arm64</_SpeechNativeRid>
+    <_SpeechNativeRid Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macos-x64</_SpeechNativeRid>
+  </PropertyGroup>
+  <!-- Whisper's content items bypass the SDK's native-asset RID selection. -->
   <Target Name="SelectSpeechNativeRuntime" BeforeTargets="AssignTargetPaths" Condition="'$(RuntimeIdentifier)' != ''">
-    <PropertyGroup>
-      <_SpeechNativeRid>$(RuntimeIdentifier)</_SpeechNativeRid>
-      <_SpeechNativeRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">macos-arm64</_SpeechNativeRid>
-      <_SpeechNativeRid Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macos-x64</_SpeechNativeRid>
-    </PropertyGroup>
     <ItemGroup>
-      <_UnusedSpeechNative Include="@(None)" Condition="$([System.String]::Copy('%(None.Identity)').Contains('whisper.net.runtime')) and $([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/')) and !$([System.String]::Copy('%(None.TargetPath)').StartsWith('runtimes/$(_SpeechNativeRid)/'))" />
+      <_UnusedSpeechNative Include="@(None)" Condition="$([System.String]::Copy('%(None.Identity)').ToLowerInvariant().Contains('whisper.net.runtime')) and $([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/')) and !$([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/$(_SpeechNativeRid)/'))" />
       <None Remove="@(_UnusedSpeechNative)" />
+    </ItemGroup>
+  </Target>
+  <!-- Project references can build without a RID. Filter their transitive content at the final publish list too. -->
+  <Target Name="SelectPublishedSpeechNativeRuntime" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <_UnusedPublishedSpeechNative Include="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.Identity)').ToLowerInvariant().Contains('whisper.net.runtime')) and $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/')) and !$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/$(_SpeechNativeRid)/'))" />
+      <ResolvedFileToPublish Remove="@(_UnusedPublishedSpeechNative)" />
     </ItemGroup>
   </Target>
 </Project>

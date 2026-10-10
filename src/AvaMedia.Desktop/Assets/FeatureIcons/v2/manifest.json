@@ -13,171 +13,304 @@
       "function": "视频转换",
       "file": "video.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: VIDEO FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, containing one dark charcoal filmstrip with cyan panels in the lower two thirds. Leave the upper quarter of the sheet empty to support an application-rendered format badge. No badge and no text should be drawn into this PNG.",
-      "sha256": "4F06F66D46B338317240F4A6B48A604EA1164C4E505FE44A67CFA6AA96BF27B0",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "6BFCD9830D184D4D9D3EFBA1BE14DFB7871A65AB7B09BB06662EC7B09B8F2128",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "3C8E3C29494FF23A3EDC685E3852824B31282AE5ABE00C5B9868075CA77EA88F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "formats",
       "function": "更多视频格式",
       "file": "formats.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: MULTIPLE VIDEO FORMATS icon. Subject: two slightly offset white and light-silver document sheets with folded top-right corners, the front sheet containing one small dark charcoal filmstrip with cyan panels in its lower half. Leave the upper quarter empty to support an application-rendered format badge. No badge and no text should be drawn into this PNG.",
-      "sha256": "5C969BF47A6A578B3087851D2EAAC61C32530460F677C8E75501E380D8CAA2BC",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "5CCE8E3B7D81903C050F11883676E13B3C3FE9E6111D771584AE14CFB4334EF6",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "8A8927805C9A7F38CB5018DADDD2FCDC34C6893E2E07170F68E745A39DD0ECF0",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "join",
       "function": "视频合并／混流",
       "file": "join.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: JOIN / MERGE VIDEO icon. Subject: two overlapping dark charcoal filmstrip segments with cyan blue panels joining together, one large orange plus sign between them and a small grass green musical note at upper-right. Plus sign must be clear and central. Three elements only, no document sheet.",
-      "sha256": "3A5BB047ED0DB6537D74E471C0EE6C12C3FD94A73021C29E992A706E80DF879A",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "F818F9C26166A23DAFD76ACF475BC35E6AE1071B2C3B0849C5AB7B8F44ACA988",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "21F29C83B3F11817BB8278A47E5343ED2ABDE383052A99F033B7109689931469",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "gear",
       "function": "视频优化",
       "file": "gear.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: VIDEO OPTIMIZE / SETTINGS icon. Subject: one cyan-blue, dark-charcoal filmstrip and two meshing warm golden-orange gears partly overlapping its right upper corner. The large gear has a readable round hub; the small gear is secondary. Simple clean cog teeth, no text.",
-      "sha256": "A0281A10A6FD133989F296FB0B4D9F4411E307DAA9775E9C6D76FFC94D9E9C8C",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "65E599EFF67F73298440C0AC455CFFB89C9EE0BDBEFBB1932DAA11FFE6182137",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "24F2C35FE5CF1D3C7BE89B41EFFEA48D24E486C213B4BF5A2225EA5C118C024A",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "split",
       "function": "音视频分离",
       "file": "split.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: EXTRACT VIDEO / AUDIO STREAMS icon. Subject: a charcoal filmstrip with cyan panels at lower-left, one cyan movie reel at upper-right with three clear silver holes, and a large grass-green musical note at lower-right. One thin green directional arrow leads from filmstrip toward reel / note to communicate extraction. No scissors and no document sheet.",
-      "sha256": "A2C0A362EF377CDE1221A50D216BDD81D37BBB462DDA99151C3058D25D2FC9B5",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "A357BA31D97D0567219BDC16F00D6AECF6FFF59AB1A083B6B77574004BA19908",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "8E29629B18B67F7300DE363F8E0076EBC362278B2945D8D347A43302EA3AE97D",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "crop",
       "function": "画面裁剪",
       "file": "crop.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: FRAME CROP icon. Subject: a light silver square picture frame with four cyan blue crop corner handles, and a simple orange mountain / golden sun picture inside. A small unmistakable crop corner symbol in darker cyan at the bottom-right. Clearly communicate choosing a rectangular part of the picture, distinct from the scissors/clip icon. Do not draw scissors.",
-      "sha256": "3BCD2155256159A2E632A69D4ED7B496AB537CC0FE7708F3BB6C11E7FB80DC6E",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "599F83EC762CCDA9D98D6C227DB86B6105BE07B520B5895E9C42D69496CEE909",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "09458FF0C729AFA71CFEBA96E8582D63BB428F7CED7EA6B007176506BEA5E5B7",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "rotate",
       "function": "视频旋转",
       "file": "rotate.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG application feature icon for AvaMedia desktop multimedia software, readable at 48–64 pixels. Input image is a STYLE REFERENCE ONLY showing the current original AvaMedia icon family; do not reproduce the contact sheet or any labels. Primary request: generate the VIDEO ROTATE function icon. Subject: one upright dark charcoal filmstrip frame with vivid cyan-blue panels, surrounded by one clear grass-green clockwise curved arrow with a single arrowhead. Match the reference's friendly classic desktop utility illustration style and proportions, with slightly polished subtle bevels, restrained soft highlights, crisp silhouettes, simple geometry and almost frontal view. Color palette exactly drawn from the reference: charcoal #26333D, cyan #22A3D0, green #68AE3A, light silver. Composition: a single centered icon on a square canvas, balanced large silhouette occupying about 80% of the canvas, generous clean padding, no cropping. Transparent backdrop with true alpha including all surrounding empty pixels. No text, letters, brand logos, watermarks, checkerboard pattern, background plate, app tile, additional icons or sheet. No photorealistic objects, no heavy shadows, no glossy toy look. The frame and curved arrow must remain visually distinguishable when downscaled.",
-      "sha256": "72F08F08C4918C96494CC91E370D0F6EA5AAF06611F41AD314D04A308FBEE67B",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "883368386E22790004F9840D973015A8793BE478A14C6C4FAE6A844B6E69FFE5",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "9022F74EAC7A67C4014157EF99F943E92951BB65945905ABDDF2142904D4EDF6",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "clip",
       "function": "快速剪辑",
       "file": "clip.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: QUICK VIDEO CLIP icon. Subject: a single cyan-blue and dark charcoal filmstrip behind a clear open pair of silver scissors with two coral-red handles. The scissors cross in front of the lower half of the filmstrip; recognizable silver blades, simple red handle loops. No clock, no extra filmstrips.",
-      "sha256": "36D3DA0C1CD373CCEB76BBA51DAD791BF047B24C0B8BCEC891A5B3009331B88C",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "FC4116D601BBA0939612FE2F34E09EE3497C8A53E2FDA46270D662AD8BA5B59C",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "B7685018546FCC3C3E45EBA81AF6C7CF33E29F84634149932CBA8FB45678CE4F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "erase",
       "function": "去除水印",
       "file": "erase.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: REMOVE VIDEO WATERMARK icon. Subject: a single chunky eraser angled slightly diagonally: warm coral-orange main body, blue-gray grip on top, cream-colored erasing tip at bottom. Two tiny cyan-blue disappearing pixel squares near the erasing tip convey clearing a watermark. Keep eraser dominant, simple, easily recognizable. No document sheet and no text.",
-      "sha256": "D814044864184A45C1079FC98590A9B367E39BD64B71D13938F4F1459F072ABD",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "1BE8F9AD34737793A9240DC401762F9DE598418D3407B60A8F04F597D7D02EDD",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "03383B8BCD4D3A5D23945596E52CE6C15578A7B24F3F3A6EE9A5EF8C9CB67A82",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "frames",
       "function": "提取视频帧",
       "file": "frames.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: EXTRACT VIDEO FRAMES icon. Subject: a dark charcoal filmstrip with cyan panels at left, three light-silver bordered small image thumbnails stacked vertically at right, with simple cyan mountain silhouettes and orange sunshine. A grass-green branching arrow connects filmstrip toward the three pictures. Avoid tiny details. No document sheet and no text.",
-      "sha256": "7B43C820198F8CF16CD787E1E525A961CD37F9434B2B7B86ACF0A97969EE0BE8",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "C181FCF582B3CFB5C2811BFD48DB15A6A5B9953272FD3ECDC8DCEC2EB841CFAD",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "192C89ABF42775451AF173AF4F7EB5D490691870301560401E5F07F9A5823FA1",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "player",
       "function": "视频播放器",
       "file": "player.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: VIDEO PLAYER icon. Subject: a frontal cyan-blue media player window with a light-silver interior and a large vivid cyan-blue right-pointing play triangle centered. Tiny golden square controls on top-left of the frame and one simple cyan playback line along bottom. No record dot, no paper sheet.",
-      "sha256": "6276768152AFD6266884D5CBB74DAF291123061DED5A9A950915E9725E6EF9C7",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "7EC57CC2B034582F9517C99981FA342D868219EA38D06FD803FDE23E9E1590C9",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "CB45BBABE05718688B48DECD84CE49A50722208F520101BEF580EA599292CE0F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "download",
       "function": "视频下载",
       "file": "download.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: DOWNLOAD VIDEO icon. Subject: a single dark charcoal filmstrip with bright cyan blue panels on left, and a bold grass-green vertical downward arrow on the right ending above a small light-silver horizontal download tray. Arrow is the primary readable action. No paper sheet and no text.",
-      "sha256": "7FBCD53392BDC6CD0D0DD5BA824E825270EF9DE263A885B7018662BEB02060E4",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "3B77994D4FE1A8B4E2CAB81572639E7F662ADA32429D52EDF2FFEDDC43AA490F",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "0F89FAA104A23122ECCC52283ABC83EFA985F252E9BA77EDFB214CE71E0100AC",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "audio",
       "function": "音频转换",
       "file": "audio.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: AUDIO FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, a single large grass-green musical eighth-note pair centered in the lower two thirds. Leave upper quarter empty for an application-rendered format badge. No badge and no text.",
-      "sha256": "CB6E863ADE812F5AB2145CE30CDCA3C40AF9159702CB7282CB18BCD9787AABC8",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "3F663D5F762072497049FDD297ECD71FD118852CA25746A3230F31FF447C9FDA",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "A821BF6D61984FC06BD78926C56467F4865DCD70782A2435A6E0136631DB9CAC",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "image",
       "function": "图片转换",
       "file": "image.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: IMAGE FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, one framed cyan-blue landscape thumbnail containing two simple warm orange mountain peaks and a golden sun, placed in the lower two thirds. Leave upper quarter empty for an application-rendered format badge. No badge and no text.",
-      "sha256": "F7070EBC49023083F9E2073456480FE310D31C454C652E756EF2FA60A5F37217",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "F5A57CA494C47AB37D4CF2F634E69D7DD40F0792F5F4D0FB2536097430029CFB",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "C89644F05AA6481D6E833A579C48F85EB3A27862A70020B8F470496E67874A2E",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "document",
       "function": "文档转换",
       "file": "document.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: DOCUMENT FORMAT CONVERSION icon. Subject: a tall white and light-silver document sheet with a folded top-right corner, four bold cyan-gray horizontal lines centered in its lower half, and one small coral-red folded-page accent at lower-right. Leave upper quarter empty for an application-rendered format badge. Only abstract horizontal lines, no actual letters or text, no badge.",
-      "sha256": "AEF7DCD93F3034D5D9FD6AD4794FED12D981075CEA57DE08F5A09378F149E922",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "7AAB42117D17846A60113188E5A32FF36124FF6726825C2D231E6AAE5151A90F",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "235CEF82600F620C145719CB3EDC6209BACF24C4F61B62D342E5B67B50EF8907",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "archive",
       "function": "压缩工具",
       "file": "archive.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: ARCHIVE / ZIP UTILITIES icon. Subject: a silver optical disc with a simple round center hole, partly overlapped at right by a warm golden-orange upright archive package with one bold dark zipper and large silver zip pull. Disc should remain clearly visible. No printed text and no document sheet.",
-      "sha256": "462BEC99E329C8F9AA3EE45E88A09A7166F0131AA7626566488F6EE49FD1304A",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "2F69E3FC73E2639F02DCDC472721567DC1FC8E0BEB5D2A23ABEA386EE363A026",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "F55843B3BAE93F8EDAD9729632E87500FE3E23A1F988FD3CE1491AE427128556",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "disc",
       "function": "光盘工具",
       "file": "disc.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: OPTICAL DISC / DVD UTILITIES icon. Subject: one almost frontal silver optical disc with a strong charcoal outer edge, a clear circular center hole and hub, with three subtle broad iridescent cyan, pale-gold and light-silver sectors. Bold simple silhouette, no tiny grooves, no packaging or zipper, no text.",
-      "sha256": "756033F82ABFD6CBC147CC6B12D6AC7585832FE2448F2A30417158B91BA8DFAF",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "8D911A335D17A61313304652108D1125AF46D58AE402D4BCFE147E4675B9A1F6",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "DA18532E83D5A368676F7CA5F1FAED3E64070173F53BBF0BED355F5AC5C736E0",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "info",
       "function": "媒体信息",
       "file": "info.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: MEDIA INFORMATION icon. Subject: one vivid cyan-blue circular information button with a subtle silver outer rim and a clearly centered white lowercase information i symbol, simple rounded vertical stem and separate round dot. This standard i symbol is the ONLY permitted letter; no other text or caption. One circle only, no paper sheet.",
-      "sha256": "5D8098117A181AFDFBB2ECCA7D3360375AB97193BEAF8F047407E1672A7FB738",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "3DAE41191E46EF43D80AC8430C2689D599C21B89FD94AC4EDC35E16FBFB2993E",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "B675F12664A30048C4CC3B4AC5D5DFED339AE0B3C18C4B0A40688B37D0A78DB9",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "clip-list",
       "function": "批量剪辑",
       "file": "clip-list.png",
       "prompt": "Use case: stylized-concept. Asset type: ONE transparent PNG feature icon for AvaMedia desktop software. Reference image 1 shows the original icon family's symbols and palette; reference image 2 is the new rotate icon and defines the desired restrained bevels, crisp edges and subtle highlights. Match these two references as a coherent classic desktop utility icon family, almost frontal, cheerful cyan blue, charcoal outlines, light silver, with appropriate green/orange/red accents. Optimize for 48–64 pixel display: bold simple silhouette, few large components, equal visual weight to the rotate icon, one centered illustration occupying about 80% of a square canvas, generous clean padding. True alpha transparency throughout the empty background. No text, letters, logos, watermarks, checkerboard pattern, background plate, app tile, contact sheet, photorealism or dramatic shadows. Primary request: BATCH CLIP / LIST OF CLIPS icon. Subject: a shallow cyan-blue inbox tray with a white and silver upright list card. Four thick horizontal rows on the card in warm orange, golden yellow, mint green, and cyan blue. A small silver pair of scissors with coral-red handles sits at the lower-right corner. List rows are abstract shapes only, no letters or text.",
-      "sha256": "7E0265351B8ECA89647DEB332FA6AB37E56366B9EF1DEBAF975856DC4D1E60D1",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "374E3CEA85B98854F01AF2332864CE5AEAB28F98014CFCDD57953BE7A9493E06",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "316ACCADC47DE50189D46E0BD733AE3EFC72F396652B82BA32FC1603C49D4960",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-merge",
@@ -188,9 +321,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-a55695b0-f62d-4a52-921b-42b597232b42.png",
-      "sha256": "11467DEA7E90DE05CE0E5D080856F8543512B6513DC1F013F9D58F25F90DD8B4",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "F84CFCEB39DB62C868257B96462937DA8ED328BEC8E4E3D15104A2066E3FDA44",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "11467DEA7E90DE05CE0E5D080856F8543512B6513DC1F013F9D58F25F90DD8B4",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-split",
@@ -201,9 +341,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-1bab63fe-3a13-4840-92eb-265a9e9b41ff.png",
-      "sha256": "878C6FB44CAD7A0AC27507CBC1A8757E89950655679DCBC7285DEF161616339D",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "C92D7790C4FA080E96CF83C3E201425F028A83DC525AAB73EDBCF8CD8C4D7A2D",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "878C6FB44CAD7A0AC27507CBC1A8757E89950655679DCBC7285DEF161616339D",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-text",
@@ -214,9 +361,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-bb8fb097-4262-4513-bc39-8c688f1603d0.png",
-      "sha256": "35085F844C3B7EF75932CE3E753B4129D3AF68AFA570D9B9C3C28507A931FDC2",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "B1033A25AFEAC48F39D7D537D8B604B8CCC67150A99508932B8CF7D0020B2BDD",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "35085F844C3B7EF75932CE3E753B4129D3AF68AFA570D9B9C3C28507A931FDC2",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-docx",
@@ -227,9 +381,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-444d8c45-4b89-4552-b37a-148370e78115.png",
-      "sha256": "12AF85E68357CA637A3847AA68A9FA8AB9F09764BF60092FDFD08D5D194869CD",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "82E735232ECC83E35C754E340C4FFEB5AA1DDD128180D700D8F4647D4E42022A",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "12AF85E68357CA637A3847AA68A9FA8AB9F09764BF60092FDFD08D5D194869CD",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "pdf-xlsx",
@@ -240,9 +401,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-4dec53c1-ee31-4a67-8db6-aeb654620d08.png",
-      "sha256": "44D09C00F515080D05C44FCBE7FDAD3FF3A3A9069231082BB90D7DFCC84521DC",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "A09008581E53F45631652C39072D1509C19049A5E429A1DE04FFB10C4BA05B4C",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "44D09C00F515080D05C44FCBE7FDAD3FF3A3A9069231082BB90D7DFCC84521DC",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "text-pdf",
@@ -253,9 +421,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-fe1e5ad1-a5cb-46e7-99ce-145b5c982d97.png",
-      "sha256": "CAC18556B26818A8FE755A764C3A03EE2F302D9FD752CF1554733BD9CC88F18F",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "9E19DB6883756F04D44FCC4E131CC5D2B7165C4168C29D6D07FD7301C26A6AC7",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "CAC18556B26818A8FE755A764C3A03EE2F302D9FD752CF1554733BD9CC88F18F",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "zip",
@@ -266,9 +441,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-22a8199a-0479-4184-bdd1-7ce4414bd2ca.png",
-      "sha256": "906CB6F70F89677ADC4724D40791482D5D956185D6E52C9423D12A5241C4A454",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "4E69609460FA68C97F8288407DA65079BFCC59EEAE6065A9756406DDEC577AA6",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "906CB6F70F89677ADC4724D40791482D5D956185D6E52C9423D12A5241C4A454",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     },
     {
       "kind": "unzip",
@@ -279,9 +461,16 @@
         "rotate.png"
       ],
       "sourceFile": "exec-e0eac429-0d68-482b-aaba-9ab22af04970.png",
-      "sha256": "79E8C1DC2D63FD7A2468BE730144E816E12E3074AE4D678DB4830546152F2C04",
-      "pixelWidth": 1254,
-      "pixelHeight": 1254
+      "sha256": "D4ED1768514BACEC8227E0887AC2BA39E5D73BD1C07C2ED8EBC363E85A05374D",
+      "pixelWidth": 256,
+      "pixelHeight": 256,
+      "optimization": {
+        "sourceSha256": "79E8C1DC2D63FD7A2468BE730144E816E12E3074AE4D678DB4830546152F2C04",
+        "sourcePixelWidth": 1254,
+        "sourcePixelHeight": 1254,
+        "method": "Lanczos resize and optimized RGBA PNG",
+        "maxPixels": 256
+      }
     }
   ]
 }

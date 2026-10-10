@@ -24,7 +24,8 @@
     <PackageReference Include="bblanchon.PDFium.Win32" Version="157.0.8086" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.17.2" />
-    <PackageReference Include="LibArchive.Net" Version="0.3.1" />
+    <!-- SDK native-asset selection already copies this RID's library. The package targets copy every RID again. -->
+    <PackageReference Include="LibArchive.Net" Version="0.3.1" ExcludeAssets="build;buildTransitive" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseDirectML)' == 'true'">

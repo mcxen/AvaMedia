@@ -40,7 +40,14 @@
       "ic14"
     ]
   },
-  "sha256": "1D19A91EF442855BEF7B862D0DBDDB903B9703CF25322652614DAF5ACD263859",
-  "pixelWidth": 1254,
-  "pixelHeight": 1254
+  "sha256": "912481FD4DDA1F1E52303B1E4D4A47CAFBD7BBB458D1E2AB3417BAF5CF7485E2",
+  "pixelWidth": 1024,
+  "pixelHeight": 1024,
+  "optimization": {
+    "sourceSha256": "EE1012387B7C70B23AE5C164159EB97FE7903FAC71478B3524217A10E7DD7031",
+    "sourcePixelWidth": 1254,
+    "sourcePixelHeight": 1254,
+    "method": "Lanczos resize and optimized RGBA PNG",
+    "maxPixels": 1024
+  }
 }
