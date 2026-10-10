@@ -82,7 +82,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 "--ctx-size", id == ModelCatalog.SummaryVisionId ? "4096" : id == ModelCatalog.SummaryQwen35Id ? "16384" : "8192",
                 "--parallel", "1", "--batch-size", "512", "--ubatch-size", "128",
                 "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(), "--host", "127.0.0.1", "--port", port.ToString(),
-                "--api-key", key, "--no-context-shift", "--no-warmup", "--log-colors", "off", "--gpu-layers", gpu ? "auto" : "0" };
+                "--api-key", key, "--no-context-shift", "--no-warmup", "--log-colors", "off", "--log-verbosity", "4", "--gpu-layers", gpu ? "auto" : "0" };
             if (!gpu) arguments.AddRange(["--device", "none"]);
             if (ModelCatalog.IsSummaryVision(id))
                 arguments.AddRange(["--mmproj", Path.Combine(model.Directory, definition.Files[1].Path), gpu ? "--mmproj-offload" : "--no-mmproj-offload"]);
