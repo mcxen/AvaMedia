@@ -15,7 +15,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, Control> _runtimeModels = [];
     private readonly ModelStore _runtimeStore = new();
     private bool _releasingWarmModels;
-    private readonly Controls.ModelRuntimeView _captionRuntime = new(new ModelStore().Root, ModelCatalog.SummaryQwen35Id, "画面描述");
+    private readonly Controls.ModelRuntimeView _captionRuntime = new(new ModelStore().Root, ModelCatalog.SummaryQwen35Id, "内容总结");
 
     private void UpdateCaptionWarmup()
     {

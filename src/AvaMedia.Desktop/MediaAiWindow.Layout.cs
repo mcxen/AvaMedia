@@ -55,7 +55,7 @@ public sealed partial class MediaAiWindow
         if (_enqueue is not null) workbenchActions.Add(_enqueueQueue);
         if (_showQueue is not null) workbenchActions.Add(_viewQueue);
         if (_newTask is not null) workbenchActions.Add(Ui.Button("新建标签任务", _newTask));
-        workbenchActions.Add(_chooseTagGroups); workbenchActions.Add(_advanced);
+        workbenchActions.Add(_generateCaptions); workbenchActions.Add(_chooseTagGroups); workbenchActions.Add(_advanced);
         toolbar.Children.Add(WorkbenchActions(workbenchActions.ToArray())); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
@@ -128,7 +128,7 @@ public sealed partial class MediaAiWindow
         _settingsPanel.Children.Add(_autoTxt);
         _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(_realPeople);
-        _settingsPanel.Children.Add(WorkbenchActions(_generateCaptions, Ui.Button("描述设置…", async () => await OpenCaptionSettingsAsync())));
+        _settingsPanel.Children.Add(Ui.Button("分析与总结设置…", async () => await OpenCaptionSettingsAsync()));
         _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
 
         _generateCaptions.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
@@ -216,6 +216,7 @@ public sealed partial class MediaAiWindow
         _fileCount.Text = Localization.Format($"勾选 {included} / {_entries.Count}");
         _empty.IsVisible = _entries.Count == 0; _selectAll.IsEnabled = !_busy && _entries.Count > 0;
         _imports.IsEnabled = _advanced.IsEnabled = _chooseTagGroups.IsEnabled = !_busy && !_writingTxt;
+        _generateCaptions.IsEnabled = !_busy && !_writingTxt;
         _analyze.IsEnabled = !_busy && !_writingTxt && _entries.Any(entry => entry.Include && !HasActiveTask(entry.Path));
         _enqueueQueue.IsEnabled = _analyze.IsEnabled && _enqueue is not null;
         _viewQueue.IsEnabled = _showQueue is not null;

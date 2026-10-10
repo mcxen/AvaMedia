@@ -94,7 +94,8 @@ public partial class MainWindow
                 {
                     media = MediaPrivacy.Filter(media, privateEnabled);
                     var spec = job.Options.MediaTag ?? new();
-                    result = new { media.Path, media.Caption, media.SampledFrames, media.InferredFrames, media.SceneError, media.CaptionError,
+                    result = new { media.Path, media.Caption, media.CaptionModel, media.CaptionBackend, media.CaptionObservations,
+                        media.SampledFrames, media.InferredFrames, media.SceneError, media.CaptionError,
                         Labels = MediaTagText.QualifyingLabels(media, spec.Threshold, spec.SceneThreshold, spec.SceneMargin, spec.OnlyLibrary, spec.LibraryCandidates)
                             .Where(label => privateEnabled || !MediaPrivacy.IsSensitiveLabel(label.Label, label.Category, label.Tags)).ToArray() };
                 }

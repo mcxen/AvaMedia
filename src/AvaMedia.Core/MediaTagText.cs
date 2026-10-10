@@ -99,11 +99,18 @@ public static class MediaTagText
             foreach (var frame in nsfw.Frames) body.AppendLine(FormattableString.Invariant($"{MediaTime.Format(frame.Seconds)}\t{frame.Score:0.000}"));
             if (nsfw.FallbackReason is not null) body.AppendLine("后端回退：" + nsfw.FallbackReason);
         }
-        if (!string.IsNullOrWhiteSpace(result.Caption) || result.CaptionError is not null)
+        if (!string.IsNullOrWhiteSpace(result.Caption) || result.CaptionError is not null || result.CaptionObservations.Count > 0)
         {
-            body.AppendLine().AppendLine("画面描述");
+            body.AppendLine().AppendLine("内容总结");
             if (!string.IsNullOrWhiteSpace(result.Caption)) body.AppendLine(result.Caption);
+            if (result.CaptionBackend is not null) body.AppendLine("推理后端：" + result.CaptionBackend);
             if (result.CaptionError is not null) body.AppendLine("描述失败：" + result.CaptionError);
+            if (result.CaptionObservations.Count > 0)
+            {
+                body.AppendLine().AppendLine("画面观察");
+                foreach (var observation in result.CaptionObservations)
+                    body.AppendLine($"[{MediaTime.Format(observation.Seconds)}] {observation.Text}");
+            }
         }
         var temporary = Path.Combine(folder, ".avamedia-tags-" + Guid.NewGuid().ToString("N") + ".tmp");
         try

@@ -24,7 +24,7 @@ public sealed partial class MediaAiWindow
     private readonly NumericUpDown _sceneMargin = new() { Minimum = 0, Maximum = .5m, Value = .03m, Increment = .01m };
     private readonly CheckBox _followLive = new() { Content = "跟随识别", IsChecked = true };
     private readonly CheckBox _autoTxt = new() { Content = "分析完成自动生成 TXT" };
-    private readonly CheckBox _generateCaptions = new() { Content = "生成画面描述" };
+    private readonly CheckBox _generateCaptions = new() { Content = "画面分析与总结", Name = "MediaAiGenerateSummary" };
     private readonly Button _saveTxt = new() { Content = "生成同目录 TXT" };
     private readonly Button _playSample = new() { Content = "播放此时间" };
     private readonly AiTagChart _scoreBars = new() { Height = 310 };

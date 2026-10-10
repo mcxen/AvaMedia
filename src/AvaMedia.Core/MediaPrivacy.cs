@@ -37,7 +37,8 @@ public static class MediaPrivacy
                 Frames = scenes.Frames.Select(frame => frame with { Matches = frame.Matches.Where(Safe).ToArray(), Candidates = frame.Candidates.Where(Safe).ToArray() }).ToArray()
             },
             Nsfw = null,
-            Caption = media.Caption is { } caption && IsSensitiveText(caption) ? null : media.Caption
+            Caption = media.Caption is { } caption && IsSensitiveText(caption) ? null : media.Caption,
+            CaptionObservations = media.CaptionObservations.Where(observation => !IsSensitiveText(observation.Text)).ToArray()
         };
     }
 

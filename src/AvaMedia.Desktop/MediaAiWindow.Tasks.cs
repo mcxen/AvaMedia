@@ -107,7 +107,8 @@ public sealed partial class MediaAiWindow
                 var result = MediaPrivacy.Filter(raw, _settings.EnableNsfwContent) with { Path = entry.Path };
                 if (job.State is JobState.Completed or JobState.Paused or JobState.Cancelled or JobState.Failed) { _results[entry.Path] = result; _liveResults.Remove(entry.Path); }
                 else { _results.Remove(entry.Path); _liveResults[entry.Path] = result; }
-                if (_followLive.IsChecked == true) _positions[entry.Path] = (result.Scenes?.Frames.LastOrDefault()?.Seconds ?? result.Frames.LastOrDefault()?.Seconds) ?? 0;
+                if (_followLive.IsChecked == true) _positions[entry.Path] = result.CaptionObservations.LastOrDefault()?.Seconds
+                    ?? result.Scenes?.Frames.LastOrDefault()?.Seconds ?? result.Frames.LastOrDefault()?.Seconds ?? 0;
                 ShowResult(entry, result);
                 if (_list.SelectedItem == entry) { RenderSelectedResult(); if (_followLive.IsChecked == true) _ = RefreshSelectedPreviewAsync(CursorFor(result)); }
             }

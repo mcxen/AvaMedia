@@ -1,11 +1,13 @@
 namespace AvaMedia.Core;
 
+public sealed record MediaCaptionObservation(double Seconds, string Text);
+
 /// <summary>Optional local or OpenAI-compatible vision captions after JoyTag. Never writes source media.</summary>
 public static class MediaCaptionService
 {
     public const string DefaultSystemPrompt =
         "你是媒体画面描述助手，用中文描述图像中有直接视觉证据的事实。" +
-        "先逐帧核对主体、动作、环境和物体，输出前删去无法从画面确认的细节，不展示分析过程。" +
+        "先核对主体正在做什么、身体姿态和相对位置，再核对环境和物体；不要用服饰和家具清单代替主要内容。输出前删去无法从画面确认的细节，不展示分析过程。" +
         "不凭服饰或外观猜测人物的身份、性别、年龄、关系、职业，不凭建筑外观猜测校园、办公区等场所类型、地域或拍摄用途。" +
         "文字只有清晰可辨时才逐字转写；模糊的标牌只描述为标牌，不能补全、猜测或编造文字。" +
         "视频采样图不是连续录像：只陈述采样时刻可见的状态，只有多个画面共同支持时才描述变化，不能补写未采样的动作、因果或完整轨迹。" +
@@ -14,7 +16,8 @@ public static class MediaCaptionService
         "不要罗列不存在的裸露或成人内容，不输出免责声明。只输出简洁的描述正文。";
 
     public const string DefaultUserPrompt =
-        "请用一两段简洁中文描述清晰可见的主体、动作、环境和关键物体。优先写有充分画面证据的内容，无法确定的细节直接省略。";
+        "请用一两段简洁中文总结画面的主要内容，先写主体及明确可见的动作或互动，再补充必要的环境。" +
+        "只描述有画面证据的变化，不跨帧累计人数，无法确定的细节直接省略。";
 
     public static void ValidateOptions(MediaTagOptions options)
     {
@@ -41,7 +44,8 @@ public static class MediaCaptionService
     public static async Task<(string Caption, string Model)> GenerateAsync(
         OnlineAiOptions? provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
         ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0,
-        SummaryModelTool? frameTool = null, Action<int, int>? frameProgress = null)
+        SummaryModelTool? frameTool = null, Action<int, int>? frameProgress = null,
+        Action<MediaCaptionObservation>? observed = null, Action? summarizing = null)
     {
         if (frames.Count == 0) throw new ArgumentException("没有可用于画面描述的采样帧。");
         if (frameSeconds is not null && (frameSeconds.Count != frames.Count || !double.IsFinite(videoDurationSeconds) || videoDurationSeconds <= 0
@@ -77,16 +81,25 @@ public static class MediaCaptionService
                 ct.ThrowIfCancellationRequested(); frameProgress?.Invoke(index, frames.Count);
                 var observation = RequireCaption(await vision.CompleteAsync(system,
                     $"这是视频 {MediaTime.Format(frameSeconds[index])} 的单张采样画面。" +
-                    "只用一两句话记录这张图中清晰可见的主体、环境和物体；纯色或看不清的画面照实说明。" +
+                    "只用一两句话记录这张图中的主要内容：先写清晰可见的动作、姿态、人物与物体的相对位置，再写必要的环境。" +
+                    "不要只列服饰和家具；纯色或看不清的画面照实说明。" +
                     "精确人数和细节只有看清时才写，不能描述之前、之后或采样间的动作。",
                     ct, image: frames[index], tokens: 256).ConfigureAwait(false));
                 observations.Append('[').Append(MediaTime.Format(frameSeconds[index])).Append("] ").AppendLine(observation);
+                observed?.Invoke(new(frameSeconds[index], observation));
                 frameProgress?.Invoke(index + 1, frames.Count);
             }
             prompt += "\n\n以下是每张采样图独立观察的记录，请按时间整理成简洁描述。" +
                 "各时间点只使用对应记录，不能把前一帧的主体延续到下一帧；不要补写采样间的动作。\n" + observations;
-            image = null; images = null;
+            // Keep original visual evidence in the synthesis request; frame descriptions may contain mistakes.
+            // Three small, timestamped images leave room for observations and any requested tool frames.
+            var indices = new[] { 0, frames.Count / 2, frames.Count - 1 }.Distinct().ToArray();
+            images = indices.Select(index => new SummaryModelImage($"核对画面 · {MediaTime.Format(frameSeconds[index])}",
+                VideoSummarySampling.ModelImage(frames[index]))).ToArray();
+            prompt += "\n随附部分原始采样图用于核对。记录与对应图像冲突时以图像为准，删去误读，不能将局部身体或跨帧主体拼成新增人物。";
+            image = null;
         }
+        summarizing?.Invoke();
         string caption;
         if (frameTool is not null && frameSeconds is not null)
         {

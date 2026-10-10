@@ -59,8 +59,9 @@ public sealed partial class MediaAiWindow
         _sampleSummary.Classes.Add("time");
         _resultFilters.Child = BuildWorkbench(); title.Children.Add(_resultFilters);
         Grid.SetColumn(title, 1); heading.Children.Add(title);
-        // Charts stay first; controls use the available space beside the media preview.
+        // The summary precedes tag charts; controls use the space beside the media preview.
         var content = _resultContent;
+        _captionPanel.IsVisible = false; content.Children.Add(_captionPanel);
         var analysis = new StackPanel { Spacing = 10, Margin = new(0, 8, 0, 0) };
         analysis.Children.Add(BuildCharts()); _chartSection.Content = analysis; content.Children.Add(_chartSection);
         var tags = new StackPanel { Spacing = 10 };
@@ -127,7 +128,7 @@ public sealed partial class MediaAiWindow
             _videoContext = video; _chartSection.IsExpanded = video;
             _chartSection.Header = Localization.Text(video ? "分数与曲线" : "标签分数");
             var first = video ? (Control)_chartSection : _tagPanel;
-            _resultContent.Children.Remove(first); _resultContent.Children.Insert(0, first);
+            _resultContent.Children.Remove(first); _resultContent.Children.Insert(1, first);
         }
         AutomationProperties.SetName(_preview, Localization.Text(video ? "视频预览" : "图片预览"));
         _detailTitle.Text = entry?.Name ?? Localization.Text("识别结果"); Localization.SetIsUserText(_detailTitle, true);
@@ -140,22 +141,13 @@ public sealed partial class MediaAiWindow
         {
             _detailState.Text = ""; _detailState.IsVisible = false;
             if (entry?.Status == Localization.Text("失败") && entry.Details.Length > 0) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
-            RenderCharts(null); UpdateNsfwBadge(null); UpdateActions(); return;
+            RenderCaption(null); RenderCharts(null); UpdateNsfwBadge(null); UpdateActions(); return;
         }
+        RenderCaption(result);
         RenderCharts(result);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
         if (result.SceneError is not null) _tagGroups.Children.Add(result.SceneSkipped ? Ui.Text(Localization.Text(result.SceneError), "caption")
             : Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
-        if (result.CaptionError is not null) _tagGroups.Children.Add(Ui.Text(Localization.Text("画面描述失败：") + result.CaptionError, "error"));
-        else if (!string.IsNullOrWhiteSpace(result.Caption) && (_settings.EnableNsfwContent || !MediaPrivacy.IsSensitiveText(result.Caption)))
-        {
-            var caption = new StackPanel { Spacing = 4 };
-            caption.Children.Add(Ui.Text("画面描述", "heading"));
-            var body = Ui.Text(result.Caption, "caption"); body.TextWrapping = TextWrapping.Wrap; Localization.SetIsUserText(body, true);
-            caption.Children.Add(body);
-            if (result.CaptionModel is not null) caption.Children.Add(Ui.Text(Localization.Text("描述模型") + " · " + result.CaptionModel, "caption"));
-            _tagGroups.Children.Add(caption);
-        }
         var tags = ResultTags(result, search: true).ToArray();
         _tagCount.Text = tags.Length > 0 ? Localization.Format($"已识别 {tags.Length} 个标签") : Localization.Text("标签");
         _detailState.IsVisible = result.IsPartial || _liveResults.ContainsKey(result.Path);

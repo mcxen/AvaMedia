@@ -15,7 +15,7 @@ public sealed partial class MediaAiWindow
     private async Task OpenCaptionSettingsAsync()
     {
         if (_busy || _closed) return;
-        var window = new Window { Title = "画面描述设置", Width = 700, Height = 720, MinWidth = 540, MinHeight = 560,
+        var window = new Window { Title = "画面分析与总结", Width = 700, Height = 720, MinWidth = 540, MinHeight = 560,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var choices = new[] { new CaptionModelChoice(null, "AI 供应商"),
             new CaptionModelChoice(ModelCatalog.SummaryQwen35Id, ModelCatalog.Find(ModelCatalog.SummaryQwen35Id).Name, true) };
@@ -24,7 +24,7 @@ public sealed partial class MediaAiWindow
         model.ItemTemplate = new FuncDataTemplate<CaptionModelChoice>((choice, _) =>
         { var text = Ui.Text(choice?.Name ?? ""); Localization.SetIsUserText(text, choice?.UserText == true); return text; });
         var modelRow = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10 };
-        modelRow.Children.Add(Ui.Text("描述模型")); Grid.SetColumn(model, 1); modelRow.Children.Add(model);
+        modelRow.Children.Add(Ui.Text("总结模型")); Grid.SetColumn(model, 1); modelRow.Children.Add(model);
         var manage = Ui.Button("模型管理…", async () => await ManageModelsAsync(window));
         Grid.SetColumn(manage, 2); modelRow.Children.Add(manage);
         var system = Ui.Input(); system.AcceptsReturn = true; system.TextWrapping = Avalonia.Media.TextWrapping.Wrap;

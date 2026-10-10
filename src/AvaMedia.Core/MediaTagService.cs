@@ -12,7 +12,7 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool ReuseSimilarFrame
     public bool RecognizeNsfw { get; init; }
     public string? CaptionSystemPrompt { get; init; }
     public bool CaptionUseFrameTools { get; init; } = true;
-    public string? CaptionLocalModelId { get; init; }
+    public string? CaptionLocalModelId { get; init; } = ModelCatalog.SummaryQwen35Id;
     public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
     public void Validate()
     {
@@ -34,6 +34,8 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public double DurationSeconds { get; init; }
     public string? Caption { get; init; }
     public string? CaptionModel { get; init; }
+    public string? CaptionBackend { get; init; }
+    public IReadOnlyList<MediaCaptionObservation> CaptionObservations { get; init; } = [];
     public string? CaptionError { get; init; }
     public bool RealPeopleOnly { get; init; }
     public RealNsfwResult? Nsfw { get; init; }
@@ -188,6 +190,9 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null, int videoStreamIndex = 0)
         {
             if (!options.GenerateCaptions) return result;
+            var observations = new List<MediaCaptionObservation>();
+            MediaTagResult Snapshot() => result with { CaptionObservations = observations.ToArray(),
+                CaptionModel = captionSession.ModelId, CaptionBackend = captionSession.Backend };
             progress?.Report(new(result.Path, null, null, completed, files.Length) { PreviewResult = result with { IsPartial = true } });
             activity.Node("生成画面描述");
             activity.Stage("生成画面描述", detail: Path.GetFileName(result.Path));
@@ -197,13 +202,20 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     frameSeconds: frameSeconds, videoDurationSeconds: result.DurationSeconds,
                     frameTool: frameSeconds is not null && options.CaptionUseFrameTools
                         ? new MediaCaptionFrameTool(engine, result, videoStreamIndex,
-                            (png, label) => { activity.Node("补充描述画面"); activity.Frame(png, label); }).Tool : null).ConfigureAwait(false);
+                            (png, label) => { activity.Node("补充描述画面"); activity.Frame(png, label); }).Tool : null,
+                    observed: observation =>
+                    {
+                        observations.Add(observation);
+                        activity.Result(MediaTime.Format(observation.Seconds) + " · " + observation.Text);
+                        progress?.Report(new(result.Path, null, null, completed, files.Length)
+                            { PreviewResult = Snapshot() with { IsPartial = true } });
+                    }).ConfigureAwait(false);
                 ValidateSource(result);
                 activity.Result(Path.GetFileName(result.Path) + " · 画面描述");
-                return result with { Caption = caption, CaptionModel = model };
+                return Snapshot() with { Caption = caption, CaptionModel = model };
             }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
-            { return result with { CaptionError = error.Message }; }
+            { return Snapshot() with { CaptionError = error.Message }; }
         }
         activity.Node("识别媒体标签");
         activity.Backend(session.Backend);

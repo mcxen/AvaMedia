@@ -5,9 +5,12 @@ internal sealed class MediaCaptionSession(ModelStore store, OnlineAiSettings pro
     Action<string> status, Action<string> backend) : IAsyncDisposable
 {
     private ISummaryModel? _model;
+    public string? ModelId => _model?.ModelId;
+    public string? Backend => _model?.Backend;
 
     public async Task<(string Caption, string Model)> GenerateAsync(IReadOnlyList<byte[]> frames, CancellationToken ct,
-        IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0, SummaryModelTool? frameTool = null)
+        IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0, SummaryModelTool? frameTool = null,
+        Action<MediaCaptionObservation>? observed = null)
     {
         if (_model is null)
         {
@@ -18,7 +21,8 @@ internal sealed class MediaCaptionSession(ModelStore store, OnlineAiSettings pro
         backend(_model.Backend);
         return await MediaCaptionService.GenerateAsync(null, frames, options, ct, _model,
             frameSeconds, videoDurationSeconds, frameTool,
-            (current, total) => status($"描述采样画面 {current}/{total}")).ConfigureAwait(false);
+            (current, total) => status($"分析采样画面 {current}/{total}"), observed,
+            () => status("生成总结")).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()

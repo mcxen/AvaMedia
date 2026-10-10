@@ -254,7 +254,7 @@ public sealed partial class MediaAiWindow : Window
                     safe.RealPeopleOnly, safe.Nsfw,
                     DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = _settings.EnableNsfwContent ? NsfwModeration.Evaluate(result, threshold) : null,
                     Tags = ResultTags(result).ToArray(), safe.DurationSeconds, Vocabulary = safe.Scores.Select(score => score.Tag).ToArray(), Evidence = safe.Frames,
-                    safe.Scenes, safe.SceneError, safe.Caption, safe.CaptionModel, safe.CaptionError };
+                    safe.Scenes, safe.SceneError, safe.Caption, safe.CaptionModel, safe.CaptionBackend, safe.CaptionObservations, safe.CaptionError };
             }).ToArray() };
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0); await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });
         }
