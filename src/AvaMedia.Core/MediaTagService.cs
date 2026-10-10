@@ -36,6 +36,7 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public string? CaptionError { get; init; }
     public bool RealPeopleOnly { get; init; }
     public RealNsfwResult? Nsfw { get; init; }
+    public IReadOnlyList<OutfitAppearanceFrame> OutfitFrames { get; init; } = [];
 }
 public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores)
 {

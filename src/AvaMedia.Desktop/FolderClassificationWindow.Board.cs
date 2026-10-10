@@ -113,7 +113,7 @@ public sealed partial class FolderClassificationWindow
             _boardRule.ItemsSource = _rules.ToArray(); _boardRule.SelectedItem = rule;
             _boardRule.IsVisible = _rules.Count > 1;
             var options = new List<(string Id, string Name)> { (AllBasket, Localization.Text("全部")), (PendingBasket, Localization.Text("待分析")), (ReviewBasket, Localization.Text("待确认")) };
-            if (rule is not null) options.AddRange(rule.Categories.Select(category => (category.Id, category.Name)));
+            if (rule is not null) options.AddRange(GroupCategories(rule).Select(category => (category.Id, category.Name)));
             if (!options.Any(option => option.Id == _basketId)) _basketId = AllBasket;
             _baskets.Children.Clear();
             _baskets.IsVisible = rule is not null;
@@ -163,7 +163,7 @@ public sealed partial class FolderClassificationWindow
         button.BorderThickness = new(id == _basketId ? 2 : 1);
         button.Click += (_, _) => { _basketId = id; RenderBoard(); };
         if (rule is null || id is AllBasket or PendingBasket) return button;
-        var category = rule.Categories.FirstOrDefault(item => item.Id == id);
+        var category = GroupCategories(rule).FirstOrDefault(item => item.Id == id);
         DragDrop.SetAllowDrop(button, true);
         button.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
@@ -227,6 +227,17 @@ public sealed partial class FolderClassificationWindow
         var automatic = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
         _results[entry.Path] = previous with { Decisions = previous.Decisions.Select(decision => decision.RuleId == rule.Id
             ? automatic.Decisions.First(item => item.RuleId == rule.Id) : decision).ToArray() };
+        if (rule.ByOutfit) RegroupOutfits();
         _basketId = AllBasket; UpdateEntry(entry); InvalidatePlan(); RenderBoard();
+    }
+
+    private FolderClassificationCategory[] GroupCategories(FolderClassificationRule rule)
+        => FolderOutfitClassification.Categories(rule, _results.Values);
+
+    private void RegroupOutfits()
+    {
+        foreach (var result in FolderOutfitClassification.Apply(_results.Values, _rules.ToArray(), _settings.EnableNsfwContent))
+            _results[result.Media.Path] = result;
+        foreach (var entry in _entries) UpdateEntry(entry);
     }
 }

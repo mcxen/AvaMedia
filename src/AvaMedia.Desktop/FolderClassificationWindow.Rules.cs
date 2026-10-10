@@ -117,6 +117,7 @@ public sealed partial class FolderClassificationWindow
         var active = ReplaceSelectedGroup(rule);
         if (!SameRules(_rules, active)) ApplyActiveRules(active, rule.Id);
         else _ruleList.SelectedItem = _rules.First(item => item.Id == rule.Id);
+        if (rule.ByOutfit) _splitTypes.IsChecked = false;
         _boardRuleId = rule.Id; RenderBoard();
         _status.Text = Localization.Format($"已使用分类：{rule.Name}"); return Task.CompletedTask;
     }
@@ -125,6 +126,7 @@ public sealed partial class FolderClassificationWindow
 
     private async Task EditRuleAsync(FolderClassificationRule? existing)
     {
+        if (existing is { ByOutfit: true }) { await EditOutfitRuleAsync(existing); return; }
         if (existing is { ByDuration: true }) { await Ui.Message(this, "视频长短", "视频长短按源文件时长分类，无需填写画面描述。"); return; }
         var dialog = new Window { Title = "分类设置", Width = 760, Height = 560, MinWidth = 650, MinHeight = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -288,6 +290,7 @@ public sealed partial class FolderClassificationWindow
             var classified = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
             _results[path] = FolderClassification.KeepManual(classified, previous);
         }
+        RegroupOutfits();
         foreach (var entry in _entries) UpdateEntry(entry);
         InvalidatePlan(); RenderDetails();
     }

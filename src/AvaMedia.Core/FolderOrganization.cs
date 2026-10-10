@@ -223,7 +223,7 @@ public static class FolderOrganization
             text.AppendLine().AppendLine(decision.Evidence);
         }
         text.AppendLine().AppendLine("标签: " + string.Join(" · ", file.Tags));
-        if (file.Media.SampledFrames > 0)
+        if (VideoFormats.IsVideo(file.Media.Path) && file.Media.SampledFrames > 0)
         { text.AppendLine($"视频采样帧数: {file.Media.SampledFrames}"); text.AppendLine("分类来自采样识别，需人工核对。"); }
         return text.ToString();
     }

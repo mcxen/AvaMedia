@@ -11,6 +11,7 @@ public static class FolderClassificationPresets
         { IsNsfw = nsfw, UsePeakEvidence = nsfw, FallbackCategoryId = "other" };
 
     public static IReadOnlyList<FolderClassificationRule> Additional { get; } = [
+        new("similar-outfits", "相似服装", []) { ByOutfit = true },
         new("video-duration", "视频长短", [
             C("image", "图片"), C("under-one", "不到1分钟"), C("one-five", "1–5分钟"),
             C("five-fifteen", "5–15分钟"), C("fifteen-thirty", "15–30分钟"), C("over-thirty", "30分钟及以上")]) { ByDuration = true },

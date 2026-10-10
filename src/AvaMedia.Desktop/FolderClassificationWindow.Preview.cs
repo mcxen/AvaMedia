@@ -86,7 +86,7 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
         {
             var decision = result?.Decisions.FirstOrDefault(item => item.RuleId == rule.Id);
             _details.Children.Add(UserText(rule.Name, "settingsHeading"));
-            var categories = rule.Categories;
+            var categories = GroupCategories(rule);
             var choice = new ComboBox { ItemsSource = new[] { Localization.Text("待确认") }.Concat(categories.Select(category => category.Name)).ToArray(),
                 SelectedIndex = decision?.CategoryId is { } id ? Array.FindIndex(categories, category => category.Id == id) + 1 : 0, IsEnabled = !_busy };
             Localization.SetIsUserText(choice, true);

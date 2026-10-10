@@ -75,11 +75,13 @@ public sealed partial class FolderClassificationWindow
         _ruleList.ItemsSource = _rules;
         _ruleList.ItemTemplate = new FuncDataTemplate<FolderClassificationRule>((rule, _) =>
         {
-            var text = UserText(rule is null ? "" : rule.Name + " · " + string.Join(" / ", rule.Categories.Select(category => category.Name)));
+            var text = UserText(rule is null ? "" : rule.ByOutfit ? rule.Name : rule.Name + " · " + string.Join(" / ", rule.Categories.Select(category => category.Name)));
             text.TextTrimming = TextTrimming.CharacterEllipsis; return text;
         });
         _rulesPanel.Children.Add(_ruleList); _ruleList.SelectedItem = _rules.FirstOrDefault();
         var ruleActions = new WrapPanel();
+        var outfits = Ui.Button("按相似服装", async () => await GuardAsync(UseOutfitGroupingAsync));
+        outfits.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(outfits);
         var selectPresets = Ui.Button("选择预设分组…", async () => await GuardAsync(SelectPresetsAsync));
         selectPresets.Margin = new(0, 0, 6, 6); ruleActions.Children.Add(selectPresets);
         foreach (var (label, action) in new (string, Func<Task>)[] {

@@ -95,8 +95,8 @@ public sealed partial class FolderClassificationWindow
                 if (file.Pending || file.Error is not null) _analysisPending.Add(file.Path); else _analysisPending.Remove(file.Path);
                 if (file.Result is { } result)
                 {
-                    _results[file.Path] = FolderClassification.KeepManual(FolderClassification.Classify(result.Media, _rules.ToArray(),
-                        (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent), result);
+                    _results[file.Path] = FolderOutfitClassification.KeepGroups(FolderClassification.KeepManual(FolderClassification.Classify(result.Media, _rules.ToArray(),
+                        (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent), result), result, _rules.ToArray(), _settings.EnableNsfwContent);
                     UpdateEntry(entry);
                 }
                 else { _results.Remove(file.Path); entry.Status = Localization.Text("待分析"); }

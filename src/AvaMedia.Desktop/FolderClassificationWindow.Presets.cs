@@ -38,6 +38,7 @@ public sealed partial class FolderClassificationWindow
                     _rules.Any(rule => rule.Id == decision.RuleId && MediaPrivacy.IsSensitiveRule(rule)))).ToArray() };
             _results[path] = FolderClassification.KeepManual(FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent), previous);
         }
+        RegroupOutfits();
         if (_settings.EnableNsfwContent) _hiddenPrivateResults.Clear();
         foreach (var entry in _entries) UpdateEntry(entry);
         InvalidatePlan(); RenderBoard(); RenderDetails();
@@ -67,7 +68,7 @@ public sealed partial class FolderClassificationWindow
             foreach (var rule in presets)
             {
                 var check = new CheckBox { Content = Localization.Text(rule.Name), IsChecked = _rules.Any(active => active.Id == rule.Id) };
-                var names = UserText(string.Join(" · ", rule.Categories.Select(category => category.Name)));
+                var names = UserText(rule.ByOutfit ? Localization.Text("按服装颜色、款式和配饰自动分组") : string.Join(" · ", rule.Categories.Select(category => category.Name)));
                 names.Margin = new(28, 0, 0, 0); names.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
                 body.Children.Add(new StackPanel { Spacing = 2, Children = { check, names } }); choices.Add((rule, check));
             }
@@ -80,7 +81,7 @@ public sealed partial class FolderClassificationWindow
             var presetIds = choices.Select(choice => choice.Rule.Id).ToHashSet();
             var active = _rules.Where(rule => !presetIds.Contains(rule.Id)).Concat(choices.Where(choice => choice.Check.IsChecked == true && RuleVisible(choice.Rule))
                 .Select(choice => _rules.FirstOrDefault(rule => rule.Id == choice.Rule.Id) ?? choice.Rule)).ToArray();
-            try { FolderClassification.ValidateRules(active); ApplyActiveRules(active); dialog.Close(true); }
+            try { FolderClassification.ValidateRules(active); ApplyActiveRules(active); if (active.Any(rule => rule.ByOutfit)) _splitTypes.IsChecked = false; dialog.Close(true); }
             catch (ArgumentException exception) { error.Text = Localization.Text(exception.Message); error.IsVisible = true; }
         }));
         var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(18), RowSpacing = 10 };

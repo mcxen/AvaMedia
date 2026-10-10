@@ -16,6 +16,8 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
     public FolderNippleDetection? NippleDetection { get; init; }
     public bool IsNsfw { get; init; }
     public bool ByDuration { get; init; }
+    public bool ByOutfit { get; init; }
+    public double OutfitSimilarity { get; init; } = .64;
     public string? FallbackCategoryId { get; init; }
     public bool UsePeakEvidence { get; init; }
     public bool UsesTagScores => Categories.Any(category => category.Tags.Length > 0);
@@ -29,6 +31,13 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
     {
         ValidateId(Id);
         BatchRename.ValidateRenameKeyword(Name);
+        if (ByOutfit)
+        {
+            if (Categories is null || Categories.Length != 0 || ByDuration || NippleDetection is not null || UsesTagScores
+                || !double.IsFinite(OutfitSimilarity) || OutfitSimilarity is < .5 or > .95)
+                throw new ArgumentException("相似服装分组参数无效。");
+            return;
+        }
         if (Categories is null || Categories.Length is < 2 or > 12)
             throw new ArgumentException("每组须包含 2–12 个类别。");
         foreach (var category in Categories)
@@ -74,7 +83,7 @@ public sealed record FolderClassificationRule(string Id, string Name, FolderClas
             throw new ArgumentException("分类标识无效。");
     }
 
-    public WordCandidate[] Candidates() => ByDuration || UsesTagScores || FolderNippleClassification.Resolve(this) is not null ? [] : Categories.Select(category =>
+    public WordCandidate[] Candidates() => ByOutfit || ByDuration || UsesTagScores || FolderNippleClassification.Resolve(this) is not null ? [] : Categories.Select(category =>
         new WordCandidate(Label(category.Id), "分类-" + Id, category.Description, [])).ToArray();
 
     private static IReadOnlyList<FolderClassificationRule> ScenePresets { get; } = [
@@ -111,6 +120,7 @@ public sealed record FolderClassificationDecision(string RuleId, string Name, st
     double Agreement, string Evidence, bool Manual = false)
 {
     public bool NeedsReview => CategoryId is null;
+    public bool OutfitIncludesNsfw { get; init; }
 }
 public sealed record FolderClassifiedFile(MediaTagResult Media, IReadOnlyList<FolderClassificationDecision> Decisions,
     IReadOnlyList<string> Tags);
@@ -175,14 +185,17 @@ public static class FolderClassification
     {
         ValidateRules(rules);
         if (!double.IsFinite(tagThreshold) || tagThreshold is < 0 or > 1) throw new ArgumentException("标签阈值须为 0–1。");
-        var tags = media.Scores.Where(score => (includeNsfw || !MediaPrivacy.IsSensitiveTag(score.Tag)) && MediaTagService.TagSignal(media, score) >= tagThreshold)
-            .OrderByDescending(score => MediaTagService.TagSignal(media, score)).Take(80)
+        var video = VideoFormats.IsVideo(media.Path);
+        double Signal(MediaTagScore score) => video && WordLibraryCatalog.UsesSamplePeak(score.Tag) ? Math.Max(score.Score, score.Maximum) : score.Score;
+        var tags = media.Scores.Where(score => (includeNsfw || !MediaPrivacy.IsSensitiveTag(score.Tag)) && Signal(score) >= tagThreshold)
+            .OrderByDescending(Signal).Take(80)
             .Select(score => WordLibraryCatalog.TagLabel(score.Tag)).Distinct().ToArray();
         return new(media, rules.Where(rule => includeNsfw || !MediaPrivacy.IsSensitiveRule(rule)).Select(rule => Decide(media, rule)).ToArray(), tags);
     }
 
     private static FolderClassificationDecision Decide(MediaTagResult media, FolderClassificationRule rule)
     {
+        if (rule.ByOutfit) return new(rule.Id, rule.Name, null, "待确认", [], [], null, 0, "等待同批服装分组");
         if (rule.ByDuration) return FolderClassificationPresets.DecideDuration(media, rule);
         if (FolderNippleClassification.Resolve(rule) is { } detection)
             return FolderNippleClassification.Decide(media, rule, detection);

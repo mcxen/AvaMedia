@@ -19,6 +19,9 @@ public static class ModelCatalog
     public const string EmbeddingId = "embeddinggemma-2-onnx";
     public const string LamaId = "lama";
     public const string JoyTagId = "joytag";
+    public const string OutfitId = "mediapipe-clothes";
+    public const string OutfitFile = "model.onnx";
+    public const string OutfitFeaturesId = "dinov2-small";
     public const string NsfwId = "marqo-nsfw";
     public const string NsfwFile = "marqo-nsfw-384.onnx";
     public const string SummaryTextId = "summary-qwen3";
@@ -53,6 +56,12 @@ public static class ModelCatalog
                 "https://github.com/ggml-org/whisper.cpp", [new(artifact.FileName, artifact.Size, artifact.Sha256, [artifact.Url, artifact.Url + "?download=true"])]);
         }
         var models = new List<DownloadableModel> {
+            new(OutfitId, "MediaPipe · 服装", "相似服装分组", "Apache-2.0", "https://huggingface.co/senty-au/selfie_multiclass_256x256-ONNX",
+                [new(OutfitFile, 16454560, "35ec1ecd9ee7f85073c99c00020b7f6751b69506eeacf683bc8665f6117f85b0",
+                    ["https://huggingface.co/senty-au/selfie_multiclass_256x256-ONNX/resolve/6db8421a7150ac20558f2c24675078eb3a1a04d0/onnx/model.onnx"])]),
+            new(OutfitFeaturesId, "DINOv2 Small", "服装图像特征", "Apache-2.0", "https://huggingface.co/Xenova/dinov2-small",
+                [new(OutfitFile, 88459888, "83141175ec78b4ff9a2bb58a4c7c264ba0054d1c2e122e5a8114b79a8d4179ea",
+                    ["https://huggingface.co/Xenova/dinov2-small/resolve/c2bb04a51fab207c420665f1946016107bffc701/onnx/model.onnx"])]),
             Speech(SpeechModel.Base), Speech(SpeechModel.Tiny), Speech(SpeechModel.Small),
             new(NsfwId, "Marqo NSFW", "真人素材 NSFW 分类", "Apache-2.0",
                 "https://huggingface.co/ICIJ/nsfw-image-detection-384-onnx",
