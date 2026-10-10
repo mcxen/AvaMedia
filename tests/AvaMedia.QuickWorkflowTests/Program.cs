@@ -70,12 +70,12 @@ Check(splitRead.Segments.All(s=>s is{CropWidth:160,Rotation:90,Speed:2,Flip:true
 var uncertain=new EditorWindow(engine,source,new(){Rotation=180},"quick-workflow",orientationDetector:new ResultDetector(new(null,OrientationReliability.Unknown,8,0,0,"未找到人脸")));uncertain.Show();Pump(uncertain.Ready);Click(uncertain,"DetectDirectionButton");Pump(uncertain.DirectionReady);
 Check(!uncertain.FindControl<Button>("ApplyDirectionButton")!.IsEnabled && uncertain.ReadDraft().Rotation==180,"Unknown orientation retains manual rotation");uncertain.Close();
 var blocking=new BlockingDetector();var cancelEditor=new EditorWindow(engine,source,new(),"quick-workflow",orientationDetector:blocking);cancelEditor.Show();Pump(cancelEditor.Ready);Click(cancelEditor,"DetectDirectionButton");
-Check(blocking.Started,"Detection started");Click(cancelEditor,"CancelDetectionButton");Pump(cancelEditor.DirectionReady);Check(cancelEditor.FindControl<Button>("DetectDirectionButton")!.IsEnabled,"Canceled detection restores controls");
-Click(cancelEditor,"DetectDirectionButton");cancelEditor.Close();Pump(cancelEditor.DirectionReady);Check(true,"Closing editor cancels outstanding inference");
+PumpUntil(()=>blocking.Started==1);Check(true,"Detection started");Click(cancelEditor,"CancelDetectionButton");Pump(cancelEditor.DirectionReady);Check(cancelEditor.FindControl<Button>("DetectDirectionButton")!.IsEnabled&&blocking.Cancelled==1,"Canceled detection restores controls and cancels inference");
+Click(cancelEditor,"DetectDirectionButton");PumpUntil(()=>blocking.Started==2);cancelEditor.Close();Check(!cancelEditor.DirectionReady.IsCompleted&&blocking.Cancelled==1,"Closing editor keeps its background detection running");blocking.Release();Pump(cancelEditor.DirectionReady);Check(true,"Background detection completes after its editor closes");
 
 var export=new ClipExportWindow([read],root);export.Show();
-Check(export.CreateRequest().ClipInputs!.Count==2 && export.CreateRequest().ClipInputs!.All(i=>!i.Options.CopyStreams),"Export defaults to MP4 re-encoding with all edited segments");
-export.FindControl<ComboBox>("FormatCombo")!.SelectedItem="Fast Copy";Dispatcher.UIThread.RunJobs();Check(!export.FindControl<Button>("JoinQueueButton")!.IsEnabled,"Fast Copy with processing blocks submission");
+Check(export.FindControl<ComboBox>("FormatCombo")!.SelectedItem is "Fast Copy"&&!export.FindControl<Button>("JoinQueueButton")!.IsEnabled,"Default source-format export blocks filtered segments before submission");
+export.FindControl<ComboBox>("FormatCombo")!.SelectedItem="MP4";Dispatcher.UIThread.RunJobs();Check(export.CreateRequest().ClipInputs!.Count==2&&export.CreateRequest().ClipInputs!.All(i=>!i.Options.CopyStreams),"Selecting MP4 enables re-encoding for all edited segments");
 export.FindControl<ComboBox>("FormatCombo")!.SelectedItem="MKV";Dispatcher.UIThread.RunJobs();Click(export,"ExportOptionsButton");
 var options=export.OwnedWindows.OfType<OptionsWindow>().Single();
 Check(!options.GetVisualDescendants().OfType<TextBox>().Any(t=>t.Name is "VideoStreamIndex" or "AudioStreamIndex" or "VolumePercent"),"Export options contain only output settings");
@@ -98,25 +98,35 @@ Check(FF("-v","error","-n","-i",jobs[1].Output,"-frames:v","1","-pix_fmt","rgb24
 var expectedPixels=File.ReadAllBytes(expectedRaw);var actualPixels=File.ReadAllBytes(actualRaw);
 Check(actualPixels.Length==expectedPixels.Length && actualPixels.Select((p,i)=>Math.Abs(p-expectedPixels[i])).Average()<10,"Output pixels confirm crop offset and clockwise rotation");
 
-// Drive the main-window workflow through its actual modal editor and export buttons.
-var storage=new Storage(Path.Combine(root,"state"));storage.SaveSettings(new(){OutputFolder=Path.Combine(root,"queue-output"),AutoDetectGpu=false});
+// Drive the current multi-source workspace, editors and export actions into the actual queue.
+var storage=new Storage(Path.Combine(root,"state"));storage.SaveSettings(new(){OutputFolder=Path.Combine(root,"queue-output"),AutoDetectGpu=false,CheckForUpdates=false,AutoUpdate=false});
 var main=new MainWindow(storage);main.Show();var workflow=main.EditQuickClipAsync([source,portrait]);
-PumpUntil(()=>main.OwnedWindows.OfType<EditorWindow>().Any());var first=main.OwnedWindows.OfType<EditorWindow>().Single();Pump(first.Ready);
-Check(!main.OwnedWindows.OfType<QuickClipWindow>().Any()&&!main.OwnedWindows.OfType<ClipExportWindow>().Any(),"Selecting videos enters editor first");
+Window Workspace(){PumpUntil(()=>main.OwnedWindows.Any(window=>window.GetType().Name=="QuickClipWorkspaceWindow"));return main.OwnedWindows.Single(window=>window.GetType().Name=="QuickClipWorkspaceWindow");}
+EditorWindow EditSource(Window workspace,int index)
+{
+    workspace.GetVisualDescendants().OfType<ListBox>().Single().SelectedIndex=index;Dispatcher.UIThread.RunJobs();
+    ClickButton(workspace.GetVisualDescendants().OfType<Button>().Single(button=>button.Content is "剪辑此视频…" or "继续编辑…"));
+    PumpUntil(()=>workspace.OwnedWindows.OfType<EditorWindow>().Any());var editor=workspace.OwnedWindows.OfType<EditorWindow>().Single();Pump(editor.Ready);return editor;
+}
+void ExportWorkspace(Window workspace)=>ClickButton(workspace.GetVisualDescendants().OfType<Button>().Single(button=>Equals(button.Content,"导出选项…")));
+var workspace=Workspace();var first=EditSource(workspace,0);
+Check(!main.OwnedWindows.OfType<ClipExportWindow>().Any(),"Source workspace opens the editor before export");
 SetRange(first,.4,1.6);SetDirection(first,90);Click(first,"AddSegmentButton");SetRange(first,2,3.2);SetDirection(first,180);
-Check(storage.LoadJobs().Count==0,"Editing creates no queue entries");Click(first,"ConfirmButton");
-PumpUntil(()=>main.OwnedWindows.OfType<EditorWindow>().Any());var next=main.OwnedWindows.OfType<EditorWindow>().Single();Pump(next.Ready);
-Check(next.Title!.Contains("2/2"),"Multiple videos edit in selection order");SetRange(next,.2,1.2);Click(next,"ConfirmButton");
+Check(storage.LoadJobs().Count==0,"Editing creates no queue entries");Click(first,"ConfirmButton");PumpUntil(()=>!workspace.OwnedWindows.Any());
+var next=EditSource(workspace,1);Check(next.Title!.Contains(Path.GetFileName(portrait)),"Selecting another source opens its own editor");SetRange(next,.2,1.2);Click(next,"ConfirmButton");PumpUntil(()=>!workspace.OwnedWindows.Any());ExportWorkspace(workspace);
 PumpUntil(()=>main.OwnedWindows.OfType<ClipExportWindow>().Any());var finalExport=main.OwnedWindows.OfType<ClipExportWindow>().Single();
-Check(storage.LoadJobs().Count==0 && finalExport.CreateRequest().ClipInputs!.Count==3,"Queue stays empty until final export confirmation");
-finalExport.FindControl<ComboBox>("FormatCombo")!.SelectedItem="MKV";var customFolder=Path.Combine(root,"custom-output");finalExport.FindControl<TextBox>("ExportFolder")!.Text=customFolder;Click(finalExport,"BackToEditingButton");
-PumpUntil(()=>main.OwnedWindows.OfType<EditorWindow>().Any());var restored=main.OwnedWindows.OfType<EditorWindow>().Single();Pump(restored.Ready);
-Check(restored.Segments.Count==2 && restored.ReadClipEdit().Segments[1] is{Start:2,End:3.2,Rotation:180},"Returning to edit restores multiple drafts");
-Click(restored,"ConfirmButton");PumpUntil(()=>main.OwnedWindows.OfType<EditorWindow>().Any());next=main.OwnedWindows.OfType<EditorWindow>().Single();Pump(next.Ready);Click(next,"ConfirmButton");
+Check(storage.LoadJobs().Count==0&&!finalExport.FindControl<Button>("JoinQueueButton")!.IsEnabled,"Queue stays empty and filtered source-copy export is blocked");
+finalExport.FindControl<ComboBox>("FormatCombo")!.SelectedItem="MKV";Dispatcher.UIThread.RunJobs();Check(finalExport.CreateRequest().ClipInputs!.Count==3,"Re-encoding export includes all three edited segments");
+var customFolder=Path.Combine(root,"custom-output");finalExport.FindControl<TextBox>("ExportFolder")!.Text=customFolder;Click(finalExport,"BackToEditingButton");
+workspace=Workspace();var restored=EditSource(workspace,0);
+Check(restored.Segments.Count==2&&restored.ReadClipEdit().Segments[1] is{Start:2,End:3.2,Rotation:180},"Returning to edit restores multiple drafts");
+Click(restored,"ConfirmButton");PumpUntil(()=>!workspace.OwnedWindows.Any());ExportWorkspace(workspace);
 PumpUntil(()=>main.OwnedWindows.OfType<ClipExportWindow>().Any());finalExport=main.OwnedWindows.OfType<ClipExportWindow>().Single();
-Check(finalExport.ReadState().Preset=="MKV"&&finalExport.ReadState().Folder==customFolder,"Returning from edit retains export format and destination");Click(finalExport,"JoinQueueButton");Pump(workflow);
-var queued=storage.LoadJobs();Check(queued.Count==3 && queued.All(j=>j.FeatureId=="clip"&&j.State==JobState.Waiting&&j.Options.Format=="mkv"),"Final confirmation creates the complete waiting batch");
+Check(finalExport.ReadState().Preset=="MKV"&&finalExport.ReadState().Folder==customFolder,"Returning from edit retains export format and destination");
+finalExport.GetVisualDescendants().OfType<CheckBox>().Single(choice=>Equals(choice.Content,"仅加入队列")).IsChecked=true;Click(finalExport,"JoinQueueButton");Pump(workflow);
+var queued=storage.LoadJobs();Check(queued.Count==3&&queued.All(j=>j.FeatureId=="clip"&&j.State==JobState.Waiting&&j.Options.Format=="mkv"),"Final queue-only confirmation creates the complete waiting batch");
 Check(queued[0].Options.Rotation==90&&queued[1].Options.Rotation==180&&queued[2].Inputs.Single()==portrait,"Queue preserves per-segment and per-source edits");
+foreach(var job in queued){Pump(Task.Run(()=>engine.Execute(job,_=>{},CancellationToken.None)));outputs.Add(job.Output);}Check(queued.All(job=>Probe(job.Output).HasVideo),"Jobs produced by the main-window workflow export playable videos");
 workflow=main.EditQuickClipAsync([source]);PumpUntil(()=>main.OwnedWindows.OfType<EditorWindow>().Any());next=main.OwnedWindows.OfType<EditorWindow>().Single();Pump(next.Ready);Click(next,"EditorCancelButton");Pump(workflow);Check(storage.LoadJobs().Count==3,"Cancel editor adds no jobs");
 workflow=main.EditQuickClipAsync([source]);PumpUntil(()=>main.OwnedWindows.OfType<EditorWindow>().Any());next=main.OwnedWindows.OfType<EditorWindow>().Single();Pump(next.Ready);Click(next,"ConfirmButton");PumpUntil(()=>main.OwnedWindows.OfType<ClipExportWindow>().Any());Click(main.OwnedWindows.OfType<ClipExportWindow>().Single(),"ExportCancelButton");Pump(workflow);Check(storage.LoadJobs().Count==3,"Cancel export adds no jobs");main.Close();
 var clean=QuickClipWorkflow.PrepareExports([new(source,info,[new(){Start=.5,End=2}])],"Fast Copy",new());Check(clean.Single().Options.CopyStreams,"Simple trims still support final Fast Copy option");
@@ -150,6 +160,15 @@ sealed class ResultDetector(VideoOrientationResult result):IVideoOrientationDete
 }
 sealed class BlockingDetector:IVideoOrientationDetector
 {
-    public bool Started{get;private set;}
-    public async Task<VideoOrientationResult> DetectAsync(string path,MediaInfo info,IProgress<OrientationDetectionProgress>? progress=null,CancellationToken ct=default){Started=true;await Task.Delay(Timeout.Infinite,ct);return new(null,OrientationReliability.Unknown,0,0,0,"Canceled");}
+    private int _started,_cancelled;
+    private readonly TaskCompletionSource<VideoOrientationResult> _completion=new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public int Started=>Volatile.Read(ref _started);
+    public int Cancelled=>Volatile.Read(ref _cancelled);
+    public void Release()=>_completion.TrySetResult(new(null,OrientationReliability.Unknown,0,0,0,"Completed"));
+    public async Task<VideoOrientationResult> DetectAsync(string path,MediaInfo info,IProgress<OrientationDetectionProgress>? progress=null,CancellationToken ct=default)
+    {
+        Interlocked.Increment(ref _started);
+        try{return await _completion.Task.WaitAsync(ct);}
+        catch(OperationCanceledException){Interlocked.Increment(ref _cancelled);throw;}
+    }
 }

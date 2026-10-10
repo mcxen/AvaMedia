@@ -38,7 +38,10 @@ void Advance(int ms) { var watch = Stopwatch.StartNew(); while (watch.ElapsedMil
 T Find<T>(Window window, string name) where T : Control => window.FindControl<T>(name)!;
 double Metric(Control control, string key) => control.TryFindResource(key, control.ActualThemeVariant, out var value) && value is double metric ? metric : throw new Exception("Missing player metric: " + key);
 void Key(Window window, Avalonia.Input.Key key, KeyModifiers modifiers = KeyModifiers.None)
-{ window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers, Source = window }); Pump(); }
+{
+    window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers, Source = window }); Pump();
+    window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyUpEvent, Key = key, KeyModifiers = modifiers, Source = window }); Pump();
+}
 var outputs = new List<MeasuredAudio>();
 Playback Create(string path) => new(engine, path, (provider, error) => { var audio = new MeasuredAudio(provider); outputs.Add(audio); return audio; });
 var decoder = Create(source); decoder.Configure(info);

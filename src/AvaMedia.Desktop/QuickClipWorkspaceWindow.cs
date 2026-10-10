@@ -34,6 +34,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
         toolbar.Children.Add(Ui.Button("移除视频", () => { if(_files.SelectedItem is Source source) _sources.Remove(source); RefreshFiles(); })); root.Children.Add(toolbar);
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>
         {
+            if(source is null)return new Border();
             var row = new StackPanel { Spacing = 6, Margin = new(0, 5) };
             var include = new CheckBox { Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include }; Localization.SetIsUserText(include, true);
             include.IsCheckedChanged += (_, _) => { source.Include = include.IsChecked == true; Refresh(); }; row.Children.Add(include);
