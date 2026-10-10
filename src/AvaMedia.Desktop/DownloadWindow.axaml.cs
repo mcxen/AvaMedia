@@ -24,7 +24,6 @@ public sealed class DownloadEntry(string url) : Observable
     public string ErrorSummary=>_error.Length>300?_error[..300]+"…":_error;
     public string Title=>_video?.Title??DisplayUrl;
     public string DisplayUrl=>DownloadLinks.Display(_video is { SourceUrl.Length: > 0 } v?v.SourceUrl:Url);
-    public string Detail=>Title==DisplayUrl?Title:Title+Environment.NewLine+DisplayUrl;
     public bool HasDescription=>_video is not null;
     public string PageLocationId=>_pageLocationId;
     public string PageLocationLabel=>_pageLocationLabel;
@@ -44,7 +43,7 @@ public sealed class DownloadEntry(string url) : Observable
         Refresh();IsChecked=selected&&IsReady;
     }
     public void Fail(string message){_error=message;IsChecked=false;Refresh();}
-    private void Refresh(){foreach(var name in new[]{nameof(IsReady),nameof(HasError),nameof(ErrorSummary),nameof(Title),nameof(DisplayUrl),nameof(Detail),nameof(Description),nameof(HasDescription),nameof(ThumbnailUrl)})Raise(name);}
+    private void Refresh(){foreach(var name in new[]{nameof(IsReady),nameof(HasError),nameof(ErrorSummary),nameof(Title),nameof(DisplayUrl),nameof(Description),nameof(HasDescription),nameof(ThumbnailUrl)})Raise(name);}
 }
 
 public partial class DownloadWindow : Window

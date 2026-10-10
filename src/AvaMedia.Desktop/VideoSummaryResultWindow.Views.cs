@@ -49,9 +49,6 @@ public sealed partial class VideoSummaryResultWindow
             {
                 var text = new SelectableTextBlock { Text = word, TextWrapping = TextWrapping.Wrap };
                 Localization.SetIsUserText(text, true);
-                var keyword = report.KeywordClaims.FirstOrDefault(claim => claim.Text == word);
-                if (keyword is not null) ToolTip.SetTip(text, string.Join("\n", keyword.EvidenceIds.Select(id => report.Evidence.FirstOrDefault(item => item.Id == id))
-                    .OfType<VideoSummaryEvidence>().Select(item => item.Id + " · " + MediaTime.Format(item.Start) + "\n" + item.Text)));
                 tags.Children.Add(new Border { Child = text, Classes = { "summary-chip" }, MaxWidth = 240 });
             }
             stack.Children.Add(Card("关键词", tags));

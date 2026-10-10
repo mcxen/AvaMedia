@@ -36,7 +36,7 @@
                         <CheckBox IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Top"/>
                         <controls:RemoteThumbnail Grid.Column="1" SourceUrl="{Binding ThumbnailUrl}" Height="70"/>
                         <StackPanel Grid.Column="2" Spacing="4" PointerPressed="VideoRowPressed">
-                          <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Detail}"/>
+                          <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"/>
                           <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
                           <TextBlock Text="{Binding ErrorSummary}" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
                         </StackPanel>

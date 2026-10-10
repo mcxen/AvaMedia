@@ -98,7 +98,7 @@
         <Button Grid.Column="3" x:Name="PlayerMuteButton" Classes="player-transport" Click="MuteClick" ToolTip.Tip="静音" AutomationProperties.Name="静音"><local:ActionIcon x:Name="PlayerMuteIcon" Kind="speaker"/></Button>
         <Slider Grid.Column="4" x:Name="PlayerVolume" Minimum="0" Maximum="100" Value="100" SmallChange="5" LargeChange="10" Width="{DynamicResource UiPlayerVolumeWidth}" AutomationProperties.Name="音量"/>
         <Button Grid.Column="5" x:Name="PlayerSpeed" Classes="player-transport player-speed" Content="1×" Click="SpeedClick" ToolTip.Tip="播放速度" AutomationProperties.Name="播放速度"/>
-        <Button Grid.Column="6" x:Name="PlayerVrButton" Classes="player-transport player-speed" Content="VR" Click="VrClick" IsEnabled="False" ToolTip.Tip="VR 设置" AutomationProperties.Name="VR 设置"/>
+        <Button Grid.Column="6" x:Name="PlayerVrButton" Classes="player-transport player-speed" Content="VR" Click="VrClick" IsEnabled="False" AutomationProperties.Name="VR 设置"/>
         <Button Grid.Column="7" x:Name="PlayerSettingsButton" Classes="player-transport" Click="SettingsClick" ToolTip.Tip="播放设置" AutomationProperties.Name="播放设置"><local:ActionIcon Kind="gear"/></Button>
         <Button Grid.Column="8" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>
         <Button Grid.Column="9" x:Name="FullscreenButton" Classes="player-transport" Click="FullscreenClick" ToolTip.Tip="全屏" AutomationProperties.Name="全屏"><local:ActionIcon x:Name="FullscreenIcon" Kind="fullscreen"/></Button>

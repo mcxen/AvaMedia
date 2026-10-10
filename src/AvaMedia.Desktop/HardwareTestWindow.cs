@@ -34,7 +34,7 @@ public sealed class HardwareTestWindow : Window
         {
             var executable = MediaEngine.Resolve(_configured, "ffmpeg");
             Report = await HardwareAcceleration.TestAsync(executable, _lifetime.Token, true, result =>
-                Dispatcher.UIThread.Post(() => { if (_closed) return; lines.Add(result.Summary); _log.Text = string.Join(Environment.NewLine, lines); }));
+                Dispatcher.UIThread.Post(() => { if (_closed) return; lines.Add(ResultText(result)); _log.Text = string.Join(Environment.NewLine, lines); }));
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Report = HardwareAcceleration.Encoders.Select(e => new HardwareEncoderResult(e.Name, e.Codec, false, ex.Message)).ToArray(); }
@@ -42,10 +42,11 @@ public sealed class HardwareTestWindow : Window
         {
             if (!_closed)
             {
-                _log.Text = string.Join(Environment.NewLine, Report.Select(r => r.Summary));
-                ToolTip.SetTip(_log, string.Join(Environment.NewLine + Environment.NewLine, Report.Select(r => r.Name + ": " + r.Detail)));
+                _log.Text = string.Join(Environment.NewLine, Report.Select(ResultText));
             }
             _ready.TrySetResult(); if (_closed) _lifetime.Dispose();
         }
     }
+    private static string ResultText(HardwareEncoderResult result) => result.Summary
+        + (!result.Supported && result.Detail.Length > 0 ? Environment.NewLine + result.Detail : "");
 }
