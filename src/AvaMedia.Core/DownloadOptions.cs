@@ -90,7 +90,7 @@ public static class DownloadBatch
             if (System.Text.RegularExpressions.Regex.IsMatch(title, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) title = "_" + title;
             var job = new Job { FeatureId = "download", Inputs = [video.WebView is {} web ? DownloadLinks.NormalizePageUrl(web.PageUrl) : video.SourceUrl.Length > 0 ? DownloadLinks.Normalize(video.SourceUrl) : video.Url], DownloadTitle = video.Title,
                 Duration = double.IsFinite(video.Duration)?Math.Max(0,video.Duration):0,
-                Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false, Browser = video.Browser, WebView = video.WebView } },
+                Options = new() { Format = request.Format, Download = request.Options with { ExpandPlaylist = false, Browser = video.Browser, WebView = video.WebView, UseWebViewCookies = request.Options.UseWebViewCookies && video.WebView is not null } },
                 Output = MediaEngine.UniqueOutput(request.Folder, request.OutputName.Length > 0 ? request.OutputName : title, request.Format, used) };
             MediaEngine.Validate(job);used.Add(job.Output);jobs.Add(job);
         }

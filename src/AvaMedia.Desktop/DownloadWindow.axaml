@@ -11,7 +11,10 @@
       <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
         <Button x:Name="InspectButton" i18n:StableLayout.Samples="解析链接|取消解析" Content="解析链接" Click="InspectClick"/>
         <Button Grid.Column="1" x:Name="BrowserCaptureButton" Content="网页视频识别" Click="BrowserCaptureClick"/>
-        <TextBlock Grid.Column="2" x:Name="InspectStatus" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
+        <Grid Grid.Column="2" ColumnDefinitions="72,*" ColumnSpacing="8">
+          <ProgressBar x:Name="InspectProgress" Height="4" MinHeight="4" VerticalAlignment="Center" IsVisible="False"/>
+          <TextBlock Grid.Column="1" x:Name="InspectStatus" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
+        </Grid>
         <CheckBox Grid.Column="3" x:Name="ExpandPlaylist" Content="展开列表（最多 100 项）" VerticalAlignment="Center"/>
       </Grid>
     </Grid>
@@ -43,7 +46,6 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </ScrollViewer>
-            <TextBlock x:Name="EmptyState" Text="尚无视频" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Grid>
         </Grid>
       </Border>

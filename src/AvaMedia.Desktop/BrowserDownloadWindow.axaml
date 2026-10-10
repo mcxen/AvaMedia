@@ -32,6 +32,10 @@
                           <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextWrapping="Wrap" ToolTip.Tip="{Binding Detail}"/>
                           <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap"/>
                           <TextBlock i18n:Localization.IsUserText="True" Text="{Binding DisplayUrl}" Classes="caption" TextTrimming="CharacterEllipsis"/>
+                          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasPageLocation}">
+                            <TextBlock i18n:Localization.IsUserText="True" Text="{Binding PageLocationLabel}" Classes="caption" VerticalAlignment="Center"/>
+                            <Button Content="定位" Click="LocateMediaClick" Classes="tool"/>
+                          </StackPanel>
                         </StackPanel>
                       </Grid>
                     </Border>

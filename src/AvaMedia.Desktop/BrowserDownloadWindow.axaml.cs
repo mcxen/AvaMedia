@@ -33,7 +33,8 @@ public partial class BrowserDownloadWindow : Window
         MediaList.ItemsSource = _entries;
         using var stream = typeof(BrowserDownloadWindow).Assembly.GetManifestResourceStream("AvaMedia.Desktop.MediaSniffer.js")!;
         using var reader = new StreamReader(stream);
-        _script = reader.ReadToEnd().Replace("__AVAMEDIA_TOKEN__", _token, StringComparison.Ordinal);
+        _script = reader.ReadToEnd().Replace("__AVAMEDIA_TOKEN__", _token, StringComparison.Ordinal)
+            .Replace("'__AVAMEDIA_VIDEO_LABEL__'", JsonSerializer.Serialize(Localization.Text("视频")), StringComparison.Ordinal);
         Browser.EnvironmentRequested += EnvironmentRequested;
         Browser.AdapterCreated += AdapterCreated;
         Browser.NavigationStarted += NavigationStarted;
@@ -197,14 +198,14 @@ public partial class BrowserDownloadWindow : Window
                     var url = Text(item, "url");
                     var extension = DownloadLinks.MediaExtension(url, Text(item, "mime"));
                     AddMedia(url, extension, item.TryGetProperty("duration", out var d) && d.TryGetDouble(out var seconds) ? seconds : 0,
-                        Text(item, "referer"), _agent, Text(item, "origin"));
+                        Text(item, "referer"), _agent, Text(item, "origin"), Text(item, "locationId"), Text(item, "locationLabel"));
                 }
             RefreshSelection();
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException) { /* Ignore unrelated or malformed website messages. */ }
     }
 
-    private void AddMedia(string url, string extension, double duration, string referer, string agent, string origin)
+    private void AddMedia(string url, string extension, double duration, string referer, string agent, string origin, string? locationId = null, string? locationLabel = null)
     {
         if (extension.Length == 0 || extension is "ts" or "m2ts" || _pageUrl.Length == 0 || _encryptedPage == _pageUrl) return;
         try
@@ -221,11 +222,13 @@ public partial class BrowserDownloadWindow : Window
                 var old = existing.Video!;
                 context = context with { Origin = context.Origin.Length > 0 ? context.Origin : old.WebView!.Origin };
                 existing.Complete(video with { WebView = context, Duration = Math.Max(old.Duration, video.Duration) }, existing.IsChecked);
+                if (locationId is not null) existing.SetPageLocation(locationId, locationLabel ?? "");
                 return;
             }
             if (_entries.Count >= 100) return;
             var entry = new DownloadEntry(url);
             entry.Complete(video);
+            if (locationId is not null) entry.SetPageLocation(locationId, locationLabel ?? "");
             entry.IsChecked = _entries.Count == 0;
             entry.PropertyChanged += (_, e) =>
             {
@@ -249,6 +252,17 @@ public partial class BrowserDownloadWindow : Window
         _selecting = true;
         foreach (var entry in _entries) entry.IsChecked = SelectAll.IsChecked == true;
         _selecting = false; RefreshSelection();
+    }
+    private async void LocateMediaClick(object? sender, RoutedEventArgs e)
+    {
+        if (_closed || _saving || sender is not Control { DataContext: DownloadEntry { HasPageLocation: true } entry }) return;
+        try
+        {
+            await Browser.InvokeScript($"window.__avaMediaLocate?.({JsonSerializer.Serialize(entry.PageLocationId)});")
+                .WaitAsync(TimeSpan.FromSeconds(5), _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_closed) { }
+        catch (Exception ex) { if (!_closed) SetError(ex.Message); }
     }
     private void RefreshSelection()
     {

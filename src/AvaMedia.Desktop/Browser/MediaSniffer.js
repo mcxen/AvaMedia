@@ -6,6 +6,10 @@
     const seen = new Map();
     const fragments = [];
     const removed = new Set();
+    const videoLabel = '__AVAMEDIA_VIDEO_LABEL__';
+    const frameId = Math.random().toString(36).slice(2);
+    const playerIds = new WeakMap(), players = new Map(), outlines = new Map();
+    let nextPlayer = 0, selectedPlayer = '', overlay, overlayRoot, positionTimer;
     let timer;
     const extension = url => /\.(mp4|webm|mkv|mov|m4v|m3u8|mpd)(?:[?#]|$)/i.test(url);
     const isMedia = mime => /^(video\/|application\/(?:vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i.test(mime || '');
@@ -26,11 +30,87 @@
             else if (typeof invokeCSharpAction === 'function') invokeCSharpAction(body);
         } catch { }
     };
-    if (window === window.top) addEventListener('message', event => {
+    addEventListener('message', event => {
+        if (event.data?.avaMedia === token && typeof event.data.located === 'string') {
+            for (const frame of document.querySelectorAll('iframe,frame')) if (frame.contentWindow === event.source)
+                frame.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+            if (window !== window.top) parent.postMessage({ avaMedia: token, located: event.data.located }, '*');
+            schedulePositions();
+            return;
+        }
+        if (event.data?.avaMedia === token && typeof event.data.locate === 'string') {
+            locate(event.data.locate);
+            return;
+        }
+        if (window !== window.top) return;
         if (event.data?.avaMedia === token && typeof event.data.body === 'string' && event.data.body.length < 200000) {
             try { bridge(JSON.parse(event.data.body)); } catch { }
         }
     });
+    const playerInfo = video => {
+        if (!playerIds.has(video)) playerIds.set(video, { id: `${frameId}-${++nextPlayer}`, label: `${videoLabel} ${nextPlayer}` });
+        const info = playerIds.get(video);
+        players.set(info.id, video);
+        return info;
+    };
+    const sourceUrls = video => [video.currentSrc, video.src, ...[...video.querySelectorAll('source')].map(source => source.src)].filter(Boolean);
+    const findPlayer = url => {
+        const videos = [...players.values()].filter(video => video.isConnected && !video.mediaKeys);
+        const exact = videos.find(video => sourceUrls(video).includes(url));
+        if (exact) return playerInfo(exact);
+        // A single blob player in this frame owns the media requests observed by this frame.
+        // With multiple blob players there is no reliable URL-to-element mapping.
+        if (videos.length === 1 && videos[0].currentSrc.startsWith('blob:')) return playerInfo(videos[0]);
+        return null;
+    };
+    const updatePositions = () => {
+        positionTimer = undefined;
+        const active = new Set([...seen.values()].map(item => item.locationId).filter(Boolean));
+        if (!active.size && !overlay) return;
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.style.cssText = 'all:initial!important;position:fixed!important;inset:0!important;pointer-events:none!important;z-index:2147483647!important;';
+            overlayRoot = overlay.attachShadow({ mode: 'closed' });
+            const style = document.createElement('style');
+            style.textContent = '.box{position:absolute;box-sizing:border-box;border:2px solid #1688ff;border-radius:4px;pointer-events:none}.box.selected{border:3px solid #ffad20}.label{position:absolute;top:0;left:0;background:#0874d1;color:white;font:600 12px/20px system-ui,sans-serif;padding:0 6px;border-radius:0 0 4px 0}.selected .label{background:#865000}';
+            overlayRoot.append(style);
+        }
+        if (!overlay.isConnected) document.documentElement.append(overlay);
+        for (const [id, box] of outlines) if (!active.has(id) || !players.get(id)?.isConnected) { box.remove(); outlines.delete(id); }
+        for (const id of active) {
+            const video = players.get(id);
+            if (!video?.isConnected || video.mediaKeys) continue;
+            let box = outlines.get(id);
+            if (!box) {
+                box = document.createElement('div');
+                const label = document.createElement('span');
+                label.className = 'label'; label.textContent = playerIds.get(video).label;
+                box.append(label); overlayRoot.append(box); outlines.set(id, box);
+            }
+            const rect = video.getBoundingClientRect(), style = getComputedStyle(video);
+            const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth && style.visibility !== 'hidden' && style.display !== 'none';
+            box.hidden = !visible;
+            box.className = id === selectedPlayer ? 'box selected' : 'box';
+            box.style.cssText = `left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;`;
+        }
+    };
+    const schedulePositions = () => { if (!positionTimer) positionTimer = requestAnimationFrame(updatePositions); };
+    const locate = id => {
+        const video = players.get(id);
+        if (video?.isConnected) {
+            selectedPlayer = id;
+            video.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+            if (window !== window.top) parent.postMessage({ avaMedia: token, located: id }, '*');
+            schedulePositions();
+        }
+        for (const frame of document.querySelectorAll('iframe,frame')) {
+            try { frame.contentWindow?.postMessage({ avaMedia: token, locate: id }, '*'); } catch { }
+        }
+    };
+    window.__avaMediaLocate = locate;
+    addEventListener('scroll', schedulePositions, true);
+    addEventListener('resize', schedulePositions);
+    const playerResize = typeof ResizeObserver === 'function' ? new ResizeObserver(schedulePositions) : null;
     const flush = () => {
         timer = undefined;
         if (!pending.size && !removed.size) return;
@@ -39,7 +119,7 @@
         removed.clear();
     };
     const schedule = () => { if (!timer) timer = setTimeout(flush, 200); };
-    const discard = url => { pending.delete(url); seen.delete(url); removed.add(url); schedule(); };
+    const discard = url => { pending.delete(url); seen.delete(url); removed.add(url); schedule(); schedulePositions(); };
     const literal = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const addFragment = (value, base, representation) => {
         try {
@@ -133,16 +213,24 @@
             // srcdoc/about:blank frames inherit their parent's base URL but are not valid HTTP Referers.
             const referer = /^https?:/i.test(location.href) ? location.href : document.referrer;
             const previous = seen.get(url);
-            const item = { url, mime: mime || previous?.mime || '', duration: Math.max(previous?.duration || 0, Number.isFinite(duration) ? duration : 0), referer: /^https?:/i.test(referer) ? referer : '', origin: /^https?:/i.test(origin) ? origin : previous?.origin || '' };
+            const player = findPlayer(url);
+            const item = { url, mime: mime || previous?.mime || '', duration: Math.max(previous?.duration || 0, Number.isFinite(duration) ? duration : 0), referer: /^https?:/i.test(referer) ? referer : '', origin: /^https?:/i.test(origin) ? origin : previous?.origin || '', locationId: player?.id || '', locationLabel: player?.label || '' };
             if (JSON.stringify(previous) === JSON.stringify(item) || (!previous && seen.size >= 500)) return;
             seen.set(url, item);
             pending.set(url, item);
             schedule();
+            schedulePositions();
         } catch { }
     };
     const scan = () => {
         if (window === window.top) bridge({ token, media: [] });
-        for (const video of document.querySelectorAll('video')) {
+        for (const [id, video] of players) if (!video.isConnected) { playerResize?.unobserve(video); players.delete(id); }
+        const videos = [...document.querySelectorAll('video')];
+        for (const video of videos) {
+            playerInfo(video);
+            playerResize?.observe(video);
+        }
+        for (const video of videos) {
             if (video.mediaKeys) {
                 bridge({ token, encrypted: true });
                 continue;
@@ -151,6 +239,9 @@
             for (const source of video.querySelectorAll('source')) report(source.src, source.type, video.duration, '', true);
         }
         for (const entry of performance.getEntriesByType('resource').slice(-1000)) report(entry.name);
+        // Refresh position metadata when a delayed player appears or is removed.
+        for (const item of seen.values()) report(item.url, item.mime, item.duration, item.origin);
+        schedulePositions();
     };
     bridge({ token, media: [] });
     const originalFetch = window.fetch;
