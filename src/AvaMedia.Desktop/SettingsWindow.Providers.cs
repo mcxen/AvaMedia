@@ -86,7 +86,8 @@ public sealed partial class SettingsWindow
             OnlineTokenInput.SelectedIndex = (int)provider.TokenLimit; OnlineFormatInput.SelectedIndex = (int)provider.ResponseFormat;
             OnlineTimeoutInput.Value = provider.TimeoutSeconds;
             ProviderStatus.IsVisible = false;
-            ProviderDocsButton.IsVisible = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.Documentation.Length != 0);
+            var hasDocs = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.Documentation.Length != 0);
+            ProviderDocsButton.IsVisible = hasDocs; ProviderDocsButton.IsEnabled = hasDocs;
             ProviderSetupSection.IsVisible = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.ApiKeyPage.Length != 0);
             RefreshProviderDefault();
         }
@@ -207,7 +208,8 @@ public sealed partial class SettingsWindow
         FetchProviderModelsButton.IsEnabled = true; FetchProviderModelsButton.Content = Localization.Text("连接并获取模型");
         CancelProviderModelsButton.IsVisible = false;
     }
-    private void CancelProviderModelsClick(object? sender, RoutedEventArgs args) => _providerRequest?.Cancel();
+    private void CancelProviderModelsClick(object? sender, RoutedEventArgs args)
+    { CancelProviderRequest(); ShowProviderStatus("已取消"); }
     private void ShowProviderStatus(string text) { ProviderStatus.Text = Localization.Text(text); ProviderStatus.IsVisible = true; }
 
     private async void FetchProviderModelsClick(object? sender, RoutedEventArgs args)

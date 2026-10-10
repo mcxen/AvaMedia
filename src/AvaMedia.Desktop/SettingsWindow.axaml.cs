@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
+using Avalonia.Threading;
 using System.Globalization;
 using AvaMedia.Core;
 
@@ -31,7 +33,7 @@ public sealed partial class SettingsWindow : Window
             ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput, BetaInput, AutoRepairModelInput })
         { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
         foreach (var input in new[] { ThreadsInput, JpegQualityInput, WebpQualityInput, ParallelInput })
-        { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
+        { _values.Add(()=>NumericDraftValue(input)); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         _values.Add(() => NsfwContentInput.IsChecked);
         var privacyValueIndex = _values.Count - 1;
@@ -56,7 +58,7 @@ public sealed partial class SettingsWindow : Window
         _appliedValues=_values.Select(value=>value()).ToArray();
         InitializeModelManagement();
         InitializeModelLifecycle();
-        InitializeWordLibraryManagement();
+        InitializeSettingsNavigation();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
         PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
         if (OperatingSystem.IsMacOS())
@@ -74,6 +76,8 @@ public sealed partial class SettingsWindow : Window
     public AppSettings ReadSettings()
     {
         var draft = _settings.Clone();
+        draft.Theme = SettingsThemeKeys[Math.Clamp(ThemeInput.SelectedIndex, 0, SettingsThemeKeys.Length - 1)];
+        draft.Language = SettingsLanguageKeys[Math.Clamp(LanguageInput.SelectedIndex, 0, SettingsLanguageKeys.Length - 1)];
         draft.OutputFolder = OutputInput.Text?.Trim() ?? "";
         draft.FFmpegPath = MediaEngine.UsesBundledTools ? "" : FfmpegInput.Text?.Trim() ?? "";
         draft.FFprobePath = MediaEngine.UsesBundledTools ? "" : FfprobeInput.Text?.Trim() ?? "";
@@ -98,6 +102,7 @@ public sealed partial class SettingsWindow : Window
         draft.ModelWarmupRampSeconds = Number(_warmRamp, "逐步增加用时（秒）");
         draft.TagModelIdleMinutes = ModelIdleChoices[Math.Clamp(_modelIdleChoice.SelectedIndex, 0, ModelIdleChoices.Length - 1)];
         draft.Mcp = ReadMcp();
+        if (SelectedProvider is { } provider) provider.TimeoutSeconds = Number(OnlineTimeoutInput, "请求超时（秒）");
         draft.OnlineAi = _providerDraft.Clone();
         draft.ModelSource = ((ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex)).ToString();
         draft.ModelSourceUrl = ModelSourceUrlInput.Text?.Trim() ?? "";
@@ -105,10 +110,10 @@ public sealed partial class SettingsWindow : Window
     }
     private int Number(NumericUpDown input, string label)
     {
-        if (!decimal.TryParse(input.Text,NumberStyles.Integer,input.NumberFormat,out var value) || value<input.Minimum || value>input.Maximum)
+        var text = input.Text ?? input.Value?.ToString("0", input.NumberFormat);
+        if (!decimal.TryParse(text,NumberStyles.Integer,input.NumberFormat,out var value) || value<input.Minimum || value>input.Maximum)
         {
-            SettingsTabs.SelectedItem = input.GetLogicalAncestors().OfType<TabItem>().First();
-            input.Focus();
+            RevealSetting(input);
             throw new ArgumentException(Localization.Format($"{Localization.Key(label)}：请输入 {input.Minimum} 到 {input.Maximum} 之间的整数。"));
         }
         return decimal.ToInt32(value);
@@ -116,6 +121,8 @@ public sealed partial class SettingsWindow : Window
     private void Populate(AppSettings source)
     {
         _initializing = true;
+        ThemeInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsThemeKeys, source.Theme));
+        LanguageInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsLanguageKeys, source.Language));
         ExternalToolPaths.IsVisible = !MediaEngine.UsesBundledTools;
         OutputInput.Text = source.OutputFolder; FfmpegInput.Text = source.FFmpegPath; FfprobeInput.Text = source.FFprobePath; YtdlpInput.Text = source.YtDlpPath;
         ParallelInput.Value = Math.Clamp(source.ParallelJobs, 1, 8); AutoGpuInput.IsChecked = source.AutoDetectGpu;
@@ -140,16 +147,22 @@ public sealed partial class SettingsWindow : Window
         StatusText.IsVisible = false; _initializing = false;
     }
     private static string RuntimeDescription => Localization.Format($"{AppIdentity.WindowTitle}\n.NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}");
-    private void LanguageChanged(object? sender, EventArgs e) => RuntimeInfo.Text = RuntimeDescription;
+    private void LanguageChanged(object? sender, EventArgs e)
+    {
+        RuntimeInfo.Text = RuntimeDescription; FilterSettingsPages(); UpdateSettingsPageTitle();
+    }
     private void MarkDirty() { if (!_initializing) { ApplyButton.IsEnabled = !_values.Select(value=>value()).SequenceEqual(_appliedValues); StatusText.IsVisible = false; } }
     private bool ApplyDraft()
     {
         try
         {
+            var pages = this.GetLogicalDescendants().OfType<TabControl>().Select(tabs => (Tabs: tabs, Selection: tabs.SelectedItem)).ToArray();
+            var scrolls = this.GetVisualDescendants().OfType<ScrollViewer>().Select(view => (View: view, view.Offset)).ToArray();
             var draft = ReadSettings(); var prior = _settings.Clone(); _settings.CopyFrom(draft);
             try { Applied?.Invoke(this, EventArgs.Empty); }
             catch { _settings.CopyFrom(prior); throw; }
             ModelDownloadSources.Preference = ModelSourcePreference.From(_settings);
+            RestoreSettingsView(pages, scrolls);
             _applied = true; _appliedValues=_values.Select(value=>value()).ToArray(); ApplyButton.IsEnabled = false; StatusText.IsVisible = false; return true;
         }
         catch (Exception ex) { StatusText.Text = ex.Message; StatusText.IsVisible = true;if(_settings.PlayErrorSound)_services.PlaySound(UiSound.Error); return false; }

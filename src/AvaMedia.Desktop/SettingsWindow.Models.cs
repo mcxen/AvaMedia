@@ -16,11 +16,14 @@ public sealed partial class SettingsWindow
     private bool _onlineTarget;
     public void OpenModelManagement(string? modelId = null)
     {
+        SettingsSearchInput.Text = ""; ModelSearchInput.Text = ""; ModelFilterInput.SelectedIndex = 0;
         _modelTarget = modelId; _onlineTarget = false; SettingsTabs.SelectedItem = ModelsTab;
+        ModelSettingsTabs.SelectedItem = ModelLibraryTab;
         if (IsVisible) FocusModelTarget();
     }
     public void OpenOnlineAiSettings()
     {
+        SettingsSearchInput.Text = "";
         _modelTarget = null; _onlineTarget = true; SettingsTabs.SelectedItem = ProvidersTab;
         if (IsVisible) FocusModelTarget();
     }
@@ -45,9 +48,9 @@ public sealed partial class SettingsWindow
         public required TextBlock ProgressText { get; init; }
         public required ProgressBar ProgressBar { get; init; }
         public required Button Download { get; init; }
-        public required Button Verify { get; init; }
-        public required Button Delete { get; init; }
-        public required Button Import { get; init; }
+        public required MenuItem Verify { get; init; }
+        public required MenuItem Delete { get; init; }
+        public required MenuItem Import { get; init; }
         public CancellationTokenSource? Cancellation { get; set; }
         public string? Outcome { get; set; }
         public string? ErrorMessage { get; set; }
@@ -69,6 +72,7 @@ public sealed partial class SettingsWindow
     {
         var kind = (ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex);
         ModelSourceUrlInput.IsVisible = kind == ModelSourceKind.Custom;
+        ModelSourceUrlInput.IsEnabled = kind == ModelSourceKind.Custom;
         ModelSourceHint.Text = Localization.Text(kind switch
         {
             ModelSourceKind.Auto => ModelDownloadSources.PrefersChinaSources()
@@ -84,6 +88,9 @@ public sealed partial class SettingsWindow
         ModelSourceUrlInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); };
         _values.Add(() => ModelSourceInput.SelectedIndex); _values.Add(() => ModelSourceUrlInput.Text);
         _appliedValues = _values.Select(value => value()).ToArray();
+        ModelFilterInput.SelectedIndex = 0;
+        ModelSearchInput.TextChanged += (_, _) => FilterModelRows();
+        ModelFilterInput.SelectionChanged += (_, _) => FilterModelRows();
         foreach (var model in ModelCatalog.All)
         {
             var status = Ui.Text("读取状态…", "caption");
@@ -91,32 +98,28 @@ public sealed partial class SettingsWindow
             var name = Ui.Text(model.Name, "settingsHeading");
             name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(name, model.Name);
-            var identity = new Grid { ColumnDefinitions = new("*,144"), RowDefinitions = new("Auto,Auto,Auto"), ColumnSpacing = 12, RowSpacing = 3 };
+            var identity = new Grid { ColumnDefinitions = new("*,120"), ColumnSpacing = 12 };
             identity.Children.Add(name); Grid.SetColumn(status, 1); identity.Children.Add(status);
             var metadata = Ui.FormattedText($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}", "caption");
             metadata.TextWrapping = TextWrapping.NoWrap; metadata.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(metadata, Localization.Format($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}"));
-            Grid.SetRow(metadata, 1); Grid.SetColumnSpan(metadata, 2); identity.Children.Add(metadata);
-            if (MediaTagRuntime.Supports(model.Id))
-            {
-                var runtime = new Controls.ModelRuntimeView(_modelStore.Root, model.Id);
-                Grid.SetRow(runtime, 2); Grid.SetColumnSpan(runtime, 2); identity.Children.Add(runtime);
-            }
 
             var download = Ui.Button("下载", () => DownloadOrCancelModel(model));
-            var verify = Ui.Button("校验", () => _ = RunModelActionAsync(model, "verify"));
-            var delete = Ui.Button("删除", () => _ = RunModelActionAsync(model, "delete"));
-            var import = new Button { Content = "导入本地文件…", HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
+            var verify = new MenuItem { Header = "校验" }; verify.Click += (_, _) => _ = RunModelActionAsync(model, "verify");
+            var delete = new MenuItem { Header = "删除" }; delete.Click += (_, _) => _ = RunModelActionAsync(model, "delete");
+            var import = new MenuItem { Header = "导入本地文件…" };
             ToolTip.SetTip(import, "选择已下载的模型文件或所在文件夹，按大小与 SHA-256 校验后安装");
             var importFiles = new MenuItem { Header = "选择文件…" }; importFiles.Click += (_, _) => _ = ImportModelAsync(model, folder: false);
             var importFolder = new MenuItem { Header = "选择文件夹…" }; importFolder.Click += (_, _) => _ = ImportModelAsync(model, folder: true);
-            import.Flyout = new MenuFlyout { Items = { importFiles, importFolder } };
+            import.Items.Add(importFiles); import.Items.Add(importFolder);
+            var more = new Button { Content = "更多…", Classes = { "field-action" }, MinWidth = 88, HorizontalAlignment = HorizontalAlignment.Right,
+                Flyout = new MenuFlyout { Items = { import, verify, delete } } };
             download.Classes.Add("primary");
             // Keep the action slot and focused control stable when download becomes cancel.
-            var buttons = new Grid { ColumnDefinitions = new("136,68,68"), ColumnSpacing = 6, VerticalAlignment = VerticalAlignment.Center };
-            var actions = new[] { download, verify, delete };
-            for (var column = 0; column < actions.Length; column++)
-            { actions[column].Classes.Add("field-action"); Grid.SetColumn(actions[column], column); buttons.Children.Add(actions[column]); }
+            var buttons = new Grid { ColumnDefinitions = new("*,112,88"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
+            buttons.Children.Add(metadata);
+            download.Classes.Add("field-action"); Grid.SetColumn(download, 1); buttons.Children.Add(download);
+            Grid.SetColumn(more, 2); buttons.Children.Add(more);
 
             var progressText = Ui.Text("", "caption");
             progressText.TextWrapping = TextWrapping.NoWrap; progressText.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -126,12 +129,16 @@ public sealed partial class SettingsWindow
             var error = Ui.Text("", "settingError"); error.IsVisible = false; error.VerticalAlignment = VerticalAlignment.Top;
             error.TextWrapping = TextWrapping.NoWrap; error.TextTrimming = TextTrimming.CharacterEllipsis;
             // Progress and errors share a reserved area so actions never resize a model row.
-            var details = new Grid { Height = 30, Margin = new(0, 6, 0, 0), ClipToBounds = true };
+            var details = new Grid { Height = 26, ClipToBounds = true };
             details.Children.Add(progressPanel); details.Children.Add(error);
-            var panel = new Grid { ColumnDefinitions = new("*,284"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 16 };
-            panel.Children.Add(identity); Grid.SetColumn(buttons, 1); panel.Children.Add(buttons);
-            Grid.SetRow(details, 1); panel.Children.Add(details);
-            import.Margin = new(0, 6, 0, 0); Grid.SetRow(import, 1); Grid.SetColumn(import, 1); panel.Children.Add(import);
+            var panel = new Grid { RowDefinitions = new("Auto,Auto,Auto,26"), RowSpacing = 6 };
+            panel.Children.Add(identity); Grid.SetRow(buttons, 1); panel.Children.Add(buttons);
+            if (MediaTagRuntime.Supports(model.Id))
+            {
+                var runtime = new Controls.ModelRuntimeView(_modelStore.Root, model.Id);
+                Grid.SetRow(runtime, 2); panel.Children.Add(runtime);
+            }
+            Grid.SetRow(details, 3); panel.Children.Add(details);
             var container = new Border { Classes = { "settingSection", "modelRow" }, Child = panel };
             ModelList.Children.Add(container);
             _modelRows.Add(model.Id, new()
@@ -152,6 +159,25 @@ public sealed partial class SettingsWindow
             ModelDownloads.Shared.Changed -= ModelDownloadChanged;
             Localization.Changed -= ModelsLanguageChanged;
         };
+    }
+
+    private void FilterModelRows()
+    {
+        var query = ModelSearchInput.Text?.Trim() ?? "";
+        foreach (var model in ModelCatalog.All)
+        {
+            if (!_modelRows.TryGetValue(model.Id, out var row)) continue;
+            var stateMatches = ModelFilterInput.SelectedIndex switch
+            {
+                1 => row.Installed,
+                2 => !row.Installed,
+                3 => ModelDownloads.Shared.Find(model.Id)?.Active == true || model.Id == ModelCatalog.LamaId && ModelInstallation.Installing,
+                4 => ModelCatalog.RequiresSummaryRuntime(model.Id),
+                _ => true
+            };
+            row.Container.IsVisible = stateMatches && (query.Length == 0
+                || new[] { model.Id, model.Name, Localization.Text(model.Purpose) }.Any(text => text.Contains(query, StringComparison.CurrentCultureIgnoreCase)));
+        }
     }
 
     private void ModelsLanguageChanged(object? sender, EventArgs args)
@@ -250,12 +276,14 @@ public sealed partial class SettingsWindow
             : model.Supported && !busy;
         row.Download.Content = Localization.Text(downloading ? "取消下载" : row.Downloaded > 0 && !row.Installed ? "继续下载"
             : download?.Error is not null || backgroundFailure ? "重试下载" : row.Installed ? "修复下载" : "下载");
+        row.Download.Classes.Set("primary", downloading || !row.Installed);
         row.Verify.IsEnabled = row.Installed && !busy;
         row.Delete.IsEnabled = !busy && _modelStore.HasLocalData(model.Id);
         row.Import.IsEnabled = model.Supported && !busy && model.Files.Count > 0;
         row.Error.Text = Localization.Text(row.ErrorMessage ?? download?.Error ?? (backgroundFailure ? ModelInstallation.Error ?? "图片修复模型安装失败，请检查网络后重试。" : ""));
         row.Error.IsVisible = !string.IsNullOrEmpty(row.Error.Text);
         ToolTip.SetTip(row.Error, row.Error.IsVisible ? row.Error.Text : null);
+        FilterModelRows();
 
         if (!active && !background)
             progress = row.Downloaded > 0 && !row.Installed ? new(row.Downloaded, model.DownloadSize, "下载未完成") : null;

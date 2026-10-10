@@ -157,11 +157,13 @@ Motion.SetReducedMotion(true);
 var settings = new AppSettings { ReduceMotion = true };
 var settingsWindow = new SettingsWindow(settings);
 settingsWindow.Show();
-settingsWindow.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 2;
+settingsWindow.FindControl<TabControl>("SettingsTabs")!.SelectedItem = settingsWindow.FindControl<TabItem>("GeneralTab");
 Pump(30);
 var checkBox = settingsWindow.GetVisualDescendants().OfType<CheckBox>()
     .Single(c => c.Content is string text && text.StartsWith("减少界面动效"));
 Check(checkBox.IsChecked == true && checkBox.Bounds.Height > 0, "Settings exposes the current reduced-motion preference");
+checkBox.BringIntoView();
+Pump(30);
 Check(checkBox.TranslatePoint(new Point(0, checkBox.Bounds.Height), settingsWindow)?.Y < settingsWindow.Bounds.Height,
     "Reduced-motion setting fits within its window");
 settingsWindow.CaptureRenderedFrame()?.Save(Path.Combine(output, "settings-dark.png"));

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using AvaMedia.Core;
@@ -13,9 +14,9 @@ public sealed partial class SettingsWindow
 {
     private readonly CheckBox _mcpEnabled = new() { Content = "启用 MCP 服务" };
     private readonly CheckBox _mcpLan = new() { Content = "允许局域网连接" };
-    private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, Width = 120 };
+    private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly ComboBox _mcpEndpoint = new() { MinWidth = 300, HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly TextBlock _mcpStatus = new() { Text = "已关闭", TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    private readonly TextBlock _mcpStatus = Ui.Status("已关闭");
     private Func<string>? _readMcpStatus;
     private readonly DispatcherTimer _mcpStatusTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
@@ -34,22 +35,24 @@ public sealed partial class SettingsWindow
             var config = JsonSerializer.Serialize(new { mcpServers = new { AvaMedia = new { type = "http", url = endpoint } } }, new JsonSerializerOptions { WriteIndented = true });
             await clipboard.SetTextAsync(config);
         };
-        var port = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        port.Children.Add(new TextBlock { Text = "端口", VerticalAlignment = VerticalAlignment.Center }); port.Children.Add(_mcpPort);
+        _mcpPort.Name = "McpPortInput"; _mcpEnabled.Name = "McpEnabledInput"; _mcpLan.Name = "McpLanInput";
+        AutomationProperties.SetName(_mcpPort, "MCP 端口"); AutomationProperties.SetName(_mcpEndpoint, "MCP 连接地址");
+        var port = LifecycleField("端口", _mcpPort);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         buttons.Children.Add(copyAddress); buttons.Children.Add(copyConfig);
         var panel = new StackPanel { Spacing = 16 };
-        panel.Children.Add(_mcpEnabled); panel.Children.Add(_mcpLan); panel.Children.Add(port); panel.Children.Add(_mcpStatus);
-        panel.Children.Add(_mcpEndpoint); panel.Children.Add(buttons);
+        panel.Children.Add(Ui.Text("MCP 服务", "settingsHeading"));
+        panel.Children.Add(_mcpEnabled); panel.Children.Add(_mcpLan); panel.Children.Add(port);
+        panel.Children.Add(new Separator()); panel.Children.Add(Ui.Text("客户端连接", "settingsHeading"));
+        panel.Children.Add(LifecycleField("连接地址", _mcpEndpoint)); panel.Children.Add(buttons); panel.Children.Add(_mcpStatus);
         panel.Children.Add(new TextBlock { Text = "无需令牌，可访问本机全部文件与服务。", TextWrapping = Avalonia.Media.TextWrapping.Wrap, Classes = { "caption" } });
-        var border = new Border { Child = panel, Classes = { "settingsPage" } };
-        SettingsTabs.Items.Add(new TabItem { Header = "MCP", Content = border });
+        McpSection.Child = panel;
         foreach (var input in new[] { _mcpEnabled, _mcpLan })
         {
             _values.Add(() => input.IsChecked);
             input.IsCheckedChanged += (_, _) => { MarkDirty(); UpdateMcpAddresses(); };
         }
-        _values.Add(() => _mcpPort.Text);
+        _values.Add(() => NumericDraftValue(_mcpPort));
         _mcpPort.PropertyChanged += (_, e) =>
         {
             if (e.Property == NumericUpDown.ValueProperty || e.Property == NumericUpDown.TextProperty) { MarkDirty(); UpdateMcpAddresses(); }
@@ -58,7 +61,14 @@ public sealed partial class SettingsWindow
         {
             if (_readMcpStatus is { } status) _mcpStatus.Text = status();
         };
-        Opened += (_, _) => _mcpStatusTimer.Start();
+        void ObserveStatus()
+        {
+            if (IsVisible && SettingsTabs.SelectedItem == ToolsTab && WindowState != WindowState.Minimized) _mcpStatusTimer.Start();
+            else _mcpStatusTimer.Stop();
+        }
+        Opened += (_, _) => ObserveStatus();
+        SettingsTabs.SelectionChanged += (_, _) => ObserveStatus();
+        PropertyChanged += (_, args) => { if (args.Property == WindowStateProperty || args.Property == IsVisibleProperty) ObserveStatus(); };
         Closed += (_, _) => _mcpStatusTimer.Stop();
     }
     private void PopulateMcp(McpSettings settings)

@@ -7,6 +7,7 @@ namespace AvaMedia.Desktop;
 
 internal sealed class TrackSelector : ComboBox
 {
+    protected override Type StyleKeyOverride => typeof(ComboBox);
     private sealed record Track(int Index, string Label);
     private int _revision;
     public void SetSource(IMediaEngine engine,string? path,string type,int selected,CancellationToken lifetime)

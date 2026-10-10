@@ -1,312 +1,353 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop"
-        x:Class="AvaMedia.Desktop.SettingsWindow"
-        Title="选项" Width="880" Height="660" MinWidth="780" MinHeight="600"
-        Classes="settings" WindowStartupLocation="CenterOwner">
+<Window xmlns="https://github.com/avaloniaui" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:local="using:AvaMedia.Desktop" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.SettingsWindow" Title="选项" Width="980" Height="720" MinWidth="880" MinHeight="620" Classes="settings" WindowStartupLocation="CenterOwner">
   <Window.Styles>
-    <Style Selector="Border.settingSection"><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="12"/></Style>
-    <Style Selector="Border.settingSection.modelRow"><Setter Property="Padding" Value="12,9"/></Style>
-    <Style Selector="Border.settingsPage"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="16"/></Style>
-    <Style Selector="TextBlock.settingsHeading"><Setter Property="FontWeight" Value="SemiBold"/></Style>
-    <Style Selector="NumericUpDown"><Setter Property="Width" Value="96"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
-    <Style Selector="Button.settingsBrowse"><Setter Property="MinWidth" Value="144"/></Style>
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/SettingsStyles.axaml" />
   </Window.Styles>
-  <Grid RowDefinitions="*,Auto,Auto" Margin="16" RowSpacing="8">
-    <TabControl x:Name="SettingsTabs" SelectedIndex="0">
-      <TabControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></TabControl.ItemsPanel>
-      <TabItem x:Name="GeneralTab" Header="常规">
-        <Border Classes="settingsPage">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16">
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="隐私"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="6">
-                    <ToggleSwitch x:Name="NsfwContentInput" Content="启用 NSFW 分组与标签"/>
-                    <TextBlock Classes="caption" Text="关闭后隐藏成人分组、标签与相关判断；不删除已导出的文件。" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="文件保存"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="默认输出文件夹" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
-                      <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick"/>
-                    </Grid>
-                    <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载仍使用默认输出文件夹。"/>
-                    <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。"/>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="任务完成"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <CheckBox x:Name="NotifyInput" Content="显示完成通知" ToolTip.Tip="通知保留在主界面，不自动恢复主窗口。"/>
-                    <CheckBox x:Name="OpenOutputInput" Content="打开输出文件夹"/>
-                    <CheckBox x:Name="ShutdownInput" Content="全部成功后关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。"/>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </TabItem>
-      <TabItem x:Name="ConversionTab" Header="转换">
-        <Border Classes="settingsPage">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16">
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="硬件加速"/>
-                <Border Classes="settingSection">
-                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <CheckBox x:Name="AutoGpuInput" Content="自动适配 GPU" ToolTip.Tip="按平台、可用硬件、输出格式和源视频编码自动选择；解码或编码不可用时自动回退。"/>
-                    <Button Grid.Column="1" x:Name="HardwareTestButton" Classes="field-action settingsBrowse" Content="查看 GPU 能力" Click="HardwareTestClick"/>
-                  </Grid>
-                </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="任务与线程"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
-                      <TextBlock Text="每工具同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <NumericUpDown Grid.Column="1" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数"/>
-                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #ParallelInput}"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–8 个任务" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <CheckBox x:Name="MultithreadInput" Content="使用多线程转码"/>
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
-                      <TextBlock Text="每个任务的线程数" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <NumericUpDown Grid.Column="1" x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" AutomationProperties.Name="多线程数量"/>
-                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #ThreadsInput}"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–16；关闭多线程时使用 1" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="默认图片质量"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
-                      <TextBlock Text="JPEG 质量" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <NumericUpDown Grid.Column="1" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPEG 质量"/>
-                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #JpegQualityInput}"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="144,96,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
-                      <TextBlock Text="WebP 质量" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <NumericUpDown Grid.Column="1" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP 质量"/>
-                      <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #WebpQualityInput}"/>
-                      <TextBlock Grid.Column="2" Classes="caption" Text="1–100" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </Grid>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </TabItem>
-      <TabItem x:Name="SystemTab" Header="系统">
-        <Border Classes="settingsPage">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16">
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="实验功能"/>
-                <Border Classes="settingSection"><CheckBox x:Name="BetaInput" Content="开启 Beta 功能"/></Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="后台与系统入口"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换和下载任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。"/>
-                    <CheckBox x:Name="TrayInput" Content="最小化时缩小到托盘"/>
-                    <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单"/>
-                    <Grid x:Name="PlayerIntegrationRow" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                      <Button x:Name="RegisterPlayerButton" Content="注册天池播放器" Click="RegisterPlayerClick" Classes="field-action"/>
-                      <Button x:Name="DefaultPlayerButton" Grid.Column="1" Content="选择默认播放器" Click="DefaultPlayerClick" Classes="field-action"/>
-                    </Grid>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="界面与音效"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效"/>
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
-                      <CheckBox x:Name="OperationSoundInput" Content="操作音效"/>
-                      <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成音效"/>
-                      <CheckBox Grid.Column="2" x:Name="ErrorSoundInput" Content="错误音效"/>
-                    </Grid>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="版本更新"/>
-                <Border Classes="settingSection">
-                  <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                      <CheckBox x:Name="CheckUpdatesInput" Content="启动时检查新版本"/>
-                      <Button Grid.Column="1" x:Name="CheckUpdatesButton" Classes="field-action settingsBrowse" Content="立即检查" Click="CheckUpdatesClick"/>
-                    </Grid>
-                    <CheckBox x:Name="AutoUpdateInput" Content="自动更新"/>
-                    <CheckBox x:Name="SilentUpdateInput" Content="静默更新"/>
-                    <TextBlock Text="更新下载完成后，在退出应用时安装" Classes="muted" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </TabItem>
-      <TabItem x:Name="ModelsTab" Header="模型管理">
-        <Border Classes="settingsPage">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="12">
-              <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型"/>
-              <Border x:Name="ModelLifecycleSection" Classes="settingSection"/>
-              <StackPanel Spacing="4">
-                <Grid ColumnDefinitions="Auto,180,*" ColumnSpacing="12">
-                  <TextBlock Text="模型下载源" VerticalAlignment="Center"/>
-                  <ComboBox x:Name="ModelSourceInput" Grid.Column="1" HorizontalAlignment="Stretch"/>
-                  <TextBox x:Name="ModelSourceUrlInput" Grid.Column="2" Watermark="兼容 Hugging Face 路径的镜像地址"/>
-                </Grid>
-                <TextBlock x:Name="ModelSourceHint" Classes="caption" TextWrapping="Wrap"/>
-              </StackPanel>
-              <StackPanel x:Name="ModelList" Spacing="8"/>
-              <TextBlock x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap"/>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </TabItem>
-      <TabItem x:Name="ProvidersTab" Header="AI 供应商">
-        <Border Classes="settingsPage">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="12">
-              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <ComboBox x:Name="OnlineProviderInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True" AutomationProperties.Name="供应商"/>
-                <Button Grid.Column="1" x:Name="AddProviderButton" Content="添加供应商…" Click="AddProviderClick" Classes="field-action"/>
-                <Button Grid.Column="2" x:Name="DeleteProviderButton" Content="删除" Click="DeleteProviderClick" Classes="field-action"/>
-              </Grid>
-              <Border x:Name="OnlineProviderSection" Classes="settingSection">
-                <StackPanel Spacing="10">
-                  <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="12">
-                    <TextBlock Text="名称" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineNameInput" local:Localization.IsUserText="True" AutomationProperties.Name="供应商名称"/>
-                    <CheckBox Grid.Column="2" x:Name="OnlineEnabledInput" Content="启用"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="接口地址" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineEndpointInput" Watermark="https://…/v1" local:Localization.IsUserText="True" AutomationProperties.Name="接口地址"/>
-                  </Grid>
-                  <Grid x:Name="ProviderSetupSection" ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="False">
-                    <TextBlock Grid.Column="1" Text="注册后创建 API Key，粘贴到下方即可连接。" Classes="caption" TextWrapping="Wrap"/>
-                    <TextBlock Grid.Column="1" Grid.Row="1" Text="当前免费体验，恢复收费前官方会提前通知。" Classes="caption" TextWrapping="Wrap"/>
-                    <Button Grid.Column="2" Grid.RowSpan="2" Content="注册 / 获取密钥" Click="ProviderApiKeyClick" Classes="field-action" VerticalAlignment="Center"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="12">
-                    <TextBlock Text="API Key" Classes="settingLabel"/>
-                    <TextBox Grid.Column="1" x:Name="OnlineKeyInput" PasswordChar="●" local:Localization.IsUserText="True" AutomationProperties.Name="API Key"/>
-                    <Button Grid.Column="2" x:Name="RevealProviderKeyButton" i18n:StableLayout.Samples="显示密钥|隐藏密钥" Content="显示密钥" Click="RevealProviderKeyClick" Classes="field-action"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="文本模型" Classes="settingLabel"/>
-                    <AutoCompleteBox Grid.Column="1" x:Name="OnlineTextModelInput" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" Watermark="输入或选择模型 ID" local:Localization.IsUserText="True" AutomationProperties.Name="文本模型"/>
-                  </Grid>
-                  <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                    <TextBlock Text="视觉模型" Classes="settingLabel"/>
-                    <AutoCompleteBox Grid.Column="1" x:Name="OnlineVisionModelInput" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" Watermark="支持图像输入；留空沿用文本模型" local:Localization.IsUserText="True" AutomationProperties.Name="视觉模型"/>
-                  </Grid>
-                  <WrapPanel Orientation="Horizontal">
-                    <Button x:Name="FetchProviderModelsButton" i18n:StableLayout.Samples="连接并获取模型|连接中…" Content="连接并获取模型" Click="FetchProviderModelsClick" Classes="field-action" Margin="0,0,8,0"/>
-                    <Button x:Name="CancelProviderModelsButton" Content="取消" Click="CancelProviderModelsClick" Classes="field-action" Margin="0,0,8,0" IsVisible="False"/>
-                    <Button x:Name="DefaultProviderButton" i18n:StableLayout.Samples="默认供应商|设为默认" Content="设为默认" Click="DefaultProviderClick" Classes="field-action" Margin="0,0,8,0"/>
-                    <Button x:Name="ProviderDocsButton" Content="文档" Click="ProviderDocsClick" Classes="field-action"/>
-                  </WrapPanel>
-                  <TextBlock x:Name="ProviderStatus" Classes="caption" TextWrapping="Wrap" IsVisible="False"/>
-                  <Expander Header="高级" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="10" Margin="0,8,0,0">
-                      <TextBlock x:Name="OnlineLimitsText" Classes="caption" TextWrapping="Wrap"/>
-                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                        <TextBlock Text="输出长度参数" Classes="settingLabel"/>
-                        <ComboBox Grid.Column="1" x:Name="OnlineTokenInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True">
-                          <ComboBoxItem Content="max_completion_tokens"/><ComboBoxItem Content="max_tokens"/>
-                        </ComboBox>
+  <Grid RowDefinitions="Auto,*,40,Auto" Margin="20" RowSpacing="8">
+    <Grid ColumnDefinitions="172,*" ColumnSpacing="20" Margin="0,0,0,4">
+      <TextBox x:Name="SettingsSearchInput" Watermark="搜索设置" AutomationProperties.Name="搜索设置" />
+      <TextBlock Grid.Column="1" x:Name="SettingsPageTitle" Classes="settingsTitle" Text="软件通用" VerticalAlignment="Center" Margin="0" />
+    </Grid>
+    <Grid Grid.Row="1">
+      <TabControl x:Name="SettingsTabs" Classes="settingsNavigation" TabStripPlacement="Left" SelectedIndex="0">
+        <TabItem x:Name="GeneralTab" Header="软件通用">
+          <Border Classes="settingsPage">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="20">
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="文件保存" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="默认输出文件夹" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" />
+                        <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick" />
                       </Grid>
-                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                        <TextBlock Text="结构化输出" Classes="settingLabel"/>
-                        <ComboBox Grid.Column="1" x:Name="OnlineFormatInput" HorizontalAlignment="Stretch">
-                          <ComboBoxItem Content="提示词约束"/><ComboBoxItem Content="JSON 对象"/><ComboBoxItem Content="严格 JSON Schema"/>
-                        </ComboBox>
+                      <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载仍使用默认输出文件夹。" />
+                      <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="任务完成" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <CheckBox x:Name="NotifyInput" Content="显示完成通知" ToolTip.Tip="通知保留在主界面，不自动恢复主窗口。" />
+                      <CheckBox x:Name="OpenOutputInput" Content="打开输出文件夹" />
+                      <CheckBox x:Name="ShutdownInput" Content="全部成功后关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="12">
+                  <TextBlock Text="外观" Classes="settingsHeading" />
+                  <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                    <TextBlock Text="界面皮肤" Classes="settingLabel" />
+                    <ComboBox Grid.Column="1" x:Name="ThemeInput" HorizontalAlignment="Stretch" AutomationProperties.Name="界面皮肤">
+                      <ComboBoxItem Content="浅色" />
+                      <ComboBoxItem Content="深色" />
+                      <ComboBoxItem Content="Mac OS 9" />
+                      <ComboBoxItem Content="Windows XP" />
+                    </ComboBox>
+                  </Grid>
+                  <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                    <TextBlock Text="界面语言" Classes="settingLabel" />
+                    <ComboBox Grid.Column="1" x:Name="LanguageInput" HorizontalAlignment="Stretch" AutomationProperties.Name="界面语言">
+                      <ComboBoxItem Content="跟随系统" />
+                      <ComboBoxItem Content="简体中文" />
+                      <ComboBoxItem Content="English" />
+                    </ComboBox>
+                  </Grid>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="版本更新" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <CheckBox x:Name="CheckUpdatesInput" Content="启动时检查新版本" />
+                        <Button Grid.Column="1" x:Name="CheckUpdatesButton" Classes="field-action settingsBrowse" Content="立即检查" Click="CheckUpdatesClick" />
                       </Grid>
-                      <Grid ColumnDefinitions="140,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="4">
-                        <TextBlock Text="请求超时（秒）" Classes="settingLabel"/>
-                        <NumericUpDown Grid.Column="1" x:Name="OnlineTimeoutInput" Minimum="10" Maximum="600" Increment="10" FormatString="0" HorizontalAlignment="Left"/>
-                        <controls:ParameterSlider Grid.Row="1" Grid.ColumnSpan="2" Input="{Binding #OnlineTimeoutInput}"/>
+                      <CheckBox x:Name="AutoUpdateInput" Content="自动更新" />
+                      <CheckBox x:Name="SilentUpdateInput" Content="静默更新" />
+                      <TextBlock Text="更新下载完成后，在退出应用时安装" Classes="muted" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="动效与声音" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <CheckBox x:Name="ReducedMotionInput" Content="减少界面动效" />
+                      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="20">
+                        <CheckBox x:Name="OperationSoundInput" Content="操作音效" />
+                        <CheckBox Grid.Column="1" x:Name="CompleteSoundInput" Content="完成音效" />
+                        <CheckBox Grid.Column="2" x:Name="ErrorSoundInput" Content="错误音效" />
                       </Grid>
                     </StackPanel>
-                  </Expander>
+                  </Border>
                 </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="后台与系统入口" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换和下载任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。" />
+                      <CheckBox x:Name="TrayInput" Content="最小化时缩小到托盘" />
+                      <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单" />
+                      <Grid x:Name="PlayerIntegrationRow" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <Button x:Name="RegisterPlayerButton" Content="注册天池播放器" Click="RegisterPlayerClick" Classes="field-action" />
+                        <Button x:Name="DefaultPlayerButton" Grid.Column="1" Content="选择默认播放器" Click="DefaultPlayerClick" Classes="field-action" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <TextBlock Text="AI 标签候选词" Classes="settingsHeading" />
+                  <Button Content="管理词库…" Click="ManageWordLibraries" Classes="field-action" />
+                </Grid>
+                <Separator />
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="内容分组" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="6">
+                      <ToggleSwitch x:Name="NsfwContentInput" Content="启用 NSFW 分组与标签" OnContent="已开启" OffContent="已关闭" ToolTip.Tip="立即生效；关闭后隐藏成人分组与标签。" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="实验功能" />
+                  <Border Classes="settingSection">
+                    <CheckBox x:Name="BetaInput" Content="开启 Beta 功能" />
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+        <TabItem x:Name="ConversionTab" Header="转换">
+          <Border Classes="settingsPage">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="20">
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="硬件加速" />
+                  <Border Classes="settingSection">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <CheckBox x:Name="AutoGpuInput" Content="自动适配 GPU" ToolTip.Tip="按平台、可用硬件、输出格式和源视频编码自动选择；解码或编码不可用时自动回退。" />
+                      <Button Grid.Column="1" x:Name="HardwareTestButton" Classes="field-action settingsBrowse" Content="查看 GPU 能力" Click="HardwareTestClick" />
+                    </Grid>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="任务与线程" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
+                        <TextBlock Text="每工具同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <NumericUpDown Grid.Column="2" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数" />
+                        <controls:ParameterSlider Grid.Column="1" Input="{Binding #ParallelInput}" />
+                      </Grid>
+                      <CheckBox x:Name="MultithreadInput" Content="使用多线程转码" />
+                      <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
+                        <TextBlock Text="每个任务的线程数" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <NumericUpDown Grid.Column="2" x:Name="ThreadsInput" Minimum="1" Maximum="16" Increment="1" AutomationProperties.Name="多线程数量" />
+                        <controls:ParameterSlider Grid.Column="1" Input="{Binding #ThreadsInput}" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="默认图片质量" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
+                        <TextBlock Text="JPEG 质量" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <NumericUpDown Grid.Column="2" x:Name="JpegQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="JPEG 质量" />
+                        <controls:ParameterSlider Grid.Column="1" Input="{Binding #JpegQualityInput}" />
+                      </Grid>
+                      <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
+                        <TextBlock Text="WebP 质量" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <NumericUpDown Grid.Column="2" x:Name="WebpQualityInput" Minimum="1" Maximum="100" Increment="1" AutomationProperties.Name="WebP 质量" />
+                        <controls:ParameterSlider Grid.Column="1" Input="{Binding #WebpQualityInput}" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+        <TabItem x:Name="ModelsTab" Header="本地模型">
+          <TabControl x:Name="ModelSettingsTabs" SelectedIndex="0">
+            <TabItem x:Name="ModelLibraryTab" Header="模型库">
+              <Border Classes="settingsPage">
+                <Grid RowDefinitions="Auto,Auto,*,32" RowSpacing="12">
+                  <StackPanel>
+                    <Expander Header="下载设置" HorizontalAlignment="Stretch">
+                      <StackPanel Spacing="12" Margin="0,8,0,0">
+                        <CheckBox x:Name="AutoRepairModelInput" Content="启动时自动下载图片修复模型" />
+                        <StackPanel Spacing="4">
+                          <Grid ColumnDefinitions="144,160,*" ColumnSpacing="12">
+                            <TextBlock Text="模型下载源" VerticalAlignment="Center" />
+                            <ComboBox x:Name="ModelSourceInput" Grid.Column="1" HorizontalAlignment="Stretch" />
+                            <TextBox x:Name="ModelSourceUrlInput" Grid.Column="2" Watermark="兼容 Hugging Face 路径的镜像地址" />
+                          </Grid>
+                          <TextBlock x:Name="ModelSourceHint" Classes="caption" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </StackPanel>
+                    </Expander>
+                  </StackPanel>
+                  <Grid Grid.Row="1">
+                    <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
+                      <TextBox x:Name="ModelSearchInput" Watermark="搜索模型名称或用途" AutomationProperties.Name="搜索模型" />
+                      <ComboBox Grid.Column="1" x:Name="ModelFilterInput" HorizontalAlignment="Stretch" AutomationProperties.Name="模型筛选">
+                        <ComboBoxItem Content="全部模型" />
+                        <ComboBoxItem Content="已安装" />
+                        <ComboBoxItem Content="待下载" />
+                        <ComboBoxItem Content="下载中" />
+                        <ComboBoxItem Content="本地大模型" />
+                      </ComboBox>
+                    </Grid>
+                  </Grid>
+                  <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="ModelList" Spacing="8" />
+                  </ScrollViewer>
+                  <TextBlock Grid.Row="3" x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap" />
+                </Grid>
               </Border>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </TabItem>
-      <TabItem x:Name="WordLibrariesTab" Header="词库管理" IsVisible="False">
-        <Border Classes="settingsPage">
-          <StackPanel Spacing="12">
-            <TextBlock Text="AI 标签候选词" Classes="settingLabel"/>
-            <TextBlock Text="常用分类、内容分级候选、Open Images、JoyTag 完整标签" TextWrapping="Wrap" Classes="caption"/>
-            <Button Content="管理词库…" Click="ManageWordLibraries" HorizontalAlignment="Left"/>
-          </StackPanel>
-        </Border>
-      </TabItem>
-      <TabItem x:Name="ToolsTab" Header="工具">
-        <Border Classes="settingsPage">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16">
-              <StackPanel x:Name="ExternalToolPaths" Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="外部工具路径"/>
-                <Border Classes="settingSection">
+            </TabItem>
+            <TabItem x:Name="ModelRuntimeTab" Header="加载与预热">
+              <Border Classes="settingsPage">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel Spacing="20">
+                    <Border x:Name="ModelLifecycleSection" Classes="settingSection" />
+                  </StackPanel>
+                </ScrollViewer>
+              </Border>
+            </TabItem>
+          </TabControl>
+        </TabItem>
+        <TabItem x:Name="ProvidersTab" Header="在线 AI">
+          <Border Classes="settingsPage">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                  <ComboBox x:Name="OnlineProviderInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True" AutomationProperties.Name="供应商" />
+                  <Button Grid.Column="1" x:Name="AddProviderButton" Content="添加供应商…" Click="AddProviderClick" Classes="field-action" />
+                  <Button Grid.Column="2" x:Name="DeleteProviderButton" Content="删除" Click="DeleteProviderClick" Classes="field-action" />
+                </Grid>
+                <Border x:Name="OnlineProviderSection" Classes="settingSection">
                   <StackPanel Spacing="10">
+                    <TextBlock Text="连接信息" Classes="settingsHeading" />
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="FFmpeg" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="FfmpegInput" Watermark="自动查找" AutomationProperties.Name="FFmpeg 路径" IsReadOnly="True"/>
-                      <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfmpegBrowseClick"/>
+                      <TextBlock Text="名称" Classes="settingLabel" />
+                      <TextBox Grid.Column="1" x:Name="OnlineNameInput" local:Localization.IsUserText="True" AutomationProperties.Name="供应商名称" />
+                      <CheckBox Grid.Column="2" x:Name="OnlineEnabledInput" Content="启用" />
+                    </Grid>
+                    <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                      <TextBlock Text="接口地址" Classes="settingLabel" />
+                      <TextBox Grid.Column="1" x:Name="OnlineEndpointInput" Watermark="https://…/v1" local:Localization.IsUserText="True" AutomationProperties.Name="接口地址" />
+                    </Grid>
+                    <Grid x:Name="ProviderSetupSection" ColumnDefinitions="144,*" ColumnSpacing="12" IsVisible="False">
+                      <Button Grid.Column="1" Content="注册 / 获取密钥" Click="ProviderApiKeyClick" Classes="field-action" HorizontalAlignment="Left" />
                     </Grid>
                     <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="FFprobe" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="FfprobeInput" Watermark="自动查找" AutomationProperties.Name="FFprobe 路径" IsReadOnly="True"/>
-                      <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfprobeBrowseClick"/>
+                      <TextBlock Text="API Key" Classes="settingLabel" />
+                      <TextBox Grid.Column="1" x:Name="OnlineKeyInput" PasswordChar="●" local:Localization.IsUserText="True" AutomationProperties.Name="API Key" />
+                      <Button Grid.Column="2" x:Name="RevealProviderKeyButton" local:StableLayout.Samples="显示密钥|隐藏密钥" Content="显示密钥" Click="RevealProviderKeyClick" Classes="field-action" />
                     </Grid>
-                    <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
-                      <TextBlock Text="yt-dlp（下载）" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                      <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径" IsReadOnly="True"/>
-                      <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="YtdlpBrowseClick"/>
+                    <Separator />
+                    <TextBlock Text="模型选择" Classes="settingsHeading" />
+                    <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                      <TextBlock Text="文本模型" Classes="settingLabel" />
+                      <AutoCompleteBox Grid.Column="1" x:Name="OnlineTextModelInput" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" Watermark="输入或选择模型 ID" local:Localization.IsUserText="True" AutomationProperties.Name="文本模型" />
                     </Grid>
-                    <TextBlock Classes="caption" Text="留空使用内置工具" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                      <TextBlock Text="视觉模型" Classes="settingLabel" />
+                      <AutoCompleteBox Grid.Column="1" x:Name="OnlineVisionModelInput" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" Watermark="支持图像输入；留空沿用文本模型" local:Localization.IsUserText="True" AutomationProperties.Name="视觉模型" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,88,*,Auto,64" ColumnSpacing="8">
+                      <Button x:Name="FetchProviderModelsButton" local:StableLayout.Samples="连接并获取模型|连接中…" Content="连接并获取模型" Click="FetchProviderModelsClick" Classes="field-action" />
+                      <Button Grid.Column="1" x:Name="CancelProviderModelsButton" Content="取消" Click="CancelProviderModelsClick" Classes="field-action" IsVisible="False" />
+                      <Button Grid.Column="3" x:Name="DefaultProviderButton" local:StableLayout.Samples="默认供应商|设为默认" Content="设为默认" Click="DefaultProviderClick" Classes="field-action" />
+                      <Button Grid.Column="4" x:Name="ProviderDocsButton" Content="文档" Click="ProviderDocsClick" Classes="field-action" />
+                    </Grid>
+                    <Border Height="38">
+                      <TextBlock x:Name="ProviderStatus" Classes="caption" TextWrapping="Wrap" IsVisible="False" />
+                    </Border>
+                    <Expander Header="高级" HorizontalAlignment="Stretch">
+                      <StackPanel Spacing="10" Margin="0,8,0,0">
+                        <TextBlock x:Name="OnlineLimitsText" Classes="caption" TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                          <TextBlock Text="输出长度参数" Classes="settingLabel" />
+                          <ComboBox Grid.Column="1" x:Name="OnlineTokenInput" HorizontalAlignment="Stretch" local:Localization.IsUserText="True">
+                            <ComboBoxItem Content="max_completion_tokens" />
+                            <ComboBoxItem Content="max_tokens" />
+                          </ComboBox>
+                        </Grid>
+                        <Grid ColumnDefinitions="144,*" ColumnSpacing="12">
+                          <TextBlock Text="结构化输出" Classes="settingLabel" />
+                          <ComboBox Grid.Column="1" x:Name="OnlineFormatInput" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="提示词约束" />
+                            <ComboBoxItem Content="JSON 对象" />
+                            <ComboBoxItem Content="严格 JSON Schema" />
+                          </ComboBox>
+                        </Grid>
+                        <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
+                          <TextBlock Text="请求超时（秒）" Classes="settingLabel" />
+                          <NumericUpDown Grid.Column="2" x:Name="OnlineTimeoutInput" Minimum="10" Maximum="600" Increment="10" FormatString="0" HorizontalAlignment="Left" />
+                          <controls:ParameterSlider Grid.Column="1" Input="{Binding #OnlineTimeoutInput}" />
+                        </Grid>
+                      </StackPanel>
+                    </Expander>
                   </StackPanel>
                 </Border>
               </StackPanel>
-              <StackPanel Spacing="8">
-                <TextBlock Classes="settingsHeading" Text="运行信息"/>
-                <TextBox x:Name="RuntimeInfo" Classes="log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="144"/>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+        <TabItem x:Name="ToolsTab" Header="工具">
+          <Border Classes="settingsPage">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="20">
+                <StackPanel x:Name="ExternalToolPaths" Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="外部工具路径" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="FFmpeg" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <TextBox Grid.Column="1" x:Name="FfmpegInput" Watermark="自动查找" AutomationProperties.Name="FFmpeg 路径" />
+                        <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfmpegBrowseClick" />
+                      </Grid>
+                      <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="FFprobe" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <TextBox Grid.Column="1" x:Name="FfprobeInput" Watermark="自动查找" AutomationProperties.Name="FFprobe 路径" />
+                        <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="FfprobeBrowseClick" />
+                      </Grid>
+                      <Grid ColumnDefinitions="144,*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="yt-dlp（下载）" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <TextBox Grid.Column="1" x:Name="YtdlpInput" Watermark="自动查找" AutomationProperties.Name="yt-dlp 路径" />
+                        <Button Grid.Column="2" Classes="field-action settingsBrowse" Content="浏览…" Click="YtdlpBrowseClick" />
+                      </Grid>
+                      <TextBlock Classes="caption" Text="留空使用内置工具" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <Border x:Name="McpSection" Classes="settingSection" />
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="运行信息" />
+                  <TextBox x:Name="RuntimeInfo" Classes="log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="144" />
+                </StackPanel>
               </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </TabItem>
-    </TabControl>
-    <TextBlock Grid.Row="1" x:Name="StatusText" Classes="settingError" IsVisible="False" TextWrapping="Wrap"/>
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Margin="0,8,0,0">
-      <Button x:Name="DefaultButton" Classes="dialog-action" Content="恢复默认" Click="ResetClick" ToolTip.Tip="恢复选项默认值；点击应用或确定后保存。"/>
-      <Button Grid.Column="2" x:Name="CancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="3" x:Name="ApplyButton" Classes="dialog-action" Content="应用" Click="ApplyClick" IsEnabled="False"/>
-      <Button Grid.Column="4" x:Name="OkButton" Classes="dialog-action" Content="确定" Click="OkClick" IsDefault="True"/>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+      </TabControl>
+    </Grid>
+    <Border Grid.Row="2" Margin="192,0,0,0" Height="40">
+      <TextBlock x:Name="StatusText" Classes="settingError" IsVisible="False" TextWrapping="Wrap" VerticalAlignment="Center" />
+    </Border>
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+      <Button x:Name="DefaultButton" Classes="settingsFooter" Content="恢复默认" Click="ResetClick" ToolTip.Tip="恢复选项默认值；点击应用或确定后保存。" />
+      <Button Grid.Column="2" x:Name="CancelButton" Classes="settingsFooter" Content="取消" Click="CancelClick" IsCancel="True" />
+      <Button Grid.Column="3" x:Name="ApplyButton" Classes="settingsFooter" Content="应用" Click="ApplyClick" IsEnabled="False" />
+      <Button Grid.Column="4" x:Name="OkButton" Classes="primary settingsFooter" Content="确定" Click="OkClick" IsDefault="True" />
     </Grid>
   </Grid>
 </Window>

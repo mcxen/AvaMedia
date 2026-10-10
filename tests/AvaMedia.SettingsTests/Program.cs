@@ -175,7 +175,7 @@ window.FindControl<TextBox>("OutputInput")!.Text = ""; Click(window.FindControl<
 Check(window.IsVisible && window.FindControl<TextBlock>("StatusText")!.IsVisible && saved.CpuThreads == 16, "Invalid settings partially committed.");
 window.FindControl<TextBox>("OutputInput")!.Text = root;
 Capture(window, "settings-options.png", 926, 800);
-window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 3;
+window.FindControl<TabControl>("SettingsTabs")!.SelectedItem = window.FindControl<TabItem>("ToolsTab");
 Capture(window, "settings-internal.png", 926, 800);
 window.FindControl<TabControl>("SettingsTabs")!.SelectedIndex = 1;
 Click(window.FindControl<Button>("HardwareTestButton")!);
@@ -185,8 +185,13 @@ Capture(test, "hardware-test.png", 580, 392); test.Close(); Dispatcher.UIThread.
 Check(window.FindControl<Button>("HardwareTestButton")!.IsEnabled, "HA Test button remains disabled after close.");
 Application.Current.RequestedThemeVariant = ThemeVariant.Dark; Dispatcher.UIThread.RunJobs();
 Capture(window, "settings-advanced-dark.png", 926, 800);
-window.Width = 780; window.Height = 640; Capture(window, "settings-minimum.png", 780, 640);
-Check(new[] { "DefaultButton", "CancelButton", "ApplyButton", "OkButton" }.All(n => window.FindControl<Button>(n)!.TranslatePoint(new Point(165, 34), window) is { } p && p.X <= 764.5 && p.Y <= 616.5), "Footer buttons overflow at minimum size.");
+window.Width = 880; window.Height = 620; Capture(window, "settings-minimum.png", 880, 620);
+Check(new[] { "DefaultButton", "CancelButton", "ApplyButton", "OkButton" }.All(n =>
+{
+    var button = window.FindControl<Button>(n)!;
+    return button.TranslatePoint(new Point(button.Bounds.Width, button.Bounds.Height), window) is { } p
+        && p.X <= window.Bounds.Width - 19.5 && p.Y <= window.Bounds.Height - 19.5;
+}), "Footer buttons overflow at minimum size.");
 window.Close();
 var cancelledTest = new HardwareTestWindow(""); cancelledTest.Show(); cancelledTest.Close(); Pump(cancelledTest.Ready);
 Check(!cancelledTest.IsVisible, "Closing HA Test did not cancel cleanly.");

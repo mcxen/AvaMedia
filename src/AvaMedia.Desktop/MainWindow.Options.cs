@@ -55,7 +55,9 @@ public partial class MainWindow
         var prior = _appliedSettings.Clone();
         try
         {
-            if (_settings.SystemContextMenu != prior.SystemContextMenu) _optionServices.SetContextMenu(_settings.SystemContextMenu);
+            if (_settings.Theme != prior.Theme) Skin.Apply(_settings.Theme);
+            if (_settings.Language != prior.Language) Localization.Apply(_settings.Language);
+            if (_settings.SystemContextMenu != prior.SystemContextMenu || _settings.Language != prior.Language && _settings.SystemContextMenu) _optionServices.SetContextMenu(_settings.SystemContextMenu);
             if (WantsTray(_settings) != WantsTray(prior)) SetTray(WantsTray(_settings));
             _storage.SaveSettings(_settings);
         }
@@ -63,8 +65,11 @@ public partial class MainWindow
         {
             try
             {
-                if (_settings.SystemContextMenu != prior.SystemContextMenu) _optionServices.SetContextMenu(prior.SystemContextMenu);
-                if (WantsTray(_settings) != WantsTray(prior)) SetTray(WantsTray(prior));
+                var changed = _settings.Clone(); _settings.CopyFrom(prior);
+                if (changed.Theme != prior.Theme) Skin.Apply(prior.Theme);
+                if (changed.Language != prior.Language) Localization.Apply(prior.Language);
+                if (changed.SystemContextMenu != prior.SystemContextMenu || changed.Language != prior.Language && prior.SystemContextMenu) _optionServices.SetContextMenu(prior.SystemContextMenu);
+                if (WantsTray(changed) != WantsTray(prior)) SetTray(WantsTray(prior));
             }
             finally { _settings.CopyFrom(prior); }
             throw;

@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
@@ -23,11 +24,15 @@ public sealed class OptionsWindow : Window
     private ConversionOptions _draft;
     private SubtitleStyleEditor? _subtitleStyle;
     private MediaPreviewPanel? _visualPreview;
+    private TabControl? _tabs;
+    private Grid? _layoutRoot;
     public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null, IMediaEngine? previewEngine=null, string? previewSource=null)
     {
         Title="输出配置";Width=1120;Height=760;MinWidth=960;MinHeight=620;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        Classes.Add("settings"); Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new Uri("avares://AvaMedia.Desktop/Styles/SettingsStyles.axaml") });
         _draft=options.Clone();_copyMode=copyStreamsMode;_kind=kind;_format=options.Format;_presets=presetStorage??new();_allowAllAudioStreams=allowAllAudioStreams;_imageQualityDefault=imageQualityDefault;_previewEngine=previewEngine;_previewSource=previewSource;Build();
         Closed+=(_,_)=>{_lifetime.Cancel();_subtitleStyle?.Dispose();_visualPreview?.Dispose();};
+        SizeChanged += (_, _) => UpdatePreviewWidth();
     }
     public ConversionOptions ReadOptions()
     {
@@ -45,11 +50,12 @@ public sealed class OptionsWindow : Window
     private string Prefix=>_kind+"|"+_format+"|";
     private void Build()
     {
+        var selectedPage = (_tabs?.SelectedItem as TabItem)?.Tag as string;
         _subtitleStyle?.Dispose();_subtitleStyle=null;_visualPreview?.Dispose();_visualPreview=null;
-        _readers.Clear();var root=new Grid{RowDefinitions=new("Auto,*,Auto"),Margin=new(20),ColumnSpacing=16};
+        _readers.Clear();var root=new Grid{RowDefinitions=new("Auto,*,Auto"),Margin=new(20),ColumnSpacing=16};_layoutRoot=root;
         if(_previewEngine is not null && _previewSource is not null)
         {
-            root.ColumnDefinitions=new("*,420");_visualPreview=new MediaPreviewPanel(_previewEngine);
+            root.ColumnDefinitions=new("*,320");_visualPreview=new MediaPreviewPanel(_previewEngine);
             Grid.SetRow(_visualPreview,1);Grid.SetColumn(_visualPreview,1);root.Children.Add(_visualPreview);
         }
         var top=new Grid{ColumnDefinitions=new("70,*,110"),ColumnSpacing=8,Margin=new(0,0,0,16)};top.Children.Add(Ui.Text("预设"));
@@ -66,23 +72,27 @@ public sealed class OptionsWindow : Window
                 if(await dialog.ShowDialog<string?>(this) is {} key){_presets.SavePreset(Prefix+key,options);_draft=options;Build();}
             }catch(Exception ex){await Ui.Message(this,"保存失败",ex.Message);}
         };Grid.SetColumn(save,2);top.Children.Add(save);root.Children.Add(top);
-        Grid.SetColumnSpan(top,2);var tabs=new TabControl();Grid.SetRow(tabs,1);root.Children.Add(tabs);
+        Grid.SetColumnSpan(top,2);var tabs=new TabControl { Name="MediaOptionsTabs", TabStripPlacement=Dock.Left, Classes={"settingsNavigation"} };_tabs=tabs;Grid.SetRow(tabs,1);root.Children.Add(tabs);
         var audioOnly=_kind is MediaOptionsKind.Audio or MediaOptionsKind.InputAudio;
         var input=_kind is MediaOptionsKind.InputAudio or MediaOptionsKind.InputVideo or MediaOptionsKind.ClipEdit;
         var outputOnly=_kind==MediaOptionsKind.ClipExport;
         var image=_kind==MediaOptionsKind.Image;
         var hasAudio=!image && _kind is not (MediaOptionsKind.VideoOnly or MediaOptionsKind.Frames);
+        StackPanel? primaryPage=null;
         if(!audioOnly)
         {
             var video=Page(image?"图片":"视频");
+            primaryPage=video;
+            if(!image&&(!outputOnly&&_kind!=MediaOptionsKind.ClipEdit||!input&&_kind!=MediaOptionsKind.Frames&&_format!="gif"))Section(video,"来源与编码");
             if(!image && !outputOnly && _kind!=MediaOptionsKind.ClipEdit)Track(video,"视频轨", "video",_draft.VideoStreamIndex,(o,v)=>o.VideoStreamIndex=v);
             if(!image && !input && _kind!=MediaOptionsKind.Frames && _format!="gif")Choice(video,"视频编码器",["copy",..VideoCodecs(_format)],_copyMode==true?"copy":_draft.VideoCodec,(o,v)=>o.VideoCodec=v,_copyMode!=true);
             if(_kind!=MediaOptionsKind.ClipEdit)
             {
+                Section(video,"画面尺寸");
                 if(_format!="ico")
                 {
                     var size=Ui.Combo(["保持原尺寸","1920 × 1080","1280 × 720","1080 × 1920","正方形 1080","自定义"],_draft.Width==0&&_draft.Height==0?"保持原尺寸":"自定义");
-                    Add(video,"画面尺寸",size);size.SelectionChanged+=(_,_)=>{if(size.SelectedIndex<0||size.SelectedIndex==5)return;_draft=ReadOptions();(_draft.Width,_draft.Height)=size.SelectedIndex switch{1=>(1920,1080),2=>(1280,720),3=>(1080,1920),4=>(1080,1080),_=>(0,0)};Build();};
+                    Add(video,"尺寸预设",size);size.SelectionChanged+=async(_,_)=>{if(size.SelectedIndex<0||size.SelectedIndex==5)return;try{_draft=ReadOptions();(_draft.Width,_draft.Height)=size.SelectedIndex switch{1=>(1920,1080),2=>(1280,720),3=>(1080,1920),4=>(1080,1080),_=>(0,0)};Build();}catch(Exception error){await Ui.Message(this,"参数错误",error.Message);}};
                 }
                 Number(video,"画面宽度 (0 = 原始)",_draft.Width,(o,v)=>o.Width=(int)v,true,0,_format=="ico"?256:32768);
                 Number(video,"画面高度 (0 = 原始)",_draft.Height,(o,v)=>o.Height=(int)v,true,0,_format=="ico"?256:32768);
@@ -90,17 +100,20 @@ public sealed class OptionsWindow : Window
             }
             if(image && _format is "jpg" or "webp")
             {
+                Section(video,"编码质量");
                 var legacy=_draft.ImageQuality is null && _draft.Quality!=23;
                 var quality=_draft.ImageQuality??(legacy?(int)Math.Round(_format=="jpg"?100-(Math.Clamp(_draft.Quality/4d,2,12)-2)*99/29d:Math.Clamp(100-_draft.Quality*90d/63,10,100)):_imageQualityDefault??90);
                 Number(video,_format=="jpg"?"JPEG 画质 (1 – 100)":"WebP 画质 (1 – 100)",quality,(o,v)=>o.ImageQuality=legacy && v==quality?null:(int)v,true,1,100);
             }
             else if(!input && _kind!=MediaOptionsKind.Frames && (image?_format=="avif":VideoFormats.OriginalOutputExtensions.Contains(_format)))
             {
+                Section(video,"编码质量");
                 if(image)Number(video,"质量 (值越低质量越高)",_draft.Quality,(o,v)=>o.Quality=(int)v,true,1,63);
                 else VideoEncodingFields(video);
             }
             if(!outputOnly)
             {
+                Section(video,"画面处理");
                 Choice(video,"旋转角度",["0","90","180","270"],(_draft.LosslessRotation??_draft.Rotation).ToString(),(o,v)=>
                 {if(o.LosslessRotation is not null){o.LosslessRotation=int.Parse(v);o.Rotation=0;}else o.Rotation=int.Parse(v);});Check(video,"水平镜像",_draft.Flip,(o,v)=>o.Flip=v);
                 if(!image && _kind!=MediaOptionsKind.Frames){Number(video,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);Fades(video);}
@@ -109,6 +122,8 @@ public sealed class OptionsWindow : Window
         if(hasAudio && _format!="gif")
         {
             var audio=Page("音频");
+            primaryPage??=audio;
+            if(!outputOnly&&_kind!=MediaOptionsKind.ClipEdit||!input)Section(audio,"来源与编码");
             if(!outputOnly && _kind!=MediaOptionsKind.ClipEdit)Track(audio,"音轨", "audio",_draft.AudioStreamIndex,(o,v)=>o.AudioStreamIndex=v);
             if(!input)
             {
@@ -117,7 +132,7 @@ public sealed class OptionsWindow : Window
                 Choice(audio,"音频采样率",_format is "opus" or "webm"?["默认","48000"]:_format is "mpg"?["默认","16000","22050","24000","32000","44100","48000"]:_format is "mp3" or "wma" or "wmv"?["默认","8000","11025","16000","22050","32000","44100","48000"]:["默认","8000","11025","16000","22050","32000","44100","48000","88200","96000"],_draft.SampleRate==0?"默认":_draft.SampleRate.ToString(),(o,v)=>o.SampleRate=v=="默认"?0:int.Parse(v));
                 Choice(audio,"声道",_format is "mp3" or "wma" or "wmv"?["默认","1","2"]:["默认","1","2","6"],_draft.AudioChannels==0?"默认":_draft.AudioChannels.ToString(),(o,v)=>o.AudioChannels=v=="默认"?0:int.Parse(v));
             }
-            if(!outputOnly)Number(audio,"音量 (%)",_draft.Volume*100,(o,v)=>o.Volume=v/100,false,0,1000);
+            if(!outputOnly){Section(audio,"声音处理");Number(audio,"音量 (%)",_draft.Volume*100,(o,v)=>o.Volume=v/100,false,0,1000);}
             if(!audioOnly && !outputOnly)Check(audio,"禁用音频",_draft.Mute,(o,v)=>o.Mute=v);
             if(!input && _allowAllAudioStreams && (VideoFormats.IsTransportStream(_format) || _format is "mp4" or "mkv" or "mov" or "m4a" or "m4v" or "webm" or "avi" or "ogg" or "3gp" or "3g2"))Check(audio,"保留全部音轨",_draft.KeepAllAudioStreams,(o,v)=>o.KeepAllAudioStreams=v);
             if(!outputOnly)
@@ -193,7 +208,9 @@ public sealed class OptionsWindow : Window
         }
         if(!input)
         {
-            var other=Page("其他");
+            var mergeExport=_kind is MediaOptionsKind.Audio or MediaOptionsKind.Image or MediaOptionsKind.VideoOnly or MediaOptionsKind.Frames;
+            var other=mergeExport?primaryPage!:Page("文件与导出");
+            if(mergeExport)Section(other,"文件与导出");
             if(!image && _format!="gif" && _kind is not (MediaOptionsKind.Frames or MediaOptionsKind.VideoOnly))Check(other,_copyMode.HasValue?"流复制 (由输出格式决定)":"流复制 (不重新编码)",_copyMode??_draft.CopyStreams,(o,v)=>o.CopyStreams=v,!_copyMode.HasValue);
             Check(other,"保留元数据",_draft.KeepMetadata,(o,v)=>o.KeepMetadata=v);
             if(_kind==MediaOptionsKind.Frames)Number(other,"导出帧间隔 (秒)",_draft.FrameInterval,(o,v)=>o.FrameInterval=v,false,.01,86400);
@@ -206,10 +223,25 @@ public sealed class OptionsWindow : Window
             watermark.Children.Add(Ui.FormattedText($"水印选区 {_draft.DelogoX},{_draft.DelogoY} · {_draft.DelogoWidth} × {_draft.DelogoHeight}"));
         }
         var footer=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=12,Margin=new(0,16,0,0)};
-        footer.Children.Add(Ui.DialogButton("默认",()=>{_draft=new(){Format=_format};Build();}));footer.Children.Add(Ui.DialogButton("取消",()=>Close(null)));
-        var ok=new Button{Content="确定",IsDefault=true,Classes={"primary","dialog-action"}};ok.Click+=async(_,_)=>{try{Close(ReadOptions());}catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}};footer.Children.Add(ok);Grid.SetRow(footer,2);Grid.SetColumnSpan(footer,2);root.Children.Add(footer);Content=root;RefreshVisualPreview();
-        StackPanel Page(string title){var panel=new StackPanel{Spacing=12,Margin=new(16)};tabs.Items.Add(new TabItem{Header=title,Content=new ScrollViewer{Content=panel}});return panel;}
+        var reset=Ui.Button("恢复默认",()=>{_draft=new(){Format=_format};Build();});reset.Classes.Add("settingsFooter");footer.Children.Add(reset);
+        var cancel=Ui.Button("取消",()=>Close(null));cancel.IsCancel=true;cancel.Classes.Add("settingsFooter");footer.Children.Add(cancel);
+        var ok=new Button{Content="确定",IsDefault=true,Classes={"primary","settingsFooter"}};ok.Click+=async(_,_)=>{try{Close(ReadOptions());}catch(Exception ex){await Ui.Message(this,"参数错误",ex.Message);}};footer.Children.Add(ok);Grid.SetRow(footer,2);Grid.SetColumnSpan(footer,2);root.Children.Add(footer);
+        tabs.SelectedItem=tabs.Items.OfType<TabItem>().FirstOrDefault(page=>(string?)page.Tag==selectedPage)??tabs.Items.OfType<TabItem>().FirstOrDefault();
+        if(tabs.Items.Count==1 && tabs.Items[0] is TabItem single && single.Content is Control pageContent)
+        {
+            single.Content=null;root.Children.Remove(tabs);_tabs=null;
+            Grid.SetRow(pageContent,1);root.Children.Add(pageContent);
+        }
+        Content=root;UpdatePreviewWidth();RefreshVisualPreview();
+        StackPanel Page(string title){var panel=new StackPanel{Spacing=12,Margin=new(0,0,4,0)};panel.Children.Add(Ui.Text(title,"settingsTitle"));tabs.Items.Add(new TabItem{Header=title,Tag=title,Content=new ScrollViewer{Content=panel,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled}});return panel;}
+        static void Section(StackPanel panel,string title){var label=Ui.Text(title,"settingsHeading");label.Margin=new(0,8,0,0);panel.Children.Add(label);}
         void Fades(StackPanel panel){Number(panel,"淡入时长 (秒)",_draft.FadeIn,(o,v)=>o.FadeIn=v,false,0,86400);Number(panel,"淡出时长 (秒)",_draft.FadeOut,(o,v)=>o.FadeOut=v,false,0,86400);}
+    }
+    private void UpdatePreviewWidth()
+    {
+        if(_visualPreview is null||_layoutRoot is null)return;
+        var available=_layoutRoot.Bounds.Width>0?_layoutRoot.Bounds.Width:Width-40;
+        _layoutRoot.ColumnDefinitions[1].Width=new GridLength(Math.Clamp(available*.3,260,360));
     }
     private void RefreshVisualPreview(){if(_visualPreview is null)return;try{_visualPreview.SetSource(_previewSource,ReadOptions());}catch(ArgumentException){}}
     private static string[] AudioCodecs(string format)=>format switch
@@ -223,7 +255,7 @@ public sealed class OptionsWindow : Window
         string[] software=format switch{"ts" or "mts" or "m2ts" or "m2t"=>["自动","libx264","libx265","mpeg2video","mpeg4","h264_mf"],"3gp" or "3g2"=>["自动","mpeg4","h264_mf","libx264"],"webm"=>["自动","libvpx-vp9","libaom-av1"],"wmv"=>["自动","wmv2"],"mpg"=>["自动","mpeg2video"],"flv"=>["自动","flv","h264_mf","libx264"],"avi"=>["自动","mpeg4","h264_mf","libx264"],_=>["自动","mpeg4","h264_mf","libvpx-vp9","libaom-av1","libx264","libx265"]};
         return [..software,..HardwareAcceleration.CompatibleCodecs(format)];
     }
-    private static void Add(Panel panel,string label,Control control){var row=new Grid{ColumnDefinitions=new("230,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}
+    private static void Add(Panel panel,string label,Control control){var row=new Grid{ColumnDefinitions=new("160,*"),ColumnSpacing=12};row.Children.Add(Ui.Text(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);}
     private void VideoEncodingFields(StackPanel panel)
     {
         var labels=new[]{"参考源视频码率（默认）","按质量编码","自定义视频码率"};

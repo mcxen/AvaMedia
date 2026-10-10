@@ -1,0 +1,49 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:auto="using:Avalonia.Automation">
+  <Style Selector="TabControl.settingsNavigation">
+    <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Vertical" Spacing="4"/></ItemsPanelTemplate></Setter>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid ColumnDefinitions="172,*" ColumnSpacing="20">
+          <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,1,0" Padding="0,0,12,0">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+            </ScrollViewer>
+          </Border>
+          <ContentPresenter Grid.Column="1" Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="0" Margin="0" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="TabControl.settingsNavigation TabItem">
+    <Setter Property="auto:AutomationProperties.Name" Value="{Binding Header, RelativeSource={RelativeSource Self}}"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="MinHeight" Value="38"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="NavigationFace" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource UiControlRadius}">
+          <ContentPresenter Name="PART_HeaderPresenter" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" RecognizesAccessKey="True" HorizontalContentAlignment="Left" VerticalContentAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+  </Style>
+  <Style Selector="TabControl.settingsNavigation TabItem:pointerover"><Setter Property="Background" Value="{DynamicResource UiHover}"/></Style>
+  <Style Selector="TabControl.settingsNavigation TabItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style Selector="TabControl.settingsNavigation TabItem:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+  <Style Selector="Window.settings Border.settingsPage"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.settings Border.settingSection"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.settings Border.settingSection.modelRow"><Setter Property="Padding" Value="12"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/><Setter Property="BorderThickness" Value="1"/></Style>
+  <Style Selector="Window.settings TextBlock.settingsTitle"><Setter Property="FontSize" Value="18"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,8"/></Style>
+  <Style Selector="Window.settings TextBlock.settingsHeading"><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style Selector="Window.settings TextBlock.settingLabel"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+  <Style Selector="Window.settings Button.settingsBrowse"><Setter Property="MinWidth" Value="84"/></Style>
+  <Style Selector="Window.settings Button.settingsFooter"><Setter Property="MinWidth" Value="88"/><Setter Property="MinHeight" Value="32"/><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+  <Style Selector="Window.settings NumericUpDown"><Setter Property="Width" Value="88"/><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+  <Style Selector="Window.settings CheckBox"><Setter Property="MinHeight" Value="32"/></Style>
+  <Style Selector="Window.settings Separator"><Setter Property="Margin" Value="0,4"/></Style>
+</Styles>
