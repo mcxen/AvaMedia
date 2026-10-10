@@ -7,6 +7,8 @@ namespace AvaMedia.Core;
 public sealed record VideoSummaryEvidence(string Id, string Kind, double Start, double End, string Text, string[] FrameIds);
 public sealed record VideoSummaryClaim(string Text, string[] EvidenceIds);
 
+internal sealed class VideoSummaryModelRefusedException() : InvalidOperationException("总结模型拒绝生成总结。");
+
 /// <summary>Capabilities absent from sampled captions cannot be asserted merely because a model repeats them.</summary>
 internal static class VideoSummaryEvidencePolicy
 {
@@ -48,6 +50,14 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     internal int RejectedClaims { get; private set; }
     internal IReadOnlyDictionary<string, VideoSummaryEvidence> Sources => _sources;
+    private readonly Dictionary<string, bool> _reviews = new(StringComparer.Ordinal);
+
+    internal static JsonDocument ParseResponse(string reply)
+    {
+        var text = reply.Trim();
+        if (!text.StartsWith('{') && MediaCaptionService.LooksLikeRefusal(text)) throw new VideoSummaryModelRefusedException();
+        return JsonDocument.Parse(reply);
+    }
     internal static JsonElement ClaimShape(int maximumLength) => JsonSerializer.SerializeToElement(new
     {
         type = "object", additionalProperties = false, required = new[] { "text", "evidenceIds" },
@@ -93,7 +103,7 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
             "\n把相关内容归纳成完整表述，不逐句摘抄、不罗列零散对话。每条 text 携带 1–8 个必要的原始 evidenceIds；合并多句资料时引用支持各部分的编号。" +
             "不写编号、模型名或提示词本身。\n资料：\n" + context,
             ct, tokens: 1536, schema: ArraySchema("claims", maximum)).ConfigureAwait(false);
-        using var document = JsonDocument.Parse(json);
+        using var document = ParseResponse(json);
         var claims = document.RootElement.GetProperty("claims").EnumerateArray().Select(item => ReadClaim(item)).OfType<VideoSummaryClaim>().Take(maximum).ToArray();
         return await ReviewAsync(claims, ct).ConfigureAwait(false);
     }
@@ -113,7 +123,14 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
         var claims = candidates.DistinctBy(Key).ToArray(); var accepted = new List<VideoSummaryClaim>();
         foreach (var claim in claims)
         {
+            ct.ThrowIfCancellationRequested();
             if (!VideoSummaryEvidencePolicy.Allows(claim, _sources)) { RejectedClaims++; continue; }
+            var key = Key(claim);
+            if (_reviews.TryGetValue(key, out var supported))
+            {
+                if (supported) accepted.Add(claim); else RejectedClaims++;
+                continue;
+            }
             // Isolate each claim's own evidence. Shared review batches let a small model
             // borrow another claim's sources and approve an otherwise unsupported citation.
             var sources = claim.EvidenceIds.Select(id => _sources[id]);
@@ -125,8 +142,9 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
                 "单图不证明动作过程，大间隔比较不证明中间事件；画面边缘进出不等于进出建筑；不同时间的图不等于切镜。" +
                 "原资料写镜头静止时，‘镜头切换’不被支持。\n原资料：\n" + EvidenceText(sources) + "\n唯一候选：\n" + ClaimText([claim]),
                 ct, tokens: 64, schema: ReviewSchema).ConfigureAwait(false);
-            using var json = JsonDocument.Parse(response);
-            if (json.RootElement.GetProperty("supported").GetBoolean()) accepted.Add(claim); else RejectedClaims++;
+            using var json = ParseResponse(response);
+            _reviews[key] = supported = json.RootElement.GetProperty("supported").GetBoolean();
+            if (supported) accepted.Add(claim); else RejectedClaims++;
         }
         return accepted;
     }

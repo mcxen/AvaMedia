@@ -131,7 +131,7 @@ public sealed partial class MediaAiWindow
         _settingsPanel.Children.Add(WorkbenchActions(_generateCaptions, Ui.Button("描述设置…", async () => await OpenCaptionSettingsAsync())));
         _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
         ToolTip.SetTip(_generateCaptions, "在描述设置中选择本地模型或 AI 供应商。");
-        _generateCaptions.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(prepare: false); };
+        _generateCaptions.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
         _realPeople.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RefreshDisplayedResults(); await RefreshModelAsync(); } };
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
         _gpu.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
@@ -147,7 +147,7 @@ public sealed partial class MediaAiWindow
             || _busy || _closed) return;
         foreach (var entry in _entries.Where(entry => entry.Include).ToArray()) { _results.Remove(entry.Path); _liveResults.Remove(entry.Path); _traces.Remove(entry.Path); _positions.Remove(entry.Path); _reportSources.Remove(entry.Path); _editedTags.Remove(entry.Path); _entries.Remove(entry); }
         if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
-        RenderSelectedResult(); UpdateActions();
+        RenderSelectedResult(); UpdateActions(); UpdateCaptionWarmup();
     }
     private void ConfigureWorkbenchScrollbars()
     {

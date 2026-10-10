@@ -175,8 +175,11 @@ internal static class MediaTagModelCache
                 entry.Tags = new(Path.Combine(tags.Directory, ModelCatalog.JoyTagFile), ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256,
                     options.PreferGpu, options.BatchSize);
                 ct.ThrowIfCancellationRequested();
-                entry.State(ModelCatalog.JoyTagId, ModelLoadState.Warming, entry.Tags.Backend); status?.Invoke("预热标签模型");
-                MediaTagService.Predict(entry.Tags, [WarmImage.Value], options.BatchSize, entry.Vocabulary.Length, ct);
+                if (preparing)
+                {
+                    entry.State(ModelCatalog.JoyTagId, ModelLoadState.Warming, entry.Tags.Backend); status?.Invoke("预热标签模型");
+                    MediaTagService.Predict(entry.Tags, [WarmImage.Value], options.BatchSize, entry.Vocabulary.Length, ct);
+                }
                 entry.Stamps[ModelCatalog.JoyTagId] = Stamp(store, ModelCatalog.JoyTagId);
             }
             entry.State(ModelCatalog.JoyTagId, preparing ? ModelLoadState.Ready : ModelLoadState.InUse, entry.Tags.Backend);
@@ -188,8 +191,11 @@ internal static class MediaTagModelCache
                 {
                     entry.Nsfw = new(nsfw.Directory, options.PreferGpu);
                     ct.ThrowIfCancellationRequested();
-                    entry.State(ModelCatalog.NsfwId, ModelLoadState.Warming, entry.Nsfw.Backend); status?.Invoke("预热成人内容模型");
-                    entry.Nsfw.Analyze([WarmImage.Value], [0], [0], ct);
+                    if (preparing)
+                    {
+                        entry.State(ModelCatalog.NsfwId, ModelLoadState.Warming, entry.Nsfw.Backend); status?.Invoke("预热成人内容模型");
+                        entry.Nsfw.Analyze([WarmImage.Value], [0], [0], ct);
+                    }
                     entry.Stamps[ModelCatalog.NsfwId] = Stamp(store, ModelCatalog.NsfwId);
                 }
                 entry.State(ModelCatalog.NsfwId, preparing ? ModelLoadState.Ready : ModelLoadState.InUse, entry.Nsfw.Backend);
@@ -203,9 +209,12 @@ internal static class MediaTagModelCache
                     if (entry.Embedding is null)
                     {
                         entry.Embedding = await GemmaMediaEmbedding.StartCachedAsync(embedding, ct, options.PreferGpu, status).ConfigureAwait(false);
-                        entry.State(ModelCatalog.EmbeddingId, ModelLoadState.Warming, entry.Embedding.Backend);
-                        status?.Invoke("预热图片嵌入模型");
-                        await entry.Embedding.EmbedImageAsync(WarmImage.Value, ct).ConfigureAwait(false);
+                        if (preparing)
+                        {
+                            entry.State(ModelCatalog.EmbeddingId, ModelLoadState.Warming, entry.Embedding.Backend);
+                            status?.Invoke("预热图片嵌入模型");
+                            await entry.Embedding.EmbedImageAsync(WarmImage.Value, ct).ConfigureAwait(false);
+                        }
                         entry.Stamps[ModelCatalog.EmbeddingId] = Stamp(store, ModelCatalog.EmbeddingId);
                     }
                     entry.State(ModelCatalog.EmbeddingId, preparing ? ModelLoadState.Ready : ModelLoadState.InUse, entry.Embedding.Backend);

@@ -22,6 +22,15 @@ internal static class VideoSummarySampling
         var count = Math.Min(budget, Math.Max(1, (int)Math.Min(48, Math.Ceiling(info.Duration))));
         var videoStart = VideoStart(info);
         var span = info.Duration - videoStart;
+        // The coverage frame fills a one-frame budget; scanning for changes cannot affect its selection.
+        if (count == 1)
+        {
+            var seconds = videoStart + span / 2;
+            var image = await engine.Thumbnail(path, seconds, 768, 768, ct, pad: false,
+                videoStreamIndex: info.VideoStreamIndex, endExclusive: seconds > 0).ConfigureAwait(false);
+            report(1, "选择关键画面");
+            return new([new(seconds, image, "均匀覆盖")], new(0, 0, 0, 1, 0, 1));
+        }
         var fps = Math.Min(2, MaximumScanFrames / span);
         var interval = 1 / fps;
         var changes = new List<Change>();

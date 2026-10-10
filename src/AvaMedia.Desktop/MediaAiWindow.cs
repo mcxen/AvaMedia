@@ -15,6 +15,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly Storage _storage;
     private readonly AppSettings _settings;
     private readonly MediaTagService _tagService;
+    private readonly LocalModelWarmupController _captionWarmup;
     private readonly ObservableCollection<MediaFileEntry> _entries = [];
     private readonly Dictionary<string, MediaTagResult> _results = new(BatchRename.PathComparer);
     private readonly ListBox _list = new() { Name = "MediaAiFiles" };
@@ -64,6 +65,8 @@ public sealed partial class MediaAiWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "image");
         BuildInterface();
+        _captionWarmup = new(this, engine, settings);
+        _captionWarmup.Changed += UpdateModelPreparationActions;
         _settings.NsfwContentChanged += PrivacyChanged; UpdatePrivacyScopes();
         var queueState=new Avalonia.Threading.DispatcherTimer { Interval=TimeSpan.FromSeconds(1) };
         queueState.Tick+=(_,_)=>UpdateActions();Opened+=(_,_)=>queueState.Start();Closed+=(_,_)=>queueState.Stop();
@@ -86,12 +89,12 @@ public sealed partial class MediaAiWindow : Window
             var entry = new MediaFileEntry(path) { Details = "", Status = "待分析" };
             entry.PropertyChanged += (_, change) =>
             {
-                if (change.PropertyName == nameof(MediaFileEntry.Include)) UpdateActions();
+                if (change.PropertyName == nameof(MediaFileEntry.Include)) { UpdateActions(); UpdateCaptionWarmup(); }
             };
             _entries.Add(entry);
         }
         if (_list.SelectedItem is null) _list.SelectedItem = _entries.FirstOrDefault();
-        UpdateActions();
+        UpdateActions(); UpdateCaptionWarmup();
     }
     private async Task AddFoldersAsync(IEnumerable<string> paths)
     {
@@ -108,7 +111,7 @@ public sealed partial class MediaAiWindow : Window
         catch (Exception error) { if (!_closed) await Ui.Message(this, "导入失败", error.Message); }
         finally { if (!_closed) SetBusy(false); }
     }
-    private async Task RefreshModelAsync(bool prepare = true)
+    private async Task RefreshModelAsync()
     {
         try
         {
@@ -135,11 +138,7 @@ public sealed partial class MediaAiWindow : Window
             _modelStatus.Text = string.Join(Environment.NewLine, parts);
             _modelStatus.IsVisible = parts.Count > 0; UpdateActions();
             UpdateModelPreparationActions();
-            if (prepare)
-            {
-                if (_settings.PrewarmTagModels) await PrepareModelsAsync();
-                else _warmRequest?.Cancel();
-            }
+            UpdateCaptionWarmup();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) { if (!_closed) _modelStatus.Text = error.Message; }
@@ -156,6 +155,7 @@ public sealed partial class MediaAiWindow : Window
         await _manageModels(owner);
         if (_closed) return;
         await RefreshModelAsync();
+        _captionWarmup.RefreshModels();
     }
     private Task AnalyzeAsync(string[]? requestedPaths = null) => QueueAnalysisAsync(true, requestedPaths);
 

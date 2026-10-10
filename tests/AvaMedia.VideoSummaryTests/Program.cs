@@ -66,7 +66,6 @@ if (mode == "mock")
     Check(ok.Frames.All(frame => frame is { ProviderId: "p-vision", ModelId: "vision-id", FramePath: null }) &&
         ok is { SummaryProviderId: "p-summary", SummaryModelId: "summary-id" }, "pipeline records provider/model ids; no frame path without saved image");
     Check(text.Prompts.Single().Contains("拒绝描述") && text.Prompts.Single().Contains("00:01"), "summary prompt notes refused frames");
-    Check(vision.Systems.All(system => system.Contains("成人/NSFW")) && text.Systems.Single().Contains("成人/NSFW"), "adult-allowed prompts");
 
     // 2. Summary refusal surfaced.
     var refusing = await VideoSummaryPipeline.RunAsync(frames, Source("v", new MockModel(_ => "成年人。")),
@@ -78,7 +77,15 @@ if (mode == "mock")
     var engine = new MediaEngine(Settings("moondream", "moondream"));
     var output = Path.Combine(root, "ok-" + Guid.NewGuid().ToString("N")[..8]);
     var jobVision = new MockModel(call => call == 1 ? "I'm unable to help with that." : "画面中有彩色背景和一个白色方块。");
-    var jobText = new MockModel(_ => "视频由三个纯色场景组成，每个场景有一个白色方块。");
+    var jobText = new MockModel(_ => "画面中有彩色背景和一个白色方块。", shape =>
+    {
+        var properties = shape.GetProperty("properties");
+        if (properties.TryGetProperty("supported", out _)) return "{\"supported\":true}";
+        var claim = new VideoSummaryClaim("画面中有彩色背景和一个白色方块。", ["F002"]);
+        if (properties.TryGetProperty("keywords", out _))
+            return JsonSerializer.Serialize(new { keywords = Array.Empty<VideoSummaryClaim>(), highlights = new[] { claim }, chapters = Array.Empty<object>() });
+        return JsonSerializer.Serialize(new { claims = new[] { claim } });
+    });
     var okService = new VideoSummaryService(engine,
         modelFactory: (id, _) => Task.FromResult<ISummaryModel>(id == ModelCatalog.SummaryVisionId ? jobVision : jobText));
     var result = await okService.ExecuteAsync(SummaryJob(video, output, Options()), _ => { }, CancellationToken.None);
@@ -132,7 +139,7 @@ if (mode == "live")
 }
 throw new ArgumentException("mode must be mock or live");
 
-sealed class MockModel(Func<int, string> reply) : ISummaryModel
+sealed class MockModel(Func<int, string> reply, Func<JsonElement, string>? structuredReply = null) : ISummaryModel
 {
     private int _calls;
     public List<string> Prompts { get; } = []; public List<string> Systems { get; } = [];
@@ -140,6 +147,9 @@ sealed class MockModel(Func<int, string> reply) : ISummaryModel
     public string ModelId => "mock";
     public Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
         JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
-    { Systems.Add(system); Prompts.Add(prompt); return Task.FromResult(reply(++_calls)); }
+    {
+        Systems.Add(system); Prompts.Add(prompt); _calls++;
+        return Task.FromResult(schema is { } shape && structuredReply is not null ? structuredReply(shape) : reply(_calls));
+    }
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

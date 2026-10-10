@@ -14,6 +14,7 @@ namespace AvaMedia.Desktop;
 
 public sealed class VideoSummaryWindow : Window
 {
+    private readonly LocalModelWarmupController _modelWarmup;
     private readonly IMediaEngine _engine;
     private readonly ObservableCollection<string> _files = [];
     private readonly MediaPreviewPanel _preview;
@@ -29,6 +30,9 @@ public sealed class VideoSummaryWindow : Window
     private readonly StackPanel _onlineProviderRow = new();
     private readonly ComboBox _localVision = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly StackPanel _localVisionRow = new();
+    private readonly Grid _localRuntime = new() { ColumnDefinitions = new("*,*,Auto"), ColumnSpacing = 12, MinHeight = 30 };
+    private readonly Button _warmAction = new() { Content = "预热模型", Classes = { "field-action" } };
+    private string _runtimeVisionId = "";
     private sealed record LocalVisionChoice(string Id, string Name);
     private sealed record OnlineProviderChoice(string Id, string Name, bool UserText = true);
     private readonly TextBlock _modelNotice = Ui.Text("", "caption");
@@ -48,6 +52,7 @@ public sealed class VideoSummaryWindow : Window
         string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null)
     {
         _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new Storage().LoadToolOptions<VideoSummaryOptions>("video-summary") ?? new() { ExtractSubtitles=false, AnalyzeContent=false,Speech=new(){Model=SpeechModel.Base} };
+        _modelWarmup = new(this, engine, engine.Settings);
         Title = _editing ? "编辑任务 · 视频总结" : "视频总结";
         Width = 960; Height = 800; MinWidth = 780; MinHeight = 620;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "document");
@@ -163,10 +168,11 @@ public sealed class VideoSummaryWindow : Window
         if (manageModels is not null)
         {
             var manage = new Button { Content = "模型管理", Classes = { "field-action" } };
-            manage.Click += async (_, _) => { try { await manageModels(this); } catch (Exception error) { ShowError(error); } };
+            manage.Click += async (_, _) => { try { await manageModels(this); _modelWarmup.RefreshModels(); } catch (Exception error) { ShowError(error); } };
             Grid.SetColumn(manage, 2); modelRow.Children.Add(manage);
         }
         fields.Children.Add(modelRow);
+        fields.Children.Add(_localRuntime);
         var advanced = new StackPanel { Spacing = 8 };
         _frameCount.Value = options.FrameCount; _subtitleTrack.Value = options.SubtitleTrack;
         _audioTrack.Value = options.AudioTrack; _chunkSize.Value = options.ChunkCharacters; _gpu.IsChecked = options.PreferGpu;
@@ -205,7 +211,7 @@ public sealed class VideoSummaryWindow : Window
                 var remembered=request.Options.VideoSummary!.Clone();remembered.SubtitleFile="";
                 if(remembered.TranscriptSource==VideoTranscriptSource.External)remembered.TranscriptSource=VideoTranscriptSource.Automatic;
                 new Storage().SaveToolOptions("video-summary",remembered);
-                if (!_lifetime.IsCancellationRequested) ToolExecution.Complete(this, request);
+                if (!_lifetime.IsCancellationRequested) { _modelWarmup.HandOff(); ToolExecution.Complete(this, request); }
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
             catch (Exception error) { ShowError(error); }
@@ -217,7 +223,11 @@ public sealed class VideoSummaryWindow : Window
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         foreach (var child in root.Children.Where(child => Grid.GetRow(child) != 1)) Grid.SetColumnSpan(child,2);
         Content = root; ToolExecution.Configure(this,_confirm,"后台总结",_editing);
+        StableLayout.Reserve(_warmAction, "预热模型", "停止预热", "重试预热");
+        _warmAction.Click += (_, _) => { if (_modelWarmup.Running) _modelWarmup.Stop(); else _modelWarmup.Retry(); };
+        _modelWarmup.Changed += UpdateWarmAction;
         _source.SelectionChanged += (_, _) => Refresh(); _provider.SelectionChanged += (_, _) => Refresh();
+        _localVision.SelectionChanged += (_, _) => Refresh(); _gpu.IsCheckedChanged += (_, _) => Refresh();
         _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
         DragDrop.SetAllowDrop(root, true);
         root.AddHandler(DragDrop.DragOverEvent, (_, args) => { args.DragEffects = !_busy && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; args.Handled = true; });
@@ -280,6 +290,27 @@ public sealed class VideoSummaryWindow : Window
         _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _confirm.IsEnabled = !_busy && _files.Count > 0 && (ai || _subtitles.IsChecked == true);
         _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
+        _modelWarmup?.Update(ai && !online ? (_frames.IsChecked == true
+            ? new[] { (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryTextId }
+            : [ModelCatalog.SummaryTextId]) : [], _gpu.IsChecked == true, _files.FirstOrDefault());
+        _localRuntime.IsVisible = ai && !online;
+        var visionId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id;
+        if (_runtimeVisionId != visionId)
+        {
+            _runtimeVisionId = visionId; _localRuntime.Children.Clear();
+            var store = new ModelStore();
+            _localRuntime.Children.Add(new ModelRuntimeView(store.Root, visionId, "画面"));
+            var text = new ModelRuntimeView(store.Root, ModelCatalog.SummaryTextId, "文本"); Grid.SetColumn(text, 1); _localRuntime.Children.Add(text);
+            Grid.SetColumn(_warmAction, 2); _localRuntime.Children.Add(_warmAction);
+        }
+        _localRuntime.Children[0].IsVisible = _frames.IsChecked == true;
+        UpdateWarmAction();
+    }
+    private void UpdateWarmAction()
+    {
+        if (_modelWarmup is null || _lifetime.IsCancellationRequested) return;
+        _warmAction.Content = Localization.Text(_modelWarmup.Running ? "停止预热" : _modelWarmup.Error is null ? "预热模型" : "重试预热");
+        ToolTip.SetTip(_warmAction, _modelWarmup.Stopped ? Localization.Text("预热已停止，开始分析时将按需加载") : _modelWarmup.Error?.Message);
     }
     private void RefreshOnlineProviders(string selected)
     {

@@ -67,7 +67,7 @@ public static class MediaCaptionService
             : null;
         var vision = model ?? ownedModel!;
         byte[]? image = images is null ? frames[0] : null;
-        if (vision is LocalSummaryModel && frameSeconds is not null)
+        if (LocalSummaryModelCache.IsLocal(vision) && frameSeconds is not null)
         {
             // Joint image input can carry a subject from one sample into an unrelated sample.
             // Observe each frame independently before asking the same session to organize the evidence.

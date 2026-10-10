@@ -9,6 +9,7 @@ internal sealed class ModelAccessGate
     private TaskCompletionSource _changed = NewSignal();
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     public bool IsBusy { get { lock (_gate) return _writing || _readers > 0 || _writersWaiting > 0; } }
+    public bool IsBusyExceptReaders(int idleReaders) { lock (_gate) return _writing || _readers > idleReaders || _writersWaiting > 0; }
     private void Wake() { _changed.TrySetResult(); _changed = NewSignal(); }
 
     public async Task<Action> AcquireReadAsync(CancellationToken ct)

@@ -55,7 +55,7 @@ public sealed partial class MediaAiWindow
                 _captionPrompt = string.IsNullOrWhiteSpace(nextUser) || nextUser == MediaCaptionService.DefaultUserPrompt ? null : nextUser;
                 _captionUseFrameTools = tools.IsChecked == true;
                 _captionLocalModelId = nextModel;
-                SavePreferences(); window.Close(); await RefreshModelAsync(prepare: false);
+                SavePreferences(); window.Close(); await RefreshModelAsync();
             }
             catch (Exception error) { await Ui.Message(window, "无法保存设置", error.Message); }
         });

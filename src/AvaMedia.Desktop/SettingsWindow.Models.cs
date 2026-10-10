@@ -372,7 +372,7 @@ public sealed partial class SettingsWindow
             UpdateModelRow(model, row);
             if (action == "verify")
             {
-                using var lease = await Task.Run(() => _modelStore.AcquireAsync(model.Id, cancellation.Token), cancellation.Token);
+                using var lease = await Task.Run(() => _modelStore.AcquireAsync(model.Id, cancellation.Token, forceVerification: true), cancellation.Token);
             }
             else await _modelStore.DeleteAsync(model.Id, cancellation.Token);
             if (model.Id == ModelCatalog.LamaId && action != "delete") ModelInstallation.ClearFailure();

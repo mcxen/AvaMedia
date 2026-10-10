@@ -65,7 +65,7 @@ public sealed class SpeechModelInstaller(string? directory = null)
         try
         {
             progress?.Invoke(new(0, size, "校验模型"));
-            if (!await _store.IsInstalledAsync(Id(model), true, ct).ConfigureAwait(false))
+            if (!await _store.IsInstalledAsync(Id(model), true, ct, reuseVerification: true).ConfigureAwait(false))
                 await _store.DownloadAsync(Id(model), new DownloadProgress(progress), ct).ConfigureAwait(false);
             progress?.Invoke(new(size, size, "完成"));
             return _store.FileFor(Id(model), Artifact(model).FileName);

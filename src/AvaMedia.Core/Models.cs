@@ -212,7 +212,12 @@ public sealed partial class AppSettings
         set { if (_enableNsfwContent == value) return; _enableNsfwContent = value; NsfwContentChanged?.Invoke(this, EventArgs.Empty); }
     }
     public bool AutoDownloadRepairModel { get; set; } = true;
-    public bool PrewarmTagModels { get; set; } = true;
+    public bool PrewarmLocalModels { get; set; } = true;
+    public int ModelWarmupInitialCpuPercent { get; set; } = 10;
+    public int ModelWarmupInitialGpuPercent { get; set; } = 10;
+    public int ModelWarmupCpuPercent { get; set; } = 60;
+    public int ModelWarmupGpuPercent { get; set; } = 60;
+    public int ModelWarmupRampSeconds { get; set; } = 5;
     public int TagModelIdleMinutes { get; set; } = 5;
     /// <summary>Model download source: Auto, HuggingFace, ModelScope, HfMirror or Custom (see ModelSourceKind).</summary>
     public string ModelSource { get; set; } = "Auto";
@@ -247,7 +252,10 @@ public sealed partial class AppSettings
         PlayErrorSound=source.PlayErrorSound;SystemContextMenu=source.SystemContextMenu;MinimizeToTray=source.MinimizeToTray;CheckForUpdates=source.CheckForUpdates;
         CloseToTray=source.CloseToTray;AutoUpdate=source.AutoUpdate;SilentUpdate=source.SilentUpdate;
         EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;ModelSource=source.ModelSource;ModelSourceUrl=source.ModelSourceUrl;
-        PrewarmTagModels=source.PrewarmTagModels;TagModelIdleMinutes=source.TagModelIdleMinutes;
+        PrewarmLocalModels=source.PrewarmLocalModels;TagModelIdleMinutes=source.TagModelIdleMinutes;
+        ModelWarmupInitialCpuPercent=source.ModelWarmupInitialCpuPercent;ModelWarmupInitialGpuPercent=source.ModelWarmupInitialGpuPercent;
+        ModelWarmupCpuPercent=source.ModelWarmupCpuPercent;ModelWarmupGpuPercent=source.ModelWarmupGpuPercent;
+        ModelWarmupRampSeconds=source.ModelWarmupRampSeconds;
         EnableNsfwContent=source.EnableNsfwContent;
         ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;

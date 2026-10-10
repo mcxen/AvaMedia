@@ -3321,5 +3321,21 @@
   "每工具同时执行任务数": "Concurrent tasks per tool",
   "部分文件仍被任务使用，请完成或终止相关任务后再修改文件。": "Some files are still in use by tasks. Finish or stop those tasks before changing the files.",
   "应用正在退出，请稍后操作。": "The application is closing. Try again later.",
-  "正在编辑此任务，请关闭其编辑窗口后再操作。": "This task is being edited. Close its editor before controlling it."
+  "正在编辑此任务，请关闭其编辑窗口后再操作。": "This task is being edited. Close its editor before controlling it.",
+  "GPU 推理未成功，切换 CPU": "GPU inference failed; switching to CPU",
+  "没有可总结的有效字幕或画面描述。": "No usable transcript or frame descriptions to summarize.",
+  "打开本地大模型工具时": "When opening a local generative AI tool",
+  "开始任务时": "When starting a task",
+  "本地大模型预热": "Local generative model warm-up",
+  "CPU (%)": "CPU (%)",
+  "GPU (%)": "GPU (%)",
+  "打开工具时": "When opening the tool",
+  "选择素材后": "After selecting media",
+  "逐步增加用时（秒）": "Ramp-up time (seconds)",
+  "比例控制后台预热节奏，实际占用由系统调度。仅预热已安装的画面理解、文本生成模型。": "Percentages control background pacing; the system schedules actual utilization. Only installed vision and text generation models are warmed.",
+  "CPU 初始预热比例": "Initial CPU warm-up percentage",
+  "GPU 初始预热比例": "Initial GPU warm-up percentage",
+  "CPU 预热比例": "CPU warm-up percentage",
+  "GPU 预热比例": "GPU warm-up percentage",
+  "预热比例须为 1 到 100，选素材后的比例不能低于初始比例，增加用时须为 1 到 30 秒。": "Warm-up percentages must be 1–100, selected-media percentages cannot be lower than initial ones, and ramp-up time must be 1–30 seconds."
 }

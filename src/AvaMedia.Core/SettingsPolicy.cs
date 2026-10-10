@@ -7,6 +7,11 @@ public static class SettingsPolicy
         settings.OnlineAi.Validate(requireModel: false);
         ModelSourcePreference.From(settings).Validate();
         if (settings.TagModelIdleMinutes is not (-1 or 1 or 5 or 15 or 30)) throw new ArgumentException("请选择模型空闲释放时间。");
+        if (settings.ModelWarmupInitialCpuPercent is < 1 or > 100 || settings.ModelWarmupInitialGpuPercent is < 1 or > 100
+            || settings.ModelWarmupCpuPercent < settings.ModelWarmupInitialCpuPercent || settings.ModelWarmupCpuPercent > 100
+            || settings.ModelWarmupGpuPercent < settings.ModelWarmupInitialGpuPercent || settings.ModelWarmupGpuPercent > 100
+            || settings.ModelWarmupRampSeconds is < 1 or > 30)
+            throw new ArgumentException("预热比例须为 1 到 100，选素材后的比例不能低于初始比例，增加用时须为 1 到 30 秒。");
         if (string.IsNullOrWhiteSpace(settings.OutputFolder)) throw new ArgumentException("请选择输出目录。");
         _ = Path.GetFullPath(settings.OutputFolder);
         if (settings.CpuThreads is < 1 or > 16) throw new ArgumentException("多线程数量必须在 1 到 16 之间。");

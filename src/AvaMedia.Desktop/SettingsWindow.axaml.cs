@@ -91,7 +91,11 @@ public sealed partial class SettingsWindow : Window
         draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
         draft.EnableBetaFeatures = BetaInput.IsChecked == true; draft.AutoDownloadRepairModel = AutoRepairModelInput.IsChecked == true;
         draft.EnableNsfwContent = NsfwContentInput.IsChecked == true;
-        draft.PrewarmTagModels = _modelWarmChoice.SelectedIndex == 0;
+        draft.PrewarmLocalModels = _modelWarmChoice.SelectedIndex == 0;
+        draft.ModelWarmupInitialCpuPercent = Number(_warmInitialCpu, "CPU 初始预热比例");
+        draft.ModelWarmupInitialGpuPercent = Number(_warmInitialGpu, "GPU 初始预热比例");
+        draft.ModelWarmupCpuPercent = Number(_warmCpu, "CPU 预热比例"); draft.ModelWarmupGpuPercent = Number(_warmGpu, "GPU 预热比例");
+        draft.ModelWarmupRampSeconds = Number(_warmRamp, "逐步增加用时（秒）");
         draft.TagModelIdleMinutes = ModelIdleChoices[Math.Clamp(_modelIdleChoice.SelectedIndex, 0, ModelIdleChoices.Length - 1)];
         draft.Mcp = ReadMcp();
         draft.OnlineAi = _providerDraft.Clone();

@@ -78,15 +78,10 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                     vision = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), options);
                     text = new(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), options);
                 }
+                ct.ThrowIfCancellationRequested();
                 var embedding = new GemmaMediaEmbedding(lease, tokenizer, vision, text, backend, ownsModel) { FallbackReason = fallback };
                 vision = text = null; lease = null!;
-                try
-                {
-                    // Warm up and validate: accelerated providers that cannot run the q4 contrib ops fall back to CPU here.
-                    status?.Invoke("等待嵌入模型就绪");
-                    await embedding.EmbedLabelsAsync(["A photo."], ct).ConfigureAwait(false);
-                }
-                catch { await embedding.DisposeAsync().ConfigureAwait(false); throw; }
+                // The first requested label/image executes the graph and retains the existing CPU fallback.
                 return embedding;
             }
             catch

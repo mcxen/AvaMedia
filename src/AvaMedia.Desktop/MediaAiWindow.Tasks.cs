@@ -79,6 +79,7 @@ public sealed partial class MediaAiWindow
                 _results.Remove(path); _liveResults.Remove(path); _traces.Remove(path); _positions.Remove(path); _editedTags.Remove(path);
                 await ObserveTaskAsync(job);
             }
+            if (startImmediately) _captionWarmup.HandOff();
             _enqueue(jobs, startImmediately);
             RefreshAnalysisTasks();
             _status.Text = Localization.Format($"已创建 {jobs.Count} 个任务 · 关闭窗口后继续运行");

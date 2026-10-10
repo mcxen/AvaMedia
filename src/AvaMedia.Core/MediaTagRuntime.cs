@@ -12,20 +12,27 @@ public sealed record ModelRuntimeStatus(string Id, ModelLoadState State, DateTim
     public bool Preparing => State is ModelLoadState.Loading or ModelLoadState.Warming;
 }
 
-/// <summary>Live state of the shared tagger cache; downloading and installing remain separate operations.</summary>
+/// <summary>Live state of resident local models; downloading and installing remain separate operations.</summary>
 public static class MediaTagRuntime
 {
     private static int _idleMinutes = 5;
     public static event Action<string>? Changed;
     public static int IdleMinutes => Volatile.Read(ref _idleMinutes);
-    public static bool Supports(string id) => id is ModelCatalog.JoyTagId or ModelCatalog.NsfwId or ModelCatalog.EmbeddingId;
-    public static ModelRuntimeStatus Status(string root, string id) => MediaTagModelCache.Status(root, id);
-    public static Task<bool> ReleaseAsync(string root, CancellationToken ct = default) => MediaTagModelCache.ReleaseAsync(root, ct);
+    public static bool Supports(string id) => id is ModelCatalog.JoyTagId or ModelCatalog.NsfwId or ModelCatalog.EmbeddingId || ModelCatalog.RequiresSummaryRuntime(id);
+    public static ModelRuntimeStatus Status(string root, string id) => ModelCatalog.RequiresSummaryRuntime(id)
+        ? LocalSummaryModelCache.Status(root, id) : MediaTagModelCache.Status(root, id);
+    public static async Task<bool> ReleaseAsync(string root, CancellationToken ct = default)
+    {
+        var tags = await MediaTagModelCache.ReleaseAsync(root, ct).ConfigureAwait(false);
+        var summaries = await LocalSummaryModelCache.ReleaseAsync(root, ct).ConfigureAwait(false);
+        return tags && summaries;
+    }
     public static void Configure(AppSettings settings)
     {
         var minutes = settings.TagModelIdleMinutes;
         if (minutes is not (-1 or 1 or 5 or 15 or 30)) minutes = 5;
-        if (Interlocked.Exchange(ref _idleMinutes, minutes) != minutes) MediaTagModelCache.RescheduleExpiration();
+        if (Interlocked.Exchange(ref _idleMinutes, minutes) != minutes)
+        { MediaTagModelCache.RescheduleExpiration(); LocalSummaryModelCache.RescheduleExpiration(); }
     }
     internal static void Notify(string root)
     {

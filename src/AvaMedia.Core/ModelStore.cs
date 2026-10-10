@@ -29,13 +29,35 @@ public sealed class ModelLease(string directory, Action release) : IDisposable
 public sealed class ModelStore(string? root = null)
 {
     private static readonly ConcurrentDictionary<string, ModelAccessGate> Gates = new(BatchRename.PathComparer);
+    private sealed record FileStamp(long Length, DateTime ModifiedUtc, DateTime CreatedUtc, string Target);
+    private sealed record VerifiedFile(FileStamp Stamp, string Hash);
+    private sealed class FileVerification
+    {
+        internal readonly SemaphoreSlim Gate = new(1, 1);
+        internal VerifiedFile? Verified;
+    }
+    private static readonly ConcurrentDictionary<string, FileVerification> Verifications = new(BatchRename.PathComparer);
     private sealed record InstalledFile(string Path, long Size, string Sha256);
     public string Root { get; } = Path.GetFullPath(root ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "models"));
     public string DirectoryFor(string id) { _ = ModelCatalog.Find(id); return Path.Combine(Root, id); }
     public string FileFor(string id, string file) => SafePath(DirectoryFor(id), file);
     private ModelAccessGate Gate(string id) => Gates.GetOrAdd(DirectoryFor(id), _ => new());
-    public bool IsBusy(string id) => Gate(id).IsBusy;
+    public bool IsBusy(string id) => Gate(id).IsBusyExceptReaders(LocalSummaryModelCache.IdleReaders(Root, id));
+    internal string InstalledStamp(string id)
+    {
+        try
+        {
+            var folder = DirectoryFor(id); var manifestPath = Path.Combine(folder, "installed.json");
+            var manifest = JsonSerializer.Deserialize<InstalledFile[]>(File.ReadAllText(manifestPath)) ?? [];
+            return string.Join('|', manifest.Select(file => SafePath(folder, file.Path)).Append(manifestPath).Select(path =>
+            {
+                var file = new FileInfo(path); var target = file.LinkTarget is null ? file : file.ResolveLinkTarget(true) as FileInfo ?? file;
+                return target.Exists ? $"{target.FullName}:{target.Length}:{target.LastWriteTimeUtc.Ticks}:{target.CreationTimeUtc.Ticks}" : "missing";
+            }));
+        }
+        catch (Exception error) when (error is IOException or JsonException or ArgumentException or UnauthorizedAccessException) { return "missing"; }
+    }
     public bool HasLocalData(string id) => Directory.Exists(DirectoryFor(id)) || Directory.Exists(DirectoryFor(id) + ".download");
     public long DownloadedBytes(string id)
     {
@@ -53,7 +75,10 @@ public sealed class ModelStore(string? root = null)
         catch (UnauthorizedAccessException) { return 0; }
     }
 
-    public async Task<bool> IsInstalledAsync(string id, bool verify = false, CancellationToken ct = default)
+    public Task<bool> IsInstalledAsync(string id, bool verify = false, CancellationToken ct = default, bool reuseVerification = false)
+        => CheckInstalledAsync(id, verify, reuseVerification, ct);
+
+    private async Task<bool> CheckInstalledAsync(string id, bool verify, bool reuseVerification, CancellationToken ct)
     {
         var model = ModelCatalog.Find(id);
         if (!model.Supported) return false;
@@ -65,20 +90,21 @@ public sealed class ModelStore(string? root = null)
             foreach (var artifact in model.Files)
                 if (!manifest.Any(file => file.Path == artifact.Path && file.Size == artifact.Size && file.Sha256 == artifact.Sha256)) return false;
             foreach (var file in manifest)
-                if (!await MatchesAsync(SafePath(folder, file.Path), file.Size, file.Sha256, verify, ct)) return false;
+                if (!await MatchesAsync(SafePath(folder, file.Path), file.Size, file.Sha256, verify, ct, reuseVerification)) return false;
             return !ModelCatalog.IncludesRuntime(id) || FindRuntime(folder) is not null;
         }
         catch (Exception error) when (error is IOException or JsonException or ArgumentException or UnauthorizedAccessException) { return false; }
     }
 
-    public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true)
+    /// <summary>Verify unchanged files once per process; explicit model-management verification forces a fresh hash.</summary>
+    public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true, bool forceVerification = false)
     {
         var gate = Gate(id);
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         var release = await gate.AcquireReadAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!await IsInstalledAsync(id, verify, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
+            if (!await CheckInstalledAsync(id, verify || forceVerification, !forceVerification, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
             return new(DirectoryFor(id), release);
         }
         catch { release(); throw; }
@@ -96,6 +122,7 @@ public sealed class ModelStore(string? root = null)
         { progress?.Report(new(model.DownloadSize, model.DownloadSize, "完成")); return; }
         progress?.Report(new(0, model.DownloadSize, "等待模型"));
         await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
+        await LocalSummaryModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -185,6 +212,7 @@ public sealed class ModelStore(string? root = null)
         var model = ModelCatalog.Find(id);
         if (!model.Supported) throw new PlatformNotSupportedException("当前平台不支持此模型的本地推理工具。");
         await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
+        await LocalSummaryModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
@@ -272,6 +300,7 @@ public sealed class ModelStore(string? root = null)
     public async Task DeleteAsync(string id, CancellationToken ct = default)
     {
         await MediaTagModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
+        await LocalSummaryModelCache.InvalidateAsync(Root, id, ct).ConfigureAwait(false);
         var gate = Gate(id);
         if (!await gate.WaitAsync(0, ct)) throw new InvalidOperationException("模型正在下载或使用，请稍后重试。");
         try
@@ -285,15 +314,38 @@ public sealed class ModelStore(string? root = null)
         finally { gate.Release(); }
     }
 
-    private static async Task<bool> MatchesAsync(string path, long size, string hash, bool verify, CancellationToken ct)
+    private static async Task<bool> MatchesAsync(string path, long size, string hash, bool verify, CancellationToken ct,
+        bool reuseVerification = false)
     {
         if (!File.Exists(path)) return false;
-        // Runtime archives contain dylib links. FileInfo.Length may report the link's
-        // length; the manifest records the content actually opened for hashing.
-        await using var input = File.OpenRead(path);
-        if (input.Length != size) return false;
-        if (!verify) return true;
-        return Convert.ToHexString(await SHA256.HashDataAsync(input, ct)).Equals(hash, StringComparison.OrdinalIgnoreCase);
+        var check = verify ? Verifications.GetOrAdd(path, _ => new()) : null;
+        if (check is not null) await check.Gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            // Runtime archives contain dylib links. FileInfo.Length may report the link's
+            // length; the manifest records the content actually opened for hashing.
+            await using var input = File.OpenRead(path);
+            if (input.Length != size) { if (check is not null) check.Verified = null; return false; }
+            if (!verify) return true;
+            var before = Stamp();
+            if (reuseVerification && check!.Verified is { } cached && cached.Stamp == before
+                && cached.Hash.Equals(hash, StringComparison.OrdinalIgnoreCase)) return true;
+            check!.Verified = null;
+            var actual = Convert.ToHexString(await LocalModelWarmupBudget.HashAsync(input, ct)).ToLowerInvariant();
+            var after = Stamp();
+            if (actual.Equals(hash, StringComparison.OrdinalIgnoreCase) && before == after)
+            { check.Verified = new(after, actual); return true; }
+            return false;
+
+            FileStamp Stamp()
+            {
+                var file = new FileInfo(path);
+                var target = file.LinkTarget is null ? file : file.ResolveLinkTarget(true) as FileInfo ?? file;
+                target.Refresh();
+                return new(input.Length, target.LastWriteTimeUtc, target.CreationTimeUtc, target.FullName);
+            }
+        }
+        finally { check?.Gate.Release(); }
     }
 
     private static bool Retryable(Exception error) => error switch

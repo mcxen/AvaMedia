@@ -24,7 +24,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     }
 
     public async Task<IReadOnlyList<SubtitleCue>> TranscribeAsync(Job source, TranscriptionOptions speech, int audioTrack,
-        Action<double> progress, CancellationToken ct, Action<AiActivity>? activityProgress = null)
+        Action<double> progress, CancellationToken ct, Action<AiActivity>? activityProgress = null, MediaInfo? sourceInfo = null)
     {
         var temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-transcript-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
@@ -43,13 +43,14 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         };
         try
         {
-            await ExecuteAsync(task, progress, ct, allowEmpty: true, saveTaskResult: false).ConfigureAwait(false);
+            await ExecuteAsync(task, progress, ct, allowEmpty: true, saveTaskResult: false, sourceInfo: sourceInfo).ConfigureAwait(false);
             return SubtitleTranscript.Parse(await File.ReadAllTextAsync(task.Output, ct).ConfigureAwait(false));
         }
         finally { Directory.Delete(temporary, true); }
     }
 
-    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false, bool saveTaskResult = true)
+    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false, bool saveTaskResult = true,
+        MediaInfo? sourceInfo = null)
     {
         var options = job.Options;
         var speech = options.Transcription ?? new();
@@ -60,7 +61,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         var activity = new AiActivityReporter(value => job.Activity = value, "Whisper " + speech.Model, "条字幕",
             ["读取音轨", "语音模型", "语音识别", "保存结果"]);
         activity.Stage("读取音轨");
-        var info = await engine.Probe(job.Inputs[0], ct, options.VideoStreamIndex, options.AudioStreamIndex).ConfigureAwait(false);
+        var info = sourceInfo ?? await engine.Probe(job.Inputs[0], ct, options.VideoStreamIndex, options.AudioStreamIndex).ConfigureAwait(false);
         if (!info.HasAudio || info.Duration <= 0) throw new ArgumentException("文件没有可识别的音轨或有效时长。");
         if (options.Format is "mp4" or "mkv" && !info.HasVideo) throw new ArgumentException("音频文件请选择 SRT 或 ASS 字幕输出。");
         if (options.Format is "mp4" or "mkv")

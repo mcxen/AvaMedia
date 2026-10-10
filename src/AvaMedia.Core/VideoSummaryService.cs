@@ -38,7 +38,6 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
     Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null)
 {
     private readonly ModelStore _models = models ?? new();
-    private const int TranscriptExcerpt = 6000;
     private const string RefusedFrameText = "〔视觉模型拒绝描述此帧〕";
 
     public static void Validate(Job job)
@@ -113,7 +112,6 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             if (source == "Whisper") usedModels.Add("Whisper " + options.Speech.Model);
             if (options.NeedsAi)
             {
-                if (!online) await EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct).ConfigureAwait(false);
                 if (options.AnalyzeFrames)
                 {
                     var samples = await VideoSummarySampling.SelectAsync(engine, job.Inputs[0], info, options.FrameCount,
@@ -128,6 +126,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                     activity.Backend(vision.Backend);
                     Directory.CreateDirectory(Path.Combine(staging, "frames"));
                     var modelImages = new List<SummaryModelImage>();
+                    var resizedImages = new Dictionary<string, SummaryModelImage>();
                     var described = new List<VideoFrameObservation>();
                     for (var index = 0; index < samples.Frames.Count; index++)
                     {
@@ -152,32 +151,44 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                         {
                             described.Add(observation);
                             evidence.Add(new(id, "frame", sample.Seconds, sample.Seconds, description, [id]));
-                            modelImages.Add(new(id + " at " + label, VideoSummarySampling.ModelImage(sample.Image)));
+                            modelImages.Add(new(id + " at " + label, sample.Image));
                         }
                         activity.Result(label + " · " + (description ?? RefusedFrameText)); progress(45 + 10d * (index + 1) / samples.Frames.Count);
                     }
                     var refusedNote = VideoSummaryPipeline.RefusedFrameNote(captions);
                     if (refusedNote.Length > 0) notes.Add(refusedNote);
                     // Overlapping, ordered windows connect changes without pretending to observe the unsampled gaps.
-                    for (var start = 0; start + 1 < described.Count; start += 2)
+                    for (var start = 0; start + 1 < described.Count;)
                     {
+                        var offset = start;
                         var window = described.Skip(start).Take(3).ToArray(); var id = $"V{sequences.Count + 1:000}";
-                        var gaps = string.Join(", ", window.Skip(1).Zip(window, (next, prior) => MediaEngine.Number(next.Seconds - prior.Seconds) + "s"));
+                        // Keep nearby pairs at the edges of a long gap instead of discarding the whole window.
+                        if (window[1].Seconds - window[0].Seconds > 5) { start++; continue; }
+                        if (window.Length == 3 && window[2].Seconds - window[1].Seconds > 5) window = window[..2];
+                        start += window.Length - 1;
+                        var intervals = window.Skip(1).Zip(window, (next, prior) => next.Seconds - prior.Seconds).ToArray();
+                        // Distant frames already have individual captions and cannot establish motion between them.
+                        var gaps = string.Join(", ", intervals.Select(gap => MediaEngine.Number(gap) + "s"));
+                        var images = modelImages.Skip(offset).Take(window.Length).Select(image =>
+                        {
+                            if (!resizedImages.TryGetValue(image.Label, out var resized))
+                                resizedImages[image.Label] = resized = image with { Png = VideoSummarySampling.ModelImage(image.Png) };
+                            return resized;
+                        }).ToArray();
                         job.ProgressDetail = "联合分析画面"; activity.Stage("联合分析画面", start, described.Count, "帧");
                         var reply = online || visionId != ModelCatalog.SummaryVisionId
                             ? await vision.CompleteAsync(VideoSummaryPipeline.FrameSystemPrompt, VideoSummaryPipeline.SequencePrompt + gaps + "。",
-                                ct, tokens: 192, images: modelImages.Skip(start).Take(3).ToArray()).ConfigureAwait(false)
+                                ct, tokens: 192, images: images).ConfigureAwait(false)
                             : await vision.CompleteAsync("",
                                 "Compare these sampled frames in chronological order. In at most two short sentences, describe clearly visible position changes. " +
                                 "Do not read signs or guess events between frames, identities or camera cuts. Time gaps: " + gaps + ".",
-                                ct, tokens: 192, images: modelImages.Skip(start).Take(3).ToArray()).ConfigureAwait(false);
+                                ct, tokens: 192, images: images).ConfigureAwait(false);
                         var description = VideoSummaryPipeline.AcceptReply(reply);
                         var ids = window.Select(frame => frame.Id).ToArray();
                         if (description is null) { notes.Add($"视觉模型拒绝描述多帧观察 {string.Join("、", ids)}。"); continue; }
                         sequences.Add(new(id, ids, window[0].Seconds, window[^1].Seconds, description));
-                        var kind = window.Skip(1).Zip(window, (next, prior) => next.Seconds - prior.Seconds).All(gap => gap <= 5) ? "sequence" : "comparison";
-                        evidence.Add(new(id, kind, window[0].Seconds, window[^1].Seconds, description, ids));
-                        activity.Result(id + " · " + description); progress(55 + 5d * Math.Min(described.Count, start + 3) / described.Count);
+                        evidence.Add(new(id, "sequence", window[0].Seconds, window[^1].Seconds, description, ids));
+                        activity.Result(id + " · " + description); progress(55 + 5d * (start + 1) / described.Count);
                     }
                 }
             }
@@ -187,7 +198,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             var sections = new List<VideoSummarySection>();
             var outline = new VideoSummaryOutline([], [], []);
             string? summary = null, summaryModel = null, summaryProviderId = null, summaryModelId = null; var summaryRefused = false;
-            if (options.NeedsAi)
+            if (options.NeedsAi && evidence.Count > 0)
             {
                 activity.Node("内容总结");
                 await using var textModel = await OpenModelAsync(ModelCatalog.SummaryTextId, onlineModels, options, activity, ct).ConfigureAwait(false);
@@ -197,29 +208,26 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                 usedModels.Add(summaryModel);
                 activity.Backend(textModel.Backend);
                 job.ProgressDetail = "生成总结"; activity.Stage("生成总结", detail: summaryModel);
-                var transcript = cues.Count == 0 ? null : SubtitleTranscript.Timeline(cues);
-                if (transcript is { Length: > TranscriptExcerpt }) transcript = transcript[..TranscriptExcerpt] + "\n……";
-                if (captions.Count > 0 || transcript is not null)
-                    (summary, summaryRefused) = await VideoSummaryPipeline.SummarizeAsync(captions, textModel, ct, transcript, options.Focus,
-                        language: options.OutputLanguage).ConfigureAwait(false);
-                if (summaryRefused) { notes.Add("总结模型拒绝生成总结，请更换本地未审查文本模型。"); activity.Result("总结模型拒绝生成总结"); }
-                else if (summary is not null) activity.Result(summary);
                 progress(65);
-                if (summaryRefused) notes.Add("因总结模型拒绝，未生成有依据的章节与分析。");
-                else if (evidence.Count == 0) notes.Add("全部采样画面均被拒绝描述且没有字幕，未生成内容分析。");
-                else
+                try
                 {
-                    try
-                    {
-                        (outline, rejectedClaims) = await GroundedSectionsAsync(textModel, evidence, options, notes, sections, job, activity, progress, ct).ConfigureAwait(false);
-                    }
-                    catch (Exception error) when (summary is not null && error is InvalidDataException or JsonException)
-                    {
-                        // The pipeline summary already exists; keep it and report why the grounded sections are missing.
-                        notes.Add("有依据的章节与分析未生成：" + error.Message);
-                        sections.Clear(); outline = new VideoSummaryOutline([], [], []);
-                    }
+                    (outline, rejectedClaims) = await GroundedSectionsAsync(textModel, evidence, options, notes, sections, job, activity, progress, ct).ConfigureAwait(false);
+                    // Reuse the selected, cited output instead of generating a second summary from a truncated transcript.
+                    summary = sections.FirstOrDefault(section => section.Title == "摘要")?.Text
+                        ?? sections.FirstOrDefault(section => section.Title == "视频内容总结")?.Text
+                        ?? sections.FirstOrDefault(section => section.Title == "内容分析")?.Text;
                 }
+                catch (VideoSummaryModelRefusedException)
+                {
+                    summaryRefused = true;
+                    notes.Add("总结模型拒绝生成总结。"); activity.Result("总结模型拒绝生成总结");
+                    sections.Clear(); outline = new VideoSummaryOutline([], [], []);
+                }
+            }
+            else if (options.NeedsAi)
+            {
+                if (captions.Count == 0) throw new InvalidDataException("没有可总结的有效字幕或画面描述。");
+                notes.Add("全部采样画面均被拒绝描述且没有有效字幕，未调用总结模型。");
             }
             var result = new VideoSummaryResult(captions, summary, summaryModel)
                 { SummaryRefused = summaryRefused, SummaryProviderId = summaryProviderId, SummaryModelId = summaryModelId };
@@ -326,8 +334,9 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             return vision ? new OnlineSummaryModel(online.VisionProvider, vision: true, online.VisionModel)
                 : new OnlineSummaryModel(online.SummaryProvider, vision: false, online.SummaryModel);
         }
-        await EnsureModelAsync(id, activity, ct).ConfigureAwait(false);
-        return await LocalSummaryModel.StartAsync(_models, id, options.PreferGpu, ct, stage => activity.Stage(stage)).ConfigureAwait(false);
+        await Task.WhenAll(EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct),
+            EnsureModelAsync(id, activity, ct)).ConfigureAwait(false);
+        return await LocalSummaryModelCache.AcquireAsync(_models, id, options.PreferGpu, ct, stage => activity.Stage(stage)).ConfigureAwait(false);
     }
 
     private async Task EnsureModelAsync(string id, AiActivityReporter activity, CancellationToken ct)
@@ -376,7 +385,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             }
             if (!info.HasAudio) return ([], "无音轨");
             var recognized = await new SpeechSubtitleService(engine).TranscribeAsync(job, options.Speech, options.AudioTrack,
-                value => progress(value * .4), ct, activity.Observe).ConfigureAwait(false);
+                value => progress(value * .4), ct, activity.Observe, info).ConfigureAwait(false);
             return (recognized, "Whisper");
         }
         finally { if (File.Exists(extracted)) File.Delete(extracted); }
@@ -433,7 +442,8 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             else if (result.Summary is { Length: > 0 }) builder.Append("## 总结\n\n").Append(result.Summary).Append("\n\n");
             if (result.RefusedFrames > 0) builder.Append("> ").Append(VideoSummaryPipeline.RefusedFrameNote(result.Frames)).Append("\n\n");
         }
-        foreach (var section in report.Sections) builder.Append("## ").Append(section.Title).Append("\n\n").Append(section.Text).Append("\n\n");
+        foreach (var section in report.Sections.Where(section => section.Text != report.Result?.Summary))
+            builder.Append("## ").Append(section.Title).Append("\n\n").Append(section.Text).Append("\n\n");
         if (report.KeywordClaims.Length > 0)
             builder.Append("## 关键词\n\n").Append(string.Join(" · ", report.KeywordClaims.Select(claim => claim.Text + "〔" + string.Join("、", claim.EvidenceIds) + "〕"))).Append("\n\n");
         if (report.Highlights.Length > 0)

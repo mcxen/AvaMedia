@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -9,20 +10,39 @@ using System.Text.RegularExpressions;
 
 namespace AvaMedia.Core;
 
-/// <summary>Task-owned llama.cpp process, authenticated loopback only, disposed before switching models.</summary>
+/// <summary>Authenticated loopback llama.cpp process; task leases and idle retention are managed by the cache.</summary>
 public sealed class LocalSummaryModel : ISummaryToolModel
 {
+    private static readonly ConcurrentDictionary<LocalSummaryModel, byte> Live = new();
+    static LocalSummaryModel()
+    {
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => { foreach (var model in Live.Keys) model.StopProcess(); };
+    }
     private readonly Process _process;
     private readonly HttpClient _client;
     private readonly ModelLease _model, _runtime;
     private readonly Task _stdout, _stderr;
     private readonly string _id;
+    private readonly ModelStore _store;
+    private readonly bool _gpu;
+    private Action<string>? _status;
+    private LocalSummaryModel? _cpuFallback;
+    private bool _retriedGpu;
+    private int _released;
+    private string _backend = "CPU";
+    private bool _visualWarmed;
     public string ModelId => _id;
-    public string Backend { get; private set; } = "CPU";
-    private LocalSummaryModel(Process process, HttpClient client, ModelLease model, ModelLease runtime, string id)
+    public string Backend => _cpuFallback?.Backend ?? _backend;
+    internal bool IsAlive => _cpuFallback?.IsAlive ?? (Volatile.Read(ref _released) == 0 && !_process.HasExited);
+    internal bool VisualWarmed => _visualWarmed;
+    internal void SetStatus(Action<string>? status) { _status = status; _cpuFallback?.SetStatus(status); }
+    private LocalSummaryModel(Process process, HttpClient client, ModelLease model, ModelLease runtime, string id,
+        ModelStore store, bool gpu, Action<string>? status)
     {
         _process = process; _client = client; _model = model; _runtime = runtime; _id = id;
+        _store = store; _gpu = gpu; _status = status;
         _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
+        Live.TryAdd(this, 0);
     }
 
     public static async Task<LocalSummaryModel> StartAsync(ModelStore store, string id, bool preferGpu, CancellationToken ct,
@@ -62,7 +82,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 "--ctx-size", id == ModelCatalog.SummaryVisionId ? "4096" : id == ModelCatalog.SummaryQwen35Id ? "16384" : "8192",
                 "--parallel", "1", "--batch-size", "512", "--ubatch-size", "128",
                 "--threads", Math.Clamp(Environment.ProcessorCount / 2, 1, 8).ToString(), "--host", "127.0.0.1", "--port", port.ToString(),
-                "--api-key", key, "--no-context-shift", "--log-colors", "off", "--gpu-layers", gpu ? "auto" : "0" };
+                "--api-key", key, "--no-context-shift", "--no-warmup", "--log-colors", "off", "--gpu-layers", gpu ? "auto" : "0" };
             if (!gpu) arguments.AddRange(["--device", "none"]);
             if (ModelCatalog.IsSummaryVision(id))
                 arguments.AddRange(["--mmproj", Path.Combine(model.Directory, definition.Files[1].Path), gpu ? "--mmproj-offload" : "--no-mmproj-offload"]);
@@ -70,7 +90,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
             status?.Invoke("加载本地模型");
             var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
-            backend = new(process, client, model, runtime, id);
+            backend = new(process, client, model, runtime, id, store, gpu, status);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromMinutes(2));
             while (true)
@@ -149,15 +169,61 @@ public sealed class LocalSummaryModel : ISummaryToolModel
 
     private async Task<JsonDocument> SendAsync(Dictionary<string, object> request, CancellationToken ct)
     {
+        if (_cpuFallback is { } fallback) return await fallback.SendAsync(request, ct).ConfigureAwait(false);
+        try { return await SendCoreAsync(request, ct).ConfigureAwait(false); }
+        catch (Exception error) when (_gpu && !_retriedGpu && !ct.IsCancellationRequested
+            && error is LocalBackendException or HttpRequestException)
+        {
+            // With empty warm-up disabled, validate the GPU on useful input and retry that input once on CPU.
+            _retriedGpu = true;
+            _status?.Invoke("GPU 推理未成功，切换 CPU");
+            await ReleaseProcessAsync().ConfigureAwait(false);
+            _cpuFallback = await StartCoreAsync(_store, _id, false, ct, _status).ConfigureAwait(false);
+            return await _cpuFallback.SendAsync(request, ct).ConfigureAwait(false);
+        }
+    }
+
+    internal async Task WarmAsync(CancellationToken ct, byte[]? image = null)
+    {
+        if (image is not null && _visualWarmed) return;
+        var content = SummaryChatProtocol.Content("Describe briefly.", image, null, ModelCatalog.IsSummaryVision(_id), 1);
+        // One token compiles the graph; no full caption or summary is generated speculatively.
+        using var response = await SendAsync(Request([new { role = "user", content }], 1), ct).ConfigureAwait(false);
+        if (image is not null) _visualWarmed = true;
+    }
+    internal void SetBackground(bool background)
+    {
+        if (_cpuFallback is { } fallback) { fallback.SetBackground(background); return; }
+        if (!OperatingSystem.IsWindows()) return; // Unix nice reductions cannot reliably be reversed by an unprivileged process.
+        try { if (IsAlive) _process.PriorityClass = background ? ProcessPriorityClass.Idle : ProcessPriorityClass.Normal; }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
+        { Trace.TraceInformation("Model process priority: {0}", error.Message); }
+    }
+    internal void StopProcess()
+    {
+        _cpuFallback?.StopProcess();
+        try { if (Volatile.Read(ref _released) == 0 && !_process.HasExited) _process.Kill(true); }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
+        { Trace.TraceInformation("Model process exit: {0}", error.Message); }
+    }
+
+    private sealed class LocalBackendException(string message) : InvalidOperationException(message);
+
+    private async Task<JsonDocument> SendCoreAsync(Dictionary<string, object> request, CancellationToken ct)
+    {
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
-        if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
+        if (_process.HasExited) throw new LocalBackendException("本地总结模型已退出。");
         HttpResponseMessage response;
         try { response = await _client.PostAsJsonAsync("v1/chat/completions", request, ct).ConfigureAwait(false); }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         { throw new InvalidOperationException("本地总结超时，请减小分段字符数后重试。"); }
         using var completedResponse = response;
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"本地总结失败（HTTP {(int)response.StatusCode}），请减小采样画面数或修复模型。");
+        {
+            var message = $"本地总结失败（HTTP {(int)response.StatusCode}），请减小采样画面数或修复模型。";
+            if ((int)response.StatusCode >= 500) throw new LocalBackendException(message);
+            throw new InvalidOperationException(message);
+        }
         await response.Content.LoadIntoBufferAsync(1024 * 1024).ConfigureAwait(false);
         await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         var result = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
@@ -171,17 +237,24 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         {
             var match = Regex.Match(line, @"offloaded (\d+)/\d+ layers to GPU");
             if (match.Success && int.TryParse(match.Groups[1].Value, out var layers) && layers > 0)
-                Backend = OperatingSystem.IsMacOS() ? "Metal / CPU" : "GPU / CPU";
+                _backend = OperatingSystem.IsMacOS() ? "Metal / CPU" : "GPU / CPU";
         }
     }
     public async ValueTask DisposeAsync()
     {
+        try { if (_cpuFallback is { } fallback) await fallback.DisposeAsync().ConfigureAwait(false); }
+        finally { await ReleaseProcessAsync().ConfigureAwait(false); }
+    }
+
+    private async ValueTask ReleaseProcessAsync()
+    {
+        if (Interlocked.Exchange(ref _released, 1) != 0) return;
         try
         {
             if (!_process.HasExited) _process.Kill(true);
             await _process.WaitForExitAsync().ConfigureAwait(false);
             await Task.WhenAll(_stdout, _stderr).ConfigureAwait(false);
         }
-        finally { _client.Dispose(); _process.Dispose(); _model.Dispose(); _runtime.Dispose(); }
+        finally { _client.Dispose(); _process.Dispose(); _model.Dispose(); _runtime.Dispose(); Live.TryRemove(this, out _); }
     }
 }
