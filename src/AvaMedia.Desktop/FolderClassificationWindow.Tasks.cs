@@ -24,7 +24,7 @@ public sealed partial class FolderClassificationWindow
     private FolderClassificationTaskOptions CaptureTaskOptions(MediaTagOptions? analysis = null) => new()
     {
         Rules = _rules.ToArray(),
-        Analysis = analysis ?? new((int)(_frames.Value ?? 12), _gpu.IsChecked == true),
+        Analysis = analysis ?? new((int)(_frames.Value ?? 12)),
         TagThreshold = (double)(_tagThreshold.Value ?? .5m), IncludeNsfw = _settings.EnableNsfwContent,
         OutputFolder = _output.Text ?? "", SplitTypes = _splitTypes.IsChecked == true, WriteText = _writeText.IsChecked == true,
         Move = _mode.SelectedIndex == 1, ExcludedPaths = _entries.Where(entry => !entry.Include).Select(entry => entry.Path).ToArray(), LastJournal = _lastJournal
@@ -43,7 +43,7 @@ public sealed partial class FolderClassificationWindow
                 _rules.Clear(); _disabledNsfwRules.Clear();
                 foreach (var rule in spec.Rules) if (RuleVisible(rule)) _rules.Add(rule); else _disabledNsfwRules.Add(rule);
                 _ruleList.SelectedItem = _rules.FirstOrDefault();
-                _frames.Value = spec.Analysis.VideoFrames; _gpu.IsChecked = spec.Analysis.PreferGpu;
+                _frames.Value = spec.Analysis.VideoFrames;
                 _tagThreshold.Value = (decimal)spec.TagThreshold; _output.Text = spec.OutputFolder;
                 _splitTypes.IsChecked = spec.SplitTypes; _writeText.IsChecked = spec.WriteText; _mode.SelectedIndex = spec.Move ? 1 : 0;
                 _lastJournal = spec.LastJournal; _inputs.Clear(); _inputs.AddRange(job.Inputs);

@@ -4,14 +4,13 @@ using System.Text.Json;
 
 namespace AvaMedia.Core;
 
-/// <summary>One idle process per model/device. Running tasks own separate leases and never wait on another task.</summary>
+/// <summary>One idle process per model. Running tasks own separate leases and never wait on another task.</summary>
 public static class LocalSummaryModelCache
 {
-    private sealed class Entry(string root, string id, bool gpu)
+    private sealed class Entry(string root, string id)
     {
         public string Root { get; } = root;
         public string Id { get; } = id;
-        public bool Gpu { get; } = gpu;
         public readonly SemaphoreSlim Gate = new(1, 1);
         public LocalSummaryModel? Idle;
         public LocalModelWarmupBudget? Budget;
@@ -40,10 +39,10 @@ public static class LocalSummaryModelCache
     private static readonly ConcurrentDictionary<string, Entry> Entries = new(BatchRename.PathComparer);
     private static readonly SemaphoreSlim BackgroundGate = new(1, 1);
     internal static bool IsLocal(ISummaryModel model) => model is LocalSummaryModel or Lease;
-    private static Entry Get(ModelStore store, string id, bool gpu)
+    private static Entry Get(ModelStore store, string id)
     {
         if (!ModelCatalog.RequiresSummaryRuntime(id)) throw new ArgumentException("请选择本地生成模型。");
-        return Entries.GetOrAdd(store.Root + '\0' + id + '\0' + gpu, _ => new(store.Root, id, gpu));
+        return Entries.GetOrAdd(store.Root + '\0' + id, _ => new(store.Root, id));
     }
     public static ModelRuntimeStatus Status(string root, string id) => Entries.Values
         .Where(entry => BatchRename.PathComparer.Equals(entry.Root, root) && entry.Id == id)
@@ -53,10 +52,10 @@ public static class LocalSummaryModelCache
         BatchRename.PathComparer.Equals(root, entry.Root) && (entry.Id == id || id == ModelCatalog.SummaryRuntimeId)
         && Volatile.Read(ref entry.Idle) is not null && entry.Status.State is ModelLoadState.Ready or ModelLoadState.InUse);
 
-    public static async Task WarmAsync(ModelStore store, string id, bool gpu, LocalModelWarmupBudget budget, CancellationToken ct,
+    public static async Task WarmAsync(ModelStore store, string id, LocalModelWarmupBudget budget, CancellationToken ct,
         Func<CancellationToken, Task<byte[]>>? sample = null)
     {
-        var entry = Get(store, id, gpu);
+        var entry = Get(store, id);
         if (!await store.IsInstalledAsync(id, ct: ct).ConfigureAwait(false)
             || !await store.IsInstalledAsync(ModelCatalog.SummaryRuntimeId, ct: ct).ConfigureAwait(false)) return;
         await BackgroundGate.WaitAsync(ct).ConfigureAwait(false);
@@ -90,7 +89,7 @@ public static class LocalSummaryModelCache
                             entry.Progress(new("预热计算图"));
                             await model.WarmAsync(ct, image).ConfigureAwait(false);
                             entry.Progress(new("调整后台节奏"));
-                            await budget.PaceAsync(started, gpu, ct).ConfigureAwait(false);
+                            await budget.PaceAsync(started, model.Backend != "CPU", ct).ConfigureAwait(false);
                         }
                     }
                 }
@@ -112,12 +111,12 @@ public static class LocalSummaryModelCache
         finally { BackgroundGate.Release(); }
     }
 
-    public static async Task<ISummaryToolModel> AcquireAsync(ModelStore store, string id, bool gpu, CancellationToken ct,
+    public static async Task<ISummaryToolModel> AcquireAsync(ModelStore store, string id, CancellationToken ct,
         Action<string>? status = null)
     {
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         using var pauseBoundary = JobExecutionControl.DeferPause();
-        var entry = Get(store, id, gpu);
+        var entry = Get(store, id);
         foreach (var pending in Entries.Values.Where(pending => BatchRename.PathComparer.Equals(pending.Root, store.Root)))
             pending.Budget?.Promote();
         LocalSummaryModel? model;
@@ -155,7 +154,7 @@ public static class LocalSummaryModelCache
     }
     private static async Task<LocalSummaryModel> StartAsync(ModelStore store, Entry entry, CancellationToken ct, Action<string>? status = null)
     {
-        var model = await LocalSummaryModel.StartAsync(store, entry.Id, entry.Gpu, ct, status, entry.Progress).ConfigureAwait(false);
+        var model = await LocalSummaryModel.StartAsync(store, entry.Id, ct, status, entry.Progress).ConfigureAwait(false);
         return model;
     }
     private sealed class Lease(Entry entry, LocalSummaryModel model, int revision, string stamp) : ISummaryToolModel

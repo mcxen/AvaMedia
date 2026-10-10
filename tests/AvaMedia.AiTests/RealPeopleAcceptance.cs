@@ -36,7 +36,7 @@ internal static class RealPeopleAcceptance
         }
         var updates = new List<MediaTagProgress>();
         var engine = new MediaEngine(settings);
-        var options = new MediaTagOptions(VideoFrames: 8, PreferGpu: false) { RealPeopleOnly = true, RecognizeNsfw = true };
+        var options = new MediaTagOptions(VideoFrames: 8) { RealPeopleOnly = true, RecognizeNsfw = true };
         var results = await new MediaTagService(engine, store).AnalyzeAsync(paths.Values, options,
             new InlineProgress<MediaTagProgress>(updates.Add));
         Check(results.Count == fixtures.Length && updates.All(value => value.Error is null), "生产抽帧及双模型实际推理");

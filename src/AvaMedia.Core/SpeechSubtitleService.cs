@@ -116,12 +116,6 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 cues = await Task.Run(async () =>
                 {
                     activity.Stage("加载语音模型");
-                    using var factory = WhisperFactory.FromPath(model!);
-                    using var vadFactory = WhisperVadFactory.FromPath(SpeechAssets.EnsureVadModel());
-                    using var vad = vadFactory.CreateBuilder().WithUseGpu(false)
-                        .WithThreads(engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 4) : 1).WithThreshold(.5f)
-                        .WithMinSpeechDuration(TimeSpan.FromMilliseconds(250)).WithMinSilenceDuration(TimeSpan.FromMilliseconds(150))
-                        .WithSpeechPadding(TimeSpan.FromMilliseconds(100)).Build();
                     activity.Node("语音识别");
                     double chunkBegin = 0, chunkEnd = 0, recognized = 0;
                     var recognitionProgressGate = new object();
@@ -134,12 +128,19 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                             progress(15 + 60 * recognized / duration);
                         }
                     }
-                    var builder = factory.CreateBuilder().WithLanguage(speech.Language).WithNoContext()
-                        .WithProgressHandler(percent => Recognized(chunkBegin + (chunkEnd - chunkBegin) * Math.Clamp(percent, 0, 100) / 100d))
-                        .WithThreads(Math.Clamp(engine.Settings.MultiThread ? engine.Settings.CpuThreads : 1, 1, 8))
-                        .WithNoSpeechThreshold(.6f).WithTokenTimestamps().WithMaxSegmentLength(42);
-                    if (speech.Language == "zh") builder.WithPrompt("以下是简体中文普通话的转录。");
-                    using var processor = builder.Build();
+                    using var inference = new SpeechInferenceSession(model!, factory =>
+                    {
+                        var builder = factory.CreateBuilder().WithLanguage(speech.Language).WithNoContext()
+                            .WithProgressHandler(percent => Recognized(chunkBegin + (chunkEnd - chunkBegin) * Math.Clamp(percent, 0, 100) / 100d))
+                            .WithThreads(Math.Clamp(engine.Settings.MultiThread ? engine.Settings.CpuThreads : 1, 1, 8))
+                            .WithNoSpeechThreshold(.6f).WithTokenTimestamps().WithMaxSegmentLength(42);
+                        if (speech.Language == "zh") builder.WithPrompt("以下是简体中文普通话的转录。");
+                        return builder.Build();
+                    }, engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 4) : 1, (backend, reason) =>
+                    {
+                        activity.Backend(backend);
+                        if (reason is not null) { job.AppendLog(reason); activity.Stage("语音模型回退 CPU", detail: reason); }
+                    });
                     var result = new List<SubtitleCue>();
                     var wav = Path.Combine(temporary, "speech.wav");
                     var regionWav = Path.Combine(temporary, "speech-region.wav");
@@ -158,7 +159,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         activity.Stage("检测语音", detail: $"{MediaTime.Format(begin)} – {MediaTime.Format(end)}");
                         IReadOnlyList<VadSegmentData> speechSegments;
                         await using (var detectionAudio = File.OpenRead(wav))
-                            speechSegments = await vad.DetectSpeechAsync(detectionAudio, ct).ConfigureAwait(false);
+                            speechSegments = await inference.DetectSpeechAsync(detectionAudio, ct).ConfigureAwait(false);
                         if (speechSegments.Count == 0)
                         {
                             activity.Result($"{MediaTime.Format(begin)} – {MediaTime.Format(end)} · 未检测到语音", result.Count);
@@ -179,7 +180,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                             if (prepared.ExitCode != 0) throw new InvalidDataException("提取语音区间失败。\n" + prepared.Error);
                             chunkBegin = begin + regionStart; chunkEnd = begin + regionStop;
                             await using var audio = File.OpenRead(regionWav);
-                            await foreach (var segment in processor.ProcessAsync(audio, ct).ConfigureAwait(false))
+                            await foreach (var segment in inference.ProcessAsync(audio, ct).ConfigureAwait(false))
                             {
                                 var text = segment.Text.Trim();
                                 var start = Math.Max(chunkBegin, chunkBegin + segment.Start.TotalSeconds);

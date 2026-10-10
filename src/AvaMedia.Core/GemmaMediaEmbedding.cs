@@ -36,13 +36,13 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
         _imageToken = tokenizer.TokenId("<|image|>"); _imageStart = tokenizer.TokenId("<|image>"); _imageEnd = tokenizer.TokenId("<image|>");
     }
 
-    public static Task<GemmaMediaEmbedding> StartAsync(ModelStore store, CancellationToken ct, bool preferGpu = true, Action<string>? status = null)
-        => LoadAsync(() => store.AcquireAsync(ModelCatalog.EmbeddingId, ct), ct, preferGpu, status, ownsModel: true);
+    public static Task<GemmaMediaEmbedding> StartAsync(ModelStore store, CancellationToken ct, Action<string>? status = null)
+        => LoadAsync(() => store.AcquireAsync(ModelCatalog.EmbeddingId, ct), ct, status, ownsModel: true);
 
-    internal static Task<GemmaMediaEmbedding> StartCachedAsync(ModelLease model, CancellationToken ct, bool preferGpu, Action<string>? status)
-        => LoadAsync(() => Task.FromResult(model), ct, preferGpu, status, ownsModel: false);
+    internal static Task<GemmaMediaEmbedding> StartCachedAsync(ModelLease model, CancellationToken ct, Action<string>? status)
+        => LoadAsync(() => Task.FromResult(model), ct, status, ownsModel: false);
 
-    private static Task<GemmaMediaEmbedding> LoadAsync(Func<Task<ModelLease>> acquire, CancellationToken ct, bool preferGpu,
+    private static Task<GemmaMediaEmbedding> LoadAsync(Func<Task<ModelLease>> acquire, CancellationToken ct,
         Action<string>? status, bool ownsModel)
         => Task.Run(async () =>
         {
@@ -56,7 +56,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                 ct.ThrowIfCancellationRequested();
                 status?.Invoke("加载嵌入模型");
                 string? fallback = null; var backend = "CPU";
-                if (preferGpu && AcceleratedOptions() is { } accelerated)
+                if (AcceleratedOptions() is { } accelerated)
                 {
                     try
                     {
@@ -70,7 +70,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                     catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or DllNotFoundException or EntryPointNotFoundException)
                     { vision?.Dispose(); text?.Dispose(); vision = text = null; fallback = error.Message; }
                 }
-                else if (preferGpu) fallback = OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
+                else fallback = OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
                     : OperatingSystem.IsMacOS() ? "Core ML execution provider is unavailable." : "No supported GPU execution provider on this platform.";
                 if (vision is null || text is null)
                 {
@@ -242,7 +242,9 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                     // Accelerated providers may reject quantized contrib ops at run time; continue on CPU.
                     using var options = CpuOptions();
                     var vision = new InferenceSession(Path.Combine(_model.Directory, ModelCatalog.GemmaVisionFile), options);
-                    var text = new InferenceSession(Path.Combine(_model.Directory, ModelCatalog.GemmaTextFile), options);
+                    InferenceSession text;
+                    try { text = new(Path.Combine(_model.Directory, ModelCatalog.GemmaTextFile), options); }
+                    catch { vision.Dispose(); throw; }
                     _vision.Dispose(); _text.Dispose(); _vision = vision; _text = text;
                     Volatile.Write(ref _backend, "CPU"); FallbackReason = error.Message;
                     return run();

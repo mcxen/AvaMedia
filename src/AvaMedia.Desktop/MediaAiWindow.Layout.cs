@@ -129,12 +129,11 @@ public sealed partial class MediaAiWindow
         _settingsPanel.Children.Add(_librarySummary);
         _settingsPanel.Children.Add(_realPeople);
         _settingsPanel.Children.Add(WorkbenchActions(_generateCaptions, Ui.Button("描述设置…", async () => await OpenCaptionSettingsAsync())));
-        _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_gpu); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
+        _settingsPanel.Children.Add(_sceneTags); _settingsPanel.Children.Add(_reuse); _settingsPanel.Children.Add(_recursive); _settingsPanel.Children.Add(_showScores); _settingsPanel.Children.Add(_onlyLibrary);
 
         _generateCaptions.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
         _realPeople.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RefreshDisplayedResults(); await RefreshModelAsync(); } };
         _sceneTags.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) { RenderSelectedResult(); await RefreshModelAsync(); } };
-        _gpu.IsCheckedChanged += async (_, _) => { if (!_closed && !_busy) await RefreshModelAsync(); };
         _showScores.IsCheckedChanged += (_, _) => RenderSelectedResult();
         _onlyLibrary.IsCheckedChanged += (_, _) => RefreshDisplayedResults();
         _settingsPanel.Children.Add(Ui.Button("模型管理…", async () => await ManageModelsAsync(_settingsOwner ?? this)));

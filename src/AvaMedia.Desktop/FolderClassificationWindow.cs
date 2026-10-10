@@ -37,7 +37,6 @@ public sealed partial class FolderClassificationWindow : Window
         public bool Recursive { get; set; } = true;
         public bool SplitTypes { get; set; } = true;
         public bool WriteText { get; set; } = true;
-        public bool PreferGpu { get; set; }
         public int VideoFrames { get; set; } = 12;
         public decimal TagThreshold { get; set; } = .5m;
         public string? LastJournal { get; set; }
@@ -93,7 +92,7 @@ public sealed partial class FolderClassificationWindow : Window
             if (RuleVisible(rule)) _rules.Add(rule); else _disabledNsfwRules.Add(rule);
         foreach (var rule in saved.SavedRules) _savedRules.Add(rule);
         _output.Text = saved.OutputFolder; _recursive.IsChecked = saved.Recursive;
-        _splitTypes.IsChecked = saved.SplitTypes; _writeText.IsChecked = saved.WriteText; _gpu.IsChecked = saved.PreferGpu;
+        _splitTypes.IsChecked = saved.SplitTypes; _writeText.IsChecked = saved.WriteText;
         _frames.Value = Math.Clamp(saved.VideoFrames, 1, 32); _tagThreshold.Value = Math.Clamp(saved.TagThreshold, 0, 1);
         _lastJournal = saved.LastJournal;
     }
@@ -103,7 +102,7 @@ public sealed partial class FolderClassificationWindow : Window
     {
         SceneRules = defaultRules ?? _defaultRules, SavedRules = savedRules ?? _savedRules.ToArray(),
         OutputFolder = _output.Text ?? "", Recursive = _recursive.IsChecked == true,
-        SplitTypes = _splitTypes.IsChecked == true, WriteText = _writeText.IsChecked == true, PreferGpu = _gpu.IsChecked == true,
+        SplitTypes = _splitTypes.IsChecked == true, WriteText = _writeText.IsChecked == true,
         VideoFrames = (int)(_frames.Value ?? 12), TagThreshold = _tagThreshold.Value ?? .5m, LastJournal = _lastJournal
     });
 

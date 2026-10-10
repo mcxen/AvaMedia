@@ -45,21 +45,21 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         Live.TryAdd(this, 0);
     }
 
-    public static async Task<LocalSummaryModel> StartAsync(ModelStore store, string id, bool preferGpu, CancellationToken ct,
+    public static async Task<LocalSummaryModel> StartAsync(ModelStore store, string id, CancellationToken ct,
         Action<string>? status = null, Action<ModelPreparationProgress>? preparation = null)
     {
         try
         {
-            try { return await StartCoreAsync(store, id, preferGpu, ct, status, preparation).ConfigureAwait(false); }
-            catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
+            try { return await StartCoreAsync(store, id, true, ct, status, preparation).ConfigureAwait(false); }
+            catch (Exception error) when (!ct.IsCancellationRequested
                 && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
             {
-                status?.Invoke("GPU 启动未成功，切换 CPU");
+                status?.Invoke("GPU 启动未成功，切换 CPU：" + error.Message);
                 return await StartCoreAsync(store, id, false, ct, status, preparation).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        { throw new InvalidOperationException("本地总结模型启动超时，请关闭其他模型任务或改用 CPU。"); }
+        { throw new InvalidOperationException("本地总结模型启动超时，请关闭其他模型任务后重试。"); }
     }
 
     private static async Task<LocalSummaryModel> StartCoreAsync(ModelStore store, string id, bool gpu, CancellationToken ct, Action<string>? status,
@@ -182,7 +182,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         {
             // With empty warm-up disabled, validate the GPU on useful input and retry that input once on CPU.
             _retriedGpu = true;
-            _status?.Invoke("GPU 推理未成功，切换 CPU");
+            _status?.Invoke("GPU 推理未成功，切换 CPU：" + error.Message);
             await ReleaseProcessAsync().ConfigureAwait(false);
             _cpuFallback = await StartCoreAsync(_store, _id, false, ct, _status).ConfigureAwait(false);
             return await _cpuFallback.SendAsync(request, ct).ConfigureAwait(false);

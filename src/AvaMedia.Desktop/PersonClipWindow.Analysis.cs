@@ -15,7 +15,7 @@ public sealed partial class PersonClipWindow
     private bool _busy;
 
     private PersonClipOptions ReadDetection() => new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum),
-        _uncertain.IsChecked == true, _embedding.IsChecked == true, _gpu.IsChecked == true, _reuseFrames.IsChecked == true,
+        _uncertain.IsChecked == true, _embedding.IsChecked == true, _reuseFrames.IsChecked == true,
         SelectedDetectors, (PersonDetectionMode)_detectionMode.SelectedIndex, SkipDarkFrames: _dark.IsChecked == true,
         SkipBlankFrames: _blank.IsChecked == true, DarkLumaThreshold: Value(_darkThreshold));
 

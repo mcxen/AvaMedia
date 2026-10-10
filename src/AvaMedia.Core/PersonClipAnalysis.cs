@@ -5,7 +5,7 @@ namespace AvaMedia.Core;
 
 public sealed record PersonClipOptions(double FramesPerSecond = 2, double Threshold = .35,
     double PaddingSeconds = .5, double MergeGapSeconds = 1, double MinimumSeconds = .5,
-    bool KeepUncertain = false, bool UseEmbedding = false, bool PreferGpu = true, bool ReuseSimilarFrames = true,
+    bool KeepUncertain = false, bool UseEmbedding = false, bool ReuseSimilarFrames = true,
     string[]? DetectorIds = null, PersonDetectionMode DetectionMode = PersonDetectionMode.Balanced,
     PersonClipRange[]? ExcludedRanges = null, bool SkipDarkFrames = true, bool SkipBlankFrames = true, double DarkLumaThreshold = 8)
 {
@@ -98,7 +98,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var bounds = PersonFrameBounds.From(info, size);
         activity.Node("人物检测");
         activity.Backend(detectors.Backend);
-        await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, options.PreferGpu, stage => activity.Stage(stage)) : null;
+        await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, stage => activity.Stage(stage)) : null;
         var samples = new List<PersonFrame>();
         byte[]? reference = null;
         PersonFrame? previous = null;

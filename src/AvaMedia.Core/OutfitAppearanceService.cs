@@ -26,12 +26,23 @@ public sealed class OutfitAppearanceService : IDisposable
         _engine = engine; _lease = lease; _featureLease = featureLease;
         try
         {
-            _session = new(Path.Combine(lease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitId).Files[0].Sha256, false, 1);
-            try { _features = new(Path.Combine(featureLease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitFeaturesId).Files[0].Sha256, false, 1); }
+            _session = new(Path.Combine(lease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitId).Files[0].Sha256, 1);
+            try { _features = new(Path.Combine(featureLease.Directory, ModelCatalog.OutfitFile), ModelCatalog.Find(ModelCatalog.OutfitFeaturesId).Files[0].Sha256, 1); }
             catch { _session.Dispose(); throw; }
         }
         catch { lease.Dispose(); featureLease.Dispose(); throw; }
     }
+    public string Backend => $"MediaPipe: {_session.Backend} · DINOv2: {_features.Backend}";
+    public string? FallbackReason
+    {
+        get
+        {
+            var reasons = new[] { _session.FallbackReason is { } mask ? "MediaPipe: " + mask : null,
+                _features.FallbackReason is { } features ? "DINOv2: " + features : null }.OfType<string>().ToArray();
+            return reasons.Length == 0 ? null : string.Join(" · ", reasons);
+        }
+    }
+
     public static async Task<OutfitAppearanceService> CreateAsync(IMediaEngine engine, ModelStore store, CancellationToken ct)
     {
         var lease = await store.AcquireAsync(ModelCatalog.OutfitId, ct).ConfigureAwait(false);
@@ -64,7 +75,7 @@ public sealed class OutfitAppearanceService : IDisposable
             frames.Add(Predict(image, time, ct)); progress?.Invoke(frames.Count, times.Length);
         }
         MediaTagService.ValidateSource(media);
-        return media with { OutfitFrames = frames };
+        return media with { OutfitFrames = frames, OutfitBackend = Backend, OutfitFallbackReason = FallbackReason };
     }
 
     private OutfitAppearanceFrame Predict(byte[] encoded, double seconds, CancellationToken ct)

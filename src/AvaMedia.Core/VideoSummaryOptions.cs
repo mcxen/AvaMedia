@@ -30,7 +30,6 @@ public sealed class VideoSummaryOptions
     public string OutputLanguage { get; set; } = "简体中文";
     public string Focus { get; set; } = "";
     public int ChunkCharacters { get; set; } = 2400;
-    public bool PreferGpu { get; set; } = true;
     public bool NeedsAi => ExtractAbstract || SummarizeContent || AnalyzeContent;
 
     public VideoSummaryOptions Clone()

@@ -25,7 +25,6 @@ internal static class MediaTagModelCache
         public RealNsfwClassifier? Nsfw;
         public GemmaMediaEmbedding? Embedding;
         public string? SemanticError;
-        public bool? PreferGpu;
         public int BatchSize;
         public readonly ConcurrentDictionary<string, ModelRuntimeStatus> States = new();
         public DateTime LastUsedUtc = DateTime.UtcNow;
@@ -58,7 +57,7 @@ internal static class MediaTagModelCache
             Tags?.Dispose(); Tags = null; Vocabulary = [];
             Nsfw?.Dispose(); Nsfw = null;
             if (Embedding is { } embedding) { Embedding = null; await embedding.DisposeAsync().ConfigureAwait(false); }
-            Stamps.Clear(); PreferGpu = null; SemanticError = null;
+            Stamps.Clear(); SemanticError = null;
             foreach (var id in States.Keys.Where(id => States[id].State != ModelLoadState.Failed))
                 State(id, ModelLoadState.Unloaded);
         }
@@ -152,10 +151,10 @@ internal static class MediaTagModelCache
         try
         {
             entry.CancelExpiration();
-            if (entry.PreferGpu != options.PreferGpu || entry.BatchSize != options.BatchSize
+            if (entry.BatchSize != options.BatchSize
                 || entry.Stamps.Any(item => item.Value != Stamp(store, item.Key)))
                 await entry.ClearAsync().ConfigureAwait(false);
-            entry.PreferGpu = options.PreferGpu; entry.BatchSize = options.BatchSize;
+            entry.BatchSize = options.BatchSize;
             entry.SemanticError = null;
             async Task<ModelLease> AcquireFile(string id)
             {
@@ -173,7 +172,7 @@ internal static class MediaTagModelCache
                     .Where(tag => !string.IsNullOrWhiteSpace(tag)).ToArray();
                 if (entry.Vocabulary.Length != 5813) throw new InvalidDataException("模型标签文件无效，请重新下载 JoyTag。");
                 entry.Tags = new(Path.Combine(tags.Directory, ModelCatalog.JoyTagFile), ModelCatalog.Find(ModelCatalog.JoyTagId).Files[0].Sha256,
-                    options.PreferGpu, options.BatchSize);
+                    options.BatchSize);
                 ct.ThrowIfCancellationRequested();
                 if (preparing)
                 {
@@ -189,7 +188,7 @@ internal static class MediaTagModelCache
                 var nsfw = await AcquireFile(ModelCatalog.NsfwId).ConfigureAwait(false);
                 if (entry.Nsfw is null)
                 {
-                    entry.Nsfw = new(nsfw.Directory, options.PreferGpu);
+                    entry.Nsfw = new(nsfw.Directory);
                     ct.ThrowIfCancellationRequested();
                     if (preparing)
                     {
@@ -208,7 +207,7 @@ internal static class MediaTagModelCache
                     var embedding = await AcquireFile(ModelCatalog.EmbeddingId).ConfigureAwait(false);
                     if (entry.Embedding is null)
                     {
-                        entry.Embedding = await GemmaMediaEmbedding.StartCachedAsync(embedding, ct, options.PreferGpu, status).ConfigureAwait(false);
+                        entry.Embedding = await GemmaMediaEmbedding.StartCachedAsync(embedding, ct, status).ConfigureAwait(false);
                         if (preparing)
                         {
                             entry.State(ModelCatalog.EmbeddingId, ModelLoadState.Warming, entry.Embedding.Backend);

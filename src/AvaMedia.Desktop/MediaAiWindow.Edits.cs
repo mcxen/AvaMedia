@@ -7,14 +7,14 @@ namespace AvaMedia.Desktop;
 public sealed partial class MediaAiWindow
 {
     private readonly Dictionary<string, ResultTag[]> _editedTags = new(BatchRename.PathComparer);
-    private sealed record Preferences(decimal Threshold, decimal Frames, bool Gpu, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = false, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false, bool RealPeople = true,
+    private sealed record Preferences(decimal Threshold, decimal Frames, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = false, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false, bool RealPeople = true,
         string? CaptionSystemPrompt = null, string? CaptionPrompt = null, bool CaptionUseFrameTools = true,
         string? CaptionLocalModelId = ModelCatalog.SummaryQwen35Id);
     private void LoadPreferences()
     {
         if(_storage.LoadToolOptions<Preferences>("media-ai") is not {} saved) return;
         _threshold.Value = Math.Clamp(saved.Threshold, .05m, .95m); _frames.Value = Math.Clamp(saved.Frames, 1, 32);
-        _gpu.IsChecked = saved.Gpu; _reuse.IsChecked = saved.Reuse; _recursive.IsChecked = saved.Recursive;
+        _reuse.IsChecked = saved.Reuse; _recursive.IsChecked = saved.Recursive;
         _showScores.IsChecked = saved.Scores; _onlyLibrary.IsChecked = saved.OnlyLibrary;
         _sceneTags.IsChecked = saved.RecognizeScenes;
         _sceneThreshold.Value = Math.Clamp(saved.SceneThreshold, .05, .95); _sceneMargin.Value = Math.Clamp(saved.SceneMargin, 0, .5m);
@@ -25,7 +25,7 @@ public sealed partial class MediaAiWindow
         _captionLocalModelId = saved.CaptionLocalModelId;
     }
     private void SavePreferences() => _storage.SaveToolOptions("media-ai", new Preferences(_threshold.Value ?? .4m, _frames.Value ?? 8,
-        _gpu.IsChecked == true, _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true, _sceneTags.IsChecked == true, _sceneThreshold.Value, _sceneMargin.Value ?? .03m, _scoreMode.SelectedIndex, _autoTxt.IsChecked == true, _generateCaptions.IsChecked == true, _realPeople.IsChecked == true,
+        _reuse.IsChecked == true, _recursive.IsChecked == true, _showScores.IsChecked == true, _onlyLibrary.IsChecked == true, _sceneTags.IsChecked == true, _sceneThreshold.Value, _sceneMargin.Value ?? .03m, _scoreMode.SelectedIndex, _autoTxt.IsChecked == true, _generateCaptions.IsChecked == true, _realPeople.IsChecked == true,
         _captionSystemPrompt, _captionPrompt, _captionUseFrameTools, _captionLocalModelId));
     private async Task EditTagsAsync(MediaTagResult result)
     {

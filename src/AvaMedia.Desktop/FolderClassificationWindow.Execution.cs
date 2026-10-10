@@ -18,7 +18,7 @@ public sealed partial class FolderClassificationWindow
         try
         {
             var rules = _rules.ToArray(); FolderClassification.ValidateRules(rules);
-            var options = new MediaTagOptions((int)(_frames.Value ?? 12), _gpu.IsChecked == true)
+            var options = new MediaTagOptions((int)(_frames.Value ?? 12))
             { SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
             options.Validate();
             var downloadSemantic = options.NeedsSemanticModel && !await SemanticModelConsent.IsInstalledAsync(preparation.Token);

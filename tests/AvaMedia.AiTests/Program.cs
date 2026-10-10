@@ -65,7 +65,7 @@ internal static class Program
                 }
                 var keywords = WordLibraryCatalog.BuiltIns.Single(library => library.Id == "common").Entries.Take(33)
                     .Select(word => new SemanticKeyword(word.Label, word.Description)).Append(new("长描述", new string('景', 500))).ToArray();
-                await using (var matcher = await MediaKeywordMatcher.CreateAsync(engine, keywords, store, preferGpu: true,
+                await using (var matcher = await MediaKeywordMatcher.CreateAsync(engine, keywords, store,
                     progress: new InlineProgress<AiActivity>(activities.Add)))
                 {
                     var result = await matcher.MatchAsync(paths.Single(path => Path.GetFileNameWithoutExtension(path) == "V01"), new(Frames: 4),
@@ -85,22 +85,19 @@ internal static class Program
                 Libraries();
                 Check(new MediaFileRouter().Routes([new(paths[0], MediaFileKind.Image)]).All(route => !Catalog.IsBeta(route.Feature)), "Beta hidden");
                 Check(new MediaFileRouter(true).Routes([new(paths[0], MediaFileKind.Image)]).Any(route => route.Feature.Id == "media-ai"), "Beta available");
-                List<MediaTagResult>? cpu = null;
-                foreach (var gpu in new[] { false, true })
+                List<MediaTagResult> analyzed;
                 {
                     var updates = new List<MediaTagProgress>(); var watch = Stopwatch.StartNew();
-                    var result = (await new MediaTagService(engine, store).AnalyzeAsync(paths, new(PreferGpu: gpu), new InlineProgress<MediaTagProgress>(updates.Add))).ToList();
-                    Check(result.Count == paths.Length && updates.All(value => value.Error is null), $"tag analysis gpu={gpu}");
+                    var result = (await new MediaTagService(engine, store).AnalyzeAsync(paths, new(), new InlineProgress<MediaTagProgress>(updates.Add))).ToList();
+                    Check(result.Count == paths.Length && updates.All(value => value.Error is null), "tag analysis");
                     Check(result.All(value => value.Scores.Count == 5813 && value.Scores.All(score => double.IsFinite(score.Score))), "fixed model vocabulary");
                     Check(result.All(value => value.SampledFrames <= 8 && value.InferredFrames <= value.SampledFrames), "bounded video sampling");
                     Check(updates.Any(value => value.Activity?.Preview is { Length: > 0 }) && updates.Any(value => value.Activity?.RecentResults.Length > 0), "tag progress and intermediate results");
-                    if (gpu && OperatingSystem.IsMacOS()) Check(result.All(value => value.Backend.Contains("Core ML") && value.FallbackReason is null), "Core ML session succeeds");
-                    if (cpu is not null) Check(result.Zip(cpu).All(pair => pair.First.Scores.Zip(pair.Second.Scores).Max(score => Math.Abs(score.First.Score - score.Second.Score)) < .01), "CPU and Core ML score tolerance");
-                    else cpu = result;
-                    report.Add(new { Gpu = gpu, Seconds = watch.Elapsed.TotalSeconds, Results = result.Select(value => new { File = Path.GetFileName(value.Path), value.Backend, value.FallbackReason, value.SampledFrames, value.InferredFrames }) });
+                    analyzed = result;
+                    report.Add(new { Seconds = watch.Elapsed.TotalSeconds, Results = result.Select(value => new { File = Path.GetFileName(value.Path), value.Backend, value.FallbackReason, value.SampledFrames, value.InferredFrames }) });
                 }
                 var query = MediaTagService.ParseQueries("黑长发，眼镜", WordLibraryCatalog.JoyTags);
-                var matches = cpu!.Where(value => MediaTagService.MatchLabel(value, query, .4).Length > 0).ToArray();
+                var matches = analyzed.Where(value => MediaTagService.MatchLabel(value, query, .4).Length > 0).ToArray();
                 Check(matches.Length > 0, "real candidate matches");
                 var before = matches.ToDictionary(value => value.Path, value => Hash(value.Path));
                 var plan = BatchRename.PreviewRename(matches.Select(value => value.Path), new("{keyword}_{index}"),

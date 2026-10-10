@@ -13,7 +13,6 @@ public sealed partial class RenameWindow
     private readonly TextBox _keywords = new() { AcceptsReturn = true, Height = 88, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         Watermark = Localization.Text("做饭，骑车，海边") };
     private readonly NumericUpDown _semanticFrames = SemanticNumber(1, 32, 8, 1);
-    private readonly CheckBox _semanticGpu = new() { Content = "自动适配 GPU", IsChecked = true };
     private readonly CheckBox _semanticReuse = new() { Content = "复用相似画面", IsChecked = true };
     private readonly NumericUpDown _semanticThreshold = SemanticNumber(0, 1, .55m, .05m);
     private readonly NumericUpDown _semanticMargin = SemanticNumber(0, 1, .03m, .01m);
@@ -29,7 +28,7 @@ public sealed partial class RenameWindow
     private string _keywordPattern = "{keyword}_{index}";
     private bool SemanticEnabled => _settings.EnableBetaFeatures == true && _semantic.IsChecked == true;
 
-    private sealed record SemanticPreferences(string Keywords,MediaKeywordOptions Options,bool PreferGpu);
+    private sealed record SemanticPreferences(string Keywords,MediaKeywordOptions Options);
     private void InitializeSemanticRename()
     {
         if (_settings.EnableBetaFeatures == true)
@@ -37,7 +36,7 @@ public sealed partial class RenameWindow
             if(new Storage().LoadToolOptions<SemanticPreferences>("semantic-rename") is {} saved)
             {
                 _keywords.Text=saved.Keywords;_semanticFrames.Value=saved.Options.Frames;_semanticThreshold.Value=(decimal)saved.Options.MinimumSimilarity;
-                _semanticMargin.Value=(decimal)saved.Options.MinimumMargin;_semanticReuse.IsChecked=saved.Options.ReuseSimilarFrames;_semanticGpu.IsChecked=saved.PreferGpu;
+                _semanticMargin.Value=(decimal)saved.Options.MinimumMargin;_semanticReuse.IsChecked=saved.Options.ReuseSimilarFrames;
             }
             foreach(var input in new[]{_semanticFrames,_semanticThreshold,_semanticMargin})input.Text=input.Value?.ToString(input.NumberFormat);
             _semanticPanel.IsVisible = true;
@@ -57,7 +56,7 @@ public sealed partial class RenameWindow
             AddRow(advanced, "每视频采样帧数", _semanticFrames);
             AddRow(advanced, "最低相似度", _semanticThreshold);
             AddRow(advanced, "关键词分差", _semanticMargin);
-            advanced.Children.Add(_semanticGpu); advanced.Children.Add(_semanticReuse);
+            advanced.Children.Add(_semanticReuse);
 
             _semanticParameters.Children.Add(new Expander { Header="高级设置", Content=advanced, HorizontalAlignment=HorizontalAlignment.Stretch });
             var models = Ui.Button("模型管理…", async () =>
@@ -130,9 +129,9 @@ public sealed partial class RenameWindow
         {
             if(download)
                 await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(value=>{if(!_closed)_progressText.Text=Localization.Text("下载语义模型")+$" · {value.Percent:0}%";}),operation.Token);
-            new Storage().SaveToolOptions("semantic-rename",new SemanticPreferences(_keywords.Text??"",options,_semanticGpu.IsChecked==true));
+            new Storage().SaveToolOptions("semantic-rename",new SemanticPreferences(_keywords.Text??"",options));
             var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) _semanticActivity.Update(activity); });
-            await using var matcher = await MediaKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, preferGpu: _semanticGpu.IsChecked == true, progress: modelProgress);
+            await using var matcher = await MediaKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, progress: modelProgress);
             for (var index = 0; index < selected.Length; index++)
             {
                 operation.Token.ThrowIfCancellationRequested();

@@ -39,7 +39,6 @@ public sealed partial class PersonClipWindow : Window
     private readonly NumericUpDown _darkThreshold = Number(1, 32, 8, 1);
     private readonly CheckBox _uncertain = new() { Content = "保留不确定片段" };
     private readonly CheckBox _embedding = new() { Content = "使用 EmbeddingGemma 2 语义辅助", IsEnabled = true };
-    private readonly CheckBox _gpu = new() { Content = "自动适配 GPU", IsChecked = true };
     private readonly CheckBox _reuseFrames = new() { Content = "复用相似画面", IsChecked = true };
     private readonly CheckBox _dark = new() { Content = "快速排除黑灯画面", IsChecked = true };
     private readonly CheckBox _blank = new() { Content = "快速排除无画面", IsChecked = true };
@@ -75,7 +74,6 @@ public sealed partial class PersonClipWindow : Window
         _padding.Value = (decimal)defaults.PaddingSeconds; _gap.Value = (decimal)defaults.MergeGapSeconds;
         _minimum.Value = (decimal)defaults.MinimumSeconds; _darkThreshold.Value = (decimal)defaults.DarkLumaThreshold;
         _uncertain.IsChecked = defaults.KeepUncertain; _embedding.IsChecked = defaults.UseEmbedding;
-        _gpu.IsChecked = initial is null ? settings.AutoDetectGpu : defaults.PreferGpu;
         _reuseFrames.IsChecked = defaults.ReuseSimilarFrames; _dark.IsChecked = defaults.SkipDarkFrames; _blank.IsChecked = defaults.SkipBlankFrames;
         _detectionMode.SelectedIndex = (int)defaults.DetectionMode;
         foreach (var input in new[] { _fps, _threshold, _padding, _gap, _minimum, _darkThreshold }) input.Text = input.Value?.ToString(input.NumberFormat);
@@ -113,7 +111,7 @@ public sealed partial class PersonClipWindow : Window
         parameters.Children.Add(_dark); AddField(parameters, "黑灯亮度阈值", _darkThreshold); parameters.Children.Add(_blank);
         _darkThreshold.IsEnabled = _dark.IsChecked == true;
         _dark.IsCheckedChanged += (_, _) => _darkThreshold.IsEnabled = _dark.IsChecked == true;
-        parameters.Children.Add(_uncertain); parameters.Children.Add(_embedding); parameters.Children.Add(_gpu); parameters.Children.Add(_reuseFrames); parameters.Children.Add(_modelStatus);
+        parameters.Children.Add(_uncertain); parameters.Children.Add(_embedding); parameters.Children.Add(_reuseFrames); parameters.Children.Add(_modelStatus);
         _advancedParameters = parameters;
         parameters.Children.Add(Ui.Button("模型管理…", async () => await OpenModelsAsync(null)));
         var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 12 };

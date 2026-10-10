@@ -55,7 +55,7 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
     }
 
     public static Task<MediaKeywordMatcher> CreateAsync(IMediaEngine engine, IReadOnlyList<SemanticKeyword> keywords,
-        ModelStore? store = null, CancellationToken ct = default, bool preferGpu = true, IProgress<AiActivity>? progress = null) => Task.Run(async () =>
+        ModelStore? store = null, CancellationToken ct = default, IProgress<AiActivity>? progress = null) => Task.Run(async () =>
     {
         var activity = new AiActivityReporter(value => progress?.Report(value), "Gemma · 媒体嵌入", nodes: ["准备语义模型", "编码关键词"]);
         var snapshot = keywords.ToArray();
@@ -67,7 +67,7 @@ public sealed class MediaKeywordMatcher : IAsyncDisposable
             if (!names.Add(keyword.Label) || string.IsNullOrWhiteSpace(keyword.Description) || keyword.Description.Length > 512)
                 throw new ArgumentException("候选名称重复或描述无效：" + keyword.Label);
         }
-        var embedding = await GemmaMediaEmbedding.StartAsync(store ?? new(), ct, preferGpu, stage => activity.Stage(stage)).ConfigureAwait(false);
+        var embedding = await GemmaMediaEmbedding.StartAsync(store ?? new(), ct, stage => activity.Stage(stage)).ConfigureAwait(false);
         try
         {
             var labels = new List<float[]>();

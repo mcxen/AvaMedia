@@ -366,7 +366,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         }
         await Task.WhenAll(EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct),
             EnsureModelAsync(id, activity, ct)).ConfigureAwait(false);
-        return await LocalSummaryModelCache.AcquireAsync(_models, id, options.PreferGpu, ct, stage => activity.Stage(stage)).ConfigureAwait(false);
+        return await LocalSummaryModelCache.AcquireAsync(_models, id, ct, stage => activity.Stage(stage)).ConfigureAwait(false);
     }
 
     private async Task EnsureModelAsync(string id, AiActivityReporter activity, CancellationToken ct)

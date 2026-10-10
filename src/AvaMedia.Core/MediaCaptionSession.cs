@@ -12,7 +12,7 @@ internal sealed class MediaCaptionSession(ModelStore store, OnlineAiSettings pro
         if (_model is null)
         {
             _model = options.CaptionLocalModelId is { } id
-                ? await LocalSummaryModelCache.AcquireAsync(store, id, options.PreferGpu, ct, status).ConfigureAwait(false)
+                ? await LocalSummaryModelCache.AcquireAsync(store, id, ct, status).ConfigureAwait(false)
                 : new OnlineSummaryModel(MediaCaptionService.PrepareProvider(providers.Resolve(options.CaptionProviderId)), vision: true);
         }
         backend(_model.Backend);

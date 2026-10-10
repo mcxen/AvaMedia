@@ -21,7 +21,7 @@ public sealed partial class MediaAiWindow
     {
         var local = _generateCaptions.IsChecked == true && _captionLocalModelId is not null;
         _captionRuntime.IsVisible = local;
-        _captionWarmup?.Update(local ? [_captionLocalModelId!] : [], _gpu.IsChecked == true,
+        _captionWarmup?.Update(local ? [_captionLocalModelId!] : [],
             _entries.FirstOrDefault(entry => entry.Include)?.Path);
     }
 

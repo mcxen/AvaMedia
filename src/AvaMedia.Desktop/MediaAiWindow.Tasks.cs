@@ -41,7 +41,7 @@ public sealed partial class MediaAiWindow
         _threshold.Value = (decimal)spec.Threshold; _threshold.Text = _threshold.Value?.ToString(_threshold.NumberFormat);
         _sceneThreshold.Value = spec.SceneThreshold; _sceneMargin.Value = (decimal)spec.SceneMargin;
         _frames.Value = spec.Analysis.VideoFrames; _frames.Text = _frames.Value?.ToString(_frames.NumberFormat);
-        _gpu.IsChecked = spec.Analysis.PreferGpu; _reuse.IsChecked = spec.Analysis.ReuseSimilarFrames;
+        _reuse.IsChecked = spec.Analysis.ReuseSimilarFrames;
         _sceneTags.IsChecked = spec.Analysis.RecognizeScenes; _realPeople.IsChecked = spec.Analysis.RealPeopleOnly;
         _generateCaptions.IsChecked = spec.Analysis.GenerateCaptions; _autoTxt.IsChecked = spec.WriteTextReport;
         _captionLocalModelId = spec.Analysis.CaptionLocalModelId; _captionPrompt = spec.Analysis.CaptionPrompt;

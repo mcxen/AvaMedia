@@ -83,7 +83,7 @@ internal static class Program
         var report = new List<object>();
         var all = PersonDetectorCatalog.All.Select(model => model.Id).ToArray();
         var options = new PersonClipOptions(PaddingSeconds: .1, MergeGapSeconds: .25, MinimumSeconds: .2,
-            PreferGpu: false, ReuseSimilarFrames: false);
+            ReuseSimilarFrames: false);
         foreach (var model in PersonDetectorCatalog.All.Where(_ => modeFilter == "core"))
         {
             var singleton = options with { DetectorIds = [model.Id] };
@@ -119,7 +119,7 @@ internal static class Program
         }
         if (modeFilter != "core") return;
         var lightweight = await new PersonClipAnalysis(engine, store).AnalyzeAsync(Fixture,
-            options with { PreferGpu = true, ReuseSimilarFrames = true });
+            options with { ReuseSimilarFrames = true });
         Check(lightweight.Detectors.Count == 2 && lightweight.Detectors.All(model => model.Evaluations > 0)
             && lightweight.Segments.Count == 2, "default lightweight combination and acceleration/fallback");
         report.Add(new { Case = "LightweightGPU", Result = lightweight });
@@ -202,7 +202,7 @@ public sealed class PersonTestApp : Application
             {
                 try
                 {
-                    var window = new PersonClipWindow(new MediaEngine(Program.Settings), Program.Settings, [Program.Fixture], _ => Task.CompletedTask);
+                    var window = new PersonClipWindow(new MediaEngine(Program.Settings), Program.Settings, [Program.Fixture], (_, _) => Task.CompletedTask);
                     var dialog = window.ShowDialog<IReadOnlyList<ClipEditResult>?>(owner);
                     await WaitAsync(() => FindButton("AnalyzePersonClips").IsEnabled);
                     var models = window.GetVisualDescendants().OfType<CheckBox>().Where(control => control.Name?.StartsWith("Detector_") == true).ToArray();

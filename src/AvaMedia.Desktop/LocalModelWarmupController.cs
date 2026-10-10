@@ -13,7 +13,7 @@ internal sealed class LocalModelWarmupController
     private CancellationTokenSource? _request;
     private string[] _ids = [];
     private string? _source;
-    private bool _gpu, _opened, _closed, _handoff;
+    private bool _opened, _closed, _handoff;
     private string _plan = "";
     private bool _selectionPrepared;
     private bool _stopped, _manual;
@@ -38,15 +38,15 @@ internal sealed class LocalModelWarmupController
         Stop(); _manual = true; _stopped = false; _selectionPrepared = false; Error = null; Start();
     }
     public void RefreshModels() { _selectionPrepared = false; if (_opened) Start(); }
-    public void Update(IEnumerable<string> ids, bool gpu, string? source)
+    public void Update(IEnumerable<string> ids, string? source)
     {
         if (_closed) return;
         var needed = ids.Distinct().Where(ModelCatalog.RequiresSummaryRuntime).ToArray();
-        var plan = string.Join('|', needed) + "|" + gpu;
+        var plan = string.Join('|', needed);
         _source = source; _budget.SelectMedia(source is not null);
         if (plan != _plan)
         {
-            _plan = plan; _ids = needed; _gpu = gpu; _selectionPrepared = false; _stopped = _manual = _handoff = false; Error = null;
+            _plan = plan; _ids = needed; _selectionPrepared = false; _stopped = _manual = _handoff = false; Error = null;
             _request?.Cancel(); _request = null;
         }
         if (_opened) Start();
@@ -58,10 +58,10 @@ internal sealed class LocalModelWarmupController
         if (_selectionPrepared) return;
         var request = new CancellationTokenSource(); _request = request;
         Changed?.Invoke();
-        var ids = _ids; var gpu = _gpu;
-        _ = RunAsync(ids, gpu, request);
+        var ids = _ids;
+        _ = RunAsync(ids, request);
     }
-    private async Task RunAsync(string[] ids, bool gpu, CancellationTokenSource request)
+    private async Task RunAsync(string[] ids, CancellationTokenSource request)
     {
         var selected = false;
         try
@@ -69,14 +69,14 @@ internal sealed class LocalModelWarmupController
             await Task.Run(async () =>
             {
                 foreach (var id in ids)
-                    await LocalSummaryModelCache.WarmAsync(_store, id, gpu, _budget, request.Token).ConfigureAwait(false);
+                    await LocalSummaryModelCache.WarmAsync(_store, id, _budget, request.Token).ConfigureAwait(false);
             }, request.Token);
             if (_request != request || _closed) return;
             if (_source is { } source)
             {
                 selected = true;
                 foreach (var id in ids.Where(ModelCatalog.IsSummaryVision))
-                    await Task.Run(() => LocalSummaryModelCache.WarmAsync(_store, id, gpu, _budget, request.Token,
+                    await Task.Run(() => LocalSummaryModelCache.WarmAsync(_store, id, _budget, request.Token,
                         token => _engine.Thumbnail(source, 0, 768, 768, token, pad: false)), request.Token);
             }
         }

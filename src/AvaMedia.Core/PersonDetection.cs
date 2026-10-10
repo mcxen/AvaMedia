@@ -6,10 +6,7 @@ namespace AvaMedia.Core;
 public enum PersonDetectionMode { Balanced, Recall, Consensus }
 public sealed record PersonDetectorDefinition(string Id, string Name, int InputSize);
 public sealed record PersonDetectionEvidence(string Id, double Score, double Threshold, string Backend);
-public sealed record PersonDetectorStatistics(string Id, string Name, int Evaluations, int PositiveFrames, string Backend, string? FallbackReason)
-{
-    public string? BackendSelectionReason { get; init; }
-}
+public sealed record PersonDetectorStatistics(string Id, string Name, int Evaluations, int PositiveFrames, string Backend, string? FallbackReason);
 public sealed record PersonDetectionDecision(bool Keep, bool Uncertain, int Votes);
 
 public static class PersonDetectorCatalog
@@ -54,7 +51,6 @@ internal sealed class PersonDetectorSet : IDisposable
         public ModelLease Lease { get; } = lease;
         public ModelInferenceSession Session { get; } = session;
         public DenseTensor<float> Input { get; } = new(new[] { 1, 3, definition.InputSize, definition.InputSize });
-        public bool BackendSelected;
         public int Evaluations, PositiveFrames;
     }
     private readonly List<Detector> _detectors = [];
@@ -63,8 +59,7 @@ internal sealed class PersonDetectorSet : IDisposable
     public string Backend => string.Join(" · ", _detectors.Select(detector => detector.Definition.Name + ": " + detector.Session.Backend));
     public PersonDetectorStatistics[] Statistics => _detectors.Select(detector => new PersonDetectorStatistics(
         detector.Definition.Id, detector.Definition.Name, detector.Evaluations, detector.PositiveFrames,
-        detector.Session.Backend, detector.Session.FallbackReason)
-        { BackendSelectionReason = detector.Session.BackendSelectionReason }).ToArray();
+        detector.Session.Backend, detector.Session.FallbackReason)).ToArray();
 
     public static async Task<PersonDetectorSet> CreateAsync(ModelStore store, PersonClipOptions options, CancellationToken ct)
     {
@@ -81,7 +76,7 @@ internal sealed class PersonDetectorSet : IDisposable
                     var artifact = ModelCatalog.Find(id).Files.Single();
                     var path = Path.Combine(lease.Directory, artifact.Path);
                     var normalized = id == ModelCatalog.NanoDetId ? PersonDetectionModel.Read(path) : (Data: (byte[]?)null, Hash: artifact.Sha256);
-                    var session = new ModelInferenceSession(path, normalized.Hash, options.PreferGpu, modelData: normalized.Data);
+                    var session = new ModelInferenceSession(path, normalized.Hash, modelData: normalized.Data);
                     result._detectors.Add(new(definition, lease, session));
                 }
                 catch { lease.Dispose(); throw; }
@@ -100,11 +95,6 @@ internal sealed class PersonDetectorSet : IDisposable
             var definition = detector.Definition;
             Preprocess(rgb, FrameSize, definition, detector.Input);
             var input = NamedOnnxValue.CreateFromTensor(detector.Session.InputName, detector.Input);
-            if (!detector.BackendSelected)
-            {
-                detector.Session.SelectFastestBackend(input, ct);
-                detector.BackendSelected = true;
-            }
             using var output = detector.Session.Run(input, ct);
             ct.ThrowIfCancellationRequested();
             double score = 0;

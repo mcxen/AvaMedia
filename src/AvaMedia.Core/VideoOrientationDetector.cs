@@ -12,6 +12,8 @@ public sealed record VideoOrientationResult(int? Rotation, OrientationReliabilit
     public bool IsCertain => Rotation is not null;
     public string Description => Rotation is { } angle ? BatchRotate.Direction(angle) : "无法确定";
     public IReadOnlyList<OrientationFrameEvidence> Evidence { get; init; } = [];
+    public string Backend { get; init; } = "";
+    public string? FallbackReason { get; init; }
 }
 
 public sealed record OrientationDetectionProgress(int CompletedFrames, int TotalFrames, double Seconds)
@@ -84,13 +86,6 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
         return Task.Run(async () =>
         {
             ct.ThrowIfCancellationRequested();
-            using var options = new SessionOptions
-            {
-                IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount / 2, 1, 4),
-                InterOpNumThreads = 1,
-                GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
-            };
-            using var session = new InferenceSession(Model.Value, options);
             var evidence = new List<OrientationFrameEvidence>();
             var count = info.FrameRate > 0 ? (int)Math.Clamp(Math.Floor(info.Duration * info.FrameRate), 1, 8) : 8;
             var times = Enumerable.Range(0, count).Select(i => info.Duration * (.05 + .9 * i / Math.Max(1, count - 1)))
@@ -98,6 +93,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
             var completed = 0;
             foreach (var size in new[] { 320, 640 })
             {
+                using var session = new ModelInferenceSession("", ModelHash, modelData: Model.Value, imageSize: size);
                 for (var i = 0; i < times.Length; i++)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -115,7 +111,8 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                         evidence[i] = new(times[i], scores[0], scores[1], scores[2], scores[3]);
                     }
                     else evidence.Add(new(times[i], scores[0], scores[1], scores[2], scores[3]));
-                    progress?.Report(new(++completed, times.Length * 2, times[i]) { PreviewResult = VideoOrientationPolicy.Decide(evidence) });
+                    progress?.Report(new(++completed, times.Length * 2, times[i])
+                    { PreviewResult = VideoOrientationPolicy.Decide(evidence) with { Backend = session.Backend, FallbackReason = session.FallbackReason } });
                 }
                 var result = VideoOrientationPolicy.Decide(evidence);
                 // Higher resolution can resolve weak detections or nearly tied candidates;
@@ -123,7 +120,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                 if (result.IsCertain || result.AgreeingFrames >= 3 || size == 640)
                 {
                     progress?.Report(new(times.Length * 2, times.Length * 2, times[^1]));
-                    return result;
+                    return result with { Backend = session.Backend, FallbackReason = session.FallbackReason };
                 }
             }
             throw new InvalidOperationException("未完成方向检测。");
@@ -149,7 +146,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
         return pixels;
     }
 
-    private static double ScoreDirection(InferenceSession session, byte[] bgr, int size, int angle, CancellationToken ct)
+    private static double ScoreDirection(ModelInferenceSession session, byte[] bgr, int size, int angle, CancellationToken ct)
     {
         var plane = size * size; var tensor = new float[plane * 3];
         for (var y = 0; y < size; y++)
@@ -167,15 +164,9 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
             }
         }
         using var input = OrtValue.CreateTensorValueFromMemory(tensor, [1, 3, size, size]);
-        using var run = new RunOptions();
-        using var cancel = ct.Register(() => run.Terminate = true);
-        try
-        {
-            using var output = session.Run(run, new Dictionary<string, OrtValue> { [session.InputNames[0]] = input }, OutputNames);
-            ct.ThrowIfCancellationRequested();
-            return Decode(output, size);
-        }
-        catch (OnnxRuntimeException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
+        using var output = session.Run(new Dictionary<string, OrtValue> { [session.InputName] = input }, OutputNames, ct);
+        ct.ThrowIfCancellationRequested();
+        return Decode(output, size);
     }
 
     private sealed record Face(float X, float Y, float Width, float Height, float Confidence, float[] Points);

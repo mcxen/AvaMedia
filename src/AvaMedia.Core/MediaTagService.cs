@@ -4,7 +4,7 @@ using SkiaSharp;
 
 namespace AvaMedia.Core;
 
-public sealed record MediaTagOptions(int VideoFrames = 8, bool PreferGpu = false, bool ReuseSimilarFrames = true, int BatchSize = 4, bool RecognizeScenes = false,
+public sealed record MediaTagOptions(int VideoFrames = 8, bool ReuseSimilarFrames = true, int BatchSize = 4, bool RecognizeScenes = false,
     bool GenerateCaptions = false, string? CaptionProviderId = null, string? CaptionPrompt = null, int CaptionMaxTokens = 2048)
 {
     public WordCandidate[] SemanticCandidates { get; init; } = [];
@@ -38,6 +38,8 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     public bool RealPeopleOnly { get; init; }
     public RealNsfwResult? Nsfw { get; init; }
     public IReadOnlyList<OutfitAppearanceFrame> OutfitFrames { get; init; } = [];
+    public string? OutfitBackend { get; init; }
+    public string? OutfitFallbackReason { get; init; }
 }
 public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> Scores)
 {

@@ -22,7 +22,6 @@ public sealed partial class MediaAiWindow : Window
     private readonly WrapPanel _imports = new();
     private readonly NumericUpDown _threshold = new() { Minimum = .05m, Maximum = .95m, Value = .4m, Increment = .05m };
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Value = 8, Increment = 1 };
-    private readonly CheckBox _gpu = new() { Content = "自动适配 GPU" };
     private readonly CheckBox _reuse = new() { Content = "复用相似画面", IsChecked = true };
     private readonly CheckBox _sceneTags = new() { Content = "识别场景、照明与面部", IsChecked = false };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
@@ -54,7 +53,7 @@ public sealed partial class MediaAiWindow : Window
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _enqueue = enqueue; _showQueue = showQueue; _stopTask = stopTask; _newTask = newTask;
         _pauseTask = pauseTask; _resumeTask = resumeTask; _reserveFiles = reserveFiles;
-        _engine = engine; _settings = settings; _gpu.IsChecked = settings.AutoDetectGpu;
+        _engine = engine; _settings = settings;
         _tagService = new(engine); MediaTagRuntime.Configure(settings);
         LoadPreferences();
         if (!ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported) { _sceneTags.IsChecked = false; _sceneTags.IsEnabled = false; }
@@ -180,7 +179,7 @@ public sealed partial class MediaAiWindow : Window
     {
         var frames = hasVideo ? Number(_frames) : 1;
         if (frames != Math.Truncate(frames)) throw new ArgumentException("采样帧数须为整数。");
-        return new((int)frames, _gpu.IsChecked == true, hasVideo && _reuse.IsChecked == true, BatchSize: 1,
+        return new((int)frames, hasVideo && _reuse.IsChecked == true, BatchSize: 1,
             RecognizeScenes: _sceneTags.IsChecked == true, GenerateCaptions: _generateCaptions.IsChecked == true, CaptionPrompt: _captionPrompt)
         {
             SemanticCandidates = SemanticLibraryCandidates,

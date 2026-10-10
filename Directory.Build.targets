@@ -7,14 +7,14 @@
   <!-- Whisper's content items bypass the SDK's native-asset RID selection. -->
   <Target Name="SelectSpeechNativeRuntime" BeforeTargets="AssignTargetPaths" Condition="'$(RuntimeIdentifier)' != ''">
     <ItemGroup>
-      <_UnusedSpeechNative Include="@(None)" Condition="$([System.String]::Copy('%(None.Identity)').ToLowerInvariant().Contains('whisper.net.runtime')) and $([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/')) and !$([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/$(_SpeechNativeRid)/'))" />
+      <_UnusedSpeechNative Include="@(None)" Condition="$([System.String]::Copy('%(None.Identity)').ToLowerInvariant().Contains('whisper.net.runtime')) and $([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/')) and !$([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/$(_SpeechNativeRid)/')) and !$([System.String]::Copy('%(None.TargetPath)').Replace('\', '/').StartsWith('runtimes/vulkan/$(_SpeechNativeRid)/'))" />
       <None Remove="@(_UnusedSpeechNative)" />
     </ItemGroup>
   </Target>
   <!-- Project references can build without a RID. Filter their transitive content at the final publish list too. -->
   <Target Name="SelectPublishedSpeechNativeRuntime" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(RuntimeIdentifier)' != ''">
     <ItemGroup>
-      <_UnusedPublishedSpeechNative Include="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.Identity)').ToLowerInvariant().Contains('whisper.net.runtime')) and $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/')) and !$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/$(_SpeechNativeRid)/'))" />
+      <_UnusedPublishedSpeechNative Include="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.Identity)').ToLowerInvariant().Contains('whisper.net.runtime')) and $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/')) and !$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/$(_SpeechNativeRid)/')) and !$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/vulkan/$(_SpeechNativeRid)/'))" />
       <ResolvedFileToPublish Remove="@(_UnusedPublishedSpeechNative)" />
     </ItemGroup>
   </Target>

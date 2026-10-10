@@ -91,7 +91,7 @@ public sealed class PersonClipService(MediaEngine engine)
             : $"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {MediaTime.Format(result.ExcludedSeconds)}；{result.Backend}");
         job.AppendLog($"人物检测耗时：{MediaEngine.Number(analysisClock.Elapsed.TotalSeconds)} 秒");
         foreach (var detector in result.FromCache ? [] : result.Detectors)
-            if (detector.BackendSelectionReason is { } reason) job.AppendLog($"{detector.Name}: {reason}");
+            if (detector.FallbackReason is { } reason) job.AppendLog($"{detector.Name} GPU 回退 CPU：{reason}");
         foreach (var segment in result.Segments) job.AppendLog($"保留 {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}");
         var detected = new PersonDetectionTaskResult(result, bytes, modified);
         await AiTaskResults.SaveAsync(spec.AnalysisOnly ? job.Output : AiTaskResults.PathFor(job, "people"), detected, ct).ConfigureAwait(false);

@@ -29,7 +29,6 @@ public sealed partial class FolderClassificationWindow
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹" };
     private readonly CheckBox _splitTypes = new() { Content = "按视频 / 图片分目录" };
     private readonly CheckBox _writeText = new() { Content = "为每个文件保存标签 TXT" };
-    private readonly CheckBox _gpu = new() { Content = "优先使用 GPU" };
     private readonly TextBox _output = new() { IsReadOnly = true };
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 32, Increment = 1, FormatString = "0" };
     private readonly NumericUpDown _tagThreshold = new() { Minimum = 0, Maximum = 1, Increment = .05m, FormatString = "0.00" };
@@ -116,7 +115,6 @@ public sealed partial class FolderClassificationWindow
         _videoSettings.Children.Add(Ui.Text("视频采样帧数", "caption")); _videoSettings.Children.Add(Ui.Adjust(_frames));
         analysisSettings.Children.Add(_videoSettings);
         analysisSettings.Children.Add(Ui.Text("标签阈值", "caption")); analysisSettings.Children.Add(Ui.Adjust(_tagThreshold));
-        analysisSettings.Children.Add(_gpu);
         analysisSettings.Children.Add(Ui.Button("模型管理…", async () => await GuardAsync(() => _manageModels(this))));
         _settingsPanel.Children.Add(new Expander { Header = "分析设置", Content = analysisSettings, HorizontalAlignment = HorizontalAlignment.Stretch });
         _settingsPanel.Children.Add(Ui.Text("分类目录", "settingsHeading"));

@@ -101,18 +101,23 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             }
             using var appearance = byOutfit && (missingAppearance.Length > 0 || pending.Count > 0)
                 ? await PrepareAppearanceAsync().ConfigureAwait(false) : null;
+            string? appearanceFallback = null;
             async Task CompleteAppearanceAsync(FolderClassificationTaskFile file)
             {
                 if (!byOutfit || file.Error is not null || file.Result is not { } result || OutfitAppearanceService.IsComplete(result.Media)) return;
                 await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                 job.Activity = new("识别服装区域", "MediaPipe / DINOv2", DateTime.UtcNow, DateTime.UtcNow)
-                { Detail = Path.GetFileName(file.Path) };
+                { Detail = Path.GetFileName(file.Path), Backend = appearance!.Backend };
                 job.ProgressDetail = "识别服装区域 · " + Path.GetFileName(file.Path); progress(job.Progress);
                 FolderClassificationTaskFile updated;
                 try
                 {
                     var media = await appearance!.AnalyzeAsync(result.Media, (current, total) =>
                     {
+                        job.Activity = job.Activity! with { Backend = appearance.Backend,
+                            Detail = Path.GetFileName(file.Path) + (appearance.FallbackReason is { } reason ? " · " + reason : "") };
+                        if (appearance.FallbackReason is { } fallback && fallback != appearanceFallback)
+                        { job.AppendLog("服装模型 GPU 回退 CPU：" + fallback); appearanceFallback = fallback; }
                         job.ProgressDetail = $"识别服装区域 · {current} / {total} · {Path.GetFileName(file.Path)}"; progress(job.Progress);
                     }, ct).ConfigureAwait(false);
                     updated = file with { Result = result with { Media = media } };

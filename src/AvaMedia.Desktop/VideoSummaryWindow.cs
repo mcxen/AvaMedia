@@ -23,7 +23,7 @@ public sealed class VideoSummaryWindow : Window
     private readonly TextBlock _notice = Ui.Status();
     private readonly CheckBox _abstract = new() { Content = "摘要" }, _summary = new() { Content = "视频内容总结" },
         _subtitles = new() { Content = "字幕提取" }, _analysis = new() { Content = "内容分析" },
-        _frames = new() { Content = "分析视频画面" }, _gpu = new() { Content = "优先使用 GPU" },
+        _frames = new() { Content = "分析视频画面" },
         _sourceFolder = new() { Content = "输出至源文件目录" };
     private readonly ComboBox _source, _language, _speechLanguage, _speechModel, _provider;
     private readonly ComboBox _onlineProvider = new() { Name = "SummaryOnlineProvider", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -175,12 +175,12 @@ public sealed class VideoSummaryWindow : Window
         fields.Children.Add(_localRuntime);
         var advanced = new StackPanel { Spacing = 8 };
         _frameCount.Value = options.FrameCount; _subtitleTrack.Value = options.SubtitleTrack;
-        _audioTrack.Value = options.AudioTrack; _chunkSize.Value = options.ChunkCharacters; _gpu.IsChecked = options.PreferGpu;
+        _audioTrack.Value = options.AudioTrack; _chunkSize.Value = options.ChunkCharacters;
         Add(advanced, "采样画面数", _frameCount); var subtitle=new TrackSelector(engine,files?.FirstOrDefault(),"subtitle",options.SubtitleTrack,_lifetime.Token);
         var audio=new TrackSelector(engine,files?.FirstOrDefault(),"audio",options.AudioTrack,_lifetime.Token);
         subtitle.SelectionChanged+=(_,_)=>{if(subtitle.SelectedItem is not null)_subtitleTrack.Value=subtitle.Index;};audio.SelectionChanged+=(_,_)=>{if(audio.SelectedItem is not null)_audioTrack.Value=audio.Index;};
         _sources.SelectionChanged+=(_,_)=>{var path=_sources.SelectedItem as string;subtitle.SetSource(engine,path,"subtitle",(int)(_subtitleTrack.Value??-1),_lifetime.Token);audio.SetSource(engine,path,"audio",(int)(_audioTrack.Value??0),_lifetime.Token);};
-        Add(advanced,"字幕轨",subtitle);Add(advanced,"音轨",audio); Add(advanced, "分段字符数", _chunkSize); advanced.Children.Add(_gpu);
+        Add(advanced,"字幕轨",subtitle);Add(advanced,"音轨",audio); Add(advanced, "分段字符数", _chunkSize);
         foreach(var child in advanced.Children.ToArray()){advanced.Children.Remove(child);recognition.Children.Add(child);}
         fields.Children.Add(new Expander { Header = "识别设置", Content = recognition, HorizontalAlignment = HorizontalAlignment.Stretch });
         var saving = new StackPanel { Spacing = 8 }; _folder = Ui.Input(outputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
@@ -227,7 +227,7 @@ public sealed class VideoSummaryWindow : Window
         _warmAction.Click += (_, _) => { if (_modelWarmup.Running) _modelWarmup.Stop(); else _modelWarmup.Retry(); };
         _modelWarmup.Changed += UpdateWarmAction;
         _source.SelectionChanged += (_, _) => Refresh(); _provider.SelectionChanged += (_, _) => Refresh();
-        _localVision.SelectionChanged += (_, _) => Refresh(); _gpu.IsCheckedChanged += (_, _) => Refresh();
+        _localVision.SelectionChanged += (_, _) => Refresh();
         _sourceFolder.IsCheckedChanged += (_, _) => Refresh();
         DragDrop.SetAllowDrop(root, true);
         root.AddHandler(DragDrop.DragOverEvent, (_, args) => { args.DragEffects = !_busy && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; args.Handled = true; });
@@ -257,7 +257,7 @@ public sealed class VideoSummaryWindow : Window
             SubtitleTrack = (int)(_subtitleTrack.Value ?? -1), AudioTrack = (int)(_audioTrack.Value ?? 0),
             Speech = new() { Model = _speechModel.SelectedIndex switch { 1 => SpeechModel.Base, 2 => SpeechModel.Small, _ => SpeechModel.Tiny },
                 Language = TranscriptionOptions.Languages[Math.Max(0, _speechLanguage.SelectedIndex)] },
-            AnalyzeFrames = _frames.IsChecked == true, FrameCount = (int)(_frameCount.Value ?? 12), PreferGpu = _gpu.IsChecked == true,
+            AnalyzeFrames = _frames.IsChecked == true, FrameCount = (int)(_frameCount.Value ?? 12),
             ChunkCharacters = (int)(_chunkSize.Value ?? 2400), OutputLanguage = (string?)_language.SelectedItem ?? "简体中文", Focus = _focus.Text?.Trim() ?? ""
         };
         options.Validate();
@@ -280,7 +280,7 @@ public sealed class VideoSummaryWindow : Window
         var online = _provider.SelectedIndex == (int)VideoSummaryProvider.Online;
         _onlineProviderRow.IsVisible = ai && online;
         _localVisionRow.IsVisible = ai && !online && _frames.IsChecked == true;
-        _provider.IsEnabled = ai; _gpu.IsEnabled = ai && !online;
+        _provider.IsEnabled = ai;
         _modelNotice.IsVisible = ai;
         _modelNotice.Text = Localization.Text(online ? "发送采样画面和转录内容到线上 AI" : "本地模型 · 首次使用自动下载");
         if (_configureOnline is not null) _configureOnline.IsVisible = ai && online;
@@ -292,7 +292,7 @@ public sealed class VideoSummaryWindow : Window
         _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
         _modelWarmup?.Update(ai && !online ? (_frames.IsChecked == true
             ? new[] { (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryTextId }
-            : [ModelCatalog.SummaryTextId]) : [], _gpu.IsChecked == true, _files.FirstOrDefault());
+            : [ModelCatalog.SummaryTextId]) : [], _files.FirstOrDefault());
         _localRuntime.IsVisible = ai && !online;
         var visionId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id;
         if (_runtimeVisionId != visionId)
