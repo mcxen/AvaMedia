@@ -213,8 +213,8 @@ public sealed partial class AppSettings
     }
     public bool AutoDownloadRepairModel { get; set; } = true;
     public bool PrewarmLocalModels { get; set; } = true;
-    public int ModelWarmupInitialCpuPercent { get; set; } = 10;
-    public int ModelWarmupInitialGpuPercent { get; set; } = 10;
+    public int ModelWarmupInitialCpuPercent { get; set; } = 30;
+    public int ModelWarmupInitialGpuPercent { get; set; } = 30;
     public int ModelWarmupCpuPercent { get; set; } = 60;
     public int ModelWarmupGpuPercent { get; set; } = 60;
     public int ModelWarmupRampSeconds { get; set; } = 5;
