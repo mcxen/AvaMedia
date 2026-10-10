@@ -45,19 +45,27 @@ public sealed class LocalModelWarmupBudget(AppSettings settings)
             await Task.Delay((int)Math.Clamp(rest, 1, 100), ct).ConfigureAwait(false);
         }
     }
-    internal static async Task<byte[]> HashAsync(Stream stream, CancellationToken ct)
+    internal static async Task<byte[]> HashAsync(Stream stream, CancellationToken ct, Action<long>? progress = null)
     {
-        if (Active.Value is not { } budget) return await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false);
+        var budget = Active.Value;
+        if (budget is null && progress is null) return await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var bytes = new byte[1024 * 1024];
+        long completed = 0;
+        var reported = Stopwatch.GetTimestamp();
+        progress?.Invoke(0);
         while (true)
         {
             var count = await stream.ReadAsync(bytes, ct).ConfigureAwait(false);
             if (count == 0) break;
             var started = Stopwatch.GetTimestamp();
             hash.AppendData(bytes, 0, count);
-            await budget.PaceAsync(started, gpu: false, ct).ConfigureAwait(false);
+            completed += count;
+            if (budget is not null) await budget.PaceAsync(started, gpu: false, ct).ConfigureAwait(false);
+            if (progress is not null && Stopwatch.GetElapsedTime(reported).TotalMilliseconds >= 100)
+            { progress(completed); reported = Stopwatch.GetTimestamp(); }
         }
+        progress?.Invoke(completed);
         return hash.GetHashAndReset();
     }
 }

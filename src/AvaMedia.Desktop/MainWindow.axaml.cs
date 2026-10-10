@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         _queue.Changed+=QueueJobChanged;
         _timer=new(){Interval=TimeSpan.FromSeconds(1)};_timer.Tick+=(_,_)=>BackgroundTick();
         InitializeSystemResourceMonitor();
+        InitializeModelActivity();
         InitializeNotifications();
         ShowCategory(_category);Refresh();
         InitializePlatinumPresentation();

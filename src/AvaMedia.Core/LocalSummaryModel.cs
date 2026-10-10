@@ -46,30 +46,35 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     }
 
     public static async Task<LocalSummaryModel> StartAsync(ModelStore store, string id, bool preferGpu, CancellationToken ct,
-        Action<string>? status = null)
+        Action<string>? status = null, Action<ModelPreparationProgress>? preparation = null)
     {
         try
         {
-            try { return await StartCoreAsync(store, id, preferGpu, ct, status).ConfigureAwait(false); }
+            try { return await StartCoreAsync(store, id, preferGpu, ct, status, preparation).ConfigureAwait(false); }
             catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
                 && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
             {
                 status?.Invoke("GPU 启动未成功，切换 CPU");
-                return await StartCoreAsync(store, id, false, ct, status).ConfigureAwait(false);
+                return await StartCoreAsync(store, id, false, ct, status, preparation).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         { throw new InvalidOperationException("本地总结模型启动超时，请关闭其他模型任务或改用 CPU。"); }
     }
 
-    private static async Task<LocalSummaryModel> StartCoreAsync(ModelStore store, string id, bool gpu, CancellationToken ct, Action<string>? status)
+    private static async Task<LocalSummaryModel> StartCoreAsync(ModelStore store, string id, bool gpu, CancellationToken ct, Action<string>? status,
+        Action<ModelPreparationProgress>? preparation = null)
     {
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         ModelLease? model = null, runtime = null; HttpClient? client = null; LocalSummaryModel? backend = null;
         try
         {
-            runtime = await store.AcquireAsync(ModelCatalog.SummaryRuntimeId, ct).ConfigureAwait(false);
-            model = await store.AcquireAsync(id, ct).ConfigureAwait(false);
+            preparation?.Invoke(new("校验推理工具"));
+            runtime = await store.AcquireAsync(ModelCatalog.SummaryRuntimeId, ct, verificationProgress: preparation is null ? null
+                : (completed, total) => preparation(new("校验推理工具", completed, total))).ConfigureAwait(false);
+            preparation?.Invoke(new("校验模型文件"));
+            model = await store.AcquireAsync(id, ct, verificationProgress: preparation is null ? null
+                : (completed, total) => preparation(new("校验模型文件", completed, total))).ConfigureAwait(false);
             var executable = ModelStore.FindRuntime(runtime.Directory) ?? throw new InvalidDataException("缺少本地总结推理工具。");
             var definition = ModelCatalog.Find(id);
             var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -89,6 +94,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             if (id != ModelCatalog.SummaryVisionId)
                 arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
             status?.Invoke("加载本地模型");
+            preparation?.Invoke(new("加载本地模型"));
             var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
             backend = new(process, client, model, runtime, id, store, gpu, status);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);

@@ -20,6 +20,7 @@ public sealed class Motion : AvaloniaObject
     private static readonly Dictionary<Control, CancellationTokenSource> Animations = [];
     private static bool _userReducedMotion;
     private static bool _systemReducedMotion;
+    internal static event Action? PreferencesChanged;
 
     static Motion()
     {
@@ -56,6 +57,7 @@ public sealed class Motion : AvaloniaObject
         if (!allowMotion)
             foreach (var animation in Animations.Values.ToArray())
                 animation.Cancel();
+        PreferencesChanged?.Invoke();
     }
 
     public static void Reveal(Control control, string durationResource = "MotionNavigate")

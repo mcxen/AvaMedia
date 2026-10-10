@@ -78,7 +78,8 @@ public sealed class ModelStore(string? root = null)
     public Task<bool> IsInstalledAsync(string id, bool verify = false, CancellationToken ct = default, bool reuseVerification = false)
         => CheckInstalledAsync(id, verify, reuseVerification, ct);
 
-    private async Task<bool> CheckInstalledAsync(string id, bool verify, bool reuseVerification, CancellationToken ct)
+    private async Task<bool> CheckInstalledAsync(string id, bool verify, bool reuseVerification, CancellationToken ct,
+        Action<long, long>? verificationProgress = null)
     {
         var model = ModelCatalog.Find(id);
         if (!model.Supported) return false;
@@ -89,22 +90,30 @@ public sealed class ModelStore(string? root = null)
             if (manifest is null || manifest.Length < model.Files.Count) return false;
             foreach (var artifact in model.Files)
                 if (!manifest.Any(file => file.Path == artifact.Path && file.Size == artifact.Size && file.Sha256 == artifact.Sha256)) return false;
+            long completed = 0, total = manifest.Sum(file => file.Size);
+            verificationProgress?.Invoke(0, total);
             foreach (var file in manifest)
-                if (!await MatchesAsync(SafePath(folder, file.Path), file.Size, file.Sha256, verify, ct, reuseVerification)) return false;
+            {
+                if (!await MatchesAsync(SafePath(folder, file.Path), file.Size, file.Sha256, verify, ct, reuseVerification,
+                    verificationProgress is null ? null : bytes => verificationProgress(completed + bytes, total))) return false;
+                completed += file.Size;
+                verificationProgress?.Invoke(completed, total);
+            }
             return !ModelCatalog.IncludesRuntime(id) || FindRuntime(folder) is not null;
         }
         catch (Exception error) when (error is IOException or JsonException or ArgumentException or UnauthorizedAccessException) { return false; }
     }
 
     /// <summary>Verify unchanged files once per process; explicit model-management verification forces a fresh hash.</summary>
-    public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true, bool forceVerification = false)
+    public async Task<ModelLease> AcquireAsync(string id, CancellationToken ct = default, bool verify = true, bool forceVerification = false,
+        Action<long, long>? verificationProgress = null)
     {
         var gate = Gate(id);
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         var release = await gate.AcquireReadAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!await CheckInstalledAsync(id, verify || forceVerification, !forceVerification, ct)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
+            if (!await CheckInstalledAsync(id, verify || forceVerification, !forceVerification, ct, verificationProgress)) throw new InvalidOperationException("请在选项的模型管理中下载或修复所需模型。");
             return new(DirectoryFor(id), release);
         }
         catch { release(); throw; }
@@ -315,7 +324,7 @@ public sealed class ModelStore(string? root = null)
     }
 
     private static async Task<bool> MatchesAsync(string path, long size, string hash, bool verify, CancellationToken ct,
-        bool reuseVerification = false)
+        bool reuseVerification = false, Action<long>? verificationProgress = null)
     {
         if (!File.Exists(path)) return false;
         var check = verify ? Verifications.GetOrAdd(path, _ => new()) : null;
@@ -331,7 +340,7 @@ public sealed class ModelStore(string? root = null)
             if (reuseVerification && check!.Verified is { } cached && cached.Stamp == before
                 && cached.Hash.Equals(hash, StringComparison.OrdinalIgnoreCase)) return true;
             check!.Verified = null;
-            var actual = Convert.ToHexString(await LocalModelWarmupBudget.HashAsync(input, ct)).ToLowerInvariant();
+            var actual = Convert.ToHexString(await LocalModelWarmupBudget.HashAsync(input, ct, verificationProgress)).ToLowerInvariant();
             var after = Stamp();
             if (actual.Equals(hash, StringComparison.OrdinalIgnoreCase) && before == after)
             { check.Verified = new(after, actual); return true; }

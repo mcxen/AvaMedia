@@ -2,12 +2,20 @@ namespace AvaMedia.Core;
 
 public enum ModelLoadState { Unloaded, Loading, Warming, Ready, InUse, Failed }
 
+/// <summary>Progress within a measured preparation stage, not an estimate of overall warm-up.</summary>
+public sealed record ModelPreparationProgress(string Stage, long Completed = 0, long Total = 0)
+{
+    public DateTime ReportedUtc { get; init; } = DateTime.UtcNow;
+    public double? Fraction => Total > 0 ? Math.Clamp((double)Completed / Total, 0, 1) : null;
+}
+
 public sealed record ModelRuntimeStatus(string Id, ModelLoadState State, DateTime ChangedUtc)
 {
     public DateTime? StartedUtc { get; init; }
     public DateTime? ReleaseUtc { get; init; }
     public string Backend { get; init; } = "";
     public string? Error { get; init; }
+    public ModelPreparationProgress? Preparation { get; init; }
     public bool Loaded => State is ModelLoadState.Ready or ModelLoadState.InUse;
     public bool Preparing => State is ModelLoadState.Loading or ModelLoadState.Warming;
 }
@@ -21,6 +29,8 @@ public static class MediaTagRuntime
     public static bool Supports(string id) => id is ModelCatalog.JoyTagId or ModelCatalog.NsfwId or ModelCatalog.EmbeddingId || ModelCatalog.RequiresSummaryRuntime(id);
     public static ModelRuntimeStatus Status(string root, string id) => ModelCatalog.RequiresSummaryRuntime(id)
         ? LocalSummaryModelCache.Status(root, id) : MediaTagModelCache.Status(root, id);
+    public static IReadOnlyList<ModelRuntimeStatus> Snapshot(string root) => ModelCatalog.All
+        .Where(model => Supports(model.Id)).Select(model => Status(root, model.Id)).ToArray();
     public static async Task<bool> ReleaseAsync(string root, CancellationToken ct = default)
     {
         var tags = await MediaTagModelCache.ReleaseAsync(root, ct).ConfigureAwait(false);

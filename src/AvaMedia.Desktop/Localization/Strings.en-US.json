@@ -1,4 +1,11 @@
 {
+  "校验推理工具": "Verifying inference runtime",
+  "校验模型文件": "Verifying model files",
+  "预热计算图": "Warming computation graph",
+  "准备预热画面": "Preparing warm-up frame",
+  "调整后台节奏": "Background pacing",
+  "当前阶段进度": "Current stage progress",
+  "当前阶段耗时未知": "Current stage duration is unknown",
   "AI 供应商": "AI providers",
   "供应商": "Provider",
   "添加供应商…": "Add provider…",

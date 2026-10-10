@@ -120,7 +120,7 @@
       </Grid>
     </Grid>
     <StackPanel Grid.Row="3">
-    <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiStatusPadding}">
+    <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto,Auto,142,Auto" Margin="{DynamicResource UiStatusPadding}">
       <Grid ColumnDefinitions="Auto,*">
         <local:ActionIcon Kind="folder" Width="16" Height="16" Margin="0,0,4,0" VerticalAlignment="Center" IsVisible="{DynamicResource UiShowOutputIcon}"/>
         <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -135,7 +135,8 @@
         <TextBlock Grid.Column="2" Text="GPU" i18n:Localization.IsUserText="True" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <local:RollingPercentage x:Name="GpuUsage" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" AutomationProperties.Name="GPU" Margin="4,0,0,0"/>
       </Grid>
-      <Border Grid.Column="6" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0" Margin="4,0,0,0">
+      <local:ModelActivityIndicator x:Name="ModelActivity" Grid.Column="6" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center"/>
+      <Border Grid.Column="7" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0" Margin="4,0,0,0">
         <Button x:Name="NotificationButton" Classes="notification-status" Click="ToggleNotificationsClick" ToolTip.Tip="通知中心" AutomationProperties.Name="通知中心" VerticalAlignment="Stretch">
           <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <TextBlock Text="通知" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}"/>

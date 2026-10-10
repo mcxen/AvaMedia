@@ -26,6 +26,15 @@ public static class LocalSummaryModelCache
                 StartedUtc = state == ModelLoadState.Loading ? DateTime.UtcNow : Status.StartedUtc };
             MediaTagRuntime.Notify(Root);
         }
+        public void Progress(ModelPreparationProgress progress)
+        {
+            // A second task may be loading its own process while another lease is already running.
+            // Do not overwrite the shared in-use state with that process's preparation progress.
+            var current = Status;
+            if (!current.Preparing) return;
+            Status = current with { Preparation = progress };
+            MediaTagRuntime.Notify(Root);
+        }
         public void CancelExpiration() { Expiration?.Cancel(); Expiration = null; }
     }
     private static readonly ConcurrentDictionary<string, Entry> Entries = new(BatchRename.PathComparer);
@@ -73,11 +82,14 @@ public static class LocalSummaryModelCache
                     entry.State(ModelLoadState.Warming, model.Backend);
                     if (!budget.Foreground)
                     {
+                        entry.Progress(new(sample is null ? "预热计算图" : "准备预热画面"));
                         var image = sample is null ? null : await sample(ct).ConfigureAwait(false);
                         if (!budget.Foreground)
                         {
                             var started = Stopwatch.GetTimestamp();
+                            entry.Progress(new("预热计算图"));
                             await model.WarmAsync(ct, image).ConfigureAwait(false);
+                            entry.Progress(new("调整后台节奏"));
                             await budget.PaceAsync(started, gpu, ct).ConfigureAwait(false);
                         }
                     }
@@ -143,7 +155,7 @@ public static class LocalSummaryModelCache
     }
     private static async Task<LocalSummaryModel> StartAsync(ModelStore store, Entry entry, CancellationToken ct, Action<string>? status = null)
     {
-        var model = await LocalSummaryModel.StartAsync(store, entry.Id, entry.Gpu, ct, status).ConfigureAwait(false);
+        var model = await LocalSummaryModel.StartAsync(store, entry.Id, entry.Gpu, ct, status, entry.Progress).ConfigureAwait(false);
         return model;
     }
     private sealed class Lease(Entry entry, LocalSummaryModel model, int revision, string stamp) : ISummaryToolModel
