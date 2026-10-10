@@ -9,6 +9,8 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     private bool CanManageTasks => !_closing && _editingJob is null;
+    private bool CanClearCompletedTasks => _jobs.Any(job => job.State == JobState.Completed && CanRemoveTask(job));
+    private bool CanClearAllTasks => CanManageTasks && !_queue.IsRunning && _jobs.Count > 0;
     private Job[] SelectedJobs() => _jobs.Where(job => JobList.SelectedItems?.Contains(job) == true).ToArray();
     private bool CanStartTask(Job job) => CanManageTasks && !_queue.IsStopping && job.State == JobState.Waiting && !_queue.IsScheduled(job);
     private bool CanRemoveTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_queue.IsExecuting(job) && job.State != JobState.Stopping;
@@ -18,6 +20,8 @@ public partial class MainWindow
 
     private void InitializeTaskManagement()
     {
+        JobList.ItemsSource = _visibleJobs;
+        _jobs.CollectionChanged += (_, _) => RefreshTaskList();
         JobList.AddHandler(PointerPressedEvent, (_, e) =>
         {
             if (!e.GetCurrentPoint(JobList).Properties.IsRightButtonPressed || e.Source is not Control source) return;
@@ -65,8 +69,10 @@ public partial class MainWindow
         CopyTaskPathsMenu.IsEnabled = selected.Length > 0;
         TaskLogMenu.IsEnabled = one is not null;
         RemoveTaskMenu.IsEnabled = selected.Any(CanRemoveTask);
-        ClearCompletedTasksMenu.IsEnabled = CanManageTasks && _jobs.Any(job => job.State == JobState.Completed && CanRemoveTask(job));
-        SelectAllTasksMenu.IsEnabled = _jobs.Count > selected.Length;
+        ClearCompletedTasksMenu.IsEnabled = ClearCompletedToolbarMenu.IsEnabled = CanClearCompletedTasks;
+        ClearAllTasksMenu.IsEnabled = ClearAllToolbarMenu.IsEnabled = CanClearAllTasks;
+        ClearButton.IsEnabled = CanClearCompletedTasks || CanClearAllTasks;
+        SelectAllTasksMenu.IsEnabled = _visibleJobs.Count > selected.Length;
         DeselectTasksMenu.IsEnabled = selected.Length > 0;
     }
 

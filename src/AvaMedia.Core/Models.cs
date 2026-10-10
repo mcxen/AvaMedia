@@ -223,6 +223,7 @@ public sealed partial class AppSettings
     public int ParallelJobs { get; set; } = 2;
     public bool MultiThread { get; set; } = true;
     public bool NotifyComplete { get; set; } = true;
+    public bool CollapseCompletedTasks { get; set; } = true;
     public bool ReduceMotion { get; set; }
     public string Theme { get; set; } = "Light";
     public string Language { get; set; } = "system";
@@ -248,7 +249,7 @@ public sealed partial class AppSettings
         EnableBetaFeatures=source.EnableBetaFeatures;AutoDownloadRepairModel=source.AutoDownloadRepairModel;ModelSource=source.ModelSource;ModelSourceUrl=source.ModelSourceUrl;
         PrewarmTagModels=source.PrewarmTagModels;TagModelIdleMinutes=source.TagModelIdleMinutes;
         EnableNsfwContent=source.EnableNsfwContent;
-        ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;
+        ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         PlayerNativeHighResolution=source.PlayerNativeHighResolution;PlayerNativeSdr=source.PlayerNativeSdr;

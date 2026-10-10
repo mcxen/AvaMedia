@@ -33,7 +33,7 @@ public partial class MainWindow
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            JobList.ItemsSource = null; JobList.ItemsSource = _jobs; Save(); Refresh();
+            Save(); Refresh();
         };
         window.Closed += (_, _) =>
         {
@@ -57,9 +57,8 @@ public partial class MainWindow
     private void ShowClassificationTasks()
     {
         if (_closing) return;
-        RestoreFromTray(); Activate(); JobList.SelectedItems?.Clear();
-        foreach (var job in _jobs.Where(job => job.FeatureId == "folder-classification")) JobList.SelectedItems?.Add(job);
-        if (JobList.SelectedItems?.Count > 0 && JobList.SelectedItems[0] is Job first) JobList.ScrollIntoView(first);
+        RestoreFromTray(); Activate();
+        SelectTaskRows(_jobs.Where(job => job.FeatureId == "folder-classification"));
     }
 
     internal bool CanViewClassificationTask(Job job) => !_closing && _jobs.Contains(job)

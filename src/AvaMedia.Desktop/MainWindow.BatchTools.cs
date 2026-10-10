@@ -28,7 +28,7 @@ public partial class MainWindow
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            JobList.ItemsSource = null; JobList.ItemsSource = _jobs; Save(); Refresh();
+            Save(); Refresh();
         };
         await window.ShowDialog(this);
     }

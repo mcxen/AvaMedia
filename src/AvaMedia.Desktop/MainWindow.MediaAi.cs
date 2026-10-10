@@ -23,7 +23,7 @@ public partial class MainWindow
         {
             var map = mappings.ToDictionary(item => item.Source, item => item.Target, BatchRename.PathComparer);
             foreach (var job in _jobs) job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
-            JobList.ItemsSource = null; JobList.ItemsSource = _jobs; Save(); Refresh();
+            Save(); Refresh();
         };
         window.Show(this); return window;
     }
@@ -33,20 +33,14 @@ public partial class MainWindow
         if (_closing || jobs.Count == 0) return;
         AddToolJobs(jobs, startImmediately);
         RestoreFromTray();
-        JobList.SelectedItems?.Clear();
-        foreach (var job in jobs.Where(_jobs.Contains)) JobList.SelectedItems?.Add(job);
-        if (jobs.FirstOrDefault(_jobs.Contains) is { } first) JobList.ScrollIntoView(first);
+        SelectTaskRows(jobs);
     }
 
     private void ShowMediaTagQueue()
     {
         if (_closing) return;
         RestoreFromTray(); Activate();
-        JobList.SelectedItems?.Clear();
-        foreach (var job in _jobs.Where(job => Catalog.Find(job.FeatureId).Operation == Operation.MediaTag))
-            JobList.SelectedItems?.Add(job);
-        if (JobList.SelectedItems?.Count > 0 && JobList.SelectedItems[0] is Job first)
-            JobList.ScrollIntoView(first);
+        SelectTaskRows(_jobs.Where(job => Catalog.Find(job.FeatureId).Operation == Operation.MediaTag));
     }
 
     internal bool CanViewMediaTagResult(Job job) => !_closing && HasAiResult(job)

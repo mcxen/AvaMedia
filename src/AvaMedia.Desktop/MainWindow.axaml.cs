@@ -38,7 +38,7 @@ public partial class MainWindow : Window
         _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Localization.Apply(_settings.Language);Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
         UpdateLanguageMenu();Localization.Changed+=LanguageChanged;
         Closed+=(_,_)=>Localization.Changed-=LanguageChanged;
-        _jobs=new(_storage.LoadJobs());JobList.ItemsSource=_jobs;
+        _jobs=new(_storage.LoadJobs());
         InitializeMcp();
         InitializeTaskManagement();
         InitializeOptions();
@@ -150,9 +150,10 @@ public partial class MainWindow : Window
     {
         RefreshTaskState();
         if (_startupOptionsInitialized && !_backgroundWindowVisible) return;
+        RefreshTaskList();
         UpdateElapsed();
         PresentDownloadSpeedMonitor();
-        StartButton.IsEnabled=CanManageTasks && !_queue.IsStopping && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;ClearButton.IsEnabled=_jobs.Count>0&&!_queue.IsRunning&&CanManageTasks;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
+        StartButton.IsEnabled=CanManageTasks && !_queue.IsStopping && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
         UpdateTaskEditingActions();
         SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
         if(refreshRows)JobDisplayChanged?.Invoke();
@@ -168,7 +169,7 @@ public partial class MainWindow : Window
     }
     private async void ClearClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if(_queue.IsRunning)return;
+        if(!CanClearAllTasks)return;
         try{await RemoveTasksAsync(_jobs.ToArray());}
         catch(Exception ex){await Ui.Message(this,"清空列表",ex.Message);}
     }
@@ -203,7 +204,7 @@ public partial class MainWindow : Window
         if (CanViewAiTask(j)) await ShowAiTaskAsync(j);
         else await EditJob(j);
     }
-    private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e)=>Refresh();
+    private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e){if(!_refreshingTaskList)Refresh();}
     private async void ExportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         var file=await StorageProvider.SaveFilePickerAsync(new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});

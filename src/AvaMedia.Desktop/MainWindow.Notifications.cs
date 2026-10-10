@@ -46,9 +46,7 @@ public partial class MainWindow
     private Task FocusJobsAsync(Job[] jobs)
     {
         if (_closing) return Task.CompletedTask;
-        RestoreFromTray(); JobList.SelectedItems?.Clear();
-        foreach (var job in jobs.Where(_jobs.Contains)) JobList.SelectedItems?.Add(job);
-        if (jobs.FirstOrDefault(_jobs.Contains) is { } first) JobList.ScrollIntoView(first);
+        RestoreFromTray(); SelectTaskRows(jobs);
         return Task.CompletedTask;
     }
     private Task OpenNotificationOutputAsync(string[] folders)
