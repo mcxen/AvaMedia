@@ -36,9 +36,6 @@ public sealed partial class ImageViewerWindow : Window
     private readonly ComboBox _interval = new() { Width = 78, ItemsSource = new[] { "2 秒", "5 秒", "10 秒", "30 秒" }, SelectedIndex = 1 };
     private readonly DispatcherTimer _animation = new();
     private readonly DispatcherTimer _slideshow = new();
-    private readonly SemaphoreSlim _thumbnailGate = new(1, 1);
-    private readonly Dictionary<string, byte[]> _thumbnailCache = [];
-    private readonly Queue<string> _thumbnailOrder = [];
     private readonly Storage _storage = new();
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _loading, _opening;
@@ -87,7 +84,7 @@ public sealed partial class ImageViewerWindow : Window
         {
             _closed = true; _lifetime.Cancel(); _loading?.Cancel(); _opening?.Cancel();
             _animation.Stop(); _slideshow.Stop(); ReleaseImages();
-            _files.ItemsSource = null; _thumbnailCache.Clear(); _thumbnailOrder.Clear();
+            _files.ItemsSource = null;
         };
         Closed += (_, _) => { _lifetime.Dispose(); };
     }

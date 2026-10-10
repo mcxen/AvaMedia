@@ -78,7 +78,7 @@ internal sealed class ImageViewerExportWindow : Window
         ToolInputs.CommitNumber(_quality, integer: true); ToolInputs.CommitNumber(_size, integer: true);
         var folder = Path.GetFullPath(_folder.Text); var format = _format.SelectedIndex switch
         { 1 => "jpg", 2 => "webp", 3 => "tiff", 4 => "bmp", 5 => "avif", _ => "png" };
-        var options = new ImageViewerExport(format, (int)(_quality.Value ?? 90), (int)(_size.Value ?? 0),
+        var options = new ImageEncodingOptions(format, (int)(_quality.Value ?? 90), (int)(_size.Value ?? 0),
             _transform.IsChecked == true ? _rotation : 0, _transform.IsChecked == true && _flip, _strip.IsChecked == true);
         _running = true; _settings.IsEnabled = _start.IsEnabled = false; foreach (var item in _selected) item.IsEnabled = false;
         _errors.Text = ""; _progress.Value = 0; using var operation = new CancellationTokenSource(); _operation = operation;
@@ -94,7 +94,7 @@ internal sealed class ImageViewerExportWindow : Window
                 {
                     var name = Path.GetFileNameWithoutExtension(entry.Name.Replace('\\', '/').Split('/')[^1]);
                     var output = MediaEngine.UniqueOutput(folder, name + "_converted", format, used); used.Add(output);
-                    await ImageViewerCodec.ExportAsync(entry, output, options, operation.Token); done++;
+                    await ImageCodec.ExportAsync(entry, output, options, operation.Token); done++;
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
                 { errors.Add(entry.Name + " · " + error.Message); _errors.Text = string.Join(Environment.NewLine, errors); }

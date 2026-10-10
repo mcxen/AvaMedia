@@ -1,6 +1,4 @@
-using System.Buffers.Binary;
 using System.Text.Json;
-using SkiaSharp;
 
 namespace AvaMedia.Core;
 
@@ -20,7 +18,7 @@ public sealed record ImageCompressionOptions
 }
 
 public sealed record ImageCompressionSource(string Path, long Bytes, int Width, int Height, int BitDepth = 8,
-    string PixelFormat = "rgba", bool HasOrientation = false, string InputSpecifier = "v:0", string PreFilter = "");
+    string PixelFormat = "rgba", bool HasOrientation = false, string InputSpecifier = "v:0", string PreFilter = "", string Codec = "");
 public sealed record ImageCompressionResult(string Path, long SourceBytes, long OutputBytes, int Width, int Height)
 {
     public bool IsSmaller => OutputBytes < SourceBytes;
@@ -75,7 +73,7 @@ public static class ImageCompression
     }
 }
 
-public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompressor
+public sealed class ImageCompressor(IMediaEngine engine) : IImageCompressor
 {
     public async Task<ImageCompressionSource> InspectAsync(string path, CancellationToken cancellationToken = default)
     {
@@ -83,42 +81,7 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         if (HeifImage.Supports(path))
             return OperatingSystem.IsMacOS() ? await AppleImageIO.InspectAsync(path, cancellationToken).ConfigureAwait(false) :
                 await InspectHeifAsync(path, cancellationToken).ConfigureAwait(false);
-        var info = await engine.Probe(path, cancellationToken).ConfigureAwait(false);
-        if (!info.HasVideo || info.HasAudio || info.VideoCodec is not ("mjpeg" or "png" or "webp" or "bmp") || info.Width < 1 || info.Height < 1)
-            throw new InvalidDataException("文件不是支持的静态图片；动画图片请使用对应格式转换。");
-        if (HasAnimation(path)) throw new InvalidDataException("这是动画图片，压缩功能不会丢弃动画帧；请使用动画格式转换。");
-        using var json = JsonDocument.Parse(info.RawJson);
-        var bitDepth = 8;
-        var pixelFormat = "rgba";
-        foreach (var stream in json.RootElement.GetProperty("streams").EnumerateArray())
-        {
-            if (stream.TryGetProperty("nb_frames", out var frames) && long.TryParse(frames.GetString(), out var count) && count > 1)
-                throw new InvalidDataException("文件包含多个画面，请使用动画格式转换。");
-            if (stream.TryGetProperty("pix_fmt", out var pixel) && pixel.GetString() is { } name)
-            {
-                pixelFormat = name;
-                if (name.Contains("16", StringComparison.Ordinal) || name.Contains("48", StringComparison.Ordinal) || name.Contains("64", StringComparison.Ordinal)) bitDepth = 16;
-            }
-        }
-        var width = info.Width; var height = info.Height; var hasOrientation = false;
-        if (info.VideoCodec == "mjpeg")
-        {
-            // JPEG EXIF orientation belongs to the decoded frame, not necessarily the stream.
-            var frameInfo = await ProcessRunner.Run(engine.FFprobe,
-                ["-v", "error", "-select_streams", "v:0", "-show_frames", "-show_entries", "frame=width,height:frame_side_data=rotation", "-of", "json", path], cancellationToken).ConfigureAwait(false);
-            if (frameInfo.ExitCode != 0) throw new InvalidDataException(frameInfo.Error);
-            using var frameJson = JsonDocument.Parse(frameInfo.Output);
-            if (frameJson.RootElement.TryGetProperty("frames", out var frames) && frames.GetArrayLength() > 0 &&
-                frames[0].TryGetProperty("side_data_list", out var sideData))
-                foreach (var side in sideData.EnumerateArray())
-                    if (side.TryGetProperty("rotation", out var rotation))
-                    {
-                        hasOrientation = true;
-                        width = frames[0].GetProperty("width").GetInt32(); height = frames[0].GetProperty("height").GetInt32();
-                        if (MediaStreams.IsQuarterTurn(rotation.GetDouble())) (width, height) = (height, width);
-                    }
-        }
-        return new(Path.GetFullPath(path), new FileInfo(path).Length, width, height, bitDepth, pixelFormat, hasOrientation);
+        return await ImageCodec.InspectStaticAsync(path, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ImageCompressionSource> InspectHeifAsync(string path, CancellationToken token)
@@ -143,6 +106,16 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         if (string.Equals(source.Path, output, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("压缩输出不能覆盖原图。");
         if (File.Exists(output)) throw new IOException("输出文件已存在，请选择新的名称。");
+        // Q8 handles ordinary still images locally. Keep the complete HEIF primary/grid decode and
+        // high-depth PNG path, where an 8-bit image backend would discard source precision.
+        if (!HeifImage.Supports(input) && !(source.BitDepth > 8 && options.Format == "png"))
+        {
+            var encoded = await ImageCodec.ExportAsync(new(source.Path), output,
+                new ImageEncodingOptions(options.Format, options.Quality, options.MaxDimension,
+                    StripMetadata: true, Lossless: options.Lossless), cancellationToken,
+                smallerThan: keepLargerPreview ? null : source.Bytes).ConfigureAwait(false);
+            return new(output, source.Bytes, encoded.Bytes, encoded.Width, encoded.Height);
+        }
         var folder = Path.GetDirectoryName(output)!;
         Directory.CreateDirectory(folder);
         var temporary = Path.Combine(folder, ".AvaMedia-image-" + Guid.NewGuid().ToString("N") + "." + options.Format);
@@ -156,7 +129,8 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
             var encoded = await ProcessRunner.Run(engine.FFmpeg, args, cancellationToken).ConfigureAwait(false);
             if (encoded.ExitCode != 0) throw new InvalidOperationException("图片编码失败：" + encoded.Error);
             if (decoded is not null)
-                await Task.Run(() => EncodeWebp(decoded, temporary, size, options, cancellationToken), cancellationToken).ConfigureAwait(false);
+                await ImageCodec.ExportAsync(new(decoded), temporary,
+                    new ImageEncodingOptions("webp", options.Quality, StripMetadata: true, Lossless: options.Lossless), cancellationToken).ConfigureAwait(false);
             var length = new FileInfo(temporary).Length;
             if (length == 0) throw new InvalidDataException("图片编码没有生成有效文件。");
             var result = new ImageCompressionResult(output, source.Bytes, length, size.Width, size.Height);
@@ -171,22 +145,6 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
             try { if (File.Exists(temporary)) File.Delete(temporary); }
             finally { if (decoded is not null && File.Exists(decoded)) File.Delete(decoded); }
         }
-    }
-
-    private static void EncodeWebp(string decoded, string output, (int Width, int Height) size,
-        ImageCompressionOptions options, CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        // Keep straight alpha, including RGB values in translucent pixels, for lossless encoding.
-        using var bitmap = SKBitmap.Decode(decoded, new SKImageInfo(size.Width, size.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul))
-            ?? throw new InvalidDataException("无法读取 WebP 编码所需的图片。");
-        using var pixels = bitmap.PeekPixels();
-        using var data = pixels.Encode(new SKWebpEncoderOptions(
-            options.Lossless ? SKWebpEncoderCompression.Lossless : SKWebpEncoderCompression.Lossy, options.Quality))
-            ?? throw new InvalidOperationException("WebP 图片编码失败。");
-        token.ThrowIfCancellationRequested();
-        using var stream = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        data.SaveTo(stream);
     }
 
     private static List<string> Arguments(ImageCompressionSource source, (int Width, int Height) size,
@@ -213,7 +171,7 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         args.AddRange(["-an", "-sn", "-dn", "-frames:v", "1", "-map_metadata", "-1", "-threads", "2"]);
         if (options.Format == "jpg") args.AddRange(["-c:v", "mjpeg", "-q:v", MediaEngine.Number(2 + (100 - options.Quality) * 29d / 99)]);
         else if (options.Format == "png") args.AddRange(["-c:v", "png", "-compression_level", "9", "-pred", "mixed"]);
-        // FFmpeg handles orientation and scaling; the bundled Skia encoder writes static WebP.
+        // HEIF and high-depth PNG retain their specialized media decode; WebP uses the shared image encoder.
         else args.AddRange(["-c:v", "png", "-compression_level", "1"]);
         args.Add(output);
         return args;
@@ -227,34 +185,4 @@ public sealed class FfmpegImageCompressor(IMediaEngine engine) : IImageCompresso
         _ => source.BitDepth > 8 ? "rgba64be" : "rgba"
     };
 
-    private static bool HasAnimation(string path)
-    {
-        // Inspect container markers too: some FFmpeg WebP decoders only report the first frame.
-        using var stream = File.OpenRead(path);
-        Span<byte> header = stackalloc byte[12];
-        if (stream.Read(header) != 12) return false;
-        if (header[..4].SequenceEqual("RIFF"u8) && header[8..].SequenceEqual("WEBP"u8))
-        {
-            Span<byte> chunk = stackalloc byte[8];
-            while (stream.Position + 8 <= stream.Length)
-            {
-                stream.ReadExactly(chunk);
-                var length = BinaryPrimitives.ReadUInt32LittleEndian(chunk[4..]);
-                if (chunk[..4].SequenceEqual("ANIM"u8) || chunk[..4].SequenceEqual("ANMF"u8)) return true;
-                stream.Seek((long)length + (length & 1), SeekOrigin.Current);
-            }
-        }
-        else if (header[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
-        {
-            stream.Position = 8;
-            Span<byte> chunk = stackalloc byte[8];
-            while (stream.Position + 8 <= stream.Length)
-            {
-                stream.ReadExactly(chunk);
-                if (chunk[4..].SequenceEqual("acTL"u8)) return true;
-                stream.Seek((long)BinaryPrimitives.ReadUInt32BigEndian(chunk[..4]) + 4, SeekOrigin.Current);
-            }
-        }
-        return false;
-    }
 }

@@ -14,22 +14,22 @@
 
 ## 编码与保存
 
-`IImageCompressor` 隔离探测与压缩接口，`FfmpegImageCompressor` 为生产实现；窗口和 `MediaEngine.Execute` 调用同一个实现，参数随任务保存和恢复。队列中的图片压缩任务可重新打开并调整参数。
+`IImageCompressor` 隔离探测与压缩接口，`ImageCompressor` 为生产实现；窗口和 `MediaEngine.Execute` 调用同一个实现，参数随任务保存和恢复。队列中的图片压缩任务可重新打开并调整参数。普通 JPEG、PNG、WebP、BMP 通过共享 `ImageCodec` 在进程内读取信息和编码，与天池看图导出共用方向、缩放、透明区域、质量和原子保存逻辑，无需启动 FFprobe / FFmpeg。
 
-- WebP 使用 FFmpeg 的 `libwebp`，压缩级别 6，质量和无损开关实际传给编码器，明确输入 BGRA，支持透明画面。
-- JPEG 使用 `mjpeg` 质量参数，先把透明区域合成白色再编码。
-- PNG 使用压缩级别 9 和 mixed 行预测，不降低质量；保留支持的灰度、RGB、Alpha 和 16 位通道，未缩放的索引 PNG 保留调色板。10 / 12 位 HEIC 主图使用 16 位 PNG 输出；WebP 无损不能保留高于 8 位的通道，界面提示选择 PNG。
+- WebP 复用随看图功能提供的 Magick.NET 编码器，质量和无损开关传给同一编码入口，无损模式保留透明区域的 RGB 值；普通静态图不再经临时 PNG 和第二个编码器中转。
+- JPEG 共用本地质量参数与白色透明背景合成；HEIF 主图沿用专门的媒体编码路径。
+- PNG 使用压缩级别 9，保留灰度、RGB、Alpha 和未缩放索引图的调色板。高位深 PNG 和 HEIF 沿用 FFmpeg 处理，避免 Q8 图片后端降低源精度；10 / 12 位 HEIC 主图使用 16 位 PNG 输出。WebP 无损不能保留高于 8 位的通道，界面提示选择 PNG。
 
 输出使用独立 `_compressed` 文件名，已有名称自动避让。先在输出目录编码临时文件，仅当实际结果严格小于原文件时才移动到最终路径；失败、停止或结果更大均不产生最终输出，不覆盖原图。输出移除拍摄元数据。缩小尺寸会改变画面；已经充分优化的图片不保证还能变小，窗口明确展示这一结果。
 
-本入口处理静态图片，识别并拒绝动画 PNG / WebP，避免静默丢弃动画帧。WebP 最长边不能超过 16383 像素。FFmpeg 缺失或编码器不可用时显示实际错误。
+本入口处理静态图片，识别并拒绝动画 PNG / WebP，避免静默丢弃动画帧。WebP 最长边不能超过 16383 像素。HEIF 或高位深 PNG 所需媒体工具不可用时显示实际错误。
 
 HEIC / HEIF 是输入格式，压缩结果为 JPEG、WebP 或 PNG，当前不导出 HEIC；只处理静态主图，不保留 Live Photo 视频、深度图或 HDR 增益图。HEIC 本身可能已很小，转换后的结果同样必须实际变小才能正式保存。
 
 ## 开源方案
 
-交互参考 [Squoosh](https://github.com/GoogleChromeLabs/squoosh) 的本地压缩、前后对比与体积展示；未导入其代码、素材或 WebAssembly。Squoosh 采用 Apache-2.0。实现复用项目已有 FFmpeg 进程接口，无新增图像库或网络上传。
+交互参考 [Squoosh](https://github.com/GoogleChromeLabs/squoosh) 的本地压缩、前后对比与体积展示；未导入其代码、素材或 WebAssembly。Squoosh 采用 Apache-2.0。实现复用项目已有 Magick.NET、系统 ImageIO 与必要的 FFmpeg 接口，无新增图像库或网络上传。
 
-编码参数依据 [FFmpeg 文档](https://ffmpeg.org/ffmpeg-codecs.html)、[WebP 编码器源码](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/libwebpenc_common.c) 与 [PNG 编码器源码](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/pngenc.c)。FFmpeg 的分发许可随实际构建及链接库变化，沿用项目 [第三方声明](../THIRD-PARTY-NOTICES.md)；新增客户端代码使用 AGPL-3.0-only。
+普通图片编码复用 [Magick.NET](https://github.com/dlemstra/Magick.NET)；专门媒体路径参数依据 [FFmpeg 文档](https://ffmpeg.org/ffmpeg-codecs.html) 与 [PNG 编码器源码](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/pngenc.c)。第三方分发许可沿用项目 [第三方声明](../THIRD-PARTY-NOTICES.md)；新增客户端代码使用 AGPL-3.0-only。
 
 本次按工程约定完成相关项目编译与静态检查，未运行媒体输出、界面截图或功能回归测试。

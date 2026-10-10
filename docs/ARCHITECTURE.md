@@ -5,7 +5,7 @@
 | 接口 | 职责 | 实际调用方 |
 | --- | --- | --- |
 | `IJobExecutor` | 任务执行、真实进度和取消 | `QueueService` |
-| `IImageCompressor` | 静态图片探测、实际编码、真实体积与尺寸、停止和防覆盖 | 图片压缩窗口和队列执行器，共用 `FfmpegImageCompressor` |
+| `IImageCompressor` | 静态图片探测、实际编码、真实体积与尺寸、停止和防覆盖 | 图片压缩窗口和队列执行器，共用 `ImageCompressor` |
 | `IMediaPreview` | 缩略图、结束边界帧、相邻帧时间 | 编辑器，可独立注入帧预览实现 |
 | `IMediaEngine` | 继承执行与预览契约，提供探测、设置与工具路径 | 主窗口、编辑器、转换、播放器和批量工具 |
 | `IVideoOrientationDetector` | 方向建议、证据、进度与取消 | 编辑器方向页、批量旋转 |
@@ -18,7 +18,9 @@
 
 AI 文本与视觉请求共用 `SummaryChatProtocol` 的图像内容和响应解析；`SummaryToolConversation` 管理多轮工具调用。`MediaCaptionSession` 在一次分析批次内复用同一个本地／线上模型，并在结束时释放；调用方借用模型时不负责销毁。实现的协议与真实模型对照见 [AI 复用消融](acceptance/ABLATION.md#2026-10-10-ai-代码复用消融)。
 
-HEIC 仍通过 `IImageCompressor` 与 `IMediaPreview` 接入窗口。Core 内部的 `HeifImage` 从 FFprobe 选择静态主图，识别完整 Tile Grid、方向、位深及单块派生图裁剪，统一供预览、编码、转换与 PDF 使用。`AppleImageIO` 仅在 macOS 延迟加载系统框架，以 SafeHandle 管理原生资源，后台读取信息并按请求尺寸下采样；窗口不直接调用原生 API。图片压缩窗口只缓存当前原图位图，不缓存整个文件夹。详见 [HEIC](HEIC.md)。
+图片查看、普通静态图压缩、导出、效果和图片缩略图共用 `ImageCodec` 的本地编解码、方向与颜色处理和并发限制。`PreviewCacheStore` 统一派生图与任务摘要的内存 / 磁盘容量、完整性校验与原子写入；`TaskPreviewCache` 负责任务选轨 / 截取位置，普通静态图片行复用本地图像头读取，图片缩略图以源文件版本、成员与尺寸区分。普通图片压缩不依赖媒体子进程，HEIF 与高位深 PNG 保留专门路径；Skia 仍被 PDF、APNG 和 AI 图像处理使用，FFmpeg 仍被音视频及高位深图片使用。
+
+Core 内部的 `HeifImage` 从 FFprobe 选择静态主图，识别完整 Tile Grid、方向、位深及单块派生图裁剪，统一供编码、转换与 PDF 使用。`AppleImageIO` 仅在 macOS 延迟加载系统框架，以 SafeHandle 管理原生资源，由 `ImageCodec` 在后台读取图片并按请求尺寸下采样；窗口不直接调用原生 API。图片压缩窗口只持有当前原图位图。详见 [HEIC](HEIC.md)。
 
 `VideoFormats` 集中维护视频输入分类，播放器目录扫描、工具路由、剪辑、压缩、批量工具与 Windows 打开方式注册共用不可变集合；可原格式导出的容器单独维护，避免把输入支持当成输出支持。3GP / 3G2 的编码选择与校验沿用现有转换接口；Windows 安装与 macOS 构建验证共用 `scripts/legacy-video-capabilities.json` 声明的原生解码、解复用和输出能力。Mac 对应源码包包含该声明，可重建相同检查。见 [旧视频支持](LEGACY-VIDEO.md)。
 

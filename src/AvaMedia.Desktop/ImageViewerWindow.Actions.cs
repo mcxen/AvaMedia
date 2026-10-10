@@ -101,7 +101,7 @@ public sealed partial class ImageViewerWindow
         var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "wallpaper");
         Directory.CreateDirectory(folder);
         var file = Path.Combine(folder, Guid.NewGuid().ToString("N") + (OperatingSystem.IsWindows() ? ".bmp" : ".png"));
-        await ImageViewerCodec.ExportAsync(entry, file, new ImageViewerExport(OperatingSystem.IsWindows() ? "bmp" : "png",
+        await ImageCodec.ExportAsync(entry, file, new ImageEncodingOptions(OperatingSystem.IsWindows() ? "bmp" : "png",
             Rotation: _viewport.Rotation, Flip: _viewport.Flipped), _lifetime.Token);
         if (OperatingSystem.IsWindows()) SetWindowsWallpaper(file);
         else if (OperatingSystem.IsMacOS())
@@ -131,7 +131,7 @@ public sealed partial class ImageViewerWindow
         var generation = _loadGeneration; var document = _document;
         if (!await dialog.ShowDialog<bool>(this) || document != _document || generation != _loadGeneration) return;
         ToolInputs.CommitNumber(gamma);
-        var frames = await ImageViewerCodec.EffectAsync(document.Frames, effect.SelectedIndex switch { 1 => "invert", 2 => "soft", 3 => "sharp", _ => "none" }, (double)(gamma.Value ?? 1), _lifetime.Token);
+        var frames = await ImageCodec.EffectAsync(document.Frames, effect.SelectedIndex switch { 1 => "invert", 2 => "soft", 3 => "sharp", _ => "none" }, (double)(gamma.Value ?? 1), _lifetime.Token);
         if (_closed || generation != _loadGeneration) return;
         _animation.Stop(); _viewport.SetImages(null);
         foreach (var bitmap in _bitmaps) bitmap.Dispose(); _bitmaps.Clear();

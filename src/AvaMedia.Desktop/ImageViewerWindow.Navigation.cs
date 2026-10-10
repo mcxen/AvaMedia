@@ -12,17 +12,7 @@ public sealed partial class ImageViewerWindow
     private async Task<byte[]> ReadLibraryThumbnailAsync(ImageViewerEntry entry, CancellationToken token)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _lifetime.Token);
-        await _thumbnailGate.WaitAsync(linked.Token);
-        try
-        {
-            var key = entry.Identity + "|" + entry.Bytes + "|" + File.GetLastWriteTimeUtc(entry.Container).Ticks;
-            if (_thumbnailCache.TryGetValue(key, out var cached)) return cached;
-            var png = await ImageViewerCodec.ThumbnailAsync(entry, 96, 88, false, linked.Token);
-            linked.Token.ThrowIfCancellationRequested(); _thumbnailCache[key] = png; _thumbnailOrder.Enqueue(key);
-            while (_thumbnailOrder.Count > 192) _thumbnailCache.Remove(_thumbnailOrder.Dequeue());
-            return png;
-        }
-        finally { _thumbnailGate.Release(); }
+        return await ImageCodec.ThumbnailAsync(entry, 96, 88, false, linked.Token);
     }
     private async Task PickAsync()
     {
@@ -71,10 +61,10 @@ public sealed partial class ImageViewerWindow
         var entry = _entries[index]; _status.Text = entry.Name;
         try
         {
-            var document = await ImageViewerCodec.DecodeAsync(entry, operation.Token);
+            var document = await ImageCodec.DecodeAsync(entry, operation.Token);
             ImageViewerDocument? second = null;
             if (_spread.IsChecked == true && index + 1 < _entries.Length)
-                second = await ImageViewerCodec.DecodeAsync(_entries[index + 1], operation.Token);
+                second = await ImageCodec.DecodeAsync(_entries[index + 1], operation.Token);
             operation.Token.ThrowIfCancellationRequested();
             if (_closed || generation != _loadGeneration) return;
             _document = document; _secondDocument = second; _loadedModified = File.GetLastWriteTimeUtc(entry.Container);

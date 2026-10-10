@@ -33,7 +33,6 @@ public sealed class ImageCompressionEntry(string path) : Observable
 public sealed partial class ImageCompressionWindow : Window
 {
     private readonly IImageCompressor _compressor;
-    private readonly IMediaPreview _preview;
     private readonly bool _editing;
     private readonly ObservableCollection<ImageCompressionEntry> _entries = [];
     private readonly CancellationTokenSource _lifetime = new();
@@ -53,8 +52,7 @@ public sealed partial class ImageCompressionWindow : Window
         ImageCompressionOptions? initialOptions = null, bool canStart = true, IImageCompressor? compressor = null, bool editing = false)
     {
         _editing = editing;
-        _compressor = compressor ?? new FfmpegImageCompressor(engine);
-        _preview = engine;
+        _compressor = compressor ?? new ImageCompressor(engine);
         InitializeComponent();
         FileList.ItemsSource = _entries;
         OutputInput.Text = outputFolder;
@@ -249,8 +247,8 @@ public sealed partial class ImageCompressionWindow : Window
             var result = entry.Result;
             var existing = _sourceBitmap;
             var reuse = existing is not null && ReferenceEquals(entry, _displayedEntry);
-            var decodedSource = !reuse && (entry.Source.HasOrientation || Path.GetExtension(entry.Path).ToLowerInvariant() is ".heic" or ".heif") ?
-                await _preview.Thumbnail(entry.Path, 0, entry.Source.Width, entry.Source.Height, token, pad: false) : null;
+            var decodedSource = !reuse ? await ImageCodec.ThumbnailAsync(entry.Path,
+                entry.Source.Width, entry.Source.Height, pad: false, token) : null;
             var images = await Task.Run(() =>
             {
                 using var decoded = decodedSource is null ? null : new MemoryStream(decodedSource);

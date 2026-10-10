@@ -5,14 +5,12 @@ namespace AvaMedia.Core;
 public sealed record ImageViewerFrame(byte[] Png, TimeSpan Delay);
 public sealed record ImageViewerDocument(int Width, int Height, string Format, ImageViewerFrame[] Frames,
     IReadOnlyDictionary<string, string> Metadata, string? MapUrl, int LoopCount, bool Animated);
-public sealed record ImageViewerExport(string Format = "png", int Quality = 90, int MaxDimension = 0,
-    int Rotation = 0, bool Flip = false, bool StripMetadata = false);
 
 /// <summary>Bundled cross-platform decoder: primary HEIC, EXIF orientation, RAW and coalesced animation frames.</summary>
-public static class ImageViewerCodec
+public static partial class ImageCodec
 {
     private static readonly SemaphoreSlim DecodeGate = new(1, 1);
-    static ImageViewerCodec()
+    static ImageCodec()
     {
         ResourceLimits.Memory = 512UL * 1024 * 1024;
         ResourceLimits.Disk = 1024UL * 1024 * 1024;
@@ -22,9 +20,12 @@ public static class ImageViewerCodec
     }
     public static async Task<ImageViewerDocument> DecodeAsync(ImageViewerEntry entry, CancellationToken token)
     {
-        var bytes = await ImageViewerSource.ReadAsync(entry, token).ConfigureAwait(false);
         await DecodeGate.WaitAsync(token).ConfigureAwait(false);
-        try { return await Task.Run(() => Decode(bytes, token), token).ConfigureAwait(false); }
+        try
+        {
+            var bytes = await ImageViewerSource.ReadAsync(entry, token).ConfigureAwait(false);
+            return await Task.Run(() => Decode(bytes, token), token).ConfigureAwait(false);
+        }
         finally { DecodeGate.Release(); }
     }
     /// <summary>Compress an already scaled preview without another media decode or FFmpeg process.</summary>
@@ -38,12 +39,8 @@ public static class ImageViewerCodec
                 token.ThrowIfCancellationRequested();
                 using var image = new MagickImage(preview, new MagickReadSettings { FrameCount = 1 });
                 ValidateSize(image.Width, image.Height);
-                if (image.GetColorProfile() is not null) image.TransformColorSpace(ColorProfiles.SRGB);
-                else if (image.ColorSpace is ColorSpace.CMYK or ColorSpace.Lab) image.ColorSpace = ColorSpace.sRGB;
-                image.Strip(); image.Quality = 82;
-                var opaque = image.IsOpaque;
-                if (opaque) image.Alpha(AlphaOption.Remove);
-                var compressed = image.ToByteArray(opaque ? MagickFormat.Jpeg : MagickFormat.Png);
+                ConfigureEncoding(image, new(image.IsOpaque ? "jpg" : "png", 82, StripMetadata: true));
+                var compressed = image.ToByteArray();
                 token.ThrowIfCancellationRequested();
                 return compressed.Length < preview.Length ? compressed : preview;
             }, token).ConfigureAwait(false);
@@ -71,8 +68,7 @@ public static class ImageViewerCodec
         {
             token.ThrowIfCancellationRequested(); ValidateSize(image.Width, image.Height);
             image.AutoOrient();
-            if (image.GetColorProfile() is not null) image.TransformColorSpace(ColorProfiles.SRGB);
-            else if (image.ColorSpace is ColorSpace.CMYK or ColorSpace.Lab) image.ColorSpace = ColorSpace.sRGB;
+            NormalizeColor(image);
             resident += (long)image.Width * image.Height * 4;
             if (resident > 384L * 1024 * 1024) throw new InvalidDataException("动画解码后超过 384 MB，请缩小动画后打开。");
             var ticks = Math.Max(1, image.AnimationTicksPerSecond);
@@ -85,52 +81,46 @@ public static class ImageViewerCodec
         => ThumbnailAsync(new ImageViewerEntry(path), width, height, pad, token);
     public static async Task<byte[]> ThumbnailAsync(ImageViewerEntry entry, int width, int height, bool pad, CancellationToken token)
     {
-        var bytes = await ImageViewerSource.ReadAsync(entry, token).ConfigureAwait(false);
+        if (width is < 1 or > 32768 || height is < 1 or > 32768) throw new ArgumentException("缩略图尺寸无效。");
+        var source = await Task.Run(() => ThumbnailIdentity(entry, width, height, pad), token).ConfigureAwait(false);
+        var cached = await PreviewCacheStore.Shared.ReadAsync(source, token).ConfigureAwait(false);
+        if (cached is not null) return cached;
         await DecodeGate.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            return await Task.Run(() =>
+            cached = await PreviewCacheStore.Shared.ReadAsync(source, token).ConfigureAwait(false);
+            if (cached is not null) return cached;
+            byte[] thumbnail;
+            if (!entry.InArchive && !pad && AppleImageIO.Supports(entry.Container))
+                thumbnail = await AppleImageIO.ThumbnailAsync(entry.Container, width, height, token).ConfigureAwait(false);
+            else
             {
-                token.ThrowIfCancellationRequested();
-                var preview = AnimatedPng.IsAnimated(bytes) ? AnimatedPng.Decode(bytes, token, firstFrameOnly: true).Frames[0].Png : bytes;
-                var info = new MagickImageInfo(preview); ValidateSize(info.Width, info.Height);
-                using var image = new MagickImage(preview, new MagickReadSettings { FrameCount = 1 });
-                image.AutoOrient(); image.Thumbnail((uint)width, (uint)height);
-                if (pad) { image.BackgroundColor = MagickColors.Black; image.Extent((uint)width, (uint)height, Gravity.Center); }
-                token.ThrowIfCancellationRequested(); return image.ToByteArray(MagickFormat.Png);
-            }, token).ConfigureAwait(false);
+                var bytes = await ImageViewerSource.ReadAsync(entry, token).ConfigureAwait(false);
+                thumbnail = await Task.Run(() =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    var preview = AnimatedPng.IsAnimated(bytes) ? AnimatedPng.Decode(bytes, token, firstFrameOnly: true).Frames[0].Png : bytes;
+                    var info = new MagickImageInfo(preview); ValidateSize(info.Width, info.Height);
+                    using var image = new MagickImage(preview, new MagickReadSettings { FrameCount = 1 });
+                    image.AutoOrient(); image.Thumbnail((uint)width, (uint)height);
+                    if (pad) { image.BackgroundColor = MagickColors.Black; image.Extent((uint)width, (uint)height, Gravity.Center); }
+                    ConfigureEncoding(image, new("png", StripMetadata: true));
+                    token.ThrowIfCancellationRequested(); return image.ToByteArray();
+                }, token).ConfigureAwait(false);
+            }
+            var current = await Task.Run(() => ThumbnailIdentity(entry, width, height, pad), token).ConfigureAwait(false);
+            if (current == source) await PreviewCacheStore.Shared.WriteAsync(source, thumbnail, token).ConfigureAwait(false);
+            return thumbnail;
         }
         finally { DecodeGate.Release(); }
     }
-    public static async Task ExportAsync(ImageViewerEntry entry, string destination, ImageViewerExport options, CancellationToken token)
+    private static string ThumbnailIdentity(ImageViewerEntry entry, int width, int height, bool pad)
     {
-        if (options.Format is not ("jpg" or "png" or "webp" or "tiff" or "bmp" or "avif")) throw new ArgumentException("输出格式无效。");
-        if (options.Quality is < 1 or > 100 || options.MaxDimension is < 0 or > 32768) throw new ArgumentException("输出尺寸或质量无效。");
-        var bytes = await ImageViewerSource.ReadAsync(entry, token).ConfigureAwait(false);
-        await DecodeGate.WaitAsync(token).ConfigureAwait(false);
-        var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            await Task.Run(() =>
-            {
-                token.ThrowIfCancellationRequested();
-                using var image = new MagickImage(bytes, new MagickReadSettings { FrameCount = 1 });
-                ValidateSize(image.Width, image.Height); image.AutoOrient();
-                if (options.Flip) image.Flop();
-                if (options.Rotation != 0) image.Rotate(options.Rotation);
-                if (options.MaxDimension > 0 && Math.Max(image.Width, image.Height) > options.MaxDimension)
-                    image.Resize(new MagickGeometry((uint)options.MaxDimension, (uint)options.MaxDimension));
-                if (options.StripMetadata) image.Strip();
-                image.Quality = (uint)options.Quality;
-                if (options.Format == "jpg") { image.BackgroundColor = MagickColors.White; image.Alpha(AlphaOption.Remove); }
-                image.Format = options.Format switch
-                { "jpg" => MagickFormat.Jpeg, "webp" => MagickFormat.WebP, "tiff" => MagickFormat.Tiff,
-                    "bmp" => MagickFormat.Bmp, "avif" => MagickFormat.Avif, _ => MagickFormat.Png };
-                image.Write(temporary); token.ThrowIfCancellationRequested();
-                File.Move(temporary, destination, overwrite: false);
-            }, token).ConfigureAwait(false);
-        }
-        finally { DecodeGate.Release(); if (File.Exists(temporary)) File.Delete(temporary); }
+        var file = new FileInfo(Path.GetFullPath(entry.Container));
+        if (!file.Exists) throw new FileNotFoundException("图片不存在。", file.FullName);
+        var path = OperatingSystem.IsWindows() ? file.FullName.ToUpperInvariant() : file.FullName;
+        return System.Text.Json.JsonSerializer.Serialize(new { Kind = "image-thumbnail-1", Path = path,
+            entry.Member, Bytes = file.Length, Modified = file.LastWriteTimeUtc.Ticks, Width = width, Height = height, Pad = pad });
     }
     public static async Task<ImageViewerFrame[]> EffectAsync(ImageViewerFrame[] frames, string effect, double gamma, CancellationToken token)
     {
