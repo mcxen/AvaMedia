@@ -67,8 +67,7 @@ public sealed partial class SettingsWindow : Window
             DefaultPlayerButton.Content = Localization.Text("打开应用位置");
         }
         ContextMenuInput.Content = OperatingSystem.IsMacOS() ? "添加到 Finder 快速操作" : "添加到系统上下文菜单";
-        ToolTip.SetTip(ContextMenuInput, OperatingSystem.IsMacOS() ? "安装到当前用户的 Finder 服务；可在系统设置的扩展中管理。" : "添加当前用户的资源管理器菜单；Windows 11 可能位于“显示更多选项”。");
-        if (!_services.CanUseTray) { ToolTip.SetTip(TrayInput, "当前环境不提供系统托盘，使用正常窗口最小化。"); ToolTip.SetTip(CloseToTrayInput, "当前环境不提供系统托盘，关闭窗口会退出应用。"); }
+
         Closed += (_, _) => { Localization.Changed -= LanguageChanged; _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
         AddHandler(Button.ClickEvent,(_,_)=>{if(_settings.PlayOperationSound)_services.PlaySound(UiSound.Operation);},RoutingStrategies.Bubble);
     }

@@ -12,6 +12,13 @@ public sealed partial class App : Application
 {
     public override void Initialize()
     {
+        Avalonia.Controls.ToolTip.ToolTipOpeningEvent.AddClassHandler<Avalonia.Controls.TextBlock>((text, args) =>
+        {
+            // Full text and paths supplement ellipsized content, never repeat text already visible.
+            if (Avalonia.Controls.ToolTip.GetTip(text) is string tip
+                && (tip == text.Text || Path.IsPathFullyQualified(tip))
+                && !text.TextLayout.TextLines.Any(line => line.HasCollapsed)) args.Cancel = true;
+        });
         Localization.Apply(Environment.GetCommandLineArgs().Contains(SetupPreviewExporter.Argument) ? "zh-CN" : new Storage().LoadSettings().Language);
         AvaloniaXamlLoader.Load(this);
         if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activation)

@@ -72,8 +72,7 @@ public partial class JobRowView : UserControl
         var canDrag = _owner.CanDragOutput(job);
         OutputDragGrip.IsVisible = canDrag;
         OutputDragHandle.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
-        ToolTip.SetTip(OutputDragGrip, Localization.Text("拖到左侧工具继续处理"));
-        ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖到左侧工具继续处理") : null);
+
         ViewResultButton.IsVisible = _owner.CanViewAiTask(job);
         ViewResultButton.Content = Localization.Text(_owner.CanViewAiTask(job) ? "查看任务" : "查看结果");
         CoverButton.IsEnabled = _owner.CanEditTask(job) || _owner.CanViewAiTask(job);

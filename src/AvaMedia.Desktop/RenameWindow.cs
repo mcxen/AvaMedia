@@ -115,7 +115,7 @@ public sealed partial class RenameWindow : Window
                 keyword.Bind(IsVisibleProperty, new Binding(nameof(CheckBox.IsChecked)) { Source = _semantic });
                 row.RowDefinitions = new("Auto,Auto"); Grid.SetRow(keyword, 1); Grid.SetColumn(keyword, 2); Grid.SetColumnSpan(keyword, 2); row.Children.Add(keyword);
             }
-            row.Bind(ToolTip.TipProperty, new Binding(nameof(MediaFileEntry.Details))); return row;
+            return row;
         });
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); Grid.SetColumn(filesArea, 1); body.Children.Add(filesArea);
         var side = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), RowSpacing = 8 };

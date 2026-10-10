@@ -39,7 +39,7 @@ public partial class MainWindow
             CompletedTasksChevron.Data = _settings.CollapseCompletedTasks ? CollapsedTaskChevron : ExpandedTaskChevron;
             Localization.SetText(CompletedTasksLabel, $"已完成（{completed}）");
             var action = Localization.Text(_settings.CollapseCompletedTasks ? "展开已完成任务" : "折叠已完成任务");
-            ToolTip.SetTip(CompletedTasksToggle, action);
+
             AutomationProperties.SetName(CompletedTasksToggle, action);
             CollapseCompletedTasksViewMenu.IsChecked = _settings.CollapseCompletedTasks;
         }

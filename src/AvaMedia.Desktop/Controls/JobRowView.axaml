@@ -21,9 +21,9 @@
         </Border>
       </Grid>
     </Button>
-    <StackPanel Grid.Column="1" Spacing="4" Margin="8,2" VerticalAlignment="Center" ToolTip.Tip="{Binding SourceTip}">
+    <StackPanel Grid.Column="1" Spacing="4" Margin="8,2" VerticalAlignment="Center">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-        <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Source}"/>
         <TextBlock Grid.Column="1" Text="{Binding Job.SubmittedBy}" Classes="queue-secondary" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
       </Grid>
       <TextBlock Text="{Binding MediaSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>

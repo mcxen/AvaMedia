@@ -238,7 +238,7 @@ public partial class PlayerWindow : Window
         var playing = _info is not null && _playIntent;
         PlayerPlayIcon.Kind = playing ? "pause" : "play";
         Avalonia.Automation.AutomationProperties.SetName(PlayerPlayButton, playing ? "暂停" : "播放");
-        ToolTip.SetTip(PlayerPlayButton, playing ? "暂停（Space）" : "播放（Space）");
+        ToolTip.SetTip(PlayerPlayButton, playing ? "暂停" : "播放");
         PlayerPlayButton.IsEnabled = !_deleting && !_nativeBusy && (_info is not null || !string.IsNullOrEmpty(CurrentPath) && DetectDisc(CurrentPath) is not null);
         PlayerStopButton.IsEnabled = PlayerSeek.IsEnabled = _info is not null && !_deleting && !_nativeBusy;
         PlayerMuteButton.IsEnabled = _info?.HasAudio == true;
@@ -354,7 +354,7 @@ public partial class PlayerWindow : Window
             WindowState = WindowState.FullScreen;
         }
         Avalonia.Automation.AutomationProperties.SetName(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
-        ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏（Enter / Esc）" : "全屏（Enter / 双击画面）");
+        ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
         ShowChrome();
     }
     private bool IsPlayerOverlay(object? source) => source is Control control && control.GetVisualAncestors().Prepend(control)

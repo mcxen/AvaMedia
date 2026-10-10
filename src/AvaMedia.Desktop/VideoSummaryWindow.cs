@@ -310,7 +310,7 @@ public sealed class VideoSummaryWindow : Window
     {
         if (_modelWarmup is null || _lifetime.IsCancellationRequested) return;
         _warmAction.Content = Localization.Text(_modelWarmup.Running ? "停止预热" : _modelWarmup.Error is null ? "预热模型" : "重试预热");
-        ToolTip.SetTip(_warmAction, _modelWarmup.Stopped ? Localization.Text("预热已停止，开始分析时将按需加载") : _modelWarmup.Error?.Message);
+        ToolTip.SetTip(_warmAction, _modelWarmup.Error?.Message);
     }
     private void RefreshOnlineProviders(string selected)
     {

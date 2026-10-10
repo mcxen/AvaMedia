@@ -70,7 +70,7 @@ internal sealed class ModelRuntimeView : Grid
         _progress.IsVisible = value.Preparing;
         var ticking = _attached && (value.Preparing || value.State == ModelLoadState.Ready && value.ReleaseUtc is not null);
         if (ticking) _timer.Start(); else _timer.Stop();
-        ToolTip.SetTip(this, value.Error ?? (value.State == ModelLoadState.Ready && MediaTagRuntime.IdleMinutes < 0 ? Localization.Text("保持到退出应用") : null));
+        ToolTip.SetTip(this, value.Error);
         Avalonia.Automation.AutomationProperties.SetName(this, Localization.Text(ModelCatalog.Find(_id).Name) + " · " + _state.Text + " · " + _detail.Text);
     }
 }

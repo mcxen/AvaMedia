@@ -26,7 +26,7 @@
             <DataTemplate DataType="local:QuickClipEntry">
               <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1">
                 <Grid ColumnDefinitions="144,*,168" MinHeight="104">
-                  <Button Classes="preview" Click="EditEntryClick" ToolTip.Tip="预览 / 剪辑此文件" AutomationProperties.Name="预览并编辑此文件" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                  <Button Classes="preview" Click="EditEntryClick" ToolTip.Tip="预览并编辑此文件" AutomationProperties.Name="预览并编辑此文件" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                     <Grid Margin="8">
                       <TextBlock Text="{Binding PreviewStatus}" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                       <Image Source="{Binding Thumbnail}" Width="128" Height="88" Stretch="Uniform"/>
@@ -49,8 +49,8 @@
                   </Border>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8" HorizontalAlignment="Right" VerticalAlignment="Center">
                       <Button Classes="row-icon" Click="RemoveClick" ToolTip.Tip="移除此条目" AutomationProperties.Name="移除此条目"><icons:ActionIcon Kind="remove" Classes="danger"/></Button>
-                      <Button Content="分割" Click="SplitClick" ToolTip.Tip="按段数、时长或时间点分割当前区间"/>
-                      <Button Content="选项" Click="EditEntryClick" ToolTip.Tip="此文件的剪辑、裁剪和选项"/>
+                      <Button Content="分割" Click="SplitClick"/>
+                      <Button Content="选项" Click="EditEntryClick"/>
                     </StackPanel>
                 </Grid>
               </Border>

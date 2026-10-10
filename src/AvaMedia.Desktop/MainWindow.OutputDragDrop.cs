@@ -107,19 +107,16 @@ public partial class MainWindow
             e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true;
             tile.Classes.Set("drop-target", accepted);
             tile.Classes.Set("drop-invalid", !accepted);
-            var skipped = _dropSources.Length - files.Length;
-            ToolTip.SetTip(tile, accepted
-                ? skipped > 0 ? Localization.Format($"带入 {files.Length} 个文件 · 跳过 {skipped} 个不支持的文件") : Localization.Format($"带入 {files.Length} 个文件")
-                : Localization.Text(files.Length == 0 ? "此工具不支持这些文件" : "当前无法打开此工具"));
+
         }, RoutingStrategies.Bubble, handledEventsToo: true);
         tile.AddHandler(DragDrop.DragLeaveEvent, (_, _) => ClearFeatureDropFeedback(tile, feature));
         tile.AddHandler(DragDrop.DropEvent, (_, e) =>
         {
             e.Handled = true;
             var files = FeatureDropFiles(feature, e.DataTransfer).Where(File.Exists).ToArray();
+            var skipped = _dropSources.Length - files.Length;
             var accepted = CanDropOnFeature(feature, files);
             e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
-            var skipped = _dropSources.Length - files.Length;
             ResetOutputDropSession();
             if (!accepted) return;
             _openingDroppedTool = true;
@@ -145,7 +142,7 @@ public partial class MainWindow
     private static void ClearFeatureDropFeedback(Button tile, Feature feature)
     {
         tile.Classes.Remove("drop-target"); tile.Classes.Remove("drop-invalid");
-        ToolTip.SetTip(tile, feature.Label);
+
     }
 
     private void EnableCategoryDropNavigation(Controls.CategoryHeader header, string category)

@@ -51,7 +51,7 @@ public sealed partial class SubtitleStyleEditor
         AutomationProperties.SetHelpText(_screen, "拖动字幕调整位置");
         var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         row.Children.Add(_seek); Grid.SetColumn(_time, 1); row.Children.Add(_time);
-        ToolTip.SetTip(_seek, "预览时间"); ToolTip.SetTip(_time, "预览时间");
+
         _time.Width = 110;
         _totalTime.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
         _timeline.Children.Add(row); _timeline.Children.Add(_totalTime); preview.Children.Add(_timeline);

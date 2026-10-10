@@ -82,7 +82,7 @@ public sealed partial class VideoSummaryResultWindow
         var button = new Button { Content = EditorTime.Format(seconds), Classes = { "summary-time", "tool" },
             HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = _engine is not null && File.Exists(_source)
                 && double.IsFinite(seconds) && seconds >= 0 && seconds <= (_report?.Duration ?? 0) };
-        Localization.SetIsUserText(button, true); ToolTip.SetTip(button, Localization.Text("从此处播放原视频"));
+        Localization.SetIsUserText(button, true);
         button.Click += async (_, _) => await PlayAsync(seconds); return button;
     }
 }

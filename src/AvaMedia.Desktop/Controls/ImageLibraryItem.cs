@@ -17,7 +17,7 @@ internal sealed class ImageLibraryItem : Grid
         ColumnDefinitions = new("48,*"); ColumnSpacing = 6; Children.Add(_image);
         var text = Ui.Text(entry.Name); Localization.SetIsUserText(text, true);
         text.MaxLines = 2; text.TextTrimming = TextTrimming.CharacterEllipsis; text.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(text, 1); Children.Add(text); ToolTip.SetTip(this, entry.Identity);
+        Grid.SetColumn(text, 1); Children.Add(text); ToolTip.SetTip(text, entry.Identity);
         AttachedToVisualTree += async (_, _) =>
         {
             using var request = new CancellationTokenSource(); _request = request;

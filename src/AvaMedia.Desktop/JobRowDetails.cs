@@ -62,7 +62,6 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         }
     }
     public bool HasCodecSummary => CodecSummary.Length > 0;
-    public string SourceTip => string.Join("\n", new[] { Job.Source, MediaSummary, CodecSummary, FileSummary }.Where(s => s.Length > 0));
     public string SettingsSummary
     {
         get

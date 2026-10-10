@@ -56,7 +56,7 @@ public sealed class CategoryHeader : Button
         Grid.SetColumn(xpToggle, 2); content.Children.Add(xpToggle);
         Content = content;
         ActualThemeVariantChanged += (_, _) => UpdateChevron();
-        ToolTip.SetTip(this, category);
+
         AutomationProperties.SetLabeledBy(this, title);
         PropertyChanged += (_, change) =>
         {

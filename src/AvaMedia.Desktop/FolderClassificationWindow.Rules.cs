@@ -187,16 +187,14 @@ public sealed partial class FolderClassificationWindow
             fieldLabels.Add(label); fieldPanels.Add(field); field.Children.Add(label);
             field.Children.Add(Ui.Parameter(fields[index].Item2,fields[index].Item1)); Grid.SetColumn(field, index); limits.Children.Add(field);
         }
-        ToolTip.SetTip(threshold, Localization.Text("匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
-        ToolTip.SetTip(margin, Localization.Text("第一名与第二名的分数差距小于此值时，画面进入待确认。"));
-        ToolTip.SetTip(agreement, Localization.Text("视频中至少有这一比例的采样画面命中同一类别，才自动归类。"));
+
         var advancedBody = new StackPanel { Spacing = 10 };
         var advancedHint = Ui.Text("数值越高，分类越谨慎。", "caption");
         advancedBody.Children.Add(limits); advancedBody.Children.Add(advancedHint);
         var makeDefault = new CheckBox { Content = "设为默认分类" }; advancedBody.Children.Add(makeDefault);
         var privateGroup = new CheckBox { Content = "NSFW 私密分组", IsChecked = existing is not null && MediaPrivacy.IsSensitiveRule(existing), IsVisible = _settings.EnableNsfwContent };
         advancedBody.Children.Add(privateGroup);
-        ToolTip.SetTip(makeDefault, Localization.Text("将当前分类规则设为下次打开时的默认分类"));
+
         var advanced = new Expander { Header = "高级设置", Content = advancedBody, HorizontalAlignment = HorizontalAlignment.Stretch };
         void UpdateMode()
         {
@@ -211,10 +209,7 @@ public sealed partial class FolderClassificationWindow
                 if (fieldPanels[index].Children[1] is Panel parameter)
                     foreach (var control in parameter.Children) Avalonia.Automation.AutomationProperties.SetName(control, fieldLabels[index].Text);
             advancedHint.Text = Localization.Text(detectsNipples ? "判定分数下方的这段范围进入待确认。" : "数值越高，分类越谨慎。");
-            ToolTip.SetTip(threshold, Localization.Text(detectsNipples ? "露点标签分数达到此值时，归入露点。"
-                : usesTags ? "标签分数达到此值时参与分类。" : "匹配分数是语义相似度，范围为 0–1。低于此分数的画面进入待确认。"));
-            ToolTip.SetTip(margin, Localization.Text(detectsNipples ? "判定分数下方的这段范围进入待确认。"
-                : "第一名与第二名的分数差距小于此值时，画面进入待确认。"));
+
             if (automatic)
             {
                 threshold.Value = (decimal)(detectsNipples ? FolderNippleClassification.DefaultThreshold : usesTags ? .4 : FolderClassificationRule.DefaultThreshold);

@@ -45,7 +45,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         Localization.SetIsUserText(_font, true);
         Add(fields, "字体", _font);
         _size = Number("SubtitleFontSize", options.SubtitleFontSize, 0, 200);
-        ToolTip.SetTip(_size, "0 = 自动"); Add(fields, "字号 (px)", _size);
+         Add(fields, "字号 (px)", _size);
         _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB"; _color.IsReadOnly = true;
         var colors = new StackPanel { Spacing = 8 }; colors.Children.Add(_color);
         var palette = new WrapPanel { Orientation = Orientation.Horizontal };

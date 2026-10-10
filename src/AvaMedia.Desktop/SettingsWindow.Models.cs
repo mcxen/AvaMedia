@@ -108,7 +108,7 @@ public sealed partial class SettingsWindow
             var verify = new MenuItem { Header = "校验" }; verify.Click += (_, _) => _ = RunModelActionAsync(model, "verify");
             var delete = new MenuItem { Header = "删除" }; delete.Click += (_, _) => _ = RunModelActionAsync(model, "delete");
             var import = new MenuItem { Header = "导入本地文件…" };
-            ToolTip.SetTip(import, "选择已下载的模型文件或所在文件夹，按大小与 SHA-256 校验后安装");
+
             var importFiles = new MenuItem { Header = "选择文件…" }; importFiles.Click += (_, _) => _ = ImportModelAsync(model, folder: false);
             var importFolder = new MenuItem { Header = "选择文件夹…" }; importFolder.Click += (_, _) => _ = ImportModelAsync(model, folder: true);
             import.Items.Add(importFiles); import.Items.Add(importFolder);
@@ -296,7 +296,7 @@ public sealed partial class SettingsWindow
             row.ProgressText.Text += " · " + Localization.Format($"重试 {progress.Attempt}/{progress.MaxAttempts}");
         if (progress.Source.Length > 0)
             row.ProgressText.Text += " · " + Localization.Format($"下载源 {progress.SourceIndex}/{progress.SourceCount} · {progress.SourceName}");
-        ToolTip.SetTip(row.ProgressText, row.ProgressText.Text + (progress.Source.Length > 0 ? "\n" + progress.Source : ""));
+        ToolTip.SetTip(row.ProgressText, row.ProgressText.Text);
         row.ProgressBar.IsIndeterminate = active || background
             ? progress.Stage is not ("下载" or "等待重试" or "切换下载源" or "导入文件") : false;
         row.ProgressBar.Value = progress.Percent;

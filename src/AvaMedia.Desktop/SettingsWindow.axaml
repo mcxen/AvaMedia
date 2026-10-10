@@ -22,8 +22,8 @@
                         <TextBox Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" />
                         <Button Grid.Column="2" x:Name="OutputBrowseButton" Classes="field-action settingsBrowse" Content="浏览…" Click="OutputBrowseClick" />
                       </Grid>
-                      <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" ToolTip.Tip="有源文件的任务保存到源目录；下载仍使用默认输出文件夹。" />
-                      <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" ToolTip.Tip="在新任务的输出文件名后添加格式或 FastCopy 等设置名称。" />
+                      <CheckBox x:Name="OutputToSourceInput" Content="输出至源文件目录" />
+                      <CheckBox x:Name="AddSettingNameInput" Content="文件名附加格式或设置名称" />
                     </StackPanel>
                   </Border>
                 </StackPanel>
@@ -31,9 +31,9 @@
                   <TextBlock Classes="settingsHeading" Text="任务完成" />
                   <Border Classes="settingSection">
                     <StackPanel Spacing="10">
-                      <CheckBox x:Name="NotifyInput" Content="显示完成通知" ToolTip.Tip="通知保留在主界面，不自动恢复主窗口。" />
+                      <CheckBox x:Name="NotifyInput" Content="显示完成通知" />
                       <CheckBox x:Name="OpenOutputInput" Content="打开输出文件夹" />
-                      <CheckBox x:Name="ShutdownInput" Content="全部成功后关闭电脑" ToolTip.Tip="仅在本次任务全部成功后开始可取消的 30 秒倒计时。" />
+                      <CheckBox x:Name="ShutdownInput" Content="全部成功后关闭电脑" />
                     </StackPanel>
                   </Border>
                 </StackPanel>
@@ -88,7 +88,7 @@
                   <TextBlock Classes="settingsHeading" Text="后台与系统入口" />
                   <Border Classes="settingSection">
                     <StackPanel Spacing="10">
-                      <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" ToolTip.Tip="后台继续执行转换和下载任务。需要完全结束应用时使用任务菜单或托盘菜单的“退出”。" />
+                      <CheckBox x:Name="CloseToTrayInput" Content="关闭窗口时缩小到托盘" />
                       <CheckBox x:Name="TrayInput" Content="最小化时缩小到托盘" />
                       <CheckBox x:Name="ContextMenuInput" Content="添加到系统上下文菜单" />
                       <Grid x:Name="PlayerIntegrationRow" ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -107,7 +107,7 @@
                   <TextBlock Classes="settingsHeading" Text="内容分组" />
                   <Border Classes="settingSection">
                     <StackPanel Spacing="6">
-                      <ToggleSwitch x:Name="NsfwContentInput" Content="启用 NSFW 分组与标签" OnContent="已开启" OffContent="已关闭" ToolTip.Tip="立即生效；关闭后隐藏成人分组与标签。" />
+                      <ToggleSwitch x:Name="NsfwContentInput" Content="启用 NSFW 分组与标签" OnContent="已开启" OffContent="已关闭" />
                     </StackPanel>
                   </Border>
                 </StackPanel>
@@ -129,7 +129,7 @@
                   <TextBlock Classes="settingsHeading" Text="硬件加速" />
                   <Border Classes="settingSection">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                      <CheckBox x:Name="AutoGpuInput" Content="自动适配 GPU" ToolTip.Tip="按平台、可用硬件、输出格式和源视频编码自动选择；解码或编码不可用时自动回退。" />
+                      <CheckBox x:Name="AutoGpuInput" Content="自动适配 GPU" />
                       <Button Grid.Column="1" x:Name="HardwareTestButton" Classes="field-action settingsBrowse" Content="查看 GPU 能力" Click="HardwareTestClick" />
                     </Grid>
                   </Border>
@@ -344,7 +344,7 @@
       <TextBlock x:Name="StatusText" Classes="settingError" IsVisible="False" TextWrapping="Wrap" VerticalAlignment="Center" />
     </Border>
     <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
-      <Button x:Name="DefaultButton" Classes="settingsFooter" Content="恢复默认" Click="ResetClick" ToolTip.Tip="恢复选项默认值；点击应用或确定后保存。" />
+      <Button x:Name="DefaultButton" Classes="settingsFooter" Content="恢复默认" Click="ResetClick" />
       <Button Grid.Column="2" x:Name="CancelButton" Classes="settingsFooter" Content="取消" Click="CancelClick" IsCancel="True" />
       <Button Grid.Column="3" x:Name="ApplyButton" Classes="settingsFooter" Content="应用" Click="ApplyClick" IsEnabled="False" />
       <Button Grid.Column="4" x:Name="OkButton" Classes="primary settingsFooter" Content="确定" Click="OkClick" IsDefault="True" />

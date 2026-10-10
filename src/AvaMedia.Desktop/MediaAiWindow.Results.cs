@@ -51,7 +51,7 @@ public sealed partial class MediaAiWindow
         _detailTitle.MaxLines = 2; _detailTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         var titleRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
         titleRow.Children.Add(_detailTitle); Grid.SetColumn(_nsfwBadge, 1); titleRow.Children.Add(_nsfwBadge);
-        _nsfwBadge.Content = _nsfwBadgeText; ToolTip.SetTip(_nsfwBadge, "点击查看 NSFW 判断依据");
+        _nsfwBadge.Content = _nsfwBadgeText;
         _nsfwBadge.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
         _nsfwBadge.Click += (_, _) => { _details.IsExpanded = !_details.IsExpanded; _details.BringIntoView(); };
         var title = new StackPanel { Spacing = 6 };
@@ -182,8 +182,6 @@ public sealed partial class MediaAiWindow
                         var evidence = new MenuItem { Header = "查看达标采样…" }; evidence.Click += async (_, _) => await ShowEvidenceAsync(result, tag);
                         chip.ContextMenu = new ContextMenu { Items = { evidence } };
                     }
-                    var kind = Localization.Text(tag.ScoreKind switch { "sample_peak" => "峰值", "sample_average" => "平均", "current_frame" => "当前画面", "cosine_similarity" => "相似度", _ => "分数" });
-                    ToolTip.SetTip(chip, tag.Label + "\n" + ModelLabel(tag.Model) + " · " + kind + $" {tag.Score:0.000}");
                 }
                 chip.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
                 chip.Bind(Button.BorderBrushProperty, new DynamicResourceExtension("UiBorder")); chips.Children.Add(chip);

@@ -104,9 +104,7 @@ public sealed partial class FolderClassificationWindow
         var savedRow = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 5 };
         savedRow.Children.Add(_savedSelector); Grid.SetColumn(_useSaved, 1); savedRow.Children.Add(_useSaved);
         Grid.SetColumn(_deleteSaved, 2); savedRow.Children.Add(_deleteSaved); _rulesPanel.Children.Add(savedRow);
-        ToolTip.SetTip(_setDefault, "将当前分类规则设为下次打开时的默认分类");
-        ToolTip.SetTip(_useSaved, "替换选中的分类组");
-        ToolTip.SetTip(_deleteSaved, "删除已保存分类");
+
         _saveRule.Click += async (_, _) => await GuardAsync(SaveSelectedRuleAsync);
         _setDefault.Click += async (_, _) => await GuardAsync(SetDefaultRulesAsync);
         _restoreDefault.Click += (_, _) => RestoreDefaultRules();

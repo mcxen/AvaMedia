@@ -33,7 +33,7 @@
           </Grid>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <Button x:Name="RemoveButton" Classes="tool notification-action notification-utility" Content="移除" Click="RemoveClick" AutomationProperties.Name="移除通知"/>
-            <Button x:Name="ClearButton" Classes="tool notification-action notification-utility" Content="清空" Click="ClearClick" AutomationProperties.Name="清除全部通知" ToolTip.Tip="清除全部通知"/>
+            <Button x:Name="ClearButton" Classes="tool notification-action notification-utility" Content="清空" Click="ClearClick" AutomationProperties.Name="清除全部通知"/>
             <Button x:Name="HistoryButton" i18n:StableLayout.Samples="所有通知|收起" Classes="tool notification-action notification-utility" Content="所有通知" Click="HistoryClick"/>
           </StackPanel>
         </Grid>

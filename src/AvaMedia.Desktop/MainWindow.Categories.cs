@@ -114,7 +114,7 @@ public partial class MainWindow
                     Margin = new Thickness(3), Classes = { "tile", "feature-tile" } };
                 tile.Bind(MinHeightProperty, new DynamicResourceExtension(section.Compact ? "UiFormatRowHeight" : "UiFeatureRowHeight"));
                 AutomationProperties.SetName(tile, feature.Label);
-                ToolTip.SetTip(tile, feature.Label);
+
                 tile.Click += async (_, _) => await Configure(feature);
                 EnableFeatureDrop(tile, content, feature);
                 tile.KeyDown += (_, args) => NavigateFeatureIcons(feature.Id, args);

@@ -176,7 +176,7 @@ internal sealed class AiActivityFlowView : StackPanel
             _previewPanel.IsVisible = _image.IsVisible;
             _previewPanel.Margin = new(0, 8, _image.IsVisible ? 12 : 0, 0);
             _caption.Text = _snapshot.PreviewCaption; _caption.IsVisible = _image.IsVisible && _caption.Text.Length > 0;
-            ToolTip.SetTip(_previewPanel, _snapshot.PreviewCaption);
+            ToolTip.SetTip(_caption, _snapshot.PreviewCaption);
         }
         public void ReleasePreview()
         {

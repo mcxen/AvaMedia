@@ -50,7 +50,7 @@
         <Slider Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="裁剪预览时间"/>
         <Grid Grid.Row="2" ColumnDefinitions="*,140,Auto" ColumnSpacing="8">
           <TextBlock x:Name="PreviewName" Classes="caption" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-          <ComboBox Grid.Column="1" x:Name="CropRatio" SelectionChanged="RatioChanged" AutomationProperties.Name="批量裁剪选区比例" ToolTip.Tip="约束新选区及四角缩放的比例"/>
+          <ComboBox Grid.Column="1" x:Name="CropRatio" SelectionChanged="RatioChanged" AutomationProperties.Name="批量裁剪选区比例"/>
           <Button Grid.Column="2" Content="重置为当前全画面" Click="ResetClick"/>
         </Grid>
       </Grid>

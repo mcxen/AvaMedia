@@ -108,9 +108,10 @@ public sealed class ContactSheetWindow : Window
             {
                 var text = Ui.Text("", "caption"); text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
                 if (column == 1) Localization.SetIsUserText(text, true);
+                text.Bind(ToolTip.TipProperty, new Binding(property));
                 text.Bind(TextBlock.TextProperty, new Binding(property)); Grid.SetColumn(text, column); row.Children.Add(text);
             }
-            row.Bind(ToolTip.TipProperty, new Binding(nameof(MediaFileEntry.Details))); return row;
+            return row;
         });
         _list.SelectionChanged += (_, _) => { if (_list.SelectedItem is MediaFileEntry entry && entry.LastSheet is { } path) ShowPreview(path); else SchedulePreview(); };
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); body.Children.Add(filesArea);
@@ -123,7 +124,7 @@ public sealed class ContactSheetWindow : Window
         var customGrid=AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows));customGrid.IsVisible=preset.SelectedItem as string=="自定义";
         preset.SelectionChanged+=(_,_)=>customGrid.IsVisible=preset.SelectedItem as string=="自定义";
         var advanced=new StackPanel { Spacing=9 };
-        ToolTip.SetTip(_end,Localization.Text("0 = 视频结尾"));
+
         AddRow(advanced, "单格宽 / 高（像素）", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
         AddRow(advanced, "截图区间", _range);
         advanced.Children.Add(Ui.Button("使用整个视频",()=>{_rangeSource=null;_start.Value=_end.Value=0;SchedulePreview();}));

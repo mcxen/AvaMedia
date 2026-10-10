@@ -50,7 +50,7 @@ public sealed partial class SettingsWindow
         panel.Children.Add(intensity);
         AutomationProperties.SetName(_warmRamp, "逐步增加用时（秒）");
         panel.Children.Add(LifecycleField("逐步增加用时（秒）", Ui.Adjust(_warmRamp)));
-        ToolTip.SetTip(intensity, "比例控制后台预热节奏，实际占用由系统调度。仅预热已安装的画面理解、文本生成模型。");
+
         _warmInitialCpu.ValueChanged += (_, _) => ConstrainWarmup(_warmInitialCpu, _warmCpu);
         _warmInitialGpu.ValueChanged += (_, _) => ConstrainWarmup(_warmInitialGpu, _warmGpu);
         ConstrainWarmup(_warmInitialCpu, _warmCpu); ConstrainWarmup(_warmInitialGpu, _warmGpu);

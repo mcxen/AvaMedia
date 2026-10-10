@@ -8,7 +8,7 @@
         <TextBlock i18n:Localization.IsUserText="True" Grid.Column="1" x:Name="FileName" Text="{x:Static core:AppIdentity.PlayerTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="{DynamicResource UiPlayerInlinePadding}"/>
         <StackPanel Grid.Column="2" Orientation="Horizontal">
           <Button Classes="player-transport" Click="MinimizeClick" ToolTip.Tip="最小化" AutomationProperties.Name="最小化"><local:ActionIcon Kind="minus"/></Button>
-          <Button Classes="player-transport" Click="MaximizeClick" ToolTip.Tip="最大化 / 还原" AutomationProperties.Name="最大化"><local:ActionIcon Kind="window"/></Button>
+          <Button Classes="player-transport" Click="MaximizeClick" ToolTip.Tip="最大化" AutomationProperties.Name="最大化"><local:ActionIcon Kind="window"/></Button>
           <Button Classes="player-transport" Click="CloseClick" ToolTip.Tip="关闭" AutomationProperties.Name="关闭"><local:ActionIcon Kind="clear"/></Button>
         </StackPanel>
       </Grid>
@@ -16,7 +16,7 @@
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
       <Grid x:Name="VideoArea" Background="{DynamicResource UiMediaSurface}" ClipToBounds="True" Focusable="True" AutomationProperties.Name="播放画面">
         <Image x:Name="VideoImage" Stretch="Uniform"/>
-        <local:PanoramaView x:Name="PanoramaImage" IsVisible="False" AutomationProperties.Name="VR 播放画面" ToolTip.Tip="拖动视角 · 滚轮缩放 · Shift+拖动翻滚"/>
+        <local:PanoramaView x:Name="PanoramaImage" IsVisible="False" AutomationProperties.Name="VR 播放画面"/>
         <TextBlock x:Name="PlayerStatus" Text="{x:Static core:AppIdentity.PlayerWelcome}" Foreground="{DynamicResource UiMediaText}" TextAlignment="Center" TextWrapping="Wrap"
                    Margin="{DynamicResource UiSectionPadding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         <Border x:Name="PlayerOsd" IsVisible="False" Background="{DynamicResource UiMediaOverlay}" Padding="{DynamicResource UiCompactButtonPadding}" Margin="{DynamicResource UiPagePadding}" HorizontalAlignment="Left" VerticalAlignment="Top">
@@ -72,7 +72,7 @@
                 <Slider x:Name="PlayerVrRoll" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="10" AutomationProperties.Name="翻滚"/>
                 <Grid ColumnDefinitions="*,Auto"><TextBlock Text="视野角度" Classes="caption"/><TextBlock Grid.Column="1" x:Name="VrFovValue" Classes="caption"/></Grid>
                 <Slider x:Name="PlayerVrFov" Minimum="30" Maximum="120" Value="90" SmallChange="5" LargeChange="15" AutomationProperties.Name="视野角度"/>
-                <Button Classes="field-action" Content="回正视角" Click="VrResetClick" ToolTip.Tip="回正视角（R）"/>
+                <Button Classes="field-action" Content="回正视角" Click="VrResetClick"/>
               </StackPanel>
               <Button x:Name="PlayerVrRemember" Classes="field-action" Content="记住此视频设置" Click="VrRememberClick" IsEnabled="False"/>
             </StackPanel>
@@ -84,24 +84,24 @@
       <local:SeekSlider x:Name="PlayerSeek" Classes="player-seek" Minimum="0" Maximum="1" Value="0" SmallChange="5" LargeChange="30" IsEnabled="False" Margin="{DynamicResource UiPlayerInlinePadding}" AutomationProperties.Name="播放位置"/>
       <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource UiPlayerBarPadding}">
         <StackPanel Orientation="Horizontal">
-          <Button x:Name="PlayerPlayButton" Classes="player-transport" Click="PlayClick" ToolTip.Tip="播放 / 暂停（Space）" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayerPlayIcon" Kind="play"/></Button>
-          <Button x:Name="PlayerStopButton" Classes="player-transport" Click="StopClick" ToolTip.Tip="停止（F4）" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop"/></Button>
-          <Button x:Name="PreviousFileButton" Classes="player-transport" Click="PreviousClick" ToolTip.Tip="上一文件（Page Up）" AutomationProperties.Name="上一文件"><local:ActionIcon Kind="previous"/></Button>
-          <Button x:Name="NextFileButton" Classes="player-transport" Click="NextClick" ToolTip.Tip="下一文件（Page Down）" AutomationProperties.Name="下一文件"><local:ActionIcon Kind="next"/></Button>
-          <Button x:Name="PlayerOpenButton" Classes="player-transport" Click="OpenClick" ToolTip.Tip="打开文件（F3）" AutomationProperties.Name="打开文件"><local:ActionIcon Kind="eject"/></Button>
-          <Button x:Name="PlayerCaptureButton" Classes="player-transport" Click="CaptureClick" IsEnabled="False" ToolTip.Tip="截取当前帧，保存到视频目录（Ctrl+E / Cmd+E）" AutomationProperties.Name="截取当前帧"><local:ActionIcon Kind="camera"/></Button>
+          <Button x:Name="PlayerPlayButton" Classes="player-transport" Click="PlayClick" ToolTip.Tip="播放" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayerPlayIcon" Kind="play"/></Button>
+          <Button x:Name="PlayerStopButton" Classes="player-transport" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop"/></Button>
+          <Button x:Name="PreviousFileButton" Classes="player-transport" Click="PreviousClick" ToolTip.Tip="上一文件" AutomationProperties.Name="上一文件"><local:ActionIcon Kind="previous"/></Button>
+          <Button x:Name="NextFileButton" Classes="player-transport" Click="NextClick" ToolTip.Tip="下一文件" AutomationProperties.Name="下一文件"><local:ActionIcon Kind="next"/></Button>
+          <Button x:Name="PlayerOpenButton" Classes="player-transport" Click="OpenClick" ToolTip.Tip="打开文件" AutomationProperties.Name="打开文件"><local:ActionIcon Kind="eject"/></Button>
+          <Button x:Name="PlayerCaptureButton" Classes="player-transport" Click="CaptureClick" IsEnabled="False" ToolTip.Tip="截取当前帧" AutomationProperties.Name="截取当前帧"><local:ActionIcon Kind="camera"/></Button>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="{DynamicResource UiPlayerInlinePadding}" VerticalAlignment="Center">
           <TextBlock FontFeatures="tnum" x:Name="PlayerTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
           <StackPanel x:Name="PlayerTotalGroup" Orientation="Horizontal"><TextBlock Classes="time" Text=" / "/><TextBlock FontFeatures="tnum" x:Name="PlayerTotal" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/></StackPanel>
         </StackPanel>
-        <Button Grid.Column="3" x:Name="PlayerMuteButton" Classes="player-transport" Click="MuteClick" ToolTip.Tip="静音（M）" AutomationProperties.Name="静音"><local:ActionIcon x:Name="PlayerMuteIcon" Kind="speaker"/></Button>
+        <Button Grid.Column="3" x:Name="PlayerMuteButton" Classes="player-transport" Click="MuteClick" ToolTip.Tip="静音" AutomationProperties.Name="静音"><local:ActionIcon x:Name="PlayerMuteIcon" Kind="speaker"/></Button>
         <Slider Grid.Column="4" x:Name="PlayerVolume" Minimum="0" Maximum="100" Value="100" SmallChange="5" LargeChange="10" Width="{DynamicResource UiPlayerVolumeWidth}" AutomationProperties.Name="音量"/>
-        <Button Grid.Column="5" x:Name="PlayerSpeed" Classes="player-transport player-speed" Content="1×" Click="SpeedClick" ToolTip.Tip="播放速度（X / C / Z）" AutomationProperties.Name="播放速度"/>
-        <Button Grid.Column="6" x:Name="PlayerVrButton" Classes="player-transport player-speed" Content="VR" Click="VrClick" IsEnabled="False" ToolTip.Tip="VR 设置（V）" AutomationProperties.Name="VR 设置"/>
-        <Button Grid.Column="7" x:Name="PlayerSettingsButton" Classes="player-transport" Click="SettingsClick" ToolTip.Tip="播放设置（F5）" AutomationProperties.Name="播放设置"><local:ActionIcon Kind="gear"/></Button>
-        <Button Grid.Column="8" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表（F6）" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>
-        <Button Grid.Column="9" x:Name="FullscreenButton" Classes="player-transport" Click="FullscreenClick" ToolTip.Tip="全屏（Enter / 双击画面）" AutomationProperties.Name="全屏"><local:ActionIcon x:Name="FullscreenIcon" Kind="fullscreen"/></Button>
+        <Button Grid.Column="5" x:Name="PlayerSpeed" Classes="player-transport player-speed" Content="1×" Click="SpeedClick" ToolTip.Tip="播放速度" AutomationProperties.Name="播放速度"/>
+        <Button Grid.Column="6" x:Name="PlayerVrButton" Classes="player-transport player-speed" Content="VR" Click="VrClick" IsEnabled="False" ToolTip.Tip="VR 设置" AutomationProperties.Name="VR 设置"/>
+        <Button Grid.Column="7" x:Name="PlayerSettingsButton" Classes="player-transport" Click="SettingsClick" ToolTip.Tip="播放设置" AutomationProperties.Name="播放设置"><local:ActionIcon Kind="gear"/></Button>
+        <Button Grid.Column="8" x:Name="PlayerPlaylistButton" Classes="player-transport" Click="PlaylistClick" ToolTip.Tip="播放列表" AutomationProperties.Name="播放列表"><local:ActionIcon Kind="list"/></Button>
+        <Button Grid.Column="9" x:Name="FullscreenButton" Classes="player-transport" Click="FullscreenClick" ToolTip.Tip="全屏" AutomationProperties.Name="全屏"><local:ActionIcon x:Name="FullscreenIcon" Kind="fullscreen"/></Button>
       </Grid>
     </Grid>
   </Grid>

@@ -126,7 +126,7 @@ public sealed class AiActivityView : Border
         foreach (var state in Enum.GetValues<AiActivityState>()) _compactStage.Classes.Set(state.ToString().ToLowerInvariant(), state == activity.State);
         _compactProgress.IsVisible = activity.State == AiActivityState.Running && Quantified(activity);
         _compactProgress.Value = Quantified(activity) ? Math.Clamp(activity.Current!.Value / activity.Total!.Value * 100, 0, 100) : 0;
-        _detailsButton.Content = Localization.Text("详情"); ToolTip.SetTip(_detailsButton, Localization.Text("进度详情"));
+        _detailsButton.Content = Localization.Text("详情");
         _flow.Update(activity); RefreshClock(); RefreshExpansion();
         if (_attached && activity.State == AiActivityState.Running) _timer.Start(); else _timer.Stop();
     }
@@ -146,12 +146,9 @@ public sealed class AiActivityView : Border
         if (_activity is not { } activity) return;
         var now = activity.State == AiActivityState.Running ? DateTime.UtcNow : activity.UpdatedUtc;
         var elapsed = AiActivity.FormatElapsed((now - activity.StartedUtc).TotalSeconds);
-        var quiet = Math.Max(0, (now - activity.UpdatedUtc).TotalSeconds);
         _clock.Text = Localization.Format($"已用时 {elapsed}");
-        var clockDetail = _clock.Text + (activity.State == AiActivityState.Running && quiet >= 10
-            ? " · " + Localization.Format($"最近进展 {quiet:0} 秒前") : "");
         _compactClock.Text = _clock.Text;
-        ToolTip.SetTip(_clock, clockDetail); ToolTip.SetTip(_compactClock, clockDetail);
+
         _flow.RefreshClock(now);
     }
 }

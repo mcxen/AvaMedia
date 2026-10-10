@@ -84,8 +84,7 @@ public sealed partial class PersonClipWindow : Window
         _sourceFolder.IsCheckedChanged += (_, _) => _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _format.SelectedItem = initial?.ExportPreset ?? QuickClipBatch.DefaultPreset;
         _format.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => Ui.Text(QuickClipBatch.PresetLabel(value ?? "")));
-        ToolTip.SetTip(_format, Localization.Text("原格式导出的区间边界受关键帧限制；精确排除区间请选择 MP4、MKV 或 TS。"));
-        ToolTip.SetTip(_fps, Localization.Text("降低采样频率会减少计算，短暂出现的人物可能漏检。"));
+
         _submit = Ui.DialogButton(editing ? "保存修改" : "加入任务列表", Submit); _submit.Name = "QueuePersonClips"; _submit.IsEnabled = false;
         _submit.IsDefault = true; _submit.Classes.Add("primary");
         var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), Margin = new(16), RowSpacing = 12 };

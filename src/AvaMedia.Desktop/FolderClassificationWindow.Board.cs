@@ -47,7 +47,7 @@ public sealed partial class FolderClassificationWindow
         summary.Children.Add(filters);
         _allFilter.Click += (_, _) => { _basketId = AllBasket; RenderBoard(); };
         _pendingFilter.Click += (_, _) => { _basketId = PendingBasket; RenderBoard(); };
-        ToolTip.SetTip(_baskets, "点击筛选；拖动封面调整分类");
+
         Grid.SetRow(summary, 2); board.Children.Add(summary);
         var filesPanel = new Grid(); filesPanel.Children.Add(_files);
         _boardEmpty.HorizontalAlignment = HorizontalAlignment.Center; _boardEmpty.VerticalAlignment = VerticalAlignment.Center;

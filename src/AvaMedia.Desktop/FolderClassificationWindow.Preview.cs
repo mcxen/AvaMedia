@@ -67,7 +67,7 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
         {
             var timeline = new ComboBox { MinWidth = 104, ItemsSource = times.Select(time => $"{time:0.00}s").ToArray(),
                 SelectedIndex = Math.Max(0, Array.FindIndex(times, time => Math.Abs(time - _coverPosition) < .001)) };
-            ToolTip.SetTip(timeline, "查看视频采样画面");
+
             timeline.SelectionChanged += (_, _) =>
             { if (timeline.SelectedIndex >= 0) { _coverTouched = true; _coverPosition = times[timeline.SelectedIndex]; _selectedCover.Seconds = _coverPosition; } };
             actions.Children.Add(timeline);

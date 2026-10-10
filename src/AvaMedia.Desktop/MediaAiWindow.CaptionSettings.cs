@@ -33,7 +33,7 @@ public sealed partial class MediaAiWindow
         user.MaxLength = 4000; user.Text = _captionPrompt ?? MediaCaptionService.DefaultUserPrompt;
         Localization.SetIsUserText(system, true); Localization.SetIsUserText(user, true);
         var tools = new CheckBox { Content = "视频按需补帧与局部放大", IsChecked = _captionUseFrameTools };
-        ToolTip.SetTip(tools, "视觉模型需支持工具调用；最多补充 8 帧、2 轮。");
+
         var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,0.5*,Auto,Auto"), RowSpacing = 10, Margin = new(20) };
         root.Children.Add(modelRow);
         var systemLabel = Ui.Text("系统提示词"); Grid.SetRow(systemLabel, 1); root.Children.Add(systemLabel);

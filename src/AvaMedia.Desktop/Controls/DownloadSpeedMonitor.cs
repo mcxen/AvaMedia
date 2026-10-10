@@ -21,7 +21,7 @@ public sealed class DownloadSpeedMonitor : Border
         Width = 320; Padding = new Thickness(10, 6); BorderThickness = new Thickness(1);
         Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         Bind(BorderBrushProperty, new DynamicResourceExtension("UiBorder"));
-        ToolTip.SetTip(this, "曲线显示最近 60 秒的下载总速度；峰值与平均值按本轮下载统计，平均值包含停顿，不包含媒体整理。");
+
         AutomationProperties.SetName(this, "下载网速监控");
         var layout = new Grid { RowDefinitions = new("Auto,Auto"), RowSpacing = 5 };
         var header = new Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 12 };

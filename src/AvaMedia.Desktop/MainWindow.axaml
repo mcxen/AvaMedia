@@ -96,7 +96,7 @@
               <MenuItem x:Name="ViewAiTaskMenu" Header="打开任务界面…" Click="ViewAiTaskClick"/>
               <MenuItem x:Name="ViewSummaryResultMenu" Header="查看视频总结结果…" Click="ViewSummaryResultClick" IsEnabled="False"/>
               <MenuItem x:Name="ViewMediaTagResultMenu" Header="查看 AI 标签结果…" Click="ViewMediaTagResultClick" IsEnabled="False"/>
-              <MenuItem x:Name="PlayOutputMenu" Header="用天池播放器播放输出视频" Click="PlayOutputSelectedClick" IsEnabled="False" ToolTip.Tip="任务完成且输出视频存在时可播放。支持多选。">
+              <MenuItem x:Name="PlayOutputMenu" Header="用天池播放器播放输出视频" Click="PlayOutputSelectedClick" IsEnabled="False">
                 <MenuItem.Icon><local:ActionIcon Kind="play"/></MenuItem.Icon>
               </MenuItem>
               <MenuItem x:Name="OpenTaskSourceMenu" Header="打开来源" Click="OpenSourceSelectedClick"/>
@@ -127,8 +127,8 @@
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
       <TextBlock x:Name="ElapsedText" i18n:StableLayout.Samples="耗时: 88:88:88|Elapsed: 88:88:88" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Text="耗时: 00:00:00" FontFeatures="tnum" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Margin="10,0"/>
-      <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" ToolTip.Tip="任务完成后在主界面右下角显示通知。" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
-      <Grid Grid.Column="5" ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Center" Margin="16,0,4,0" ToolTip.Tip="整机 CPU、GPU 占用率">
+      <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
+      <Grid Grid.Column="5" ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Center" Margin="16,0,4,0">
         <TextBlock Text="CPU" i18n:Localization.IsUserText="True" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <local:SplitFlapPercentage x:Name="CpuUsage" Grid.Column="1" Foreground="{DynamicResource UiText}" Background="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiDivider}" FontSize="{DynamicResource UiFontCaption}" AutomationProperties.Name="CPU" Margin="4,0,12,0"/>
         <TextBlock Grid.Column="2" Text="GPU" i18n:Localization.IsUserText="True" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
@@ -136,7 +136,7 @@
       </Grid>
       <local:ModelActivityIndicator x:Name="ModelActivity" Grid.Column="6" Foreground="{DynamicResource UiModelActivity}" ShadowBrush="{DynamicResource UiModelActivityShadow}" TrackBrush="{DynamicResource UiModelActivityTrack}" HighlightBrush="{DynamicResource UiModelActivityHighlight}" VerticalAlignment="Center"/>
       <Border Grid.Column="7" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0" Margin="4,0,0,0">
-        <Button x:Name="NotificationButton" Classes="notification-status" Click="ToggleNotificationsClick" ToolTip.Tip="通知中心" AutomationProperties.Name="通知中心" VerticalAlignment="Stretch">
+        <Button x:Name="NotificationButton" Classes="notification-status" Click="ToggleNotificationsClick" AutomationProperties.Name="通知中心" VerticalAlignment="Stretch">
           <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <TextBlock Text="通知" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}"/>
             <TextBlock x:Name="NotificationBadge" i18n:Localization.IsUserText="True" i18n:StableLayout.Samples="888+" FontFeatures="tnum" TextAlignment="Center" Foreground="{DynamicResource UiStatusText}" FontSize="{DynamicResource UiFontCaption}"/>
