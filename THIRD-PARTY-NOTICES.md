@@ -13,6 +13,8 @@ The distribution includes the following independently licensed components. Prese
 | PDFsharp | 6.2.4 | MIT, empira Software GmbH |
 | PDFium native binaries | 157.0.8086 / chromium 8086 | PDFium BSD and dependency notices; bblanchon packaging Apache-2.0 |
 | PdfPig | 0.1.13 | Apache-2.0, UglyToad and contributors |
+| Magick.NET / ImageMagick | 14.17.2 | Apache-2.0 bindings; bundled codecs and their notices in `licenses/Magick.NET-Q8-AnyCPU-14.17.2/Notice.txt` |
+| LibArchive.Net / libarchive | 0.3.1 | BSD-2-Clause wrapper; libarchive BSD and accompanying dependency terms in `licenses/LibArchive.Net-0.3.1/` |
 | SkiaSharp | 2.88.9 | MIT; bundled Skia and dependencies have their own notices |
 | HarfBuzzSharp | 8.3.1.1 | MIT bindings; bundled HarfBuzz has its own notices |
 | ANGLE Windows native assets | 2.1.25547.20250602 | Package license and included third-party notices, including BSD terms |

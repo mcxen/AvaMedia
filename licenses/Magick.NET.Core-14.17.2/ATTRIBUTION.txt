@@ -1,0 +1,4 @@
+Magick.NET.Core 14.17.2
+Authors: Dirk Lemstra
+License: Apache-2.0
+Source: https://github.com/dlemstra/Magick.NET

@@ -19,8 +19,8 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
     public MediaFileKind Classify(string path)
     {
         var extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+        if (ImageFormats.Supports(path)) return MediaFileKind.Image;
         if (VideoFormats.IsVideo(path)) return MediaFileKind.Video;
-        if (MediaEngine.IsImage(extension) || extension == "gif") return MediaFileKind.Image;
         if (extension is "mp3" or "flac" or "wav" or "m4a" or "ogg" or "aac" or "ac3" or "wma" or "opus" or "aiff" or "aif" or "alac") return MediaFileKind.Audio;
         if (extension is "pdf" or "txt" or "md" or "docx" or "xlsx" or "pptx" or "csv") return MediaFileKind.Document;
         return MediaFileKind.Other;
@@ -33,23 +33,25 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
         var image = source.Kind == MediaFileKind.Image;
         var audio = source.Kind == MediaFileKind.Audio;
         var extension = Path.GetExtension(source.Path);
+        var processImage = image && (MediaEngine.IsImage(extension.TrimStart('.').ToLowerInvariant()) || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase));
         return feature.Operation switch
         {
             Operation.Download or Operation.IsoCopy => false,
+            Operation.ImageView => image || ImageViewerSource.IsArchive(source.Path),
             Operation.Zip => true,
             Operation.Unzip => extension.Equals(".zip", StringComparison.OrdinalIgnoreCase),
             Operation.PdfMerge or Operation.PdfSplit or Operation.PdfAge or Operation.PdfCompress
                 or Operation.PdfText or Operation.PdfDocx or Operation.PdfXlsx => extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase),
             Operation.TextPdf => extension.Equals(".txt", StringComparison.OrdinalIgnoreCase),
-            Operation.ImagesPdf => image,
+            Operation.ImagesPdf => processImage,
             Operation.ImageCompress => image && ImageCompression.Supports(source.Path),
-            Operation.Info => video || audio || image,
+            Operation.Info => video || audio || processImage,
             Operation.Player or Operation.Transcribe or Operation.Mux => video || audio,
             Operation.BatchTools => feature.Id == "contact-sheet" ? video : video || image,
             Operation.MediaTag => video || image,
             _ when feature.Id is "crop" or "rotate" or "person-clip" => video,
             _ when feature.Id is "voice-enhance" or "audio-enhance" => video || audio,
-            _ when feature.Category == "图片" => image,
+            _ when feature.Category == "图片" => processImage,
             _ when feature.Category == "音频" => video || audio,
             _ => video
         };
@@ -100,6 +102,7 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                     Add("repair", "重新封装", "复制媒体流并更换容器", Video);
                     break;
                 case MediaFileKind.Image:
+                    Add("image-viewer", "天池看图", "浏览、缩放、动画与图片整理", Image);
                     Add("image-compress", "图片压缩", "真实压缩与滑动 / 并排对比", source => Image(source) && ImageCompression.Supports(source.Path));
                     Add("image-tools", "图片裁剪 / 缩放 / 旋转", "调整尺寸、裁剪与旋转", Image);
                     Add("image-png", "图片格式转换", "JPEG / PNG / WebP / AVIF 等格式", Image);
@@ -130,6 +133,8 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
             routes.Add(new(Catalog.Find("mux"), "视频 / 音频混流", "用独立音频为视频配音", files, selected.Count - files.Length,
                 files.Length == 2 ? "" : "请选中一个视频和一个音频。"));
         }
+        if (selected.Any(source => ImageViewerSource.IsArchive(source.Path)))
+            Add("image-viewer", "天池看图", "查看压缩包中的图片", source => ImageViewerSource.IsArchive(source.Path) || Image(source));
         Add("batch-rename", "批量重命名", "图片 / 视频 · 组合规则与名称预览", source => Video(source) || Image(source));
         Add("folder-classification", Catalog.Find("folder-classification").Label, "图片 / 视频 · 自动标签、多分类与封面整理", source => Video(source) || Image(source));
         Add("player", "打开播放器", "立即播放视频或音频", source => Video(source) || Audio(source));

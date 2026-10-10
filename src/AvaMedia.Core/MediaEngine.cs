@@ -80,6 +80,7 @@ public sealed class MediaEngine : IMediaEngine
     {
         if(!double.IsFinite(seconds) || seconds<0 || width<1 || height<1 || videoStreamIndex<0)throw new ArgumentException("逐帧定位参数无效。");
         if(!pad && AppleImageIO.Supports(input))return await AppleImageIO.ThumbnailAsync(input,width,height,ct).ConfigureAwait(false);
+        if(ImageFormats.Supports(input))return await ImageViewerCodec.ThumbnailAsync(input,width,height,pad,ct).ConfigureAwait(false);
         if(endExclusive && seconds>0)
         {
             var media=await Probe(input,ct,videoStreamIndex);var origin=TimelineOrigin(media);

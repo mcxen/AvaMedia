@@ -22,7 +22,6 @@ public sealed partial class FolderClassificationWindow
     private readonly CheckBox _onlyIncluded = new() { Content = "仅看已选" };
     private readonly Button _allFilter = new();
     private readonly Button _pendingFilter = new();
-    private readonly TextBlock _boardCount = Ui.Text("", "caption");
     private readonly TextBlock _boardEmpty = Ui.Text("添加文件夹后，在这里查看封面与分类", "caption");
     private readonly DispatcherTimer _boardTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private string _basketId = AllBasket;
@@ -45,10 +44,10 @@ public sealed partial class FolderClassificationWindow
         var summary = new StackPanel { Spacing = 5 };
         var filters = new WrapPanel();
         foreach (var filter in new[] { _allFilter, _pendingFilter }) { filter.Margin = new(0, 0, 6, 0); filters.Children.Add(filter); }
-        _boardCount.VerticalAlignment = VerticalAlignment.Center; filters.Children.Add(_boardCount); summary.Children.Add(filters);
+        summary.Children.Add(filters);
         _allFilter.Click += (_, _) => { _basketId = AllBasket; RenderBoard(); };
         _pendingFilter.Click += (_, _) => { _basketId = PendingBasket; RenderBoard(); };
-        summary.Children.Add(Ui.Text("点击分类筐筛选；拖动封面到目标筐调整分类。", "caption"));
+        ToolTip.SetTip(_baskets, "点击筛选；拖动封面调整分类");
         Grid.SetRow(summary, 2); board.Children.Add(summary);
         var filesPanel = new Grid(); filesPanel.Children.Add(_files);
         _boardEmpty.HorizontalAlignment = HorizontalAlignment.Center; _boardEmpty.VerticalAlignment = VerticalAlignment.Center;
@@ -135,7 +134,6 @@ public sealed partial class FolderClassificationWindow
             // Preserve selection and realized rows while only scores/counts change.
             if (_files.ItemsSource is not MediaFileEntry[] old || !old.SequenceEqual(visible)) _files.ItemsSource = visible;
             _files.SelectedItem = selected is not null && visible.Contains(selected) ? selected : visible.FirstOrDefault();
-            _boardCount.Text = Localization.Format($"{options.First(option => option.Id == _basketId).Name} · {visible.Length} 个 · 已选 {visible.Count(entry => entry.Include)} 个");
             _boardEmpty.IsVisible = visible.Length == 0;
             _boardEmpty.Text = Localization.Text(_entries.Count == 0 ? "添加文件夹后，在这里查看封面与分类" : "此分类筐暂无匹配文件");
         }

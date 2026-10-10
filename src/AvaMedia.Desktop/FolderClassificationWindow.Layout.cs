@@ -36,7 +36,8 @@ public sealed partial class FolderClassificationWindow
     private readonly ComboBox _mode = Ui.Combo(["复制到分类目录", "移动到分类目录"], "复制到分类目录");
     private readonly TextBlock _status = Ui.Text("选择文件夹或拖入媒体", "caption");
     private readonly TextBlock _scanErrors = Ui.Text("", "caption");
-    private readonly AiActivityView _activity = new();
+    private readonly AiActivityView _activity = new() { Collapsible = true, DetailHeight = 170 };
+    private readonly StackPanel _videoSettings = new() { Spacing = 6, IsVisible = false };
     private readonly Button _analyze = new() { Content = "自动标签与分类", Classes = { "primary" } };
     private readonly Button _retry = new() { Content = "重试未完成" };
     private readonly Button _preview = new() { Content = "预览分类目录" };
@@ -48,7 +49,7 @@ public sealed partial class FolderClassificationWindow
     private void BuildInterface()
     {
         _mode.ItemsSource = new[] { "复制到分类目录", "移动到分类目录" }.Select(Localization.Text).ToArray(); _mode.SelectedIndex = 0;
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 10 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         AddImport("添加文件夹…", async () =>
         {
             var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
@@ -62,7 +63,7 @@ public sealed partial class FolderClassificationWindow
         AddImport("取消全选", () => { SelectEntries(_ => false); return Task.CompletedTask; });
         AddImport("仅选已完成", () => { SelectEntries(entry => _results.ContainsKey(entry.Path)); return Task.CompletedTask; });
         _recursive.Margin = new(8, 0, 0, 0); _imports.Children.Add(_recursive); root.Children.Add(_imports);
-        var body = new Grid { ColumnDefinitions = new("260,*,300"), ColumnSpacing = 12 };
+        var body = new Grid { ColumnDefinitions = new("228,*,260"), ColumnSpacing = 12 };
         _settingsPanel.Children.Add(Ui.Text("分类规则", "settingsHeading"));
         _rulesPanel.Children.Add(Ui.Text("选择需要的分组，最多同时使用 8 组。", "caption"));
         _ruleList.ItemsSource = _rules;
@@ -102,7 +103,8 @@ public sealed partial class FolderClassificationWindow
         _ruleList.SelectionChanged += (_, _) => RefreshRuleActions();
         _savedSelector.SelectionChanged += (_, _) => RefreshRuleActions();
         var analysisSettings = new StackPanel { Spacing = 8 };
-        analysisSettings.Children.Add(Ui.Text("视频采样帧数", "caption")); analysisSettings.Children.Add(Ui.Adjust(_frames));
+        _videoSettings.Children.Add(Ui.Text("视频采样帧数", "caption")); _videoSettings.Children.Add(Ui.Adjust(_frames));
+        analysisSettings.Children.Add(_videoSettings);
         analysisSettings.Children.Add(Ui.Text("标签阈值", "caption")); analysisSettings.Children.Add(Ui.Adjust(_tagThreshold));
         analysisSettings.Children.Add(_gpu);
         analysisSettings.Children.Add(Ui.Button("模型管理…", async () => await GuardAsync(() => _manageModels(this))));
@@ -112,7 +114,6 @@ public sealed partial class FolderClassificationWindow
         _settingsPanel.Children.Add(Ui.Button("选择分类目录…", async () => await GuardAsync(async () =>
         { if (await Ui.Folder(this, "选择分类目录") is { } folder) _output.Text = folder; })));
         _settingsPanel.Children.Add(_splitTypes); _settingsPanel.Children.Add(_writeText); _settingsPanel.Children.Add(_mode);
-        _settingsPanel.Children.Add(Ui.Text("视频按采样画面分类；待确认可拖动调整。", "caption"));
         body.Children.Add(new ScrollViewer { Content = _settingsPanel });
         var board = BuildBoard(); Grid.SetColumn(board, 1); body.Children.Add(board);
         var inspector = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 10 };
@@ -129,6 +130,12 @@ public sealed partial class FolderClassificationWindow
         { button.Margin = new(6, 0, 0, 6); actions.Children.Add(button); }
         actions.Children.Add(Ui.DialogButton("关闭", Close)); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = root;
+        SizeChanged += (_, _) =>
+        {
+            _activity.DetailHeight = Math.Clamp(Bounds.Height * .22, 90, 180);
+            _selectedCover.Height = Math.Clamp(Bounds.Height * .22, 100, 180);
+            if (Bounds.Height < 640) _activity.DetailsExpanded = false;
+        };
         _analyze.Click += async (_, _) => await GuardAsync(() => AnalyzeAsync(false));
         _retry.Click += async (_, _) => await GuardAsync(() => AnalyzeAsync(true));
         _preview.Click += async (_, _) => await GuardAsync(PreviewAsync);

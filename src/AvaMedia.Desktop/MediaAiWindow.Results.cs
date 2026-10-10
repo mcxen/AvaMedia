@@ -39,6 +39,12 @@ public sealed partial class MediaAiWindow
 
     private Control BuildResultPane()
     {
+        _preview.DoubleTapped += (_, _) =>
+        {
+            if (_list.SelectedItem is not MediaFileEntry entry || !ImageFormats.Supports(entry.Path)) return;
+            var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path);
+            viewer.Show(this);
+        };
         // Fixed summary: file, state, preview and the actions that act on the result.
         var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
         heading.Children.Add(_preview);

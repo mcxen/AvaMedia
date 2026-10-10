@@ -99,9 +99,21 @@ internal sealed class AiActivityFlowView : StackPanel
             _expander.Header = header;
             var body = new StackPanel { Spacing = 7, Margin = new(0, 8, 0, 0) };
             body.Children.Add(_stage); body.Children.Add(_progress); body.Children.Add(_meta);
-            body.Children.Add(_image); body.Children.Add(_caption); body.Children.Add(_latest);
+            body.Children.Add(_latest);
             _latest.MaxLines = 5; _latest.TextTrimming = TextTrimming.CharacterEllipsis;
-            _observations.Content = _history; body.Children.Add(_observations); _expander.Content = body;
+            _observations.Content = _history; body.Children.Add(_observations);
+            var preview = new StackPanel { Spacing = 4, MaxWidth = 220, VerticalAlignment = VerticalAlignment.Top };
+            preview.Children.Add(_image); preview.Children.Add(_caption);
+            _caption.MaxLines = 2; _caption.TextTrimming = TextTrimming.CharacterEllipsis;
+            var content = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 12 };
+            content.Children.Add(body); content.Children.Add(preview); Grid.SetColumn(preview, 1);
+            content.SizeChanged += (_, _) =>
+            {
+                var narrow = content.Bounds.Width < 460;
+                Grid.SetColumn(preview, narrow ? 0 : 1); Grid.SetRow(preview, narrow ? 1 : 0);
+                Grid.SetColumnSpan(body, narrow ? 2 : 1);
+            };
+            _expander.Content = content;
             _card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurface"));
             _card.Child = _expander; Grid.SetColumn(_card, 1); Children.Add(_card);
             _expander.PropertyChanged += (_, change) => { if (change.Property == Expander.IsExpandedProperty) RefreshPreview(); };

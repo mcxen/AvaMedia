@@ -13,6 +13,11 @@ public sealed class AiActivityView : Border
 {
     public static readonly StyledProperty<bool> CompactProperty = AvaloniaProperty.Register<AiActivityView, bool>(nameof(Compact));
     public bool Compact { get => GetValue(CompactProperty); set => SetValue(CompactProperty, value); }
+    public bool Collapsible { get; set; }
+    public bool DetailsExpanded { get => _expanded; set { _expanded = value; RefreshExpansion(); } }
+    public double DetailHeight { get => _detailScroll.MaxHeight; set => _detailScroll.MaxHeight = value; }
+    private bool _expanded = true;
+    private readonly Button _collapse = new() { Classes = { "tool" }, Padding = new(6, 2), IsVisible = false };
     private readonly TextBlock _title = Text();
     private readonly TextBlock _meta = Text();
     private readonly TextBlock _clock = Text();
@@ -40,8 +45,9 @@ public sealed class AiActivityView : Border
         Padding = new(10);
         _title.FontWeight = FontWeight.SemiBold;
         _title.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiText"));
-        var heading = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
-        heading.Children.Add(_title); Grid.SetColumn(_clock, 1); heading.Children.Add(_clock);
+        var heading = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
+        heading.Children.Add(_title); Grid.SetColumn(_clock, 1); heading.Children.Add(_clock); Grid.SetColumn(_collapse, 2); heading.Children.Add(_collapse);
+        _collapse.Click += (_, _) => { _expanded = !_expanded; RefreshExpansion(); };
         _content.Children.Add(heading); _content.Children.Add(_meta);
         _detailScroll.Content = _flow; _content.Children.Add(_detailScroll); Child = _content;
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
@@ -113,8 +119,15 @@ public sealed class AiActivityView : Border
         _compactProgress.IsVisible = Quantified(activity);
         _compactProgress.Value = Quantified(activity) ? Math.Clamp(activity.Current!.Value / activity.Total!.Value * 100, 0, 100) : 0;
         _detailsButton.Content = Localization.Text("详情"); ToolTip.SetTip(_detailsButton, Localization.Text("进度详情"));
-        _flow.Update(activity); RefreshClock();
+        _flow.Update(activity); RefreshClock(); RefreshExpansion();
         if (_attached && activity.State == AiActivityState.Running) _timer.Start(); else _timer.Stop();
+    }
+    private void RefreshExpansion()
+    {
+        _collapse.IsVisible = Collapsible && !Compact;
+        _collapse.Content = Localization.Text(_expanded ? "收起" : "展开");
+        _detailScroll.IsVisible = !Collapsible || _expanded;
+        _meta.IsVisible = !Collapsible || !_expanded;
     }
     public void Finish(AiActivityState state, string stage)
     {

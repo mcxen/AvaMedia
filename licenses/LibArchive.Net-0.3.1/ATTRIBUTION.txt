@@ -1,0 +1,4 @@
+LibArchive.Net 0.3.1
+Authors: James A Sutherland
+License: BSD-2-Clause
+Source: https://github.com/jas88/libarchive.net/

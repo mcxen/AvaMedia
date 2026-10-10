@@ -47,7 +47,7 @@ public sealed partial class FolderClassificationWindow : Window
     {
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
         _settings = settings ?? engine.Settings;
-        Title = Catalog.Find("folder-classification").Label; Width = 1360; Height = 840; MinWidth = 1160; MinHeight = 660;
+        Title = Catalog.Find("folder-classification").Label; Width = 1360; Height = 840; MinWidth = 920; MinHeight = 540;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         LoadPreferences(); BuildInterface(); UpdateActions();
         RefreshSavedVisibility(); _settings.NsfwContentChanged += PrivacyChanged;
@@ -170,6 +170,7 @@ public sealed partial class FolderClassificationWindow : Window
     }
     private void UpdateActions()
     {
+        _videoSettings.IsVisible = _entries.Any(entry => entry.Include && VideoFormats.IsVideo(entry.Path));
         _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Include);
         _retry.IsEnabled = !_busy && _entries.Any(entry => entry.Include && (!_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path)));
         _retry.IsVisible = _attempted;
@@ -193,6 +194,11 @@ public sealed partial class FolderClassificationWindow : Window
     private void OpenSelected()
     {
         if (_files.SelectedItem is not MediaFileEntry entry || !File.Exists(entry.Path)) return;
+        if (ImageFormats.Supports(entry.Path))
+        {
+            var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path);
+            viewer.Show(this); return;
+        }
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(entry.Path) { UseShellExecute = true }); }
         catch (Exception error) { _ = Ui.Message(this, "打开文件失败", error.Message); }
     }

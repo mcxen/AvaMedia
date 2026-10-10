@@ -54,6 +54,10 @@ public partial class MainWindow : Window
     }
     private async Task Configure(Feature feature,string[]? files=null)
     {
+        if(feature.Operation==Operation.ImageView)
+        {
+            var viewer = new ImageViewerWindow(files); viewer.Show(this); return;
+        }
         if(feature.Id=="folder-classification")
         {
             await ConfigureFolderClassificationAsync(files);

@@ -15,7 +15,7 @@ public static class VideoFormats
     {
         "mp4", "mkv", "mov", "webm", "avi", "flv", "wmv", "mpg", "mpeg", "ts", "mts", "m2ts", "m2t", "m4v", "vob", "3gp", "3g2", "ogv", "asf"
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-    public static bool IsVideo(string path) => InputExtensions.Contains(Path.GetExtension(path).TrimStart('.'));
+    public static bool IsVideo(string path) => InputExtensions.Contains(Path.GetExtension(path).TrimStart('.')) && !ImageFormats.HasImageSignature(path);
     public static bool IsTransportStream(string format) => format is "ts" or "mts" or "m2ts" or "m2t";
     internal static void AppendMuxerArguments(List<string> arguments, string format)
     {
