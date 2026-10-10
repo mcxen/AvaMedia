@@ -18,7 +18,6 @@ public partial class MainWindow
         EditTaskButton.IsEnabled = EditTaskMenuItem.IsEnabled = EditTaskContextMenu.IsEnabled = enabled;
         ViewSummaryResultMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job result && CanViewSummaryResult(result);
         ViewMediaTagResultMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job tag && CanViewMediaTagResult(tag);
-        ViewClassificationTaskMenu.IsEnabled = JobList.SelectedItems?.Count == 1 && JobList.SelectedItem is Job classification && CanViewClassificationTask(classification);
         RetryTaskMenu.IsEnabled = SelectedJobs().Any(item => CanRequeueTask(item) && item.State == JobState.Failed);
         UpdateTaskManagementActions();
     }

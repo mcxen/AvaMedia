@@ -3383,5 +3383,7 @@
   "去除片段 {0}": "Excluded segment {0}",
   "已去除整个视频，请缩短或删除去除片段。": "The entire video is excluded. Shorten or remove an excluded segment.",
   "片段时间必须位于视频内，且结束时间晚于开始时间。": "Segments must be within the video, with the end later than the start.",
-  "单个视频合并最多 64 个片段，请减少片段数量或选择原格式 / 原码率。": "Up to 64 segments can be joined per video. Reduce the count or choose Original Format / Bitrate."
+  "单个视频合并最多 64 个片段，请减少片段数量或选择原格式 / 原码率。": "Up to 64 segments can be joined per video. Reduce the count or choose Original Format / Bitrate.",
+  "打开任务界面…": "Open task…",
+  "打开任务失败": "Could not open task"
 }

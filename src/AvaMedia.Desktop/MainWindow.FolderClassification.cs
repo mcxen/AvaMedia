@@ -65,6 +65,4 @@ public partial class MainWindow
         && job.FeatureId == "folder-classification" && job.Options.FolderClassification is not null;
     internal Task ShowClassificationTaskAsync(Job job)
     { if (CanViewClassificationTask(job)) OpenClassificationWindow(task: job); return Task.CompletedTask; }
-    private async void ViewClassificationTaskClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
-    { if (JobList.SelectedItem is Job job) await ShowClassificationTaskAsync(job); }
 }

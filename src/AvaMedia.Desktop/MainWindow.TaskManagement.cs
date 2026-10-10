@@ -23,6 +23,7 @@ public partial class MainWindow
     private void InitializeTaskManagement()
     {
         JobList.ItemsSource = _visibleJobs;
+        JobList.AddHandler(DoubleTappedEvent, JobDoubleClick, RoutingStrategies.Bubble, handledEventsToo: true);
         _jobs.CollectionChanged += (_, _) => RefreshTaskList();
         JobList.AddHandler(PointerPressedEvent, (_, e) =>
         {
@@ -58,7 +59,6 @@ public partial class MainWindow
         ViewAiTaskMenu.IsVisible = one is not null && CanViewAiTask(one);
         ViewAiTaskMenu.IsEnabled = ViewAiTaskMenu.IsVisible;
         ViewSummaryResultMenu.IsVisible = one is not null && CanViewSummaryResult(one);
-        ViewClassificationTaskMenu.IsVisible = one is not null && CanViewClassificationTask(one);
         ViewMediaTagResultMenu.IsVisible = one is not null && CanViewMediaTagResult(one);
         PlayOutputMenu.IsVisible = SelectedPlayableOutputs().Length > 0;
         OpenTaskSourceMenu.IsVisible = OpenTaskSourceFolderMenu.IsVisible = OpenTaskOutputMenu.IsVisible

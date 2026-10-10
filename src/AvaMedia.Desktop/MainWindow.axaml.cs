@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
 
@@ -203,9 +204,19 @@ public partial class MainWindow : Window
     private async void PreviewClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){e.Handled=true;if(sender is Control {DataContext:Job job})await EditJob(job);}
     private async void JobDoubleClick(object? sender,TappedEventArgs e)
     {
-        if(JobList.SelectedItems?.Count!=1 || JobList.SelectedItem is not Job j)return;
-        if (CanViewAiTask(j)) await ShowAiTaskAsync(j);
-        else await EditJob(j);
+        if(e.Source is not Control source)return;
+        var ancestors=source.GetVisualAncestors().Prepend(source).ToArray();
+        // Row buttons keep their own click actions; a double-click on row content opens that row.
+        if(ancestors.TakeWhile(control=>control is not ListBoxItem).Any(control=>control is Button))return;
+        var row=ancestors.OfType<ListBoxItem>().FirstOrDefault();
+        if(row?.DataContext is not Job job || !_jobs.Contains(job))return;
+        e.Handled=true;
+        try
+        {
+            if(CanViewAiTask(job))await ShowAiTaskAsync(job);
+            else await EditJob(job);
+        }
+        catch(Exception error){if(!_closing)await Ui.Message(this,"打开任务失败",error.Message);}
     }
     private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e){if(!_refreshingTaskList)Refresh();}
     private async void ExportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
