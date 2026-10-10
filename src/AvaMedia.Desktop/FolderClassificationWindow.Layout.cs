@@ -65,7 +65,7 @@ public sealed partial class FolderClassificationWindow
         { _inputs.Clear(); _entries.Clear(); _results.Clear(); _hiddenPrivateResults.Clear(); _analysisPending.Clear(); InvalidatePlan(); RenderDetails(); return Task.CompletedTask; });
         AddImport("全选", () => { SelectEntries(_ => true); return Task.CompletedTask; });
         AddImport("取消全选", () => { SelectEntries(_ => false); return Task.CompletedTask; });
-        AddImport("仅选已完成", () => { SelectEntries(entry => _results.ContainsKey(entry.Path)); return Task.CompletedTask; });
+        AddImport("仅选已完成", () => { SelectEntries(entry => !AnalysisPending(entry)); return Task.CompletedTask; });
         _recursive.Margin = new(8, 0, 0, 0); _imports.Children.Add(_recursive);
         var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
         header.Children.Add(_imports);

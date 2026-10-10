@@ -46,7 +46,7 @@ public sealed partial class FolderClassificationWindow
     {
         var selected = _entries.Where(entry => entry.Include).ToArray();
         if (selected.Length == 0) throw new ArgumentException("请勾选要整理的文件。");
-        if (selected.Any(entry => !_results.ContainsKey(entry.Path))) throw new ArgumentException("部分勾选文件尚未分析完成，请重试或取消勾选。");
+        if (selected.Any(entry => AnalysisPending(entry))) throw new ArgumentException("部分勾选文件尚未分析完成，请重试或取消勾选。");
         if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择分类目录。");
         var files = selected.Select(entry => _results[entry.Path] with { Media = MediaPrivacy.Filter(_results[entry.Path].Media, _settings.EnableNsfwContent, PrivateSemanticLabels) }).ToArray();
         var output = Path.GetFullPath(_output.Text);

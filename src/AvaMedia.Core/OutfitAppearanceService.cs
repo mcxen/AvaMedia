@@ -41,6 +41,16 @@ public sealed class OutfitAppearanceService : IDisposable
         return new(engine, lease, features);
     }
 
+    public static bool IsComplete(MediaTagResult media)
+    {
+        var times = VideoFormats.IsVideo(media.Path) ? media.Frames.Select(frame => frame.Seconds).ToArray() : [0d];
+        return times.Length > 0 && media.OutfitFrames.Count == times.Length
+            && times.All(time => media.OutfitFrames.Any(frame => Math.Abs(frame.Seconds - time) < .001
+                && frame.Encoder == Encoder && frame.Colors.Length == 12 && frame.Embedding.Length == 384
+                && frame.Colors.All(value => double.IsFinite(value) && value is >= 0 and <= 1)
+                && frame.Embedding.All(double.IsFinite)));
+    }
+
     public async Task<MediaTagResult> AnalyzeAsync(MediaTagResult media, Action<int, int>? progress, CancellationToken ct)
     {
         MediaTagService.ValidateSource(media);

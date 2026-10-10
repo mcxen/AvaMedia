@@ -32,6 +32,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             ct = operation.Token;
             bool PrivateEnabled() => spec.IncludeNsfw && engine.Settings.EnableNsfwContent;
             var rules = spec.Rules.Where(rule => PrivateEnabled() || !MediaPrivacy.IsSensitiveRule(rule)).ToArray();
+            var byOutfit = rules.Any(rule => rule.ByOutfit);
             var state = job.ClassificationSnapshot ?? await FolderClassificationTaskStore.LoadAsync(job, ct).ConfigureAwait(false);
             var files = state.Files.ToDictionary(file => file.Path, BatchRename.PathComparer);
             var pending = new List<string>();
@@ -54,12 +55,77 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 var total = job.Inputs.Count(path => !excluded.Contains(path));
                 var done = total - pending.Count + processed.Count;
                 job.ProgressDetail = $"{done} / {total}";
-                var appearance = rules.Any(rule => rule.ByOutfit) ? files.Values.Count(file => !excluded.Contains(file.Path)
-                    && file.Error is null && file.Result is { Media.OutfitFrames.Count: > 0 }) : 0;
-                progress(total == 0 ? 100 : Math.Clamp(rules.Any(rule => rule.ByOutfit)
+                var appearance = byOutfit ? files.Values.Count(file => !excluded.Contains(file.Path)
+                    && !file.Pending && file.Error is null && file.Result is { } result && OutfitAppearanceService.IsComplete(result.Media)) : 0;
+                progress(total == 0 ? 100 : Math.Clamp(byOutfit
                     ? (80d * done + 15d * appearance) / total : 100d * done / total, 0, 100));
             }
             Publish();
+            var sinceGrouping = 0; var groupedOnce = false;
+            async Task RegroupAsync(bool force = false)
+            {
+                if (!byOutfit || groupedOnce && (sinceGrouping == 0 || !force && sinceGrouping < 8)) return;
+                var ready = files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending && file.Error is null
+                    && file.Result is { } result && OutfitAppearanceService.IsComplete(result.Media)).ToArray();
+                if (ready.Length == 0) return;
+                ct.ThrowIfCancellationRequested();
+                job.Activity = new("按相似服装分组", "JoyTag / DINOv2", DateTime.UtcNow, DateTime.UtcNow);
+                job.ProgressDetail = "按相似服装分组"; progress(job.Progress);
+                var grouped = FolderOutfitClassification.Apply(ready.Select(file => file.Result!), rules, PrivateEnabled(), ct);
+                foreach (var result in grouped)
+                {
+                    var file = files[result.Media.Path] with { Result = result };
+                    await FolderClassificationTaskStore.SaveFileAsync(job, file, ct).ConfigureAwait(false);
+                    files[file.Path] = file;
+                }
+                sinceGrouping = 0; groupedOnce = true; Publish();
+            }
+            // Recover cached tag results before waiting for JoyTag, which another queue job may be using.
+            var missingAppearance = byOutfit ? files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending
+                && file.Error is null && file.Result is { } result && !OutfitAppearanceService.IsComplete(result.Media)).ToArray() : [];
+            async Task<OutfitAppearanceService> PrepareAppearanceAsync()
+            {
+                var store = new ModelStore();
+                foreach (var model in new[] { ModelCatalog.OutfitId, ModelCatalog.OutfitFeaturesId })
+                    if (!await store.IsInstalledAsync(model, ct: ct).ConfigureAwait(false))
+                        await store.DownloadAsync(model, new InlineProgress<ModelDownloadProgress>(update =>
+                        {
+                            job.ProgressDetail = update.Stage;
+                            job.Activity = new("下载服装模型", "", DateTime.UtcNow, DateTime.UtcNow)
+                            { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName };
+                            progress(job.Progress);
+                        }), ct).ConfigureAwait(false);
+                job.Activity = new("加载服装模型", "MediaPipe / DINOv2", DateTime.UtcNow, DateTime.UtcNow);
+                job.ProgressDetail = "加载服装模型"; progress(job.Progress);
+                return await OutfitAppearanceService.CreateAsync(engine, store, ct).ConfigureAwait(false);
+            }
+            using var appearance = byOutfit && (missingAppearance.Length > 0 || pending.Count > 0)
+                ? await PrepareAppearanceAsync().ConfigureAwait(false) : null;
+            async Task CompleteAppearanceAsync(FolderClassificationTaskFile file)
+            {
+                if (!byOutfit || file.Error is not null || file.Result is not { } result || OutfitAppearanceService.IsComplete(result.Media)) return;
+                await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+                job.Activity = new("识别服装区域", "MediaPipe / DINOv2", DateTime.UtcNow, DateTime.UtcNow)
+                { Detail = Path.GetFileName(file.Path) };
+                job.ProgressDetail = "识别服装区域 · " + Path.GetFileName(file.Path); progress(job.Progress);
+                FolderClassificationTaskFile updated;
+                try
+                {
+                    var media = await appearance!.AnalyzeAsync(result.Media, (current, total) =>
+                    {
+                        job.ProgressDetail = $"识别服装区域 · {current} / {total} · {Path.GetFileName(file.Path)}"; progress(job.Progress);
+                    }, ct).ConfigureAwait(false);
+                    updated = file with { Result = result with { Media = media } };
+                }
+                catch (Exception error) when (error is not OperationCanceledException)
+                { updated = file with { Error = error.Message }; }
+                await FolderClassificationTaskStore.SaveFileAsync(job, updated, ct).ConfigureAwait(false);
+                files[file.Path] = updated; sinceGrouping++; Publish();
+                await RegroupAsync().ConfigureAwait(false);
+            }
+            await RegroupAsync().ConfigureAwait(false);
+            foreach (var file in missingAppearance) await CompleteAppearanceAsync(file).ConfigureAwait(false);
+            await RegroupAsync(force: true).ConfigureAwait(false);
             var metadataOnly = rules.Length > 0 && rules.All(rule => rule.ByDuration);
             var options = spec.Analysis with { RecognizeNsfw = false, SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
             if (pending.Count > 0 && !metadataOnly)
@@ -89,6 +155,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 var file = new FolderClassificationTaskFile(path, classified, error, Pending: false);
                 await FolderClassificationTaskStore.SaveFileAsync(job, file, ct).ConfigureAwait(false);
                 files[path] = file; processed.Add(path); Publish();
+                await CompleteAppearanceAsync(file).ConfigureAwait(false);
             }
             if (metadataOnly)
             {
@@ -129,55 +196,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 }
             }
             ct.ThrowIfCancellationRequested();
-            if (rules.Any(rule => rule.ByOutfit))
-            {
-                var missing = files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending && file.Error is null
-                    && file.Result is { } result && (result.Media.OutfitFrames.Count == 0
-                        || result.Media.OutfitFrames.Any(frame => frame.Embedding.Length != 384 || frame.Encoder != OutfitAppearanceService.Encoder))).ToArray();
-                if (missing.Length > 0)
-                {
-                    var store = new ModelStore();
-                    foreach (var model in new[] { ModelCatalog.OutfitId, ModelCatalog.OutfitFeaturesId })
-                    if (!await store.IsInstalledAsync(model, ct: ct).ConfigureAwait(false))
-                        await store.DownloadAsync(model, new InlineProgress<ModelDownloadProgress>(update =>
-                        {
-                            job.ProgressDetail = update.Stage;
-                            job.Activity = new("下载服装模型", "", DateTime.UtcNow, DateTime.UtcNow)
-                            { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName };
-                            progress(job.Progress);
-                        }), ct).ConfigureAwait(false);
-                    using var appearance = await OutfitAppearanceService.CreateAsync(engine, store, ct).ConfigureAwait(false);
-                    foreach (var file in missing)
-                    {
-                        await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
-                        job.Activity = new("识别服装区域", "", DateTime.UtcNow, DateTime.UtcNow) { Detail = Path.GetFileName(file.Path) };
-                        job.ProgressDetail = "识别服装区域 · " + Path.GetFileName(file.Path); progress(job.Progress);
-                        FolderClassificationTaskFile updated;
-                        try
-                        {
-                            var media = await appearance.AnalyzeAsync(file.Result!.Media, (current, total) =>
-                            {
-                                job.ProgressDetail = $"识别服装区域 · {current} / {total} · {Path.GetFileName(file.Path)}"; progress(job.Progress);
-                            }, ct).ConfigureAwait(false);
-                            updated = file with { Result = file.Result with { Media = media } };
-                        }
-                        catch (Exception error) when (error is not OperationCanceledException)
-                        { updated = file with { Error = error.Message }; }
-                        await FolderClassificationTaskStore.SaveFileAsync(job, updated, ct).ConfigureAwait(false); files[file.Path] = updated; Publish();
-                    }
-                }
-                job.Activity = new("按相似服装分组", "JoyTag", DateTime.UtcNow, DateTime.UtcNow);
-                job.ProgressDetail = "按相似服装分组"; progress(job.Progress);
-                var ready = files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending && file.Error is null && file.Result is not null).ToArray();
-                var grouped = FolderOutfitClassification.Apply(ready.Select(file => file.Result!), rules, PrivateEnabled(), ct);
-                foreach (var result in grouped)
-                {
-                    var file = files[result.Media.Path] with { Result = result };
-                    await FolderClassificationTaskStore.SaveFileAsync(job, file, ct).ConfigureAwait(false);
-                    files[file.Path] = file;
-                }
-                Publish();
-            }
+            await RegroupAsync(force: true).ConfigureAwait(false);
             var selected = files.Values.Where(file => !excluded.Contains(file.Path)).ToArray();
             var failures = selected.Count(file => file.Error is not null || file.Result is null);
             var review = selected.Count(file => file.Result?.Decisions.Any(decision => decision.NeedsReview) == true);

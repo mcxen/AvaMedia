@@ -293,8 +293,10 @@ public sealed partial class FolderClassificationWindow
     private void UpdateEntry(MediaFileEntry entry)
     {
         if (!_results.TryGetValue(entry.Path, out var result)) return;
-        entry.Status = Localization.Text(result.Decisions.Any(decision => decision.NeedsReview) ? "待确认" : "已分类");
-        entry.Details = string.Join(" · ", result.Decisions.Select(decision => decision.Name + ": " + (decision.NeedsReview ? Localization.Text("待确认") : decision.CategoryName))
+        entry.Status = Localization.Text(AnalysisPending(entry) ? "待分析" : result.Decisions.Any(decision => decision.NeedsReview) ? "待确认" : "已分类");
+        entry.Details = string.Join(" · ", result.Decisions.Select(decision => decision.Name + ": " +
+            (_rules.FirstOrDefault(rule => rule.Id == decision.RuleId) is { } rule && OutfitPending(result, rule)
+                ? Localization.Text("待分析") : decision.NeedsReview ? Localization.Text("待确认") : decision.CategoryName))
             .Concat(result.Tags.Take(4)));
         QueueBoardRefresh();
     }

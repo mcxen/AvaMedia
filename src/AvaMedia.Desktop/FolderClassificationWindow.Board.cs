@@ -94,9 +94,18 @@ public sealed partial class FolderClassificationWindow
     private void QueueBoardRefresh()
     { if (!_closed && _dragEntry is null && !_boardTimer.IsEnabled) _boardTimer.Start(); }
 
+    private bool OutfitPending(FolderClassifiedFile result, FolderClassificationRule rule)
+        => rule.ByOutfit && result.Decisions.FirstOrDefault(decision => decision.RuleId == rule.Id)?.Manual != true
+            && !OutfitAppearanceService.IsComplete(result.Media);
+
+    private bool AnalysisPending(MediaFileEntry entry, FolderClassificationRule? rule = null)
+        => !_results.TryGetValue(entry.Path, out var result) || _analysisPending.Contains(entry.Path)
+            || (rule is null ? _rules.Any(active => OutfitPending(result, active)) : OutfitPending(result, rule));
+
     private string BasketFor(MediaFileEntry entry, FolderClassificationRule? rule)
     {
-        if (!_results.TryGetValue(entry.Path, out var result)) return PendingBasket;
+        if (AnalysisPending(entry, rule)) return PendingBasket;
+        var result = _results[entry.Path];
         if (rule is null) return result.Decisions.Any(decision => decision.NeedsReview) ? ReviewBasket : AllBasket;
         return result.Decisions.FirstOrDefault(decision => decision.RuleId == rule.Id)?.CategoryId ?? ReviewBasket;
     }
@@ -126,11 +135,11 @@ public sealed partial class FolderClassificationWindow
                 _baskets.Children.Add(BuildBasket(option.Id, option.Name, members, rule, categoriesById.GetValueOrDefault(option.Id)));
             }
             _allFilter.Content = Localization.Format($"全部 {_entries.Count}");
-            _pendingFilter.Content = Localization.Format($"待分析 {_entries.Count(entry => !_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path))}");
+            _pendingFilter.Content = Localization.Format($"待分析 {_entries.Count(entry => AnalysisPending(entry, rule))}");
             _allFilter.Classes.Set("primary", _basketId == AllBasket); _pendingFilter.Classes.Set("primary", _basketId == PendingBasket);
             var search = _search.Text?.Trim() ?? "";
             var visible = _entries.Where(entry => (_basketId == AllBasket || (_basketId == PendingBasket
-                    ? !_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path) : BasketFor(entry, rule) == _basketId))
+                    ? AnalysisPending(entry, rule) : BasketFor(entry, rule) == _basketId))
                 && (_onlyIncluded.IsChecked != true || entry.Include)
                 && (search.Length == 0 || entry.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
                     || entry.Details.Contains(search, StringComparison.OrdinalIgnoreCase))).ToArray();

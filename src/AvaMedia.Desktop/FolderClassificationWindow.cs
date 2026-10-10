@@ -182,7 +182,7 @@ public sealed partial class FolderClassificationWindow : Window
     {
         _videoSettings.IsVisible = _entries.Any(entry => entry.Include && VideoFormats.IsVideo(entry.Path));
         _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Include);
-        _retry.IsEnabled = !_busy && _entries.Any(entry => entry.Include && (!_results.ContainsKey(entry.Path) || _analysisPending.Contains(entry.Path)));
+        _retry.IsEnabled = !_busy && _entries.Any(entry => entry.Include && AnalysisPending(entry));
         _retry.IsVisible = _attempted;
         _preview.IsEnabled = !_busy && _results.Count > 0;
         _organize.IsEnabled = !_busy && _plan is { Length: > 0 };
