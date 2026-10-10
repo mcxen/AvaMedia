@@ -9,10 +9,8 @@ using System.Text.RegularExpressions;
 
 namespace AvaMedia.Core;
 
-public sealed record SummaryModelImage(string Label, byte[] Png);
-
 /// <summary>Task-owned llama.cpp process, authenticated loopback only, disposed before switching models.</summary>
-public sealed class LocalSummaryModel : ISummaryModel
+public sealed class LocalSummaryModel : ISummaryToolModel
 {
     private readonly Process _process;
     private readonly HttpClient _client;
@@ -100,26 +98,8 @@ public sealed class LocalSummaryModel : ISummaryModel
     public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
         JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
     {
-        if (_process.HasExited) throw new InvalidOperationException("本地总结模型已退出。");
-        object content = prompt;
-        if (image is not null && images is not null) throw new ArgumentException("不能同时传入单帧和多帧。");
-        if ((image is not null || images is not null) && !ModelCatalog.IsSummaryVision(_id))
-            throw new ArgumentException("请选择支持图像输入的视觉模型。");
-        if (image is not null) content = new object[] {
-            new { type = "text", text = prompt }, new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(image) } } };
-        if (images is not null)
-        {
-            var maximum = _id == ModelCatalog.SummaryVisionId ? 3 : 32;
-            if (images.Count < 1 || images.Count > maximum)
-                throw new ArgumentException($"画面联合分析每次需要 1–{maximum} 帧。");
-            var parts = new List<object> { new { type = "text", text = prompt } };
-            foreach (var frame in images)
-            {
-                parts.Add(new { type = "text", text = frame.Label });
-                parts.Add(new { type = "image_url", image_url = new { url = "data:image/png;base64," + Convert.ToBase64String(frame.Png) } });
-            }
-            content = parts.ToArray();
-        }
+        var content = SummaryChatProtocol.Content(prompt, image, images, ModelCatalog.IsSummaryVision(_id),
+            _id == ModelCatalog.SummaryVisionId ? 3 : 32);
         // SmolVLM's published template is a user/assistant conversation; keep its visual instruction in user content.
         object[] messages = _id == ModelCatalog.SummaryVisionId
             ? [new { role = "user", content }]
@@ -130,13 +110,10 @@ public sealed class LocalSummaryModel : ISummaryModel
         var request = Request(messages, tokens);
         if (schema is { } shape) request["response_format"] = new { type = "json_object", schema = shape };
         using var json = await SendAsync(request, ct).ConfigureAwait(false);
-        if (!json.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0
-            || !choices[0].TryGetProperty("message", out var message) || !message.TryGetProperty("content", out var body)
-            || body.ValueKind != JsonValueKind.String) throw new InvalidDataException("本地总结模型未返回有效文本。");
-        var text = body.GetString()!.Trim();
+        var (message, limited) = SummaryChatProtocol.ReadResponse(json.RootElement, "本地总结模型响应格式无效。");
+        var text = SummaryChatProtocol.ReadText(message, "本地总结模型未返回有效文本。");
         text = Regex.Replace(text, @"<think>.*?</think>", "", RegexOptions.Singleline, TimeSpan.FromSeconds(1)).Trim();
         if (text.Length == 0) throw new InvalidDataException("本地总结模型返回了空内容。");
-        var limited = choices[0].TryGetProperty("finish_reason", out var reason) && reason.GetString() == "length";
         if (visual)
         {
             // Small visual decoders can repeat after a complete caption. Keep whole sentences only;
@@ -151,10 +128,10 @@ public sealed class LocalSummaryModel : ISummaryModel
     }
 
     public Task<string> CompleteWithToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
-        IReadOnlyList<OnlineSummaryTool> tools, CancellationToken ct, int tokens = 2048)
+        IReadOnlyList<SummaryModelTool> tools, CancellationToken ct, int tokens = 2048)
     {
         if (_id != ModelCatalog.SummaryQwen35Id) throw new ArgumentException("所选本地模型不支持画面工具。");
-        return OnlineSummaryModel.RunToolsAsync(system, prompt, images, tools, ct, 600,
+        return SummaryToolConversation.RunAsync(system, prompt, images, tools, ct, 600,
             (messages, _, _) => Request(messages, tokens), SendAsync);
     }
 

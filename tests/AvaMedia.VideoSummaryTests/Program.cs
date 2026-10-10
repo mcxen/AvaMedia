@@ -177,6 +177,7 @@ sealed class MockModel(Func<int, string> reply) : ISummaryModel
     private int _calls;
     public List<string> Prompts { get; } = []; public List<string> Systems { get; } = [];
     public string Backend => "mock";
+    public string ModelId => "mock";
     public Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
         JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
     { Systems.Add(system); Prompts.Add(prompt); return Task.FromResult(reply(++_calls)); }

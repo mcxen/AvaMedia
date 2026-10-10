@@ -11,7 +11,7 @@ public sealed class MediaCaptionFrameTool
     private readonly int _videoStreamIndex;
     private readonly Action<byte[], string>? _preview;
     private int _remaining = 8;
-    public OnlineSummaryTool Tool { get; }
+    public SummaryModelTool Tool { get; }
 
     public MediaCaptionFrameTool(IMediaEngine engine, MediaTagResult source, int videoStreamIndex = 0,
         Action<byte[], string>? preview = null)
@@ -40,7 +40,7 @@ public sealed class MediaCaptionFrameTool
             parameters, ExecuteAsync);
     }
 
-    private async Task<OnlineSummaryToolResult> ExecuteAsync(JsonElement arguments, CancellationToken ct)
+    private async Task<SummaryModelToolResult> ExecuteAsync(JsonElement arguments, CancellationToken ct)
     {
         if (arguments.ValueKind != JsonValueKind.Object || arguments.EnumerateObject().Any(property => property.Name is not ("seconds" or "region"))
             || !arguments.TryGetProperty("seconds", out var times) || times.ValueKind != JsonValueKind.Array || times.GetArrayLength() is < 1 or > 4)

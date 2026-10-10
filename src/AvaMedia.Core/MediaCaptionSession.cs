@@ -4,31 +4,25 @@ namespace AvaMedia.Core;
 internal sealed class MediaCaptionSession(ModelStore store, OnlineAiSettings providers, MediaTagOptions options,
     Action<string> status, Action<string> backend) : IAsyncDisposable
 {
-    private LocalSummaryModel? _local;
-    private OnlineAiOptions? _provider;
+    private ISummaryModel? _model;
 
     public async Task<(string Caption, string Model)> GenerateAsync(IReadOnlyList<byte[]> frames, CancellationToken ct,
-        IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0, OnlineSummaryTool? frameTool = null)
+        IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0, SummaryModelTool? frameTool = null)
     {
-        if (options.CaptionLocalModelId is { } id)
+        if (_model is null)
         {
-            if (_local is null)
-            {
-                if (!await store.IsInstalledAsync(id, ct: ct).ConfigureAwait(false)
-                    || !await store.IsInstalledAsync(ModelCatalog.SummaryRuntimeId, ct: ct).ConfigureAwait(false))
-                    throw new InvalidOperationException("请先在模型管理下载画面描述模型和本地推理工具。");
-                _local = await LocalSummaryModel.StartAsync(store, id, options.PreferGpu, ct, status).ConfigureAwait(false);
-            }
+            _model = options.CaptionLocalModelId is { } id
+                ? await LocalSummaryModel.StartAsync(store, id, options.PreferGpu, ct, status).ConfigureAwait(false)
+                : new OnlineSummaryModel(MediaCaptionService.PrepareProvider(providers.Resolve(options.CaptionProviderId)), vision: true);
         }
-        else _provider ??= MediaCaptionService.PrepareProvider(providers.Resolve(options.CaptionProviderId));
-        backend(_local?.Backend ?? "线上 API");
-        return await MediaCaptionService.GenerateAsync(_provider, frames, options, ct, _local,
+        backend(_model.Backend);
+        return await MediaCaptionService.GenerateAsync(null, frames, options, ct, _model,
             frameSeconds, videoDurationSeconds, frameTool,
             (current, total) => status($"描述采样画面 {current}/{total}")).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_local is not null) await _local.DisposeAsync().ConfigureAwait(false);
+        if (_model is not null) await _model.DisposeAsync().ConfigureAwait(false);
     }
 }

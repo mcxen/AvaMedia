@@ -31,23 +31,17 @@ public static class MediaCaptionService
     public static OnlineAiOptions PrepareProvider(OnlineAiOptions source)
     {
         var options = source.Clone();
-        if (string.IsNullOrWhiteSpace(options.TextModel) && !string.IsNullOrWhiteSpace(options.VisionModel))
-            options.TextModel = options.VisionModel;
-        if (string.IsNullOrWhiteSpace(options.VisionModel) && !string.IsNullOrWhiteSpace(options.TextModel))
-            options.VisionModel = options.TextModel;
         if (string.IsNullOrWhiteSpace(options.EffectiveVisionModel))
             throw new ArgumentException("请在 AI 供应商中配置视觉模型（例如 Ollama 的 moondream / llava）。");
         // Captions are free-form prose; do not force JSON response_format.
         options.ResponseFormat = OnlineAiResponseFormat.Prompt;
-        options.Validate();
-        options.ValidateConnection();
         return options;
     }
 
     public static async Task<(string Caption, string Model)> GenerateAsync(
         OnlineAiOptions? provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
         ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0,
-        OnlineSummaryTool? frameTool = null, Action<int, int>? frameProgress = null)
+        SummaryModelTool? frameTool = null, Action<int, int>? frameProgress = null)
     {
         if (frames.Count == 0) throw new ArgumentException("没有可用于画面描述的采样帧。");
         if (frameSeconds is not null && (frameSeconds.Count != frames.Count || !double.IsFinite(videoDurationSeconds) || videoDurationSeconds <= 0
@@ -68,50 +62,40 @@ public static class MediaCaptionService
         if (frameTool is not null && frameSeconds is not null)
             system += "遇到采样间动作、遮挡或局部细节无法确认时，可用 get_video_frames 查看指定时间的画面，必要时指定局部区域。" +
                 "最多补充 8 帧、2 轮；工具结果后的图像是实际画面证据。工具失败或仍看不清时省略该细节，不能把工具参数或请求目的当作事实。";
-        if (model is not null)
+        await using var ownedModel = model is null
+            ? new OnlineSummaryModel(PrepareProvider(provider ?? throw new ArgumentException("缺少画面描述供应商。")), vision: true)
+            : null;
+        var vision = model ?? ownedModel!;
+        byte[]? image = images is null ? frames[0] : null;
+        if (vision is LocalSummaryModel && frameSeconds is not null)
         {
-            if (model is LocalSummaryModel localVideo && frameSeconds is not null)
+            // Joint image input can carry a subject from one sample into an unrelated sample.
+            // Observe each frame independently before asking the same session to organize the evidence.
+            var observations = new System.Text.StringBuilder();
+            for (var index = 0; index < frames.Count; index++)
             {
-                // Joint image input can carry a subject from one sample into an unrelated sample.
-                // Observe each frame independently before asking the same session to organize the evidence.
-                var observations = new System.Text.StringBuilder();
-                for (var index = 0; index < frames.Count; index++)
-                {
-                    ct.ThrowIfCancellationRequested(); frameProgress?.Invoke(index, frames.Count);
-                    var observation = RequireCaption(await localVideo.CompleteAsync(system,
-                        $"这是视频 {MediaTime.Format(frameSeconds[index])} 的单张采样画面。" +
-                        "只用一两句话记录这张图中清晰可见的主体、环境和物体；纯色或看不清的画面照实说明。" +
-                        "精确人数和细节只有看清时才写，不能描述之前、之后或采样间的动作。",
-                        ct, image: frames[index], tokens: 256).ConfigureAwait(false));
-                    observations.Append('[').Append(MediaTime.Format(frameSeconds[index])).Append("] ").AppendLine(observation);
-                    frameProgress?.Invoke(index + 1, frames.Count);
-                }
-                var evidencePrompt = prompt + "\n\n以下是每张采样图独立观察的记录，请按时间整理成简洁描述。" +
-                    "各时间点只使用对应记录，不能把前一帧的主体延续到下一帧；不要补写采样间的动作。\n" + observations;
-                var videoCaption = frameTool is not null
-                    ? await localVideo.CompleteWithToolsAsync(system, evidencePrompt, [], [frameTool], ct, options.CaptionMaxTokens).ConfigureAwait(false)
-                    : await localVideo.CompleteAsync(system, evidencePrompt, ct, tokens: options.CaptionMaxTokens).ConfigureAwait(false);
-                return (RequireCaption(videoCaption), localVideo.ModelId);
+                ct.ThrowIfCancellationRequested(); frameProgress?.Invoke(index, frames.Count);
+                var observation = RequireCaption(await vision.CompleteAsync(system,
+                    $"这是视频 {MediaTime.Format(frameSeconds[index])} 的单张采样画面。" +
+                    "只用一两句话记录这张图中清晰可见的主体、环境和物体；纯色或看不清的画面照实说明。" +
+                    "精确人数和细节只有看清时才写，不能描述之前、之后或采样间的动作。",
+                    ct, image: frames[index], tokens: 256).ConfigureAwait(false));
+                observations.Append('[').Append(MediaTime.Format(frameSeconds[index])).Append("] ").AppendLine(observation);
+                frameProgress?.Invoke(index + 1, frames.Count);
             }
-            var caption = frameTool is not null && frameSeconds is not null
-                ? model is LocalSummaryModel local
-                    ? await local.CompleteWithToolsAsync(system, prompt, images!, [frameTool], ct, options.CaptionMaxTokens).ConfigureAwait(false)
-                    : throw new ArgumentException("所选模型不支持画面工具。")
-                : await model.CompleteAsync(system, prompt, ct,
-                    image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
-            return (RequireCaption(caption), model is LocalSummaryModel session ? session.ModelId
-                : PrepareProvider(provider ?? throw new ArgumentException("缺少画面描述供应商。")).EffectiveVisionModel);
+            prompt += "\n\n以下是每张采样图独立观察的记录，请按时间整理成简洁描述。" +
+                "各时间点只使用对应记录，不能把前一帧的主体延续到下一帧；不要补写采样间的动作。\n" + observations;
+            image = null; images = null;
         }
-
-        var prepared = PrepareProvider(provider ?? throw new ArgumentException("缺少画面描述供应商。"));
-        await using var vision = new OnlineSummaryModel(prepared, vision: true);
+        string caption;
+        if (frameTool is not null && frameSeconds is not null)
         {
-            var caption = frameTool is not null && frameSeconds is not null
-                ? await vision.CompleteWithToolsAsync(system, prompt, images!, [frameTool], ct).ConfigureAwait(false)
-                : await vision.CompleteAsync(system, prompt, ct,
-                    image: images is null ? frames[0] : null, tokens: options.CaptionMaxTokens, images: images).ConfigureAwait(false);
-            return (RequireCaption(caption), prepared.EffectiveVisionModel);
+            if (vision is not ISummaryToolModel toolModel) throw new ArgumentException("所选模型不支持画面工具。");
+            caption = await toolModel.CompleteWithToolsAsync(system, prompt, images ?? [], [frameTool], ct,
+                options.CaptionMaxTokens).ConfigureAwait(false);
         }
+        else caption = await vision.CompleteAsync(system, prompt, ct, image, options.CaptionMaxTokens, images: images).ConfigureAwait(false);
+        return (RequireCaption(caption), vision.ModelId);
     }
 
     public static string NormalizeCaption(string text)

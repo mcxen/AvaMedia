@@ -3,33 +3,18 @@ using System.Text.Json;
 
 namespace AvaMedia.Core;
 
-public sealed record OnlineSummaryTool(string Name, string Description, JsonElement Parameters,
-    Func<JsonElement, CancellationToken, Task<OnlineSummaryToolResult>> ExecuteAsync);
-public sealed record OnlineSummaryToolResult(string Text, IReadOnlyList<SummaryModelImage>? Images = null);
-
-public sealed partial class OnlineSummaryModel
+/// <summary>Bounded frame-tool conversation shared by local llama.cpp and remote providers.</summary>
+internal static class SummaryToolConversation
 {
-    /// <summary>Bounded vision conversation. Tool images follow their matching tool result as a user image message.</summary>
-    public async Task<string> CompleteWithToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
-        IReadOnlyList<OnlineSummaryTool> tools, CancellationToken ct)
-    {
-        if (!_vision) throw new ArgumentException("请选择支持图像输入的视觉模型。");
-        return await RunToolsAsync(system, prompt, images, tools, ct, _options.TimeoutSeconds, ConversationRequest,
-            _client.CompleteAsync).ConfigureAwait(false);
-    }
-
-    // Local llama.cpp and remote providers share the same bounded, validated frame-tool conversation.
-    internal static async Task<string> RunToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
-        IReadOnlyList<OnlineSummaryTool> tools, CancellationToken ct, int timeoutSeconds,
+    internal static async Task<string> RunAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
+        IReadOnlyList<SummaryModelTool> tools, CancellationToken ct, int timeoutSeconds,
         Func<IReadOnlyList<object>, long, int, Dictionary<string, object>> conversationRequest,
         Func<Dictionary<string, object>, CancellationToken, Task<JsonDocument>> complete)
     {
         // A local video can start with independently observed frame text, then request pixels as needed.
         if (images.Count > 32) throw new ArgumentException("画面联合分析每次最多 32 帧。");
-        if (tools.Count is < 1 or > 8 || tools.Select(tool => tool.Name).Distinct(StringComparer.Ordinal).Count() != tools.Count)
-            throw new ArgumentException("画面描述工具配置无效。");
         var messages = new List<object> { new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },
-            new { role = "user", content = ImageContent(prompt, images) } };
+            new { role = "user", content = SummaryChatProtocol.ImageContent(prompt, images) } };
         var definitions = tools.Select(tool => new { type = "function", function = new
             { name = tool.Name, description = tool.Description, parameters = tool.Parameters } }).ToArray();
         long textBytes = Encoding.UTF8.GetByteCount(system) + (long)Encoding.UTF8.GetByteCount(prompt)
@@ -50,9 +35,7 @@ public sealed partial class OnlineSummaryModel
                 if (!message.TryGetProperty("tool_calls", out var calls) || calls.ValueKind == JsonValueKind.Null
                     || calls.ValueKind == JsonValueKind.Array && calls.GetArrayLength() == 0)
                 {
-                    if (!message.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String
-                        || string.IsNullOrWhiteSpace(content.GetString())) throw new InvalidDataException("画面描述模型未返回有效内容。");
-                    return content.GetString()!.Trim();
+                    return SummaryChatProtocol.ReadText(message, "画面描述模型未返回有效内容。");
                 }
                 if (round == 2 || calls.ValueKind != JsonValueKind.Array || calls.GetArrayLength() > 8)
                     throw new InvalidDataException("画面描述工具调用超过限制或格式无效。");
@@ -66,7 +49,7 @@ public sealed partial class OnlineSummaryModel
                 foreach (var call in parsed)
                 {
                     var tool = tools.FirstOrDefault(tool => tool.Name == call.Name);
-                    OnlineSummaryToolResult result;
+                    SummaryModelToolResult result;
                     if (tool is null) result = new("工具不可用。请仅使用已提供的工具。");
                     else
                     {
@@ -91,7 +74,7 @@ public sealed partial class OnlineSummaryModel
                 if (returnedImages.Count > 0)
                 {
                     const string label = "以下是取帧工具实际返回的画面，请结合时间和局部区域核对；请求参数不能证明画面内容。";
-                    messages.Add(new { role = "user", content = ImageContent(label, returnedImages) });
+                    messages.Add(new { role = "user", content = SummaryChatProtocol.ImageContent(label, returnedImages) });
                     textBytes += Encoding.UTF8.GetByteCount(label);
                 }
                 if (round == 1)
@@ -109,14 +92,10 @@ public sealed partial class OnlineSummaryModel
 
     private static JsonElement ToolMessage(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("choices", out var choices)
-            || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0 || choices[0].ValueKind != JsonValueKind.Object)
-            throw new InvalidDataException("画面描述工具响应格式无效。");
-        var choice = choices[0];
-        if (choice.TryGetProperty("finish_reason", out var reason) && reason.ValueKind == JsonValueKind.String && reason.GetString() == "length")
+        var (message, truncated) = SummaryChatProtocol.ReadResponse(root, "画面描述工具响应格式无效。");
+        if (truncated)
             throw new InvalidDataException("画面描述达到输出长度限制，请减少采样帧数或缩短描述要求。");
-        if (!choice.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
-            || !message.TryGetProperty("role", out var role) || role.ValueKind != JsonValueKind.String || role.GetString() != "assistant")
+        if (!message.TryGetProperty("role", out var role) || role.ValueKind != JsonValueKind.String || role.GetString() != "assistant")
             throw new InvalidDataException("画面描述工具响应格式无效。");
         return message.Clone();
     }

@@ -33,3 +33,27 @@
 运行 `./scripts/Verify.ps1 -Suite Ablation`，完整参数、测量值、外部引擎版本、平台、Git 提交号、未提交状态及源文件哈希写入 `artifacts/test-*/ablation/report.json`。该实验覆盖上述 18 个处理环节；其他能力由对应功能测试验证。
 
 确认无调用后移除了 `Ui.Confirm`，清除已停止使用的重复确认对话框实现。其余处理环节均产生可测的输出变化，保留实际功能。提交删除后继续运行完整回归，包含队列、批量重命名与撤销的按钮行为。
+
+## 2026-10-10 AI 代码复用消融
+
+以 `8f2a158` 为基线，比较共享 Chat Completions 协议、画面描述会话复用及两者合并。四组都编译各自的 Core 源码快照，使用相同的本机 HTTP 固定响应；本地模型只替换推理进程与响应，不加载权重。
+
+| 代码配置 | 通过 | 已复现的问题 |
+|---|---:|---|
+| 原始代码 | 23/26 | 已有模型仍要求供应商配置；已有线上模型无法调用画面工具；线上批次未持有并复用模型会话 |
+| 仅共享协议 | 23/26 | 上述三个会话问题仍存在 |
+| 仅复用描述会话 | 26/26 | 三个会话问题均修复 |
+| 合并实现 | 26/26 | 三个会话问题均修复；原先通过的 23 项请求内容与基线完全一致 |
+
+共享协议负责图像消息、响应结构与文本解析，工具对话独立于供应商实现。描述批次持有一个 `ISummaryModel`，通过 `ISummaryToolModel` 调用工具，并记录模型自身的 `ModelId`。移除重复供应商校验、安装预检、进程存活预检和内部工具配置防御；下载完整性校验仍由 `ModelStore.AcquireAsync` 执行，网络响应校验、工具轮数/帧数限制、取消、超时与资源释放继续保留。
+
+检查覆盖文本与多帧请求、JSON 代码块、无效/空/截断响应、取消、本地小模型解码设置、工具返回图像和调用顺序、重复调用标识、工具轮数、无效参数、模型标识及会话所有权。客户端和受影响的 `VideoSummaryTests` 项目编译通过，均为 0 警告、0 错误；未运行原有媒体消融、真实模型推理、UI、媒体输出或性能检查。
+
+本地材料位于 `artifacts/ai-reuse-ablation-20261010/`：`Program.cs`、四组源码快照及运行日志、每组请求记录 JSON，以及包含源码与检查程序 SHA256 的 `report.json`。复现指定组：
+
+```sh
+variant=combined # baseline / protocol / caption / combined
+DOTNET_ROOT="$PWD/.tools/dotnet" NUGET_PACKAGES="$PWD/.tools/nuget-packages" \
+  .tools/dotnet/dotnet run --project "artifacts/ai-reuse-ablation-20261010/$variant/runner/Ablation.csproj" \
+  -c Release -p:NuGetAudit=false -- "$variant" "$PWD/artifacts/ai-reuse-ablation-20261010/$variant.json"
+```
