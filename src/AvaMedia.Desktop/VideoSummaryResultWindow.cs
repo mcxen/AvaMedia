@@ -36,14 +36,15 @@ public sealed partial class VideoSummaryResultWindow : Window
     private readonly Image _cover = new();
     private readonly TextBox _search = new() { Watermark = "搜索字幕…" };
     private Button _copy = null!, _export = null!, _play = null!;
+    private readonly VideoSummaryReport? _initialReport;
     private VideoSummaryReport? _report;
     private PlayerWindow? _player;
     private bool _closed;
     private int _transcriptPage = -1;
 
-    public VideoSummaryResultWindow(string folder, IMediaEngine? engine = null, string? source = null)
+    public VideoSummaryResultWindow(string folder, IMediaEngine? engine = null, string? source = null, VideoSummaryReport? report = null)
     {
-        _folder = Path.GetFullPath(folder); _engine = engine; _source = source;
+        _folder = Path.GetFullPath(folder); _engine = engine; _source = source; _initialReport = report;
         Title = "视频总结结果"; Width = 1120; Height = 800; MinWidth = 820; MinHeight = 540;
         Classes.Add("video-summary-result"); WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, "document"); Content = CreateLayout();
@@ -66,13 +67,17 @@ public sealed partial class VideoSummaryResultWindow : Window
     {
         try
         {
-            var path = Path.Combine(_folder, "report.json");
-            if (new FileInfo(path).Length > 32 * 1024 * 1024) throw new InvalidDataException("结果超过 32 MB，请从输出目录打开。");
-            var json = await File.ReadAllTextAsync(path, _lifetime.Token);
-            var report = await Task.Run(() => JsonSerializer.Deserialize<VideoSummaryReport>(json)
-                ?? throw new InvalidDataException("视频总结结果无效。"), _lifetime.Token);
+            var report = _initialReport;
+            if (report is null)
+            {
+                var path = Path.Combine(_folder, "report.json");
+                if (new FileInfo(path).Length > 32 * 1024 * 1024) throw new InvalidDataException("结果超过 32 MB，请从输出目录打开。");
+                var json = await File.ReadAllTextAsync(path, _lifetime.Token);
+                report = await Task.Run(() => JsonSerializer.Deserialize<VideoSummaryReport>(json)
+                    ?? throw new InvalidDataException("视频总结结果无效。"), _lifetime.Token);
+            }
             var subtitle = Path.Combine(_folder, "subtitles.srt");
-            if (File.Exists(subtitle))
+            if (_initialReport is null && File.Exists(subtitle))
             {
                 if (new FileInfo(subtitle).Length > 32 * 1024 * 1024) throw new InvalidDataException("字幕超过 32 MB，请从输出目录打开。");
                 var srt = await File.ReadAllTextAsync(subtitle, _lifetime.Token);
@@ -80,7 +85,7 @@ public sealed partial class VideoSummaryResultWindow : Window
             }
             if (_closed) return;
             _report = report; _fileName.Text = report.Source; ToolTip.SetTip(_fileName, _source ?? report.Source);
-            Localization.SetText(_metadata, $"{MediaTime.Format(report.Duration)} · {report.Transcript.Count} 条字幕 · {report.Frames.Count} 个采样画面");
+            Localization.SetText(_metadata, $"{(report.IsPartial ? Localization.Text("部分结果") + " · " : "")}{MediaTime.Format(report.Duration)} · {report.Transcript.Count} 条字幕 · {report.Frames.Count} 个采样画面");
             _play.IsEnabled = _engine is not null && File.Exists(_source);
             BuildPages(report); _navigation.ItemsSource = _pages.Select(page => page.Title).ToArray();
             _navigation.SelectedIndex = 0; _copy.IsEnabled = _export.IsEnabled = true;

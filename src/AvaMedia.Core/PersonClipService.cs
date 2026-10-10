@@ -49,7 +49,7 @@ public sealed class PersonClipService(MediaEngine engine)
         Validate(job);
         var spec = job.Options.PersonClip!;
         job.PersonDetectionResult = null;
-        if (!spec.AnalysisOnly) AiTaskResults.DeleteResult(job, "people");
+        AiTaskResults.DeleteResult(job, "people");
         var source = new FileInfo(job.Inputs[0]); var bytes = source.Length; var modified = source.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "保留有人片段", "个片段", ["人物检测", "导出片段"]);
         activity.Stage("等待人物检测"); job.ProgressDetail = "等待人物检测"; progress(0);
@@ -71,6 +71,8 @@ public sealed class PersonClipService(MediaEngine engine)
             result = await new PersonClipAnalysis(engine).AnalyzeAsync(job.Inputs[0], spec.Detection,
                 new InlineProgress(value =>
                 {
+                    if (value.PreviewResult is { } preview)
+                        job.PersonDetectionResult = new(preview, bytes, modified);
                     if (value.Activity is { } observed) activity.Observe(observed);
                     job.ProgressDetail = value.Stage;
                     var fraction = value.Duration > 0 ? Math.Clamp(value.Seconds / value.Duration, 0, 1) * 80 : 0;
@@ -80,6 +82,7 @@ public sealed class PersonClipService(MediaEngine engine)
                 }), ct).ConfigureAwait(false);
         }
         finally { DetectionGate.Release(); pauseBoundary.Dispose(); }
+        job.PersonDetectionResult = new(result, bytes, modified);
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         analysisClock.Stop();
         ct.ThrowIfCancellationRequested(); CheckSource();

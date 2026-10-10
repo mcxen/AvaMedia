@@ -26,12 +26,15 @@ public sealed record PersonClipOptions(double FramesPerSecond = 2, double Thresh
 }
 public sealed record PersonClipProgress(double Seconds, double Duration, string Stage)
 {
+    public PersonClipResult? PreviewResult { get; init; }
     public AiActivity? Activity { get; init; }
     public IReadOnlyList<PersonDetectionEvidence> Evidence { get; init; } = [];
 }
 public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList<ConversionOptions> Segments, int SampledFrames, int UncertainFrames,
     int InferredFrames, int BoundaryFrames, string Backend)
 {
+    public bool IsPartial { get; init; }
+    public double AnalyzedSeconds { get; init; }
     public bool FromCache { get; init; }
     public int DarkFrames { get; init; }
     public int BlankFrames { get; init; }
@@ -113,128 +116,161 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             candidates.Add((candidateStart, end));
             activity.Result($"候选片段 {candidates.Count} · {MediaTime.Format(samples[candidateStart].Seconds)} – {MediaTime.Format(end < samples.Count ? samples[end].Seconds : duration)}", candidates.Count);
             candidateStart = candidateEnd = -1;
+            PublishPartial();
         }
-        activity.Stage("扫描视频", 0, duration, "秒");
-        await foreach (var decoded in PersonClipFrameSource.ReadAsync(engine, path, info, options, size, ct))
+        void PublishPartial()
         {
-            var seconds = decoded.Seconds; var frame = decoded.Rgb;
-            var skip = frame is null ? PersonFrameSkip.Excluded : PersonFrameVisibility.Exclude(frame, size, bounds, options);
-            if (skip != PersonFrameSkip.None)
+            if (samples.Count == 0) return;
+            var ranges = candidates.Select(candidate => new PersonClipRange(samples[candidate.Start].Seconds,
+                candidate.End < samples.Count ? samples[candidate.End].Seconds : observedSeconds)).ToList();
+            if (candidateStart >= 0) ranges.Add(new(samples[candidateStart].Seconds,
+                candidateEnd >= 0 ? samples[candidateEnd].Seconds : observedSeconds));
+            var merged = new List<PersonClipRange>();
+            foreach (var range in ranges)
             {
-                previous = new(seconds, false, false, []) { Skip = skip };
-                samples.Add(previous); reference = null;
-                if (skip == PersonFrameSkip.Dark) darkFrames++;
-                else if (skip == PersonFrameSkip.Blank) blankFrames++;
+                var padded = new PersonClipRange(Math.Max(0, range.Start - options.PaddingSeconds),
+                    Math.Min(observedSeconds, range.End + options.PaddingSeconds));
+                if (merged.Count > 0 && padded.Start <= merged[^1].End)
+                    merged[^1] = new(merged[^1].Start, Math.Max(merged[^1].End, padded.End));
+                else merged.Add(padded);
             }
-            else
+            var retained = PersonClipExclusions.Subtract(merged, excluded)
+                .Where(range => range.End - range.Start >= options.MinimumSeconds)
+                .Select(range => new ConversionOptions { Start = range.Start, End = range.End }).ToArray();
+            var partial = new PersonClipResult(path, info, retained,
+                samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
+                inferredFrames, boundaryFrames, detectors.Backend)
+            { IsPartial = true, AnalyzedSeconds = observedSeconds, DetectionMode = options.DetectionMode,
+                DarkFrames = darkFrames, BlankFrames = blankFrames, ExcludedSeconds = excludedSeconds, Detectors = detectors.Statistics.ToArray() };
+            progress?.Report(new(observedSeconds, duration, "人物检测") { PreviewResult = partial });
+        }
+        try
+        {
+            activity.Stage("扫描视频", 0, duration, "秒");
+            await foreach (var decoded in PersonClipFrameSource.ReadAsync(engine, path, info, options, size, ct))
             {
-                var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromRgb(frame!, size, size) : null;
-                // Reuse only a confident positive, and recheck at least once a second.
-                if (signature is not null && reference is not null && previous is { Keep: true, Uncertain: false }
-                    && seconds - lastInference < 1 && VideoFrameSimilarity.Similar(signature, reference))
-                    samples.Add(previous with { Seconds = seconds });
+                var seconds = decoded.Seconds; var frame = decoded.Rgb;
+                var skip = frame is null ? PersonFrameSkip.Excluded : PersonFrameVisibility.Exclude(frame, size, bounds, options);
+                if (skip != PersonFrameSkip.None)
+                {
+                    previous = new(seconds, false, false, []) { Skip = skip };
+                    samples.Add(previous); reference = null;
+                    if (skip == PersonFrameSkip.Dark) darkFrames++;
+                    else if (skip == PersonFrameSkip.Blank) blankFrames++;
+                }
                 else
                 {
-                    previous = await ClassifyAsync(detectors, frame!, seconds, options, bounds, embedding, ct, checkVisibility: false);
-                    samples.Add(previous); inferredFrames++;
-                    reference = signature; lastInference = seconds;
+                    var signature = options.ReuseSimilarFrames ? VideoFrameSimilarity.FromRgb(frame!, size, size) : null;
+                    // Reuse only a confident positive, and recheck at least once a second.
+                    if (signature is not null && reference is not null && previous is { Keep: true, Uncertain: false }
+                        && seconds - lastInference < 1 && VideoFrameSimilarity.Similar(signature, reference))
+                        samples.Add(previous with { Seconds = seconds });
+                    else
+                    {
+                        previous = await ClassifyAsync(detectors, frame!, seconds, options, bounds, embedding, ct, checkVisibility: false);
+                        samples.Add(previous); inferredFrames++;
+                        reference = signature; lastInference = seconds;
+                    }
                 }
-            }
-            observedSeconds = Math.Min(duration, seconds + 1 / options.FramesPerSecond);
-            var decision = samples[^1];
-            evidence = decision.Evidence;
-            // Keep short detection gaps inside one source range; only its outer edges need refinement.
-            if (candidateEnd >= 0 && seconds - samples[candidateEnd].Seconds > connectionGap) CompleteCandidate();
-            if (decision.Keep)
-            {
-                if (candidateStart < 0) candidateStart = samples.Count - 1;
-                candidateEnd = -1;
-            }
-            else if (candidateStart >= 0 && candidateEnd < 0) candidateEnd = samples.Count - 1;
-            if (frame is not null && previewClock.Elapsed >= nextPreview)
-            {
-                nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
-                var label = decision.Skip switch { PersonFrameSkip.Dark => "黑灯", PersonFrameSkip.Blank => "无画面",
-                    _ => decision.Uncertain ? "待确认" : decision.Keep ? "保留" : "跳过" };
-                activity.Frame(EncodePng(frame, size), $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)} · {label}");
-            }
-            activity.Backend(detectors.Backend);
-            activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 黑灯排除 {darkFrames} 帧 · 无画面排除 {blankFrames} 帧 · 免检测 {MediaTime.Format(excludedSeconds)} · 候选 {candidates.Count + (candidateStart >= 0 ? 1 : 0)} 段");
-        }
-        if (samples.Count == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
-        if (candidateStart >= 0) CompleteCandidate();
-        var boundaries = candidates.Sum(candidate => (candidate.Start > 0 ? 1 : 0) + (candidate.End < samples.Count ? 1 : 0));
-        var refined = 0;
-        activity.Node("细化片段边界");
-        activity.Backend(detectors.Backend);
-        activity.Stage("细化片段边界", 0, boundaries, "处");
-        var intervals = new List<(double Start, double End)>();
-        foreach (var candidate in candidates)
-        {
-            var start = candidate.Start == 0 ? 0 : await RefineBoundaryAsync(candidate.Start);
-            var end = candidate.End == samples.Count ? info.Duration : await RefineBoundaryAsync(candidate.End);
-            intervals.Add((start, end));
-        }
-        async Task<double> RefineBoundaryAsync(int index)
-        {
-            // User masks are exact fences, never boundary-refined with a model.
-            if (samples[index].Skip == PersonFrameSkip.Excluded || samples[index - 1].Skip == PersonFrameSkip.Excluded)
-            {
-                activity.Advance(++refined, boundaries, "处");
-                return samples[index].Seconds;
-            }
-            double low = samples[index - 1].Seconds, high = samples[index].Seconds;
-            var decoded = high - low > .1 ? await PersonBoundaryFrames.ReadAsync(engine, path, info.VideoStreamIndex, low, high, size, ct) : null;
-            while (high - low > .1)
-            {
-                ct.ThrowIfCancellationRequested();
-                var middle = (low + high) / 2;
-                activity.Advance(refined, boundaries, "处", $"正在定位 {MediaTime.Format(low)} – {MediaTime.Format(high)}");
-                var frame = decoded!.At(middle);
-                var result = await ClassifyAsync(detectors, frame, middle, options, bounds, embedding, ct);
-                evidence = result.Evidence;
-                if (previewClock.Elapsed >= nextPreview)
+                observedSeconds = Math.Min(duration, seconds + 1 / options.FramesPerSecond);
+                var decision = samples[^1];
+                evidence = decision.Evidence;
+                // Keep short detection gaps inside one source range; only its outer edges need refinement.
+                if (candidateEnd >= 0 && seconds - samples[candidateEnd].Seconds > connectionGap) CompleteCandidate();
+                if (decision.Keep)
                 {
-                    nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
-                    activity.Frame(EncodePng(frame, size), $"边界画面 · {MediaTime.Format(middle)} · {(result.Keep ? "保留" : "跳过")}");
+                    if (candidateStart < 0) candidateStart = samples.Count - 1;
+                    candidateEnd = -1;
                 }
-                if (result.Skip == PersonFrameSkip.None) boundaryFrames++;
-                if (result.Keep == samples[index - 1].Keep) low = middle; else high = middle;
+                else if (candidateStart >= 0 && candidateEnd < 0) candidateEnd = samples.Count - 1;
+                if (frame is not null && previewClock.Elapsed >= nextPreview)
+                {
+                    PublishPartial();
+                    nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
+                    var label = decision.Skip switch { PersonFrameSkip.Dark => "黑灯", PersonFrameSkip.Blank => "无画面",
+                        _ => decision.Uncertain ? "待确认" : decision.Keep ? "保留" : "跳过" };
+                    activity.Frame(EncodePng(frame, size), $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)} · {label}");
+                }
+                activity.Backend(detectors.Backend);
+                activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 黑灯排除 {darkFrames} 帧 · 无画面排除 {blankFrames} 帧 · 免检测 {MediaTime.Format(excludedSeconds)} · 候选 {candidates.Count + (candidateStart >= 0 ? 1 : 0)} 段");
             }
-            activity.Advance(++refined, boundaries, "处", $"边界计算 {boundaryFrames} 帧");
-            // Preserve the boundary uncertainty on the person side.
-            return samples[index].Keep ? low : high;
+            if (samples.Count == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
+            if (candidateStart >= 0) CompleteCandidate();
+            PublishPartial();
+            var boundaries = candidates.Sum(candidate => (candidate.Start > 0 ? 1 : 0) + (candidate.End < samples.Count ? 1 : 0));
+            var refined = 0;
+            activity.Node("细化片段边界");
+            activity.Backend(detectors.Backend);
+            activity.Stage("细化片段边界", 0, boundaries, "处");
+            var intervals = new List<(double Start, double End)>();
+            foreach (var candidate in candidates)
+            {
+                var start = candidate.Start == 0 ? 0 : await RefineBoundaryAsync(candidate.Start);
+                var end = candidate.End == samples.Count ? info.Duration : await RefineBoundaryAsync(candidate.End);
+                intervals.Add((start, end));
+            }
+            async Task<double> RefineBoundaryAsync(int index)
+            {
+                // User masks are exact fences, never boundary-refined with a model.
+                if (samples[index].Skip == PersonFrameSkip.Excluded || samples[index - 1].Skip == PersonFrameSkip.Excluded)
+                {
+                    activity.Advance(++refined, boundaries, "处");
+                    return samples[index].Seconds;
+                }
+                double low = samples[index - 1].Seconds, high = samples[index].Seconds;
+                var decoded = high - low > .1 ? await PersonBoundaryFrames.ReadAsync(engine, path, info.VideoStreamIndex, low, high, size, ct) : null;
+                while (high - low > .1)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var middle = (low + high) / 2;
+                    activity.Advance(refined, boundaries, "处", $"正在定位 {MediaTime.Format(low)} – {MediaTime.Format(high)}");
+                    var frame = decoded!.At(middle);
+                    var result = await ClassifyAsync(detectors, frame, middle, options, bounds, embedding, ct);
+                    evidence = result.Evidence;
+                    if (previewClock.Elapsed >= nextPreview)
+                    {
+                        nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
+                        activity.Frame(EncodePng(frame, size), $"边界画面 · {MediaTime.Format(middle)} · {(result.Keep ? "保留" : "跳过")}");
+                    }
+                    if (result.Skip == PersonFrameSkip.None) boundaryFrames++;
+                    if (result.Keep == samples[index - 1].Keep) low = middle; else high = middle;
+                }
+                activity.Advance(++refined, boundaries, "处", $"边界计算 {boundaryFrames} 帧");
+                // Preserve the boundary uncertainty on the person side.
+                return samples[index].Keep ? low : high;
+            }
+            var merged = new List<(double Start, double End)>();
+            foreach (var interval in intervals)
+            {
+                // Compare actual absence before adding padding, so margins cannot bridge long empty gaps.
+                if (merged.Count > 0 && interval.Start - merged[^1].End <= options.MergeGapSeconds)
+                    merged[^1] = (merged[^1].Start, interval.End);
+                else merged.Add(interval);
+            }
+            var padded = new List<(double Start, double End)>();
+            foreach (var interval in merged)
+            {
+                var item = (Start: Math.Max(0, interval.Start - options.PaddingSeconds), End: Math.Min(info.Duration, interval.End + options.PaddingSeconds));
+                if (padded.Count > 0 && item.Start <= padded[^1].End)
+                    padded[^1] = (padded[^1].Start, Math.Max(padded[^1].End, item.End));
+                else padded.Add(item);
+            }
+            var retained = PersonClipExclusions.Subtract(padded.Select(interval => new PersonClipRange(interval.Start, interval.End)), excluded);
+            var segments = retained.Where(interval => interval.End - interval.Start >= options.MinimumSeconds)
+                .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
+            activity.Node("保留片段");
+            foreach (var segment in segments) activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", segments.Length);
+            activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
+            activity.Stage("分析完成", detail: $"保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
+            activity.Finish("分析完成");
+            var result = new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
+                inferredFrames, boundaryFrames, detectors.Backend)
+            { Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
+                ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration };
+            await cache.WriteAsync(result, ct).ConfigureAwait(false);
+            return result;
         }
-        var merged = new List<(double Start, double End)>();
-        foreach (var interval in intervals)
-        {
-            // Compare actual absence before adding padding, so margins cannot bridge long empty gaps.
-            if (merged.Count > 0 && interval.Start - merged[^1].End <= options.MergeGapSeconds)
-                merged[^1] = (merged[^1].Start, interval.End);
-            else merged.Add(interval);
-        }
-        var padded = new List<(double Start, double End)>();
-        foreach (var interval in merged)
-        {
-            var item = (Start: Math.Max(0, interval.Start - options.PaddingSeconds), End: Math.Min(info.Duration, interval.End + options.PaddingSeconds));
-            if (padded.Count > 0 && item.Start <= padded[^1].End)
-                padded[^1] = (padded[^1].Start, Math.Max(padded[^1].End, item.End));
-            else padded.Add(item);
-        }
-        var retained = PersonClipExclusions.Subtract(padded.Select(interval => new PersonClipRange(interval.Start, interval.End)), excluded);
-        var segments = retained.Where(interval => interval.End - interval.Start >= options.MinimumSeconds)
-            .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
-        activity.Node("保留片段");
-        foreach (var segment in segments) activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", segments.Length);
-        activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
-        activity.Stage("分析完成", detail: $"保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
-        activity.Finish("分析完成");
-        var result = new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
-            inferredFrames, boundaryFrames, detectors.Backend)
-        { Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
-            ExcludedSeconds = excludedSeconds };
-        await cache.WriteAsync(result, ct).ConfigureAwait(false);
-        return result;
+        catch (OperationCanceledException) { PublishPartial(); throw; }
     }, ct);
 
     private static async Task<PersonFrame> ClassifyAsync(PersonDetectorSet detectors, byte[] rgb, double seconds,

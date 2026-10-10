@@ -1,7 +1,8 @@
 namespace AvaMedia.Core;
 
 public sealed record OrientationTaskOptions(string Format, string OutputFolder, bool OutputToSource, bool SettingName);
-public sealed record OrientationTaskResult(VideoOrientationResult Detection, MediaInfo Info, long SourceLength, DateTime SourceWriteUtc);
+public sealed record OrientationTaskResult(VideoOrientationResult Detection, MediaInfo Info, long SourceLength, DateTime SourceWriteUtc)
+{ public bool IsPartial { get; init; } }
 
 /// <summary>Direction detection belongs to a queue job; opening a preview only reads its result.</summary>
 public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientationDetector? detector = null) : IJobExecutor
@@ -18,7 +19,7 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
 
     public async Task Execute(Job job, Action<double> progress, CancellationToken ct)
     {
-        Validate(job); job.OrientationResult = null;
+        Validate(job); job.OrientationResult = null; AiTaskResults.DeleteResult(job, "orientation");
         var source = new FileInfo(job.Inputs[0]); var length = source.Length; var write = source.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "YuNet · 自动转正", "帧", ["读取视频", "检测方向", "保存结果"]);
         activity.Stage("读取视频"); progress(0);
@@ -27,6 +28,8 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
         var result = await (detector ?? new VideoOrientationDetector(engine)).DetectAsync(job.Inputs[0], info,
             new InlineProgress(value =>
             {
+                if (value.PreviewResult is { } partial)
+                    job.OrientationResult = new(partial, info, length, write) { IsPartial = true };
                 job.ProgressDetail = $"检测方向 {value.CompletedFrames}/{value.TotalFrames} 帧";
                 activity.Stage("检测方向", value.CompletedFrames, value.TotalFrames, "帧");
                 progress(90d * value.CompletedFrames / Math.Max(1, value.TotalFrames));

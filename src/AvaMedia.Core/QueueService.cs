@@ -131,13 +131,19 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         {
             lock (execution.Gate)
             {
-                if (!job.FileChangesCommitted && (execution.Stopping || token.IsCancellationRequested)) { state = JobState.Cancelled; error = "用户停止了任务。"; }
+                if (!job.FileChangesCommitted && (execution.Stopping || token.IsCancellationRequested))
+                { if (state != JobState.Cancelled) error = "用户停止了任务。"; state = JobState.Cancelled; }
                 execution.Active = false; job.Error = error; job.Estimate = null; job.DownloadSpeed = null;
                 if (state == JobState.Completed) job.Progress = 100;
                 job.State = state;
                 if (job.Activity is { } activity) job.Activity = activity with { UpdatedUtc = DateTime.UtcNow, State = state switch
                 { JobState.Completed => AiActivityState.Completed, JobState.Cancelled => AiActivityState.Cancelled, _ => AiActivityState.Failed } };
             }
+        }
+        async Task<string> PreserveResultsAsync()
+        {
+            try { await AiPartialResults.SaveAvailableAsync(job).ConfigureAwait(false); return ""; }
+            catch (Exception error) { return "保存已有结果失败：" + error.Message; }
         }
         try
         {
@@ -146,7 +152,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 token.ThrowIfCancellationRequested();
                 if (execution.Stopping) throw new OperationCanceledException(token);
                 job.Activity = null; job.Progress = 0; job.Estimate = null; job.DownloadSpeed = null;
-                job.FileChangesCommitted = false;
+                job.FileChangesCommitted = false; job.OutputIsPartial = false;
                 job.State = execution.Control.IsPaused ? JobState.Paused : JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
             }
             Publish(0);
@@ -165,10 +171,16 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 }
             }
         }
-        catch (OperationCanceledException) { Finish(JobState.Cancelled, "用户停止了任务。"); }
+        catch (OperationCanceledException)
+        {
+            var error = await PreserveResultsAsync();
+            Finish(JobState.Cancelled, error.Length == 0 ? "用户停止了任务。" : "用户停止了任务。\n" + error);
+        }
         catch (Exception error)
         {
             var message = error.Message;
+            var saveError = await PreserveResultsAsync();
+            if (saveError.Length > 0) message += "\n" + saveError;
             try { job.AppendLog(error.ToString()); }
             catch (Exception logError) when (logError is IOException or UnauthorizedAccessException) { message += "\n" + logError.Message; }
             Finish(JobState.Failed, message);

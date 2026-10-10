@@ -188,7 +188,14 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                             job.Activity = MediaPrivacy.Filter(activity, PrivateEnabled());
                             job.ProgressDetail = activity.Stage; progress(job.Progress);
                         }
-                        if (update.Result is not null) result = update.Result;
+                        if ((update.Result ?? update.PreviewResult) is { } partial)
+                        {
+                            result = partial with { IsPartial = update.Result is null };
+                            var classified = FolderClassification.KeepManual(
+                                FolderClassification.Classify(result, rules, spec.TagThreshold, PrivateEnabled()), files[path].Result);
+                            files[path] = files[path] with { Result = classified, Pending = true };
+                            Publish();
+                        }
                         if (update.Error is not null) error = update.Error;
                     });
                     await service.AnalyzeAsync([path], options, report, ct).ConfigureAwait(false);

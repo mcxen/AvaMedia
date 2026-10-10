@@ -421,6 +421,7 @@ public sealed class MediaEngine : IMediaEngine
             hardware=hardware.Where(codec=>HardwareTranscoding.VideoFormat(compression.Codec)==HardwareTranscoding.Encoder(codec)?.Format).ToArray();
         if(effective.PreserveSourceAttributes)
             hardware=hardware.Where(codec=>SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex)).ToArray();
+        var keepProcessedOutput=job.FeatureId is "voice-enhance" or "audio-enhance" or "delogo" or "rotate";
         ProcessResult? result=null;var hardwareLog=new StringBuilder();
         if(!effective.CopyStreams && effective.VideoCodec!="copy" && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
         {
@@ -441,7 +442,7 @@ public sealed class MediaEngine : IMediaEngine
                 if(result.ExitCode==0)
                 {
                     if(!File.Exists(temporary) || new FileInfo(temporary).Length==0)throw new InvalidDataException("编码未生成有效文件。");
-                    ct.ThrowIfCancellationRequested();File.Move(temporary,job.Output);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;
+                    if(!result.Interrupted)ct.ThrowIfCancellationRequested();await PreserveOutputAsync(temporary,result);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;
                 }
                 else
                 {
@@ -477,7 +478,7 @@ public sealed class MediaEngine : IMediaEngine
                 if(result.ExitCode==0 && temporary is not null)
                 {
                     if(!File.Exists(temporary) || new FileInfo(temporary).Length==0)throw new InvalidDataException("编码未生成有效文件。");
-                    ct.ThrowIfCancellationRequested();File.Move(temporary,job.Output);
+                    if(!result.Interrupted)ct.ThrowIfCancellationRequested();await PreserveOutputAsync(temporary,result);
                 }
             }
             finally{if(temporary is not null && File.Exists(temporary))File.Delete(temporary);}
@@ -497,7 +498,18 @@ public sealed class MediaEngine : IMediaEngine
             if(outputBytes>=compressionPlan.SourceBytes)
                 throw new InvalidOperationException("未能缩小：输出不小于源视频。请降低目标体积或调整压缩参数；输出文件已保留。");
         }
-        progress(100);
+        if(completed.Interrupted)job.ProgressDetail="部分结果 · 已保留处理完成的媒体";
+        else progress(100);
+        async Task PreserveOutputAsync(string temporary,ProcessResult encoded)
+        {
+            if(encoded.Interrupted)
+            {
+                var partial=await Probe(temporary,CancellationToken.None).ConfigureAwait(false);
+                if(!double.IsFinite(partial.Duration) || partial.Duration<=0)throw new InvalidDataException("停止前尚未生成可用媒体。");
+                job.OutputIsPartial=true;
+            }
+            File.Move(temporary,job.Output);
+        }
         async Task<ProcessResult> EncodeWithDecoding(Job draft)
         {
             var plans=HardwareTranscoding.DecodePlans(draft,infos).Where(plan=>!failedDecoders.Contains(plan.Value.Method)).ToDictionary(plan=>plan.Key,plan=>plan.Value);
@@ -518,7 +530,7 @@ public sealed class MediaEngine : IMediaEngine
         Task<ProcessResult> Encode(Job draft,IReadOnlyDictionary<int,HardwareDecodePlan>? decoding)=>ProcessRunner.Run(FFmpeg,BuildArguments(draft,infos,decoding),ct,line=>
         {
             if(line.StartsWith("out_time_us=") && long.TryParse(line[12..],out var us) && job.Duration>0)progress(Math.Clamp(us/1000000d/job.Duration*100,0,99.9));
-        });
+        },finalizeOnCancel:keepProcessedOutput);
     }
     public static List<string> BuildArguments(Job job,IReadOnlyList<MediaInfo> infos,IReadOnlyDictionary<int,HardwareDecodePlan>? hardwareDecoding=null)
     {

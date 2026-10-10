@@ -187,7 +187,7 @@ public sealed partial class FolderClassificationWindow : Window
         _preview.IsEnabled = !_busy && _results.Count > 0;
         _organize.IsEnabled = !_busy && _plan is { Length: > 0 };
         _undo.IsEnabled = !_busy && FolderOrganization.CanUndo(_lastJournal);
-        _export.IsEnabled = !_busy && _results.Count > 0;
+        _export.IsEnabled = (!_busy || _taskJob?.State == JobState.Paused && !_loadingTask && !_refreshingSnapshot) && _results.Count > 0;
         _analyze.Classes.Set("primary", _plan is not { Length: > 0 });
         _organize.Classes.Set("primary", _plan is { Length: > 0 });
         RefreshRuleActions();

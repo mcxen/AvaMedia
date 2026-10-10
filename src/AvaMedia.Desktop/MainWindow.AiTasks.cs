@@ -78,11 +78,13 @@ public partial class MainWindow
 
     private static bool HasAiResult(Job job) => job.FeatureId switch
     {
-        "rotate" when job.Options.Orientation is not null => job.OrientationResult is not null || !Active(job) && File.Exists(job.Output),
-        "media-ai" => job.MediaTagResult is not null || !Active(job) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "tags")),
-        "person-clip" => job.PersonDetectionResult is not null || !Active(job) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "people")),
-        "auto-subtitle" => job.SubtitleResult is not null || !Active(job) && File.Exists(AiTaskResults.PathFor(job, "subtitles")),
-        _ => job.State == JobState.Completed && (File.Exists(job.Output) || Directory.Exists(job.Output))
+        "rotate" when job.Options.Orientation is not null => job.OrientationResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(job.Output),
+        "media-ai" => job.MediaTagResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "tags")),
+        "person-clip" => job.PersonDetectionResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "people")),
+        "video-summary" => job.SummaryReport is not null || File.Exists(Path.Combine(AiPartialResults.SummaryFolder(job), "report.json"))
+            || job.State == JobState.Completed && File.Exists(Path.Combine(job.Output, "report.json")),
+        "auto-subtitle" => job.SubtitleResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(AiTaskResults.PathFor(job, "subtitles")),
+        _ => job.State is JobState.Completed or JobState.Paused or JobState.Cancelled or JobState.Failed && (File.Exists(job.Output) || Directory.Exists(job.Output))
     };
     private static bool Active(Job job) => job.State is JobState.Waiting or JobState.Paused or JobState.Running or JobState.Stopping;
 
@@ -151,9 +153,11 @@ public partial class MainWindow
         var window = new SubtitleReviewWindow(Engine, request, false, SubmitSpeechRequestAsync, async draft =>
         {
             if (Active(job) || !ReferenceEquals(job.SubtitleResult, transcript)) return;
+            draft = draft with { IsPartial = transcript.IsPartial };
             await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), draft, CancellationToken.None);
             transcript = draft; job.SubtitleResult = draft;
         });
+        if (transcript.IsPartial) window.Title += " · " + Localization.Text("部分结果");
         _subtitleReviewWindows.Add(window); window.Closed += (_, _) => _subtitleReviewWindows.Remove(window);
         var export = await ToolExecution.ShowAsync<ConversionRequest>(this, window);
         if (export is not null && !_closing) await SubmitSpeechRequestAsync(export);

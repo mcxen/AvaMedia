@@ -158,7 +158,7 @@ public sealed partial class MediaAiWindow
         }
         var tags = ResultTags(result, search: true).ToArray();
         _tagCount.Text = tags.Length > 0 ? Localization.Format($"已识别 {tags.Length} 个标签") : Localization.Text("标签");
-        _detailState.IsVisible = _liveResults.ContainsKey(result.Path);
+        _detailState.IsVisible = result.IsPartial || _liveResults.ContainsKey(result.Path);
         _detailState.Text = !_detailState.IsVisible ? "" : _busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签");
         foreach (var group in tags.GroupBy(tag => tag.Category))
         {

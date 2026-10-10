@@ -34,8 +34,8 @@ public sealed class AiTaskWindow : Window
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(Ui.Button("新建任务", newTask));
         _run = Ui.Button("开始任务", async () => await RunActionAsync(run)); actions.Children.Add(_run);
-        _pause = Ui.Button("暂停任务", () => pause?.Invoke()); _pause.Tag = pause; actions.Children.Add(_pause);
-        _stop = Ui.Button("停止任务", stop); actions.Children.Add(_stop);
+        _pause = Ui.Button("临时停止", () => pause?.Invoke()); _pause.Tag = pause; actions.Children.Add(_pause);
+        _stop = Ui.Button("结束任务", stop); actions.Children.Add(_stop);
         _result = Ui.Button("查看结果", async () => await RunActionAsync(showResult)); _result.Classes.Add("primary"); actions.Children.Add(_result);
         actions.Children.Add(Ui.DialogButton("关闭", Close)); Grid.SetRow(actions, 3); root.Children.Add(actions); Content = root;
         job.PropertyChanged += Changed;
@@ -46,7 +46,7 @@ public sealed class AiTaskWindow : Window
         _status.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
         _status.Bind(ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(TextBlock.Text)) { Source = _status });
         _status.FontFeatures = new Avalonia.Media.FontFeatureCollection { Avalonia.Media.FontFeature.Parse("tnum") };
-        var executionLabels = new[] { "开始任务", "继续任务", "暂停任务", "重新执行", "重新检测" };
+        var executionLabels = new[] { "开始任务", "继续任务", "临时停止", "重新执行", "重新检测" };
         StableLayout.Reserve(_run, executionLabels); StableLayout.Reserve(_pause, executionLabels);
         Refresh();
     }

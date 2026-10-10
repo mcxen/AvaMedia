@@ -4,13 +4,17 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    internal bool CanViewSummaryResult(Job job) => !_closing && job.State == JobState.Completed
+    internal bool CanViewSummaryResult(Job job) => !_closing && HasAiResult(job)
         && Catalog.Find(job.FeatureId).Operation == Operation.VideoSummary;
 
     internal async Task ShowSummaryResultAsync(Job job)
     {
         if (!CanViewSummaryResult(job)) return;
-        try { new VideoSummaryResultWindow(job.Output, Engine, job.Inputs.FirstOrDefault()).Show(this); }
+        try
+        {
+            var folder = job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job);
+            new VideoSummaryResultWindow(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport).Show(this);
+        }
         catch (Exception error) { await Ui.Message(this, "视频总结结果", error.Message); }
     }
 

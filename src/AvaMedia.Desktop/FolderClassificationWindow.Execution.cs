@@ -44,9 +44,10 @@ public sealed partial class FolderClassificationWindow
 
     private async Task PreviewAsync()
     {
-        var selected = _entries.Where(entry => entry.Include).ToArray();
-        if (selected.Length == 0) throw new ArgumentException("请勾选要整理的文件。");
-        if (selected.Any(entry => AnalysisPending(entry))) throw new ArgumentException("部分勾选文件尚未分析完成，请重试或取消勾选。");
+        var requested = _entries.Where(entry => entry.Include).ToArray();
+        if (requested.Length == 0) throw new ArgumentException("请勾选要整理的文件。");
+        var selected = requested.Where(entry => !AnalysisPending(entry)).ToArray();
+        if (selected.Length == 0) throw new ArgumentException("尚无分析完成的文件，请继续分析后再整理。");
         if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择分类目录。");
         var files = selected.Select(entry => _results[entry.Path] with { Media = MediaPrivacy.Filter(_results[entry.Path].Media, _settings.EnableNsfwContent, PrivateSemanticLabels) }).ToArray();
         var output = Path.GetFullPath(_output.Text);
@@ -59,6 +60,7 @@ public sealed partial class FolderClassificationWindow
             _plan = plan;
             foreach (var entry in selected) entry.NewName = plan.First(item => BatchRename.PathComparer.Equals(item.File.Media.Path, entry.Path)).Target;
             SavePreferences(); _status.Text = Localization.Format($"预览 {plan.Length} 个文件，请核对分类目录");
+            if (requested.Length > selected.Length) _status.Text += " · " + Localization.Format($"跳过 {requested.Length - selected.Length} 个未分析文件");
         }
         finally { if (!_closed) SetBusy(false); }
     }
@@ -185,7 +187,7 @@ public sealed partial class FolderClassificationWindow
     {
         var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出分类结果"), SuggestedFileName = "folder-classification.json", DefaultExtension = "json" });
         if (file is null) return;
-        var report = new { Rules = _rules.ToArray(), VideoFrames = _frames.Value, TagThreshold = _tagThreshold.Value,
+        var report = new { IsPartial = _entries.Any(entry => AnalysisPending(entry)), Rules = _rules.ToArray(), VideoFrames = _frames.Value, TagThreshold = _tagThreshold.Value,
             OutputFolder = _output.Text, Plan = _plan, Results = _results.Values.Select(result => result with { Media = MediaPrivacy.Filter(result.Media, _settings.EnableNsfwContent, PrivateSemanticLabels) }).ToArray() };
         await using var stream = await file.OpenWriteAsync(); stream.SetLength(0);
         await JsonSerializer.SerializeAsync(stream, report, new JsonSerializerOptions { WriteIndented = true });

@@ -39,6 +39,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 if (activityProgress is not null) activityProgress(activity);
                 else source.Activity = activity;
             }
+            if (change.PropertyName == nameof(Job.SubtitleResult)) source.SubtitleResult = task.SubtitleResult;
             if (change.PropertyName == nameof(Job.ProgressDetail)) source.ProgressDetail = task.ProgressDetail;
         };
         try
@@ -198,6 +199,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                                 }
                                 if (stop <= start) continue;
                                 result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text));
+                                job.SubtitleResult = new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true };
                                 activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
                                 Recognized(stop);
                             }
@@ -209,6 +211,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             }
             finally { RecognitionGate.Release(); }
             }
+            job.SubtitleResult = new(cues.ToArray(), sourceLength, sourceWriteUtc);
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
             sourceFile.Refresh();

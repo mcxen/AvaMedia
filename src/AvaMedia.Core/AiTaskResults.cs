@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace AvaMedia.Core;
 
 public sealed record PersonDetectionTaskResult(PersonClipResult Result, long SourceLength, DateTime SourceWriteUtc);
-public sealed record SubtitleTaskResult(SubtitleCue[] Cues, long SourceLength, DateTime SourceWriteUtc);
+public sealed record SubtitleTaskResult(SubtitleCue[] Cues, long SourceLength, DateTime SourceWriteUtc)
+{ public bool IsPartial { get; init; } }
 
 public static class AiTaskResults
 {

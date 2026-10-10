@@ -43,7 +43,7 @@ public sealed partial class PersonClipWindow
         _review.IsEnabled = !_busy && !SelectedTaskActive && entry?.Result?.Segments.Count > 0;
         _rangePanel.IsEnabled = !_busy && !SelectedTaskActive && entry is not null;
         if (entry?.Result is not { } result) { _resultSummary.Text = entry?.Error.Length>0?entry.Error:Localization.Text(entry?.Status ?? "尚未分析"); return; }
-        _resultSummary.Text = Localization.Format($"保留 {result.Segments.Count} 个片段 · {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))}");
+        _resultSummary.Text = (entry.Observed?.Result.IsPartial == true ? Localization.Text("部分结果") + " · " : "") + Localization.Format($"保留 {result.Segments.Count} 个片段 · {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))}");
         _retained.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionOptions>((segment,_)=>
         {
             var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8,Margin=new(0,3) };

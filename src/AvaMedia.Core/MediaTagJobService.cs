@@ -54,7 +54,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         Validate(job);
         var spec = job.Options.MediaTag!;
         job.MediaTagResult = null;
-        if (spec.WriteTextReport) AiTaskResults.DeleteResult(job, "tags");
+        AiTaskResults.DeleteResult(job, "tags");
         bool PrivateEnabled() => engine.Settings.EnableNsfwContent;
         var activity = new AiActivityReporter(value => job.Activity = MediaPrivacy.Filter(value, PrivateEnabled()), "AI 标签", "个标签",
             spec.Analysis.GenerateCaptions
@@ -80,7 +80,7 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
 
         var report = new InlineProgress(update =>
         {
-            if (update.PreviewResult is { } preview) job.MediaTagResult = MediaPrivacy.Filter(preview, PrivateEnabled());
+            if (update.PreviewResult is { } preview) job.MediaTagResult = MediaPrivacy.Filter(preview, PrivateEnabled()) with { IsPartial = true };
             if (update.Result is { } completed) job.MediaTagResult = MediaPrivacy.Filter(completed, PrivateEnabled());
             if (update.Activity is { } snapshot)
             {

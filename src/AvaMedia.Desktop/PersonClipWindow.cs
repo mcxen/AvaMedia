@@ -125,8 +125,8 @@ public sealed partial class PersonClipWindow : Window
         var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _analyze = Ui.Button("开始分析", async () => await AnalyzeAsync()); _analyze.Classes.Add("primary");
         StableLayout.Reserve(_analyze, "开始分析", "后台检测", "后台重新检测");
-        StableLayout.Reserve(_pause, "暂停任务", "继续任务");
-        _stop = Ui.Button("停止任务", StopDetectionTasks); _stop.IsVisible = false;
+        StableLayout.Reserve(_pause, "临时停止", "继续任务");
+        _stop = Ui.Button("结束任务", StopDetectionTasks); _stop.IsVisible = false;
         _pause.Click += (_, _) =>
         {
             var jobs = _entries.Select(entry => entry.Task).OfType<Job>().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
@@ -243,7 +243,7 @@ public sealed partial class PersonClipWindow : Window
         if (_closed) return;
         _modelStatus.IsVisible = false; _detectionMode.IsEnabled=!_busy;
         if (_analyze is not null) { _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Task is null || !DetectionTaskActive(entry.Task)) && SelectedDetectors.Length > 0; _analyze.Content = Localization.Text(_entries.All(entry => entry.Result is not null) && _entries.Count > 0 ? "后台重新检测" : "后台检测"); }
-        _submit.IsEnabled = !_busy && _entries.Any(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskActive(entry.Task)));
+        _submit.IsEnabled = !_busy && _entries.Any(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskUpdating(entry.Task)));
     }
     private static double Value(NumericUpDown input)
     {
@@ -256,7 +256,7 @@ public sealed partial class PersonClipWindow : Window
         try
         {
             if (!_settings.EnableBetaFeatures) return;
-            var edits = _entries.Where(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskActive(entry.Task))).ToArray();
+            var edits = _entries.Where(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskUpdating(entry.Task))).ToArray();
             if (edits.Length == 0) throw new ArgumentException("请先分析并保留片段。");
             foreach (var entry in edits) CheckSource(entry);
             var preset = _format.SelectedItem as string ?? QuickClipBatch.DefaultPreset;

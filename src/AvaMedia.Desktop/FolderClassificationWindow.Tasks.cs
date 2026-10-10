@@ -103,7 +103,7 @@ public sealed partial class FolderClassificationWindow
         _stop.IsVisible = job.State is JobState.Waiting or JobState.Running or JobState.Paused;
         _stop.IsEnabled = _stop.IsVisible;
         _pause.IsVisible = _pauseTask is not null && job.State is JobState.Waiting or JobState.Running or JobState.Paused;
-        _pause.Content = Localization.Text(job.State == JobState.Paused ? "继续任务" : "暂停任务");
+        _pause.Content = Localization.Text(job.State == JobState.Paused ? "继续任务" : "临时停止");
         if (!_loadingTask && !_refreshingSnapshot && job.ClassificationSnapshot is { } snapshot && !ReferenceEquals(snapshot, _seenSnapshot))
             _snapshotRefresh = RefreshSnapshotAsync(job);
     }

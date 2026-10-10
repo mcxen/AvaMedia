@@ -14,7 +14,8 @@ public sealed record VideoOrientationResult(int? Rotation, OrientationReliabilit
     public IReadOnlyList<OrientationFrameEvidence> Evidence { get; init; } = [];
 }
 
-public sealed record OrientationDetectionProgress(int CompletedFrames, int TotalFrames, double Seconds);
+public sealed record OrientationDetectionProgress(int CompletedFrames, int TotalFrames, double Seconds)
+{ public VideoOrientationResult? PreviewResult { get; init; } }
 
 public interface IVideoOrientationDetector
 {
@@ -114,7 +115,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                         evidence[i] = new(times[i], scores[0], scores[1], scores[2], scores[3]);
                     }
                     else evidence.Add(new(times[i], scores[0], scores[1], scores[2], scores[3]));
-                    progress?.Report(new(++completed, times.Length * 2, times[i]));
+                    progress?.Report(new(++completed, times.Length * 2, times[i]) { PreviewResult = VideoOrientationPolicy.Decide(evidence) });
                 }
                 var result = VideoOrientationPolicy.Decide(evidence);
                 // Higher resolution can resolve weak detections or nearly tied candidates;

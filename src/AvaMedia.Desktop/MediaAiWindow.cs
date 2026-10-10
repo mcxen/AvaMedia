@@ -33,7 +33,7 @@ public sealed partial class MediaAiWindow : Window
     private readonly Button _rename = new() { Content = "标签重命名…" };
     private readonly Button _undo = new() { Content = "撤销重命名" };
     private readonly Button _pause = new() { Content = "暂停任务", IsVisible = false };
-    private readonly Button _stop = new() { Name = "MediaAiStop", Content = "停止分析", IsVisible = false, Classes = { "primary", "dialog-action" } };
+    private readonly Button _stop = new() { Name = "MediaAiStop", Content = "结束任务", IsVisible = false, Classes = { "primary", "dialog-action" } };
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Func<Window, Task> _manageModels;
     private readonly Func<bool> _canRename;
@@ -251,7 +251,7 @@ public sealed partial class MediaAiWindow : Window
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = results.Select(result =>
             {
                 var safe = MediaPrivacy.Filter(result, _settings.EnableNsfwContent, _privateLibraryLabels);
-                return new { safe.Path, safe.Backend, safe.FallbackReason, safe.SampledFrames, safe.InferredFrames,
+                return new { safe.Path, safe.IsPartial, safe.Backend, safe.FallbackReason, safe.SampledFrames, safe.InferredFrames,
                     safe.RealPeopleOnly, safe.Nsfw,
                     DictionarySha256 = NsfwModeration.DictionarySha256, Moderation = _settings.EnableNsfwContent ? NsfwModeration.Evaluate(result, threshold) : null,
                     Tags = ResultTags(result).ToArray(), safe.DurationSeconds, Vocabulary = safe.Scores.Select(score => score.Tag).ToArray(), Evidence = safe.Frames,

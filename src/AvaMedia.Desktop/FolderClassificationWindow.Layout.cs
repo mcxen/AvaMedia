@@ -44,12 +44,12 @@ public sealed partial class FolderClassificationWindow
     private readonly Button _organize = new() { Content = "执行整理", Classes = { "primary" } };
     private readonly Button _undo = new() { Content = "撤销上次整理" };
     private readonly Button _export = new() { Content = "导出分类结果…" };
-    private readonly Button _pause = new() { Content = "暂停任务", IsVisible = false };
-    private readonly Button _stop = new() { Content = "停止", IsVisible = false };
+    private readonly Button _pause = new() { Content = "临时停止", IsVisible = false };
+    private readonly Button _stop = new() { Content = "结束任务", IsVisible = false };
 
     private void BuildInterface()
     {
-        StableLayout.Reserve(_pause, "暂停任务", "继续任务");
+        StableLayout.Reserve(_pause, "临时停止", "继续任务");
         StableLayout.Reserve(_allFilter, "全部 888888", "All 888888");
         StableLayout.Reserve(_pendingFilter, "待分析 888888", "Pending 888888");
         _mode.ItemsSource = new[] { "复制到分类目录", "移动到分类目录" }.Select(Localization.Text).ToArray(); _mode.SelectedIndex = 0;

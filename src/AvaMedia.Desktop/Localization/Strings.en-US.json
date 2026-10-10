@@ -3385,5 +3385,10 @@
   "片段时间必须位于视频内，且结束时间晚于开始时间。": "Segments must be within the video, with the end later than the start.",
   "单个视频合并最多 64 个片段，请减少片段数量或选择原格式 / 原码率。": "Up to 64 segments can be joined per video. Reduce the count or choose Original Format / Bitrate.",
   "打开任务界面…": "Open task…",
-  "打开任务失败": "Could not open task"
+  "打开任务失败": "Could not open task",
+  "临时停止": "Pause temporarily",
+  "结束任务": "End task",
+  "部分结果": "Partial results",
+  "部分结果 · 尚未完成全部分析": "Partial results · Analysis is not complete",
+  "尚无分析完成的文件，请继续分析后再整理。": "No files have finished analysis yet. Continue analysis before organizing."
 }

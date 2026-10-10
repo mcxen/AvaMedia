@@ -8,10 +8,11 @@ public sealed partial class PersonClipWindow
 {
     private readonly Action<IReadOnlyList<Job>, bool>? _enqueue;
     private readonly Action<Job>? _stopTask, _pauseTask, _resumeTask;
-    private readonly Avalonia.Controls.Button _pause = new() { Content = "暂停任务", IsVisible = false };
+    private readonly Avalonia.Controls.Button _pause = new() { Content = "临时停止", IsVisible = false };
     private int _detectionRefreshPosted;
     private static bool DetectionTaskActive(Job job) => job.State is JobState.Waiting or JobState.Paused or JobState.Running or JobState.Stopping;
-    private bool SelectedTaskActive => Selected?.Task is { } job && DetectionTaskActive(job);
+    private static bool DetectionTaskUpdating(Job job) => job.State is JobState.Waiting or JobState.Running or JobState.Stopping;
+    private bool SelectedTaskActive => Selected?.Task is { } job && DetectionTaskUpdating(job);
 
     public async Task ObserveTaskAsync(Job job)
     {
@@ -23,7 +24,7 @@ public sealed partial class PersonClipWindow
         entry.Task = job; entry.Observed = null;
         job.PropertyChanged += DetectionTaskChanged;
         entry.Excluded = PersonClipExclusions.Normalize(job.Options.PersonClip?.Detection.ExcludedRanges);
-        if (!DetectionTaskActive(job) && job.PersonDetectionResult is null)
+        if (!DetectionTaskUpdating(job) && job.PersonDetectionResult is null)
             job.PersonDetectionResult = await AiTaskResults.LoadAsync<PersonDetectionTaskResult>(job.Options.PersonClip?.AnalysisOnly == true
                 ? job.Output : AiTaskResults.PathFor(job, "people"), _lifetime.Token);
         RefreshDetectionTasks();
@@ -86,7 +87,7 @@ public sealed partial class PersonClipWindow
         if (selected is not null) { _activity.Update(selected.Activity); _status.Text = selected.Status; }
         var jobs = _entries.Select(entry => entry.Task).OfType<Job>().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
         _pause.IsVisible = _pauseTask is not null && _resumeTask is not null && jobs.Length > 0;
-        _pause.Content = Localization.Text(jobs.Length > 0 && jobs.All(job => job.State == JobState.Paused) ? "继续任务" : "暂停任务");
+        _pause.Content = Localization.Text(jobs.Length > 0 && jobs.All(job => job.State == JobState.Paused) ? "继续任务" : "临时停止");
         _stop.IsVisible = _entries.Any(entry => entry.Task is { } job && DetectionTaskActive(job));
         RefreshFiles();
     }

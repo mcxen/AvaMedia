@@ -25,6 +25,7 @@ public sealed record MediaTagScore(string Tag, double Score, double Maximum);
 public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Scores, int SampledFrames, int InferredFrames,
     string Backend, long Length, DateTime LastWriteUtc, string? FallbackReason = null)
 {
+    public bool IsPartial { get; init; }
     public IReadOnlyList<MediaTagFrame> Frames { get; init; } = [];
     public MediaSceneResult? Scenes { get; init; }
     public string? SceneError { get; init; }
@@ -185,6 +186,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null, int videoStreamIndex = 0)
         {
             if (!options.GenerateCaptions) return result;
+            progress?.Report(new(result.Path, null, null, completed, files.Length) { PreviewResult = result with { IsPartial = true } });
             activity.Node("生成画面描述");
             activity.Stage("生成画面描述", detail: Path.GetFileName(result.Path));
             try
@@ -231,7 +233,13 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Frame(item.Image, item.File.Name);
                     activity.Result(item.File.Name + " · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
-                    var scene = await SceneResultAsync([item.Image], [0], [0]).ConfigureAwait(false);
+                    var tagPreview = new MediaTagResult(item.File.FullName,
+                        tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
+                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason)
+                    { IsPartial = true, RealPeopleOnly = options.RealPeopleOnly, Frames = [new(0, []) { Values = vectors[i] }] };
+                    progress?.Report(new(item.File.FullName, null, null, completed, files.Length) { PreviewResult = tagPreview });
+                    var scene = await SceneResultAsync([item.Image], [0], [0], value => progress?.Report(
+                        new(item.File.FullName, null, null, completed, files.Length) { PreviewResult = tagPreview with { Scenes = value } })).ConfigureAwait(false);
                     RealNsfwResult? classification = null;
                     if (nsfw is not null)
                     {

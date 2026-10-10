@@ -26,7 +26,7 @@ public sealed partial class MediaAiWindow
         }
         job.PropertyChanged -= AnalysisTaskChanged;
         job.PropertyChanged += AnalysisTaskChanged;
-        if (!AnalysisTaskActive(job) && job.MediaTagResult is null)
+        if (job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && job.MediaTagResult is null)
         {
             try { job.MediaTagResult = await AiTaskResults.LoadAsync<MediaTagResult>(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "tags"), _lifetime.Token); }
             catch (OperationCanceledException) { return; }
@@ -105,13 +105,13 @@ public sealed partial class MediaAiWindow
             {
                 _seenTaskResults[job.Id] = raw;
                 var result = MediaPrivacy.Filter(raw, _settings.EnableNsfwContent) with { Path = entry.Path };
-                if (job.State == JobState.Completed) { _results[entry.Path] = result; _liveResults.Remove(entry.Path); }
-                else _liveResults[entry.Path] = result;
+                if (job.State is JobState.Completed or JobState.Paused or JobState.Cancelled or JobState.Failed) { _results[entry.Path] = result; _liveResults.Remove(entry.Path); }
+                else { _results.Remove(entry.Path); _liveResults[entry.Path] = result; }
                 if (_followLive.IsChecked == true) _positions[entry.Path] = (result.Scenes?.Frames.LastOrDefault()?.Seconds ?? result.Frames.LastOrDefault()?.Seconds) ?? 0;
                 ShowResult(entry, result);
                 if (_list.SelectedItem == entry) { RenderSelectedResult(); if (_followLive.IsChecked == true) _ = RefreshSelectedPreviewAsync(CursorFor(result)); }
             }
-            if (job.State == JobState.Completed && _liveResults.Remove(entry.Path, out var completed))
+            if (job.State is JobState.Completed or JobState.Paused or JobState.Cancelled or JobState.Failed && _liveResults.Remove(entry.Path, out var completed))
             { _results[entry.Path] = completed; ShowResult(entry, completed); if (_list.SelectedItem == entry) RenderSelectedResult(); }
             if (AnalysisTaskActive(job)) entry.Status = job.Status;
             else if (job.State is JobState.Failed or JobState.Cancelled) { entry.Status = job.Status; entry.Details = job.Error; }

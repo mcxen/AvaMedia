@@ -32,7 +32,7 @@ public sealed partial class MediaAiWindow
 
     private void BuildInterface()
     {
-        StableLayout.Reserve(_pause, "暂停任务", "继续任务");
+        StableLayout.Reserve(_pause, "临时停止", "继续任务");
         ConfigureWorkbenchScrollbars();
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 10 };
         _imports.Children.Add(Ui.Button("添加文件…", async () =>
@@ -231,7 +231,7 @@ public sealed partial class MediaAiWindow
         _saveTxt.Content = Localization.Text(_writingTxt ? "正在生成 TXT…" : "生成同目录 TXT");
         var tasks = _taskJobs.Values.Distinct().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
         _pause.IsVisible = _pauseTask is not null && _resumeTask is not null && tasks.Length > 0;
-        _pause.Content = Localization.Text(tasks.Length > 0 && tasks.All(job => job.State == JobState.Paused) ? "继续任务" : "暂停任务");
+        _pause.Content = Localization.Text(tasks.Length > 0 && tasks.All(job => job.State == JobState.Paused) ? "继续任务" : "临时停止");
         _stop.IsVisible = _taskJobs.Values.Any(AnalysisTaskActive) || _busy && _operation is not null;
         _analyze.Content = Localization.Text("后台分析");
     }

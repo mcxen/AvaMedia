@@ -2,7 +2,8 @@ using System.Diagnostics;
 using System.Text;
 
 namespace AvaMedia.Core;
-public sealed record ProcessResult(int ExitCode,string Output,string Error);
+public sealed record ProcessResult(int ExitCode,string Output,string Error)
+{ public bool Interrupted { get; init; } }
 public static class ProcessRunner
 {
     public static Process Start(string executable,IEnumerable<string> arguments,bool input=false)
@@ -17,10 +18,28 @@ public static class ProcessRunner
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         return await Task.Run(()=>Start(executable,snapshot,input),ct).ConfigureAwait(false);
     }
-    public static async Task<ProcessResult> Run(string executable,IEnumerable<string> args,CancellationToken ct=default,Action<string>? line=null,int maximumOutputChars=160000)
+    public static async Task<ProcessResult> Run(string executable,IEnumerable<string> args,CancellationToken ct=default,Action<string>? line=null,int maximumOutputChars=160000,bool finalizeOnCancel=false)
     {
-        using var process=await StartAsync(executable,args,ct).ConfigureAwait(false);
-        using var reg=ct.Register(()=>{try {process.Kill(true);} catch(InvalidOperationException) {} catch(System.ComponentModel.Win32Exception) {}});
+        var arguments=finalizeOnCancel?args.Where(argument=>argument!="-nostdin").ToArray():args.ToArray();
+        using var process=await StartAsync(executable,arguments,ct,input:finalizeOnCancel).ConfigureAwait(false);
+        Task cancellation=Task.CompletedTask;
+        using var reg=ct.Register(()=>cancellation=StopAsync());
+        async Task StopAsync()
+        {
+            try
+            {
+                if(finalizeOnCancel)
+                {
+                    await process.StandardInput.WriteLineAsync("q").ConfigureAwait(false);
+                    await process.StandardInput.FlushAsync().ConfigureAwait(false);
+                    var exit=process.WaitForExitAsync(CancellationToken.None);
+                    if(await Task.WhenAny(exit,Task.Delay(TimeSpan.FromSeconds(3))).ConfigureAwait(false)==exit)return;
+                }
+                if(!process.HasExited)process.Kill(true);
+            }
+            catch(Exception error) when(error is IOException or ObjectDisposedException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            { try{if(!process.HasExited)process.Kill(true);}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){} }
+        }
         var error=new StringBuilder();var output=new StringBuilder();
         async Task Read(StreamReader reader,StringBuilder buffer,bool callback)
         {
@@ -37,6 +56,9 @@ public static class ProcessRunner
             }
         }
         await Task.WhenAll(Read(process.StandardOutput,output,true),Read(process.StandardError,error,false),process.WaitForExitAsync(CancellationToken.None)).ConfigureAwait(false);
-        ct.ThrowIfCancellationRequested();return new(process.ExitCode,output.ToString(),error.ToString());
+        await cancellation.ConfigureAwait(false);
+        var interrupted=finalizeOnCancel && ct.IsCancellationRequested && process.ExitCode==0;
+        if(!interrupted)ct.ThrowIfCancellationRequested();
+        return new(process.ExitCode,output.ToString(),error.ToString()){Interrupted=interrupted};
     }
 }
