@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using Avalonia.Media.Imaging;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -21,6 +22,8 @@ public sealed partial class ImageViewerWindow
         Add("复制原图", () => CopyImageAsync(false)); Add("复制当前视图", () => CopyImageAsync(true));
         Add("复制文件路径", async () => { if (Clipboard is not null && CurrentEntry is { } entry) await Clipboard.SetTextAsync(entry.Identity.Replace('\n', ' ')); });
         Add("复制 EXIF 信息", async () => { if (Clipboard is not null && _document is { } document) await Clipboard.SetTextAsync(string.Join(Environment.NewLine, document.Metadata.Select(item => item.Key + ": " + item.Value))); });
+        menu.Items.Add(new Separator());
+        Add("效果…", ShowEffectsAsync); Add("帮助", HelpAsync);
         menu.Items.Add(new Separator());
         Add("复制到…", () => TransferAsync(false)); Add("移动到…", () => TransferAsync(true));
         Add("批量转换…", ExportAsync); Add("在文件夹中显示", RevealAsync); Add("外部编辑器…", EditExternallyAsync);
@@ -38,7 +41,7 @@ public sealed partial class ImageViewerWindow
             using var bitmap = new RenderTargetBitmap(new PixelSize((int)_viewport.Bounds.Width, (int)_viewport.Bounds.Height));
             bitmap.Render(_viewport); using var stream = new MemoryStream(); bitmap.Save(stream); png = stream.ToArray();
         }
-        else png = _document.Frames[_frame].Png;
+        else { var frame = _document.Frames[_frame]; png = await Task.Run(() => frame.Png, _lifetime.Token); }
         var transfer = new DataTransfer(); var item = new DataTransferItem();
         item.Set(DataFormat.CreateBytesPlatformFormat(OperatingSystem.IsMacOS() ? "public.png" : OperatingSystem.IsWindows() ? "PNG" : "image/png"), png);
         transfer.Add(item); await Clipboard.SetDataAsync(transfer);
@@ -87,7 +90,8 @@ public sealed partial class ImageViewerWindow
         if (_document is not { } document) return;
         Directory.CreateDirectory(_temporaryFolder);
         var file = Path.Combine(_temporaryFolder, Guid.NewGuid().ToString("N") + ".png");
-        await File.WriteAllBytesAsync(file, document.Frames[_frame].Png, _lifetime.Token);
+        var frame = document.Frames[_frame]; var png = await Task.Run(() => frame.Png, _lifetime.Token);
+        await File.WriteAllBytesAsync(file, png, _lifetime.Token);
         if (OperatingSystem.IsMacOS())
         {
             var script = "on run argv\ntell application \"Preview\"\nactivate\nprint (POSIX file (item 1 of argv)) with print dialog\nend tell\nend run";
@@ -141,7 +145,7 @@ public sealed partial class ImageViewerWindow
         if (_closed || generation != _loadGeneration) return;
         _animation.Stop(); _viewport.SetImages(null);
         foreach (var bitmap in _bitmaps) bitmap.Dispose(); _bitmaps.Clear();
-        foreach (var frame in frames) { using var stream = new MemoryStream(frame.Png); _bitmaps.Add(new Bitmap(stream)); }
+        foreach (var frame in frames) _bitmaps.Add(CreateFrameBitmap(frame));
         SetViewportFrame(); ScheduleFrame();
     }
     private void ToggleInfo() => _body.ColumnDefinitions[2].Width = _body.ColumnDefinitions[2].Width.Value == 0 ? new GridLength(260) : new GridLength(0);
@@ -150,6 +154,6 @@ public sealed partial class ImageViewerWindow
     {
         if (_document is not { Frames.Length: > 1 } document) return;
         _animation.Stop(); _animationPaused = true; _frame = (_frame + direction + document.Frames.Length) % document.Frames.Length;
-        _animationButton.Content = Localization.Text("播放动画"); SetViewportFrame(); RefreshStatus();
+        ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画"); SetViewportFrame(); RefreshStatus();
     }
 }

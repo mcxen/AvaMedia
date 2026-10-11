@@ -17,6 +17,7 @@
     <AvaloniaResource Include="Assets/AppIcon/v2/app.ico" />
     <AvaloniaResource Include="Assets/AppIcon/v2/app.png" />
     <AvaloniaResource Include="Assets/Fonts/Platinum/*.ttf" />
+    <EmbeddedResource Include="Assets/ToolbarIcons/Lucide/*.svg" LogicalName="AvaMedia.Desktop.Lucide.%(Filename).svg" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Controls.WebView" Version="11.4.1" />
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.22" />

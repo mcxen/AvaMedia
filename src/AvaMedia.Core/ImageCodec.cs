@@ -2,14 +2,35 @@ using ImageMagick;
 
 namespace AvaMedia.Core;
 
-public sealed record ImageViewerFrame(byte[] Png, TimeSpan Delay);
+public sealed record ImageViewerPixels(int Width, int Height, byte[] Rgba);
+public sealed record ImageViewerFrame
+{
+    private readonly Lazy<byte[]> _png;
+    public byte[] Png => _png.Value;
+    public TimeSpan Delay { get; }
+    public ImageViewerPixels? Pixels { get; }
+    public ImageViewerFrame(byte[] png, TimeSpan delay) { _png = new(() => png); Delay = delay; }
+    internal ImageViewerFrame(ImageViewerPixels pixels, TimeSpan delay)
+    {
+        Pixels = pixels; Delay = delay;
+        // Display normalized pixels directly; encode only when copying, printing or applying an effect.
+        _png = new(() =>
+        {
+            using var image = new MagickImage();
+            image.ReadPixels(pixels.Rgba, new PixelReadSettings((uint)pixels.Width, (uint)pixels.Height, StorageType.Char, PixelMapping.RGBA));
+            image.ColorSpace = ColorSpace.sRGB;
+            image.Settings.SetDefine(MagickFormat.Png, "compression-level", 1);
+            return image.ToByteArray(MagickFormat.Png);
+        });
+    }
+}
 public sealed record ImageViewerDocument(int Width, int Height, string Format, ImageViewerFrame[] Frames,
     IReadOnlyDictionary<string, string> Metadata, string? MapUrl, int LoopCount, bool Animated);
 
 /// <summary>Bundled cross-platform decoder: primary HEIC, EXIF orientation, RAW and coalesced animation frames.</summary>
 public static partial class ImageCodec
 {
-    private static readonly SemaphoreSlim DecodeGate = new(1, 1);
+    private static readonly ImageDecodeQueue DecodeGate = new();
     static ImageCodec()
     {
         ResourceLimits.Memory = 512UL * 1024 * 1024;
@@ -86,9 +107,15 @@ public static partial class ImageCodec
             resident += (long)image.Width * image.Height * 4;
             if (resident > 384L * 1024 * 1024) throw new InvalidDataException("动画解码后超过 384 MB，请缩小动画后打开。");
             var ticks = Math.Max(1, image.AnimationTicksPerSecond);
-            // This PNG is an in-memory display frame; expensive compression delays the first image.
-            if (!animated && !multiple) image.Settings.SetDefine(MagickFormat.Png, "compression-level", 1);
-            frames.Add(new(image.ToByteArray(MagickFormat.Png), TimeSpan.FromMilliseconds(Math.Max(20, image.AnimationDelay * 1000d / ticks))));
+            var delay = TimeSpan.FromMilliseconds(Math.Max(20, image.AnimationDelay * 1000d / ticks));
+            if (!animated && !multiple)
+            {
+                using var pixels = image.GetPixels();
+                var rgba = pixels.ToByteArray(PixelMapping.RGBA) ?? throw new InvalidDataException("图片像素读取失败。");
+                token.ThrowIfCancellationRequested();
+                frames.Add(new(new ImageViewerPixels((int)image.Width, (int)image.Height, rgba), delay));
+            }
+            else frames.Add(new(image.ToByteArray(MagickFormat.Png), delay));
             if (!animated && !multiple) break;
         }
         return new((int)first.Width, (int)first.Height, info.Format.ToString(), frames.ToArray(), metadata, map, (int)first.AnimationIterations, animated);
@@ -101,7 +128,7 @@ public static partial class ImageCodec
         var source = await Task.Run(() => ThumbnailIdentity(entry, width, height, pad), token).ConfigureAwait(false);
         var cached = await PreviewCacheStore.Shared.ReadAsync(source, token).ConfigureAwait(false);
         if (cached is not null) return cached;
-        await DecodeGate.WaitAsync(token).ConfigureAwait(false);
+        await DecodeGate.WaitAsync(token, background: true).ConfigureAwait(false);
         try
         {
             cached = await PreviewCacheStore.Shared.ReadAsync(source, token).ConfigureAwait(false);

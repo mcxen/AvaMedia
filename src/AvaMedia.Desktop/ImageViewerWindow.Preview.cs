@@ -34,19 +34,23 @@ public sealed partial class ImageViewerWindow
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             WindowArtwork.SetKind(this, "image");
             RenderOptions.SetBitmapInterpolationMode(_viewport, BitmapInterpolationMode.HighQuality);
-            var root = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8, Margin = new(8) };
+            var root = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 6, Margin = new(8) };
             var surface = new Border { Child = _viewport, ClipToBounds = true };
             surface.Bind(BackgroundProperty, new DynamicResourceExtension("UiMediaSurface"));
             root.Children.Add(surface);
-            Add("适应窗口", () => _viewport.Fit("fit"));
-            Add("原始尺寸", () => _viewport.Fit("actual"));
-            Add("−", () => _viewport.ZoomBy(1 / 1.2));
-            Add("+", () => _viewport.ZoomBy(1.2));
-            Add("左转", () => _viewport.Rotate(-90));
-            Add("右转", () => _viewport.Rotate(90));
-            Add("镜像", _viewport.Flip);
-            Add("全屏", ToggleFullscreen);
-            Add("关闭窗口", Close);
+            _tools.HorizontalAlignment = HorizontalAlignment.Center;
+            Add("fit", "适应窗口", () => _viewport.Fit("fit"));
+            Add("actual", "原始尺寸", () => _viewport.Fit("actual"));
+            _tools.Children.Add(ImageViewerToolbar.Divider());
+            Add("zoom-out", "缩小", () => _viewport.ZoomBy(1 / 1.2));
+            Add("zoom-in", "放大", () => _viewport.ZoomBy(1.2));
+            _tools.Children.Add(ImageViewerToolbar.Divider());
+            Add("rotate-left", "左转", () => _viewport.Rotate(-90));
+            Add("rotate-right", "右转", () => _viewport.Rotate(90));
+            Add("flip", "镜像", _viewport.Flip);
+            _tools.Children.Add(ImageViewerToolbar.Divider());
+            Add("fullscreen", "全屏", ToggleFullscreen);
+            Add("close", "关闭窗口", Close);
             Grid.SetRow(_tools, 1); root.Children.Add(_tools); Content = root;
             _viewport.SetImages(snapshot);
             Opened += (_, _) => _viewport.Focus();
@@ -54,10 +58,9 @@ public sealed partial class ImageViewerWindow
             KeyDown += PreviewKeyDown;
         }
 
-        private void Add(string label, Action action)
+        private void Add(string kind, string label, Action action)
         {
-            var button = Ui.Button(label, action); button.Margin = new(0, 0, 6, 4);
-            _tools.Children.Add(button);
+            _tools.Children.Add(ImageViewerToolbar.Button(kind, label, action));
         }
 
         private void ToggleFullscreen()
