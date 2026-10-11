@@ -227,7 +227,6 @@ public sealed partial class AppSettings
     public string FFmpegPath { get; set; } = "";
     public string FFprobePath { get; set; } = "";
     public string YtDlpPath { get; set; } = "";
-    public int ParallelJobs { get; set; } = 2;
     public bool MultiThread { get; set; } = true;
     public bool NotifyComplete { get; set; } = true;
     public bool CollapseCompletedTasks { get; set; } = true;
@@ -260,7 +259,7 @@ public sealed partial class AppSettings
         ModelWarmupCpuPercent=source.ModelWarmupCpuPercent;ModelWarmupGpuPercent=source.ModelWarmupGpuPercent;
         ModelWarmupRampSeconds=source.ModelWarmupRampSeconds;
         EnableNsfwContent=source.EnableNsfwContent;
-        ParallelJobs=source.ParallelJobs;MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
+        MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         PlayerNativeHighResolution=source.PlayerNativeHighResolution;PlayerNativeSdr=source.PlayerNativeSdr;

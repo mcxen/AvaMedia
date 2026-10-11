@@ -32,7 +32,7 @@ public sealed partial class SettingsWindow : Window
         foreach (var input in new[] { AutoGpuInput, MultithreadInput, NotifyInput, ReducedMotionInput, OutputToSourceInput, AddSettingNameInput,
             ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput, BetaInput, AutoRepairModelInput })
         { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
-        foreach (var input in new[] { ThreadsInput, CpuReserveInput, JpegQualityInput, WebpQualityInput, ParallelInput })
+        foreach (var input in new[] { ThreadsInput, CpuReserveInput, JpegQualityInput, WebpQualityInput })
         { _values.Add(()=>NumericDraftValue(input)); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
         MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
         _values.Add(() => NsfwContentInput.IsChecked);
@@ -81,7 +81,6 @@ public sealed partial class SettingsWindow : Window
         draft.FFmpegPath = MediaEngine.UsesBundledTools ? "" : FfmpegInput.Text?.Trim() ?? "";
         draft.FFprobePath = MediaEngine.UsesBundledTools ? "" : FfprobeInput.Text?.Trim() ?? "";
         draft.YtDlpPath = MediaEngine.UsesBundledTools ? "" : YtdlpInput.Text?.Trim() ?? "";
-        draft.ParallelJobs = Number(ParallelInput, "每工具同时执行任务数");
         draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput, "每个任务的线程数");
         draft.CpuReservePercent = Number(CpuReserveInput, "CPU 预留比例（%）");
         draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput, "JPEG 质量"); draft.WebpQuality = Number(WebpQualityInput, "WebP 质量");
@@ -125,7 +124,7 @@ public sealed partial class SettingsWindow : Window
         LanguageInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsLanguageKeys, source.Language));
         ExternalToolPaths.IsVisible = !MediaEngine.UsesBundledTools;
         OutputInput.Text = source.OutputFolder; FfmpegInput.Text = source.FFmpegPath; FfprobeInput.Text = source.FFprobePath; YtdlpInput.Text = source.YtDlpPath;
-        ParallelInput.Value = Math.Clamp(source.ParallelJobs, 1, 8); AutoGpuInput.IsChecked = source.AutoDetectGpu;
+        AutoGpuInput.IsChecked = source.AutoDetectGpu;
         MultithreadInput.IsChecked = source.MultiThread; ThreadsInput.Value = Math.Clamp(source.CpuThreads, 1, 16); ThreadsInput.IsEnabled = source.MultiThread;
         CpuReserveInput.Value = Math.Clamp(source.CpuReservePercent, 0, 80);
         JpegQualityInput.Value = Math.Clamp(source.JpegQuality, 1, 100); WebpQualityInput.Value = Math.Clamp(source.WebpQuality, 1, 100);

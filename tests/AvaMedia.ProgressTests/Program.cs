@@ -33,7 +33,7 @@ Check(result.Remaining is {} constantRate&&Math.Abs(constantRate.TotalSeconds-79
 Check(new ProgressEstimate(ProgressEstimateState.Available,TimeSpan.FromSeconds(.1)).Text.EndsWith("00:00:01"),"Subsecond estimates never display a premature zero");
 Check(new ProgressEstimate(ProgressEstimateState.Available,TimeSpan.FromHours(25)+TimeSpan.FromSeconds(1)).Text.EndsWith("25:00:01"),"Long conversions preserve total hours beyond a day");
 
-var clock=new ManualClock();var controlled=new ControlledExecutor();var queue=new QueueService(controlled,clock);var jobs=new[]{new Job{Progress=80},new Job()};var run=queue.Run(jobs,2);
+var clock=new ManualClock();var controlled=new ControlledExecutor();var queue=new QueueService(controlled,clock);var jobs=new[]{new Job{Progress=80},new Job()};var run=queue.Run(jobs);
 Check(jobs.All(j=>j.Progress==0&&j.RemainingTimeText=="估算中"),"Each actual queue start clears stale progress and starts its own estimate");
 clock.Advance(10);controlled.Report(jobs[0],20);controlled.Report(jobs[1],50);
 Check(jobs[0].RemainingTimeText.EndsWith("00:00:40")&&jobs[1].RemainingTimeText.EndsWith("00:00:10"),"Parallel jobs own independent speed samples and remaining times");
@@ -45,27 +45,26 @@ controlled.Report(jobs[0],0);Check(jobs[0].RemainingTimeText=="估算中","An ac
 controlled.Complete();await run;Check(jobs.All(j=>j.State==JobState.Completed&&j.Progress==100&&j.Estimate is null),"Completed jobs clear remaining time and finish at one hundred percent");
 controlled.Report(jobs[0],2);Check(jobs[0].Progress==100&&jobs[0].Estimate is null,"Delayed backend callbacks cannot change a completed job");
 
-controlled=new();queue=new(controlled,clock);var stopped=new Job();run=queue.Run([stopped],1);clock.Advance(10);controlled.Report(stopped,20);queue.Stop();await run;controlled.Report(stopped,80);
+controlled=new();queue=new(controlled,clock);var stopped=new Job();run=queue.Run([stopped]);clock.Advance(10);controlled.Report(stopped,20);queue.Stop();await run;controlled.Report(stopped,80);
 Check(stopped.State==JobState.Cancelled&&stopped.Estimate is null&&stopped.Progress==20,"Stopping clears the estimate and rejects late progress callbacks");
-stopped.State=JobState.Waiting;controlled=new();queue=new(controlled,clock);run=queue.Run([stopped],1);Check(stopped.Progress==0&&stopped.RemainingTimeText=="估算中","Retrying a stopped job does not reuse its old countdown");controlled.Complete();await run;
-await new QueueService(new FailingExecutor()).Run([stopped=new()],1);Check(stopped.State==JobState.Failed&&stopped.RemainingTimeText==""&&stopped.Error=="codec failure","Failures retain the error and clear their estimates");
-controlled=new();queue=new(controlled,clock);var downloading=new Job{FeatureId="download"};run=queue.Run([downloading],1);clock.Advance(10);var downloadDetail=typeof(Job).GetProperty("ProgressDetail");downloadDetail?.SetValue(downloading,"2 MiB/s · 剩余 00:40");controlled.Report(downloading,20);
+stopped.State=JobState.Waiting;controlled=new();queue=new(controlled,clock);run=queue.Run([stopped]);Check(stopped.Progress==0&&stopped.RemainingTimeText=="估算中","Retrying a stopped job does not reuse its old countdown");controlled.Complete();await run;
+await new QueueService(new FailingExecutor()).Run([stopped=new()]);Check(stopped.State==JobState.Failed&&stopped.RemainingTimeText==""&&stopped.Error=="codec failure","Failures retain the error and clear their estimates");
+controlled=new();queue=new(controlled,clock);var downloading=new Job{FeatureId="download"};run=queue.Run([downloading]);clock.Advance(10);var downloadDetail=typeof(Job).GetProperty("ProgressDetail");downloadDetail?.SetValue(downloading,"2 MiB/s · 剩余 00:40");controlled.Report(downloading,20);
 Check(downloading.Estimate is null&&!downloading.Status.Contains("预计剩余")&&(downloadDetail is null||downloading.Status.Contains("剩余 00:40")),"Downloads keep the downloader's own ETA without a duplicate conversion estimate");controlled.Complete();await run;
-controlled=new();queue=new(controlled,clock);var waiting=new[]{new Job(),new Job()};run=queue.Run(waiting,1);Check(waiting[1].State==JobState.Waiting&&waiting[1].Estimate is null,"Semaphore waiting time does not produce a task estimate");queue.Stop();await run;Check(waiting[1].State==JobState.Waiting,"Stopping preserves unstarted queue jobs");
 
 var engine=new MediaEngine(new(){AutoDetectGpu=false});var source=Path.Combine(root,"视频 sample.mp4");
 var fixture=await ProcessRunner.Run(engine.FFmpeg,["-v","error","-n","-f","lavfi","-i","testsrc2=size=320x180:rate=25","-t","6","-c:v","mpeg4",source]);Check(fixture.ExitCode==0,"Create actual media for the queue progress integration check");
 var job=new Job{Inputs=[source],Output=Path.Combine(root,"trim-speed-crop.mp4"),Options=new(){Start=1,End=5,Speed=2,CropWidth=160,CropHeight=100,VideoCodec="mpeg4"}};
 var measurements=new List<object>();var numeric=false;var finalizing=false;queue=new(new RealtimeMediaExecutor(engine));queue.Changed+=j=>{if(j.Estimate?.State==ProgressEstimateState.Available)numeric=true;if(j.Estimate?.State==ProgressEstimateState.Finalizing)finalizing=true;measurements.Add(new{j.Progress,j.RemainingTimeText});};
-await queue.Run([job],1);outputs.Add(job.Output);var media=await engine.Probe(job.Output);
+await queue.Run([job]);outputs.Add(job.Output);var media=await engine.Probe(job.Output);
 Check(numeric&&finalizing&&job.State==JobState.Completed&&job.Estimate is null,"Real FFmpeg progress drives numeric ETA, finalization and completion through the queue");
 Check(media is{Width:160,Height:100}&&Math.Abs(media.Duration-2)<.06,"ETA tracking preserves actual clip, crop and speed output behavior");
-var ordinary=new Job{Inputs=[source],Output=Path.Combine(root,"ordinary.mp4"),Options=new(){VideoCodec="mpeg4"}};await new QueueService(engine).Run([ordinary],1);outputs.Add(ordinary.Output);
+var ordinary=new Job{Inputs=[source],Output=Path.Combine(root,"ordinary.mp4"),Options=new(){VideoCodec="mpeg4"}};await new QueueService(engine).Run([ordinary]);outputs.Add(ordinary.Output);
 Check(ordinary.State==JobState.Completed&&ordinary.Estimate is null&&(await engine.Probe(ordinary.Output)).Duration>5.9,"The production engine still completes and clears ETA on a normal conversion");
 
 AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=false}).SetupWithoutStarting();Motion.SetReducedMotion(true);
 void Pump(Task? task=null){var deadline=DateTime.UtcNow.AddSeconds(20);do{Dispatcher.UIThread.RunJobs();AvaloniaHeadlessPlatform.ForceRenderTimerTick();Dispatcher.UIThread.RunJobs();if(task is null||task.IsCompleted)break;if(DateTime.UtcNow>deadline)throw new TimeoutException("UI completion timed out");Thread.Sleep(5);}while(true);task?.GetAwaiter().GetResult();}
-var uiStore=new Storage(Path.Combine(root,"ui-state"));uiStore.SaveSettings(new(){NotifyComplete=false,MultiThread=true,ParallelJobs=2});uiStore.SaveJobs([new(){Inputs=[source]},new(){Inputs=[source]}]);
+var uiStore=new Storage(Path.Combine(root,"ui-state"));uiStore.SaveSettings(new(){NotifyComplete=false,MultiThread=true});uiStore.SaveJobs([new(){Inputs=[source]},new(){Inputs=[source]}]);
 var uiExecutor=new UiExecutor(engine);var main=new MainWindow(uiStore,uiExecutor);main.Show();Pump();main.FindControl<Button>("StartButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump();
 var uiJobs=main.FindControl<ListBox>("JobList")!.Items.Cast<Job>().ToArray();
 Check(main.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("估算中")==true)==2,"The actual task-list bindings show warmup for both running tasks");

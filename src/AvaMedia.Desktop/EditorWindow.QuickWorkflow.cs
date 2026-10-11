@@ -313,7 +313,7 @@ public partial class EditorWindow
         {
             if (_directionOwner is { } main) main.SubmitOrientationJob(job);
             else if (_directionQueue.IsRunning) _directionQueue.Enqueue([job]);
-            else _ = _directionQueue.Run([job], 1);
+            else _ = _directionQueue.Run([job]);
             await completion.Task;
             if (_closed || !ReferenceEquals(_directionJob, job)) return;
             if (job.State != JobState.Completed) { DirectionStatus.Text = job.State == JobState.Cancelled ? "识别已取消" : job.Error; return; }

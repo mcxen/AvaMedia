@@ -22,23 +22,6 @@ public interface IHardwareTranscodingBackend
 
 public static class HardwareTranscoding
 {
-    private static readonly IReadOnlyDictionary<HardwareBackendKind, SemaphoreSlim> EncodingSlots =
-        Enum.GetValues<HardwareBackendKind>().ToDictionary(kind => kind, _ => new SemaphoreSlim(2, 2));
-
-    internal static async Task<IDisposable?> AcquireAsync(string codec, CancellationToken ct)
-    {
-        if (Backend(codec) is not { } backend) return null;
-        var slots = EncodingSlots[backend.Kind];
-        await slots.WaitAsync(ct).ConfigureAwait(false);
-        return new EncodingLease(slots);
-    }
-
-    private sealed class EncodingLease(SemaphoreSlim slots) : IDisposable
-    {
-        private SemaphoreSlim? _slots = slots;
-        public void Dispose() => Interlocked.Exchange(ref _slots, null)?.Release();
-    }
-
     public static IReadOnlyList<IHardwareTranscodingBackend> Backends { get; } =
         Array.AsReadOnly<IHardwareTranscodingBackend>([new VideoToolboxBackend(), new NvencBackend(), new AmfBackend(), new QuickSyncBackend()]);
 

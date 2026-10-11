@@ -16,7 +16,6 @@ public static class SettingsPolicy
         _ = Path.GetFullPath(settings.OutputFolder);
         if (settings.CpuThreads is < 1 or > 16) throw new ArgumentException("多线程数量必须在 1 到 16 之间。");
         if (settings.CpuReservePercent is < 0 or > 80) throw new ArgumentException("CPU 预留比例必须在 0 到 80 之间。");
-        if (settings.ParallelJobs is < 1 or > 8) throw new ArgumentException("并行任务数必须在 1 到 8 之间。");
         if (settings.JpegQuality is < 1 or > 100 || settings.WebpQuality is < 1 or > 100)
             throw new ArgumentException("JPG / WebP Quality 必须在 1 到 100 之间。");
         foreach (var path in new[] { settings.FFmpegPath, settings.FFprobePath, settings.YtDlpPath })

@@ -17,11 +17,11 @@ public sealed record McpOrganizationPreview(Guid TaskId, string OutputFolder, bo
 public sealed partial class McpTools
 {
     [McpServerTool(Name = "avamedia_get_runtime", Title = "后台运行与资源策略", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Read the running application version, background mode, output directory, privacy switches and effective CPU thread/concurrency budgets. AI inference tries platform acceleration first; reservationMode=cooperative means CPU headroom is a scheduling hint, not a hard utilization quota. Actual backend is reported by task activity/results.")]
+    [Description("Read the running application version, background mode, output directory, privacy switches and effective CPU thread budgets. AI inference tries platform acceleration first; reservationMode=cooperative means CPU headroom is a scheduling hint, not a hard utilization quota. Actual backend is reported by task activity/results.")]
     public Task<McpRuntimeView> GetRuntime(CancellationToken ct = default) => workspace.RuntimeAsync(null, ct);
 
     [McpServerTool(Name = "avamedia_set_resources", Title = "设置后台资源", Destructive = false, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Update only CPU headroom/thread/concurrency settings and persist them in the active workspace. cpuReservePercent: 0–80; cpuThreads: 1–16; parallelJobs: 1–8 per tool. Unspecified settings stay unchanged. Existing native inference sessions and queue concurrency can retain their budgets until the next session. Does not change privacy or model settings.")]
+    [Description("Update only CPU headroom/thread settings and persist them in the active workspace. cpuReservePercent: 0–80; cpuThreads: 1–16; multiThread controls threads within each task, not the number of tasks. Unspecified settings stay unchanged. Existing native inference sessions can retain their thread budgets until the next session. Does not change privacy or model settings.")]
     public Task<McpRuntimeView> SetResources(McpResourceUpdate settings, CancellationToken ct = default) => workspace.RuntimeAsync(settings, ct);
 
     [McpServerTool(Name = "avamedia_list_models", Title = "AI 模型状态", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]

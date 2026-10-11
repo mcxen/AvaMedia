@@ -34,7 +34,7 @@ internal static class SourceVideoExportChecks
         {
             var jobs = BatchRotate.CreateJobs(new(sources.Select(p => new BatchRotateInput(p, infos[p])).ToArray(), angle,
                 SourceVideoExport.FastRotation, Path.Combine(root, "fast-" + angle)));
-            await new QueueService(engine).Run(jobs, 2);
+            await new QueueService(engine).Run(jobs);
             foreach (var job in jobs)
             {
                 check(job.State == JobState.Completed, "Fast Copy rotation failed: " + job.Error);
@@ -48,7 +48,7 @@ internal static class SourceVideoExportChecks
         }
         var originalJobs = BatchRotate.CreateJobs(new(sources.Select(p => new BatchRotateInput(p, infos[p])).ToArray(), 90,
             SourceVideoExport.Original, Path.Combine(root, "source-rotate")));
-        await new QueueService(engine).Run(originalJobs, 2);
+        await new QueueService(engine).Run(originalJobs);
         foreach (var job in originalJobs)
         {
             check(job.State == JobState.Completed, "Original-attribute rotation failed: " + job.Error); outputs.Add(job.Output);

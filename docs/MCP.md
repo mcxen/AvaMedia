@@ -49,7 +49,7 @@ Codex 可执行 `codex mcp add avamedia --url http://127.0.0.1:18920/mcp`。安�
 | `avamedia_get_task` | 查询单项任务的进度与结果 |
 | `avamedia_control_task` | 启动、暂停排队、恢复、停止、重试、移除 |
 | `avamedia_get_runtime` | 当前宿主版本、后台状态、CPU 策略及隐私开关 |
-| `avamedia_set_resources` | 更新 CPU 预留、线程和每工具并发预算 |
+| `avamedia_set_resources` | 更新 CPU 预留、线程及多线程开关 |
 | `avamedia_list_models` | 模型目录、平台支持、安装和使用状态 |
 | `avamedia_download_model` | 通过持久队列下载模型，复用断点与校验 |
 | `avamedia_transcribe_media` | 后台识别字幕草稿，不编码原视频 |
@@ -86,7 +86,7 @@ Codex 可执行 `codex mcp add avamedia --url http://127.0.0.1:18920/mcp`。安�
 
 `get_task` 返回任务的部分结果标记、当前模型阶段和真实后端；分类文件还包含采样/推理帧数、标签及服装后端。`wait_task` 支持 `afterState` / `afterProgress`，没有变化时在超时后返回当前状态，HTTP 断开不取消任务。`get_task_log` 的 `offset` 是字符偏移，单页上限 65536 字符。
 
-`export_task_result` 导出 Task、Partial 和全部 Pages，不覆盖现有文件；默认仅导出 Completed，停止/失败的结果需 `allowPartial=true`。资源接口只改变 CPU 预留（0–80%）、线程（1–16）和每工具并发（1–8），不改变隐私或模型选择。CPU 预留使用现有协作调度，不能保证峰值 CPU 的硬上限；已有原生会话与队列并发可能在下一轮执行采用新预算。
+`export_task_result` 导出 Task、Partial 和全部 Pages，不覆盖现有文件；默认仅导出 Completed，停止/失败的结果需 `allowPartial=true`。资源接口只改变 CPU 预留（0–80%）、线程（1–16）及多线程开关，不改变隐私或模型选择。CPU 预留使用现有协作调度，不能保证峰值 CPU 的硬上限；多线程开关只作用于单任务线程，队列不限制并发任务数；已有原生会话可能在下次加载时采用新线程预算。
 
 后台模型下载与分类复制仍使用共享 QueueService。复制计划在提交前重新预览并比较来源元数据和目标，执行时复用 FolderOrganization 的去重、内容校验和日志；部分失败/停止不会表示全部完成。失败后须重新预览再提交，不盲目重试已经生成的文件。
 

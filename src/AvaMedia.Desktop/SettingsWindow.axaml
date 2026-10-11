@@ -138,11 +138,6 @@
                   <TextBlock Classes="settingsHeading" Text="任务与线程" />
                   <Border Classes="settingSection">
                     <StackPanel Spacing="10">
-                      <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
-                        <TextBlock Text="每工具同时执行任务数" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        <NumericUpDown Grid.Column="2" x:Name="ParallelInput" Minimum="1" Maximum="8" Increment="1" AutomationProperties.Name="并行任务数" />
-                        <controls:ParameterSlider Grid.Column="1" Input="{Binding #ParallelInput}" />
-                      </Grid>
                       <CheckBox x:Name="MultithreadInput" Content="使用多线程" />
                       <Grid ColumnDefinitions="144,*,88" ColumnSpacing="12">
                         <TextBlock Text="每个任务的线程数" VerticalAlignment="Center" TextWrapping="Wrap" />

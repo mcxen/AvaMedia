@@ -10,7 +10,6 @@ internal static class MediaProbeCache
     private static readonly object Gate = new();
     private static readonly Dictionary<string, string> Results = [];
     private static readonly SemaphoreSlim[] Sources = Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
-    private static readonly SemaphoreSlim Workers = new(4, 4);
     private static int _bytes;
 
     public static async Task<string> ReadAsync(string path, string tool, Func<Task<string>> read, CancellationToken ct)
@@ -33,11 +32,7 @@ internal static class MediaProbeCache
             string? result;
             lock (Gate) Results.TryGetValue(identity, out result);
             if (result is null)
-            {
-                await Workers.WaitAsync(ct).ConfigureAwait(false);
-                try { result = await read().ConfigureAwait(false); }
-                finally { Workers.Release(); }
-            }
+                result = await read().ConfigureAwait(false);
             if (identity != await Identity().ConfigureAwait(false)) throw new IOException("源文件在读取媒体信息时发生变化。");
             ct.ThrowIfCancellationRequested();
             if (result.Length <= 1024 * 1024)

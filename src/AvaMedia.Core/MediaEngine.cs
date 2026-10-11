@@ -541,9 +541,6 @@ public sealed class MediaEngine : IMediaEngine
         async Task<ProcessResult> EncodeWithDecoding(Job draft)
         {
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
-            using var slot=await HardwareTranscoding.AcquireAsync(draft.Options.VideoCodec,ct).ConfigureAwait(false);
-            // A paused task must not park while holding a hardware session reservation.
-            using var boundary=JobExecutionControl.DeferPause();
             var plans=HardwareTranscoding.DecodePlans(draft,infos).Where(plan=>!failedDecoders.Contains(plan.Value.Method)).ToDictionary(plan=>plan.Key,plan=>plan.Value);
             var encoded=await Encode(draft,plans);
             if(encoded.ExitCode!=0 && plans.Count>0)

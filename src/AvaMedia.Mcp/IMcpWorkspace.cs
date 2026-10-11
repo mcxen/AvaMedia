@@ -13,7 +13,7 @@ public sealed record McpActivityView(string Stage, string Model, string Backend,
 public sealed record McpRuntimeView(string Version, string Platform, bool Background, string OutputFolder,
     AiResourceSettings Resources, bool NsfwEnabled, bool BetaEnabled);
 public sealed record McpResourceUpdate(int? CpuReservePercent = null, int? CpuThreads = null,
-    int? ParallelJobs = null, bool? MultiThread = null);
+    bool? MultiThread = null);
 public sealed record McpSubmission(string RequestId, McpTaskView[] Tasks);
 public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset);
 public sealed record McpTaskResult(McpTaskView Task, object? Result, int Offset = 0, int? NextOffset = null);

@@ -46,7 +46,7 @@ queue.Changed += changed =>
     last = changed.ProgressDetail;
     Console.WriteLine($"{changed.Progress:0.#}% {changed.ProgressDetail}");
 };
-await queue.Run([job], 1);
+await queue.Run([job]);
 if (job.State != JobState.Completed) throw new InvalidOperationException(job.Error + "\n" + job.Log);
 var analysis = job.Options.VideoSlimming!.Analysis!;
 var output = job.Output;

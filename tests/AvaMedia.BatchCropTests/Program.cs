@@ -77,7 +77,7 @@ var sourceReserved = BatchCrop.CreateJobs(Request(root) with { Inputs = [new(sma
 Check(sourceReserved.All(j => j.Output != croppedSource && j.Output != small), "An output can overwrite another batch source.");
 
 var actualJobs = pixelJobs.Concat(relativeJobs).ToArray();
-new QueueService(engine).Run(actualJobs, 2).GetAwaiter().GetResult();
+new QueueService(engine).Run(actualJobs).GetAwaiter().GetResult();
 foreach (var job in actualJobs)
 {
     Check(job.State == JobState.Completed, "Queue job failed: " + job.Error);

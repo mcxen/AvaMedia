@@ -174,7 +174,7 @@ public partial class MainWindow
         _timer.Start(); _queueSessionActive = true;
         try
         {
-            _running = _queue.Run(batch, _settings.MultiThread ? _settings.ParallelJobs : 1); Refresh();
+            _running = _queue.Run(batch); Refresh();
             await _running;
         }
         catch { _queueSessionActive = false; throw; }

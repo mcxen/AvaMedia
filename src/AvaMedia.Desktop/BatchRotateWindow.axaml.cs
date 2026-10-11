@@ -65,7 +65,7 @@ public sealed partial class BatchRotateWindow : Window
     {
         InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
         _localQueue = new(new OrientationTaskService(engine, _detector));
-        _submitDetection = submitDetection ?? ((jobs, startImmediately) => { if (_localQueue.IsRunning) _localQueue.Enqueue(jobs); else _ = _localQueue.Run(jobs, 2); });
+        _submitDetection = submitDetection ?? ((jobs, startImmediately) => { if (_localQueue.IsRunning) _localQueue.Enqueue(jobs); else _ = _localQueue.Run(jobs); });
         _stopDetection = stopDetection ?? (job => _localQueue.Stop(job));
         _pauseDetection = pauseDetection ?? (job => _localQueue.Pause(job));
         _resumeDetection = resumeDetection ?? (job =>

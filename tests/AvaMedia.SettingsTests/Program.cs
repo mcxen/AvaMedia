@@ -61,8 +61,6 @@ var encodeArgs = MediaEngine.BuildArguments(new() { FeatureId = "mp4", Inputs = 
 Check(encodeArgs.Contains("-threads") && encodeArgs.LastIndexOf("-threads") > encodeArgs.IndexOf("-i") && encodeArgs[encodeArgs.LastIndexOf("-threads") + 1] == "1" && encodeArgs.Contains("-filter_threads"), "Encoder/filter thread settings missing from command.");
 var storage = new Storage(Path.Combine(root, "state")); storage.SaveSettings(settings); var restored = storage.LoadSettings();
 Check(restored.CpuThreads == 8 && restored.JpegQuality == 10 && !restored.AutoDetectGpu, "New settings not persisted.");
-var legacy = JsonSerializer.Deserialize<AppSettings>("{\"ParallelJobs\":2}")!;
-Check(legacy.CpuThreads == 8 && legacy.JpegQuality == 90 && legacy.WebpQuality == 90 && legacy.AutoDetectGpu, "Legacy settings lack defaults.");
 var hardware = HardwareAcceleration.TestAsync(engine.FFmpeg).GetAwaiter().GetResult();
 Check(hardware.Count == 7 && hardware.All(r => r.Detail.Length > 0), "Hardware report incomplete.");
 File.WriteAllText(Path.Combine(root, "hardware.json"), JsonSerializer.Serialize(hardware, new JsonSerializerOptions { WriteIndented = true }));

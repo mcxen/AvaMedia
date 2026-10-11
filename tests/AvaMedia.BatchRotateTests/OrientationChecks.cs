@@ -51,7 +51,7 @@ internal static class OrientationChecks
         var hashes = inputs.ToDictionary(i => i.Path, i => SHA256.HashData(File.ReadAllBytes(i.Path)));
         var jobs = BatchRotate.CreateJobs(new(inputs, 0, "mp4", Path.Combine(root, "auto-upright")));
         check(jobs.Count == 3 && jobs.Select(j => j.Options.Rotation).SequenceEqual(new[] { 270, 180, 90 }), "Per-video rotations were lost or upright input was queued.");
-        await new QueueService(engine).Run(jobs, 2);
+        await new QueueService(engine).Run(jobs);
         foreach (var job in jobs)
         {
             check(job.State == JobState.Completed, "Auto rotation output failed: " + job.Error);
@@ -78,7 +78,7 @@ internal static class OrientationChecks
         var wrongInfo = await engine.Probe(wrongTag); var wrongResult = await detector.DetectAsync(wrongTag, wrongInfo);
         check(wrongResult.Rotation == 90, "Incorrect metadata is blindly trusted.");
         var tagJobs = BatchRotate.CreateJobs(new([new(wrongTag, wrongInfo, wrongResult.Rotation)], 0, "mp4", Path.Combine(root, "auto-tag")));
-        await new QueueService(engine).Run(tagJobs, 1);
+        await new QueueService(engine).Run(tagJobs);
         check(tagJobs[0].State == JobState.Completed && (await Pixels(tagJobs[0].Output, engine)).Select((p, i) => Math.Abs(p - baseline[i])).Average() < 12, "Metadata plus residual correction produces wrong pixels.");
 
         var unknown = await detector.DetectAsync(noFace, await engine.Probe(noFace));

@@ -64,12 +64,11 @@ public partial class MainWindow
         {
             if (update is not null)
             {
-                if (update.CpuReservePercent is < 0 or > 80 || update.CpuThreads is < 1 or > 16 || update.ParallelJobs is < 1 or > 8)
-                    throw new ArgumentException("CPU 预留须为 0–80%，线程数为 1–16，每工具并发数为 1–8。");
+                if (update.CpuReservePercent is < 0 or > 80 || update.CpuThreads is < 1 or > 16)
+                    throw new ArgumentException("CPU 预留须为 0–80%，线程数为 1–16。");
                 var settings = owner._settings;
                 settings.CpuReservePercent = update.CpuReservePercent ?? settings.CpuReservePercent;
                 settings.CpuThreads = update.CpuThreads ?? settings.CpuThreads;
-                settings.ParallelJobs = update.ParallelJobs ?? settings.ParallelJobs;
                 settings.MultiThread = update.MultiThread ?? settings.MultiThread;
                 owner._storage.SaveSettings(settings); owner._appliedSettings = settings.Clone();
                 owner.Multithread.IsChecked = settings.MultiThread;

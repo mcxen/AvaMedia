@@ -55,7 +55,7 @@ foreach (var angle in new[] { 90, 180, 270 })
     var jobs = BatchRotate.CreateJobs(Request(angle));
     Check(jobs.Count == 3 && jobs.All(j => j.FeatureId == "rotate" && j.Options.Rotation == angle && !j.Options.CopyStreams && j.Options.VideoCodec != "copy"), "Batch rotation options not applied to each video.");
     Check(!ReferenceEquals(jobs[0].Options, jobs[1].Options), "Jobs share options.");
-    new QueueService(engine).Run(jobs, 2).GetAwaiter().GetResult();
+    new QueueService(engine).Run(jobs).GetAwaiter().GetResult();
     foreach (var job in jobs)
     {
         Check(job.State == JobState.Completed, "Rotation job failed: " + job.Error); outputs.Add(job.Output);

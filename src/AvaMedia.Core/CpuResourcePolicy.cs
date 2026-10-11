@@ -19,11 +19,9 @@ internal static class CpuResourcePolicy
         get
         {
             var settings = Volatile.Read(ref _settings);
-            return HashCode.Combine(settings.CpuReservePercent, settings.CpuThreads, settings.ParallelJobs, settings.MultiThread);
+            return HashCode.Combine(settings.CpuReservePercent, settings.CpuThreads, settings.MultiThread);
         }
     }
-    internal static int WorkerBudget => Math.Max(1, (int)Math.Floor(Environment.ProcessorCount * (100 - ReservePercent) / 100d));
-    internal static int ParallelLimit(int requested) => Math.Min(Math.Clamp(requested, 1, 8), WorkerBudget);
     internal static int Threads(int requested, AppSettings? settings = null)
     {
         settings ??= Volatile.Read(ref _settings);
@@ -31,7 +29,7 @@ internal static class CpuResourcePolicy
         var maximum = Math.Min(Math.Clamp(requested, 1, 16), Math.Clamp(settings.CpuThreads, 1, 16));
         if (settings.CpuReservePercent == 0) return maximum;
         var workers = Math.Max(1, (int)Math.Floor(Environment.ProcessorCount * (100 - Math.Clamp(settings.CpuReservePercent, 0, 80)) / 100d));
-        return Math.Min(maximum, Math.Max(1, workers / Math.Min(Math.Clamp(settings.ParallelJobs, 1, 8), workers)));
+        return Math.Min(maximum, workers);
     }
 
     private static int DelayMilliseconds()

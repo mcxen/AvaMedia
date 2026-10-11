@@ -8,10 +8,7 @@ internal sealed class JobExecutionControl
     private readonly object _gate = new();
     private TaskCompletionSource? _resume;
     private int _deferred;
-    private bool _parked;
-    public event Action? Parked;
     public bool IsPaused { get { lock (_gate) return _resume is not null; } }
-    public bool IsParked { get { lock (_gate) return _parked; } }
 
     public IDisposable Enter()
     {
@@ -21,17 +18,16 @@ internal sealed class JobExecutionControl
     public void Pause() { lock (_gate) _resume ??= new(TaskCreationOptions.RunContinuationsAsynchronously); }
     public void Resume()
     {
-        lock (_gate) { _resume?.TrySetResult(); _resume = null; _parked = false; }
+        lock (_gate) { _resume?.TrySetResult(); _resume = null; }
     }
     public async Task WaitAsync(CancellationToken ct)
     {
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            Task? resume; bool parked;
-            lock (_gate) { resume = _resume?.Task; parked = resume is not null && !_parked; if (resume is not null) _parked = true; }
+            Task? resume;
+            lock (_gate) resume = _resume?.Task;
             if (resume is null) return;
-            if (parked) Parked?.Invoke();
             await resume.WaitAsync(ct).ConfigureAwait(false);
         }
     }

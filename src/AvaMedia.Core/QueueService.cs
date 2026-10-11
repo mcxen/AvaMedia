@@ -5,7 +5,6 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly object _gate = new();
     private readonly List<Job> _pending = [];
-    private readonly List<Job> _resumePending = [];
     private readonly Dictionary<Job, Execution> _active = [];
     private readonly Dictionary<Guid, string[]> _fileChanges = [];
     private TaskCompletionSource _wake = NewSignal();
@@ -32,7 +31,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         }
     }
 
-    public async Task Run(IEnumerable<Job> jobs, int concurrency)
+    public async Task Run(IEnumerable<Job> jobs)
     {
         var candidates = jobs.Distinct().ToArray();
         CancellationTokenSource session;
@@ -48,36 +47,18 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             while (true)
             {
                 List<Execution> starting = [];
-                List<Job> resumed = [];
                 Task wait;
                 lock (_gate)
                 {
                     _pending.RemoveAll(job => job.State != JobState.Waiting);
-                    while (_accepting && (_pending.Count > 0 || _resumePending.Count > 0))
+                    while (_accepting && _pending.Count > 0)
                     {
-                        // Independent resource lanes let inference, encoding and transfers overlap.
-                        // Prefer a tool without an active task, preserving queue order for ties.
-                        var running = _active.Values.Where(execution => !execution.Control.IsParked).Select(execution => execution.Job).ToArray();
-                        var job = _resumePending.Concat(_pending).Where(candidate =>
-                            (_resumePending.Contains(candidate) || !FilesReserved(candidate) && !MutationConflict(candidate))
-                            && running.Count(active => Lane(active) == Lane(candidate)) < LaneLimit(candidate, concurrency)
-                            && running.Count(active => Tool(active) == Tool(candidate)) < Math.Clamp(concurrency, 1, 8))
-                            .OrderBy(candidate => running.Count(active => Tool(active) == Tool(candidate)))
-                            .FirstOrDefault();
+                        // Start every requested task unless it conflicts with a file mutation.
+                        // Shared resources coordinate their own use inside the executor.
+                        var job = _pending.FirstOrDefault(candidate => !FilesReserved(candidate) && !MutationConflict(candidate));
                         if (job is null) break;
-                        if (_resumePending.Remove(job))
-                        {
-                            var resuming = _active[job];
-                            lock (resuming.Gate)
-                            {
-                                if (resuming.Stopping || !resuming.Active) continue;
-                                resuming.Control.Resume(); job.State = JobState.Running;
-                            }
-                            resumed.Add(job); continue;
-                        }
                         _pending.Remove(job);
                         var execution = new Execution(job, session.Token);
-                        execution.Control.Parked += () => { lock (_gate) WakeLocked(); };
                         _active.Add(job, execution); starting.Add(execution);
                     }
                     // Close admission before releasing the lock, without exposing an idle session early.
@@ -85,33 +66,17 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                     wait = _wake.Task;
                 }
                 foreach (var execution in starting) executions.Add(Task.Run(() => ExecuteAsync(execution)));
-                foreach (var job in resumed) Changed?.Invoke(job);
                 await wait;
             }
             await Task.WhenAll(executions);
         }
         finally
         {
-            lock (_gate) { _cts = null; _accepting = false; _pending.Clear(); _resumePending.Clear(); }
+            lock (_gate) { _cts = null; _accepting = false; _pending.Clear(); }
             session.Dispose();
         }
     }
 
-    private static string Lane(Job job) => job.Options.Orientation is not null ? "analysis" :
-        job.FeatureId switch
-        {
-            "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle" or "video-summary" => "analysis",
-            "download" or "model-download" => "transfer",
-            _ => "media"
-        };
-    private static string Tool(Job job) => job.Options.Orientation is not null ? "orientation" : job.FeatureId;
-    private static int LaneLimit(Job job, int concurrency) => Lane(job) switch
-    {
-        // Analysis jobs yield shared models between small units and can wait on network/decoding.
-        "analysis" => Math.Min(Math.Clamp(concurrency, 1, 8) * 2, 8),
-        "transfer" => Math.Clamp(concurrency, 1, 8),
-        _ => CpuResourcePolicy.ParallelLimit(concurrency)
-    };
     private static string[] JobFiles(Job job) => job.Inputs.Append(job.Output)
         .Concat(job.Options.Rename?.Plan.SelectMany(item => new[] { item.Source, item.Target }) ?? [])
         .Concat(job.Options.FolderOrganization?.Plan.SelectMany(item => new[] { item.Target, item.ReportPath ?? item.Target }) ?? []).ToArray();
@@ -254,7 +219,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             finally
             {
                 job.CommittedFileChanges = null;
-                lock (_gate) { _active.Remove(job); _resumePending.Remove(job); WakeLocked(); }
+                lock (_gate) { _active.Remove(job); WakeLocked(); }
                 execution.Cancellation.Dispose(); Changed?.Invoke(job);
             }
         }
@@ -265,7 +230,6 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         Execution? execution;
         lock (_gate)
         {
-            _resumePending.Remove(job);
             if (!_active.TryGetValue(job, out execution))
             {
                 if (job.State is not (JobState.Waiting or JobState.Paused)) return false;
@@ -304,7 +268,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         lock (_gate)
         {
             // Unstarted tasks remain waiting and can be started again after the session stops.
-            _pending.Clear(); _resumePending.Clear(); _accepting = false; session = _cts;
+            _pending.Clear(); _accepting = false; session = _cts;
             active = _active.Values.ToArray(); WakeLocked();
         }
         foreach (var execution in active) Cancel(execution);
@@ -314,17 +278,15 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
     public bool Pause(Job job)
     {
         Execution? execution;
-        bool waitingToResume;
         lock (_gate)
         {
-            waitingToResume = _resumePending.Remove(job);
             if (!_active.TryGetValue(job, out execution))
             {
                 if (job.State != JobState.Waiting) return false;
                 _pending.Remove(job); job.State = JobState.Paused; WakeLocked();
             }
         }
-        if (execution is not null && !waitingToResume)
+        if (execution is not null)
         {
             lock (execution.Gate)
             {
@@ -344,8 +306,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             lock (execution.Gate)
             {
                 if (!execution.Active || execution.Stopping || !execution.Control.IsPaused) return false;
-                if (!execution.Control.IsParked) { execution.Control.Resume(); job.State = JobState.Running; }
-                else if (!_resumePending.Contains(job)) _resumePending.Add(job);
+                execution.Control.Resume(); job.State = JobState.Running;
             }
             WakeLocked();
         }
