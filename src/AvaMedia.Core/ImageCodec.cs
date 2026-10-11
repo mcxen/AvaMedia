@@ -86,6 +86,8 @@ public static partial class ImageCodec
             resident += (long)image.Width * image.Height * 4;
             if (resident > 384L * 1024 * 1024) throw new InvalidDataException("动画解码后超过 384 MB，请缩小动画后打开。");
             var ticks = Math.Max(1, image.AnimationTicksPerSecond);
+            // This PNG is an in-memory display frame; expensive compression delays the first image.
+            if (!animated && !multiple) image.Settings.SetDefine(MagickFormat.Png, "compression-level", 1);
             frames.Add(new(image.ToByteArray(MagickFormat.Png), TimeSpan.FromMilliseconds(Math.Max(20, image.AnimationDelay * 1000d / ticks))));
             if (!animated && !multiple) break;
         }
