@@ -13,7 +13,7 @@ internal sealed record UpdateProgress(UpdatePhase Phase, long ReceivedBytes = 0,
     public bool IsBusy => Phase is UpdatePhase.Downloading or UpdatePhase.Retrying or UpdatePhase.Preparing;
 }
 
-internal sealed class ApplicationUpdater
+internal sealed partial class ApplicationUpdater
 {
     public static ApplicationUpdater Shared { get; } = new();
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(30) };
@@ -26,6 +26,7 @@ internal sealed class ApplicationUpdater
     private CancellationToken _checkRetryOwner;
     private WeakReference<Window>? _startupOwner;
     private AppSettings? _startupSettings;
+    private Func<CancellationToken, Task<UpdateResult>>? _startupCheck;
     private volatile PreparedUpdate? _pending;
     private volatile bool _exiting;
     private volatile UpdateProgress _progress = new(UpdatePhase.Idle);
@@ -35,7 +36,8 @@ internal sealed class ApplicationUpdater
     public event EventHandler? ProgressChanged;
     private static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "Updates");
     private static string ErrorPath => Path.Combine(Root, "install-error.txt");
-    private sealed record PreparedUpdate(string Package, string Target, string Stage, string Backup, string Kind);
+    private sealed record PreparedUpdate(string Package, string Target, string Stage, string Backup, string Kind,
+        string Version, long Size, string Sha256, bool Automatic);
     public bool IsPrepared => _pending is not null;
 
     public static bool CanInstall => TryTarget(out _, out _);
@@ -56,12 +58,16 @@ internal sealed class ApplicationUpdater
 
     public void PreferencesChanged(AppSettings settings)
     {
+        _startupSettings = settings;
         if (!settings.AutoUpdate)
         {
-            _automaticDownload?.Cancel();
+            try { _automaticDownload?.Cancel(); } catch (ObjectDisposedException) { }
             // A manually prepared update still represents the user's explicit update request.
             lock (_stateGate) { if (_preparedAutomatically) DiscardPrepared(); }
         }
+        else if (!_exiting && !IsPrepared && !IsDownloading && _startupCheck is { } check
+            && _startupOwner?.TryGetTarget(out var owner) == true)
+            _ = StartupAsync(owner, settings, check, _lifetime.Token);
     }
     private volatile bool _preparedAutomatically;
     public void ScheduleCheckRetry(UpdateResult result, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
@@ -92,7 +98,7 @@ internal sealed class ApplicationUpdater
             {
                 if (_exiting || ct.IsCancellationRequested) return;
                 var manual = Notifications.UpdateNotifications.CheckCompleted(result);
-                if (_startupSettings is { CheckForUpdates: true } settings && result.HasUpdate &&
+                if (_startupSettings is { } settings && (settings.CheckForUpdates || settings.AutoUpdate) && result.HasUpdate &&
                     _startupOwner?.TryGetTarget(out var owner) == true)
                     await HandleUpdateAsync(owner, settings, result, ct, showNotification: !manual);
             });
@@ -103,20 +109,25 @@ internal sealed class ApplicationUpdater
 
     public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
     {
-        _startupOwner = new(owner); _startupSettings = settings;
+        _startupOwner = new(owner); _startupSettings = settings; _startupCheck = check;
         bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
         try
         {
             if (FirstRunSetup.Failed) return;
+            await RestorePreparedAsync(settings, ct);
+            if (_pending is { } prepared)
+                Notifications.UpdateNotifications.Show(owner, new(true, "更新已准备好，将在退出应用时安装。",
+                    new Uri("https://github.com/mcxen/AvaMedia/releases/tag/v" + prepared.Version), LatestVersion: Version.Parse(prepared.Version)),
+                    settings, automatic: prepared.Automatic);
             if (File.Exists(ErrorPath) && !Silent())
             {
                 var error = await File.ReadAllTextAsync(ErrorPath, ct);
                 File.Delete(ErrorPath);
                 Notifications.UpdateNotifications.Error(owner, "更新安装失败", error);
             }
-            if (!settings.CheckForUpdates) return;
+            if (!settings.CheckForUpdates && !settings.AutoUpdate) return;
             var result = await check(ct);
-            if (!settings.CheckForUpdates || !result.HasUpdate || !result.CheckSucceeded || _exiting) return;
+            if (!settings.CheckForUpdates && !settings.AutoUpdate || !result.HasUpdate || !result.CheckSucceeded || _exiting) return;
             await HandleUpdateAsync(owner, settings, result, ct);
         }
         catch (OperationCanceledException) { }
@@ -133,7 +144,7 @@ internal sealed class ApplicationUpdater
         if (_exiting || !result.HasUpdate || !result.CheckSucceeded) return;
         if (showNotification) Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
         if (!settings.AutoUpdate || result.Asset is null || !CanInstall || IsDownloading || IsPrepared) return;
-        using var download = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        using var download = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _automaticDownload = download;
         try { await PrepareAsync(result, automatic: true, download.Token); }
         finally { _automaticDownload = null; }
@@ -151,7 +162,10 @@ internal sealed class ApplicationUpdater
     private void ReportProgress(UpdateProgress progress)
     {
         _progress = progress;
-        ProgressChanged?.Invoke(this, EventArgs.Empty);
+        if (ProgressChanged is not { } changed) return;
+        foreach (EventHandler subscriber in changed.GetInvocationList())
+            try { subscriber(this, EventArgs.Empty); }
+            catch (Exception error) { AppDiagnostics.Record("Update progress observer", error); }
     }
 
     private async Task PrepareCoreAsync(UpdateResult result, bool automatic, CancellationToken ct)
@@ -161,11 +175,21 @@ internal sealed class ApplicationUpdater
         await _gate.WaitAsync(ct);
         _activeDownload = linked;
         string? work = null, stage = null;
+        PreparedUpdate? candidate = null;
         try
         {
             lock (_stateGate)
             {
-                if (_pending is not null) { if (!automatic) _preparedAutomatically = false; return; }
+                if (_pending is not null)
+                {
+                    if (!automatic)
+                    {
+                        _preparedAutomatically = false;
+                        _pending = _pending with { Automatic = false };
+                        SavePrepared(_pending);
+                    }
+                    return;
+                }
             }
             if (result.Asset is not { } asset || !TryTarget(out var target, out var kind))
                 throw new InvalidOperationException("当前安装不支持应用内更新，请从发布页下载安装包。");
@@ -201,17 +225,23 @@ internal sealed class ApplicationUpdater
                 if (!File.Exists(Path.Combine(stage, "AvaMedia.Desktop.exe"))) throw new InvalidDataException("安装包缺少应用程序。");
             }
             else if (kind == "mac") await PrepareMacAsync(package, stage, result.LatestVersion!, ct);
+            candidate = new(package, target, stage, target + ".update-backup-" + id, kind,
+                result.LatestVersion!.ToString(3), asset.Size, asset.Sha256, automatic);
+            SavePrepared(candidate);
             lock (_stateGate)
             {
-                ct.ThrowIfCancellationRequested();
-                _preparedAutomatically = automatic;
-                _pending = new(package, target, stage, target + ".update-backup-" + id, kind);
+                // Keep verified downloads even if helper startup fails or the application exits now.
+                _pending = candidate; _preparedAutomatically = automatic;
                 work = stage = null;
-                ReportProgress(new(UpdatePhase.Ready, asset.Size, asset.Size));
             }
+            await EnsureInstallerAsync(candidate, ct);
+            ct.ThrowIfCancellationRequested();
+            ArmInstaller(candidate);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            if (candidate is not null && !_lifetime.IsCancellationRequested)
+                lock (_stateGate) { if (_pending?.Package == candidate.Package) DiscardPrepared(); }
             ReportProgress(new(UpdatePhase.Idle));
             throw;
         }
@@ -225,10 +255,22 @@ internal sealed class ApplicationUpdater
         }
         finally
         {
-            if (stage is not null) DeleteDirectory(stage);
-            if (work is not null) DeleteDirectory(work);
-            _activeDownload = null;
-            _gate.Release();
+            try
+            {
+                if (work is not null && candidate is not null)
+                {
+                    File.WriteAllText(Marker(candidate, "cancel"), "");
+                    await CleanupCancelledAsync(candidate);
+                    work = stage = null;
+                }
+                if (stage is not null) DeleteDirectory(stage);
+                if (work is not null) DeleteDirectory(work);
+            }
+            finally
+            {
+                _activeDownload = null; _gate.Release();
+                if (candidate is not null && _pending?.Package == candidate.Package) MonitorInstaller(candidate);
+            }
         }
     }
     private static async Task PrepareMacAsync(string package, string stage, Version version, CancellationToken ct)
@@ -267,35 +309,16 @@ internal sealed class ApplicationUpdater
     private void DiscardPrepared()
     {
         if (_pending is not { } update) return;
-        _pending = null; DeleteDirectory(update.Stage); DeleteDirectory(Path.GetDirectoryName(update.Package)!);
+        File.WriteAllText(Marker(update, "cancel"), "");
+        _pending = null;
+        _ = CleanupCancelledAsync(update);
         ReportProgress(new(UpdatePhase.Idle));
     }
 
-    public void InstallOnExit()
+    public void Shutdown()
     {
-        PreparedUpdate? update;
-        lock (_stateGate) { _exiting = true; _lifetime.Cancel(); update = _pending; }
-        if (update is null) return;
-        try
-        {
-            var windows = OperatingSystem.IsWindows();
-            var resource = "AvaMedia.Desktop.Updates." + (windows ? "Install.ps1" : "Install.sh");
-            var helper = Path.Combine(Path.GetDirectoryName(update.Package)!, windows ? "install.ps1" : "install.sh");
-            using (var input = typeof(ApplicationUpdater).Assembly.GetManifestResourceStream(resource)!)
-            using (var reader = new StreamReader(input))
-                File.WriteAllText(helper, reader.ReadToEnd(), new System.Text.UTF8Encoding(windows));
-            var start = new ProcessStartInfo(windows ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe") : "/bin/sh")
-            { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(helper)! };
-            if (windows)
-                foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File" }) start.ArgumentList.Add(arg);
-            foreach (var arg in new[] { helper, Environment.ProcessId.ToString(), update.Kind, update.Package, update.Target, update.Stage, update.Backup, ErrorPath })
-                start.ArgumentList.Add(arg);
-            using var process = Process.Start(start) ?? throw new IOException("无法启动更新安装程序。");
-        }
-        catch (Exception ex)
-        {
-            try { Directory.CreateDirectory(Root); File.WriteAllText(ErrorPath, ex.Message); }
-            catch (Exception logError) { Trace.TraceWarning("更新安装未能启动：{0}; {1}", ex.Message, logError.Message); }
-        }
+        lock (_stateGate) _exiting = true;
+        _lifetime.Cancel();
+        // Installation runs in its own process, with durable state, and survives this lifetime.
     }
 }

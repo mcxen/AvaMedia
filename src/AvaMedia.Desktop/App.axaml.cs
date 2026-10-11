@@ -52,6 +52,11 @@ public sealed partial class App : Application
         {
             desktop.Exit += (_, _) => LocalSummaryModel.Shutdown();
             var args = desktop.Args ?? [];
+            if (!args.Contains("--capture") && !args.Contains(SetupPreviewExporter.Argument) && !args.Contains("--player-benchmark"))
+            {
+                desktop.Exit += (_, _) => ApplicationUpdater.Shared.Shutdown();
+                _ = Task.Run(() => ApplicationUpdater.Shared.RestorePreparedAsync(StartupSettings ?? new Storage().LoadSettings()));
+            }
             if (args.Contains("--mcp-background") || args.Contains("--server"))
             {
                 StartMcpBackground(desktop, args);
@@ -72,7 +77,6 @@ public sealed partial class App : Application
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
-            if (!args.Contains("--capture")) desktop.Exit += (_, _) => ApplicationUpdater.Shared.InstallOnExit();
             if (args.Contains("--ai-tags"))
             {
                 StartMediaAi(desktop, args);

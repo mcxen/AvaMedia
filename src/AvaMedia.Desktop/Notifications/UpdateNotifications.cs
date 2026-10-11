@@ -60,8 +60,16 @@ internal static class UpdateNotifications
             }
             else if (updater.IsPrepared)
             {
-                title = "更新已准备好"; body = "更新已准备好，将在退出应用时安装。"; kind = NotificationKind.Success;
-                actions.Add(new("退出并安装", ExitAsync, Primary: true, Enabled: CanExit));
+                if (progress.Phase == UpdatePhase.Failed)
+                {
+                    title = "更新安装失败"; body = progress.Error ?? "更新失败"; kind = NotificationKind.Error;
+                    actions.Add(new("重试安装", updater.RetryInstallerAsync, Primary: true));
+                }
+                else
+                {
+                    title = "更新已准备好"; body = "更新已准备好，将在退出应用时安装。"; kind = NotificationKind.Success;
+                    actions.Add(new("退出并安装", ExitAsync, Primary: true, Enabled: CanExit));
+                }
             }
             else
             {
@@ -85,7 +93,8 @@ internal static class UpdateNotifications
         finally { _downloading = false; Refresh(); }
     }
     private static bool CanExit() => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-        && ApplicationUpdater.Shared.IsPrepared && (desktop.MainWindow is not MainWindow main || main.CanExitForUpdate);
+        && ApplicationUpdater.Shared.IsPrepared && ApplicationUpdater.Shared.Progress.Phase == UpdatePhase.Ready
+        && (desktop.MainWindow is not MainWindow main || main.CanExitForUpdate);
     private static Task ExitAsync()
     {
         if (!CanExit()) return Task.CompletedTask;
