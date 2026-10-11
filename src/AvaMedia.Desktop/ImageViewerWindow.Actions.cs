@@ -49,6 +49,7 @@ public sealed partial class ImageViewerWindow
         if (entry.InArchive) throw new InvalidOperationException("压缩包中的图片请解压后整理。");
         if (!await Ui.Confirm(this, "移到回收站", entry.Name, "移到回收站")) return;
         await new RecycleBin().MoveAsync(entry.Container, _lifetime.Token);
+        _removedEntries.Add(entry.Identity);
         _preferences.Bookmarks = _preferences.Bookmarks.Where(item => item.Identity != entry.Identity).ToArray(); SavePreferences();
         _entries = _entries.Where(item => item.Identity != entry.Identity).ToArray(); RenderFiles();
         if (_entries.Length > 0) await LoadAsync(Math.Min(_index, _entries.Length - 1));

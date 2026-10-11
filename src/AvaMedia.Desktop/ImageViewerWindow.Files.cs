@@ -28,6 +28,7 @@ public sealed partial class ImageViewerWindow
             var mapping = new RenameItem(entry.Container, destination, source.Length, source.LastWriteTimeUtc);
             // File.Move leaves the source untouched if the destination cannot be written.
             await Task.Run(() => File.Move(entry.Container, destination, overwrite: false), _lifetime.Token);
+            _removedEntries.Add(entry.Identity);
             Moved?.Invoke([mapping]);
             _preferences.Bookmarks = _preferences.Bookmarks.Select(item => item.Identity == entry.Identity
                 ? new ImageViewerEntry(destination, Bytes: entry.Bytes) : item).ToArray(); SavePreferences();

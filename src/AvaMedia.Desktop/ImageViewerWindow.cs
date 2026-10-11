@@ -43,6 +43,7 @@ public sealed partial class ImageViewerWindow : Window
     private CancellationTokenSource? _loading, _opening;
     private string[] _sources = [];
     private ImageViewerEntry[] _entries = [];
+    private readonly HashSet<string> _removedEntries = new(BatchRename.PathComparer);
     private ImageViewerDocument? _document, _secondDocument;
     private readonly List<Bitmap> _bitmaps = [];
     private Bitmap? _secondBitmap;

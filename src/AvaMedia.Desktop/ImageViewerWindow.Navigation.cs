@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
@@ -33,24 +34,92 @@ public sealed partial class ImageViewerWindow
         var paths = inputs.Where(path => File.Exists(path) || Directory.Exists(path)).Select(Path.GetFullPath).ToArray();
         if (paths.Length == 0) return;
         var generation = ++_openGeneration; _opening?.Cancel(); _loading?.Cancel();
+        _sources = paths; _removedEntries.Clear(); _showBookmarks = false;
+        var sources = paths;
+        if (paths.Length == 1 && File.Exists(paths[0]) && !ImageViewerSource.IsArchive(paths[0]))
+        { selected ??= paths[0]; sources = [Path.GetDirectoryName(paths[0])!]; }
+        var first = selected is not null && ImageFormats.Supports(selected) && File.Exists(selected)
+            ? Path.GetFullPath(selected) : paths.FirstOrDefault(path => ImageFormats.Supports(path) && File.Exists(path));
+        if (first is not null)
+        {
+            // Decode the requested image before directory enumeration or library thumbnails compete for I/O.
+            _entries = [new(first, Bytes: new FileInfo(first).Length)]; _index = -1;
+            _bindingFiles = true; _files.ItemsSource = null; _bindingFiles = false;
+            await LoadAsync(0);
+            if (_closed || generation != _openGeneration) return;
+            RememberSources(paths); RenderFiles();
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_closed && generation == _openGeneration)
+                    _ = ReadFileListAsync(sources, selected, generation, preserveImage: true);
+            }, DispatcherPriority.Background);
+        }
+        else
+        {
+            _status.Text = Localization.Text("读取图片列表…");
+            await ReadFileListAsync(sources, selected, generation, preserveImage: false);
+        }
+    }
+    private void RememberSources(string[] paths)
+    {
+        _preferences.Recent = paths.Concat(_preferences.Recent).Distinct(BatchRename.PathComparer).Take(12).ToArray(); SavePreferences();
+    }
+    private async Task ReadFileListAsync(string[] sources, string? selected, int generation, bool preserveImage)
+    {
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _opening = operation;
-        _status.Text = Localization.Text("读取图片列表…");
+        int? adjacentGeneration = null;
         try
         {
-            var sources = paths;
-            if (paths.Length == 1 && File.Exists(paths[0]) && !ImageViewerSource.IsArchive(paths[0]))
-            { selected ??= paths[0]; sources = [Path.GetDirectoryName(paths[0])!]; }
             var entries = await ImageViewerSource.ListAsync(sources, _recursive.IsChecked == true, operation.Token);
+            operation.Token.ThrowIfCancellationRequested();
             if (_closed || generation != _openGeneration) return;
-            _sources = paths; _entries = entries; _index = -1; _showBookmarks = false;
-            _preferences.Recent = paths.Concat(_preferences.Recent).Distinct(BatchRename.PathComparer).Take(12).ToArray(); SavePreferences();
-            RenderFiles();
-            var index = selected is null ? 0 : Array.FindIndex(entries,
-                entry => BatchRename.PathComparer.Equals(entry.Container, selected) || entry.Member == selected);
-            if (entries.Length > 0) await LoadAsync(Math.Max(0, index));
-            else { ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; _status.Text = ""; }
+            entries = entries.Where(entry => !_removedEntries.Contains(entry.Identity)).ToArray();
+            var current = preserveImage ? CurrentEntry : null;
+            var index = current is null ? -1 : Array.FindIndex(entries,
+                entry => BatchRename.PathComparer.Equals(entry.Identity, current.Identity));
+            if (current is not null && index < 0)
+            { index = entries.Length; entries = [.. entries, current]; }
+            _entries = entries; _index = index;
+            if (current is not null)
+            {
+                // Remap the selection by identity without decoding again or resetting the viewport.
+                RenderFiles(); RefreshStatus(); RefreshBookmark();
+                if (_document is not null && _entries[_index].Bytes != current.Bytes) RenderMetadata(_entries[_index], _document);
+                if (_spread.IsChecked == true && _document is not null && _loading is null
+                    && _secondDocument is null && _index + 1 < entries.Length)
+                {
+                    // The adjacent page becomes available only after the list has arrived.
+                    adjacentGeneration = _loadGeneration; _loading = operation;
+                    var second = await ImageCodec.DecodeAsync(entries[_index + 1], operation.Token);
+                    operation.Token.ThrowIfCancellationRequested();
+                    if (_closed || generation != _openGeneration || adjacentGeneration != _loadGeneration) return;
+                    using var stream = new MemoryStream(second.Frames[0].Png);
+                    _secondBitmap = new Bitmap(stream); _secondDocument = second;
+                    _animation.Stop(); _animationButton.IsVisible = false; SetViewportFrame(); RefreshStatus();
+                }
+            }
+            else
+            {
+                RememberSources(_sources);
+                index = selected is null ? 0 : Array.FindIndex(entries,
+                    entry => BatchRename.PathComparer.Equals(entry.Container, selected) || entry.Member == selected);
+                if (entries.Length > 0) await LoadAsync(Math.Max(0, index));
+                else { ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; _status.Text = ""; }
+                if (!_closed && generation == _openGeneration) RenderFiles();
+            }
         }
-        finally { if (ReferenceEquals(_opening, operation)) _opening = null; }
+        catch (OperationCanceledException) { }
+        catch (Exception error)
+        {
+            if (_closed || generation != _openGeneration || adjacentGeneration is not null && adjacentGeneration != _loadGeneration) return;
+            if (!preserveImage) throw;
+            _status.Text = (CurrentEntry?.Name ?? "") + " · " + error.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_opening, operation)) _opening = null;
+            if (ReferenceEquals(_loading, operation)) _loading = null;
+        }
     }
     private async Task LoadAsync(int index)
     {
@@ -61,12 +130,16 @@ public sealed partial class ImageViewerWindow
         _empty.Text = Localization.Text("加载图片…"); _empty.IsVisible = true;
         _bindingFiles = true; _files.SelectedItem = _entries[index]; _bindingFiles = false;
         var entry = _entries[index]; _status.Text = entry.Name;
+        var secondEntry = _spread.IsChecked == true && index + 1 < _entries.Length ? _entries[index + 1] : null;
         try
         {
             var document = await ImageCodec.DecodeAsync(entry, operation.Token);
+            operation.Token.ThrowIfCancellationRequested();
+            if (_closed || generation != _loadGeneration) return;
+            if (secondEntry is null && _spread.IsChecked == true && _index + 1 < _entries.Length)
+                secondEntry = _entries[_index + 1];
             ImageViewerDocument? second = null;
-            if (_spread.IsChecked == true && index + 1 < _entries.Length)
-                second = await ImageCodec.DecodeAsync(_entries[index + 1], operation.Token);
+            if (secondEntry is not null) second = await ImageCodec.DecodeAsync(secondEntry, operation.Token);
             operation.Token.ThrowIfCancellationRequested();
             if (_closed || generation != _loadGeneration) return;
             _document = document; _secondDocument = second; _loadedModified = File.GetLastWriteTimeUtc(entry.Container);
