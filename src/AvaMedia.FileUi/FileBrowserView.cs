@@ -21,7 +21,8 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private readonly Func<string, string> _text;
     private readonly FileTreeView _places;
     private readonly ListBox _entries = new();
-    private readonly TextBox _address = new(), _search = new();
+    private readonly PathInput _address = new();
+    private readonly TextBox _search = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _selectionCount = new();
     private readonly ComboBox _types = new() { MinWidth = 140, MaxWidth = 300 };
@@ -128,7 +129,10 @@ public sealed class FileBrowserView : UserControl, IDisposable
             _loading = false; Filter();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Exception error) { if (!token.IsCancellationRequested) ShowError(error); }
+        catch (Exception error)
+        {
+            if (!token.IsCancellationRequested) { RestoreAddress(); ShowError(error); }
+        }
         finally
         {
             if (!_disposed && ReferenceEquals(_navigation, work)) { _loading = false; _entries.IsEnabled = true; UpdateSelection(); }
@@ -143,10 +147,12 @@ public sealed class FileBrowserView : UserControl, IDisposable
             if (_disposed) return;
             if (item is { IsFolder: true } folder) await NavigateAsync(folder);
             else if (!_options.Folders && item is { IsFolder: false } file && Matches(file.Name)) Selected?.Invoke([file]);
-            else _status.Text = _text("找不到可选择的文件或文件夹。");
+            else { RestoreAddress(); _status.Text = _text("找不到可选择的文件或文件夹。"); }
         }
-        catch (Exception error) { ShowError(error); }
+        catch (Exception error) { RestoreAddress(); ShowError(error); }
     }
+
+    private void RestoreAddress() => _address.Text = _directory is { } directory ? _source.DisplayAddress(directory.Folder) : "";
 
     private async Task OpenSelectionAsync()
     {

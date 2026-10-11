@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using AvaMedia.FileUi;
 
 namespace AvaMedia.Browser;
 
@@ -111,7 +112,7 @@ public sealed partial class ConsoleView
         _detail.Children.Add(new Expander { Header = $"输入文件（{index}）", Content = inputs });
         if (task.Text("output").Length > 0 && task.Text("state") is "Completed" or "Failed" or "Cancelled")
         {
-            _detail.Children.Add(Label("输出 · " + task.Text("output")));
+            _detail.Children.Add(PathLabel(task.Text("output"), "输出 · "));
             if (payload.Flag("outputIsDirectory")) _detail.Children.Add(Action("浏览输出目录", async () =>
             { var folder = await _source.ResolveAsync(task.Text("output"), CancellationToken.None); if (folder is { IsFolder: true } directory) { await _files.NavigateAsync(directory); _tabs.SelectedIndex = 0; } }));
             else _detail.Children.Add(FileActions(id, task.Text("output"), "output", 0));
@@ -130,7 +131,7 @@ public sealed partial class ConsoleView
         else _detail.Children.Add(Label("结果尚未生成，完成后刷新查看。"));
         if (task.Text("featureId") == "folder-classification" && task.Text("state") is "Completed" or "Failed" or "Cancelled")
         {
-            var destination = new TextBox { Text = _output.Text }; Field(_detail, "分类复制目标目录", destination);
+            var destination = new PathInput { Text = _output.Text }; Field(_detail, "分类复制目标目录", destination);
             _detail.Children.Add(Action("预览分类文件夹", async () =>
             {
                 _organization = await RemoteApi.Call("preview_organization", new() { ["taskId"] = id, ["outputFolder"] = destination.Text?.Trim() });
@@ -139,8 +140,8 @@ public sealed partial class ConsoleView
                 _detail.Children.Add(Label($"将复制 {plan.Length} 个文件，保留源文件。"));
                 foreach (var file in plan.Take(100))
                 {
-                    _detail.Children.Add(Label(file.Text("source") + " → " + file.Text("target")));
-                    if (file.Text("reportPath").Length > 0) _detail.Children.Add(Label("标签报告：" + file.Text("reportPath")));
+                    _detail.Children.Add(PathLabel(file.Text("target"), PathInput.ShortName(file.Text("source")) + " → "));
+                    if (file.Text("reportPath").Length > 0) _detail.Children.Add(PathLabel(file.Text("reportPath"), "标签报告："));
                 }
                 if (plan.Length > 100) _detail.Children.Add(Label($"另有 {plan.Length - 100} 项，完整目标见预览数据。"));
                 _detail.Children.Add(new Expander { Header = "完整预览数据", Content = ReadOnly(_organization.ToJsonString(new JsonSerializerOptions { WriteIndented = true })) });
@@ -165,6 +166,12 @@ public sealed partial class ConsoleView
         return Actions(Label(path.Split('/', '\\').Last()), Action("预览文件", () => { BrowserHost.Open(url); return Task.CompletedTask; }),
             Action("下载文件", () => { BrowserHost.Open(url + "&download=true"); return Task.CompletedTask; }));
     }
+    private static Control PathLabel(string path, string prefix = "")
+    {
+        var label = Label(prefix + PathInput.ShortName(path));
+        label.TextWrapping = TextWrapping.NoWrap; label.TextTrimming = TextTrimming.CharacterEllipsis;
+        ToolTip.SetTip(label, path); return label;
+    }
     private static TextBox ReadOnly(string text) => new() { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 400 };
     private static Control RenderResult(JsonNode? node, ref int budget, int depth = 0)
     {
@@ -181,7 +188,9 @@ public sealed partial class ConsoleView
             {
                 if (budget < 0) break;
                 if (value is null || key == "nsfw") continue;
-                if (value is JsonValue) panel.Children.Add(Label(ResultLabels.GetValueOrDefault(key, key) + "：" + value));
+                if (value is JsonValue) panel.Children.Add(key is "path" or "output" or "source" or "target" or "reportPath"
+                    ? PathLabel(value.ToString(), ResultLabels.GetValueOrDefault(key, key) + "：")
+                    : Label(ResultLabels.GetValueOrDefault(key, key) + "：" + value));
                 else panel.Children.Add(new Expander { Header = ResultLabels.GetValueOrDefault(key, key), IsExpanded = depth < 1, Content = RenderResult(value, ref budget, depth + 1) });
             }
         }

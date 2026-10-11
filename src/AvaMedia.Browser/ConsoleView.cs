@@ -19,7 +19,8 @@ public sealed partial class ConsoleView : UserControl
     private readonly TabControl _tabs = new();
     private readonly StackPanel _form = new() { Spacing = 9, Margin = new(12) };
     private readonly ComboBox _feature = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly TextBox _output = new(), _extra = new() { Text = "{}", AcceptsReturn = true, MinHeight = 70 };
+    private readonly PathInput _output = new();
+    private readonly TextBox _extra = new() { Text = "{}", AcceptsReturn = true, MinHeight = 70 };
     private readonly TextBox _urls = new() { AcceptsReturn = true, MinHeight = 60 };
     private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 120, Value = 8 },
         _threshold = new() { Minimum = 0, Maximum = 1, Increment = .05m, Value = .5m };

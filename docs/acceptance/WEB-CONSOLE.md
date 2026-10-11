@@ -27,3 +27,16 @@
 - 服务器页显示真实资源策略和版本。浏览器脚本错误为 0。该验收覆盖同机浏览器和客户端，未使用第二台设备验证跨机访问，也不代表无桌面会话服务器或其它操作系统已验收。
 
 证据位于 `artifacts/web-console-e2e-20261011/browser/avalonia/acceptance.json`、`classification-copy.png` 和 `../avalonia-copy.json`。Browser 发布通过，Avalonia DesignerSupport 依赖产生上游裁剪警告；Desktop Release 构建 0 警告、0 错误。
+
+## 紧凑路径与真实任务复验（2026-10-11）
+
+按用户再次要求，使用真实 Chrome 操作 Avalonia 控件，完成以下流程。任务创建、暂停、恢复、停止、重试、预览和下载均由网页按钮触发；任务接口只用于读取状态和结果证据。
+
+- Downloads 文件树选择测试目录中的 `sample.mp4`，下发自动标签与 NSFW 识别任务 `adffd132-c60c-4de2-8bee-6a2e52cf6926`；等待时暂停、恢复后完成。真实推理 4 帧，JoyTag / marqo-nsfw 后端为 Core ML / CPU，网页显示平均 17.9%、最高 18.4%、阈值 50.0% 和逐帧分数。这证明调用与展示流程通过，不代表模型准确率验收。
+- 转换任务 `ce389e71-70bc-4dcc-99a3-9009c2151f58` 设置 2 秒、宽 320。服务器接收后主动丢弃一次响应；刷新网页恢复提交，保持同一任务 ID，未创建重复项。再通过网页停止、重试，最终完成。
+- 点击输出预览后浏览器实际播放，读取时长 2 秒、尺寸 320×427，并确认播放时间前进。网页下载与服务器输出 SHA256 均为 `7f86fd43645729386d32c4bbf65d75efa758b95969739dc1a070d0bdea59b2de`。
+- 复查分类结果与复制预览：源路径、目标目录、标签报告都默认短显示，完整预览数据仍可展开。此次未再次复制已验证的分类文件。
+- 无效目录测试发现地址栏与保留列表不一致，已修复并复验；编辑路径后按 Esc 恢复原地址，Enter 继续导航原目录。1440×1100 与 563×748 下默认路径紧凑，任务与服务器页可查看。
+- 最终队列 11 项，无等待、运行、暂停或停止中的任务。源文件 SHA256 仍为 `b9903334b68d940f8e56f48d1560a21f4e320dc0b13b9298492341297454c1ec`。无未处理浏览器脚本异常；故障注入产生的一次 `ERR_FAILED` 是预期结果。验收工具曾在等待错误的下载事件时超时，重新连接后完成实际播放和下载核验。
+
+新增证据位于 `artifacts/web-console-e2e-20261011/browser/expanded-e2e/`：`acceptance.json`、`nsfw-result.json`、`nsfw-completed.png`、`classification-compact-preview.png`、`conversion-completed.png`、`compact-narrow.png` 及实际下载文件。本轮仍为同机浏览器验收，未覆盖跨设备访问、其它操作系统或全部工具回归。

@@ -12,7 +12,7 @@ public sealed partial class ConsoleView
     {
         _server.Children.Clear();
         _server.Children.Add(Label("服务器 · " + _runtime.Text("platform") + " · v" + _runtime.Text("version")));
-        _server.Children.Add(Label("输出目录 · " + _runtime.Text("outputFolder")));
+        _server.Children.Add(PathLabel(_runtime.Text("outputFolder"), "输出目录 · "));
         _server.Children.Add(Label(_runtime.Flag("background") ? "后台服务运行中" : "桌面客户端服务运行中"));
         _server.Children.Add(Label("NSFW 内容识别 · " + (_runtime.Flag("nsfwEnabled") ? "已开启" : "已关闭")));
         var resources = _runtime?["resources"];
