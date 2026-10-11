@@ -14,11 +14,6 @@ internal static class Program
         var previewExport = args.Contains(SetupPreviewExporter.Argument);
         var mcpBackground = args.Contains("--mcp-background");
         if (!args.Contains("--capture") && !previewExport && !mcpBackground) FirstRunSetup.TryApplyPending();
-        if (OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe")) && !args.Contains("--capture") && !previewExport && !mcpBackground)
-        {
-            try { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); }
-            catch (Exception error) { AppDiagnostics.Record("Player registration", error); }
-        }
         try { return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         catch (Exception error)
         {

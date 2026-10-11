@@ -32,14 +32,17 @@ public partial class MainWindow : Window
     internal event Action? JobDisplayChanged;
     internal event Action<bool>? JobPresentationChanged;
     internal bool IsQueuePresentationVisible => IsVisible && WindowState != WindowState.Minimized && !_closing;
-    public MainWindow() : this(new Storage()) { }
-    public MainWindow(Storage storage, IMediaEngine? engine=null, IAppOptionsServices? optionServices=null)
+    public MainWindow() : this(new Storage(), loadedSettings: App.StartupSettings) { }
+    public MainWindow(Storage storage, IMediaEngine? engine=null, IAppOptionsServices? optionServices=null, AppSettings? loadedSettings=null)
     {
         _optionServices=optionServices??new AppOptionsServices();
-        _storage=storage??new();InitializeComponent();_settings=_storage.LoadSettings();Localization.Apply(_settings.Language);Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
+        _storage=storage??new();
+        var savedJobs = Task.Run(_storage.LoadJobs);
+        InitializeComponent();_settings=loadedSettings??_storage.LoadSettings();Localization.Apply(_settings.Language);Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
         UpdateLanguageMenu();Localization.Changed+=LanguageChanged;
         Closed+=(_,_)=>Localization.Changed-=LanguageChanged;
-        _jobs=new(_storage.LoadJobs());
+        // Read alongside window initialization, but restore before any queue service can run or save.
+        _jobs=new(savedJobs.GetAwaiter().GetResult());
         InitializeMcp();
         InitializeTaskManagement();
         InitializeOptions();

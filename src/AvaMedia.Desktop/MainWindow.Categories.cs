@@ -246,7 +246,7 @@ public partial class MainWindow
         foreach (var view in _categoryViews.Values)
         {
             foreach (var group in view.Groups)
-                if (group.Title.Length > 0) group.Header.SetTitle(Localization.Text(group.Title));
+                if (group.Header is { } groupHeader) groupHeader.SetTitle(Localization.Text(group.Title));
             foreach (var (id, cell) in view.Cells)
             {
                 if (!_featureLabels.TryGetValue(cell.Button, out var label)) continue;

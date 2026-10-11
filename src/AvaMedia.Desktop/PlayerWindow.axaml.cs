@@ -58,12 +58,12 @@ public partial class PlayerWindow : Window
     public Task FirstFrameReady => _firstFrame.Task;
 
     public PlayerWindow() : this(new MediaEngine(new())) { }
-    public PlayerWindow(IMediaEngine engine, IEnumerable<string>? files = null, Func<IMediaEngine, string, IPlaybackSession>? factory = null, IVideoFolderScanner? folderScanner = null, IRecycleBin? recycleBin = null, Storage? preferences = null)
+    public PlayerWindow(IMediaEngine engine, IEnumerable<string>? files = null, Func<IMediaEngine, string, IPlaybackSession>? factory = null, IVideoFolderScanner? folderScanner = null, IRecycleBin? recycleBin = null, Storage? preferences = null, AppSettings? loadedSettings = null)
     {
         InitializeComponent(); _videoView = new(VideoImage); _engine = engine; _factory = factory ?? ((e, p) => new Playback(e, p) { MaximumVideoSize = new(4096, 2160) });
         _folderScanner = folderScanner ?? new VideoFolderScanner();
         _recycleBin = recycleBin ?? new RecycleBin(); _preferences = preferences ?? new Storage();
-        var playerSettings = _preferences.LoadSettings(); ConfirmDeletion = playerSettings.ConfirmPlayerDeletion;
+        var playerSettings = loadedSettings ?? _preferences.LoadSettings(); ConfirmDeletion = playerSettings.ConfirmPlayerDeletion;
         _preferNative = factory is null && playerSettings.PlayerNativeHighResolution; _nativeSdr = playerSettings.PlayerNativeSdr;
         Localization.Changed += LanguageChanged;
         SetFiles(files ?? []);

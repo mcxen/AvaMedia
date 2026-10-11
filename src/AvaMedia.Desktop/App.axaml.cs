@@ -11,6 +11,21 @@ namespace AvaMedia.Desktop;
 public sealed partial class App : Application
 {
     private MainWindow? _mcpBackgroundWindow;
+    internal static AppSettings? StartupSettings { get; private set; }
+    internal static void ScheduleInstalledPlayerRegistration()
+    {
+        if (!OperatingSystem.IsWindows() || !File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe"))) return;
+        var executable = SystemPlayerIntegration.ExecutablePath;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (OperatingSystem.IsWindows() && SystemPlayerIntegration.NeedsWindowsRegistration(executable))
+                    SystemPlayerIntegration.RegisterWindows(executable);
+            }
+            catch (Exception error) { AppDiagnostics.Record("Player registration", error); }
+        });
+    }
     public override void Initialize()
     {
         Avalonia.Controls.ToolTip.ToolTipOpeningEvent.AddClassHandler<Avalonia.Controls.TextBlock>((text, args) =>
@@ -20,7 +35,10 @@ public sealed partial class App : Application
                 && (tip == text.Text || Path.IsPathFullyQualified(tip))
                 && !text.TextLayout.TextLines.Any(line => line.HasCollapsed)) args.Cancel = true;
         });
-        Localization.Apply(Environment.GetCommandLineArgs().Contains(SetupPreviewExporter.Argument) ? "zh-CN" : new Storage().LoadSettings().Language);
+        var startupArguments = Environment.GetCommandLineArgs();
+        var startupSettings = startupArguments.Contains(SetupPreviewExporter.Argument) ? new AppSettings { Language = "zh-CN" } : new Storage().LoadSettings();
+        StartupSettings = startupSettings;
+        Localization.Apply(startupSettings.Language);
         AvaloniaXamlLoader.Load(this);
         Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude((Uri?)null)
         { Source = new Uri("avares://AvaMedia.Desktop/Styles/ButtonIcons.axaml") });
@@ -61,20 +79,24 @@ public sealed partial class App : Application
             }
             if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
             {
-                var settings = new Storage().LoadSettings();
+                var settings = StartupSettings ?? new Storage().LoadSettings();
                 Localization.Apply(settings.Language);
                 Skin.Apply(args.Contains("--winxp") ? "WindowsXP" : args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : args.Contains("--light") ? "Light" : settings.Theme);
                 Motion.SetReducedMotion(settings.ReduceMotion);
                 var files = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal) && File.Exists(a)).ToArray();
                 var engine = new MediaEngine(settings);
-                var player = new PlayerWindow(engine, files);
+                var player = new PlayerWindow(engine, files, preferences: new Storage(), loadedSettings: settings);
                 desktop.MainWindow = player;
                 FirstRunSetup.AttachFailureNotice(player);
                 if (!args.Contains("--player-benchmark"))
                 {
                     var options = new AppOptionsServices();
                     var lifetime = new CancellationTokenSource();
-                    player.Opened += async (_, _) => await ApplicationUpdater.Shared.StartupAsync(player, settings, options.CheckUpdatesAsync, lifetime.Token);
+                    player.Opened += async (_, _) =>
+                    {
+                        ScheduleInstalledPlayerRegistration();
+                        await ApplicationUpdater.Shared.StartupAsync(player, settings, options.CheckUpdatesAsync, lifetime.Token);
+                    };
                     player.Closed += (_, _) => { lifetime.Cancel(); options.Dispose(); };
                 }
                 InitializeModelInstallation(desktop, player, args);
@@ -209,7 +231,7 @@ public sealed partial class App : Application
             if (player is null)
             {
                 var settings = new Storage().LoadSettings();
-                player = new PlayerWindow(new MediaEngine(settings), paths);
+                player = new PlayerWindow(new MediaEngine(settings), paths, loadedSettings: settings);
                 player.Show();
             }
             else

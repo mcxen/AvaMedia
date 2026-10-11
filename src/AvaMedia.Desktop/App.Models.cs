@@ -16,7 +16,7 @@ public sealed partial class App
         {
             try
             {
-                if (!FirstRunSetup.Failed && new AvaMedia.Core.Storage().LoadSettings().AutoDownloadRepairModel)
+                if (!FirstRunSetup.Failed && (StartupSettings ?? new AvaMedia.Core.Storage().LoadSettings()).AutoDownloadRepairModel)
                     await ModelInstallation.StartAsync();
             }
             catch (Exception error) { AppDiagnostics.Record("Startup model installation", error); }

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using AvaMedia.Core;
 
@@ -44,6 +45,19 @@ public static class SystemPlayerIntegration
 
         void Set(string path, string name, string value)
         { using var key = root.CreateSubKey(path); key.SetValue(name, value); }
+    }
+
+    // Avoid rewriting associations when the player command and supported extensions are current.
+    [SupportedOSPlatform("windows")]
+    public static bool NeedsWindowsRegistration(string executable, RegistryKey? root = null)
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        root ??= Registry.CurrentUser;
+        var command = OpenCommand(Path.GetFullPath(executable));
+        using var open = root.OpenSubKey(@"Software\Classes\" + ProgId + @"\shell\open\command");
+        if (!string.Equals(open?.GetValue("")?.ToString(), command, StringComparison.OrdinalIgnoreCase)) return true;
+        using var associations = root.OpenSubKey(Capabilities + @"\FileAssociations");
+        return Extensions.Any(extension => !string.Equals(associations?.GetValue(extension)?.ToString(), ProgId, StringComparison.Ordinal));
     }
     public static void UnregisterWindows(string executable, RegistryKey? root = null)
     {
