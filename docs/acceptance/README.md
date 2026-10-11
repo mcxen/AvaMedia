@@ -19,6 +19,7 @@
 
 | 日期 | 记录 | 范围 |
 | --- | --- | --- |
+| 2026-10-11 | [天池看图打开速度](IMAGE-VIEWER-SPEED-20261011.md) | macOS 原生首帧、20,001 项目录、实际封面双击及静态显示帧压缩修复 |
 | 2026-10-09 | [四套外观检查](APPEARANCE-REVIEW.md) | macOS 原生窗口及渲染记录 |
 | 2026-10-09 | [视频操作界面重构](VIDEO-USABILITY.md) · [操作消融](VIDEO-USABILITY-ABLATION.md) | 字幕、AI 设置及结果交互 |
 | 2026-10-09 | [工具边界审查](MEDIA-EDGE-CASE-AUDIT.md) | 工具入口与源码静态审查，未执行媒体输出回归 |
