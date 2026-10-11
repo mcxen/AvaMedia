@@ -97,22 +97,22 @@ public sealed partial class ImageViewerWindow : Window
     }
     private void BuildInterface()
     {
-        ImageViewerToolbar.Configure(_slideshowButton, "play", "幻灯片");
+        ImageViewerToolbar.Configure(_slideshowButton, "play", "幻灯片", showLabel: true);
         ImageViewerToolbar.Configure(_bookmarkButton, "star", "收藏");
-        ImageViewerToolbar.Configure(_animationButton, "pause", "暂停动画");
-        ImageViewerToolbar.Configure(_spread, "spread", "双页");
+        ImageViewerToolbar.Configure(_animationButton, "pause", "暂停动画", showLabel: true);
+        ImageViewerToolbar.Configure(_spread, null, "双页");
         StableLayout.SetStatusLines(_status, 1);
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 6, Margin = new(8) };
-        AddToolbar("image", "打开…", PickAsync); AddToolbar("folder", "文件夹…", async () => { if (await Ui.Folder(this, "打开图片文件夹") is { } path) await OpenAsync([path]); });
+        AddToolbar(null, "打开文件", PickAsync); AddToolbar("folder", "文件夹…", async () => { if (await Ui.Folder(this, "打开图片文件夹") is { } path) await OpenAsync([path]); });
         _toolbar.Children.Add(ImageViewerToolbar.Divider());
-        AddToolbar("recent", "最近", ShowRecentAsync); AddToolbar("star", "收藏夹", () => { _showBookmarks = !_showBookmarks; RenderFiles(); return Task.CompletedTask; });
+        AddToolbar(null, "最近", ShowRecentAsync); AddToolbar(null, "收藏夹", () => { _showBookmarks = !_showBookmarks; RenderFiles(); return Task.CompletedTask; });
         _header.Children.Add(_toolbar);
         var viewTools = new StackPanel { Orientation = Orientation.Horizontal };
         viewTools.Children.Add(ImageViewerToolbar.Button("library", "图片列表", ToggleLibrary));
         viewTools.Children.Add(ImageViewerToolbar.Button("info", "信息", ToggleInfo));
         viewTools.Children.Add(ImageViewerToolbar.Button("fullscreen", "全屏", ToggleFullscreen));
         viewTools.Children.Add(ImageViewerToolbar.Divider());
-        ImageViewerToolbar.Configure(_fileActions, "more", "文件操作"); viewTools.Children.Add(_fileActions);
+        ImageViewerToolbar.Configure(_fileActions, null, "文件操作"); viewTools.Children.Add(_fileActions);
         _fileActions.Click += (_, _) => ShowFileActions();
         Grid.SetColumn(viewTools, 2); _header.Children.Add(viewTools); root.Children.Add(_header);
         _search.Watermark = Localization.Text("搜索图片"); Localization.SetIsUserText(_search, true);
@@ -139,10 +139,10 @@ public sealed partial class ImageViewerWindow : Window
         _navigation.Children.Add(ImageViewerToolbar.Divider());
         _navigation.Children.Add(_spread); _navigation.Children.Add(_bookmarkButton);
         _navigation.Children.Add(_animationButton); _navigation.Children.Add(_slideshowButton);
-        _navigation.Children.Add(ImageViewerToolbar.Button("settings", "播放设置", ShowPlaybackSettings));
+        _navigation.Children.Add(ImageViewerToolbar.Button(null, "播放设置", ShowPlaybackSettings));
         bottom.Children.Add(_navigation); bottom.Children.Add(_status); Grid.SetRow(bottom, 2); root.Children.Add(bottom); Content = root;
     }
-    private void AddToolbar(string kind, string label, Func<Task> action)
+    private void AddToolbar(string? kind, string label, Func<Task> action)
     {
         _toolbar.Children.Add(ImageViewerToolbar.Button(kind, label, async () => await GuardAsync(action)));
     }
@@ -174,7 +174,7 @@ public sealed partial class ImageViewerWindow : Window
                 if (_document is { LoopCount: > 0 } doc && _loops >= doc.LoopCount) { _loops = _frame = 0; SetViewportFrame(); }
                 ScheduleFrame();
             }
-            ImageViewerToolbar.SetAction(_animationButton, _animationPaused ? "play" : "pause", _animationPaused ? "播放动画" : "暂停动画");
+            ImageViewerToolbar.SetAction(_animationButton, _animationPaused ? "play" : "pause", _animationPaused ? "播放动画" : "暂停动画", showLabel: true);
         };
         _animation.Tick += (_, _) => AdvanceFrame();
         _slideshowButton.Click += (_, _) => ToggleSlideshow();

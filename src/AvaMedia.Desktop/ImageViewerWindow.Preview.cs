@@ -39,8 +39,8 @@ public sealed partial class ImageViewerWindow
             surface.Bind(BackgroundProperty, new DynamicResourceExtension("UiMediaSurface"));
             root.Children.Add(surface);
             _tools.HorizontalAlignment = HorizontalAlignment.Center;
-            Add("fit", "适应窗口", () => _viewport.Fit("fit"));
-            Add("actual", "原始尺寸", () => _viewport.Fit("actual"));
+            Add(null, "适应窗口", () => _viewport.Fit("fit"));
+            Add(null, "原始尺寸", () => _viewport.Fit("actual"));
             _tools.Children.Add(ImageViewerToolbar.Divider());
             Add("zoom-out", "缩小", () => _viewport.ZoomBy(1 / 1.2));
             Add("zoom-in", "放大", () => _viewport.ZoomBy(1.2));
@@ -58,7 +58,7 @@ public sealed partial class ImageViewerWindow
             KeyDown += PreviewKeyDown;
         }
 
-        private void Add(string kind, string label, Action action)
+        private void Add(string? kind, string label, Action action)
         {
             _tools.Children.Add(ImageViewerToolbar.Button(kind, label, action));
         }

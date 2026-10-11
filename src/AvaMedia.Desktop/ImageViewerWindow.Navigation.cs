@@ -149,7 +149,7 @@ public sealed partial class ImageViewerWindow
             _empty.IsVisible = false; Title = entry.Name + " — " + Localization.Text("天池看图");
             displayed = true;
             _animationButton.IsVisible = document.Animated && document.Frames.Length > 1;
-            ImageViewerToolbar.SetAction(_animationButton, "pause", "暂停动画");
+            ImageViewerToolbar.SetAction(_animationButton, "pause", "暂停动画", showLabel: true);
             RenderMetadata(entry, document); RefreshBookmark(); RefreshStatus(); ScheduleFrame();
             if (secondEntry is not null)
             {
@@ -238,7 +238,7 @@ public sealed partial class ImageViewerWindow
         {
             _loops++; _frame = 0;
             if (document.LoopCount > 0 && _loops >= document.LoopCount)
-            { _frame = _bitmaps.Count - 1; _animationPaused = true; ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画"); return; }
+            { _frame = _bitmaps.Count - 1; _animationPaused = true; ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画", showLabel: true); return; }
         }
         SetViewportFrame(); RefreshStatus(); ScheduleFrame();
     }
@@ -246,9 +246,9 @@ public sealed partial class ImageViewerWindow
     {
         if (_slideshow.IsEnabled) { StopSlideshow(); return; }
         if (_entries.Length == 0) return;
-        SetSlideshowInterval(); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片");
+        SetSlideshowInterval(); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片", showLabel: true);
     }
-    private void StopSlideshow() { _slideshow.Stop(); ImageViewerToolbar.SetAction(_slideshowButton, "play", "幻灯片"); }
+    private void StopSlideshow() { _slideshow.Stop(); ImageViewerToolbar.SetAction(_slideshowButton, "play", "幻灯片", showLabel: true); }
     private void SetSlideshowInterval() => _slideshow.Interval = TimeSpan.FromSeconds(_interval.SelectedIndex switch { 0 => 2, 2 => 10, 3 => 30, _ => 5 });
     private void RefreshStatus()
     {
@@ -325,7 +325,7 @@ public sealed partial class ImageViewerWindow
         if (command && e.Key == Key.D0) { StopSlideshow(); e.Handled = true; return; }
         if (command && e.Key >= Key.D1 && e.Key <= Key.D9)
         {
-            if (_entries.Length > 0) { _slideshow.Interval = TimeSpan.FromSeconds((int)e.Key - (int)Key.D0); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片"); }
+            if (_entries.Length > 0) { _slideshow.Interval = TimeSpan.FromSeconds((int)e.Key - (int)Key.D0); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片", showLabel: true); }
             e.Handled = true; return;
         }
         if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Alt)) { ToggleFullscreen(); e.Handled = true; return; }

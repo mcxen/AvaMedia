@@ -154,6 +154,6 @@ public sealed partial class ImageViewerWindow
     {
         if (_document is not { Frames.Length: > 1 } document) return;
         _animation.Stop(); _animationPaused = true; _frame = (_frame + direction + document.Frames.Length) % document.Frames.Length;
-        ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画"); SetViewportFrame(); RefreshStatus();
+        ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画", showLabel: true); SetViewportFrame(); RefreshStatus();
     }
 }
