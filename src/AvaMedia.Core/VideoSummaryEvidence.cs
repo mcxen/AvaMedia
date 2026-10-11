@@ -51,6 +51,8 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
     internal int RejectedClaims { get; private set; }
     internal IReadOnlyDictionary<string, VideoSummaryEvidence> Sources => _sources;
     private readonly Dictionary<string, bool> _reviews = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _noteIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string[]> _noteSources = new(StringComparer.Ordinal);
 
     internal static JsonDocument ParseResponse(string reply)
     {
@@ -90,9 +92,12 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
         var claim = item.Deserialize<VideoSummaryClaim>(JsonOptions);
         // Dropping only invalid IDs would make the remaining sources appear to support the entire claim.
         if (claim is null || string.IsNullOrWhiteSpace(claim.Text) || claim.Text.Length > maximumLength || claim.EvidenceIds is not { Length: > 0 and <= 8 }
-            || claim.EvidenceIds.Any(id => id is null || !_sources.ContainsKey(id)))
+            || claim.EvidenceIds.Any(id => id is null || !(_sources.ContainsKey(id) || _noteSources.ContainsKey(id))))
         { RejectedClaims++; return null; }
-        claim = claim with { Text = claim.Text.Trim(), EvidenceIds = claim.EvidenceIds.Distinct(StringComparer.Ordinal).ToArray() };
+        // A compressed note can cover more than eight subtitle cues. The model cites notes;
+        // expand their complete provenance before reviewing against the original evidence.
+        claim = claim with { Text = claim.Text.Trim(), EvidenceIds = claim.EvidenceIds
+            .SelectMany(id => _noteSources.TryGetValue(id, out var ids) ? ids : [id]).Distinct(StringComparer.Ordinal).ToArray() };
         if (!VideoSummaryEvidencePolicy.Allows(claim, _sources)) { RejectedClaims++; return null; }
         return claim;
     }
@@ -100,7 +105,7 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
     internal async Task<IReadOnlyList<VideoSummaryClaim>> GenerateAsync(string prompt, string context, int maximum, CancellationToken ct)
     {
         var json = await model.CompleteAsync(system, prompt +
-            "\n把相关内容归纳成完整表述，不逐句摘抄、不罗列零散对话。每条 text 携带 1–8 个必要的原始 evidenceIds；合并多句资料时引用支持各部分的编号。" +
+            "\n把相关内容归纳成完整表述，不逐句摘抄、不罗列零散对话。每条 text 的 evidenceIds 携带 1–8 个当前资料的 id；合并多条资料时引用支持各部分的编号。" +
             "不写编号、模型名或提示词本身。\n资料：\n" + context,
             ct, tokens: 1536, schema: ArraySchema("claims", maximum)).ConfigureAwait(false);
         using var document = ParseResponse(json);
@@ -112,11 +117,22 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
         .OrderBy(claim => claim.EvidenceIds.Select(id => _sources[id].Start).Min())
         .Select(claim => JsonSerializer.Serialize(new
         {
+            id = NoteId(claim),
             start = MediaTime.Format(claim.EvidenceIds.Select(id => _sources[id].Start).Min()),
             end = MediaTime.Format(claim.EvidenceIds.Select(id => _sources[id].End).Max()),
             kind = claim.EvidenceIds.Any(id => _sources[id].Kind == "transcript") ? "transcript" : "visual",
-            text = claim.Text, evidenceIds = claim.EvidenceIds
+            text = claim.Text
         }, JsonOptions)));
+
+    private string NoteId(VideoSummaryClaim claim)
+    {
+        var key = Key(claim);
+        if (_noteIds.TryGetValue(key, out var id)) return id;
+        id = $"N{_noteIds.Count + 1:000000}";
+        _noteIds.Add(key, id);
+        _noteSources.Add(id, claim.EvidenceIds);
+        return id;
+    }
 
     internal async Task<IReadOnlyList<VideoSummaryClaim>> ReviewAsync(IEnumerable<VideoSummaryClaim> candidates, CancellationToken ct)
     {

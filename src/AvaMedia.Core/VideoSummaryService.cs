@@ -326,7 +326,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         var structure = await textModel.CompleteAsync(system,
             "根据覆盖全片的段落笔记归纳具体内容并写成 JSON。keywords 为至多 8 个核心主题名词；highlights 为至多 5 条完整要点，概括主要过程、成果、观点或建议，每条不超过 60 字。" +
             (options.SummarizeContent ? "chapters 按时间推进和主要主题合并相邻笔记，覆盖开头、中段及结尾，至多 8 章；短视频通常只需 1–3 章。每章 title 为简短具体的主题，claims 用 1–2 条完整表述归纳该章发生了什么、如何推进及已说明的结果，合计不超过 100 字。" : "chapters 必须为空数组。") +
-            "keywords、highlights、章节 title 和每条 claims 都是 {text,evidenceIds} 对象，携带 1–8 个支持表述各部分的原始编号。" +
+            "keywords、highlights、章节 title 和每条 claims 都是 {text,evidenceIds} 对象，携带 1–8 个支持表述各部分的当前资料 id。" +
             "必须综合改写，不能逐句摘录台词、重复开头几句话或将画面物体清单当作主要内容。保留否定、条件与建议语气，不补写资料没有说明的结局。" +
             "不要生成时间戳、‘分析视频结构’等空泛章节或未提及的内容。" +
             "不添加 JSON 之外的文字。\n分析重点：" + options.Focus + "\n\n资料：\n" + context,
