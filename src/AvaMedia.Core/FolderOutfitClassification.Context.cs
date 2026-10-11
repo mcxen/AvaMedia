@@ -7,18 +7,55 @@ public static partial class FolderOutfitClassification
         if (left is null || right is null) return 0;
         var a = left.Appearance; var b = right.Appearance;
         var global = Dot(a.BackgroundEmbedding, b.BackgroundEmbedding);
-        var regionScore = 0d; var regionCount = 0;
-        for (var region = 0; region < 4; region++)
+        double Regions(double[] source, double[] target)
         {
-            var offset = region * 384;
-            var av = a.BackgroundRegions.AsSpan(offset, 384); var bv = b.BackgroundRegions.AsSpan(offset, 384);
-            var aa = 0d; var bb = 0d; var match = 0d;
-            for (var index = 0; index < 384; index++)
-            { aa += av[index] * av[index]; bb += bv[index] * bv[index]; match += av[index] * bv[index]; }
-            if (aa > 0 && bb > 0) { regionScore += Math.Clamp(match, 0, 1); regionCount++; }
+            var score = 0d; var count = 0;
+            for (var region = 0; region < 4; region++)
+            {
+                var av = source.AsSpan(region * 384, 384); var maximum = 0d; var available = false;
+                for (var other = 0; other < 4; other++)
+                {
+                    var bv = target.AsSpan(other * 384, 384); var aa = 0d; var bb = 0d; var match = 0d;
+                    for (var index = 0; index < 384; index++)
+                    { aa += av[index] * av[index]; bb += bv[index] * bv[index]; match += av[index] * bv[index]; }
+                    if (aa > 0 && bb > 0) { available = true; maximum = Math.Max(maximum, Math.Clamp(match, 0, 1)); }
+                }
+                if (available) { score += maximum; count++; }
+            }
+            return count == 0 ? global : score / count;
         }
-        var visual = regionCount == 0 ? global : .8 * global + .2 * regionScore / regionCount;
+        // Camera movement shifts the same background feature to another quadrant.
+        var visual = .8 * global + .2 * Math.Min(Regions(a.BackgroundRegions, b.BackgroundRegions), Regions(b.BackgroundRegions, a.BackgroundRegions));
         return .9 * visual + .1 * Dot(left.BackgroundPalette, right.BackgroundPalette);
+    }
+
+    private static Sample[] ContextViews(IEnumerable<Sample> samples, int maximum)
+    {
+        var candidates = samples.Where(sample => sample.Appearance.BackgroundEmbedding.Any(value => value != 0)).ToArray();
+        if (candidates.Length <= maximum) return candidates;
+        var selected = new List<Sample> { candidates.MaxBy(sample => candidates.Sum(other => Scene(sample, other)))! };
+        while (selected.Count < maximum)
+        {
+            var next = candidates.Except(selected).MinBy(sample => selected.Max(other => Scene(sample, other)));
+            if (next is null || selected.Max(other => Scene(next, other)) >= .98) break;
+            selected.Add(next);
+        }
+        return selected.ToArray();
+    }
+
+    private static double Scene(Sample sample, IReadOnlyList<Sample> views) => views.Count == 0 ? 0 : views.Max(view => Scene(sample, view));
+    private static double Scene(IReadOnlyList<Sample> left, IReadOnlyList<Sample> right)
+    {
+        if (left.Count == 0 || right.Count == 0) return 0;
+        // Two supported views when available, in both directions, rather than a lucky single-frame match.
+        var scores = new double[left.Count, right.Count];
+        for (var a = 0; a < left.Count; a++)
+            for (var b = 0; b < right.Count; b++) scores[a, b] = Scene(left[a], right[b]);
+        var forward = Enumerable.Range(0, left.Count).Select(a => Enumerable.Range(0, right.Count).Max(b => scores[a, b]))
+            .OrderDescending().Take(2).Average();
+        var reverse = Enumerable.Range(0, right.Count).Select(b => Enumerable.Range(0, left.Count).Max(a => scores[a, b]))
+            .OrderDescending().Take(2).Average();
+        return Math.Min(forward, reverse);
     }
 
     private static TimeSpan? CaptureGap(Profile left, Profile right)

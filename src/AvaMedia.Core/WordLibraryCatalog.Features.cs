@@ -28,7 +28,7 @@ public static partial class WordLibraryCatalog
             .GroupBy(entry => entry.Tag, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().Category, StringComparer.OrdinalIgnoreCase);
 
-    public static string TagCategory(string tag) => TagCategories.GetValueOrDefault(tag) ?? "其他标签";
+    public static string TagCategory(string tag) => TagCategories.GetValueOrDefault(tag) ?? OutfitVocabulary.Category(tag) ?? "其他标签";
 
     private static Dictionary<string, string> CreateTagLabels()
     {
