@@ -67,13 +67,19 @@ public static partial class FolderOutfitClassification
 
     // Both shoot grouping and garment grouping use the same complete-link clustering.
     // Every cross-group pair must agree, so a single transition frame cannot join unrelated groups.
-    private static List<List<T>> Cluster<T>(IEnumerable<T> values, Func<T, T, double> similarity, double threshold, CancellationToken ct)
+    private static List<List<T>> Cluster<T>(IEnumerable<T> values, Func<T, T, double> similarity, double threshold, CancellationToken ct) where T : notnull
     {
+        var pairs = new Dictionary<(T, T), double>();
+        double Score(T left, T right)
+        {
+            if (pairs.TryGetValue((left, right), out var score) || pairs.TryGetValue((right, left), out score)) return score;
+            return pairs[(left, right)] = similarity(left, right);
+        }
         var groups = new List<List<T>>();
         foreach (var value in values)
         {
             ct.ThrowIfCancellationRequested();
-            var best = groups.Select(group => (Group: group, Scores: group.Select(other => similarity(value, other)).ToArray()))
+            var best = groups.Select(group => (Group: group, Scores: group.Select(other => Score(value, other)).ToArray()))
                 .Where(match => match.Scores.Min() >= threshold - .02 && match.Scores.Average() >= threshold)
                 .OrderByDescending(match => match.Scores.Average()).FirstOrDefault();
             if (best.Group is null) groups.Add([value]); else best.Group.Add(value);
@@ -85,7 +91,7 @@ public static partial class FolderOutfitClassification
             for (var left = 0; left < groups.Count; left++)
                 for (var right = left + 1; right < groups.Count; right++)
                 {
-                    var scores = groups[left].SelectMany(a => groups[right].Select(b => similarity(a, b))).ToArray();
+                    var scores = groups[left].SelectMany(a => groups[right].Select(b => Score(a, b))).ToArray();
                     var mean = scores.Average();
                     if (scores.Min() >= threshold - .02 && mean >= threshold && (merge is null || mean > merge.Value.Mean))
                         merge = (left, right, mean);

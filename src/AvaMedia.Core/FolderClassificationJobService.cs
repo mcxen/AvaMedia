@@ -49,24 +49,24 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 }
                 files[path] = file with { Error = null, Pending = true }; pending.Add(path);
             }
+            var total = job.Inputs.Count(path => !excluded.Contains(path));
+            var appearanceReady = byOutfit ? files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending
+                && file.Error is null && file.Result is { } result && OutfitAppearanceService.IsComplete(result.Media))
+                .Select(file => file.Path).ToHashSet(BatchRename.PathComparer) : [];
             void Publish()
             {
                 job.ClassificationSnapshot = new(job.Inputs.Select(path => files[path]).ToArray());
-                var total = job.Inputs.Count(path => !excluded.Contains(path));
                 var done = total - pending.Count + processed.Count;
                 job.ProgressDetail = $"{done} / {total}";
-                var appearance = byOutfit ? files.Values.Count(file => !excluded.Contains(file.Path)
-                    && !file.Pending && file.Error is null && file.Result is { } result && OutfitAppearanceService.IsComplete(result.Media)) : 0;
                 progress(total == 0 ? 100 : Math.Clamp(byOutfit
-                    ? (80d * done + 15d * appearance) / total : 100d * done / total, 0, 100));
+                    ? (80d * done + 15d * appearanceReady.Count) / total : 100d * done / total, 0, 100));
             }
             Publish();
             var sinceGrouping = 0; var groupedOnce = false;
             async Task RegroupAsync(bool force = false)
             {
                 if (!byOutfit || groupedOnce && (sinceGrouping == 0 || !force && sinceGrouping < 8)) return;
-                var ready = files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending && file.Error is null
-                    && file.Result is { } result && OutfitAppearanceService.IsComplete(result.Media)).ToArray();
+                var ready = files.Values.Where(file => appearanceReady.Contains(file.Path)).ToArray();
                 if (ready.Length == 0) return;
                 ct.ThrowIfCancellationRequested();
                 job.Activity = new("按相似服装分组", "JoyTag / DINOv2", DateTime.UtcNow, DateTime.UtcNow);
@@ -82,7 +82,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             }
             // Recover cached tag results before waiting for JoyTag, which another queue job may be using.
             var missingAppearance = byOutfit ? files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending
-                && file.Error is null && file.Result is { } result && !OutfitAppearanceService.IsComplete(result.Media)).ToArray() : [];
+                && file.Error is null && file.Result is not null && !appearanceReady.Contains(file.Path)).ToArray() : [];
             async Task<OutfitAppearanceService> PrepareAppearanceAsync()
             {
                 var store = new ModelStore();
@@ -104,7 +104,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             string? appearanceFallback = null;
             async Task CompleteAppearanceAsync(FolderClassificationTaskFile file)
             {
-                if (!byOutfit || file.Error is not null || file.Result is not { } result || OutfitAppearanceService.IsComplete(result.Media)) return;
+                if (!byOutfit || file.Error is not null || file.Result is not { } result || appearanceReady.Contains(file.Path)) return;
                 await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                 job.Activity = new("识别服装区域", "MediaPipe / DINOv2", DateTime.UtcNow, DateTime.UtcNow)
                 { Detail = Path.GetFileName(file.Path), Backend = appearance!.Backend };
@@ -121,6 +121,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                         job.ProgressDetail = $"识别服装区域 · {current} / {total} · {Path.GetFileName(file.Path)}"; progress(job.Progress);
                     }, ct).ConfigureAwait(false);
                     updated = file with { Result = result with { Media = media } };
+                    if (OutfitAppearanceService.IsComplete(media)) appearanceReady.Add(file.Path);
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
                 { updated = file with { Error = error.Message }; }
@@ -131,7 +132,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             await RegroupAsync().ConfigureAwait(false);
             foreach (var file in missingAppearance) await CompleteAppearanceAsync(file).ConfigureAwait(false);
             await RegroupAsync(force: true).ConfigureAwait(false);
-            var metadataOnly = rules.Length > 0 && rules.All(rule => rule.ByDuration);
+            var metadataOnly = rules.All(rule => rule.ByDuration);
             var options = spec.Analysis with { RecognizeNsfw = false, SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
             if (pending.Count > 0 && !metadataOnly)
             {
@@ -171,7 +172,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     try
                     {
                         var source = new FileInfo(path); var length = source.Length; var modified = source.LastWriteTimeUtc;
-                        var seconds = VideoFormats.IsVideo(path) ? (await engine.Probe(path, ct).ConfigureAwait(false)).Duration : 0;
+                        var seconds = rules.Length > 0 && VideoFormats.IsVideo(path) ? (await engine.Probe(path, ct).ConfigureAwait(false)).Duration : 0;
                         media = new(path, [], 0, 0, "文件信息", length, modified) { DurationSeconds = seconds };
                         MediaTagService.ValidateSource(media);
                     }
@@ -193,9 +194,10 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                             job.Activity = MediaPrivacy.Filter(activity, PrivateEnabled());
                             job.ProgressDetail = activity.Stage; progress(job.Progress);
                         }
-                        if ((update.Result ?? update.PreviewResult) is { } partial)
+                        if (update.Result is { } complete) result = complete;
+                        else if (update.PreviewResult is { } partial)
                         {
-                            result = partial with { IsPartial = update.Result is null };
+                            result = partial with { IsPartial = true };
                             var classified = FolderClassification.KeepManual(
                                 FolderClassification.Classify(result, rules, spec.TagThreshold, PrivateEnabled()), files[path].Result);
                             files[path] = files[path] with { Result = classified, Pending = true };

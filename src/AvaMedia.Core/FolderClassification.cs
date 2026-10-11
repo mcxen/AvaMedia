@@ -187,8 +187,8 @@ public static class FolderClassification
 
     public static FolderClassifiedFile Classify(MediaTagResult media, IReadOnlyList<FolderClassificationRule> rules, double tagThreshold, bool includeNsfw = false)
     {
-        ValidateRules(rules);
-        if (!double.IsFinite(tagThreshold) || tagThreshold is < 0 or > 1) throw new ArgumentException("标签阈值须为 0–1。");
+        // Rules and thresholds are validated when settings are accepted or a job starts,
+        // not for every file and intermediate inference frame.
         var video = VideoFormats.IsVideo(media.Path);
         double Signal(MediaTagScore score) => video && WordLibraryCatalog.UsesSamplePeak(score.Tag) ? Math.Max(score.Score, score.Maximum) : score.Score;
         var tags = media.Scores.Where(score => (includeNsfw || !MediaPrivacy.IsSensitiveTag(score.Tag)) && Signal(score) >= tagThreshold)

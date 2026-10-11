@@ -29,6 +29,7 @@ public sealed partial class FolderClassificationWindow
             _disabledNsfwRules.Clear();
         }
         RefreshSavedVisibility();
+        var rules = _rules.ToArray();
         foreach (var path in _results.Keys.ToArray())
         {
             var previous = _results[path];
@@ -36,11 +37,10 @@ public sealed partial class FolderClassificationWindow
                 && hidden.Media.Length == previous.Media.Length && hidden.Media.LastWriteUtc == previous.Media.LastWriteUtc)
                 previous = previous with { Decisions = previous.Decisions.Concat(hidden.Decisions.Where(decision =>
                     _rules.Any(rule => rule.Id == decision.RuleId && MediaPrivacy.IsSensitiveRule(rule)))).ToArray() };
-            _results[path] = FolderClassification.KeepManual(FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent), previous);
+            _results[path] = FolderClassification.KeepManual(FolderClassification.Classify(previous.Media, rules, (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent), previous);
         }
         RegroupOutfits();
         if (_settings.EnableNsfwContent) _hiddenPrivateResults.Clear();
-        foreach (var entry in _entries) UpdateEntry(entry);
         InvalidatePlan(); RenderBoard(); RenderDetails();
     }
 

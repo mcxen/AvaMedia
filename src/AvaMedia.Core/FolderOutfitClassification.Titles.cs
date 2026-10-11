@@ -29,7 +29,7 @@ public static partial class FolderOutfitClassification
         : category == "场景空间" ? 0 : category is "场景物体" or "场景自然" or "场景位置" ? 1 : 3;
 
     /// <summary>Describe existing shoots with shared recognized labels, without changing membership.</summary>
-    public static FolderClassifiedFile[] WithShootTitles(IEnumerable<FolderClassifiedFile> files)
+    private static FolderClassifiedFile[] WithShootTitles(IEnumerable<FolderClassifiedFile> files)
     {
         var output = files.ToArray();
         var titles = output.SelectMany(file => file.Decisions.Where(decision => decision.OutfitShootName is not null)

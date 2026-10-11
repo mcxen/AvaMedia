@@ -279,14 +279,14 @@ public sealed partial class FolderClassificationWindow
     private void Reclassify()
     {
         if (_syncing || _busy) return;
+        var rules = _rules.ToArray();
         foreach (var path in _results.Keys.ToArray())
         {
             var previous = _results[path];
-            var classified = FolderClassification.Classify(previous.Media, _rules.ToArray(), (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
+            var classified = FolderClassification.Classify(previous.Media, rules, (double)(_tagThreshold.Value ?? .5m), _settings.EnableNsfwContent);
             _results[path] = FolderClassification.KeepManual(classified, previous);
         }
         RegroupOutfits();
-        foreach (var entry in _entries) UpdateEntry(entry);
         InvalidatePlan(); RenderDetails();
     }
 

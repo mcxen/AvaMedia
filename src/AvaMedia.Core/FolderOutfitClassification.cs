@@ -58,13 +58,13 @@ public static partial class FolderOutfitClassification
         bool includeNsfw = false, CancellationToken ct = default)
     {
         var output = files.ToArray();
-        foreach (var rule in rules.Where(rule => rule.ByOutfit))
+        var outfitRules = rules.Where(rule => rule.ByOutfit).ToArray();
+        if (outfitRules.Length == 0) return output;
+        foreach (var rule in outfitRules)
         {
-            rule.Validate();
-            output = output.Select(file => file with { Decisions = file.Decisions.Select(decision => decision.RuleId == rule.Id
-                && decision.OutfitIncludesNsfw != includeNsfw ? decision with { Manual = false } : decision).ToArray() }).ToArray();
             var decisions = Group(output, rule, includeNsfw, ct);
-            output = output.Select(file => file with { Decisions = file.Decisions.Select(decision => decision.RuleId == rule.Id && !decision.Manual
+            output = output.Select(file => file with { Decisions = file.Decisions.Select(decision => decision.RuleId == rule.Id
+                && (!decision.Manual || decision.OutfitIncludesNsfw != includeNsfw)
                 ? decisions[file.Media.Path] : decision).ToArray() }).ToArray();
         }
         return WithShootTitles(output);
@@ -163,18 +163,11 @@ public static partial class FolderOutfitClassification
         foreach (var profile in profiles.Where(profile => profile.Error is not null))
             decisions[profile.File.Media.Path] = Review(profile.Error!);
 
-        var contexts = new Dictionary<(Profile, Profile), double>();
-        double Context(Profile left, Profile right)
-        {
-            if (!contexts.TryGetValue((left, right), out var score))
-            { score = Scene(left.Views, right.Views); contexts[(left, right)] = score; contexts[(right, left)] = score; }
-            return score;
-        }
         double Shoot(Profile left, Profile right)
         {
             var gap = CaptureGap(left, right);
             if (gap > TimeSpan.FromHours(6)) return 0;
-            var context = Context(left, right);
+            var context = Scene(left.Views, right.Views);
             // Close camera timestamps support a changed viewpoint, but cannot establish a shoot on their own.
             if (gap <= TimeSpan.FromMinutes(90) && (context >= .55
                 || left.Samples.Length > 0 && right.Samples.Length > 0 && Outfit(left, right) >= threshold))
@@ -207,7 +200,6 @@ public static partial class FolderOutfitClassification
                 var nude = group[0].Unclothed;
                 var center = Enumerable.Range(0, features.Length).Select(index => group.Average(profile => profile.Values[index])).ToArray();
                 var colors = Enumerable.Range(0, Colors.Length).Select(index => group.Average(profile => profile.Colors[index])).ToArray();
-                var embedding = Normalize(Enumerable.Range(0, 384).Select(index => group.Average(profile => profile.Embedding[index])).ToArray());
                 var views = ContextViews(group.SelectMany(profile => profile.Views), 8);
                 var context = views.FirstOrDefault();
                 var descriptions = features.Select((feature, index) => (Feature: feature with { Tag = feature.ColorPart ?? feature.Tag, Color = null, ColorPart = null }, Score: center[index]))
@@ -225,7 +217,7 @@ public static partial class FolderOutfitClassification
                 if (name.Length > 60) name = name[..60].TrimEnd();
                 var representative = group.OrderBy(profile => profile.File.Media.Path, BatchRename.PathComparer).First();
                 var id = "outfit-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(representative.File.Media.Path)))[..16].ToLowerInvariant();
-                return (Group: group, Unclothed: nude, Values: center, Colors: colors, Embedding: embedding, Context: context, Views: views, Id: id, Name: name);
+                return (Group: group, Unclothed: nude, Context: context, Views: views, Id: id, Name: name);
             }).ToArray();
             foreach (var profile in shoot)
             {
@@ -264,13 +256,14 @@ public static partial class FolderOutfitClassification
                         member.Values, member.Colors, member.Embedding));
                 }
                 var minimum = contextual || winner.Unclothed ? contextThreshold - .1 : threshold - .1;
-                var frames = samples.Select(sample => new FolderFrameClassification(sample.Seconds, winner.Id, Score(sample, own), null)).ToArray();
+                var sampleScores = samples.Select(sample => metadata.Select((_, index) => Score(sample, index)).ToArray()).ToArray();
+                var frames = samples.Select((sample, index) => new FolderFrameClassification(sample.Seconds, winner.Id, sampleScores[index][own], null)).ToArray();
                 var agreement = winner.Unclothed ? samples.Length > 0 ? 1d : 0
                     : frames.Length == 0 ? 0 : frames.Count(frame => frame.Similarity >= minimum) / (double)frames.Length;
                 if (contextual && !winner.Unclothed)
                 {
                     // Ignore background-free crops, but keep actual competing-group votes as disagreements.
-                    var votes = samples.Select(sample => metadata.Select((group, index) => (Index: index, Score: Score(sample, index)))
+                    var votes = sampleScores.Select(scores => scores.Select((score, index) => (Index: index, Score: score))
                         .OrderByDescending(candidate => candidate.Score).Take(2).ToArray())
                         .Where(candidates => candidates[0].Score >= minimum
                             && (candidates.Length == 1 || candidates[0].Score - candidates[1].Score >= FolderClassificationRule.DefaultMargin)).ToArray();
@@ -279,7 +272,7 @@ public static partial class FolderOutfitClassification
                         : votes.Count(vote => vote[0].Index == own) / (double)votes.Length;
                 }
                 var scores = metadata.Select((candidate, index) => new FolderCategoryScore(candidate.Id, shootName + " · " + candidate.Name,
-                    samples.Length == 0 ? 0 : samples.Average(sample => Score(sample, index)), samples.Count(sample => Score(sample, index) >= minimum)))
+                    samples.Length == 0 ? 0 : sampleScores.Average(scores => scores[index]), sampleScores.Count(scores => scores[index] >= minimum)))
                     .OrderByDescending(score => score.Similarity).Take(5).ToArray();
                 var evidence = agreement < .8 ? "采样画面与分组有分歧" : contextual ? "拍摄背景关联到服装组"
                     : winner.Unclothed ? winner.Context is null ? "无服装，缺少拍摄背景，单独成组" : "无服装样本按拍摄背景分组"
@@ -337,15 +330,14 @@ public static partial class FolderOutfitClassification
         var clothingSamples = all.Where(sample => sample.HasClothing).ToArray();
         var samples = clothingSamples.Length >= minimum ? clothingSamples : [];
         var contextSamples = all.Where(sample => sample.Appearance.BackgroundEmbedding.Any(value => value != 0)).ToArray();
-        var context = contextSamples.OrderByDescending(sample => contextSamples.Sum(other => Scene(sample, other))).FirstOrDefault();
+        var context = contextSamples.FirstOrDefault();
         // Uninformative crops do not contradict visible unclothed frames; clothing frames do.
         var unclothed = clothingSamples.Length == 0 && all.Count(sample => sample.Unclothed) >= minimum;
         var values = Enumerable.Range(0, features.Length).Select(index => samples.Length == 0 ? 0 : samples.Average(sample => sample.Values[index])).ToArray();
-        var colors = Enumerable.Range(0, Colors.Length).Select(index => samples.Length == 0 ? 0 : samples.Average(sample => sample.Colors[index])).ToArray();
-        var embedding = Normalize(Enumerable.Range(0, 384).Select(index => samples.Length == 0 ? 0 : samples.Average(sample => sample.Embedding[index])).ToArray());
         var error = frames.Length == 0 || video && frames.Length != media.SampledFrames ? "服装采样标签缺失"
             : all.Length != frames.Length ? "服装区域识别缺失" : null;
-        return new(file, samples, all, context, values, colors, embedding, unclothed, all.FirstOrDefault()?.Appearance.CaptureTime, error)
+        // Nonempty profiles receive the selected real sample's colors and embedding in Group.
+        return new(file, samples, all, context, values, new double[Colors.Length], new double[384], unclothed, all.FirstOrDefault()?.Appearance.CaptureTime, error)
             { Views = ContextViews(contextSamples, 4) };
     }
 

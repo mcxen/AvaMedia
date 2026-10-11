@@ -27,6 +27,7 @@ public sealed partial class FolderClassificationWindow : Window
     private FolderOrganizationItem[]? _plan;
     private bool _closed, _busy, _writing, _syncing, _attempted;
     private string? _lastJournal;
+    private bool _canUndo;
     public event Action<IReadOnlyList<RenameItem>>? Moved;
 
     public sealed class Preferences
@@ -95,6 +96,7 @@ public sealed partial class FolderClassificationWindow : Window
         _splitTypes.IsChecked = saved.SplitTypes; _writeText.IsChecked = saved.WriteText;
         _frames.Value = Math.Clamp(saved.VideoFrames, 1, 32); _tagThreshold.Value = Math.Clamp(saved.TagThreshold, 0, 1);
         _lastJournal = saved.LastJournal;
+        _canUndo = FolderOrganization.CanUndo(_lastJournal);
     }
 
     private void SavePreferences(FolderClassificationRule[]? defaultRules = null, FolderClassificationRule[]? savedRules = null)
@@ -143,8 +145,9 @@ public sealed partial class FolderClassificationWindow : Window
                 { if (change.PropertyName == nameof(MediaFileEntry.Include)) InvalidatePlan(); };
                 _entries.Add(entry);
             }
-            foreach (var path in _results.Keys.Where(path => !scan.Files.Contains(path, BatchRename.PathComparer)).ToArray()) _results.Remove(path);
-            _analysisPending.RemoveWhere(path => !scan.Files.Contains(path, BatchRename.PathComparer));
+            var scanned = scan.Files.ToHashSet(BatchRename.PathComparer);
+            foreach (var path in _results.Keys.Where(path => !scanned.Contains(path)).ToArray()) _results.Remove(path);
+            _analysisPending.RemoveWhere(path => !scanned.Contains(path));
             InvalidatePlan(); SavePreferences();
             _status.Text = Localization.Format($"已扫描 {scan.Files.Length} 个媒体文件，无法访问 {scan.Errors.Length} 项");
             _scanErrors.Text = string.Join(Environment.NewLine, scan.Errors); _scanErrors.IsVisible = scan.Errors.Length > 0;
@@ -185,7 +188,7 @@ public sealed partial class FolderClassificationWindow : Window
         _retry.IsVisible = _attempted;
         _preview.IsEnabled = !_busy && _results.Count > 0;
         _organize.IsEnabled = !_busy && _plan is { Length: > 0 };
-        _undo.IsEnabled = !_busy && FolderOrganization.CanUndo(_lastJournal);
+        _undo.IsEnabled = !_busy && _canUndo;
         _export.IsEnabled = (!_busy || _taskJob?.State == JobState.Paused && !_loadingTask && !_refreshingSnapshot) && _results.Count > 0;
         _analyze.Classes.Set("primary", _plan is not { Length: > 0 });
         _organize.Classes.Set("primary", _plan is { Length: > 0 });

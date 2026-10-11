@@ -37,6 +37,7 @@ public sealed partial class FolderClassificationWindow
         try
         {
             var spec = job.Options.FolderClassification ?? throw new ArgumentException("缺少分类任务参数。");
+            FolderClassificationJobService.Validate(job);
             _syncing = true;
             try
             {
@@ -50,6 +51,7 @@ public sealed partial class FolderClassificationWindow
                 _entries.Clear();
             }
             finally { _syncing = false; }
+            _canUndo = await Task.Run(() => FolderOrganization.CanUndo(_lastJournal), token);
             AttachTask(job);
             // Paint the task controls and live activity before hydrating a large file list.
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
@@ -62,7 +64,6 @@ public sealed partial class FolderClassificationWindow
                 entry.PropertyChanged += (_, change) => { if (change.PropertyName == nameof(MediaFileEntry.Include)) InvalidatePlan(); };
                 _entries.Add(entry);
                 if (++count % 64 != 0) continue;
-                RenderBoard();
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
             }
             if (job.ClassificationSnapshot is null)
@@ -210,5 +211,5 @@ public sealed partial class FolderClassificationWindow
     }
 
     public async Task FlushTaskEditsAsync()
-    { await SaveTaskViewAsync(); await _viewSave; }
+    { await SaveTaskViewAsync(); }
 }

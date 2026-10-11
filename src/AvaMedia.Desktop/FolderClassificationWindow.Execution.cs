@@ -58,7 +58,8 @@ public sealed partial class FolderClassificationWindow
             var plan = await Task.Run(() => FolderOrganization.Preview(files, output, split, writeText));
             if (_closed) return;
             _plan = plan;
-            foreach (var entry in selected) entry.NewName = plan.First(item => BatchRename.PathComparer.Equals(item.File.Media.Path, entry.Path)).Target;
+            var targets = plan.ToDictionary(item => item.File.Media.Path, item => item.Target, BatchRename.PathComparer);
+            foreach (var entry in selected) entry.NewName = targets[entry.Path];
             SavePreferences(); _status.Text = Localization.Format($"预览 {plan.Length} 个文件，请核对分类目录");
             if (requested.Length > selected.Length) _status.Text += " · " + Localization.Format($"跳过 {requested.Length - selected.Length} 个未分析文件");
         }
@@ -87,19 +88,20 @@ public sealed partial class FolderClassificationWindow
             var copied = plan.Where(item => completedTargets.Contains(item.Target) && File.Exists(item.Target)).ToArray();
             var moved = move ? copied.Where(item => !File.Exists(item.File.Media.Path)).ToArray() : [];
             if (moved.Length > 0) Moved?.Invoke(moved.Select(item => new RenameItem(item.File.Media.Path, item.Target, item.File.Media.Length, item.File.Media.LastWriteUtc)).ToArray());
+            var rows = _entries.ToDictionary(entry => entry.Path, BatchRename.PathComparer);
             _syncing = true;
             try
             {
                 foreach (var item in moved)
                 {
-                    var entry = _entries.First(entry => BatchRename.PathComparer.Equals(entry.Path, item.File.Media.Path));
+                    var entry = rows[item.File.Media.Path];
                     if (_analysisPending.Remove(entry.Path)) _analysisPending.Add(item.Target);
                     _results.Remove(entry.Path);
                     _results[item.Target] = item.File with { Media = item.File.Media with { Path = item.Target, LastWriteUtc = File.GetLastWriteTimeUtc(item.Target) } };
                     entry.Renamed(item.Target); entry.Include = false; entry.Status = Localization.Text("已移动");
                 }
                 foreach (var item in copied.Except(moved))
-                { var entry = _entries.First(entry => BatchRename.PathComparer.Equals(entry.Path, item.File.Media.Path)); entry.Include = false; entry.Status = Localization.Text("已复制"); }
+                { var entry = rows[item.File.Media.Path]; entry.Include = false; entry.Status = Localization.Text("已复制"); }
             }
             finally { _syncing = false; InvalidatePlan(); RenderBoard(); }
         }
@@ -107,7 +109,7 @@ public sealed partial class FolderClassificationWindow
 
     private async Task UndoAsync()
     {
-        if (_lastJournal is not { } journal || !FolderOrganization.CanUndo(journal)) return;
+        if (_lastJournal is not { } journal) return;
         if (!_canMove()) throw new InvalidOperationException("应用正在退出，请稍后操作。");
         if (!await Ui.Confirm(this, "撤销分类整理", "将还原移动的源文件，并移除上次整理产生的副本与标签 TXT。已修改的文件将保留。", "撤销")) return;
         var before = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
@@ -116,43 +118,30 @@ public sealed partial class FolderClassificationWindow
         try { await RunOrganizationAsync((operation, progress) => FolderOrganization.UndoAsync(journal, progress, operation.Token), "撤销完成"); }
         finally
         {
+            var after = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
+            var activeTargets = before.Entries.Where(entry => entry.Stage != "undone")
+                .Select(entry => entry.Target).ToHashSet(BatchRename.PathComparer);
+            var restored = after.Entries.Where(entry => entry.Stage == "undone" && activeTargets.Contains(entry.Target)).ToArray();
             if (before.Move)
+                Moved?.Invoke(restored.Select(entry => new RenameItem(entry.Target, entry.Source, entry.Length, entry.LastWriteUtc)).ToArray());
+            var rows = _entries.ToDictionary(entry => entry.Path, BatchRename.PathComparer);
+            _syncing = true;
+            try
             {
-                var after = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
-                var mappings = after.Entries.Where(entry => entry.Stage == "undone" && before.Entries.Any(old => old.Target == entry.Target && old.Stage != "undone"))
-                    .Select(entry => new RenameItem(entry.Target, entry.Source, entry.Length, entry.LastWriteUtc)).ToArray();
-                Moved?.Invoke(mappings);
-                _syncing = true;
-                try
+                foreach (var entry in restored)
                 {
-                    foreach (var mapping in mappings)
+                    if (!rows.TryGetValue(before.Move ? entry.Target : entry.Source, out var row)) continue;
+                    if (before.Move)
                     {
-                        var row = _entries.FirstOrDefault(entry => BatchRename.PathComparer.Equals(entry.Path, mapping.Source));
-                        if (row is null) continue;
-                        if (_results.Remove(mapping.Source, out var result)) _results[mapping.Target] = result with { Media = result.Media with { Path = mapping.Target, LastWriteUtc = mapping.LastWriteUtc } };
-                        if (_analysisPending.Remove(mapping.Source)) _analysisPending.Add(mapping.Target);
-                        row.Renamed(mapping.Target); row.Include = true; UpdateEntry(row);
+                        if (_results.Remove(entry.Target, out var result))
+                            _results[entry.Source] = result with { Media = result.Media with { Path = entry.Source, LastWriteUtc = entry.LastWriteUtc } };
+                        if (_analysisPending.Remove(entry.Target)) _analysisPending.Add(entry.Source);
+                        row.Renamed(entry.Source);
                     }
+                    row.Include = true; UpdateEntry(row);
                 }
-                finally { _syncing = false; }
             }
-            else
-            {
-                var after = JsonSerializer.Deserialize<FolderOrganization.Journal>(await File.ReadAllTextAsync(journal))!;
-                var restored = after.Entries.Where(entry => entry.Stage == "undone"
-                    && before.Entries.Any(old => old.Target == entry.Target && old.Stage != "undone"));
-                _syncing = true;
-                try
-                {
-                    foreach (var entry in restored)
-                    {
-                        var row = _entries.FirstOrDefault(row => BatchRename.PathComparer.Equals(row.Path, entry.Source));
-                        if (row is null) continue;
-                        row.Include = true; UpdateEntry(row);
-                    }
-                }
-                finally { _syncing = false; }
-            }
+            finally { _syncing = false; }
             InvalidatePlan(); RenderBoard();
         }
     }
@@ -180,7 +169,11 @@ public sealed partial class FolderClassificationWindow
             _status.Text = Localization.Format($"{Localization.Key(result.Cancelled ? "已停止" : stage)} · 完成 {result.Completed} 个，失败 {result.Errors.Length} 个");
             _scanErrors.Text = string.Join(Environment.NewLine, result.Errors); _scanErrors.IsVisible = result.Errors.Length > 0;
         }
-        finally { _operation = null; _writing = false; if (!_closed) SetBusy(false); }
+        finally
+        {
+            _canUndo = await Task.Run(() => FolderOrganization.CanUndo(_lastJournal));
+            _operation = null; _writing = false; if (!_closed) SetBusy(false);
+        }
     }
 
     private async Task ExportAsync()

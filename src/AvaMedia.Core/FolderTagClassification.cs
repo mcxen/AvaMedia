@@ -41,7 +41,7 @@ internal static class FolderTagClassification
         var agreed = winner is null ? 0 : (double)winner.Count() / frames.Count;
         var required = rule.UseAutomaticSettings ? .6 : rule.MinimumAgreement;
         var complete = frames.Count > 0 && frames.All(frame => frame.Similarity.HasValue) && (!VideoFormats.IsVideo(media.Path) || frames.Count == media.SampledFrames);
-        var accepted = complete && winner is not null && (matches.Length == 1 || winner.Count() > matches[1].Count()) && frames.All(frame => frame.Similarity.HasValue)
+        var accepted = complete && winner is not null && (matches.Length == 1 || winner.Count() > matches[1].Count())
             && (rule.UsePeakEvidence || agreed >= required);
         var id = accepted ? winner!.Key : rule.UsePeakEvidence && complete && frames.All(frame => frame.CategoryId == rule.FallbackCategoryId) ? rule.FallbackCategoryId : null;
         var best = frames.Where(frame => frame.CategoryId == id).MaxBy(frame => frame.Similarity) ?? frames.MaxBy(frame => frame.Similarity);

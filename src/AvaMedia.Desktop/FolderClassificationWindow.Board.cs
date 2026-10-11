@@ -30,6 +30,9 @@ public sealed partial class FolderClassificationWindow
     private bool _renderingBoard;
     private MediaFileEntry? _dragEntry;
     private readonly string _dragToken = "AvaMedia-classification-" + Guid.NewGuid().ToString("N");
+    // Published media records are immutable; validate their vectors once, not on every repaint.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<MediaTagResult, OutfitState> _outfitStates = new();
+    private sealed record OutfitState(bool Complete);
 
     private Control BuildBoard()
     {
@@ -97,7 +100,7 @@ public sealed partial class FolderClassificationWindow
 
     private bool OutfitPending(FolderClassifiedFile result, FolderClassificationRule rule)
         => rule.ByOutfit && result.Decisions.FirstOrDefault(decision => decision.RuleId == rule.Id)?.Manual != true
-            && !OutfitAppearanceService.IsComplete(result.Media);
+            && !_outfitStates.GetValue(result.Media, media => new(OutfitAppearanceService.IsComplete(media))).Complete;
 
     private bool AnalysisPending(MediaFileEntry entry, FolderClassificationRule? rule = null)
         => !_results.TryGetValue(entry.Path, out var result) || _analysisPending.Contains(entry.Path)

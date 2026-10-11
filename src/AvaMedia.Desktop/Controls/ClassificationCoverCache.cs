@@ -25,9 +25,10 @@ internal sealed class ClassificationCoverCache : IDisposable
         var key = await Task.Run(() =>
         {
             ct.ThrowIfCancellationRequested();
-            if (media is not null) MediaTagService.ValidateSource(media);
             var info = new FileInfo(path);
             if (!info.Exists) throw new FileNotFoundException("源文件不存在。", path);
+            if (media is not null && (info.Length != media.Length || info.LastWriteTimeUtc != media.LastWriteUtc))
+                throw new IOException("分析后源文件已改变，请重新分析。");
             return new Key(info.FullName, ImageFormats.Supports(path) ? 0 : seconds, info.Length, info.LastWriteTimeUtc);
         }, ct).ConfigureAwait(false);
         Entry entry;

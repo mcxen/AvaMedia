@@ -77,9 +77,7 @@ public static class FolderClassificationTaskStore
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
             { files.Add(new(path, Error: error.Message)); }
         }
-        var titled = FolderOutfitClassification.WithShootTitles(files.Where(file => file.Result is not null)
-            .Select(file => file.Result!)).ToDictionary(result => result.Media.Path, BatchRename.PathComparer);
-        return new(files.Select(file => file.Result is null ? file : file with { Result = titled[file.Path] }).ToArray());
+        return new(files.ToArray());
     }
 
     public static async Task SaveFileAsync(Job job, FolderClassificationTaskFile file, CancellationToken ct = default)

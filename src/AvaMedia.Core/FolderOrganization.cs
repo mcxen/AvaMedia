@@ -37,8 +37,7 @@ public static class FolderOrganization
         var root = Path.GetFullPath(outputFolder);
         EnsureRegularDirectory(root);
         var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var selected = FolderOutfitClassification.WithShootTitles(files)
-            .DistinctBy(file => file.Media.Path, BatchRename.PathComparer).ToArray();
+        var selected = files.DistinctBy(file => file.Media.Path, BatchRename.PathComparer).ToArray();
         var destinations = DestinationFolders(selected, root, splitTypes);
         return selected.Select(file =>
         {
@@ -69,8 +68,7 @@ public static class FolderOrganization
         var root = Path.GetFullPath(outputFolder);
         var outfits = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         var layouts = new Dictionary<string, List<DestinationSegment>>(BatchRename.PathComparer);
-        foreach (var file in FolderOutfitClassification.WithShootTitles(files)
-            .DistinctBy(file => file.Media.Path, BatchRename.PathComparer))
+        foreach (var file in files.DistinctBy(file => file.Media.Path, BatchRename.PathComparer))
         {
             var folder = root;
             var segments = new List<DestinationSegment>();
