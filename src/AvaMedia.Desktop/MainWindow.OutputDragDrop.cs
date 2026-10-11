@@ -9,8 +9,9 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    private DispatcherTimer? _dropCategoryTimer;
-    private string? _dropCategory;
+    private DispatcherTimer? _dropNavigationTimer;
+    private Controls.CategoryHeader? _dropNavigationHeader;
+    private Action? _dropNavigate;
     private bool _openingDroppedTool;
     private IDataTransfer? _dropTransfer;
     private MediaRouteSource[] _dropSources = [];
@@ -146,14 +147,17 @@ public partial class MainWindow
     }
 
     private void EnableCategoryDropNavigation(Controls.CategoryHeader header, string category)
+        => EnableDropNavigation(header, () => ShowCategory(category));
+
+    private void EnableDropNavigation(Controls.CategoryHeader header, Action expand)
     {
-        if (_dropCategoryTimer is null)
+        if (_dropNavigationTimer is null)
         {
-            _dropCategoryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
-            _dropCategoryTimer.Tick += (_, _) =>
+            _dropNavigationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+            _dropNavigationTimer.Tick += (_, _) =>
             {
-                _dropCategoryTimer.Stop();
-                if (!_closing && _dropCategory is {} target) ShowCategory(target);
+                _dropNavigationTimer.Stop();
+                if (!_closing) _dropNavigate?.Invoke();
             };
             AddHandler(DragDrop.DragLeaveEvent, (_, e) =>
             { if (ReferenceEquals(e.Source, this)) ResetOutputDropSession(); });
@@ -163,21 +167,22 @@ public partial class MainWindow
         header.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
             e.DragEffects = DragDropEffects.None; e.Handled = true;
-            if (_closing || _openingDroppedTool || !e.DataTransfer.Contains(DataFormat.File) || _dropCategory == category) return;
-            _dropCategoryTimer.Stop(); _dropCategory = category;
-            if (!header.IsExpanded) _dropCategoryTimer.Start();
+            if (_closing || _openingDroppedTool || !e.DataTransfer.Contains(DataFormat.File) || _dropNavigationHeader == header) return;
+            _dropNavigationTimer.Stop(); _dropNavigationHeader = header; _dropNavigate = expand;
+            if (!header.IsExpanded) _dropNavigationTimer.Start();
         }, RoutingStrategies.Bubble, handledEventsToo: true);
-        header.AddHandler(DragDrop.DragLeaveEvent, (_, _) => StopCategoryDropNavigation());
+        header.AddHandler(DragDrop.DragLeaveEvent, (_, _) =>
+        { if (_dropNavigationHeader == header) StopDropNavigation(); });
         header.AddHandler(DragDrop.DropEvent, (_, e) =>
         { e.DragEffects = DragDropEffects.None; e.Handled = true; ResetOutputDropSession(); }, RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
-    private void StopCategoryDropNavigation()
-    { _dropCategoryTimer?.Stop(); _dropCategory = null; }
+    private void StopDropNavigation()
+    { _dropNavigationTimer?.Stop(); _dropNavigationHeader = null; _dropNavigate = null; }
 
     private void ResetOutputDropSession()
     {
-        StopCategoryDropNavigation();
+        StopDropNavigation();
         foreach (var (id, tile) in _featureButtons) ClearFeatureDropFeedback(tile, Catalog.Find(id));
         _dropTransfer = null; _dropSources = []; _featureDropFiles.Clear();
     }

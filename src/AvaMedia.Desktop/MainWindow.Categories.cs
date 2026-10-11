@@ -161,6 +161,7 @@ public partial class MainWindow
         {
             var key = category + ":" + section.Title;
             var header = new CategoryHeader(section.Title, "", isGroup: true) { IsExpanded = !_closedFeatureGroups.Contains(key) };
+            EnableDropNavigation(header, () => header.IsExpanded = true);
             var grid = new Grid { ColumnSpacing = 2, RowSpacing = 2 };
             for (var index = 0; index < 12; index++) grid.ColumnDefinitions.Add(new(1, GridUnitType.Star));
             var count = section.Compact ? columns.Formats : columns.Tools;

@@ -23,6 +23,7 @@
     </Menu>
     <Border Classes="app-toolbar" Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" Background="{DynamicResource UiToolbar}">
       <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="{DynamicResource UiToolbarPadding}">
+        <Button Classes="tool" Click="RouteOutputsClick" ToolTip.Tip="拖入产出文件选择下一步工具；单击路由选中任务的产出" AutomationProperties.Name="文件路由"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="list"/><TextBlock Text="文件路由" VerticalAlignment="Center"/></StackPanel></Button>
         <Button Classes="tool" Click="OutputClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="folder"/><TextBlock Text="输出文件夹" VerticalAlignment="Center"/></StackPanel></Button>
         <Button Classes="tool" Click="SettingsClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="gear"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></Button>
         <Button Classes="tool" Click="WifiTransferClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="wifi"/><TextBlock Text="WiFi 传文件" VerticalAlignment="Center"/></StackPanel></Button>
