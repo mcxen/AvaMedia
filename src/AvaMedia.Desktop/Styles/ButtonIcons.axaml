@@ -5,7 +5,7 @@
     <Setter Property="ContentTemplate">
       <MultiBinding Converter="{StaticResource ActionButtonTemplateConverter}">
         <Binding Path="Content" RelativeSource="{RelativeSource Self}"/>
-        <Binding Path="(local:Localization.IsUserText)" RelativeSource="{RelativeSource Self}"/>
+        <CompiledBinding Path="(local:Localization.IsUserText)" RelativeSource="{RelativeSource Self}" DataType="Button"/>
       </MultiBinding>
     </Setter>
   </Style>

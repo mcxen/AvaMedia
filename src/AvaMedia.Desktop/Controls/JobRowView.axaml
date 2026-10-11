@@ -9,7 +9,7 @@
     <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
     <Style Selector="Window.windows-xp ListBoxItem:selected TextBlock.queue-secondary, Window.windows-xp ListBoxItem:selected TextBlock.queue-state"><Setter Property="Foreground" Value="White"/></Style>
   </UserControl.Styles>
-  <Grid x:Name="RowRoot" MinHeight="{DynamicResource UiQueueRowHeight}" Margin="0,6">
+  <Grid Classes="queue-row" x:Name="RowRoot" MinHeight="{DynamicResource UiQueueRowHeight}">
     <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <Button x:Name="CoverButton" Classes="media-action" Padding="2" Margin="8,0,12,0" VerticalAlignment="Center" Height="{DynamicResource UiQueueCoverHeight}" Click="CoverClick" ToolTip.Tip="{Binding PreviewTip}" AutomationProperties.Name="{Binding PreviewTip}">
       <Grid Width="{DynamicResource UiQueueArtworkWidth}" Height="{DynamicResource UiQueueArtworkHeight}" ClipToBounds="True">
@@ -21,7 +21,7 @@
         </Border>
       </Grid>
     </Button>
-    <StackPanel Grid.Column="1" Spacing="4" Margin="8,2" VerticalAlignment="Center">
+    <StackPanel Classes="queue-details" Grid.Column="1" Margin="8,2" VerticalAlignment="Center">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.Source}"/>
         <TextBlock Grid.Column="1" Text="{Binding Job.SubmittedBy}" Classes="queue-secondary" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
@@ -30,7 +30,7 @@
       <TextBlock Text="{Binding CodecSummary}" IsVisible="{Binding HasCodecSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
       <TextBlock Text="{Binding FileSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
     </StackPanel>
-    <StackPanel Grid.Column="2" Spacing="4" Margin="8,2" VerticalAlignment="Center">
+    <StackPanel Classes="queue-details" Grid.Column="2" Margin="8,2" VerticalAlignment="Center">
       <Grid x:Name="OutputDragHandle" ColumnDefinitions="Auto,*" ColumnSpacing="4" Background="Transparent">
         <TextBlock x:Name="OutputDragGrip" Text="⋮⋮" Classes="queue-secondary" IsVisible="False" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" Text="{Binding OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Job.UserOutput}"/>
@@ -40,13 +40,13 @@
         <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
         <local:AiActivityView x:Name="ActivityView" Compact="True"/>
       </Grid>
-      <Grid Height="28">
+      <Grid Classes="queue-state-slot" Height="28">
       <Grid x:Name="StateLine" ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <TextBlock x:Name="StateText" Classes="queue-state" Text="{Binding StateText}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateText}" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <Button x:Name="ViewResultButton" i18n:StableLayout.Samples="查看结果|查看任务" Grid.Column="1" Content="查看结果" Classes="tool" Click="ViewResultClick" IsVisible="False"/>
       </Grid>
       </Grid>
-      <TextBlock Text="{Binding StateDetail}" Height="18" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
+      <TextBlock Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" Height="18" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
     </StackPanel>
   </Grid>
 </UserControl>

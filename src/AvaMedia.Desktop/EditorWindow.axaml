@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="860" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
   <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto" ColumnDefinitions="*,0,0">
     <Grid RowDefinitions="*,Auto,Auto,Auto" MinWidth="620">
     <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
@@ -11,7 +11,7 @@
     <ScrollViewer Grid.Row="1" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,6,0,0">
       <local:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
     </ScrollViewer>
-    <Grid Grid.Row="2" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" MinHeight="{DynamicResource UiTransportRowHeight}" VerticalAlignment="Center" Margin="0,2,0,4">
+    <Grid Grid.Row="2" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Height="{DynamicResource UiTransportRowHeight}" Margin="0,2,0,4">
       <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Left">
         <Button x:Name="BackwardButton" Classes="transport" Click="BackwardClick" ToolTip.Tip="向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
@@ -26,48 +26,46 @@
         <TextBlock FontFeatures="tnum" x:Name="TotalTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       </StackPanel>
     </Grid>
-    <TabControl Grid.Row="3" x:Name="EditTabs" MinHeight="220" MaxHeight="320" SelectionChanged="TabChanged">
+    <TabControl Grid.Row="3" x:Name="EditTabs" MinHeight="180" MaxHeight="200" SelectionChanged="TabChanged">
       <TabItem Header="剪辑">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-          <Grid ColumnDefinitions="*,3*,*" ColumnSpacing="16" Margin="8,10">
-            <Button Classes="boundary-preview" Height="216" VerticalAlignment="Top" Click="JumpStartClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
-            <Button Grid.Column="2" Classes="boundary-preview" Height="216" VerticalAlignment="Top" Click="JumpEndClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段终点" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
-            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" VerticalAlignment="Top">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <Grid ColumnDefinitions="120,*,120" ColumnSpacing="8" Margin="8,4">
+            <Button Classes="boundary-preview" Height="180" VerticalAlignment="Top" Click="JumpStartClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
+            <Button Grid.Column="2" Classes="boundary-preview" Height="180" VerticalAlignment="Top" Click="JumpEndClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段终点" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="4" VerticalAlignment="Top">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <local:RangeBar x:Name="TrimBar"/>
                 <Button Grid.Column="1" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
               </Grid>
-              <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12" Margin="0,0,12,0">
+              <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="6">
                   <TextBlock Text="开始时间" VerticalAlignment="Center"/>
-                  <TextBox x:Name="StartTime" Classes="time" Grid.Column="1" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
-                </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBox x:Name="StartTime" Classes="time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
                   <Button x:Name="SetStartButton" Classes="field-action" Content="设为起点" Click="SetStartClick"/>
                   <Button x:Name="StartMinusButton" Classes="step" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
                   <Button x:Name="StartPlusButton" Classes="step" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
                 </StackPanel>
-              </WrapPanel>
-              <WrapPanel Grid.Row="2" Orientation="Horizontal">
-                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12" Margin="0,0,12,0">
-                  <TextBlock Text="结束时间" VerticalAlignment="Center"/>
-                  <TextBox x:Name="EndTime" Classes="time" Grid.Column="1" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
-                </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                  <Button x:Name="SetEndButton" Classes="field-action" Content="设为终点" Click="SetEndClick"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
                   <Button x:Name="EndMinusButton" Classes="step" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
                   <Button x:Name="EndPlusButton" Classes="step" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
+                  <Button x:Name="SetEndButton" Classes="field-action" Content="设为终点" Click="SetEndClick"/>
+                  <TextBox x:Name="EndTime" Classes="time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
+                  <TextBlock Text="结束时间" VerticalAlignment="Center"/>
                 </StackPanel>
-              </WrapPanel>
-              <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="8">
-                <StackPanel Spacing="4"><TextBlock Text="淡入效果"/><ComboBox x:Name="FadeInCombo"/></StackPanel>
-                <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="淡出效果"/><ComboBox x:Name="FadeOutCombo"/></StackPanel>
               </Grid>
-              <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
-                <TextBlock Text="精度" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="PrecisionCombo"/>
-                <TextBlock Grid.Column="2" Text="速度" VerticalAlignment="Center"/><ComboBox Grid.Column="3" x:Name="SpeedCombo"/>
+              <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="6">
+                <TextBlock Text="淡入效果" VerticalAlignment="Center"/>
+                <ComboBox Grid.Column="1" x:Name="FadeInCombo" HorizontalAlignment="Stretch"/>
+                <TextBlock Grid.Column="2" Text="淡出效果" VerticalAlignment="Center"/>
+                <ComboBox Grid.Column="3" x:Name="FadeOutCombo" HorizontalAlignment="Stretch"/>
               </Grid>
-              <TextBlock Grid.Row="5" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
+              <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="6">
+                <TextBlock Text="精度" VerticalAlignment="Center"/>
+                <ComboBox Grid.Column="1" x:Name="PrecisionCombo" HorizontalAlignment="Stretch"/>
+                <TextBlock Grid.Column="2" x:Name="SpeedField" Text="速度" VerticalAlignment="Center"/>
+                <ComboBox Grid.Column="3" x:Name="SpeedCombo" HorizontalAlignment="Stretch"/>
+              </Grid>
+              <TextBlock Grid.Row="4" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
             </Grid>
           </Grid>
         </ScrollViewer>
@@ -136,14 +134,14 @@
         <TextBlock Grid.Row="3" x:Name="SegmentError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
       </Grid>
     </Border>
-    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Margin="0,8">
+    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,4,0,0">
       <StackPanel x:Name="SegmentFooter" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" IsVisible="False">
         <Button x:Name="UndoSegmentButton" Content="撤销" Click="UndoSegmentClick"/>
         <Button x:Name="RedoSegmentButton" Content="重做" Click="RedoSegmentClick"/>
         <TextBlock x:Name="ActiveSegmentLabel" VerticalAlignment="Center"/>
       </StackPanel>
-      <Button Grid.Column="1" x:Name="EditorCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="2" x:Name="ConfirmButton" i18n:StableLayout.Samples="确定|下一个视频 →|下一步：导出选项 →" Classes="primary dialog-action" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+      <Button Grid.Column="1" x:Name="EditorCancelButton" Classes="dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
+      <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
   </Grid>
 </Window>

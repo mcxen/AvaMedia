@@ -18,9 +18,10 @@ internal static class ImageViewerToolbar
     public static void Configure(Button button, string? kind, string label, bool showLabel = false)
     {
         var hasText = kind is null || showLabel;
-        button.Width = hasText ? double.NaN : 34; button.MinWidth = 34;
-        button.Height = button.MinHeight = 34;
-        button.Padding = new(hasText ? 8 : 7, 7); button.Margin = new(0, 0, 4, 0);
+        button.Classes.Add("viewer-tool");
+        button.Width = hasText ? double.NaN : 30; button.MinWidth = 30;
+        button.Height = button.MinHeight = 30;
+        button.Padding = new(hasText ? 8 : 5, 5); button.Margin = new(0, 0, 2, 0);
         button.HorizontalContentAlignment = HorizontalAlignment.Center;
         button.VerticalContentAlignment = VerticalAlignment.Center;
         SetAction(button, kind, label, showLabel);
@@ -30,7 +31,7 @@ internal static class ImageViewerToolbar
         if (kind is null) button.Content = Localization.Text(label);
         else
         {
-            var icon = new LucideIcon { Kind = kind, Width = 20, Height = 20 };
+            var icon = new LucideIcon { Kind = kind, Width = 16, Height = 16 };
             icon.Bind(LucideIcon.ForegroundProperty, new Binding(nameof(Avalonia.Controls.Button.Foreground)) { Source = button });
             button.Content = showLabel ? new StackPanel
             {
@@ -42,7 +43,7 @@ internal static class ImageViewerToolbar
     }
     public static Control Divider() => new Border
     {
-        Width = 1, Height = 20, Background = Brushes.Gray, Opacity = .3,
-        VerticalAlignment = VerticalAlignment.Center, Margin = new(4, 0, 8, 0)
+        Classes = { "viewer-divider" }, Width = 1, Height = 16,
+        VerticalAlignment = VerticalAlignment.Center, Margin = new(4, 0, 6, 0)
     };
 }

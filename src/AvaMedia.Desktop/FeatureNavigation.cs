@@ -25,7 +25,7 @@ internal static class FeatureNavigation
 
     private static string[] SectionOrder(string category) => category switch
     {
-        "视频" => ["播放与下载", "转换与体积", "剪辑与画面", "提取与截图", "字幕与分析"],
+        "视频" => ["播放", "格式与体积", "剪辑", "音视频轨道", "字幕与内容"],
         "音频" => ["音频编辑", "格式转换"],
         "图片" => ["图片处理", "格式转换"],
         "文档" => ["PDF 处理", "格式转换"],
@@ -37,11 +37,11 @@ internal static class FeatureNavigation
     {
         "视频" => feature.Id switch
         {
-            "player" or "download" or "info" => "播放与下载",
-            "mp4" or "video-compress" or "video-slim" or "repair" => "转换与体积",
-            "clip" or "person-clip" or "join" or "mux" or "delogo" => "剪辑与画面",
-            "split" or "extract-video" or "frames" => "提取与截图",
-            _ => "字幕与分析"
+            "player" or "download" or "info" => "播放",
+            "mp4" or "video-compress" or "video-slim" or "repair" => "格式与体积",
+            "clip" or "person-clip" or "delogo" or "frames" => "剪辑",
+            "split" or "extract-video" or "join" or "mux" => "音视频轨道",
+            _ => "字幕与内容"
         },
         "音频" => feature.Id == "audio-" + feature.Format ? "格式转换" : "音频编辑",
         "图片" => feature.Id == "image-" + feature.Format ? "格式转换" : "图片处理",

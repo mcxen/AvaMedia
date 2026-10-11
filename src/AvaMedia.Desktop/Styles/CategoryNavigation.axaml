@@ -1,30 +1,73 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Style Selector="Button.category">
-    <Setter Property="CornerRadius" Value="0"/>
-    <Setter Property="VerticalContentAlignment" Value="Center"/>
-  </Style>
-  <Style Selector="Button.category.expanded">
-    <Setter Property="Background" Value="{DynamicResource UiPressed}"/>
-  </Style>
-  <Style Selector="Button.category.expanded /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource UiPressed}"/>
-  </Style>
-  <Style Selector="Button.category.expanded:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource UiHover}"/>
-  </Style>
-  <Style Selector="Button.category.expanded:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource UiPressed}"/>
-  </Style>
-  <Style Selector="Button.feature-tile">
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="6,8"/>
-  </Style>
-  <Style Selector="TextBlock.feature-label">
-    <Setter Property="TextAlignment" Value="Center"/>
-  </Style>
-  <Style Selector="TextBlock.feature-group-title">
-    <Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/>
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
-  </Style>
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="UiNavigationRail" Color="#333333"/>
+          <SolidColorBrush x:Key="UiNavigationText" Color="#EEEEEE"/>
+          <SolidColorBrush x:Key="UiNavigationHover" Color="#454545"/>
+          <SolidColorBrush x:Key="UiNavigationSelection" Color="#5B5BFA"/>
+          <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <CornerRadius x:Key="UiNavigationRailRadius">0,10,10,0</CornerRadius>
+          <CornerRadius x:Key="UiNavigationPanelRadius">12</CornerRadius>
+          <CornerRadius x:Key="UiNavigationButtonRadius">6</CornerRadius>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="UiNavigationRail" Color="#1A1A1A"/>
+          <SolidColorBrush x:Key="UiNavigationText" Color="#EEEEEE"/>
+          <SolidColorBrush x:Key="UiNavigationHover" Color="#303030"/>
+          <SolidColorBrush x:Key="UiNavigationSelection" Color="#5B5BFA"/>
+          <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <CornerRadius x:Key="UiNavigationRailRadius">0,10,10,0</CornerRadius>
+          <CornerRadius x:Key="UiNavigationPanelRadius">12</CornerRadius>
+          <CornerRadius x:Key="UiNavigationButtonRadius">6</CornerRadius>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+          <SolidColorBrush x:Key="UiNavigationRail" Color="#BBBBBB"/>
+          <SolidColorBrush x:Key="UiNavigationText" Color="#111111"/>
+          <SolidColorBrush x:Key="UiNavigationHover" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="UiNavigationSelection" Color="#3D4E80"/>
+          <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <CornerRadius x:Key="UiNavigationRailRadius">0</CornerRadius>
+          <CornerRadius x:Key="UiNavigationPanelRadius">1</CornerRadius>
+          <CornerRadius x:Key="UiNavigationButtonRadius">2</CornerRadius>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}">
+          <SolidColorBrush x:Key="UiNavigationRail" Color="#215DC6"/>
+          <SolidColorBrush x:Key="UiNavigationText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiNavigationHover" Color="#3672D7"/>
+          <SolidColorBrush x:Key="UiNavigationSelection" Color="#163E91"/>
+          <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <CornerRadius x:Key="UiNavigationRailRadius">0,4,4,0</CornerRadius>
+          <CornerRadius x:Key="UiNavigationPanelRadius">5</CornerRadius>
+          <CornerRadius x:Key="UiNavigationButtonRadius">4</CornerRadius>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <!-- A shared compact face keeps native menu geometry consistent in every skin. -->
+      <ControlTheme x:Key="UiNavigationMenuTheme" TargetType="Button">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+        <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border x:Name="PART_NavigationFace" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter x:Name="PART_NavigationContent" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+        <Style Selector="^:pointerover /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiHover}"/></Style>
+        <Style Selector="^:pressed /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiPressed}"/></Style>
+        <Style Selector="^.selected:pointerover /template/ Border#PART_NavigationFace, ^.selected:pressed /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
+        <Style Selector="^:focus-visible /template/ Border#PART_NavigationFace"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+        <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.5"/></Style>
+      </ControlTheme>
+      <ControlTheme x:Key="UiNavigationRailTheme" TargetType="Button" BasedOn="{StaticResource UiNavigationMenuTheme}">
+        <Style Selector="^:pointerover /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiNavigationHover}"/></Style>
+        <Style Selector="^.selected:pointerover /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiNavigationSelection}"/></Style>
+        <Style Selector="^:pressed /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiNavigationSelection}"/></Style>
+        <Style Selector="^:focus-visible /template/ Border#PART_NavigationFace"><Setter Property="BorderBrush" Value="{DynamicResource UiNavigationText}"/></Style>
+      </ControlTheme>
+    </ResourceDictionary>
+  </Styles.Resources>
 </Styles>

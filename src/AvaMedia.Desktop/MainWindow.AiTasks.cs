@@ -1,5 +1,6 @@
 using AvaMedia.Core;
 using Avalonia.Controls;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -93,13 +94,26 @@ public partial class MainWindow
         if (!CanViewAiTask(job)) return Task.CompletedTask;
         if (CanViewClassificationTask(job)) return ShowClassificationTaskAsync(job);
         if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return Task.CompletedTask; }
-        var window = new AiTaskWindow(job, () => HasAiResult(job), () => ShowAiResultAsync(job),
+        var rotation = job.FeatureId == "rotate" && job.Inputs.Length == 1 ? new RotationTaskView(Engine, job) : null;
+        var window = new AiTaskWindow(job, () => rotation?.IsReview == true ? rotation.CanExport : HasAiResult(job),
+            rotation?.IsReview == true ? () => SubmitReviewedRotationAsync(rotation) : () => ShowAiResultAsync(job),
             () => { _queue.Stop(job); Save(); Refresh(); }, () => RequestTaskRunAsync(job),
             () => job.State == JobState.Waiting ? CanStartTask(job) : CanContinueTask(job) || CanRequeueTask(job),
-            () => { _ = Configure(Catalog.Find(job.FeatureId)); }, () => PauseTask(job));
+            () => { _ = Configure(Catalog.Find(job.FeatureId)); }, rotation, () => PauseTask(job));
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         window.Show(this);
+        return Task.CompletedTask;
+    }
+
+    private Task SubmitReviewedRotationAsync(RotationTaskView review)
+    {
+        if (_closing) return Task.CompletedTask;
+        var request = review.CreateRequest();
+        var reserved = _jobs.Select(job => job.Output).ToArray();
+        var jobs = BatchRotate.CreateJobs(request, reserved);
+        OutputPreferences.Apply(jobs, _settings, reserved, request.OutputToSource, request.SettingName);
+        AddToolJobs(jobs, review.StartImmediately);
         return Task.CompletedTask;
     }
 

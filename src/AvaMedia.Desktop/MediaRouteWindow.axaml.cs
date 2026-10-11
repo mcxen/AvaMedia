@@ -68,7 +68,7 @@ public partial class MediaRouteWindow : Window
         InitializeComponent(); _engine = engine; _router = router ?? new MediaFileRouter();
         WindowArtwork.SetKind(this, "split");
         SourceList.ItemsSource = _entries;
-        SourceList.ItemTemplate = new FuncDataTemplate<MediaRouteEntry>((entry, _) => SourceCard(entry!));
+        SourceList.ItemTemplate = new FuncDataTemplate<MediaRouteEntry>((entry, _) => entry is null ? new Border() : SourceCard(entry));
         KindPicker.ItemsSource = new[] { "全部文件", "仅视频", "仅图片", "仅音频", "仅文档", "其他文件" };
         KindPicker.SelectedIndex = 0;
         KindPicker.SelectionChanged += (_, _) => SelectKind();

@@ -303,12 +303,8 @@ public partial class EditorWindow : Window
         ((TabItem)EditTabs.Items[0]!).Header = "免检测区间";
         foreach (var tab in EditTabs.Items.OfType<TabItem>().Skip(1)) tab.IsVisible = false;
         EditTabs.SelectedIndex = 0;
-        if (FadeInCombo.Parent is Control fadeIn) fadeIn.IsVisible = false;
-        if (FadeOutCombo.Parent is Control fadeOut) fadeOut.IsVisible = false;
+        foreach (var field in new Control[] { FadeInCombo, FadeOutCombo, SpeedField, SpeedCombo }) field.IsVisible = false;
         SpeedCombo.IsEnabled = false;
-        if (SpeedCombo.Parent is Grid times)
-            foreach (var control in times.Children.Where(control => Grid.GetColumn(control) is 2 or 3))
-                control.IsVisible = false;
     }
     private void CancelClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>Close(null);
     private async void ConfirmClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)

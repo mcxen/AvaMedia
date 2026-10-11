@@ -45,6 +45,13 @@ internal static class WindowsXPArtwork
                 for (var y = 7; y < 21; y += 4) { c.DrawRectangle(Green, null, new Rect(10, y, 2, 2)); c.DrawRectangle(Blue, null, new Rect(14, y, 9, 1)); }
                 c.DrawGeometry(Gold, Outline, Geometry.Parse("M 3,17 L 30,17 L 26,28 L 2,28 Z")); return;
         }
+        if (kind == "archive")
+        {
+            Folder(c);
+            c.DrawGeometry(null, new Pen(Green, 2), Geometry.Parse("M 22,8 A 7,7 0 1 1 16,24"));
+            c.DrawGeometry(Green, Outline, Geometry.Parse("M 14,20 L 18,25 L 25,16")); return;
+        }
+        if (kind == "image-compress" && label.Length == 0) { Film(c); Arrow(c, "down", 24, 16, 10); return; }
         var audio = kind == "audio";
         var image = kind is "image" or "image-compress";
         var document = kind is "document" or "text-pdf" || kind.StartsWith("pdf-", StringComparison.Ordinal);

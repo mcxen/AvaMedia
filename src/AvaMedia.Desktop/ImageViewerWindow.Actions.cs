@@ -19,6 +19,13 @@ public sealed partial class ImageViewerWindow
         var menu = new ContextMenu();
         void Add(string label, Func<Task> action)
         { var item = new MenuItem { Header = label }; item.Click += async (_, _) => await GuardAsync(action); menu.Items.Add(item); }
+        Add("打开文件", PickAsync); Add("文件夹…", async () => { if (await Ui.Folder(this, "打开图片文件夹") is { } path) await OpenAsync([path]); });
+        Add("最近", ShowRecentAsync); Add("收藏夹", () => { _showBookmarks = !_showBookmarks; RenderFiles(); return Task.CompletedTask; });
+        menu.Items.Add(new Separator());
+        Add("镜像", () => { _viewport.Flip(); return Task.CompletedTask; });
+        Add("双页", async () => { _spread = !_spread; if (_index >= 0) await LoadAsync(_index); });
+        Add("播放设置", () => { ShowPlaybackSettings(); return Task.CompletedTask; });
+        menu.Items.Add(new Separator());
         Add("复制原图", () => CopyImageAsync(false)); Add("复制当前视图", () => CopyImageAsync(true));
         Add("复制文件路径", async () => { if (Clipboard is not null && CurrentEntry is { } entry) await Clipboard.SetTextAsync(entry.Identity.Replace('\n', ' ')); });
         Add("复制 EXIF 信息", async () => { if (Clipboard is not null && _document is { } document) await Clipboard.SetTextAsync(string.Join(Environment.NewLine, document.Metadata.Select(item => item.Key + ": " + item.Value))); });
@@ -148,12 +155,11 @@ public sealed partial class ImageViewerWindow
         foreach (var frame in frames) _bitmaps.Add(CreateFrameBitmap(frame));
         SetViewportFrame(); ScheduleFrame();
     }
-    private void ToggleInfo() => _body.ColumnDefinitions[2].Width = _body.ColumnDefinitions[2].Width.Value == 0 ? new GridLength(260) : new GridLength(0);
-    private void ToggleLibrary() => _body.ColumnDefinitions[0].Width = _body.ColumnDefinitions[0].Width.Value == 0 ? new GridLength(210) : new GridLength(0);
+    private void ToggleLibrary() => _body.ColumnDefinitions[0].Width = _body.ColumnDefinitions[0].Width.Value == 0 ? new GridLength(240) : new GridLength(0);
     private void ChangePage(int direction)
     {
         if (_document is not { Frames.Length: > 1 } document) return;
         _animation.Stop(); _animationPaused = true; _frame = (_frame + direction + document.Frames.Length) % document.Frames.Length;
-        ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画", showLabel: true); SetViewportFrame(); RefreshStatus();
+        ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画"); SetViewportFrame(); RefreshStatus();
     }
 }

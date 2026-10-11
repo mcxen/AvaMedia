@@ -13,8 +13,8 @@ namespace AvaMedia.Desktop.Controls;
 public sealed class MediaPreviewPanel : UserControl, IDisposable
 {
     private readonly IMediaEngine _engine;
-    private readonly ImageCompareView _view=new(){MinHeight=80,SideBySide=true};
-    private readonly TextBlock _status=Ui.Text("选择文件以预览","caption");
+    private readonly ImageCompareView _view=new(){SideBySide=true};
+    private readonly TextBlock _status=new(){Text="选择文件以预览",Classes={"caption"},TextWrapping=TextWrapping.Wrap,MaxLines=2,TextTrimming=TextTrimming.WordEllipsis};
     private readonly TextBlock _position=Ui.Text("","caption");
     private readonly Slider _seek=new(){Minimum=0,Maximum=1,IsVisible=false};
     private readonly AudioWaveform _waveform=new(){IsVisible=false};
@@ -36,7 +36,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     {
         _engine=engine;
         var root=new Grid{RowDefinitions=new("Auto,*,Auto,Auto"),RowSpacing=8};root.Children.Add(_status);
-        var surface=new Grid();surface.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
+        var surface=new Grid{ClipToBounds=true};surface.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
         surface.Children.Add(_waveform);surface.Children.Add(_view);surface.Children.Add(_archive);Grid.SetRow(surface,1);root.Children.Add(surface);
         Grid.SetRow(_seek,2);root.Children.Add(_seek);
         var actions=new Grid{RowDefinitions=new("Auto,Auto"),RowSpacing=4};actions.Children.Add(_position);
@@ -72,7 +72,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         if(_closed)return;
         var stamp=path is not null&&File.Exists(path)?new FileInfo(path):null;
         var key=path+"|"+stamp?.Length+"|"+stamp?.LastWriteTimeUtc.Ticks+"|"+System.Text.Json.JsonSerializer.Serialize(options);
-        if(key==_sourceKey)return;_sourceKey=key;
+        if(key==_sourceKey)return;_sourceKey=key;ToolTip.SetTip(_status,null);
         var changed=_path!=path||_options?.VideoStreamIndex!=options?.VideoStreamIndex||_options?.AudioStreamIndex!=options?.AudioStreamIndex;_path=path;_options=options?.Clone();
         if(changed){_info=null;_requestedPosition=options?.Start??0;ClearBitmaps();_updating=true;_seek.Value=0;_updating=false;}
         if(path is null){_work?.Cancel();_status.Text=Localization.Text("选择文件以预览");_seek.IsVisible=_archive.IsVisible=false;_open.IsEnabled=_listen.IsVisible=_waveform.IsVisible=false;return;}
@@ -122,7 +122,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
             Localization.SetText(_position,$"{info.Width} × {info.Height} · {MediaTime.Format(seconds)}");
         }
         catch(OperationCanceledException){}
-        catch(Exception error){if(!token.IsCancellationRequested&&!_closed){Localization.SetText(_status,$"预览读取失败：{error.Message}");}}
+        catch(Exception error){if(!token.IsCancellationRequested&&!_closed){_status.Text=Localization.Text("预览读取失败，可打开原文件预览。");ToolTip.SetTip(_status,error.Message);}}
     }
 
     private static ArchiveItem[] ReadArchive(string path,CancellationToken token)

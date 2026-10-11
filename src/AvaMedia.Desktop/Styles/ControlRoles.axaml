@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
   <!-- Business views choose a role; skin resources supply its appearance and metrics. -->
   <Style Selector="TextBlock"><Setter Property="controls:OverflowTip.IsEnabled" Value="True"/></Style>
+  <Style Selector="ListBoxItem:selected TextBlock.caption"><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
   <!-- Classic skins express the primary action through their native default face. -->
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary">
     <Setter Property="Background" Value="{DynamicResource UiAccent}"/>

@@ -88,7 +88,7 @@ public sealed partial class ImageViewerWindow
                 // Remap the selection by identity without decoding again or resetting the viewport.
                 RenderFiles(); RefreshStatus(); RefreshBookmark();
                 if (_document is not null && _entries[_index].Bytes != current.Bytes) RenderMetadata(_entries[_index], _document);
-                if (_spread.IsChecked == true && _document is not null && _loading is null
+                if (_spread && _document is not null && _loading is null
                     && _secondDocument is null && _index + 1 < entries.Length)
                 {
                     // The adjacent page becomes available only after the list has arrived.
@@ -129,19 +129,19 @@ public sealed partial class ImageViewerWindow
         _loading?.Cancel(); var generation = ++_loadGeneration;
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _loading = operation;
         _index = index; _animation.Stop(); _document = _secondDocument = null;
-        _metadata.Children.Clear(); _animationButton.IsVisible = false;
+        _animationButton.IsVisible = false;
         // Keep the last frame on screen until the selected image is ready instead of flashing a blank canvas.
         _empty.Text = Localization.Text("加载图片…"); _empty.IsVisible = _bitmaps.Count == 0;
         _bindingFiles = true; _files.SelectedItem = _entries[index]; _bindingFiles = false;
         var entry = _entries[index]; _status.Text = entry.Name;
-        var secondEntry = _spread.IsChecked == true && index + 1 < _entries.Length ? _entries[index + 1] : null;
+        var secondEntry = _spread && index + 1 < _entries.Length ? _entries[index + 1] : null;
         var displayed = false;
         try
         {
             var document = await ImageCodec.DecodeAsync(entry, operation.Token);
             operation.Token.ThrowIfCancellationRequested();
             if (_closed || generation != _loadGeneration) return;
-            if (secondEntry is null && _spread.IsChecked == true && _index + 1 < _entries.Length)
+            if (secondEntry is null && _spread && _index + 1 < _entries.Length)
                 secondEntry = _entries[_index + 1];
             ReleaseImages(); _document = document; _loadedModified = File.GetLastWriteTimeUtc(entry.Container);
             foreach (var frame in document.Frames) _bitmaps.Add(CreateFrameBitmap(frame));
@@ -149,7 +149,7 @@ public sealed partial class ImageViewerWindow
             _empty.IsVisible = false; Title = entry.Name + " — " + Localization.Text("天池看图");
             displayed = true;
             _animationButton.IsVisible = document.Animated && document.Frames.Length > 1;
-            ImageViewerToolbar.SetAction(_animationButton, "pause", "暂停动画", showLabel: true);
+            ImageViewerToolbar.SetAction(_animationButton, "pause", "暂停动画");
             RenderMetadata(entry, document); RefreshBookmark(); RefreshStatus(); ScheduleFrame();
             if (secondEntry is not null)
             {
@@ -189,7 +189,8 @@ public sealed partial class ImageViewerWindow
     private void ReleaseImages()
     {
         _viewport.SetImages(null); foreach (var bitmap in _bitmaps) bitmap.Dispose(); _bitmaps.Clear();
-        _secondBitmap?.Dispose(); _secondBitmap = null; _document = _secondDocument = null; _metadata.Children.Clear();
+        _secondBitmap?.Dispose(); _secondBitmap = null; _document = _secondDocument = null;
+        _metadata.Children.Clear(); _info.IsVisible = false; _mapButton.IsVisible = false; _infoSummary.Text = "";
         _animationButton.IsVisible = false;
     }
     private void RenderFiles()
@@ -208,7 +209,7 @@ public sealed partial class ImageViewerWindow
     private void Navigate(int direction, bool slideshow = false)
     {
         if (_entries.Length == 0 || slideshow && _loading is not null) return;
-        var next = _index + direction * (_spread.IsChecked == true ? 2 : 1);
+        var next = _index + direction * (_spread ? 2 : 1);
         if (slideshow && _preferences.Random && _entries.Length > 1)
         { next = Random.Shared.Next(_entries.Length - 1); if (next >= _index) next++; }
         if (next < 0 || next >= _entries.Length)
@@ -238,7 +239,7 @@ public sealed partial class ImageViewerWindow
         {
             _loops++; _frame = 0;
             if (document.LoopCount > 0 && _loops >= document.LoopCount)
-            { _frame = _bitmaps.Count - 1; _animationPaused = true; ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画", showLabel: true); return; }
+            { _frame = _bitmaps.Count - 1; _animationPaused = true; ImageViewerToolbar.SetAction(_animationButton, "play", "播放动画"); return; }
         }
         SetViewportFrame(); RefreshStatus(); ScheduleFrame();
     }
@@ -246,31 +247,37 @@ public sealed partial class ImageViewerWindow
     {
         if (_slideshow.IsEnabled) { StopSlideshow(); return; }
         if (_entries.Length == 0) return;
-        SetSlideshowInterval(); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片", showLabel: true);
+        SetSlideshowInterval(); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片");
     }
-    private void StopSlideshow() { _slideshow.Stop(); ImageViewerToolbar.SetAction(_slideshowButton, "play", "幻灯片", showLabel: true); }
+    private void StopSlideshow() { _slideshow.Stop(); ImageViewerToolbar.SetAction(_slideshowButton, "play", "幻灯片"); }
     private void SetSlideshowInterval() => _slideshow.Interval = TimeSpan.FromSeconds(_interval.SelectedIndex switch { 0 => 2, 2 => 10, 3 => 30, _ => 5 });
     private void RefreshStatus()
     {
         if (_document is not { } document || _index < 0) return;
-        _status.Text = $"{_index + 1} / {_entries.Length} · {_entries[_index].Name} · {_bitmaps[_frame].PixelSize.Width} × {_bitmaps[_frame].PixelSize.Height} · {document.Format} · {_viewport.Zoom:P0}"
-            + (document.Frames.Length > 1 ? $" · {_frame + 1}/{document.Frames.Length}" : "");
+        var frame = document.Frames.Length > 1 ? $" · {_frame + 1}/{document.Frames.Length}" : "";
+        _status.Text = $"{_index + 1} / {_entries.Length} · {_entries[_index].Name} · {_viewport.Zoom:P0}{frame}";
         Localization.SetIsUserText(_status, true);
+        var current = _entries[_index];
+        _infoSummary.Text = $"{document.Width} × {document.Height} · {document.Format} · {ImageCompression.Bytes(current.Bytes)}";
+        Localization.SetIsUserText(_infoSummary, true);
     }
     private void RenderMetadata(ImageViewerEntry entry, ImageViewerDocument document)
     {
         _metadata.Children.Clear();
         AddInfo(Localization.Text("文件"), entry.Name);
-        AddInfo(Localization.Text("位置"), entry.InArchive ? entry.Container + "\n" + entry.Member : entry.Container);
-        AddInfo(Localization.Text("尺寸"), $"{document.Width} × {document.Height}");
-        AddInfo(Localization.Text("格式"), document.Format); AddInfo(Localization.Text("文件大小"), ImageCompression.Bytes(entry.Bytes));
-        if (document.MapUrl is not null) _metadata.Children.Add(_mapButton);
+        AddInfo(Localization.Text("位置"), entry.InArchive ? entry.Container + " · " + entry.Member : entry.Container);
         foreach (var (name, value) in document.Metadata) AddInfo(name, value);
+        _mapButton.IsVisible = document.MapUrl is not null;
+        _info.IsVisible = true; RefreshStatus();
     }
     private void AddInfo(string label, string value)
     {
-        var name = Ui.Text(label, "settingsHeading"); Localization.SetIsUserText(name, true); _metadata.Children.Add(name);
-        var text = Ui.Text(value); Localization.SetIsUserText(text, true); text.TextWrapping = Avalonia.Media.TextWrapping.Wrap; _metadata.Children.Add(text);
+        var line = new TextBlock
+        {
+            Text = label + "  " + value, Classes = { "viewer-meta" },
+            TextWrapping = TextWrapping.Wrap, Margin = new(0, 1)
+        };
+        Localization.SetIsUserText(line, true); _metadata.Children.Add(line);
     }
     private void ToggleBookmark()
     {
@@ -308,8 +315,10 @@ public sealed partial class ImageViewerWindow
     }
     private void ToggleFullscreen()
     {
-        if (WindowState == WindowState.FullScreen) { WindowState = _beforeFullscreen; _header.IsVisible = _navigation.IsVisible = true; _body.ColumnDefinitions[0].Width = _beforeLibrary; _body.ColumnDefinitions[2].Width = _beforeInfo; }
-        else { _beforeFullscreen = WindowState; _beforeLibrary = _body.ColumnDefinitions[0].Width; _beforeInfo = _body.ColumnDefinitions[2].Width; _body.ColumnDefinitions[0].Width = _body.ColumnDefinitions[2].Width = new GridLength(0); WindowState = WindowState.FullScreen; _header.IsVisible = _navigation.IsVisible = false; }
+        if (WindowState == WindowState.FullScreen)
+        { WindowState = _beforeFullscreen; _chrome.IsVisible = true; _body.ColumnDefinitions[0].Width = _beforeLibrary; }
+        else
+        { _beforeFullscreen = WindowState; _beforeLibrary = _body.ColumnDefinitions[0].Width; _body.ColumnDefinitions[0].Width = new GridLength(0); WindowState = WindowState.FullScreen; _chrome.IsVisible = false; }
     }
     private void HandleKey(object? sender, KeyEventArgs e)
     {
@@ -325,11 +334,11 @@ public sealed partial class ImageViewerWindow
         if (command && e.Key == Key.D0) { StopSlideshow(); e.Handled = true; return; }
         if (command && e.Key >= Key.D1 && e.Key <= Key.D9)
         {
-            if (_entries.Length > 0) { _slideshow.Interval = TimeSpan.FromSeconds((int)e.Key - (int)Key.D0); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片", showLabel: true); }
+            if (_entries.Length > 0) { _slideshow.Interval = TimeSpan.FromSeconds((int)e.Key - (int)Key.D0); _slideshow.Start(); ImageViewerToolbar.SetAction(_slideshowButton, "stop", "停止幻灯片"); }
             e.Handled = true; return;
         }
         if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Alt)) { ToggleFullscreen(); e.Handled = true; return; }
-        if (e.Key == Key.Tab) { ToggleInfo(); e.Handled = true; return; }
+        if (e.Key == Key.Tab) { ToggleLibrary(); e.Handled = true; return; }
         switch (e.Key)
         {
             case Key.Right: case Key.PageDown: Navigate(1); break;
@@ -367,5 +376,5 @@ public sealed partial class ImageViewerWindow
         var flyout = new Flyout { Content = new StackPanel { Spacing = 10, Children = { Ui.Text("间隔"), Ui.Parameter(interval, "间隔"), random, repeat, rtl, lockZoom } } }; flyout.ShowAt(_slideshowButton);
     }
     private Task HelpAsync() => Ui.Message(this, "看图快捷键",
-        "← / →、Page Up / Down：翻图\nHome / End：首张 / 末张\n滚轮、+ / −：缩放；拖动：平移\n双击：适应 / 原始尺寸；1 / 0：适应 / 原始尺寸\nR / Shift+R：旋转；B：收藏\n空格：下一张；Shift+空格：上一张\nCtrl+1–9：幻灯片；Ctrl+0：停止；F11：全屏；Esc：退出全屏 / 停止播放\nAlt+Page Up / Down：多页图片翻页\nF：打开文件夹；F2 / Ctrl / ⌘ + O：打开图片\nCtrl / ⌘ + C：复制图片；P：打印\nCtrl / ⌘ + E：外部编辑；T：批量转换；Tab：信息");
+        "← / →、Page Up / Down：翻图\nHome / End：首张 / 末张\n滚轮、+ / −：缩放；拖动：平移\n双击：适应 / 原始尺寸；1 / 0：适应 / 原始尺寸\nR / Shift+R：旋转；B：收藏\n空格：下一张；Shift+空格：上一张\nCtrl+1–9：幻灯片；Ctrl+0：停止；F11：全屏；Esc：退出全屏 / 停止播放\nAlt+Page Up / Down：多页图片翻页\nF：打开文件夹；F2 / Ctrl / ⌘ + O：打开图片\nCtrl / ⌘ + C：复制图片；P：打印\nCtrl / ⌘ + E：外部编辑；T：批量转换；Tab：图片列表");
 }

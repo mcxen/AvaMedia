@@ -7,8 +7,8 @@ public sealed class SizeComparisonView : UserControl
 {
     private readonly ProgressBar _source = new() { Height = 12 };
     private readonly ProgressBar _target = new() { Height = 12 };
-    private readonly TextBlock _sourceLabel = Ui.Status();
-    private readonly TextBlock _targetLabel = Ui.Status();
+    private readonly TextBlock _sourceLabel = Ui.Text("", "caption");
+    private readonly TextBlock _targetLabel = Ui.Text("", "caption");
 
     public SizeComparisonView()
     {

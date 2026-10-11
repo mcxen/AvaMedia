@@ -58,7 +58,7 @@ public sealed class FeatureIcon : Control
         void T(string text,double x,double y,double size,string color,bool bold=false)=>c.DrawText(new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI",FontStyle.Normal,bold?FontWeight.Bold:FontWeight.Normal),size,B(color)),new(x,y));
         if (Kind == "image-compress")
         {
-            if (Artwork("image", 64 * scale) is { } picture) c.DrawImage(picture, new Rect(16,0,64,64));
+            if (Artwork(Label.Length == 0 ? "video" : "image", 64 * scale) is { } picture) c.DrawImage(picture, Label.Length == 0 ? new Rect(8, 0, 64, 64) : new Rect(16, 0, 64, 64));
             R(4,44,29,29,"#E2E4E6",2);c.DrawRectangle(null,dark,new Rect(4,44,29,29),2,2);
             var green=new Pen(B("#23AD88"),3);
             c.DrawGeometry(null,green,Geometry.Parse("M 7,49 L 15,57 M 9,57 L 15,57 L 15,51 M 29,69 L 21,61 M 21,67 L 21,61 L 27,61"));
@@ -126,6 +126,12 @@ public sealed class FeatureIcon : Control
         else if(Kind=="download") {Film(10,20,49,42);L(70,17,70,50,"#5FB134",5);L(59,40,70,51,"#5FB134",5);L(81,40,70,51,"#5FB134",5);}
         else if(Kind is "disc" or "archive") {c.DrawEllipse(B("#DCE2E6"),dark,new Point(43,37),30,30);c.DrawEllipse(Brushes.White,dark,new Point(43,37),9,9);L(43,8,43,26,"#FAFAFA",8);if(Kind=="archive"){R(53,15,24,49,"#E3B757",2);for(int i=0;i<7;i++)R(61,17+i*6,6,4,"#705C30");}}
         else if(Kind=="info") {c.DrawEllipse(blue,null,new Point(46,36),28,28);T("i",39,9,45,"#FFFFFF",true);}
+        else if (Kind == "archive")
+        {
+            R(18,16,48,50,"#E3B757",3); for (int i = 0; i < 6; i++) R(36,20 + i * 7,10,4,"#705C30");
+            c.DrawGeometry(null, new Pen(B("#5FB134"), 4), Geometry.Parse("M 58,18 A 16,16 0 1 1 46,62"));
+            c.DrawGeometry(B("#5FB134"), null, Geometry.Parse("M 40,54 L 52,66 L 66,48"));
+        }
         else {Film(12,24);T("⚙",39,3,44,"#F1B32D",true);T("⚙",60,30,28,"#D6981C",true);}
     }
 }
