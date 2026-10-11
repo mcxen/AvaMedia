@@ -117,7 +117,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                 var result = VideoOrientationPolicy.Decide(evidence);
                 // Higher resolution can resolve weak detections or nearly tied candidates;
                 // strong temporal contradictions should remain uncertain.
-                if (result.IsCertain || result.AgreeingFrames >= 3 || size == 640)
+                if (result.IsCertain || size == 640)
                 {
                     progress?.Report(new(times.Length * 2, times.Length * 2, times[^1]));
                     return result with { Backend = session.Backend, FallbackReason = session.FallbackReason };
@@ -132,7 +132,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
         // FFmpeg applies the file display matrix before these filters, just as Thumbnail does.
         string[] args = ["-v", "error", "-ss", MediaEngine.Number(seconds), "-i", path,
             "-map", $"0:v:{stream}", "-frames:v", "1", "-vf",
-            $"scale={size}:{size}:force_original_aspect_ratio=decrease,pad={size}:{size}:(ow-iw)/2:(oh-ih)/2,setsar=1",
+            $"scale={size}:{size}:force_original_aspect_ratio=decrease:reset_sar=1,pad={size}:{size}:(ow-iw)/2:(oh-ih)/2,setsar=1",
             "-pix_fmt", "bgr24", "-f", "rawvideo", "pipe:1"];
         using var process = ProcessRunner.Start(engine.FFmpeg, args);
         using var registration = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
@@ -217,10 +217,11 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
             if (eyeDistance < 6 || downDistance < face.Height * .1 || downDistance > face.Height * .8) continue;
             var horizontal = Math.Abs(eyeDx) / eyeDistance; var upright = downY / downDistance;
             if (horizontal < .82 || upright < .82 || p[5] < eyeY - face.Height * .05 || p[5] > mouthY + face.Height * .05) continue;
-            var areaWeight = Math.Sqrt(Math.Clamp(face.Width * face.Height / (size * size * .04), 0, 1));
             // Max caps each frame's influence, so crowd scenes cannot dominate the temporal vote.
+            // Pixel and landmark minima above establish whether a face is resolvable. Its share
+            // of the padded canvas must not weaken otherwise clear evidence in wide/group shots.
             var geometryQuality = Math.Pow(horizontal * upright, 3);
-            best = Math.Max(best, face.Confidence * geometryQuality * areaWeight);
+            best = Math.Max(best, face.Confidence * geometryQuality);
         }
         return best;
     }
