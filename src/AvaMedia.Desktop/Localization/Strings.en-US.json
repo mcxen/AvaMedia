@@ -3429,5 +3429,18 @@
   "设置名称": "Setting name",
   "更多片段操作": "More clip actions",
   "更多操作": "More actions",
-  "查看": "View"
+  "查看": "View",
+  "上一级": "Up",
+  "搜索当前文件夹": "Search this folder",
+  "显示隐藏文件": "Show hidden files",
+  "系统选择…": "System picker…",
+  "文件夹地址": "Folder address",
+  "常用位置": "Locations",
+  "文件列表": "Files",
+  "文件类型": "File type",
+  "找不到可选择的文件或文件夹。": "No selectable file or folder was found.",
+  "项已选择": "selected",
+  "个人文件夹": "Home",
+  "桌面": "Desktop",
+  "选择文件夹": "Select folder"
 }

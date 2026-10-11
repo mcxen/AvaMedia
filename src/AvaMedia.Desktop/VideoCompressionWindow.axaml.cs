@@ -52,7 +52,10 @@ public partial class VideoCompressionWindow : Window
     public VideoCompressionWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null, bool editing = false)
     {
-        InitializeComponent(); ToolExecution.Configure(this,ConfirmButton,"开始压缩",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        InitializeComponent();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
+        ImportPanel.AddFoldersAsync = PickFolderAsync; ToolExecution.Configure(this,ConfirmButton,"开始压缩",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
         if (editing) { Title = "编辑视频压缩任务"; ConfirmButton.Content = "保存修改"; }
         _preview = new MediaPreviewPanel(engine); PreviewHost.Content = _preview;
         SourceList.ItemsSource = _entries;
@@ -272,8 +275,8 @@ public partial class VideoCompressionWindow : Window
         _preview.SetSource(entry?.Path); SizeChart.SetSizes(entry?.Bytes ?? 0,entry?.Plan?.EstimatedBytes);
     }
 
-    private async void AddClick(object? sender, RoutedEventArgs args) => await AddFilesAsync(await Ui.Pick(this, "添加压缩视频"));
-    private async void FolderClick(object? sender, RoutedEventArgs args)
+    private async Task PickFilesAsync() => await AddFilesAsync(await Ui.Pick(this, "添加压缩视频"));
+    private async Task PickFolderAsync()
     {
         if (await Ui.Folder(this, "添加视频文件夹") is not { } folder) return;
         try { await AddFilesAsync(Directory.EnumerateFiles(folder).Where(VideoFolderScanner.IsVideoFile)); }

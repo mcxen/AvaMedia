@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:files="using:AvaMedia.FileUi" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.MediaRouteWindow"
         Classes="file-router" Title="文件路由" Width="1140" Height="780" MinWidth="980" MinHeight="620"
         WindowStartupLocation="CenterOwner">
@@ -41,7 +41,7 @@
   </Window.Styles>
   <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
     <Grid ColumnDefinitions="*,Auto">
-      <Button Content="添加文件…" Click="AddClick" Classes="field-action" HorizontalAlignment="Left"/>
+      <files:FileImportActions x:Name="ImportPanel" HorizontalAlignment="Left"/>
       <TextBox x:Name="ToolSearch" Grid.Column="1" Width="{DynamicResource UiEditorDetailsWidth}"
                Watermark="搜索工具" AutomationProperties.Name="搜索工具"/>
     </Grid>

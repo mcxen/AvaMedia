@@ -57,24 +57,19 @@ public sealed class ContactSheetWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(12), RowSpacing = 6 };
         _importBar = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var addFiles = new Button { Content = "添加视频…" };
-        addFiles.Click += async (_, _) =>
+        _importBar.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
-            var files = await StorageProvider.OpenFilePickerAsync(new()
+            var files = await ToolFilePicker.OpenFilesAsync(this, new()
             {
                 Title = Localization.Text("选择多个视频"), AllowMultiple = true,
                 FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = VideoFormats.InputExtensions.Select(extension => "*." + extension).ToArray() }, FilePickerFileTypes.All]
             });
-            AddPaths(files.Select(f => f.TryGetLocalPath()).OfType<string>());
-        };
-        _importBar.Children.Add(addFiles);
-        var addFolders = new Button { Content = "添加文件夹…" };
-        addFolders.Click += async (_, _) =>
+            AddPaths(files.Select(file => file.TryGetLocalPath()).OfType<string>());
+        }, async () =>
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = Localization.Text("选择视频文件夹"), AllowMultiple = true });
-            await AddFolders(folders.Select(f => f.TryGetLocalPath()).OfType<string>());
-        };
-        _importBar.Children.Add(addFolders);
+            var folders = await ToolFilePicker.OpenFoldersAsync(this, new() { Title = Localization.Text("选择视频文件夹"), AllowMultiple = true });
+            await AddFolders(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
+        }, "添加视频…"));
         _recursive = new() { Content = "包含子文件夹", IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
         _importBar.Children.Add(_recursive);
         _importBar.Children.Add(Ui.Button("移除", () =>

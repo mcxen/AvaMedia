@@ -66,6 +66,8 @@ public partial class MediaRouteWindow : Window
     public MediaRouteWindow(IMediaEngine engine, IEnumerable<string> files, IMediaFileRouter? router = null)
     {
         InitializeComponent(); _engine = engine; _router = router ?? new MediaFileRouter();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
         WindowArtwork.SetKind(this, "split");
         SourceList.ItemsSource = _entries;
         SourceList.ItemTemplate = new FuncDataTemplate<MediaRouteEntry>((entry, _) => entry is null ? new Border() : SourceCard(entry));
@@ -164,7 +166,7 @@ public partial class MediaRouteWindow : Window
     }
     private void OpenRoute(MediaRouteOption route)
     { if (!_closed && route.Enabled) { _request = new(route.Feature.Id, route.Files); Close(_request); } }
-    private async void AddClick(object? sender, RoutedEventArgs args)
+    private async Task PickFilesAsync()
     {
         try { AddFiles(await Ui.Pick(this, "添加到文件路由")); }
         catch (Exception error)

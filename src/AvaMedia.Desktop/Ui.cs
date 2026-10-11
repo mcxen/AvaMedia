@@ -75,9 +75,9 @@ internal static class Ui
         return new(){ItemsSource=list,SelectedItem=list.Contains(selected)?selected:list.FirstOrDefault(),HorizontalAlignment=HorizontalAlignment.Left,Width=Math.Clamp(longest*14+36,96,280)};
     }
     public static async Task<string[]> Pick(Window owner,string title,bool multiple=true)
-    {var files=await owner.StorageProvider.OpenFilePickerAsync(new(){Title=Localization.Text(title),AllowMultiple=multiple});return files.Select(f=>f.TryGetLocalPath()).OfType<string>().ToArray();}
+    {var files=await ToolFilePicker.OpenFilesAsync(owner, new(){Title=Localization.Text(title),AllowMultiple=multiple});return files.Select(f=>f.TryGetLocalPath()).OfType<string>().ToArray();}
     public static async Task<string?> Folder(Window owner,string title)
-    {var folders=await owner.StorageProvider.OpenFolderPickerAsync(new(){Title=Localization.Text(title),AllowMultiple=false});return folders.FirstOrDefault()?.TryGetLocalPath();}
+    {var folders=await ToolFilePicker.OpenFoldersAsync(owner, new(){Title=Localization.Text(title),AllowMultiple=false});return folders.FirstOrDefault()?.TryGetLocalPath();}
     // Modal yes/no confirmation for destructive in-window actions; the action button keeps the dialog's single primary role.
     public static async Task<bool> Confirm(Window owner,string title,string message,string action)
     {

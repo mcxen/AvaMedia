@@ -63,19 +63,18 @@ public sealed partial class RenameWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "gear");
         var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(12), RowSpacing = 8 };
-        _importBar.Children.Add(Ui.Button("添加图片 / 视频…", async () =>
+        _importBar.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
             try
             {
-                var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
+                var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
                     FileTypeFilter = [new FilePickerFileType(Localization.Text("图片和视频")) { Patterns = VideoFormats.InputExtensions.Concat(new[] { "jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "gif", "ico", "avif", "heic", "heif" }).Select(extension => "*." + extension).ToArray() }, FilePickerFileTypes.All] });
                 await AddFolders(files.Select(file => file.TryGetLocalPath()).OfType<string>());
             }
             catch (Exception error) { await ShowErrorAsync("导入失败", error); }
-        }));
-        _importBar.Children.Add(Ui.Button("添加文件夹…", async () =>
+        }, async () =>
         {
-            try { var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true }); await AddFolders(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>()); }
+            try { var folders = await ToolFilePicker.OpenFoldersAsync(this, new() { AllowMultiple = true }); await AddFolders(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>()); }
             catch (Exception error) { await ShowErrorAsync("导入失败", error); }
         }));
         _importBar.Children.Add(_recursive);

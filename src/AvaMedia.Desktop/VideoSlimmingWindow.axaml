@@ -1,4 +1,4 @@
-<Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:files="using:AvaMedia.FileUi" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoSlimmingWindow"
         Title="视频瘦身" Width="1200" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
   <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="8">
@@ -13,13 +13,11 @@
               <TextBlock Text="视频"/>
               <TextBlock x:Name="FileCountText" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
             </Grid>
-            <WrapPanel x:Name="ImportPanel" Orientation="Horizontal">
-              <WrapPanel.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></WrapPanel.Styles>
-              <Button Content="添加视频…" Click="AddClick"/>
-              <Button Content="添加文件夹…" Click="FolderClick"/>
+            <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…" AllowFolders="True">
+              <files:FileImportActions.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></files:FileImportActions.Styles>
               <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
               <Button x:Name="RemoveUnavailableButton" Content="移除不可处理" Click="RemoveUnavailableClick" IsEnabled="False"/>
-            </WrapPanel>
+            </files:FileImportActions>
             <Grid MinHeight="112">
               <ListBox x:Name="SourceList" MinHeight="112" MaxHeight="240" SelectionMode="Multiple" AutomationProperties.Name="瘦身视频"
                        SelectionChanged="SourceSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">

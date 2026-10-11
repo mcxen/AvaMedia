@@ -79,6 +79,8 @@ public partial class PdfWorkspaceWindow : Window
     public PdfWorkspaceWindow(Feature feature, string outputFolder, IEnumerable<string>? initial = null, ConversionOptions? initialOptions = null, IMediaEngine? engine = null, bool editing = false)
     {
         _feature = feature; _engine = engine ?? new MediaEngine(new()); InitializeComponent();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
         ToolExecution.Configure(this, ConfirmButton, "开始处理", editing);
         Title = feature.Label; OutputFolder.Text = outputFolder;
         if (editing) { Title = Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}"); ConfirmButton.Content = "保存修改"; }
@@ -161,7 +163,7 @@ public partial class PdfWorkspaceWindow : Window
         var candidates = paths.Select(Path.GetFullPath).Distinct(VideoFolderScanner.PathComparer).ToArray();
         if (candidates.Length == 0) return;
         if (IsSingleInput && (candidates.Length != 1 || _files.Count > 0)) { StatusText.Text = Localization.Text("此工具一次处理一个文件，请先清空。"); return; }
-        _loading = true; AddButton.IsEnabled = ClearButton.IsEnabled = ConfirmButton.IsEnabled = false;
+        _loading = true; ImportPanel.FilesButton.IsEnabled = ClearButton.IsEnabled = ConfirmButton.IsEnabled = false;
         _boardWork?.Cancel();
         var errors = new List<string>();
         try
@@ -215,7 +217,7 @@ public partial class PdfWorkspaceWindow : Window
             _loading = false;
             if (!_closed)
             {
-                AddButton.IsEnabled = ClearButton.IsEnabled = true; RebuildBoard();
+                ImportPanel.FilesButton.IsEnabled = ClearButton.IsEnabled = true; RebuildBoard();
                 StatusText.Text = errors.Count > 0 ? string.Join("\n", errors) : "";
                 UpdatePreview();
             }
@@ -563,9 +565,9 @@ public partial class PdfWorkspaceWindow : Window
         foreach (var path in paths) TryDelete(path);
     }
     private static void TryDelete(string path) { try { File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
-    private async void AddClick(object? sender, RoutedEventArgs e)
+    private async Task PickFilesAsync()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new()
+        var files = await ToolFilePicker.OpenFilesAsync(this, new()
         {
             Title = Localization.Text("添加文件"), AllowMultiple = !IsSingleInput,
             FileTypeFilter = [new FilePickerFileType(_feature.Operation == Operation.TextPdf ? "TXT" : _feature.Operation == Operation.ImagesPdf ? Localization.Text("图片") : "PDF")

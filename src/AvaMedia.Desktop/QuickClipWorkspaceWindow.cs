@@ -28,11 +28,11 @@ internal sealed class QuickClipWorkspaceWindow : Window
         Title = "快速剪辑"; Width = 920; Height = 640; MinWidth = 740; MinHeight = 480; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        toolbar.Children.Add(Ui.Button("添加视频…", async () =>
+        toolbar.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
             try { foreach(var path in await Ui.Pick(this, "选择视频")) if(!_sources.Any(source => VideoFolderScanner.PathComparer.Equals(source.Path, path))) _sources.Add(new(path, null)); RefreshFiles(); }
             catch(Exception error) { _status.Text = error.Message; }
-        }));
+        }, filesText: "添加视频…"));
         toolbar.Children.Add(Ui.Button("移除视频", () => { if(_files.SelectedItem is Source source) _sources.Remove(source); RefreshFiles(); })); root.Children.Add(toolbar);
         _files.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(PaddingProperty, new Thickness(4, 2)), new Setter(MinHeightProperty, 0d), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>

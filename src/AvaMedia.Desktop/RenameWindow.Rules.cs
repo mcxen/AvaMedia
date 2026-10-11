@@ -164,7 +164,7 @@ public sealed partial class RenameWindow
     {
         try
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("保存命名规则"), SuggestedFileName = "rename-rules.json", DefaultExtension = "json" });
+            var file = await ToolFilePicker.SaveAsync(this, new() { Title = Localization.Text("保存命名规则"), SuggestedFileName = "rename-rules.json", DefaultExtension = "json" });
             if (file is null) return;
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0);
             await JsonSerializer.SerializeAsync(stream, _rules.Select(rule => rule.Operation).ToArray(), RuleJson);
@@ -175,7 +175,7 @@ public sealed partial class RenameWindow
     {
         try
         {
-            var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("载入命名规则"), FileTypeFilter = [new FilePickerFileType("JSON") { Patterns = ["*.json"] }] });
+            var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("载入命名规则"), FileTypeFilter = [new FilePickerFileType("JSON") { Patterns = ["*.json"] }] });
             if (files.Count == 0) return;
             await using var stream = await files[0].OpenReadAsync();
             var rules = await JsonSerializer.DeserializeAsync<RenameOperation[]>(stream, RuleJson) ?? throw new InvalidDataException("命名规则无效。");

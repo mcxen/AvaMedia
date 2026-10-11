@@ -21,7 +21,7 @@ public sealed class MediaInfoWindow : Window
     {
         _engine = engine; Title = "媒体信息"; Width = 1120; Height = 620; MinWidth = 700; MinHeight = 440; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
-        root.Children.Add(Ui.Button("添加文件…", async () => { try { AddFiles(await Ui.Pick(this, "选择媒体文件")); } catch(Exception error) { _status.Text = error.Message; } }));
+        root.Children.Add(ToolFilePicker.ImportActions(this, async () => { try { AddFiles(await Ui.Pick(this, "选择媒体文件")); } catch(Exception error) { _status.Text = error.Message; } }));
         var body = new Grid { ColumnDefinitions = new("220,*,*"), ColumnSpacing = 8 }; body.Children.Add(_files);
         ScrollViewer.SetHorizontalScrollBarVisibility(_files, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         body.Children.Add(new ScrollViewer { Content = _details, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
@@ -33,7 +33,7 @@ public sealed class MediaInfoWindow : Window
             var json = _json; if(json is null) return;
             try
             {
-                var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出媒体信息"), SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(_files.SelectedItem as string) + ".json", DefaultExtension = "json" });
+                var file = await ToolFilePicker.SaveAsync(this, new() { Title = Localization.Text("导出媒体信息"), SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(_files.SelectedItem as string) + ".json", DefaultExtension = "json" });
                 if(file is null) return; await using var stream = await file.OpenWriteAsync(); stream.SetLength(0);
                 await using var writer = new StreamWriter(stream); await writer.WriteAsync(json);
             }

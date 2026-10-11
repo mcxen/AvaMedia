@@ -351,7 +351,7 @@ public partial class DownloadWindow : Window
     private void CookieSourceChanged(object? sender,SelectionChangedEventArgs e){if(CookieFilePanel is not null)CookieFilePanel.IsVisible=CookieSource.SelectedIndex==6;}
     private async void CookieFileClick(object? sender,RoutedEventArgs e)
     {
-        var files=await StorageProvider.OpenFilePickerAsync(new(){Title = Localization.Text("选择 Netscape 格式 cookies.txt"),AllowMultiple=false,FileTypeFilter=[new(Localization.Text("Cookies 文本")){Patterns=["*.txt"]}]});
+        var files=await ToolFilePicker.OpenFilesAsync(this, new(){Title = Localization.Text("选择 Netscape 格式 cookies.txt"),AllowMultiple=false,FileTypeFilter=[new(Localization.Text("Cookies 文本")){Patterns=["*.txt"]}]});
         if(files.FirstOrDefault()?.TryGetLocalPath() is {} path)CookieFileInput.Text=path;
     }
     private async void BrowseFolderClick(object? sender,RoutedEventArgs e){if(await Ui.Folder(this,"选择下载保存位置") is {} folder)DownloadFolder.Text=folder;}

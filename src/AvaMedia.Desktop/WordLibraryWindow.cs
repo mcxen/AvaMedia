@@ -215,7 +215,7 @@ public sealed class WordLibraryWindow : Window
     {
         try
         {
-            var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("导入词库"), AllowMultiple = false,
+            var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("导入词库"), AllowMultiple = false,
                 FileTypeFilter = [new FilePickerFileType(Localization.Text("词库")) { Patterns = ["*.json", "*.txt", "*.tsv"] }] });
             if (files.Count == 0) return;
             await using var stream = await files[0].OpenReadAsync();
@@ -237,7 +237,7 @@ public sealed class WordLibraryWindow : Window
         if (_libraries.SelectedItem is not WordLibrary library) return;
         try
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出词库"), SuggestedFileName = "word-library.json", DefaultExtension = "json" });
+            var file = await ToolFilePicker.SaveAsync(this, new() { Title = Localization.Text("导出词库"), SuggestedFileName = "word-library.json", DefaultExtension = "json" });
             if (file is null) return;
             await using var stream = await file.OpenWriteAsync(); stream.SetLength(0);
             await JsonSerializer.SerializeAsync(stream, library, new JsonSerializerOptions { WriteIndented = true });

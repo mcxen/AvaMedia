@@ -78,7 +78,7 @@ public sealed partial class ImageViewerWindow
     }
     private async Task<string?> EditorPathAsync()
     {
-        var chosen = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择图片编辑器"), AllowMultiple = false });
+        var chosen = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择图片编辑器"), AllowMultiple = false });
         return chosen.FirstOrDefault()?.TryGetLocalPath();
     }
     private async Task EditExternallyAsync()

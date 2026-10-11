@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.ImageCompressionWindow" Title="图片压缩" Width="1280" Height="820"
         MinWidth="1080" MinHeight="660" WindowStartupLocation="CenterOwner">
@@ -10,11 +10,9 @@
   </Window.Styles>
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="8">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button x:Name="AddButton" Content="添加图片…" Click="AddClick"/>
-        <Button x:Name="FolderButton" Content="添加文件夹…" Click="AddFolderClick"/>
+      <files:FileImportActions x:Name="ImportPanel" FilesText="添加图片…" AllowFolders="True">
         <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
-      </StackPanel>
+      </files:FileImportActions>
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="248,*,260" ColumnSpacing="8">
       <Border Classes="compressionPanel" Padding="0">

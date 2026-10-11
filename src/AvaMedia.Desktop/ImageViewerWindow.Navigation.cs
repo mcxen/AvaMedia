@@ -22,7 +22,7 @@ public sealed partial class ImageViewerWindow
     }
     private async Task PickAsync()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new()
+        var files = await ToolFilePicker.OpenFilesAsync(this, new()
         {
             Title = Localization.Text("打开图片或压缩包"), AllowMultiple = true,
             FileTypeFilter = [new("图片与压缩包") { Patterns = ImageFormats.Extensions.Select(extension => "*." + extension)

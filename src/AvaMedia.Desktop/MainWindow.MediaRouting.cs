@@ -18,7 +18,7 @@ public partial class MainWindow
                 await RouteFilesAsync(await Task.Run(() => ExpandOutputs(outputs)));
             else
             {
-                var files = await StorageProvider.OpenFilePickerAsync(new()
+                var files = await ToolFilePicker.OpenFilesAsync(this, new()
                 { Title = Localization.Text("文件路由"), AllowMultiple = true, FileTypeFilter = [FilePickerFileTypes.All] });
                 await RouteFilesAsync(files.Select(file => file.TryGetLocalPath()).OfType<string>());
             }

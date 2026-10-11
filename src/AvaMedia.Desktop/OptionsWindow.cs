@@ -174,7 +174,7 @@ public sealed class OptionsWindow : Window
             var browse=new Button{Content="浏览…",Classes={"field-action"}};
             browse.Click+=async(_,_)=>
             {
-                var picked=await StorageProvider.OpenFilePickerAsync(new(){Title=Localization.Text("选择字幕文件"),AllowMultiple=false,
+                var picked=await ToolFilePicker.OpenFilesAsync(this, new(){Title=Localization.Text("选择字幕文件"),AllowMultiple=false,
                     FileTypeFilter=[new Avalonia.Platform.Storage.FilePickerFileType(Localization.Text("字幕文件")){Patterns=["*.srt","*.ass","*.ssa","*.vtt"]}]});
                 if(picked.FirstOrDefault()?.TryGetLocalPath() is {} path){box.Text=path;source.SelectedIndex=1;if(mode.SelectedIndex==0)mode.SelectedIndex=1;}
             };

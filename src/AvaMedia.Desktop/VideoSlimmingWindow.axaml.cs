@@ -58,7 +58,10 @@ public partial class VideoSlimmingWindow : Window
     public VideoSlimmingWindow(IMediaEngine engine, string outputFolder, string[] files,
         VideoSlimmingOptions? initial = null, bool editing = false)
     {
-        InitializeComponent(); ToolExecution.Configure(this,ConfirmButton,"开始瘦身",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        InitializeComponent();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
+        ImportPanel.AddFoldersAsync = PickFolderAsync; ToolExecution.Configure(this,ConfirmButton,"开始瘦身",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
         var options = initial ?? new Storage().LoadToolOptions<VideoSlimmingOptions>("video-slim") ?? new();
         PresetInput.ItemsSource = new[] { "保真", "均衡", "更小" };
         CodecInput.ItemsSource = new[] { "HEVC（H.265）", "H.264（兼容性优先）" };
@@ -250,8 +253,8 @@ public partial class VideoSlimmingWindow : Window
         finally { _analysisCancellation.Dispose(); _analysisCancellation = null; _busy = false; Refresh(); }
     }
 
-    private async void AddClick(object? sender, RoutedEventArgs args) => await AddFilesAsync(await Ui.Pick(this, "添加视频"));
-    private async void FolderClick(object? sender, RoutedEventArgs args)
+    private async Task PickFilesAsync() => await AddFilesAsync(await Ui.Pick(this, "添加视频"));
+    private async Task PickFolderAsync()
     {
         if (await Ui.Folder(this, "添加视频文件夹") is not { } folder) return;
         try { await AddFilesAsync(Directory.EnumerateFiles(folder).Where(VideoFolderScanner.IsVideoFile)); }

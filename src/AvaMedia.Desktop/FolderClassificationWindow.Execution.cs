@@ -178,7 +178,7 @@ public sealed partial class FolderClassificationWindow
 
     private async Task ExportAsync()
     {
-        var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出分类结果"), SuggestedFileName = "folder-classification.json", DefaultExtension = "json" });
+        var file = await ToolFilePicker.SaveAsync(this, new() { Title = Localization.Text("导出分类结果"), SuggestedFileName = "folder-classification.json", DefaultExtension = "json" });
         if (file is null) return;
         var report = new { IsPartial = _entries.Any(entry => AnalysisPending(entry)), Rules = _rules.ToArray(), VideoFrames = _frames.Value, TagThreshold = _tagThreshold.Value,
             OutputFolder = _output.Text, Plan = _plan, Results = _results.Values.Select(result => result with { Media = MediaPrivacy.Filter(result.Media, _settings.EnableNsfwContent, PrivateSemanticLabels) }).ToArray() };

@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls"
+<Window xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.PdfWorkspaceWindow" Width="1260" Height="840" MinWidth="1020" MinHeight="680" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="Border.pdf-card"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/></Style>
@@ -9,10 +9,9 @@
     <Style Selector="controls|ImageCompareView"><Setter Property="Surface" Value="{DynamicResource UiSurface}"/><Setter Property="Checker" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Accent" Value="{DynamicResource UiAccent}"/></Style>
   </Window.Styles>
   <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
-    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-      <Button x:Name="AddButton" Content="添加文件…" Click="AddClick"/>
-      <Button Grid.Column="1" x:Name="ClearButton" Content="清空" Click="ClearClick"/>
-    </Grid>
+    <files:FileImportActions x:Name="ImportPanel">
+      <Button x:Name="ClearButton" Content="清空" Click="ClearClick"/>
+    </files:FileImportActions>
     <Grid Grid.Row="1" x:Name="BodyGrid" ColumnDefinitions="*,360" ColumnSpacing="8">
       <Border Background="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Padding="12">
         <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">

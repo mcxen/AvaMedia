@@ -7,7 +7,7 @@ public partial class MainWindow
 {
     private async Task PickQuickClipVideos()
     {
-        var files=await StorageProvider.OpenFilePickerAsync(new()
+        var files=await ToolFilePicker.OpenFilesAsync(this, new()
         {
             Title = Localization.Text("快速剪辑 · 选择要编辑的视频"),AllowMultiple=true,
             FileTypeFilter=[new FilePickerFileType(Localization.Text("视频文件")){Patterns=QuickClipBatch.VideoExtensions.Select(e=>"*."+e).ToArray()},FilePickerFileTypes.All]

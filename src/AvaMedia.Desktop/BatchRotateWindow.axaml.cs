@@ -63,7 +63,9 @@ public sealed partial class BatchRotateWindow : Window
     public BatchRotateWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, IVideoOrientationDetector? detector = null,
         Action<IReadOnlyList<Job>, bool>? submitDetection = null, Action<Job>? stopDetection = null, Action<Job>? pauseDetection = null, Action<Job>? resumeDetection = null)
     {
-        InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
+        InitializeComponent();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
         _localQueue = new(new OrientationTaskService(engine, _detector));
         _submitDetection = submitDetection ?? ((jobs, startImmediately) => { if (_localQueue.IsRunning) _localQueue.Enqueue(jobs); else _ = _localQueue.Run(jobs); });
         _stopDetection = stopDetection ?? (job => _localQueue.Stop(job));
@@ -235,7 +237,7 @@ public sealed partial class BatchRotateWindow : Window
         DetectButton.IsEnabled = included.Length > 0 && pending == 0 && invalid == 0 && !_detecting;
         CancelDetectionButton.IsVisible = _detecting;
         UncertainOnly.IsEnabled=!_detecting&&_entries.Any(entry=>entry.Detection is not null||entry.Rotation is null);
-        AddButton.IsEnabled = SelectAllButton.IsEnabled = ModeCombo.IsEnabled = !_detecting;
+        ImportPanel.FilesButton.IsEnabled = SelectAllButton.IsEnabled = ModeCombo.IsEnabled = !_detecting;
         RemoveButton.IsEnabled=!_detecting&&FileList.SelectedItems?.Count>0;SelectAllButton.IsVisible=_entries.Count>1;
         DirectionCombo.IsEnabled = !_detecting && (!PerFile || _active?.Info is not null);
         ValidationText.Classes.Set("error", invalid > 0 || unresolved > 0);
@@ -383,9 +385,9 @@ public sealed partial class BatchRotateWindow : Window
         }
         RefreshValidation();
     }
-    private async void AddClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
+    private async Task PickFilesAsync()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择多个视频"), AllowMultiple = true,
+        var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择多个视频"), AllowMultiple = true,
             FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(e => "*." + e).ToArray() }, FilePickerFileTypes.All] });
         ReportSkipped(AddFiles(files.Select(f => f.TryGetLocalPath()).OfType<string>()));
     }

@@ -120,7 +120,7 @@ public sealed partial class VideoSummaryResultWindow : Window
     {
         try
         {
-            var target = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("保存结果"),
+            var target = await ToolFilePicker.SaveAsync(this, new() { Title = Localization.Text("保存结果"),
                 SuggestedFileName = Path.GetFileNameWithoutExtension(_report?.Source ?? "video") + "-" + suffix + "." + extension,
                 DefaultExtension = extension });
             if (target?.TryGetLocalPath() is not { } path) return;

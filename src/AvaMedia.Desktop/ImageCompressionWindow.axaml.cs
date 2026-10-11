@@ -54,6 +54,9 @@ public sealed partial class ImageCompressionWindow : Window
         _editing = editing;
         _compressor = compressor ?? new ImageCompressor(engine);
         InitializeComponent();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
+        ImportPanel.AddFoldersAsync = PickFoldersAsync;
         FileList.ItemsSource = _entries;
         OutputInput.Text = outputFolder;
         SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource;
@@ -174,7 +177,7 @@ public sealed partial class ImageCompressionWindow : Window
         foreach (var entry in _entries) entry.CanInclude = !_busy && (_editing ? File.Exists(entry.Path) : entry.Source is not null);
         var included = _entries.Count(entry => entry.Include);
         ListSummary.Text = Localization.Format($"{_entries.Count} 张图片 · 已勾选 {included} 张");
-        SettingsPanel.IsEnabled = AddButton.IsEnabled = FolderButton.IsEnabled = SelectAllButton.IsEnabled = !_busy;
+        SettingsPanel.IsEnabled = ImportPanel.FilesButton.IsEnabled = ImportPanel.FoldersButton.IsEnabled = SelectAllButton.IsEnabled = !_busy;
         RemoveButton.IsEnabled = !_busy && Active is not null;
         OutputInput.IsEnabled = BrowseButton.IsEnabled = !_busy && SourceFolderInput.IsChecked != true;
         SourceFolderInput.IsEnabled = !_busy;
@@ -331,13 +334,13 @@ public sealed partial class ImageCompressionWindow : Window
         try { ToolExecution.Complete(this, new ImageCompressionRequest(inputs, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true, StartInput.IsChecked == true)); }
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }
-    private async void AddClick(object? sender, RoutedEventArgs args)
+    private async Task PickFilesAsync()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择要压缩的图片"), AllowMultiple = true,
+        var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择要压缩的图片"), AllowMultiple = true,
             FileTypeFilter = [new FilePickerFileType(Localization.Text("静态图片")) { Patterns = ["*.heic", "*.heif", "*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp"] }] });
         if (!_closed) AddFiles(files.Select(file => file.TryGetLocalPath()).OfType<string>());
     }
-    private async void AddFolderClick(object? sender, RoutedEventArgs args)
+    private async Task PickFoldersAsync()
     {
         if (await Ui.Folder(this, "选择图片文件夹") is not { } folder) return;
         try { var files = await Task.Run(() => Directory.EnumerateFiles(folder).Where(ImageCompression.Supports).Order(StringComparer.CurrentCultureIgnoreCase).ToArray(), _lifetime.Token); if (!_closed) AddFiles(files); }

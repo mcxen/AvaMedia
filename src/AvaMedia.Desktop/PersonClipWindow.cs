@@ -88,7 +88,7 @@ public sealed partial class PersonClipWindow : Window
         _submit.IsDefault = true; _submit.Classes.Add("primary");
         var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        tools.Children.Add(Ui.Button("添加视频…", async () => await AddFilesAsync()));
+        tools.Children.Add(ToolFilePicker.ImportActions(this, AddFilesAsync, filesText: "添加视频…"));
         tools.Children.Add(Ui.Button("移除", () => { if (!_busy && _files.SelectedIndex >= 0) { if (!SelectedTaskActive) _entries.RemoveAt(_files.SelectedIndex); RefreshFiles(); } }));
         tools.Children.Add(Ui.Button("高级设置…", async () => await OpenAdvancedAsync())); layout.Children.Add(tools);
         var parameters = new StackPanel { Spacing = 6 };
@@ -218,7 +218,7 @@ public sealed partial class PersonClipWindow : Window
     private async Task AddFilesAsync()
     {
         if (_busy) return;
-        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择视频"), AllowMultiple = true,
+        var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择视频"), AllowMultiple = true,
             FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(extension => "*." + extension).ToArray() }] });
         if (!_closed) AddPaths(files.Select(file => file.TryGetLocalPath()).OfType<string>());
     }

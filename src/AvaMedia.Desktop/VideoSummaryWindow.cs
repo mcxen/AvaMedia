@@ -57,16 +57,13 @@ public sealed class VideoSummaryWindow : Window
         Width = 920; Height = 640; MinWidth = 760; MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "document");
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
-        var imports = new StackPanel { Spacing = 6 }; root.Children.Add(imports);
-        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var add = new Button { Content = "添加视频…", Classes = { "field-action" } };
-        add.Click += async (_, _) =>
-        {
-            if (_busy) return;
-            try { AddFiles(await Ui.Pick(this, "选择视频")); }
-            catch (Exception error) { ShowError(error); }
-        };
-        toolbar.Children.Add(add);
+        var imports = new AvaMedia.FileUi.FileImportPanel(); root.Children.Add(imports);
+        var toolbar = imports.Actions;
+        toolbar.FilesText = "添加视频…";
+        toolbar.CanImport = () => !_busy;
+        toolbar.AddFilesAsync = async () => AddFiles(await Ui.Pick(this, "选择视频"));
+        toolbar.ReportErrorAsync = error => { ShowError(error); return Task.CompletedTask; };
+        imports.ImportDroppedAsync = items => { AddFiles(items.Select(file => file.TryGetLocalPath()).OfType<string>()); return Task.CompletedTask; };
         var remove = new Button { Content = "移除选中", Classes = { "field-action" } };
         remove.Click += (_, _) =>
         {
@@ -85,7 +82,6 @@ public sealed class VideoSummaryWindow : Window
             };
             toolbar.Children.Add(results);
         }
-        imports.Children.Add(toolbar);
         _sources.ItemsSource = _files;
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
         {
@@ -94,7 +90,7 @@ public sealed class VideoSummaryWindow : Window
             ToolTip.SetTip(label, path); return label;
         });
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
-        var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); imports.Children.Add(fileArea);
+        var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); imports.FileList = fileArea;
         var fields = new StackPanel { Spacing = 6 };
         root.ColumnDefinitions = new("*,320");
         _preview = new MediaPreviewPanel(engine) { Compact = true }; Grid.SetRow(_preview,1); Grid.SetColumn(_preview,1); root.Children.Add(_preview);
@@ -134,7 +130,7 @@ public sealed class VideoSummaryWindow : Window
         {
             try
             {
-                var picked = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择字幕文件"), AllowMultiple = false,
+                var picked = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择字幕文件"), AllowMultiple = false,
                     FileTypeFilter = [new(Localization.Text("字幕文件")) { Patterns = ["*.srt", "*.vtt", "*.ass", "*.ssa"] }] });
                 if (!_lifetime.IsCancellationRequested && picked.FirstOrDefault()?.TryGetLocalPath() is { } path) _external.Text = path;
             }

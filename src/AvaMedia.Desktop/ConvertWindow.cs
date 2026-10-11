@@ -124,15 +124,16 @@ public sealed class ConvertWindow : Window
         list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(PaddingProperty, new Thickness(6, 3)), new Setter(MinHeightProperty, 0d), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>{if(entry is null)return new Border();var row=new Grid{ColumnDefinitions=new(feature.Operation==Operation.Mux?"Auto,*":"Auto,*,Auto"),ColumnSpacing=8};var column=0;if(feature.Operation==Operation.Mux){var role=Ui.Text(_entries.IndexOf(entry!)==0?"视频":"音频","caption");row.Children.Add(role);column=1;}else{var include=new CheckBox { Content="处理此文件",IsChecked=entry!.Include,MinHeight=0,Padding=new(0) };include.Bind(CheckBox.IsCheckedProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Include)) { Mode=Avalonia.Data.BindingMode.TwoWay });row.Children.Add(include);column=1;}
             var pathText=new TextBlock{Text=System.IO.Path.GetFileName(entry?.Path),TextTrimming=TextTrimming.CharacterEllipsis,TextWrapping=TextWrapping.NoWrap,VerticalAlignment=VerticalAlignment.Center};Localization.SetIsUserText(pathText,true);ToolTip.SetTip(pathText,entry?.Path);Grid.SetColumn(pathText,column);row.Children.Add(pathText);if(media){var summary=new TextBlock{Classes={"caption"},TextTrimming=TextTrimming.CharacterEllipsis,TextWrapping=TextWrapping.NoWrap,VerticalAlignment=VerticalAlignment.Center,MaxWidth=220};summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));Grid.SetColumn(summary,2);row.Children.Add(summary);}return row;});
-        var add=new Button{Content=feature.Operation==Operation.Mux?"选择视频来源…":"添加文件…"};
-        add.Click+=async(_,_)=>
+        var importActions = ToolFilePicker.ImportActions(this, async () =>
         {
             var picked=await Ui.Pick(this,feature.Operation==Operation.Mux?"选择视频来源":"添加文件",feature.Operation!=Operation.Mux);
             if(feature.Operation==Operation.Mux){if(picked.Length==0)return;if(_entries.Count>0)_entries[0]=new(picked[0]);else _entries.Add(new(picked[0]));}else AddPaths(picked);
-        };toolbar.Children.Add(add);
+        }, filesText: feature.Operation==Operation.Mux?"选择视频来源…":"添加文件…");
+        importActions.AllowFolders = feature.Operation != Operation.Mux;
+        importActions.AddFoldersAsync = async () => { if (await Ui.Folder(this, "添加文件夹") is { } path) AddPaths(Directory.EnumerateFiles(path)); };
+        toolbar.Children.Add(importActions);
         if(feature.Operation==Operation.Mux)toolbar.Children.Add(Ui.Button("选择音频来源…",async()=>
         {var picked=await Ui.Pick(this,"选择音频来源",false);if(picked.Length==0)return;if(_entries.Count==0){await Ui.Message(this,"混流","请先选择视频来源。");return;}if(_entries.Count>1)_entries[1]=new(picked[0]);else _entries.Add(new(picked[0]));}));
-        var folder=new Button{Content="添加文件夹…"};folder.Click+=async(_,_)=>{if(await Ui.Folder(this,"添加文件夹") is {} path)AddPaths(Directory.EnumerateFiles(path));};folder.IsVisible=feature.Operation!=Operation.Mux;toolbar.Children.Add(folder);
         var remove=Ui.Button("移除选中",()=>{foreach(var x in list.SelectedItems?.Cast<ConversionEntry>().ToArray()??[])_entries.Remove(x);});toolbar.Children.Add(remove);
         var ordered=feature.Operation is Operation.Join or Operation.AudioMix;
         var up=Ui.Button("上移",()=>{if(list.SelectedIndex>0){var index=list.SelectedIndex;_entries.Move(index,index-1);list.SelectedIndex=index-1;}});up.IsVisible=ordered;toolbar.Children.Add(up);

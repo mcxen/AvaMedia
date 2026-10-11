@@ -35,16 +35,15 @@ public sealed partial class MediaAiWindow
         StableLayout.Reserve(_pause, "临时停止", "继续任务");
         ConfigureWorkbenchScrollbars();
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
-        _imports.Children.Add(Ui.Button("添加文件…", async () =>
+        _imports.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
-            var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
+            var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
                 FileTypeFilter = [new FilePickerFileType(Localization.Text("图片和视频"))
                 { Patterns = VideoFormats.InputExtensions.Concat(new[] { "jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "gif", "ico", "avif", "heic", "heif" }).Select(extension => "*." + extension).ToArray() }, FilePickerFileTypes.All] });
             AddPaths(files.Select(file => file.TryGetLocalPath()).OfType<string>());
-        }));
-        _imports.Children.Add(Ui.Button("添加文件夹…", async () =>
+        }, async () =>
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
+            var folders = await ToolFilePicker.OpenFoldersAsync(this, new() { AllowMultiple = true });
             await AddFoldersAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
         }));
         var remove = Ui.Button("从列表移除", async () => await RemoveCheckedAsync());

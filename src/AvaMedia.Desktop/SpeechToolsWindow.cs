@@ -49,25 +49,25 @@ public sealed class SpeechToolsWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, feature.Icon);
         var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(12), RowSpacing = 8, ColumnSpacing = 12 };
         var source = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 6 }; root.Children.Add(source);
-        var toolbar = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-        var imports = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var add = new Button { Content = "添加文件…", Classes = { "field-action" } };
-        add.Click += async (_, _) =>
+        var importPanel = new AvaMedia.FileUi.FileImportPanel();
+        var imports = importPanel.Actions;
+        imports.CanImport = () => !_busy;
+        imports.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
+        imports.AddFilesAsync = async () =>
         {
-            if (_busy) return;
-            var picked = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择音视频文件"), AllowMultiple = true,
+            var picked = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择音视频文件"), AllowMultiple = true,
                 FileTypeFilter = [new FilePickerFileType(Localization.Text("音视频文件")) { Patterns = VideoFormats.InputExtensions.Select(ext => "*." + ext)
                     .Concat(new[] { "*.wav", "*.m4a", "*.mp3", "*.flac", "*.aac", "*.ogg", "*.opus", "*.wma", "*.aiff", "*.aif", "*.m4b" }).ToArray() }] });
             if (!_lifetime.IsCancellationRequested) AddFiles(picked.Select(file => file.TryGetLocalPath()).OfType<string>());
         };
-        imports.Children.Add(add);
         _remove.Click += (_, _) =>
         {
             if (_busy) return;
             foreach (var path in _sources.SelectedItems?.OfType<string>().ToArray() ?? []) _files.Remove(path);
             SelectFirst(); _error = ""; Refresh();
         };
-        imports.Children.Add(_remove); toolbar.Children.Add(imports); Grid.SetColumn(_count, 1); toolbar.Children.Add(_count); source.Children.Add(toolbar);
+        imports.Children.Add(_remove); imports.Children.Add(_count);
+        Grid.SetRowSpan(importPanel, 2); source.Children.Add(importPanel);
         _sources.ItemsSource = _files;
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
         {
@@ -75,7 +75,7 @@ public sealed class SpeechToolsWindow : Window
             Localization.SetIsUserText(text, true); ToolTip.SetTip(text, path); return text;
         });
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
-        var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); Grid.SetRow(fileArea, 1); source.Children.Add(fileArea);
+        var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); importPanel.FileList = fileArea;
         var fields = new StackPanel { Spacing = 8 };
         root.ColumnDefinitions = new(_transcribe ? "*,340" : "*,420");
         _preview = new MediaPreviewPanel(engine) { Compact = _transcribe }; Grid.SetColumn(_preview,1); root.Children.Add(_preview);

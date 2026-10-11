@@ -234,7 +234,7 @@ public sealed partial class MediaAiWindow : Window
         try
         {
             var threshold = Number(_threshold); SavePreferences();
-            var file = await StorageProvider.SaveFilePickerAsync(new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
+            var file = await ToolFilePicker.SaveAsync(this, new() { Title = Localization.Text("导出标签"), SuggestedFileName = "ai-tags.json", DefaultExtension = "json" });
             if (file is null) return;
             var report = new { Model = ModelCatalog.JoyTagId, Threshold = threshold, SceneThreshold = _sceneThreshold.Value, SceneMargin = _sceneMargin.Value, ScoreMode = _scoreMode.SelectedIndex, GenerateCaptions = _generateCaptions.IsChecked == true, Results = results.Select(result =>
             {

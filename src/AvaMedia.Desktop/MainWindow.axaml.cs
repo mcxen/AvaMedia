@@ -225,7 +225,7 @@ public partial class MainWindow : Window
     private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e){if(!_refreshingTaskList)Refresh();}
     private async void ExportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var file=await StorageProvider.SaveFilePickerAsync(new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});
+        var file=await ToolFilePicker.SaveAsync(this, new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});
         if(file?.TryGetLocalPath() is not {} path)return;
         try{await _storage.ExportJobsAsync(path,_jobs,includeNsfw:_settings.EnableNsfwContent);}
         catch(Exception ex){await Ui.Message(this,"保存任务列表",ex.Message);}

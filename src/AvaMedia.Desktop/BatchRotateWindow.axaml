@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop"
         x:Class="AvaMedia.Desktop.BatchRotateWindow" Title="视频批量旋转" Width="1200" Height="760"
         MinWidth="940" MinHeight="600" WindowStartupLocation="CenterOwner">
@@ -9,12 +9,11 @@
   </Window.Styles>
   <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="8">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button x:Name="AddButton" Content="添加视频…" Click="AddClick"/>
+      <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…">
         <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
         <Button x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
         <CheckBox x:Name="UncertainOnly" Content="只看待确认" IsCheckedChanged="UncertainFilterChanged"/>
-      </StackPanel>
+      </files:FileImportActions>
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="12">
       <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" CornerRadius="{DynamicResource UiControlRadius}">

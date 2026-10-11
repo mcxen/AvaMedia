@@ -48,7 +48,9 @@ public sealed partial class BatchCropWindow : Window
     public BatchCropWindow() : this(new MediaEngine(new()),new AppSettings().OutputFolder) { }
     public BatchCropWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null)
     {
-        InitializeComponent(); ToolExecution.Configure(this,OkButton,"开始裁剪"); _engine = engine;
+        InitializeComponent();
+        ImportPanel.AddFilesAsync = PickFilesAsync;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message); ToolExecution.Configure(this,OkButton,"开始裁剪"); _engine = engine;
         FileList.ItemsSource = _entries;
         ModeCombo.ItemsSource = new[] { PixelMode, RelativeMode }; ModeCombo.SelectedIndex = 0;
         CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;
@@ -279,9 +281,9 @@ public sealed partial class BatchCropWindow : Window
         return (int)value;
     }
 
-    private async void AddClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
+    private async Task PickFilesAsync()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择多个视频"), AllowMultiple = true,
+        var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择多个视频"), AllowMultiple = true,
             FileTypeFilter = [new FilePickerFileType(Localization.Text("视频")) { Patterns = QuickClipBatch.VideoExtensions.Select(e => "*." + e).ToArray() }, FilePickerFileTypes.All] });
         var skipped = AddFiles(files.Select(f => f.TryGetLocalPath()).OfType<string>());
         if (skipped.Count > 0) Localization.SetText(ValidationText,$"已跳过 {skipped.Count} 个非视频或不存在的文件。");

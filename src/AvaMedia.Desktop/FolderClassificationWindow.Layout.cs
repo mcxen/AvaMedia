@@ -53,12 +53,12 @@ public sealed partial class FolderClassificationWindow
         StableLayout.Reserve(_pendingFilter, "待分析 888888", "Pending 888888");
         _mode.ItemsSource = new[] { "复制到分类目录", "移动到分类目录" }.Select(Localization.Text).ToArray(); _mode.SelectedIndex = 0;
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
-        AddImport("添加文件夹…", async () =>
+        _imports.Children.Add(ToolFilePicker.ImportActions(this,
+            async () => await GuardAsync(async () => await ImportPathsAsync(await Ui.Pick(this, "选择图片或视频"))), async () =>
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
-            await ImportPathsAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
-        });
-        AddImport("添加文件…", async () => await ImportPathsAsync(await Ui.Pick(this, "选择图片或视频")));
+            var folders = await ToolFilePicker.OpenFoldersAsync(this, new() { AllowMultiple = true });
+            await GuardAsync(() => ImportPathsAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>()));
+        }));
         AddImport("重新扫描", ScanAsync);
         var more = new Button { Content = "选择文件" };
         more.Flyout = new MenuFlyout

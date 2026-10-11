@@ -26,7 +26,7 @@ internal sealed class DiscOpenWindow : Window
         }); Grid.SetColumn(folder, 1); source.Children.Add(folder);
         var iso = Ui.Button("选择 ISO…", async () =>
         {
-            var selected = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择 ISO 镜像"), AllowMultiple = false,
+            var selected = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择 ISO 镜像"), AllowMultiple = false,
                 FileTypeFilter = [new("ISO") { Patterns = ["*.iso"] }] });
             if (selected.FirstOrDefault()?.TryGetLocalPath() is { } path) _path.Text = path;
         }); Grid.SetColumn(iso, 2); source.Children.Add(iso); content.Children.Add(source);
