@@ -67,6 +67,9 @@ Codex 可执行 `codex mcp add avamedia --url http://127.0.0.1:18920/mcp`。安�
 | `avamedia_list_files` | 目录文件列表，可递归、筛选图片/视频、分页 |
 | `avamedia_probe` | 时长、画面尺寸、编码及媒体轨信息 |
 | `avamedia_create_task` | 创建现有服务的队列任务 |
+| `avamedia_export_clips` | 按文件与片段草稿导出，支持反选去除、分段或按源合并 |
+| `avamedia_editor_media` | 读取编辑器概览、源版本与实际视频/音频/字幕轨道 |
+| `avamedia_preview_compression` | 使用客户端算法预估压缩计划，不创建任务 |
 | `avamedia_tag_media` | 图片、视频或整个文件夹的 AI 标签识别 |
 | `avamedia_classify_media` | 按内置或自定义类别识别图片、视频、文件夹 |
 | `avamedia_preview_rename` | 根据模板和 AI 关键词预览重命名 |
@@ -166,6 +169,8 @@ AI 先读取标签结果，选出关键词，然后调用 `avamedia_preview_rena
 ```
 
 省略 `options` 或 `options.format` 使用该服务的默认格式；显式格式会被保留。其它参数遵循 `tools/list` 的选项 Schema 和服务参数校验。合并、混流等按传入的文件顺序处理。下载输入为 URL。输出名称沿用现有去重机制。人物检测根据导出预设决定容器和流复制选项，多宫格默认输出单张 PNG。
+
+网页多片段剪辑使用 `avamedia_export_clips`：`edits` 按输入文件排序，每项包含绝对 `path`、读取预览或 `editor_media` 时取得的 `sourceVersion`、有序 `segments`（ConversionOptions 数组）和 `removeSelected`。导出 `preset` 为 MP4/MKV/TS/Fast Copy，`joinSegments` 决定分段导出或按每个源文件合并；参数与客户端 `QuickClipWorkflow` 共用。每批最多 100 个文件、每文件最多 100 个编辑片段，重新编码合并沿用客户端每源 64 段上限。提交前检查源文件版本及完整编辑参数；相同请求 UUID 与相同参数可恢复已接收的任务。界面对齐进度见 [视频工作区对齐清单](WEB-VIDEO-PARITY.md)。
 
 ## 实现与检查范围
 

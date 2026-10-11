@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
   <!-- Business views choose a role; skin resources supply its appearance and metrics. -->
   <Style Selector="TextBlock"><Setter Property="controls:OverflowTip.IsEnabled" Value="True"/></Style>
   <Style Selector="ListBoxItem:selected TextBlock.caption"><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
@@ -75,7 +75,7 @@
     <Setter Property="SelectionBrush" Value="{DynamicResource UiAccent}"/><Setter Property="HandleBrush" Value="{DynamicResource UiSurface}"/>
     <Setter Property="GripBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="controls|CropOverlay">
+  <Style Selector="media|CropOverlay">
     <Setter Property="ShadeBrush" Value="{DynamicResource UiCropShade}"/><Setter Property="SelectionBrush" Value="{DynamicResource UiCropSelection}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiCropBorder}"/><Setter Property="HandleBrush" Value="{DynamicResource UiMediaText}"/>
   </Style>

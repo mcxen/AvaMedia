@@ -11,6 +11,7 @@ public sealed partial class ConsoleView
     private readonly StackPanel _toolOptions = new() { Spacing = 8 };
     private readonly Dictionary<string, Func<JsonNode?>> _optionReaders = new();
     private readonly Dictionary<string, Control> _optionControls = new();
+    private readonly Dictionary<string, (Control Container, JsonNode Field)> _optionFields = new();
     private readonly Dictionary<string, JsonObject> _drafts = new();
     private string _activeFeature = "";
     private JsonObject _optionDraft = new();
@@ -32,36 +33,44 @@ public sealed partial class ConsoleView
         if (_activeFeature.Length > 0) _drafts[_activeFeature] = _optionDraft;
         var feature = _feature.SelectedItem as JsonNode;
         _activeFeature = feature.Text("id");
-        _optionDraft = _drafts.GetValueOrDefault(_activeFeature) ?? feature?["form"]?["defaults"]?.DeepClone() as JsonObject ?? new();
-        _optionReaders.Clear(); _optionControls.Clear(); _toolOptions.Children.Clear();
+        _optionDraft = _activeFeature == "clip" ? ClipOptions(feature)
+            : _drafts.GetValueOrDefault(_activeFeature) ?? feature?["form"]?["defaults"]?.DeepClone() as JsonObject ?? new();
+        _optionReaders.Clear(); _optionControls.Clear(); _optionFields.Clear(); _toolOptions.Children.Clear();
         var form = feature?["form"];
-        if (form is null) return;
+        if (form is null) { UpdateRegion(); return; }
         _toolOptions.Children.Add(Label(form.Text("hint")));
+        AddMediaDetails(form);
         if (form.Flag("preview")) _toolOptions.Children.Add(Action("打开视频编辑 / 预览", () => { _workspaceTabs.SelectedIndex = 1; return RefreshPreview(); }));
         foreach (var group in form["fields"].Items().GroupBy(field => field.Text("group")))
         {
-            var panel = new StackPanel { Spacing = 6 };
+            var groupPanel = new StackPanel { Spacing = 6 };
             foreach (var field in group)
             {
+                var panel = new StackPanel { Spacing = 4 }; groupPanel.Children.Add(panel);
                 var path = field.Text("path"); var value = ReadOption(_optionDraft, path); Control control;
                 switch (field.Text("kind"))
                 {
+                    case "video-track": case "audio-track": case "subtitle-track":
+                        var track = BuildTrackChoice(field.Text("kind").Split('-')[0], value);
+                        _optionReaders[path] = () => (track.SelectedItem as JsonNode)?["value"]?.DeepClone(); control = track;
+                        track.SelectionChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); };
+                        Field(panel, field.Text("label"), control); break;
                     case "boolean":
                         var check = new CheckBox { Content = field.Text("label"), IsChecked = value?.GetValue<bool>() == true };
-                        check.IsCheckedChanged += (_, _) => UpdateRegion();
+                        check.IsCheckedChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); };
                         _optionReaders[path] = () => JsonValue.Create(check.IsChecked == true); control = check; panel.Children.Add(control); break;
                     case "number":
                         var number = new VisualNumber { Minimum = (decimal)(field["minimum"]?.GetValue<double>() ?? 0),
                             Maximum = (decimal)(field["maximum"]?.GetValue<double>() ?? 1000000), Increment = (decimal)(field["step"]?.GetValue<double>() ?? 1),
                             Value = (decimal)(value?.GetValue<double>() ?? 0), HorizontalAlignment = HorizontalAlignment.Stretch };
                         _optionReaders[path] = () => JsonValue.Create((double)(number.Value ?? 0)); control = number;
-                        number.ValueChanged += (_, _) => UpdateRegion(); Field(panel, field.Text("label"), control); break;
+                        number.ValueChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); }; Field(panel, field.Text("label"), control); break;
                     case "choice":
                         var choices = field["choices"].Items().ToArray();
                         var choice = new ComboBox { ItemsSource = choices, HorizontalAlignment = HorizontalAlignment.Stretch,
                             ItemTemplate = new FuncDataTemplate<JsonNode>((item, _) => Label(item.Text("label"))) };
                         choice.SelectedItem = choices.FirstOrDefault(item => JsonNode.DeepEquals(item["value"], value)) ?? choices.FirstOrDefault();
-                        choice.SelectionChanged += (_, _) => UpdateRegion();
+                        choice.SelectionChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); };
                         _optionReaders[path] = () => (choice.SelectedItem as JsonNode)?["value"]?.DeepClone(); control = choice;
                         Field(panel, field.Text("label"), control); break;
                     case "file":
@@ -73,13 +82,27 @@ public sealed partial class ConsoleView
                         break;
                     default: throw new InvalidOperationException("服务器返回了不支持的参数控件。");
                 }
-                _optionControls[path] = control;
+                _optionControls[path] = control; _optionFields[path] = (panel, field);
             }
-            _toolOptions.Children.Add(new Expander { Header = group.Key, Content = panel, IsExpanded = _toolOptions.Children.OfType<Expander>().Count() == 0,
+            _toolOptions.Children.Add(new Expander { Header = group.Key, Content = groupPanel, IsExpanded = _toolOptions.Children.OfType<Expander>().Count() == 0,
                 HorizontalAlignment = HorizontalAlignment.Stretch });
         }
+        UpdateOptionVisibility();
         if (_previewInfo is not null) ShowMediaInfo(_previewInfo);
         UpdateRegion();
+    }
+    private void UpdateOptionVisibility()
+    {
+        _compressionPlan.Text = "";
+        foreach (var (_, (container, field)) in _optionFields)
+            container.IsVisible = field["visibleWhen"].Items().All(condition =>
+            {
+                var dependency = condition.Text("path");
+                var value = _optionReaders.TryGetValue(dependency, out var read) ? read() : ReadOption(_optionDraft, dependency);
+                return condition["values"].Items().Any(expected => JsonNode.DeepEquals(expected, value));
+            });
+        foreach (var expander in _toolOptions.Children.OfType<Expander>())
+            if (expander.Content is StackPanel panel) expander.IsVisible = panel.Children.Any(child => child.IsVisible);
     }
     private void SaveOptions()
     {
@@ -89,6 +112,7 @@ public sealed partial class ConsoleView
     {
         SaveOptions();
         var options = (JsonObject)_optionDraft.DeepClone();
+        if (_activeFeature == "clip") options["copyStreams"] = _clipPreset.SelectedIndex == 3;
         if (_activeFeature is "video-compress" or "video-slim")
             options["format"] = options[_activeFeature == "video-compress" ? "videoCompression" : "videoSlimming"]?["format"]?.DeepClone();
         if (_activeFeature is "crop" or "delogo")

@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 
-namespace AvaMedia.Desktop.Controls;
+namespace AvaMedia.MediaUi;
 public sealed class CropOverlay : Control
 {
     public static readonly StyledProperty<IBrush?> ShadeBrushProperty = AvaloniaProperty.Register<CropOverlay, IBrush?>(nameof(ShadeBrush));

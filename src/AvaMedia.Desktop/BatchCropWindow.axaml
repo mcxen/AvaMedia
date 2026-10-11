@@ -1,4 +1,4 @@
-<Window xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.BatchCropWindow" Title="视频批量裁剪" Width="1200" Height="800"
         MinWidth="940" MinHeight="640" WindowStartupLocation="CenterOwner">
@@ -41,7 +41,7 @@
         <Border Background="{DynamicResource UiMediaSurface}" CornerRadius="{DynamicResource UiControlRadius}" ClipToBounds="True">
           <Grid x:Name="PreviewArea">
             <Image x:Name="PreviewImage" Stretch="Uniform"/>
-            <controls:CropOverlay x:Name="CropLayer"/>
+            <media:CropOverlay x:Name="CropLayer"/>
             <TextBlock x:Name="PreviewStatus" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"
                        TextWrapping="Wrap" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
           </Grid>

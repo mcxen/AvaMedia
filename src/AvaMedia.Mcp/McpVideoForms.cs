@@ -5,8 +5,10 @@ using AvaMedia.Core;
 namespace AvaMedia.Mcp;
 
 public sealed record McpOptionChoice(string Label, JsonNode? Value);
+public sealed record McpOptionVisibility(string Path, JsonNode?[] Values);
 public sealed record McpOptionField(string Path, string Label, string Kind, string Group,
-    double Minimum = 0, double Maximum = 1000000, double Step = 1, McpOptionChoice[]? Choices = null);
+    double Minimum = 0, double Maximum = 1000000, double Step = 1, McpOptionChoice[]? Choices = null,
+    McpOptionVisibility[]? VisibleWhen = null);
 public sealed record McpTaskForm(JsonObject Defaults, McpOptionField[] Fields, string Hint, bool Preview);
 
 /// <summary>Editable service parameters, attached to the existing Catalog capabilities.</summary>
@@ -35,9 +37,17 @@ internal static class McpVideoForms
         void Number(string path, string label, string group, double min = 0, double max = 1000000, double step = 1) => fields.Add(new(path, label, "number", group, min, max, step));
         void Check(string path, string label, string group) => fields.Add(new(path, label, "boolean", group));
         void File(string path, string label, string group) => fields.Add(new(path, label, "file", group));
+        void Track(string path, string label, string kind) => fields.Add(new(path, label, kind + "-track", "轨道"));
         void Choice(string path, string label, string group, string[] labels, object[] values) => fields.Add(new(path, label, "choice", group,
             Choices: labels.Select((label, index) => new McpOptionChoice(label, JsonSerializer.SerializeToNode(values[index], Json))).ToArray()));
         void Strings(string path, string label, string group, params string[] values) => Choice(path, label, group, values, values.Cast<object>().ToArray());
+        void Visible(string path, string dependency, params object[] values)
+        {
+            var index = fields.FindIndex(field => field.Path == path);
+            if (index < 0) return;
+            var field = fields[index];
+            fields[index] = field with { VisibleWhen = [.. field.VisibleWhen ?? [], new(dependency, values.Select(value => JsonSerializer.SerializeToNode(value, Json)).ToArray())] };
+        }
         void Format(params string[] values) => Strings("format", "输出格式", "输出", values);
         void Time()
         {
@@ -55,8 +65,13 @@ internal static class McpVideoForms
             Choice("height", "输出高度", "输出", ["自动", "320", "480", "640", "720", "1080", "1280", "1920", "2160", "3840"], [0, 320, 480, 640, 720, 1080, 1280, 1920, 2160, 3840]);
             Choice("fps", "帧率", "输出", ["原帧率", "24", "25", "30", "50", "60", "120"], [0, 24, 25, 30, 50, 60, 120]);
             Check("mute", "移除声音", "声音"); Number("audioBitrate", "音频码率（kbps）", "声音", 16, 1024);
+            Strings("audioCodec", "音频编码", "声音", "自动", "aac", "libmp3lame", "flac", "libopus", "pcm_s16le");
+            Choice("sampleRate", "采样率", "声音", ["原采样率", "22050 Hz", "44100 Hz", "48000 Hz", "96000 Hz"], [0, 22050, 44100, 48000, 96000]);
+            Choice("audioChannels", "声道", "声音", ["原声道", "单声道", "立体声", "5.1 声道"], [0, 1, 2, 6]);
             Number("volume", "音量倍数", "声音", 0, 10, .1);
             Check("keepMetadata", "保留元数据", "输出");
+            Track("videoStreamIndex", "视频轨道", "video"); Track("audioStreamIndex", "音频轨道", "audio");
+            Check("keepAllAudioStreams", "保留全部音轨", "轨道");
         }
         void Region(string prefix, string title)
         {
@@ -75,6 +90,10 @@ internal static class McpVideoForms
             Choice("subtitleMode", "字幕处理", "字幕", ["自动", "移除", "烧录到画面", "保留轨道", "添加外挂轨道"], [0, 1, 2, 3, 4]);
             File("subtitle", "服务器字幕文件", "字幕");
             Number("subtitleFontSize", "字号（0 自动）", "字幕", 0, 200);
+            Choice("subtitleColor", "字幕颜色", "字幕", ["白色", "黄色", "黑色", "青色"], ["#FFFFFF", "#FFFF00", "#000000", "#00FFFF"]);
+            Choice("subtitleAlignment", "字幕位置", "字幕", ["左下", "底部居中", "右下", "左中", "画面中心", "右中", "左上", "顶部居中", "右上"], [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            Number("subtitleMargin", "字幕边距", "字幕", 0, 300);
+            Track("subtitleStreamIndex", "内嵌字幕轨道", "subtitle");
         }
         var hint = "参数应用到每个输入文件，原文件保持不变。";
         switch (feature.Id)
@@ -85,15 +104,15 @@ internal static class McpVideoForms
                 Region("crop", "裁剪区域"); Rotate();
                 Number("fadeIn", "画面淡入（秒）", "淡入淡出", 0, 60, .1);
                 Number("fadeOut", "画面淡出（秒）", "淡入淡出", 0, 60, .1);
-                Encoding(); Subtitle(); Check("copyStreams", "流复制（须关闭滤镜）", "输出");
-                hint = "拖动预览定位时间，设置起止点；可组合裁剪、旋转、速度、淡入淡出和字幕。流复制按关键帧切分。"; break;
+                Encoding(); Subtitle(); fields.RemoveAll(field => field.Path == "format");
+                hint = "每个文件独立编辑多个片段；拖动区间边界，支持裁剪、旋转、速度、淡入淡出和字幕。原格式 / 原码率按关键帧切分。"; break;
             case "crop": Region("crop", "裁剪区域"); Encoding(); hint = "在预览中拖出裁剪框，坐标自动对齐偶数像素。多个文件共用同一区域。"; break;
             case "delogo": Region("delogo", "水印区域"); Encoding(); hint = "在预览中框选水印区域，服务器处理区域内的画面。"; break;
             case "rotate": Rotate(); Encoding(); break;
             case "join": Encoding(); hint = "按下方文件顺序合并；使用上移、下移调整顺序。"; break;
-            case "mux": Encoding(); Number("videoStreamIndex", "第一个文件的视频轨道", "轨道", 0, 99); Number("audioStreamIndex", "第二个文件的音频轨道", "轨道", 0, 99); hint = "依次添加视频、音频两个文件；可调整文件顺序。"; break;
-            case "split": Format("m4a", "mp3", "wav", "flac", "opus"); Time(); Number("audioStreamIndex", "音频轨道", "轨道", 0, 99); Number("audioBitrate", "音频码率（kbps）", "输出", 16, 1024); break;
-            case "extract-video": Format("mkv", "mp4", "ts"); Number("videoStreamIndex", "视频轨道", "轨道", 0, 99); break;
+            case "mux": Encoding(); hint = "依次添加视频、音频两个文件；读取实际轨道后选择，支持调整文件顺序。"; break;
+            case "split": Format("m4a", "mp3", "wav", "flac", "opus"); Time(); Track("audioStreamIndex", "音频轨道", "audio"); Number("audioBitrate", "音频码率（kbps）", "输出", 16, 1024); break;
+            case "extract-video": Format("mkv", "mp4", "ts"); Track("videoStreamIndex", "视频轨道", "video"); break;
             case "repair": Format("mkv", "mp4", "mov", "ts"); hint = "以流复制重新封装，保留源编码；无法修复已经丢失的画面数据。"; break;
             case "frames": Time(); Number("frameInterval", "帧间隔（秒）", "采样", .04, 3600, .1); Number("width", "图片宽度（0 原尺寸）", "输出", 0, 16384); Format("png", "jpg"); break;
             case "contact-sheet": Number("contactSheet.columns", "列数", "网格", 1, 20); Number("contactSheet.rows", "行数", "网格", 1, 20); Number("contactSheet.cellWidth", "单格宽度", "网格", 64, 1920); break;
@@ -107,9 +126,11 @@ internal static class McpVideoForms
                 Number("videoCompression.videoBitrate", "码率（kbps）", "压缩", 64, 200000);
                 Number("videoCompression.percentage", "原体积百分比", "压缩", 5, 95);
                 Number("videoCompression.targetMegabytes", "目标 MB", "压缩", .1, 1000000, .1);
+                Choice("videoCompression.speed", "编码速度", "压缩", ["快速", "均衡", "精细"], [0, 1, 2]);
                 Choice("videoCompression.maxDimension", "分辨率上限", "压缩", ["原尺寸", "1080p", "720p", "480p"], [0, 1920, 1280, 854]);
                 Choice("videoCompression.maxFrameRate", "帧率上限", "压缩", ["原帧率", "30", "24"], [0, 30, 24]);
-                Check("videoCompression.keepAudio", "保留声音", "压缩"); Check("videoCompression.preferGpu", "优先 GPU", "压缩"); break;
+                Check("videoCompression.keepAudio", "保留声音", "压缩"); Number("videoCompression.audioBitrate", "音频码率（kbps）", "压缩", 32, 320);
+                Check("videoCompression.preferGpu", "优先 GPU", "压缩"); break;
             case "video-slim":
                 Choice("videoSlimming.preset", "瘦身档位", "瘦身", ["保留画质", "均衡", "更小"], [0, 1, 2]);
                 Strings("videoSlimming.codec", "编码", "瘦身", "hevc", "h264"); Strings("videoSlimming.format", "输出格式", "瘦身", "mkv", "mp4");
@@ -144,6 +165,23 @@ internal static class McpVideoForms
                 File("download.cookieFile", "服务器 cookies.txt", "下载"); break;
             case "player": case "info": hint = "添加文件后读取媒体信息或在浏览器播放服务器文件。"; break;
         }
+        Visible("quality", "videoRateMode", 1); Visible("videoBitrate", "videoRateMode", 2);
+        foreach (var path in new[] { "audioCodec", "audioBitrate", "audioChannels", "sampleRate", "volume" }) Visible(path, "mute", false);
+        Visible("subtitle", "subtitleMode", 0, 2, 4);
+        Visible("subtitleStreamIndex", "subtitleMode", 0, 2, 3);
+        Visible("audioStreamIndex", "keepAllAudioStreams", false);
+        foreach (var path in new[] { "subtitleFontSize", "subtitleColor", "subtitleAlignment", "subtitleMargin" }) Visible(path, "subtitleMode", 2);
+        Visible("videoCompression.preset", "videoCompression.mode", 0);
+        Visible("videoCompression.quality", "videoCompression.mode", 1);
+        Visible("videoCompression.videoBitrate", "videoCompression.mode", 2);
+        Visible("videoCompression.percentage", "videoCompression.mode", 3);
+        Visible("videoCompression.targetMegabytes", "videoCompression.mode", 4);
+        Visible("videoCompression.audioBitrate", "videoCompression.keepAudio", true);
+        foreach (var path in new[] { "speed", "maxDimension", "maxFrameRate", "audioBitrate" })
+            Visible("videoCompression." + path, "videoCompression.mode", 1, 2, 3, 4);
+        Visible("videoSummary.onlineProviderId", "videoSummary.provider", 1);
+        Visible("videoSummary.subtitleFile", "videoSummary.transcriptSource", 3);
+        Visible("videoSummary.frameCount", "videoSummary.analyzeFrames", true);
         return new((JsonObject)JsonSerializer.SerializeToNode(Defaults(feature), Json)!, fields.ToArray(), hint,
             feature.Id is not ("download" or "video-summary"));
     }

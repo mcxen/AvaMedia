@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaMedia.FileUi;
+using AvaMedia.MediaUi;
 
 namespace AvaMedia.Browser;
 
@@ -15,10 +16,19 @@ public sealed partial class ConsoleView
     private readonly TabControl _workspaceTabs = new();
     private readonly ComboBox _previewInput = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly VideoRegionPreview _preview = new() { MinHeight = 180, Height = 360, HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly CropOverlay _cropOverlay = new()
+    {
+        ShadeBrush = new SolidColorBrush(Color.FromArgb(120, 0, 0, 0)),
+        SelectionBrush = new SolidColorBrush(Color.FromArgb(25, 40, 180, 250)),
+        BorderBrush = Brushes.DeepSkyBlue, HandleBrush = Brushes.White
+    };
+    private readonly ComboBox _cropRatio = new() { ItemsSource = new[] { "自由比例", "16:9", "9:16", "4:3", "3:4", "1:1" }, SelectedIndex = 0 };
+    private StackPanel _cropActions = new();
     private readonly VideoRegionPreview _orientationPreview = new() { Height = 220, IsVisible = false };
     private readonly VisualNumber _seconds = new() { Minimum = 0, Maximum = 1000000, Increment = .1m, Value = 0 };
     private readonly DispatcherTimer _seekTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private bool _settingPosition;
+    private bool _updatingPreviewInputs;
     private readonly TextBlock _mediaInfo = Label("添加视频后，选择文件并读取预览。裁剪和水印区域在原始画面上框选。");
     private JsonNode? _previewInfo;
     private int _previewGeneration;
@@ -34,7 +44,11 @@ public sealed partial class ConsoleView
     {
         var panel = new StackPanel { Spacing = 10, Margin = new(12) };
         _previewInput.ItemTemplate = new FuncDataTemplate<FileBrowserItem>((item, _) => Label(item?.Name ?? ""));
-        _previewInput.SelectionChanged += (_, _) => ClearPreview();
+        _previewInput.SelectionChanged += (_, _) =>
+        {
+            if (_updatingPreviewInputs) return;
+            ClearPreview(); if (_activeFeature.Length > 0) BuildToolOptions();
+        };
         Field(panel, "预览文件", _previewInput);
         panel.Children.Add(Actions(Action("读取预览帧", RefreshPreview), Action("浏览器播放", () =>
         {
@@ -44,11 +58,19 @@ public sealed partial class ConsoleView
             var path = PreviewPath(); var info = await RemoteApi.Call("probe", new() { ["path"] = path });
             if (path == (_previewInput.SelectedItem as FileBrowserItem)?.Address) ShowMediaInfo(info);
         })));
-        panel.Children.Add(_mediaInfo); panel.Children.Add(_previewStatus); panel.Children.Add(_preview);
+        panel.Children.Add(_mediaInfo); panel.Children.Add(_previewStatus);
+        var canvas = new Grid { Height = 360, MinHeight = 180 };
+        canvas.Children.Add(_preview); canvas.Children.Add(_cropOverlay); panel.Children.Add(canvas);
+        _cropRatio.SelectionChanged += (_, _) => UpdateCropRatio();
+        _cropActions = Actions(_cropRatio, Action("重置为全画面", () =>
+        { SetRegion(new Rect(0, 0, _cropOverlay.SourceWidth, _cropOverlay.SourceHeight)); return Task.CompletedTask; }));
+        panel.Children.Add(_cropActions);
+        panel.Children.Add(BuildClipEditor());
         Field(panel, "旋转 / 翻转后的方向", _orientationPreview);
         Field(panel, "时间轴（秒）", _seconds);
         _seconds.ValueChanged += (_, _) =>
         {
+            _segmentTrack.SetPosition((double)(_seconds.Value ?? 0));
             if (_settingPosition || !_previewRequested) return;
             CancelPreview();
             _previewStatus.Text = $"定位中 · 当前画面 {_displayedSeconds:0.###} 秒";
@@ -70,7 +92,7 @@ public sealed partial class ConsoleView
             Action("设为结束", () => { SetNumber("end", (double)(_seconds.Value ?? 0)); return Task.CompletedTask; }),
             Action("清除选区", () => { SetRegion(new Rect()); return Task.CompletedTask; })));
         panel.Children.Add(Label("停止拖动后更新单帧；切换页面暂停预览。裁剪在当前帧加载完成后框选。"));
-        _preview.RegionSelected += SetRegion;
+        _cropOverlay.Changed += SetRegion;
         return new ScrollViewer { Content = panel };
     }
     private string PreviewPath() => _previewInput.SelectedItem is FileBrowserItem item && !item.IsFolder
@@ -130,7 +152,7 @@ public sealed partial class ConsoleView
     private void CancelPreview()
     {
         ++_previewGeneration; _seekTimer.Stop(); _previewCancellation?.Cancel();
-        _previewStale = true; _preview.CanSelect = false;
+        _previewStale = true; _cropOverlay.Enabled = false;
     }
     private void UpdatePreviewActivity()
     {
@@ -155,11 +177,12 @@ public sealed partial class ConsoleView
     }
     private void ClearPreview()
     {
-        CancelPreview(); _previewRequested = false; _previewInfo = null; _previewStatus.Text = "";
+        CancelPreview(); _previewRequested = false; _previewInfo = null; _previewStatus.Text = ""; _compressionPlan.Text = "";
         _preview.Image = _orientationPreview.Image = null; _previewBitmap?.Dispose(); _previewBitmap = null;
         _orientationPreview.IsVisible = false;
-        _seconds.Value = 0; _preview.Region = new();
+        _seconds.Value = 0; _cropOverlay.Selection = new(); _cropOverlay.InvalidateVisual();
         _mediaInfo.Text = "选择文件后点击读取预览帧；在原始画面中框选裁剪或水印区域。";
+        UpdateRegion();
     }
     private void SetNumber(string key, double value)
     {
@@ -173,11 +196,10 @@ public sealed partial class ConsoleView
         if (_previewInfo is null || _previewStale || _activeFeature is not ("clip" or "crop" or "delogo")) return;
         var prefix = _activeFeature == "delogo" ? "delogo" : "crop";
         var width = _previewInfo["width"]!.GetValue<int>(); var height = _previewInfo["height"]!.GetValue<int>();
-        // Map display-relative coordinates onto the autorotated editing grid; SAR cancels in the ratio.
-        var x = (int)(region.X * width) / 2 * 2; var y = (int)(region.Y * height) / 2 * 2;
+        var x = (int)region.X / 2 * 2; var y = (int)region.Y / 2 * 2;
         SetNumber(prefix + "X", x); SetNumber(prefix + "Y", y);
-        SetNumber(prefix + "Width", Math.Min(width - x, (int)(region.Width * width)) / 2 * 2);
-        SetNumber(prefix + "Height", Math.Min(height - y, (int)(region.Height * height)) / 2 * 2);
+        SetNumber(prefix + "Width", Math.Min(width - x, (int)region.Width) / 2 * 2);
+        SetNumber(prefix + "Height", Math.Min(height - y, (int)region.Height) / 2 * 2);
         UpdateRegion();
     }
     private void UpdateRegion()
@@ -187,11 +209,23 @@ public sealed partial class ConsoleView
         _orientationPreview.Rotation = rotation; _orientationPreview.Flip = flip;
         _orientationPreview.IsVisible = _previewBitmap is not null && (rotation != 0 || flip);
         _orientationPreview.InvalidateVisual();
-        _preview.CanSelect = !_previewStale && _previewBitmap is not null && _activeFeature is ("clip" or "crop" or "delogo");
-        if (_previewInfo is null) return;
+        _cropOverlay.Enabled = !_previewStale && _previewBitmap is not null && _activeFeature is ("clip" or "crop" or "delogo");
+        _cropActions.IsVisible = _activeFeature is "clip" or "crop" or "delogo";
+        _cropActions.IsEnabled = _cropOverlay.Enabled;
+        if (_previewInfo is null) { UpdateClipEditor(); return; }
         var width = _previewInfo["width"]?.GetValue<double>() ?? 0; var height = _previewInfo["height"]?.GetValue<double>() ?? 0;
         var prefix = _activeFeature == "delogo" ? "delogo" : "crop";
-        _preview.Region = width > 0 && height > 0 && _preview.CanSelect
-            ? new(GetNumber(prefix + "X") / width, GetNumber(prefix + "Y") / height, GetNumber(prefix + "Width") / width, GetNumber(prefix + "Height") / height) : new();
+        _cropOverlay.SourceWidth = (int)width; _cropOverlay.SourceHeight = (int)height;
+        if (_previewBitmap is not null && width > 0 && height > 0)
+            _cropOverlay.PixelAspectRatio = _previewBitmap.Size.Width / _previewBitmap.Size.Height * height / width;
+        _cropOverlay.Selection = width > 0 && height > 0
+            ? new(GetNumber(prefix + "X"), GetNumber(prefix + "Y"), GetNumber(prefix + "Width"), GetNumber(prefix + "Height")) : new();
+        UpdateCropRatio(); _cropOverlay.InvalidateVisual(); UpdateClipEditor();
     }
+    private void UpdateCropRatio()
+    {
+        var ratio = _cropRatio.SelectedIndex switch { 1 => 16d / 9, 2 => 9d / 16, 3 => 4d / 3, 4 => 3d / 4, 5 => 1d, _ => 0 };
+        _cropOverlay.AspectRatio = ratio / _cropOverlay.PixelAspectRatio;
+    }
+
 }

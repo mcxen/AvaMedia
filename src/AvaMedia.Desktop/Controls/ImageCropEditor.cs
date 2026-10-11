@@ -1,3 +1,4 @@
+using AvaMedia.MediaUi;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;

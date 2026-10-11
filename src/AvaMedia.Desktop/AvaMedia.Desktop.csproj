@@ -32,6 +32,7 @@
     <PackageReference Include="QRCoder" Version="1.8.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../AvaMedia.Core/AvaMedia.Core.csproj" />
+    <ProjectReference Include="../AvaMedia.MediaUi/AvaMedia.MediaUi.csproj" />
     <ProjectReference Include="../AvaMedia.FileUi/AvaMedia.FileUi.csproj" />
     <ProjectReference Include="../AvaMedia.Mcp/AvaMedia.Mcp.csproj" />
     <EmbeddedResource Include="Browser/MediaSniffer.js" LogicalName="AvaMedia.Desktop.MediaSniffer.js" />

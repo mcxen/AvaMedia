@@ -5,9 +5,9 @@ using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Media;
 
-namespace AvaMedia.Desktop.Controls;
+namespace AvaMedia.MediaUi;
 
-public sealed record SegmentTimelineItem(int Number, double Start, double End, double Speed);
+public sealed record SegmentTimelineItem(int Number, double Start, double End, double Speed, string Label, string DurationLabel);
 
 /// <summary>A compact view of the export order. Seeking maps back to each segment's source time.</summary>
 public sealed class SegmentTimeline : Control
@@ -59,8 +59,8 @@ public sealed class SegmentTimeline : Control
             context.DrawRectangle(selected ? SelectionBrush : TrackBrush, new Pen(BorderBrush, 1), rect, 3, 3);
             using (context.PushClip(rect))
             {
-                var title = new FormattedText(Localization.Format($"片段 {item.Number}"), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 12, foreground);
-                var duration = new FormattedText(Core.MediaTime.Format((item.End - item.Start) / Math.Max(.25, item.Speed)), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 10, foreground);
+                var title = new FormattedText(item.Label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 12, foreground);
+                var duration = new FormattedText(item.DurationLabel, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 10, foreground);
                 context.DrawText(title, new Point(rect.X + 7, rect.Y + 4));
                 context.DrawText(duration, new Point(rect.X + 7, rect.Y + 23));
                 if (selected)

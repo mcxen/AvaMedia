@@ -126,8 +126,15 @@ public sealed partial class ConsoleView : UserControl
         }
         var previous = _previewInput.SelectedItem;
         var previewItems = _inputs.Values.Where(item => !item.IsFolder).ToArray();
-        _previewInput.ItemsSource = previewItems;
-        _previewInput.SelectedItem = previewItems.Contains(previous) ? previous : previewItems.FirstOrDefault();
+        _updatingPreviewInputs = true;
+        try
+        {
+            _previewInput.ItemsSource = previewItems;
+            _previewInput.SelectedItem = previewItems.Contains(previous) ? previous : previewItems.FirstOrDefault();
+        }
+        finally { _updatingPreviewInputs = false; }
+        if (!Equals(previous, _previewInput.SelectedItem)) ClearPreview();
+        if (_activeFeature.Length > 0) BuildToolOptions();
     }
     private void UpdateFeature()
     {
@@ -178,14 +185,15 @@ public sealed partial class ConsoleView : UserControl
         {
             if (_pending is null)
             {
-                var draft = new JsonObject { ["method"] = "create_task", ["arguments"] = Submission() };
+                var draft = new JsonObject { ["method"] = _activeFeature == "clip" ? "export_clips" : "create_task",
+                    ["arguments"] = _activeFeature == "clip" ? ClipSubmission() : Submission() };
                 BrowserHost.WritePending(draft.ToJsonString()); _pending = draft;
             }
             UpdatePending();
             var result = await RemoteApi.Call(_pending.Text("method"), _pending["arguments"] as JsonObject ?? throw new InvalidOperationException("恢复记录格式无效。"));
             BrowserHost.WritePending(""); _pending = null; UpdatePending();
             _status.Text = $"已创建 {result["tasks"].Items().Count()} 项任务";
-            _inputs.Clear(); RenderInputs(); _tabs.SelectedIndex = 1;
+            _inputs.Clear(); _clips.Clear(); RenderInputs(); _tabs.SelectedIndex = 1;
             _state.SelectedIndex = 0;
             var page = await RemoteApi.Call("list_tasks", new() { ["limit"] = 1 });
             _taskOffset = Math.Max(0, ((page["total"]?.GetValue<int>() ?? 1) - 1) / 30 * 30);

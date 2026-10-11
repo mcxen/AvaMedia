@@ -1,15 +1,15 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
   <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto" ColumnDefinitions="*,0,0">
     <Grid RowDefinitions="*,Auto,Auto,Auto" MinWidth="620">
     <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
       <Grid MinHeight="120">
         <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Uniform"/></LayoutTransformControl></Viewbox>
-        <local:CropOverlay x:Name="CropLayer"/>
+        <media:CropOverlay x:Name="CropLayer"/>
         <TextBlock x:Name="PreviewStatus" Text="正在读取媒体…" Foreground="{DynamicResource UiMediaText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Grid>
     </Grid>
     <ScrollViewer Grid.Row="1" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,6,0,0">
-      <local:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
+      <media:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
     </ScrollViewer>
     <Grid Grid.Row="2" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Height="{DynamicResource UiTransportRowHeight}" Margin="0,2,0,4">
       <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>

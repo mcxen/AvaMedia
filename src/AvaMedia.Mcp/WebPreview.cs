@@ -40,13 +40,15 @@ internal static class WebPreview
                 await decoder.WaitAsync(ct);
                 try
                 {
+                    var sourceVersion = McpMediaFile.Version(path);
                     var info = await workspace.Engine.Probe(path, ct);
                     if (info.Duration > 0) seconds = Math.Min(seconds, Math.Max(0, info.Duration - .05));
                     frame = await workspace.Engine.Thumbnail(path, seconds, frameWidth, frameWidth * 9 / 16, ct, pad: false);
+                    if (sourceVersion != McpMediaFile.Version(path)) throw new IOException("读取期间源文件发生变化，请重试。");
                     metadata = JsonSerializer.Serialize(new { seconds, info = new
                     {
                         width = info.Width, height = info.Height, duration = info.Duration,
-                        videoCodec = info.VideoCodec, audioCodec = info.AudioCodec
+                        videoCodec = info.VideoCodec, audioCodec = info.AudioCodec, sourceVersion
                     } });
                 }
                 finally { decoder.Release(); }
