@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AvaMedia · 网页工具箱</title>
+  <link rel="stylesheet" href="/console.css">
+  <script type="module" src="/console.js"></script>
+</head>
+<body>
+  <header><div><strong>AvaMedia</strong><span>网页工具箱</span></div><div><span id="server"></span><span id="connection" role="status">连接中…</span><button id="reconnect" type="button">重新连接</button></div></header>
+  <p id="notice" role="status" hidden></p>
+  <main>
+    <section class="workspace" aria-label="文件与任务配置">
+      <aside><h2>服务器文件</h2><nav id="locations" aria-label="常用位置"></nav></aside>
+      <section class="browser" aria-label="文件浏览">
+        <form id="navigate" class="row"><button id="up" type="button" disabled>上一级</button><input id="address" aria-label="服务器目录" placeholder="输入服务器目录" required><button>前往</button></form>
+        <form id="filter" class="row"><input id="search" aria-label="搜索当前目录" placeholder="搜索当前目录"><input id="extensions" aria-label="扩展名筛选" placeholder="扩展名，如 mp4,mkv"><label class="check"><input id="hidden" type="checkbox">隐藏文件</label><button>筛选</button></form>
+        <div class="row selection-bar"><label class="check"><input id="select-page" type="checkbox">选择本页</label><span id="selection-count">已选 0 项</span><button id="clear-selection" type="button">清空选择</button><button id="use-output" type="button">此目录作为输出</button></div>
+        <div class="file-scroll"><table><thead><tr><th scope="col">选择</th><th scope="col">名称</th><th scope="col">大小</th><th scope="col">修改时间</th></tr></thead><tbody id="files"></tbody></table><p id="file-status" role="status">正在读取…</p></div>
+        <div class="row pager"><button id="files-prev" type="button" disabled>上一页</button><span id="file-page"></span><button id="files-next" type="button" disabled>下一页</button></div>
+      </section>
+      <section class="configure" aria-labelledby="configure-title">
+        <h2 id="configure-title">下发任务</h2>
+        <form id="submit-task">
+          <fieldset id="task-fields" disabled>
+            <label>工具<select id="feature" required></select></label>
+            <label>服务器输出目录<input id="output" required placeholder="服务器上的绝对路径"></label>
+            <div class="row"><label>输出格式<input id="format" placeholder="使用工具默认值" maxlength="12" pattern="[A-Za-z0-9]*"></label><label>视频质量<input id="quality" type="number" min="0" max="51" placeholder="默认"></label></div>
+            <details><summary>更多参数</summary><div class="row"><label>宽度<input id="width" type="number" min="0" placeholder="原始"></label><label>高度<input id="height" type="number" min="0" placeholder="原始"></label></div><label>附加参数（JSON）<textarea id="options" rows="6" spellcheck="false" placeholder='{"audioBitrate":192}'></textarea></label></details>
+            <label class="check"><input id="recursive" type="checkbox">包含子目录</label>
+            <label class="check"><input id="start" type="checkbox" checked>立即开始</label>
+            <details><summary id="selected-summary">已选文件（0）</summary><ul id="selected-files"></ul></details>
+            <button class="primary" id="submit" type="submit" disabled>创建任务</button>
+          </fieldset>
+        </form>
+        <div id="pending" hidden><p>上次提交尚未确认，可恢复同一批任务。</p><button id="recover" type="button">恢复提交</button><button id="discard" type="button">放弃恢复</button></div>
+      </section>
+    </section>
+    <section class="queue" aria-labelledby="queue-title">
+      <div class="row"><h2 id="queue-title">服务器任务</h2><label>状态<select id="task-state"><option value="">全部</option><option value="Running">执行中</option><option value="Waiting">等待中</option><option value="Paused">已暂停</option><option value="Completed">已完成</option><option value="Failed">失败</option><option value="Cancelled">已停止</option><option value="Stopping">停止中</option></select></label><button id="refresh-tasks" type="button">刷新</button><span id="queue-status" role="status"></span></div>
+      <div class="queue-scroll"><table><thead><tr><th scope="col">任务</th><th scope="col">状态 / 进度</th><th scope="col">输出位置</th><th scope="col">操作</th></tr></thead><tbody id="tasks"></tbody></table></div>
+      <div class="row pager"><button id="tasks-prev" type="button" disabled>上一页</button><span id="task-page"></span><button id="tasks-next" type="button" disabled>下一页</button></div>
+    </section>
+  </main>
+  <dialog id="task-detail" aria-labelledby="detail-title"><div class="row"><h2 id="detail-title">任务详情</h2><button id="close-detail" type="button">关闭</button></div><p id="detail-state"></p><pre id="detail-content"></pre><div class="row"><button id="result" type="button">读取结果</button><button id="log" type="button">读取日志</button><button id="detail-next" type="button" hidden>下一页</button></div></dialog>
+</body>
+</html>

@@ -1,4 +1,5 @@
 using System.Net.NetworkInformation;
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text.Json;
 using Avalonia;
@@ -25,6 +26,19 @@ public sealed partial class SettingsWindow
     {
         var copyAddress = new Button { Content = "复制地址" };
         var copyConfig = new Button { Content = "复制 MCP 配置" };
+        var openWeb = new Button { Content = "打开网页工具箱" };
+        var copyWeb = new Button { Content = "复制网页地址" };
+        string? WebAddress() => _mcpEndpoint.SelectedItem is string endpoint ? new Uri(endpoint).GetLeftPart(UriPartial.Authority) + "/" : null;
+        openWeb.Click += (_, _) =>
+        {
+            if (WebAddress() is not { } url) return;
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception error) { _mcpStatus.Text = error.Message; }
+        };
+        copyWeb.Click += async (_, _) =>
+        {
+            if (Clipboard is { } clipboard && WebAddress() is { } url) await clipboard.SetTextAsync(url);
+        };
         copyAddress.Click += async (_, _) =>
         {
             if (Clipboard is { } clipboard && _mcpEndpoint.SelectedItem is string endpoint) await clipboard.SetTextAsync(endpoint);
@@ -40,11 +54,14 @@ public sealed partial class SettingsWindow
         var port = LifecycleField("端口", _mcpPort);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         buttons.Children.Add(copyAddress); buttons.Children.Add(copyConfig);
+        var webButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        webButtons.Children.Add(openWeb); webButtons.Children.Add(copyWeb);
         var panel = new StackPanel { Spacing = 16 };
         panel.Children.Add(Ui.Text("MCP 服务", "settingsHeading"));
         panel.Children.Add(_mcpEnabled); panel.Children.Add(_mcpLan); panel.Children.Add(port);
         panel.Children.Add(new Separator()); panel.Children.Add(Ui.Text("客户端连接", "settingsHeading"));
         panel.Children.Add(LifecycleField("连接地址", _mcpEndpoint)); panel.Children.Add(buttons); panel.Children.Add(_mcpStatus);
+        panel.Children.Add(webButtons);
         panel.Children.Add(new TextBlock { Text = "无需令牌，可访问本机全部文件与服务。", TextWrapping = Avalonia.Media.TextWrapping.Wrap, Classes = { "caption" } });
         McpSection.Child = panel;
         foreach (var input in new[] { _mcpEnabled, _mcpLan })

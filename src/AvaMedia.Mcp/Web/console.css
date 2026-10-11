@@ -1,0 +1,38 @@
+:root { color-scheme: light dark; font: 14px/1.5 system-ui, sans-serif; --bg:#f3f5f8; --panel:#fff; --text:#202c3d; --muted:#607087; --line:#d9e0e9; --accent:#245fcb; --tint:#edf3ff; --error:#b72536 }
+* { box-sizing:border-box }
+body { margin:0; background:var(--bg); color:var(--text) }
+header { padding:14px 22px; background:var(--panel); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap }
+header div,.row { display:flex; align-items:center; gap:10px }
+header strong { font-size:20px; letter-spacing:-.5px } header span { color:var(--muted) }
+main { padding:18px; max-width:1800px; margin:auto }
+h2 { font-size:15px; margin:0 0 14px } .row h2 { margin:0; margin-right:auto }
+button,input,select,textarea { font:inherit; color:inherit; border:1px solid var(--line); border-radius:6px; background:var(--panel); padding:7px 10px; min-width:0 }
+button { cursor:pointer; white-space:nowrap } button:hover:not(:disabled) { border-color:var(--accent); background:var(--tint) } button:disabled { opacity:.45; cursor:default }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+input,select,textarea { width:100% } input[type=checkbox] { width:16px; height:16px; flex-shrink:0; accent-color:var(--accent) }
+label { display:block; color:var(--muted); font-size:13px } label>input,label>select,label>textarea { margin-top:5px; color:var(--text) }
+.check { display:flex; align-items:center; gap:6px; white-space:nowrap } .check input { margin:0 }
+.workspace { display:grid; grid-template-columns:165px minmax(360px,1fr) 300px; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden }
+aside,.browser,.configure { padding:16px; min-width:0 } aside,.browser { border-right:1px solid var(--line) }
+nav { display:grid; gap:6px } nav button { text-align:left; overflow:hidden; text-overflow:ellipsis }
+.browser { display:flex; flex-direction:column; gap:12px } #address { flex:1 } #search { flex:2 } #extensions { flex:1 }
+.selection-bar { font-size:12px; flex-wrap:wrap } #selection-count { margin-right:auto; color:var(--muted) }
+.file-scroll { height:370px; overflow:auto } table { border-collapse:collapse; width:100%; text-align:left } th { color:var(--muted); font-size:12px; font-weight:500; position:sticky; top:0; background:var(--panel); z-index:1 }
+th,td { padding:9px 8px; border-bottom:1px solid var(--line) } td { vertical-align:middle; font-size:13px; overflow-wrap:anywhere } tbody tr:hover { background:var(--tint) }
+#files th:first-child { width:48px } #files td:nth-child(3),#files td:nth-child(4) { white-space:nowrap; color:var(--muted); font-size:12px }
+.file-name { padding:0; text-align:left; border:0; background:transparent; white-space:normal; overflow-wrap:anywhere } .folder { color:var(--accent); font-weight:600 }
+.pager { justify-content:flex-end; font-size:12px; color:var(--muted) } #file-status { color:var(--muted); padding:12px }
+fieldset { border:0; margin:0; padding:0; display:grid; gap:13px } fieldset .row>label { flex:1 }
+details { min-width:0 } summary { cursor:pointer; color:var(--muted); font-size:13px } details[open] summary { margin-bottom:10px }
+textarea,pre { font-family:ui-monospace,monospace; font-size:12px } textarea { resize:vertical }
+.primary { background:var(--accent); color:white; border-color:var(--accent); width:100% } button.primary:hover:not(:disabled) { color:var(--text) }
+#selected-files { max-height:150px; overflow:auto; padding-left:20px; font-size:12px; overflow-wrap:anywhere } #selected-files button { padding:0 5px; margin-left:5px }
+#notice { padding:10px 20px; margin:0; background:var(--tint); overflow-wrap:anywhere } #notice.error,.error { color:var(--error) }
+#pending { margin-top:12px; padding:10px; background:var(--tint); border-radius:6px; font-size:13px }
+.queue { margin-top:18px; padding:16px; background:var(--panel); border:1px solid var(--line); border-radius:10px } .queue>.row { margin-bottom:12px; flex-wrap:wrap } .queue label { display:flex; align-items:center; gap:8px } .queue label select { width:auto; margin:0 }
+.queue-scroll { max-height:430px; overflow:auto } #tasks td:first-child { width:28% } #tasks td:nth-child(2) { width:24% } #tasks td:nth-child(3) { max-width:350px; color:var(--muted) } .actions { display:flex; gap:5px; flex-wrap:wrap }
+progress { display:block; width:100%; height:5px; margin-top:6px; accent-color:var(--accent) } small { display:block; color:var(--muted); margin-top:4px }
+dialog { width:min(850px,95vw); max-height:85vh; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px } dialog::backdrop { background:#16253b66 } pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:55vh; overflow:auto; background:var(--bg); padding:12px } [hidden] { display:none!important }
+@media(max-width:1100px) { .workspace { grid-template-columns:145px minmax(300px,1fr) } .configure { grid-column:1/-1; border-top:1px solid var(--line) } fieldset { grid-template-columns:1fr 1fr; align-items:start } .browser { border:0 } }
+@media(max-width:650px) { main { padding:8px } header { padding:10px } .workspace { display:block } aside { border:0; border-bottom:1px solid var(--line) } nav { display:flex; overflow:auto } nav button { flex-shrink:0 } .browser,.configure { padding:10px } #filter { flex-wrap:wrap } #filter input { flex:1 1 100px } fieldset { grid-template-columns:1fr } .queue { padding:10px } th,td { padding:7px 5px } #files th:nth-child(4),#files td:nth-child(4) { display:none } .queue-scroll table { min-width:650px } }
+@media(prefers-color-scheme:dark) { :root { --bg:#141a22; --panel:#1c2531; --text:#e1e7ef; --muted:#a0aec0; --line:#354153; --accent:#7ca9ff; --tint:#263650; --error:#ff939f } .primary { color:#142139 } }

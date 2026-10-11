@@ -72,6 +72,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
               }));
             var app = builder.Build();
             app.UseCors();
+            WebConsole.Map(app);
             app.MapMcp("/mcp");
             try { await app.StartAsync(ct).ConfigureAwait(false); }
             catch { await app.DisposeAsync().ConfigureAwait(false); throw; }

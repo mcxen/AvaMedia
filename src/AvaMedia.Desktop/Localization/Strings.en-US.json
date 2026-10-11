@@ -3442,5 +3442,7 @@
   "项已选择": "selected",
   "个人文件夹": "Home",
   "桌面": "Desktop",
-  "选择文件夹": "Select folder"
+  "选择文件夹": "Select folder",
+  "打开网页工具箱": "Open web toolbox",
+  "复制网页地址": "Copy web address"
 }
