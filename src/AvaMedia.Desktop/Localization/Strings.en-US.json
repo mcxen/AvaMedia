@@ -3418,5 +3418,16 @@
   "结束任务": "End task",
   "部分结果": "Partial results",
   "部分结果 · 尚未完成全部分析": "Partial results · Analysis is not complete",
-  "尚无分析完成的文件，请继续分析后再整理。": "No files have finished analysis yet. Continue analysis before organizing."
+  "尚无分析完成的文件，请继续分析后再整理。": "No files have finished analysis yet. Continue analysis before organizing.",
+  "源目录": "Source folder",
+  "加入后开始": "Start after adding",
+  "平均码率": "Average bitrate",
+  "单格宽高": "Cell size",
+  "拼图数量": "Sheet count",
+  "选择文件": "Select files",
+  "页边距": "Page margin",
+  "设置名称": "Setting name",
+  "更多片段操作": "More clip actions",
+  "更多操作": "More actions",
+  "查看": "View"
 }

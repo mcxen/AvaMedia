@@ -55,8 +55,8 @@ public sealed class ContactSheetWindow : Window
         Title = "多宫格截图";
         Width = 1120; Height = 760; MinWidth = 920; MinHeight = 620;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(20) };
-        _importBar = new() { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(12), RowSpacing = 6 };
+        _importBar = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
         var addFiles = new Button { Content = "添加视频…" };
         addFiles.Click += async (_, _) =>
         {
@@ -77,18 +77,17 @@ public sealed class ContactSheetWindow : Window
         _importBar.Children.Add(addFolders);
         _recursive = new() { Content = "包含子文件夹", IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
         _importBar.Children.Add(_recursive);
-        _importBar.Children.Add(Ui.Button("移除选中", () =>
+        _importBar.Children.Add(Ui.Button("移除", () =>
         {
             foreach (var row in _list?.SelectedItems?.Cast<MediaFileEntry>().ToArray() ?? []) _entries.Remove(row);
             InvalidatePlan();
         }));
         _importBar.Children.Add(Ui.Button("全选", () => { foreach (var row in _entries) row.Include = true; }));
-        _importBar.Children.Add(Ui.Button("反选", () => { foreach (var row in _entries) row.Include = !row.Include; }));
         root.Children.Add(_importBar);
-        _summary = new() { Margin = new(0, 12), Classes = { "caption" }, Text = "尚未添加视频" };
+        _summary = new() { Classes = { "caption" }, Text = "尚未添加视频" };
         Grid.SetRow(_summary, 1); root.Children.Add(_summary);
 
-        var body = new Grid { ColumnDefinitions = new("*,380"), ColumnSpacing = 16 };
+        var body = new Grid { ColumnDefinitions = new("*,340"), ColumnSpacing = 8 };
         var filesArea = new Grid { RowDefinitions = new("Auto,*") };
         var header = new Grid { ColumnDefinitions = new("28,*,160"), ColumnSpacing = 5, Margin = new(1, 0), Classes = { "table-header" } };
         header.Bind(MinHeightProperty, new DynamicResourceExtension("UiTableHeaderHeight"));
@@ -101,7 +100,7 @@ public sealed class ContactSheetWindow : Window
         });
         _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
         {
-            var row = new Grid { ColumnDefinitions = new("28,*,160"), Margin = new(0, 6), ColumnSpacing = 5 };
+            var row = new Grid { ColumnDefinitions = new("28,*,160"), Margin = new(0, 1), ColumnSpacing = 5 };
             var check = new CheckBox { MinHeight = 22 };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaFileEntry.Include)) { Mode = BindingMode.TwoWay }); row.Children.Add(check);
             foreach (var (column, property) in new[] { (1, nameof(MediaFileEntry.Name)), (2, nameof(MediaFileEntry.Status)) })
@@ -115,7 +114,7 @@ public sealed class ContactSheetWindow : Window
         });
         _list.SelectionChanged += (_, _) => { if (_list.SelectedItem is MediaFileEntry entry && entry.LastSheet is { } path) ShowPreview(path); else SchedulePreview(); };
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); body.Children.Add(filesArea);
-        _sheetPanel = new() { Spacing = 9, Margin = new(9) };
+        _sheetPanel = new() { Spacing = 6 };
         var saved = new Storage().LoadToolOptions<ContactSheetOptions>("contact-sheet");
         if(saved is not null){_columns.Value=saved.Columns;_rows.Value=saved.Rows;_cellWidth.Value=saved.CellWidth;_cellHeight.Value=saved.CellHeight;_sheets.Value=saved.SheetsPerVideo;_format.SelectedItem=saved.Format;_timestamps.IsChecked=saved.Timestamps;}
         var preset = Ui.Combo(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], saved is null ? "3 × 3" : new[]{"2 × 2","3 × 3","4 × 4","5 × 4"}.Contains($"{saved.Columns} × {saved.Rows}")?$"{saved.Columns} × {saved.Rows}":"自定义");
@@ -123,9 +122,9 @@ public sealed class ContactSheetWindow : Window
         AddRow(_sheetPanel, "宫格预设", preset);
         var customGrid=AddRow(_sheetPanel, "列数 / 行数", Pair(_columns, _rows));customGrid.IsVisible=preset.SelectedItem as string=="自定义";
         preset.SelectionChanged+=(_,_)=>customGrid.IsVisible=preset.SelectedItem as string=="自定义";
-        var advanced=new StackPanel { Spacing=9 };
+        var advanced=new StackPanel { Spacing=6 };
 
-        AddRow(advanced, "单格宽 / 高（像素）", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "每视频拼图数", _sheets);
+        AddRow(advanced, "单格宽高", Pair(_cellWidth, _cellHeight)); AddRow(_sheetPanel, "拼图数量", _sheets);
         AddRow(advanced, "截图区间", _range);
         advanced.Children.Add(Ui.Button("使用整个视频",()=>{_rangeSource=null;_start.Value=_end.Value=0;SchedulePreview();}));
         _range.Changed+=()=>{_start.Value=(decimal)_range.Start;_end.Value=(decimal)_range.End;}; AddRow(advanced, "图片格式", _format); advanced.Children.Add(_timestamps);
@@ -136,13 +135,13 @@ public sealed class ContactSheetWindow : Window
         browse.Click += async (_, _) => { if (await Ui.Folder(this, "选择截图目录") is { } path) _output.Text = path; };Grid.SetColumn(browse,1);outputRow.Children.Add(browse);AddRow(_sheetPanel,"保存位置",outputRow);
         _generate = new() { Content = "生成截图", Classes={"primary","dialog-action"} };
         _generate.Click += async (_, _) => await Generate();
-        _preview = new() { Height = 230, Stretch = Stretch.Uniform };
+        _preview = new() { Height = 120, Stretch = Stretch.Uniform };
         _sheetPanel.Children.Add(new Border { Classes = { "media-preview" }, Child = _preview, Margin = new(0, 5) });
         var open = new Button { Content = "打开输出文件夹", HorizontalAlignment = HorizontalAlignment.Stretch };
         open.Click += async (_, _) => { try { var folder = System.IO.Path.GetFullPath(_output.Text ?? ""); Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true }); } catch (Exception ex) { await Ui.Message(this, "打开失败", ex.Message); } }; _sheetPanel.Children.Add(open);
         var settingsView=new ScrollViewer{Content=_sheetPanel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};Grid.SetColumn(settingsView,1);body.Children.Add(settingsView);
         Grid.SetRow(body, 2); root.Children.Add(body);
-        var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), Margin = new(0, 14, 0, 0), ColumnSpacing = 12 };
+        var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), ColumnSpacing = 8 };
         _progressText = new() { Text = "就绪", VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         bottom.Children.Add(_progressText); _stop = Ui.DialogButton("停止", () => _operation?.Cancel()); _stop.IsEnabled = false;_stop.IsVisible=false;Grid.SetColumn(_stop, 1); bottom.Children.Add(_stop);
         var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); bottom.Children.Add(close);
@@ -161,9 +160,9 @@ public sealed class ContactSheetWindow : Window
     }
 
     private static Control Pair(Control first, Control second)
-    { var grid = new Grid { RowDefinitions = new("Auto,Auto"), RowSpacing = 6 }; grid.Children.Add(Ui.Parameter(first,"调整数值")); var adjusted=Ui.Parameter(second,"调整数值"); Grid.SetRow(adjusted, 1); grid.Children.Add(adjusted); return grid; }
+    { var grid = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 6 }; grid.Children.Add(Ui.Parameter(first,"调整数值")); var adjusted=Ui.Parameter(second,"调整数值"); Grid.SetColumn(adjusted, 1); grid.Children.Add(adjusted); return grid; }
     private static Grid AddRow(Panel parent, string label, Control input)
-    { input=Ui.Parameter(input,label); var row = new Grid { ColumnDefinitions = new("115,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row);return row; }
+    { input=Ui.Parameter(input,label); var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 6 }; row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row);return row; }
 
     private void AddPaths(IEnumerable<string> paths)
     {

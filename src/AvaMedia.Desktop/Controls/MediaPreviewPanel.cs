@@ -22,6 +22,8 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     private readonly ListBox _archive=new(){IsVisible=false,MinHeight=150};
     private readonly Button _open;
     private readonly Button _listen;
+    private readonly Grid _root;
+    private readonly Grid _actions;
     private readonly CancellationTokenSource _lifetime=new();
     private CancellationTokenSource? _work;
     private Bitmap? _sourceBitmap,_resultBitmap;
@@ -35,19 +37,19 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     public MediaPreviewPanel(IMediaEngine engine)
     {
         _engine=engine;
-        var root=new Grid{RowDefinitions=new("Auto,*,Auto,Auto"),RowSpacing=8};root.Children.Add(_status);
+        _root=new Grid{RowDefinitions=new("Auto,*,Auto,Auto"),RowSpacing=8};_root.Children.Add(_status);
         var surface=new Grid{ClipToBounds=true};surface.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
-        surface.Children.Add(_waveform);surface.Children.Add(_view);surface.Children.Add(_archive);Grid.SetRow(surface,1);root.Children.Add(surface);
-        Grid.SetRow(_seek,2);root.Children.Add(_seek);
-        var actions=new Grid{RowDefinitions=new("Auto,Auto"),RowSpacing=4};actions.Children.Add(_position);
-        var buttons=new WrapPanel();Grid.SetRow(buttons,1);actions.Children.Add(buttons);
+        surface.Children.Add(_waveform);surface.Children.Add(_view);surface.Children.Add(_archive);Grid.SetRow(surface,1);_root.Children.Add(surface);
+        Grid.SetRow(_seek,2);_root.Children.Add(_seek);
+        _actions=new Grid{RowDefinitions=new("Auto,Auto"),RowSpacing=4};_actions.Children.Add(_position);
+        var buttons=new WrapPanel();Grid.SetRow(buttons,1);_actions.Children.Add(buttons);
         _open=Ui.Button("打开预览",()=>{if(_path is null)return;var owner=TopLevel.GetTopLevel(this) as Window;if(owner is null)return;new PlayerWindow(engine,[_path]).ShowForPlayback(owner);});
         _open.IsEnabled=false;_open.Margin=new(0,0,6,0);buttons.Children.Add(_open);
         var listen=Ui.Button("试听处理效果",()=>{if(_path is not null&&_options is not null&&TopLevel.GetTopLevel(this) is Window owner)new VoicePreviewWindow(engine,_path,_options.Clone()).Show(owner);});
         listen.IsVisible=false;listen.Margin=new(0,0,6,0);buttons.Children.Add(listen);
         _listen=listen;
         var fit=Ui.Button("适应窗口",_view.ResetView);buttons.Children.Add(fit);
-        Grid.SetRow(actions,3);root.Children.Add(actions);Content=root;
+        Grid.SetRow(_actions,3);_root.Children.Add(_actions);Content=_root;
         Avalonia.Automation.AutomationProperties.SetName(_seek,"预览位置");
         _seek.PropertyChanged+=(_,change)=>{if(change.Property==Slider.ValueProperty&&!_updating&&_path is not null){_requestedPosition=_seek.Value;_=LoadAsync();}};
         _view.DoubleTapped+=(_,args)=>
@@ -65,6 +67,17 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
             var name=Ui.Text(item?.Name??"");Localization.SetIsUserText(name,true);Grid.SetColumn(name,1);row.Children.Add(name);
             var details=Ui.Text(item?.Details??"","caption");Grid.SetColumn(details,2);row.Children.Add(details);return row;
         });
+    }
+
+    public bool Compact
+    {
+        set
+        {
+            if(!value)return;
+            _status.IsVisible=false;_actions.IsVisible=false;_root.RowSpacing=4;
+            ToolTip.SetTip(_seek,_position.Text);
+            _position.PropertyChanged+=(_,change)=>{if(change.Property==TextBlock.TextProperty)ToolTip.SetTip(_seek,_position.Text);};
+        }
     }
 
     public void SetSource(string? path,ConversionOptions? options=null)

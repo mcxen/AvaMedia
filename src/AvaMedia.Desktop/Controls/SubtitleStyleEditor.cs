@@ -26,56 +26,64 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
     private readonly Canvas _captionLayer = new();
     private readonly Grid _screen = new() { Width = 320, Height = 180, ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Center };
     private readonly Grid _previewHost = new() { MaxHeight = 300 };
+    private readonly Grid _root;
+    private readonly StackPanel _fields;
+    private readonly StackPanel _preview;
     private double _previewAspect = 16d / 9;
     private Bitmap? _bitmap;
     private double _referenceHeight = 1080;
     private readonly double _defaultSize;
     private int _alignment;
+    private bool _compact;
 
     public SubtitleStyleEditor(ConversionOptions options, int referenceHeight = 1080)
     {
         _referenceHeight = referenceHeight; _defaultSize = referenceHeight == 288 ? 16 : 48;
         _alignment = Math.Clamp(options.SubtitleAlignment, 1, 9);
         if (options.SubtitlePositionX is {} x && options.SubtitlePositionY is {} y) _customPosition = new(x, y);
-        var root = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 20, Margin = new(0, 10, 0, 0) };
-        var fields = new StackPanel { Spacing = 10 }; root.Children.Add(fields);
+        _root = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 12 };
+        _fields = new StackPanel { Spacing = 6 }; _root.Children.Add(_fields);
         var automatic = Localization.Text("自动");
         var fonts = FontManager.Current.SystemFonts.Select(font => font.Name).Append(options.SubtitleFont).Where(name => name.Length > 0).Distinct().OrderBy(name => name);
         _font = Ui.Combo(new[] { automatic }.Concat(fonts), options.SubtitleFont.Length > 0 ? options.SubtitleFont : automatic); _font.Name = "SubtitleFont";
         Localization.SetIsUserText(_font, true);
-        Add(fields, "字体", _font);
+        Add(_fields, "字体", _font);
         _size = Number("SubtitleFontSize", options.SubtitleFontSize, 0, 200);
-         Add(fields, "字号 (px)", _size);
+        Add(_fields, "字号", _size);
         _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB"; _color.IsReadOnly = true;
-        var colors = new StackPanel { Spacing = 8 }; colors.Children.Add(_color);
+        var colors = new StackPanel { Spacing = 4 };
         var palette = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var hex in new[] { "#FFFFFF", "#FFFF00", "#FFD166", "#00E5FF", "#FF6B6B", "#76FF03", "#C792EA", "#000000" })
         {
-            var swatch = new Button { Width = 30, MinWidth = 30, Padding = new(4), Margin = new(0, 0, 4, 0),
-                Content = new Border { Width = 18, Height = 18, Background = SolidColorBrush.Parse(hex) } };
+            var swatch = new Button { Width = 22, Height = 22, MinWidth = 22, MinHeight = 22, Padding = new(2), Margin = new(0, 0, 4, 4),
+                Content = new Border { Width = 14, Height = 14, Background = SolidColorBrush.Parse(hex) } };
             AutomationProperties.SetName(swatch, hex); ToolTip.SetTip(swatch, hex);
             swatch.Click += (_, _) => _color.Text = hex; palette.Children.Add(swatch);
         }
         colors.Children.Add(palette);
         var initialColor = Color.TryParse(options.SubtitleColor, out var parsedColor) ? parsedColor : Colors.White;
         var channels = new[] { Ui.Number(initialColor.R,0,255), Ui.Number(initialColor.G,0,255), Ui.Number(initialColor.B,0,255) };
-        var swatchPreview = new Border { Height=20, Background=new SolidColorBrush(initialColor) }; colors.Children.Add(swatchPreview);
+        var colorRow = new Grid { ColumnDefinitions = new("18,*,*,*"), ColumnSpacing = 4 };
+        var swatchPreview = new Border { Width = 18, Height = 18, Background = new SolidColorBrush(initialColor) }; colorRow.Children.Add(swatchPreview);
         var syncingColor=false;
+        string[] channelNames = ["红", "绿", "蓝"];
         for (var index=0; index<channels.Length; index++)
         {
-            var channel=channels[index]; colors.Children.Add(Ui.Text(new[]{"红","绿","蓝"}[index],"caption")); colors.Children.Add(Ui.Adjust(channel));
+            var channel=channels[index]; AutomationProperties.SetName(channel, channelNames[index]); ToolTip.SetTip(channel, channelNames[index]);
+            Grid.SetColumn(channel, index + 1); colorRow.Children.Add(channel);
             channel.ValueChanged+=(_,_)=>
             {
                 if(syncingColor)return;
                 _color.Text=$"#{(int)(channels[0].Value??0):X2}{(int)(channels[1].Value??0):X2}{(int)(channels[2].Value??0):X2}";
             };
         }
+        colors.Children.Add(colorRow); colors.Children.Add(_color);
         _color.TextChanged+=(_,_)=>
         {
             if(!Color.TryParse(_color.Text,out var color))return; syncingColor=true;
             channels[0].Value=color.R;channels[1].Value=color.G;channels[2].Value=color.B;swatchPreview.Background=new SolidColorBrush(color);syncingColor=false;
         };
- colors.Children.Add(_colorError); Add(fields, "颜色", colors);
+        colors.Children.Add(_colorError); Add(_fields, "颜色", colors);
         var positions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto"), RowDefinitions = new("Auto,Auto,Auto") };
         string[] arrows = ["↙", "↓", "↘", "←", "●", "→", "↖", "↑", "↗"];
         string[] names = ["左下", "中下", "右下", "左中", "居中", "右中", "左上", "中上", "右上"];
@@ -97,24 +105,42 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
             for (var index = 0; index < _positions.Length; index++) _positions[index].IsChecked = index + 1 == _alignment;
             UpdatePreview();
         };
-        Add(fields, "位置", positionFields);
-        _margin = Number("SubtitleMargin", options.SubtitleMargin, 0, 2000); Add(fields, "边距 (px)", _margin);
+        Add(_fields, "位置", positionFields);
+        _margin = Number("SubtitleMargin", options.SubtitleMargin, 0, 2000); Add(_fields, "边距", _margin);
         _screen.Background = new SolidColorBrush(Color.Parse("#202428")); _screen.Children.Add(_frame);
         _caption = new Border { Name = "SubtitlePreviewCaption", Child = _sample, Padding = new(4, 2), Background = new SolidColorBrush(Color.Parse("#66000000")) };
         _captionLayer.Children.Add(_caption); _screen.Children.Add(_captionLayer);
-        var preview = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Top };
+        _preview = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Top };
         var previewText = Ui.Input(Localization.Text("字幕预览")); previewText.Name = "SubtitlePreviewText"; previewText.Watermark = "预览文字";
         Localization.SetIsUserText(_sample, true); _sample.Text = previewText.Text;
         Localization.SetIsUserText(previewText, true); AutomationProperties.SetName(previewText, "预览文字");
         previewText.TextChanged += (_, _) => { _sample.Text = previewText.Text ?? ""; UpdatePreview(); };
-        preview.Children.Add(previewText);
-        _previewHost.Children.Add(_screen); _previewHost.SizeChanged += (_, _) => FitPreview(); preview.Children.Add(_previewHost);
-        SetupPreview(preview, referenceHeight, options.Start);
-        Grid.SetColumn(preview, 1); root.Children.Add(preview); Content = root;
+        _preview.Children.Add(previewText);
+        _previewHost.Children.Add(_screen); _previewHost.SizeChanged += (_, _) => FitPreview(); _preview.Children.Add(_previewHost);
+        SetupPreview(_preview, referenceHeight, options.Start);
+        Grid.SetColumn(_preview, 1); _root.Children.Add(_preview); Content = _root;
         _font.SelectionChanged += (_, _) => UpdatePreview(); _color.TextChanged += (_, _) => UpdatePreview();
         _size.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty) UpdatePreview(); };
         _margin.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty) UpdatePreview(); };
         UpdatePreview();
+    }
+
+    public bool Compact
+    {
+        get => _compact;
+        set
+        {
+            if (_compact == value) return;
+            _compact = value;
+            _root.ColumnDefinitions = new(value ? "*" : "*,*");
+            _root.RowDefinitions = new(value ? "Auto,Auto" : "*");
+            _root.ColumnSpacing = value ? 0 : 12; _root.RowSpacing = value ? 8 : 0;
+            Grid.SetColumn(_preview, 0); Grid.SetRow(_preview, value ? 1 : 0);
+            _previewHost.MaxHeight = value ? 168 : 300;
+            if (value) { _screen.Width = 220; _screen.Height = 220 / _previewAspect; }
+            foreach (var button in _positions) { button.MinWidth = value ? 28 : 40; button.Padding = new(value ? 2 : 8); button.Margin = new(0, 0, value ? 2 : 4, value ? 2 : 4); }
+            FitPreview();
+        }
     }
 
     public void ReadInto(ConversionOptions options)
@@ -174,7 +200,8 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
 
     private void FitPreview()
     {
-        var width = Math.Min(_previewHost.Bounds.Width > 0 ? _previewHost.Bounds.Width : 320, 300 * _previewAspect);
+        var limit = _compact ? 168 : 300;
+        var width = Math.Min(_previewHost.Bounds.Width > 0 ? _previewHost.Bounds.Width : _compact ? 220 : 320, limit * _previewAspect);
         if (Math.Abs(_screen.Width - width) < .01 && Math.Abs(_screen.Height - width / _previewAspect) < .01) return;
         _screen.Width = width; _screen.Height = width / _previewAspect; UpdatePreview();
     }

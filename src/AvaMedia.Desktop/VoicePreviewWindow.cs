@@ -13,13 +13,13 @@ internal sealed class VoicePreviewWindow : Window
     private readonly string _temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-voice-preview-" + Guid.NewGuid().ToString("N"));
     private readonly CancellationTokenSource _lifetime = new();
     private readonly TextBlock _status = Ui.Text("", "caption");
-    private readonly StackPanel _actions = new() { Orientation = Orientation.Horizontal, Spacing = 10 };
+    private readonly StackPanel _actions = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private PlayerWindow? _player;
     public VoicePreviewWindow(IMediaEngine engine, string source, ConversionOptions options)
     {
         _engine = engine; _source = source; _options = options.Clone();
         Title = "人声试听 · 10 秒"; Width = 450; Height = 240; MinWidth = 400; MinHeight = 220; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(20), RowSpacing = 16 };
+        var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         root.Children.Add(new ScrollViewer { Content = _status });
         _actions.Children.Add(Ui.Button("试听原声", async () => await PlayAsync(false))); _actions.Children.Add(Ui.Button("试听增强", async () => await PlayAsync(true)));
         Grid.SetRow(_actions, 1); root.Children.Add(_actions);

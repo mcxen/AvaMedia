@@ -25,7 +25,7 @@ public sealed partial class PersonClipWindow
         var window = new Window { Title = "人物剪辑 · 高级设置", Width = 520, Height = 620, MinWidth = 460, MinHeight = 420,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var content = new ScrollViewer { Content = _advancedParameters };
-        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(20), RowSpacing = 12 }; root.Children.Add(content);
+        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(12), RowSpacing = 8 }; root.Children.Add(content);
         var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right;
         Grid.SetRow(close, 1); root.Children.Add(close); window.Content = root;
         window.Closed += (_, _) =>

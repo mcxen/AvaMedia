@@ -14,11 +14,16 @@ namespace AvaMedia.Mcp;
 public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _lifecycle = new(1);
+    private readonly object _activity = new();
     private WebApplication? _app;
     private McpSettings? _running;
+    private int _activeRequests;
+    private long _quietSince = System.Diagnostics.Stopwatch.GetTimestamp();
     public string Status { get; private set; } = "已关闭";
     public string? Endpoint { get; private set; }
     public event Action? Changed;
+    public bool HasActiveRequests { get { lock (_activity) return _activeRequests > 0; } }
+    public TimeSpan QuietFor => HasActiveRequests ? TimeSpan.Zero : System.Diagnostics.Stopwatch.GetElapsedTime(_quietSince);
 
     public async Task ConfigureAsync(McpSettings settings, CancellationToken ct = default)
     {
@@ -54,6 +59,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
               .WithTools<McpTools>()
               .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, token) =>
               {
+                  NoteActivity(1);
                   try { return await next(request, token).ConfigureAwait(false); }
                   catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException
                       or UnauthorizedAccessException or System.Text.Json.JsonException)
@@ -61,6 +67,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
                       // Return actionable service/validation errors without exposing stack traces.
                       throw new McpException(error.Message, error);
                   }
+                  finally { NoteActivity(-1); }
               }));
             var app = builder.Build();
             app.UseCors();
@@ -75,6 +82,15 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
             Status = "启动失败：" + error.Message; Changed?.Invoke(); throw;
         }
         finally { _lifecycle.Release(); }
+    }
+
+    private void NoteActivity(int delta)
+    {
+        lock (_activity)
+        {
+            _activeRequests = Math.Max(0, _activeRequests + delta);
+            if (_activeRequests == 0) _quietSince = System.Diagnostics.Stopwatch.GetTimestamp();
+        }
     }
 
     private async Task StopCoreAsync()

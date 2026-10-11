@@ -8,7 +8,7 @@
     <Style Selector="TextBlock.cropValidation"><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
     <Style Selector="TextBlock.cropValidation.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="12">
+  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="8">
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
       <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Button x:Name="AddButton" Content="添加视频…" Click="AddClick"/>
@@ -73,15 +73,14 @@
         </Expander>
       </StackPanel>
     </Border>
-    <Grid Grid.Row="3" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,160,Auto,*,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
-      <TextBlock Text="输出格式" VerticalAlignment="Center"/>
-      <ComboBox Grid.Column="1" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="裁剪输出格式"/>
-      <TextBlock Grid.Column="2" Text="保存位置" VerticalAlignment="Center" Margin="8,0,0,0"/>
-      <TextBox IsReadOnly="True" Grid.Column="3" x:Name="OutputInput" AutomationProperties.Name="批量裁剪输出文件夹"/>
-      <Button Grid.Column="4" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
-      <Button Grid.Column="5" x:Name="OutputOptionsButton" Content="输出配置…" Click="OptionsClick"/>
-      <StackPanel Grid.Row="1" Grid.ColumnSpan="6" Orientation="Horizontal" Spacing="18"><CheckBox x:Name="SourceOutputInput" Content="输出至源文件目录"/><CheckBox x:Name="SettingNameInput" Content="添加设置名称"/></StackPanel>
-      <TextBlock Grid.Row="2" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
+    <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="140,*,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+      <ComboBox x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="裁剪输出格式" HorizontalAlignment="Stretch"/>
+      <TextBox IsReadOnly="True" Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="批量裁剪输出文件夹"/>
+      <Button Grid.Column="2" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
+      <Button Grid.Column="3" x:Name="OutputOptionsButton" Content="输出配置…" Click="OptionsClick"/>
+      <CheckBox Grid.Column="4" x:Name="SourceOutputInput" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
+      <CheckBox Grid.Column="5" x:Name="SettingNameInput" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
+      <TextBlock Grid.Row="1" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
     </Grid>
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
       <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="cropValidation" TextWrapping="Wrap" VerticalAlignment="Center"/>

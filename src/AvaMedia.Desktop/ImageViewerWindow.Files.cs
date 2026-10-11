@@ -34,7 +34,7 @@ public sealed partial class ImageViewerWindow
                 ? new ImageViewerEntry(destination, Bytes: entry.Bytes) : item).ToArray(); SavePreferences();
             _entries = _entries.Where(item => item.Identity != entry.Identity).ToArray(); RenderFiles();
             if (_entries.Length > 0) await LoadAsync(Math.Min(_index, _entries.Length - 1));
-            else { _index = -1; ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; _status.Text = ""; }
+            else { _index = -1; ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
         }
         else
         {
@@ -43,7 +43,8 @@ public sealed partial class ImageViewerWindow
             try
             { await File.WriteAllBytesAsync(temporary, bytes, _lifetime.Token); File.Move(temporary, destination, overwrite: false); }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
-            _status.Text = Localization.Text("已复制") + " · " + destination;
+            _zoomNotice.Text = Localization.Text("已复制"); Localization.SetIsUserText(_zoomNotice, true);
+            _zoomNotice.IsVisible = true; _zoomNoticeTimer.Stop(); _zoomNoticeTimer.Start();
         }
     }
 }

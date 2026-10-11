@@ -2,7 +2,7 @@
         xmlns:web="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.WebView"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.BrowserDownloadWindow"
         Title="浏览器嗅探" Width="1220" Height="800" MinWidth="960" MinHeight="640" WindowStartupLocation="CenterOwner">
-  <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="8">
     <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
       <Button x:Name="BackButton" Content="后退" Click="BackClick" Classes="tool" IsEnabled="False"/>
       <Button Grid.Column="1" x:Name="ForwardButton" Content="前进" Click="ForwardClick" Classes="tool" IsEnabled="False"/>
@@ -10,7 +10,7 @@
       <TextBox Grid.Column="3" x:Name="AddressInput" Watermark="网站地址" KeyDown="AddressKeyDown"/>
       <Button Grid.Column="4" x:Name="NavigateButton" Content="打开" Click="NavigateClick" Classes="tool"/>
     </Grid>
-    <Grid Grid.Row="1" ColumnDefinitions="*,320" ColumnSpacing="12">
+    <Grid Grid.Row="1" ColumnDefinitions="*,300" ColumnSpacing="8">
       <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1">
         <web:NativeWebView x:Name="Browser"/>
       </Border>

@@ -221,6 +221,7 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
         {
             if (level >= 8) throw new InvalidDataException("证据笔记未能收敛，请调整分段字符数。");
             var reduced = new List<VideoSummaryClaim>();
+            var mergedAny = false;
             // The reserved visual budget can be smaller than two individual notes. Read a
             // full packet so those notes can still be merged instead of rewriting them one by one.
             foreach (var group in Pack(facts, claim => SummaryContext([claim]).Length, Math.Max(1000, budget)))
@@ -230,9 +231,12 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
                     $"将这些按时间排列的段落笔记压缩成最多 {keep} 条，每条不超过 50 字。整合同一主题的过程和结果，" +
                     "保留本段主要进展、结尾结果及重要建议、否定或条件。删除重复和次要细节，不能只摘取开头的内容；视觉资料只保留与主题有关的可见信息。",
                     SummaryContext(group), keep, ct).ConfigureAwait(false);
-                if (merged.Count == 0) throw new InvalidDataException("模型未能将段落笔记归纳成有依据的内容，请调整分段字符数。");
-                reduced.AddRange(merged);
+                // One rejected packet must not discard notes that already compressed. Keep that
+                // packet's source claims and let the next level, or the length check, decide.
+                if (merged.Count == 0) reduced.AddRange(group);
+                else { reduced.AddRange(merged); mergedAny = true; }
             }
+            if (!mergedAny) throw new InvalidDataException("模型未能将段落笔记归纳成有依据的内容，请调整分段字符数。");
             if (SummaryContext(reduced).Length >= SummaryContext(facts).Length) throw new InvalidDataException("证据笔记未能压缩，请调整分段字符数。");
             facts = reduced;
         }

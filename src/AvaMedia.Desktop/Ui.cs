@@ -69,7 +69,11 @@ internal static class Ui
         input.Width=88;input.HorizontalAlignment=HorizontalAlignment.Stretch;Grid.SetColumn(input,1);row.Children.Add(input);return row;
     }
     public static ComboBox Combo(IEnumerable<string> items,string selected)
-    {var list=items.ToArray();return new(){ItemsSource=list,SelectedItem=list.Contains(selected)?selected:list.FirstOrDefault(),HorizontalAlignment=HorizontalAlignment.Stretch};}
+    {
+        var list=items.ToArray();
+        var longest=list.Select(item=>item?.Length??0).DefaultIfEmpty(4).Max();
+        return new(){ItemsSource=list,SelectedItem=list.Contains(selected)?selected:list.FirstOrDefault(),HorizontalAlignment=HorizontalAlignment.Left,Width=Math.Clamp(longest*14+36,96,280)};
+    }
     public static async Task<string[]> Pick(Window owner,string title,bool multiple=true)
     {var files=await owner.StorageProvider.OpenFilePickerAsync(new(){Title=Localization.Text(title),AllowMultiple=multiple});return files.Select(f=>f.TryGetLocalPath()).OfType<string>().ToArray();}
     public static async Task<string?> Folder(Window owner,string title)
@@ -78,7 +82,7 @@ internal static class Ui
     public static async Task<bool> Confirm(Window owner,string title,string message,string action)
     {
         var dialog=new Window{Title=title,Width=480,Height=220,MinWidth=400,MinHeight=200,CanResize=false,WindowStartupLocation=WindowStartupLocation.CenterOwner};
-        var body=new Grid{RowDefinitions=new("*,Auto"),RowSpacing=16,Margin=new(20)};
+        var body=new Grid{RowDefinitions=new("*,Auto"),RowSpacing=8,Margin=new(12)};
         body.Children.Add(new ScrollViewer{Content=Text(message)});
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8};
         buttons.Children.Add(DialogButton("取消",()=>dialog.Close(false)));

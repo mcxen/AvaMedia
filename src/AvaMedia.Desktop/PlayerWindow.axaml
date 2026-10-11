@@ -47,31 +47,15 @@
           </Grid>
           <ScrollViewer Grid.Row="1">
             <StackPanel Spacing="8" Margin="12">
-              <TextBlock Text="视频模式" Classes="caption"/>
-              <ComboBox x:Name="PlayerVrMode" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="视频模式">
-                <ComboBoxItem Content="普通视频"/><ComboBoxItem Content="180° 半球"/><ComboBoxItem Content="360° 全景"/>
-              </ComboBox>
+              <Grid ColumnDefinitions="64,*" ColumnSpacing="8"><TextBlock Text="视频模式" VerticalAlignment="Center" Classes="caption"/><ComboBox Grid.Column="1" x:Name="PlayerVrMode" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="视频模式"><ComboBoxItem Content="普通视频"/><ComboBoxItem Content="180° 半球"/><ComboBoxItem Content="360° 全景"/></ComboBox></Grid>
               <StackPanel x:Name="VrOptions" Spacing="8" IsEnabled="False">
-                <TextBlock Text="双眼布局" Classes="caption"/>
-                <ComboBox x:Name="PlayerVrLayout" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="双眼布局">
-                  <ComboBoxItem Content="单眼画面"/><ComboBoxItem Content="左右双眼（SBS）"/><ComboBoxItem Content="上下双眼（TB）"/>
-                </ComboBox>
-                <TextBlock Text="显示眼别" Classes="caption"/>
-                <ComboBox x:Name="PlayerVrEye" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False" AutomationProperties.Name="显示眼别">
-                  <ComboBoxItem Content="左眼 / 上半幅"/><ComboBoxItem Content="右眼 / 下半幅"/>
-                </ComboBox>
-                <TextBlock Text="投影格式" Classes="caption"/>
-                <ComboBox x:Name="PlayerVrProjection" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False" AutomationProperties.Name="投影格式">
-                  <ComboBoxItem Content="等距柱状"/><ComboBoxItem Content="180° 鱼眼"/>
-                </ComboBox>
-                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="水平旋转" Classes="caption"/><TextBlock Grid.Column="1" x:Name="VrYawValue" Classes="caption"/></Grid>
-                <Slider x:Name="PlayerVrYaw" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" AutomationProperties.Name="水平旋转"/>
-                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="俯仰" Classes="caption"/><TextBlock Grid.Column="1" x:Name="VrPitchValue" Classes="caption"/></Grid>
-                <Slider x:Name="PlayerVrPitch" Minimum="-89.9" Maximum="89.9" Value="0" SmallChange="1" LargeChange="10" AutomationProperties.Name="俯仰"/>
-                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="翻滚" Classes="caption"/><TextBlock Grid.Column="1" x:Name="VrRollValue" Classes="caption"/></Grid>
-                <Slider x:Name="PlayerVrRoll" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="10" AutomationProperties.Name="翻滚"/>
-                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="视野角度" Classes="caption"/><TextBlock Grid.Column="1" x:Name="VrFovValue" Classes="caption"/></Grid>
-                <Slider x:Name="PlayerVrFov" Minimum="30" Maximum="120" Value="90" SmallChange="5" LargeChange="15" AutomationProperties.Name="视野角度"/>
+                <Grid ColumnDefinitions="64,*" ColumnSpacing="8"><TextBlock Text="双眼布局" VerticalAlignment="Center" Classes="caption"/><ComboBox Grid.Column="1" x:Name="PlayerVrLayout" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="双眼布局"><ComboBoxItem Content="单眼画面"/><ComboBoxItem Content="左右双眼（SBS）"/><ComboBoxItem Content="上下双眼（TB）"/></ComboBox></Grid>
+                <Grid ColumnDefinitions="64,*" ColumnSpacing="8"><TextBlock Text="显示眼别" VerticalAlignment="Center" Classes="caption"/><ComboBox Grid.Column="1" x:Name="PlayerVrEye" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False" AutomationProperties.Name="显示眼别"><ComboBoxItem Content="左眼 / 上半幅"/><ComboBoxItem Content="右眼 / 下半幅"/></ComboBox></Grid>
+                <Grid ColumnDefinitions="64,*" ColumnSpacing="8"><TextBlock Text="投影格式" VerticalAlignment="Center" Classes="caption"/><ComboBox Grid.Column="1" x:Name="PlayerVrProjection" SelectedIndex="0" HorizontalAlignment="Stretch" IsEnabled="False" AutomationProperties.Name="投影格式"><ComboBoxItem Content="等距柱状"/><ComboBoxItem Content="180° 鱼眼"/></ComboBox></Grid>
+                <Grid ColumnDefinitions="64,*,42" ColumnSpacing="8"><TextBlock Text="水平旋转" VerticalAlignment="Center" Classes="caption"/><Slider Grid.Column="1" x:Name="PlayerVrYaw" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="15" AutomationProperties.Name="水平旋转"/><TextBlock Grid.Column="2" x:Name="VrYawValue" VerticalAlignment="Center" Classes="caption"/></Grid>
+                <Grid ColumnDefinitions="64,*,42" ColumnSpacing="8"><TextBlock Text="俯仰" VerticalAlignment="Center" Classes="caption"/><Slider Grid.Column="1" x:Name="PlayerVrPitch" Minimum="-89.9" Maximum="89.9" Value="0" SmallChange="1" LargeChange="10" AutomationProperties.Name="俯仰"/><TextBlock Grid.Column="2" x:Name="VrPitchValue" VerticalAlignment="Center" Classes="caption"/></Grid>
+                <Grid ColumnDefinitions="64,*,42" ColumnSpacing="8"><TextBlock Text="翻滚" VerticalAlignment="Center" Classes="caption"/><Slider Grid.Column="1" x:Name="PlayerVrRoll" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="10" AutomationProperties.Name="翻滚"/><TextBlock Grid.Column="2" x:Name="VrRollValue" VerticalAlignment="Center" Classes="caption"/></Grid>
+                <Grid ColumnDefinitions="64,*,42" ColumnSpacing="8"><TextBlock Text="视野角度" VerticalAlignment="Center" Classes="caption"/><Slider Grid.Column="1" x:Name="PlayerVrFov" Minimum="30" Maximum="120" Value="90" SmallChange="5" LargeChange="15" AutomationProperties.Name="视野角度"/><TextBlock Grid.Column="2" x:Name="VrFovValue" VerticalAlignment="Center" Classes="caption"/></Grid>
                 <Button Classes="field-action" Content="回正视角" Click="VrResetClick"/>
               </StackPanel>
               <Button x:Name="PlayerVrRemember" Classes="field-action" Content="记住此视频设置" Click="VrRememberClick" IsEnabled="False"/>

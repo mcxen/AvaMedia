@@ -29,6 +29,7 @@ public sealed class VideoSlimmingEntry(string path) : Observable
     public string SourceSummary => Info is { } source ? Localization.Format(
         $"{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {source.VideoCodec.ToUpperInvariant()}") :
         Loading ? Localization.Text("正在读取媒体信息…") : "";
+    public string ListDetail => SourceSummary + (Bytes > 0 ? " · " + SourceSize : "") + (Analysis is not null ? Localization.Format($" → {EstimatedSize} · 节省 {Saving}") : "");
     public string SourceSize => Bytes > 0 ? Localization.Format($"{Bytes / 1000000d:0.##} MB") : "—";
     public string EstimatedSize => Analysis is { } analysis ? Localization.Format($"{analysis.EstimatedBytes / 1000000d:0.##} MB") : "—";
     public string Saving => Analysis is { } analysis ? Localization.Format($"{analysis.EstimatedSaving:0.#}%") : "—";

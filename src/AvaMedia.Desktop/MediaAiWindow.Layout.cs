@@ -22,7 +22,7 @@ public sealed partial class MediaAiWindow
     private readonly CheckBox _showScores = new() { Content = "显示标签分数" };
     private readonly TextBlock _fileCount = Ui.Text("", "caption");
     private readonly TextBlock _empty = Ui.Text("拖入图片或视频", "caption");
-    private readonly StackPanel _settingsPanel = new() { Spacing = 12 };
+    private readonly StackPanel _settingsPanel = new() { Spacing = 6 };
     private readonly Expander _batchActions = new() { Header = "批量操作", IsExpanded = false, HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private bool _updatingSelection;
     private Window? _settingsOwner;
@@ -34,7 +34,7 @@ public sealed partial class MediaAiWindow
     {
         StableLayout.Reserve(_pause, "临时停止", "继续任务");
         ConfigureWorkbenchScrollbars();
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(16), RowSpacing = 10 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         _imports.Children.Add(Ui.Button("添加文件…", async () =>
         {
             var files = await StorageProvider.OpenFilePickerAsync(new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
@@ -47,15 +47,20 @@ public sealed partial class MediaAiWindow
             var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
             await AddFoldersAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
         }));
-        _imports.Children.Add(Ui.Button("从列表移除", async () => await RemoveCheckedAsync()));
+        var remove = Ui.Button("从列表移除", async () => await RemoveCheckedAsync());
         foreach (var button in _imports.Children) button.Margin = new(0, 0, 6, 6);
         _imports.Margin = new(0, 0, 10, 0);
         var toolbar = new WrapPanel(); toolbar.Children.Add(_imports);
-        var workbenchActions = new List<Control> { _analyze, _pause, _stop };
-        if (_enqueue is not null) workbenchActions.Add(_enqueueQueue);
-        if (_showQueue is not null) workbenchActions.Add(_viewQueue);
-        if (_newTask is not null) workbenchActions.Add(Ui.Button("新建标签任务", _newTask));
-        workbenchActions.Add(_generateCaptions); workbenchActions.Add(_chooseTagGroups); workbenchActions.Add(_advanced);
+        var workbenchActions = new List<Control> { _analyze, _pause, _stop, _advanced };
+        var more = new Button { Content = "更多操作" };
+        var flyout = new MenuFlyout();
+        void AddMore(Button button) => flyout.Items.Add(MenuItemFor(button));
+        AddMore(remove);
+        if (_enqueue is not null) AddMore(_enqueueQueue);
+        if (_showQueue is not null) AddMore(_viewQueue);
+        if (_newTask is not null) AddMore(Ui.Button("新建标签任务", _newTask));
+        AddMore(_generateCaptions); AddMore(_chooseTagGroups);
+        more.Flyout = flyout; workbenchActions.Add(more);
         toolbar.Children.Add(WorkbenchActions(workbenchActions.ToArray())); root.Children.Add(toolbar);
         _list.ItemsSource = _entries;
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
@@ -64,10 +69,10 @@ public sealed partial class MediaAiWindow
         _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
         {
             if (entry is null) return new TextBlock();
-            var row = new Grid { ColumnDefinitions = new("24,*"), ColumnSpacing = 6, Margin = new(0, 5) };
+            var row = new Grid { ColumnDefinitions = new("24,*"), ColumnSpacing = 6, Margin = new(0, 2) };
             var check = new CheckBox { VerticalAlignment = VerticalAlignment.Top };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaFileEntry.Include)) { Mode = BindingMode.TwoWay }); row.Children.Add(check);
-            var content = new StackPanel { Spacing = 4 };
+            var content = new StackPanel { Spacing = 1 };
             var name = Ui.Text(""); name.FontWeight = FontWeight.SemiBold; name.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(name, true); name.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Name))); content.Children.Add(name);
             var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status))); content.Children.Add(status);
@@ -158,6 +163,14 @@ public sealed partial class MediaAiWindow
         Styles.Add(new Style(selector => selector.OfType<ScrollBar>().Class(":vertical").Template().OfType<RepeatButton>().Class("repeat"))
         { Setters = { new Setter(RepeatButton.WidthProperty, 10d), new Setter(RepeatButton.HeightProperty, 10d) } });
     }
+    private static MenuItem MenuItemFor(Button button)
+    {
+        var item = new MenuItem { Header = button.Content };
+        item.Bind(IsEnabledProperty, new Binding(nameof(IsEnabled)) { Source = button });
+        item.Bind(IsVisibleProperty, new Binding(nameof(IsVisible)) { Source = button });
+        item.Click += (_, args) => { args.Handled = true; button.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent)); };
+        return item;
+    }
     private static WrapPanel WorkbenchActions(params Control[] controls)
     {
         var row = new WrapPanel();
@@ -170,7 +183,7 @@ public sealed partial class MediaAiWindow
     private Control AddSettingRow(string label, Control control)
     {
         control=Ui.Parameter(control,label);
-        var row = new Grid { ColumnDefinitions = new("140,*"), ColumnSpacing = 12 };
+        var row = new Grid { ColumnDefinitions = new("108,*"), ColumnSpacing = 6 };
         row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); _settingsPanel.Children.Add(row);
         return row;
     }
@@ -179,7 +192,7 @@ public sealed partial class MediaAiWindow
         if (_busy) return;
         var window = new Window { Title = "AI 标签 · 高级设置", Width = 480, Height = 520, MinWidth = 420, MinHeight = 430,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var root = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 12, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8, Margin = new(12) };
         var scroll = new ScrollViewer { Content = _settingsPanel }; root.Children.Add(scroll);
         var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetRow(close, 1); root.Children.Add(close); window.Content = root;
         window.Closed += (_, _) =>

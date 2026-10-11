@@ -1,14 +1,14 @@
 <Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoSlimmingWindow"
         Title="视频瘦身" Width="1200" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
-  <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="12">
+  <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="8">
     <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}" Padding="12">
       <ContentControl x:Name="PreviewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
     </Border>
     <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}" Padding="12">
-      <Grid RowDefinitions="*,Auto" RowSpacing="12">
+      <Grid RowDefinitions="*,Auto" RowSpacing="8">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Spacing="12">
+          <StackPanel Spacing="8">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
               <TextBlock Text="视频"/>
               <TextBlock x:Name="FileCountText" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
@@ -26,28 +26,23 @@
                 <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style></ListBox.Styles>
                 <ListBox.ItemTemplate>
                   <DataTemplate>
-                    <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="8" RowSpacing="6" Margin="10">
-                      <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="8" RowSpacing="2" Margin="2,1">
+                      <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Status}" VerticalAlignment="Center" ToolTip.Tip="{Binding Error}"/>
-                      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="caption" Text="{Binding SourceSummary}" TextTrimming="CharacterEllipsis"/>
-                      <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
-                        <StackPanel Spacing="2"><TextBlock Text="原体积" Classes="caption"/><TextBlock Text="{Binding SourceSize}"/></StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="2"><TextBlock Text="预计体积" Classes="caption"/><TextBlock Text="{Binding EstimatedSize}"/></StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="2"><TextBlock Text="节省" Classes="caption"/><TextBlock Text="{Binding Saving}"/></StackPanel>
-                      </Grid>
+                      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="caption" Text="{Binding ListDetail}" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                   </DataTemplate>
                 </ListBox.ItemTemplate>
               </ListBox>
               <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
             </Grid>
-            <Grid x:Name="OptionsPanel" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*" ColumnSpacing="12" RowSpacing="8">
+            <Grid x:Name="OptionsPanel" ColumnDefinitions="72,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="6">
               <TextBlock Text="画质档位" VerticalAlignment="Center"/>
-              <ComboBox x:Name="PresetInput" Grid.Column="1" AutomationProperties.Name="瘦身档位"/>
+              <ComboBox x:Name="PresetInput" Grid.Column="1" AutomationProperties.Name="瘦身档位" HorizontalAlignment="Stretch"/>
               <TextBlock Grid.Row="1" Text="视频编码" VerticalAlignment="Center"/>
-              <ComboBox x:Name="CodecInput" Grid.Row="1" Grid.Column="1" AutomationProperties.Name="视频编码"/>
+              <ComboBox x:Name="CodecInput" Grid.Row="1" Grid.Column="1" AutomationProperties.Name="视频编码" HorizontalAlignment="Stretch"/>
               <TextBlock Grid.Row="2" Text="输出格式" VerticalAlignment="Center"/>
-              <ComboBox x:Name="FormatInput" Grid.Row="2" Grid.Column="1" AutomationProperties.Name="输出格式"/>
+              <ComboBox x:Name="FormatInput" Grid.Row="2" Grid.Column="1" AutomationProperties.Name="输出格式" HorizontalAlignment="Stretch"/>
             </Grid>
             <controls:SizeComparisonView x:Name="SizeChart"/>
             <Expander x:Name="AnalysisDetails" Header="分析详情" HorizontalAlignment="Stretch" IsVisible="False">
@@ -60,12 +55,11 @@
             <TextBlock x:Name="SummaryText" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
-        <StackPanel Grid.Row="1" Spacing="8">
-          <CheckBox x:Name="SourceFolderInput" Content="输出至源文件目录"/>
-          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
-            <TextBlock Text="保存位置" Grid.ColumnSpan="2"/>
-            <TextBox IsReadOnly="True" x:Name="OutputInput" Grid.Row="1" AutomationProperties.Name="输出文件夹" i18n:Localization.IsUserText="True"/>
-            <Button x:Name="BrowseButton" Grid.Row="1" Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
+        <StackPanel Grid.Row="1" Spacing="6">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBox IsReadOnly="True" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" i18n:Localization.IsUserText="True"/>
+            <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
+            <CheckBox x:Name="SourceFolderInput" Grid.Column="2" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
           </Grid>
           <Button x:Name="AnalyzeButton" i18n:StableLayout.Samples="预估体积|停止分析|正在停止…" Content="预估体积" Click="AnalyzeClick"/>
           <ProgressBar x:Name="AnalysisProgress" Minimum="0" Maximum="100" Height="5" IsVisible="False"/>

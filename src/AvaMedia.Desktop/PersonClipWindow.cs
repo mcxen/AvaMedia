@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
@@ -85,12 +86,12 @@ public sealed partial class PersonClipWindow : Window
 
         _submit = Ui.DialogButton(editing ? "保存修改" : "加入任务列表", Submit); _submit.Name = "QueuePersonClips"; _submit.IsEnabled = false;
         _submit.IsDefault = true; _submit.Classes.Add("primary");
-        var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), Margin = new(16), RowSpacing = 12 };
+        var layout = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         tools.Children.Add(Ui.Button("添加视频…", async () => await AddFilesAsync()));
         tools.Children.Add(Ui.Button("移除", () => { if (!_busy && _files.SelectedIndex >= 0) { if (!SelectedTaskActive) _entries.RemoveAt(_files.SelectedIndex); RefreshFiles(); } }));
         tools.Children.Add(Ui.Button("高级设置…", async () => await OpenAdvancedAsync())); layout.Children.Add(tools);
-        var parameters = new StackPanel { Spacing = 8 };
+        var parameters = new StackPanel { Spacing = 6 };
         parameters.Children.Add(Ui.Text("检测模型", "settingsHeading"));
         foreach (var detector in PersonDetectorCatalog.All)
         {
@@ -114,10 +115,10 @@ public sealed partial class PersonClipWindow : Window
         parameters.Children.Add(_uncertain); parameters.Children.Add(_embedding); parameters.Children.Add(_reuseFrames); parameters.Children.Add(_modelStatus);
         _advancedParameters = parameters;
         parameters.Children.Add(Ui.Button("模型管理…", async () => await OpenModelsAsync(null)));
-        var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 12 };
-        var profile = new StackPanel { Spacing = 8 }; AddField(profile, "检测档位", _detectionMode); left.Children.Add(profile);
-        var preview = new MediaPreviewPanel(engine);
-        var sourceArea = new Grid { RowDefinitions = new("*,240"), RowSpacing = 8 }; sourceArea.Children.Add(_files); Grid.SetRow(preview,1); sourceArea.Children.Add(preview);
+        var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 };
+        var profile = new StackPanel { Spacing = 6 }; AddField(profile, "检测档位", _detectionMode); left.Children.Add(profile);
+        var preview = new MediaPreviewPanel(engine) { Compact = true };
+        var sourceArea = new Grid { RowDefinitions = new("*,180"), RowSpacing = 6 }; sourceArea.Children.Add(_files); Grid.SetRow(preview,1); sourceArea.Children.Add(preview);
         Grid.SetRow(sourceArea, 1); left.Children.Add(sourceArea);
         _files.SelectionChanged += (_,_) => preview.SetSource(Selected?.Path); Closed += (_,_) => preview.Dispose();
         var analyzeActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -134,27 +135,30 @@ public sealed partial class PersonClipWindow : Window
         };
         analyzeActions.Children.Add(_analyze); analyzeActions.Children.Add(_pause); analyzeActions.Children.Add(_stop);
         if (newTask is not null) analyzeActions.Children.Add(Ui.Button("新建检测任务", newTask)); Grid.SetRow(analyzeActions, 2); left.Children.Add(analyzeActions);
-        var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 16 }; body.Children.Add(left);
+        var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 }; body.Children.Add(left);
         _rangePanel.Children.Add(Ui.Text("排除这些区间", "settingsHeading")); _rangePanel.Children.Add(_ranges);
         _ranges.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<PersonClipRange>((range, _) => Ui.Text(range is null ? "" : MediaTime.Format(range.Start) + " – " + MediaTime.Format(range.End)));
-        AddField(_rangePanel, "开始时间", _start); AddField(_rangePanel, "结束时间", _end);
+        var rangeTimes = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
+        AddField(rangeTimes, "开始时间", _start); AddField(rangeTimes, "结束时间", _end, 1); _rangePanel.Children.Add(rangeTimes);
         var rangeActions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { Ui.Button("从视频标记 / 调整…", async () => await MarkRangeAsync()), Ui.Button("移除区间", RemoveRange) })
         { button.Margin = new(0, 0, 8, 8); rangeActions.Children.Add(button); }
         _rangePanel.Children.Add(rangeActions);
-        var results = new StackPanel { Spacing = 10 };
+        var results = new StackPanel { Spacing = 6 };
         results.Children.Add(Ui.Text("保留片段", "settingsHeading")); results.Children.Add(_resultSummary); results.Children.Add(_retained);
         _review = Ui.Button("播放和调整片段…", async () => await ReviewAsync()); results.Children.Add(_review);
         results.Children.Add(new Expander { Header = "排除区间", Content = _rangePanel, HorizontalAlignment = HorizontalAlignment.Stretch });
         results.Children.Add(_activity);
         var rangeScroll = new ScrollViewer { Content = results }; Grid.SetColumn(rangeScroll, 1); body.Children.Add(rangeScroll);
         Grid.SetRow(body, 1); layout.Children.Add(body);
-        var output = new Grid { ColumnDefinitions = new("Auto,140,Auto,*,Auto"), ColumnSpacing = 8 };
+        var output = new Grid { ColumnDefinitions = new("Auto,140,*,Auto,Auto"), ColumnSpacing = 8 };
         output.Children.Add(Ui.Text("输出格式")); Grid.SetColumn(_format, 1); output.Children.Add(_format);
-        var folderLabel = Ui.Text("保存位置"); Grid.SetColumn(folderLabel, 2); output.Children.Add(folderLabel); Grid.SetColumn(_folder, 3); output.Children.Add(_folder);
+        AutomationProperties.SetName(_folder, "保存位置"); Grid.SetColumn(_folder, 2); output.Children.Add(_folder);
         var browse = Ui.Button("浏览…", async () => { if (await Ui.Folder(this, "保存位置") is { } folder) { _folder.Text = folder; _sourceFolder.IsChecked = false; } });
-        Grid.SetColumn(browse, 4); output.Children.Add(browse); Grid.SetRow(output, 2); layout.Children.Add(output);
-        var footer = new StackPanel { Spacing = 6 }; footer.Children.Add(_sourceFolder); footer.Children.Add(_status); Grid.SetRow(footer, 3); layout.Children.Add(footer);
+        Grid.SetColumn(browse, 3); output.Children.Add(browse);
+        _sourceFolder.Content = "源目录"; ToolTip.SetTip(_sourceFolder, "输出至源文件目录"); _sourceFolder.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_sourceFolder, 4); output.Children.Add(_sourceFolder); Grid.SetRow(output, 2); layout.Children.Add(output);
+        var footer = new StackPanel { Spacing = 4 }; footer.Children.Add(_status); Grid.SetRow(footer, 3); layout.Children.Add(footer);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(Ui.DialogButton("取消", () => Close(null))); actions.Children.Add(_submit); Grid.SetRow(actions, 4); layout.Children.Add(actions); Content = layout;
         _files.SelectionChanged += (_, _) => { RefreshRanges(); RefreshResults(); };
@@ -168,10 +172,12 @@ public sealed partial class PersonClipWindow : Window
 
     private static NumericUpDown Number(decimal min, decimal max, decimal value, decimal step) => new()
         { Minimum = min, Maximum = max, Value = value, Increment = step, Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
-    private static void AddField(StackPanel panel, string label, Control input)
+    private static void AddField(Panel panel, string label, Control input, int column = 0)
     { input=Ui.Parameter(input,label);
-        var row = new Grid { ColumnDefinitions = new("145,*"), ColumnSpacing = 8 };
-        row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); panel.Children.Add(row);
+        var row = new Grid { ColumnDefinitions = new("108,*"), ColumnSpacing = 6 };
+        row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input);
+        if (column > 0) Grid.SetColumn(row, column);
+        panel.Children.Add(row);
     }
     private Entry? Selected => _files.SelectedIndex >= 0 && _files.SelectedIndex < _entries.Count ? _entries[_files.SelectedIndex] : null;
     private string[] SelectedDetectors => _detectorBoxes.Where(item => item.Value.IsChecked == true).Select(item => item.Key).ToArray();

@@ -16,7 +16,7 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     private sealed record FeatureCell(Button Button, int Row, int Column, int Span);
-    private sealed record FeatureGroup(CategoryHeader Header, Grid Container, Border Body, string Title);
+    private sealed record FeatureGroup(CategoryHeader? Header, Grid Container, Border Body, string Title);
     private sealed record CategoryView(ScrollViewer Scroll, StackPanel Stack,
         Dictionary<string, FeatureCell> Cells, List<FeatureGroup> Groups, int Tools, int Formats);
     private readonly Dictionary<string, CategoryHeader> _categoryHeaders = [];
@@ -105,8 +105,6 @@ public partial class MainWindow
         view.Scroll.ZIndex = 1;
         _featureButtons.Clear();
         foreach (var (id, cell) in view.Cells) _featureButtons.Add(id, cell.Button);
-        FeaturePanelTitle.Text = FeatureNavigation.CategoryTitle(category);
-        Localization.SetText(FeaturePanelCount, $"{view.Cells.Count} 个工具");
         UpdateSidebarSelection();
         RestoreFeatureOffset(view, revision);
         if (oldView is not null && oldView != view && oldView.Scroll.IsVisible)
@@ -160,8 +158,9 @@ public partial class MainWindow
         foreach (var section in FeatureNavigation.Sections(category, _settings.EnableBetaFeatures))
         {
             var key = category + ":" + section.Title;
-            var header = new CategoryHeader(section.Title, "", isGroup: true) { IsExpanded = !_closedFeatureGroups.Contains(key) };
-            EnableDropNavigation(header, () => header.IsExpanded = true);
+            var titled = section.Title.Length > 0;
+            var header = titled ? new CategoryHeader(section.Title, "", isGroup: true) { IsExpanded = !_closedFeatureGroups.Contains(key) } : null;
+            if (header is not null) EnableDropNavigation(header, () => header.IsExpanded = true);
             var grid = new Grid { ColumnSpacing = 2, RowSpacing = 2 };
             for (var index = 0; index < 12; index++) grid.ColumnDefinitions.Add(new(1, GridUnitType.Star));
             var count = section.Compact ? columns.Formats : columns.Tools;
@@ -211,11 +210,12 @@ public partial class MainWindow
                 grid.Children.Add(button); view.Cells.Add(feature.Id, new(button, logicalRow + row, column * span, span));
             }
             logicalRow += (section.Features.Length + count - 1) / count + 1;
-            var body = new Border { Child = grid, IsVisible = header.IsExpanded };
+            var body = new Border { Child = grid, IsVisible = header?.IsExpanded ?? true };
             var container = new Grid { RowDefinitions = new("Auto,Auto") };
-            Grid.SetRow(body, 1); container.Children.Add(header); container.Children.Add(body);
+            Grid.SetRow(body, 1); if (header is not null) container.Children.Add(header); container.Children.Add(body);
             var group = new FeatureGroup(header, container, body, section.Title);
             view.Groups.Add(group); stack.Children.Add(container);
+            if (header is null) continue;
             if (!header.IsExpanded) container.RowDefinitions[1].Height = new GridLength(0);
             header.Click += (_, _) => header.IsExpanded = !header.IsExpanded;
             header.PropertyChanged += (_, change) =>
@@ -243,10 +243,10 @@ public partial class MainWindow
         if (_closing || _categoryHeaders.Count == 0) return;
         foreach (var (category, header) in _categoryHeaders)
             header.SetTitle(Localization.Text(FeatureNavigation.CategoryTitle(category)));
-        FeaturePanelTitle.Text = FeatureNavigation.CategoryTitle(_category);
         foreach (var view in _categoryViews.Values)
         {
-            foreach (var group in view.Groups) group.Header.SetTitle(Localization.Text(group.Title));
+            foreach (var group in view.Groups)
+                if (group.Title.Length > 0) group.Header.SetTitle(Localization.Text(group.Title));
             foreach (var (id, cell) in view.Cells)
             {
                 if (!_featureLabels.TryGetValue(cell.Button, out var label)) continue;
@@ -271,6 +271,7 @@ public partial class MainWindow
 
     private void ToggleFeatureGroup(CategoryView view, FeatureGroup group, string key)
     {
+        if (group.Header is null) return;
         var expanded = group.Header.IsExpanded;
         if (expanded) _closedFeatureGroups.Remove(key); else _closedFeatureGroups.Add(key);
         var enabled = AnimateNavigation && view.Scroll.IsVisible;

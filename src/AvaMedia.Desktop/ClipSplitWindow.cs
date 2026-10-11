@@ -28,13 +28,18 @@ public sealed class ClipSplitWindow : Window
         Title = "分割"; Width = 920; Height = 760; MinWidth = 800; MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         _mode.Name = "SplitMode";
-        var grid = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto,Auto"), Margin = new Thickness(20), RowSpacing = 12 };
+        var grid = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto,Auto"), Margin = new Thickness(12), RowSpacing = 8 };
         var end = draft.End > 0 ? draft.End : duration;
         var description = Ui.FormattedText($"源区间：{Time(draft.Start)} – {Time(end)} · {draft.Speed:0.###}×"); description.TextWrapping = TextWrapping.Wrap; grid.Children.Add(description);
         var modeRow = new Grid { ColumnDefinitions = new("100,*") }; modeRow.Children.Add(Ui.Text("分割方式"));
         Grid.SetColumn(_mode, 1); modeRow.Children.Add(_mode); Grid.SetRow(modeRow, 1); grid.Children.Add(modeRow);
-        _partsPanel.Children.Add(Ui.FormattedText($"段数（2–{ClipSplit.MaximumSegments}）")); _partsPanel.Children.Add(Ui.Adjust(_parts));
-        _secondsPanel.Children.Add(Ui.Text("每段时长（保留尾段）")); _secondsPanel.Children.Add(Ui.Adjust(_seconds,Math.Max(1,end-draft.Start)));
+        var partsRow = new Grid { ColumnDefinitions = new("132,*"), ColumnSpacing = 8 };
+        partsRow.Children.Add(Ui.FormattedText($"段数（2–{ClipSplit.MaximumSegments}）"));
+        var partsAdjust = Ui.Adjust(_parts); Grid.SetColumn(partsAdjust, 1); partsRow.Children.Add(partsAdjust); _partsPanel.Children.Add(partsRow);
+        var secondsRow = new Grid { ColumnDefinitions = new("132,*"), ColumnSpacing = 8 };
+        secondsRow.Children.Add(Ui.Text("每段时长"));
+        var secondsAdjust = Ui.Adjust(_seconds, Math.Max(1, end - draft.Start)); ToolTip.SetTip(secondsAdjust, "保留尾段");
+        Grid.SetColumn(secondsAdjust, 1); secondsRow.Children.Add(secondsAdjust); _secondsPanel.Children.Add(secondsRow);
         _timeline.Start=draft.Start;_timeline.End=end;
         var fields = new StackPanel { Spacing = 6 }; fields.Children.Add(_partsPanel); fields.Children.Add(_secondsPanel);
         fields.Children.Add(Ui.Text("点击添加分割点，拖动调整；选中后按 Delete 删除。","caption"));fields.Children.Add(_timeline);
@@ -43,14 +48,14 @@ public sealed class ClipSplitWindow : Window
         MediaPreviewPanel? mediaPreview=null;
         if(engine is not null&&source is not null)
         {
-            var media=new MediaPreviewPanel(engine);mediaPreview=media;media.SetSource(source,draft);Closed+=(_,_)=>media.Dispose();
-            var body=new Grid{ColumnDefinitions=new("*,*"),ColumnSpacing=12};body.Children.Add(_preview);Grid.SetColumn(media,1);body.Children.Add(media);content=body;
+            var media=new MediaPreviewPanel(engine){Compact=true};mediaPreview=media;media.SetSource(source,draft);Closed+=(_,_)=>media.Dispose();
+            var body=new Grid{ColumnDefinitions=new("*,*"),ColumnSpacing=8};body.Children.Add(_preview);Grid.SetColumn(media,1);body.Children.Add(media);content=body;
         }
         Grid.SetRow(content, 3);grid.Children.Add(content);
         var note = new StackPanel { Spacing = 6 }; note.Children.Add(_error);
         note.Children.Add(new TextBlock { Text = "每段单独导出，保留编辑参数。Fast Copy 切点受关键帧限制。", Classes = { "caption" }, TextWrapping = TextWrapping.Wrap });
         Grid.SetRow(note, 4); grid.Children.Add(note);
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 12 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         buttons.Children.Add(Ui.DialogButton("取消", () => Close(null)));
         _confirm = Ui.DialogButton("确定", () => { Refresh(); if (_segments is not null) Close(_segments); });
         buttons.Children.Add(_confirm); Grid.SetRow(buttons, 5); grid.Children.Add(buttons); Content = grid;

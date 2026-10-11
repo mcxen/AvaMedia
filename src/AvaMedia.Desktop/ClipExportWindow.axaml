@@ -1,13 +1,13 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.ClipExportWindow" Title="快速剪辑 · 导出选项" Width="920" Height="660" MinWidth="820" MinHeight="520" WindowStartupLocation="CenterOwner">
-  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="16">
+  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
     <TextBlock x:Name="ExportSummary" Classes="caption" TextWrapping="Wrap"/>
     <ListBox Grid.Row="1" x:Name="ExportSegments" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
       <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <Grid ColumnDefinitions="88,*" ColumnSpacing="12" Margin="8">
-            <Border Background="{DynamicResource UiMediaSurface}" Width="88" Height="50" VerticalAlignment="Top"><local:SegmentThumbnail Stretch="Uniform" AutomationProperties.Name="预览片段起点"/></Border>
-            <StackPanel Grid.Column="1" Spacing="4">
+          <Grid ColumnDefinitions="72,*" ColumnSpacing="8" Margin="2,1">
+            <Border Background="{DynamicResource UiMediaSurface}" Width="72" Height="40" VerticalAlignment="Center"><local:SegmentThumbnail Stretch="Uniform" AutomationProperties.Name="预览片段起点"/></Border>
+            <StackPanel Grid.Column="1" Spacing="2">
               <TextBlock Text="{Binding SourceName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
               <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
             </StackPanel>
@@ -15,15 +15,20 @@
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
-    <StackPanel Grid.Row="2" Spacing="12">
-      <Grid ColumnDefinitions="110,220,*,Auto" ColumnSpacing="12"><TextBlock Text="输出格式" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="FormatCombo" SelectionChanged="FormatChanged"/><Button Grid.Column="3" x:Name="ExportOptionsButton" Content="编码与质量…" Click="ExportOptionsClick"/></Grid>
+    <StackPanel Grid.Row="2" Spacing="6">
+      <Grid ColumnDefinitions="Auto,160,*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="输出格式" VerticalAlignment="Center"/>
+        <ComboBox Grid.Column="1" x:Name="FormatCombo" HorizontalAlignment="Stretch" SelectionChanged="FormatChanged"/>
+        <TextBox Grid.Column="2" x:Name="ExportFolder" IsReadOnly="True" AutomationProperties.Name="保存位置"/>
+        <Button Grid.Column="3" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/>
+        <CheckBox Grid.Column="4" x:Name="OutputToSource" Content="源目录" IsCheckedChanged="OutputLocationChanged" VerticalAlignment="Center" ToolTip.Tip="保存到各视频所在文件夹"/>
+        <CheckBox Grid.Column="5" x:Name="AddSettingName" Content="设置名称" VerticalAlignment="Center" ToolTip.Tip="添加设置名称"/>
+        <Button Grid.Column="6" x:Name="ExportOptionsButton" Content="编码与质量…" Click="ExportOptionsClick"/>
+      </Grid>
       <TextBlock x:Name="FormatNote" Classes="caption" TextWrapping="Wrap"/>
-      <Grid ColumnDefinitions="110,*,Auto" ColumnSpacing="12"><TextBlock Text="保存位置" VerticalAlignment="Center"/><TextBox Grid.Column="1" x:Name="ExportFolder" IsReadOnly="True"/><Button Grid.Column="2" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/></Grid>
-      <CheckBox x:Name="OutputToSource" Content="保存到各视频所在文件夹" IsCheckedChanged="OutputLocationChanged"/>
-      <CheckBox x:Name="AddSettingName" Content="添加设置名称"/>
       <CheckBox x:Name="JoinSegments" Content="将每个视频的保留片段合并为一个文件" IsVisible="False"/>
     </StackPanel>
     <TextBlock Grid.Row="3" x:Name="ExportError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12"><Button x:Name="BackToEditingButton" Classes="dialog-action" Content="返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入队列" Classes="primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><Button x:Name="BackToEditingButton" Classes="dialog-action" Content="返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入队列" Classes="primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>
   </Grid>
 </Window>

@@ -59,7 +59,7 @@ public sealed partial class ImageViewerWindow
         }
         else
         {
-            _status.Text = Localization.Text("读取图片列表…");
+            _empty.Text = Localization.Text("读取图片列表…"); _empty.IsVisible = _bitmaps.Count == 0;
             await ReadFileListAsync(sources, selected, generation, preserveImage: false);
         }
     }
@@ -106,7 +106,7 @@ public sealed partial class ImageViewerWindow
                 index = selected is null ? 0 : Array.FindIndex(entries,
                     entry => BatchRename.PathComparer.Equals(entry.Container, selected) || entry.Member == selected);
                 if (entries.Length > 0) await LoadAsync(Math.Max(0, index));
-                else { ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; _status.Text = ""; }
+                else { ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
                 if (!_closed && generation == _openGeneration) RenderFiles();
             }
         }
@@ -115,7 +115,7 @@ public sealed partial class ImageViewerWindow
         {
             if (_closed || generation != _openGeneration || adjacentGeneration is not null && adjacentGeneration != _loadGeneration) return;
             if (!preserveImage) throw;
-            _status.Text = (CurrentEntry?.Name ?? "") + " · " + error.Message;
+            _empty.Text = (CurrentEntry?.Name ?? "") + " · " + error.Message; _empty.IsVisible = _bitmaps.Count == 0;
         }
         finally
         {
@@ -133,7 +133,7 @@ public sealed partial class ImageViewerWindow
         // Keep the last frame on screen until the selected image is ready instead of flashing a blank canvas.
         _empty.Text = Localization.Text("加载图片…"); _empty.IsVisible = _bitmaps.Count == 0;
         _bindingFiles = true; _files.SelectedItem = _entries[index]; _bindingFiles = false;
-        var entry = _entries[index]; _status.Text = entry.Name;
+        var entry = _entries[index];
         var secondEntry = _spread && index + 1 < _entries.Length ? _entries[index + 1] : null;
         var displayed = false;
         try
@@ -165,9 +165,9 @@ public sealed partial class ImageViewerWindow
         catch (Exception error)
         {
             if (_closed || generation != _loadGeneration) return;
-            if (displayed) { _status.Text += " · " + error.Message; return; }
+            if (displayed) return;
             ReleaseImages(); StopSlideshow(); _empty.IsVisible = true;
-            _empty.Text = Localization.Text("无法打开图片"); _status.Text = entry.Name + " · " + error.Message;
+            _empty.Text = entry.Name + " · " + error.Message;
         }
         finally { if (ReferenceEquals(_loading, operation)) _loading = null; }
     }
@@ -191,6 +191,7 @@ public sealed partial class ImageViewerWindow
         _viewport.SetImages(null); foreach (var bitmap in _bitmaps) bitmap.Dispose(); _bitmaps.Clear();
         _secondBitmap?.Dispose(); _secondBitmap = null; _document = _secondDocument = null;
         _metadata.Children.Clear(); _info.IsVisible = false; _mapButton.IsVisible = false; _infoSummary.Text = "";
+        _zoomNoticeTimer.Stop(); _zoomNotice.IsVisible = false;
         _animationButton.IsVisible = false;
     }
     private void RenderFiles()
@@ -254,12 +255,16 @@ public sealed partial class ImageViewerWindow
     private void RefreshStatus()
     {
         if (_document is not { } document || _index < 0) return;
-        var frame = document.Frames.Length > 1 ? $" · {_frame + 1}/{document.Frames.Length}" : "";
-        _status.Text = $"{_index + 1} / {_entries.Length} · {_entries[_index].Name} · {_viewport.Zoom:P0}{frame}";
-        Localization.SetIsUserText(_status, true);
         var current = _entries[_index];
-        _infoSummary.Text = $"{document.Width} × {document.Height} · {document.Format} · {ImageCompression.Bytes(current.Bytes)}";
+        _infoSummary.Text = $"{current.Name} · {document.Width} × {document.Height} · {document.Format} · {ImageCompression.Bytes(current.Bytes)}";
         Localization.SetIsUserText(_infoSummary, true);
+    }
+    private void ShowZoom()
+    {
+        if (_document is null) return;
+        _zoomNotice.Text = _viewport.Zoom.ToString("P0");
+        Localization.SetIsUserText(_zoomNotice, true);
+        _zoomNotice.IsVisible = true; _zoomNoticeTimer.Stop(); _zoomNoticeTimer.Start();
     }
     private void RenderMetadata(ImageViewerEntry entry, ImageViewerDocument document)
     {
@@ -268,7 +273,7 @@ public sealed partial class ImageViewerWindow
         AddInfo(Localization.Text("位置"), entry.InArchive ? entry.Container + " · " + entry.Member : entry.Container);
         foreach (var (name, value) in document.Metadata) AddInfo(name, value);
         _mapButton.IsVisible = document.MapUrl is not null;
-        _info.IsVisible = true; RefreshStatus();
+        _info.IsVisible = _infoOpen; RefreshStatus();
     }
     private void AddInfo(string label, string value)
     {
@@ -339,6 +344,7 @@ public sealed partial class ImageViewerWindow
         }
         if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Alt)) { ToggleFullscreen(); e.Handled = true; return; }
         if (e.Key == Key.Tab) { ToggleLibrary(); e.Handled = true; return; }
+        if (e.Key == Key.I) { ToggleInfo(); e.Handled = true; return; }
         switch (e.Key)
         {
             case Key.Right: case Key.PageDown: Navigate(1); break;
@@ -376,5 +382,5 @@ public sealed partial class ImageViewerWindow
         var flyout = new Flyout { Content = new StackPanel { Spacing = 10, Children = { Ui.Text("间隔"), Ui.Parameter(interval, "间隔"), random, repeat, rtl, lockZoom } } }; flyout.ShowAt(_slideshowButton);
     }
     private Task HelpAsync() => Ui.Message(this, "看图快捷键",
-        "← / →、Page Up / Down：翻图\nHome / End：首张 / 末张\n滚轮、+ / −：缩放；拖动：平移\n双击：适应 / 原始尺寸；1 / 0：适应 / 原始尺寸\nR / Shift+R：旋转；B：收藏\n空格：下一张；Shift+空格：上一张\nCtrl+1–9：幻灯片；Ctrl+0：停止；F11：全屏；Esc：退出全屏 / 停止播放\nAlt+Page Up / Down：多页图片翻页\nF：打开文件夹；F2 / Ctrl / ⌘ + O：打开图片\nCtrl / ⌘ + C：复制图片；P：打印\nCtrl / ⌘ + E：外部编辑；T：批量转换；Tab：图片列表");
+        "← / →、Page Up / Down：翻图\nHome / End：首张 / 末张\n滚轮、+ / −：缩放；拖动：平移\n双击：适应 / 原始尺寸；1 / 0：适应 / 原始尺寸\nR / Shift+R：旋转；B：收藏\n空格：下一张；Shift+空格：上一张\nCtrl+1–9：幻灯片；Ctrl+0：停止；F11：全屏；Esc：退出全屏 / 停止播放\nAlt+Page Up / Down：多页图片翻页\nF：打开文件夹；F2 / Ctrl / ⌘ + O：打开图片\nCtrl / ⌘ + C：复制图片；P：打印\nCtrl / ⌘ + E：外部编辑；T：批量转换；Tab：图片列表；I：信息");
 }

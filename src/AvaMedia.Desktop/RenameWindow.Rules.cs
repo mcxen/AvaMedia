@@ -158,7 +158,7 @@ public sealed partial class RenameWindow
         void Toggle(string label, bool value, Action<bool> change)
         { var check = new CheckBox { Content = label, IsChecked = value }; check.IsCheckedChanged += (_, _) => change(check.IsChecked == true); _ruleEditor.Children.Add(check); }
         void Choice(string label, string[] choices, int value, Action<int> change)
-        { var combo = new ComboBox { ItemsSource = choices.Select(Localization.Text).ToArray(), SelectedIndex = value, HorizontalAlignment = HorizontalAlignment.Stretch }; AddRow(_ruleEditor, label, combo); combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) change(combo.SelectedIndex); }; }
+        { var combo = new ComboBox { ItemsSource = choices.Select(Localization.Text).ToArray(), SelectedIndex = value, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 120, MaxWidth = 240 }; AddRow(_ruleEditor, label, combo); combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) change(combo.SelectedIndex); }; }
     }
     private async Task SaveRulesAsync()
     {

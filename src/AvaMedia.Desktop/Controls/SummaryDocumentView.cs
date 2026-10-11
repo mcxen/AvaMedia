@@ -15,7 +15,7 @@ internal sealed class SummaryDocumentView : StackPanel
 
     public SummaryDocumentView(string markdown)
     {
-        Spacing = 12;
+        Spacing = 6;
         var lines = markdown.Replace("\r", "").Split('\n');
         var paragraph = new List<string>();
         void Flush()
@@ -44,15 +44,15 @@ internal sealed class SummaryDocumentView : StackPanel
             if (headingLength is > 0 and <= 6 && line.Length > headingLength && line[headingLength] == ' ')
             {
                 Flush(); var heading = Prose(line[(headingLength + 1)..]); heading.Classes.Add("summary-heading");
-                heading.Margin = new(0, Children.Count > 0 ? 8 : 0, 0, 0); Children.Add(heading); continue;
+                heading.Margin = new(0, Children.Count > 0 ? 4 : 0, 0, 0); Children.Add(heading); continue;
             }
             if (line is "---" or "***" or "___") { Flush(); Children.Add(new Border { Classes = { "summary-rule" } }); continue; }
             var marker = ListMarker.Match(line);
             if (marker.Success)
             {
-                Flush(); var row = new Grid { ColumnDefinitions = new("28,*"), ColumnSpacing = 4 };
+                Flush(); var row = new Grid { ColumnDefinitions = new("18,*"), ColumnSpacing = 4 };
                 var label = Ui.Text(char.IsDigit(line[0]) ? marker.Value.Trim() : "•", "caption");
-                Localization.SetIsUserText(label, true); label.VerticalAlignment = VerticalAlignment.Top; label.Margin = new(0, 4, 0, 0);
+                Localization.SetIsUserText(label, true); label.VerticalAlignment = VerticalAlignment.Top; label.Margin = new(0, 2, 0, 0);
                 row.Children.Add(label); var text = Prose(line[marker.Length..]); Grid.SetColumn(text, 1); row.Children.Add(text); Children.Add(row); continue;
             }
             if (line.StartsWith('>'))

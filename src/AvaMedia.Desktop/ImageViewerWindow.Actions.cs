@@ -63,7 +63,7 @@ public sealed partial class ImageViewerWindow
         _preferences.Bookmarks = _preferences.Bookmarks.Where(item => item.Identity != entry.Identity).ToArray(); SavePreferences();
         _entries = _entries.Where(item => item.Identity != entry.Identity).ToArray(); RenderFiles();
         if (_entries.Length > 0) await LoadAsync(Math.Min(_index, _entries.Length - 1));
-        else { _index = -1; ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; _status.Text = ""; }
+        else { _index = -1; ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
     }
     private async Task RevealAsync()
     {
@@ -156,6 +156,7 @@ public sealed partial class ImageViewerWindow
         SetViewportFrame(); ScheduleFrame();
     }
     private void ToggleLibrary() => _body.ColumnDefinitions[0].Width = _body.ColumnDefinitions[0].Width.Value == 0 ? new GridLength(240) : new GridLength(0);
+    private void ToggleInfo() { _infoOpen = !_infoOpen; _info.IsVisible = _infoOpen && _document is not null; }
     private void ChangePage(int direction)
     {
         if (_document is not { Frames.Length: > 1 } document) return;

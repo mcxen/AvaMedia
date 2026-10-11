@@ -15,8 +15,9 @@ public sealed class TimeRangePicker : UserControl
 
     public TimeRangePicker()
     {
-        var root = new StackPanel { Spacing = 6 };
-        root.Children.Add(_startLabel); root.Children.Add(_start); root.Children.Add(_endLabel); root.Children.Add(_end); Content = root;
+        var root = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
+        var start = new StackPanel { Spacing = 2 }; start.Children.Add(_startLabel); start.Children.Add(_start); root.Children.Add(start);
+        var end = new StackPanel { Spacing = 2 }; end.Children.Add(_endLabel); end.Children.Add(_end); Grid.SetColumn(end, 1); root.Children.Add(end); Content = root;
         foreach (var input in new[] { _start, _end })
         {
             input.Minimum = 0; input.Maximum = 1; input.SmallChange = .01; input.LargeChange = 1;

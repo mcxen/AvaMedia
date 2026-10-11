@@ -109,6 +109,7 @@ public partial class MainWindow
     private void BackgroundTick()
     {
         if (_closing) return;
+        if (McpBackgroundShouldExit()) { RequestExit(); return; }
         SampleDownloadSpeedMonitor();
         if (_backgroundWindowVisible) UpdateElapsed();
         DrainQueueChanges();

@@ -20,17 +20,17 @@ internal static class FeatureNavigation
             .GroupBy(SectionTitle).ToDictionary(group => group.Key, group => group.ToArray());
         foreach (var title in SectionOrder(category))
             if (features.TryGetValue(title, out var items))
-                yield return new(title, title == "格式转换" && category is ("音频" or "图片"), items);
+                yield return new(title == category ? "" : title, title == "格式转换" && category is ("音频" or "图片"), items);
     }
 
     private static string[] SectionOrder(string category) => category switch
     {
         "视频" => ["播放", "格式与体积", "剪辑", "音视频轨道", "字幕与内容"],
-        "音频" => ["音频编辑", "格式转换"],
-        "图片" => ["图片处理", "格式转换"],
-        "文档" => ["PDF 处理", "格式转换"],
+        "音频" => ["音频", "格式转换"],
+        "图片" => ["图片", "格式转换"],
+        "文档" => ["文档", "格式转换"],
         "工具集" => ["媒体整理", "批量画面", "压缩与解压"],
-        _ => ["光盘"]
+        _ => ["光驱设备\\DVD\\CD\\ISO"]
     };
 
     private static string SectionTitle(Feature feature) => feature.Category switch
@@ -43,16 +43,16 @@ internal static class FeatureNavigation
             "split" or "extract-video" or "join" or "mux" => "音视频轨道",
             _ => "字幕与内容"
         },
-        "音频" => feature.Id == "audio-" + feature.Format ? "格式转换" : "音频编辑",
-        "图片" => feature.Id == "image-" + feature.Format ? "格式转换" : "图片处理",
+        "音频" => feature.Id == "audio-" + feature.Format ? "格式转换" : "音频",
+        "图片" => feature.Id == "image-" + feature.Format ? "格式转换" : "图片",
         "文档" => feature.Operation is Operation.PdfMerge or Operation.PdfSplit or Operation.PdfAge or Operation.PdfCompress
-            ? "PDF 处理" : "格式转换",
+            ? "文档" : "格式转换",
         "工具集" => feature.Id switch
         {
             "zip" or "unzip" => "压缩与解压",
             "crop" or "rotate" or "contact-sheet" => "批量画面",
             _ => "媒体整理"
         },
-        _ => "光盘"
+        _ => feature.Category
     };
 }

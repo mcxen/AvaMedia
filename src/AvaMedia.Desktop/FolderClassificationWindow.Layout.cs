@@ -15,7 +15,7 @@ public sealed partial class FolderClassificationWindow
 {
     private readonly ListBox _files = new() { SelectionMode = SelectionMode.Single, Padding = new(0) };
     private readonly ListBox _ruleList = new() { MinHeight = 100, MaxHeight = 210 };
-    private readonly ComboBox _savedSelector = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _savedSelector = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 140, MaxWidth = 240 };
     private readonly Button _saveRule = new() { Content = "保存分类" };
     private readonly Button _setDefault = new() { Content = "设为默认" };
     private readonly Button _restoreDefault = new() { Content = "载入默认" };
@@ -23,7 +23,7 @@ public sealed partial class FolderClassificationWindow
     private readonly Button _deleteSaved = new() { Content = "删除" };
     private readonly TextBlock _defaultSummary = Ui.Text("", "caption");
     private readonly WrapPanel _imports = new();
-    private readonly StackPanel _settingsPanel = new() { Spacing = 10 };
+    private readonly StackPanel _settingsPanel = new() { Spacing = 6 };
     private readonly StackPanel _rulesPanel = new() { Spacing = 8 };
     private readonly StackPanel _details = new() { Spacing = 8 };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹" };
@@ -58,13 +58,21 @@ public sealed partial class FolderClassificationWindow
             var folders = await StorageProvider.OpenFolderPickerAsync(new() { AllowMultiple = true });
             await ImportPathsAsync(folders.Select(folder => folder.TryGetLocalPath()).OfType<string>());
         });
-        AddImport("添加图片 / 视频…", async () => await ImportPathsAsync(await Ui.Pick(this, "选择图片或视频")));
+        AddImport("添加文件…", async () => await ImportPathsAsync(await Ui.Pick(this, "选择图片或视频")));
         AddImport("重新扫描", ScanAsync);
-        AddImport("清空列表", () =>
-        { _inputs.Clear(); _entries.Clear(); _results.Clear(); _hiddenPrivateResults.Clear(); _analysisPending.Clear(); InvalidatePlan(); RenderDetails(); return Task.CompletedTask; });
-        AddImport("全选", () => { SelectEntries(_ => true); return Task.CompletedTask; });
-        AddImport("取消全选", () => { SelectEntries(_ => false); return Task.CompletedTask; });
-        AddImport("仅选已完成", () => { SelectEntries(entry => !AnalysisPending(entry)); return Task.CompletedTask; });
+        var more = new Button { Content = "选择文件" };
+        more.Flyout = new MenuFlyout
+        {
+            Items =
+            {
+                Item("全选", () => SelectEntries(_ => true)),
+                Item("取消全选", () => SelectEntries(_ => false)),
+                Item("仅选已完成", () => SelectEntries(entry => !AnalysisPending(entry))),
+                new Separator(),
+                Item("清空列表", () => { _inputs.Clear(); _entries.Clear(); _results.Clear(); _hiddenPrivateResults.Clear(); _analysisPending.Clear(); InvalidatePlan(); RenderDetails(); })
+            }
+        };
+        more.Margin = new(0, 0, 6, 6); _imports.Children.Add(more);
         _recursive.Margin = new(8, 0, 0, 0); _imports.Children.Add(_recursive);
         var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
         header.Children.Add(_imports);
@@ -72,7 +80,7 @@ public sealed partial class FolderClassificationWindow
         foreach (var (label, action) in new (string, Action)[] { ("新建分类任务", _newTask), ("查看任务列表", _showTasks) })
         { var button = Ui.Button(label, action); button.Margin = new(6, 0, 0, 6); tasks.Children.Add(button); }
         Grid.SetColumn(tasks, 1); header.Children.Add(tasks); root.Children.Add(header);
-        var body = new Grid { ColumnDefinitions = new("228,*,260"), ColumnSpacing = 12 };
+        var body = new Grid { ColumnDefinitions = new("228,*,260"), ColumnSpacing = 8 };
         _settingsPanel.Children.Add(Ui.Text("分类规则", "settingsHeading"));
         _rulesPanel.Children.Add(Ui.Text("选择需要的分组，最多同时使用 8 组。", "caption"));
         _ruleList.ItemsSource = _rules;
@@ -165,6 +173,12 @@ public sealed partial class FolderClassificationWindow
 
     private void AddImport(string label, Func<Task> action)
     { var button = Ui.Button(label, async () => await GuardAsync(action)); button.Margin = new(0, 0, 6, 6); _imports.Children.Add(button); }
+    private MenuItem Item(string label, Action action)
+    {
+        var item = new MenuItem { Header = Localization.Text(label) };
+        item.Click += (_, _) => _ = GuardAsync(() => { action(); return Task.CompletedTask; });
+        return item;
+    }
     private async Task GuardAsync(Func<Task> action)
     {
         try { await action(); if (!_closed && !_busy) await SaveTaskViewAsync(); }

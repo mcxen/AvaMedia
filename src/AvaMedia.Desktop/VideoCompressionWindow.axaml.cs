@@ -212,10 +212,10 @@ public partial class VideoCompressionWindow : Window
     {
         if (_closed) return;
         var mode = (VideoCompressionMode)ModeInput.SelectedIndex;
-        AutoSection.IsVisible = mode == VideoCompressionMode.Automatic;
-        QualitySection.IsVisible = mode == VideoCompressionMode.Quality;
+        AutoSection.IsVisible = PresetDescription.IsVisible = mode == VideoCompressionMode.Automatic;
+        QualitySection.IsVisible = QualityPresets.IsVisible = mode == VideoCompressionMode.Quality;
         BitrateSection.IsVisible = mode == VideoCompressionMode.Bitrate;
-        PercentageSection.IsVisible = mode == VideoCompressionMode.Percentage; SizeSection.IsVisible = mode == VideoCompressionMode.TargetSize;
+        PercentageSection.IsVisible = PercentagePresets.IsVisible = mode == VideoCompressionMode.Percentage; SizeSection.IsVisible = mode == VideoCompressionMode.TargetSize;
         ResolutionInput.IsEnabled = FrameRateInput.IsEnabled = SpeedInput.IsEnabled = mode != VideoCompressionMode.Automatic;
         AudioInput.IsEnabled = KeepAudioInput.IsChecked == true && mode != VideoCompressionMode.Automatic;
         var preset = VideoCompression.ApplyPreset(new(), PresetInput.SelectedIndex < 0 ? VideoCompressionPreset.Balanced : (VideoCompressionPreset)PresetInput.SelectedIndex);

@@ -24,14 +24,14 @@ internal sealed class WordLibraryEditorWindow : Window
         _entries = new(library?.Entries ?? [new("猫", "动物", "A photo of a cat.", ["cat"])]);
         _name = Ui.Input(library is null ? "我的词库" : library.BuiltIn ? library.Name + " 副本" : library.Name);
         Localization.SetIsUserText(_name,true);
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), RowSpacing = 12, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), RowSpacing = 8, Margin = new(12) };
         var title = new StackPanel { Spacing = 6 }; title.Children.Add(Ui.Text("词库名称")); title.Children.Add(_name); root.Children.Add(title);
-        var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 20 };
+        var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
         var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 };
         left.Children.Add(Ui.Text("词条")); _list.ItemsSource = _entries;
         _list.ItemTemplate = new FuncDataTemplate<WordCandidate>((entry, _) =>
         {
-            var row = new StackPanel { Spacing = 4, Margin = new(4) };
+            var row = new StackPanel { Spacing = 1, Margin = new(2, 1) };
             var label=Ui.Text(entry?.Label??"");var category=Ui.Text(entry?.Category??"","caption");Localization.SetIsUserText(label,true);Localization.SetIsUserText(category,true);row.Children.Add(label);row.Children.Add(category);return row;
         });
         Grid.SetRow(_list, 1); left.Children.Add(_list);
@@ -52,7 +52,7 @@ internal sealed class WordLibraryEditorWindow : Window
         fields.Children.Add(categories);
         fields.Children.Add(Ui.Text("识别标签")); fields.Children.Add(_tags);
         var search = Ui.Input(); search.Watermark = "搜索识别标签"; fields.Children.Add(search);
-        var choices = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        var choices = new ComboBox { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280 };
         choices.ItemTemplate = new FuncDataTemplate<string>((tag, _) => Ui.Text(tag is null ? "" : WordLibraryCatalog.TagLabel(tag)));
         void Filter() => choices.ItemsSource = WordLibraryCatalog.JoyTags.Where(tag => tag.Contains(search.Text ?? "", StringComparison.OrdinalIgnoreCase)
             || WordLibraryCatalog.TagLabel(tag).Contains(search.Text ?? "", StringComparison.OrdinalIgnoreCase)).Order().Take(200).ToArray();

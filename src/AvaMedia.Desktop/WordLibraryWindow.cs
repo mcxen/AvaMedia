@@ -18,8 +18,8 @@ public sealed class WordLibraryWindow : Window
     private readonly AppSettings _settings;
     private readonly WordLibraryTarget? _target;
     private readonly bool _includeSemantic;
-    private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly ComboBox _category = new() { MinWidth = 160, HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 180, MaxWidth = 280 };
+    private readonly ComboBox _category = new() { MinWidth = 140, MaxWidth = 220, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBox _search = new() { Watermark = "搜索名称、描述或标签", HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly CheckBox _selectedOnly = new() { Content = "仅已选" };
     private readonly ListBox _list = new();
@@ -54,7 +54,7 @@ public sealed class WordLibraryWindow : Window
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         Title = includeSemantic ? "选择标签组" : target is null ? "词库管理" : "选择候选词 · " + (target == WordLibraryTarget.JoyTag ? "JoyTag" : "语义匹配");
         Width = 930; Height = 710; MinWidth = 760; MinHeight = 580; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), RowSpacing = 10, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         tools.Children.Add(Ui.Button("新建词库…", async () => await EditAsync(null)));
         tools.Children.Add(Ui.Button("编辑 / 复制…", async () => await EditAsync(_libraries.SelectedItem as WordLibrary)));
@@ -80,7 +80,7 @@ public sealed class WordLibraryWindow : Window
         _list.ItemTemplate = new FuncDataTemplate<WordRow>((row, _) =>
         {
             if (row is null) return new TextBlock();
-            var grid = new Grid { ColumnDefinitions = new("28,190,*"), ColumnSpacing = 8, Margin = new(2, 5) };
+            var grid = new Grid { ColumnDefinitions = new("28,190,*"), ColumnSpacing = 8, Margin = new(2, 1) };
             var check = new CheckBox { IsEnabled = row.Supported, IsVisible = target is not null };
             Avalonia.Automation.AutomationProperties.SetName(check, WordLibraryCatalog.CandidateLabel(row.Entry));
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(WordRow.Selected)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);

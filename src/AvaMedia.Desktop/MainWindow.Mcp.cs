@@ -8,6 +8,7 @@ public partial class MainWindow
 {
     private McpService? _mcp;
     private bool _mcpBackgroundMode;
+    private long _mcpBackgroundQuietSince;
 
     internal async Task StartMcpBackgroundAsync(int? port)
     {
@@ -16,8 +17,19 @@ public partial class MainWindow
         if (port is { } number) _settings.Mcp.Port = number;
         _settings.Mcp.Validate();
         await (_mcp ?? throw new InvalidOperationException("MCP 服务未初始化。")).ConfigureAsync(_settings.Mcp, _optionLifetime.Token);
+        _mcpBackgroundQuietSince = System.Diagnostics.Stopwatch.GetTimestamp();
         _timer.Start();
         Console.WriteLine(_mcp.Endpoint);
+    }
+
+    private bool McpBackgroundShouldExit()
+    {
+        if (!_mcpBackgroundMode || _mcp is not { } mcp || _exitRequested) return false;
+        var busy = mcp.HasActiveRequests || _queueSessionActive || _editingJobs.Count > 0 || _jobs.Any(Active);
+        var now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (busy) { _mcpBackgroundQuietSince = now; return false; }
+        var requestQuietSince = now - (long)(mcp.QuietFor.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
+        return System.Diagnostics.Stopwatch.GetElapsedTime(Math.Max(_mcpBackgroundQuietSince, requestQuietSince)) >= TimeSpan.FromMinutes(2);
     }
 
     private void InitializeMcp()

@@ -29,7 +29,6 @@ public sealed partial class VideoSummaryResultWindow : Window
     private readonly ListBox _navigation = new() { Classes = { "summary-nav" } };
     private readonly ContentControl _body = new() { HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
         VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Stretch };
-    private readonly TextBlock _pageTitle = Ui.Text("视频总结结果", "summary-title");
     private readonly TextBlock _notice = Ui.Text("读取结果…", "caption");
     private readonly TextBlock _fileName = Ui.Text("", "title");
     private readonly TextBlock _metadata = Ui.Text("", "caption");
@@ -45,7 +44,7 @@ public sealed partial class VideoSummaryResultWindow : Window
     public VideoSummaryResultWindow(string folder, IMediaEngine? engine = null, string? source = null, VideoSummaryReport? report = null)
     {
         _folder = Path.GetFullPath(folder); _engine = engine; _source = source; _initialReport = report;
-        Title = "视频总结结果"; Width = 1120; Height = 800; MinWidth = 820; MinHeight = 540;
+        Title = "视频总结结果"; Width = 1180; Height = 760; MinWidth = 860; MinHeight = 520;
         Classes.Add("video-summary-result"); WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, "document"); Content = CreateLayout();
         Localization.SetIsUserText(_fileName, true);
@@ -100,7 +99,7 @@ public sealed partial class VideoSummaryResultWindow : Window
     {
         var index = _navigation.SelectedIndex;
         if (index < 0 || index >= _pages.Count) return;
-        var page = _pages[index]; _pageTitle.Text = page.Title;
+        var page = _pages[index];
         _body.Content = page.View ??= page.Create(); _notice.Text = "";
     }
 

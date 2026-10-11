@@ -30,7 +30,7 @@ public sealed partial class MediaAiWindow
         if (rows.Length == 0) return;
         var window = new Window { Title = "标签重命名", Width = 980, Height = 610, MinWidth = 840, MinHeight = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 12, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         var format = Ui.Combo(["原名 + 标签", "标签 + 序号", "自定义模板"], "原名 + 标签");
         var limit = new NumericUpDown { Minimum = 1, Maximum = 8, Value = 3, Text = "3", Increment = 1, Width = 90 };
         var pattern = Ui.Input("{name}_{keyword}"); Localization.SetIsUserText(pattern, true);

@@ -169,7 +169,7 @@ public sealed partial class ImageCompressionWindow : Window
         LosslessInput.IsVisible = format == "webp";
         var qualityEnabled = format != "png" && !(format == "webp" && LosslessInput.IsChecked == true);
         QualityInput.IsEnabled = QualitySlider.IsEnabled = qualityEnabled;
-        QualityLabel.IsVisible=QualityInput.IsVisible=QualitySlider.IsVisible=qualityEnabled;
+        QualityRow.IsVisible = qualityEnabled;
         EdgeInput.IsVisible = ResizeInput.IsChecked == true;
         foreach (var entry in _entries) entry.CanInclude = !_busy && (_editing ? File.Exists(entry.Path) : entry.Source is not null);
         var included = _entries.Count(entry => entry.Include);

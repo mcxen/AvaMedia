@@ -32,10 +32,12 @@
     <Setter Property="Background" Value="{DynamicResource UiDivider}"/>
     <Setter Property="Opacity" Value="1"/>
   </Style>
-  <Style Selector="TextBlock.viewer-caption">
-    <Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/>
-    <Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/>
-    <Setter Property="Margin" Value="8,1,8,0"/>
+  <Style Selector="TextBlock.viewer-zoom">
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="Background" Value="{DynamicResource UiToolbar}"/>
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="Padding" Value="14,6"/>
+    <Setter Property="Opacity" Value="0.94"/>
   </Style>
   <Style Selector="Border.viewer-info">
     <Setter Property="Background" Value="{DynamicResource UiSurface}"/>

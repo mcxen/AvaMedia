@@ -87,7 +87,7 @@ public partial class PdfWorkspaceWindow : Window
         SourceSizeItem.IsVisible = feature.Operation == Operation.ImagesPdf;
         FontSizeRow.IsVisible = feature.Operation == Operation.TextPdf;
         PaperSizeSetting.SelectedIndex = 0;
-        SplitPanel.IsVisible = feature.Operation == Operation.PdfSplit;
+        SplitPanel.IsVisible = feature.Operation == Operation.PdfSplit; GroupSizeRow.IsVisible = SplitMode.SelectedIndex == 0;
         AgePanel.IsVisible = IsAge;
         CompressPanel.IsVisible = IsCompress;
         RasterSettings.IsVisible = IsCompress || AgePanel.IsVisible;
@@ -591,7 +591,7 @@ public partial class PdfWorkspaceWindow : Window
     }
     private void PreviousClick(object? sender, RoutedEventArgs e) { _boardStart = Math.Max(0, _boardStart - BoardSize); RebuildBoard(); }
     private void NextClick(object? sender, RoutedEventArgs e) { if (_boardStart + BoardSize < _pages.Count) _boardStart += BoardSize; RebuildBoard(); }
-    private void SplitModeChanged(object? sender, SelectionChangedEventArgs e) { if (_ready) RebuildBoard(); }
+    private void SplitModeChanged(object? sender, SelectionChangedEventArgs e) { GroupSizeRow.IsVisible = SplitMode.SelectedIndex == 0; if (_ready) RebuildBoard(); }
     private void GroupClick(object? sender, RoutedEventArgs e)
     {
         Remember(); var size = (int)(GroupSize.Value ?? 5); var count = 0;

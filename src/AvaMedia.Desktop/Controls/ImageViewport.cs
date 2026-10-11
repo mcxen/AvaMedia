@@ -17,6 +17,7 @@ public sealed class ImageViewport : Control
     private int _rotation;
     private bool _flipped;
     public event Action? ViewChanged;
+    public event Action? Zoomed;
     public double Zoom => _zoom;
     public int Rotation => _rotation;
     public bool Flipped => _flipped;
@@ -29,8 +30,23 @@ public sealed class ImageViewport : Control
         PointerWheelChanged += (_, e) =>
         {
             if (_first is null) return;
-            ZoomAt(_zoom * Math.Pow(1.2, e.Delta.Y), e.GetPosition(this)); e.Handled = true;
+            // macOS marks precise trackpad scrolling with Meta. A two-finger drag moves the picture;
+            // a mouse notch stays a zoom step.
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Meta)) PanBy(new Vector(e.Delta.X, -e.Delta.Y) * 50);
+            else ZoomAt(_zoom * Math.Pow(1.2, e.Delta.Y), e.GetPosition(this));
+            e.Handled = true;
         };
+        // macOS magnification is the relative change since the last event, anchored at the pointer.
+        Gestures.AddPointerTouchPadGestureMagnifyHandler(this, (_, e) =>
+        {
+            if (_first is null) return;
+            ZoomAt(_zoom * (1 + e.Delta.Y), e.GetPosition(this)); e.Handled = true;
+        });
+        Gestures.AddPinchHandler(this, (_, e) =>
+        {
+            if (_first is null || e.Scale <= 0) return;
+            ZoomAt(_zoom * e.Scale, e.ScaleOrigin); e.Handled = true;
+        });
         PointerPressed += (_, e) =>
         {
             if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || _pointer is not null) return;
@@ -64,6 +80,11 @@ public sealed class ImageViewport : Control
         _zoom = mode switch { "actual" => 1, "down" => Math.Min(1, fit), "width" => Math.Max(1, Bounds.Width - 16) / width, _ => fit };
         InvalidateVisual(); ViewChanged?.Invoke();
     }
+    public void PanBy(Vector delta)
+    {
+        if (_first is null || delta == default) return;
+        _pan += delta; FitMode = "custom"; InvalidateVisual();
+    }
     public void ZoomBy(double ratio) => ZoomAt(_zoom * ratio, new Point(Bounds.Width / 2, Bounds.Height / 2));
     public void ZoomAt(double value, Point anchor)
     {
@@ -72,7 +93,7 @@ public sealed class ImageViewport : Control
         var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var relative = anchor - center - _pan;
         _pan = anchor - center - relative * (value / _zoom);
-        _zoom = value; FitMode = "custom"; InvalidateVisual(); ViewChanged?.Invoke();
+        _zoom = value; FitMode = "custom"; InvalidateVisual(); ViewChanged?.Invoke(); Zoomed?.Invoke();
     }
     public void Rotate(int degrees)
     {

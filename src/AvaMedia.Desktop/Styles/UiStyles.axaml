@@ -134,7 +134,7 @@
       <x:Double x:Key="UiFontCaption">12</x:Double>
       <x:Double x:Key="UiFontTitle">18</x:Double>
       <CornerRadius x:Key="UiControlRadius">4</CornerRadius>
-      <Thickness x:Key="UiButtonPadding">10,5</Thickness>
+      <Thickness x:Key="UiButtonPadding">8,4</Thickness>
       <Thickness x:Key="UiInputPadding">6,4</Thickness>
       <FontFamily x:Key="UiNumericFont">Consolas, Menlo, DejaVu Sans Mono</FontFamily>
       <x:Double x:Key="UiFieldHeight">32</x:Double>
@@ -149,7 +149,7 @@
       <Thickness x:Key="UiPlayerInlinePadding">8,0</Thickness>
       <Thickness x:Key="UiPlayerBarPadding">8,0,8,4</Thickness>
       <x:Double x:Key="UiDialogActionHeight">36</x:Double>
-      <x:Double x:Key="UiDialogActionWidth">168</x:Double>
+      <x:Double x:Key="UiDialogActionWidth">72</x:Double>
       <x:Double x:Key="UiFontHeading">22</x:Double>
       <x:Double x:Key="UiFontBrand">24</x:Double>
       <x:Double x:Key="UiIconSize">20</x:Double>
@@ -329,9 +329,11 @@
   </Style>
   <Style Selector="ComboBox">
     <Setter Property="MinHeight" Value="{DynamicResource UiFieldHeight}" />
+    <Setter Property="MinWidth" Value="96" />
+    <Setter Property="MaxWidth" Value="320" />
     <Setter Property="Padding" Value="6,3" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
-    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
     <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}" />
     <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />

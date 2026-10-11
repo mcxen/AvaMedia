@@ -11,7 +11,7 @@ public sealed class MediaInfoWindow : Window
 {
     private readonly IMediaEngine _engine;
     private readonly ListBox _files = new();
-    private readonly StackPanel _details = new() { Spacing = 12 };
+    private readonly StackPanel _details = new() { Spacing = 6 };
     private readonly TextBlock _status = Ui.Status();
     private readonly Button _export;
     private readonly CancellationTokenSource _lifetime = new();
@@ -20,14 +20,14 @@ public sealed class MediaInfoWindow : Window
     public MediaInfoWindow(IMediaEngine engine, IEnumerable<string> files)
     {
         _engine = engine; Title = "媒体信息"; Width = 1120; Height = 620; MinWidth = 700; MinHeight = 440; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 12, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         root.Children.Add(Ui.Button("添加文件…", async () => { try { AddFiles(await Ui.Pick(this, "选择媒体文件")); } catch(Exception error) { _status.Text = error.Message; } }));
-        var body = new Grid { ColumnDefinitions = new("200,*,*"), ColumnSpacing = 20 }; body.Children.Add(_files);
+        var body = new Grid { ColumnDefinitions = new("220,*,*"), ColumnSpacing = 8 }; body.Children.Add(_files);
         ScrollViewer.SetHorizontalScrollBarVisibility(_files, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         body.Children.Add(new ScrollViewer { Content = _details, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
         var preview=new MediaPreviewPanel(engine);Grid.SetColumn(preview,2);body.Children.Add(preview);
         _files.SelectionChanged+=(_,_)=>preview.SetSource(_files.SelectedItem as string);Closed+=(_,_)=>preview.Dispose();
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 10 }; footer.Children.Add(_status);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_status);
         _export = Ui.Button("导出 JSON…", async () =>
         {
             var json = _json; if(json is null) return;

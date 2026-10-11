@@ -38,8 +38,8 @@ public sealed class AiTaskWindow : Window
         Width = rotation is null ? 800 : 1060; Height = rotation is null ? 520 : 720;
         MinWidth = rotation is null ? 650 : 800; MinHeight = rotation is null ? 400 : 580;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(20), RowSpacing = 12 };
-        var heading = new Grid { RowDefinitions = new("Auto,Auto"), ColumnDefinitions = new("*,Auto"), ColumnSpacing = 16, RowSpacing = 6 };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(12), RowSpacing = 8 };
+        var heading = new Grid { RowDefinitions = new("Auto,Auto"), ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, RowSpacing = 4 };
         var source = Ui.Text(string.Join(" · ", job.Inputs.Select(Path.GetFileName)), "title");
         source.TextWrapping = TextWrapping.NoWrap; source.TextTrimming = TextTrimming.CharacterEllipsis;
         Localization.SetIsUserText(source, true); ToolTip.SetTip(source, string.Join("\n", job.Inputs));
@@ -53,7 +53,7 @@ public sealed class AiTaskWindow : Window
         root.Children.Add(heading);
 
         Grid.SetRow(_activity, 1); root.Children.Add(_activity);
-        var body = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 12 };
+        var body = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8 };
         Grid.SetRow(body, 2); root.Children.Add(body);
         if (rotation is not null)
         {
@@ -62,7 +62,7 @@ public sealed class AiTaskWindow : Window
         }
         else
         {
-            var outcome = new StackPanel { Spacing = 12 };
+            var outcome = new StackPanel { Spacing = 6 };
             outcome.Children.Add(_summary); outcome.Children.Add(_details);
             body.Children.Add(new ScrollViewer { Content = outcome, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         }
@@ -79,9 +79,9 @@ public sealed class AiTaskWindow : Window
         };
         Grid.SetRow(_records, 1); body.Children.Add(_records);
 
-        var footer = new Border { Padding = new(0, 12, 0, 0), BorderThickness = new(0, 1, 0, 0) };
+        var footer = new Border { Padding = new(0, 8, 0, 0), BorderThickness = new(0, 1, 0, 0) };
         footer.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("UiDivider"));
-        var actions = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
+        var actions = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         var taskActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         taskActions.Children.Add(Ui.Button("新建任务", newTask));
         _run = Ui.Button("开始任务", async () => await RunActionAsync(run)); taskActions.Children.Add(_run);

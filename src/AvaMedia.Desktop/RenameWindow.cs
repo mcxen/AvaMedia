@@ -25,7 +25,7 @@ public sealed partial class RenameWindow : Window
     private readonly StackPanel _ruleEditor = new() { Spacing = 8 };
     private readonly StackPanel _catalog = new() { Spacing = 8 };
     private readonly WrapPanel _ruleActions = new() { Orientation = Orientation.Horizontal };
-    private readonly ComboBox _sort = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _sort = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 120, MaxWidth = 220 };
     private static readonly string[] SortLabels = ["导入顺序", "名称升序", "名称降序", "修改时间"];
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _summary = Ui.Text("", "caption");
@@ -62,7 +62,7 @@ public sealed partial class RenameWindow : Window
         Title = "批量重命名"; Width = 1280; Height = 780; MinWidth = 1060; MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "gear");
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(16), RowSpacing = 10 };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(12), RowSpacing = 8 };
         _importBar.Children.Add(Ui.Button("添加图片 / 视频…", async () =>
         {
             try
@@ -79,7 +79,7 @@ public sealed partial class RenameWindow : Window
             catch (Exception error) { await ShowErrorAsync("导入失败", error); }
         }));
         _importBar.Children.Add(_recursive);
-        _importBar.Children.Add(Ui.Button("移除选中", () =>
+        _importBar.Children.Add(Ui.Button("移除", () =>
         {
             foreach (var row in _list.SelectedItems?.Cast<MediaFileEntry>().ToArray() ?? []) _entries.Remove(row);
             InvalidatePlan();
@@ -89,7 +89,7 @@ public sealed partial class RenameWindow : Window
         RefreshSortLabels();
         _sort.SelectionChanged += (_, _) => { if (!_updatingSortLabels && _sort.SelectedIndex >= 0) SortFiles(_sort.SelectedIndex); }; _importBar.Children.Add(_sort);
         root.Children.Add(_importBar); Grid.SetRow(_summary, 1); root.Children.Add(_summary);
-        var body = new Grid { ColumnDefinitions = new("160,*,320"), ColumnSpacing = 12 };
+        var body = new Grid { ColumnDefinitions = new("160,*,320"), ColumnSpacing = 8 };
         InitializeCatalog(); body.Children.Add(new ScrollViewer { Content = _catalog, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
         var filesArea = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 4 };
         var header = new Grid { ColumnDefinitions = new("28,55,*,*,80"), ColumnSpacing = 6, Classes = { "table-header" } };

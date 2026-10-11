@@ -1,6 +1,6 @@
 <Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AvaMedia.Desktop.DownloadWindow" Title="视频下载" Width="1040" Height="740" MinWidth="860" MinHeight="620" WindowStartupLocation="CenterOwner">
-  <Grid Margin="20" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="16">
+  <Grid Margin="12" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
     <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="链接或分享文本" VerticalAlignment="Center"/>
@@ -18,7 +18,7 @@
         <CheckBox Grid.Column="3" x:Name="ExpandPlaylist" Content="展开列表（最多 100 项）" VerticalAlignment="Center"/>
       </Grid>
     </Grid>
-    <Grid Grid.Row="1" ColumnDefinitions="*,1,272" ColumnSpacing="16">
+    <Grid Grid.Row="1" ColumnDefinitions="*,1,260" ColumnSpacing="8">
       <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1">
         <Grid RowDefinitions="Auto,*">
           <Grid x:Name="SelectionToolbar" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="12,8" IsVisible="False">
@@ -31,11 +31,11 @@
               <ItemsControl x:Name="DownloadList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="12">
-                      <Grid ColumnDefinitions="Auto,112,*" ColumnSpacing="10">
-                        <CheckBox IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Top"/>
-                        <controls:RemoteThumbnail Grid.Column="1" SourceUrl="{Binding ThumbnailUrl}" Height="70"/>
-                        <StackPanel Grid.Column="2" Spacing="4" PointerPressed="VideoRowPressed">
+                    <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="8,6">
+                      <Grid ColumnDefinitions="Auto,96,*" ColumnSpacing="8">
+                        <CheckBox IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Center"/>
+                        <controls:RemoteThumbnail Grid.Column="1" SourceUrl="{Binding ThumbnailUrl}" Height="54"/>
+                        <StackPanel Grid.Column="2" Spacing="2" PointerPressed="VideoRowPressed">
                           <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"/>
                           <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
                           <TextBlock Text="{Binding ErrorSummary}" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
@@ -51,24 +51,24 @@
       </Border>
       <Border Grid.Column="1" Background="{DynamicResource UiDivider}"/>
       <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel x:Name="DownloadSettingsPanel" Spacing="16">
-          <StackPanel Spacing="12">
-            <Grid ColumnDefinitions="72,*" ColumnSpacing="8">
+        <StackPanel x:Name="DownloadSettingsPanel" Spacing="8">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
               <TextBlock Text="格式" VerticalAlignment="Center"/>
-              <ComboBox Grid.Column="1" x:Name="DownloadFormat" SelectionChanged="FormatChanged"/>
+              <ComboBox Grid.Column="1" x:Name="DownloadFormat" HorizontalAlignment="Stretch" SelectionChanged="FormatChanged"/>
+              <Grid Grid.Column="2" Grid.ColumnSpan="2" x:Name="DownloadQualityPanel" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <TextBlock Text="画质" VerticalAlignment="Center"/>
+                <ComboBox Grid.Column="1" x:Name="DownloadQuality" HorizontalAlignment="Stretch"/>
+              </Grid>
             </Grid>
-            <Grid x:Name="DownloadQualityPanel" ColumnDefinitions="72,*" ColumnSpacing="8">
-              <TextBlock Text="画质" VerticalAlignment="Center"/>
-              <ComboBox Grid.Column="1" x:Name="DownloadQuality"/>
+            <Grid x:Name="DownloadSubtitlesPanel" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+              <TextBlock Text="字幕（中 / 英）" VerticalAlignment="Center"/>
+              <ComboBox Grid.Column="1" x:Name="DownloadSubtitles" HorizontalAlignment="Stretch"/>
+              <CheckBox Grid.Column="2" x:Name="SaveMetadata" Content="保留元数据" IsChecked="True" VerticalAlignment="Center"/>
             </Grid>
-            <Grid x:Name="DownloadSubtitlesPanel" ColumnDefinitions="72,*" ColumnSpacing="8">
-              <TextBlock Text="字幕（中 / 英）" VerticalAlignment="Center" TextWrapping="Wrap"/>
-              <ComboBox Grid.Column="1" x:Name="DownloadSubtitles"/>
-            </Grid>
-            <CheckBox x:Name="SaveMetadata" Content="保留元数据" IsChecked="True"/>
           </StackPanel>
           <Expander x:Name="NetworkOptions" Header="登录与网络" HorizontalAlignment="Stretch">
-            <StackPanel Spacing="12" Margin="0,8,0,0">
+            <StackPanel Spacing="6" Margin="0,6,0,0">
               <StackPanel Spacing="4">
                 <TextBlock Text="使用登录态"/>
                 <ComboBox x:Name="CookieSource" SelectionChanged="CookieSourceChanged"/>
@@ -96,15 +96,14 @@
         </StackPanel>
       </ScrollViewer>
     </Grid>
-    <Grid Grid.Row="2" x:Name="DownloadOutputFields" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" RowSpacing="8">
-      <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-      <TextBox IsReadOnly="True" Grid.Column="1" x:Name="DownloadFolder"/>
-      <Button Grid.Column="2" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/>
+    <Grid Grid.Row="2" x:Name="DownloadOutputFields" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+      <TextBox IsReadOnly="True" Grid.Column="1" Grid.ColumnSpan="2" x:Name="DownloadFolder" AutomationProperties.Name="保存位置"/>
+      <Button Grid.Column="3" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/>
       <TextBlock Grid.Row="1" x:Name="OutputNameLabel" Text="文件名" VerticalAlignment="Center" IsVisible="False"/>
       <TextBox Grid.Row="1" Grid.Column="1" x:Name="DownloadOutputName" IsVisible="False"/>
       <TextBlock Grid.Row="1" Grid.Column="2" x:Name="DownloadExtension" VerticalAlignment="Center" IsVisible="False"/>
     </Grid>
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
       <TextBlock x:Name="DownloadError" i18n:StableLayout.StatusLines="2" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap" VerticalAlignment="Center" IsVisible="False"/>
       <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
       <Button Grid.Column="2" x:Name="AddDownloadsButton" Content="加入下载队列" Click="ConfirmClick" IsDefault="True" Classes="primary dialog-action" IsEnabled="False"/>

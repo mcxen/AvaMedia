@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
+using Avalonia.Styling;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
@@ -16,7 +18,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
     private readonly IMediaEngine _engine;
     private readonly List<Source> _sources;
     private readonly ListBox _files = new();
-    private readonly StackPanel _segments = new() { Spacing = 10 };
+    private readonly StackPanel _segments = new() { Spacing = 6 };
     private readonly TextBlock _status = Ui.Status();
     private readonly Button _export;
     private bool _editing;
@@ -24,7 +26,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
     {
         _engine = engine; _sources = paths.Select(path => new Source(path, edits?.FirstOrDefault(edit => edit.Path == path))).ToList();
         Title = "快速剪辑"; Width = 920; Height = 640; MinWidth = 740; MinHeight = 480; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 12, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         toolbar.Children.Add(Ui.Button("添加视频…", async () =>
         {
@@ -32,17 +34,18 @@ internal sealed class QuickClipWorkspaceWindow : Window
             catch(Exception error) { _status.Text = error.Message; }
         }));
         toolbar.Children.Add(Ui.Button("移除视频", () => { if(_files.SelectedItem is Source source) _sources.Remove(source); RefreshFiles(); })); root.Children.Add(toolbar);
+        _files.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(PaddingProperty, new Thickness(4, 2)), new Setter(MinHeightProperty, 0d), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>
         {
             if(source is null)return new Border();
-            var row = new StackPanel { Spacing = 6, Margin = new(0, 5) };
-            var include = new CheckBox { Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include }; Localization.SetIsUserText(include, true);
+            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
+            var include = new CheckBox { Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include, MinHeight = 0, Padding = new(0) }; Localization.SetIsUserText(include, true);
             include.IsCheckedChanged += (_, _) => { source.Include = include.IsChecked == true; Refresh(); }; row.Children.Add(include);
-            row.Children.Add(Ui.Text(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption")); return row;
+            var state = Ui.Text(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption"); Grid.SetColumn(state, 1); row.Children.Add(state); return row;
         });
-        var body = new Grid { ColumnDefinitions = new("280,*"), ColumnSpacing = 20 }; body.Children.Add(_files);
+        var body = new Grid { ColumnDefinitions = new("300,*"), ColumnSpacing = 8 }; body.Children.Add(_files);
         body.Children.Add(new ScrollViewer { Content = _segments, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 12 }; footer.Children.Add(_status);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_status);
         var cancel = Ui.DialogButton("取消", () => Close(null)); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
         _export = Ui.DialogButton("导出选项…", () => ToolExecution.Complete(this,_sources.Where(source => source.Include).Select(source => source.Edit!).ToArray())); _export.Classes.Add("primary");_export.IsDefault=true;
         Grid.SetColumn(_export, 2); footer.Children.Add(_export); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;

@@ -19,7 +19,7 @@ public sealed partial class MediaAiWindow
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var choices = new[] { new CaptionModelChoice(null, "AI 供应商"),
             new CaptionModelChoice(ModelCatalog.SummaryQwen35Id, ModelCatalog.Find(ModelCatalog.SummaryQwen35Id).Name, true) };
-        var model = new ComboBox { ItemsSource = choices, HorizontalAlignment = HorizontalAlignment.Stretch,
+        var model = new ComboBox { ItemsSource = choices, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280,
             SelectedItem = choices.FirstOrDefault(choice => choice.Id == _captionLocalModelId) ?? choices[1] };
         model.ItemTemplate = new FuncDataTemplate<CaptionModelChoice>((choice, _) =>
         { var text = Ui.Text(choice?.Name ?? ""); Localization.SetIsUserText(text, choice?.UserText == true); return text; });
@@ -34,7 +34,7 @@ public sealed partial class MediaAiWindow
         Localization.SetIsUserText(system, true); Localization.SetIsUserText(user, true);
         var tools = new CheckBox { Content = "视频按需补帧与局部放大", IsChecked = _captionUseFrameTools };
 
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,0.5*,Auto,Auto"), RowSpacing = 10, Margin = new(20) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,0.5*,Auto,Auto"), RowSpacing = 6, Margin = new(12) };
         root.Children.Add(modelRow);
         var systemLabel = Ui.Text("系统提示词"); Grid.SetRow(systemLabel, 1); root.Children.Add(systemLabel);
         Grid.SetRow(system, 2); root.Children.Add(system);

@@ -9,7 +9,7 @@ namespace AvaMedia.Desktop.Controls;
 public sealed class DiscSourcePicker : UserControl
 {
     private sealed record Source(string Path, string Label);
-    private readonly ComboBox _drives = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _drives = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280 };
     private readonly TextBlock _status = Ui.Text("", "caption");
     public event Action? Changed;
     public string? Path => (_drives.SelectedItem as Source)?.Path;
@@ -17,15 +17,16 @@ public sealed class DiscSourcePicker : UserControl
     public DiscSourcePicker(string? initial = null)
     {
         _drives.SelectionChanged += (_,_) => Changed?.Invoke();
-        var root = new StackPanel { Spacing = 8 }; root.Children.Add(Ui.Text("选择光盘")); root.Children.Add(_drives);
+        var root = new StackPanel { Spacing = 8 };
+        var driveRow = new Grid { ColumnDefinitions = new("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
+        driveRow.Children.Add(Ui.Text("选择光盘")); Grid.SetColumn(_drives, 1); _drives.HorizontalAlignment = HorizontalAlignment.Stretch; driveRow.Children.Add(_drives);
         _drives.ItemTemplate = new FuncDataTemplate<Source>((drive, _) =>
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             row.Children.Add(new FeatureIcon { Kind = "disc", Width = 24, Height = 24 }); row.Children.Add(Ui.Text(drive?.Label ?? "")); return row;
         });
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        actions.Children.Add(Ui.Button("刷新光驱", () => Refresh(initial)));
-        actions.Children.Add(Ui.Button("选择已挂载的光盘…", async () =>
+        var refresh = Ui.Button("刷新光驱", () => Refresh(initial)); Grid.SetColumn(refresh, 2); driveRow.Children.Add(refresh);
+        var mounted = Ui.Button("选择已挂载的光盘…", async () =>
         {
             if (Avalonia.Controls.TopLevel.GetTopLevel(this) is not Window owner || await Ui.Folder(owner, "选择已挂载的光盘") is not { } folder) return;
             try
@@ -50,8 +51,7 @@ public sealed class DiscSourcePicker : UserControl
                 _drives.ItemsSource = (_drives.ItemsSource?.OfType<Source>() ?? []).Where(item => item.Path != source.Path).Append(source).ToArray(); _drives.SelectedItem = source; _status.Text = "";
             }
             catch (Exception error) { _status.Text = error.Message; }
-        }));
-        root.Children.Add(actions); root.Children.Add(_status); Content = root; Refresh(initial);
+        }); Grid.SetColumn(mounted, 3); driveRow.Children.Add(mounted); root.Children.Add(driveRow); root.Children.Add(_status); Content = root; Refresh(initial);
     }
 
     private void Refresh(string? initial)

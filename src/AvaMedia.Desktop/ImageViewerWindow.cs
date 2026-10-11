@@ -18,12 +18,14 @@ public sealed partial class ImageViewerWindow : Window
 {
     private readonly ImageViewport _viewport = new();
     private readonly ListBox _files = new();
-    private readonly TextBlock _status = new() { Classes = { "viewer-caption" }, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 640 };
+    private readonly TextBlock _zoomNotice = new() { Classes = { "viewer-zoom" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+    private readonly DispatcherTimer _zoomNoticeTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
     private readonly TextBlock _empty = Ui.Text("打开图片、文件夹或压缩包");
     private readonly TextBox _search = Ui.Input("");
     private readonly StackPanel _metadata = new() { Spacing = 1 };
-    private readonly Border _info = new();
+    private readonly Border _info = new() { IsVisible = false };
     private readonly TextBlock _infoSummary = new() { Classes = { "viewer-summary" }, TextTrimming = TextTrimming.CharacterEllipsis };
+    private bool _infoOpen;
     private readonly Grid _body = new() { ColumnDefinitions = new("0,*") };
     private readonly WrapPanel _toolbar = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
     private readonly Border _chrome = new();
@@ -117,7 +119,8 @@ public sealed partial class ImageViewerWindow : Window
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center;
         canvas.Children.Add(_empty);
         BuildChrome(); BuildInfo();
-        canvas.Children.Add(_info); canvas.Children.Add(_chrome);
+        canvas.Children.Add(_zoomNotice); canvas.Children.Add(_info); canvas.Children.Add(_chrome);
+        _zoomNoticeTimer.Tick += (_, _) => { _zoomNoticeTimer.Stop(); _zoomNotice.IsVisible = false; };
         Grid.SetColumn(canvas, 1); _body.Children.Add(canvas); Content = _body;
     }
     private void BuildChrome()
@@ -133,14 +136,28 @@ public sealed partial class ImageViewerWindow : Window
         AddTool("rotate-left", "左转", () => _viewport.Rotate(-90));
         AddTool("rotate-right", "右转", () => _viewport.Rotate(90));
         _toolbar.Children.Add(ImageViewerToolbar.Divider());
-        _toolbar.Children.Add(_bookmarkButton); _toolbar.Children.Add(_slideshowButton);
-        _toolbar.Children.Add(_animationButton);
-        AddTool("library", "图片列表", () => { ToggleLibrary(); return Task.CompletedTask; });
+        _toolbar.Children.Add(_slideshowButton);
         AddTool("fullscreen", "全屏", ToggleFullscreen);
+        var view = ImageViewerToolbar.Button("more", "查看", () => { });
+        view.Click += (_, _) =>
+        {
+            var menu = new ContextMenu();
+            void AddView(string label, Action action, bool visible = true)
+            {
+                if (!visible) return;
+                var item = new MenuItem { Header = label };
+                item.Click += (_, _) => action(); menu.Items.Add(item);
+            }
+            AddView(ToolTip.GetTip(_bookmarkButton) as string ?? "收藏", ToggleBookmark);
+            AddView(ToolTip.GetTip(_animationButton) as string ?? "暂停动画", () => _animationButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent)), _animationButton.IsVisible);
+            AddView("图片列表", ToggleLibrary);
+            AddView("信息", ToggleInfo);
+            menu.Open(view);
+        };
+        _toolbar.Children.Add(view);
         _toolbar.Children.Add(_fileActions);
-        var bar = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
+        var bar = new StackPanel { Spacing = 0, HorizontalAlignment = HorizontalAlignment.Center };
         bar.Children.Add(_toolbar);
-        bar.Children.Add(_status);
         _chrome.Child = bar; _chrome.Classes.Add("viewer-chrome");
         _chrome.HorizontalAlignment = HorizontalAlignment.Center; _chrome.VerticalAlignment = VerticalAlignment.Bottom;
         _chrome.Margin = new(16, 0, 16, 16); _chrome.MaxWidth = 760;
@@ -158,7 +175,7 @@ public sealed partial class ImageViewerWindow : Window
         ImageViewerToolbar.Configure(_mapButton, null, "地图"); _mapButton.Classes.Add("viewer-map");
         _info.Child = card; _info.Classes.Add("viewer-info");
         _info.HorizontalAlignment = HorizontalAlignment.Right; _info.VerticalAlignment = VerticalAlignment.Top;
-        _info.Margin = new(16); _info.MaxWidth = 300; _info.IsVisible = false;
+        _info.Margin = new(16); _info.MaxWidth = 300;
         // The one-line summary stays up; the rest of EXIF only appears while the pointer is over the card.
         _info.PointerEntered += (_, _) => detail.IsVisible = _metadata.Children.Count > 0;
         _info.PointerExited += (_, _) => detail.IsVisible = false;
@@ -179,6 +196,7 @@ public sealed partial class ImageViewerWindow : Window
         _recursive.IsCheckedChanged += async (_, _) => { _preferences.Recursive = _recursive.IsChecked == true; SavePreferences(); if (_sources.Length > 0) await GuardAsync(() => OpenAsync(_sources, CurrentEntry?.Member ?? CurrentEntry?.Container)); };
         _fit.SelectionChanged += (_, _) => _viewport.Fit(_fit.SelectedIndex switch { 1 => "down", 2 => "width", 3 => "actual", _ => "fit" });
         _viewport.ViewChanged += RefreshStatus;
+        _viewport.Zoomed += ShowZoom;
         _bookmarkButton.Click += (_, _) => ToggleBookmark();
         _animationButton.Click += (_, _) =>
         {

@@ -35,13 +35,13 @@ public sealed partial class MediaAiWindow
         var labels=new System.Collections.ObjectModel.ObservableCollection<string>(original.Select(tag=>tag.Label));
         var input=Ui.Input();input.Watermark="新增标签";Localization.SetIsUserText(input,true);
         var window = new Window { Title="编辑标签",Width=820,Height=580,MinWidth=720,MinHeight=480,WindowStartupLocation=WindowStartupLocation.CenterOwner };
-        var root=new Grid { RowDefinitions=new("*,Auto"),RowSpacing=12,Margin=new(20) };
-        var body=new Grid { ColumnDefinitions=new("*,*"),ColumnSpacing=16 };
+        var root=new Grid { RowDefinitions=new("*,Auto"),RowSpacing=8,Margin=new(12) };
+        var body=new Grid { ColumnDefinitions=new("*,*"),ColumnSpacing=8 };
         var fields=new Grid { RowDefinitions=new("Auto,Auto,*,Auto"),RowSpacing=8 };fields.Children.Add(Ui.Text("已选标签"));
         var list=new ListBox{ItemsSource=labels};Grid.SetRow(list,2);fields.Children.Add(list);
         var search=Ui.Input();search.Watermark="搜索标签";Grid.SetRow(search,1);fields.Children.Add(search);
         var known=WordLibraryCatalog.BuiltIns.Where(library=>library.Id is "real-people" or "scene-context" or "common" or "outdoor-scenery" or "person-features").SelectMany(library=>library.Entries).Where(entry => _settings.EnableNsfwContent || !MediaPrivacy.IsSensitive(entry)).Select(WordLibraryCatalog.CandidateLabel).Concat(original.Select(tag=>tag.Label)).Distinct().Order().ToArray();
-        var choices=new ComboBox { HorizontalAlignment=HorizontalAlignment.Stretch };
+        var choices=new ComboBox { HorizontalAlignment=HorizontalAlignment.Left, MinWidth=160, MaxWidth=280 };
         choices.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((label,_)=>Ui.Text(label??""));
         void Filter()=>choices.ItemsSource=known.Where(label=>label.Contains(search.Text??"",StringComparison.OrdinalIgnoreCase)).Take(150).ToArray();
         search.TextChanged+=(_,_)=>Filter();Filter();
@@ -71,7 +71,7 @@ public sealed partial class MediaAiWindow
             : TagPoints(result, tag).Where(point => point.Score >= (double)(_threshold.Value ?? .4m)).Select(point => point.Seconds).Distinct().Order().ToArray();
         var window = new Window { Title = tag.Label, Width = 500, Height = 420, MinWidth = 380, MinHeight = 300, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Localization.SetIsUserText(window, true);
-        var content = new StackPanel { Spacing = 8, Margin = new(20) };
+        var content = new StackPanel { Spacing = 6, Margin = new(12) };
         if(matches.Length == 0) content.Children.Add(Ui.Text(result.Frames.Count == 0 ? "此结果没有视频采样时间" : "没有达到当前阈值的采样画面", "caption"));
         foreach(var seconds in matches)
             content.Children.Add(Ui.Button(MediaTime.Format(seconds) + " · " + Localization.Text("播放画面"), async () =>

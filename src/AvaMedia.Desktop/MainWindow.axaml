@@ -58,14 +58,8 @@
               <local:CategoryHeader x:Name="SidebarToggle" Grid.Row="1" IsExpanded="True" Margin="0,8,0,0"/>
             </Grid>
           </Border>
-          <Border x:Name="FeaturePanel" Classes="feature-tool-panel" Grid.Column="1" Background="{DynamicResource UiFeaturePanel}" CornerRadius="{DynamicResource UiNavigationPanelRadius}" Margin="6,0,0,0" Padding="8,10,8,6">
-            <Grid RowDefinitions="Auto,*">
-              <Grid ColumnDefinitions="*,Auto" Margin="4,0,4,6">
-                <TextBlock x:Name="FeaturePanelTitle" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock x:Name="FeaturePanelCount" Grid.Column="1" FontSize="11" Foreground="{DynamicResource UiTextSecondary}" Margin="6,0,0,0" VerticalAlignment="Center"/>
-              </Grid>
-              <Grid x:Name="FeatureViewHost" Grid.Row="1" ClipToBounds="True"/>
-            </Grid>
+          <Border x:Name="FeaturePanel" Classes="feature-tool-panel" Grid.Column="1" Background="{DynamicResource UiFeaturePanel}" CornerRadius="{DynamicResource UiNavigationPanelRadius}" Margin="6,0,0,0" Padding="8,8,8,6">
+            <Grid x:Name="FeatureViewHost" ClipToBounds="True"/>
           </Border>
         </Grid>
       </Border>
