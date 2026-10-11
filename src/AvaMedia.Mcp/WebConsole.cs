@@ -33,6 +33,22 @@ internal static class WebConsole
             });
         }
         else app.MapGet("/", () => Results.Problem("网页界面未构建。请发布 AvaMedia.Browser 后重新构建客户端。", statusCode: 503));
+        app.MapGet("/web/media", IResult (string path, HttpContext context) =>
+        {
+            try
+            {
+                path = new McpFiles().Check(path, true);
+                var types = new FileExtensionContentTypeProvider();
+                if (!File.Exists(path) || !types.TryGetContentType(path, out var type) ||
+                    !(type.StartsWith("video/", StringComparison.Ordinal) || type.StartsWith("audio/", StringComparison.Ordinal)))
+                    return Results.BadRequest("请选择可播放的视频或音频文件。");
+                context.Response.Headers.CacheControl = "no-store";
+                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                return Results.File(path, type, enableRangeProcessing: true);
+            }
+            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException)
+            { return Results.BadRequest(error.Message); }
+        });
         // Only expose paths from the shared task record; never accept a client-supplied filesystem path.
         app.MapGet("/web/tasks/{taskId:guid}/file", async Task<IResult> (Guid taskId, string source, int? index,
             bool? download, IMcpWorkspace workspace, HttpContext context) =>

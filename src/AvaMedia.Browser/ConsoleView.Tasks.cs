@@ -131,7 +131,12 @@ public sealed partial class ConsoleView
         else _detail.Children.Add(Label("结果尚未生成，完成后刷新查看。"));
         if (task.Text("featureId") == "folder-classification" && task.Text("state") is "Completed" or "Failed" or "Cancelled")
         {
-            var destination = new PathInput { Text = _output.Text }; Field(_detail, "分类复制目标目录", destination);
+            var destination = new FilePathChoice { Text = _output.Text }; Field(_detail, "分类复制目标目录", destination);
+            _detail.Children.Add(Action("选择分类目标文件夹…", async () =>
+            {
+                _tabs.SelectedIndex = 0;
+                await PickServerFile("分类目标目录", true, selected => { destination.Text = selected; _tabs.SelectedIndex = 1; });
+            }));
             _detail.Children.Add(Action("预览分类文件夹", async () =>
             {
                 _organization = await RemoteApi.Call("preview_organization", new() { ["taskId"] = id, ["outputFolder"] = destination.Text?.Trim() });

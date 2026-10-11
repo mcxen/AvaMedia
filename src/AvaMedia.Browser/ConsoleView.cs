@@ -19,10 +19,9 @@ public sealed partial class ConsoleView : UserControl
     private readonly TabControl _tabs = new();
     private readonly StackPanel _form = new() { Spacing = 9, Margin = new(12) };
     private readonly ComboBox _feature = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly PathInput _output = new();
-    private readonly TextBox _extra = new() { Text = "{}", AcceptsReturn = true, MinHeight = 70 };
+    private readonly FilePathChoice _output = new();
     private readonly TextBox _urls = new() { AcceptsReturn = true, MinHeight = 60 };
-    private readonly NumericUpDown _frames = new() { Minimum = 1, Maximum = 120, Value = 8 },
+    private readonly VisualNumber _frames = new() { Minimum = 1, Maximum = 120, Value = 8 },
         _threshold = new() { Minimum = 0, Maximum = 1, Increment = .05m, Value = .5m };
     private readonly CheckBox _recursive = new() { Content = "包括子文件夹", IsChecked = true },
         _start = new() { Content = "立即执行", IsChecked = true }, _nsfw = new() { Content = "NSFW 内容识别" },
@@ -42,22 +41,27 @@ public sealed partial class ConsoleView : UserControl
         _files.Selected += AddInputs;
         _feature.ItemTemplate = new FuncDataTemplate<JsonNode>((item, _) => Label(item.Text("name")));
         _feature.SelectionChanged += (_, _) => UpdateFeature();
+        _category.SelectionChanged += (_, _) => FilterFeatures();
+        Field(_form, "工具分类", _category);
         Field(_form, "任务类型", _feature); Field(_form, "下载链接（每行一个）", _urls);
         _form.Children.Add(_selection);
         _form.Children.Add(new ScrollViewer { Content = _selected, MaxHeight = 110 });
         _form.Children.Add(Actions(Action("添加当前文件夹", () => { if (_files.CurrentFolder is { } folder) AddInputs([folder]); return Task.CompletedTask; }),
             Action("清空选择", () => { _inputs.Clear(); RenderInputs(); return Task.CompletedTask; })));
         _form.Children.Add(_recursive); Field(_form, "服务器输出目录", _output);
+        _form.Children.Add(Action("选择输出文件夹…", () => PickServerFile("输出目录", true, selected => _output.Text = selected)));
         _form.Children.Add(Action("使用当前目录输出", () => { if (_files.CurrentFolder is { } folder) _output.Text = _source.DisplayAddress(folder); return Task.CompletedTask; }));
         Field(_analysis, "视频采样帧数", _frames); Field(_analysis, "标签阈值", _threshold);
         _analysis.Children.Add(_nsfw); _analysis.Children.Add(_scenes); _form.Children.Add(_analysis);
         _form.Children.Add(new Expander { Header = "分类规则", Content = new ScrollViewer { Content = _rules, MaxHeight = 220 }, IsExpanded = true, Name = "ClassificationRules" });
         _form.Children.Add(_downloadModels);
-        _form.Children.Add(new Expander { Header = "高级任务参数（JSON）", Content = _extra, HorizontalAlignment = HorizontalAlignment.Stretch });
+        _form.Children.Add(_toolOptions);
         _form.Children.Add(_start);
         _submit = Action("创建任务", Submit); _form.Children.Add(_submit);
         var work = new Grid { ColumnDefinitions = new("*,370") };
-        work.Children.Add(_files); var formScroll = new ScrollViewer { Content = _form, Tag = "*,370" }; Grid.SetColumn(formScroll, 1); work.Children.Add(formScroll);
+        _workspaceTabs.Items.Add(new TabItem { Header = "服务器文件", Content = _files });
+        _workspaceTabs.Items.Add(new TabItem { Header = "视频编辑 / 预览", Content = BuildEditor() });
+        work.Children.Add(_workspaceTabs); var formScroll = new ScrollViewer { Content = _form, Tag = "*,370" }; Grid.SetColumn(formScroll, 1); work.Children.Add(formScroll);
         AdaptColumns(work, formScroll);
         _tabs.Items.Add(new TabItem { Header = "文件与任务下发", Content = work });
         _tabs.Items.Add(new TabItem { Header = "所有任务", Content = BuildTasks() });
@@ -79,7 +83,7 @@ public sealed partial class ConsoleView : UserControl
             catch (Exception error) { _status.Text = "恢复记录无法读取：" + error.Message; }
             UpdatePending(); await Guard(Connect); _poll.Start();
         };
-        DetachedFromVisualTree += (_, _) => _poll.Stop();
+        DetachedFromVisualTree += (_, _) => { _poll.Stop(); ClearPreview(); };
     }
 
     private async Task Connect()
@@ -87,10 +91,12 @@ public sealed partial class ConsoleView : UserControl
         _status.Text = "正在连接服务器…";
         var capabilities = await RemoteApi.Call("capabilities"); _runtime = await RemoteApi.Call("get_runtime");
         var selectedId = (_feature.SelectedItem as JsonNode).Text("id");
-        var features = capabilities["features"].Items().Where(item => item.Flag("canCreateTask")).ToArray();
-        _feature.ItemsSource = features;
-        _feature.SelectedItem = features.FirstOrDefault(item => item.Text("id") == selectedId)
-            ?? features.FirstOrDefault(item => item.Text("id") == "folder-classification") ?? features.FirstOrDefault();
+        _features = capabilities["features"].Items().Where(item => item.Flag("canCreateTask") || item.Text("id") is "player" or "info").ToArray();
+        var category = _category.SelectedItem as string ?? "视频";
+        _category.ItemsSource = new[] { "全部工具" }.Concat(_features.Select(item => item.Text("category")).Distinct()).ToArray();
+        _category.SelectedItem = category;
+        FilterFeatures();
+        if (_feature.ItemsSource is JsonNode[] visible && visible.FirstOrDefault(item => item.Text("id") == selectedId) is { } selected) _feature.SelectedItem = selected;
         if (string.IsNullOrWhiteSpace(_output.Text)) _output.Text = _runtime.Text("outputFolder");
         _nsfw.IsVisible = _runtime.Flag("nsfwEnabled"); if (!_nsfw.IsVisible) _nsfw.IsChecked = false;
         _rules.Children.Clear();
@@ -110,10 +116,18 @@ public sealed partial class ConsoleView : UserControl
         _selected.Children.Clear(); _selection.Text = $"已选择 {_inputs.Count} 项";
         foreach (var (path, item) in _inputs)
         {
-            var row = Actions(Label((item.IsFolder ? "文件夹 · " : "") + item.Name),
+            var name = Label((item.IsFolder ? "文件夹 · " : "") + item.Name);
+            name.MaxWidth = 145; name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
+            var row = Actions(name,
+                Action("↑", () => { MoveInput(path, -1); return Task.CompletedTask; }),
+                Action("↓", () => { MoveInput(path, 1); return Task.CompletedTask; }),
                 Action("移除", () => { _inputs.Remove(path); RenderInputs(); return Task.CompletedTask; }));
             ToolTip.SetTip(row, path); _selected.Children.Add(row);
         }
+        var previous = _previewInput.SelectedItem;
+        var previewItems = _inputs.Values.Where(item => !item.IsFolder).ToArray();
+        _previewInput.ItemsSource = previewItems;
+        _previewInput.SelectedItem = previewItems.Contains(previous) ? previous : previewItems.FirstOrDefault();
     }
     private void UpdateFeature()
     {
@@ -122,6 +136,9 @@ public sealed partial class ConsoleView : UserControl
         foreach (var expander in _form.Children.OfType<Expander>().Where(control => control.Name == "ClassificationRules")) expander.IsVisible = id == "folder-classification";
         _downloadModels.IsVisible = id == "folder-classification";
         _urls.IsVisible = id == "download";
+        BuildToolOptions();
+        if (_submit is not null) _submit.IsVisible = id is not ("player" or "info");
+        _start.IsVisible = id is not ("player" or "info");
     }
     private JsonObject Submission()
     {
@@ -129,7 +146,7 @@ public sealed partial class ConsoleView : UserControl
         if (id.Length == 0) throw new InvalidOperationException("请选择任务类型。");
         var paths = id == "download" ? (_urls.Text ?? "").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : _inputs.Keys.ToArray();
         if (paths.Length == 0) throw new InvalidOperationException("请先添加文件或文件夹。");
-        var options = JsonNode.Parse(_extra.Text ?? "{}") as JsonObject ?? throw new ArgumentException("高级参数须为 JSON 对象。");
+        var options = ReadOptions();
         if (id is "media-ai" or "folder-classification")
         {
             var specKey = id == "media-ai" ? "mediaTag" : "folderClassification";

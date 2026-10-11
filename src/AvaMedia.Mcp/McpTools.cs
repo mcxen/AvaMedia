@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 
 namespace AvaMedia.Mcp;
 
-public sealed record McpFeature(string Id, string Name, string Category, string Format, bool CanCreateTask);
+public sealed record McpFeature(string Id, string Name, string Category, string Format, bool CanCreateTask, McpTaskForm? Form);
 public sealed record McpCapabilities(string Protocol, string Transport, McpFeature[] Features,
     string[] TaskActions, FolderClassificationRule[] ClassificationPresets);
 public sealed record McpFilePage(string[] Files, int Total, int Offset, int? NextOffset);
@@ -26,7 +26,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     [Description("Discover AvaMedia services, local path conventions and classification presets before creating tasks. Task IDs are durable AvaMedia queue IDs, shared with the desktop UI. No media is uploaded by this endpoint.")]
     public McpCapabilities Capabilities() => new(ProtocolVersion, "Streamable HTTP",
         Catalog.All.Where(feature => workspace.Engine.Settings.EnableBetaFeatures || !Catalog.IsBeta(feature))
-            .Select(feature => new McpFeature(feature.Id, feature.Label, feature.Category, feature.Format, CanCreate(feature))).ToArray(),
+            .Select(feature => new McpFeature(feature.Id, feature.Label, feature.Category, feature.Format, CanCreate(feature), McpVideoForms.For(feature, workspace.Engine.Settings))).ToArray(),
         ["start", "pause", "resume", "stop", "retry", "remove"],
         FolderClassificationRule.Presets.Where(rule => PrivateEnabled || !MediaPrivacy.IsSensitiveRule(rule)).ToArray());
 
@@ -41,6 +41,19 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     [McpServerTool(Name = "avamedia_probe", Title = "媒体信息", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
     [Description("Read duration, streams, dimensions and codec information for a local media file.")]
     public Task<MediaInfo> Probe(string path, CancellationToken ct = default) => workspace.Engine.Probe(_files.Check(path, true), ct);
+
+    [McpServerTool(Name = "avamedia_editor_preview", Title = "视频编辑预览", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
+    [Description("Read media information and a square-pixel preview frame from a server video for clipping/crop selection. Coordinates use info.width/info.height, not thumbnail pixels.")]
+    public async Task<McpEditorPreview> EditorPreview(string path, double seconds = 0, CancellationToken ct = default)
+    {
+        path = _files.Check(path, true);
+        if (!VideoFormats.IsVideo(path) && !ImageFormats.Supports(path)) throw new ArgumentException("预览请选择视频或图片。");
+        if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentException("预览时间无效。");
+        var info = await workspace.Engine.Probe(path, ct).ConfigureAwait(false);
+        if (info.Duration > 0) seconds = Math.Min(seconds, Math.Max(0, info.Duration - .05));
+        var frame = await workspace.Engine.Thumbnail(path, seconds, 800, 450, ct, pad: false).ConfigureAwait(false);
+        return new(info, seconds, Convert.ToBase64String(frame));
+    }
 
     [McpServerTool(Name = "avamedia_create_task", Title = "创建任务", Destructive = true, UseStructuredContent = true)]
     [Description("Create shared desktop queue tasks for any capability with canCreateTask=true. Provide a fresh UUID requestId; reuse it with identical arguments to recover tasks after a lost response. Returns immediately; poll avamedia_get_task. paths may include folders for media-ai/folder-classification. batch-rename must use preview/apply tools. ConversionOptions uses AvaMedia's service parameters; omitted options.format defaults to the feature's format.")]
@@ -194,13 +207,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
         return await workspace.SubmitAsync(id.ToString("N"), hash, create, start, ct).ConfigureAwait(false);
     }
 
-    private static ConversionOptions Defaults(Feature feature) => new()
-    {
-        Format = feature.Format.Length > 0 ? feature.Format : "mp4",
-        Transcription = feature.Operation == Operation.Transcribe ? new() : null,
-        VideoSummary = feature.Operation == Operation.VideoSummary ? new() : null,
-        PersonClip = feature.Operation == Operation.PersonClip ? new() : null
-    };
+    private static ConversionOptions Defaults(Feature feature) => McpVideoForms.Defaults(feature);
     public static void Page(int offset, int limit)
     { if (offset < 0 || limit is < 1 or > 200) throw new ArgumentException("offset 须非负，limit 须为 1–200。"); }
 

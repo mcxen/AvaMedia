@@ -16,8 +16,8 @@ public sealed partial class ConsoleView
         _server.Children.Add(Label(_runtime.Flag("background") ? "后台服务运行中" : "桌面客户端服务运行中"));
         _server.Children.Add(Label("NSFW 内容识别 · " + (_runtime.Flag("nsfwEnabled") ? "已开启" : "已关闭")));
         var resources = _runtime?["resources"];
-        var reserve = new NumericUpDown { Minimum = 0, Maximum = 80, Value = resources?["cpuReservePercent"]?.GetValue<decimal>() ?? 20, Width = 160, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
-        var threads = new NumericUpDown { Minimum = 1, Maximum = 16, Value = resources?["cpuThreads"]?.GetValue<decimal>() ?? 4, Width = 160, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+        var reserve = new VisualNumber { Minimum = 0, Maximum = 80, Value = resources?["cpuReservePercent"]?.GetValue<decimal>() ?? 20, Width = 160, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+        var threads = new VisualNumber { Minimum = 1, Maximum = 16, Value = resources?["cpuThreads"]?.GetValue<decimal>() ?? 4, Width = 160, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         var multithread = new CheckBox { Content = "任务内部多线程", IsChecked = resources.Flag("multiThread") };
         Field(_server, "CPU 预留百分比", reserve); Field(_server, "CPU 线程数", threads); _server.Children.Add(multithread);
         _server.Children.Add(Action("保存资源设置", async () =>
