@@ -32,9 +32,11 @@ public sealed class TaskPreviewCache
 
         // Coalesce concurrent requests without keeping an unbounded dictionary of media paths.
         var slot = _sourceSlots[hash[0] % _sourceSlots.Length];
+        await JobExecutionControl.CheckpointAsync(token).ConfigureAwait(false);
         await slot.WaitAsync(token).ConfigureAwait(false);
         try
         {
+            using var boundary = JobExecutionControl.DeferPause();
             cached = await ReadAsync(identity, token).ConfigureAwait(false);
             if (!await IsCurrentAsync(source, token).ConfigureAwait(false)) throw new IOException("源文件在读取预览时发生变化。");
             if (cached is not null) return cached;

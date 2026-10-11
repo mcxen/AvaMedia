@@ -12,7 +12,7 @@ public sealed record MediaSceneResult(string Model, string Backend, string? Fall
     double MinimumSimilarity, double MinimumMargin, IReadOnlyList<MediaSceneScore> Scores, IReadOnlyList<MediaSceneFrame> Frames);
 
 /// <summary>Built-in scenes and selected semantic candidates share the tagger's samples.</summary>
-internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCandidate[] candidates, float[][] labels)
+internal sealed class MediaSceneClassifier(WordCandidate[] candidates, float[][] labels)
 {
     private const double MinimumSimilarity = .55;
     private const double MinimumMargin = .03;
@@ -30,15 +30,15 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
             labels.AddRange(await embedding.EmbedLabelsAsync(candidates.Skip(offset).Take(16).Select(entry => entry.Description).ToArray(), ct).ConfigureAwait(false));
             activity.Advance(labels.Count, candidates.Length, "词");
         }
-        return new(embedding, candidates, labels.ToArray());
+        return new(candidates, labels.ToArray());
     }
 
     public async Task<MediaSceneResult> AnalyzeAsync(IReadOnlyList<byte[]> images, IReadOnlyList<double> seconds,
-        IReadOnlyList<int> samples, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null, bool video = true)
+        IReadOnlyList<int> samples, Func<byte[][], Task<MediaScenePrediction>> predict, AiActivityReporter activity, CancellationToken ct, Action<MediaSceneResult>? updated = null, bool video = true)
     {
         var unit = video ? "帧" : "张";
         activity.Stage("识别语义标签", 0, images.Count, unit);
-        activity.Backend(embedding.Backend);
+        var backend = ""; string? fallback = null;
         var matches = new List<MediaSceneMatch[]>();
         var observations = new List<MediaSceneMatch[]>();
         var groups = candidates.Select((entry, index) => (entry.Category, Index: index)).GroupBy(entry => entry.Category).ToArray();
@@ -49,11 +49,13 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
             var totals = frames.SelectMany(frame => frame.Matches).GroupBy(match => (match.Label, match.Category))
                 .Select(group => new MediaSceneScore(group.Key.Label, group.Key.Category, group.Max(match => match.Similarity), group.Count()))
                 .OrderByDescending(score => score.Similarity).ToArray();
-            return new(ModelCatalog.EmbeddingId, embedding.Backend, embedding.FallbackReason, MinimumSimilarity, MinimumMargin, totals, frames);
+            return new(ModelCatalog.EmbeddingId, backend, fallback, MinimumSimilarity, MinimumMargin, totals, frames);
         }
         for (var offset = 0; offset < images.Count; offset += 4)
         {
-            var vectors = await embedding.EmbedImagesAsync(images.Skip(offset).Take(4).ToArray(), ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            var prediction = await predict(images.Skip(offset).Take(4).ToArray()).ConfigureAwait(false);
+            var vectors = prediction.Vectors; backend = prediction.Backend; fallback = prediction.FallbackReason;
             foreach (var vector in vectors)
             {
                 var scores = labels.Select(label => GemmaMediaEmbedding.Cosine(vector, label)).ToArray();
@@ -75,7 +77,7 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
                 matches.Add(selected.ToArray());
                 observations.Add(raw.ToArray());
             }
-            activity.Backend(embedding.Backend);
+            activity.Backend(backend);
             activity.Advance(matches.Count, images.Count, unit);
             updated?.Invoke(Snapshot());
         }
@@ -83,6 +85,8 @@ internal sealed class MediaSceneClassifier(GemmaMediaEmbedding embedding, WordCa
     }
 
 }
+
+internal sealed record MediaScenePrediction(float[][] Vectors, string Backend, string? FallbackReason);
 
 /// <summary>The optional semantic model is not installed; callers skip scene/semantic work rather than download implicitly.</summary>
 public sealed class SemanticModelMissingException() : InvalidOperationException("语义模型未下载，已跳过场景识别。");

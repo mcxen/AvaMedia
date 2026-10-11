@@ -52,9 +52,17 @@ public sealed class MediaEngine : IMediaEngine
         List<string> probeArgs=["-v","error","-show_format","-show_streams","-show_chapters"];
         if(HeifImage.Supports(path))probeArgs.Add("-show_stream_groups");
         probeArgs.AddRange(["-of","json",path]);
-        var r=await ProcessRunner.Run(FFprobe,probeArgs,ct,maximumOutputChars:int.MaxValue).ConfigureAwait(false);
-        if(r.ExitCode!=0) throw new InvalidDataException(r.Error);
-        using var json=JsonDocument.Parse(r.Output);var root=json.RootElement;
+        var probe=FFprobe;
+        var raw=await MediaProbeCache.ReadAsync(path,probe,async()=>
+        {
+            var result=await ProcessRunner.Run(probe,probeArgs,ct,maximumOutputChars:int.MaxValue).ConfigureAwait(false);
+            if(result.ExitCode!=0)throw new InvalidDataException(result.Error);
+            using var parsed=JsonDocument.Parse(result.Output);
+            if(!parsed.RootElement.TryGetProperty("streams",out var tracks) || tracks.ValueKind!=JsonValueKind.Array)
+                throw new InvalidDataException("媒体信息缺少轨道列表。");
+            return result.Output;
+        },ct).ConfigureAwait(false);
+        using var json=JsonDocument.Parse(raw);var root=json.RootElement;
         var streams=root.GetProperty("streams").EnumerateArray().ToArray();
         var videos=streams.Where(s=>s.GetProperty("codec_type").GetString()=="video").ToArray();
         var audios=streams.Where(s=>s.GetProperty("codec_type").GetString()=="audio").ToArray();
@@ -74,15 +82,15 @@ public sealed class MediaEngine : IMediaEngine
         }
         int rate=0,channels=0;if(audio.ValueKind!=JsonValueKind.Undefined){if(audio.TryGetProperty("sample_rate",out var sample))int.TryParse(sample.GetString(),out rate);if(audio.TryGetProperty("channels",out var ch))channels=ch.GetInt32();}
         var frameRate=MediaStreams.FrameRate(video);
-        return new(duration,width,height,audio.ValueKind!=JsonValueKind.Undefined,video.ValueKind!=JsonValueKind.Undefined,r.Output,Codec(video),Codec(audio),rate,channels,videoStreamIndex,audioStreamIndex,frameRate);
+        return new(duration,width,height,audio.ValueKind!=JsonValueKind.Undefined,video.ValueKind!=JsonValueKind.Undefined,raw,Codec(video),Codec(audio),rate,channels,videoStreamIndex,audioStreamIndex,frameRate);
         static string Codec(JsonElement e) => e.ValueKind==JsonValueKind.Undefined?"":e.GetProperty("codec_name").GetString()??"";
     }
     public async Task<byte[]> Thumbnail(string input,double seconds,int width=640,int height=360,CancellationToken ct=default,bool pad=true,int videoStreamIndex=0,bool endExclusive=false)
     {
         if(!double.IsFinite(seconds) || seconds<0 || width<1 || height<1 || videoStreamIndex<0)throw new ArgumentException("逐帧定位参数无效。");
-        if(ImageFormats.Supports(input))return await ImageCodec.ThumbnailAsync(input,width,height,pad,ct).ConfigureAwait(false);
-        var cacheOptions=new { Frame=true, SquarePixels=true, Seconds=seconds, Width=width, Height=height, Pad=pad, Stream=videoStreamIndex, EndExclusive=endExclusive, Tool=FFmpeg,
-            Probe=endExclusive || HeifImage.Supports(input)?FFprobe:"" };
+        var isImage=ImageFormats.Supports(input);
+        var cacheOptions=new { Frame=true, SquarePixels=true, Seconds=seconds, Width=width, Height=height, Pad=pad, Stream=videoStreamIndex, EndExclusive=endExclusive, Tool=isImage?"image-codec":FFmpeg,
+            Probe=!isImage && (endExclusive || HeifImage.Supports(input))?FFprobe:"" };
         var identity=await _previews.IdentityAsync(input,cacheOptions,ct).ConfigureAwait(false);
         var frame=await _previews.ThumbnailAsync(identity,Render,ct).ConfigureAwait(false);
         if(identity is not null && identity!=await _previews.IdentityAsync(input,cacheOptions,ct).ConfigureAwait(false))
@@ -91,6 +99,7 @@ public sealed class MediaEngine : IMediaEngine
 
         async Task<byte[]> Render()
         {
+            if(isImage)return await ImageCodec.ThumbnailAsync(input,width,height,pad,ct).ConfigureAwait(false);
             if(endExclusive && seconds>0)
             {
                 var previous=await FindFrameTime(input,seconds,-1,ct,videoStreamIndex,requireFrame:true).ConfigureAwait(false);
@@ -531,6 +540,10 @@ public sealed class MediaEngine : IMediaEngine
         }
         async Task<ProcessResult> EncodeWithDecoding(Job draft)
         {
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+            using var slot=await HardwareTranscoding.AcquireAsync(draft.Options.VideoCodec,ct).ConfigureAwait(false);
+            // A paused task must not park while holding a hardware session reservation.
+            using var boundary=JobExecutionControl.DeferPause();
             var plans=HardwareTranscoding.DecodePlans(draft,infos).Where(plan=>!failedDecoders.Contains(plan.Value.Method)).ToDictionary(plan=>plan.Key,plan=>plan.Value);
             var encoded=await Encode(draft,plans);
             if(encoded.ExitCode!=0 && plans.Count>0)

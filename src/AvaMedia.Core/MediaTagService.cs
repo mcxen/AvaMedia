@@ -146,7 +146,6 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         IProgress<MediaTagProgress>? progress = null, CancellationToken ct = default) => Task.Run(async () =>
     {
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
-        using var pauseBoundary = JobExecutionControl.DeferPause();
         options.Validate();
         var files = paths.Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
         var completed = 0;
@@ -159,9 +158,44 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         if (options.GenerateCaptions && options.CaptionUseFrameTools && files.Any(VideoFormats.IsVideo)) stages.Add("补充描述画面");
         var activity = new AiActivityReporter(value => progress?.Report(new(currentPath, null, null, completed, files.Length) { Activity = MediaPrivacy.Filter(value, engine.Settings.EnableNsfwContent) }), "JoyTag", "次标签结果",
             stages.ToArray());
-        using var prepared = await MediaTagModelCache.AcquireAsync(_store, options, stage => activity.Stage(stage), ct).ConfigureAwait(false);
-        var tags = prepared.Vocabulary; var session = prepared.Tags;
-        var nsfw = options.RecognizeNsfw ? prepared.Nsfw : null;
+        async Task<T> WithModelsAsync<T>(Func<MediaTagModelCache.Lease, Task<T>> action)
+        {
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+            using var pauseBoundary = JobExecutionControl.DeferPause();
+            using var models = await MediaTagModelCache.AcquireAsync(_store, options, stage => activity.Stage(stage), ct).ConfigureAwait(false);
+            return await action(models).ConfigureAwait(false);
+        }
+        string backend = "", fallback = "";
+        var tags = await WithModelsAsync(models =>
+        {
+            backend = models.Tags.Backend; fallback = models.Tags.FallbackReason ?? "";
+            return Task.FromResult(models.Vocabulary);
+        }).ConfigureAwait(false);
+        async Task<float[][]> PredictTagsAsync(byte[][] images) => await WithModelsAsync(models =>
+        {
+            var vectors = Predict(models.Tags, images, options.BatchSize, models.Vocabulary.Length, ct);
+            backend = models.Tags.Backend; fallback = models.Tags.FallbackReason ?? "";
+            return Task.FromResult(vectors);
+        }).ConfigureAwait(false);
+        async Task<MediaScenePrediction> PredictScenesAsync(byte[][] images) => await WithModelsAsync(async models =>
+        {
+            var embedding = models.Embedding ?? throw new SemanticModelMissingException();
+            var vectors = await embedding.EmbedImagesAsync(images, ct).ConfigureAwait(false);
+            return new MediaScenePrediction(vectors, embedding.Backend, embedding.FallbackReason);
+        }).ConfigureAwait(false);
+        async Task<RealNsfwResult?> AnalyzeNsfwAsync(byte[][] images, double[] seconds, int[] samples, Action<int, int>? updated = null)
+        {
+            if (!options.RecognizeNsfw) return null;
+            var scores = new double[images.Length];
+            RealNsfwResult? last = null;
+            for (var index = 0; index < images.Length; index++)
+            {
+                last = await WithModelsAsync(models => Task.FromResult(models.Nsfw!.Analyze([images[index]], [0], [0], ct))).ConfigureAwait(false);
+                scores[index] = last.Maximum; updated?.Invoke(index + 1, images.Length);
+            }
+            var frames = seconds.Select((time, index) => new RealNsfwFrame(time, scores[samples[index]])).ToArray();
+            return new(frames.Average(frame => frame.Score), frames.Max(frame => frame.Score), frames, last!.Backend, last.FallbackReason);
+        }
         string? sceneSetupError = null; var sceneSkipped = false;
         async Task<MediaSceneClassifier?> PrepareScenesAsync()
         {
@@ -169,9 +203,12 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             activity.Node("准备场景模型");
             try
             {
-                if (prepared.SemanticError is { } error) throw new InvalidOperationException(error);
-                if (prepared.Embedding is null) throw new SemanticModelMissingException();
-                return await MediaSceneClassifier.CreateAsync(prepared.Embedding, options, activity, ct).ConfigureAwait(false);
+                return await WithModelsAsync(async models =>
+                {
+                    if (models.SemanticError is { } error) throw new InvalidOperationException(error);
+                    if (models.Embedding is null) throw new SemanticModelMissingException();
+                    return await MediaSceneClassifier.CreateAsync(models.Embedding, options, activity, ct).ConfigureAwait(false);
+                }).ConfigureAwait(false);
             }
             catch (SemanticModelMissingException error) { sceneSetupError = error.Message; sceneSkipped = true; return null; }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
@@ -181,7 +218,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         async Task<(MediaSceneResult? Result, string? Error)> SceneResultAsync(byte[][] images, double[] seconds, int[] samples, Action<MediaSceneResult>? updated = null, bool video = false)
         {
             if (scenes is null) return (null, sceneSetupError);
-            try { return (await scenes.AnalyzeAsync(images, seconds, samples, activity, ct, updated, video).ConfigureAwait(false), null); }
+            try { return (await scenes.AnalyzeAsync(images, seconds, samples, PredictScenesAsync, activity, ct, updated, video).ConfigureAwait(false), null); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { return (null, error.Message); }
         }
@@ -190,6 +227,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         async Task<MediaTagResult> WithCaptionAsync(MediaTagResult result, byte[][] images, double[]? frameSeconds = null, int videoStreamIndex = 0)
         {
             if (!options.GenerateCaptions) return result;
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             var observations = new List<MediaCaptionObservation>();
             MediaTagResult Snapshot() => result with { CaptionObservations = observations.ToArray(),
                 CaptionModel = captionSession.ModelId, CaptionBackend = captionSession.Backend };
@@ -220,7 +258,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             { return Snapshot() with { CaptionError = error.Message }; }
         }
         activity.Node("识别媒体标签");
-        activity.Backend(session.Backend);
+        activity.Backend(backend);
         var results = new List<MediaTagResult>();
         var pending = new List<(FileInfo File, long Length, DateTime Modified, byte[] Image)>();
         void Report(string path, MediaTagResult? result, string? error)
@@ -232,10 +270,10 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         {
             if (pending.Count == 0) return;
             activity.Stage("识别图片标签", detail: $"当前批次 {pending.Count} 张图片");
-            activity.Backend(session.Backend);
+            activity.Backend(backend);
             activity.Frame(pending[^1].Image, pending[^1].File.Name);
             float[][] vectors;
-            try { vectors = Predict(session, pending.Select(item => item.Image).ToArray(), options.BatchSize, tags.Length, ct); }
+            try { vectors = await PredictTagsAsync(pending.Select(item => item.Image).ToArray()).ConfigureAwait(false); }
             catch (Exception error) when (error is not OperationCanceledException && !ct.IsCancellationRequested)
             { foreach (var item in pending) Report(item.File.FullName, null, error.Message); pending.Clear(); return; }
             for (var i = 0; i < pending.Count; i++)
@@ -245,27 +283,27 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 try
                 {
                     CheckSource(item.File, item.Length, item.Modified);
-                    activity.Backend(session.Backend);
+                    activity.Backend(backend);
                     activity.Frame(item.Image, item.File.Name);
                     activity.Result(item.File.Name + " · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     var tagPreview = new MediaTagResult(item.File.FullName,
                         tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
-                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason)
+                        1, 1, backend, item.Length, item.Modified, fallback.Length == 0 ? null : fallback)
                     { IsPartial = true, RealPeopleOnly = options.RealPeopleOnly, Frames = [new(0, []) { Values = vectors[i] }] };
                     progress?.Report(new(item.File.FullName, null, null, completed, files.Length) { PreviewResult = tagPreview });
                     var scene = await SceneResultAsync([item.Image], [0], [0], value => progress?.Report(
                         new(item.File.FullName, null, null, completed, files.Length) { PreviewResult = tagPreview with { Scenes = value } })).ConfigureAwait(false);
                     RealNsfwResult? classification = null;
-                    if (nsfw is not null)
+                    if (options.RecognizeNsfw)
                     {
                         activity.Node("识别真人 NSFW");
                         activity.Stage("识别真人 NSFW", detail: item.File.Name);
-                        classification = nsfw.Analyze([item.Image], [0], [0], ct);
+                        classification = await AnalyzeNsfwAsync([item.Image], [0], [0]).ConfigureAwait(false);
                     }
                     CheckSource(item.File, item.Length, item.Modified);
                     var tagged = new MediaTagResult(item.File.FullName, tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
-                        1, 1, session.Backend, item.Length, item.Modified, session.FallbackReason)
+                        1, 1, backend, item.Length, item.Modified, fallback.Length == 0 ? null : fallback)
                     {
                         RealPeopleOnly = options.RealPeopleOnly,
                         Nsfw = classification,
@@ -280,7 +318,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         }
         foreach (var path in files.Where(path => !VideoFormats.IsVideo(path)))
         {
-            ct.ThrowIfCancellationRequested();
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             currentPath = path;
             activity.Stage("读取图片", detail: Path.GetFileName(path));
             try
@@ -298,7 +336,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         await FlushImagesAsync().ConfigureAwait(false);
         foreach (var path in files.Where(VideoFormats.IsVideo))
         {
-            ct.ThrowIfCancellationRequested();
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             currentPath = path;
             activity.Stage("读取视频", detail: Path.GetFileName(path));
             try
@@ -317,7 +355,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 activity.Stage("采样画面", 0, count, "帧");
                 for (var i = 0; i < count; i++)
                 {
-                    ct.ThrowIfCancellationRequested();
+                    await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                     var seconds = Math.Min(duration * (i + .5) / count, Math.Max(0, duration - Math.Max(.1, 1 / frameRate)));
                     sampleSeconds[i] = seconds;
                     var png = await engine.Thumbnail(path, seconds, 768, 768, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
@@ -332,7 +370,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 var mean = new double[tags.Length]; var maximum = new double[tags.Length];
                 var scored = 0;
                 MediaTagResult Snapshot() => new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / Math.Max(1, scored), maximum[j])).ToArray(),
-                    count, samples.Where((_, index) => frameValues[index] is not null).Distinct().Count(), session.Backend, length, modified, session.FallbackReason)
+                    count, samples.Where((_, index) => frameValues[index] is not null).Distinct().Count(), backend, length, modified, fallback.Length == 0 ? null : fallback)
                 {
                     DurationSeconds = duration,
                     RealPeopleOnly = options.RealPeopleOnly,
@@ -341,10 +379,10 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 };
                 void PublishPreview(MediaTagResult value) => progress?.Report(new(path, null, null, completed, files.Length) { PreviewResult = value });
                 activity.Stage("识别视频标签", 0, count, "帧");
-                activity.Backend(session.Backend);
+                activity.Backend(backend);
                 for (var offset = 0; offset < unique.Count; offset += options.BatchSize)
                 {
-                    var vectors = Predict(session, unique.Skip(offset).Take(options.BatchSize).Select(item => item.Image).ToArray(), options.BatchSize, tags.Length, ct);
+                    var vectors = await PredictTagsAsync(unique.Skip(offset).Take(options.BatchSize).Select(item => item.Image).ToArray()).ConfigureAwait(false);
                     for (var i = 0; i < vectors.Length; i++)
                     {
                         var frameScores=tags.Select((tag,j)=>new MediaTagScore(tag,vectors[i][j],vectors[i][j])).Where(score=>score.Score>=.1).OrderByDescending(score=>score.Score).Take(128).ToArray();
@@ -354,20 +392,20 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                         for (var j = 0; j < tags.Length; j++) { mean[j] += vectors[i][j] * weight / count; maximum[j] = Math.Max(maximum[j], vectors[i][j]); }
                     }
                     var latest = unique[Math.Min(offset + vectors.Length, unique.Count) - 1];
-                    activity.Backend(session.Backend);
+                    activity.Backend(backend);
                     activity.Frame(latest.Image, $"{file.Name} · {MediaTime.Format(latest.Seconds)}");
                     activity.Result("当前标签 · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / scored, maximum[j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
-                    activity.Advance(scored, count, "帧", session.FallbackReason is null ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");
+                    activity.Advance(scored, count, "帧", fallback.Length == 0 ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");
                     PublishPreview(Snapshot());
                 }
                 var tagResult = Snapshot();
-                if (nsfw is not null)
+                if (options.RecognizeNsfw)
                 {
                     activity.Node("识别真人 NSFW");
                     activity.Stage("识别真人 NSFW", 0, unique.Count, "帧");
-                    tagResult = tagResult with { Nsfw = nsfw.Analyze(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples, ct,
-                        (current, total) => activity.Advance(current, total, "帧")) };
+                    tagResult = tagResult with { Nsfw = await AnalyzeNsfwAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,
+                        (current, total) => activity.Advance(current, total, "帧")).ConfigureAwait(false) };
                     PublishPreview(tagResult);
                 }
                 var scene = await SceneResultAsync(unique.Select(frame => frame.Image).ToArray(), sampleSeconds, samples,

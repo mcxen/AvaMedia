@@ -78,11 +78,13 @@ public sealed class OutfitAppearanceService : IDisposable
         var times = VideoFormats.IsVideo(media.Path) ? media.Frames.Select(frame => frame.Seconds).ToArray() : [0d];
         if (times.Length == 0) throw new InvalidDataException("服装采样标签缺失");
         var captureTime = await MediaCaptureTime.ReadAsync(_engine, media.Path, ct).ConfigureAwait(false);
+        var video = VideoFormats.IsVideo(media.Path)
+            ? (await _engine.Probe(media.Path, ct).ConfigureAwait(false)).VideoStreamIndex : 0;
         var frames = new List<OutfitAppearanceFrame>();
         foreach (var time in times)
         {
-            ct.ThrowIfCancellationRequested();
-            var image = await _engine.Thumbnail(media.Path, time, 768, 768, ct, pad: false).ConfigureAwait(false);
+            await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+            var image = await _engine.Thumbnail(media.Path, time, 768, 768, ct, pad: false, videoStreamIndex: video).ConfigureAwait(false);
             frames.Add(Predict(image, time, ct) with { CaptureTime = captureTime }); progress?.Invoke(frames.Count, times.Length);
         }
         MediaTagService.ValidateSource(media);

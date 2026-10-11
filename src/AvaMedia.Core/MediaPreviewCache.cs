@@ -44,11 +44,14 @@ internal sealed class MediaPreviewCache
 
     public async Task<byte[]> ThumbnailAsync(string? identity, Func<Task<byte[]>> render, CancellationToken token)
     {
+        await JobExecutionControl.CheckpointAsync(token).ConfigureAwait(false);
         if (identity is null) return await render().ConfigureAwait(false);
         var slot = SourceSlots[SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity))[0] % SourceSlots.Length];
         await slot.WaitAsync(token).ConfigureAwait(false);
         try
         {
+            // Finish the shared frame before honoring pause; other tools may be waiting for it.
+            using var boundary = JobExecutionControl.DeferPause();
             var cached = await PreviewCacheStore.Shared.ReadAsync(identity, token).ConfigureAwait(false);
             if (cached is not null) return cached;
             await FrameSlots.WaitAsync(token).ConfigureAwait(false);

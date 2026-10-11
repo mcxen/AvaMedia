@@ -146,15 +146,26 @@ internal static class MediaTagModelCache
     public static async Task<Lease> AcquireAsync(ModelStore store, MediaTagOptions options, Action<string>? status, CancellationToken ct, bool preparing = false)
     {
         var entry = Entries.GetOrAdd(store.Root, root => new(root));
-        status?.Invoke("等待本地模型");
-        await entry.Gate.WaitAsync(ct).ConfigureAwait(false);
+        if (!await entry.Gate.WaitAsync(0, ct).ConfigureAwait(false))
+        {
+            status?.Invoke("等待本地模型");
+            await entry.Gate.WaitAsync(ct).ConfigureAwait(false);
+        }
         var files = new List<ModelLease>();
         try
         {
             entry.CancelExpiration();
-            if (entry.BatchSize != options.BatchSize || entry.CpuPolicyKey != CpuResourcePolicy.PolicyKey
+            if (entry.CpuPolicyKey != CpuResourcePolicy.PolicyKey
                 || entry.Stamps.Any(item => item.Value != Stamp(store, item.Key)))
                 await entry.ClearAsync().ConfigureAwait(false);
+            else if (entry.BatchSize != options.BatchSize)
+            {
+                // Only JoyTag has a fixed batch dimension. Keep independent models warm
+                // when two tools alternate with different tagger batch sizes.
+                entry.Tags?.Dispose(); entry.Tags = null; entry.Vocabulary = [];
+                entry.Stamps.Remove(ModelCatalog.JoyTagId);
+                entry.State(ModelCatalog.JoyTagId, ModelLoadState.Unloaded);
+            }
             entry.BatchSize = options.BatchSize;
             entry.CpuPolicyKey = CpuResourcePolicy.PolicyKey;
             entry.SemanticError = null;
