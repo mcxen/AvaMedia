@@ -73,6 +73,8 @@ public static class Catalog
     public static Feature Find(string id) => All.First(f=>f.Id == id);
     public static bool IsBeta(Feature feature) => feature.Id is "person-clip";
     public static bool DirectoryOutput(Operation operation) => operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip or Operation.VideoSummary;
+    public static bool DirectoryOutput(Job job) => DirectoryOutput(Find(job.FeatureId).Operation)
+        || job.FeatureId == "contact-sheet" && job.Options.ContactSheet?.SheetsPerVideo > 1;
 }
 public sealed partial class ConversionOptions
 {

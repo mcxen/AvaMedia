@@ -71,7 +71,7 @@ public sealed partial class ConsoleView
         _seconds.ValueChanged += (_, _) =>
         {
             _segmentTrack.SetPosition((double)(_seconds.Value ?? 0));
-            if (_settingPosition || !_previewRequested) return;
+            if (_settingPosition || !_previewRequested || _activeFeature == "contact-sheet") return;
             CancelPreview();
             _previewStatus.Text = $"定位中 · 当前画面 {_displayedSeconds:0.###} 秒";
             if (PreviewActive) _seekTimer.Start();
@@ -88,8 +88,8 @@ public sealed partial class ConsoleView
         {
             _editorAttached = false; BrowserHost.StopObservingVisibility(); CancelPreview();
         };
-        panel.Children.Add(Actions(Action("设为开始", () => { SetNumber("start", (double)(_seconds.Value ?? 0)); return Task.CompletedTask; }),
-            Action("设为结束", () => { SetNumber("end", (double)(_seconds.Value ?? 0)); return Task.CompletedTask; }),
+        panel.Children.Add(Actions(Action("设为开始", () => { SetNumber(TimelineStartKey, (double)(_seconds.Value ?? 0)); return Task.CompletedTask; }),
+            Action("设为结束", () => { SetNumber(TimelineEndKey, (double)(_seconds.Value ?? 0)); return Task.CompletedTask; }),
             Action("清除选区", () => { SetRegion(new Rect()); return Task.CompletedTask; })));
         panel.Children.Add(Label("停止拖动后更新单帧；切换页面暂停预览。裁剪在当前帧加载完成后框选。"));
         _cropOverlay.Changed += SetRegion;
@@ -114,7 +114,11 @@ public sealed partial class ConsoleView
             await _previewFlight.WaitAsync(ct);
             try
             {
-                var result = await RemotePreview.Read(path, seconds, _preview.Bounds.Width > 640 ? 960 : 640, ct);
+                SaveOptions();
+                var result = _activeFeature == "contact-sheet"
+                    ? await RemotePreview.ContactSheet(path, _optionDraft["contactSheet"]!.DeepClone(), ct)
+                    : await RemotePreview.Read(path, seconds, _preview.Bounds.Width > 640 ? 960 : 640,
+                        _optionDraft["videoStreamIndex"]?.GetValue<int>() ?? 0, _optionDraft["audioStreamIndex"]?.GetValue<int>() ?? 0, ct);
                 ct.ThrowIfCancellationRequested();
                 // Let input/layout run before decoding the bounded thumbnail on the WASM UI thread.
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
@@ -134,7 +138,7 @@ public sealed partial class ConsoleView
                 }
                 finally { _settingPosition = false; }
                 _previewStale = false;
-                _previewStatus.Text = $"当前画面 {_displayedSeconds:0.###} 秒";
+                _previewStatus.Text = _activeFeature == "contact-sheet" ? "第一张拼图预览" : $"当前画面 {_displayedSeconds:0.###} 秒";
                 UpdateRegion();
             }
             finally { _previewFlight.Release(); }
@@ -148,6 +152,12 @@ public sealed partial class ConsoleView
             if (generation == _previewGeneration) _previewStatus.Text = "预览失败：" + error.Message;
         }
         finally { if (ReferenceEquals(_previewCancellation, cancellation)) _previewCancellation = null; }
+    }
+    private void ScheduleParameterPreview()
+    {
+        if (_settingPosition || !_previewRequested) return;
+        CancelPreview();
+        if (PreviewActive) _seekTimer.Start();
     }
     private void CancelPreview()
     {
@@ -168,7 +178,7 @@ public sealed partial class ConsoleView
         var duration = info?["duration"]?.GetValue<double>() ?? 0;
         _mediaInfo.Text = $"{info?["width"]} × {info?["height"]} · {duration:0.###} 秒 · {info.Text("videoCodec")} · {info.Text("audioCodec")}";
         _seconds.Maximum = (decimal)Math.Max(.01, duration);
-        foreach (var key in new[] { "start", "end" })
+        foreach (var key in new[] { "start", "end", "contactSheet.startSeconds", "contactSheet.endSeconds" })
             if (_optionControls.GetValueOrDefault(key) is VisualNumber timeline) timeline.Maximum = (decimal)Math.Max(.01, duration);
         foreach (var prefix in new[] { "crop", "delogo" })
             foreach (var suffix in new[] { "X", "Y", "Width", "Height" })
@@ -205,6 +215,7 @@ public sealed partial class ConsoleView
     private void UpdateRegion()
     {
         var rotation = _optionControls.GetValueOrDefault("rotation") is ComboBox choice ? (choice.SelectedItem as JsonNode)?["value"]?.GetValue<int>() ?? 0 : 0;
+        if (_activeFeature == "rotate" && SelectedPreviewPath is { } path) rotation = _rotationOverrides.GetValueOrDefault(path, rotation);
         var flip = _optionControls.GetValueOrDefault("flip") is CheckBox check && check.IsChecked == true;
         _orientationPreview.Rotation = rotation; _orientationPreview.Flip = flip;
         _orientationPreview.IsVisible = _previewBitmap is not null && (rotation != 0 || flip);

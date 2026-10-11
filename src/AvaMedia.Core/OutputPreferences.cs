@@ -11,11 +11,10 @@ public static class OutputPreferences
         foreach (var input in items.SelectMany(j => j.Inputs).Where(File.Exists)) used.Add(Path.GetFullPath(input));
         foreach (var job in items)
         {
-            var feature = Catalog.Find(job.FeatureId);
             var folder = Path.GetDirectoryName(Path.GetFullPath(job.Output))!;
             if ((outputToSource ?? settings.OutputToSource) && job.Inputs.FirstOrDefault() is {} source && File.Exists(source))
                 folder = Path.GetDirectoryName(Path.GetFullPath(source))!;
-            var directory = Catalog.DirectoryOutput(feature.Operation);
+            var directory = Catalog.DirectoryOutput(job);
             var name = directory ? Path.GetFileName(job.Output) : Path.GetFileNameWithoutExtension(job.Output);
             var label = settingName ?? (settings.AddSettingName ? SettingLabel(job) : "");
             if (!string.IsNullOrWhiteSpace(label)) name += " [" + Clean(label) + "]";

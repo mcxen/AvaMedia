@@ -129,7 +129,7 @@ public partial class MainWindow
 
     private string NextTaskOutput(Job job, bool reserveOriginal = false)
     {
-        var directory = Catalog.DirectoryOutput(Catalog.Find(job.FeatureId).Operation);
+        var directory = Catalog.DirectoryOutput(job);
         var name = directory ? Path.GetFileName(job.Output) : Path.GetFileNameWithoutExtension(job.Output);
         var reserved = EditingReservations(job).Concat(_jobs.SelectMany(item => item.Inputs));
         if (reserveOriginal) reserved = reserved.Append(job.Output);

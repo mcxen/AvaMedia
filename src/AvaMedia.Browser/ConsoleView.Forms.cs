@@ -31,8 +31,10 @@ public sealed partial class ConsoleView
     {
         SaveOptions();
         if (_activeFeature.Length > 0) _drafts[_activeFeature] = _optionDraft;
+        var previousFeature = _activeFeature;
         var feature = _feature.SelectedItem as JsonNode;
         _activeFeature = feature.Text("id");
+        if (previousFeature != _activeFeature) ClearPreview();
         _optionDraft = _activeFeature == "clip" ? ClipOptions(feature)
             : _drafts.GetValueOrDefault(_activeFeature) ?? feature?["form"]?["defaults"]?.DeepClone() as JsonObject ?? new();
         _optionReaders.Clear(); _optionControls.Clear(); _optionFields.Clear(); _toolOptions.Children.Clear();
@@ -40,6 +42,7 @@ public sealed partial class ConsoleView
         if (form is null) { UpdateRegion(); return; }
         _toolOptions.Children.Add(Label(form.Text("hint")));
         AddMediaDetails(form);
+        AddVideoBatchControls();
         if (form.Flag("preview")) _toolOptions.Children.Add(Action("打开视频编辑 / 预览", () => { _workspaceTabs.SelectedIndex = 1; return RefreshPreview(); }));
         foreach (var group in form["fields"].Items().GroupBy(field => field.Text("group")))
         {
@@ -53,7 +56,7 @@ public sealed partial class ConsoleView
                     case "video-track": case "audio-track": case "subtitle-track":
                         var track = BuildTrackChoice(field.Text("kind").Split('-')[0], value);
                         _optionReaders[path] = () => (track.SelectedItem as JsonNode)?["value"]?.DeepClone(); control = track;
-                        track.SelectionChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); };
+                        track.SelectionChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); ScheduleParameterPreview(); };
                         Field(panel, field.Text("label"), control); break;
                     case "boolean":
                         var check = new CheckBox { Content = field.Text("label"), IsChecked = value?.GetValue<bool>() == true };
@@ -94,6 +97,8 @@ public sealed partial class ConsoleView
     private void UpdateOptionVisibility()
     {
         _compressionPlan.Text = "";
+        InvalidateVideoBatch();
+        if (_activeFeature == "contact-sheet") ScheduleParameterPreview();
         foreach (var (_, (container, field)) in _optionFields)
             container.IsVisible = field["visibleWhen"].Items().All(condition =>
             {
@@ -130,7 +135,7 @@ public sealed partial class ConsoleView
                 || (_optionControls.GetValueOrDefault("rotation") as ComboBox)?.SelectedIndex > 0
                 || (_optionControls.GetValueOrDefault("flip") as CheckBox)?.IsChecked == true))
             throw new ArgumentException("流复制不能组合画面编辑，请关闭流复制。");
-        if (_activeFeature == "mux" && (_inputs.Count != 2 || _inputs.Values.Any(item => item.IsFolder)))
+        if (_activeFeature == "mux" && (IncludedInputs.Count() != 2 || IncludedInputs.Any(item => item.Value.IsFolder)))
             throw new ArgumentException("混流请按顺序添加视频、音频两个文件。");
         return options;
     }

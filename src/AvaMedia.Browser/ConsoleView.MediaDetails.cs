@@ -10,7 +10,7 @@ public sealed partial class ConsoleView
     private readonly Dictionary<string, JsonNode> _editorMedia = new(StringComparer.Ordinal);
     private readonly TextBlock _compressionPlan = Label("");
     private string? TrackSource(string kind) => _activeFeature == "mux"
-        ? _inputs.Keys.ElementAtOrDefault(kind == "audio" ? 1 : 0) : SelectedPreviewPath;
+        ? IncludedInputs.Select(pair => pair.Key).ElementAtOrDefault(kind == "audio" ? 1 : 0) : SelectedPreviewPath;
 
     private ComboBox BuildTrackChoice(string kind, JsonNode? selected)
     {
@@ -28,7 +28,7 @@ public sealed partial class ConsoleView
     private async Task ReadEditorTracks()
     {
         var feature = _activeFeature;
-        var paths = feature == "mux" ? _inputs.Keys.Take(2).ToArray() : SelectedPreviewPath is { } path ? new[] { path } : [];
+        var paths = feature == "mux" ? IncludedInputs.Select(pair => pair.Key).Take(2).ToArray() : SelectedPreviewPath is { } path ? new[] { path } : [];
         if (paths.Length == 0) throw new InvalidOperationException("请先添加文件。");
         foreach (var source in paths)
         {

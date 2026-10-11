@@ -114,7 +114,7 @@ public sealed partial class ConsoleView
         {
             _detail.Children.Add(PathLabel(task.Text("output"), "输出 · "));
             if (payload.Flag("outputIsDirectory")) _detail.Children.Add(Action("浏览输出目录", async () =>
-            { var folder = await _source.ResolveAsync(task.Text("output"), CancellationToken.None); if (folder is { IsFolder: true } directory) { await _files.NavigateAsync(directory); _tabs.SelectedIndex = 0; } }));
+            { var folder = await _source.ResolveAsync(task.Text("output"), CancellationToken.None); if (folder is { IsFolder: true } directory) { await _files.NavigateAsync(directory); _workspaceTabs.SelectedIndex = 0; _tabs.SelectedIndex = 0; } }));
             else _detail.Children.Add(FileActions(id, task.Text("output"), "output", 0));
         }
         if (payload["result"] is { } result)

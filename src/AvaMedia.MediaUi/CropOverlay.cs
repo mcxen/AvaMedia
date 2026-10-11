@@ -31,7 +31,10 @@ public sealed class CropOverlay : Control
     {get{var width=Math.Max(1,SourceWidth)*PixelAspectRatio;var height=Math.Max(1,SourceHeight);double scale=Math.Min(Bounds.Width/width,Bounds.Height/height);return new((Bounds.Width-width*scale)/2,(Bounds.Height-height*scale)/2,width*scale,height*scale);}}
     public override void Render(DrawingContext c)
     {
-        if(!Enabled)return;var image=ImageRect;var rect=ScreenRect(Selection);
+        if(!Enabled)return;
+        // Keep the empty selection interactive: Avalonia hit-tests drawn content.
+        c.DrawRectangle(Brushes.Transparent,null,new Rect(Bounds.Size));
+        var image=ImageRect;var rect=ScreenRect(Selection);
         if(Selection.Width>0 && Selection.Height>0)
         {
             var shade=ShadeBrush;

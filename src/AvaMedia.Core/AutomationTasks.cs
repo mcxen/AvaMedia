@@ -1,13 +1,12 @@
 namespace AvaMedia.Core;
 
 public sealed record RenameTaskOptions(RenameItem[] Plan);
-public sealed record ContactSheetTaskOptions(int Columns = 4, int Rows = 4, int CellWidth = 320);
 public sealed record FolderOrganizationTaskOptions(string OutputFolder, FolderOrganizationItem[] Plan);
 
 public sealed partial class ConversionOptions
 {
     public RenameTaskOptions? Rename { get; set; }
-    public ContactSheetTaskOptions? ContactSheet { get; set; }
+    public ContactSheetOptions? ContactSheet { get; set; }
     public FolderOrganizationTaskOptions? FolderOrganization { get; set; }
     public string? DownloadModelId { get; set; }
 }
@@ -59,7 +58,7 @@ public static class AutomationTasks
             var spec = job.Options.ContactSheet ?? throw new ArgumentException("缺少多宫格参数。");
             if (job.Inputs.Length != 1 || !VideoFormats.IsVideo(job.Inputs[0]) || !File.Exists(job.Inputs[0]))
                 throw new ArgumentException("多宫格任务须包含一个视频。");
-            BatchVideoTools.ValidateContactSheet(SheetOptions(spec));
+            BatchVideoTools.ValidateContactSheet(spec);
         }
     }
 
@@ -107,21 +106,24 @@ public static class AutomationTasks
         else
         {
             var spec = job.Options.ContactSheet!;
-            var folder = Path.Combine(Path.GetTempPath(), "AvaMedia-sheet-" + job.Id.ToString("N"));
+            if (File.Exists(job.Output) || Directory.Exists(job.Output)) throw new IOException("输出已存在，请重试生成新的名称。");
+            var parent = Path.GetDirectoryName(Path.GetFullPath(job.Output))!;
+            Directory.CreateDirectory(parent);
+            // Stage on the destination filesystem so a multi-sheet result is published atomically.
+            var folder = Path.Combine(parent, ".AvaMedia-sheet-" + Guid.NewGuid().ToString("N"));
             try
             {
                 var outputs = await BatchVideoTools.GenerateContactSheets(engine, job.Inputs[0], folder,
-                    SheetOptions(spec),
-                    new SheetProgress(value => progress(value.Percent)), ct).ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested(); Directory.CreateDirectory(Path.GetDirectoryName(job.Output)!);
-                File.Move(outputs.Single(), job.Output, false);
+                    spec, new SheetProgress(value => { job.ProgressDetail = value.Message; progress(value.Percent); }), ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (spec.SheetsPerVideo == 1) File.Move(outputs.Single(), job.Output, false);
+                else Directory.Move(folder, job.Output);
+                job.ProgressDetail = $"已生成 {outputs.Length} 张拼图";
             }
             finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
         }
         progress(100);
     }
-    private static ContactSheetOptions SheetOptions(ContactSheetTaskOptions spec) =>
-        new(spec.Columns, spec.Rows, spec.CellWidth, Math.Min(spec.CellWidth, 180), Format: "png");
     private sealed class SheetProgress(Action<ContactSheetProgress> report) : IProgress<ContactSheetProgress>
     { public void Report(ContactSheetProgress value) => report(value); }
     private sealed class OrganizationProgress(Action<FolderOrganizationProgress> report) : IProgress<FolderOrganizationProgress>

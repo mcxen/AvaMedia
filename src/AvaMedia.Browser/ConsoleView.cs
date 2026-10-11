@@ -47,7 +47,7 @@ public sealed partial class ConsoleView : UserControl
         _form.Children.Add(_selection);
         _form.Children.Add(new ScrollViewer { Content = _selected, MaxHeight = 110 });
         _form.Children.Add(Actions(Action("添加当前文件夹", () => { if (_files.CurrentFolder is { } folder) AddInputs([folder]); return Task.CompletedTask; }),
-            Action("清空选择", () => { _inputs.Clear(); RenderInputs(); return Task.CompletedTask; })));
+                Action("清空选择", () => { _inputs.Clear(); _excludedInputs.Clear(); _rotationOverrides.Clear(); RenderInputs(); return Task.CompletedTask; })));
         _form.Children.Add(_recursive); Field(_form, "服务器输出目录", _output);
         _form.Children.Add(Action("选择输出文件夹…", () => PickServerFile("输出目录", true, selected => _output.Text = selected)));
         _form.Children.Add(Action("使用当前目录输出", () => { if (_files.CurrentFolder is { } folder) _output.Text = _source.DisplayAddress(folder); return Task.CompletedTask; }));
@@ -113,15 +113,25 @@ public sealed partial class ConsoleView : UserControl
     }
     private void RenderInputs()
     {
-        _selected.Children.Clear(); _selection.Text = $"已选择 {_inputs.Count} 项";
+        InvalidateVideoBatch();
+        _selected.Children.Clear(); _selection.Text = $"勾选 {IncludedInputs.Count()} / {_inputs.Count} 项";
         foreach (var (path, item) in _inputs)
         {
             var name = Label((item.IsFolder ? "文件夹 · " : "") + item.Name);
             name.MaxWidth = 145; name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
-            var row = Actions(name,
+            var include = new CheckBox { Content = name, IsChecked = !_excludedInputs.Contains(path) };
+            include.IsCheckedChanged += (_, _) =>
+            {
+                if (include.IsChecked == true) _excludedInputs.Remove(path); else _excludedInputs.Add(path);
+                _selection.Text = $"勾选 {IncludedInputs.Count()} / {_inputs.Count} 项";
+                InvalidateVideoBatch(); BuildToolOptions();
+            };
+            var row = Actions(include,
                 Action("↑", () => { MoveInput(path, -1); return Task.CompletedTask; }),
                 Action("↓", () => { MoveInput(path, 1); return Task.CompletedTask; }),
-                Action("移除", () => { _inputs.Remove(path); RenderInputs(); return Task.CompletedTask; }));
+                Action("移除", () => { _inputs.Remove(path); _excludedInputs.Remove(path); _rotationOverrides.Remove(path); RenderInputs(); return Task.CompletedTask; }));
+            if (!item.IsFolder) row.Children.Add(Action("预览", () =>
+            { _workspaceTabs.SelectedIndex = 1; _previewInput.SelectedItem = item; return RefreshPreview(); }));
             ToolTip.SetTip(row, path); _selected.Children.Add(row);
         }
         var previous = _previewInput.SelectedItem;
@@ -151,7 +161,7 @@ public sealed partial class ConsoleView : UserControl
     {
         var id = (_feature.SelectedItem as JsonNode).Text("id");
         if (id.Length == 0) throw new InvalidOperationException("请选择任务类型。");
-        var paths = id == "download" ? (_urls.Text ?? "").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : _inputs.Keys.ToArray();
+        var paths = id == "download" ? (_urls.Text ?? "").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : IncludedInputs.Select(pair => pair.Key).ToArray();
         if (paths.Length == 0) throw new InvalidOperationException("请先添加文件或文件夹。");
         var options = ReadOptions();
         if (id is "media-ai" or "folder-classification")
@@ -185,15 +195,15 @@ public sealed partial class ConsoleView : UserControl
         {
             if (_pending is null)
             {
-                var draft = new JsonObject { ["method"] = _activeFeature == "clip" ? "export_clips" : "create_task",
-                    ["arguments"] = _activeFeature == "clip" ? ClipSubmission() : Submission() };
+                var draft = new JsonObject { ["method"] = _activeFeature switch { "clip" => "export_clips", "crop" or "rotate" => "export_video_batch", _ => "create_task" },
+                    ["arguments"] = _activeFeature switch { "clip" => ClipSubmission(), "crop" or "rotate" => VideoBatchSubmission(), _ => Submission() } };
                 BrowserHost.WritePending(draft.ToJsonString()); _pending = draft;
             }
             UpdatePending();
             var result = await RemoteApi.Call(_pending.Text("method"), _pending["arguments"] as JsonObject ?? throw new InvalidOperationException("恢复记录格式无效。"));
             BrowserHost.WritePending(""); _pending = null; UpdatePending();
             _status.Text = $"已创建 {result["tasks"].Items().Count()} 项任务";
-            _inputs.Clear(); _clips.Clear(); RenderInputs(); _tabs.SelectedIndex = 1;
+            _inputs.Clear(); _clips.Clear(); _excludedInputs.Clear(); _rotationOverrides.Clear(); RenderInputs(); _tabs.SelectedIndex = 1;
             _state.SelectedIndex = 0;
             var page = await RemoteApi.Call("list_tasks", new() { ["limit"] = 1 });
             _taskOffset = Math.Max(0, ((page["total"]?.GetValue<int>() ?? 1) - 1) / 30 * 30);

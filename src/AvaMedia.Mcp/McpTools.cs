@@ -94,11 +94,14 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
             }
             else if (feature.Id == "contact-sheet")
             {
-                spec.ContactSheet ??= new(); var used = new HashSet<string>(reserved, BatchRename.PathComparer);
+                spec.ContactSheet ??= new(); BatchVideoTools.ValidateContactSheet(spec.ContactSheet);
+                spec.Format = spec.ContactSheet.Format;
+                var used = new HashSet<string>(reserved, BatchRename.PathComparer);
                 jobs = inputs.Select(input =>
                 {
                     var job = new Job { FeatureId = feature.Id, Inputs = [input], Options = spec.Clone(),
-                        Output = MediaEngine.UniqueOutput(local.Check(folder), Path.GetFileNameWithoutExtension(input) + "-grid", "png", used) };
+                        Output = MediaEngine.UniqueOutput(local.Check(folder), Path.GetFileNameWithoutExtension(input) + "-grid", spec.Format, used,
+                            directory: spec.ContactSheet.SheetsPerVideo > 1) };
                     used.Add(job.Output); return job;
                 }).ToArray();
             }

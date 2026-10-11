@@ -39,7 +39,7 @@ public partial class MainWindow
         var paused = original.State == JobState.Paused;
         if (preserveOutputName && Catalog.Find(replacement.FeatureId).Operation != Operation.Download)
         {
-            var directory = Catalog.DirectoryOutput(Catalog.Find(replacement.FeatureId).Operation);
+            var directory = Catalog.DirectoryOutput(replacement);
             var name = directory ? Path.GetFileName(original.Output) : Path.GetFileNameWithoutExtension(original.Output);
             var reserved = EditingReservations(original).Concat(replacements.Skip(1).Select(job => job.Output))
                 .Concat(replacements.SelectMany(job => job.Inputs));

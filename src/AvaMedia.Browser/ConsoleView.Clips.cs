@@ -32,14 +32,17 @@ public sealed partial class ConsoleView
     private string? SelectedPreviewPath => _previewInput.SelectedItem is FileBrowserItem item && !item.IsFolder ? _source.DisplayAddress(item) : null;
     private ClipDraft? CurrentClip => SelectedPreviewPath is { } path ? _clips.GetValueOrDefault(path) : null;
 
+    private string TimelineStartKey => _activeFeature == "contact-sheet" ? "contactSheet.startSeconds" : "start";
+    private string TimelineEndKey => _activeFeature == "contact-sheet" ? "contactSheet.endSeconds" : "end";
+
     private Control BuildClipEditor()
     {
         var root = new StackPanel { Spacing = 8 };
         root.Children.Add(_range); root.Children.Add(_clipEditor);
         _range.Changed += (start, end) =>
         {
-            var movedStart = Math.Abs(start - GetNumber("start")) > .00001;
-            SetNumber("start", start); SetNumber("end", end);
+            var movedStart = Math.Abs(start - GetNumber(TimelineStartKey)) > .00001;
+            SetNumber(TimelineStartKey, start); SetNumber(TimelineEndKey, end);
             _seconds.Value = (decimal)(movedStart ? start : end);
         };
         _segmentChoice.SelectionChanged += (_, _) =>
@@ -107,8 +110,8 @@ public sealed partial class ConsoleView
     {
         if (_syncClipUi) return;
         _range.Duration = _previewInfo?["duration"]?.GetValue<double>() ?? 0;
-        _range.IsVisible = _optionControls.ContainsKey("start") && _range.Duration > 0;
-        _range.Start = GetNumber("start"); _range.End = GetNumber("end") > 0 ? GetNumber("end") : _range.Duration;
+        _range.IsVisible = _optionControls.ContainsKey(TimelineStartKey) && _range.Duration > 0;
+        _range.Start = GetNumber(TimelineStartKey); _range.End = GetNumber(TimelineEndKey) > 0 ? GetNumber(TimelineEndKey) : _range.Duration;
         _range.InvalidateVisual(); _clipEditor.IsVisible = _activeFeature == "clip";
         if (_activeFeature != "clip" || CurrentClip is not { } draft) return;
         SaveOptions();
@@ -138,7 +141,7 @@ public sealed partial class ConsoleView
     private JsonObject ClipSubmission()
     {
         SaveOptions(); var edits = new JsonArray();
-        foreach (var (path, item) in _inputs)
+        foreach (var (path, item) in IncludedInputs)
         {
             if (item.IsFolder || !_clips.TryGetValue(path, out var draft) || draft.SourceVersion.Length == 0)
                 throw new InvalidOperationException("请依次打开每个视频预览并完成剪辑；文件夹请展开后选择视频。");

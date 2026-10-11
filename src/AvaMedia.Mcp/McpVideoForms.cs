@@ -106,16 +106,25 @@ internal static class McpVideoForms
                 Number("fadeOut", "画面淡出（秒）", "淡入淡出", 0, 60, .1);
                 Encoding(); Subtitle(); fields.RemoveAll(field => field.Path == "format");
                 hint = "每个文件独立编辑多个片段；拖动区间边界，支持裁剪、旋转、速度、淡入淡出和字幕。原格式 / 原码率按关键帧切分。"; break;
-            case "crop": Region("crop", "裁剪区域"); Encoding(); hint = "在预览中拖出裁剪框，坐标自动对齐偶数像素。多个文件共用同一区域。"; break;
+            case "crop": Region("crop", "裁剪区域"); Encoding(); hint = "在参考画面中框选，按相同像素或画面比例应用到勾选视频，检查逐文件计划后导出。"; break;
             case "delogo": Region("delogo", "水印区域"); Encoding(); hint = "在预览中框选水印区域，服务器处理区域内的画面。"; break;
-            case "rotate": Rotate(); Encoding(); break;
+            case "rotate": Rotate(); fields.RemoveAll(field => field.Path == "flip");
+                Format(SourceVideoExport.Original, SourceVideoExport.FastRotation, "mp4", "mkv", "mov", "webm", "avi", "ts");
+                hint = "逐文件选择旋转方向，检查批量计划后导出；无需旋转的文件自动跳过。方向标记模式只适用于 MOV、MP4、M4V。"; break;
             case "join": Encoding(); hint = "按下方文件顺序合并；使用上移、下移调整顺序。"; break;
             case "mux": Encoding(); hint = "依次添加视频、音频两个文件；读取实际轨道后选择，支持调整文件顺序。"; break;
             case "split": Format("m4a", "mp3", "wav", "flac", "opus"); Time(); Track("audioStreamIndex", "音频轨道", "audio"); Number("audioBitrate", "音频码率（kbps）", "输出", 16, 1024); break;
             case "extract-video": Format("mkv", "mp4", "ts"); Track("videoStreamIndex", "视频轨道", "video"); break;
             case "repair": Format("mkv", "mp4", "mov", "ts"); hint = "以流复制重新封装，保留源编码；无法修复已经丢失的画面数据。"; break;
             case "frames": Time(); Number("frameInterval", "帧间隔（秒）", "采样", .04, 3600, .1); Number("width", "图片宽度（0 原尺寸）", "输出", 0, 16384); Format("png", "jpg"); break;
-            case "contact-sheet": Number("contactSheet.columns", "列数", "网格", 1, 20); Number("contactSheet.rows", "行数", "网格", 1, 20); Number("contactSheet.cellWidth", "单格宽度", "网格", 64, 1920); break;
+            case "contact-sheet":
+                Number("contactSheet.columns", "列数", "网格", 1, 10); Number("contactSheet.rows", "行数", "网格", 1, 10);
+                Number("contactSheet.cellWidth", "单格长边上限", "网格", 64, 1920); Number("contactSheet.cellHeight", "单格短边上限", "网格", 64, 1080);
+                Number("contactSheet.sheetsPerVideo", "每个视频生成张数", "网格", 1, 100);
+                Number("contactSheet.startSeconds", "开始（秒）", "采样区间", 0, 86400, .1);
+                Number("contactSheet.endSeconds", "结束（秒，0 到结尾）", "采样区间", 0, 86400, .1);
+                Strings("contactSheet.format", "拼图格式", "输出", "jpg", "png"); Check("contactSheet.timestamps", "显示每帧时间戳", "输出");
+                hint = "预览第一张拼图；按视频显示比例生成单格，采样均匀分布在所选区间。多张结果保存到独立目录。"; break;
             case "voice-enhance": Encoding(); Number("voiceEnhancementStrength", "人声增强强度", "声音", 0, 100); Check("noiseReduction", "降噪", "声音"); break;
             case "video-compress":
                 Strings("videoCompression.format", "输出格式", "压缩", "mp4", "mkv", "mov", "ts");
