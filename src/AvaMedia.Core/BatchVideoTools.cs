@@ -46,86 +46,93 @@ public static class BatchVideoTools
             throw new ArgumentException("结束时间必须晚于开始时间；结束为 0 表示视频末尾。");
     }
 
-    public static async Task<byte[]> PreviewContactSheetAsync(IMediaEngine engine,string input,ContactSheetOptions options,CancellationToken token)
+    public static async Task<byte[]> PreviewContactSheetAsync(IMediaEngine engine, string input, ContactSheetOptions options, CancellationToken token)
     {
-        ValidateContactSheet(options);var info=await engine.Probe(input,token);
-        if(!info.HasVideo||info.Duration<=0)throw new InvalidDataException("文件不含可截图的视频或无法读取时长。");
-        var (width,height)=ContactSheetCellSize(info,options);var scale=Math.Min(1,900d/Math.Max(width*options.Columns,height*options.Rows));
-        width=Math.Max(1,(int)(width*scale));height=Math.Max(1,(int)(height*scale));
-        var (duration,fps)=VideoTiming(info);var end=options.EndSeconds>0?Math.Min(options.EndSeconds,duration):duration;
-        if(options.StartSeconds>=end)throw new ArgumentException("开始时间超出视频时长。");
-        var count=options.Columns*options.Rows;
-        using var bitmap=new SKBitmap(width*options.Columns,height*options.Rows);using var canvas=new SKCanvas(bitmap);
-        using var paint=new SKPaint{Color=SKColors.White,TextSize=Math.Max(9,height*.08f),IsAntialias=true};
-        using var shade=new SKPaint{Color=new SKColor(0,0,0,170)};
-        for(var index=0;index<count;index++)
-        {
-            token.ThrowIfCancellationRequested();
-            var requested=options.StartSeconds+(end-options.StartSeconds)*(index+.5)/(count*options.SheetsPerVideo);
-            var seconds=Math.Min(requested,Math.Max(0,duration-Math.Max(.08,1/fps)));
-            var data=await engine.Thumbnail(input,seconds,width,height,token,pad:false,videoStreamIndex:info.VideoStreamIndex);
-            using var frame=SKBitmap.Decode(data);var x=index%options.Columns*width;var y=index/options.Columns*height;
-            canvas.DrawBitmap(frame,new SKRect(x,y,x+width,y+height));
-            if(options.Timestamps){canvas.DrawRect(x,y+height-paint.TextSize-6,width,paint.TextSize+6,shade);canvas.DrawText(MediaTime.Format(seconds),x+3,y+height-3,paint);}
-        }
-        token.ThrowIfCancellationRequested();using var image=SKImage.FromBitmap(bitmap);using var encoded=image.Encode(SKEncodedImageFormat.Png,100);return encoded.ToArray();
+        var info = await ContactSheetInfo(engine, input, options, token).ConfigureAwait(false);
+        var (width, height) = ContactSheetCellSize(info, options);
+        var scale = Math.Min(1, 900d / Math.Max(width * options.Columns, height * options.Rows));
+        using var bitmap = await RenderContactSheet(engine, input, info, options, 0,
+            Math.Max(1, (int)(width * scale)), Math.Max(1, (int)(height * scale)), null, token).ConfigureAwait(false);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100) ?? throw new InvalidOperationException("截图编码失败。");
+        token.ThrowIfCancellationRequested();
+        return encoded.ToArray();
     }
 
     public static async Task<string[]> GenerateContactSheets(IMediaEngine engine, string input, string outputFolder, ContactSheetOptions options, IProgress<ContactSheetProgress>? progress = null, CancellationToken ct = default)
     {
-        ValidateContactSheet(options);
-        var info = await engine.Probe(input, ct);
-        if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new InvalidDataException("文件不含可截图的视频或无法读取时长。");
-        var (cellWidth, cellHeight) = ContactSheetCellSize(info, options);
-        var (videoDuration, frameRate) = VideoTiming(info);
-        var end = options.EndSeconds > 0 ? Math.Min(options.EndSeconds, videoDuration) : videoDuration;
-        if (options.StartSeconds >= end) throw new ArgumentException("开始时间超出视频时长。");
+        var info = await ContactSheetInfo(engine, input, options, ct).ConfigureAwait(false);
+        var (width, height) = ContactSheetCellSize(info, options);
         Directory.CreateDirectory(outputFolder);
-        var scratch = Path.Combine(Path.GetTempPath(), "AvaMedia-contactsheet-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(scratch);
         var outputs = new List<string>();
-        var count = checked(options.Rows * options.Columns);
-        var total = checked(count * options.SheetsPerVideo);
+        for (var sheet = 0; sheet < options.SheetsPerVideo; sheet++)
+        {
+            using var bitmap = await RenderContactSheet(engine, input, info, options, sheet, width, height, progress, ct).ConfigureAwait(false);
+            using var image = SKImage.FromBitmap(bitmap);
+            using var encoded = image.Encode(options.Format == "jpg" ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png, 95)
+                ?? throw new InvalidOperationException("拼图编码失败。");
+            var target = MediaEngine.UniqueOutput(outputFolder, Path.GetFileNameWithoutExtension(input) + $"-grid-{options.Columns}x{options.Rows}-{sheet + 1:000}", options.Format);
+            var staged = Path.Combine(outputFolder, ".AvaMedia-contactsheet-" + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                using (var output = new FileStream(staged, FileMode.CreateNew, FileAccess.Write)) encoded.SaveTo(output);
+                ct.ThrowIfCancellationRequested();
+                File.Move(staged, target, false);
+            }
+            finally { if (File.Exists(staged)) File.Delete(staged); }
+            outputs.Add(target);
+            progress?.Report(new(input, sheet + 1, (sheet + 1) * 100d / options.SheetsPerVideo, "已生成：" + target));
+        }
+        return outputs.ToArray();
+    }
+
+    private static async Task<MediaInfo> ContactSheetInfo(IMediaEngine engine, string input, ContactSheetOptions options, CancellationToken ct)
+    {
+        ValidateContactSheet(options);
+        ct.ThrowIfCancellationRequested();
+        var info = await engine.Probe(input, ct).ConfigureAwait(false);
+        if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0)
+            throw new InvalidDataException("文件不含可截图的视频或无法读取时长。");
+        var (duration, _) = VideoTiming(info);
+        if (options.StartSeconds >= (options.EndSeconds > 0 ? Math.Min(options.EndSeconds, duration) : duration))
+            throw new ArgumentException("开始时间超出视频时长。");
+        return info;
+    }
+
+    private static async Task<SKBitmap> RenderContactSheet(IMediaEngine engine, string input, MediaInfo info,
+        ContactSheetOptions options, int sheet, int width, int height, IProgress<ContactSheetProgress>? progress, CancellationToken ct)
+    {
+        var (duration, fps) = VideoTiming(info);
+        var end = options.EndSeconds > 0 ? Math.Min(options.EndSeconds, duration) : duration;
+        var count = options.Columns * options.Rows;
+        var total = count * options.SheetsPerVideo;
+        var bitmap = new SKBitmap(width * options.Columns, height * options.Rows);
         try
         {
-            for (var sheet = 0; sheet < options.SheetsPerVideo; sheet++)
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Black);
+            for (var cell = 0; cell < count; cell++)
             {
-                for (var cell = 0; cell < count; cell++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var index = sheet * count + cell;
-                    var requested = options.StartSeconds + (end - options.StartSeconds) * (index + .5) / total;
-                    // Even very short/low-frame-rate clips must fill every cell: avoid seeking past their last frame.
-                    var seconds = Math.Min(requested, Math.Max(0, videoDuration - Math.Max(.08, 1 / frameRate)));
-                    var frame = Path.Combine(scratch, $"frame-{cell:0000}.png");
-                    // Dimensions already match display aspect, including pixel shape and autorotation.
-                    // Scale to the whole cell: no letterboxing, crop, gutter or outer border.
-                    var vf = $"scale={cellWidth}:{cellHeight},setsar=1";
-                    var captured = await ProcessRunner.Run(engine.FFmpeg, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-ss", MediaEngine.Number(seconds), "-i", input, "-map", $"0:v:{info.VideoStreamIndex}", "-an", "-frames:v", "1", "-vf", vf, "-update", "1", frame], ct);
-                    if (captured.ExitCode != 0 || !File.Exists(frame) || new FileInfo(frame).Length == 0) throw new InvalidOperationException("抽帧失败：" + captured.Error);
-                    if (options.Timestamps)
-                        await Task.Run(() => DrawContactSheetTimestamp(frame, seconds, ct), ct).ConfigureAwait(false);
-                    progress?.Report(new(input, sheet + 1, (index + 1) * 95d / total, $"抽帧 {index + 1}/{total}"));
-                }
-                var target = MediaEngine.UniqueOutput(outputFolder, Path.GetFileNameWithoutExtension(input) + $"-grid-{options.Columns}x{options.Rows}-{sheet + 1:000}", options.Format);
-                var stagedOutput = Path.Combine(scratch, "sheet." + options.Format);
-                List<string> args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-framerate", "1", "-start_number", "0", "-i", Path.Combine(scratch, "frame-%04d.png"), "-vf", $"tile={options.Columns}x{options.Rows}:nb_frames={count}:padding=0:margin=0", "-frames:v", "1", "-update", "1"];
-                if (options.Format == "jpg") args.AddRange(["-q:v", "2"]);
-                args.Add(stagedOutput);
-                var assembled = await ProcessRunner.Run(engine.FFmpeg, args, ct);
-                if (assembled.ExitCode != 0 || !File.Exists(stagedOutput)) throw new InvalidOperationException("拼图失败：" + assembled.Error);
                 ct.ThrowIfCancellationRequested();
-                File.Move(stagedOutput, target, false);
-                outputs.Add(target);
-                progress?.Report(new(input, sheet + 1, (sheet + 1) * 100d / options.SheetsPerVideo, "已生成：" + target));
+                var index = sheet * count + cell;
+                var requested = options.StartSeconds + (end - options.StartSeconds) * (index + .5) / total;
+                // Keep every cell within the final frame, including short and low-frame-rate sources.
+                var seconds = Math.Min(requested, Math.Max(0, duration - Math.Max(.08, 1 / fps)));
+                var data = await engine.Thumbnail(input, seconds, width, height, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
+                using var frame = SKBitmap.Decode(data) ?? throw new InvalidDataException("无法读取截图画面。");
+                canvas.Save();
+                canvas.Translate(cell % options.Columns * width, cell / options.Columns * height);
+                canvas.DrawBitmap(frame, new SKRect(0, 0, width, height));
+                if (options.Timestamps) DrawContactSheetTimestamp(canvas, width, height, seconds);
+                canvas.Restore();
+                progress?.Report(new(input, sheet + 1, (sheet + (cell + 1) * .95 / count) * 100 / options.SheetsPerVideo, $"抽帧 {index + 1}/{total}"));
             }
-            return outputs.ToArray();
+            ct.ThrowIfCancellationRequested();
+            canvas.Flush();
+            return bitmap;
         }
-        finally
-        {
-            // This directory is a newly allocated task scratch path, never an input/output folder.
-            try { Directory.Delete(scratch, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-        }
+        catch { bitmap.Dispose(); throw; }
     }
 
     private static (int Width, int Height) ContactSheetCellSize(MediaInfo info, ContactSheetOptions options)
@@ -168,36 +175,27 @@ public static class BatchVideoTools
         return (Math.Clamp((int)Math.Round(width * scale), 1, maxWidth), Math.Clamp((int)Math.Round(height * scale), 1, maxHeight));
     }
 
-    private static void DrawContactSheetTimestamp(string frame, double seconds, CancellationToken ct)
+    private static void DrawContactSheetTimestamp(SKCanvas canvas, int width, int height, double seconds)
     {
-        ct.ThrowIfCancellationRequested();
-        using var bitmap = SKBitmap.Decode(frame) ?? throw new InvalidDataException("无法读取截图画面。");
-        using var canvas = new SKCanvas(bitmap);
         using var typeface = SKTypeface.FromFamilyName("Arial");
         using var textPaint = new SKPaint { Typeface = typeface, IsAntialias = true, Color = SKColors.White,
-            TextSize = Math.Min(Math.Max(12, bitmap.Width / 22), bitmap.Height / 4) };
-        var text = TimeSpan.FromSeconds(seconds).ToString(bitmap.Width >= 140 ? @"hh\:mm\:ss\.fff" : @"hh\:mm\:ss");
-        var inset = Math.Min(8, Math.Min(bitmap.Width, bitmap.Height) / 8);
+            TextSize = Math.Min(Math.Max(12, width / 22), height / 4f) };
+        var text = TimeSpan.FromSeconds(seconds).ToString(width >= 140 ? @"hh\:mm\:ss\.fff" : @"hh\:mm\:ss");
+        var inset = Math.Min(8, Math.Min(width, height) / 8);
         var border = Math.Min(4, inset / 2);
         var bounds = new SKRect();
         textPaint.MeasureText(text, ref bounds);
-        var availableWidth = bitmap.Width - 2 * (inset + border);
-        var availableHeight = bitmap.Height - 2 * (inset + border);
+        var availableWidth = width - 2 * (inset + border);
+        var availableHeight = height - 2 * (inset + border);
         var scale = Math.Min(1, Math.Min(availableWidth / bounds.Width, availableHeight / bounds.Height));
         textPaint.TextSize *= scale;
         textPaint.MeasureText(text, ref bounds);
-        var x = bitmap.Width - inset - border - bounds.Right;
-        var y = bitmap.Height - inset - border - bounds.Bottom;
+        var x = width - inset - border - bounds.Right;
+        var y = height - inset - border - bounds.Bottom;
         using var background = new SKPaint { Color = new SKColor(0, 0, 0, 166) };
         canvas.DrawRect(new SKRect(x + bounds.Left - border, y + bounds.Top - border,
             x + bounds.Right + border, y + bounds.Bottom + border), background);
         canvas.DrawText(text, x, y, textPaint);
-        canvas.Flush();
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100) ?? throw new InvalidOperationException("截图时间戳编码失败。");
-        ct.ThrowIfCancellationRequested();
-        using var output = File.Create(frame);
-        data.SaveTo(output);
     }
 
     internal static (double Duration, double FrameRate) VideoTiming(MediaInfo info)

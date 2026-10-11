@@ -170,7 +170,7 @@ public sealed class MediaEngine : IMediaEngine
             return times.ToArray();
         }
     }
-    public static bool IsAudio(string format) => new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}.Contains(format);
+    public static bool IsAudio(string format) => format is "mp3" or "flac" or "wav" or "m4a" or "ogg" or "aac" or "ac3" or "wma" or "opus" or "aiff";
     public static bool IsImage(string format) => format is "jpg" or "jpeg" or "png" or "webp" or "bmp" or "tif" or "tiff" or "ico" or "avif" or "heic" or "heif";
     public static void Validate(Job job)
     {
@@ -370,12 +370,19 @@ public sealed class MediaEngine : IMediaEngine
             job.ProgressDetail=$"节省 {imageResult.SavedPercent:0.##}%";progress(100);return;
         }
         var infos=new List<MediaInfo>();
+        // A joined clip can reference the same source hundreds of times. Share its probe
+        // within this execution, keyed by the selected tracks, without retaining stale data across jobs.
+        var probed=new Dictionary<(string Path,int Video,int Audio),MediaInfo>();
         for(int i=0;i<job.Inputs.Length;i++)
         {
             var edit=job.InputOptions?.ElementAtOrDefault(i)??job.Options;
             var vi=f.Operation==Operation.Mux && i==1?0:edit.VideoStreamIndex;
             var ai=f.Operation==Operation.Mux && i==0?0:edit.AudioStreamIndex;
-            infos.Add(await Probe(job.Inputs[i],ct,vi,edit.KeepAllAudioStreams?0:ai));
+            ct.ThrowIfCancellationRequested();
+            var path=Path.GetFullPath(job.Inputs[i]);
+            var key=(OperatingSystem.IsWindows()?path.ToUpperInvariant():path,vi,edit.KeepAllAudioStreams?0:ai);
+            if(!probed.TryGetValue(key,out var info))probed[key]=info=await Probe(job.Inputs[i],ct,vi,key.Item3);
+            infos.Add(info);
             if(job.InputOptions is not null)SubtitleOptions.ValidateSource(edit,infos[^1]);
         }
         if(infos.Count>0)SubtitleOptions.ValidateSource(job.Options,infos[0]);
@@ -707,8 +714,9 @@ public sealed class MediaEngine : IMediaEngine
     }
     public static string UniqueOutput(string folder,string name,string format,IEnumerable<string>? reserved=null,bool directory=false)
     {
-        Directory.CreateDirectory(folder);var safe=string.Concat(name.Select(c=>Path.GetInvalidFileNameChars().Contains(c)?'_':c));if(string.IsNullOrWhiteSpace(safe))safe="output";
-        var set=new HashSet<string>(reserved??[],OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal);
+        Directory.CreateDirectory(folder);var invalid=Path.GetInvalidFileNameChars();var safe=string.Concat(name.Select(c=>invalid.Contains(c)?'_':c));if(string.IsNullOrWhiteSpace(safe))safe="output";
+        var comparer=OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal;
+        var set=reserved is HashSet<string> existing && existing.Comparer.Equals(comparer)?existing:new HashSet<string>(reserved??[],comparer);
         for(int i=0;;i++) {var path=Path.Combine(folder,safe+(i==0?"":" ("+i+")")+(directory?"":"."+format));if(!File.Exists(path)&&!Directory.Exists(path)&&!set.Contains(path))return path;}
     }
 }

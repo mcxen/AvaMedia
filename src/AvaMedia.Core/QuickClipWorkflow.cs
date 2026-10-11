@@ -40,12 +40,13 @@ public static class QuickClipWorkflow
     public static IReadOnlyList<Job> PrepareJoinedJobs(IEnumerable<ClipEditResult> edits, string preset, ConversionOptions exportOptions,
         string folder, bool outputToSource, string settingName, IEnumerable<string>? reserved = null)
     {
-        var items=edits.ToArray();ValidateJoinedExports(items,preset);
-        var used=new HashSet<string>(reserved??[],OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal);
-        var jobs=new List<Job>();
+        var items=edits.ToArray();
+        if(items.Length==0)throw new ArgumentException("请至少编辑一个视频。");
+        var drafts=new List<(Job Job,string Folder,string Name)>();
         foreach(var edit in items)
         {
             var inputs=PrepareExports([edit],preset,exportOptions);
+            if(preset!="Fast Copy" && inputs.Count>64)throw new ArgumentException("单个视频合并最多 64 个片段，请减少片段数量或选择原格式 / 原码率。");
             var options=preset=="Fast Copy"?inputs[0].Options.Clone():exportOptions.Clone();
             if(preset!="Fast Copy"){options.Format=preset.ToLowerInvariant();options.CopyStreams=false;}
             // One retained range can go straight through clipping, including its editing settings.
@@ -53,17 +54,25 @@ public static class QuickClipWorkflow
             if(single)options=inputs[0].Options.Clone();
             else options.Start=options.End=0;
             var target=outputToSource?Path.GetDirectoryName(Path.GetFullPath(edit.Path))!:folder;
-            var grouped=ConversionBatch.CreateJobs(Catalog.Find(single?"clip":"join"),inputs.Select(input=>input.Path).ToArray(),target,options,
-                single?null:inputs.Select(input=>input.Options).ToArray(),used);
-            foreach(var job in grouped)
-            {
-                var name=Path.GetFileNameWithoutExtension(edit.Path);
-                if(!string.IsNullOrWhiteSpace(settingName))name+=" ["+settingName+"]";
-                else if(!edit.RemoveSelected)name+=" [People]";
-                job.Output=MediaEngine.UniqueOutput(target,name,options.Format,used);used.Add(job.Output);jobs.Add(job);
-            }
+            if(string.IsNullOrWhiteSpace(target))throw new ArgumentException("请选择输出目录。");
+            var name=Path.GetFileNameWithoutExtension(edit.Path);
+            if(!string.IsNullOrWhiteSpace(settingName))name+=" ["+settingName+"]";
+            else if(!edit.RemoveSelected)name+=" [People]";
+            var job=new Job {FeatureId=single?"clip":"join",Inputs=inputs.Select(input=>input.Path).ToArray(),Options=options,
+                InputOptions=single?null:inputs.Select(input=>input.Options).ToList(),
+                Output=Path.Combine(Path.GetTempPath(),"AvaMedia-validation-"+Guid.NewGuid()+"."+options.Format)};
+            MediaEngine.ValidateEdits(job,Enumerable.Repeat(edit.Info,inputs.Count).ToArray());
+            drafts.Add((job,Path.GetFullPath(target),name));
         }
-        return jobs;
+        // Allocate final names only after the entire batch is valid.
+        var used=new HashSet<string>(reserved??[],OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal);
+        foreach(var edit in items)used.Add(Path.GetFullPath(edit.Path));
+        foreach(var (job,target,name) in drafts)
+        {
+            job.Output=MediaEngine.UniqueOutput(target,name,job.Options.Format,used);
+            used.Add(job.Output);
+        }
+        return drafts.Select(draft=>draft.Job).ToArray();
     }
 
     public static IReadOnlyList<QuickClipInput> PrepareExports(IEnumerable<ClipEditResult> edits,
@@ -95,7 +104,6 @@ public static class QuickClipWorkflow
                 options = QuickClipBatch.ResolveOptions(edit.Path, preset, options);
                 var job = new Job { FeatureId = "clip", Inputs = [edit.Path], Options = options,
                     Output = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "AvaMedia-clip-validation." + options.Format) };
-                MediaEngine.Validate(job);
                 MediaEngine.ValidateEdits(job, [edit.Info]);
                 result.Add(new(edit.Path, options));
             }

@@ -47,7 +47,7 @@
 | `SettingsWindow`、`OptionsWindow` | 分类导航、长设置页滚动、模型 / 供应商状态、应用 / 取消；补普通选项字段名称 |
 | `MediaRouteWindow` | 文件到工具映射、可见候选、别名去重与返回既有配置入口 |
 | `ConvertWindow` | 格式与来源差异、排序、参数、输出及固定确认区 |
-| `EditorWindow`、`QuickClipWindow`、`QuickClipWorkspaceWindow`、`ClipSplitWindow`、`ClipExportWindow` | 预览、时间轴、片段、数值替代操作与导出页；修正文档尺寸与实际主入口；`QuickClipWindow` 没有当前主窗口路由调用 |
+| `EditorWindow`、`QuickClipWorkspaceWindow`、`ClipSplitWindow`、`ClipExportWindow` | 预览、时间轴、片段、数值替代操作与导出页；修正文档尺寸与实际主入口；无生产入口的旧 `QuickClipWindow` 已移除 |
 | `VideoCompressionWindow`、`VideoSlimmingWindow` | 模式相关字段、体积结果、预览、输出与状态预留 |
 | `BatchCropWindow`、`BatchRotateWindow` | 列表勾选 / 行选择、前后预览、数字参数、批次有效性、默认确认与取消 |
 | `ImageCompressionWindow` | 文件、前后对比、格式相关参数、体积与输出 |

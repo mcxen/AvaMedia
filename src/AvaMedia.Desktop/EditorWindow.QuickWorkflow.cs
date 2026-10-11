@@ -254,13 +254,14 @@ public partial class EditorWindow
         CommitActiveSegment();
         var drafts=CurrentSegmentDrafts();
         var result=new ClipEditResult(_path,_info,drafts,_removeSelected);
-        if(result.OutputSegments.Count==0)throw new ArgumentException("已去除整个视频，请缩短或删除去除片段。");
-        foreach(var draft in result.OutputSegments)
+        var outputs=result.OutputSegments;
+        if(outputs.Count==0)throw new ArgumentException("已去除整个视频，请缩短或删除去除片段。");
+        foreach(var draft in outputs)
         {
             // Export format is chosen in the next step. Validate edits with a re-encoding draft here.
             draft.CopyStreams=false;draft.Format="mp4";
             var job=new Job{FeatureId="clip",Inputs=[_path],Output=Path.Combine(Path.GetTempPath(),"validate-clip.mp4"),Options=draft};
-            MediaEngine.Validate(job);MediaEngine.ValidateEdits(job,[_info]);
+            MediaEngine.ValidateEdits(job,[_info]);
         }
         return result;
     }

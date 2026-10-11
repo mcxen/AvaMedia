@@ -29,7 +29,6 @@ public sealed class WindowArtwork : AvaloniaObject
             MainWindow => "",
             BatchCropWindow => "crop",
             BatchRotateWindow => "rotate",
-            QuickClipWindow => "clip",
             EditorWindow => "clip",
             ClipExportWindow => "clip",
             ClipSplitWindow => "split",
