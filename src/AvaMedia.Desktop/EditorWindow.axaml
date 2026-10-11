@@ -29,46 +29,46 @@
     <TabControl Grid.Row="3" x:Name="EditTabs" MinHeight="220" MaxHeight="320" SelectionChanged="TabChanged">
       <TabItem Header="剪辑">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-          <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="112,*,112" RowSpacing="8" ColumnSpacing="12" MaxWidth="880" Margin="8,10">
-            <Grid Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-              <local:RangeBar x:Name="TrimBar"/>
-              <Button Grid.Column="1" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
-            </Grid>
-            <StackPanel Grid.Row="1" Spacing="6">
-              <Button x:Name="SetStartButton" Classes="field-action" Content="设为起点" Click="SetStartClick" HorizontalAlignment="Stretch"/>
-              <Button Classes="boundary-preview" Height="128" Click="JumpStartClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
-              <StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
-                <Button x:Name="StartMinusButton" Classes="step" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
-                <Button x:Name="StartPlusButton" Classes="step" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
-              </StackPanel>
-            </StackPanel>
-            <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8" MaxWidth="540" VerticalAlignment="Top">
-              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                <TextBlock Text="开始时间" VerticalAlignment="Center"/>
-                <TextBox x:Name="StartTime" Classes="time" Grid.Column="1" HorizontalAlignment="Left" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
+          <Grid ColumnDefinitions="*,3*,*" ColumnSpacing="16" Margin="8,10">
+            <Button Classes="boundary-preview" Height="216" VerticalAlignment="Top" Click="JumpStartClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
+            <Button Grid.Column="2" Classes="boundary-preview" Height="216" VerticalAlignment="Top" Click="JumpEndClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段终点" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" VerticalAlignment="Top">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <local:RangeBar x:Name="TrimBar"/>
+                <Button Grid.Column="1" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
               </Grid>
-              <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                <TextBlock Text="结束时间" VerticalAlignment="Center"/>
-                <TextBox x:Name="EndTime" Classes="time" Grid.Column="1" HorizontalAlignment="Left" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
-              </Grid>
-              <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
+              <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12" Margin="0,0,12,0">
+                  <TextBlock Text="开始时间" VerticalAlignment="Center"/>
+                  <TextBox x:Name="StartTime" Classes="time" Grid.Column="1" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <Button x:Name="SetStartButton" Classes="field-action" Content="设为起点" Click="SetStartClick"/>
+                  <Button x:Name="StartMinusButton" Classes="step" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
+                  <Button x:Name="StartPlusButton" Classes="step" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
+                </StackPanel>
+              </WrapPanel>
+              <WrapPanel Grid.Row="2" Orientation="Horizontal">
+                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12" Margin="0,0,12,0">
+                  <TextBlock Text="结束时间" VerticalAlignment="Center"/>
+                  <TextBox x:Name="EndTime" Classes="time" Grid.Column="1" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <Button x:Name="SetEndButton" Classes="field-action" Content="设为终点" Click="SetEndClick"/>
+                  <Button x:Name="EndMinusButton" Classes="step" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
+                  <Button x:Name="EndPlusButton" Classes="step" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
+                </StackPanel>
+              </WrapPanel>
+              <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="8">
                 <StackPanel Spacing="4"><TextBlock Text="淡入效果"/><ComboBox x:Name="FadeInCombo"/></StackPanel>
                 <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="淡出效果"/><ComboBox x:Name="FadeOutCombo"/></StackPanel>
               </Grid>
-              <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
+              <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
                 <TextBlock Text="精度" VerticalAlignment="Center"/><ComboBox Grid.Column="1" x:Name="PrecisionCombo"/>
                 <TextBlock Grid.Column="2" Text="速度" VerticalAlignment="Center"/><ComboBox Grid.Column="3" x:Name="SpeedCombo"/>
               </Grid>
-              <TextBlock Grid.Row="4" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="5" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
             </Grid>
-            <StackPanel Grid.Row="1" Grid.Column="2" Spacing="6">
-              <Button x:Name="SetEndButton" Classes="field-action" Content="设为终点" Click="SetEndClick" HorizontalAlignment="Stretch"/>
-              <Button Classes="boundary-preview" Height="128" Click="JumpEndClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段终点" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
-              <StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Center">
-                <Button x:Name="EndMinusButton" Classes="step" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
-                <Button x:Name="EndPlusButton" Classes="step" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
-              </StackPanel>
-            </StackPanel>
           </Grid>
         </ScrollViewer>
       </TabItem>
