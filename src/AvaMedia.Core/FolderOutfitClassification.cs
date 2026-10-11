@@ -220,9 +220,9 @@ public static partial class FolderOutfitClassification
                     .Where(item => item.Feature.Garment || item.Feature.Family is null)
                     .Select(item => Label(item.Feature)).Distinct().Take(3).ToArray();
                 var dominant = Array.IndexOf(colors, colors.Max());
-                var name = nude ? $"{number + 1:00} 无服装" : $"{number + 1:00} "
-                    + (colors.Any(value => value != 0) ? ColorLabels[dominant] + " · " : "") + string.Join(" · ", labels);
-                if (name.Length > 60) name = name[..60];
+                var description = string.Join(" · ", colors.Any(value => value != 0) ? labels.Prepend(ColorLabels[dominant]) : labels);
+                var name = $"{number + 1:00} " + (nude ? "无服装" : description.Length > 0 ? description : "服装");
+                if (name.Length > 60) name = name[..60].TrimEnd();
                 var representative = group.OrderBy(profile => profile.File.Media.Path, BatchRename.PathComparer).First();
                 var id = "outfit-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(representative.File.Media.Path)))[..16].ToLowerInvariant();
                 return (Group: group, Unclothed: nude, Values: center, Colors: colors, Embedding: embedding, Context: context, Views: views, Id: id, Name: name);
