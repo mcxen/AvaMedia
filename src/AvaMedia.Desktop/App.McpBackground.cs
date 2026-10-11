@@ -39,7 +39,7 @@ public sealed partial class App
         };
         Dispatcher.UIThread.Post(async () =>
         {
-            try { await window.StartMcpBackgroundAsync(port); }
+            try { await window.StartMcpBackgroundAsync(port, args.Contains("--server"), args.Contains("--allow-lan")); }
             catch (Exception error)
             {
                 AppDiagnostics.Record("Background MCP startup", error);

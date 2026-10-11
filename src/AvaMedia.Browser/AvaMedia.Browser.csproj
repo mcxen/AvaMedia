@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net8.0-browser</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WasmEnableThreads>false</WasmEnableThreads>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="../AvaMedia.Desktop/Assets/Fonts/Platinum/*.ttf" Link="Fonts/%(Filename)%(Extension)" />
+    <PackageReference Include="Avalonia.Browser" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.22" />
+    <ProjectReference Include="../AvaMedia.FileUi/AvaMedia.FileUi.csproj" />
+  </ItemGroup>
+</Project>

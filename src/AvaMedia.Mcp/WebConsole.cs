@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 
 namespace AvaMedia.Mcp;
 
@@ -8,27 +9,30 @@ internal static class WebConsole
 {
     public static void Map(WebApplication app)
     {
-        foreach (var (route, file, contentType) in new[]
+        var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        if (File.Exists(Path.Combine(webRoot, "index.html")))
         {
-            ("/", "index.html", "text/html; charset=utf-8"),
-            ("/console.css", "console.css", "text/css; charset=utf-8"),
-            ("/console.js", "console.js", "text/javascript; charset=utf-8"),
-            ("/mcp-client.js", "mcp-client.js", "text/javascript; charset=utf-8"),
-            ("/task-results.js", "task-results.js", "text/javascript; charset=utf-8")
-        })
-        {
-            using var stream = typeof(WebConsole).Assembly.GetManifestResourceStream($"AvaMedia.Mcp.Web.{file}")
-                ?? throw new InvalidOperationException("网页资源缺失：" + file);
-            using var reader = new StreamReader(stream);
-            var content = reader.ReadToEnd();
-            app.MapGet(route, (HttpContext context) =>
+            var provider = new PhysicalFileProvider(webRoot);
+            app.Lifetime.ApplicationStopped.Register(provider.Dispose);
+            app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = provider });
+            var types = new FileExtensionContentTypeProvider();
+            types.Mappings[".wasm"] = "application/wasm";
+            types.Mappings[".dat"] = "application/octet-stream";
+            types.Mappings[".blat"] = "application/octet-stream";
+            types.Mappings[".dll"] = "application/octet-stream";
+            app.UseStaticFiles(new StaticFileOptions
             {
-                context.Response.Headers.CacheControl = "no-store";
-                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-                context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; media-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
-                return Results.Content(content, contentType);
+                FileProvider = provider, ContentTypeProvider = types,
+                OnPrepareResponse = response =>
+                {
+                    response.Context.Response.Headers.CacheControl = "no-cache";
+                    response.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                    // Avalonia creates canvas/style nodes; .NET WebAssembly needs wasm compilation.
+                    response.Context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
+                }
             });
         }
+        else app.MapGet("/", () => Results.Problem("网页界面未构建。请发布 AvaMedia.Browser 后重新构建客户端。", statusCode: 503));
         // Only expose paths from the shared task record; never accept a client-supplied filesystem path.
         app.MapGet("/web/tasks/{taskId:guid}/file", async Task<IResult> (Guid taskId, string source, int? index,
             bool? download, IMcpWorkspace workspace, HttpContext context) =>

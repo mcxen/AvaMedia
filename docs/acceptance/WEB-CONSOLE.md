@@ -1,22 +1,8 @@
 # 网页端到端验证
 
-仅在用户明确要求浏览器/媒体验收时运行 `scripts/Verify-WebConsole.cjs`，不纳入默认 CI 或日常编译检查。脚本使用真实 Chromium 浏览器和现有 AvaMedia 服务，操作网页完成文件浏览、NSFW 参数/结果查看、两秒转换、任务控制、预览和下载、断网恢复及结果/日志读取；不使用伪造模型结果。
+仅在用户明确要求浏览器/媒体验收时执行，不纳入默认 CI。使用独立设置、队列与输出目录，保持源文件不变。
 
-需要 Node.js、Playwright（含 `playwright/test`）和 Chrome。服务建议使用独立 `--mcp-state-directory`、独立输出目录和空闲端口，复用本机已安装模型。保持原始媒体不变；不要导入或启动日常队列中的未完成任务。
-
-```sh
-NODE_PATH=/path/to/node_modules node scripts/Verify-WebConsole.cjs \
-  --url http://127.0.0.1:18921 \
-  --video /absolute/path/test-video.mp4 \
-  --output /absolute/path/acceptance-output \
-  --evidence /absolute/path/acceptance-evidence
-```
-
-默认从网页提交 NSFW 识别任务，等待真实推理完成。若在同一验收会话中已经通过网页提交并完成识别，可传 `--existing-nsfw-task UUID` 继续检查结果和其它流程，避免重复推理。输入须为可处理的视频，服务器已启用 NSFW 且具备所需模型。脚本会实际生成转换输出和下载文件，保存源文件前后 SHA256、浏览器错误、任务记录、截图与 `acceptance.json`。发生失败时保留证据及已有任务，修复后再继续。
-
-脚本针对同机浏览器/服务器验证：路径用于读取原文件哈希，并直接核对下载与服务器输出。它不代表异地公网、反向代理或多操作系统验收。
-
-## 2026-10-11 实际验收
+## HTML 界面的历史验收（2026-10-11）
 
 - 使用本机 Chrome / Chromium 和独立后台服务，访问 Downloads 下的实际测试目录；网页进入 `pikpak` 与 `FavPIC`，从网页提交两段视频的真实 NSFW 分析，两项均完成。原目录中明确标注泄露的文件没有用于推理。
 - 两段视频各采样 8 帧，JoyTag 与 Marqo NSFW 均返回真实结果，后端为 Core ML / CPU。网页显示独立 NSFW 分数、阈值、时间点及内容标签；两项最高分均约 94.7%，平均分分别约 72.5% 和 52.7%。这些数值证明结果成功传递与展示，不代表已人工逐帧确认分类准确率。
@@ -27,8 +13,17 @@ NODE_PATH=/path/to/node_modules node scripts/Verify-WebConsole.cjs \
 
 本地证据保存在忽略目录 `artifacts/web-console-e2e-20261011/`：`browser/acceptance.json`、`browser/nsfw-result.json`、`browser/nsfw-result.png`、实际输出和下载文件、`sources-unchanged.json`。没有覆盖日常设置或队列；视频总结只读复制已完成任务记录用于结果查看，未重新执行。
 
-## Avalonia 与当前实现
+## Avalonia Browser 与常驻服务验收（2026-10-11）
 
-仓库使用 Avalonia 11。它支持独立 Browser 项目，通过 `Avalonia.Browser` 和 .NET WebAssembly 运行控件，但仍受浏览器沙箱约束。现有桌面窗口不会自动成为网页，FFmpeg、ONNX、本机目录操作仍需宿主服务。
+当前网页已迁移为 `AvaMedia.Browser` 的 Avalonia Canvas 界面。旧 HTML DOM 验收脚本随旧界面移除。此次使用真实 Chrome / Playwright 会话，固定 1440×1100 视口，通过鼠标点击实际控件；请求与任务状态只用于读取证据，不通过测试入口代替 UI 提交。
 
-当前网页使用随 MCP 宿主打包的 HTML/JavaScript 视图，与 Avalonia 桌面共享持久任务队列和媒体/模型服务；后续可另接 Avalonia Browser 视图和远程 `IFileBrowserSource`。参见 [Avalonia 11 WebAssembly 官方文档](https://v11.docs.avaloniaui.net/docs/guides/platforms/how-to-use-web-assembly/)。
+- 发布 WebAssembly，并由客户端 `--server --mcp-port 18921 --mcp-state-directory artifacts/web-console-e2e-20261011/state` 提供同源界面。原日常客户端继续运行，未覆盖其设置或队列。
+- 从共享文件树展开 Downloads，选择 `AvaMedia-Web-Test-20261011`。该目录中的 `sample.mp4` 是上次验收生成的两秒视频副本，原 Downloads/pikpak 媒体未改动。
+- 从网页添加整个目录、选择视频长短规则、创建分类任务 `789bd429-74b2-4c50-91e6-5b53a139fbbc`。任务完成：1 个成功、0 个失败，依据文件信息归类；本次时长规则无需 AI 推理。
+- 网页打开结果，预览目标后执行复制任务 `b579dc91-5944-470c-ba37-b8667a2b27e1`，完成复制到 `output/视频/不到1分钟/sample.mp4` 并写标签报告。副本和仍保留的源文件 SHA256 均为 `b9903334b68d940f8e56f48d1560a21f4e320dc0b13b9298492341297454c1ec`。
+- 原有 6 条任务在新队列中显示；打开此前完成的 NSFW 任务，确认独立分数、时间点、后端与标签展示。未重复运行此前已完成的两段视频 NSFW 推理。
+- 最终提交防重入改动后，从网页创建等待任务 `c653f953-5204-4dee-ac4d-19b2d9992d3f`，确认目录与参数正确，再通过网页停止；未留下等待执行的测试任务。
+- 在用户当前内置浏览器刷新新界面，修复窄面板文件列表被挤住的问题；文件区与配置区上下排列后可同时查看。
+- 服务器页显示真实资源策略和版本。浏览器脚本错误为 0。该验收覆盖同机浏览器和客户端，未使用第二台设备验证跨机访问，也不代表无桌面会话服务器或其它操作系统已验收。
+
+证据位于 `artifacts/web-console-e2e-20261011/browser/avalonia/acceptance.json`、`classification-copy.png` 和 `../avalonia-copy.json`。Browser 发布通过，Avalonia DesignerSupport 依赖产生上游裁剪警告；Desktop Release 构建 0 警告、0 错误。

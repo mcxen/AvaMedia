@@ -6,8 +6,8 @@
 
 `src/AvaMedia.FileUi` 仅依赖 Avalonia，不引用 Desktop、Core、FFmpeg 或本地 AI 库。
 
-- `FileBrowserView`：可嵌入的浏览界面。提供常用位置、地址输入、后退、上一级、刷新、当前目录搜索、隐藏文件开关、类型筛选、单选和多选。Ctrl/Cmd+L 定位地址栏，Alt+↑ 进入上一级，Enter 打开所选文件夹或确认文件，Esc 取消。
-- `IFileBrowserSource`：提供位置、地址解析和可取消的目录读取。结果保留 `IStorageItem`、`IStorageFile`、`IStorageFolder` 对象，组件不把它们转换成本地路径。
+- `FileBrowserView`：可嵌入的浏览界面。提供懒加载文件树、地址输入、后退、上一级、刷新、当前目录搜索、隐藏文件开关、类型筛选、单选和多选。Ctrl/Cmd+L 定位地址栏，Alt+↑ 进入上一级，Enter 打开所选文件夹或确认文件，Esc 取消。
+- `IFileBrowserSource`：提供位置、地址解析和可取消的目录读取。使用 `FileBrowserItem` 保存来源地址、名称和目录标记；桌面适配器同时保留原始 `IStorageItem`，远程适配器保留服务器路径，不实现 Avalonia 私有存储接口。
 - `FileImportActions`：共享添加文件、添加文件夹入口，统一处理异步导入、重复点击和错误回报。工具可追加移除、排序、选择等操作。
 - `FileImportPanel`：将共享操作区与工具现有文件列表组合，也可接收拖入的存储对象。文件预览、文件顺序、裁剪区域和字幕等业务状态由工具继续管理。
 
@@ -28,7 +28,7 @@ flowchart LR
     Queue -->|任务状态与结果| Web
 ```
 
-后续 Avalonia Browser 工具箱可以引用 `AvaMedia.FileUi`，嵌入 `FileBrowserView` 或 `FileImportPanel`，由远程 `IFileBrowserSource` 读取服务器目录元数据。若网页使用 HTML 前端，可以复用同一选择/导入行为和服务接口，但需实现对应的 Web 视图；Avalonia 控件不是 HTML 组件。
+Avalonia Browser 工具箱已引用 `AvaMedia.FileUi`，嵌入 `FileBrowserView` 和共享 `FileTreeView`，由远程 `IFileBrowserSource` 分页读取服务器目录元数据。展开树节点只查询直接子目录，文件列表支持多选文件和文件夹。
 
 远程文件与下发任务遵循以下约定：
 
@@ -38,7 +38,7 @@ flowchart LR
 - 转换复用 `avamedia_create_task`；请求使用 UUID `requestId`，丢失响应后以相同 ID 和参数恢复任务。任务与桌面共用队列，不因关闭网页或断开 HTTP 请求而取消。
 - 进度、错误和结果复用 `avamedia_list_tasks`、`avamedia_get_task`、`avamedia_wait_task` 和日志接口；暂停、恢复、停止和重试沿用 `avamedia_control_task`。网页详情通过队列记录关联的文件路由预览或下载输入/输出，转换过程仍直接使用服务器路径。
 
-当前已实现共享控件、桌面文件来源、服务器目录浏览接口和上述任务服务。HTML 网页控制台随 MCP 宿主提供，通过同源 `/mcp` 接口浏览服务器文件、配置转换、提交及控制任务、查看进度和分页结果/日志。桌面设置页提供打开和复制网页地址入口，具体操作见 [MCP 服务](MCP.md)。Avalonia 的远程 `IFileBrowserSource` 适配仍待开发；网页使用独立 Web 视图。现有后台 MCP 宿主需要桌面会话，不等同于已经支持无桌面的独立服务器部署。
+`src/AvaMedia.Browser` 使用 Avalonia 11.3.22 / .NET 8 WebAssembly；发布后的 `wwwroot` 随桌面客户端打包，HTTP 服务从同一端口提供界面和任务接口。客户端用 `--server` 可常驻后台提供远程管理。宿主仍需要桌面会话，尚非无图形会话的独立系统服务。具体操作见 [MCP 与远程管理](MCP.md)。
 
 本地文件上传属于另一种可选来源。若以后接入，应从用户授权的目录句柄或文件对象读取，通过上传得到服务器文件标识后再下发任务；不与服务器文件浏览混用。参考 [Avalonia Storage Provider](https://docs.avaloniaui.net/docs/services/storage/storage-provider) 和 [File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API)。
 

@@ -12,7 +12,7 @@ internal static class ToolFilePicker
     public static async Task<IReadOnlyList<IStorageFile>> OpenFilesAsync(Window owner, FilePickerOpenOptions options)
     {
         var selected = await ShowAsync(owner, new(options.Title ?? "选择文件", Multiple: options.AllowMultiple,
-            FileTypes: options.FileTypeFilter, StartFolder: options.SuggestedStartLocation ?? _lastFolder,
+            FileTypes: options.FileTypeFilter, StartFolder: DesktopFileBrowserSource.Wrap(options.SuggestedStartLocation ?? _lastFolder),
             SelectedFileType: options.SuggestedFileType),
             async dialog => (await dialog.StorageProvider.OpenFilePickerAsync(options)).Cast<IStorageItem>().ToArray());
         return selected.OfType<IStorageFile>().ToArray();
@@ -21,7 +21,7 @@ internal static class ToolFilePicker
     public static async Task<IReadOnlyList<IStorageFolder>> OpenFoldersAsync(Window owner, FolderPickerOpenOptions options)
     {
         var selected = await ShowAsync(owner, new(options.Title ?? "选择文件夹", Folders: true, Multiple: options.AllowMultiple,
-            StartFolder: options.SuggestedStartLocation ?? _lastFolder),
+            StartFolder: DesktopFileBrowserSource.Wrap(options.SuggestedStartLocation ?? _lastFolder)),
             async dialog => (await dialog.StorageProvider.OpenFolderPickerAsync(options)).Cast<IStorageItem>().ToArray());
         return selected.OfType<IStorageFolder>().ToArray();
     }
@@ -48,8 +48,8 @@ internal static class ToolFilePicker
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = view
         };
         Controls.WindowArtwork.SetKind(dialog, "document");
-        view.PickExternalAsync = () => external(dialog);
-        view.Selected += selected => { _lastFolder = view.CurrentFolder; dialog.Close(selected); };
+        view.PickExternalAsync = async () => (await external(dialog)).Select(item => DesktopFileBrowserSource.Wrap(item)!).ToArray();
+        view.Selected += selected => { _lastFolder = view.CurrentFolder?.NativeItem as IStorageFolder; dialog.Close(selected.Select(item => (IStorageItem)item.NativeItem!).ToArray()); };
         view.Cancelled += () => dialog.Close();
         dialog.Opened += async (_, _) => await view.InitializeAsync();
         dialog.Closed += (_, _) => view.Dispose();
@@ -70,14 +70,14 @@ internal sealed class DesktopFileBrowserSource(IStorageProvider storage) : IFile
             try
             {
                 if (await storage.TryGetFolderFromPathAsync(path) is { } folder && known.Add(folder.Path))
-                    locations.Add(new(Localization.Text(label), folder));
+                    locations.Add(new(Localization.Text(label), Wrap(folder)!));
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
         }
         await Add("个人文件夹", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         await Add("桌面", Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
         if (await storage.TryGetWellKnownFolderAsync(WellKnownFolder.Downloads) is { } downloads && known.Add(downloads.Path))
-            locations.Add(new(Localization.Text("下载"), downloads));
+            locations.Add(new(Localization.Text("下载"), Wrap(downloads)!));
         await Add("文档", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
         await Add("图片", Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
         await Add("视频", Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
@@ -85,20 +85,20 @@ internal sealed class DesktopFileBrowserSource(IStorageProvider storage) : IFile
         return locations;
     }
 
-    public async Task<IStorageItem?> ResolveAsync(string address, CancellationToken cancellationToken)
+    public async Task<FileBrowserItem?> ResolveAsync(string address, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (address == "~") address = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         else if (address.StartsWith("~/", StringComparison.Ordinal)) address = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), address[2..]);
         if (!Path.IsPathFullyQualified(address)) return null;
-        return (IStorageItem?)await storage.TryGetFolderFromPathAsync(address) ?? await storage.TryGetFileFromPathAsync(address);
+        return Wrap((IStorageItem?)await storage.TryGetFolderFromPathAsync(address) ?? await storage.TryGetFileFromPathAsync(address));
     }
 
-    public Task<FileBrowserDirectory> ReadAsync(IStorageFolder folder, CancellationToken cancellationToken)
+    public Task<FileBrowserDirectory> ReadAsync(FileBrowserItem folder, CancellationToken cancellationToken)
         => Task.Run(async () =>
         {
             var entries = new List<FileBrowserEntry>();
-            await foreach (var item in folder.GetItemsAsync().WithCancellation(cancellationToken))
+            await foreach (var item in ((IStorageFolder)folder.NativeItem!).GetItemsAsync().WithCancellation(cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 ulong? size = null; DateTimeOffset? modified = null;
@@ -109,10 +109,11 @@ internal sealed class DesktopFileBrowserSource(IStorageProvider storage) : IFile
                     if (item.TryGetLocalPath() is { } path) hidden |= (File.GetAttributes(path) & FileAttributes.Hidden) != 0;
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
-                entries.Add(new(item, size, modified, hidden));
+                entries.Add(new(Wrap(item)!, size, modified, hidden));
             }
-            return new FileBrowserDirectory(folder, await folder.GetParentAsync(), entries);
+            return new FileBrowserDirectory(folder, Wrap(await ((IStorageFolder)folder.NativeItem!).GetParentAsync()), entries);
         }, cancellationToken);
 
-    public string DisplayAddress(IStorageItem item) => item.TryGetLocalPath() ?? item.Path.ToString();
+    public string DisplayAddress(FileBrowserItem item) => item.Address;
+    internal static FileBrowserItem? Wrap(IStorageItem? item) => item is null ? null : new(item.Name, item.TryGetLocalPath() ?? item.Path.ToString(), item is IStorageFolder, item);
 }

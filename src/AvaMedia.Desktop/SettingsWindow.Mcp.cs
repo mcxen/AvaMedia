@@ -13,7 +13,7 @@ namespace AvaMedia.Desktop;
 
 public sealed partial class SettingsWindow
 {
-    private readonly CheckBox _mcpEnabled = new() { Content = "启用 MCP 服务" };
+    private readonly CheckBox _mcpEnabled = new() { Content = "启用远程管理服务" };
     private readonly CheckBox _mcpLan = new() { Content = "允许局域网连接" };
     private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly ComboBox _mcpEndpoint = new() { MinWidth = 300, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -26,7 +26,7 @@ public sealed partial class SettingsWindow
     {
         var copyAddress = new Button { Content = "复制地址" };
         var copyConfig = new Button { Content = "复制 MCP 配置" };
-        var openWeb = new Button { Content = "打开网页工具箱" };
+        var openWeb = new Button { Content = "打开远程管理" };
         var copyWeb = new Button { Content = "复制网页地址" };
         string? WebAddress() => _mcpEndpoint.SelectedItem is string endpoint ? new Uri(endpoint).GetLeftPart(UriPartial.Authority) + "/" : null;
         openWeb.Click += (_, _) =>
@@ -57,12 +57,12 @@ public sealed partial class SettingsWindow
         var webButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         webButtons.Children.Add(openWeb); webButtons.Children.Add(copyWeb);
         var panel = new StackPanel { Spacing = 16 };
-        panel.Children.Add(Ui.Text("MCP 服务", "settingsHeading"));
+        panel.Children.Add(Ui.Text("远程管理与 MCP", "settingsHeading"));
         panel.Children.Add(_mcpEnabled); panel.Children.Add(_mcpLan); panel.Children.Add(port);
         panel.Children.Add(new Separator()); panel.Children.Add(Ui.Text("客户端连接", "settingsHeading"));
         panel.Children.Add(LifecycleField("连接地址", _mcpEndpoint)); panel.Children.Add(buttons); panel.Children.Add(_mcpStatus);
         panel.Children.Add(webButtons);
-        panel.Children.Add(new TextBlock { Text = "无需令牌，可访问本机全部文件与服务。", TextWrapping = Avalonia.Media.TextWrapping.Wrap, Classes = { "caption" } });
+        panel.Children.Add(new TextBlock { Text = "网页与 MCP 共用当前任务队列。允许局域网连接后，同一网络中的设备可通过上方地址管理本机文件与任务。服务不要求令牌。", TextWrapping = Avalonia.Media.TextWrapping.Wrap, Classes = { "caption" } });
         McpSection.Child = panel;
         foreach (var input in new[] { _mcpEnabled, _mcpLan })
         {

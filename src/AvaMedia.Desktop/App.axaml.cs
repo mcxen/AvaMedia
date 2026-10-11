@@ -51,7 +51,7 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
-            if (args.Contains("--mcp-background"))
+            if (args.Contains("--mcp-background") || args.Contains("--server"))
             {
                 StartMcpBackground(desktop, args);
                 base.OnFrameworkInitializationCompleted();

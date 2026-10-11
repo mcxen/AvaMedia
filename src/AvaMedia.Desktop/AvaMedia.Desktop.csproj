@@ -7,6 +7,9 @@
     <ApplicationIcon>Assets/AppIcon/v2/app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="../AvaMedia.Browser/bin/$(Configuration)/net8.0-browser/publish/wwwroot/**/*"
+             Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../.agents/skills/avamedia-mcp/**/*" Exclude="../../.agents/skills/avamedia-mcp/**/__pycache__/**"
              Link="skills/avamedia-mcp/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

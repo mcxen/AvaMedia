@@ -17,6 +17,8 @@ if ($Runtime.StartsWith('osx-')) {
     $bundleRoot = $publishRoot + '-bundle'
     Assert-EmptyPublishDirectory $bundleRoot
 }
+& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Browser/AvaMedia.Browser.csproj') -c Release "-p:Version=$Version" --verbosity minimal
+if ($LASTEXITCODE -ne 0) { throw 'Browser publish failed.' }
 [string[]]$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
 & $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained false -o $publishRoot "-p:Version=$Version" -p:UseAppHost=false -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }

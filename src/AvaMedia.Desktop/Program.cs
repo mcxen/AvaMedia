@@ -12,7 +12,7 @@ internal static class Program
         if (args.Contains("--register-player")) { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         if (args.Contains("--unregister-player")) { SystemPlayerIntegration.UnregisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         var previewExport = args.Contains(SetupPreviewExporter.Argument);
-        var mcpBackground = args.Contains("--mcp-background");
+        var mcpBackground = args.Contains("--mcp-background") || args.Contains("--server");
         if (!args.Contains("--capture") && !previewExport && !mcpBackground) FirstRunSetup.TryApplyPending();
         try { return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         catch (Exception error)
@@ -25,7 +25,7 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp()
     {
         var builder = AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
-        if (Environment.GetCommandLineArgs().Contains("--mcp-background"))
+        if (Environment.GetCommandLineArgs().Any(argument => argument is "--mcp-background" or "--server"))
             builder.With(new MacOSPlatformOptions { ShowInDock = false, DisableNativeMenus = true });
         return builder;
     }

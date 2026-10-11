@@ -6,6 +6,7 @@ on:
       - 'src/**/*.cs'
       - 'src/**/*.axaml'
       - 'src/**/*.csproj'
+      - 'src/AvaMedia.Browser/wwwroot/**'
       - '*.props'
       - '*.targets'
       - 'global.json'
@@ -16,6 +17,7 @@ on:
       - 'src/**/*.cs'
       - 'src/**/*.axaml'
       - 'src/**/*.csproj'
+      - 'src/AvaMedia.Browser/wwwroot/**'
       - '*.props'
       - '*.targets'
       - 'global.json'
@@ -54,6 +56,10 @@ jobs:
           enableCrossOsArchive: true
           key: nuget-v2-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
           restore-keys: nuget-v2-
+      - name: Compile browser console
+        run: |
+          dotnet workload install wasm-tools --skip-manifest-update
+          dotnet publish src/AvaMedia.Browser/AvaMedia.Browser.csproj -c Release --nologo --verbosity minimal
       - name: Compile client and core
         shell: pwsh
         run: dotnet build src/AvaMedia.Desktop/AvaMedia.Desktop.csproj -c Release --nologo --verbosity minimal

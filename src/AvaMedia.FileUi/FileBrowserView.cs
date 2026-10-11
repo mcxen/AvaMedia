@@ -19,7 +19,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private readonly IFileBrowserSource _source;
     private readonly FileBrowserOptions _options;
     private readonly Func<string, string> _text;
-    private readonly ListBox _places = new() { MinWidth = 130, MaxWidth = 180 };
+    private readonly FileTreeView _places;
     private readonly ListBox _entries = new();
     private readonly TextBox _address = new(), _search = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
@@ -27,18 +27,18 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private readonly ComboBox _types = new() { MinWidth = 140, MaxWidth = 300 };
     private readonly CheckBox _hidden = new();
     private readonly Button _back, _up, _select;
-    private readonly Stack<IStorageFolder> _history = new();
+    private readonly Stack<FileBrowserItem> _history = new();
     private CancellationTokenSource? _navigation;
     private FileBrowserDirectory? _directory;
     private bool _disposed, _loading;
-    public event Action<IReadOnlyList<IStorageItem>>? Selected;
+    public event Action<IReadOnlyList<FileBrowserItem>>? Selected;
     public event Action? Cancelled;
-    public Func<Task<IReadOnlyList<IStorageItem>>>? PickExternalAsync { get; set; }
-    public IStorageFolder? CurrentFolder => _directory?.Folder;
+    public Func<Task<IReadOnlyList<FileBrowserItem>>>? PickExternalAsync { get; set; }
+    public FileBrowserItem? CurrentFolder => _directory?.Folder;
 
     public FileBrowserView(IFileBrowserSource source, FileBrowserOptions options, Func<string, string>? text = null)
     {
-        _source = source; _options = options; _text = text ?? (value => value);
+        _source = source; _options = options; _places = new(source) { Width = 210 }; _text = text ?? (value => value);
         _entries.SelectionMode = options.Multiple ? SelectionMode.Multiple : SelectionMode.Single;
         _entries.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
@@ -56,8 +56,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
         var filter = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         filter.Children.Add(_search); Grid.SetColumn(_hidden, 1); filter.Children.Add(_hidden); Grid.SetRow(filter, 1); root.Children.Add(filter);
         var body = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
-        _places.ItemTemplate = new FuncDataTemplate<FileBrowserLocation>((location, _) => Label(location?.Name ?? ""));
-        _places.SelectionChanged += async (_, _) => { if (_places.SelectedItem is FileBrowserLocation place) await NavigateAsync(place.Folder); };
+        _places.FolderSelected += async folder => await NavigateAsync(folder);
         body.Children.Add(_places);
         var files = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 2 };
         var header = Row(_text("名称"), _text("大小"), _text("修改时间")); header.Classes.Add("table-header"); files.Children.Add(header);
@@ -84,11 +83,12 @@ public sealed class FileBrowserView : UserControl, IDisposable
         {
             if (PickExternalAsync is not { } pick) return;
             var selected = await pick(); if (!_disposed && selected.Count > 0) Selected?.Invoke(selected);
-        }); Grid.SetColumn(external, 1); actions.Children.Add(external);
-        var cancel = Button("取消", () => { Cancelled?.Invoke(); return Task.CompletedTask; }); Grid.SetColumn(cancel, 2); actions.Children.Add(cancel);
-        _select = Button(options.Folders ? "选择文件夹" : "打开", () => { Confirm(); return Task.CompletedTask; }); _select.Classes.Add("primary");
+        }); external.IsVisible = !options.Embedded; Grid.SetColumn(external, 1); actions.Children.Add(external);
+        var cancel = Button("取消", () => { Cancelled?.Invoke(); return Task.CompletedTask; }); cancel.IsVisible = !options.Embedded; Grid.SetColumn(cancel, 2); actions.Children.Add(cancel);
+        _select = Button(options.Embedded ? "添加所选项" : options.Folders ? "选择文件夹" : "打开", () => { Confirm(); return Task.CompletedTask; }); _select.Classes.Add("primary");
         Grid.SetColumn(_select, 3); actions.Children.Add(_select); Grid.SetRow(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = root;
+        PropertyChanged += (_, args) => { if (args.Property == BoundsProperty) _places.Width = Bounds.Width < 650 ? 150 : 210; };
         AutomationProperties.SetName(_address, _text("文件夹地址")); AutomationProperties.SetName(_search, _text("搜索当前文件夹"));
         AutomationProperties.SetName(_places, _text("常用位置")); AutomationProperties.SetName(_entries, _text("文件列表")); AutomationProperties.SetName(_types, _text("文件类型"));
         KeyDown += async (_, args) =>
@@ -108,13 +108,13 @@ public sealed class FileBrowserView : UserControl, IDisposable
         {
             var locations = await _source.GetLocationsAsync(CancellationToken.None);
             if (_disposed) return;
-            _places.ItemsSource = locations;
+            _places.SetLocations(locations);
             if ((_options.StartFolder ?? locations.FirstOrDefault()?.Folder) is { } folder) await NavigateAsync(folder, false);
         }
         catch (Exception error) { ShowError(error); }
     }
 
-    private async Task NavigateAsync(IStorageFolder folder, bool remember = true)
+    public async Task NavigateAsync(FileBrowserItem folder, bool remember = true)
     {
         _navigation?.Cancel(); _navigation?.Dispose();
         var work = _navigation = new(); var token = work.Token;
@@ -123,7 +123,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
         {
             var directory = await _source.ReadAsync(folder, token);
             if (_disposed || token.IsCancellationRequested) return;
-            if (remember && _directory is { } previous && previous.Folder.Path != folder.Path) _history.Push(previous.Folder);
+            if (remember && _directory is { } previous && previous.Folder.Address != folder.Address) _history.Push(previous.Folder);
             _directory = directory; _address.Text = _source.DisplayAddress(folder); _search.Text = "";
             _loading = false; Filter();
         }
@@ -141,8 +141,8 @@ public sealed class FileBrowserView : UserControl, IDisposable
         {
             var item = await _source.ResolveAsync(_address.Text?.Trim() ?? "", CancellationToken.None);
             if (_disposed) return;
-            if (item is IStorageFolder folder) await NavigateAsync(folder);
-            else if (!_options.Folders && item is IStorageFile file && Matches(file.Name)) Selected?.Invoke([file]);
+            if (item is { IsFolder: true } folder) await NavigateAsync(folder);
+            else if (!_options.Folders && item is { IsFolder: false } file && Matches(file.Name)) Selected?.Invoke([file]);
             else _status.Text = _text("找不到可选择的文件或文件夹。");
         }
         catch (Exception error) { ShowError(error); }
@@ -151,7 +151,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private async Task OpenSelectionAsync()
     {
         if (_loading) return;
-        if (_entries.SelectedItem is FileBrowserEntry { Item: IStorageFolder folder }) await NavigateAsync(folder);
+        if (_entries.SelectedItem is FileBrowserEntry { Item: { IsFolder: true } folder }) await NavigateAsync(folder);
         else Confirm();
     }
 
@@ -169,8 +169,8 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private bool Matches(string name) => _types.SelectedItem is not FilePickerFileType { Patterns: { Count: > 0 } patterns }
         || patterns.Any(pattern => pattern is "*" or "*.*" || FileSystemName.MatchesSimpleExpression(pattern, name, ignoreCase: true));
 
-    private IStorageItem[] Selection() => _entries.SelectedItems?.OfType<FileBrowserEntry>()
-        .Where(entry => entry.IsFolder == _options.Folders).Select(entry => entry.Item).ToArray() ?? [];
+    private FileBrowserItem[] Selection() => _entries.SelectedItems?.OfType<FileBrowserEntry>()
+        .Where(entry => _options.AllowFolders || entry.IsFolder == _options.Folders).Select(entry => entry.Item).ToArray() ?? [];
 
     private void UpdateSelection()
     {
@@ -205,5 +205,5 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private static string Size(ulong? size) => size is not { } bytes ? "" : bytes < 1024 ? $"{bytes} B"
         : bytes < 1024 * 1024 ? $"{bytes / 1024d:0.#} KB" : bytes < 1024 * 1024 * 1024 ? $"{bytes / (1024d * 1024):0.#} MB" : $"{bytes / (1024d * 1024 * 1024):0.#} GB";
     private void ShowError(Exception error) { if (!_disposed) _status.Text = error.Message; }
-    public void Dispose() { _disposed = true; _navigation?.Cancel(); _navigation?.Dispose(); }
+    public void Dispose() { _disposed = true; _navigation?.Cancel(); _navigation?.Dispose(); _places.Dispose(); }
 }
