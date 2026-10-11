@@ -6,7 +6,7 @@ using Avalonia.Media;
 namespace AvaMedia.Desktop.Controls;
 
 // Lucide 1.55.0, ISC/MIT. Original SVGs and license notices are shipped with the application.
-internal static class LucideViewerIcons
+internal static class LucideIcons
 {
     private static readonly Dictionary<string, Geometry[]> Cache = new();
     public static Geometry[] Get(string action)
@@ -18,10 +18,14 @@ internal static class LucideViewerIcons
             "previous" => "chevron-left", "next" => "chevron-right", "fit" => "expand", "actual" => "scaling",
             "rotate-left" => "rotate-ccw", "rotate-right" => "rotate-cw", "flip" => "flip-horizontal",
             "spread" => "book-open", "stop" => "square", "settings" => "sliders-horizontal", "close" => "x",
-            "more" => "ellipsis", _ => action
+            "more" => "ellipsis", "window" => "square",
+            "backward" => "rewind", "forward" => "fast-forward", "speaker" => "volume-2", "muted" => "volume-x",
+            "minus" => "minus", "up" => "arrow-up", "down" => "arrow-down", "remove" => "circle-minus",
+            "edit" => "pencil", "clear" or "cancel" => "x", "gear" => "settings", "reset" => "refresh-cw",
+            _ => action
         };
         if (Cache.TryGetValue(name, out var geometries)) return geometries;
-        using var stream = typeof(LucideViewerIcons).Assembly.GetManifestResourceStream($"AvaMedia.Desktop.Lucide.{name}.svg")
+        using var stream = typeof(LucideIcons).Assembly.GetManifestResourceStream($"AvaMedia.Desktop.Lucide.{name}.svg")
             ?? throw new InvalidOperationException("Missing Lucide icon: " + name);
         geometries = XDocument.Load(stream).Root!.Elements().Select(Parse).ToArray();
         Cache.Add(name, geometries); return geometries;

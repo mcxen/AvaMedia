@@ -22,6 +22,8 @@ public sealed partial class App : Application
         });
         Localization.Apply(Environment.GetCommandLineArgs().Contains(SetupPreviewExporter.Argument) ? "zh-CN" : new Storage().LoadSettings().Language);
         AvaloniaXamlLoader.Load(this);
+        Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude((Uri?)null)
+        { Source = new Uri("avares://AvaMedia.Desktop/Styles/ButtonIcons.axaml") });
         if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activation)
             activation.Activated += ApplicationActivated;
     }

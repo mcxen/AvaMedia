@@ -88,7 +88,7 @@
           <Button x:Name="PlayerStopButton" Classes="player-transport" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop"/></Button>
           <Button x:Name="PreviousFileButton" Classes="player-transport" Click="PreviousClick" ToolTip.Tip="上一文件" AutomationProperties.Name="上一文件"><local:ActionIcon Kind="previous"/></Button>
           <Button x:Name="NextFileButton" Classes="player-transport" Click="NextClick" ToolTip.Tip="下一文件" AutomationProperties.Name="下一文件"><local:ActionIcon Kind="next"/></Button>
-          <Button x:Name="PlayerOpenButton" Classes="player-transport" Click="OpenClick" ToolTip.Tip="打开文件" AutomationProperties.Name="打开文件"><local:ActionIcon Kind="eject"/></Button>
+          <Button x:Name="PlayerOpenButton" Classes="player-transport" Click="OpenClick" ToolTip.Tip="打开文件" AutomationProperties.Name="打开文件"><local:ActionIcon Kind="folder"/></Button>
           <Button x:Name="PlayerCaptureButton" Classes="player-transport" Click="CaptureClick" IsEnabled="False" ToolTip.Tip="截取当前帧" AutomationProperties.Name="截取当前帧"><local:ActionIcon Kind="camera"/></Button>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="{DynamicResource UiPlayerInlinePadding}" VerticalAlignment="Center">

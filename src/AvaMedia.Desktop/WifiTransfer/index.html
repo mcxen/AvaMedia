@@ -19,6 +19,9 @@
     .muted { color: #5b6b7d; font-size: 14px; }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
     button, .picker, .download { font: inherit; border-radius: 10px; border: 1px solid #bbccde; padding: 12px 16px; min-height: 46px; background: #f0f5fa; color: #1c4e80; cursor: pointer; text-align: center; }
+    button, .picker, .download { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .icon-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .action-icon { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .primary { background: #1769b3; border-color: #1769b3; color: white; }
     button:disabled { opacity: .5; cursor: default; }
     button:focus-visible, .picker:focus-within, a:focus-visible { outline: 3px solid #f4a928; outline-offset: 3px; }
@@ -53,6 +56,62 @@
   </style>
 </head>
 <body>
+<!-- Local Lucide 1.55.0 SVGs; source hashes and ISC/MIT attribution: Assets/ToolbarIcons/Lucide/sources.json, licenses/lucide. -->
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="icon-save" viewBox="0 0 24 24">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+  <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+  <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+    </symbol>
+    <symbol id="icon-image-plus" viewBox="0 0 24 24">
+      <path d="M16 5h6" />
+  <path d="M19 2v6" />
+  <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+  <circle cx="9" cy="9" r="2" />
+    </symbol>
+    <symbol id="icon-file-plus" viewBox="0 0 24 24">
+      <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M9 15h6" />
+  <path d="M12 18v-6" />
+    </symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24">
+      <path d="M12 3v12" />
+  <path d="m17 8-5-5-5 5" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    </symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24">
+      <path d="M18 6 6 18" />
+  <path d="m6 6 12 12" />
+    </symbol>
+    <symbol id="icon-list-x" viewBox="0 0 24 24">
+      <path d="M16 5H3" />
+  <path d="M11 12H3" />
+  <path d="M16 19H3" />
+  <path d="m15.5 9.5 5 5" />
+  <path d="m20.5 9.5-5 5" />
+    </symbol>
+    <symbol id="icon-refresh-cw" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+  <path d="M21 3v5h-5" />
+  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+  <path d="M8 16H3v5" />
+    </symbol>
+    <symbol id="icon-list-minus" viewBox="0 0 24 24">
+      <path d="M16 5H3" />
+  <path d="M11 12H3" />
+  <path d="M16 19H3" />
+  <path d="M21 12h-6" />
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path d="M12 15V3" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="m7 10 5 5 5-5" />
+    </symbol>
+  </defs>
+</svg>
 <main>
   <header>
     <div class="eyebrow">{{APP_NAME}} · 局域网直传</div>
@@ -63,7 +122,7 @@
     <div class="identity">
       <label for="user-name">用户名称</label>
       <input id="user-name" maxlength="32" autocomplete="nickname" placeholder="输入姓名或设备名称">
-      <button id="save-user">保存名称</button>
+      <button id="save-user"><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-save"/></svg>保存名称</button>
     </div>
     <p id="user-status" class="muted" role="status" aria-live="polite">正在连接电脑…</p>
     <p class="muted">多位用户可同时上传和下载，电脑左侧按用户查看媒体。空闲 5 分钟后可自动关闭传输，进行中的传输会保持连接。</p>
@@ -72,15 +131,15 @@
     <h2 id="upload-title">发送到电脑</h2>
     <p class="muted">单个文件最大 50 GB</p>
     <div class="actions">
-      <label class="picker">从相册选择<input id="photos" type="file" accept="image/*,video/*" multiple aria-label="从相册选择照片和视频"></label>
-      <label class="picker">从文件选择<input id="files" type="file" multiple aria-label="从文件选择"></label>
+      <label class="picker"><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-image-plus"/></svg>从相册选择<input id="photos" type="file" accept="image/*,video/*" multiple aria-label="从相册选择照片和视频"></label>
+      <label class="picker"><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-file-plus"/></svg>从文件选择<input id="files" type="file" multiple aria-label="从文件选择"></label>
     </div>
     <p class="muted">iPhone：需保留原始 MOV / HEIC，可先从相册存储到“文件”，再选择“从文件选择”上传。</p>
     <ul id="selection" aria-label="待发送文件"></ul>
     <div class="actions">
-      <button class="primary" id="upload" disabled>开始上传</button>
-      <button id="cancel" hidden>取消传输</button>
-      <button id="clear" disabled>清空列表</button>
+      <button class="primary" id="upload" disabled><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-upload"/></svg>开始上传</button>
+      <button id="cancel" hidden><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg>取消传输</button>
+      <button id="clear" disabled><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-list-x"/></svg>清空列表</button>
     </div>
     <progress id="progress" max="100" value="0" hidden aria-label="当前文件上传进度"></progress>
     <p id="status" role="status" aria-live="polite">尚未选择文件</p>
@@ -91,7 +150,7 @@
     <p class="muted">所有连接用户均可下载</p>
     <ul id="downloads" aria-label="电脑分享的文件"></ul>
     <p id="download-status" class="muted" role="status">正在连接电脑…</p>
-    <button id="refresh" class="small">刷新文件列表</button>
+    <button id="refresh" class="small"><svg class="action-icon" aria-hidden="true" focusable="false"><use href="#icon-refresh-cw"/></svg>刷新文件列表</button>
   </section>
   <p class="muted">这是临时 HTTP 局域网传输，请在可信网络中使用。电脑关闭接收后，当前扫码地址失效。</p>
 </main>
@@ -99,6 +158,13 @@
   'use strict';
   const base = location.pathname.replace(/\/?$/, '/');
   const get = id => document.getElementById(id);
+  function actionLabel(element, kind, label) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'action-icon'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#icon-' + kind); svg.append(use);
+    element.replaceChildren(svg, document.createTextNode(label));
+  }
   const selections = [];
   let busy = false, cancelled = false, currentRequest = null, refreshing = false;
   let sessionReady = false, connecting = null;
@@ -154,7 +220,7 @@
       const name = document.createElement('span'); name.className = 'name'; name.textContent = item.file.name;
       item.state = document.createElement('span'); item.state.className = 'state';
       info.append(name, item.state); row.append(info); updateState(item);
-      const remove = document.createElement('button'); remove.className = 'small'; remove.textContent = '移除'; remove.disabled = busy;
+      const remove = document.createElement('button'); remove.className = 'small'; actionLabel(remove, 'list-minus', '移除'); remove.disabled = busy;
       remove.addEventListener('click', () => { selections.splice(selections.indexOf(item), 1); renderSelections(); });
       row.append(remove); get('selection').append(row);
     });
@@ -230,7 +296,7 @@
         const name = document.createElement('span'); name.className = 'name'; name.textContent = file.name;
         const size = document.createElement('span'); size.className = 'state'; size.textContent = bytes(file.bytes);
         info.append(name, size); const link = document.createElement('a'); link.className = 'download';
-        link.textContent = '下载'; link.href = base + 'download/' + encodeURIComponent(file.id); link.download = file.name;
+        actionLabel(link, 'download', '下载'); link.href = base + 'download/' + encodeURIComponent(file.id); link.download = file.name;
         row.append(info, link); get('downloads').append(row);
       }
       get('download-status').textContent = files.length ? '电脑已分享 ' + files.length + ' 个文件。' : '电脑尚未添加分享文件。';

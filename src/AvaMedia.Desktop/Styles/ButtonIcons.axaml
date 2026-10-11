@@ -1,0 +1,12 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <Styles.Resources><controls:ActionButtonTemplateConverter x:Key="ActionButtonTemplateConverter"/></Styles.Resources>
+  <!-- Preserve icon transports, thumbnail buttons, feature tiles and controls with explicit templates. -->
+  <Style Selector="Button:not(.step):not(.row-icon):not(.transport):not(.player-transport):not(.media-action):not(.tile):not(.category):not(.text-action)">
+    <Setter Property="ContentTemplate">
+      <MultiBinding Converter="{StaticResource ActionButtonTemplateConverter}">
+        <Binding Path="Content" RelativeSource="{RelativeSource Self}"/>
+        <Binding Path="(local:Localization.IsUserText)" RelativeSource="{RelativeSource Self}"/>
+      </MultiBinding>
+    </Setter>
+  </Style>
+</Styles>

@@ -45,7 +45,7 @@ public sealed class StableLayout : AvaloniaObject
             control.PropertyChanged += (_, change) =>
             {
                 if (change.Property.Name is "FontFamily" or "FontSize" or "FontWeight" or "FontStyle" or "FontFeatures"
-                    or "Padding" or "BorderThickness" or "MinWidth") Update();
+                    or "Padding" or "BorderThickness" or "MinWidth" or "ContentTemplate") Update();
             };
             if (TopLevel.GetTopLevel(control) is not null) Attach();
         }
@@ -72,7 +72,8 @@ public sealed class StableLayout : AvaloniaObject
                         var measured = new FormattedText(Localization.Text(sample), CultureInfo.CurrentCulture,
                             FlowDirection.LeftToRight, typeface, size, Brushes.Black);
                         if ((text?.FontFeatures ?? field?.FontFeatures) is { } features) measured.SetFontFeatures(features);
-                        return measured.WidthIncludingTrailingWhitespace;
+                        return measured.WidthIncludingTrailingWhitespace + (_control is Button button
+                            ? Controls.ActionButtonTemplateConverter.ExtraWidth(button.ContentTemplate, Localization.Text(sample)) : 0);
                     });
                     if (field is not null) width += field.Padding.Left + field.Padding.Right + field.BorderThickness.Left + field.BorderThickness.Right;
                     _control.SetCurrentValue(Control.WidthProperty, Math.Max(_control.MinWidth, Math.Ceiling(width) + 2));
