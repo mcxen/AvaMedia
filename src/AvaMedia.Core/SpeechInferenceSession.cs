@@ -4,7 +4,7 @@ using Whisper.net.LibraryLoader;
 
 namespace AvaMedia.Core;
 
-/// <summary>GPU-first Whisper and Silero contexts, each with one CPU retry and cancellation preserved.</summary>
+/// <summary>GPU-first speech recognition, with CPU VAD on Metal and cancellation preserved.</summary>
 internal sealed class SpeechInferenceSession : IDisposable
 {
     private readonly string _model;
@@ -15,7 +15,8 @@ internal sealed class SpeechInferenceSession : IDisposable
     private WhisperProcessor? _processor;
     private WhisperVadFactory? _vadFactory;
     private WhisperVadProcessor? _vad;
-    private bool _speechGpu = true, _vadGpu = true;
+    // Metal VAD in the bundled native runtime aborts inside GGML before a managed retry can run.
+    private bool _speechGpu = true, _vadGpu = !OperatingSystem.IsMacOS();
 
     public SpeechInferenceSession(string model, Func<WhisperFactory, WhisperProcessor> configure, int threads,
         Action<string, string?> status)
@@ -51,7 +52,8 @@ internal sealed class SpeechInferenceSession : IDisposable
     }
 
     private void Report(string? reason = null) => _status(
-        $"Whisper: {(_speechGpu ? "GPU 优先" : "CPU")} · Silero: {(_vadGpu ? "GPU 优先" : "CPU")} · {RuntimeOptions.LoadedLibrary}", reason);
+        $"Whisper: {(_speechGpu ? "GPU 优先" : "CPU")} · Silero: {(_vadGpu ? "GPU 优先" : "CPU")} · {RuntimeOptions.LoadedLibrary}",
+        reason ?? (OperatingSystem.IsMacOS() ? "当前原生运行时的 Silero Metal VAD 会中止进程，使用 CPU 检测语音。" : null));
 
     private void RetrySpeech(Exception error)
     {
