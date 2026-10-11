@@ -69,6 +69,8 @@ public static class FolderOrganization
             BatchRename.ValidateRenameKeyword(decision.Name);
             BatchRename.ValidateRenameKeyword(decision.CategoryName);
             if (file.Decisions.Count > 1) folder = Path.Combine(folder, decision.Name);
+            if (decision.OutfitShootName is { } shoot)
+            { BatchRename.ValidateRenameKeyword(shoot); folder = Path.Combine(folder, shoot); }
             folder = Path.Combine(folder, decision.CategoryName);
         }
         if (!FolderClassification.IsWithin(folder, root)) throw new IOException("分类目标超出输出目录。");
@@ -220,7 +222,7 @@ public static class FolderOrganization
         var text = new StringBuilder().AppendLine(Path.GetFileName(file.Media.Path)).AppendLine();
         foreach (var decision in file.Decisions)
         {
-            text.Append(decision.Name).Append(": ").Append(decision.CategoryName);
+            text.Append(decision.Name).Append(": ").Append(decision.DisplayName);
             if (decision.Manual) text.Append(" · 人工确认");
             else
             {

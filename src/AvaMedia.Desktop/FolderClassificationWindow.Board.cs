@@ -128,7 +128,7 @@ public sealed partial class FolderClassificationWindow
             var categoriesById = categories.ToDictionary(category => category.Id);
             var membersByBasket = _entries.GroupBy(entry => BasketFor(entry, rule)).ToDictionary(group => group.Key, group => group.ToArray());
             var options = new List<(string Id, string Name)> { (AllBasket, Localization.Text("全部")), (PendingBasket, Localization.Text("待分析")), (ReviewBasket, Localization.Text("待确认")) };
-            options.AddRange(categories.Select(category => (category.Id, category.Name)));
+            options.AddRange(categories.Select(category => (category.Id, category.DisplayName)));
             if (!options.Any(option => option.Id == _basketId)) _basketId = AllBasket;
             _baskets.IsVisible = rule is not null;
             var basketButtons = new List<Button>();
@@ -265,7 +265,8 @@ public sealed partial class FolderClassificationWindow
         }
         MediaTagService.ValidateSource(result.Media);
         _results[entry.Path] = result with { Decisions = result.Decisions.Select(decision => decision.RuleId == rule.Id
-            ? decision with { CategoryId = category?.Id, CategoryName = category?.Name ?? "待确认", Manual = true, Evidence = "人工确认" } : decision).ToArray() };
+            ? decision with { CategoryId = category?.Id, CategoryName = category?.Name ?? "待确认", OutfitShootName = category?.OutfitShootName,
+                Manual = true, Evidence = "人工确认" } : decision).ToArray() };
         UpdateEntry(entry); InvalidatePlan();
         _boardRuleId = rule.Id; _basketId = category?.Id ?? ReviewBasket; RenderBoard(); _files.SelectedItem = entry;
         _status.Text = Localization.Format($"{entry.Name} → {category?.Name ?? Localization.Text("待确认")}");

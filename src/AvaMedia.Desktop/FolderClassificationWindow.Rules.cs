@@ -296,7 +296,7 @@ public sealed partial class FolderClassificationWindow
         entry.Status = Localization.Text(AnalysisPending(entry) ? "待分析" : result.Decisions.Any(decision => decision.NeedsReview) ? "待确认" : "已分类");
         entry.Details = string.Join(" · ", result.Decisions.Select(decision => decision.Name + ": " +
             (_rules.FirstOrDefault(rule => rule.Id == decision.RuleId) is { } rule && OutfitPending(result, rule)
-                ? Localization.Text("待分析") : decision.NeedsReview ? Localization.Text("待确认") : decision.CategoryName))
+                ? Localization.Text("待分析") : decision.NeedsReview ? Localization.Text("待确认") : decision.DisplayName))
             .Concat(result.Tags.Take(4)));
         QueueBoardRefresh();
     }

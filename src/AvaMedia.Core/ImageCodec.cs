@@ -28,6 +28,20 @@ public static partial class ImageCodec
         }
         finally { DecodeGate.Release(); }
     }
+    public static async Task<IReadOnlyDictionary<string, string>> ReadMetadataAsync(string path, CancellationToken token)
+    {
+        await DecodeGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                using var image = new MagickImage(); image.Ping(path, new MagickReadSettings { FrameCount = 1 });
+                return (IReadOnlyDictionary<string, string>)Metadata(image);
+            }, token).ConfigureAwait(false);
+        }
+        finally { DecodeGate.Release(); }
+    }
     /// <summary>Compress an already scaled preview without another media decode or FFmpeg process.</summary>
     public static async Task<byte[]> CompressThumbnailAsync(byte[] preview, CancellationToken token)
     {

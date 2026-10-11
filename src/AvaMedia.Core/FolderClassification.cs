@@ -5,6 +5,8 @@ public sealed record FolderClassificationCategory(string Id, string Name, string
     // Alternatives are OR; tags within an alternative are AND.
     public string[][] Tags { get; init; } = [];
     public string[] SupersededBy { get; init; } = [];
+    public string? OutfitShootName { get; init; }
+    public string DisplayName => OutfitShootName is { } shoot ? shoot + " · " + Name : Name;
 }
 
 /// <summary>Categories in a group compete for one destination; uncertainty has its own basket.</summary>
@@ -121,6 +123,8 @@ public sealed record FolderClassificationDecision(string RuleId, string Name, st
 {
     public bool NeedsReview => CategoryId is null;
     public bool OutfitIncludesNsfw { get; init; }
+    public string? OutfitShootName { get; init; }
+    public string DisplayName => OutfitShootName is { } shoot ? shoot + " · " + CategoryName : CategoryName;
 }
 public sealed record FolderClassifiedFile(MediaTagResult Media, IReadOnlyList<FolderClassificationDecision> Decisions,
     IReadOnlyList<string> Tags);
@@ -246,7 +250,8 @@ public static class FolderClassification
         {
             var manual = previous.Decisions.FirstOrDefault(old => old.RuleId == decision.RuleId && old.Manual);
             return manual is null ? decision : decision with
-            { CategoryId = manual.CategoryId, CategoryName = manual.CategoryName, Manual = true, Evidence = "人工确认" };
+            { CategoryId = manual.CategoryId, CategoryName = manual.CategoryName, OutfitShootName = manual.OutfitShootName,
+                Manual = true, Evidence = "人工确认" };
         }).ToArray() };
     }
 }

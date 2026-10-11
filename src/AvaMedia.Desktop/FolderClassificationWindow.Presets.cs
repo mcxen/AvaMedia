@@ -67,7 +67,7 @@ public sealed partial class FolderClassificationWindow
             foreach (var rule in presets)
             {
                 var check = new CheckBox { Content = Localization.Text(rule.Name), IsChecked = _rules.Any(active => active.Id == rule.Id) };
-                var names = UserText(rule.ByOutfit ? Localization.Text("按服装颜色、款式和配饰自动分组") : string.Join(" · ", rule.Categories.Select(category => category.Name)));
+                var names = UserText(rule.ByOutfit ? Localization.Text("按拍摄背景和服装分组，无服装单独成组") : string.Join(" · ", rule.Categories.Select(category => category.Name)));
                 names.Margin = new(28, 0, 0, 0); names.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
                 body.Children.Add(new StackPanel { Spacing = 2, Children = { check, names } }); choices.Add((rule, check));
             }

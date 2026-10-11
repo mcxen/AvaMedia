@@ -3,8 +3,8 @@ using System.Text;
 
 namespace AvaMedia.Core;
 
-/// <summary>Group clothing tags with local clothing-mask colors; retain uncertain samples for review.</summary>
-public static class FolderOutfitClassification
+/// <summary>Group each shooting context by outfit, with a separate unclothed group and manual corrections.</summary>
+public static partial class FolderOutfitClassification
 {
     private static readonly HashSet<string> Garments = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -39,8 +39,14 @@ public static class FolderOutfitClassification
     private static readonly string[] ColorLabels = ["白色", "黑色", "红色", "蓝色", "绿色", "黄色", "粉色", "紫色", "棕色", "灰色", "橙色", "多色"];
     private sealed record Feature(string Tag, double Weight, bool Garment, string? ColorPart = null, string? Color = null);
     private static readonly Lazy<Feature[]> Features = new(() => WordLibraryCatalog.JoyTags.Order(StringComparer.Ordinal).Select(Describe).OfType<Feature>().ToArray());
-    private sealed record Sample(double Seconds, double[] Values, double[] Colors, double[] Embedding);
-    private sealed record Profile(FolderClassifiedFile File, Sample[] Samples, double[] Values, double[] Colors, double[] Embedding, string? Error);
+    private sealed record Sample(double Seconds, double[] Values, OutfitAppearanceFrame Appearance, bool HasClothing, bool Unclothed)
+    {
+        public double[] Colors => Appearance.Colors;
+        public double[] Embedding => Appearance.Embedding;
+        public double[] BackgroundPalette { get; } = Palette(Appearance.BackgroundColors);
+    }
+    private sealed record Profile(FolderClassifiedFile File, Sample[] Samples, Sample[] ContextSamples, Sample? Context,
+        double[] Values, double[] Colors, double[] Embedding, bool Unclothed, DateTime? CaptureTime, string? Error);
 
     private static Feature? Describe(string tag)
     {
@@ -81,8 +87,9 @@ public static class FolderOutfitClassification
 
     public static FolderClassificationCategory[] Categories(FolderClassificationRule rule, IEnumerable<FolderClassifiedFile> files)
         => rule.ByOutfit ? files.SelectMany(file => file.Decisions).Where(decision => decision.RuleId == rule.Id && decision.CategoryId is not null)
-            .GroupBy(decision => decision.CategoryId!).Select(group => new FolderClassificationCategory(group.Key, group.First().CategoryName, group.First().CategoryName))
-            .OrderBy(category => category.Name, StringComparer.Ordinal).ToArray() : rule.Categories;
+            .GroupBy(decision => decision.CategoryId!).Select(group => new FolderClassificationCategory(group.Key, group.First().CategoryName, group.First().Evidence)
+                { OutfitShootName = group.First().OutfitShootName })
+            .OrderBy(category => category.DisplayName, StringComparer.Ordinal).ToArray() : rule.Categories;
 
     public static FolderClassifiedFile KeepGroups(FolderClassifiedFile classified, FolderClassifiedFile previous, IReadOnlyList<FolderClassificationRule> rules, bool includeNsfw)
     {
@@ -96,155 +103,183 @@ public static class FolderOutfitClassification
     {
         var features = Features.Value.Where(feature => includeNsfw || !MediaPrivacy.IsSensitiveTag(feature.Tag)).ToArray();
         var threshold = rule.OutfitSimilarity;
-        var profiles = files.Select(file => Build(file, features)).ToArray();
-        // Common accessories carry less information than an outfit-specific color, garment or pattern.
+        var contextThreshold = Math.Clamp(threshold + .14, .76, .92);
+        var profiles = files.Select(file => Build(file, features, includeNsfw)).ToArray();
         var weights = features.Select((feature, index) => feature.Weight * (1 + Math.Log((profiles.Length + 1d)
             / (1 + profiles.Count(profile => profile.Values[index] >= .4))))).ToArray();
-        double[] Vector(double[] values) => Normalize(values.Select((value, index) => Math.Pow(Math.Max(0, value - .15), 1.4) * Math.Sqrt(weights[index])).ToArray());
-        // Compare garment families as well as detailed tags, so a hidden sleeve or hem does not create a new outfit.
+        var detailVectors = new Dictionary<double[], double[]>(); var broadVectors = new Dictionary<double[], double[]>();
+        var palettes = new Dictionary<double[], double[]>();
+        double[] Vector(double[] values)
+        {
+            if (!detailVectors.TryGetValue(values, out var vector)) detailVectors[values] = vector =
+                Normalize(values.Select((value, index) => Math.Pow(Math.Max(0, value - .15), 1.4) * Math.Sqrt(weights[index])).ToArray());
+            return vector;
+        }
+        double[] ColorVector(double[] colors)
+        {
+            if (!palettes.TryGetValue(colors, out var palette)) palettes[colors] = palette = Palette(colors);
+            return palette;
+        }
         var families = features.Select(feature => Family(feature.ColorPart ?? feature.Tag)).OfType<string>().Distinct().Order().ToArray();
         double[] BroadVector(double[] values)
         {
+            if (broadVectors.TryGetValue(values, out var cached)) return cached;
             var broad = new double[families.Length];
             for (var index = 0; index < features.Length; index++)
-            {
-                var feature = features[index];
-                if (Family(feature.ColorPart ?? feature.Tag) is { } family)
+                if (Family(features[index].ColorPart ?? features[index].Tag) is { } family)
                 {
                     var target = Array.IndexOf(families, family);
                     broad[target] = Math.Max(broad[target], values[index]);
                 }
-            }
-            return Normalize(broad.Select(value => Math.Pow(Math.Max(0, value - .15), 1.4)).ToArray());
+            return broadVectors[values] = Normalize(broad.Select(value => Math.Pow(Math.Max(0, value - .15), 1.4)).ToArray());
         }
-        // Garment crops change with pose and partial removal; visual features refine the tag decision rather than veto it.
-        double Match(Sample left, Sample right) => PaletteConflict(left.Colors, right.Colors) || TagColorConflict(left.Values, right.Values, features) ? 0
-            : .25 * Dot(left.Embedding, right.Embedding) + .2 * Dot(Palette(left.Colors), Palette(right.Colors))
-                + .3 * Dot(Vector(left.Values), Vector(right.Values)) + .25 * Dot(BroadVector(left.Values), BroadVector(right.Values));
-        // Ignore samples with no visible clothing, but never average two different outfits into a third one.
+        double Clothing(double[] lv, double[] lc, double[] le, double[] rv, double[] rc, double[] re)
+            => PaletteConflict(lc, rc) || TagColorConflict(lv, rv, features) ? 0
+                : .25 * Dot(le, re) + .2 * Dot(ColorVector(lc), ColorVector(rc))
+                    + .3 * Dot(Vector(lv), Vector(rv)) + .25 * Dot(BroadVector(lv), BroadVector(rv));
+        double Match(Sample left, Sample right) => Clothing(left.Values, left.Colors, left.Embedding, right.Values, right.Colors, right.Embedding);
+        double Outfit(Profile left, Profile right) => Clothing(left.Values, left.Colors, left.Embedding, right.Values, right.Colors, right.Embedding);
+        var decisions = new Dictionary<string, FolderClassificationDecision>(BatchRename.PathComparer);
         profiles = profiles.Select(profile =>
         {
             if (profile.Samples.Length == 0) return profile;
+            // Use a real dominant outfit, rather than averaging a costume change into a fictitious outfit.
             var representative = profile.Samples.OrderByDescending(sample => profile.Samples.Count(other => Match(sample, other) >= threshold - .1))
                 .ThenByDescending(sample => sample.Values.Select((value, index) => features[index].Garment ? value : 0).DefaultIfEmpty().Max()).First();
-            return profile with { Values = representative.Values, Colors = representative.Colors, Embedding = representative.Embedding };
+            var consistency = profile.Samples.Count(sample => Match(sample, representative) >= threshold - .1) / (double)profile.Samples.Length;
+            return profile with { Values = representative.Values, Colors = representative.Colors, Embedding = representative.Embedding,
+                Error = profile.Error ?? (consistency < .8 ? "采样服装有变化或服装信息不足" : null) };
         }).ToArray();
-        var vectors = profiles.ToDictionary(profile => profile.File.Media.Path, profile => Vector(profile.Values), BatchRename.PathComparer);
-        var broadVectors = profiles.ToDictionary(profile => profile.File.Media.Path, profile => BroadVector(profile.Values), BatchRename.PathComparer);
-        var palettes = profiles.ToDictionary(profile => profile.File.Media.Path, profile => Palette(profile.Colors), BatchRename.PathComparer);
-        var review = new Dictionary<string, FolderClassificationDecision>(BatchRename.PathComparer);
-        foreach (var profile in profiles)
+        foreach (var profile in profiles.Where(profile => profile.Error is not null))
+            decisions[profile.File.Media.Path] = Review(profile.Error!);
+
+        double Shoot(Profile left, Profile right)
         {
-            ct.ThrowIfCancellationRequested();
-            var frameVectors = profile.Samples.Select(sample => Vector(sample.Values)).ToArray();
-            var consistency = frameVectors.Length == 0 ? 0 : profile.Samples.Count(sample => Match(sample, new(0, profile.Values, profile.Colors, profile.Embedding)) >= threshold - .1) / (double)frameVectors.Length;
-            var error = profile.Error ?? (consistency < .8 ? "采样服装有变化或服装信息不足" : null);
-            if (error is not null) review[profile.File.Media.Path] = new(rule.Id, rule.Name, null, "待确认", [],
-                profile.Samples.Select((sample, index) => new FolderFrameClassification(sample.Seconds, null, Dot(frameVectors[index], vectors[profile.File.Media.Path]), null)).ToArray(),
-                null, consistency, error);
-        }
-        double Similarity(Profile left, Profile right)
-        {
-            if (PaletteConflict(left.Colors, right.Colors) || TagColorConflict(left.Values, right.Values, features)) return 0;
-            return .25 * Dot(left.Embedding, right.Embedding) + .2 * Dot(palettes[left.File.Media.Path], palettes[right.File.Media.Path])
-                + .3 * Dot(vectors[left.File.Media.Path], vectors[right.File.Media.Path])
-                + .25 * Dot(broadVectors[left.File.Media.Path], broadVectors[right.File.Media.Path]);
-        }
-        var groups = new List<List<Profile>>();
-        foreach (var profile in profiles.Where(profile => !review.ContainsKey(profile.File.Media.Path))
-            .OrderByDescending(profile => profile.Values.Select((value, index) => features[index].Garment ? value : 0).DefaultIfEmpty().Max())
-            .ThenBy(profile => profile.File.Media.Path, BatchRename.PathComparer))
-        {
-            ct.ThrowIfCancellationRequested();
-            var best = groups.Select(group => (Group: group, Scores: group.Select(other => Similarity(profile, other)).ToArray()))
-                .Where(match => match.Scores.Min() >= threshold - .02 && match.Scores.Average() >= threshold)
-                .OrderByDescending(match => match.Scores.Average()).FirstOrDefault();
-            if (best.Group is null) groups.Add([profile]); else best.Group.Add(profile);
-        }
-        // Merge compatible groups as a whole; a single bridging photo cannot chain unrelated outfits together.
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
-            (int Left, int Right, double Mean)? merge = null;
-            for (var left = 0; left < groups.Count; left++)
-                for (var right = left + 1; right < groups.Count; right++)
-                {
-                    var scores = groups[left].SelectMany(a => groups[right].Select(b => Similarity(a, b))).ToArray();
-                    var mean = scores.Average();
-                    if (scores.Min() >= threshold - .02 && mean >= threshold && (merge is null || mean > merge.Value.Mean))
-                        merge = (left, right, mean);
-                }
-            if (merge is not { } selected) break;
-            groups[selected.Left].AddRange(groups[selected.Right]); groups.RemoveAt(selected.Right);
-        }
-        var numbered = groups.OrderByDescending(group => group.Count).ThenBy(group => group.Select(profile => profile.File.Media.Path).Order(BatchRename.PathComparer).First(), BatchRename.PathComparer).ToArray();
-        var metadata = numbered.Select((group, number) =>
-        {
-            var center = Normalize(Enumerable.Range(0, features.Length).Select(index => group.Average(profile => vectors[profile.File.Media.Path][index])).ToArray());
-            var broadCenter = Normalize(Enumerable.Range(0, families.Length).Select(index => group.Average(profile => broadVectors[profile.File.Media.Path][index])).ToArray());
-            var paletteCenter = Normalize(Enumerable.Range(0, Colors.Length).Select(index => group.Average(profile => palettes[profile.File.Media.Path][index])).ToArray());
-            var embeddingCenter = Normalize(Enumerable.Range(0, 384).Select(index => group.Average(profile => profile.Embedding[index])).ToArray());
-            var descriptions = features.Select((feature, index) => (Feature: feature with { Tag = feature.ColorPart ?? feature.Tag, Color = null, ColorPart = null }, Score: group.Average(profile => profile.Values[index])))
-                .GroupBy(item => item.Feature.Tag).Select(items => items.MaxBy(item => item.Score))
-                .Where(item => item.Score >= .3).OrderByDescending(item => item.Score * (item.Feature.Color is not null ? 1.4 : item.Feature.Garment ? 1.1 : .6))
-                .ToArray();
-            var specific = descriptions.Any(item => item.Feature.Garment && item.Feature.Tag is not ("underwear" or "lingerie"));
-            var labels = descriptions.Where(item => !descriptions.Any(other => other.Feature.Garment && other.Feature.ColorPart == item.Feature.Tag)
-                && (!specific || item.Feature.Tag is not ("underwear" or "lingerie")))
-                .Select(item => Label(item.Feature)).Distinct().Take(3).ToArray();
-            var representative = group.OrderByDescending(profile => Dot(vectors[profile.File.Media.Path], center)).ThenBy(profile => profile.File.Media.Path, BatchRename.PathComparer).First();
-            var id = "outfit-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(representative.File.Media.Path)))[..16].ToLowerInvariant();
-            var dominant = Enumerable.Range(0, Colors.Length).OrderByDescending(index => group.Average(profile => profile.Colors[index])).First();
-            var name = $"{number + 1:00} {ColorLabels[dominant]} · " + string.Join(" · ", labels);
-            if (name.Length > 60) name = name[..60];
-            BatchRename.ValidateRenameKeyword(name);
-            return (Group: group, Center: center, BroadCenter: broadCenter, PaletteCenter: paletteCenter, EmbeddingCenter: embeddingCenter, Id: id, Name: name);
-        }).ToArray();
-        foreach (var group in metadata)
-            foreach (var profile in group.Group)
+            var gap = CaptureGap(left, right);
+            if (gap > TimeSpan.FromHours(6)) return 0;
+            var context = Scene(left.Context, right.Context);
+            // Close camera timestamps support a changed viewpoint, but cannot establish a shoot on their own.
+            if (gap <= TimeSpan.FromMinutes(90) && (context >= .55
+                || left.Samples.Length > 0 && right.Samples.Length > 0 && Outfit(left, right) >= threshold))
+                return Math.Max(contextThreshold, context);
+            if ((left.Context is null || right.Context is null) && left.Samples.Length > 0 && right.Samples.Length > 0)
             {
-                ct.ThrowIfCancellationRequested();
-                var frameVectors = profile.Samples.Select(sample => (Detail: Vector(sample.Values), Broad: BroadVector(sample.Values), Palette: Palette(sample.Colors), sample.Embedding)).ToArray();
-                var frames = profile.Samples.Select((sample, index) => new FolderFrameClassification(sample.Seconds, group.Id,
-                    .25 * Dot(sample.Embedding, group.EmbeddingCenter) + .2 * Dot(frameVectors[index].Palette, group.PaletteCenter) + .3 * Dot(frameVectors[index].Detail, group.Center) + .25 * Dot(frameVectors[index].Broad, group.BroadCenter), null)).ToArray();
-                var scores = metadata.Select(candidate => new FolderCategoryScore(candidate.Id, candidate.Name,
-                    .25 * Dot(profile.Embedding, candidate.EmbeddingCenter) + .2 * Dot(palettes[profile.File.Media.Path], candidate.PaletteCenter) + .3 * Dot(vectors[profile.File.Media.Path], candidate.Center) + .25 * Dot(broadVectors[profile.File.Media.Path], candidate.BroadCenter),
-                    frameVectors.Count(frame => .25 * Dot(frame.Embedding, candidate.EmbeddingCenter) + .2 * Dot(frame.Palette, candidate.PaletteCenter) + .3 * Dot(frame.Detail, candidate.Center) + .25 * Dot(frame.Broad, candidate.BroadCenter) >= threshold - .1)))
-                    .OrderByDescending(score => score.Similarity).Take(5).ToArray();
-                var agreement = frames.Count(frame => frame.Similarity >= threshold - .1) / (double)frames.Length;
-                review[profile.File.Media.Path] = new(rule.Id, rule.Name, agreement >= .8 ? group.Id : null, agreement >= .8 ? group.Name : "待确认", scores, frames,
-                    frames.MaxBy(frame => frame.Similarity)?.Seconds, agreement, agreement < .8 ? "采样服装与分组有分歧"
-                    : "服装标签与图像特征分组 · " + string.Join(" · ", features.Select((feature, index) => (feature, Value: profile.Values[index]))
-                        .Where(item => item.Value >= .4).OrderByDescending(item => item.Value).Select(item => Label(item.feature with
-                        { Tag = item.feature.ColorPart ?? item.feature.Tag, Color = null, ColorPart = null })).Distinct().Take(6)));
+                var clothing = Outfit(left, right);
+                return clothing >= Math.Min(.92, threshold + .12) ? Math.Max(contextThreshold, clothing) : 0;
             }
-        return review.ToDictionary(item => item.Key, item => item.Value with { OutfitIncludesNsfw = includeNsfw }, BatchRename.PathComparer);
+            return context;
+        }
+        var shoots = Cluster(profiles.Where(profile => profile.Error is null).OrderBy(profile => profile.CaptureTime)
+            .ThenBy(profile => profile.File.Media.Path, BatchRename.PathComparer), Shoot, contextThreshold, ct);
+        foreach (var (shoot, shootIndex) in shoots.Select((shoot, index) => (shoot, index)))
+        {
+            ct.ThrowIfCancellationRequested();
+            var shootName = $"拍摄组{shootIndex + 1:00}";
+            var groups = Cluster(shoot.Where(profile => profile.Samples.Length > 0)
+                .OrderByDescending(profile => profile.Values.Select((value, index) => features[index].Garment ? value : 0).DefaultIfEmpty().Max())
+                .ThenBy(profile => profile.File.Media.Path, BatchRename.PathComparer), Outfit, threshold, ct);
+            var unclothed = shoot.Where(profile => profile.Unclothed).ToList();
+            if (unclothed.Count > 0) groups.Add(unclothed);
+            var metadata = groups.OrderByDescending(group => group.Count)
+                .ThenBy(group => group.Min(profile => profile.File.Media.Path), BatchRename.PathComparer).Select((group, number) =>
+            {
+                var nude = group[0].Unclothed;
+                var center = Enumerable.Range(0, features.Length).Select(index => group.Average(profile => profile.Values[index])).ToArray();
+                var colors = Enumerable.Range(0, Colors.Length).Select(index => group.Average(profile => profile.Colors[index])).ToArray();
+                var embedding = Normalize(Enumerable.Range(0, 384).Select(index => group.Average(profile => profile.Embedding[index])).ToArray());
+                var context = group.Select(profile => profile.Context).OfType<Sample>().OrderByDescending(sample => group.Sum(profile => Scene(sample, profile.Context))).FirstOrDefault();
+                var descriptions = features.Select((feature, index) => (Feature: feature with { Tag = feature.ColorPart ?? feature.Tag, Color = null, ColorPart = null }, Score: center[index]))
+                    .GroupBy(item => item.Feature.Tag).Select(items => items.MaxBy(item => item.Score))
+                    .Where(item => item.Score >= .3).OrderByDescending(item => item.Score * (item.Feature.Garment ? 1.1 : .6)).ToArray();
+                var specific = descriptions.Any(item => item.Feature.Garment && item.Feature.Tag is not ("underwear" or "lingerie"));
+                var labels = descriptions.Where(item => !specific || item.Feature.Tag is not ("underwear" or "lingerie"))
+                    .Select(item => Label(item.Feature)).Distinct().Take(3).ToArray();
+                var dominant = Array.IndexOf(colors, colors.Max());
+                var name = nude ? $"{number + 1:00} 无服装" : $"{number + 1:00} {ColorLabels[dominant]} · " + string.Join(" · ", labels);
+                if (name.Length > 60) name = name[..60];
+                var representative = group.OrderBy(profile => profile.File.Media.Path, BatchRename.PathComparer).First();
+                var id = "outfit-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(representative.File.Media.Path)))[..16].ToLowerInvariant();
+                return (Group: group, Unclothed: nude, Values: center, Colors: colors, Embedding: embedding, Context: context, Id: id, Name: name);
+            }).ToArray();
+            foreach (var profile in shoot)
+            {
+                var own = Array.FindIndex(metadata, group => group.Group.Contains(profile));
+                var contextual = own < 0;
+                if (contextual)
+                {
+                    // A clothing-free crop can inherit only an unambiguous garment group from this shoot.
+                    var candidates = metadata.Select((group, index) => (Index: index, Score: Scene(profile.Context, group.Context)))
+                        .OrderByDescending(candidate => candidate.Score).Take(2).ToArray();
+                    if (candidates.Length == 0 || candidates[0].Score < contextThreshold
+                        || metadata[candidates[0].Index].Unclothed
+                        || candidates.Length > 1 && candidates[0].Score - candidates[1].Score < FolderClassificationRule.DefaultMargin)
+                    { decisions[profile.File.Media.Path] = Review("服装不可见，拍摄背景不足以确定归属") with { OutfitShootName = shootName }; continue; }
+                    own = candidates[0].Index;
+                }
+                var winner = metadata[own];
+                var samples = contextual || winner.Unclothed ? profile.ContextSamples : profile.Samples;
+                double Score(Sample sample, int index)
+                {
+                    var candidate = metadata[index];
+                    if (contextual) return Scene(sample, candidate.Context);
+                    if (winner.Unclothed) return candidate.Unclothed && sample.Unclothed
+                        ? candidate.Context is null && index == own ? 1 : Scene(sample, candidate.Context) : 0;
+                    return candidate.Unclothed ? 0 : Clothing(sample.Values, sample.Colors, sample.Embedding, candidate.Values, candidate.Colors, candidate.Embedding);
+                }
+                var minimum = contextual || winner.Unclothed ? contextThreshold - .1 : threshold - .1;
+                var frames = samples.Select(sample => new FolderFrameClassification(sample.Seconds, winner.Id, Score(sample, own), null)).ToArray();
+                var agreement = frames.Length == 0 ? 0 : frames.Count(frame => frame.Similarity >= minimum) / (double)frames.Length;
+                var scores = metadata.Select((candidate, index) => new FolderCategoryScore(candidate.Id, shootName + " · " + candidate.Name,
+                    samples.Length == 0 ? 0 : samples.Average(sample => Score(sample, index)), samples.Count(sample => Score(sample, index) >= minimum)))
+                    .OrderByDescending(score => score.Similarity).Take(5).ToArray();
+                var evidence = agreement < .8 ? "采样画面与分组有分歧" : contextual ? "拍摄背景关联到服装组"
+                    : winner.Unclothed ? winner.Context is null ? "无服装，缺少拍摄背景，单独成组" : "无服装样本按拍摄背景分组"
+                    : "同次拍摄内按服装标签、颜色和图像特征分组";
+                if (profile.CaptureTime is { } time) evidence += " · 拍摄时间 " + time.ToString("yyyy-MM-dd HH:mm:ss");
+                decisions[profile.File.Media.Path] = new(rule.Id, rule.Name, agreement >= .8 ? winner.Id : null,
+                    agreement >= .8 ? winner.Name : "待确认", scores, frames, frames.MaxBy(frame => frame.Similarity)?.Seconds, agreement, evidence)
+                    { OutfitShootName = shootName };
+            }
+        }
+        return decisions.ToDictionary(item => item.Key, item => item.Value with { OutfitIncludesNsfw = includeNsfw }, BatchRename.PathComparer);
+        FolderClassificationDecision Review(string evidence) => new(rule.Id, rule.Name, null, "待确认", [], [], null, 0, evidence);
     }
 
-    private static Profile Build(FolderClassifiedFile file, Feature[] features)
+    private static Profile Build(FolderClassifiedFile file, Feature[] features, bool includeNsfw)
     {
         var media = file.Media;
         var indices = media.Scores.Select((score, index) => (score.Tag, index)).ToDictionary(item => item.Tag, item => item.index, StringComparer.OrdinalIgnoreCase);
-        double[] Read(IReadOnlyList<double> values) => features.Select(feature => indices.TryGetValue(feature.Tag, out var index) && index < values.Count
-            && double.IsFinite(values[index]) && values[index] is >= 0 and <= 1 ? values[index] : 0).ToArray();
+        double[] Read(IReadOnlyList<double> values) => features.Select(feature => indices.TryGetValue(feature.Tag, out var index) && index < values.Count ? values[index] : 0).ToArray();
+        double Tag(IReadOnlyList<double> values, string tag) => indices.TryGetValue(tag, out var index) && index < values.Count ? values[index] : 0;
         var video = VideoFormats.IsVideo(media.Path);
         var frames = video ? media.Frames.Where(frame => frame.Values.Length == media.Scores.Count)
-            .Select(frame => (frame.Seconds, Values: Read(frame.Values.Select(value => (double)value).ToArray()))).ToArray()
-            : [(Seconds: 0d, Values: Read(media.Scores.Select(score => score.Score).ToArray()))];
-        var samples = frames.Select(frame => (frame, Appearance: media.OutfitFrames.FirstOrDefault(appearance => Math.Abs(appearance.Seconds - frame.Seconds) < .001)))
-            .Where(item => item.Appearance is { Pixels: >= 128, Confidence: >= .6, Colors.Length: 12, Embedding.Length: 384 }
-                && item.Appearance.Encoder == OutfitAppearanceService.Encoder && item.Appearance.Colors.All(value => double.IsFinite(value) && value is >= 0 and <= 1)
-                && item.Appearance.Embedding.All(double.IsFinite) && item.Appearance.Embedding.Any(value => value != 0))
-            .Select(item => new Sample(item.frame.Seconds, item.frame.Values, item.Appearance!.Colors, item.Appearance.Embedding)).ToArray();
+            .Select(frame => (frame.Seconds, Values: frame.Values.Select(value => (double)value).ToArray())).ToArray()
+            : [(Seconds: 0d, Values: media.Scores.Select(score => score.Score).ToArray())];
+        var all = frames.Select(frame => (frame, Appearance: media.OutfitFrames.FirstOrDefault(appearance => Math.Abs(appearance.Seconds - frame.Seconds) < .001)))
+            .Where(item => item.Appearance is { Encoder: OutfitAppearanceService.Encoder, Colors.Length: 12, Embedding.Length: 384,
+                BackgroundColors.Length: 12, BackgroundEmbedding.Length: 384, BackgroundRegions.Length: 1536 })
+            .Select(item =>
+            {
+                var appearance = item.Appearance!; var values = Read(item.frame.Values);
+                var clothing = appearance.Pixels >= 128 && appearance.Confidence >= .6 && appearance.Embedding.Any(value => value != 0)
+                    && features.Select((feature, index) => feature.Garment ? values[index] : 0).DefaultIfEmpty().Max() >= .35;
+                var nude = includeNsfw && !clothing && appearance.PersonPixels >= 512 && appearance.SkinPixels >= 1024
+                    && appearance.SkinPixels >= appearance.PersonPixels * .5 && appearance.Pixels < appearance.PersonPixels * .025
+                    && Math.Max(Tag(item.frame.Values, "nude"), Tag(item.frame.Values, "completely_nude")) >= .5;
+                return new Sample(item.frame.Seconds, values, appearance, clothing, nude);
+            }).ToArray();
+        var minimum = video ? Math.Min(2, frames.Length) : 1;
+        var clothingSamples = all.Where(sample => sample.HasClothing).ToArray();
+        var samples = clothingSamples.Length >= minimum ? clothingSamples : [];
+        var contextSamples = all.Where(sample => sample.Appearance.BackgroundEmbedding.Any(value => value != 0)).ToArray();
+        var context = contextSamples.OrderByDescending(sample => contextSamples.Sum(other => Scene(sample, other))).FirstOrDefault();
+        var unclothed = clothingSamples.Length == 0 && all.Length >= minimum && all.Count(sample => sample.Unclothed) >= all.Length * .8;
         var values = Enumerable.Range(0, features.Length).Select(index => samples.Length == 0 ? 0 : samples.Average(sample => sample.Values[index])).ToArray();
         var colors = Enumerable.Range(0, Colors.Length).Select(index => samples.Length == 0 ? 0 : samples.Average(sample => sample.Colors[index])).ToArray();
-        var recognizable = features.Select((feature, index) => feature.Garment ? values[index] : 0).DefaultIfEmpty().Max() >= .4;
-        var error = frames.Length == 0 || video && frames.Length != media.SampledFrames ? "服装采样标签缺失"
-            : media.OutfitFrames.Count != frames.Length ? "服装区域识别缺失"
-            : samples.Length < (video ? Math.Min(2, frames.Length) : 1) ? "未检出足够服装区域"
-            : !recognizable ? "未检出足够服装信息" : null;
         var embedding = Normalize(Enumerable.Range(0, 384).Select(index => samples.Length == 0 ? 0 : samples.Average(sample => sample.Embedding[index])).ToArray());
-        return new(file, samples, values, colors, embedding, error);
+        var error = frames.Length == 0 || video && frames.Length != media.SampledFrames ? "服装采样标签缺失"
+            : all.Length != frames.Length ? "服装区域识别缺失" : null;
+        return new(file, samples, all, context, values, colors, embedding, unclothed, all.FirstOrDefault()?.Appearance.CaptureTime, error);
     }
 
     private static double[] Normalize(double[] values)

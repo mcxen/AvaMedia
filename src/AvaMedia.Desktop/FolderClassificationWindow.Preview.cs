@@ -82,7 +82,7 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
             var decision = result?.Decisions.FirstOrDefault(item => item.RuleId == rule.Id);
             _details.Children.Add(UserText(rule.Name, "settingsHeading"));
             var categories = categoriesByRule[ruleIndex];
-            var choice = new ComboBox { ItemsSource = new[] { Localization.Text("待确认") }.Concat(categories.Select(category => category.Name)).ToArray(),
+            var choice = new ComboBox { ItemsSource = new[] { Localization.Text("待确认") }.Concat(categories.Select(category => category.DisplayName)).ToArray(),
                 SelectedIndex = decision?.CategoryId is { } id ? Array.FindIndex(categories, category => category.Id == id) + 1 : 0, IsEnabled = !_busy };
             Localization.SetIsUserText(choice, true);
             choice.SelectionChanged += async (_, _) =>
@@ -128,7 +128,7 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
     private string DestinationDisplay(MediaFileEntry entry, FolderClassifiedFile result)
     {
         if (!string.IsNullOrWhiteSpace(entry.NewName)) return entry.NewName;
-        if (string.IsNullOrWhiteSpace(_output.Text)) return string.Join(" / ", result.Decisions.Select(decision => decision.CategoryName));
+        if (string.IsNullOrWhiteSpace(_output.Text)) return string.Join(" / ", result.Decisions.Select(decision => decision.DisplayName));
         try { return FolderOrganization.DestinationFolder(result, _output.Text, _splitTypes.IsChecked == true); }
         catch (Exception error) when (error is ArgumentException or IOException) { return error.Message; }
     }
