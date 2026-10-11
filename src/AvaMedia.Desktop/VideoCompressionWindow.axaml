@@ -1,42 +1,39 @@
 <Window xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoCompressionWindow"
-        Title="视频压缩" Width="1120" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
-  <Grid RowDefinitions="*,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="12">
-    <Grid ColumnDefinitions="*,360" ColumnSpacing="12">
-      <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}">
-        <Grid RowDefinitions="Auto,*,240,Auto" Margin="12" RowSpacing="8">
-          <WrapPanel Orientation="Horizontal">
-            <WrapPanel.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></WrapPanel.Styles>
-            <Button Content="添加视频…" Click="AddClick"/>
-            <Button Content="添加文件夹…" Click="FolderClick"/>
-            <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
-            <Button x:Name="RemoveInvalidButton" Content="移除错误文件" Click="RemoveInvalidClick" IsEnabled="False"/>
-          </WrapPanel>
-          <Grid Grid.Row="1">
-          <ListBox x:Name="SourceList" SelectionMode="Multiple" BorderThickness="0" AutomationProperties.Name="批量压缩视频" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-            <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <StackPanel Spacing="4" Margin="4,8">
-                  <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
-                  <TextBlock Classes="caption" Text="{Binding SourceSummary}" TextWrapping="Wrap"/>
-                  <TextBlock Classes="caption" Text="{Binding ColorSummary}" IsVisible="{Binding HasColorChange}" TextWrapping="Wrap"/>
-                  <TextBlock Text="{Binding PlanSummary}" TextWrapping="Wrap"/>
-                  <TextBlock Classes="caption" Text="{Binding Warning}" IsVisible="{Binding HasWarning}" TextWrapping="Wrap"/>
-                  <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>
-                </StackPanel>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-          <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False"/>
-          </Grid>
-          <Grid Grid.Row="2" RowDefinitions="*,Auto" RowSpacing="8"><ContentControl x:Name="PreviewHost"/><controls:SizeComparisonView x:Name="SizeChart" Grid.Row="1"/></Grid>
-          <TextBlock x:Name="TotalSummary" Grid.Row="3" Classes="caption" TextWrapping="Wrap"/>
-        </Grid>
-      </Border>
-      <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}">
+        Title="视频压缩" Width="1200" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
+  <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="12">
+    <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}" Padding="12">
+      <ContentControl x:Name="PreviewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+    </Border>
+    <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}" Padding="12">
+      <Grid RowDefinitions="*,Auto" RowSpacing="12">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="16" Spacing="12">
+          <StackPanel Spacing="12">
+            <WrapPanel Orientation="Horizontal">
+              <WrapPanel.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></WrapPanel.Styles>
+              <Button Content="添加视频…" Click="AddClick"/>
+              <Button Content="添加文件夹…" Click="FolderClick"/>
+              <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
+              <Button x:Name="RemoveInvalidButton" Content="移除错误文件" Click="RemoveInvalidClick" IsEnabled="False"/>
+            </WrapPanel>
+            <Grid MinHeight="112">
+              <ListBox x:Name="SourceList" MinHeight="112" MaxHeight="240" SelectionMode="Multiple" AutomationProperties.Name="批量压缩视频" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Spacing="4" Margin="4,8">
+                      <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock Classes="caption" Text="{Binding SourceSummary}" TextWrapping="Wrap"/>
+                      <TextBlock Classes="caption" Text="{Binding ColorSummary}" IsVisible="{Binding HasColorChange}" TextWrapping="Wrap"/>
+                      <TextBlock Text="{Binding PlanSummary}" TextWrapping="Wrap"/>
+                      <TextBlock Classes="caption" Text="{Binding Warning}" IsVisible="{Binding HasWarning}" TextWrapping="Wrap"/>
+                      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False"/>
+            </Grid>
             <TextBlock Text="压缩方式"/>
             <ComboBox x:Name="ModeInput" AutomationProperties.Name="压缩模式"/>
             <StackPanel x:Name="AutoSection" Spacing="6">
@@ -94,27 +91,27 @@
                 <CheckBox x:Name="GpuInput" Content="优先 GPU 编码" IsChecked="True"/>
               </StackPanel>
             </Expander>
+            <controls:SizeComparisonView x:Name="SizeChart"/>
+            <TextBlock x:Name="TotalSummary" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
-      </Border>
-    </Grid>
-    <StackPanel Grid.Row="1" Spacing="8">
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-        <TextBlock Text="保存位置" VerticalAlignment="Center"/>
-        <TextBox x:Name="OutputInput" Grid.Column="1" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
-        <Button x:Name="BrowseButton" Grid.Column="2" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
+        <StackPanel Grid.Row="1" Spacing="8">
+          <WrapPanel Orientation="Horizontal">
+            <CheckBox x:Name="SourceFolderInput" Content="输出至源文件目录" Margin="0,0,16,4"/>
+            <CheckBox x:Name="SettingNameInput" Content="添加设置名称" Margin="0,0,0,4"/>
+          </WrapPanel>
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+            <TextBlock Text="保存位置" Grid.ColumnSpan="2"/>
+            <TextBox x:Name="OutputInput" Grid.Row="1" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
+            <Button x:Name="BrowseButton" Grid.Row="1" Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
+          </Grid>
+          <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap"/>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Button Content="取消" Classes="dialog-action" IsCancel="True" Click="CancelClick"/>
+            <Button x:Name="ConfirmButton" Grid.Column="1" HorizontalAlignment="Right" Content="加入队列" Classes="dialog-action primary" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>
+          </Grid>
+        </StackPanel>
       </Grid>
-      <StackPanel Orientation="Horizontal" Spacing="16">
-        <CheckBox x:Name="SourceFolderInput" Content="输出至源文件目录"/>
-        <CheckBox x:Name="SettingNameInput" Content="添加设置名称"/>
-      </StackPanel>
-    </StackPanel>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-      <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-        <Button Content="取消" Classes="dialog-action" IsCancel="True" Click="CancelClick"/>
-        <Button x:Name="ConfirmButton" Content="加入队列" Classes="dialog-action primary" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>
-      </StackPanel>
-    </Grid>
+    </Border>
   </Grid>
 </Window>
