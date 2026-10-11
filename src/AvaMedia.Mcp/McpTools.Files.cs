@@ -27,6 +27,7 @@ public sealed partial class McpTools
         }
         Add("输出目录", workspace.Engine.Settings.OutputFolder);
         Add("个人文件夹", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        Add("下载", System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"));
         Add("桌面", Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
         Add("文档", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
         Add("图片", Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));

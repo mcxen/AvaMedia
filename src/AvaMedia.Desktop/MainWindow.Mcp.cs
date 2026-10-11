@@ -178,6 +178,7 @@ public partial class MainWindow
                     var spec = job.Options.MediaTag ?? new();
                     result = new { media.Path, media.Caption, media.CaptionModel, media.CaptionBackend, media.CaptionObservations,
                         media.SampledFrames, media.InferredFrames, media.Backend, media.FallbackReason, media.SceneError, media.CaptionError,
+                        media.Nsfw, media.DurationSeconds, media.IsPartial,
                         Labels = MediaTagText.QualifyingLabels(media, spec.Threshold, spec.SceneThreshold, spec.SceneMargin, spec.OnlyLibrary, spec.LibraryCandidates)
                             .Where(label => privateEnabled || !MediaPrivacy.IsSensitiveLabel(label.Label, label.Category, label.Tags)).ToArray() };
                 }
@@ -213,7 +214,7 @@ public partial class MainWindow
             else if (job.FeatureId == "batch-rename")
                 result = new { Plan = job.Options.Rename?.Plan, Journal = job.Output, Applied = job.State == JobState.Completed };
             else if (job.State == JobState.Completed) result = new { Output = job.Output };
-            return new(view, result, offset, next);
+            return new(view, result, offset, next) { OutputIsDirectory = Directory.Exists(view.Output) };
         }
 
         public async Task<McpTaskView> ControlAsync(Guid id, string action, CancellationToken ct)

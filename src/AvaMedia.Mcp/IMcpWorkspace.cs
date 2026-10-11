@@ -16,7 +16,10 @@ public sealed record McpResourceUpdate(int? CpuReservePercent = null, int? CpuTh
     bool? MultiThread = null);
 public sealed record McpSubmission(string RequestId, McpTaskView[] Tasks);
 public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset);
-public sealed record McpTaskResult(McpTaskView Task, object? Result, int Offset = 0, int? NextOffset = null);
+public sealed record McpTaskResult(McpTaskView Task, object? Result, int Offset = 0, int? NextOffset = null)
+{
+    public bool OutputIsDirectory { get; init; }
+}
 
 /// <summary>Implemented by the desktop owner; collection access and mutations run on its dispatcher.</summary>
 public interface IMcpWorkspace

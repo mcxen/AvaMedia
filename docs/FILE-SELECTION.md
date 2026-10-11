@@ -36,10 +36,10 @@ flowchart LR
 - 输入目录、输出目录均属于当前服务器。`avamedia_file_locations` 返回服务器位置，`avamedia_browse_directory` 返回子目录、文件名、类型、大小、修改时间、父目录和分页信息。`avamedia_list_files` 继续用于收集可处理文件路径。
 - 工具列表从 `avamedia_capabilities` 读取，模型及资源状态从 `avamedia_list_models`、`avamedia_get_runtime` 读取，沿用服务器实际能力与设置。
 - 转换复用 `avamedia_create_task`；请求使用 UUID `requestId`，丢失响应后以相同 ID 和参数恢复任务。任务与桌面共用队列，不因关闭网页或断开 HTTP 请求而取消。
-- 进度、错误和结果复用 `avamedia_list_tasks`、`avamedia_get_task`、`avamedia_wait_task` 和日志接口；暂停、恢复、停止和重试沿用 `avamedia_control_task`。服务器输出路径与下载到浏览器是不同操作，下载入口需单独接入。
+- 进度、错误和结果复用 `avamedia_list_tasks`、`avamedia_get_task`、`avamedia_wait_task` 和日志接口；暂停、恢复、停止和重试沿用 `avamedia_control_task`。网页详情通过队列记录关联的文件路由预览或下载输入/输出，转换过程仍直接使用服务器路径。
 
 当前已实现共享控件、桌面文件来源、服务器目录浏览接口和上述任务服务。HTML 网页控制台随 MCP 宿主提供，通过同源 `/mcp` 接口浏览服务器文件、配置转换、提交及控制任务、查看进度和分页结果/日志。桌面设置页提供打开和复制网页地址入口，具体操作见 [MCP 服务](MCP.md)。Avalonia 的远程 `IFileBrowserSource` 适配仍待开发；网页使用独立 Web 视图。现有后台 MCP 宿主需要桌面会话，不等同于已经支持无桌面的独立服务器部署。
 
 本地文件上传属于另一种可选来源。若以后接入，应从用户授权的目录句柄或文件对象读取，通过上传得到服务器文件标识后再下发任务；不与服务器文件浏览混用。参考 [Avalonia Storage Provider](https://docs.avaloniaui.net/docs/services/storage/storage-provider) 和 [File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API)。
 
-本次检查范围是 Desktop 及其 FileUi、MCP、Core 依赖的 Release 编译、网页 JavaScript 语法和相关静态检查。未运行界面、媒体输出或浏览器功能验收。
+共享控件最初完成编译和静态检查；网页后续按用户要求增加真实浏览器、文件和媒体任务验收，范围及结果见 [网页端到端验证](acceptance/WEB-CONSOLE.md)。

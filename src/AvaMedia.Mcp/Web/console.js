@@ -1,10 +1,12 @@
 import { McpClient } from "./mcp-client.js";
+import { renderFiles, renderResult } from "./task-results.js";
 
 const $ = id => document.getElementById(id), api = new McpClient();
 const selected = new Map(), rows = new Map(), pageSize = 100, taskLimit = 30;
 const pendingKey = "avamedia.pending-submission"; // localStorage is isolated by server origin.
 let connected = false, directory = null, browseVersion = 0, taskVersion = 0, taskOffset = 0;
 let taskNext = null, timer, pending = null, submitting = false, detailId = null, detailMode = "result", detailNext = null, detailVersion = 0;
+let nsfwEnabled = false, detailOffset = 0, detailLoading = false, detailFilesKey = "";
 const states = { Waiting: "等待中", Running: "执行中", Completed: "已完成", Failed: "失败", Cancelled: "已停止", Paused: "已暂停", Stopping: "停止中" };
 
 function node(tag, text, className) {
@@ -51,6 +53,13 @@ function updateSubmission() {
   $("pending").hidden = !pending;
   $("recover").disabled = !connected || submitting;
   $("discard").disabled = submitting;
+}
+function updateFeature() {
+  const recognition = $("feature").value === "media-ai";
+  $("recognition").hidden = !recognition; $("conversion-fields").hidden = recognition;
+  $("recognize-nsfw").disabled = !nsfwEnabled;
+  $("nsfw-policy").textContent = nsfwEnabled ? "" : "服务器未开启 NSFW 内容功能";
+  $("format").placeholder = $("feature").selectedOptions[0]?.dataset.format || "使用工具默认值";
 }
 function updateSelection() {
   $("selection-count").textContent = `已选 ${selected.size} 项`;
@@ -121,6 +130,7 @@ async function connect() {
     $("locations").replaceChildren(...locations.locations.map(location => button(location.name, () => browse(location.path))));
     selected.clear(); directory = null; $("files").replaceChildren(); updateSelection();
     $("output").value = runtime.outputFolder; $("format").value = "";
+    nsfwEnabled = runtime.nsfwEnabled; $("recognize-nsfw").checked = nsfwEnabled; updateFeature();
     $("connection").textContent = `已连接 · ${runtime.version}`; connected = true; updateSubmission();
     notice("");
     await Promise.allSettled([browse(locations.defaultFolder).catch(error => notice(error.message, true)), refreshTasks()]);
@@ -131,8 +141,15 @@ async function submit() {
   let options = {};
   if ($("options").value.trim()) options = JSON.parse($("options").value);
   if (!options || typeof options !== "object" || Array.isArray(options)) throw new Error("附加参数须为 JSON 对象。");
-  for (const field of ["quality", "width", "height"]) if ($(field).value !== "") options[field] = Number($(field).value);
-  if ($("format").value.trim()) options.format = $("format").value.trim();
+  if ($("feature").value === "media-ai") {
+    options.mediaTag = { ...options.mediaTag, threshold: Number($("tag-threshold").value), analysis: {
+      ...options.mediaTag?.analysis, videoFrames: Number($("sample-frames").value),
+      recognizeNsfw: nsfwEnabled && $("recognize-nsfw").checked, recognizeScenes: $("recognize-scenes").checked
+    } };
+  } else {
+    for (const field of ["quality", "width", "height"]) if ($(field).value !== "") options[field] = Number($(field).value);
+    if ($("format").value.trim()) options.format = $("format").value.trim();
+  }
   const args = { requestId: uuid(), featureId: $("feature").value, paths: [...selected.keys()],
     outputFolder: $("output").value.trim(), options, recursive: $("recursive").checked, startImmediately: $("start").checked };
   // Save before sending so an ambiguous network failure cannot silently create a second batch.
@@ -156,6 +173,7 @@ function taskRow(task) {
   let entry = rows.get(task.id);
   if (!entry) {
     const row = node("tr"), name = node("td"), status = node("td"), output = node("td"), actionsCell = node("td");
+    row.dataset.taskId = task.id;
     const title = node("div"), detail = node("small"), state = node("div"), progress = node("progress"), actions = node("div", undefined, "actions");
     progress.max = 100; progress.setAttribute("aria-label", "任务进度");
     name.append(title, detail); status.append(state, progress); actionsCell.append(actions); row.append(name, status, output, actionsCell);
@@ -196,22 +214,38 @@ async function refreshTasks() {
     $("tasks-prev").disabled = taskOffset === 0; $("tasks-next").disabled = taskNext == null;
     $("task-page").textContent = `共 ${page.total} 项 · 第 ${Math.floor(taskOffset / taskLimit) + 1} 页`;
     $("queue-status").textContent = page.total ? `更新于 ${new Date().toLocaleTimeString()}` : "暂无任务";
+    if (detailId && detailMode === "result" && !detailLoading) await readDetail("result", detailOffset, true);
   } catch (error) { if (version === taskVersion) $("queue-status").textContent = `刷新失败：${error.message}`; }
   finally { if (version === taskVersion) timer = setTimeout(refreshTasks, document.hidden ? 15000 : 3000); }
 }
 async function openDetail(id, name) {
-  detailId = id; $("detail-title").textContent = name; $("detail-state").textContent = "";
+  detailId = id; detailFilesKey = ""; $("detail-files").replaceChildren(); $("detail-results").replaceChildren();
+  $("raw-result").open = false; $("detail-title").textContent = name; $("detail-state").textContent = "";
   $("detail-content").textContent = "读取中…"; $("task-detail").showModal();
   await readDetail("result");
 }
-async function readDetail(mode, offset = 0) {
+async function readDetail(mode, offset = 0, quiet = false) {
   if (!detailId) return;
-  const version = ++detailVersion, id = detailId; detailMode = mode; detailNext = null; $("detail-next").hidden = true;
-  const result = await api.call(mode === "log" ? "avamedia_get_task_log" : "avamedia_get_task", mode === "log"
-    ? { taskId: id, offset, maxCharacters: 16000 } : { taskId: id, includeResult: true, offset, limit: 100 });
-  if (version !== detailVersion || id !== detailId) return;
-  $("detail-content").textContent = mode === "log" ? (result.text || "暂无日志") : JSON.stringify(result, null, 2);
-  detailNext = result.nextOffset; $("detail-next").hidden = detailNext == null;
+  const version = ++detailVersion, id = detailId; detailMode = mode; detailOffset = offset; detailLoading = true;
+  if (!quiet) { $("detail-results").textContent = "读取中…"; detailNext = null; $("detail-next").hidden = true; }
+  try {
+    const result = await api.call(mode === "log" ? "avamedia_get_task_log" : "avamedia_get_task", mode === "log"
+      ? { taskId: id, offset, maxCharacters: 16000 } : { taskId: id, includeResult: true, offset, limit: 100 });
+    if (version !== detailVersion || id !== detailId) return;
+    $("detail-content").textContent = mode === "log" ? (result.text || "暂无日志") : JSON.stringify(result, null, 2);
+    if (mode === "log") { $("detail-results").replaceChildren(node("pre", result.text || "暂无日志")); $("raw-result").hidden = true; }
+    else {
+      $("raw-result").hidden = false; renderResult($("detail-results"), result);
+      $("detail-state").textContent = `${states[result.task.state] || result.task.state} · ${Number(result.task.progress).toFixed(1)}% · ${result.task.error || result.task.detail}`;
+      const key = JSON.stringify([result.task.id,result.task.inputs,result.task.output,result.task.state,result.outputIsDirectory]);
+      if (key !== detailFilesKey) {
+        detailFilesKey = key;
+        renderFiles($("detail-files"), result, path => { $("task-detail").close(); run($("refresh-tasks"), () => browse(path)); });
+      }
+    }
+    detailNext = result.nextOffset; $("detail-next").hidden = detailNext == null;
+  } catch (error) { if (version === detailVersion && id === detailId) $("detail-results").textContent = `读取失败：${error.message}`; }
+  finally { if (version === detailVersion) detailLoading = false; }
 }
 
 $("server").textContent = location.host;
@@ -229,7 +263,7 @@ $("select-page").addEventListener("change", () => {
 $("navigate").addEventListener("submit", event => { event.preventDefault(); run($("navigate").querySelector("button:last-child"), () => browse($("address").value)); });
 $("filter").addEventListener("submit", event => { event.preventDefault(); run($("filter").querySelector("button"), () => browse(directory?.path || $("address").value)); });
 $("submit-task").addEventListener("submit", event => { event.preventDefault(); run($("submit"), submit); });
-$("feature").addEventListener("change", () => { $("format").value = ""; $("format").placeholder = $("feature").selectedOptions[0]?.dataset.format || "使用工具默认值"; });
+$("feature").addEventListener("change", () => { $("format").value = ""; updateFeature(); });
 bind("recover", sendPending);
 bind("discard", () => {
   if (!confirm("服务可能已经接收任务。请先查看队列，确认要放弃本次提交的恢复记录？")) return;
@@ -240,7 +274,7 @@ bind("tasks-prev", () => { taskOffset = Math.max(0, taskOffset - taskLimit); ret
 bind("tasks-next", () => { if (taskNext != null) taskOffset = taskNext; return refreshTasks(); });
 $("task-state").addEventListener("change", () => { taskOffset = 0; refreshTasks(); });
 bind("close-detail", () => $("task-detail").close());
-$("task-detail").addEventListener("close", () => { detailId = null; detailVersion++; });
+$("task-detail").addEventListener("close", () => { detailId = null; detailVersion++; detailLoading = false; $("detail-files").replaceChildren(); });
 bind("result", () => readDetail("result")); bind("log", () => readDetail("log"));
 bind("detail-next", () => readDetail(detailMode, detailNext));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshTasks(); });
