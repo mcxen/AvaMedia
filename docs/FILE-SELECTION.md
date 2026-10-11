@@ -17,8 +17,29 @@ Desktop 的 `DesktopFileBrowserSource` 负责本地目录和磁盘位置，在�
 
 ## 网页端接入边界
 
-后续 Avalonia Browser 工具箱可以引用 `AvaMedia.FileUi`，嵌入 `FileBrowserView` 或 `FileImportPanel`。网页宿主需要提供 `IFileBrowserSource`，从用户授权的目录句柄或已上传的素材空间取得位置和文件，接收选择结果后使用 `IStorageFile.OpenReadAsync()` 读取。桌面工具目前仍在自己的业务边界使用本地路径，不代表媒体处理引擎已经可在浏览器运行。
+网页工具箱的主要流程是远程控制：连接 AvaMedia 服务器，浏览并选择服务器上的文件，选择服务器提供的工具及参数，下发任务，查看进度与输出位置。文件读取、媒体转换和模型推理均由服务器完成；已有远程文件无需下载到浏览器再上传。
 
-浏览器访问用户文件和目录需要用户授权，不能假定可以枚举整块磁盘，也不能把桌面绝对路径当成网页文件标识。若网页使用 HTML 前端，可以复用同一选择/导入行为和素材接口，但需实现对应的 Web 视图；Avalonia 控件不是 HTML 组件。参考 [Avalonia Storage Provider](https://docs.avaloniaui.net/docs/services/storage/storage-provider) 和 [File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API)。
+```mermaid
+flowchart LR
+    Web[网页文件选择与工具参数] -->|服务器文件标识与任务参数| Service[AvaMedia 服务接口]
+    Service --> Queue[共享持久任务队列]
+    Queue --> Engine[服务器媒体引擎与模型]
+    Engine --> Output[服务器输出文件]
+    Queue -->|任务状态与结果| Web
+```
+
+后续 Avalonia Browser 工具箱可以引用 `AvaMedia.FileUi`，嵌入 `FileBrowserView` 或 `FileImportPanel`，由远程 `IFileBrowserSource` 读取服务器目录元数据。若网页使用 HTML 前端，可以复用同一选择/导入行为和服务接口，但需实现对应的 Web 视图；Avalonia 控件不是 HTML 组件。
+
+远程文件与下发任务遵循以下约定：
+
+- 所选文件绑定服务器标识与服务器路径。网页不使用客户端操作系统规则改写服务器路径；切换服务器时重置当前目录和选中文件，避免把同名路径提交到另一台机器。
+- 输入目录、输出目录均属于当前服务器。`avamedia_file_locations` 返回服务器位置，`avamedia_browse_directory` 返回子目录、文件名、类型、大小、修改时间、父目录和分页信息。`avamedia_list_files` 继续用于收集可处理文件路径。
+- 工具列表从 `avamedia_capabilities` 读取，模型及资源状态从 `avamedia_list_models`、`avamedia_get_runtime` 读取，沿用服务器实际能力与设置。
+- 转换复用 `avamedia_create_task`；请求使用 UUID `requestId`，丢失响应后以相同 ID 和参数恢复任务。任务与桌面共用队列，不因关闭网页或断开 HTTP 请求而取消。
+- 进度、错误和结果复用 `avamedia_list_tasks`、`avamedia_get_task`、`avamedia_wait_task` 和日志接口；暂停、恢复、停止和重试沿用 `avamedia_control_task`。服务器输出路径与下载到浏览器是不同操作，下载入口需单独接入。
+
+当前已实现共享控件、桌面文件来源、服务器目录浏览接口和上述任务服务；远程 `IFileBrowserSource` 适配及网页控制台仍待开发。现有后台 MCP 宿主需要桌面会话，不等同于已经支持无桌面的独立服务器部署。服务连接和部署边界见 [MCP 服务](MCP.md)。
+
+本地文件上传属于另一种可选来源。若以后接入，应从用户授权的目录句柄或文件对象读取，通过上传得到服务器文件标识后再下发任务；不与服务器文件浏览混用。参考 [Avalonia Storage Provider](https://docs.avaloniaui.net/docs/services/storage/storage-provider) 和 [File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API)。
 
 本次检查范围是 FileUi、Desktop 及其依赖的 Release 编译和相关静态检查。未运行界面、媒体输出或浏览器功能验收。

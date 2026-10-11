@@ -38,6 +38,8 @@ Codex 可执行 `codex mcp add avamedia --url http://127.0.0.1:18920/mcp`。安�
 | 工具 | 用途 |
 | --- | --- |
 | `avamedia_capabilities` | 当前服务能力、分类预设与任务控制动作 |
+| `avamedia_file_locations` | 服务器上已有的输出目录、个人目录和磁盘位置 |
+| `avamedia_browse_directory` | 单层目录导航，返回子目录、文件大小、修改时间、父目录及分页信息 |
 | `avamedia_list_files` | 目录文件列表，可递归、筛选图片/视频、分页 |
 | `avamedia_probe` | 时长、画面尺寸、编码及媒体轨信息 |
 | `avamedia_create_task` | 创建现有服务的队列任务 |
@@ -66,6 +68,8 @@ Codex 可执行 `codex mcp add avamedia --url http://127.0.0.1:18920/mcp`。安�
 分类接口生成分类结果及待确认项，源文件保持原位。`analysis` 可指定视频采样数、批次、场景识别和画面描述，`tagThreshold` 设置标签阈值。相似服装必须从预设选择 `byOutfit=true` 的规则；规则缺省仍使用默认分组。`preview_organization` / `apply_organization` 完成后台文件夹整理，默认排除待确认项并保留原文件。标签结果包含命中标签、分数、画面描述及模型错误；所需模型由现有服务管理。自定义语义分类需要语义模型，可通过 `allowSemanticDownload=true` 下载。未开启 NSFW 时，接口沿用应用的隐私过滤。
 
 ## 任务流程
+
+远程文件选择先调用 `avamedia_file_locations`，再用返回路径调用 `avamedia_browse_directory`。浏览接口支持 `search`、扩展名数组 `extensions`、`foldersOnly`、`showHidden` 和 `offset/limit`；文件夹始终不受扩展名筛选影响。每页为当前目录的新视图，目录内容变化时应重新读取，而非把分页当作固定快照。列表中的路径属于当前服务器，切换服务器时清除先前选中文件。后续 `avamedia_create_task` 直接接收这些路径和服务器输出目录，媒体无需通过客户端中转。网页控制台和远程选择器适配尚待接入，见[共享文件选择](FILE-SELECTION.md)。
 
 创建接口使用客户端生成的 UUID `requestId`。相同 ID、相同参数返回仍保留在队列中的原任务；相同 ID、不同参数返回错误。任务移除后不保留此恢复记录。任务写入现有队列存储，HTTP 请求断开不取消已接收的任务。
 

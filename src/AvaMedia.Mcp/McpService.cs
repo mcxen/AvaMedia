@@ -52,6 +52,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
                 options.ServerInstructions = "AvaMedia exposes the desktop's shared task queue and local media services. Call avamedia_capabilities first. "
                     + "Use avamedia_get_runtime and avamedia_list_models to inspect resource policy and model availability. No task tool opens a classification window. "
                     + "Create tasks with a fresh UUID requestId and poll their durable queue IDs. File paths are absolute paths on this server's machine. "
+                    + "For remote file selection use avamedia_file_locations then avamedia_browse_directory; send returned paths unchanged to avamedia_create_task without uploading the media. "
                     + "Use avamedia_wait_task for bounded waits, get_task_log for diagnostics, and export_task_result to save a complete paginated JSON report. "
                     + "Classification analyzes only; preview_organization/apply_organization copy results into folders while keeping originals. "
                     + "For renaming: analyze labels, preview exact names, then apply the plan. File/service access is unrestricted; no authentication is required.";

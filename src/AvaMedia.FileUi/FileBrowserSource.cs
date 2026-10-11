@@ -10,7 +10,7 @@ public sealed record FileBrowserEntry(IStorageItem Item, ulong? Size, DateTimeOf
 }
 public sealed record FileBrowserDirectory(IStorageFolder Folder, IStorageFolder? Parent, IReadOnlyList<FileBrowserEntry> Entries);
 
-// A desktop host can enumerate local folders; a browser host supplies user-granted handles or uploaded assets.
+// Hosts supply local folders, remote server metadata, or user-granted browser files.
 // Controls keep storage objects intact and never require a local filesystem path.
 public interface IFileBrowserSource
 {
