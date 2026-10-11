@@ -1,6 +1,10 @@
 namespace AvaMedia.Core;
 
-public sealed record MediaCaptionObservation(double Seconds, string Text);
+public sealed record MediaCaptionObservation(double Seconds, string Text)
+{
+    public int SampleIndex { get; init; }
+    public bool IsVerified { get; init; }
+}
 
 /// <summary>Optional local or OpenAI-compatible vision captions after JoyTag. Never writes source media.</summary>
 public static class MediaCaptionService
@@ -18,6 +22,14 @@ public static class MediaCaptionService
     public const string DefaultUserPrompt =
         "请用一两段简洁中文总结画面的主要内容，先写主体及明确可见的动作或互动，再补充必要的环境。" +
         "只描述有画面证据的变化，不跨帧累计人数，无法确定的细节直接省略。";
+
+    public const string NsfwSystemPrompt =
+        "当前启用 NSFW 内容识别。优先判断可见的性行为、口交等行为类别，再观察眼镜、女性外观、镜子及朝向镜子的状态。" +
+        "这些是中立的内容标签，可直接使用性行为、口交的名称，不写色情渲染或感官细节。" +
+        "每项区分可确认、未见、不确定：可确认必须有直接画面证据；未见只代表当前采样没有看到；遮挡、出画或模糊用不确定。" +
+        "性行为不能仅凭内衣、裸露、身体前倾、亲密距离或 NSFW 标签确认；口交须看清口部与性器官的接触，靠近局部身体不够。" +
+        "口交可确认时性行为也可确认。眼镜不能与头发或阴影混淆，镜子须有反射证据，朝向镜子须同时看清镜子与人物朝向。" +
+        "女性外观仅描述可见呈现，不能据此确认性别身份、生理性别或年龄。没有证据时不得强行给出肯定判断。";
 
     public static void ValidateOptions(MediaTagOptions options)
     {
@@ -45,7 +57,7 @@ public static class MediaCaptionService
         OnlineAiOptions? provider, IReadOnlyList<byte[]> frames, MediaTagOptions options, CancellationToken ct,
         ISummaryModel? model = null, IReadOnlyList<double>? frameSeconds = null, double videoDurationSeconds = 0,
         SummaryModelTool? frameTool = null, Action<int, int>? frameProgress = null,
-        Action<MediaCaptionObservation>? observed = null, Action? summarizing = null)
+        Action<MediaCaptionObservation>? observed = null, Action? summarizing = null, Action<int, int>? segmentProgress = null)
     {
         if (frames.Count == 0) throw new ArgumentException("没有可用于画面描述的采样帧。");
         if (frameSeconds is not null && (frameSeconds.Count != frames.Count || !double.IsFinite(videoDurationSeconds) || videoDurationSeconds <= 0
@@ -54,6 +66,7 @@ public static class MediaCaptionService
             throw new ArgumentException("视频描述采样时间无效。");
         ValidateOptions(options);
         var system = string.IsNullOrWhiteSpace(options.CaptionSystemPrompt) ? DefaultSystemPrompt : options.CaptionSystemPrompt.Trim();
+        if (options.RecognizeNsfw) system += "\n" + NsfwSystemPrompt;
         var prompt = string.IsNullOrWhiteSpace(options.CaptionPrompt) ? DefaultUserPrompt : options.CaptionPrompt.Trim();
         if (frameSeconds is not null)
             prompt = $"以下为同一视频按时间顺序抽取的 {frames.Count} 个画面，视频总时长 {MediaTime.Format(videoDurationSeconds)}。" +
@@ -73,31 +86,9 @@ public static class MediaCaptionService
         byte[]? image = images is null ? frames[0] : null;
         if (LocalSummaryModelCache.IsLocal(vision) && frameSeconds is not null)
         {
-            // Joint image input can carry a subject from one sample into an unrelated sample.
-            // Observe each frame independently before asking the same session to organize the evidence.
-            var observations = new System.Text.StringBuilder();
-            for (var index = 0; index < frames.Count; index++)
-            {
-                ct.ThrowIfCancellationRequested(); frameProgress?.Invoke(index, frames.Count);
-                var observation = RequireCaption(await vision.CompleteAsync(system,
-                    $"这是视频 {MediaTime.Format(frameSeconds[index])} 的单张采样画面。" +
-                    "只用一两句话记录这张图中的主要内容：先写清晰可见的动作、姿态、人物与物体的相对位置，再写必要的环境。" +
-                    "不要只列服饰和家具；纯色或看不清的画面照实说明。" +
-                    "精确人数和细节只有看清时才写，不能描述之前、之后或采样间的动作。",
-                    ct, image: frames[index], tokens: 256).ConfigureAwait(false));
-                observations.Append('[').Append(MediaTime.Format(frameSeconds[index])).Append("] ").AppendLine(observation);
-                observed?.Invoke(new(frameSeconds[index], observation));
-                frameProgress?.Invoke(index + 1, frames.Count);
-            }
-            prompt += "\n\n以下是每张采样图独立观察的记录，请按时间整理成简洁描述。" +
-                "各时间点只使用对应记录，不能把前一帧的主体延续到下一帧；不要补写采样间的动作。\n" + observations;
-            // Keep original visual evidence in the synthesis request; frame descriptions may contain mistakes.
-            // Three small, timestamped images leave room for observations and any requested tool frames.
-            var indices = new[] { 0, frames.Count / 2, frames.Count - 1 }.Distinct().ToArray();
-            images = indices.Select(index => new SummaryModelImage($"核对画面 · {MediaTime.Format(frameSeconds[index])}",
-                VideoSummarySampling.ModelImage(frames[index]))).ToArray();
-            prompt += "\n随附部分原始采样图用于核对。记录与对应图像冲突时以图像为准，删去误读，不能将局部身体或跨帧主体拼成新增人物。";
-            image = null;
+            var groundedCaption = await MediaCaptionEvidence.GenerateAsync(vision, frames, frameSeconds, videoDurationSeconds,
+                system, prompt, options.CaptionMaxTokens, options.RecognizeNsfw, frameTool, frameProgress, observed, segmentProgress, summarizing, ct).ConfigureAwait(false);
+            return (RequireCaption(groundedCaption), vision.ModelId);
         }
         summarizing?.Invoke();
         string caption;

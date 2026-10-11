@@ -22,7 +22,7 @@ internal sealed class MediaCaptionSession(ModelStore store, OnlineAiSettings pro
         return await MediaCaptionService.GenerateAsync(null, frames, options, ct, _model,
             frameSeconds, videoDurationSeconds, frameTool,
             (current, total) => status($"分析采样画面 {current}/{total}"), observed,
-            () => status("生成总结")).ConfigureAwait(false);
+            () => status("生成总结"), (current, total) => status($"核对视频片段 {current}/{total}")).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()

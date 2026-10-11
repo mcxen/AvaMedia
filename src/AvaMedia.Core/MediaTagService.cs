@@ -205,7 +205,9 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                             (png, label) => { activity.Node("补充描述画面"); activity.Frame(png, label); }).Tool : null,
                     observed: observation =>
                     {
-                        observations.Add(observation);
+                        var existing = observations.FindIndex(value => value.SampleIndex == observation.SampleIndex);
+                        if (existing >= 0) observations[existing] = observation;
+                        else observations.Add(observation);
                         activity.Result(MediaTime.Format(observation.Seconds) + " · " + observation.Text);
                         progress?.Report(new(result.Path, null, null, completed, files.Length)
                             { PreviewResult = Snapshot() with { IsPartial = true } });
