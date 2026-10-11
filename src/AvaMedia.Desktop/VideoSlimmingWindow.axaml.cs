@@ -36,7 +36,8 @@ public sealed class VideoSlimmingEntry(string path) : Observable
     public string Status => Localization.Text(Loading ? "读取中" : Analyzing ? "分析中" : HasError ? "需要处理" :
         Analysis is null ? "待分析" : Analysis.Worthwhile ? "可瘦身" : "节省不足 5%");
     public string QualitySummary => Analysis is not { } analysis ? "" : Localization.Format(
-        $"SSIM {analysis.MeanSsim:0.####} · {analysis.Samples} 段采样 · {analysis.AudioTracks} 音轨 · {analysis.SubtitleTracks} 字幕轨");
+        $"SSIM {analysis.MeanSsim:0.####} · {analysis.Samples} 段采样 · {analysis.AudioTracks} 音轨 · {analysis.SubtitleTracks} 字幕轨") +
+        (analysis.SizeOptimized ? Localization.Format($" · {analysis.Width} × {analysis.Height} → {analysis.OutputWidth} × {analysis.OutputHeight}") : "");
     public void Refresh() => Raise(string.Empty);
 }
 
