@@ -7,6 +7,9 @@
     <ApplicationIcon>Assets/AppIcon/v2/app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="../../.agents/skills/avamedia-mcp/**/*" Exclude="../../.agents/skills/avamedia-mcp/**/__pycache__/**"
+             Link="skills/avamedia-mcp/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="Updates/Install.ps1" LogicalName="AvaMedia.Desktop.Updates.Install.ps1" />
     <EmbeddedResource Include="Updates/Install.sh" LogicalName="AvaMedia.Desktop.Updates.Install.sh" />
     <EmbeddedResource Include="Localization/Strings.en-US.json" LogicalName="AvaMedia.Desktop.Strings.en-US.json" WithCulture="false" />

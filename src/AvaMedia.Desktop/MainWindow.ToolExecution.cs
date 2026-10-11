@@ -14,6 +14,15 @@ public partial class MainWindow
     private async Task StartToolJobsAsync(Job[] jobs)
     {
         try { await StartQueueAsync(jobs); }
-        catch(Exception error) { if(!_closing)await Ui.Message(this,"任务启动失败",error.Message); }
+        catch(Exception error)
+        {
+            if (_mcpBackgroundMode)
+            {
+                foreach (var job in jobs.Where(job => job.State == JobState.Waiting))
+                { job.State = JobState.Failed; job.Error = error.Message; job.AppendLog(error.ToString()); }
+                Save();
+            }
+            else if (!_closing) await Ui.Message(this,"任务启动失败",error.Message);
+        }
     }
 }

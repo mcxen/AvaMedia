@@ -96,6 +96,7 @@ public static class FolderOrganization
                 JournalEntry? entry = null;
                 try
                 {
+                    await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                     CheckSource(media);
                     EnsureRegularDirectory(Path.GetDirectoryName(item.Target)!);
                     Directory.CreateDirectory(Path.GetDirectoryName(item.Target)!);

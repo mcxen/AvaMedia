@@ -12,8 +12,9 @@ internal static class Program
         if (args.Contains("--register-player")) { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         if (args.Contains("--unregister-player")) { SystemPlayerIntegration.UnregisterWindows(SystemPlayerIntegration.ExecutablePath); return 0; }
         var previewExport = args.Contains(SetupPreviewExporter.Argument);
-        if (!args.Contains("--capture") && !previewExport) FirstRunSetup.TryApplyPending();
-        if (OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe")) && !args.Contains("--capture") && !previewExport)
+        var mcpBackground = args.Contains("--mcp-background");
+        if (!args.Contains("--capture") && !previewExport && !mcpBackground) FirstRunSetup.TryApplyPending();
+        if (OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe")) && !args.Contains("--capture") && !previewExport && !mcpBackground)
         {
             try { SystemPlayerIntegration.RegisterWindows(SystemPlayerIntegration.ExecutablePath); }
             catch (Exception error) { AppDiagnostics.Record("Player registration", error); }
@@ -22,7 +23,7 @@ internal static class Program
         catch (Exception error)
         {
             AppDiagnostics.Record("Application startup", error);
-            StartupError.Show(error);
+            if (mcpBackground) Console.Error.WriteLine(error.Message); else StartupError.Show(error);
             return 1;
         }
     }

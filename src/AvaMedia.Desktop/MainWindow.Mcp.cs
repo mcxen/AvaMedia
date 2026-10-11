@@ -7,6 +7,18 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     private McpService? _mcp;
+    private bool _mcpBackgroundMode;
+
+    internal async Task StartMcpBackgroundAsync(int? port)
+    {
+        _mcpBackgroundMode = true; _startupOptionsInitialized = true;
+        _settings.Mcp.Enabled = true;
+        if (port is { } number) _settings.Mcp.Port = number;
+        _settings.Mcp.Validate();
+        await (_mcp ?? throw new InvalidOperationException("MCP 服务未初始化。")).ConfigureAsync(_settings.Mcp, _optionLifetime.Token);
+        _timer.Start();
+        Console.WriteLine(_mcp.Endpoint);
+    }
 
     private void InitializeMcp()
     {
@@ -33,8 +45,67 @@ public partial class MainWindow
         }).GetTask();
 
         private Job Find(Guid id) => owner._jobs.FirstOrDefault(job => job.Id == id) ?? throw new ArgumentException("任务不存在：" + id);
-        private static McpTaskView View(Job job) => new(job.Id, job.FeatureId, job.Name, job.State.ToString(), job.Progress,
-            job.ProgressDetail, job.Error, job.Inputs.ToArray(), job.UserOutput, job.SubmittedBy, job.SubmissionId);
+        private McpTaskView View(Job job)
+        {
+            var activity = job.Activity;
+            var privateEnabled = Engine.Settings.EnableNsfwContent;
+            return new(job.Id, job.FeatureId, job.Name, job.State.ToString(), job.Progress,
+                privateEnabled || !MediaPrivacy.IsSensitiveText(job.ProgressDetail) ? job.ProgressDetail : "分析中",
+                job.Error, job.Inputs.ToArray(), job.UserOutput, job.SubmittedBy, job.SubmissionId)
+            {
+                OutputIsPartial = job.OutputIsPartial || job.State != JobState.Completed,
+                Activity = activity is null ? null : new(activity.Stage, activity.Model, activity.Backend,
+                    privateEnabled || !MediaPrivacy.IsSensitiveText(activity.Detail) ? activity.Detail : "",
+                    activity.Current, activity.Total, activity.Unit, activity.UpdatedUtc)
+            };
+        }
+
+        public Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct) => Ui(() =>
+        {
+            if (update is not null)
+            {
+                if (update.CpuReservePercent is < 0 or > 80 || update.CpuThreads is < 1 or > 16 || update.ParallelJobs is < 1 or > 8)
+                    throw new ArgumentException("CPU 预留须为 0–80%，线程数为 1–16，每工具并发数为 1–8。");
+                var settings = owner._settings;
+                settings.CpuReservePercent = update.CpuReservePercent ?? settings.CpuReservePercent;
+                settings.CpuThreads = update.CpuThreads ?? settings.CpuThreads;
+                settings.ParallelJobs = update.ParallelJobs ?? settings.ParallelJobs;
+                settings.MultiThread = update.MultiThread ?? settings.MultiThread;
+                owner._storage.SaveSettings(settings); owner._appliedSettings = settings.Clone();
+                owner.Multithread.IsChecked = settings.MultiThread;
+            }
+            return new McpRuntimeView(typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "", Environment.OSVersion.ToString(),
+                owner._mcpBackgroundMode, owner._settings.OutputFolder, AiResourceSettings.From(owner._settings),
+                owner._settings.EnableNsfwContent, owner._settings.EnableBetaFeatures);
+        }, ct);
+
+        public async Task<string> LogAsync(Guid id, CancellationToken ct)
+        {
+            var job = await Ui(() => Find(id), ct).ConfigureAwait(false);
+            return await job.ReadLogAsync(ct).ConfigureAwait(false);
+        }
+
+        public async Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct)
+        {
+            var (job, hidden) = await Ui(() =>
+            {
+                var job = Find(id);
+                if (job.FeatureId != "folder-classification" || job.State is JobState.Waiting or JobState.Running or JobState.Paused or JobState.Stopping
+                    || owner._editingJobs.Contains(job)) throw new InvalidOperationException("请先完成分类任务并结束编辑，再预览整理。");
+                var hidden = job.Options.FolderClassification?.Rules.Where(MediaPrivacy.IsSensitiveRule).Select(rule => rule.Id).ToHashSet() ?? [];
+                return (job, hidden);
+            }, ct).ConfigureAwait(false);
+            var snapshot = job.ClassificationSnapshot ?? await FolderClassificationTaskStore.LoadAsync(job, ct).ConfigureAwait(false);
+            var excluded = job.Options.FolderClassification?.ExcludedPaths.ToHashSet(BatchRename.PathComparer) ?? [];
+            var privateEnabled = Engine.Settings.EnableNsfwContent;
+            return snapshot.Files.Where(file => !file.Pending && file.Error is null && file.Result is not null && !excluded.Contains(file.Path))
+                .Select(file => file.Result!).Select(file => privateEnabled ? file : file with
+                {
+                    Media = MediaPrivacy.Filter(file.Media, false),
+                    Decisions = file.Decisions.Where(decision => !hidden.Contains(decision.RuleId) && !decision.OutfitIncludesNsfw).ToArray(),
+                    Tags = file.Tags.Where(tag => !MediaPrivacy.IsSensitiveTag(tag)).ToArray()
+                }).Where(file => file.Decisions.Count > 0).ToArray();
+        }
 
         public Task<McpTaskPage> ListAsync(int offset, int limit, string? state, CancellationToken ct) => Ui(() =>
         {
@@ -95,7 +166,7 @@ public partial class MainWindow
                     media = MediaPrivacy.Filter(media, privateEnabled);
                     var spec = job.Options.MediaTag ?? new();
                     result = new { media.Path, media.Caption, media.CaptionModel, media.CaptionBackend, media.CaptionObservations,
-                        media.SampledFrames, media.InferredFrames, media.SceneError, media.CaptionError,
+                        media.SampledFrames, media.InferredFrames, media.Backend, media.FallbackReason, media.SceneError, media.CaptionError,
                         Labels = MediaTagText.QualifyingLabels(media, spec.Threshold, spec.SceneThreshold, spec.SceneMargin, spec.OnlyLibrary, spec.LibraryCandidates)
                             .Where(label => privateEnabled || !MediaPrivacy.IsSensitiveLabel(label.Label, label.Category, label.Tags)).ToArray() };
                 }
@@ -108,7 +179,10 @@ public partial class MainWindow
                     Files = snapshot.Files.Skip(offset).Take(limit).Select(file => new
                     {
                         file.Path, file.Error, file.Pending,
-                        Decisions = file.Result?.Decisions.Where(decision => privateEnabled || !hidden.Contains(decision.RuleId)).ToArray(),
+                        SampledFrames = file.Result?.Media.SampledFrames, InferredFrames = file.Result?.Media.InferredFrames,
+                        Backend = file.Result?.Media.Backend, OutfitBackend = file.Result?.Media.OutfitBackend,
+                        OutfitFallbackReason = file.Result?.Media.OutfitFallbackReason,
+                        Decisions = file.Result?.Decisions.Where(decision => privateEnabled || !hidden.Contains(decision.RuleId) && !decision.OutfitIncludesNsfw).ToArray(),
                         Tags = file.Result?.Tags.Where(tag => privateEnabled || !MediaPrivacy.IsSensitiveTag(tag)).ToArray()
                     }).ToArray() };
                 next = offset + limit < snapshot.Files.Length ? offset + limit : null;
@@ -121,6 +195,10 @@ public partial class MainWindow
                 result = job.SummaryReport
                     ?? await AiTaskResults.LoadAsync<VideoSummaryReport>(Path.Combine(
                         job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job), "report.json"), ct).ConfigureAwait(false);
+            else if (job.FeatureId == "folder-organize")
+                result = await AiTaskResults.LoadAsync<FolderOrganizationResult>(AiTaskResults.PathFor(job, "organization-result"), ct).ConfigureAwait(false);
+            else if (job.FeatureId == "model-download")
+                result = await AiTaskResults.LoadAsync<System.Text.Json.JsonElement?>(job.Output, ct).ConfigureAwait(false);
             else if (job.FeatureId == "batch-rename")
                 result = new { Plan = job.Options.Rename?.Plan, Journal = job.Output, Applied = job.State == JobState.Completed };
             else if (job.State == JobState.Completed) result = new { Output = job.Output };
@@ -146,7 +224,7 @@ public partial class MainWindow
                         break;
                     case "stop" when owner._queue.Stop(job): break;
                     case "retry" when job.State is JobState.Failed or JobState.Cancelled && owner.CanRequeueTask(job):
-                        if (job.FeatureId == "batch-rename") throw new ArgumentException("请重新预览并提交新的重命名计划。");
+                        if (job.FeatureId is "batch-rename" or "folder-organize") throw new ArgumentException("请重新预览并提交新的文件操作计划。");
                         McpTools.ValidatePaths(job, new()); _ = owner.RestartTasksAsync([job]); break;
                     case "remove" when owner.CanRemoveTask(job): operation = owner.RemoveTasksAsync([job]); break;
                     default: throw new ArgumentException("当前任务状态不支持此操作：" + action);

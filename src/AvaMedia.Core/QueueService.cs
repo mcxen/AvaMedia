@@ -82,7 +82,8 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
 
     private static string Lane(Job job) => job.Options.Orientation is not null ? "orientation" : job.FeatureId;
     private static string[] JobFiles(Job job) => job.Inputs.Append(job.Output)
-        .Concat(job.Options.Rename?.Plan.SelectMany(item => new[] { item.Source, item.Target }) ?? []).ToArray();
+        .Concat(job.Options.Rename?.Plan.SelectMany(item => new[] { item.Source, item.Target }) ?? [])
+        .Concat(job.Options.FolderOrganization?.Plan.SelectMany(item => new[] { item.Target, item.ReportPath ?? item.Target }) ?? []).ToArray();
     private static bool Overlap(IEnumerable<string> left, IEnumerable<string> right) => left.Any(first => right.Any(second =>
     {
         if (!Path.IsPathFullyQualified(first) || !Path.IsPathFullyQualified(second)) return false;
@@ -93,7 +94,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             || b.StartsWith(a + Path.DirectorySeparatorChar, comparison);
     }));
     private bool FilesReserved(Job job) => _fileChanges.Values.Any(paths => Overlap(paths, JobFiles(job)));
-    private bool MutationConflict(Job job) => _active.Keys.Any(active => (job.FeatureId == "batch-rename" || active.FeatureId == "batch-rename")
+    private bool MutationConflict(Job job) => _active.Keys.Any(active => (job.FeatureId is "batch-rename" or "folder-organize" || active.FeatureId is "batch-rename" or "folder-organize")
         && Overlap(JobFiles(job), JobFiles(active)));
 
     public void ApplyFileChanges(IEnumerable<Job> jobs, IReadOnlyList<RenameItem> mappings)

@@ -100,7 +100,7 @@ public partial class MainWindow
     private async Task FinishQueueOptionsAsync(Job[] batch, AppSettings preferences)
     {
         var completion = QueueCompletion.From(batch);
-        if (_closing || !completion.Finished) return;
+        if (_closing || _mcpBackgroundMode || !completion.Finished) return;
         _completionCancellation?.Dispose(); _completionCancellation = CancellationTokenSource.CreateLinkedTokenSource(_optionLifetime.Token);
         var token = _completionCancellation.Token;
         try

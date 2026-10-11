@@ -10,6 +10,7 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop;
 public sealed partial class App : Application
 {
+    private MainWindow? _mcpBackgroundWindow;
     public override void Initialize()
     {
         Avalonia.Controls.ToolTip.ToolTipOpeningEvent.AddClassHandler<Avalonia.Controls.TextBlock>((text, args) =>
@@ -30,6 +31,12 @@ public sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args ?? [];
+            if (args.Contains("--mcp-background"))
+            {
+                StartMcpBackground(desktop, args);
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
             desktop.Exit += (_, _) =>
             {

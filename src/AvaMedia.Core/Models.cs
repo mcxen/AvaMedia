@@ -57,6 +57,8 @@ public static class Catalog
         Add("batch-rename","批量重命名","工具集","","gear",Operation.BatchTools);
         Add("media-ai","自动标签分类","工具集","txt","image",Operation.MediaTag);
         Add("folder-classification","自动媒体整理","工具集","","gear",Operation.FolderClassify);
+        Add("folder-organize","整理分类结果","后台任务","json","gear",Operation.BatchTools);
+        Add("model-download","下载 AI 模型","后台任务","json","gear",Operation.BatchTools);
         Add("contact-sheet","多宫格截图","工具集","","frames",Operation.BatchTools);
         Add("zip","压缩 ZIP","工具集","zip","zip",Operation.Zip);
         Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
@@ -143,7 +145,7 @@ public sealed partial class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public sealed partial class Job : Observable
@@ -179,7 +181,7 @@ public sealed partial class Job : Observable
     public string Name => string.IsNullOrWhiteSpace(DownloadTitle)?string.Join(" + ", Inputs.Select(Path.GetFileName)):DownloadTitle;
     public string Source => string.Join(Environment.NewLine, Inputs);
     [JsonIgnore]
-    public string UserOutput => HasInternalOutput ? "" : Options.FolderClassification?.OutputFolder ?? Output;
+    public string UserOutput => HasInternalOutput ? "" : Options.FolderOrganization?.OutputFolder ?? Options.FolderClassification?.OutputFolder ?? Output;
     public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {(HasInternalOutput ? "任务结果" : UserOutput)}";
     [JsonIgnore]
     public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary"?"分析中":FeatureId=="auto-subtitle"?"识别中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停",JobState.Stopping=>"正在终止",_=>"已停止"};

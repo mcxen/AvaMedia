@@ -1,0 +1,4 @@
+interface:
+  display_name: "AvaMedia 后台媒体工具"
+  short_description: "安装连接 AvaMedia MCP，后台处理媒体、分类并直接交付结果"
+  default_prompt: "使用 $avamedia-mcp 连接 AvaMedia，在后台完成媒体任务并交付结果。"

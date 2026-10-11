@@ -79,7 +79,7 @@ internal static class Program
         {
             Require(Client.NegotiatedProtocolVersion == McpTools.ProtocolVersion, "Unexpected negotiated protocol.");
             var tools = await Client.ListToolsAsync();
-            Require(tools.Count == 11 && tools.Select(tool => tool.Name).Distinct().Count() == 11, "Expected all 11 tools.");
+            Require(tools.Count == 23 && tools.Select(tool => tool.Name).Distinct().Count() == 23, "Expected all 23 tools.");
             Require(tools.All(tool => !tool.ProtocolTool.InputSchema.GetProperty("properties").TryGetProperty("context", out _)), "Request context leaked into tool schema.");
             await File.WriteAllTextAsync(Path.Combine(Root, "tools.json"), JsonSerializer.Serialize(tools.Select(tool => tool.ProtocolTool), Json));
             var capabilities = await Call("avamedia_capabilities"); Require(capabilities.GetProperty("features").GetArrayLength() > 30, "Missing services.");

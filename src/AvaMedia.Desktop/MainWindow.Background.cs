@@ -83,6 +83,8 @@ public partial class MainWindow
         catch (Exception ex)
         {
             _closing = false; _exitRequested = false; _exitTask = null;
+            if (_mcpBackgroundMode)
+            { AppDiagnostics.Record("Background MCP exit", ex); Console.Error.WriteLine(ex.Message); return; }
             RestoreBackgroundWindow(); await Ui.Message(this, "退出失败", ex.Message);
         }
     }

@@ -14,11 +14,12 @@ public sealed record McpFilePage(string[] Files, int Total, int Offset, int? Nex
 public sealed record McpRenamePreview(RenameItem[] Plan);
 
 [McpServerToolType]
-public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
+public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
 {
     private readonly McpFiles _files = files;
     public const string ProtocolVersion = "2026-07-28";
-    public static bool CanCreate(Feature feature) => feature.Operation is not (Operation.Player or Operation.ImageView or Operation.Info);
+    public static bool CanCreate(Feature feature) => feature.Operation is not (Operation.Player or Operation.ImageView or Operation.Info)
+        && feature.Id is not ("batch-rename" or "folder-organize" or "model-download");
     private bool PrivateEnabled => workspace.Engine.Settings.EnableNsfwContent;
 
     [McpServerTool(Name = "avamedia_capabilities", Title = "服务能力", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
@@ -48,7 +49,7 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
         RequestContext<CallToolRequestParams>? context = null)
     {
         var feature = Catalog.All.FirstOrDefault(feature => feature.Id == featureId) ?? throw new ArgumentException("未知服务：" + featureId);
-        if (!CanCreate(feature) || feature.Id == "batch-rename") throw new ArgumentException("该服务请使用专用接口或桌面窗口。");
+        if (!CanCreate(feature)) throw new ArgumentException("该服务请使用专用接口或桌面窗口。");
         if (Catalog.IsBeta(feature) && !workspace.Engine.Settings.EnableBetaFeatures) throw new InvalidOperationException("Beta 功能已关闭。");
         var spec = options?.Clone() ?? Defaults(feature);
         // Deserializing a partial ConversionOptions otherwise supplies its generic MP4 default.
@@ -132,13 +133,15 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
     [McpServerTool(Name = "avamedia_classify_media", Title = "AI 媒体分类", Destructive = false, UseStructuredContent = true)]
     [Description("Queue classification of videos/images/folders using explicit category groups or built-in presets. Analysis returns decisions and uncertain cases; it does not move source files. Fetch presets via capabilities. Semantic categories require the semantic model; allowSemanticDownload opts into downloading it. Empty rules use built-in groups.")]
     public Task<McpSubmission> ClassifyMedia(string requestId, string[] paths, FolderClassificationRule[]? rules = null,
-        bool recursive = false, bool allowSemanticDownload = false, bool startImmediately = true, CancellationToken ct = default) =>
-        CreateTask(requestId, "folder-classification", paths, options: new()
+        bool recursive = false, bool allowSemanticDownload = false, bool startImmediately = true,
+        MediaTagOptions? analysis = null, double tagThreshold = .5, string? outputFolder = null, CancellationToken ct = default) =>
+        CreateTask(requestId, "folder-classification", paths, outputFolder, options: new()
         {
             FolderClassification = new()
             {
                 Rules = rules is { Length: > 0 } ? rules : FolderClassificationRule.DefaultRules().Where(rule => PrivateEnabled || !MediaPrivacy.IsSensitiveRule(rule)).ToArray(),
-                AllowSemanticDownload = allowSemanticDownload, IncludeNsfw = PrivateEnabled
+                AllowSemanticDownload = allowSemanticDownload, IncludeNsfw = PrivateEnabled,
+                Analysis = analysis ?? new(), TagThreshold = tagThreshold
             }
         }, recursive: recursive, startImmediately: startImmediately, ct: ct);
 
@@ -175,7 +178,7 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
     { Page(offset, limit); return workspace.GetAsync(taskId, includeResult, offset, limit, ct); }
 
     [McpServerTool(Name = "avamedia_control_task", Title = "控制任务", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Control an shared task. start: Waiting; pause: waiting in queue only; resume: Paused; stop: Waiting/Paused/Running; retry: Failed/Cancelled; remove: inactive tasks only, removes queue record and task metadata, keeps media outputs. Rename retry requires preview/apply with a fresh plan. Returns current task state immediately.")]
+    [Description("Control a shared task. start: Waiting; pause: Waiting/Running at a safe checkpoint; resume: Paused; stop: Waiting/Paused/Running; retry: Failed/Cancelled; remove: inactive tasks only, removes queue record and task metadata, keeps media outputs. Rename/organization retry requires preview/apply with a fresh plan. Returns current task state immediately.")]
     public Task<McpTaskView> ControlTask(Guid taskId, string action, CancellationToken ct = default) => workspace.ControlAsync(taskId, action, ct);
 
     private async Task<McpSubmission> Submit(string requestId, object arguments, Func<string[], Job[]> create, bool start, CancellationToken ct, Func<Task>? prepare = null)
@@ -204,7 +207,7 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
     public static void ValidatePaths(Job job, McpFiles policy)
     {
         var feature = Catalog.All.FirstOrDefault(feature => feature.Id == job.FeatureId) ?? throw new ArgumentException("未知服务。");
-        if (!CanCreate(feature)) throw new ArgumentException("该服务不支持 MCP 任务。");
+        if (!CanCreate(feature) && feature.Id is not ("batch-rename" or "folder-organize" or "model-download")) throw new ArgumentException("该服务不支持 MCP 任务。");
         foreach (var input in job.Inputs)
             if (feature.Operation == Operation.Download) _ = DownloadLinks.Normalize(input); else policy.Check(input);
         var o = job.Options;
@@ -214,7 +217,13 @@ public sealed class McpTools(IMcpWorkspace workspace, McpFiles files)
         if (o.VideoSummary?.SubtitleFile is { Length: > 0 } subtitles) policy.Check(subtitles, true);
         if (o.Transcription?.ReviewOutputFolder is { Length: > 0 } review) policy.Check(review);
         if (o.VideoSummary?.Speech.ReviewOutputFolder is { Length: > 0 } summaryReview) policy.Check(summaryReview);
-        if (o.Rename is { } rename)
+        if (o.FolderOrganization is { } organization)
+        {
+            policy.Check(organization.OutputFolder);
+            foreach (var item in organization.Plan) { policy.Check(item.File.Media.Path, true); policy.Check(item.Target); }
+        }
+        else if (job.FeatureId == "model-download") { }
+        else if (o.Rename is { } rename)
         {
             foreach (var item in rename.Plan) { policy.Check(item.Source); policy.Check(item.Target); }
             if (!BatchRename.PathComparer.Equals(job.Output, AiTaskResults.PathFor(job, "rename-journal"))) throw new ArgumentException("重命名日志路径无效。");

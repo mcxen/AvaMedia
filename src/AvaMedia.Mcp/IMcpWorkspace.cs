@@ -3,7 +3,17 @@ using AvaMedia.Core;
 namespace AvaMedia.Mcp;
 
 public sealed record McpTaskView(Guid Id, string FeatureId, string Name, string State, double Progress,
-    string Detail, string Error, string[] Inputs, string Output, string SubmittedBy, string SubmissionId);
+    string Detail, string Error, string[] Inputs, string Output, string SubmittedBy, string SubmissionId)
+{
+    public bool OutputIsPartial { get; init; }
+    public McpActivityView? Activity { get; init; }
+}
+public sealed record McpActivityView(string Stage, string Model, string Backend, string Detail,
+    double? Current, double? Total, string Unit, DateTime UpdatedUtc);
+public sealed record McpRuntimeView(string Version, string Platform, bool Background, string OutputFolder,
+    AiResourceSettings Resources, bool NsfwEnabled, bool BetaEnabled);
+public sealed record McpResourceUpdate(int? CpuReservePercent = null, int? CpuThreads = null,
+    int? ParallelJobs = null, bool? MultiThread = null);
 public sealed record McpSubmission(string RequestId, McpTaskView[] Tasks);
 public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset);
 public sealed record McpTaskResult(McpTaskView Task, object? Result, int Offset = 0, int? NextOffset = null);
@@ -16,5 +26,8 @@ public interface IMcpWorkspace
     Task<McpSubmission?> FindSubmissionAsync(string requestId, string hash, CancellationToken ct);
     Task<McpSubmission> SubmitAsync(string requestId, string hash, Func<string[], Job[]> create, bool start, CancellationToken ct);
     Task<McpTaskView> ControlAsync(Guid id, string action, CancellationToken ct);
+    Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct);
+    Task<string> LogAsync(Guid id, CancellationToken ct);
+    Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct);
     IMediaEngine Engine { get; }
 }
