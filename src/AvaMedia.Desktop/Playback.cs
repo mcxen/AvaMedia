@@ -55,9 +55,13 @@ internal sealed class Playback : IPlaybackSession
         _videoProfile = PlaybackVideoProfile.Inspect(info);
         _tryHardware = _engine is MediaEngine engine && engine.Settings.AutoDetectGpu && info.VideoCodec is "h264" or "hevc" or "av1" or "vp9";
         SetStreams(info.VideoStreamIndex, info.AudioStreamIndex);
-        if (info.HasVideo) SetVideoSize(info.Width, info.Height);
+        if (info.HasVideo)
+        {
+            var display = MediaStreams.DisplaySize(info);
+            SetVideoSize(display.Width, display.Height);
+        }
     }
-    public void SetVideoSize(int width, int height)
+    private void SetVideoSize(double width, double height)
     {
         var scale = Math.Min(1, Math.Min((double)MaximumVideoSize.Width / Math.Max(1, width), (double)MaximumVideoSize.Height / Math.Max(1, height)));
         var size = new PixelSize(Math.Max(2, (int)(width * scale) / 2 * 2), Math.Max(2, (int)(height * scale) / 2 * 2));

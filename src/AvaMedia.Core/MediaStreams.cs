@@ -20,6 +20,34 @@ public static class MediaStreams
     internal static string VideoSpecifier(int index) => index == 0 ? "V:0" : "v:" + index;
     internal static bool IsQuarterTurn(double angle) => double.IsFinite(angle) && Math.Abs(Math.Abs(angle) % 180 - 90) < .01;
 
+    internal static bool HasQuarterTurn(JsonElement stream)
+    {
+        if (stream.TryGetProperty("side_data_list", out var sideData))
+            foreach (var side in sideData.EnumerateArray())
+                if (side.TryGetProperty("rotation", out var rotation) && rotation.TryGetDouble(out var angle))
+                    return IsQuarterTurn(angle);
+        return stream.TryGetProperty("tags", out var tags) &&
+            double.TryParse(Text(tags, "rotate"), NumberStyles.Float, CultureInfo.InvariantCulture, out var taggedAngle) &&
+            IsQuarterTurn(taggedAngle);
+    }
+
+    /// <summary>Pixel shape after FFmpeg autorotation; Width/Height remain the editing pixel grid.</summary>
+    public static double PixelAspectRatio(MediaInfo media)
+    {
+        if (!media.HasVideo || string.IsNullOrWhiteSpace(media.RawJson)) return 1;
+        using var document = JsonDocument.Parse(media.RawJson);
+        if (!document.RootElement.TryGetProperty("streams", out var streams)) return 1;
+        var video = streams.EnumerateArray().Where(stream => Text(stream, "codec_type") == "video")
+            .ElementAtOrDefault(media.VideoStreamIndex);
+        if (video.ValueKind != JsonValueKind.Object) return 1;
+        var ratio = Ratio(Text(video, "sample_aspect_ratio"));
+        if (ratio <= 0) return 1;
+        return HasQuarterTurn(video) ? 1 / ratio : ratio;
+    }
+
+    public static (double Width, double Height) DisplaySize(MediaInfo media) =>
+        (media.Width * PixelAspectRatio(media), media.Height);
+
     internal static double Duration(JsonElement root, IEnumerable<JsonElement> streams)
     {
         var duration = root.TryGetProperty("format", out var format) ? PositiveNumber(format, "duration") : 0;
@@ -49,7 +77,7 @@ public static class MediaStreams
 
     private static double Ratio(string value)
     {
-        var parts = value.Split('/');
+        var parts = value.Split(new[] { '/', ':' });
         if (parts.Length != 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var numerator) ||
             !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var denominator) || denominator <= 0) return 0;
         var ratio = numerator / denominator;

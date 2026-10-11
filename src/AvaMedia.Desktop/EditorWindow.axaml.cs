@@ -83,8 +83,9 @@ public partial class EditorWindow : Window
         {
             _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_options.VideoStreamIndex=_info.VideoStreamIndex;
             _previewView.Clear();_player.Configure(_info);
+            var display=MediaStreams.DisplaySize(_info);PreviewImage.Width=Math.Max(1,display.Width);PreviewImage.Height=Math.Max(1,display.Height);
             TrimBar.Duration=Math.Max(0,_info.Duration);if(_options.End==0)_options.End=TrimBar.Duration;_updating=true;SeekBar.Maximum=Math.Max(0,_info.Duration);SetPosition(double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,SeekBar.Maximum):0);TotalTime.Text=EditorTime.Format(_info.Duration);UpdateTimes();
-            CropLayer.SourceWidth=Math.Max(1,_info.Width);CropLayer.SourceHeight=Math.Max(1,_info.Height);ApplyRatio();
+            CropLayer.SourceWidth=Math.Max(1,_info.Width);CropLayer.SourceHeight=Math.Max(1,_info.Height);CropLayer.PixelAspectRatio=MediaStreams.PixelAspectRatio(_info);ApplyRatio();
             CropLayer.PixelStep=MediaEngine.IsImage(_options.Format)?1:2;
             CropX.Text=_options.CropX.ToString();CropY.Text=_options.CropY.ToString();CropWidth.Text=(_options.CropWidth>0?_options.CropWidth:_info.Width).ToString();CropHeight.Text=(_options.CropHeight>0?_options.CropHeight:_info.Height).ToString();UpdateCropLayer();
             Localization.SetText(MediaDescription,$"{Path.GetFileName(_path)}\n时长: {EditorTime.Format(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}");
@@ -261,7 +262,7 @@ public partial class EditorWindow : Window
     private void ApplyRatio()
     {
         if(CropLayer is null)return;
-        CropLayer.AspectRatio=CropRatio.SelectedIndex switch{1=>_info is {Height:>0}?(double)_info.Width/_info.Height:0,2=>16d/9,3=>4d/3,4=>1,5=>9d/16,_=>0};
+        CropLayer.AspectRatio=CropRatio.SelectedIndex switch{1=>_info is {Height:>0}?(double)_info.Width/_info.Height:0,2=>16d/9/CropLayer.PixelAspectRatio,3=>4d/3/CropLayer.PixelAspectRatio,4=>1/CropLayer.PixelAspectRatio,5=>9d/16/CropLayer.PixelAspectRatio,_=>0};
     }
     private void ApplyCropClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>UpdateCropLayer();
     private void ResetCropClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(_info is null)return;if(_regionDelogo){_options.DelogoX=_options.DelogoY=_options.DelogoWidth=_options.DelogoHeight=0;}else{_options.CropX=_options.CropY=_options.CropWidth=_options.CropHeight=0;}CropRatio.SelectedIndex=0;LoadRegion();}

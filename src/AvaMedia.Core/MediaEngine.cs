@@ -65,8 +65,8 @@ public sealed class MediaEngine : IMediaEngine
         var audio=audios.ElementAtOrDefault(audioStreamIndex);
         var duration=MediaStreams.Duration(root,streams);
         int width=video.ValueKind==JsonValueKind.Undefined?0:video.GetProperty("width").GetInt32(),height=video.ValueKind==JsonValueKind.Undefined?0:video.GetProperty("height").GetInt32();
-        if(video.ValueKind!=JsonValueKind.Undefined && video.TryGetProperty("side_data_list",out var sideData))
-            foreach(var side in sideData.EnumerateArray())if(side.TryGetProperty("rotation",out var rotation) && MediaStreams.IsQuarterTurn(rotation.GetDouble())){(width,height)=(height,width);break;}
+        if(video.ValueKind!=JsonValueKind.Undefined && MediaStreams.HasQuarterTurn(video))
+            (width,height)=(height,width);
         if(HeifImage.Supports(path))
         {
             var primary=HeifImage.Read(root);width=primary.Width;height=primary.Height;
@@ -81,7 +81,7 @@ public sealed class MediaEngine : IMediaEngine
     {
         if(!double.IsFinite(seconds) || seconds<0 || width<1 || height<1 || videoStreamIndex<0)throw new ArgumentException("逐帧定位参数无效。");
         if(ImageFormats.Supports(input))return await ImageCodec.ThumbnailAsync(input,width,height,pad,ct).ConfigureAwait(false);
-        var cacheOptions=new { Frame=true, Seconds=seconds, Width=width, Height=height, Pad=pad, Stream=videoStreamIndex, EndExclusive=endExclusive, Tool=FFmpeg,
+        var cacheOptions=new { Frame=true, SquarePixels=true, Seconds=seconds, Width=width, Height=height, Pad=pad, Stream=videoStreamIndex, EndExclusive=endExclusive, Tool=FFmpeg,
             Probe=endExclusive || HeifImage.Supports(input)?FFprobe:"" };
         var identity=await _previews.IdentityAsync(input,cacheOptions,ct).ConfigureAwait(false);
         var frame=await _previews.ThumbnailAsync(identity,Render,ct).ConfigureAwait(false);
@@ -107,7 +107,7 @@ public sealed class MediaEngine : IMediaEngine
             }
             else args.AddRange(["-ss",Number(from)]);
             args.AddRange(["-i",input]);
-            HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
+            HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease:reset_sar=1"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
             args.AddRange(["-frames:v","1","-f","image2pipe","-c:v","png","pipe:1"]);
             using var p=await ProcessRunner.StartAsync(FFmpeg,args,ct).ConfigureAwait(false);
             using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
@@ -580,10 +580,11 @@ public sealed class MediaEngine : IMediaEngine
                 if(!audioOnly)
                 {
                     if(!infos[i].HasVideo) throw new ArgumentException("视频合并需要所有输入含视频画面。");
-                    int w=Math.Max(2,infos[0].Width/2*2),h=Math.Max(2,infos[0].Height/2*2);
+                    var display=MediaStreams.DisplaySize(infos[0]);
+                    int w=Math.Max(2,(int)Math.Round(display.Width)/2*2),h=Math.Max(2,(int)Math.Round(display.Height)/2*2);
                     var edit=job.InputOptions?.ElementAtOrDefault(i)??new ConversionOptions();
                     var vf=MediaFilters.Video(edit,MediaFilters.Duration(infos[i],edit),"i"+i,true,job.Inputs[i]);
-                    vf.AddRange([$"scale={w}:{h}:force_original_aspect_ratio=decrease",$"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2","setsar=1","fps="+Number(o.Fps>0?o.Fps:infos[0].FrameRate>0?infos[0].FrameRate:25),"setpts=PTS-STARTPTS"]);
+                    vf.AddRange([$"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2:reset_sar=1",$"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2","fps="+Number(o.Fps>0?o.Fps:infos[0].FrameRate>0?infos[0].FrameRate:25),"setpts=PTS-STARTPTS"]);
                     graph.Append($"[{i}:v:{infos[i].VideoStreamIndex}]"+string.Join(",",vf)+$"[v{i}];");parts.Append($"[v{i}]");
                 }
                 if(withAudio)

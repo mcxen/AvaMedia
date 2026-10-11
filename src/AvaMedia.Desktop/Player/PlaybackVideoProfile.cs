@@ -40,6 +40,7 @@ internal sealed record PlaybackVideoProfile(VideoCompressionColor Color, bool Re
             filters.AddRange(colorFilters);
         }
         else filters.Add($"scale={width}:{height}:flags=fast_bilinear");
+        filters.Add("setsar=1");
         return string.Join(',', filters);
     }
     private static string Text(JsonElement element, string key) => element.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";

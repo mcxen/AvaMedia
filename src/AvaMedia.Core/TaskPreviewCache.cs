@@ -23,7 +23,7 @@ public sealed class TaskPreviewCache
             throw new ArgumentException("任务预览参数无效。");
         // File metadata can live on a network volume; never inspect it on the UI thread.
         var source = await Task.Run(() => Source.Read(path), token).ConfigureAwait(false);
-        var identity = JsonSerializer.Serialize(new { Kind = "task-preview-1", Source = source.Identity, source.Length, source.Modified,
+        var identity = JsonSerializer.Serialize(new { Kind = "task-preview-2", Source = source.Identity, source.Length, source.Modified,
             Video = video, Audio = audio, Start = start, End = end, Width, Height,
             FFmpeg = engine.Settings.FFmpegPath, FFprobe = engine.Settings.FFprobePath });
         var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity));

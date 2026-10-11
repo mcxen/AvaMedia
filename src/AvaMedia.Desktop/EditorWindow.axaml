@@ -3,7 +3,7 @@
     <Grid RowDefinitions="*,Auto,Auto,Auto" MinWidth="620">
     <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
       <Grid MinHeight="120">
-        <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Fill"/></LayoutTransformControl></Viewbox>
+        <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Uniform"/></LayoutTransformControl></Viewbox>
         <local:CropOverlay x:Name="CropLayer"/>
         <TextBlock x:Name="PreviewStatus" Text="正在读取媒体…" Foreground="{DynamicResource UiMediaText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Grid>

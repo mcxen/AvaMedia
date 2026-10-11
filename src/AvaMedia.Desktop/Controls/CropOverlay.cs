@@ -17,6 +17,7 @@ public sealed class CropOverlay : Control
     static CropOverlay() => AffectsRender<CropOverlay>(ShadeBrushProperty,SelectionBrushProperty,BorderBrushProperty,HandleBrushProperty);
     public int SourceWidth{get;set;}=1920;
     public int SourceHeight{get;set;}=1080;
+    public double PixelAspectRatio{get;set;}=1;
     public Rect Selection{get;set;}
     public bool Enabled{get;set;}
     public int PixelStep{get;set;}=2;
@@ -27,7 +28,7 @@ public sealed class CropOverlay : Control
     private int _gesture;
     public CropOverlay(){Focusable=true;}
     private Rect ImageRect
-    {get{double scale=Math.Min(Bounds.Width/Math.Max(1,SourceWidth),Bounds.Height/Math.Max(1,SourceHeight));return new((Bounds.Width-SourceWidth*scale)/2,(Bounds.Height-SourceHeight*scale)/2,SourceWidth*scale,SourceHeight*scale);}}
+    {get{var width=Math.Max(1,SourceWidth)*PixelAspectRatio;var height=Math.Max(1,SourceHeight);double scale=Math.Min(Bounds.Width/width,Bounds.Height/height);return new((Bounds.Width-width*scale)/2,(Bounds.Height-height*scale)/2,width*scale,height*scale);}}
     public override void Render(DrawingContext c)
     {
         if(!Enabled)return;var image=ImageRect;var rect=ScreenRect(Selection);
@@ -43,7 +44,7 @@ public sealed class CropOverlay : Control
         foreach(var p in Corners(rect))c.DrawRectangle(HandleBrush,new Pen(BorderBrush,1),new Rect(p.X-4,p.Y-4,8,8));
     }
     private Rect ScreenRect(Rect source)
-    {var image=ImageRect;var scale=image.Width/Math.Max(1,SourceWidth);return new(image.X+source.X*scale,image.Y+source.Y*scale,source.Width*scale,source.Height*scale);}
+    {var image=ImageRect;var scaleX=image.Width/Math.Max(1,SourceWidth);var scaleY=image.Height/Math.Max(1,SourceHeight);return new(image.X+source.X*scaleX,image.Y+source.Y*scaleY,source.Width*scaleX,source.Height*scaleY);}
     private static Point[] Corners(Rect rect)=>[rect.TopLeft,rect.TopRight,rect.BottomLeft,rect.BottomRight];
     private int Hit(Point p)
     {
@@ -106,5 +107,5 @@ public sealed class CropOverlay : Control
     }
     private int Snap(double value)=>(int)Math.Floor(value/Math.Max(1,PixelStep)+.0000001)*Math.Max(1,PixelStep);
     private Point SourcePoint(Point p)
-    {var image=ImageRect;var scale=image.Width/Math.Max(1,SourceWidth);return new(Snap(Math.Clamp((p.X-image.X)/scale,0,SourceWidth)),Snap(Math.Clamp((p.Y-image.Y)/scale,0,SourceHeight)));}
+    {var image=ImageRect;var scaleX=image.Width/Math.Max(1,SourceWidth);var scaleY=image.Height/Math.Max(1,SourceHeight);return new(Snap(Math.Clamp((p.X-image.X)/scaleX,0,SourceWidth)),Snap(Math.Clamp((p.Y-image.Y)/scaleY,0,SourceHeight)));}
 }
