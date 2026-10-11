@@ -20,7 +20,16 @@ public sealed class SegmentThumbnail : Image
     private ISegmentThumbnailSource? _owner;
     private readonly PreviewRequest _request = new();
     private (double Start, int Stream)? _loaded;
-    public SegmentThumbnail() { _view = new(this); DataContextChanged += (_, _) => Bind(); }
+    public SegmentThumbnail()
+    {
+        _view = new(this); DataContextChanged += (_, _) => Bind();
+        DoubleTapped += (_, args) =>
+        {
+            if (Source is null || TopLevel.GetTopLevel(this) is not Window owner) return;
+            args.Handled = true;
+            ImageViewerWindow.ShowPreview(owner, Source, _entry?.Title ?? "");
+        };
+    }
     internal static async Task<byte[]> ReadAsync(IMediaPreview preview, string path, ConversionOptions options,
         CancellationToken token, CancellationToken lifetime, Task? ready = null)
     {

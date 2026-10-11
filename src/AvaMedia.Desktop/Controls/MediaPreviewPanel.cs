@@ -50,6 +50,14 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         Grid.SetRow(actions,3);root.Children.Add(actions);Content=root;
         Avalonia.Automation.AutomationProperties.SetName(_seek,"预览位置");
         _seek.PropertyChanged+=(_,change)=>{if(change.Property==Slider.ValueProperty&&!_updating&&_path is not null){_requestedPosition=_seek.Value;_=LoadAsync();}};
+        _view.DoubleTapped+=(_,args)=>
+        {
+            if(_sourceBitmap is null||TopLevel.GetTopLevel(this) is not Window owner)return;
+            var x=args.GetPosition(_view).X;
+            var result=_resultBitmap is not null&&x>=_view.Bounds.Width*(_view.SideBySide ? .5 : _view.Split);
+            args.Handled=true;
+            ImageViewerWindow.ShowPreview(owner,result?_resultBitmap:_sourceBitmap,Path.GetFileName(_path??""));
+        };
         _archive.ItemTemplate=new FuncDataTemplate<ArchiveItem>((item,_)=>
         {
             var row=new Grid{ColumnDefinitions=new("28,*,Auto"),ColumnSpacing=8,Margin=new(4)};
