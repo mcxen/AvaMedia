@@ -15,12 +15,12 @@ public static partial class FolderOutfitClassification
         "swimsuit", "bikini", "one-piece_swimsuit", "school_swimsuit", "competition_swimsuit", "lingerie", "bra",
         "panties", "underwear", "camisole", "tank_top", "crop_top", "sleeveless_shirt", "dress_shirt", "collared_shirt",
         "pleated_skirt", "miniskirt", "long_skirt", "pencil_skirt", "frilled_dress", "frilled_skirt", "sleeveless_dress",
-        "strapless_dress", "short_dress", "long_dress", "sweater_dress", "turtleneck", "sleeveless_turtleneck"
+        "strapless_dress", "short_dress", "long_dress", "sweater_dress", "turtleneck", "sleeveless_turtleneck",
+        "legwear", "pantyhose", "thighhighs", "stockings", "fishnets", "fishnet_legwear", "socks", "kneehighs"
     };
     private static readonly HashSet<string> Details = new(StringComparer.OrdinalIgnoreCase)
     {
-        "thighhighs", "stockings", "pantyhose", "fishnets", "fishnet_legwear", "garter_straps", "garter_belt",
-        "socks", "kneehighs", "boots", "high_heels", "shoes", "gloves", "elbow_gloves", "necktie", "bowtie",
+        "garter_straps", "garter_belt", "boots", "high_heels", "shoes", "gloves", "elbow_gloves", "necktie", "bowtie",
         "ribbon", "hair_ribbon", "hair_bow", "choker", "collar", "maid_headdress", "bunny_ears", "animal_ears",
         "detached_sleeves", "long_sleeves", "short_sleeves", "puffy_sleeves", "sleeveless", "off_shoulder",
         "bare_shoulders", "frills", "lace", "lace_trim", "ribbon_trim", "fur_trim", "see-through", "sheer_clothes",
@@ -39,10 +39,10 @@ public static partial class FolderOutfitClassification
     private static readonly string[] ColorLabels = ["白色", "黑色", "红色", "蓝色", "绿色", "黄色", "粉色", "紫色", "棕色", "灰色", "橙色", "多色"];
     private sealed record Feature(string Tag, double Weight, bool Garment, string? ColorPart = null, string? Color = null);
     private static readonly Lazy<Feature[]> Features = new(() => WordLibraryCatalog.JoyTags.Order(StringComparer.Ordinal).Select(Describe).OfType<Feature>().ToArray());
-    private sealed record Sample(double Seconds, double[] Values, OutfitAppearanceFrame Appearance, bool HasClothing, bool Unclothed)
+    private sealed record Sample(double Seconds, double[] Values, OutfitAppearanceFrame Appearance, bool HasClothing, bool Unclothed, bool UseAppearance)
     {
-        public double[] Colors => Appearance.Colors;
-        public double[] Embedding => Appearance.Embedding;
+        public double[] Colors { get; } = UseAppearance ? Appearance.Colors : new double[12];
+        public double[] Embedding { get; } = UseAppearance ? Appearance.Embedding : new double[384];
         public double[] BackgroundPalette { get; } = Palette(Appearance.BackgroundColors);
     }
     private sealed record Profile(FolderClassifiedFile File, Sample[] Samples, Sample[] ContextSamples, Sample? Context,
@@ -134,9 +134,16 @@ public static partial class FolderOutfitClassification
             return broadVectors[values] = Normalize(broad.Select(value => Math.Pow(Math.Max(0, value - .15), 1.4)).ToArray());
         }
         double Clothing(double[] lv, double[] lc, double[] le, double[] rv, double[] rc, double[] re)
-            => PaletteConflict(lc, rc) || TagColorConflict(lv, rv, features) ? 0
-                : .25 * Dot(le, re) + .2 * Dot(ColorVector(lc), ColorVector(rc))
-                    + .3 * Dot(Vector(lv), Vector(rv)) + .25 * Dot(BroadVector(lv), BroadVector(rv));
+        {
+            if (PaletteConflict(lc, rc) || TagColorConflict(lv, rv, features)) return 0;
+            var score = .3 * Dot(Vector(lv), Vector(rv)) + .25 * Dot(BroadVector(lv), BroadVector(rv));
+            var weight = .55;
+            if (le.Any(value => value != 0) && re.Any(value => value != 0))
+            { score += .25 * Dot(le, re); weight += .25; }
+            if (lc.Any(value => value != 0) && rc.Any(value => value != 0))
+            { score += .2 * Dot(ColorVector(lc), ColorVector(rc)); weight += .2; }
+            return score / weight;
+        }
         double Match(Sample left, Sample right) => Clothing(left.Values, left.Colors, left.Embedding, right.Values, right.Colors, right.Embedding);
         double Outfit(Profile left, Profile right) => Clothing(left.Values, left.Colors, left.Embedding, right.Values, right.Colors, right.Embedding);
         var decisions = new Dictionary<string, FolderClassificationDecision>(BatchRename.PathComparer);
@@ -162,10 +169,14 @@ public static partial class FolderOutfitClassification
             if (gap <= TimeSpan.FromMinutes(90) && (context >= .55
                 || left.Samples.Length > 0 && right.Samples.Length > 0 && Outfit(left, right) >= threshold))
                 return Math.Max(contextThreshold, context);
-            if ((left.Context is null || right.Context is null) && left.Samples.Length > 0 && right.Samples.Length > 0)
+            if (left.Samples.Length > 0 && right.Samples.Length > 0)
             {
                 var clothing = Outfit(left, right);
-                return clothing >= Math.Min(.92, threshold + .12) ? Math.Max(contextThreshold, clothing) : 0;
+                // A close crop can change the background layout. Strong outfit evidence still needs
+                // a compatible visible scene, unless the scene is unavailable altogether.
+                if (clothing >= Math.Min(.92, threshold + .12)
+                    && (left.Context is null || right.Context is null || context >= threshold - .1))
+                    return Math.Max(contextThreshold, context);
             }
             return context;
         }
@@ -195,7 +206,8 @@ public static partial class FolderOutfitClassification
                 var labels = descriptions.Where(item => !specific || item.Feature.Tag is not ("underwear" or "lingerie"))
                     .Select(item => Label(item.Feature)).Distinct().Take(3).ToArray();
                 var dominant = Array.IndexOf(colors, colors.Max());
-                var name = nude ? $"{number + 1:00} 无服装" : $"{number + 1:00} {ColorLabels[dominant]} · " + string.Join(" · ", labels);
+                var name = nude ? $"{number + 1:00} 无服装" : $"{number + 1:00} "
+                    + (colors.Any(value => value != 0) ? ColorLabels[dominant] + " · " : "") + string.Join(" · ", labels);
                 if (name.Length > 60) name = name[..60];
                 var representative = group.OrderBy(profile => profile.File.Media.Path, BatchRename.PathComparer).First();
                 var id = "outfit-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(representative.File.Media.Path)))[..16].ToLowerInvariant();
@@ -261,12 +273,18 @@ public static partial class FolderOutfitClassification
             .Select(item =>
             {
                 var appearance = item.Appearance!; var values = Read(item.frame.Values);
-                var clothing = appearance.Pixels >= 128 && appearance.Confidence >= .6 && appearance.Embedding.Any(value => value != 0)
-                    && features.Select((feature, index) => feature.Garment ? values[index] : 0).DefaultIfEmpty().Max() >= .35;
+                double Garment(bool legwear) => features.Select((feature, index) => feature.Garment
+                    && (Family(feature.ColorPart ?? feature.Tag) == "legwear") == legwear ? values[index] : 0).DefaultIfEmpty().Max();
+                // Sheer hosiery is often segmented as skin or furniture, especially in close crops.
+                // Keep strong legwear tags, but do not call those uncertain mask colors garment colors.
+                var legwear = Garment(true); var primary = Garment(false);
+                var tagOnly = legwear >= .55 && primary < .55;
+                var clothing = tagOnly || appearance.Pixels >= 128 && appearance.Confidence >= .6
+                    && appearance.Embedding.Any(value => value != 0) && Math.Max(legwear, primary) >= .35;
                 var nude = includeNsfw && !clothing && appearance.PersonPixels >= 512 && appearance.SkinPixels >= 1024
                     && appearance.SkinPixels >= appearance.PersonPixels * .5 && appearance.Pixels < appearance.PersonPixels * .025
                     && Math.Max(Tag(item.frame.Values, "nude"), Tag(item.frame.Values, "completely_nude")) >= .5;
-                return new Sample(item.frame.Seconds, values, appearance, clothing, nude);
+                return new Sample(item.frame.Seconds, values, appearance, clothing, nude, !tagOnly);
             }).ToArray();
         var minimum = video ? Math.Min(2, frames.Length) : 1;
         var clothingSamples = all.Where(sample => sample.HasClothing).ToArray();
@@ -289,6 +307,7 @@ public static partial class FolderOutfitClassification
     }
     private static string? Family(string tag)
     {
+        if (tag is "legwear" or "pantyhose" or "thighhighs" or "stockings" or "fishnets" or "fishnet_legwear" or "socks" or "kneehighs") return "legwear";
         if (tag.Contains("dress", StringComparison.Ordinal) || tag is "kimono" or "yukata" or "cheongsam" or "chinese_clothes" or "japanese_clothes") return "dress";
         if (tag.Contains("skirt", StringComparison.Ordinal)) return "skirt";
         if (tag.Contains("shirt", StringComparison.Ordinal) || tag is "blouse" or "camisole" or "tank_top" or "crop_top" or "sweater" or "cardigan" or "hoodie") return "top";
