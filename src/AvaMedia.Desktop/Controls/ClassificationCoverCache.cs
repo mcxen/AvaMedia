@@ -8,15 +8,17 @@ internal sealed class ClassificationCoverCache : IDisposable
 {
     private const int MaxEntries = 256;
     private const long MaxBytes = 48L * 1024 * 1024;
+    // Cards, basket samples and the inspector share one decode and one persistent thumbnail.
+    private const int PreviewWidth = 640;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _gate = new(2, 2);
     private readonly Dictionary<Key, Entry> _entries = [];
     private readonly LinkedList<Entry> _recent = [];
     private long _bytes;
     private bool _disposed;
-    private readonly record struct Key(string Path, double Seconds, int Width, long Length, DateTime Modified);
+    private readonly record struct Key(string Path, double Seconds, long Length, DateTime Modified);
 
-    public async Task<Lease> AcquireAsync(IMediaEngine engine, string path, double seconds, int width,
+    public async Task<Lease> AcquireAsync(IMediaEngine engine, string path, double seconds,
         MediaTagResult? media, CancellationToken ct)
     {
         lock (_sync) ObjectDisposedException.ThrowIf(_disposed, this);
@@ -26,7 +28,7 @@ internal sealed class ClassificationCoverCache : IDisposable
             if (media is not null) MediaTagService.ValidateSource(media);
             var info = new FileInfo(path);
             if (!info.Exists) throw new FileNotFoundException("源文件不存在。", path);
-            return new Key(path, seconds, width, info.Length, info.LastWriteTimeUtc);
+            return new Key(info.FullName, ImageFormats.Supports(path) ? 0 : seconds, info.Length, info.LastWriteTimeUtc);
         }, ct).ConfigureAwait(false);
         Entry entry;
         lock (_sync)
@@ -62,7 +64,7 @@ internal sealed class ClassificationCoverCache : IDisposable
             lock (_sync)
             {
                 entry.Waiters--;
-                if (entry.Loading && !entry.Started && entry.Waiters == 0 && entry.Users == 0)
+                if (entry.Loading && entry.Waiters == 0 && entry.Users == 0)
                 { entry.Request.Cancel(); Remove(entry); }
                 ReleasePixels(entry); Trim();
             }
@@ -76,9 +78,9 @@ internal sealed class ClassificationCoverCache : IDisposable
         {
             var ct = entry.Request.Token;
             await _gate.WaitAsync(ct).ConfigureAwait(false); entered = true;
-            lock (_sync) { ct.ThrowIfCancellationRequested(); entry.Started = true; }
+            ct.ThrowIfCancellationRequested();
             var key = entry.Key;
-            var bytes = await engine.Thumbnail(key.Path, key.Seconds, key.Width, key.Width * 9 / 16, ct, pad: false).ConfigureAwait(false);
+            var bytes = await engine.Thumbnail(key.Path, key.Seconds, PreviewWidth, PreviewWidth * 9 / 16, ct, pad: false).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             var info = new FileInfo(key.Path);
             if (!info.Exists || info.Length != key.Length || info.LastWriteTimeUtc != key.Modified)
@@ -159,7 +161,7 @@ internal sealed class ClassificationCoverCache : IDisposable
         public Bitmap? Bitmap;
         public long Bytes;
         public int Users, Waiters;
-        public bool Cached = true, Loading = true, Started;
+        public bool Cached = true, Loading = true;
     }
     internal sealed class Lease : IDisposable
     {

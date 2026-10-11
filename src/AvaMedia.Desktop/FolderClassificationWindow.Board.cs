@@ -187,7 +187,7 @@ public sealed partial class FolderClassificationWindow
             for (var index = 0; index < samples.Length; index++)
             {
                 var cover = new ClassificationCover { Width = 63, Height = 43, Path = samples[index].Path, Seconds = samples[index].Seconds,
-                    ResolutionWidth = 120, IsHitTestVisible = false, RenderTransform = new RotateTransform((index - 1) * 7) };
+                    IsHitTestVisible = false, RenderTransform = new RotateTransform((index - 1) * 7) };
                 Canvas.SetLeft(cover, 8 + index * 23); Canvas.SetTop(cover, index == 1 ? 1 : 5); view.Fan.Children.Add(cover);
             }
         }

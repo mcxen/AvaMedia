@@ -7,7 +7,7 @@ namespace AvaMedia.Desktop.Controls;
 
 internal interface IClassificationCoverSource
 {
-    Task<ClassificationCoverCache.Lease> ReadClassificationCoverAsync(string path, double seconds, int width, CancellationToken ct);
+    Task<ClassificationCoverCache.Lease> ReadClassificationCoverAsync(string path, double seconds, CancellationToken ct);
 }
 
 /// <summary>Visible covers lease shared decoded pixels; off-screen cards release their lease and request.</summary>
@@ -17,13 +17,22 @@ internal sealed class ClassificationCover : Grid
     public static readonly StyledProperty<double> SecondsProperty = AvaloniaProperty.Register<ClassificationCover, double>(nameof(Seconds));
     public string? Path { get => GetValue(PathProperty); set => SetValue(PathProperty, value); }
     public double Seconds { get => GetValue(SecondsProperty); set => SetValue(SecondsProperty, value); }
-    public int ResolutionWidth { get; init; } = 240;
     private readonly Image _image = new() { Stretch = Stretch.Uniform };
     private readonly TextBlock _placeholder = Ui.Text("加载封面…", "caption");
     private IClassificationCoverSource? _owner;
     private CancellationTokenSource? _request;
     private ClassificationCoverCache.Lease? _lease;
     private bool _inViewport;
+    private bool _settingSource;
+
+    public void SetSource(string? path, double seconds)
+    {
+        if (Path == path && Seconds == seconds) return;
+        _settingSource = true;
+        try { Path = path; Seconds = seconds; }
+        finally { _settingSource = false; }
+        Refresh();
+    }
 
     public ClassificationCover()
     {
@@ -52,8 +61,8 @@ internal sealed class ClassificationCover : Grid
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == PathProperty) { Release(); _placeholder.IsVisible = true; Refresh(); }
-        else if (change.Property == SecondsProperty) Refresh();
+        if (change.Property == PathProperty) { Release(); _placeholder.IsVisible = true; if (!_settingSource) Refresh(); }
+        else if (change.Property == SecondsProperty && !_settingSource) Refresh();
     }
     private void Release()
     {
@@ -64,10 +73,13 @@ internal sealed class ClassificationCover : Grid
         if (!_inViewport || _owner is not { } owner || Path is not { Length: > 0 } path) return;
         _request?.Cancel();
         using var request = new CancellationTokenSource(); _request = request;
+        var seconds = Seconds;
         _placeholder.Text = Localization.Text("加载封面…"); _placeholder.IsVisible = _lease is null;
         try
         {
-            var next = await owner.ReadClassificationCoverAsync(path, Seconds, ResolutionWidth, request.Token);
+            // Let rapid scrolling / selection settle before competing for a decoder slot.
+            await Task.Delay(80, request.Token);
+            var next = await owner.ReadClassificationCoverAsync(path, seconds, request.Token);
             if (request.IsCancellationRequested || _request != request || _owner != owner)
             { next.Dispose(); return; }
             var previous = _lease; _lease = next; _image.Source = next.Bitmap; previous?.Dispose(); _placeholder.IsVisible = false;

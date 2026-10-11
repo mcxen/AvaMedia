@@ -8,8 +8,11 @@ namespace AvaMedia.Desktop;
 public sealed partial class FolderClassificationWindow : IClassificationCoverSource
 {
     private readonly ClassificationCoverCache _coverCache = new();
-    private readonly ClassificationCover _selectedCover = new() { Height = 180, ResolutionWidth = 640 };
+    private readonly ClassificationCover _selectedCover = new() { Height = 180 };
     private readonly StackPanel _coverPanel = new() { Spacing = 6 };
+    private readonly WrapPanel _coverActions = new();
+    private readonly SemaphoreSlim _destinationGate = new(1, 1);
+    private CancellationTokenSource? _destinationRequest;
     private double _coverPosition;
     private string? _coverPath;
     private bool _coverTouched;
@@ -20,10 +23,10 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
     private FolderClassificationCategory[] _detailsCategories = [];
     private (string? Path, string? Destination, string? Status, string? Output, bool Split, bool Busy)? _detailsPresentation;
 
-    Task<ClassificationCoverCache.Lease> IClassificationCoverSource.ReadClassificationCoverAsync(string path, double seconds, int width, CancellationToken ct)
+    Task<ClassificationCoverCache.Lease> IClassificationCoverSource.ReadClassificationCoverAsync(string path, double seconds, CancellationToken ct)
     {
         if (_closed) throw new OperationCanceledException(ct);
-        return _coverCache.AcquireAsync(_engine, path, seconds, width, _results.GetValueOrDefault(path)?.Media, ct);
+        return _coverCache.AcquireAsync(_engine, path, seconds, _results.GetValueOrDefault(path)?.Media, ct);
     }
 
     private double CoverSeconds(MediaFileEntry entry) => _results.TryGetValue(entry.Path, out var result)
@@ -32,19 +35,21 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
     private void RenderCover(MediaFileEntry? entry)
     {
         if (entry is null)
-        { _selectedCover.Path = null; _coverPanel.Children.Clear(); _coverPanel.IsVisible = false; _coverControlsKey = null; _coverPath = null; return; }
+        { _selectedCover.SetSource(null, 0); _coverActions.Children.Clear(); _coverPanel.IsVisible = false; _coverControlsKey = null; _coverPath = null; return; }
+        if (_coverPanel.Children.Count == 0)
+        { _coverPanel.Children.Add(_selectedCover); _coverPanel.Children.Add(_coverActions); }
         _coverPanel.IsVisible = true;
         if (!BatchRename.PathComparer.Equals(_coverPath, entry.Path))
         { _coverPath = entry.Path; _coverTouched = false; }
         if (!_coverTouched) _coverPosition = CoverSeconds(entry);
-        _selectedCover.Seconds = _coverPosition; _selectedCover.Path = entry.Path;
+        _selectedCover.SetSource(entry.Path, _coverPosition);
         var times = _results.TryGetValue(entry.Path, out var result) && VideoFormats.IsVideo(entry.Path)
             ? result.Decisions.SelectMany(decision => decision.Frames).Select(frame => frame.Seconds)
                 .Concat(result.Media.Frames.Select(frame => frame.Seconds)).Distinct().Order().ToArray() : [];
         var key = entry.Path + "|" + string.Join(",", times.Select(time => time.ToString("R", System.Globalization.CultureInfo.InvariantCulture)));
         if (_coverControlsKey == key) return;
-        _coverControlsKey = key; _coverPanel.Children.Clear(); _coverPanel.Children.Add(_selectedCover);
-        var actions = new WrapPanel();
+        _coverControlsKey = key; _coverActions.Children.Clear();
+        var actions = _coverActions;
         var open = Ui.Button(VideoFormats.IsVideo(entry.Path) ? "播放视频" : "打开图片", OpenSelected);
         open.Margin = new(0, 0, 6, 0); actions.Children.Add(open);
         if (times.Length > 0)
@@ -56,7 +61,6 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
             { if (timeline.SelectedIndex >= 0) { _coverTouched = true; _coverPosition = times[timeline.SelectedIndex]; _selectedCover.Seconds = _coverPosition; } };
             actions.Children.Add(timeline);
         }
-        _coverPanel.Children.Add(actions);
     }
 
     private void RenderDetails()
@@ -71,6 +75,7 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
             && _detailsCategories.SequenceEqual(categorySnapshot)) return;
         _detailsEntry = entry; _detailsResult = result; _detailsPresentation = presentation; _detailsRules = _rules.ToArray();
         _detailsCategories = categorySnapshot;
+        _destinationRequest?.Cancel();
         _details.Children.Clear();
         RenderCover(entry);
         if (entry is null) { _details.Children.Add(Ui.Text("选择封面查看分类结果", "caption")); return; }
@@ -117,7 +122,9 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
         if (result is not null)
         {
             _details.Children.Add(Ui.Text("将放入", "settingsHeading"));
-            _details.Children.Add(UserText(DestinationDisplay(entry, result)));
+            var destination = UserText("");
+            _details.Children.Add(destination);
+            RenderDestinationAsync(destination, entry, result);
             if (!string.IsNullOrWhiteSpace(entry.NewName)) _details.Children.Add(Ui.Text("目录预览已核对", "caption"));
             _details.Children.Add(Ui.Text("自动标签", "settingsHeading"));
             _details.Children.Add(UserText(result.Tags.Count == 0 ? Localization.Text("暂无标签") : string.Join(" · ", result.Tags)));
@@ -125,17 +132,33 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
         _details.Children.Add(UserText(entry.Path));
     }
 
-    private string DestinationDisplay(MediaFileEntry entry, FolderClassifiedFile result)
+    private async void RenderDestinationAsync(TextBlock target, MediaFileEntry entry, FolderClassifiedFile result)
     {
-        if (!string.IsNullOrWhiteSpace(entry.NewName)) return entry.NewName;
-        if (string.IsNullOrWhiteSpace(_output.Text)) return string.Join(" / ", result.Decisions.Select(decision => decision.DisplayName));
+        target.Text = string.IsNullOrWhiteSpace(entry.NewName)
+            ? string.Join(" / ", result.Decisions.Select(decision => decision.DisplayName)) : entry.NewName;
+        if (!string.IsNullOrWhiteSpace(entry.NewName) || string.IsNullOrWhiteSpace(_output.Text)) return;
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _destinationRequest = request;
+        var output = _output.Text;
+        var split = _splitTypes.IsChecked == true;
         try
         {
+            await Task.Delay(80, request.Token);
             var files = _entries.Where(candidate => candidate.Include && !AnalysisPending(candidate))
-                .Select(candidate => _results[candidate.Path]).Append(result);
-            return FolderOrganization.DestinationFolders(files, _output.Text, _splitTypes.IsChecked == true)[result.Media.Path];
+                .Select(candidate => _results[candidate.Path]).Append(result).ToArray();
+            await _destinationGate.WaitAsync(request.Token);
+            string destination;
+            try
+            {
+                destination = await Task.Run(() => FolderOrganization.DestinationFolders(files, output, split)[result.Media.Path], request.Token);
+            }
+            finally { _destinationGate.Release(); }
+            if (!request.IsCancellationRequested) target.Text = destination;
         }
-        catch (Exception error) when (error is ArgumentException or IOException) { return error.Message; }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is ArgumentException or IOException)
+        { if (!request.IsCancellationRequested) target.Text = error.Message; }
+        finally { if (_destinationRequest == request) _destinationRequest = null; }
     }
 
     private static TextBlock UserText(string text, string style = "caption")
