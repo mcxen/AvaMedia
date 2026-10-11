@@ -1,31 +1,31 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="860" MinWidth="1000" MinHeight="730" WindowStartupLocation="CenterOwner">
   <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto" ColumnDefinitions="*,0,0">
     <Grid RowDefinitions="*,Auto,Auto,Auto" MinWidth="620">
-    <Grid x:Name="PreviewArea" RowDefinitions="*,Auto" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
+    <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
       <Grid MinHeight="120">
         <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Fill"/></LayoutTransformControl></Viewbox>
         <local:CropOverlay x:Name="CropLayer"/>
         <TextBlock x:Name="PreviewStatus" Text="正在读取媒体…" Foreground="{DynamicResource UiMediaText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Grid>
-    <Grid Grid.Row="1" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{DynamicResource UiSpacingMedium}" MinHeight="{DynamicResource UiTransportRowHeight}" VerticalAlignment="Center" Margin="8,0,8,4">
-      <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Foreground="{DynamicResource UiMediaText}" Text="00:00:00.000"/>
+    </Grid>
+    <ScrollViewer Grid.Row="1" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,6,0,0">
+      <local:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
+    </ScrollViewer>
+    <Grid Grid.Row="2" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" MinHeight="{DynamicResource UiTransportRowHeight}" VerticalAlignment="Center" Margin="0,2,0,4">
+      <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Left">
         <Button x:Name="BackwardButton" Classes="transport" Click="BackwardClick" ToolTip.Tip="向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
         <Button x:Name="PlayButton" Classes="transport" Click="PlayClick" ToolTip.Tip="播放" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
         <Button x:Name="StopButton" Classes="transport" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop" /></Button>
         <Button x:Name="ForwardButton" Classes="transport" Click="ForwardClick" ToolTip.Tip="向后定位" AutomationProperties.Name="向后定位"><local:ActionIcon Kind="forward" /></Button>
       </StackPanel>
-      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" HorizontalAlignment="Right" VerticalAlignment="Center">
-        <CheckBox x:Name="LoopSegmentCheck" Content="循环" Foreground="{DynamicResource UiMediaText}" IsVisible="False"/>
+      <Slider Grid.Column="2" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" MinWidth="80" Height="{DynamicResource UiPlayerTimelineHeight}" VerticalAlignment="Center"/>
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <CheckBox x:Name="LoopSegmentCheck" Content="循环" IsVisible="False"/>
         <Button x:Name="SoundButton" Classes="transport" Click="SoundClick" ToolTip.Tip="静音" AutomationProperties.Name="静音"><local:ActionIcon x:Name="SoundIcon" Kind="speaker" /></Button>
-        <TextBlock FontFeatures="tnum" x:Name="TotalTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Foreground="{DynamicResource UiMediaText}" Text="00:00:00.000"/>
+        <TextBlock FontFeatures="tnum" x:Name="TotalTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       </StackPanel>
     </Grid>
-    </Grid>
-    <ScrollViewer Grid.Row="1" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,6,0,0">
-      <local:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
-    </ScrollViewer>
-    <Slider Grid.Row="2" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" Height="{DynamicResource UiPlayerTimelineHeight}" Margin="0,2,0,4"/>
     <TabControl Grid.Row="3" x:Name="EditTabs" MinHeight="220" MaxHeight="320" SelectionChanged="TabChanged">
       <TabItem Header="剪辑">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
