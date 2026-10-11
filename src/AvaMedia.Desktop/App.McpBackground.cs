@@ -24,7 +24,8 @@ public sealed partial class App
         desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var window = _mcpBackgroundWindow = new MainWindow(storage);
         // Keep the normal owner/dispatcher/queue, without assigning a MainWindow that Avalonia would show.
-        window.Closed += (_, _) => desktop.Shutdown();
+        // A native application shutdown can itself close the owner; finish outside that Closed callback.
+        window.Closed += (_, _) => Dispatcher.UIThread.Post(() => desktop.Shutdown());
         void Exit() => Dispatcher.UIThread.Post(window.RequestExit);
         ConsoleCancelEventHandler cancel = (_, eventArgs) => { eventArgs.Cancel = true; Exit(); };
         Console.CancelKeyPress += cancel;

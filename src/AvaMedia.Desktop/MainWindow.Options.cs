@@ -39,7 +39,12 @@ public partial class MainWindow
             if (!IsCaptureSession && !FirstRunSetup.Failed)
                 await ApplicationUpdater.Shared.StartupAsync(this, _settings, _optionServices.CheckUpdatesAsync, _optionLifetime.Token);
         };
-        Closed += (_, _) => { _optionLifetime.Cancel(); _completionCancellation?.Cancel(); _optionServices.Dispose(); _optionLifetime.Dispose(); };
+        Closed += CloseOptions;
+    }
+    private void CloseOptions(object? sender, EventArgs args)
+    {
+        Closed -= CloseOptions;
+        _optionLifetime.Cancel(); _completionCancellation?.Cancel(); _optionServices.Dispose(); _optionLifetime.Dispose();
     }
     private void SetTray(bool enabled)
     {

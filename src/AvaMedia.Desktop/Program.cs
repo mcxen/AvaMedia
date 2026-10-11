@@ -27,5 +27,11 @@ internal static class Program
             return 1;
         }
     }
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        var builder = AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
+        if (Environment.GetCommandLineArgs().Contains("--mcp-background"))
+            builder.With(new MacOSPlatformOptions { ShowInDock = false, DisableNativeMenus = true });
+        return builder;
+    }
 }
