@@ -21,6 +21,7 @@ internal static class Program
             if (mcpBackground) Console.Error.WriteLine(error.Message); else StartupError.Show(error);
             return 1;
         }
+        finally { AvaMedia.Core.LocalSummaryModel.Shutdown(); }
     }
     public static AppBuilder BuildAvaloniaApp()
     {

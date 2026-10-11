@@ -50,6 +50,7 @@ public sealed partial class App : Application
         AppDiagnostics.AttachDispatcher();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            desktop.Exit += (_, _) => LocalSummaryModel.Shutdown();
             var args = desktop.Args ?? [];
             if (args.Contains("--mcp-background") || args.Contains("--server"))
             {

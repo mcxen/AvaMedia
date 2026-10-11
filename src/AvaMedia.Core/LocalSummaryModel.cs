@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -13,11 +12,7 @@ namespace AvaMedia.Core;
 /// <summary>Authenticated loopback llama.cpp process; task leases and idle retention are managed by the cache.</summary>
 public sealed class LocalSummaryModel : ISummaryToolModel
 {
-    private static readonly ConcurrentDictionary<LocalSummaryModel, byte> Live = new();
-    static LocalSummaryModel()
-    {
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => { foreach (var model in Live.Keys) model.StopProcess(); };
-    }
+    private readonly OwnedModelProcess _owner;
     private readonly Process _process;
     private readonly HttpClient _client;
     private readonly ModelLease _model, _runtime;
@@ -33,21 +28,24 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     private bool _visualWarmed;
     public string ModelId => _id;
     public string Backend => _cpuFallback?.Backend ?? _backend;
-    internal bool IsAlive => _cpuFallback?.IsAlive ?? (Volatile.Read(ref _released) == 0 && !_process.HasExited);
+    internal bool IsAlive => _cpuFallback?.IsAlive ?? (Volatile.Read(ref _released) == 0 && _owner.IsAlive);
     internal bool VisualWarmed => _visualWarmed;
     internal void SetStatus(Action<string>? status) { _status = status; _cpuFallback?.SetStatus(status); }
-    private LocalSummaryModel(Process process, HttpClient client, ModelLease model, ModelLease runtime, string id,
+    private LocalSummaryModel(OwnedModelProcess owner, HttpClient client, ModelLease model, ModelLease runtime, string id,
         ModelStore store, bool gpu, Action<string>? status)
     {
-        _process = process; _client = client; _model = model; _runtime = runtime; _id = id;
+        _owner = owner; _process = owner.Process; _client = client; _model = model; _runtime = runtime; _id = id;
         _store = store; _gpu = gpu; _status = status;
-        _stdout = DrainAsync(process.StandardOutput); _stderr = DrainAsync(process.StandardError);
-        Live.TryAdd(this, 0);
+        _stdout = DrainAsync(_process.StandardOutput); _stderr = DrainAsync(_process.StandardError);
     }
+
+    public static void Shutdown() => OwnedModelProcess.Shutdown();
 
     public static async Task<LocalSummaryModel> StartAsync(ModelStore store, string id, CancellationToken ct,
         Action<string>? status = null, Action<ModelPreparationProgress>? preparation = null)
     {
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, OwnedModelProcess.Lifetime);
+        ct = lifetime.Token;
         try
         {
             try { return await StartCoreAsync(store, id, true, ct, status, preparation).ConfigureAwait(false); }
@@ -67,6 +65,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     {
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         ModelLease? model = null, runtime = null; HttpClient? client = null; LocalSummaryModel? backend = null;
+        OwnedModelProcess? owner = null;
         try
         {
             preparation?.Invoke(new("校验推理工具"));
@@ -98,8 +97,9 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
             status?.Invoke("加载本地模型");
             preparation?.Invoke(new("加载本地模型"));
-            var process = await ProcessRunner.StartAsync(executable, arguments, ct).ConfigureAwait(false);
-            backend = new(process, client, model, runtime, id, store, gpu, status);
+            owner = await OwnedModelProcess.StartAsync(executable, arguments, ct).ConfigureAwait(false);
+            var process = owner.Process;
+            backend = new(owner, client, model, runtime, id, store, gpu, status);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromMinutes(2));
             while (true)
@@ -120,7 +120,11 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         catch
         {
             if (backend is not null) await backend.DisposeAsync().ConfigureAwait(false);
-            else { client?.Dispose(); model?.Dispose(); runtime?.Dispose(); }
+            else
+            {
+                try { if (owner is not null) await owner.DisposeAsync().ConfigureAwait(false); }
+                finally { client?.Dispose(); model?.Dispose(); runtime?.Dispose(); }
+            }
             throw;
         }
     }
@@ -209,14 +213,6 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
         { Trace.TraceInformation("Model process priority: {0}", error.Message); }
     }
-    internal void StopProcess()
-    {
-        _cpuFallback?.StopProcess();
-        try { if (Volatile.Read(ref _released) == 0 && !_process.HasExited) _process.Kill(true); }
-        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
-        { Trace.TraceInformation("Model process exit: {0}", error.Message); }
-    }
-
     private sealed class LocalBackendException(string message) : InvalidOperationException(message);
 
     private async Task<JsonDocument> SendCoreAsync(Dictionary<string, object> request, CancellationToken ct)
@@ -261,10 +257,8 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         if (Interlocked.Exchange(ref _released, 1) != 0) return;
         try
         {
-            if (!_process.HasExited) _process.Kill(true);
-            await _process.WaitForExitAsync().ConfigureAwait(false);
-            await Task.WhenAll(_stdout, _stderr).ConfigureAwait(false);
+            await _owner.DisposeAsync(Task.WhenAll(_stdout, _stderr)).ConfigureAwait(false);
         }
-        finally { _client.Dispose(); _process.Dispose(); _model.Dispose(); _runtime.Dispose(); Live.TryRemove(this, out _); }
+        finally { _client.Dispose(); _model.Dispose(); _runtime.Dispose(); }
     }
 }
