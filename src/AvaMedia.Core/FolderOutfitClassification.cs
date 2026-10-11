@@ -67,7 +67,7 @@ public static partial class FolderOutfitClassification
             output = output.Select(file => file with { Decisions = file.Decisions.Select(decision => decision.RuleId == rule.Id && !decision.Manual
                 ? decisions[file.Media.Path] : decision).ToArray() }).ToArray();
         }
-        return output;
+        return WithShootTitles(output);
     }
 
     public static FolderClassificationCategory[] Categories(FolderClassificationRule rule, IEnumerable<FolderClassifiedFile> files)

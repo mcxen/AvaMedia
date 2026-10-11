@@ -37,11 +37,13 @@ public static class FolderOrganization
         var root = Path.GetFullPath(outputFolder);
         EnsureRegularDirectory(root);
         var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var seen = new HashSet<string>(BatchRename.PathComparer);
-        return files.Where(file => seen.Add(file.Media.Path)).Select(file =>
+        var selected = FolderOutfitClassification.WithShootTitles(files)
+            .DistinctBy(file => file.Media.Path, BatchRename.PathComparer).ToArray();
+        var destinations = DestinationFolders(selected, root, splitTypes);
+        return selected.Select(file =>
         {
             CheckSource(file.Media);
-            var folder = DestinationFolder(file, root, splitTypes);
+            var folder = destinations[file.Media.Path];
             EnsureRegularDirectory(folder);
             var stem = Path.GetFileNameWithoutExtension(file.Media.Path);
             var extension = Path.GetExtension(file.Media.Path);
@@ -59,22 +61,52 @@ public static class FolderOrganization
         }).ToArray();
     }
 
-    public static string DestinationFolder(FolderClassifiedFile file, string outputFolder, bool splitTypes)
+    private sealed record DestinationSegment(string Name, string? ShootFolder = null);
+
+    public static IReadOnlyDictionary<string, string> DestinationFolders(IEnumerable<FolderClassifiedFile> files,
+        string outputFolder, bool splitTypes)
     {
         var root = Path.GetFullPath(outputFolder);
-        var folder = root;
-        if (splitTypes) folder = Path.Combine(folder, VideoFormats.IsVideo(file.Media.Path) ? "视频" : "图片");
-        foreach (var decision in file.Decisions)
+        var outfits = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var layouts = new Dictionary<string, List<DestinationSegment>>(BatchRename.PathComparer);
+        foreach (var file in FolderOutfitClassification.WithShootTitles(files)
+            .DistinctBy(file => file.Media.Path, BatchRename.PathComparer))
         {
-            BatchRename.ValidateRenameKeyword(decision.Name);
-            BatchRename.ValidateRenameKeyword(decision.CategoryName);
-            if (file.Decisions.Count > 1) folder = Path.Combine(folder, decision.Name);
-            if (decision.OutfitShootName is { } shoot)
-            { BatchRename.ValidateRenameKeyword(shoot); folder = Path.Combine(folder, shoot); }
-            folder = Path.Combine(folder, decision.CategoryName);
+            var folder = root;
+            var segments = new List<DestinationSegment>();
+            void Add(string name, string? shootFolder = null)
+            {
+                segments.Add(new(name, shootFolder));
+                folder = Path.Combine(folder, name);
+            }
+            if (splitTypes) Add(VideoFormats.IsVideo(file.Media.Path) ? "视频" : "图片");
+            foreach (var decision in file.Decisions)
+            {
+                BatchRename.ValidateRenameKeyword(decision.Name);
+                BatchRename.ValidateRenameKeyword(decision.CategoryName);
+                if (file.Decisions.Count > 1) Add(decision.Name);
+                if (decision.OutfitShootName is { } shoot)
+                {
+                    BatchRename.ValidateRenameKeyword(shoot);
+                    Add(shoot);
+                    if (!outfits.TryGetValue(folder, out var categories))
+                        outfits[folder] = categories = new(StringComparer.OrdinalIgnoreCase);
+                    categories.Add(decision.CategoryName);
+                    Add(decision.CategoryName, folder);
+                }
+                else Add(decision.CategoryName);
+            }
+            layouts.Add(file.Media.Path, segments);
         }
-        if (!FolderClassification.IsWithin(folder, root)) throw new IOException("分类目标超出输出目录。");
-        return folder;
+        return layouts.ToDictionary(layout => layout.Key, layout =>
+        {
+            var folder = root;
+            foreach (var segment in layout.Value)
+                if (segment.ShootFolder is null || outfits[segment.ShootFolder].Count > 1)
+                    folder = Path.Combine(folder, segment.Name);
+            if (!FolderClassification.IsWithin(folder, root)) throw new IOException("分类目标超出输出目录。");
+            return folder;
+        }, BatchRename.PathComparer);
     }
 
     public static async Task<FolderOrganizationResult> ExecuteAsync(IReadOnlyList<FolderOrganizationItem> plan, bool move,

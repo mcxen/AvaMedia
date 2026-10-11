@@ -129,7 +129,12 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
     {
         if (!string.IsNullOrWhiteSpace(entry.NewName)) return entry.NewName;
         if (string.IsNullOrWhiteSpace(_output.Text)) return string.Join(" / ", result.Decisions.Select(decision => decision.DisplayName));
-        try { return FolderOrganization.DestinationFolder(result, _output.Text, _splitTypes.IsChecked == true); }
+        try
+        {
+            var files = _entries.Where(candidate => candidate.Include && !AnalysisPending(candidate))
+                .Select(candidate => _results[candidate.Path]).Append(result);
+            return FolderOrganization.DestinationFolders(files, _output.Text, _splitTypes.IsChecked == true)[result.Media.Path];
+        }
         catch (Exception error) when (error is ArgumentException or IOException) { return error.Message; }
     }
 
