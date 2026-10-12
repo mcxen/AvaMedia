@@ -9,6 +9,7 @@ using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Desktop;
 using AvaMedia.Desktop.Controls;
+using CropOverlay = AvaMedia.MediaUi.CropOverlay;
 
 var output=Path.GetFullPath(args.FirstOrDefault()??"artifacts/theme-resources-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 Directory.CreateDirectory(output);
