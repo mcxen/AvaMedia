@@ -189,8 +189,63 @@ jobs:
             artifacts/ffmpeg-build-*/*.log
             artifacts/ffmpeg-cache-verification.json
             .tools/download-bundle/*-qjs-osx-arm64-macos*/build.json
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          persist-credentials: false
+      - name: Read release version
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw 'Select a vMAJOR.MINOR.PATCH tag.' }
+          "version=$($Matches[1])" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+      - name: Install WebAssembly build tools
+        run: dotnet workload install wasm-tools --skip-manifest-update
+      - name: Cache NuGet packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .tools/nuget-packages
+          enableCrossOsArchive: true
+          key: nuget-v2-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/*.targets', '**/NuGet.config', '**/nuget.config', 'global.json') }}
+          restore-keys: nuget-v2-
+      - name: Build self-contained Linux archive
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/Package-Linux.sh "$RELEASE_VERSION"
+      - name: Verify published app starts on Linux
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libice6 libsm6 libfontconfig1 > /dev/null
+          mkdir -p artifacts/linux-check
+          tar -C artifacts/linux-check -xzf "artifacts/AvaMedia-$RELEASE_VERSION-linux-x64.tar.gz"
+          app="artifacts/linux-check/AvaMedia-$RELEASE_VERSION-linux-x64/avamedia"
+          timeout 120 xvfb-run -a "$app" --capture artifacts/linux-native > artifacts/linux-native.log 2>&1 || { cat artifacts/linux-native.log; exit 1; }
+          test -s artifacts/linux-native/main.png
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-linux-x64
+          compression-level: 0
+          path: artifacts/AvaMedia-*-linux-x64.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: linux-proof
+          path: |
+            artifacts/linux-native/
+            artifacts/linux-native.log
   publish:
-    needs: [windows, macos]
+    needs: [windows, macos, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write

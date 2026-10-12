@@ -9,7 +9,7 @@ $artifacts=Join-Path $taskRoot 'artifacts'
 $tag="v$Version"
 $mediaTag="media-$tag"
 $notes=(Get-Content -LiteralPath (Join-Path $taskRoot "docs/releases/$Version.md") -Raw).Trim()
-$names=@("AvaMedia-$Version-osx-arm64.dmg","AvaMedia-$Version-win-x64-portable.zip","AvaMedia-$Version-win-x64-setup.exe")
+$names=@("AvaMedia-$Version-osx-arm64.dmg","AvaMedia-$Version-win-x64-portable.zip","AvaMedia-$Version-win-x64-setup.exe","AvaMedia-$Version-linux-x64.tar.gz")
 $packages=@($names | ForEach-Object { Join-Path $artifacts $_ })
 foreach($path in $packages){if(!(Test-Path -LiteralPath $path)){throw "Release package missing: $path"}}
 $media=@(Get-ChildItem -LiteralPath $artifacts -File | Where-Object { $_.Name.StartsWith('AvaMedia-FFmpeg-') })
@@ -48,6 +48,7 @@ $notes
 | --- | --- |
 | macOS Apple Silicon | [DMG](https://github.com/$Repository/releases/download/$tag/$($names[0])) |
 | Windows x64 | [Portable ZIP](https://github.com/$Repository/releases/download/$tag/$($names[1])) · [Setup EXE](https://github.com/$Repository/releases/download/$tag/$($names[2])) |
+| Linux x64 | [tar.gz](https://github.com/$Repository/releases/download/$tag/$($names[3])) (self-contained; requires FFmpeg 9 on PATH) |
 
 [FFmpeg corresponding sources and media tools](https://github.com/$Repository/releases/tag/$mediaTag) · [AvaMedia source](https://github.com/$Repository/tree/$tag)
 
@@ -67,4 +68,4 @@ foreach($asset in $assets.assets){
         Invoke-GitHub @('release','delete-asset',$tag,$asset.name,'--repo',$Repository,'--yes')
     }
 }
-Write-Output "Published ${tag}: macOS DMG, Windows portable and setup. Media sources: $mediaTag."
+Write-Output "Published ${tag}: macOS DMG, Windows portable and setup, Linux tar.gz. Media sources: $mediaTag."
