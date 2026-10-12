@@ -29,7 +29,7 @@ public sealed class StatusGlyph : Control
     private void Refresh()
     {
         Classes.Set("ac-running", State == "running");
-        Bind(BrushProperty, Resource(State switch { "done" => "UiSuccessFill", "running" => "UiAccent", "failed" => "UiDanger", "paused" => "UiWarning", "info" => "UiAccent", "warning" => "UiWarning", "empty" => "AcTextTertiary", _ => "AcTextTertiary" }));
+        Bind(BrushProperty, Resource(State switch { "done" or "success" => "UiSuccessFill", "running" => "UiAccent", "failed" => "UiDanger", "paused" => "UiWarning", "info" => "UiAccent", "warning" => "UiWarning", "empty" => "AcTextTertiary", _ => "AcTextTertiary" }));
     }
     public override void Render(DrawingContext context)
     {
@@ -47,10 +47,11 @@ public sealed class StatusGlyph : Control
             var pen = new Pen(Brush, 1.4, lineJoin: PenLineJoin.Round); context.DrawGeometry(null, pen, shape);
             context.DrawLine(pen, new(size / 2, size * .4), new(size / 2, size * .62)); context.DrawEllipse(Brush, null, new(size / 2, size * .77), .7, .7);
         }
-        else if (State == "done")
+        else if (State is "done" or "success")
         {
-            context.DrawEllipse(Brush, null, center, radius, radius);
-            var pen = new Pen(Contrast, 1.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+            var outline = State == "success";
+            context.DrawEllipse(outline ? null : Brush, outline ? new Pen(Brush, 1.4) : null, center, radius, radius);
+            var pen = new Pen(outline ? Brush : Contrast, 1.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
             context.DrawLine(pen, new(size * .26, size * .5), new(size * .43, size * .67));
             context.DrawLine(pen, new(size * .43, size * .67), new(size * .75, size * .32));
         }

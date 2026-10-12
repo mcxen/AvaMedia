@@ -69,7 +69,7 @@ public sealed class Notice : Border
     {
         Classes.Set("warning", State == "warning");
         BindResource(_line, BackgroundProperty, State switch { "completed" => "UiSuccessFill", "failed" => "UiDanger", "warning" => "UiWarning", _ => "UiAccent" });
-        _icon.State = State switch { "completed" => "done", "failed" => "failed", "warning" => "warning", _ => "info" };
+        _icon.State = State switch { "completed" => "success", "failed" => "failed", "warning" => "warning", _ => "info" };
         BindResource(_title, TextBlock.ForegroundProperty, State == "warning" ? "AcBannerText" : "UiText");
         BindResource(_detail, TextBlock.ForegroundProperty, State == "warning" ? "AcBannerText" : "UiTextSecondary");
     }

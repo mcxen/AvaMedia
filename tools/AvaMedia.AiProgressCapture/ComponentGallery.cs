@@ -95,6 +95,14 @@ internal static class ComponentGallery
             if (Has(cls, "popv")) return new Popover();
             var border = new Border { Padding = new(0), ClipToBounds = false };
             if (Has(cls, "gr")) { border.Classes.Add("ac-setting-row"); border.Classes.Add("divider"); return border; }
+            if (Has(cls, "scrollbox"))
+            {
+                border.Bind(Border.BackgroundProperty, Resource("UiSurface"));
+                border.Bind(Border.CornerRadiusProperty, Resource("AcGroupRadius"));
+                border.Bind(Border.BorderBrushProperty, Resource("AcStageLineBrush"));
+                border.Bind(Border.BorderThicknessProperty, Resource("AcHairlineThickness"));
+                border.UseLayoutRounding = false; return border;
+            }
             border.Classes.Add(Has(cls, "card") ? "ac-card" : Has(cls, "group") || Has(cls, "scrollbox") ? "ac-group" : Has(cls, "sheet") ? "ac-sheet" : "ac-popover");
             return border;
         }
@@ -199,7 +207,7 @@ internal static class ComponentGallery
         }
         if (Has(cls, "chip")) return new StatusPill { Text = text, State = cls.Contains("c-run") ? "running" : cls.Contains("c-done") ? "done" : cls.Contains("c-fail") ? "failed" : cls.Contains("c-pause") ? "paused" : text == "已取消" ? "cancelled" : "waiting" };
         if (Has(cls, "badge") || Has(cls, "dotb")) { var badge = new CountBadge { Text = text }; if (Has(cls, "b")) badge.Classes.Add("blue"); if (Has(cls, "g")) badge.Classes.Add("neutral"); if (Has(cls, "dotb")) badge.Classes.Add("dot"); return badge; }
-        if (Has(cls, "th")) return new Border { CornerRadius = new(6), Background = new LinearGradientBrush { StartPoint = new(0, 0, RelativeUnit.Relative), EndPoint = new(1, 1, RelativeUnit.Relative), GradientStops = { new(Color.Parse(Has(cls, "b") ? "#FFCC00" : Has(cls, "c") ? "#34C759" : "#5AC8FA"), 0), new(Color.Parse(Has(cls, "b") ? "#FF2D55" : Has(cls, "c") ? "#30B0C7" : "#5856D6"), 1) } } };
+        if (Has(cls, "th")) return Thumbnail(cls, text);
         if (Has(cls, "spin")) { var spin = new LoadingSpinner(); if (Has(cls, "lg")) spin.Classes.Add("large"); return spin; }
         if (Has(cls, "sbar"))
         {
@@ -214,7 +222,8 @@ internal static class ComponentGallery
             var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center }; panel.Children.Add(Label(parts.FirstOrDefault() ?? ""));
             if (Has(cls, "l56"))
             {
-                grid.Children.Add(new Border { Height = 40, VerticalAlignment = VerticalAlignment.Center, CornerRadius = new(6), [!Border.BackgroundProperty] = Resource("UiAccent") });
+                var thumbClass = Regex.Match(html, "class=\"(th[^\"]*)\"").Groups[1].Value;
+                grid.Children.Add(Thumbnail(thumbClass, parts.FirstOrDefault(p => p.StartsWith('+')) ?? ""));
                 panel.Children.Clear(); var title = parts.FirstOrDefault(p => !p.StartsWith('+')) ?? ""; var start = Array.IndexOf(parts, title);
                 panel.Children.Add(Label(title)); panel.Children.Add(Label(parts.ElementAtOrDefault(start + 1) ?? "", 11.5, "UiTextSecondary")); Grid.SetColumn(panel, 1);
                 var count = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -241,6 +250,21 @@ internal static class ComponentGallery
             return new Border { [!Border.BackgroundProperty] = Resource("UiCanvas"), [!Border.CornerRadiusProperty] = Resource("AcCardRadius"), Child = empty };
         }
         return null;
+    }
+    private static Border Thumbnail(string cls, string badgeText)
+    {
+        // 仅供预览的媒体示例，颜色取自 demo 的缩略图，不属于控件主题色。
+        var brush = new LinearGradientBrush { StartPoint = new(0, 0, RelativeUnit.Relative), EndPoint = new(1, 1, RelativeUnit.Relative) };
+        brush.GradientStops.Add(new(Color.Parse(Has(cls, "b") ? "#FFCC00" : Has(cls, "c") ? "#34C759" : "#5AC8FA"), 0));
+        if (!Has(cls, "c")) brush.GradientStops.Add(new(Color.Parse(Has(cls, "b") ? "#FF9500" : "#007AFF"), Has(cls, "b") ? .55 : .6));
+        brush.GradientStops.Add(new(Color.Parse(Has(cls, "b") ? "#FF2D55" : Has(cls, "c") ? "#30B0C7" : "#5856D6"), 1));
+        var thumb = new Border { Height = 40, VerticalAlignment = VerticalAlignment.Center, CornerRadius = new(6), Background = brush };
+        if (badgeText.Length > 0)
+        {
+            var badge = new CountBadge { Text = badgeText, Height = 16, BorderThickness = new(1.5), Classes = { "blue" }, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new(0, -5, -6, 0) };
+            badge.Bind(Border.BorderBrushProperty, Resource("UiSurface")); thumb.Child = badge;
+        }
+        return thumb;
     }
 }
 
