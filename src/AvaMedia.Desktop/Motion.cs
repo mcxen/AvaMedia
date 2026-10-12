@@ -53,7 +53,10 @@ public sealed class Motion : AvaloniaObject
             && SystemParametersInfo(0x1042, 0, out var enabled, 0) && !enabled;
         var allowMotion = !_userReducedMotion && !_systemReducedMotion;
         foreach (var window in OpenWindows)
+        {
             window.Classes.Set("motion-enabled", allowMotion && !Skin.UsesCustomChrome(window.ActualThemeVariant));
+            AvaMedia.Controls.ComponentMotion.SetReduced(window, !allowMotion || Skin.UsesCustomChrome(window.ActualThemeVariant));
+        }
         if (!allowMotion)
             foreach (var animation in Animations.Values.ToArray())
                 animation.Cancel();

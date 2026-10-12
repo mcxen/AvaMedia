@@ -132,7 +132,7 @@ public sealed partial class ClassificationRunWindow
         void Step(string title, string state, string detail = "") => steps.Add(new(steps.Count, title, state, null, [], detail));
         if (!metadata)
         {
-            Step("读取画面", State(readingDone, reading), media is { SampledFrames: > 0 } ? media.SampledFrames.ToString() : "");
+            Step("读取画面", State(readingDone, reading, file?.Error is not null && media is null), file?.Error is not null && media is null ? file.Error : media is { SampledFrames: > 0 } ? media.SampledFrames.ToString() : "");
             Step("JoyTag 标签", State(tagsDone, tagging), media?.Backend ?? (tagging ? activity?.Backend : null) ?? "");
             if (scene) Step("场景识别", State(sceneDone, identifyingScene, media?.SceneError is not null),
                 media?.SceneSkipped == true ? "已跳过" : media?.SceneError ?? "语义模型");

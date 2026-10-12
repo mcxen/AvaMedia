@@ -1,4 +1,4 @@
-<UserControl xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.Controls.JobRowView">
+<UserControl xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.Controls.JobRowView">
   <UserControl.Styles>
     <Style Selector="Button.queue-cover-button"><Setter Property="Padding" Value="2"/><Setter Property="Margin" Value="8,0,12,0"/></Style>
     <Style Selector="StackPanel.queue-details"><Setter Property="Margin" Value="8,2"/></Style>
@@ -47,15 +47,16 @@
       <TextBlock Classes="classic-only queue-secondary" Text="{Binding SettingsSummary}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}"/>
       <Grid Classes="queue-status" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
       <Grid x:Name="ProgressSlot" Classes="queue-progress" Grid.ColumnSpan="2">
-        <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
+        <ProgressBar Classes="ac" x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource AcProgressHeight}"/>
         <local:AiActivityView x:Name="ActivityView" Compact="True"/>
       </Grid>
       <Grid Classes="queue-state-slot" Grid.Row="1" Grid.ColumnSpan="2" Height="28">
       <Grid x:Name="StateLine" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="5" ToolTip.Tip="{Binding StateTip}">
-        <Border Classes="modern-only" VerticalAlignment="Center"><local:LucideIcon x:Name="StateIcon" Classes="queue-state-icon" Kind="{Binding StateIcon}" IsVisible="{Binding HasStateIcon}" Width="12" Height="12"/></Border>
+        <ac:StatusPill x:Name="TaskStatePill" Classes="modern-only"/>
+        <Border IsVisible="False" VerticalAlignment="Center"><local:LucideIcon x:Name="StateIcon" Classes="queue-state-icon" Kind="{Binding StateIcon}" IsVisible="{Binding HasStateIcon}" Width="12" Height="12"/></Border>
         <TextBlock x:Name="StateText" Grid.Column="1" Classes="queue-state classic-only" Text="{Binding StateText}" MaxLines="1" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <TextBlock x:Name="CompactStateText" Grid.Column="1" Classes="queue-state modern-only" Text="{Binding CompactState}" MaxLines="1" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-        <Button x:Name="ViewResultButton" i18n:StableLayout.Samples="查看结果|查看任务" Grid.Column="2" Content="查看结果" Classes="tool" Click="ViewResultClick" IsVisible="False"/>
+        <Button x:Name="ViewResultButton" i18n:StableLayout.Samples="查看结果|查看任务" Grid.Column="2" Content="查看结果" Classes="ac secondary" Click="ViewResultClick" IsVisible="False"/>
       </Grid>
       </Grid>
       </Grid>

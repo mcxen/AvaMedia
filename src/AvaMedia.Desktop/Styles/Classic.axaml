@@ -58,15 +58,12 @@
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
 
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button, Window:not(.mac-os9):not(.windows-xp) ToggleButton, Window:not(.mac-os9):not(.windows-xp) TextBox, Window:not(.mac-os9):not(.windows-xp) ComboBox, Window:not(.mac-os9):not(.windows-xp) NumericUpDown">
-    <Setter Property="CornerRadius" Value="6"/>
-  </Style>
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.tool">
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
     <Setter Property="Padding" Value="6,2"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac)">
     <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
     <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>

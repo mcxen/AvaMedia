@@ -1,0 +1,19 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- 通用控件自动接入；专用导航、传输和窗口按钮保留原角色。 -->
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button:not(.tile):not(.category):not(.caption):not(.transport):not(.ib)"><Setter Property="Theme" Value="{DynamicResource AcButton}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox"><Setter Property="Theme" Value="{DynamicResource AcCheckBox}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) RadioButton"><Setter Property="Theme" Value="{DynamicResource AcRadioButton}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) ToggleSwitch"><Setter Property="Theme" Value="{DynamicResource AcToggleSwitch}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) ComboBox"><Setter Property="Theme" Value="{DynamicResource AcComboBox}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) NumericUpDown"><Setter Property="Theme" Value="{DynamicResource AcNumericUpDown}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) TextBox"><Setter Property="Theme" Value="{DynamicResource AcTextBox}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Slider"><Setter Property="Theme" Value="{DynamicResource AcSlider}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) ProgressBar"><Setter Property="Theme" Value="{DynamicResource AcProgressBar}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) ScrollBar"><Setter Property="Theme" Value="{DynamicResource AcScrollBar}"/></Style>
+  <!-- 弹出控件以继承的 ThemeVariant 取资源，避免 PopupRoot 无 Window 祖先。 -->
+  <Style Selector="ToolTip"><Setter Property="Theme" Value="{DynamicResource UiToolTipTheme}"/><Setter Property="ToolTip.ShowDelay" Value="600"/></Style>
+<Style Selector="ListBox.ac-segmented ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcSegmentItem}"/></Style>
+<Style Selector="ListBox.ac-segmented ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource AcSegmentFace}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+<Style Selector="ListBox.ac-segmented.tabs ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcTabItem}"/></Style>
+<Style Selector="ListBox.ac-segmented.tabs ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
+</Styles>

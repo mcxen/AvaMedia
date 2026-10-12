@@ -1,12 +1,14 @@
 <Application xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.App" RequestedThemeVariant="Light">
   <Application.Styles>
     <SimpleTheme />
+    <StyleInclude Source="avares://AvaMedia.Controls/Themes/Components.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Localization.axaml" />
     <Style Selector="Window"><Setter Property="Icon" Value="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.ico" /></Style>
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/UiStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/MediaPreviewStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Motion.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ControlRoles.axaml" />
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ComponentSkins.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/CategoryNavigation.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/EditorStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/PlayerStyles.axaml" />
@@ -14,5 +16,6 @@
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/VideoSummaryStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Classic.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/MainShell.axaml" />
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ModernComponents.axaml" />
   </Application.Styles>
 </Application>

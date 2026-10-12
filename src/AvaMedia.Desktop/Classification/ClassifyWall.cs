@@ -105,8 +105,8 @@ internal sealed class FileWall : ListBox
     {
         private readonly ClassifyThumb _thumb = new(48) { Width = Tile, Height = Tile };
         private readonly Border _ring = new() { CornerRadius = new(8), [!Border.BorderBrushProperty] = Resource(Blue), BorderThickness = new(2), Margin = new(-2) };
-        private readonly Border _badge = new() { Width = 16, Height = 16, CornerRadius = new(8), HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Bottom, Margin = new(0, 0, 0, 3), [!Border.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5) };
+        private readonly Border _badge = new() { Width = 14, Height = 14, CornerRadius = new(7), HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom, Margin = new(0, 0, 2, 2), [!Border.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5) };
         private string? _key;
         public WallTile()
         {
@@ -119,7 +119,7 @@ internal sealed class FileWall : ListBox
             if (key == _key) return; _key = key;
             _thumb.SetSource(file.Path, file.IsVideo ? 1 : null);
             ToolTip.SetTip(this, file.Name);
-            _thumb.Opacity = file.State == FolderFileState.Queued ? .35 : 1;
+            _thumb.Bind(OpacityProperty, Resource(file.State == FolderFileState.Queued ? "AcQueuedOpacity" : "AcFullOpacity"));
             _ring.IsVisible = file.State == FolderFileState.Processing;
             (string? fill, string? icon, string? text) badge = file.State switch
             {

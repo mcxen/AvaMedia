@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using AvaMedia.Controls;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -19,8 +20,8 @@ public sealed partial class ClassificationRunWindow : Window
     private readonly FolderClassificationProgress _progress = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly Grid _body = new();
-    private readonly TextBlock _title = T("", 13, FontWeight.Bold, raw: true), _subtitle = T("", 11.5, brush: Muted, raw: true);
-    private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _title = T("", 13, FontWeight.Bold, raw: true), _subtitle = T("", 12, brush: Muted, raw: true);
+    private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
     private int _dirty = 1, _computing;
     private long _lastApplied;
     private bool? _resultMode;
@@ -32,14 +33,12 @@ public sealed partial class ClassificationRunWindow : Window
         _job = job; _pause = pause; _stop = stop; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
         Bind(BackgroundProperty, Resource(Page)); WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
-        Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
-            { Source = new Uri("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
-        var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12, Height = 50, Margin = new(18, 0) };
+        var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12, Height = 48, Margin = new(0, 0, 16, 0) };
         var titles = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        _title.VerticalAlignment = VerticalAlignment.Center; _subtitle.VerticalAlignment = VerticalAlignment.Center;
         titles.Children.Add(_title); Grid.SetColumn(_subtitle, 1); titles.Children.Add(_subtitle);
         header.Children.Add(titles); Grid.SetColumn(_headerActions, 1); header.Children.Add(_headerActions);
-        var root = new DockPanel(); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header); root.Children.Add(_body);
-        Content = root;
+        Content = WindowChrome.WrapDialog(this, _body, header);
         job.PropertyChanged += JobChanged;
         // Coalesce notifications to at most four applications per second; compute immutable snapshots off the UI thread.
         _timer.Tick += (_, _) => Pump();
@@ -136,6 +135,15 @@ public sealed partial class ClassificationRunWindow : Window
         var key = result ? "result:" + string.Join(",", _job.Options.FolderClassification?.Rules.Select(r => r.Id) ?? []) : "run:" + _job.State;
         if (key == _headerKey) return; _headerKey = key;
         _headerActions.Children.Clear();
+        _headerActions.Children.Add(_percent);
+        _percent.Text = $"{_progress.Percent:0}%";
+        if (_job.State is JobState.Failed or JobState.Cancelled)
+        {
+            _headerActions.Children.Add(new StatusPill { Text = L(_job.State == JobState.Failed ? "失败" : "已取消"), State = _job.State.ToString().ToLowerInvariant() });
+            _headerActions.Children.Add(Pill("查看日志", click: async () => await Ui.MessageDialog(this, L("处理日志"), L(_job.Status), [await _job.ReadLogAsync()])));
+            _headerActions.Children.Add(Pill("关闭", click: Close));
+            return;
+        }
         if (result)
         {
             var rules = _job.Options.FolderClassification?.Rules ?? [];
@@ -144,21 +152,11 @@ public sealed partial class ClassificationRunWindow : Window
                     index => { _resultRule = rules[index].Id; _resultKey = null; RenderResult(); }));
             return;
         }
-        _headerActions.Children.Add(_percent);
-        _percent.Margin = new(0, 0, 8, 0);
         if (_pause is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
             _headerActions.Children.Add(Pill(_job.State == JobState.Paused ? "继续任务" : "临时停止", _job.State == JobState.Paused ? "play" : "pause", click: () => _pause(_job)));
         if (_stop is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
         {
-            var stop = Pill("结束任务", "square", "danger", () => _stop(_job));
-            stop.Bind(BackgroundProperty, Resource(Transparent)); stop.Bind(BorderBrushProperty, Resource(Red)); stop.BorderThickness = new(1);
-            if (Skin.UsesCustomChrome(ActualThemeVariant)) _headerActions.Children.Add(stop);
-            else
-            {
-                stop.BorderThickness = new(0); stop.Height = 26;
-                _headerActions.Children.Add(new Border { Child = stop, CornerRadius = new(14), BorderThickness = new(1),
-                    [!Border.BorderBrushProperty] = Resource(Red), VerticalAlignment = VerticalAlignment.Center });
-            }
+            _headerActions.Children.Add(Pill("结束任务", "square", "danger", () => _stop(_job)));
         }
     }
 }

@@ -3,20 +3,20 @@
   <Style Selector="TextBlock"><Setter Property="controls:OverflowTip.IsEnabled" Value="True"/></Style>
   <Style Selector="ListBoxItem:selected TextBlock.caption"><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
   <!-- Classic skins express the primary action through their native default face. -->
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac)">
     <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
     <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(:disabled):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccentText}"/>
   </Style>
   <Style Selector="Button.field-action"><Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/></Style>

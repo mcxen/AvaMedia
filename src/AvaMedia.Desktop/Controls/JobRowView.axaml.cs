@@ -120,6 +120,9 @@ public partial class JobRowView : UserControl
     private void RefreshActivity()
     {
         var job = _details?.Job;
+        TaskStatePill.State = job?.State.ToString().ToLowerInvariant() ?? "waiting";
+        TaskStatePill.Text = Localization.Text(job?.State switch { JobState.Running => "进行中", JobState.Completed => "已完成", JobState.Paused => "已暂停", JobState.Failed => "失败", JobState.Cancelled => "已取消", JobState.Stopping => "正在停止", _ => "等待" });
+        PipelineProgress.Classes.Set("paused", job?.State == JobState.Paused); PipelineProgress.Classes.Set("failed", job?.State == JobState.Failed);
         // The compact row keeps one thin progress line; the AI pipeline stays in 查看任务.
         var compact = _owner is { } owner && !owner.Classes.Contains("mac-os9") && !owner.Classes.Contains("windows-xp");
         ActivityView.Update(_owner?.IsQueuePresentationVisible == true && !compact ? job?.Activity : null);

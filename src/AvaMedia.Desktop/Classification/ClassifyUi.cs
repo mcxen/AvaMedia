@@ -1,3 +1,4 @@
+using AvaMedia.Controls;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -27,27 +28,16 @@ internal static class ClassifyUi
         return block;
     }
 
-    public static Border Card(Control child, double padding = 14) => new()
-    {
-        [!Border.BackgroundProperty] = Resource(Surface), CornerRadius = new(14), Padding = new(padding), Child = child,
-        [!Border.BoxShadowProperty] = Resource("UiCardShadow")
-    };
+    public static Border Card(Control child, double padding = 16) => new Card { Child = child };
 
     public static Button Pill(string text, string? icon = null, string? kind = null, Action? click = null, double height = 28, bool iconAfter = false)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var fg = kind switch { "primary" => "UiClassificationPrimaryText", "danger" => Red, "link" => Blue, _ => Ink };
-        if (icon is not null) content.Children.Add(new LucideIcon { Kind = icon, Width = iconAfter ? 12 : 14, Height = iconAfter ? 12 : 14, [!LucideIcon.ForegroundProperty] = Resource(fg), VerticalAlignment = VerticalAlignment.Center });
-        content.Children.Insert(iconAfter ? 0 : content.Children.Count, new TextBlock { Text = L(text), FontSize = 12.5, FontWeight = kind == "primary" ? FontWeight.SemiBold : FontWeight.Medium,
-            [!TextBlock.ForegroundProperty] = Resource(fg), VerticalAlignment = VerticalAlignment.Center });
-        var button = new Button
-        {
-            Content = content, Height = height, Padding = new(14, 0), CornerRadius = new(height / 2), [!Button.BorderThicknessProperty] = Resource("UiClassificationPillBorder"), IsDefault = kind == "primary",
-            [!Button.BackgroundProperty] = Resource(kind switch { "primary" => "UiClassificationPrimary", "link" => Transparent, _ => Fill }),
-            VerticalContentAlignment = VerticalAlignment.Center, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
-        };
-        button.Classes.Add("classify-pill");
-        if (kind is not null) button.Classes.Add(kind);
+        if (icon is not null) content.Children.Add(new LucideIcon { Kind = icon, Width = iconAfter ? 12 : 14, Height = iconAfter ? 12 : 14, VerticalAlignment = VerticalAlignment.Center });
+        content.Children.Insert(iconAfter ? 0 : content.Children.Count, new TextBlock { Text = L(text), VerticalAlignment = VerticalAlignment.Center });
+        var button = new Button { Content = content, IsDefault = kind == "primary", VerticalContentAlignment = VerticalAlignment.Center };
+        button.Classes.Add("ac"); button.Classes.Add(kind ?? "secondary");
+        if (height != 28) button.Height = height;
         if (click is not null) button.Click += (_, _) => click();
         return button;
     }
@@ -72,10 +62,10 @@ internal static class ClassifyUi
 
     public static Border Chip(string label, string? value = null, string? background = null, bool rawValue = true)
     {
-        var text = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        var text = new TextBlock { [!TextBlock.FontSizeProperty] = Resource("AcCaptionFont"), VerticalAlignment = VerticalAlignment.Center };
         text.Inlines!.Add(new Avalonia.Controls.Documents.Run(L(label)) { [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Ink) });
         if (value is not null) text.Inlines.Add(new Avalonia.Controls.Documents.Run("  " + (rawValue ? value : L(value))) { [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Blue), FontWeight = FontWeight.SemiBold });
-        return new Border { [!Border.BackgroundProperty] = Resource(background ?? Fill), CornerRadius = new(11), Padding = new(10, 4), Child = text };
+        return new Border { [!Border.BackgroundProperty] = Resource(background ?? Fill), [!Border.CornerRadiusProperty] = Resource("AcStatusRadius"), [!Border.PaddingProperty] = Resource("AcChipPadding"), Child = text };
     }
 
     public static Border Badge(string text, string background, string? foreground = null) => new()
@@ -88,26 +78,9 @@ internal static class ClassifyUi
 
     public static Border Segmented(IReadOnlyList<string> labels, int selected, Action<int> changed, bool raw = false)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-        var outer = new Border { [!Border.BackgroundProperty] = Resource(Fill), CornerRadius = new(9), Padding = new(2), Child = row, HorizontalAlignment = HorizontalAlignment.Left };
-        void Render()
-        {
-            row.Children.Clear();
-            for (var i = 0; i < labels.Count; i++)
-            {
-                var index = i;
-                var button = new Button
-                {
-                    Content = new TextBlock { Text = raw ? labels[i] : L(labels[i]), FontSize = 12, FontWeight = i == selected ? FontWeight.SemiBold : FontWeight.Normal, [!TextBlock.ForegroundProperty] = Resource(Ink) },
-                    [!Button.BackgroundProperty] = Resource(i == selected ? Surface : Transparent), CornerRadius = new(7), BorderThickness = new(0), Padding = new(11, 4)
-                };
-                button.Classes.Add("classify-segment");
-                if (i == selected) button.Classes.Add("selected");
-                button.Click += (_, _) => { if (selected == index) return; selected = index; Render(); changed(index); };
-                row.Children.Add(button);
-            }
-        }
-        Render(); return outer;
+        var segments = new SegmentedControl { ItemsSource = labels.Select(label => raw ? label : L(label)).ToArray(), SelectedIndex = selected };
+        segments.SelectionChanged += (_, _) => { if (segments.SelectedIndex >= 0 && segments.SelectedIndex != selected) { selected = segments.SelectedIndex; changed(selected); } };
+        return new Border { Child = segments, HorizontalAlignment = HorizontalAlignment.Left };
     }
 
     public static string Size(long bytes) => bytes switch

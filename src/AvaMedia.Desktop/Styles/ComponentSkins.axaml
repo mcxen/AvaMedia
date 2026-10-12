@@ -1,0 +1,58 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop"><Styles.Resources><ResourceDictionary><ResourceDictionary.ThemeDictionaries>
+<ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+<CornerRadius x:Key="AcCardRadius">0</CornerRadius>
+<CornerRadius x:Key="AcStatusRadius">0</CornerRadius>
+<CornerRadius x:Key="AcThumbRadius">0</CornerRadius>
+<CornerRadius x:Key="AcCheckRadius">0</CornerRadius>
+<CornerRadius x:Key="AcSegmentRadius">0</CornerRadius>
+<CornerRadius x:Key="AcSegmentItemRadius">0</CornerRadius>
+<CornerRadius x:Key="AcColorBarRadius">0</CornerRadius>
+<CornerRadius x:Key="AcPreviewRadius">0</CornerRadius>
+<CornerRadius x:Key="AcStageRadius">0</CornerRadius>
+<CornerRadius x:Key="AcListRadius">0</CornerRadius>
+<CornerRadius x:Key="AcGroupRadius">0</CornerRadius>
+<SolidColorBrush x:Key="AcCardFace" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="AcSegmentFace" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="AcWarningText" Color="#795314"/>
+<BoxShadows x:Key="AcCardShadow">none</BoxShadows>
+<BoxShadows x:Key="AcChipShadow">none</BoxShadows>
+<BoxShadows x:Key="AcSegmentShadow">none</BoxShadows>
+<BoxShadows x:Key="AcKnobShadow">none</BoxShadows>
+<SolidColorBrush x:Key="AcRunningFill" Color="#DDE2EE"/>
+<SolidColorBrush x:Key="AcSuccessFill" Color="#E5EBDD"/>
+<SolidColorBrush x:Key="AcWarningFill" Color="#F3E9D0"/>
+<SolidColorBrush x:Key="AcDangerFill" Color="#F1DADA"/>
+<SolidColorBrush x:Key="AcWaitingFill" Color="#E3E3E3"/>
+<SolidColorBrush x:Key="AcPreviewFill" Color="#D8D8D8"/>
+<SolidColorBrush x:Key="UiSpeechStepSurface" Color="#CCCCCC"/>
+<SolidColorBrush x:Key="UiSpeechBackendSurface" Color="#E5EBDD"/>
+</ResourceDictionary>
+<ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}">
+<CornerRadius x:Key="AcCardRadius">3</CornerRadius>
+<CornerRadius x:Key="AcStatusRadius">3</CornerRadius>
+<CornerRadius x:Key="AcThumbRadius">3</CornerRadius>
+<CornerRadius x:Key="AcCheckRadius">3</CornerRadius>
+<CornerRadius x:Key="AcSegmentRadius">3</CornerRadius>
+<CornerRadius x:Key="AcSegmentItemRadius">3</CornerRadius>
+<CornerRadius x:Key="AcColorBarRadius">3</CornerRadius>
+<CornerRadius x:Key="AcPreviewRadius">3</CornerRadius>
+<CornerRadius x:Key="AcStageRadius">3</CornerRadius>
+<CornerRadius x:Key="AcListRadius">3</CornerRadius>
+<CornerRadius x:Key="AcGroupRadius">3</CornerRadius>
+<SolidColorBrush x:Key="AcCardFace" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="AcSegmentFace" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="AcWarningText" Color="#946300"/>
+<BoxShadows x:Key="AcCardShadow">none</BoxShadows>
+<BoxShadows x:Key="AcChipShadow">none</BoxShadows>
+<BoxShadows x:Key="AcSegmentShadow">none</BoxShadows>
+<BoxShadows x:Key="AcKnobShadow">none</BoxShadows>
+<SolidColorBrush x:Key="AcRunningFill" Color="#DEEAFB"/>
+<SolidColorBrush x:Key="AcSuccessFill" Color="#E5EBDD"/>
+<SolidColorBrush x:Key="AcWarningFill" Color="#F3E9D0"/>
+<SolidColorBrush x:Key="AcDangerFill" Color="#F1DADA"/>
+<SolidColorBrush x:Key="AcWaitingFill" Color="#E3E3E3"/>
+<SolidColorBrush x:Key="AcPreviewFill" Color="#ECE9D8"/>
+<SolidColorBrush x:Key="UiSpeechStepSurface" Color="#ECE9D8"/>
+<SolidColorBrush x:Key="UiSpeechBackendSurface" Color="#E5EBDD"/>
+</ResourceDictionary>
+</ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources></Styles>
