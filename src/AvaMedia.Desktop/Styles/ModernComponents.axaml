@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
   <!-- 通用控件自动接入；专用导航、传输和窗口按钮保留原角色。 -->
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button:not(.tile):not(.category):not(.caption):not(.transport):not(.ib)"><Setter Property="Theme" Value="{DynamicResource AcButton}"/></Style>
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox"><Setter Property="Theme" Value="{DynamicResource AcCheckBox}"/></Style>
@@ -16,4 +16,5 @@
 <Style Selector="ListBox.ac-segmented ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource AcSegmentFace}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
 <Style Selector="ListBox.ac-segmented.tabs ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcTabItem}"/></Style>
 <Style Selector="ListBox.ac-segmented.tabs ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
+<Style Selector="Button.ac controls|LucideIcon"><Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/></Style>
 </Styles>
