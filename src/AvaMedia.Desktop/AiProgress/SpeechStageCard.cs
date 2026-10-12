@@ -7,7 +7,7 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop.AiProgress;
 
-internal sealed class SpeechStageCard : Border
+internal sealed class SpeechStageCard : AvaMedia.Controls.Card
 {
     private readonly TextBlock _elapsed = SpeechUi.Text("", true, 10.5);
     private readonly Border _number;
@@ -20,11 +20,11 @@ internal sealed class SpeechStageCard : Border
     public SpeechStageCard(int index)
     {
         _index = index;
-        Padding = new(12, 10); CornerRadius = new(12); BorderThickness = new(1); Height = 160;
+        this.Bind(PaddingProperty, new DynamicResourceExtension("AcStagePadding")); Height = 160;
         this.Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         var root = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
         var header = new Grid { ColumnDefinitions = new("18,*,Auto"), ColumnSpacing = 7 };
-        var number = SpeechUi.Text((index + 1).ToString(), size: 10.5); number.Foreground = Brushes.White; number.HorizontalAlignment = HorizontalAlignment.Center; number.VerticalAlignment = VerticalAlignment.Center;
+        var number = SpeechUi.Text((index + 1).ToString(), size: 10.5); number.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiAccentText")); number.HorizontalAlignment = HorizontalAlignment.Center; number.VerticalAlignment = VerticalAlignment.Center;
         _number = new Border { Child = number, Width = 18, Height = 18, CornerRadius = new(9) }; header.Children.Add(_number);
         var title = SpeechUi.Heading(SpeechUi.Stages[index]); title.FontSize = 12.5; Grid.SetColumn(title, 1); header.Children.Add(title);
         Grid.SetColumn(_elapsed, 2); header.Children.Add(_elapsed); root.Children.Add(header);
@@ -36,10 +36,10 @@ internal sealed class SpeechStageCard : Border
         _elapsed.Text = snapshot is null ? "" : AiActivity.FormatElapsed(((current && state == JobState.Running ? DateTime.UtcNow : snapshot.UpdatedUtc) - snapshot.StartedUtc).TotalSeconds);
         if (ReferenceEquals(_shown, snapshot) && current == _wasCurrent && state == _shownState && Equals(_shownSpeech, speech) && !languageChanged) return;
         _shown = snapshot; _wasCurrent = current; _shownState = state; _shownSpeech = speech;
-        var color = snapshot is null ? "UiTextSecondary" : snapshot.State == AiActivityState.Completed ? "UiSuccess"
+        var color = snapshot is null ? "UiTextSecondary" : snapshot.State == AiActivityState.Completed ? "UiSuccessFill"
             : state == JobState.Failed && current ? "UiDanger" : state == JobState.Paused && current ? "UiWarning" : "UiAccent";
         _number.Bind(BackgroundProperty, new DynamicResourceExtension(color));
-        this.Bind(BorderBrushProperty, new DynamicResourceExtension(current ? "UiAccent" : "UiDivider")); BorderThickness = new(current ? 1.5 : 1);
+        this.Bind(BorderBrushProperty, new DynamicResourceExtension(current ? "UiAccent" : "UiDivider")); this.Bind(BorderThicknessProperty, new DynamicResourceExtension(current ? "AcFocusThickness" : "AcNoBorder"));
         _steps.Children.Clear();
         if (snapshot is null)
         {

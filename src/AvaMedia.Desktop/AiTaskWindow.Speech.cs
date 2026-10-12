@@ -89,7 +89,7 @@ public sealed partial class AiTaskWindow
         SpeechUi.CompactRows(_transcript);
         ScrollViewer.SetHorizontalScrollBarVisibility(_transcript, ScrollBarVisibility.Disabled);
         var cues = new Grid(); cues.Children.Add(_transcript); _transcriptEmpty.HorizontalAlignment = HorizontalAlignment.Center; _transcriptEmpty.VerticalAlignment = VerticalAlignment.Center; cues.Children.Add(_transcriptEmpty); Grid.SetRow(cues, 4); main.Children.Add(cues);
-        var mainCard = SpeechUi.Card(main); mainCard.Padding = new(16, 14); body.Children.Add(mainCard);
+        var mainCard = SpeechUi.Card(main);  body.Children.Add(mainCard);
         var aside = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 14 };
         var records = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 }; records.Children.Add(SpeechUi.Heading("过程记录"));
         var history = new ListBox { ItemsSource = _speechStages, BorderThickness = new(0), Background = Brushes.Transparent,
@@ -98,7 +98,7 @@ public sealed partial class AiTaskWindow
         SpeechUi.CompactRows(history);
         ScrollViewer.SetHorizontalScrollBarVisibility(history, ScrollBarVisibility.Disabled); Grid.SetRow(history, 1); records.Children.Add(history);
         _records.Header = "完整日志"; _records.Content = _log; _log.MaxHeight = 150; Grid.SetRow(_records, 2); records.Children.Add(_records);
-        var recordCard = SpeechUi.Card(records); recordCard.Padding = new(14, 12); aside.Children.Add(recordCard);
+        var recordCard = SpeechUi.Card(records);  aside.Children.Add(recordCard);
         var after = new StackPanel { Spacing = 8 }; after.Children.Add(SpeechUi.Heading("完成后"));
         after.Children.Add(SpeechUi.Text("保存字幕草稿与结构化字幕，可「校对字幕」修改文本和时间，再导出 SRT / ASS / MP4 / MKV", true, 11.5));
         var finish = new WrapPanel(); _result.Margin = new(0, 0, 6, 0); finish.Children.Add(_result);
@@ -107,7 +107,7 @@ public sealed partial class AiTaskWindow
             if (_speechOutputAvailable) Process.Start(new ProcessStartInfo(_job.Output) { UseShellExecute = true });
             return Task.CompletedTask;
         })); finish.Children.Add(_speechOutput); after.Children.Add(finish);
-        var afterCard = SpeechUi.Card(after); afterCard.Padding = new(14, 12); afterCard.MinHeight = 142; Grid.SetRow(afterCard, 1); aside.Children.Add(afterCard); Grid.SetColumn(aside, 1); body.Children.Add(aside);
+        var afterCard = SpeechUi.Card(after);  afterCard.MinHeight = 142; Grid.SetRow(afterCard, 1); aside.Children.Add(afterCard); Grid.SetColumn(aside, 1); body.Children.Add(aside);
         Grid.SetRow(body, 2); root.Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_queueCaption);
         var close = Ui.Button("关闭", Close); Grid.SetColumn(close, 1); footer.Children.Add(close); Grid.SetRow(footer, 3); root.Children.Add(footer);

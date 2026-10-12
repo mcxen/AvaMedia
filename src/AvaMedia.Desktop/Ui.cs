@@ -10,7 +10,7 @@ internal static partial class Ui
 {
     public static Button Button(string text,Action action)
     {
-        var b=new Button{Content=text};b.Click+=(_,_)=>action();
+        var b=new Button{Content=text,Classes={"ac"}};b.Click+=(_,_)=>action();
         var states=text switch
         {
             "开始任务" => new[]{"开始任务","继续任务","重新检测","重新执行"},

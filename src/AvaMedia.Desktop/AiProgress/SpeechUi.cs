@@ -16,38 +16,8 @@ internal static class SpeechUi
 {
     public static void ApplyWindowStyle(Window window)
     {
-        // Scope the macOS 26 light tokens to these windows; other skins use their own resources.
-        var light = new Dictionary<string, string>
-        {
-            ["UiCanvas"] = "#FAFAFC", ["UiSurface"] = "#FFFFFF", ["UiSurfaceRaised"] = "#F0F0F3",
-            ["UiText"] = "#1D1D1F", ["UiTextSecondary"] = "#86868B", ["UiDivider"] = "#E5E5EA",
-            ["UiBorder"] = "#E5E5EA", ["UiAccent"] = "#007AFF", ["UiAccentBorder"] = "#007AFF",
-            ["UiAccentText"] = "#FFFFFF", ["UiSelection"] = "#EAF3FF", ["UiSelectionText"] = "#1D1D1F",
-            ["UiSuccess"] = "#248A3D", ["UiDanger"] = "#FF3B30", ["UiWarning"] = "#FF9500",
-            ["UiPrimaryHover"] = "#006FE8", ["UiPrimaryPressed"] = "#0064D1",
-            ["UiSpeechStepSurface"] = "#F1F4FA", ["UiSpeechBackendSurface"] = "#1F34C759"
-        };
-        void Refresh()
-        {
-            foreach (var (key, value) in light)
-                if (window.ActualThemeVariant == ThemeVariant.Light) window.Resources[key] = Brush.Parse(value);
-                else window.Resources.Remove(key);
-            if (window.ActualThemeVariant != ThemeVariant.Light)
-            {
-                window.Resources["UiSpeechStepSurface"] = window.FindResource("UiSurfaceRaised")!;
-                window.Resources["UiSpeechBackendSurface"] = window.FindResource("UiSurface")!;
-            }
-        }
-        window.ActualThemeVariantChanged += (_, _) => Refresh(); Refresh();
-        window.Styles.Add(new Style(x => x.OfType<Button>())
-        {
-            Setters = { new Setter(TemplatedControl.CornerRadiusProperty, new CornerRadius(16)),
-                new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(0)),
-                new Setter(TemplatedControl.PaddingProperty, new Thickness(12, 5)),
-                new Setter(TemplatedControl.FontSizeProperty, 12.5) }
-        });
-        window.Styles.Add(new Style(x => x.OfType<Button>().Class("danger"))
-        { Setters = { new Setter(TemplatedControl.ForegroundProperty, new DynamicResourceExtension("UiDanger")) } });
+        // 通用控件和调色板由应用资源统一提供，不在窗口里覆写颜色与尺寸。
+        window.Classes.Add("component-window");
     }
 
     public static void PreserveChoiceFace(ToggleButton button)
@@ -82,11 +52,10 @@ internal static class SpeechUi
     }
 
     public static readonly string[] Stages = ["读取音轨", "语音模型", "语音识别", "保存结果"];
-    public static Border Card(Control child, double padding = 14)
+    public static Border Card(Control child, double padding = 16)
     {
-        var card = new Border { Child = child, Padding = new(padding), CornerRadius = new(14), BorderThickness = new(1) };
-        card.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurface"));
-        card.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("UiDivider"));
+        var card = new AvaMedia.Controls.Card { Child = child };
+        if (padding != 16) card.Padding = new(padding);
         return card;
     }
     public static TextBlock Text(string value, bool secondary = false, double size = 13)
@@ -99,15 +68,10 @@ internal static class SpeechUi
     public static void CompactButton(Button button, double height = 28)
     {
         StableLayout.SetSamples(button, null); button.Width = double.NaN;
-        button.MinWidth = 0; button.MinHeight = 0; button.Height = height;
-        button.CornerRadius = new(height / 2);
-        button.Classes.Remove("dialog-action"); button.Classes.Add("text-action");
-        if (button.Classes.Contains("primary"))
-        {
-            button.Bind(TemplatedControl.BackgroundProperty, new DynamicResourceExtension("UiAccent"));
-            button.Bind(TemplatedControl.BorderBrushProperty, new DynamicResourceExtension("UiAccent"));
-            button.Bind(TemplatedControl.ForegroundProperty, new DynamicResourceExtension("UiAccentText"));
-        }
+        button.MinWidth = 0;
+        button.Classes.Remove("dialog-action"); button.Classes.Add("ac"); button.Classes.Add("text-action");
+        button.Bind(Layoutable.HeightProperty, new DynamicResourceExtension("AcButtonHeight"));
+        if (height != 28) button.Height = height;
     }
     public static void CompactRows(ListBox list)
     {
