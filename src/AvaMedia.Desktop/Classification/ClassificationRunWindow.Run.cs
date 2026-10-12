@@ -11,7 +11,7 @@ namespace AvaMedia.Desktop.Classification;
 
 public sealed partial class ClassificationRunWindow
 {
-    private readonly TextBlock _percent = T("", 30, FontWeight.Bold, raw: true);
+    private readonly TextBlock _percent = T("", 22, FontWeight.Bold, raw: true);
     private readonly StageCard[] _stages = new StageCard[4];
     private readonly Grid _preview = new() { ClipToBounds = true };
     private readonly ClassifyThumb _previewThumb = new(420) { CornerRadius = new(10) };
@@ -41,7 +41,7 @@ public sealed partial class ClassificationRunWindow
 
     private Control BuildRun()
     {
-        var grid = new Grid { RowDefinitions = new("Auto,*"), Margin = new(18, 0, 18, 18), RowSpacing = 12 };
+        var grid = new Grid { RowDefinitions = new("Auto,*"), Margin = new(18, 0, 18, 16), RowSpacing = 14 };
         var stageRow = new Grid { ColumnDefinitions = new("*,16,*,16,*,16,*") };
         for (var i = 0; i < 4; i++)
         {
@@ -52,16 +52,16 @@ public sealed partial class ClassificationRunWindow
             Grid.SetColumn(chevron, i * 2 + 1); stageRow.Children.Add(chevron);
         }
         grid.Children.Add(stageRow);
-        var main = new Grid { ColumnDefinitions = new("*,270"), ColumnSpacing = 12 };
+        var main = new Grid { ColumnDefinitions = new("*,250"), ColumnSpacing = 14 };
         var left = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 12 };
         var current = new StackPanel { Spacing = 10 };
         var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10 };
-        heading.Children.Add(T("第 2 步 · 当前文件", 15, FontWeight.Bold));
+        heading.Children.Add(T("第 2 步 · 当前文件", 13, FontWeight.Bold));
         Grid.SetColumn(_fileTitle, 1); heading.Children.Add(_fileTitle); current.Children.Add(heading);
-        current.Children.Add(_activityTitle); current.Children.Add(_fileSteps); left.Children.Add(Card(current));
+        current.Children.Add(_fileSteps); var currentCard = Card(current); currentCard.Padding = new(14, 12); left.Children.Add(currentCard);
         var look = BuildLook(); Grid.SetRow(look, 1); left.Children.Add(look); main.Children.Add(left);
         var groupsPanel = new Grid { RowDefinitions = new("Auto,Auto,*"), RowSpacing = 8 };
-        groupsPanel.Children.Add(T("第 3 步 · 分组正在形成", 15, FontWeight.Bold));
+        groupsPanel.Children.Add(T("第 3 步 · 分组正在形成", 13, FontWeight.Bold));
         Grid.SetRow(_groupsTitle, 1); groupsPanel.Children.Add(_groupsTitle);
         _groups.ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
         _groups.ItemTemplate = new FuncDataTemplate<FolderGroupView>((_, _) => new GroupRow(), supportsRecycling: true);
@@ -72,7 +72,7 @@ public sealed partial class ClassificationRunWindow
         var groupBody = new Panel(); groupBody.Children.Add(_groups); groupBody.Children.Add(_groupsEmpty);
         _groupsEmpty.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetRow(groupBody, 2); groupsPanel.Children.Add(groupBody);
-        var groupsCard = Card(groupsPanel); Grid.SetColumn(groupsCard, 1); main.Children.Add(groupsCard);
+        var groupsCard = Card(groupsPanel); groupsCard.Padding = new(14, 12); Grid.SetColumn(groupsCard, 1); main.Children.Add(groupsCard);
         Grid.SetRow(main, 1); grid.Children.Add(main);
         return grid;
     }
@@ -84,8 +84,8 @@ public sealed partial class ClassificationRunWindow
         _preview.SizeChanged += (_, _) => PositionTags();
         grid.Children.Add(new Border { CornerRadius = new(10), ClipToBounds = true, Child = _preview });
         var title = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
-        title.Children.Add(T("AI 正在看", 15, FontWeight.Bold)); Grid.SetColumn(_lookTitle, 1); title.Children.Add(_lookTitle);
-        _lookBody.Children.Add(title); _lookBody.Children.Add(_framesTitle);
+        title.Children.Add(T("AI 正在看", 13, FontWeight.Bold)); Grid.SetColumn(_lookTitle, 1); title.Children.Add(_lookTitle);
+        _lookBody.Children.Add(title);
         _lookBody.Children.Add(new ScrollViewer { Content = _frames, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         _lookBody.Children.Add(_consistency); _lookBody.Children.Add(_colorsTitle);
@@ -96,7 +96,7 @@ public sealed partial class ClassificationRunWindow
         var flowTitle = T("文件流 · 按处理顺序", 12, brush: Muted); Grid.SetRow(flowTitle, 1); detail.Children.Add(flowTitle);
         Grid.SetRow(_wall, 2); detail.Children.Add(_wall);
         Grid.SetColumn(detail, 1); grid.Children.Add(detail);
-        return Card(grid);
+        var card = Card(grid); card.Padding = new(14, 12); return card;
     }
 
     private void RenderRun()
@@ -119,6 +119,7 @@ public sealed partial class ClassificationRunWindow
         ToolTip.SetTip(_fileTitle, run.Current?.Path);
         _activityTitle.Text = L(_job.State == JobState.Paused ? "已暂停" : _job.State == JobState.Stopping ? "正在停止" : run.Activity?.Stage ?? "等待开始");
         if (run.Activity?.Backend is { Length: > 0 } backend) _activityTitle.Text += " · " + backend;
+        ToolTip.SetTip(_fileTitle, run.Current?.Path + "\n" + _activityTitle.Text);
         foreach (var item in _stepControls.Values) item.IsVisible = false;
         foreach (var step in run.Steps)
         {
@@ -174,9 +175,9 @@ public sealed partial class ClassificationRunWindow
             _framesTitle.Text = visual.IsVideo ? frames.Length > 0 ? string.Format(L("采样画面 · {0} 帧"), frames.Length) : L("等待采样画面") : L("图片");
             for (var i = 0; i < frames.Length; i++)
             {
-                var thumb = new ClassifyThumb(72) { Width = 60, Height = 44, BorderThickness = new(i == selected ? 2 : 0), BorderBrush = Blue };
+                var thumb = new ClassifyThumb(72) { Width = 54, Height = 38, BorderThickness = new(i == selected ? 2 : 0), BorderBrush = Blue };
                 thumb.SetSource(visual.Path, visual.IsVideo ? frames[i].Seconds : null);
-                ToolTip.SetTip(thumb, visual.IsVideo ? $"{frames[i].Seconds:0.00}s" : visual.Name);
+                ToolTip.SetTip(thumb, _framesTitle.Text + " · " + (visual.IsVideo ? $"{frames[i].Seconds:0.00}s" : visual.Name));
                 _frames.Children.Add(thumb);
             }
         }
@@ -220,15 +221,15 @@ public sealed partial class ClassificationRunWindow
     private sealed class StageCard : Border
     {
         private readonly TextBlock _number = T("", 12, FontWeight.Bold, Brushes.White, raw: true);
-        private readonly Border _badge = new() { Width = 20, Height = 20, CornerRadius = new(10) };
-        private readonly TextBlock _name = T("", 15, FontWeight.Bold), _detail = T("", 12, brush: Muted, raw: true), _count = T("", 12, brush: Muted, raw: true);
+        private readonly Border _badge = new() { Width = 18, Height = 18, CornerRadius = new(9) };
+        private readonly TextBlock _name = T("", 12.5, FontWeight.Bold), _detail = T("", 11.5, brush: Muted, raw: true), _count = T("", 10.5, brush: Muted, raw: true);
         public StageCard()
         {
-            Background = Surface; CornerRadius = new(14); Padding = new(12); BorderThickness = new(1); MinHeight = 82;
+            Background = Surface; CornerRadius = new(12); Padding = new(12, 10); BorderThickness = new(1); MinHeight = 75;
             _number.HorizontalAlignment = HorizontalAlignment.Center; _badge.Child = _number;
             var grid = new Grid { ColumnDefinitions = new("Auto,*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 7, RowSpacing = 6 };
             grid.Children.Add(_badge); Grid.SetColumn(_name, 1); grid.Children.Add(_name); Grid.SetColumn(_count, 2); grid.Children.Add(_count);
-            _detail.TextWrapping = TextWrapping.Wrap; _detail.MaxLines = 3;
+            _detail.TextWrapping = TextWrapping.Wrap; _detail.TextTrimming = TextTrimming.None;
             Grid.SetRow(_detail, 1); Grid.SetColumnSpan(_detail, 3); grid.Children.Add(_detail); Child = grid;
         }
         public void Update(AiStageNodeDto node, string count, JobState state, bool started)
@@ -248,8 +249,9 @@ public sealed partial class ClassificationRunWindow
         private readonly TextBlock _name = T("", 12.5), _detail = T("", 11, brush: Muted, raw: true);
         public FileStep()
         {
-            ColumnDefinitions = new("Auto,*"); ColumnSpacing = 7; Margin = new(0, 0, 14, 4); MinWidth = 110; MaxWidth = 170;
-            Children.Add(_icon); Children.Add(_pending); var text = new StackPanel { Spacing = 2 }; text.Children.Add(_name); text.Children.Add(_detail);
+            ColumnDefinitions = new("Auto,*"); ColumnSpacing = 7; Margin = new(0, 0, 14, 0); MinWidth = 110; MaxWidth = 170;
+            _name.LineHeight = 18; _detail.LineHeight = 14;
+            Children.Add(_icon); Children.Add(_pending); var text = new StackPanel(); text.Children.Add(_name); text.Children.Add(_detail);
             Grid.SetColumn(text, 1); Children.Add(text);
         }
         public void Update(AiStageNodeDto step, JobState state)
@@ -270,16 +272,16 @@ public sealed partial class ClassificationRunWindow
 
     private sealed class GroupRow : Border
     {
-        private readonly Mosaic _mosaic = new(56, 56, []);
+        private readonly Mosaic _mosaic = new(52, 52, []);
         private readonly Border _badge = Badge("", Blue);
         private readonly TextBlock _name = T("", 13, FontWeight.SemiBold, raw: true), _shoot = T("", 11.5, brush: Muted, raw: true), _count = T("", 17, FontWeight.Bold, raw: true);
         public GroupRow()
         {
-            Padding = new(0, 10); BorderBrush = Hairline; BorderThickness = new(0, 0, 0, 1);
+            Padding = new(0, 6); BorderBrush = Hairline; BorderThickness = new(0, 0, 0, 1);
             var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
             var cover = new Panel(); cover.Children.Add(_mosaic); cover.Children.Add(_badge);
             _badge.HorizontalAlignment = HorizontalAlignment.Right; _badge.VerticalAlignment = VerticalAlignment.Top; _badge.Margin = new(0, -5, -6, 0); row.Children.Add(cover);
-            var text = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center }; text.Children.Add(_name); text.Children.Add(_shoot);
+            var text = new StackPanel { Spacing = 0, VerticalAlignment = VerticalAlignment.Center }; text.Children.Add(_name); text.Children.Add(_shoot);
             var counts = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 }; counts.Children.Add(_count); counts.Children.Add(T("个文件", 11.5, brush: Muted)); text.Children.Add(counts);
             Grid.SetColumn(text, 1); row.Children.Add(text); Child = row;
         }

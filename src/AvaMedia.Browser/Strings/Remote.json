@@ -213,6 +213,7 @@
   "仅识别字幕结果": "Recognize subtitles only",
   "任务类型：自动字幕": "Task type: Auto subtitles",
   "字幕字号（0 自动）": "Subtitle font size (0: automatic)",
+  "字幕大小": "Subtitle size",
   "开启后固定为 SRT，结果保存在任务中": "Uses SRT and saves the results in the task.",
   "提交 {0} 个任务": "Submit {0} tasks",
   "更换工具": "Change tool",

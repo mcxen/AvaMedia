@@ -100,6 +100,7 @@ internal static class SpeechUi
     {
         StableLayout.SetSamples(button, null); button.Width = double.NaN;
         button.MinWidth = 0; button.MinHeight = 0; button.Height = height;
+        button.CornerRadius = new(height / 2);
         button.Classes.Remove("dialog-action"); button.Classes.Add("text-action");
         if (button.Classes.Contains("primary"))
         {
@@ -107,6 +108,14 @@ internal static class SpeechUi
             button.Bind(TemplatedControl.BorderBrushProperty, new DynamicResourceExtension("UiAccent"));
             button.Bind(TemplatedControl.ForegroundProperty, new DynamicResourceExtension("UiAccentText"));
         }
+    }
+    public static void CompactRows(ListBox list)
+    {
+        list.Padding = new(0);
+        list.Styles.Add(new Style(x => x.OfType<ListBoxItem>()) { Setters = {
+            new Setter(TemplatedControl.PaddingProperty, new Thickness(0)),
+            new Setter(Layoutable.MinHeightProperty, 0d),
+            new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
     }
     public static void Detach(Control control)
     {

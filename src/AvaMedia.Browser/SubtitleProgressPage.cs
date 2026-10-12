@@ -46,7 +46,8 @@ internal sealed class SubtitleProgressPage : UserControl
     private readonly ListBox _transcript;
     private readonly CheckBox _follow = new() { Content = "跟随最新字幕", IsChecked = true, IsVisible = false };
     private readonly Border _resultCard, _logCard, _headingCard, _surface, _footer;
-    private readonly Grid _navigation = new() { ColumnDefinitions = new("*,Auto,*"), Height = 64 };
+    private readonly Border _logText = new() { CornerRadius = new(9) };
+    private readonly Grid _navigation = new() { ColumnDefinitions = new("*,Auto,*"), Height = 43 };
     private readonly ScrollViewer _mobileScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private JsonNode? _task;
     private AiTaskProgressDto? _progress;
@@ -62,12 +63,13 @@ internal sealed class SubtitleProgressPage : UserControl
     public SubtitleProgressPage(string id, Func<bool> isMobile, Action back, Func<Task> details)
     {
         _id = id; _isMobile = isMobile; _back = back; _details = details;
-        _transcript = new ListBox { ItemsSource = _cues, Background = Brushes.Transparent,
+        _transcript = new ListBox { ItemsSource = _cues, Background = Brushes.Transparent, Padding = new(0),
             ItemTemplate = new FuncDataTemplate<Cue>((cue, _) => cue is null ? null : CueRow(cue)) };
         _transcript.Styles.Add(new Style(s => s.OfType<ListBoxItem>())
-        { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
+        { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch),
+            new Setter(ListBoxItem.MinHeightProperty, 0d), new Setter(ListBoxItem.PaddingProperty, new Thickness(0)) } });
         // ListBox's default VirtualizingStackPanel realizes only the visible cue rows.
-        var result = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
+        var result = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 0 };
         var resultHeader = new Grid { ColumnDefinitions = new("*,Auto") };
         resultHeader.Children.Add(Ui.Row(10, Ui.Text("字幕结果", "strong"), _count));
         var follow = new Button { Content = Ui.Icon("arrow-down", 12, Palette.Blue), Classes = { "plain", "icon" }, Width = 22, Height = 22 };
@@ -81,11 +83,11 @@ internal sealed class SubtitleProgressPage : UserControl
         Grid.SetColumn(follow, 1); resultHeader.Children.Add(follow); result.Children.Add(resultHeader);
         Grid.SetRow(_empty, 1); result.Children.Add(_empty);
         Grid.SetRow(_transcript, 1); result.Children.Add(_transcript);
-        _resultCard = Ui.Card(result, new(14));
+        _resultCard = Ui.Card(result, new(14, 12));
         _log.TextWrapping = TextWrapping.Wrap; _log.FontFamily = new("monospace"); _log.FontSize = 11; _log.LineHeight = 20;
         var logPanel = new StackPanel { Spacing = 6 };
-        logPanel.Children.Add(Ui.Text("处理日志（最近）", "strong")); logPanel.Children.Add(_log);
-        _logCard = Ui.Card(new ScrollViewer { Content = logPanel }, new(14));
+        _logText.Child = _log; logPanel.Children.Add(Ui.Text("处理日志（最近）", "strong")); logPanel.Children.Add(_logText);
+        _logCard = Ui.Card(new ScrollViewer { Content = logPanel }, new(14, 12));
         foreach (var card in new[] { _resultCard, _logCard })
         { card.BorderBrush = Palette.Hairline; card.BorderThickness = new(1); }
         _body.Children.Add(_resultCard); Grid.SetColumn(_logCard, 1); _body.Children.Add(_logCard);
@@ -135,11 +137,14 @@ internal sealed class SubtitleProgressPage : UserControl
         _headerActions.Content = null; _footer.Child = null;
         _surface.Child = null; _mobileScroll.Content = null;
         _navigation.IsVisible = _footer.IsVisible = mobile;
-        _surface.Padding = mobile ? new(14, 0, 14, 14) : new(18);
+        _surface.Padding = mobile ? new(14, 0, 14, 14) : new(20, 18);
         _surface.Background = mobile ? Brushes.Transparent : Palette.Card;
         _surface.BoxShadow = mobile ? default : BoxShadows.Parse("0 1 2 0 #0F000000, 0 0 0 1 #0D000000");
         _surface.ClipToBounds = false;
         _headingCard.Padding = mobile ? new(14) : new(0);
+        _heading.Spacing = mobile ? 12 : 14; _content.RowSpacing = mobile ? 10 : 14; _body.RowSpacing = mobile ? 10 : 12;
+        if (_header.Children[1] is StackPanel titles) titles.Spacing = mobile ? 0 : 4;
+        _logText.Padding = mobile ? new(0) : new(10); _logText.Background = mobile ? Brushes.Transparent : Palette.Fill;
         _headingCard.BoxShadow = mobile ? BoxShadows.Parse("0 0 0 1 #0D000000") : default;
         _header.ColumnDefinitions = new(mobile ? "Auto,*,Auto" : "Auto,*,Auto,Auto");
         _header.ColumnSpacing = mobile ? 10 : 12; _headerActions.IsVisible = !mobile;
@@ -149,7 +154,7 @@ internal sealed class SubtitleProgressPage : UserControl
         _body.ColumnDefinitions = new(stacked ? "*" : "*,280");
         _body.RowDefinitions = new(stacked ? "Auto,Auto" : "*");
         Grid.SetColumn(_logCard, stacked ? 0 : 1); Grid.SetRow(_logCard, stacked ? 1 : 0);
-        _transcript.Height = stacked ? (mobile ? 244 : 320) : double.NaN;
+        _transcript.Height = stacked ? (mobile ? 252 : 320) : double.NaN;
         _logCard.MaxHeight = stacked ? 136 : double.PositiveInfinity;
         _logCard.VerticalAlignment = mobile ? VerticalAlignment.Top : VerticalAlignment.Stretch;
         _content.RowDefinitions = new(mobile ? "Auto,Auto" : "Auto,*");
@@ -165,9 +170,9 @@ internal sealed class SubtitleProgressPage : UserControl
         var time = Ui.Text(Time(cue.Start) + " – " + Time(cue.End), "caption", raw: true);
         time.FontFamily = new("monospace"); time.VerticalAlignment = VerticalAlignment.Top;
         time.FontSize = _mobile ? 10.5 : 11;
-        var text = Ui.Text(cue.Text, raw: true); text.FontSize = 13; text.TextWrapping = TextWrapping.Wrap;
+        var text = Ui.Text(cue.Text, raw: true); text.FontSize = 13; text.LineHeight = 19.5; text.TextWrapping = TextWrapping.Wrap;
         var row = new Grid { ColumnDefinitions = new(_mobile ? "*" : "116,*"), RowDefinitions = new(_mobile ? "Auto,Auto" : "Auto"),
-            ColumnSpacing = 12, RowSpacing = 2, Margin = new(0, 7) };
+            ColumnSpacing = 12, RowSpacing = 1, Margin = new(0, 7), MinHeight = _mobile ? 36 : 19.5 };
         row.Children.Add(time); Grid.SetColumn(text, _mobile ? 0 : 1); Grid.SetRow(text, _mobile ? 1 : 0); row.Children.Add(text);
         return new Border { Child = row, BorderBrush = Palette.Hairline, BorderThickness = new(0, 0, 0, 1) };
     }

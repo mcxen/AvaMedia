@@ -20,7 +20,7 @@ internal sealed class SpeechStageCard : Border
     public SpeechStageCard(int index)
     {
         _index = index;
-        Padding = new(12, 10); CornerRadius = new(12); BorderThickness = new(1); Height = 162;
+        Padding = new(12, 10); CornerRadius = new(12); BorderThickness = new(1); Height = 160;
         this.Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         var root = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
         var header = new Grid { ColumnDefinitions = new("18,*,Auto"), ColumnSpacing = 7 };

@@ -42,7 +42,7 @@ public sealed partial class AiTaskWindow
         foreach (var control in new Control[] { _result, _pause, _stop, _run, _error, _log, _records }) SpeechUi.Detach(control);
         _result.Classes.Remove("primary"); _result.IsDefault = false;
         _stop.Classes.Add("danger");
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(18, 10, 18, 16), RowSpacing = 14 };
+        var root = new Grid { RowDefinitions = new("50,Auto,*,Auto"), Margin = new(18, 0, 18, 16) };
         var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
         var identity = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
         identity.Children.Add(SpeechUi.Heading("任务 · 自动字幕"));
@@ -56,7 +56,7 @@ public sealed partial class AiTaskWindow
         _backend.PropertyChanged += (_, e) => { if (e.Property == TextBlock.TextProperty) backend.IsVisible = !string.IsNullOrEmpty(_backend.Text); };
         actions.Children.Add(backend); _percent.FontSize = 22; _percent.VerticalAlignment = VerticalAlignment.Center; actions.Children.Add(_percent);
         actions.Children.Add(_run); actions.Children.Add(_pause); actions.Children.Add(_stop); Grid.SetColumn(actions, 1); header.Children.Add(actions);
-        var top = new StackPanel { Spacing = 8 }; top.Children.Add(header);
+        var top = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center }; top.Children.Add(header);
         top.Children.Add(_error); root.Children.Add(top);
         var stages = new Grid { ColumnDefinitions = new("*,14,*,14,*,14,*"), ColumnSpacing = 4 };
         for (var i = 0; i < 4; i++)
@@ -67,7 +67,7 @@ public sealed partial class AiTaskWindow
             arrow.Bind(LucideIcon.ForegroundProperty, new DynamicResourceExtension("UiTextSecondary")); Grid.SetColumn(arrow, i * 2 + 1); stages.Children.Add(arrow);
         }
         Grid.SetRow(stages, 1); root.Children.Add(stages);
-        var body = new Grid { ColumnDefinitions = new("*,270"), ColumnSpacing = 14 };
+        var body = new Grid { ColumnDefinitions = new("*,270"), ColumnSpacing = 14, Margin = new(0, 9, 0, 12) };
         var main = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,*"), RowSpacing = 8 };
         var timelineTitle = new WrapPanel { Orientation = Orientation.Horizontal }; _speechStep.Margin = new(0, 0, 8, 0); timelineTitle.Children.Add(_speechStep);
         timelineTitle.Children.Add(SpeechUi.Text("每 5 分钟一段，逐段 提取音轨 → 检测语音 → 识别字幕", true, 11.5)); main.Children.Add(timelineTitle);
@@ -79,24 +79,26 @@ public sealed partial class AiTaskWindow
             ItemTemplate = new FuncDataTemplate<SubtitleCue>((cue, _) =>
             {
                 if (cue is null) return null;
-                var row = new Grid { ColumnDefinitions = new("138,*"), ColumnSpacing = 10, Margin = new(0, 7) };
+                var row = new Grid { ColumnDefinitions = new("118,*"), ColumnSpacing = 10, Margin = new(0, 7), MinHeight = 20 };
                 var time = SpeechUi.Text(AiActivity.FormatElapsed(cue.Start.TotalSeconds) + " – " + AiActivity.FormatElapsed(cue.End.TotalSeconds), true, 11);
                 Localization.SetIsUserText(time, true); row.Children.Add(time);
                 time.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") }; time.TextWrapping = TextWrapping.NoWrap;
-                var text = SpeechUi.Text(cue.Text); Localization.SetIsUserText(text, true); Grid.SetColumn(text, 1); row.Children.Add(text);
+                var text = SpeechUi.Text(cue.Text); text.TextWrapping = TextWrapping.Wrap; Localization.SetIsUserText(text, true); Grid.SetColumn(text, 1); row.Children.Add(text);
                 var line = new Border { Child = row, BorderThickness = new(0, 0, 0, 1) }; line.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("UiDivider")); return line;
             }) };
+        SpeechUi.CompactRows(_transcript);
         ScrollViewer.SetHorizontalScrollBarVisibility(_transcript, ScrollBarVisibility.Disabled);
         var cues = new Grid(); cues.Children.Add(_transcript); _transcriptEmpty.HorizontalAlignment = HorizontalAlignment.Center; _transcriptEmpty.VerticalAlignment = VerticalAlignment.Center; cues.Children.Add(_transcriptEmpty); Grid.SetRow(cues, 4); main.Children.Add(cues);
-        body.Children.Add(SpeechUi.Card(main, 16));
+        var mainCard = SpeechUi.Card(main); mainCard.Padding = new(16, 14); body.Children.Add(mainCard);
         var aside = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 14 };
         var records = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 }; records.Children.Add(SpeechUi.Heading("过程记录"));
         var history = new ListBox { ItemsSource = _speechStages, BorderThickness = new(0), Background = Brushes.Transparent,
             ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel()),
             ItemTemplate = new FuncDataTemplate<string>((entry, _) => StageLogRow(entry ?? "")) };
+        SpeechUi.CompactRows(history);
         ScrollViewer.SetHorizontalScrollBarVisibility(history, ScrollBarVisibility.Disabled); Grid.SetRow(history, 1); records.Children.Add(history);
         _records.Header = "完整日志"; _records.Content = _log; _log.MaxHeight = 150; Grid.SetRow(_records, 2); records.Children.Add(_records);
-        aside.Children.Add(SpeechUi.Card(records));
+        var recordCard = SpeechUi.Card(records); recordCard.Padding = new(14, 12); aside.Children.Add(recordCard);
         var after = new StackPanel { Spacing = 8 }; after.Children.Add(SpeechUi.Heading("完成后"));
         after.Children.Add(SpeechUi.Text("保存字幕草稿与结构化字幕，可「校对字幕」修改文本和时间，再导出 SRT / ASS / MP4 / MKV", true, 11.5));
         var finish = new WrapPanel(); _result.Margin = new(0, 0, 6, 0); finish.Children.Add(_result);
@@ -105,7 +107,7 @@ public sealed partial class AiTaskWindow
             if (_speechOutputAvailable) Process.Start(new ProcessStartInfo(_job.Output) { UseShellExecute = true });
             return Task.CompletedTask;
         })); finish.Children.Add(_speechOutput); after.Children.Add(finish);
-        var afterCard = SpeechUi.Card(after); Grid.SetRow(afterCard, 1); aside.Children.Add(afterCard); Grid.SetColumn(aside, 1); body.Children.Add(aside);
+        var afterCard = SpeechUi.Card(after); afterCard.Padding = new(14, 12); afterCard.MinHeight = 142; Grid.SetRow(afterCard, 1); aside.Children.Add(afterCard); Grid.SetColumn(aside, 1); body.Children.Add(aside);
         Grid.SetRow(body, 2); root.Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_queueCaption);
         var close = Ui.Button("关闭", Close); Grid.SetColumn(close, 1); footer.Children.Add(close); Grid.SetRow(footer, 3); root.Children.Add(footer);

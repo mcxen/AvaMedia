@@ -385,6 +385,7 @@ public sealed partial class ConsoleView : UserControl
 internal sealed class WrapStack : StackPanel
 {
     public WrapStack() { Orientation = Orientation.Horizontal; Spacing = 8; }
+    public double RowSpacing { get; set; } = 8;
     protected override Size MeasureOverride(Size availableSize)
     {
         double x = 0, y = 0, line = 0, width = 0;
@@ -393,7 +394,7 @@ internal sealed class WrapStack : StackPanel
             if (!child.IsVisible) continue;
             child.Measure(new Size(double.PositiveInfinity, availableSize.Height));
             var size = child.DesiredSize;
-            if (x > 0 && x + size.Width > availableSize.Width) { y += line + 8; x = 0; line = 0; }
+            if (x > 0 && x + size.Width > availableSize.Width) { y += line + RowSpacing; x = 0; line = 0; }
             x += size.Width + Spacing; line = Math.Max(line, size.Height); width = Math.Max(width, x - Spacing);
         }
         return new Size(double.IsInfinity(availableSize.Width) ? width : Math.Min(width, availableSize.Width), y + line);
@@ -405,7 +406,7 @@ internal sealed class WrapStack : StackPanel
         {
             if (!child.IsVisible) continue;
             var size = child.DesiredSize;
-            if (x > 0 && x + size.Width > finalSize.Width) { y += line + 8; x = 0; line = 0; }
+            if (x > 0 && x + size.Width > finalSize.Width) { y += line + RowSpacing; x = 0; line = 0; }
             child.Arrange(new Rect(x, y, size.Width, size.Height));
             x += size.Width + Spacing; line = Math.Max(line, size.Height);
         }

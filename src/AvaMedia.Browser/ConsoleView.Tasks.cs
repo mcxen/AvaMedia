@@ -94,7 +94,9 @@ public sealed partial class ConsoleView
         }
         else
         {
-            _tasksGrid.ColumnDefinitions = new(_subtitlePage is null ? "*,316" : "280,*"); _tasksGrid.Margin = new(18, 2, 18, 18);
+            _tasksGrid.ColumnDefinitions = new(_subtitlePage is null ? "*,316" : "280,*");
+            _tasksGrid.Margin = _subtitlePage is null ? new(18, 2, 18, 18) : new(24, 0, 24, 16);
+            _tasksGrid.ColumnSpacing = _subtitlePage is null ? 12 : 14;
             _listCard.IsVisible = _detailCard.IsVisible = true; Grid.SetColumn(_detailCard, 1);
             _listCard.Background = Palette.Card; _listCard.BoxShadow = BoxShadows.Parse("0 1 2 0 #0F000000, 0 0 0 1 #0D000000");
         }

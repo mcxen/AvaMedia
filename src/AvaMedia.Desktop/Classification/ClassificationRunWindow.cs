@@ -19,7 +19,7 @@ public sealed partial class ClassificationRunWindow : Window
     private readonly FolderClassificationProgress _progress = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly Grid _body = new();
-    private readonly TextBlock _title = T("", 17, FontWeight.Bold, raw: true), _subtitle = T("", 12, brush: Muted, raw: true);
+    private readonly TextBlock _title = T("", 13, FontWeight.Bold, raw: true), _subtitle = T("", 11.5, brush: Muted, raw: true);
     private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
     private int _dirty = 1, _computing;
     private long _lastApplied;
@@ -32,8 +32,9 @@ public sealed partial class ClassificationRunWindow : Window
         _job = job; _pause = pause; _stop = stop; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
         Background = Page; WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
-        var header = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new(18, 14, 18, 12) };
-        var titles = new StackPanel { Spacing = 2 }; titles.Children.Add(_title); titles.Children.Add(_subtitle);
+        var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12, Height = 50, Margin = new(18, 0) };
+        var titles = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        titles.Children.Add(_title); Grid.SetColumn(_subtitle, 1); titles.Children.Add(_subtitle);
         header.Children.Add(titles); Grid.SetColumn(_headerActions, 1); header.Children.Add(_headerActions);
         var root = new DockPanel(); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header); root.Children.Add(_body);
         Content = root;

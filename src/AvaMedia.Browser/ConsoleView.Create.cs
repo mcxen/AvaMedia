@@ -19,6 +19,8 @@ public sealed partial class ConsoleView
     private readonly TextBlock _bannerText = Ui.Text("", raw: true);
     private readonly ContentControl _formHostColumn = new(), _formHostEditor = new();
     private readonly ScrollViewer _formScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+    private readonly Grid _normalOutputPath = new(), _subtitleOutputPath = new();
+    private Control? _outputGroup, _subtitleOutputRow;
     private readonly TextBlock _summary = Ui.Text("", "secondary", raw: true, trim: true), _toolCaption = Ui.Text("", "caption", raw: true);
     private readonly TextBlock _mobileCount = Ui.Text("", "secondary");
     private Grid _createColumns = null!, _createPage = null!, _desktopBar = null!, _mobileBar = null!, _mobileTop = null!;
@@ -36,7 +38,7 @@ public sealed partial class ConsoleView
         _rulesGroup.Child = rules;
         var output = new StackPanel { Spacing = 8 };
         output.Children.Add(Ui.Text("服务器输出目录", "section"));
-        var path = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
+        var path = _normalOutputPath; path.ColumnDefinitions = new("*,Auto"); path.ColumnSpacing = 6;
         path.Children.Add(_output); var folder = Ui.Icon("folder-closed", 14, Palette.Secondary); Grid.SetColumn(folder, 1); path.Children.Add(folder);
         output.Children.Add(new Border { Child = path, Background = Brushes.White, BorderBrush = Palette.Hairline, BorderThickness = new(1), CornerRadius = new(7), Padding = new(9, 6) });
         output.Children.Add(Actions(Action("选择输出文件夹…", () => PickServerFile("输出目录", true, selected => { _output.Text = selected; UpdateSummary(); })),
@@ -44,7 +46,19 @@ public sealed partial class ConsoleView
         _mobileExtras.Child = Ui.Group(Ui.Line("立即执行", _formStartHost, 44), Ui.Line("包括子文件夹", _recursiveHostMobile, 44));
         _form.Children.Add(_selectedGroup); _form.Children.Add(_urlsGroup);
         _form.Children.Add(_toolOptions); _form.Children.Add(_analysis); _form.Children.Add(_rulesGroup); _form.Children.Add(_downloadModels);
-        _form.Children.Add(output); _form.Children.Add(_mobileExtras);
+        _outputGroup = output; _form.Children.Add(output);
+        _subtitleOutputPath.ColumnDefinitions = new("*,Auto,Auto"); _subtitleOutputPath.ColumnSpacing = 6;
+        var chooseOutput = Action("选择输出文件夹…", () => PickServerFile("输出目录", true, selected => { _output.Text = selected; UpdateSummary(); }));
+        var sourceOutput = Action("使用当前目录输出", () => { if (_files.CurrentFolder is { } current) { _output.Text = _source.DisplayAddress(current); UpdateSummary(); } return Task.CompletedTask; });
+        foreach (var (button, icon, column, label) in new[] { (chooseOutput, "folder-closed", 1, "选择输出文件夹…"), (sourceOutput, "folder-open", 2, "使用当前目录输出") })
+        {
+            button.Content = Ui.Icon(icon, 14, Palette.Secondary); button.Classes.Add("icon"); button.Classes.Add("plain");
+            button.Width = button.Height = 20;
+            ToolTip.SetTip(button, L.T(label)); Avalonia.Automation.AutomationProperties.SetName(button, L.T(label));
+            Grid.SetColumn(button, column); _subtitleOutputPath.Children.Add(button);
+        }
+        _subtitleOutputRow = SubtitleField("输出目录", _subtitleOutputPath, 40); _subtitleOutputRow.IsVisible = false;
+        _form.Children.Add(_subtitleOutputRow); _form.Children.Add(_mobileExtras);
         _formScroll.Content = new Border { Child = _form, Padding = new(14, 4, 14, 14) };
     }
     private static Grid Header(Control left, Control? right = null)
@@ -182,6 +196,12 @@ public sealed partial class ConsoleView
         }
         else if (_workspaceTabs.SelectedIndex == 1) _formHostEditor.Content = _formScroll;
         else _formHostColumn.Content = _formScroll;
+        _form.Spacing = SubtitleSubmission ? 0 : 10;
+        if (_outputGroup is not null) _outputGroup.IsVisible = !SubtitleSubmission;
+        if (_subtitleOutputRow is not null) _subtitleOutputRow.IsVisible = SubtitleSubmission;
+        _normalOutputPath.Children.Remove(_output); _subtitleOutputPath.Children.Remove(_output);
+        (SubtitleSubmission ? _subtitleOutputPath : _normalOutputPath).Children.Insert(0, _output);
+        _createPage.Margin = !_mobile && SubtitleSubmission ? new(24, 0, 24, 16) : _createPage.Margin;
         _selectedGroup.IsVisible = _inputs.Count > 0 && _workspaceTabs.SelectedIndex != 1 && !SubtitleSubmission;
         RenderSubtitleInputs();
     }
