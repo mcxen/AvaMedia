@@ -9,7 +9,7 @@ public sealed record SubtitleCue(TimeSpan Start, TimeSpan End, string Text);
 public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstaller? installer = null)
 {
     private static readonly SemaphoreSlim RecognitionGate = new(1, 1);
-    private const double ChunkSeconds = 300;
+    private const double ChunkSeconds = AiProgressSpeechTracker.ChunkSeconds;
 
     public static void Validate(Job job)
     {
@@ -53,13 +53,18 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false, bool saveTaskResult = true,
         MediaInfo? sourceInfo = null)
     {
+        await using var updates = new AiProgressUpdates();
+        var reportProgress = progress;
+        progress = value => updates.Set("percent", () => reportProgress(value));
+        void Detail(string value) => updates.Set("detail", () => job.ProgressDetail = value);
+        void Transcript(SubtitleTaskResult value) => updates.Set("cues", () => job.SubtitleResult = value);
         var options = job.Options;
         var speech = options.Transcription ?? new();
         job.SubtitleResult = null;
         if (saveTaskResult) AiTaskResults.DeleteResult(job, "subtitles");
         var sourceFile = new FileInfo(job.Inputs[0]);
         var sourceLength = sourceFile.Length; var sourceWriteUtc = sourceFile.LastWriteTimeUtc;
-        var activity = new AiActivityReporter(value => job.Activity = value, "Whisper " + speech.Model, "条字幕",
+        var activity = new AiActivityReporter(value => updates.Set("activity", () => job.Activity = value), "Whisper " + speech.Model, "条字幕",
             ["读取音轨", "语音模型", "语音识别", "保存结果"]);
         activity.Stage("读取音轨");
         var info = sourceInfo ?? await engine.Probe(job.Inputs[0], ct, options.VideoStreamIndex, options.AudioStreamIndex).ConfigureAwait(false);
@@ -74,7 +79,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         var duration = Math.Min(options.End > 0 ? options.End : info.Duration, info.Duration) - options.Start;
         if (duration <= 0) throw new ArgumentException("识别区间超出源文件时长。");
         job.Duration = duration / options.Speed;
-        job.ProgressDetail = "准备语音模型"; progress(0);
+        var tracker = speech.ReviewedCues is null ? new AiProgressSpeechTracker(job.Id.ToString(), options.Start, duration) : null;
+        Detail("准备语音模型"); progress(0);
         activity.Node("语音模型");
         activity.Stage("准备语音模型");
         var models = installer ?? new();
@@ -83,7 +89,12 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         {
         model = await models.EnsureInstalledAsync(speech.Model, value =>
         {
-            if (value.Stage == "下载") { activity.Stage("下载语音模型", value.Received, value.Total, "字节"); progress(value.Percent * .15); }
+            if (value.Stage == "下载")
+            {
+                var size = (value.Total / 1024d / 1024d).ToString("0.0", CultureInfo.InvariantCulture) + " MB";
+                activity.StageStep("下载语音模型", "下载语音模型 · " + size, value.Received, value.Total, "字节");
+                progress(value.Percent * .15);
+            }
             else activity.Stage(value.Stage == "完成" ? "语音模型已就绪" : value.Stage);
         }, ct).ConfigureAwait(false);
         }
@@ -93,8 +104,6 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         var output = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!, ".AvaMedia-subtitles-" + Guid.NewGuid().ToString("N") + "." + options.Format);
         try
         {
-            job.ProgressDetail = "等待语音识别";
-            activity.Stage("等待语音识别", detail: "前一个识别任务完成后开始");
             List<SubtitleCue> cues;
             if (speech.ReviewedCues is { } reviewed)
             {
@@ -106,6 +115,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             }
             else
             {
+            Detail("等待语音识别");
+            activity.Stage("等待语音识别", detail: "前一个识别任务完成后开始");
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             using var pauseBoundary = JobExecutionControl.DeferPause();
             await RecognitionGate.WaitAsync(ct).ConfigureAwait(false);
@@ -116,7 +127,6 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 cues = await Task.Run(async () =>
                 {
                     activity.Stage("加载语音模型");
-                    activity.Node("语音识别");
                     double chunkBegin = 0, chunkEnd = 0, recognized = 0;
                     var recognitionProgressGate = new object();
                     void Recognized(double seconds)
@@ -124,6 +134,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         lock (recognitionProgressGate)
                         {
                             recognized = Math.Max(recognized, Math.Min(duration, seconds));
+                            tracker!.Advance(options.Start + recognized);
                             activity.Advance(recognized, duration, "秒");
                             progress(15 + 60 * recognized / duration);
                         }
@@ -140,32 +151,40 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                     {
                         activity.Backend(backend);
                         if (reason is not null) { job.AppendLog(reason); activity.Stage("语音模型回退 CPU", detail: reason); }
-                    });
+                    }, loading => activity.StageStep("加载语音模型", "加载语音模型 · " + loading));
+                    activity.Node("语音识别");
+                    // The reporter resets observations on a new node; preserve the resolved backend.
+                    if (!string.IsNullOrEmpty(inference.Backend)) activity.Backend(inference.Backend);
                     var result = new List<SubtitleCue>();
                     var wav = Path.Combine(temporary, "speech.wav");
                     var regionWav = Path.Combine(temporary, "speech-region.wav");
                     for (var from = 0d; from < duration; from += ChunkSeconds)
                     {
                         ct.ThrowIfCancellationRequested();
+                        tracker!.Begin((int)(from / ChunkSeconds));
                         var begin = Math.Max(0, from - 1);
                         var end = Math.Min(duration, from + ChunkSeconds + 1);
-                        job.ProgressDetail = "提取音轨";
+                        Detail("提取音轨");
                         activity.Stage("提取音轨", detail: $"第 {(int)(from / ChunkSeconds) + 1} / {(int)Math.Ceiling(duration / ChunkSeconds)} 段");
                         var extracted = await ProcessRunner.Run(engine.FFmpeg, ["-v", "error", "-nostdin", "-y", "-ss", MediaEngine.Number(options.Start + begin),
                             "-i", job.Inputs[0], "-map", $"0:a:{options.AudioStreamIndex}", "-t", MediaEngine.Number(end - begin),
                             "-vn", "-sn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wav], ct).ConfigureAwait(false);
                         if (extracted.ExitCode != 0) throw new InvalidDataException("提取识别音轨失败。\n" + extracted.Error);
-                        job.ProgressDetail = "检测语音";
+                        tracker.Stage("检测语音");
+                        Detail("检测语音");
                         activity.Stage("检测语音", detail: $"{MediaTime.Format(begin)} – {MediaTime.Format(end)}");
                         IReadOnlyList<VadSegmentData> speechSegments;
                         await using (var detectionAudio = File.OpenRead(wav))
                             speechSegments = await inference.DetectSpeechAsync(detectionAudio, ct).ConfigureAwait(false);
+                        tracker.Detected(speechSegments.Select(region => new VoiceInterval(options.Start + begin + region.Start.TotalSeconds,
+                            options.Start + begin + region.End.TotalSeconds)));
                         if (speechSegments.Count == 0)
                         {
                             activity.Result($"{MediaTime.Format(begin)} – {MediaTime.Format(end)} · 未检测到语音", result.Count);
-                            Recognized(Math.Min(duration, from + ChunkSeconds)); continue;
+                            Recognized(Math.Min(duration, from + ChunkSeconds)); tracker.Complete(); continue;
                         }
-                        job.ProgressDetail = "识别字幕";
+                        tracker.Stage("识别字幕");
+                        Detail("识别字幕");
                         activity.Stage("识别字幕", recognized, duration, "秒", $"检测到 {speechSegments.Count} 个语音区间");
                         // Decode the detected utterances individually. A native
                         // 30-second decoding window can otherwise skip later speech
@@ -200,19 +219,21 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                                 }
                                 if (stop <= start) continue;
                                 result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text));
-                                job.SubtitleResult = new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true };
+                                tracker.Cue();
+                                Transcript(new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true });
                                 activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
                                 Recognized(stop);
                             }
                         }
                         Recognized(Math.Min(duration, from + ChunkSeconds));
+                        tracker.Complete();
                     }
                     return result;
                 }, ct).ConfigureAwait(false);
             }
             finally { RecognitionGate.Release(); }
             }
-            job.SubtitleResult = new(cues.ToArray(), sourceLength, sourceWriteUtc);
+            Transcript(new(cues.ToArray(), sourceLength, sourceWriteUtc));
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
             sourceFile.Refresh();
@@ -221,11 +242,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             var transcript = new SubtitleTaskResult(cues.ToArray(), sourceLength, sourceWriteUtc);
             if (saveTaskResult)
                 await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), transcript, ct).ConfigureAwait(false);
-            job.SubtitleResult = transcript;
+            Transcript(transcript);
             activity.Node("保存结果");
             if (options.Format is "srt" or "ass")
             {
-                job.ProgressDetail = "保存字幕";
+                Detail("保存字幕");
                 activity.Stage("保存字幕");
                 await File.WriteAllTextAsync(output, options.Format == "srt" ? SpeechSubtitles.Srt(cues) : SpeechSubtitles.Ass(cues, options, info.Width, info.Height), new UTF8Encoding(false), ct).ConfigureAwait(false);
             }
@@ -243,14 +264,14 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                 await File.WriteAllTextAsync(ass, SpeechSubtitles.Ass(originalCues, options, info.Width, info.Height), new UTF8Encoding(false), ct).ConfigureAwait(false);
                 rendered.CopyStreams = false; if (rendered.VideoCodec == "copy") rendered.VideoCodec = "自动";
                 var conversion = new Job { FeatureId = "mp4", Inputs = job.Inputs, Output = output, Options = rendered };
-                job.ProgressDetail = "写入视频字幕";
+                Detail("写入视频字幕");
                 activity.Stage("写入视频字幕", 0, 100, "%");
                 await engine.Execute(conversion, percent => { activity.Advance(percent, 100, "%"); progress(75 + percent * .25); }, ct).ConfigureAwait(false);
                 job.Log = conversion.Log;
             }
             ct.ThrowIfCancellationRequested();
             File.Move(output, job.Output);
-            job.ProgressDetail = speech.RecognitionOnly ? "识别完成 · 可校对后导出" : "字幕已生成";
+            Detail(speech.RecognitionOnly ? "识别完成 · 可校对后导出" : "字幕已生成");
             job.Log += $"\n{speech.Model} · {speech.Language} · {cues.Count} subtitles";
             progress(100);
             activity.Finish("字幕已生成");

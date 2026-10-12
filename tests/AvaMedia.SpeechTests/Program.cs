@@ -18,6 +18,11 @@ using AvaMedia.Desktop;
 using AvaMedia.Desktop.Controls;
 using SkiaSharp;
 
+if (args.Contains("--progress-only"))
+{
+    SpeechProgressChecks.Run();
+    return;
+}
 var fixtures = Path.GetFullPath("artifacts/speech-acceptance/fixtures");
 if (args.Contains("--native-ui"))
 {
