@@ -32,7 +32,8 @@ public sealed partial class AiTaskWindow : Window
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
     public AiTaskWindow(Job job, Func<bool> hasResult, Func<Task> showResult, Action stop, Func<Task> run,
-        Func<bool> canRun, Action newTask, RotationTaskView? rotation = null, Action? pause = null, Func<AiQueueSummary>? queueSummary = null)
+        Func<bool> canRun, Action newTask, RotationTaskView? rotation = null, Action? pause = null, Func<AiQueueSummary>? queueSummary = null,
+        IMediaEngine? engine = null)
     {
         _job = job; _hasResult = hasResult; _canRun = canRun; _rotation = rotation; _queueSummary = queueSummary;
         Title = Localization.Format($"任务 · {Localization.Key(Catalog.Find(job.FeatureId).Label)}");
@@ -96,13 +97,18 @@ public sealed partial class AiTaskWindow : Window
         _result.Classes.Add("primary"); _result.IsDefault = true; finishActions.Children.Add(_result);
         Grid.SetColumn(finishActions, 1); actions.Children.Add(finishActions);
         footer.Child = actions; Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
+        if (job.FeatureId == "person-clip" && engine is not null)
+        {
+            body.Children.Remove(_records); heading.Children.Remove(_error); root.Children.Remove(footer);
+            BuildPersonProgress(engine, footer);
+        }
         if (Catalog.Find(job.FeatureId).Operation == Operation.Transcribe) BuildSpeechProgress();
         job.PropertyChanged += Changed;
         Localization.Changed += LanguageChanged;
-        Opened += async (_, _) => { if (_rotation is not null) await _rotation.InitializeAsync(); };
+        Opened += async (_, _) => { if (_rotation is not null) await _rotation.InitializeAsync(); if (_personView is not null) await _personView.InitializeAsync(); };
         Closed += (_, _) =>
         {
-            _closed = true; CloseSpeechProgress(); _refreshTimer.Stop(); job.PropertyChanged -= Changed; Localization.Changed -= LanguageChanged;
+            _closed = true; CloseSpeechProgress(); _personView?.Dispose(); _refreshTimer.Stop(); job.PropertyChanged -= Changed; Localization.Changed -= LanguageChanged;
             if (_rotation is not null) { _rotation.ReviewChanged -= ReviewChanged; _rotation.Dispose(); }
         };
         StableLayout.Reserve(_status, "运行中 100%", "Running 100%", "等待中", "完成", "失败", "已暂停", "正在终止", "已停止");
@@ -112,7 +118,7 @@ public sealed partial class AiTaskWindow : Window
         _status.FontFeatures = new Avalonia.Media.FontFeatureCollection { Avalonia.Media.FontFeature.Parse("tnum") };
         var executionLabels = new[] { "开始任务", "继续任务", "临时停止", "重新执行", "重新检测" };
         if (_speechRoot is null) { StableLayout.Reserve(_run, executionLabels); StableLayout.Reserve(_pause, executionLabels); }
-        _refreshTimer.Tick += (_, _) => { if (!_closed && (Interlocked.Exchange(ref _refreshPosted, 0) != 0 || _speechRoot is not null)) Refresh(); };
+        _refreshTimer.Tick += (_, _) => { if (!_closed && (Interlocked.Exchange(ref _refreshPosted, 0) != 0 || _speechRoot is not null || _personView is not null)) Refresh(); };
         _refreshTimer.Start();
         Refresh();
     }
@@ -162,7 +168,8 @@ public sealed partial class AiTaskWindow : Window
             if (_records.IsExpanded) _ = ReadLogAsync();
         }
         RefreshError();
-        if (_speechRoot is not null) RefreshSpeechProgress();
+        if (_personView is not null) _personView.Update();
+        else if (_speechRoot is not null) RefreshSpeechProgress();
         else { _activity.Update(_job.Activity); _details.Update(_job.Activity); }
         RefreshActions();
     }
@@ -180,5 +187,12 @@ public sealed partial class AiTaskWindow : Window
         _run.IsVisible = _job.State is not (JobState.Running or JobState.Stopping);
         _run.Content = Localization.Text(_job.State == JobState.Waiting ? "开始任务" : _job.State == JobState.Paused ? "继续任务"
             : _rotation?.IsReview == true ? "重新检测" : "重新执行");
+        if (_personView is not null)
+        {
+            _result.IsVisible = _job.State == JobState.Completed && _personView.HasCompleteResult;
+            _pause.IsVisible = false;
+            _stop.Content = Localization.Text("停止");
+            _stop.IsEnabled = !_busy;
+        }
     }
 }

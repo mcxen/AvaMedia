@@ -1,0 +1,50 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:person="using:AvaMedia.Desktop">
+  <Styles.Resources>
+    <x:Double x:Key="PtPreviewHeight">212</x:Double>
+    <x:Double x:Key="PtTimelineHeight">28</x:Double>
+    <x:Double x:Key="PtStripHeight">46</x:Double>
+    <x:Double x:Key="PtThumbWidth">64</x:Double>
+    <x:Double x:Key="PtThumbHeight">36</x:Double>
+    <Thickness x:Key="PtCellPadding">14,9</Thickness>
+    <Thickness x:Key="PtResultPadding">16,12,16,6</Thickness>
+    <Thickness x:Key="PtRowPadding">16,6</Thickness>
+    <ControlTheme x:Key="PtListItem" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>
+      <Setter Property="Template"><ControlTemplate>
+        <Border Name="face" Background="{TemplateBinding Background}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch"/>
+        </Border>
+      </ControlTemplate></Setter>
+      <Style Selector="^:pointerover"><Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
+      <Style Selector="^:selected"><Setter Property="Background" Value="{DynamicResource AcSelection}"/></Style>
+      <Style Selector="^:focus-visible /template/ Border#face"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/><Setter Property="BorderThickness" Value="1"/></Style>
+    </ControlTheme>
+    <ControlTheme x:Key="PtStripItem" TargetType="ListBoxItem" BasedOn="{StaticResource PtListItem}">
+      <Setter Property="Margin" Value="0,2,6,2"/>
+      <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>
+      <Style Selector="^:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
+    </ControlTheme>
+  </Styles.Resources>
+  <Style Selector="Grid.person-task-view TextBlock"><Setter Property="FontFeatures" Value="tnum"/></Style>
+  <Style Selector="Grid.person-task-view Border.person-source"><Setter Property="Padding" Value="12"/></Style>
+  <Style Selector="Grid.person-task-view Grid.person-preview"><Setter Property="Height" Value="{DynamicResource PtPreviewHeight}"/></Style>
+  <Style Selector="Grid.person-task-view TextBlock.person-name"><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style Selector="Grid.person-task-view Border.person-duration"><Setter Property="Margin" Value="4"/><Setter Property="Padding" Value="4,1"/><Setter Property="Background" Value="{DynamicResource AcMenuFill}"/><Setter Property="CornerRadius" Value="{DynamicResource AcFieldRadius}"/></Style>
+  <Style Selector="Grid.person-task-view Border.person-stats"><Setter Property="Padding" Value="0"/><Setter Property="ClipToBounds" Value="True"/></Style>
+  <Style Selector="Grid.person-task-view Border.person-stat-cell"><Setter Property="Padding" Value="{DynamicResource PtCellPadding}"/><Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/></Style>
+  <Style Selector="Grid.person-task-view TextBlock.person-stat-number"><Setter Property="FontSize" Value="17"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style Selector="Grid.person-task-view person|PersonTaskTimeline"><Setter Property="Height" Value="{DynamicResource PtTimelineHeight}"/></Style>
+  <Style Selector="Grid.person-task-view TextBlock.person-tick"><Setter Property="FontSize" Value="10"/></Style>
+  <Style Selector="Grid.person-task-view Border.person-result"><Setter Property="Padding" Value="0"/><Setter Property="ClipToBounds" Value="True"/></Style>
+  <Style Selector="Grid.person-task-view Grid.person-result-header"><Setter Property="Margin" Value="{DynamicResource PtResultPadding}"/></Style>
+  <Style Selector="Grid.person-task-view ListBox.person-segments, Grid.person-task-view ListBox.person-strip"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="ItemContainerTheme" Value="{StaticResource PtListItem}"/></Style>
+  <Style Selector="Grid.person-task-view ListBox.person-strip"><Setter Property="ItemContainerTheme" Value="{StaticResource PtStripItem}"/><Setter Property="Height" Value="{DynamicResource PtStripHeight}"/></Style>
+  <Style Selector="Grid.person-task-view Grid.person-segment-row"><Setter Property="Margin" Value="{DynamicResource PtRowPadding}"/><Setter Property="MinHeight" Value="{DynamicResource PtThumbHeight}"/></Style>
+  <Style Selector="Grid.person-task-view TextBlock.person-number"><Setter Property="Width" Value="28"/><Setter Property="TextAlignment" Value="Right"/></Style>
+  <Style Selector="Grid.person-task-view Border.person-thumb"><Setter Property="Width" Value="{DynamicResource PtThumbWidth}"/><Setter Property="Height" Value="{DynamicResource PtThumbHeight}"/><Setter Property="ClipToBounds" Value="True"/><Setter Property="CornerRadius" Value="{DynamicResource AcThumbRadius}"/><Setter Property="Background" Value="{DynamicResource AcPreviewFill}"/></Style>
+  <Style Selector="Grid.person-task-view Border.strip-thumb"><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/></Style>
+  <Style Selector="Grid.person-task-view ListBoxItem:selected Border.strip-thumb"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+  <Style Selector="Grid.person-task-view Expander.person-records"><Setter Property="Padding" Value="8,0"/><Setter Property="BorderThickness" Value="0,0.5,0,0"/><Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/></Style>
+</Styles>
