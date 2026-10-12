@@ -47,6 +47,44 @@ internal static class WebPreview
             { width = info.Width, height = info.Height, duration = info.Duration, videoCodec = info.VideoCodec, audioCodec = info.AudioCodec, sourceVersion = version } });
             return (frame, metadata);
         }));
+        app.MapGet("/web/preview/strip", async (string path, int? count, int? videoStreamIndex, IMcpWorkspace workspace, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            if (!admission.Wait(0))
+            {
+                context.Response.Headers.RetryAfter = "1";
+                return Results.Problem("预览服务繁忙，请稍后重试。", statusCode: 429);
+            }
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            try
+            {
+                path = new McpFiles().Check(path, true);
+                if (!VideoFormats.IsVideo(path)) throw new ArgumentException("胶片条请选择视频。");
+                var version = McpMediaFile.Version(path);
+                var info = await workspace.Engine.Probe(path, timeout.Token, videoStreamIndex ?? 0);
+                var times = FrameStrip.Times(info.Duration, count ?? 10);
+                var frames = new List<object>();
+                await decoder.WaitAsync(timeout.Token);
+                try
+                {
+                    foreach (var seconds in times)
+                    {
+                        var image = await workspace.Engine.Thumbnail(path, seconds, FrameStrip.Width, FrameStrip.Height, timeout.Token, pad: false, videoStreamIndex: info.VideoStreamIndex);
+                        frames.Add(new { seconds, image = Convert.ToBase64String(image) });
+                    }
+                }
+                finally { decoder.Release(); }
+                if (version != McpMediaFile.Version(path)) throw new IOException("读取期间源文件发生变化，请重试。");
+                return Results.Json(new { duration = info.Duration, width = info.Width, height = info.Height, sourceVersion = version, frames });
+            }
+            catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested)
+            { return Results.Problem("胶片条生成超时。", statusCode: 408); }
+            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException)
+            { return Results.Problem(error.Message, statusCode: 400); }
+            finally { admission.Release(); }
+        });
         async Task Run(HttpContext context, Func<CancellationToken, Task<(byte[] Frame, string Metadata)>> render)
         {
             context.Response.Headers.CacheControl = "no-store";

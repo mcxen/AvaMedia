@@ -22,6 +22,10 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
     public string Status { get; private set; } = "已关闭";
     public string? Endpoint { get; private set; }
     public event Action? Changed;
+    private readonly McpClientLog _clients = new();
+    /// <summary>Clients actually seen by this listener (address, user agent, last request); nothing is persisted.</summary>
+    public McpClientView[] RecentClients => _clients.Snapshot();
+    public event Action? ClientsChanged { add => _clients.Changed += value; remove => _clients.Changed -= value; }
     public bool HasActiveRequests { get { lock (_activity) return _activeRequests > 0; } }
     public TimeSpan QuietFor => HasActiveRequests ? TimeSpan.Zero : System.Diagnostics.Stopwatch.GetElapsedTime(_quietSince);
 
@@ -72,6 +76,13 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
               }));
             var app = builder.Build();
             app.UseCors();
+            app.Use(async (context, next) =>
+            {
+                var path = context.Request.Path;
+                if (path.StartsWithSegments("/mcp") || path.StartsWithSegments("/web"))
+                    _clients.Note(context.Connection.RemoteIpAddress, context.Request.Headers.UserAgent.ToString(), path.StartsWithSegments("/mcp"));
+                await next(context);
+            });
             WebConsole.Map(app);
             app.MapMcp("/mcp");
             try { await app.StartAsync(ct).ConfigureAwait(false); }

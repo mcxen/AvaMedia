@@ -184,7 +184,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     }
 
     [McpServerTool(Name = "avamedia_list_tasks", Title = "任务列表", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("List desktop and MCP-created tasks from all entry points. State names: Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping. Results are paginated.")]
+    [Description("List desktop and MCP-created tasks from all entry points. State names: Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping. Results are paginated; counts gives unfiltered per-state totals plus All.")]
     public Task<McpTaskPage> ListTasks(int offset = 0, int limit = 50, string? state = null, CancellationToken ct = default)
     { Page(offset, limit); return workspace.ListAsync(offset, limit, state, ct); }
 

@@ -123,6 +123,8 @@ public sealed partial class ConversionOptions
     public int DelogoY { get; set; }
     public int DelogoWidth { get; set; }
     public int DelogoHeight { get; set; }
+    /// <summary>Additional watermark regions, each optionally limited to a source time range. Legacy single-region fields still apply.</summary>
+    public DelogoRegion[]? DelogoRegions { get; set; }
     public int Rotation { get; set; }
     public bool Flip { get; set; }
     public double FadeIn { get; set; }
@@ -147,7 +149,7 @@ public sealed partial class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public sealed partial class Job : Observable
@@ -269,3 +271,6 @@ public sealed partial class AppSettings
         CpuThreads=source.CpuThreads;CpuReservePercent=source.CpuReservePercent;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;
     }
 }
+
+/// <summary>A watermark rectangle in source pixels. End 0 means until the end of the media.</summary>
+public sealed record DelogoRegion(int X, int Y, int Width, int Height, double Start = 0, double End = 0);

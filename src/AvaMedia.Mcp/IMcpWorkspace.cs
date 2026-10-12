@@ -15,7 +15,11 @@ public sealed record McpRuntimeView(string Version, string Platform, bool Backgr
 public sealed record McpResourceUpdate(int? CpuReservePercent = null, int? CpuThreads = null,
     bool? MultiThread = null);
 public sealed record McpSubmission(string RequestId, McpTaskView[] Tasks);
-public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset);
+public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset)
+{
+    /// <summary>Unfiltered task count per state name plus "All"; lets clients show filter badges without extra calls.</summary>
+    public IReadOnlyDictionary<string, int>? Counts { get; init; }
+}
 public sealed record McpTaskResult(McpTaskView Task, object? Result, int Offset = 0, int? NextOffset = null)
 {
     public bool OutputIsDirectory { get; init; }

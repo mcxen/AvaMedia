@@ -129,7 +129,8 @@ public partial class MainWindow
                 filter = parsed;
             }
             var jobs = owner._jobs.Where(job => filter is null || job.State == filter).ToArray();
-            return new McpTaskPage(jobs.Skip(offset).Take(limit).Select(View).ToArray(), jobs.Length, offset, offset + limit < jobs.Length ? offset + limit : null);
+            return new McpTaskPage(jobs.Skip(offset).Take(limit).Select(View).ToArray(), jobs.Length, offset, offset + limit < jobs.Length ? offset + limit : null)
+            { Counts = McpTaskCounts.From(owner._jobs.Select(job => job.State)) };
         }, ct);
 
         public async Task<McpSubmission> SubmitAsync(string requestId, string hash, Func<string[], Job[]> create, bool start, CancellationToken ct)

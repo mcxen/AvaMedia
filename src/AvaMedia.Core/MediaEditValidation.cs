@@ -10,6 +10,7 @@ public static class MediaEditValidation
         }
         else if(options.Start>0 || options.End>0)throw new ArgumentException("当前媒体没有可剪辑的时间区间。");
         if(options.CropWidth>0)CropGeometry.Validate(new(options.CropX,options.CropY,options.CropWidth,options.CropHeight),media,!MediaEngine.IsImage(options.Format) && options.Format!="gif");
-        if(options.DelogoWidth>0 && (!media.HasVideo || (long)options.DelogoX+options.DelogoWidth>media.Width || (long)options.DelogoY+options.DelogoHeight>media.Height))throw new ArgumentException("水印区域超出画面。");
+        foreach(var region in DelogoFilter.Regions(options))
+            if(!media.HasVideo || (long)region.X+region.Width>media.Width || (long)region.Y+region.Height>media.Height)throw new ArgumentException("水印区域超出画面。");
     }
 }

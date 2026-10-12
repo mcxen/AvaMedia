@@ -28,6 +28,11 @@ await Run("video-compress",options:VideoCompression.CreateOptions(new(){Mode=Vid
 var clipped=await Run("clip",options:new(){Start=.4,End=2.4,CropX=20,CropY=20,CropWidth=200,CropHeight=100,Width=160,Speed=2,FadeIn=.1,FadeOut=.1});var clipInfo=await engine.Probe(clipped.Output);Check(clipInfo.Width==160 && clipInfo.Height==80 && clipInfo.Duration is >.85 and <1.2,"剪辑时长 / 裁剪尺寸错误");
 var rotated=await Run("rotate",options:new(){CropX=20,CropY=20,CropWidth=200,CropHeight=100,Rotation=90});var rotatedInfo=await engine.Probe(rotated.Output);Check(rotatedInfo.Width==100&&rotatedInfo.Height==200&&rotatedInfo.HasAudio,"裁剪后旋转的尺寸或音轨错误");
 await Run("delogo",options:new(){DelogoX=20,DelogoY=20,DelogoWidth=60,DelogoHeight=40});
+var legacyGraph=string.Join(",",DelogoFilter.Build(new(){DelogoX=20,DelogoY=20,DelogoWidth=60,DelogoHeight=40}));Check(!legacyGraph.Contains("enable") && legacyGraph.Contains("[original]") && legacyGraph.Contains("overlay=20:20"),"单区域去水印滤镜须保持兼容");
+var multiOptions=new ConversionOptions{Format="mp4",DelogoX=20,DelogoY=20,DelogoWidth=60,DelogoHeight=40,DelogoRegions=[new(200,100,80,50,.5,1.5),new(0,0,40,30,2)]};var multiGraph=string.Join(",",DelogoFilter.Build(multiOptions));
+Check(DelogoFilter.Regions(multiOptions).Length==3 && multiGraph.Contains("enable=between(t\\,0.5\\,1.5)") && multiGraph.Contains("enable=gte(t\\,2)") && multiGraph.Contains("[d2original]"),"多区域去水印滤镜错误");
+var multi=await Run("delogo",options:multiOptions);var multiInfo=await engine.Probe(multi.Output);Check(multiInfo.Width==320 && multiInfo.Height==180,"多区域去水印输出尺寸错误");
+try{MediaEngine.Validate(new Job{FeatureId="delogo",Inputs=[input],Output=Path.Combine(root,"bad.mp4"),Options=new(){Format="mp4",DelogoRegions=[new(0,0,10,10,2,1)]}});throw new Exception("无效水印时间范围未被拒绝");}catch(ArgumentException){checks++;}
 var joined=await Run("join",[input,other]);var joinInfo=await engine.Probe(joined.Output);Check(joinInfo.Duration is >4.8 and <5.3 && joinInfo.HasAudio,"不同尺寸 / 缺少音轨合并错误");
 var joinedFiltered=await Run("join",[input,other],new(){Width=160,Height=90,Speed=2,FadeIn=.1,Volume=.5});var filteredInfo=await engine.Probe(joinedFiltered.Output);Check(filteredInfo.Width==160 && filteredInfo.Height==90 && filteredInfo.Duration is >2.3 and <2.8,"合并后滤镜无法正确应用");
 var audio=await Run("split");Check((await engine.Probe(audio.Output)).HasVideo==false,"音轨提取仍有视频");

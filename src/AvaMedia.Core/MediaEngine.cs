@@ -197,6 +197,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.CropWidth<0 || o.CropHeight<0 || o.CropX<0 || o.CropY<0 || o.Width<0 || o.Height<0 || o.DelogoX<0 || o.DelogoY<0 || o.DelogoWidth<0 || o.DelogoHeight<0) throw new ArgumentException("尺寸及坐标不能小于零。");
         if((o.CropWidth>0)!=(o.CropHeight>0)) throw new ArgumentException("裁剪宽度和高度必须同时设置。");
         if((o.DelogoWidth>0)!=(o.DelogoHeight>0)) throw new ArgumentException("水印区域宽度和高度必须同时设置。");
+        DelogoFilter.Validate(o);
         if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
         if(feature.Operation==Operation.IsoCopy && (job.Inputs.Length!=1 || string.IsNullOrWhiteSpace(job.Inputs[0])))throw new ArgumentException("光盘复制任务须包含一个设备路径。");
@@ -231,7 +232,7 @@ public sealed class MediaEngine : IMediaEngine
         }
         if(o.KeepAllAudioStreams && feature.Operation is Operation.Join or Operation.AudioMix or Operation.SplitVideo && !copyJoined)throw new ArgumentException("当前合并、混音和视频流提取不支持保留独立的所有音频流。");
     }
-    public static bool HasVideoFilters(ConversionOptions o) => o.CropWidth>0 || o.DelogoWidth>0 || o.Speed!=1 || o.Width>0 || o.Height>0 || o.Fps>0 || o.Rotation!=0 || o.Flip || o.FadeIn>0 || o.FadeOut>0 || SubtitleOptions.Mode(o)==SubtitleMode.BurnIn;
+    public static bool HasVideoFilters(ConversionOptions o) => o.CropWidth>0 || DelogoFilter.Regions(o).Length>0 || o.Speed!=1 || o.Width>0 || o.Height>0 || o.Fps>0 || o.Rotation!=0 || o.Flip || o.FadeIn>0 || o.FadeOut>0 || SubtitleOptions.Mode(o)==SubtitleMode.BurnIn;
     public static bool HasAudioFilters(ConversionOptions o) => o.Speed!=1 || o.Volume!=1 || (o.AudioFadeIn??o.FadeIn)>0 || (o.AudioFadeOut??o.FadeOut)>0 || o.Echo || o.NoiseReduction || o.VoiceEnhancement || o.ReverseAudio;
     public static bool HasFilters(ConversionOptions o) => HasVideoFilters(o) || HasAudioFilters(o);
     public static void ValidateEncodingOptions(ConversionOptions o)
