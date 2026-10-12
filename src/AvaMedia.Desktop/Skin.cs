@@ -9,7 +9,7 @@ using Avalonia.Markup.Xaml.Styling;
 
 namespace AvaMedia.Desktop;
 
-public sealed class Skin : AvaloniaObject
+public sealed partial class Skin : AvaloniaObject
 {
     public static ThemeVariant MacOS9 { get; } = new("MacOS9", ThemeVariant.Light);
     public static ThemeVariant WindowsXP { get; } = new("WindowsXP", ThemeVariant.Light);
@@ -28,12 +28,13 @@ public sealed class Skin : AvaloniaObject
     public static void ToggleShade(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.ToggleShade(); }
     public static void RestoreWindow(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.RestoreWindow(); }
     public static void Zoom(Window window) { if (Windows.TryGetValue(window, out var registration)) registration.Zoom(); }
-    public static void Apply(string name)
+    public static void Apply(string name, string? accent = null)
     {
         Dispatcher.UIThread.VerifyAccess();
         if (name == "MacOS9") EnsureSkinStyles("Platinum");
         if (name == "WindowsXP") EnsureSkinStyles("WindowsXP");
-        Application.Current!.RequestedThemeVariant = name switch { "MacOS9" => MacOS9, "WindowsXP" => WindowsXP, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+        Application.Current!.RequestedThemeVariant = name switch { "System" => ThemeVariant.Default, "MacOS9" => MacOS9, "WindowsXP" => WindowsXP, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+        ApplyAccent(accent);
     }
     private static void EnsureSkinStyles(string stylesheet)
     {

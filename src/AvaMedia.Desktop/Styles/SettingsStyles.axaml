@@ -1,49 +1,56 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:auto="using:Avalonia.Automation">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:auto="using:Avalonia.Automation" xmlns:local="using:AvaMedia.Desktop">
+  <Styles.Resources><ResourceDictionary><ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="StPage" Color="#F2F3F7"/><SolidColorBrush x:Key="StSidebar" Color="#FAFBFD"/>
+      <SolidColorBrush x:Key="StBlue" Color="#007AFF"/><SolidColorBrush x:Key="StPurple" Color="#AF52DE"/><SolidColorBrush x:Key="StPink" Color="#FF2D55"/><SolidColorBrush x:Key="StRed" Color="#FF3B30"/><SolidColorBrush x:Key="StOrange" Color="#FF9500"/><SolidColorBrush x:Key="StYellow" Color="#FFCC00"/><SolidColorBrush x:Key="StGreen" Color="#34C759"/><SolidColorBrush x:Key="StGray" Color="#8E8E93"/><SolidColorBrush x:Key="StCyan" Color="#30B0C7"/>
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="StPage" Color="#1C1C1E"/><SolidColorBrush x:Key="StSidebar" Color="#29292B"/>
+      <SolidColorBrush x:Key="StBlue" Color="#0A84FF"/><SolidColorBrush x:Key="StPurple" Color="#BF5AF2"/><SolidColorBrush x:Key="StPink" Color="#FF375F"/><SolidColorBrush x:Key="StRed" Color="#FF453A"/><SolidColorBrush x:Key="StOrange" Color="#FF9F0A"/><SolidColorBrush x:Key="StYellow" Color="#FFD60A"/><SolidColorBrush x:Key="StGreen" Color="#30D158"/><SolidColorBrush x:Key="StGray" Color="#98989D"/><SolidColorBrush x:Key="StCyan" Color="#64D2FF"/>
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}"><SolidColorBrush x:Key="StPage" Color="#CCCCCC"/><SolidColorBrush x:Key="StSidebar" Color="#DDDDDD"/></ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><SolidColorBrush x:Key="StPage" Color="#ECE9D8"/><SolidColorBrush x:Key="StSidebar" Color="#F4F3EC"/></ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources>
+  <Style Selector="Window.settings"><Setter Property="Background" Value="{DynamicResource StPage}"/><Setter Property="FontSize" Value="13"/></Style>
   <Style Selector="TabControl.settingsNavigation">
-    <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Vertical" Spacing="4"/></ItemsPanelTemplate></Setter>
-    <Setter Property="Template">
-      <ControlTemplate>
-        <Grid ColumnDefinitions="172,*" ColumnSpacing="20">
-          <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,1,0" Padding="0,0,12,0">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-              <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
-            </ScrollViewer>
-          </Border>
-          <ContentPresenter Grid.Column="1" Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="0" Margin="0" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
-        </Grid>
-      </ControlTemplate>
-    </Setter>
-  </Style>
-  <Style Selector="TabControl.settingsNavigation TabItem">
-    <Setter Property="auto:AutomationProperties.Name" Value="{Binding Header, RelativeSource={RelativeSource Self}}"/>
-    <Setter Property="FontSize" Value="14"/>
-    <Setter Property="MinHeight" Value="38"/>
-    <Setter Property="Padding" Value="12,8"/>
-    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-    <Setter Property="VerticalContentAlignment" Value="Center"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
-    <Setter Property="Template">
-      <ControlTemplate>
-        <Border Name="NavigationFace" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource UiControlRadius}">
-          <ContentPresenter Name="PART_HeaderPresenter" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" RecognizesAccessKey="True" HorizontalContentAlignment="Left" VerticalContentAlignment="Center"/>
+    <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Vertical"/></ItemsPanelTemplate></Setter>
+    <Setter Property="Template"><ControlTemplate>
+      <Grid ColumnDefinitions="246,*">
+        <Border Margin="8,0,8,8" Padding="10,0,10,10" Background="{DynamicResource StSidebar}" CornerRadius="13" BorderBrush="{DynamicResource AcHairline}" BorderThickness="0.5">
+          <StackPanel><Grid ColumnDefinitions="32,*" ColumnSpacing="10" Margin="8,0,8,12"><Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="32" Height="32"/><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="AvaMedia" FontWeight="SemiBold"/><TextBlock Text="设置" FontSize="11" Foreground="{DynamicResource UiTextSecondary}"/></StackPanel></Grid>
+            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+          </StackPanel>
         </Border>
-      </ControlTemplate>
-    </Setter>
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
+        <Grid Grid.Column="1" RowDefinitions="*" Margin="26,0,26,12">
+
+          <ContentPresenter Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="0" Margin="0" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        </Grid>
+      </Grid>
+    </ControlTemplate></Setter>
   </Style>
-  <Style Selector="TabControl.settingsNavigation TabItem:pointerover"><Setter Property="Background" Value="{DynamicResource UiHover}"/></Style>
-  <Style Selector="TabControl.settingsNavigation TabItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-  <Style Selector="TabControl.settingsNavigation TabItem:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+  <Style Selector="TabControl.settingsNavigation > TabItem">
+    <Setter Property="auto:AutomationProperties.Name" Value="{Binding Header, RelativeSource={RelativeSource Self}}"/>
+    <Setter Property="FontSize" Value="13"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="30"/><Setter Property="Padding" Value="8,0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Template"><ControlTemplate><Border Name="NavigationFace" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0" CornerRadius="8"><ContentPresenter Name="PART_HeaderPresenter" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"/></Border></ControlTemplate></Setter>
+  </Style>
+  <Style Selector="TabControl.settingsNavigation > TabItem:pointerover"><Setter Property="Background" Value="{DynamicResource UiHover}"/></Style>
+  <Style Selector="TabControl.settingsNavigation > TabItem:selected"><Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/></Style>
+  <Style Selector="TabControl.settingsNavigation > TabItem:focus-visible /template/ Border#NavigationFace"><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+  <Style Selector="TabItem#ConversionTab, TabItem#ProvidersTab"><Setter Property="Margin" Value="0,0,0,10"/></Style>
   <Style Selector="Window.settings Border.settingsPage"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
-  <Style Selector="Window.settings Border.settingSection"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
-  <Style Selector="Window.settings Border.settingSection.modelRow"><Setter Property="Padding" Value="12"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/><Setter Property="BorderThickness" Value="1"/></Style>
-  <Style Selector="Window.settings TextBlock.settingsTitle"><Setter Property="FontSize" Value="18"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,8"/></Style>
-  <Style Selector="Window.settings TextBlock.settingsHeading"><Setter Property="FontWeight" Value="SemiBold"/></Style>
-  <Style Selector="Window.settings TextBlock.settingLabel"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
-  <Style Selector="Window.settings Button.settingsBrowse"><Setter Property="MinWidth" Value="84"/></Style>
-  <Style Selector="Window.settings Button.settingsFooter"><Setter Property="MinWidth" Value="88"/><Setter Property="MinHeight" Value="32"/><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-  <Style Selector="Window.settings NumericUpDown"><Setter Property="Width" Value="88"/><Setter Property="HorizontalAlignment" Value="Right"/></Style>
-  <Style Selector="Window.settings CheckBox"><Setter Property="MinHeight" Value="32"/></Style>
-  <Style Selector="Window.settings Separator"><Setter Property="Margin" Value="0,4"/></Style>
+  <Style Selector="Window.settings Border.ac-group"><Setter Property="CornerRadius" Value="11"/><Setter Property="BoxShadow" Value="none"/></Style>
+  <Style Selector="Window.settings Border.settingsRow"><Setter Property="Padding" Value="12,7"/><Setter Property="MinHeight" Value="40"/></Style>
+  <Style Selector="Window.settings Border.settingsRow.indented"><Setter Property="Padding" Value="30,7,12,7"/></Style>
+  <Style Selector="Window.settings Border.settingsRow"><Setter Property="BorderBrush" Value="{DynamicResource AcStageLineBrush}"/><Setter Property="BorderThickness" Value="0,0.5,0,0"/></Style>
+  <Style Selector="Window.settings TextBlock.settingsHeading"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/><Setter Property="Margin" Value="10,18,0,6"/></Style>
+  <Style Selector="Window.settings TextBlock.settingsDescription"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+  <Style Selector="Window.settings ToggleSwitch"><Setter Property="MinHeight" Value="22"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style Selector="Window.settings Button.settingsFooter"><Setter Property="MinWidth" Value="64"/></Style>
+  <Style Selector="Window.settings Border.modelRow"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="Padding" Value="12"/><Setter Property="CornerRadius" Value="11"/></Style>
+  <Style Selector="Window.settings Button.ac.accentSwatch"><Setter Property="Width" Value="16"/><Setter Property="Height" Value="16"/><Setter Property="MinHeight" Value="16"/><Setter Property="MinWidth" Value="16"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="8"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.settings Button.ac.accentSwatch.selected"><Setter Property="BorderBrush" Value="{DynamicResource UiText}"/><Setter Property="BorderThickness" Value="2"/></Style>
+  <Style Selector="Window.mac-os9.settings Border.ac-group, Window.mac-os9.settings /template/ Border"><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="Window.windows-xp.settings Border.ac-group"><Setter Property="CornerRadius" Value="3"/></Style>
+  <Style Selector="Window.settings ListBox.ac-segmented ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
 </Styles>

@@ -19,12 +19,10 @@ public sealed partial class SettingsWindow
 {
     private readonly ToggleSwitch _mcpEnabled = new() { OnContent = null, OffContent = null };
     private readonly ToggleSwitch _mcpLan = new() { OnContent = null, OffContent = null };
-    private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, Width = 110, HorizontalAlignment = HorizontalAlignment.Right };
-    private readonly ComboBox _mcpEndpoint = new() { MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Right };
-    private readonly TextBox _mcpAddress = new() { IsReadOnly = true, MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Right };
-    private readonly TextBlock _mcpStatus = new() { VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
-    private readonly Border _mcpStatusPill = new() { CornerRadius = new(11), Padding = new(10, 3), VerticalAlignment = VerticalAlignment.Center };
-    private readonly Ellipse _mcpStatusDot = new() { Width = 7, Height = 7, VerticalAlignment = VerticalAlignment.Center };
+    private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, Width = 90, HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly ComboBox _mcpEndpoint = new() { Width = 250, HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly TextBox _mcpAddress = new() { IsReadOnly = true, Width = 250, HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly AvaMedia.Controls.StatusPill _mcpStatusPill = new();
     private readonly StackPanel _mcpClients = new();
     private Func<string>? _readMcpStatus;
     private Func<McpClientView[]>? _readMcpClients;
@@ -36,17 +34,17 @@ public sealed partial class SettingsWindow
 
     private void InitializeMcpSettings()
     {
-        var copyAddress = new Button { Content = "复制地址" };
-        var copyConfig = new Button { Content = "复制 MCP 配置" };
-        var openWeb = new Button { Content = "打开远程管理", Classes = { "primary" } };
-        var copyWeb = new Button { Content = "复制网页地址" };
+        var copyAddress = new Button { Content = "复制", Classes = { "ac", "small" } };
+        var copyConfig = new Button { Content = "复制配置", Classes = { "ac", "small" } };
+        var openWeb = new Button { Content = "打开", Classes = { "ac", "small" } };
+        var copyWeb = new Button { Content = "复制", Classes = { "ac", "small" } };
         string? WebAddress() => _mcpEndpoint.SelectedItem as string;
         string? McpAddress() => WebAddress() is { } web ? web + "mcp" : null;
         openWeb.Click += (_, _) =>
         {
             if (WebAddress() is not { } url) return;
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-            catch (Exception error) { _mcpStatus.Text = error.Message; }
+            catch (Exception error) { _mcpStatusPill.Text = error.Message; _mcpStatusPill.State = "failed"; }
         };
         copyWeb.Click += async (_, _) => { if (Clipboard is { } clipboard && WebAddress() is { } url) await clipboard.SetTextAsync(url); };
         copyAddress.Click += async (_, _) => { if (Clipboard is { } clipboard && McpAddress() is { } endpoint) await clipboard.SetTextAsync(endpoint); };
@@ -62,18 +60,20 @@ public sealed partial class SettingsWindow
         AutomationProperties.SetName(_mcpPort, "MCP 端口"); AutomationProperties.SetName(_mcpEndpoint, "网页连接地址");
         AutomationProperties.SetName(_mcpAddress, "MCP 连接地址");
 
-        _mcpStatusPill.Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _mcpStatusDot, _mcpStatus } };
-        var panel = new StackPanel { Spacing = 6 };
-        panel.Children.Add(Group(
-            Row("启用远程管理服务", null, _mcpStatusPill, _mcpEnabled),
-            Row("允许局域网连接", "同一网络中的设备可管理本机文件与任务；服务不要求令牌", _mcpLan),
-            Row("端口", null, _mcpPort)));
-        panel.Children.Add(GroupTitle("网页远程管理"));
-        panel.Children.Add(Group(Row("连接地址", null, _mcpEndpoint), Row(null, "在手机或其他电脑的浏览器中打开", copyWeb, openWeb)));
-        panel.Children.Add(GroupTitle("MCP"));
-        panel.Children.Add(Group(Row("MCP 连接地址", null, _mcpAddress), Row(null, "网页与 MCP 共用当前任务队列", copyAddress, copyConfig)));
-        panel.Children.Add(GroupTitle("客户端连接"));
-        panel.Children.Add(Group(_mcpClients));
+        _mcpEndpoint.Classes.Add("ac"); _mcpAddress.Classes.Add("ac"); _mcpPort.Classes.Add("ac");
+        var panel = new StackPanel();
+        var portRow = Row("端口", "1024–65535", _mcpPort); portRow.Margin = new(18, 0, 0, 0);
+        var lanRow = Row("允许局域网连接", "同一网络中的设备可管理本机文件与任务", _mcpLan); lanRow.Margin = new(18, 0, 0, 0);
+        var warning = new Border { Classes = { "ac-notice", "warning" }, Margin = new(30, 2, 12, 6), Padding = new(10, 7),
+            Child = new TextBlock { Text = "服务不要求令牌，只在可信网络中开启。", FontSize = 11.5, TextWrapping = TextWrapping.Wrap } };
+        warning.Child.Bind(TextBlock.ForegroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcBannerText"));
+        void UpdateDependencies() { portRow.IsEnabled = lanRow.IsEnabled = _mcpEnabled.IsChecked == true; warning.IsVisible = _mcpLan.IsChecked == true; }
+        _mcpEnabled.IsCheckedChanged += (_, _) => UpdateDependencies(); _mcpLan.IsCheckedChanged += (_, _) => UpdateDependencies(); UpdateDependencies();
+        panel.Children.Add(GroupTitle("服务"));
+        panel.Children.Add(Group(Row("启用远程管理服务", "网页与 MCP 共用当前任务队列", _mcpStatusPill, _mcpEnabled), portRow, lanRow, warning));
+        panel.Children.Add(GroupTitle("连接地址"));
+        panel.Children.Add(Group(Row("网页", null, _mcpEndpoint, copyWeb, openWeb), Row("MCP", null, _mcpAddress, copyAddress, copyConfig)));
+        panel.Children.Add(GroupTitle("客户端")); panel.Children.Add(Group(_mcpClients));
         McpSection.Child = panel;
 
         foreach (var input in new[] { _mcpEnabled, _mcpLan })
@@ -103,33 +103,26 @@ public sealed partial class SettingsWindow
     {
         var stack = new StackPanel();
         for (var index = 0; index < rows.Length; index++)
-        {
-            if (index > 0) stack.Children.Add(Hairline());
-            stack.Children.Add(rows[index]);
-        }
-        var border = new Border { CornerRadius = new(10), Child = stack, Classes = { "mcpGroup" } };
-        border.Bind(Border.BackgroundProperty, this.GetResourceObservable("UiSurfaceRaised"));
-        return border;
+        { if (index > 0 && rows[index] is Grid) stack.Children.Add(Hairline()); stack.Children.Add(rows[index]); }
+        return new Border { Child = stack, Classes = { "ac-group" } };
     }
     private Border Hairline()
     {
-        var line = new Border { Height = 1, Margin = new(14, 0, 0, 0) };
-        line.Bind(Border.BackgroundProperty, this.GetResourceObservable("UiDivider"));
-        return line;
+        var line = new Border { Height = .5, Margin = new(12, 0) };
+        line.Bind(Border.BackgroundProperty, this.GetResourceObservable("AcStageLineBrush")); return line;
     }
-    private TextBlock GroupTitle(string text) => Secondary(new TextBlock { Text = text, FontSize = 12, FontWeight = FontWeight.SemiBold, Margin = new(4, 14, 0, 2) });
+    private TextBlock GroupTitle(string text) => new() { Text = text, Classes = { "settingsHeading" } };
     private TextBlock Secondary(TextBlock text) { text.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("UiTextSecondary")); return text; }
     private Grid Row(string? label, string? caption, params Control[] trailing)
     {
-        var grid = new Grid { ColumnDefinitions = new("*,Auto"), MinHeight = 44, Margin = new(14, 6, 10, 6) };
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
+        var grid = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 16, MinHeight = 40 };
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1, Margin = new(12, 7, 0, 7) };
         if (label is not null) text.Children.Add(new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap });
-        if (caption is not null) text.Children.Add(Secondary(new TextBlock { Text = caption, FontSize = label is null ? 12.5 : 11.5, TextWrapping = TextWrapping.Wrap }));
+        if (caption is not null) text.Children.Add(Secondary(new TextBlock { Text = caption, FontSize = 11, TextWrapping = TextWrapping.Wrap }));
         grid.Children.Add(text);
-        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new(12, 0, 0, 0) };
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 7, 12, 7) };
         foreach (var control in trailing) right.Children.Add(control);
-        Grid.SetColumn(right, 1); grid.Children.Add(right);
-        return grid;
+        Grid.SetColumn(right, 1); grid.Children.Add(right); return grid;
     }
 
     private void RefreshMcpStatus()
@@ -141,10 +134,8 @@ public sealed partial class SettingsWindow
         // Only peers seen within the last five minutes count as connected; stateless HTTP has no sessions.
         var active = clients.Count(client => DateTime.UtcNow - client.LastSeenUtc < TimeSpan.FromMinutes(5));
         var statusText = Localization.Text(status);
-        _mcpStatus.Text = running && active > 0 ? Localization.Format($"{statusText} · {active} 个客户端") : statusText;
-        var color = running ? Color.FromRgb(0x1F, 0x9D, 0x3A) : failed ? Color.FromRgb(0xD7, 0x37, 0x2B) : Color.FromRgb(0x86, 0x86, 0x8B);
-        _mcpStatus.Foreground = new SolidColorBrush(color); _mcpStatusDot.Fill = new SolidColorBrush(color);
-        _mcpStatusPill.Background = new SolidColorBrush(color, .12);
+        _mcpStatusPill.Text = running && active > 0 ? Localization.Format($"{statusText} · {active} 个客户端") : statusText;
+        _mcpStatusPill.State = running ? "completed" : failed ? "failed" : "waiting";
         var signature = string.Join("|", clients.Select(client => $"{client.Address}{client.Kind}{client.Agent}{Relative(client.LastSeenUtc)}"));
         if (signature == _mcpClientSignature && _mcpClients.Children.Count > 0) return;
         _mcpClientSignature = signature; _mcpClients.Children.Clear();

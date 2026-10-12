@@ -18,7 +18,7 @@ public sealed partial class SettingsWindow
     {
         ModelFilterInput.SelectedIndex = 0;
         _modelTarget = modelId; _onlineTarget = false; SettingsTabs.SelectedItem = ModelsTab;
-        ModelSettingsTabs.SelectedItem = ModelLibraryTab;
+        ModelLibraryPanel.IsVisible = true;
         if (IsVisible) FocusModelTarget();
     }
     public void OpenOnlineAiSettings()
@@ -70,7 +70,7 @@ public sealed partial class SettingsWindow
     private void UpdateModelSourceHint()
     {
         var kind = (ModelSourceKind)Math.Max(0, ModelSourceInput.SelectedIndex);
-        ModelSourceUrlInput.IsVisible = kind == ModelSourceKind.Custom;
+        ModelSourceCustomRow.IsEnabled = kind == ModelSourceKind.Custom;
         ModelSourceUrlInput.IsEnabled = kind == ModelSourceKind.Custom;
         ModelSourceHint.Text = Localization.Text(kind switch
         {

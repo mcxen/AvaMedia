@@ -61,7 +61,7 @@ public partial class MainWindow
         var prior = _appliedSettings.Clone();
         try
         {
-            if (_settings.Theme != prior.Theme) Skin.Apply(_settings.Theme);
+            if (_settings.Theme != prior.Theme || _settings.AccentColor != prior.AccentColor) Skin.Apply(_settings.Theme, _settings.AccentColor);
             if (_settings.Language != prior.Language) Localization.Apply(_settings.Language);
             if (_settings.SystemContextMenu != prior.SystemContextMenu || _settings.Language != prior.Language && _settings.SystemContextMenu) _optionServices.SetContextMenu(_settings.SystemContextMenu);
             if (WantsTray(_settings) != WantsTray(prior)) SetTray(WantsTray(_settings));
@@ -72,7 +72,7 @@ public partial class MainWindow
             try
             {
                 var changed = _settings.Clone(); _settings.CopyFrom(prior);
-                if (changed.Theme != prior.Theme) Skin.Apply(prior.Theme);
+                if (changed.Theme != prior.Theme || changed.AccentColor != prior.AccentColor) Skin.Apply(prior.Theme, prior.AccentColor);
                 if (changed.Language != prior.Language) Localization.Apply(prior.Language);
                 if (changed.SystemContextMenu != prior.SystemContextMenu || changed.Language != prior.Language && prior.SystemContextMenu) _optionServices.SetContextMenu(prior.SystemContextMenu);
                 if (WantsTray(changed) != WantsTray(prior)) SetTray(WantsTray(prior));
@@ -91,6 +91,7 @@ public partial class MainWindow
         _appliedSettings = _settings.Clone();
         RefreshOutputPath(); Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;
         Motion.SetReducedMotion(_settings.ReduceMotion);
+        if (prior.CollapseCompletedTasks != _settings.CollapseCompletedTasks) RefreshTaskList();
         if(prior.EnableBetaFeatures != _settings.EnableBetaFeatures)
         {
             if(!_settings.EnableBetaFeatures && Catalog.IsBeta(_last))_last=Catalog.Find("clip");

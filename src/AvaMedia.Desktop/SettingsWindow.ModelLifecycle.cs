@@ -9,55 +9,57 @@ namespace AvaMedia.Desktop;
 public sealed partial class SettingsWindow
 {
     private static readonly int[] ModelIdleChoices = [1, 5, 15, 30, -1];
-    private readonly ComboBox _modelWarmChoice = Ui.Combo(["打开本地大模型工具时", "开始任务时"], "打开本地大模型工具时");
+    private readonly ToggleSwitch _modelWarmChoice = new() { OnContent = null, OffContent = null };
     private readonly NumericUpDown _warmInitialCpu = WarmPercent(), _warmInitialGpu = WarmPercent(),
         _warmCpu = WarmPercent(), _warmGpu = WarmPercent();
     private readonly NumericUpDown _warmRamp = new() { Minimum = 1, Maximum = 30, Increment = 1, Width = 100 };
     private static NumericUpDown WarmPercent() => new() { Minimum = 1, Maximum = 100, Increment = 5, Width = 100 };
     private readonly ComboBox _modelIdleChoice = Ui.Combo(["空闲 1 分钟", "空闲 5 分钟（推荐）", "空闲 15 分钟", "空闲 30 分钟", "保持到退出应用"], "空闲 5 分钟（推荐）");
-    private readonly Button _releaseModels = new() { Content = "释放空闲模型", Classes = { "field-action" } };
+    private readonly Button _releaseModels = new() { Content = "立即释放空闲模型", Classes = { "ac", "small" } };
     private bool _releasingModels;
     private void PopulateModelLifecycle(AppSettings source)
     {
-        _modelWarmChoice.SelectedIndex = source.PrewarmLocalModels ? 0 : 1;
+        _modelWarmChoice.IsChecked = source.PrewarmLocalModels;
         _warmInitialCpu.Value = source.ModelWarmupInitialCpuPercent; _warmInitialGpu.Value = source.ModelWarmupInitialGpuPercent;
         _warmCpu.Value = source.ModelWarmupCpuPercent; _warmGpu.Value = source.ModelWarmupGpuPercent;
         _warmRamp.Value = source.ModelWarmupRampSeconds;
         var index = Array.IndexOf(ModelIdleChoices, source.TagModelIdleMinutes);
         _modelIdleChoice.SelectedIndex = index < 0 ? 1 : index;
+        _modelIdleChoice.Classes.Add("ac"); _modelIdleChoice.Width = 200;
     }
     private void InitializeModelLifecycle()
     {
-        var title = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
-        title.Children.Add(Ui.Text("本地大模型预热", "settingsHeading"));
-        Grid.SetColumn(_releaseModels, 1); title.Children.Add(_releaseModels);
-        var panel = new StackPanel { Spacing = 16 };
-        panel.Children.Add(title);
-        panel.Children.Add(LifecycleField("加载时机", _modelWarmChoice));
-        panel.Children.Add(LifecycleField("空闲释放", _modelIdleChoice));
-        panel.Children.Add(new Separator());
-        panel.Children.Add(Ui.Text("预热工作比例", "settingsHeading"));
-        var intensity = new Grid { ColumnDefinitions = new("144,*,*"), RowDefinitions = new("Auto,Auto,Auto"), ColumnSpacing = 12, RowSpacing = 12 };
-        var cpu = Ui.Text("CPU (%)"); Grid.SetColumn(cpu, 1); intensity.Children.Add(cpu);
-        var gpu = Ui.Text("GPU (%)"); Grid.SetColumn(gpu, 2); intensity.Children.Add(gpu);
-        foreach (var (row, label, cpuInput, gpuInput) in new[] { (1, "打开工具时", _warmInitialCpu, _warmInitialGpu), (2, "选择素材后", _warmCpu, _warmGpu) })
+        var panel = new StackPanel();
+        panel.Children.Add(GroupTitle("加载与释放"));
+        panel.Children.Add(Group(Row("打开工具时预加载模型", "关闭后在开始任务时才加载", _modelWarmChoice),
+            Row("空闲后释放", null, _modelIdleChoice), Row(null, null, _releaseModels)));
+        var intensity = new StackPanel();
+        foreach (var (label, cpuInput, gpuInput) in new[] { ("打开工具时", _warmInitialCpu, _warmInitialGpu), ("选择素材后", _warmCpu, _warmGpu) })
         {
-            var text = Ui.Text(label); Grid.SetRow(text, row); intensity.Children.Add(text);
             AutomationProperties.SetName(cpuInput, label + " CPU (%)"); AutomationProperties.SetName(gpuInput, label + " GPU (%)");
-            var cpuField = Ui.Adjust(cpuInput); Grid.SetRow(cpuField, row); Grid.SetColumn(cpuField, 1); intensity.Children.Add(cpuField);
-            var gpuField = Ui.Adjust(gpuInput); Grid.SetRow(gpuField, row); Grid.SetColumn(gpuField, 2); intensity.Children.Add(gpuField);
+            cpuInput.Classes.Add("ac"); gpuInput.Classes.Add("ac"); cpuInput.Width = gpuInput.Width = 60;
+            var row = Row(label, label == "选择素材后" ? "不能低于打开工具时的比例" : null,
+                Secondary(new TextBlock { Text = "CPU", FontSize = 11 }), cpuInput,
+                Secondary(new TextBlock { Text = "%", FontSize = 11 }),
+                Secondary(new TextBlock { Text = "GPU", FontSize = 11 }), gpuInput,
+                Secondary(new TextBlock { Text = "%", FontSize = 11 }));
+            row.Margin = new(18, 0, 0, 0); intensity.Children.Add(row);
         }
-        panel.Children.Add(intensity);
+        _warmRamp.Classes.Add("ac"); _warmRamp.Width = 60;
+        var ramp = Row("逐步增加用时", "1–30 秒", _warmRamp, Secondary(new TextBlock { Text = "秒", FontSize = 11 }));
+        ramp.Margin = new(18, 0, 0, 0); intensity.Children.Add(ramp);
+        panel.Children.Add(GroupTitle("预热工作比例")); panel.Children.Add(Group(intensity));
+        intensity.IsEnabled = _modelWarmChoice.IsChecked == true;
+        AutomationProperties.SetName(_modelWarmChoice, "打开工具时预加载模型");
         AutomationProperties.SetName(_warmRamp, "逐步增加用时（秒）");
-        panel.Children.Add(LifecycleField("逐步增加用时（秒）", Ui.Adjust(_warmRamp)));
-
+        _modelWarmChoice.IsCheckedChanged += (_, _) => intensity.IsEnabled = _modelWarmChoice.IsChecked == true;
         _warmInitialCpu.ValueChanged += (_, _) => ConstrainWarmup(_warmInitialCpu, _warmCpu);
         _warmInitialGpu.ValueChanged += (_, _) => ConstrainWarmup(_warmInitialGpu, _warmGpu);
         ConstrainWarmup(_warmInitialCpu, _warmCpu); ConstrainWarmup(_warmInitialGpu, _warmGpu);
         ModelLifecycleSection.Child = panel;
-        _modelWarmChoice.SelectionChanged += (_, _) => MarkDirty();
+        _modelWarmChoice.IsCheckedChanged += (_, _) => MarkDirty();
         _modelIdleChoice.SelectionChanged += (_, _) => MarkDirty();
-        _values.Add(() => _modelWarmChoice.SelectedIndex); _values.Add(() => _modelIdleChoice.SelectedIndex);
+        _values.Add(() => _modelWarmChoice.IsChecked); _values.Add(() => _modelIdleChoice.SelectedIndex);
         foreach (var input in new[] { _warmInitialCpu, _warmInitialGpu, _warmCpu, _warmGpu, _warmRamp })
         { _values.Add(() => NumericDraftValue(input)); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property == NumericUpDown.TextProperty) MarkDirty(); }; }
         _appliedValues = _values.Select(value => value()).ToArray();

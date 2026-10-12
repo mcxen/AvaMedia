@@ -9,7 +9,7 @@ namespace AvaMedia.Desktop;
 
 public sealed partial class SettingsWindow
 {
-    private static readonly string[] SettingsThemeKeys = ["Light", "Dark", "MacOS9", "WindowsXP"];
+    private static readonly string[] SettingsThemeKeys = ["System", "Light", "Dark", "MacOS9", "WindowsXP"];
     private static readonly string[] SettingsLanguageKeys = ["system", "zh-CN", "en-US"];
     private void InitializeSettingsNavigation()
     {
@@ -19,14 +19,16 @@ public sealed partial class SettingsWindow
             if (args.Key == Key.F && (args.KeyModifiers.HasFlag(KeyModifiers.Control) || args.KeyModifiers.HasFlag(KeyModifiers.Meta)))
             { SettingsTabs.Focus(); args.Handled = true; }
         };
-        foreach (var choice in new[] { ThemeInput, LanguageInput })
+        foreach (var choice in new Avalonia.Controls.Primitives.SelectingItemsControl[] { ThemeInput, LanguageInput, OutputLocationInput, CloseBehaviorInput, MinimizeBehaviorInput, ThreadsInput, UpdateModeInput })
         { _values.Add(() => choice.SelectedIndex); choice.SelectionChanged += (_, _) => MarkDirty(); }
+        InitializeV2Navigation();
+        OutputLocationInput.SelectionChanged += (_, _) => OutputFolderRow.IsEnabled = OutputLocationInput.SelectedIndex == 0;
         _appliedValues = _values.Select(value => value()).ToArray();
         UpdateSettingsPageTitle();
     }
     private void UpdateSettingsPageTitle()
     {
-        if (SettingsTabs.SelectedItem is TabItem page) SettingsPageTitle.Text = page.Header?.ToString() ?? "";
+        if (SettingsTabs.SelectedItem is TabItem page) _settingsPageTitle.Text = page.Header?.ToString() ?? "";
     }
     private static void SelectContainingPages(Control input)
     {

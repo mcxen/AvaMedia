@@ -29,7 +29,8 @@ public sealed partial class SettingsWindow
         {
             if (_populatingProvider) return;
             CancelProviderRequest(); _providerId = (OnlineProviderInput.SelectedItem as ProviderChoice)?.Id;
-            PopulateProviderEditor();
+            if (SelectedProvider is { Enabled: true } selected) _providerDraft.DefaultProviderId = selected.Id;
+            PopulateProviderEditor(); MarkDirty();
         };
         foreach (var input in new[] { OnlineNameInput, OnlineEndpointInput, OnlineKeyInput })
             input.PropertyChanged += (_, change) =>
@@ -80,16 +81,15 @@ public sealed partial class SettingsWindow
             DeleteProviderButton.IsEnabled = provider is not null; OnlineProviderInput.IsVisible = _providerDraft.Providers.Count != 0;
             if (provider is null) return;
             OnlineNameInput.Text = provider.Name; OnlineEndpointInput.Text = provider.Endpoint;
-            OnlineKeyInput.Text = provider.ApiKey; OnlineKeyInput.PasswordChar = '●'; RevealProviderKeyButton.Content = Localization.Text("显示密钥");
+            OnlineKeyInput.Text = provider.ApiKey; OnlineKeyInput.PasswordChar = '●'; RevealProviderKeyButton.Content = Localization.Text("显示");
             OnlineEnabledInput.IsChecked = provider.Enabled;
             SetProviderModels(provider);
-            OnlineTokenInput.SelectedIndex = (int)provider.TokenLimit; OnlineFormatInput.SelectedIndex = (int)provider.ResponseFormat;
+            OnlineTokenInput.SelectedIndex = provider.TokenLimit == OnlineAiTokenLimit.MaxTokens ? 0 : 1; OnlineFormatInput.SelectedIndex = (int)provider.ResponseFormat;
             OnlineTimeoutInput.Value = provider.TimeoutSeconds;
             ProviderStatus.IsVisible = false;
             var hasDocs = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.Documentation.Length != 0);
             ProviderDocsButton.IsVisible = hasDocs; ProviderDocsButton.IsEnabled = hasDocs;
             ProviderSetupSection.IsVisible = OnlineAiPresets.All.Any(p => p.Id == provider.Preset && p.ApiKeyPage.Length != 0);
-            RefreshProviderDefault();
         }
         finally { _populatingProvider = false; }
     }
@@ -123,7 +123,7 @@ public sealed partial class SettingsWindow
         provider.Name = OnlineNameInput.Text?.Trim() ?? ""; provider.Endpoint = OnlineEndpointInput.Text?.Trim() ?? "";
         provider.ApiKey = OnlineKeyInput.Text?.Trim() ?? ""; provider.Enabled = OnlineEnabledInput.IsChecked == true;
         provider.TextModel = OnlineTextModelInput.Text?.Trim() ?? ""; provider.VisionModel = OnlineVisionModelInput.Text?.Trim() ?? "";
-        provider.TokenLimit = (OnlineAiTokenLimit)OnlineTokenInput.SelectedIndex;
+        provider.TokenLimit = OnlineTokenInput.SelectedIndex == 0 ? OnlineAiTokenLimit.MaxTokens : OnlineAiTokenLimit.MaxCompletionTokens;
         provider.ResponseFormat = (OnlineAiResponseFormat)OnlineFormatInput.SelectedIndex;
         provider.TimeoutSeconds = int.TryParse(OnlineTimeoutInput.Text, out var seconds) ? seconds : 0;
         if (connectionChanged)
@@ -131,18 +131,10 @@ public sealed partial class SettingsWindow
             provider.ModelIds = []; provider.ModelInfo = []; _populatingProvider = true;
             try { SetProviderModels(provider); } finally { _populatingProvider = false; }
         }
+        if (provider.Enabled) _providerDraft.DefaultProviderId = provider.Id;
         if (_providerDraft.DefaultProviderId == provider.Id && !provider.Enabled)
             _providerDraft.DefaultProviderId = _providerDraft.Providers.FirstOrDefault(p => p.Enabled)?.Id ?? "";
-        ProviderStatus.IsVisible = false; RefreshProviderLimits(provider); RefreshProviderChoices(); RefreshProviderDefault(); MarkDirty();
-    }
-
-    private void RefreshProviderDefault()
-    {
-        var provider = SelectedProvider;
-        var isDefault = provider is not null && provider.Enabled && (_providerDraft.DefaultProviderId == provider.Id
-            || _providerDraft.DefaultProviderId.Length == 0 && _providerDraft.Providers.FirstOrDefault(p => p.Enabled)?.Id == provider.Id);
-        DefaultProviderButton.Content = Localization.Text(isDefault ? "默认供应商" : "设为默认");
-        DefaultProviderButton.IsEnabled = provider?.Enabled == true && !isDefault;
+        ProviderStatus.IsVisible = false; RefreshProviderLimits(provider); RefreshProviderChoices(); MarkDirty();
     }
 
     private void AddProviderClick(object? sender, RoutedEventArgs args)
@@ -163,6 +155,7 @@ public sealed partial class SettingsWindow
         provider.Name = name; var suffix = 2;
         while (_providerDraft.Providers.Any(p => string.Equals(p.Name, provider.Name, StringComparison.OrdinalIgnoreCase))) provider.Name = name + " " + suffix++;
         _providerDraft.Providers.Add(provider); _providerId = provider.Id;
+        if (provider.Enabled) _providerDraft.DefaultProviderId = provider.Id;
         RefreshProviderChoices(); PopulateProviderEditor(); MarkDirty(); OnlineNameInput.Focus();
     }
 
@@ -175,13 +168,10 @@ public sealed partial class SettingsWindow
         RefreshProviderChoices(); PopulateProviderEditor(); MarkDirty();
     }
 
-    private void DefaultProviderClick(object? sender, RoutedEventArgs args)
-    { if (SelectedProvider is not { Enabled: true } provider) return; _providerDraft.DefaultProviderId = provider.Id; RefreshProviderDefault(); MarkDirty(); }
-
     private void RevealProviderKeyClick(object? sender, RoutedEventArgs args)
     {
         var reveal = OnlineKeyInput.PasswordChar != '\0'; OnlineKeyInput.PasswordChar = reveal ? '\0' : '●';
-        RevealProviderKeyButton.Content = Localization.Text(reveal ? "隐藏密钥" : "显示密钥");
+        RevealProviderKeyButton.Content = Localization.Text(reveal ? "隐藏" : "显示");
     }
 
     private async void ProviderDocsClick(object? sender, RoutedEventArgs args)

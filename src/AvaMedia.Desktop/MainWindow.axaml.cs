@@ -38,7 +38,7 @@ public partial class MainWindow : Window
         _optionServices=optionServices??new AppOptionsServices();
         _storage=storage??new();
         var savedJobs = Task.Run(_storage.LoadJobs);
-        InitializeComponent();_settings=loadedSettings??_storage.LoadSettings();Localization.Apply(_settings.Language);Skin.Apply(_settings.Theme);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
+        InitializeComponent();_settings=loadedSettings??_storage.LoadSettings();Localization.Apply(_settings.Language);Skin.Apply(_settings.Theme, _settings.AccentColor);Motion.SetReducedMotion(_settings.ReduceMotion);Engine=engine??new MediaEngine(_settings);_queue=new(Engine);
         UpdateLanguageMenu();Localization.Changed+=LanguageChanged;
         Closed+=(_,_)=>Localization.Changed-=LanguageChanged;
         // Read alongside window initialization, but restore before any queue service can run or save.

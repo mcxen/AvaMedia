@@ -94,7 +94,7 @@ public sealed partial class App : Application
             {
                 var settings = StartupSettings ?? new Storage().LoadSettings();
                 Localization.Apply(settings.Language);
-                Skin.Apply(args.Contains("--winxp") ? "WindowsXP" : args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : args.Contains("--light") ? "Light" : settings.Theme);
+                Skin.Apply(args.Contains("--winxp") ? "WindowsXP" : args.Contains("--macos9") ? "MacOS9" : args.Contains("--dark") ? "Dark" : args.Contains("--light") ? "Light" : settings.Theme, settings.AccentColor);
                 Motion.SetReducedMotion(settings.ReduceMotion);
                 var files = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal) && File.Exists(a)).ToArray();
                 var engine = new MediaEngine(settings);

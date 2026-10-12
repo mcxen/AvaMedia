@@ -30,12 +30,12 @@ public sealed partial class SettingsWindow : Window
         RefreshExclusiveTools();
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
-        foreach (var input in new[] { AutoGpuInput, MultithreadInput, NotifyInput, ReducedMotionInput, OutputToSourceInput, AddSettingNameInput,
-            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput, TrayInput, CloseToTrayInput, CheckUpdatesInput, AutoUpdateInput, SilentUpdateInput, BetaInput, AutoRepairModelInput })
-        { _values.Add(()=>input.IsChecked); input.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) MarkDirty(); }; }
-        foreach (var input in new[] { ThreadsInput, CpuReserveInput, JpegQualityInput, WebpQualityInput })
-        { _values.Add(()=>NumericDraftValue(input)); input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty || args.Property==NumericUpDown.TextProperty) MarkDirty(); }; }
-        MultithreadInput.PropertyChanged += (_, args) => { if (args.Property == CheckBox.IsCheckedProperty) ThreadsInput.IsEnabled = MultithreadInput.IsChecked == true; };
+        foreach (var input in new[] { AutoGpuInput, NotifyInput, ReducedMotionInput, AddSettingNameInput,
+            ShutdownInput, OpenOutputInput, OperationSoundInput, CompleteSoundInput, ErrorSoundInput, ContextMenuInput,
+            BetaInput, AutoRepairModelInput, CollapseInput, NativeHighResolutionInput, NativeSdrInput, ConfirmDeletionInput })
+        { _values.Add(() => input.IsChecked); input.IsCheckedChanged += (_, _) => MarkDirty(); }
+        foreach (var input in new[] { CpuReserveInput, JpegQualityInput, WebpQualityInput })
+        { _values.Add(() => input.Value); input.PropertyChanged += (_, args) => { if (args.Property == Avalonia.Controls.Primitives.RangeBase.ValueProperty) MarkDirty(); }; }
         _values.Add(() => NsfwContentInput.IsChecked);
         var privacyValueIndex = _values.Count - 1;
         NsfwContentInput.IsCheckedChanged += (_, _) =>
@@ -54,20 +54,23 @@ public sealed partial class SettingsWindow : Window
                 StatusText.Text = error.Message; StatusText.IsVisible = true;
             }
         };
-        AutoUpdateInput.IsCheckedChanged += (_, _) => SilentUpdateInput.IsEnabled = AutoUpdateInput.IsChecked == true;
         InitializeProviderManagement();
         _appliedValues=_values.Select(value=>value()).ToArray();
         InitializeModelManagement();
         InitializeModelLifecycle();
         InitializeSettingsNavigation();
-        ContextMenuInput.IsEnabled = _services.CanUseContextMenu; TrayInput.IsEnabled = CloseToTrayInput.IsEnabled = _services.CanUseTray;
+        ContextMenuInput.IsEnabled = _services.CanUseContextMenu; MinimizeBehaviorInput.IsEnabled = CloseBehaviorInput.IsEnabled = _services.CanUseTray;
         PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
         if (OperatingSystem.IsMacOS())
         {
             RegisterPlayerButton.Content = Localization.Text("注册播放打开方式");
             DefaultPlayerButton.Content = Localization.Text("打开应用位置");
         }
-        ContextMenuInput.Content = OperatingSystem.IsMacOS() ? "添加到 Finder 快速操作" : "添加到系统上下文菜单";
+        if (OperatingSystem.IsMacOS()) ContextMenuRow.GetLogicalDescendants().OfType<TextBlock>().First().Text = "添加到 Finder 快速操作";
+        Content = null;
+        var frame = Controls.WindowChrome.WrapDialog(this, SettingsRoot, _settingsPageTitle);
+        if (frame.Children[0] is Grid titleBar) titleBar.Bind(Panel.BackgroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StPage"));
+        Content = frame;
 
         Closed += (_, _) => { Localization.Changed -= LanguageChanged; _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
         AddHandler(Button.ClickEvent,(_,_)=>{if(_settings.PlayOperationSound)_services.PlaySound(UiSound.Operation);},RoutingStrategies.Bubble);
@@ -79,23 +82,29 @@ public sealed partial class SettingsWindow : Window
         draft.Theme = SettingsThemeKeys[Math.Clamp(ThemeInput.SelectedIndex, 0, SettingsThemeKeys.Length - 1)];
         draft.Language = SettingsLanguageKeys[Math.Clamp(LanguageInput.SelectedIndex, 0, SettingsLanguageKeys.Length - 1)];
         draft.OutputFolder = OutputInput.Text?.Trim() ?? "";
-        draft.FFmpegPath = MediaEngine.UsesBundledTools ? "" : FfmpegInput.Text?.Trim() ?? "";
-        draft.FFprobePath = MediaEngine.UsesBundledTools ? "" : FfprobeInput.Text?.Trim() ?? "";
-        draft.YtDlpPath = MediaEngine.UsesBundledTools ? "" : YtdlpInput.Text?.Trim() ?? "";
-        draft.MultiThread = MultithreadInput.IsChecked == true; draft.CpuThreads = Number(ThreadsInput, "每个任务的线程数");
-        draft.CpuReservePercent = Number(CpuReserveInput, "CPU 预留比例（%）");
-        draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = Number(JpegQualityInput, "JPEG 质量"); draft.WebpQuality = Number(WebpQualityInput, "WebP 质量");
+        draft.FFmpegPath = MediaEngine.UsesBundledTools ? _settings.FFmpegPath : FfmpegInput.Text?.Trim() ?? "";
+        draft.FFprobePath = MediaEngine.UsesBundledTools ? _settings.FFprobePath : FfprobeInput.Text?.Trim() ?? "";
+        draft.YtDlpPath = MediaEngine.UsesBundledTools ? _settings.YtDlpPath : YtdlpInput.Text?.Trim() ?? "";
+        draft.SetThreadSelection(ThreadChoices[Math.Clamp(ThreadsInput.SelectedIndex, 0, ThreadChoices.Length - 1)]);
+        draft.CpuReservePercent = (int)Math.Round(CpuReserveInput.Value);
+        draft.AutoDetectGpu = AutoGpuInput.IsChecked == true; draft.JpegQuality = (int)Math.Round(JpegQualityInput.Value); draft.WebpQuality = (int)Math.Round(WebpQualityInput.Value);
         draft.NotifyComplete = NotifyInput.IsChecked == true; draft.ReduceMotion = ReducedMotionInput.IsChecked == true;
-        draft.OutputToSource = OutputToSourceInput.IsChecked == true; draft.AddSettingName = AddSettingNameInput.IsChecked == true;
+        draft.OutputToSource = OutputLocationInput.SelectedIndex == 1; draft.AddSettingName = AddSettingNameInput.IsChecked == true;
         draft.ShutdownOnComplete = ShutdownInput.IsChecked == true; draft.OpenOutputFolderOnComplete = OpenOutputInput.IsChecked == true;
         draft.PlayOperationSound = OperationSoundInput.IsChecked == true; draft.PlayCompleteSound = CompleteSoundInput.IsChecked == true;
         draft.PlayErrorSound = ErrorSoundInput.IsChecked == true; draft.SystemContextMenu = ContextMenuInput.IsChecked == true;
-        draft.MinimizeToTray = TrayInput.IsChecked == true; draft.CheckForUpdates = CheckUpdatesInput.IsChecked == true;
-        draft.CloseToTray = CloseToTrayInput.IsChecked == true;
-        draft.AutoUpdate = AutoUpdateInput.IsChecked == true; draft.SilentUpdate = SilentUpdateInput.IsChecked == true;
+        draft.MinimizeToTray = MinimizeBehaviorInput.SelectedIndex == 1;
+        draft.CloseToTray = CloseBehaviorInput.SelectedIndex == 1;
+        // Preserve unusual legacy flag combinations until the user changes the merged choice.
+        if (UpdateModeInput.SelectedIndex != _settings.UpdateMode || _resettingDefaults) draft.SetUpdateMode(UpdateModeInput.SelectedIndex);
+        draft.AccentColor = _accentColor;
+        draft.CollapseCompletedTasks = CollapseInput.IsChecked == true;
+        draft.PlayerNativeHighResolution = NativeHighResolutionInput.IsChecked == true;
+        draft.PlayerNativeSdr = NativeSdrInput.IsChecked == true;
+        draft.ConfirmPlayerDeletion = ConfirmDeletionInput.IsChecked == true;
         draft.EnableBetaFeatures = BetaInput.IsChecked == true; draft.AutoDownloadRepairModel = AutoRepairModelInput.IsChecked == true;
         draft.EnableNsfwContent = NsfwContentInput.IsChecked == true;
-        draft.PrewarmLocalModels = _modelWarmChoice.SelectedIndex == 0;
+        draft.PrewarmLocalModels = _modelWarmChoice.IsChecked == true;
         draft.ModelWarmupInitialCpuPercent = Number(_warmInitialCpu, "CPU 初始预热比例");
         draft.ModelWarmupInitialGpuPercent = Number(_warmInitialGpu, "GPU 初始预热比例");
         draft.ModelWarmupCpuPercent = Number(_warmCpu, "CPU 预热比例"); draft.ModelWarmupGpuPercent = Number(_warmGpu, "GPU 预热比例");
@@ -123,27 +132,35 @@ public sealed partial class SettingsWindow : Window
         _initializing = true;
         ThemeInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsThemeKeys, source.Theme));
         LanguageInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsLanguageKeys, source.Language));
-        ExternalToolPaths.IsVisible = !MediaEngine.UsesBundledTools;
+        ExternalToolPaths.IsVisible = true;
+        foreach (var input in new[] { FfmpegInput, FfprobeInput, YtdlpInput })
+        { input.IsReadOnly = MediaEngine.UsesBundledTools; input.Watermark = Localization.Text(MediaEngine.UsesBundledTools ? "内置" : "自动查找"); }
+        foreach (var button in ExternalToolPaths.GetLogicalDescendants().OfType<Button>()) button.IsEnabled = !MediaEngine.UsesBundledTools;
         OutputInput.Text = source.OutputFolder; FfmpegInput.Text = source.FFmpegPath; FfprobeInput.Text = source.FFprobePath; YtdlpInput.Text = source.YtDlpPath;
         AutoGpuInput.IsChecked = source.AutoDetectGpu;
-        MultithreadInput.IsChecked = source.MultiThread; ThreadsInput.Value = Math.Clamp(source.CpuThreads, 1, 16); ThreadsInput.IsEnabled = source.MultiThread;
+        ThreadsInput.ItemsSource = ThreadChoices.Select(value => value == 0 ? Localization.Format($"自动（{source.EffectiveCpuThreads}）") : value == 1 ? Localization.Text("1（单线程）") : value.ToString()).ToArray();
+        ThreadsInput.SelectedIndex = Array.IndexOf(ThreadChoices, Math.Clamp(source.ThreadSelection, 0, 16));
         CpuReserveInput.Value = Math.Clamp(source.CpuReservePercent, 0, 80);
         JpegQualityInput.Value = Math.Clamp(source.JpegQuality, 1, 100); WebpQualityInput.Value = Math.Clamp(source.WebpQuality, 1, 100);
         NotifyInput.IsChecked = source.NotifyComplete; ReducedMotionInput.IsChecked = source.ReduceMotion;
-        OutputToSourceInput.IsChecked = source.OutputToSource; AddSettingNameInput.IsChecked = source.AddSettingName;
+        OutputLocationInput.SelectedIndex = source.OutputToSource ? 1 : 0; OutputFolderRow.IsEnabled = !source.OutputToSource; AddSettingNameInput.IsChecked = source.AddSettingName;
         ShutdownInput.IsChecked = source.ShutdownOnComplete; OpenOutputInput.IsChecked = source.OpenOutputFolderOnComplete;
         OperationSoundInput.IsChecked = source.PlayOperationSound; CompleteSoundInput.IsChecked = source.PlayCompleteSound;
         ErrorSoundInput.IsChecked = source.PlayErrorSound; ContextMenuInput.IsChecked = source.SystemContextMenu;
-        TrayInput.IsChecked = source.MinimizeToTray; CheckUpdatesInput.IsChecked = source.CheckForUpdates;
-        CloseToTrayInput.IsChecked = source.CloseToTray;
-        AutoUpdateInput.IsChecked = source.AutoUpdate; SilentUpdateInput.IsChecked = source.SilentUpdate;
+        MinimizeBehaviorInput.SelectedIndex = source.MinimizeToTray ? 1 : 0;
+        CloseBehaviorInput.SelectedIndex = source.CloseToTray ? 1 : 0;
+        UpdateModeInput.SelectedIndex = source.UpdateMode; _accentColor = source.AccentColor;
+        CollapseInput.IsChecked = source.CollapseCompletedTasks;
+        NativeHighResolutionInput.IsChecked = source.PlayerNativeHighResolution;
+        NativeSdrInput.IsChecked = source.PlayerNativeSdr;
+        ConfirmDeletionInput.IsChecked = source.ConfirmPlayerDeletion;
         BetaInput.IsChecked = source.EnableBetaFeatures; AutoRepairModelInput.IsChecked = source.AutoDownloadRepairModel;
         NsfwContentInput.IsChecked = source.EnableNsfwContent;
         PopulateMcp(source.Mcp);
         PopulateProviders(source.OnlineAi);
         PopulateModelSource(source);
         PopulateModelLifecycle(source);
-        SilentUpdateInput.IsEnabled = source.AutoUpdate;
+        RefreshAccentPalette(); RefreshLastUpdateCheck(); VersionText.Text = Localization.Text("版本") + " " + AppIdentity.Version;
         RuntimeInfo.Text = RuntimeDescription;
         StatusText.IsVisible = false; _initializing = false;
     }
@@ -164,14 +181,14 @@ public sealed partial class SettingsWindow : Window
             catch { _settings.CopyFrom(prior); throw; }
             ModelDownloadSources.Preference = ModelSourcePreference.From(_settings);
             RestoreSettingsView(pages, scrolls);
-            _applied = true; _appliedValues=_values.Select(value=>value()).ToArray(); ApplyButton.IsEnabled = false; StatusText.IsVisible = false; return true;
+            _applied = true; _resettingDefaults = false; _appliedValues=_values.Select(value=>value()).ToArray(); ApplyButton.IsEnabled = false; StatusText.IsVisible = false; return true;
         }
         catch (Exception ex) { StatusText.Text = ex.Message; StatusText.IsVisible = true;if(_settings.PlayErrorSound)_services.PlaySound(UiSound.Error); return false; }
     }
     private void ApplyClick(object? sender, RoutedEventArgs args) => ApplyDraft();
     private void OkClick(object? sender, RoutedEventArgs args) { if (ApplyDraft()) Close(true); }
     private void CancelClick(object? sender, RoutedEventArgs args) => Close(_applied);
-    private void ResetClick(object? sender, RoutedEventArgs args) { Populate(new AppSettings { Theme = _settings.Theme, Language = _settings.Language }); RefreshExclusiveTools(); MarkDirty(); }
+    private void ResetClick(object? sender, RoutedEventArgs args) { _resettingDefaults = true; Populate(SettingsPresentation.DefaultsForWindow(_settings, !MediaEngine.UsesBundledTools)); RefreshExclusiveTools(); MarkDirty(); }
     private async void HardwareTestClick(object? sender, RoutedEventArgs args)
     {
         HardwareTestButton.IsEnabled = false;
@@ -186,7 +203,7 @@ public sealed partial class SettingsWindow : Window
     private async void CheckUpdatesClick(object? sender, RoutedEventArgs args)
     {
         CheckUpdatesButton.IsEnabled = false;
-        try { var result = await _services.CheckUpdatesAsync(_lifetime.Token); if (IsVisible) Notifications.UpdateNotifications.Show(this, result); }
+        try { var result = await _services.CheckUpdatesAsync(_lifetime.Token); if (IsVisible) { _settings.LastUpdateCheck = DateTimeOffset.Now; Applied?.Invoke(this, EventArgs.Empty); RefreshLastUpdateCheck(); Notifications.UpdateNotifications.Show(this, result); } }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (IsVisible) Notifications.UpdateNotifications.Error(this, "版本检查失败", ex.Message); }
         finally { if (IsVisible) CheckUpdatesButton.IsEnabled = true; }

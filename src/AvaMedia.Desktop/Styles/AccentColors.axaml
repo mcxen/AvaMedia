@@ -1,0 +1,20 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources><ResourceDictionary>
+    <SolidColorBrush x:Key="UiAccentDarkInk" Color="#1D1D1F"/>
+    <SolidColorBrush x:Key="UiAccentLightInk" Color="#FFFFFF"/>
+    <ResourceDictionary.ThemeDictionaries>
+      <ResourceDictionary x:Key="Light">
+        <Color x:Key="UiAccentPresetBlue">#007AFF</Color><Color x:Key="UiAccentPresetPurple">#AF52DE</Color>
+        <Color x:Key="UiAccentPresetPink">#FF2D55</Color><Color x:Key="UiAccentPresetRed">#FF3B30</Color>
+        <Color x:Key="UiAccentPresetOrange">#FF9500</Color><Color x:Key="UiAccentPresetYellow">#FFCC00</Color>
+        <Color x:Key="UiAccentPresetGreen">#34C759</Color><Color x:Key="UiAccentPresetGray">#8E8E93</Color>
+      </ResourceDictionary>
+      <ResourceDictionary x:Key="Dark">
+        <Color x:Key="UiAccentPresetBlue">#0A84FF</Color><Color x:Key="UiAccentPresetPurple">#BF5AF2</Color>
+        <Color x:Key="UiAccentPresetPink">#FF375F</Color><Color x:Key="UiAccentPresetRed">#FF453A</Color>
+        <Color x:Key="UiAccentPresetOrange">#FF9F0A</Color><Color x:Key="UiAccentPresetYellow">#FFD60A</Color>
+        <Color x:Key="UiAccentPresetGreen">#30D158</Color><Color x:Key="UiAccentPresetGray">#98989D</Color>
+      </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+  </ResourceDictionary></Styles.Resources>
+</Styles>
