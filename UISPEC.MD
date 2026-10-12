@@ -121,6 +121,8 @@
 - 后台取色与缓存：`src/AvaMedia.Desktop/Controls/MediaPreviewColorSampler.cs`。单路后台解码最长边不超过 64px，128 帧有界缓存，以缩略图内容摘要、文件、时间点和预览尺寸区分；取消过期任务，不读取 UI 持有的位图。编码数据超过 2MiB 或源位图超过 400 万像素时跳过氛围光，保留中性投影，避免昂贵解码。
 - 可单元测试的纯计算：`src/AvaMedia.Core/MediaPreviewColors.cs` 的 `Sample` / `AverageBorder`。RGBA 边缘按 alpha 加权，四条外围边分别平均后等权合并；透明边和未完成的格子不参与，内部格子不取色。
 - 多宫格接入：`src/AvaMedia.Desktop/ContactSheetWindow.Preview.cs`，逐帧提交已经取得的缩略图字节，后台颜色完成后独立更新光晕，不等待取色再显示预览帧。
+- 交互预览流畅优先：`MediaPreviewSurface.UseAmbientLighting=False` 只绘制中性投影，不创建取色解码器、不提交后台取色或逐帧光晕更新。`FitContent=False` 保持裁剪和图片对比视口的原有尺寸与坐标；默认模式包在 Viewbox 外，投影跟随适应后的画面尺寸。
+- 推广接入：`EditorWindow.axaml` 的主预览、`BatchCropWindow.axaml`、`BatchRotateWindow.axaml`、`ImageCompressionWindow.axaml`，以及 `Controls/MediaPreviewPanel.cs` 的视频 / 图片视口。共享面板的音频波形、压缩包 / 目录列表不加；`ClipExportWindow` 仅有小缩略图，播放器没有独立封面区且直接呈现连续播放画面，均不加，播放器全屏保持原样。
 
 ## 13. 规范内矛盾的处理记录
 

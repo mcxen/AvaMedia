@@ -14,6 +14,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
 {
     private readonly IMediaEngine _engine;
     private readonly ImageCompareView _view=new(){SideBySide=true};
+    private readonly MediaPreviewSurface _previewSurface=new(){UseAmbientLighting=false,FitContent=false};
     private readonly TextBlock _status=new(){Text="选择文件以预览",Classes={"caption"},TextWrapping=TextWrapping.Wrap,MaxLines=2,TextTrimming=TextTrimming.WordEllipsis};
     private readonly TextBlock _position=Ui.Text("","caption");
     private readonly Slider _seek=new(){Minimum=0,Maximum=1,IsVisible=false};
@@ -38,8 +39,14 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     {
         _engine=engine;
         _root=new Grid{RowDefinitions=new("Auto,*,Auto,Auto"),RowSpacing=8};_root.Children.Add(_status);
-        var surface=new Grid{ClipToBounds=true};surface.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
-        surface.Children.Add(_waveform);surface.Children.Add(_view);surface.Children.Add(_archive);Grid.SetRow(surface,1);_root.Children.Add(surface);
+        var surface=new Grid();
+        var auxiliary=new Grid{IsVisible=false};auxiliary.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
+        auxiliary.Children.Add(_waveform);auxiliary.Children.Add(_archive);surface.Children.Add(auxiliary);
+        var previewFace=new Border{Child=_view};previewFace.Bind(Border.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
+        _view.PropertyChanged+=(_,change)=>{if(change.Property==IsVisibleProperty)auxiliary.IsVisible=!_view.IsVisible;};
+        _previewSurface.PreviewContent=previewFace;
+        _previewSurface.Bind(IsVisibleProperty,_view.GetObservable(IsVisibleProperty));
+        surface.Children.Add(_previewSurface);Grid.SetRow(surface,1);_root.Children.Add(surface);
         Grid.SetRow(_seek,2);_root.Children.Add(_seek);
         _actions=new Grid{RowDefinitions=new("Auto,Auto"),RowSpacing=4};_actions.Children.Add(_position);
         var buttons=new WrapPanel();Grid.SetRow(buttons,1);_actions.Children.Add(buttons);
@@ -147,5 +154,5 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     private static string FormatSize(long size)=>$"{size/1024d:0.#} KB";
     private static Bitmap Decode(byte[] data){using var stream=new MemoryStream(data);return new Bitmap(stream);}
     private void ClearBitmaps(){_view.Source=_view.Result=null;_sourceBitmap?.Dispose();_resultBitmap?.Dispose();_sourceBitmap=_resultBitmap=null;}
-    public void Dispose(){if(_closed)return;_closed=true;_lifetime.Cancel();_work?.Cancel();_work?.Dispose();ClearBitmaps();_lifetime.Dispose();}
+    public void Dispose(){if(_closed)return;_closed=true;_lifetime.Cancel();_work?.Cancel();_work?.Dispose();ClearBitmaps();_previewSurface.Dispose();_lifetime.Dispose();}
 }

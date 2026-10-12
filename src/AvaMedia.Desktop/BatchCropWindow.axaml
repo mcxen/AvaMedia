@@ -38,14 +38,14 @@
         </Grid>
       </Border>
       <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="8">
-        <Border Background="{DynamicResource UiMediaSurface}" CornerRadius="{DynamicResource UiControlRadius}" ClipToBounds="True">
-          <Grid x:Name="PreviewArea">
+        <controls:MediaPreviewSurface UseAmbientLighting="False" FitContent="False">
+          <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}">
             <Image x:Name="PreviewImage" Stretch="Uniform"/>
             <media:CropOverlay x:Name="CropLayer"/>
             <TextBlock x:Name="PreviewStatus" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"
                        TextWrapping="Wrap" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
           </Grid>
-        </Border>
+        </controls:MediaPreviewSurface>
         <Slider Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="裁剪预览时间"/>
         <Grid Grid.Row="2" ColumnDefinitions="*,140,Auto" ColumnSpacing="8">
           <TextBlock x:Name="PreviewName" Classes="caption" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>

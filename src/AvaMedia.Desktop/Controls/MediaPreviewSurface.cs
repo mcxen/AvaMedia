@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
+using Avalonia.Metadata;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using AvaMedia.Core;
@@ -10,18 +11,29 @@ namespace AvaMedia.Desktop.Controls;
 /// <summary>Shared fitted preview: neutral shadows and a softly animated, optional edge-colour halo.</summary>
 public sealed class MediaPreviewSurface : Panel
 {
+    public static readonly StyledProperty<bool> UseAmbientLightingProperty =
+        AvaloniaProperty.Register<MediaPreviewSurface, bool>(nameof(UseAmbientLighting), true);
+    public static readonly StyledProperty<bool> FitContentProperty =
+        AvaloniaProperty.Register<MediaPreviewSurface, bool>(nameof(FitContent), true);
     private readonly Border _face = new() { ClipToBounds = true };
     private readonly Border _shadow = new() { IsHitTestVisible = false };
     private readonly AmbientHalo _halo = new() { IsHitTestVisible = false, IsVisible = false };
-    private readonly MediaPreviewColorSampler _sampler = new();
+    private MediaPreviewColorSampler? _sampler;
     private CancellationTokenSource? _sampling;
     private MediaPreviewColors.Edges?[] _colors = [];
     private Frame?[] _frames = [];
     private int _columns = 1, _rows = 1;
     private bool _disposed;
 
+    [Content]
     public Control? PreviewContent { get => _face.Child; set => _face.Child = value; }
-    public bool AmbientEnabled => !_disposed && !Skin.UsesCustomChrome(ActualThemeVariant);
+    /// <summary>Disable for interactive previews: no colour decoding, sampling or animation is scheduled.</summary>
+    public bool UseAmbientLighting { get => GetValue(UseAmbientLightingProperty); set => SetValue(UseAmbientLightingProperty, value); }
+    /// <summary>Fit a Viewbox's measured image, or fill the existing crop/compare viewport without moving its overlays.</summary>
+    public bool FitContent { get => GetValue(FitContentProperty); set => SetValue(FitContentProperty, value); }
+    public bool AmbientEnabled => !_disposed && UseAmbientLighting && !Skin.UsesCustomChrome(ActualThemeVariant);
+
+    static MediaPreviewSurface() => AffectsArrange<MediaPreviewSurface>(FitContentProperty);
 
     public MediaPreviewSurface()
     {
@@ -37,6 +49,7 @@ public sealed class MediaPreviewSurface : Panel
         _halo.Transitions = [new ColorTransition { Property = AmbientHalo.ColorProperty, Duration = TimeSpan.FromMilliseconds(400) }];
         Children.Add(_halo); Children.Add(_shadow); Children.Add(_face);
         ActualThemeVariantChanged += (_, _) => RefreshTheme();
+        PropertyChanged += (_, change) => { if (change.Property == UseAmbientLightingProperty) RefreshTheme(); };
         AttachedToVisualTree += (_, _) => RestartSampling();
         DetachedFromVisualTree += (_, _) => CancelSampling();
     }
@@ -49,7 +62,7 @@ public sealed class MediaPreviewSurface : Panel
         _frames = new Frame?[checked(columns * rows)]; _colors = new MediaPreviewColors.Edges?[_frames.Length];
         _halo.IsVisible = false;
         _halo.Color = Colors.Transparent;
-        _sampling = new();
+        if (AmbientEnabled) _sampling = new();
     }
 
     /// <summary>Pass immutable thumbnail bytes and a cache key identifying the file revision and sampled frame.</summary>
@@ -78,7 +91,7 @@ public sealed class MediaPreviewSurface : Panel
     {
         try
         {
-            var color = await _sampler.SampleAsync(frame.Encoded, frame.Key, token);
+            var color = await (_sampler ??= new()).SampleAsync(frame.Encoded, frame.Key, token);
             if (token.IsCancellationRequested || !AmbientEnabled || _frames[index] != frame) return;
             _colors[index] = color;
             if (MediaPreviewColors.AverageBorder(_colors, _columns, _rows) is { } rgb)
@@ -120,7 +133,7 @@ public sealed class MediaPreviewSurface : Panel
     protected override Size ArrangeOverride(Size finalSize)
     {
         // The shadow is outside the Viewbox, so its radius stays in display pixels at every zoom level.
-        var size = _face.DesiredSize;
+        var size = FitContent ? _face.DesiredSize : finalSize;
         var rect = new Rect((finalSize.Width - size.Width) / 2, (finalSize.Height - size.Height) / 2, size.Width, size.Height);
         _face.Arrange(rect); _shadow.Arrange(rect); _halo.Arrange(rect);
         return finalSize;

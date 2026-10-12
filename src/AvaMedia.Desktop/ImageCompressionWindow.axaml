@@ -38,9 +38,11 @@
           <TextBlock x:Name="BeforeText" Text="压缩前" FontWeight="SemiBold" TextWrapping="Wrap"/>
           <TextBlock Grid.Column="1" x:Name="AfterText" Text="压缩后" FontWeight="SemiBold" TextWrapping="Wrap" HorizontalAlignment="Right"/>
         </Grid>
-        <Border Grid.Row="1" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" ClipToBounds="True">
-          <controls:ImageCompareView x:Name="Comparison" Split="{Binding #CompareSlider.Value, Mode=TwoWay}" AutomationProperties.Name="原图与实际压缩结果对比"/>
-        </Border>
+        <controls:MediaPreviewSurface Grid.Row="1" UseAmbientLighting="False" FitContent="False">
+          <Border Padding="1">
+            <controls:ImageCompareView x:Name="Comparison" Split="{Binding #CompareSlider.Value, Mode=TwoWay}" AutomationProperties.Name="原图与实际压缩结果对比"/>
+          </Border>
+        </controls:MediaPreviewSurface>
         <Slider Grid.Row="2" x:Name="CompareSlider" Minimum="0" Maximum="1" Value="0.5" SmallChange="0.02" LargeChange="0.1" AutomationProperties.Name="前后对比位置"/>
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
           <CheckBox x:Name="SideBySideInput" Content="并排对比"/>
