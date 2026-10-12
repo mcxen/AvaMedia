@@ -3518,5 +3518,8 @@
   "浏览器": "Browser",
   "刚刚": "Just now",
   "{0} 分钟前": "{0} min ago",
-  "连接地址": "Address"
+  "连接地址": "Address",
+  "起点": "In",
+  "终点": "Out",
+  "调整顺序": "Reorder"
 }

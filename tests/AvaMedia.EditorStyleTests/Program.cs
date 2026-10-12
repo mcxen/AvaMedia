@@ -34,6 +34,19 @@ Check(EditorTime.TryRead("00:00:00.333", .333333, out var exact) && exact == .33
 Check(EditorTime.TryRead("00:00:00.444444", .333333, out var edited) && edited == .444444, "Explicit high precision edits remain accepted");
 Check(!EditorTime.TryRead("00:61:00.000", 0, out _) && !EditorTime.TryRead("00:00:NaN", 0, out _), "Invalid timecodes are rejected");
 
+// Optional visual capture of every skin for design review (no assertions); set AVAMEDIA_EDITOR_SHOTS to a folder.
+if (Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_SHOTS") is { Length: > 0 } shots)
+{
+    foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
+    {
+        Skin.Apply(skin);
+        var window = new EditorWindow(new MediaEngine(new()), source, new() { Format = "mp4", Start = .333333, End = 1.733333 });
+        window.Show(); Complete(window.Ready); window.Width = 1240; window.Height = 780; Pump();
+        window.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-editor-{skin.ToLowerInvariant()}.png")); window.Close(); Pump();
+    }
+    return;
+}
+
 foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
 {
     Skin.Apply(skin);
