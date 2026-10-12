@@ -19,14 +19,14 @@ internal static class CpuResourcePolicy
         get
         {
             var settings = Volatile.Read(ref _settings);
-            return HashCode.Combine(settings.CpuReservePercent, settings.CpuThreads, settings.MultiThread);
+            return HashCode.Combine(settings.CpuReservePercent, settings.EffectiveCpuThreads, settings.MultiThread);
         }
     }
     internal static int Threads(int requested, AppSettings? settings = null)
     {
         settings ??= Volatile.Read(ref _settings);
         if (!settings.MultiThread) return 1;
-        var maximum = Math.Min(Math.Clamp(requested, 1, 16), Math.Clamp(settings.CpuThreads, 1, 16));
+        var maximum = Math.Min(Math.Clamp(requested, 1, 16), Math.Clamp(settings.EffectiveCpuThreads, 1, 16));
         if (settings.CpuReservePercent == 0) return maximum;
         var workers = Math.Max(1, (int)Math.Floor(Environment.ProcessorCount * (100 - Math.Clamp(settings.CpuReservePercent, 0, 80)) / 100d));
         return Math.Min(maximum, workers);

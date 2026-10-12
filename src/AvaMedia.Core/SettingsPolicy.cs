@@ -26,7 +26,7 @@ public static class SettingsPolicy
     {
         var options = source.Clone();
         if (!settings.MultiThread) options.Threads = 1;
-        else if (options.Threads == 0) options.Threads = Math.Clamp(settings.CpuThreads, 1, 16);
+        else if (options.Threads == 0) options.Threads = Math.Clamp(settings.EffectiveCpuThreads, 1, 16);
         options.Threads = CpuResourcePolicy.Threads(options.Threads, settings);
         // Keep legacy explicitly edited quality values; the original default now follows app settings.
         if (options.ImageQuality is null && options.Quality == 23)

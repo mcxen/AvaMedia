@@ -12,7 +12,11 @@ public sealed partial class Storage
     public Storage(string? root = null) { _root = root ?? DefaultRoot; _logs = new(_root); Directory.CreateDirectory(_root); }
     public AppSettings LoadSettings()
     {
-        var settings = Read<AppSettings>("settings.json") ?? new();
+        var json = Read<JsonElement>("settings.json");
+        AppSettings settings;
+        try { settings = json.ValueKind is JsonValueKind.Object ? SettingsPresentation.Deserialize(json) : new(); }
+        catch (JsonException) { settings = new(); }
+        if (settings.AutomaticThreads) settings.CpuThreads = settings.EffectiveCpuThreads;
         LoadOnlineAiKey(settings.OnlineAi);
         // Model downloads follow the saved source choice in every entry point (main window, standalone tools).
         try { ModelDownloadSources.Preference = ModelSourcePreference.From(settings); } catch (ArgumentException) { }

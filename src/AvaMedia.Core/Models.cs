@@ -265,6 +265,7 @@ public sealed partial class AppSettings
         EnableNsfwContent=source.EnableNsfwContent;
         ExclusiveToolUnlocked=source.ExclusiveToolUnlocked;
         MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
+        AutomaticThreads=source.AutomaticThreads;AccentColor=source.AccentColor;LastUpdateCheck=source.LastUpdateCheck;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         PlayerNativeHighResolution=source.PlayerNativeHighResolution;PlayerNativeSdr=source.PlayerNativeSdr;
