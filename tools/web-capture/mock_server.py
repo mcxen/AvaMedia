@@ -19,32 +19,36 @@ TEXTS = [
     '这些看起来普通的事情，其实构成了生活的温度。', '所以我们希望把这些真实的声音记录下来。',
 ]
 CUES = [{'start': round(i * 3.96, 2), 'end': round(i * 3.96 + 3.4, 2), 'text': TEXTS[i % len(TEXTS)]} for i in range(186)]
+CUES[-5:] = [dict(start=start, end=end, text=text) for start, end, text in [
+    (721, 725, '我们这一季的主题其实是从城市通勤出发的。'),
+    (725, 729, '面料选了更轻的棉麻混纺，透气，也更好打理。'),
+    (730, 734, '颜色上保留了白色和浅蓝，作为整个系列的基调。'),
+    (735, 738, '第二组会加入一些更跳的红色单品。'),
+    (739, 742, '未检测到语音'),
+]]
 SPEECH = dict(durationSeconds=DURATION, segmentSeconds=300, currentSegment=2,
               cueCount=186, subStage='识别中',
               segments=[dict(index=i, startSeconds=i*300, endSeconds=min((i+1)*300, DURATION),
                              state='done' if i < 2 else 'running' if i == 2 else 'pending',
-                             recognizedSeconds=300 if i < 2 else 136 if i == 2 else 0,
-                             voiceIntervalCount=38 if i < 5 else 14,
+                             recognizedSeconds=300 if i < 2 else 142 if i == 2 else 0,
+                             voiceIntervalCount=9 if i < 3 else 0,
                              cueCount=[76, 76, 34, 0, 0, 0][i]) for i in range(6)],
               voiceIntervals=[dict(startSeconds=i*7.9+0.6, endSeconds=min(i*7.9+6.9, DURATION)) for i in range(202)])
-NODES = [dict(index=i, title=title, state='done' if i < 3 else 'running' if i == 3 else 'pending',
-              elapsedSeconds=[1.2, 3.8, 2.4, 42.6, None][i],
-              subSteps=['分段识别', '合并时间戳', '生成字幕'] if i == 3 else [], detail='')
-         for i, title in enumerate(['准备模型', '提取音频', '检测语音', '识别字幕', '保存结果'])]
-PROGRESS = dict(jobId=IDS[0], stage='识别字幕', detail='Whisper 正在识别语音', percent=46,
-                backend='CPU · 4 线程', currentNode=3, nodes=NODES, recentResults=TEXTS[-3:],
+NODES = [dict(index=i, title=title, state='done' if i < 2 else 'running' if i == 2 else 'pending',
+              elapsedSeconds=[3.8, 1.2, 42.6, None][i],
+              subSteps=['分段识别', '合并时间戳', '生成字幕'] if i == 2 else [], detail='')
+         for i, title in enumerate(['读取音轨', '语音模型', '语音识别', '保存结果'])]
+PROGRESS = dict(jobId=IDS[0], stage='识别字幕', detail='Whisper 正在识别语音', percent=43,
+                backend='GPU', currentNode=2, nodes=NODES, recentResults=TEXTS[-3:],
                 recentStages=['模型已就绪', '音频提取完成', '开始语音识别'], hasPreview=False,
                 speech=SPEECH, queue=dict(subtitleJobsRunning=1, subtitleJobsWaiting=2))
 TASKS = [dict(id=id_, name=name, featureId='auto-subtitle', state='Running' if i == 0 else 'Waiting',
-              progress=46 if i == 0 else 0, detail='识别中 · 第 3/6 段' if i == 0 else f'排队第 {i} 位',
+              progress=43 if i == 0 else 0, detail='识别中 · 第 3/6 段' if i == 0 else f'排队第 {i} 位',
               submittedBy='网页 · MacBook', inputs=[f'{FOLDER}/{name}'], output='', error=None,
               createdUtc='2026-10-12T06:02:00Z', outputIsPartial=i == 0,
-              activity=dict(model='Whisper · Base', stage='识别字幕', detail='第 3/6 段', backend='CPU'))
+              activity=dict(model='Whisper Base', stage='识别字幕', detail='第 3/6 段', backend='GPU'))
          for i, (id_, name) in enumerate(zip(IDS, NAMES))]
-LOG = '\n'.join(['14:02:11  模型已就绪：Whisper Base', '14:02:12  提取音频 · 16 kHz 单声道',
-                 '14:02:16  检测到 202 个语音区间', '14:02:18  第 1/6 段识别完成',
-                 '14:02:35  第 2/6 段识别完成', '14:02:54  正在识别第 3/6 段',
-                 '14:02:55  已识别 186 条字幕'])
+LOG = '\n'.join(['14:02:11  下载语音模型', '14:02:37  等待语音识别', '14:02:41  识别字幕'])
 
 
 def choices(path, values):
@@ -144,6 +148,19 @@ class Handler(SimpleHTTPRequestHandler):
         url = urlsplit(self.path)
         if url.path == '/__capture/health':
             self.send_json(dict(ready=True, taskId=IDS[0]))
+            return
+        if url.path == '/web/preview/frame':
+            name = Path(parse_qs(url.query).get('path', [''])[0]).name
+            if name not in NAMES:
+                self.send_json(dict(detail='Unknown fixture file'), 404)
+                return
+            image = (Path(__file__).parent / 'fixtures' / f'thumbnail-{NAMES.index(name)}.png').read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/png')
+            self.send_header('Content-Length', str(len(image)))
+            self.send_header('X-AvaMedia-Preview', json.dumps(dict(durationSeconds=DURATION, width=160, height=110)))
+            self.end_headers()
+            self.wfile.write(image)
             return
         parts = url.path.strip('/').split('/')
         if len(parts) == 5 and parts[:2] == ['web', 'tasks'] and parts[3] == 'ai':

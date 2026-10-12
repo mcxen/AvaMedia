@@ -37,14 +37,19 @@ internal sealed class Fixtures
         var started = now.AddSeconds(-146);
         var texts = new[] { "我们今天聊一聊这次旅行的经历。", "从成都出发以后，沿途的风景一直在变化。", "这也是我第一次用视频记录完整的旅程。",
             "我希望把这些细节分享给大家。", "接下来我们会介绍拍摄时使用的方法。", "光线和声音，都是记录现场的重要部分。" };
-        var cues = Enumerable.Range(0, 86).Select(i =>
+        var cues = Enumerable.Range(0, 186).Select(i =>
         {
-            var seconds = i < 72 ? i / 36 * 300 + i % 36 * 8 : 600 + (i - 72) * 6;
+            var seconds = i * 3.96;
             return new SubtitleCue(TimeSpan.FromSeconds(seconds), TimeSpan.FromSeconds(seconds + 5.8), texts[i % texts.Length]);
         }).ToArray();
+        cues[^5] = new(TimeSpan.FromSeconds(721), TimeSpan.FromSeconds(725), "我们这一季的主题其实是从城市通勤出发的。");
+        cues[^4] = new(TimeSpan.FromSeconds(725), TimeSpan.FromSeconds(729), "面料选了更轻的棉麻混纺，透气，也更好打理。");
+        cues[^3] = new(TimeSpan.FromSeconds(730), TimeSpan.FromSeconds(734), "颜色上保留了白色和浅蓝，作为整个系列的基调。");
+        cues[^2] = new(TimeSpan.FromSeconds(735), TimeSpan.FromSeconds(738), "第二组会加入一些更跳的红色单品。");
+        cues[^1] = new(TimeSpan.FromSeconds(739), TimeSpan.FromSeconds(742), "未检测到语音");
         var recognition = new AiActivity("识别语音", "Whisper · base", started.AddSeconds(22), now)
         {
-            Backend = "CPU · Whisper", Current = 688, Total = 1600, Unit = "秒", ResultCount = cues.Length,
+            Backend = "GPU · Whisper", Current = 742, Total = 1600, Unit = "秒", ResultCount = cues.Length,
             RecentResults = cues.TakeLast(6).Select(c => c.Text).ToArray(),
             RecentStages = ["00:00:23 · 第 1 / 6 段", "00:00:58 · 第 2 / 6 段", "00:01:46 · 第 3 / 6 段", "00:01:47 · 检测语音", "00:01:49 · 识别语音"]
         };
@@ -66,8 +71,8 @@ internal sealed class Fixtures
             }
         };
         var segments = Enumerable.Range(0, 6).Select(i => new SpeechSegmentProgress(i, i * 300, Math.Min(1600, (i + 1) * 300),
-            i < 2 ? "done" : i == 2 ? "running" : "pending", i < 2 ? 300 : i == 2 ? 88 : 0,
-            i < 3 ? 18 : 0, i < 2 ? 36 : i == 2 ? 14 : 0)).ToArray();
+            i < 2 ? "done" : i == 2 ? "running" : "pending", i < 2 ? 300 : i == 2 ? 142 : 0,
+            i < 3 ? 9 : 0, i < 2 ? 76 : i == 2 ? 34 : 0)).ToArray();
         AiProgressStore.SetSpeech(job.Id.ToString(), new(1600, 300, 2, segments,
             Enumerable.Range(0, 54).Select(i => new VoiceInterval(i / 18 * 300 + i % 18 * 16 + 1,
                 i / 18 * 300 + i % 18 * 16 + 11)).ToArray(), cues.Length, "识别语音"));
