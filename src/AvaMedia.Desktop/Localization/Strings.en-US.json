@@ -3611,5 +3611,6 @@
   "只影响片段 {0}，输出时生效": "Affects only segment {0}, applied on export",
   "媒体信息": "Media information",
   "输出设置": "Output settings",
-  "画面": "Dimensions"
+  "画面": "Dimensions",
+  "输出说明": "Output notes"
 }

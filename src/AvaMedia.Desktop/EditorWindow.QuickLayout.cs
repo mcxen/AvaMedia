@@ -52,7 +52,9 @@ public partial class EditorWindow
 
         // Title bar.
         Move(ModeBar, QuickModeSlot); ModeButtons.Spacing = 0;
-        var icons = new Dictionary<string, string> { ["剪辑"] = "scissors", ["画面裁剪"] = "crop", ["自动转正"] = "rotate-cw", ["选项"] = "pencil" };
+        // Keep the classic tab and its named controls, but omit it from the quick mode switch.
+        ((TabItem)EditTabs.Items[2]!).IsVisible = false;
+        var icons = new Dictionary<string, string> { ["剪辑"] = "scissors", ["画面裁剪"] = "crop", ["自动转正"] = "rotate-cw" };
         foreach (var button in ModeButtons.Children.OfType<Button>())
             if (button.Tag is TabItem { Header: string header })
             {
@@ -94,6 +96,7 @@ public partial class EditorWindow
         Filmstrip.Bind(FilmstripTimeline.CalloutTextBrushProperty, this.GetResourceObservable("QcText"));
         Filmstrip.Bind(FilmstripTimeline.PlayheadBrushProperty, this.GetResourceObservable("QcPlayhead"));
         Move(EditTabs, QuickTabsCard);
+        BuildQuickCropInspector();
         EditTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditTabs)) SyncQuickMode(); };
         SyncQuickMode();
 
@@ -152,13 +155,14 @@ public partial class EditorWindow
 
     private void SyncQuickMode()
     {
-        var clip = EditTabs.SelectedIndex <= 0;
+        var crop = EditTabs.SelectedIndex == 1;
         var direction = ReferenceEquals(EditTabs.SelectedItem, DirectionTab);
-        var options = EditTabs.SelectedIndex == 2;
-        QuickTimelineCard.IsVisible = clip;
-        QuickTabsCard.IsVisible = !clip && !direction && !options;
+        QuickTimelineCard.IsVisible = true;
+        QuickTabsCard.IsVisible = false;
+        QuickCropInspector.IsVisible = crop;
+        QuickClipInspector.IsVisible = !crop;
         QuickDirectionCard.IsVisible = direction;
-        QuickOptionsCard.IsVisible = options;
+        QuickOptionsCard.IsVisible = false;
     }
 
     private void QuickCropRowClick(object? sender, RoutedEventArgs e)

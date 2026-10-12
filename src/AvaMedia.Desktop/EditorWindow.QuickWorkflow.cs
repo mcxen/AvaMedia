@@ -77,8 +77,8 @@ public partial class EditorWindow
         EditorLayout.ColumnDefinitions[2].MaxWidth = 450;
         TotalTime.IsVisible = false;
         Width = 1380;
-        EditOptionsButton.Content = "其他编辑选项…";
-        PreviewNote.Text = "速度与方向可预览；裁剪、淡入淡出及其他效果在输出时生效。";
+        Localization.SetContent(EditOptionsButton, $"输出配置…");
+        Localization.SetText(PreviewNote, $"速度与方向可预览；裁剪、淡入淡出及其他效果在输出时生效。");
         SetWorkflowCompletion();
         DirectionCombo.ItemsSource = new[] { "保持原方向", "顺时针 90°", "旋转 180°", "逆时针 90°" };
         Avalonia.Automation.AutomationProperties.SetName(DirectionCombo, "当前片段旋转方向");
@@ -181,7 +181,7 @@ public partial class EditorWindow
     private void ApplySelectionMode()
     {
         // Exclusions define time masks only. Existing edits stay available when switching back to retention.
-        SpeedCombo.IsEnabled = FadeInCombo.IsEnabled = FadeOutCombo.IsEnabled = EditOptionsButton.IsEnabled = !_removeSelected;
+        SpeedCombo.IsEnabled = FadeInCombo.IsEnabled = FadeOutCombo.IsEnabled = !_removeSelected;
         ((TabItem)EditTabs.Items[1]!).IsEnabled = ((TabItem)EditTabs.Items[3]!).IsEnabled = !_removeSelected;
         if (_removeSelected) EditTabs.SelectedIndex = 0;
         UpdateDirectionPreview();

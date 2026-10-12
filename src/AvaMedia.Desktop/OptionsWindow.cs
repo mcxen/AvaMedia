@@ -19,6 +19,8 @@ public sealed class OptionsWindow : Window
     private readonly int? _imageQualityDefault;
     private readonly IMediaEngine? _previewEngine;
     private readonly string? _previewSource;
+    private readonly IObservable<string?>? _audioStatus;
+    private readonly string? _previewNote;
     private readonly List<Action<ConversionOptions>> _readers = [];
     private readonly CancellationTokenSource _lifetime=new();
     private ConversionOptions _draft;
@@ -26,10 +28,11 @@ public sealed class OptionsWindow : Window
     private MediaPreviewPanel? _visualPreview;
     private TabControl? _tabs;
     private Grid? _layoutRoot;
-    public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null, IMediaEngine? previewEngine=null, string? previewSource=null)
+    public OptionsWindow(ConversionOptions options, bool? copyStreamsMode=null, MediaOptionsKind kind=MediaOptionsKind.Video, Storage? presetStorage=null, bool allowAllAudioStreams=true, int? imageQualityDefault=null, IMediaEngine? previewEngine=null, string? previewSource=null, IObservable<string?>? audioStatus=null, string? previewNote=null)
     {
+        _audioStatus=audioStatus;_previewNote=previewNote;
         var hasPreview=previewEngine is not null && previewSource is not null;
-        Title=kind switch{MediaOptionsKind.InputVideo or MediaOptionsKind.InputAudio=>"输入处理",MediaOptionsKind.ClipEdit=>"片段设置",_=>"输出配置"};Width=hasPreview?960:680;Height=hasPreview?600:480;MinWidth=hasPreview?800:560;MinHeight=hasPreview?520:400;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        Title=audioStatus is not null?Localization.Text("输出配置"):kind switch{MediaOptionsKind.InputVideo or MediaOptionsKind.InputAudio=>"输入处理",MediaOptionsKind.ClipEdit=>"片段设置",_=>"输出配置"};Width=hasPreview?960:680;Height=hasPreview?600:480;MinWidth=hasPreview?800:560;MinHeight=hasPreview?520:400;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         Classes.Add("settings"); Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new Uri("avares://AvaMedia.Desktop/Styles/SettingsStyles.axaml") });
         Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new Uri("avares://AvaMedia.Desktop/Styles/MediaOptionsStyles.axaml") });
         _draft=options.Clone();_copyMode=copyStreamsMode;_kind=kind;_format=options.Format;_presets=presetStorage??new();_allowAllAudioStreams=allowAllAudioStreams;_imageQualityDefault=imageQualityDefault;_previewEngine=previewEngine;_previewSource=previewSource;Build();
@@ -58,7 +61,17 @@ public sealed class OptionsWindow : Window
         if(_previewEngine is not null && _previewSource is not null)
         {
             root.ColumnDefinitions=new("*,320");_visualPreview=new MediaPreviewPanel(_previewEngine);
-            Grid.SetRow(_visualPreview,1);Grid.SetColumn(_visualPreview,1);root.Children.Add(_visualPreview);
+            var previewColumn=new Grid{RowDefinitions=new("*,Auto"),RowSpacing=12};
+            previewColumn.Children.Add(_visualPreview);
+            if(_audioStatus is not null)
+            {
+                var status=new TextBlock{Name="QuickOutputAudioStatus",TextWrapping=Avalonia.Media.TextWrapping.Wrap};
+                status.Bind(TextBlock.TextProperty,_audioStatus);
+                var note=new TextBlock{Name="QuickOutputPreviewNote",Text=Localization.Text(_previewNote??""),TextWrapping=Avalonia.Media.TextWrapping.Wrap,Classes={"caption"}};
+                var summary=new Border{Classes={"settingSection","modelRow"},CornerRadius=new(14),Padding=new(14),Child=new StackPanel{Spacing=8,Children={Ui.Text("输出说明","settingsTitle"),status,note}}};
+                Grid.SetRow(summary,1);previewColumn.Children.Add(summary);
+            }
+            Grid.SetRow(previewColumn,1);Grid.SetColumn(previewColumn,1);root.Children.Add(previewColumn);
         }
         var top=new Grid{ColumnDefinitions=new("Auto,Auto,Auto,*"),ColumnSpacing=8,Margin=new(0,0,0,8)};top.Children.Add(Ui.Text("预设"));
         var names=_presets.LoadPresets().Keys.Where(k=>k.StartsWith(Prefix,StringComparison.Ordinal)).Select(k=>k[Prefix.Length..]).Order().ToArray();

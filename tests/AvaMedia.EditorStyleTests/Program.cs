@@ -3,6 +3,7 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -38,6 +39,7 @@ Check(!EditorTime.TryRead("00:61:00.000", 0, out _) && !EditorTime.TryRead("00:0
 // Optional visual capture of every skin for design review (no assertions); set AVAMEDIA_EDITOR_SHOTS to a folder.
 if (Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_SHOTS") is { Length: > 0 } shots)
 {
+    Directory.CreateDirectory(shots);
     foreach (var skin in Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_VIDEO") is { Length: > 0 } ? [] : new[] { "Light", "Dark", "MacOS9" })
     {
         Skin.Apply(skin);
@@ -64,40 +66,90 @@ if (Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_SHOTS") is { Length: > 0
         quick.SeekForReview(84.36 * scale);
         until = DateTime.UtcNow.AddSeconds(3); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); }
         quick.FindControl<AvaMedia.MediaUi.FilmstripTimeline>("Filmstrip")!.ShowHandleCallout(true); Pump();
-        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-quick-{skin.ToLowerInvariant()}.png"));
+        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl5-clip-{skin.ToLowerInvariant()}.png"));
         // Review-only presentation state; production detection and its handlers are unchanged.
         Find<ComboBox>(quick, "DirectionCombo").SelectedIndex = 1;
         quick.ReadClipEdit(); // Flush the debounced segment edit before capturing the shared footer.
         Find<TextBlock>(quick, "DirectionStatus").Text = "识别建议：顺时针 90°；当前片段：顺时针 90°\n依据：画面中的人脸和地平线朝向一致，多帧结果相同";
         Find<Button>(quick, "ApplyDirectionButton").IsEnabled = true;
         Find<TabControl>(quick, "EditTabs").SelectedItem = Find<TabItem>(quick, "DirectionTab"); Pump();
-        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-orient-{skin.ToLowerInvariant()}.png"));
-        Find<TabControl>(quick, "EditTabs").SelectedIndex = 2; Pump();
-        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-options-{skin.ToLowerInvariant()}.png"));
+        if (skin == "Light")
+        {
+            quick.CaptureRenderedFrame()!.Save(Path.Combine(shots, "impl5-orient-light.png"));
+            Find<TabControl>(quick, "EditTabs").SelectedIndex = 1; Pump();
+            quick.CaptureRenderedFrame()!.Save(Path.Combine(shots, "impl5-crop-light.png"));
+        }
+        Find<TabControl>(quick, "EditTabs").SelectedIndex = 0; Pump();
+        Click(quick, "QuickInfoButton");
+        var flyout = (Flyout)Find<Button>(quick, "QuickInfoButton").Flyout!;
+        var popup = TopLevel.GetTopLevel((Control)flyout.Content!)!;
+        using (var editorFrame = quick.CaptureRenderedFrame()!)
+        using (var popupFrame = popup.CaptureRenderedFrame()!)
+        using (var composite = new RenderTargetBitmap(editorFrame.PixelSize, new Vector(96, 96)))
+        {
+            using (var drawing = composite.CreateDrawingContext())
+            {
+                drawing.DrawImage(editorFrame, new Rect(editorFrame.Size));
+                var origin = quick.PointToClient(popup.PointToScreen(default));
+                drawing.DrawImage(popupFrame, new Rect(origin, popupFrame.Size));
+            }
+            composite.Save(Path.Combine(shots, $"impl5-info-{skin.ToLowerInvariant()}.png"));
+        }
+        flyout.Hide(); Pump();
+        Click(quick, "EditOptionsButton");
+        var output = quick.OwnedWindows.OfType<OptionsWindow>().Single();
+        until = DateTime.UtcNow.AddSeconds(3); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); }
+        output.CaptureRenderedFrame()!.Save(Path.Combine(shots, $"impl5-output-{skin.ToLowerInvariant()}.png"));
+        output.Close(); Pump();
         quick.Close(); Pump();
     }
-    Skin.Apply("Light");
-    var promptEditor = new EditorWindow(new MediaEngine(new()), video, new(), "quick-workflow",
-        uneditedVideoNames: () => ["海边日落.mp4", "城市夜景.mov"]);
-    promptEditor.SetWorkflowStep(1, 3);
-    promptEditor.Show(); Complete(promptEditor.Ready); promptEditor.Width = 1280; promptEditor.Height = 800; Pump();
-    Click(promptEditor, "ConfirmButton");
-    var prompt = promptEditor.OwnedWindows.Single(); Pump();
-    using (var editorFrame = promptEditor.CaptureRenderedFrame() ?? throw new Exception("Editor did not render."))
-    using (var promptFrame = prompt.CaptureRenderedFrame() ?? throw new Exception("Unedited-video prompt did not render."))
-    using (var composite = new RenderTargetBitmap(editorFrame.PixelSize, new Vector(96, 96)))
-    {
-        using (var drawing = composite.CreateDrawingContext())
-        {
-            drawing.DrawImage(editorFrame, new Rect(editorFrame.Size));
-            drawing.DrawImage(promptFrame, new Rect(new Point((editorFrame.Size.Width - promptFrame.Size.Width) / 2,
-                (editorFrame.Size.Height - promptFrame.Size.Height) / 2), promptFrame.Size));
-        }
-        composite.Save(Path.Combine(shots, "impl4-unedited-prompt.png"));
-    }
-    prompt.Close(); promptEditor.Close(); Pump();
     return;
 }
+
+// Verify the quick editor's new locations before the classic-editor metric checks.
+AppLanguage.Apply("zh-CN");
+Skin.Apply("Light");
+var quickLayout = new EditorWindow(new MediaEngine(new()), source, new() { Format = "mp4" }, "quick-workflow");
+quickLayout.Show(); Complete(quickLayout.Ready); Pump();
+var quickTabs = Find<TabControl>(quickLayout, "EditTabs");
+Check(Find<StackPanel>(quickLayout, "ModeButtons").Children.OfType<Button>().Where(b => b.IsVisible)
+    .Select(b => ((TabItem)b.Tag!).Header).SequenceEqual(new[] { "剪辑", "画面裁剪", "自动转正" }), "Quick mode switch contains exactly clip, crop and orientation");
+foreach (var tab in quickTabs.Items.OfType<TabItem>().Where(t => t.IsVisible))
+{
+    quickTabs.SelectedItem = tab; Pump();
+    var filmstrip = Find<AvaMedia.MediaUi.FilmstripTimeline>(quickLayout, "Filmstrip");
+    Check(filmstrip.IsEffectivelyVisible && filmstrip.Bounds.Height > 0, tab.Header + ": filmstrip stays visible");
+    Inside(quickLayout, filmstrip, tab.Header + ": filmstrip");
+}
+quickTabs.SelectedIndex = 1; Pump();
+Check(Find<TextBox>(quickLayout, "CropWidth").IsEffectivelyVisible && Find<CheckBox>(quickLayout, "DelogoMode").IsEffectivelyVisible,
+    "Crop coordinates and watermark selection are reachable in the crop sidebar");
+quickTabs.SelectedItem = Find<TabItem>(quickLayout, "DirectionTab"); Pump();
+Check(Find<CheckBox>(quickLayout, "MirrorCheck").IsEffectivelyVisible && Find<Button>(quickLayout, "DetectDirectionButton").IsEffectivelyVisible,
+    "Orientation exposes mirror and detection alongside the timeline");
+quickTabs.SelectedIndex = 0; Pump();
+var infoButton = Find<Button>(quickLayout, "QuickInfoButton");
+infoButton.RaiseEvent(new PointerEventArgs(InputElement.PointerEnteredEvent, infoButton, new Pointer(1, PointerType.Mouse, true), infoButton, default, 0, new PointerPointProperties(), KeyModifiers.None)); Pump();
+Check(infoButton.Flyout!.IsOpen, "Media information opens on hover");
+infoButton.Flyout.Hide(); Click(quickLayout, "QuickInfoButton");
+Check(infoButton.Flyout.IsOpen, "Media information opens on click");
+var infoContent = (Control)((Flyout)infoButton.Flyout).Content!;
+var infoValues = infoContent.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("mono")).ToArray();
+Check(infoValues.Length == 5 && infoValues[0].Text == Path.GetFileName(source) && infoValues[1].Text == EditorTime.Format(3) && infoValues[2].Text == "320 × 180"
+    && infoValues[3].Text == "mpeg4" && infoValues[4].Text == "aac", "Info popover shows actual file, duration, dimensions and both codecs");
+infoButton.Flyout.Hide(); Click(quickLayout, "EditOptionsButton");
+var quickOutput = quickLayout.OwnedWindows.OfType<OptionsWindow>().Single(); Pump();
+var outputText = quickOutput.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "QuickOutputAudioStatus");
+Check(outputText.Text == Find<TextBlock>(quickLayout, "AudioStatus").Text && outputText.IsEffectivelyVisible,
+    "Output dialog displays the editor audio state");
+Find<TextBlock>(quickLayout, "AudioStatus").Text = "此文件不含音轨"; Pump();
+Check(outputText.Text == "此文件不含音轨", "Output audio state remains bound to the original status");
+Check(quickOutput.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Name == "QuickOutputPreviewNote").Text == Find<TextBlock>(quickLayout, "PreviewNote").Text,
+    "Output notes moved into the full output dialog");
+var outputTabs = quickOutput.GetVisualDescendants().OfType<TabControl>().Single();
+Check(outputTabs.Items.OfType<TabItem>().Select(t => t.Header).SequenceEqual(new[] { "视频", "音频", "字幕" }),
+    "Output configuration retains every ClipEdit page");
+quickOutput.Close(); quickLayout.Close(); Pump();
 
 foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
 {

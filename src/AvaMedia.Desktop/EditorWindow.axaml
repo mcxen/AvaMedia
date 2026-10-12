@@ -226,7 +226,21 @@
           <local:LucideIcon Kind="film" Width="13" Height="13" Foreground="White"/>
         </Border>
         <TextBlock Grid.Column="1" Text="快速剪辑" FontWeight="Bold" FontSize="13.5" VerticalAlignment="Center"/>
-        <TextBlock Grid.Column="2" x:Name="QuickSubtitle" Classes="sec" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" Spacing="4" VerticalAlignment="Center">
+          <TextBlock x:Name="QuickSubtitle" Classes="sec" MaxWidth="260" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          <Button x:Name="QuickInfoButton" Classes="ib small" ToolTip.Tip="媒体信息" AutomationProperties.Name="媒体信息" PointerEntered="QuickInfoPointerEntered" Click="QuickInfoClick">
+            <local:LucideIcon Kind="info" Width="14" Height="14"/>
+            <Button.Flyout>
+              <Flyout Placement="BottomEdgeAlignedLeft">
+                <Flyout.FlyoutPresenterClasses><x:String>quick-info</x:String></Flyout.FlyoutPresenterClasses>
+                <StackPanel Width="360" Spacing="8">
+                  <TextBlock Text="媒体信息" FontWeight="SemiBold"/>
+                  <StackPanel x:Name="QuickMediaRows"/>
+                </StackPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
         <StackPanel Grid.Column="4" x:Name="QuickHistorySlot" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"/>
         <StackPanel Grid.Column="5" x:Name="QuickCaptionSlot" Orientation="Horizontal"/>
         <Panel Grid.ColumnSpan="6" x:Name="QuickModeSlot" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -240,7 +254,6 @@
             <Border x:Name="QuickSegmentBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12" Padding="9,3" CornerRadius="999" Background="#77000000" IsHitTestVisible="False">
               <TextBlock x:Name="QuickSegmentBadgeText" Foreground="White" FontSize="11.5" FontWeight="SemiBold" FontFeatures="tnum"/>
             </Border>
-            <TextBlock HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="14,12" FontSize="11" Foreground="#CCFFFFFF" IsHitTestVisible="False" Text="预览始终显示原媒体；速度与方向可预览，裁剪与淡入淡出在输出时生效"/>
           </Panel>
         </Border>
         <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" Margin="2,10,2,4">
@@ -258,7 +271,7 @@
             <ToggleButton x:Name="QuickLoopButton" Classes="ib" Margin="6,0,0,0" IsChecked="{Binding #LoopSegmentCheck.IsChecked, Mode=TwoWay}" ToolTip.Tip="循环播放片段" AutomationProperties.Name="循环播放片段"><local:LucideIcon Kind="repeat"/></ToggleButton>
           </StackPanel>
         </Grid>
-        <Panel Grid.Row="2" Margin="0,0,0,12">
+        <StackPanel Grid.Row="2" Margin="0,0,0,12" Spacing="12">
           <Border x:Name="QuickTimelineCard" Classes="qc-card" CornerRadius="14" Padding="14,8,14,10">
             <StackPanel Spacing="0">
               <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
@@ -297,30 +310,22 @@
               </Grid>
             </StackPanel>
           </Border>
-          <Border x:Name="QuickOptionsCard" Classes="qc-card" CornerRadius="14" Padding="14,12,14,14" MinHeight="214" IsVisible="False">
-            <Grid ColumnDefinitions="*,300" ColumnSpacing="14">
-              <StackPanel Spacing="8">
-                <TextBlock Text="媒体信息" FontWeight="SemiBold"/>
-                <Border Classes="qc-card" CornerRadius="12" ClipToBounds="True">
-                  <StackPanel x:Name="QuickMediaRows"/>
-                </Border>
-              </StackPanel>
-              <StackPanel Grid.Column="1" Spacing="10">
-                <TextBlock Text="输出设置" FontWeight="SemiBold"/>
-                <Panel x:Name="QuickPreviewNoteSlot"/>
-                <Grid ColumnDefinitions="7,*" ColumnSpacing="8">
-                  <Border x:Name="QuickAudioDot" Classes="audio-dot" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center"/>
-                  <Panel Grid.Column="1" x:Name="QuickAudioStatusSlot"/>
-                </Grid>
-                <Panel x:Name="QuickEditOptionsSlot"/>
-              </StackPanel>
-            </Grid>
+          <!-- Preserve named hooks from the retired quick options card without rendering a page. -->
+          <Border x:Name="QuickOptionsCard" IsVisible="False">
+            <StackPanel>
+              <Panel x:Name="QuickPreviewNoteSlot"/>
+              <Border x:Name="QuickAudioDot"/>
+              <Panel x:Name="QuickAudioStatusSlot"/>
+              <Panel x:Name="QuickEditOptionsSlot"/>
+            </StackPanel>
           </Border>
-        </Panel>
+        </StackPanel>
       </Grid>
       <Border Grid.Column="1" Classes="qc-chrome" BorderThickness="0.5,0,0,0">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="16,14,16,14">
+            <StackPanel x:Name="QuickCropInspector" Spacing="12" IsVisible="False"/>
+            <StackPanel x:Name="QuickClipInspector">
             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,7">
               <TextBlock Text="片段" Classes="head" VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
@@ -360,6 +365,7 @@
             </Border>
             <StackPanel x:Name="QuickPlaySlot" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"/>
             <Panel x:Name="QuickInvertSlot" Margin="0,10,0,0"/>
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </Border>
@@ -368,7 +374,7 @@
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock x:Name="QuickStatus" Classes="sec" FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
         <StackPanel Grid.Column="1" x:Name="QuickActionSlot" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <Button Classes="pill tall" Content="输出配置…" Click="OptionsClick" AutomationProperties.Name="输出配置"/>
+          <Panel x:Name="QuickOutputSlot"/>
           <Button x:Name="QuickNextVideoButton" Classes="pill tall" Content="下一个视频 →" Click="NextVideoClick" IsVisible="False" IsEnabled="{Binding #ConfirmButton.IsEnabled}"/>
         </StackPanel>
       </Grid>

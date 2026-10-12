@@ -181,6 +181,16 @@
   <Style Selector="Window.mac-os9 Grid#QuickRoot Button.frame"><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.mac-os9 Grid#QuickRoot Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="{DynamicResource QcAccent}"/></Style>
 
+  <Style Selector="FlyoutPresenter.quick-info">
+    <Setter Property="Background" Value="{DynamicResource QcCard}"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource QcPillLine}"/><Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="14"/><Setter Property="Padding" Value="14"/>
+  </Style>
+  <Style Selector="FlyoutPresenter.quick-info TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcText}"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style Selector="FlyoutPresenter.quick-info TextBlock.sec"><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>
+  <Style Selector="FlyoutPresenter.quick-info Border.qc-row"><Setter Property="BorderBrush" Value="{DynamicResource QcRowLine}"/><Setter Property="BorderThickness" Value="0,0,0,1"/></Style>
+  <Style Selector="FlyoutPresenter.quick-info Border.qc-row.last"><Setter Property="BorderThickness" Value="0"/></Style>
+
   <!-- Quick mode cards keep the original editing controls and share the surrounding quick layout. -->
   <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip">
     <Setter Property="FontSize" Value="12"/>

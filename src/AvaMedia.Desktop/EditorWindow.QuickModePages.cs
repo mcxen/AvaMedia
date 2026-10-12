@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -46,7 +48,7 @@ public partial class EditorWindow
         {
             var value = new TextBlock
             {
-                Classes = { "mono" }, FontSize = 12.5, TextAlignment = TextAlignment.Right,
+                Classes = { "mono" }, FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") }, FontSize = 12.5, TextAlignment = TextAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
             };
             Localization.SetIsUserText(value, true);
@@ -61,8 +63,40 @@ public partial class EditorWindow
         Restyle(PreviewNote, "sec"); PreviewNote.FontSize = 12; PreviewNote.LineHeight = 18.6;
         Move(AudioStatus, QuickAudioStatusSlot);
         Restyle(AudioStatus); AudioStatus.FontSize = 12; AudioStatus.TextWrapping = TextWrapping.Wrap;
-        Move(EditOptionsButton, QuickEditOptionsSlot);
-        Restyle(EditOptionsButton, "pill");
+        Move(EditOptionsButton, QuickOutputSlot);
+        Restyle(EditOptionsButton, "pill", "tall");
+        Localization.SetContent(EditOptionsButton, $"输出配置…");
+        Avalonia.Automation.AutomationProperties.SetName(EditOptionsButton, Localization.Text("输出配置"));
+    }
+
+    private void QuickInfoPointerEntered(object? sender, PointerEventArgs e) => QuickInfoButton.Flyout?.ShowAt(QuickInfoButton);
+    private void QuickInfoClick(object? sender, RoutedEventArgs e) => QuickInfoButton.Flyout?.ShowAt(QuickInfoButton);
+
+    private void BuildQuickCropInspector()
+    {
+        QuickCropInspector.Children.Add(new TextBlock { Text = Localization.Text("选区比例"), Classes = { "head" } });
+        Move(CropRatio, QuickCropInspector);
+        CropRatio.HorizontalAlignment = HorizontalAlignment.Stretch;
+        QuickCropInspector.Children.Add(new TextBlock { Text = Localization.Text("精确坐标"), Classes = { "head" } });
+        var rows = new StackPanel();
+        QuickCropInspector.Children.Add(new Border { Classes = { "qc-card" }, Child = rows });
+        foreach (var (label, input) in new[] { ("X", CropX), ("Y", CropY), ("宽度", CropWidth), ("高度", CropHeight) })
+        {
+            var row = new Grid { ColumnDefinitions = new("*,Auto") };
+            row.Children.Add(new TextBlock { Text = Localization.Text(label), VerticalAlignment = VerticalAlignment.Center });
+            Move(input, row); Grid.SetColumn(input, 1);
+            input.Width = 88; input.Height = 26; input.MinHeight = 0; input.FontSize = 12;
+            input.TextAlignment = TextAlignment.Right;
+            rows.Children.Add(new Border { Classes = { "qc-row" }, Child = row });
+        }
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var apply = new Button { Content = Localization.Text("应用坐标"), Classes = { "pill" } };
+        apply.Click += ApplyCropClick; actions.Children.Add(apply);
+        var reset = new Button { Content = Localization.Text("重置选区"), Classes = { "pill" } };
+        reset.Click += ResetCropClick; actions.Children.Add(reset);
+        QuickCropInspector.Children.Add(actions);
+        Move(DelogoMode, QuickCropInspector);
+        Move(CropError, QuickCropInspector);
     }
 
     private void RefreshQuickDirectionChips()
