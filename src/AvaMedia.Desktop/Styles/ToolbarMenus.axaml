@@ -1,0 +1,150 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="using:System">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="MbText" Color="#1D1D1F"/>
+          <SolidColorBrush x:Key="MbDisabled" Color="#B0B0B5"/>
+          <SolidColorBrush x:Key="MbHover" Color="#F0F0F3"/>
+          <SolidColorBrush x:Key="MbOpen" Color="#E6E6EB"/>
+          <SolidColorBrush x:Key="MbFace" Color="#F5F5F8"/>
+          <SolidColorBrush x:Key="MbHairline" Color="#1F000000"/>
+          <SolidColorBrush x:Key="MbToolbarLine" Color="#E5E5EA"/>
+          <BoxShadows x:Key="MbShadow">0 0 0 0.5 #24000000, 0 10 30 -6 #38000000, 0 2 6 #14000000</BoxShadows>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="MbText" Color="#F5F5F7"/>
+          <SolidColorBrush x:Key="MbDisabled" Color="#5A5A5F"/>
+          <SolidColorBrush x:Key="MbHover" Color="#1AFFFFFF"/>
+          <SolidColorBrush x:Key="MbOpen" Color="#26FFFFFF"/>
+          <SolidColorBrush x:Key="MbFace" Color="#2A2A2E"/>
+          <SolidColorBrush x:Key="MbHairline" Color="#29FFFFFF"/>
+          <SolidColorBrush x:Key="MbToolbarLine" Color="#1AFFFFFF"/>
+          <BoxShadows x:Key="MbShadow">0 0 0 0.5 #29FFFFFF, 0 12 32 -6 #99000000</BoxShadows>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <x:Double x:Key="MbToolbarHeight">52</x:Double>
+      <x:Double x:Key="MbTopHeight">26</x:Double>
+      <x:Double x:Key="MbItemHeight">24</x:Double>
+      <x:Double x:Key="MbFontSize">13</x:Double>
+      <x:Double x:Key="MbPopupWidth">220</x:Double>
+      <x:Double x:Key="MbCheckSize">11</x:Double>
+      <x:Double x:Key="MbGlyphCanvasSize">24</x:Double>
+      <x:Double x:Key="MbCheckStroke">2.2</x:Double>
+      <x:Double x:Key="MbSelectedCheckOpacity">0.85</x:Double>
+      <x:Double x:Key="MbArrowWidth">8</x:Double>
+      <x:Double x:Key="MbArrowHeight">10</x:Double>
+      <x:Double x:Key="MbGlyphStroke">1.6</x:Double>
+      <x:Double x:Key="MbSeparatorHeight">0.5</x:Double>
+      <!-- Toolbar remainder 13 + below-bar gap 4 - shadow inset 12. -->
+      <x:Double x:Key="MbTopOffset">5</x:Double>
+      <x:Double x:Key="MbShadowOffset">-12</x:Double>
+      <Thickness x:Key="MbTopPadding">10,0</Thickness>
+      <Thickness x:Key="MbTopMargin">0,0,6,0</Thickness>
+      <Thickness x:Key="MbQueueSummaryMargin">12,0,0,0</Thickness>
+      <Thickness x:Key="MbItemPadding">6,0,10,0</Thickness>
+      <Thickness x:Key="MbPopupPadding">5</Thickness>
+      <Thickness x:Key="MbShadowInset">12</Thickness>
+      <Thickness x:Key="MbSeparatorMargin">10,5</Thickness>
+      <CornerRadius x:Key="MbTopRadius">7</CornerRadius>
+      <CornerRadius x:Key="MbItemRadius">5</CornerRadius>
+      <CornerRadius x:Key="MbPopupRadius">10</CornerRadius>
+      <GridLength x:Key="MbCheckColumn">14</GridLength>
+      <GridLength x:Key="MbColumnGap">6</GridLength>
+      <GridLength x:Key="MbArrowColumn">8</GridLength>
+      <ControlTheme x:Key="MbSeparatorTheme" TargetType="Separator">
+        <Setter Property="UseLayoutRounding" Value="False"/>
+        <Setter Property="Template"><ControlTemplate><Border Height="{DynamicResource MbSeparatorHeight}" Margin="{DynamicResource MbSeparatorMargin}" Background="{DynamicResource MbHairline}"/></ControlTemplate></Setter>
+      </ControlTheme>
+      <ControlTheme x:Key="MbItemTheme" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+        <Setter Property="FontSize" Value="{DynamicResource MbFontSize}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MbText}"/>
+        <Setter Property="Height" Value="{DynamicResource MbItemHeight}"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="{DynamicResource MbItemPadding}"/>
+        <Setter Property="ItemContainerTheme" Value="{DynamicResource MbItemTheme}"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Name="face" Background="{TemplateBinding Background}" CornerRadius="{DynamicResource MbItemRadius}" Padding="{TemplateBinding Padding}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="{DynamicResource MbCheckColumn}"/>
+                  <ColumnDefinition Width="{DynamicResource MbColumnGap}"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="{DynamicResource MbColumnGap}"/>
+                  <ColumnDefinition Width="{DynamicResource MbArrowColumn}"/>
+                </Grid.ColumnDefinitions>
+                <Viewbox Name="check" IsVisible="{TemplateBinding IsChecked}" Width="{DynamicResource MbCheckSize}" Height="{DynamicResource MbCheckSize}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                  <Canvas Width="{DynamicResource MbGlyphCanvasSize}" Height="{DynamicResource MbGlyphCanvasSize}">
+                    <Path Data="M 5,12 L 10,17 L 19,7" Stroke="{TemplateBinding Foreground}" StrokeThickness="{DynamicResource MbCheckStroke}"/>
+                  </Canvas>
+                </Viewbox>
+                <ContentPresenter Name="PART_IconPresenter" Content="{TemplateBinding Icon}" VerticalAlignment="Center"/>
+                <ContentPresenter Name="PART_HeaderPresenter" Grid.Column="2" VerticalAlignment="Center" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}">
+                  <ContentPresenter.DataTemplates><DataTemplate DataType="sys:String"><AccessText Text="{Binding}"/></DataTemplate></ContentPresenter.DataTemplates>
+                </ContentPresenter>
+                <Path Name="arrow" Grid.Column="4" Width="{DynamicResource MbArrowWidth}" Height="{DynamicResource MbArrowHeight}" Data="M 2,1 L 6,5 L 2,9" Stroke="{TemplateBinding Foreground}" StrokeThickness="{DynamicResource MbGlyphStroke}" VerticalAlignment="Center"/>
+                <Popup Name="PART_Popup" IsLightDismissEnabled="False" IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}" Placement="RightEdgeAlignedTop" HorizontalOffset="{DynamicResource MbShadowOffset}" VerticalOffset="{DynamicResource MbShadowOffset}">
+                  <Border Padding="{DynamicResource MbShadowInset}">
+                    <Border MinWidth="{DynamicResource MbPopupWidth}" Background="{DynamicResource MbFace}" Padding="{DynamicResource MbPopupPadding}" CornerRadius="{DynamicResource MbPopupRadius}" BoxShadow="{DynamicResource MbShadow}">
+                      <ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}"><ItemsPresenter Name="PART_ItemsPresenter" Grid.IsSharedSizeScope="True" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+                    </Border>
+                  </Border>
+                </Popup>
+              </Grid>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+        <Style Selector="^:selected"><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/></Style>
+        <Style Selector="^:selected /template/ Border#face"><Setter Property="Background" Value="{DynamicResource UiAccent}"/></Style>
+        <Style Selector="^:selected /template/ Viewbox#check"><Setter Property="Opacity" Value="{DynamicResource MbSelectedCheckOpacity}"/></Style>
+        <Style Selector="^:empty /template/ Path#arrow"><Setter Property="IsVisible" Value="False"/></Style>
+        <Style Selector="^:disabled"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource MbDisabled}"/></Style>
+        <Style Selector="^:disabled /template/ Border#face"><Setter Property="Background" Value="Transparent"/></Style>
+        <Style Selector="^:separator"><Setter Property="Height" Value="NaN"/><Setter Property="Template"><ControlTemplate><Separator Theme="{StaticResource MbSeparatorTheme}"/></ControlTemplate></Setter></Style>
+      </ControlTheme>
+      <ControlTheme x:Key="MbTopLevelTheme" TargetType="MenuItem" BasedOn="{StaticResource SimpleTopLevelMenuItem}">
+        <Setter Property="Height" Value="{DynamicResource MbTopHeight}"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+        <Setter Property="FontSize" Value="{DynamicResource MbFontSize}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="{DynamicResource MbText}"/>
+        <Setter Property="Padding" Value="{DynamicResource MbTopPadding}"/>
+        <Setter Property="Margin" Value="{DynamicResource MbTopMargin}"/>
+        <Setter Property="ItemContainerTheme" Value="{DynamicResource MbItemTheme}"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Name="face" Background="{TemplateBinding Background}" CornerRadius="{DynamicResource MbTopRadius}">
+              <Panel>
+                <ContentPresenter Name="PART_HeaderPresenter" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}">
+                  <ContentPresenter.DataTemplates><DataTemplate DataType="sys:String"><AccessText Text="{Binding}"/></DataTemplate></ContentPresenter.DataTemplates>
+                </ContentPresenter>
+                <Popup Name="PART_Popup" IsLightDismissEnabled="True" IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}" Placement="BottomEdgeAlignedLeft" HorizontalOffset="{DynamicResource MbShadowOffset}" VerticalOffset="{DynamicResource MbTopOffset}" OverlayInputPassThroughElement="{Binding $parent[Menu]}">
+                  <Border Padding="{DynamicResource MbShadowInset}">
+                    <Border MinWidth="{DynamicResource MbPopupWidth}" Background="{DynamicResource MbFace}" Padding="{DynamicResource MbPopupPadding}" CornerRadius="{DynamicResource MbPopupRadius}" BoxShadow="{DynamicResource MbShadow}">
+                      <ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}"><ItemsPresenter Name="PART_ItemsPresenter" Grid.IsSharedSizeScope="True" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+                    </Border>
+                  </Border>
+                </Popup>
+              </Panel>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+        <Style Selector="^:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource MbHover}"/></Style>
+        <Style Selector="^:open"><Setter Property="FontWeight" Value="Medium"/></Style>
+        <Style Selector="^:open /template/ Border#face"><Setter Property="Background" Value="{DynamicResource MbOpen}"/></Style>
+        <Style Selector="^:disabled"><Setter Property="Opacity" Value="1"/><Setter Property="Foreground" Value="{DynamicResource MbDisabled}"/></Style>
+        <Style Selector="^:disabled /template/ Border#face"><Setter Property="Background" Value="Transparent"/></Style>
+      </ControlTheme>
+      <ControlTheme x:Key="MbMenuTheme" TargetType="Menu" BasedOn="{StaticResource {x:Type Menu}}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="ItemContainerTheme" Value="{StaticResource MbTopLevelTheme}"/>
+      </ControlTheme>
+    </ResourceDictionary>
+  </Styles.Resources>
+</Styles>

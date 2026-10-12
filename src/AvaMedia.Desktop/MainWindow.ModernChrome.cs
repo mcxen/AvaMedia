@@ -16,7 +16,6 @@ public partial class MainWindow
     private Control[]? _toolbarOrder;
     private Control? _statusBar;
     private Panel? _statusHome;
-    private MenuFlyout? _appMenuFlyout;
     private bool? _modernChrome;
 
     internal bool ModernChrome => _modernChrome == true;
@@ -26,7 +25,7 @@ public partial class MainWindow
         _toolbarOrder = ToolbarItems.Children.ToArray();
         _statusBar = StatusBarPanel;
         _statusHome = _statusBar?.Parent as Panel;
-        AppMenuButton.Click += (_, _) => _appMenuFlyout?.ShowAt(AppMenuButton);
+        InitializeToolbarMenu();
         Classes.CollectionChanged += (_, _) => ApplyChrome();
         ApplyChrome();
     }
@@ -42,16 +41,15 @@ public partial class MainWindow
             foreach (var button in new Control[] { RouteButton, OutputFolderButton, OptionsButton, WifiButton }) Cap(ModernToolCapsule, button);
             foreach (var button in new Control[] { EditTaskButton, RemoveButton, ClearButton }) Cap(ModernEditCapsule, button);
             Cap(ModernRunCapsule, StopButton); Cap(ModernRunCapsule, StartButton);
-            MoveMenu(toFlyout: true);
             if (_statusBar is not null) { _statusHome?.Children.Remove(_statusBar); ModernStatusHost.Child = _statusBar; }
         }
         else
         {
             foreach (var control in _toolbarOrder) { control.Classes.Remove("cap"); ToolbarItems.Children.Add(control); }
-            MoveMenu(toFlyout: false);
             if (_statusBar is not null && _statusHome is not null) { ModernStatusHost.Child = null; _statusHome.Children.Add(_statusBar); }
         }
-        ApplicationMenu.IsVisible = AppToolbar.IsVisible = !modern;
+        AppToolbar.IsVisible = !modern;
+        ApplyToolbarMenu(modern);
         ModernTitleBar.IsVisible = ModernQueueBar.IsVisible = modern;
         Grid.SetRowSpan(WorkspaceLayout, modern ? 2 : 1);
         // The modern status bar gives the queue summary its natural width instead of trimming it.
@@ -73,23 +71,6 @@ public partial class MainWindow
     private static void Cap(Panel capsule, Control control)
     {
         control.Classes.Add("cap"); capsule.Children.Add(control);
-    }
-
-    private void MoveMenu(bool toFlyout)
-    {
-        if (toFlyout)
-        {
-            var items = ApplicationMenu.Items.OfType<MenuItem>().ToArray();
-            ApplicationMenu.Items.Clear();
-            _appMenuFlyout = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedLeft };
-            foreach (var item in items) _appMenuFlyout.Items.Add(item);
-        }
-        else if (_appMenuFlyout is not null)
-        {
-            var items = _appMenuFlyout.Items.OfType<MenuItem>().ToArray();
-            _appMenuFlyout.Items.Clear(); _appMenuFlyout = null;
-            foreach (var item in items) ApplicationMenu.Items.Add(item);
-        }
     }
 
     private void RefreshTaskSummary()

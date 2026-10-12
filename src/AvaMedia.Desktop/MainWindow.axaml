@@ -1,5 +1,6 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:notifications="using:AvaMedia.Desktop.Notifications" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Classes="main-window" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
   <Window.Styles>
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ToolbarMenus.axaml"/>
     <Style Selector="Border.tool-drop-indicator"><Setter Property="IsVisible" Value="False"/></Style>
     <Style Selector="Button.feature-menu.drop-target Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
     <Style Selector="Button.feature-menu.drop-invalid Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
@@ -17,7 +18,7 @@
         <MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/><MenuItem Header="Windows XP · Luna" Click="WindowsXPClick"/></MenuItem>
         <MenuItem Header="语言"><MenuItem x:Name="SystemLanguageItem" Header="跟随系统" Click="SystemLanguageClick"/><Separator/><MenuItem x:Name="ChineseLanguageItem" Header="简体中文" Click="ChineseClick"/><MenuItem x:Name="EnglishLanguageItem" Header="English" Click="EnglishClick"/></MenuItem>
       </MenuItem>
-      <MenuItem Header="转换"><MenuItem Header="开始" Click="StartClick"/><MenuItem Header="停止" Click="StopClick"/></MenuItem>
+      <MenuItem Header="转换"><MenuItem Header="开始" IsEnabled="{Binding #StartButton.IsEnabled}" Click="StartClick"/><MenuItem Header="停止" IsEnabled="{Binding #StopButton.IsEnabled}" Click="StopClick"/></MenuItem>
       <MenuItem Header="窗口"><MenuItem Header="缩放窗口" Click="ZoomWindowClick"/><MenuItem Header="收起 / 展开标题栏" IsEnabled="{DynamicResource UiWindowShadeEnabled}" Click="ShadeWindowClick"/><Separator/><MenuItem Header="最小化窗口" Click="MinimizeWindowClick"/></MenuItem>
       <MenuItem Header="帮助"><MenuItem Header="功能介绍" HotKey="F1" ToolTip.Tip="功能介绍 (F1)" Click="HelpClick"/><MenuItem Header="关于 / 开源许可证" Click="AboutClick"/></MenuItem>
     </Menu>
@@ -55,17 +56,13 @@
       <Border x:Name="TaskWorkspace" Classes="task-workspace" Grid.Column="2">
       <Grid x:Name="TaskShell" RowDefinitions="Auto,Auto,*,Auto">
         <Grid x:Name="ModernTitleBar" Classes="modern-title" IsVisible="False" ColumnDefinitions="Auto,Auto,*,Auto">
-          <Border Classes="capsule" VerticalAlignment="Center">
-            <Button x:Name="AppMenuButton" Classes="cap" ToolTip.Tip="菜单" AutomationProperties.Name="菜单"><local:LucideIcon Kind="panel-left" Width="16" Height="16"/></Button>
-          </Border>
-          <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-            <TextBlock Classes="modern-title-text" Text="任务"/>
-            <TextBlock x:Name="TaskSummaryText" Classes="modern-subtitle"/>
-          </StackPanel>
+          <Border Grid.ColumnSpan="10" UseLayoutRounding="False" Height="{DynamicResource MbSeparatorHeight}" Background="{DynamicResource MbToolbarLine}" VerticalAlignment="Bottom" IsVisible="{Binding #ApplicationMenu.IsVisible}"/>
+          <TextBlock Grid.Column="2" Classes="modern-title-text" Text="任务" FontSize="{DynamicResource MbFontSize}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <Border Grid.Column="3" Classes="capsule" VerticalAlignment="Center"><StackPanel x:Name="ModernToolCapsule" Orientation="Horizontal" Spacing="2"/></Border>
         </Grid>
         <Grid x:Name="ModernQueueBar" Grid.Row="1" Classes="modern-queuebar" IsVisible="False" ColumnDefinitions="Auto,*,Auto,Auto">
           <TextBlock Classes="modern-section" Text="任务列表" VerticalAlignment="Center"/>
+          <TextBlock x:Name="TaskSummaryText" Grid.Column="1" Classes="modern-subtitle" Margin="{DynamicResource MbQueueSummaryMargin}" VerticalAlignment="Center"/>
           <Border Grid.Column="2" Classes="capsule" VerticalAlignment="Center"><StackPanel x:Name="ModernEditCapsule" Orientation="Horizontal" Spacing="2"/></Border>
           <Border Grid.Column="3" Classes="capsule" Margin="10,0,0,0" VerticalAlignment="Center"><StackPanel x:Name="ModernRunCapsule" Orientation="Horizontal" Spacing="2"/></Border>
         </Grid>

@@ -56,15 +56,11 @@ public sealed partial class App
         else if (args.Key == Key.Q) { args.Handled = true; RequestNativeExit(); }
     }
 
-    private NativeMenu CreateNativeWindowMenu(Window window)
+    private NativeMenu CreateNativeWindowMenu(Window window) => ExportNativeCommands(
+        window is MainWindow main ? main.WindowMenuCommands : CreateWindowMenuCommands(window));
+
+    internal IReadOnlyList<WindowMenuCommand> CreateWindowMenuCommands(Window window)
     {
-        var menu = new NativeMenu();
-        NativeMenu Section(string title)
-        {
-            var section = new NativeMenu();
-            menu.Add(new NativeMenuItem(title) { Menu = section });
-            return section;
-        }
         bool CanCreateTask() => window is MainWindow { CanUseNativeMenu: true, IsEnabled: true };
         bool CanOpen() => CanCreateTask() || window is PlayerWindow { CanOpenFiles: true, IsEnabled: true };
         async Task OpenFiles(bool recent)
@@ -76,28 +72,58 @@ public sealed partial class App
                 if (files.Length > 0) player.OpenFiles(files);
             }
         }
-        var file = Section("文件");
-        AddNativeItem(file, "新建任务", () => _ = RunNativeCommandAsync(() => ((MainWindow)window).NewFromNativeMenuAsync()), CanCreateTask);
-        AddNativeItem(file, "打开…", () => _ = RunNativeCommandAsync(() => OpenFiles(false)), CanOpen);
-        AddNativeItem(file, "最近使用…", () => _ = RunNativeCommandAsync(() => OpenFiles(true)), CanOpen);
+        return
+        [
+            new("文件", Children:
+            [
+                new("新建任务", () => _ = RunNativeCommandAsync(() => ((MainWindow)window).NewFromNativeMenuAsync()), CanCreateTask),
+                new("打开…", () => _ = RunNativeCommandAsync(() => OpenFiles(false)), CanOpen),
+                new("最近使用…", () => _ = RunNativeCommandAsync(() => OpenFiles(true)), CanOpen)
+            ]),
+            new("编辑", Children: new[] { "撤销", "重做", "剪切", "复制", "粘贴", "全选" }
+                .Select(action => new WindowMenuCommand(action, () => ExecuteNativeEdit(window, action), () => CanNativeEdit(window, action))).ToArray()),
+            new("窗口", Children:
+            [
+                new("最小化", () => window.WindowState = WindowState.Minimized, () => window.CanMinimize),
+                new("缩放", () =>
+                {
+                    if (Skin.UsesCustomChrome(window.ActualThemeVariant)) Skin.Zoom(window);
+                    else Controls.WindowChrome.ToggleMaximize(window);
+                }, () => window.CanResize && window.CanMaximize)
+            ]),
+            new("帮助", Children:
+            [
+                new("功能介绍", () =>
+                {
+                    if (window is MainWindow main) main.ShowNativeHelp();
+                    else new HelpWindow().Show(window);
+                }, () => window.IsEnabled)
+            ])
+        ];
+    }
 
-        var edit = Section("编辑");
-        foreach (var action in new[] { "撤销", "重做", "剪切", "复制", "粘贴", "全选" })
-            AddNativeItem(edit, action, () => ExecuteNativeEdit(window, action), () => CanNativeEdit(window, action));
-
-        var windows = Section("窗口");
-        AddNativeItem(windows, "最小化", () => window.WindowState = WindowState.Minimized, () => window.CanMinimize);
-        AddNativeItem(windows, "缩放", () =>
+    private static NativeMenu ExportNativeCommands(IReadOnlyList<WindowMenuCommand> commands)
+    {
+        var menu = new NativeMenu();
+        foreach (var command in commands)
         {
-            if (Skin.UsesCustomChrome(window.ActualThemeVariant)) Skin.Zoom(window);
-            else Controls.WindowChrome.ToggleMaximize(window);
-        }, () => window.CanResize && window.CanMaximize);
-        var help = Section("帮助");
-        AddNativeItem(help, "功能介绍", () =>
-        {
-            if (window is MainWindow main) main.ShowNativeHelp();
-            else new HelpWindow().Show(window);
-        }, () => window.IsEnabled);
+            if (command.Header.Length == 0) { menu.Add(new NativeMenuItemSeparator()); continue; }
+            var item = new NativeMenuItem(Localization.Text(command.Header))
+            {
+                Menu = command.Children is { } children ? ExportNativeCommands(children) : null,
+                ToggleType = command.Checked is null ? NativeMenuItemToggleType.None : NativeMenuItemToggleType.CheckBox
+            };
+            void Refresh()
+            {
+                item.Header = command.ExistingItem?.Header?.ToString() ?? Localization.Text(command.Header);
+                item.IsEnabled = command.Enabled?.Invoke() ?? true;
+                item.IsChecked = command.Checked?.Invoke() ?? false;
+            }
+            Refresh();
+            menu.NeedsUpdate += (_, _) => Refresh();
+            item.Click += (_, _) => { if (command.Enabled?.Invoke() != false) command.Execute?.Invoke(); };
+            menu.Add(item);
+        }
         return menu;
     }
 
@@ -122,7 +148,10 @@ public sealed partial class App
 
     private static Control? NativeEditTarget(Window window)
     {
-        if (window.FocusManager?.GetFocusedElement() is not Control focused) return null;
+        var focused = window.FocusManager?.GetFocusedElement() as Control;
+        if (window is MainWindow main && (focused is MenuItem or Menu || focused?.GetVisualAncestors().Any(ancestor => ancestor is MenuItem or Menu) == true))
+            focused = main.MenuEditTarget;
+        if (focused is null) return null;
         return focused.GetVisualAncestors().OfType<Control>().Prepend(focused)
             .FirstOrDefault(control => control is TextBox or SelectableTextBlock);
     }
