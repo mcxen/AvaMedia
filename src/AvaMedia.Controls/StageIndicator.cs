@@ -124,7 +124,7 @@ public sealed class SubStepRow : Grid
     }
     public void Update(string title, string detail, string state, string meta = "")
     {
-        _title.Text = title; _detail.Text = detail; _meta.Text = meta; BindResource(_detail, TextBlock.ForegroundProperty, state == "failed" ? "UiDanger" : "UiTextSecondary"); _detail.IsVisible = detail.Length > 0; _icon.State = state;
+        _title.Text = title; _detail.Text = detail; _meta.Text = meta; BindResource(_meta, TextBlock.ForegroundProperty, state == "failed" ? "UiDanger" : "UiTextSecondary"); BindResource(_detail, TextBlock.ForegroundProperty, state == "failed" ? "UiDanger" : "UiTextSecondary"); _detail.IsVisible = detail.Length > 0; _icon.State = state;
         ToolTip.SetTip(this, title + (detail.Length > 0 ? " · " + detail : ""));
     }
 }

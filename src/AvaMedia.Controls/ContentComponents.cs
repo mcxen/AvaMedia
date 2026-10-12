@@ -15,7 +15,7 @@ public sealed class CountBadge : Border
     public CountBadge()
     {
         Classes.Add("ac-badge"); Child = _label;
-        BindResource(_label, TextBlock.FontSizeProperty, "AcSubStepFont"); BindResource(_label, TextBlock.ForegroundProperty, "UiAccentText");
+        BindResource(_label, TextBlock.FontSizeProperty, "AcSubStepFont");
         _label.FontFeatures = new() { FontFeature.Parse("tnum") };
     }
 }
