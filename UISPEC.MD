@@ -926,6 +926,12 @@ if (change.NewValue is string text && !block.Classes.Contains("raw") && _english
 | 部分代码仍硬编码颜色（如 `ClassificationSubmitStyles.axaml`、`Classification/ClassifyUi.cs`、`RemoteTheme.axaml` 中的样式） | **已修复（所列文件）**：提交样式与 `ClassifyUi` 及其调用界面使用动态主题资源，网页样式 / 模板也使用资源；新资源提供四种皮肤对应值，真实媒体采样色保留。 |
 | 直接显示快捷键的键帽、播放器 / 看图帮助及菜单右侧提示 | **已修复**：删除键帽和提示行，帮助改为 tooltip，菜单提示仅在 tooltip；现有键盘命令与 HotKey 保留。全仓未发现虚线拖放框；图表虚线、流程连线与 XP 焦点框保留。 |
 
+## 播放器单帧导出
+
+- “截取当前帧”保留在播放器控制栏与右键菜单中，Ctrl+E / Cmd+E 写在 tooltip；不建立独立窗口、页面或队列任务。按钮沿用现有 `player-transport` 角色，保留无障碍名称与按真实画面状态启用的行为。
+- 保存当前显示画面为 PNG，VR 保存当前视角，输出到视频源目录；名称含播放时间，重名时添加序号，成功与失败使用现有播放器通知。
+- 实现：`PlayerWindow.FrameCapture.cs`、`PlayerWindow.axaml`、`PlayerShortcuts.cs`。原生播放沿用 `Player/avamedia-shortcuts.lua` 与 `NativePlayerRunner` 的截图参数；编辑预览、AI 分析与多宫格的共享抽帧继续保留。
+
 ## 多宫格截图窗口（A 版）
 
 - 三栏：视频卡片宽 236、中间预览自适应、设置栏宽 312；栏间距 12。设置为“宫格 / 取帧 / 画面 / 输出”四组白色卡片，属性行高 34，紧凑数值控件保留直接输入与步进。
@@ -962,3 +968,10 @@ if (change.NewValue is string text && !block.Classes.Contains("raw") && _english
 ## 界面审计与截图验收
 
 - 只在深色模式下截图审计；其他皮肤（浅色、Mac OS 9、Windows XP）一般没有问题，除非用户点名，否则不截图检查。
+
+## 视频预览框比例
+
+- 所有视频预览框（工具窗口预览、任务详情预览、剪辑/裁剪/转正预览等）固定为 16:9，宽度随布局变化，高度按宽度换算，不随窗口高度拉伸。
+- 视频按原比例等比缩放放进 16:9 框内（不裁切、不拉伸）；竖屏或非 16:9 视频居中，两侧或上下留底色，底色走主题资源。
+- 外框投影与氛围光仍按 10.x，跟随框而不是视频内容区域。
+- 例外：裁剪工具需要显示完整画面并在其上编辑时，框仍为 16:9，裁剪框在画面区域内。
