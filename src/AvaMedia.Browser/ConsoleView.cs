@@ -45,7 +45,7 @@ public sealed partial class ConsoleView : UserControl
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly Button _fab;
     private Grid _header = null!;
-    private Control _desktopHeaderTitle = null!, _reconnect = null!;
+    private Control _desktopHeaderTitle = null!, _reconnect = null!, _desktopNavigation = null!;
 
     public ConsoleView()
     {
@@ -122,7 +122,7 @@ public sealed partial class ConsoleView : UserControl
         var left = Ui.Row(12, _desktopHeaderTitle, _connection); _header.Children.Add(left);
         var nav = new Border { Background = Brushes.White, CornerRadius = new(999), Padding = new(3), Child = _navigation,
             BoxShadow = BoxShadows.Parse("0 1 2 0 #12000000, 0 0 0 1 #0F000000") };
-        Grid.SetColumn(nav, 1); _header.Children.Add(nav);
+        _desktopNavigation = nav; Grid.SetColumn(nav, 1); _header.Children.Add(nav);
         var reconnect = Action("重新连接", Connect, "rotate-ccw"); reconnect.Classes.Add("outline");
         reconnect.HorizontalAlignment = HorizontalAlignment.Right; _reconnect = reconnect;
         Grid.SetColumn(reconnect, 2); _header.Children.Add(reconnect);
@@ -186,7 +186,7 @@ public sealed partial class ConsoleView : UserControl
         var changed = mobile != _mobile; _mobile = mobile;
         var subtitleDetail = mobile && _tabs.SelectedIndex == 1 && _subtitlePage is not null;
         _tabBar.IsVisible = mobile && !subtitleDetail; _fab.IsVisible = mobile && _tabs.SelectedIndex == 1 && !_taskDetailOpen;
-        ((Control)_navigation.Parent!).IsVisible = !mobile; _desktopHeaderTitle.IsVisible = !mobile;
+        _desktopNavigation.IsVisible = !mobile; _desktopHeaderTitle.IsVisible = !mobile;
         _header.Margin = mobile ? new(16, 12, 16, 4) : new(18, 10, 18, 10);
         _header.IsVisible = !(mobile && _tabs.SelectedIndex == 0) && !subtitleDetail;
         if (changed) { SetConnection(_runtime is null ? null : Address()); LayoutCreate(); LayoutTasks(); LayoutEditor(); }
@@ -385,6 +385,7 @@ public sealed partial class ConsoleView : UserControl
 internal sealed class WrapStack : StackPanel
 {
     public WrapStack() { Orientation = Orientation.Horizontal; Spacing = 8; }
+    public double RowSpacing { get; set; } = 8;
     protected override Size MeasureOverride(Size availableSize)
     {
         double x = 0, y = 0, line = 0, width = 0;
@@ -393,7 +394,7 @@ internal sealed class WrapStack : StackPanel
             if (!child.IsVisible) continue;
             child.Measure(new Size(double.PositiveInfinity, availableSize.Height));
             var size = child.DesiredSize;
-            if (x > 0 && x + size.Width > availableSize.Width) { y += line + 8; x = 0; line = 0; }
+            if (x > 0 && x + size.Width > availableSize.Width) { y += line + RowSpacing; x = 0; line = 0; }
             x += size.Width + Spacing; line = Math.Max(line, size.Height); width = Math.Max(width, x - Spacing);
         }
         return new Size(double.IsInfinity(availableSize.Width) ? width : Math.Min(width, availableSize.Width), y + line);
@@ -405,7 +406,7 @@ internal sealed class WrapStack : StackPanel
         {
             if (!child.IsVisible) continue;
             var size = child.DesiredSize;
-            if (x > 0 && x + size.Width > finalSize.Width) { y += line + 8; x = 0; line = 0; }
+            if (x > 0 && x + size.Width > finalSize.Width) { y += line + RowSpacing; x = 0; line = 0; }
             child.Arrange(new Rect(x, y, size.Width, size.Height));
             x += size.Width + Spacing; line = Math.Max(line, size.Height);
         }

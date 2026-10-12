@@ -12,7 +12,7 @@ internal sealed class SpeechTimeline : Control
     private AudioEnvelope? _envelope;
     private double _sourceStart, _speed = 1;
     public bool SegmentsOnly { get; init; }
-    public SpeechTimeline() { ClipToBounds = true; Height = 104; }
+    public SpeechTimeline() { ClipToBounds = true; Height = 76; }
     public void Update(SpeechProgressSnapshot? speech, AudioEnvelope? envelope, double sourceStart, double speed)
     { _speech = speech; _envelope = envelope; _sourceStart = sourceStart; _speed = speed > 0 ? speed : 1; InvalidateVisual(); }
     private IBrush Brush(string key, string fallback) => this.TryFindResource(key, out var value) && value is IBrush brush ? brush : Avalonia.Media.Brush.Parse(fallback);
@@ -33,8 +33,8 @@ internal sealed class SpeechTimeline : Control
             for (var i = 0; i < count; i += stride)
             {
                 var segment = speech.Segments[i]; var last = speech.Segments[Math.Min(count - 1, i + stride - 1)];
-                var x = (segment.StartSeconds - origin) / speech.DurationSeconds * width;
-                var end = (last.EndSeconds - origin) / speech.DurationSeconds * width;
+                var x = i / (double)count * width;
+                var end = Math.Min(count, i + stride) / (double)count * width;
                 var w = Math.Max(1, end - x - Math.Min(4, (end - x) / 5));
                 context.DrawRectangle(grey, null, new Rect(x, 0, w, 8), 3, 3);
                 var filled = Math.Clamp((recognized - (segment.StartSeconds - origin)) / Math.Max(.001, last.EndSeconds - segment.StartSeconds), 0, 1);
@@ -42,7 +42,7 @@ internal sealed class SpeechTimeline : Control
                 if (i % labelEvery == 0)
                 {
                     var label = new FormattedText(TimeLabel(segment.StartSeconds), System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, 10, secondary);
-                    context.DrawText(label, new Point(Math.Clamp(x, 0, Math.Max(0, width - label.Width)), 13));
+                    context.DrawText(label, new Point(Math.Clamp(x + (w - label.Width) / 2, 0, Math.Max(0, width - label.Width)), 13));
                 }
             }
             return;
@@ -60,10 +60,13 @@ internal sealed class SpeechTimeline : Control
             var h = Math.Max(2, peak * height); var x = i * width / bars;
             context.DrawRectangle(i / (double)bars * speech.DurationSeconds <= recognized ? blue : grey, null, new Rect(x, (height - h) / 2, 3, h), 1.5, 1.5);
         }
-        foreach (var interval in speech.VoiceIntervals)
+        // One voice-detection band per chunk, matching the chunk track above.
+        // Only chunks with detected speech receive a band; empty and pending
+        // chunks stay blank rather than implying that speech has been found.
+        foreach (var segment in speech.Segments.Where(segment => segment.VoiceIntervalCount > 0))
         {
-            var x = Math.Clamp((interval.StartSeconds - origin) / speech.DurationSeconds * width, 0, width);
-            var end = Math.Clamp((interval.EndSeconds - origin) / speech.DurationSeconds * width, 0, width);
+            var x = Math.Clamp((segment.StartSeconds - origin) / speech.DurationSeconds * width, 0, width);
+            var end = Math.Clamp((segment.EndSeconds - origin) / speech.DurationSeconds * width - 4, 0, width);
             if (end <= x) continue;
             using (context.PushOpacity(.3)) context.DrawRectangle(blue, null, new Rect(x, Bounds.Height - 7, end - x, 4), 2, 2);
             var played = Math.Min(end, recognized / speech.DurationSeconds * width);

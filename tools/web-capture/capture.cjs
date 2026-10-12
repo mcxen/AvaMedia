@@ -13,8 +13,8 @@ const output = process.env.CAPTURE_OUTPUT || '/workspace/AvaMedia-sidebar-review
 const origin = process.env.CAPTURE_URL || 'http://127.0.0.1:8765';
 // CSS pixels at 1280 x 800, DPR 1. Overrides let reviewers adjust after UI edits.
 const points = {
-  createTab: [646, 30], addFiles: [135, 738], pickerFirstRow: [370, 280],
-  tasksTab: [525, 30], runningTask: [170, 182],
+  createTab: [646, 30], addFiles: [120, 194], pickerFirstRow: [370, 264],
+  tasksTab: [525, 30], runningTask: [170, 182], mobileRunningTask: [170, 246],
   ...JSON.parse(process.env.CAPTURE_POINTS || '{}'),
 };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -61,7 +61,7 @@ async function save(page, name, width, height) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-CN', deviceScaleFactor: 1 });
     const page = await context.newPage();
     const errors = [], calls = {}, endpoints = {};
-    page.on('pageerror', e => errors.push(e.message));
+    page.on('pageerror', e => errors.push(e.stack || e.message));
     page.on('response', async response => {
       try {
         const url = new URL(response.url());
@@ -83,23 +83,35 @@ async function save(page, name, width, height) {
 
     // The fixture exposes only auto-subtitle, so the creation tab selects it.
     await click('createTab');
-    const browseCount = calls.avamedia_browse_directory || 0;
-    await click('addFiles');
-    await until(() => (calls.avamedia_browse_directory || 0) > browseCount, 'subtitle server file picker', 10000);
-    await click('pickerFirstRow');
-    await page.keyboard.press('Control+a');
-    await page.keyboard.press('Enter'); // FileBrowserView confirms all three selected files.
+    // Add each server file through the real picker. Keep demo input order and
+    // avoid platform-dependent multi-selection keyboard gestures on the canvas.
+    for (const [addY, rowOffset] of [[points.addFiles[1], 52], [228, 26], [281, 0]]) {
+      const browseCount = calls.avamedia_browse_directory || 0;
+      await page.mouse.click(points.addFiles[0], addY);
+      await until(() => (calls.avamedia_browse_directory || 0) > browseCount, 'subtitle server file picker', 10000);
+      await page.waitForTimeout(500);
+      await page.mouse.click(points.pickerFirstRow[0], points.pickerFirstRow[1] + rowOffset);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(500);
+    }
     const captures = [await save(page, 'subtitle-submit-web', 1280, 800)];
 
     await click('tasksTab');
     await click('runningTask');
-    await until(() => endpoints.progress && endpoints.results && endpoints.waveform, 'subtitle progress, cues and waveform');
+    await until(() => endpoints.progress && endpoints.results, 'subtitle progress and cues');
     if (endpoints.progress.speech.currentSegment !== 2 || endpoints.progress.speech.segments.length !== 6 ||
         endpoints.results.total !== 186 || endpoints.progress.queue.subtitleJobsWaiting !== 2)
       throw new Error('Unexpected subtitle fixture data');
     captures.push(await save(page, 'subtitle-progress-web', 1280, 800));
-    // Keep the selected task open; BoundsProperty triggers the mobile detail layout.
+    // Open at the mobile viewport, then tap the task card to enter the full-page detail.
+    const taskPolls = calls.avamedia_list_tasks || 0;
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await until(() => (calls.avamedia_list_tasks || 0) > taskPolls, 'mobile task list');
+    await page.waitForTimeout(1500);
+    const detailReads = calls.avamedia_get_task || 0;
+    await page.mouse.click(...points.mobileRunningTask);
+    await until(() => (calls.avamedia_get_task || 0) > detailReads, 'mobile task detail');
     captures.push(await save(page, 'subtitle-progress-mobile', 390, 844));
     if (errors.length) throw new Error(errors.join('\n'));
     fs.writeFileSync(path.join(output, 'capture-report.json'), JSON.stringify({ locale: 'zh-CN', calls,

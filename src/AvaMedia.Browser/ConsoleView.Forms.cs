@@ -27,7 +27,7 @@ public sealed partial class ConsoleView
         if (previousFeature != _activeFeature) ClearPreview();
         _optionDraft = _activeFeature == "clip" ? ClipOptions(feature)
             : _drafts.GetValueOrDefault(_activeFeature) ?? feature?["form"]?["defaults"]?.DeepClone() as JsonObject ?? new();
-        _optionReaders.Clear(); _optionControls.Clear(); _optionFields.Clear(); _toolOptions.Children.Clear();
+        _optionReaders.Clear(); _optionControls.Clear(); _optionFields.Clear(); _toolOptions.Children.Clear(); _toolOptions.Spacing = 8;
         var form = feature?["form"];
         if (form is null) { UpdateRegion(); return; }
         if (_activeFeature == "auto-subtitle") { BuildSubtitleOptions(form); return; }

@@ -110,7 +110,7 @@ public sealed partial class AiTaskWindow : Window
         _status.Bind(ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(TextBlock.Text)) { Source = _status });
         _status.FontFeatures = new Avalonia.Media.FontFeatureCollection { Avalonia.Media.FontFeature.Parse("tnum") };
         var executionLabels = new[] { "开始任务", "继续任务", "临时停止", "重新执行", "重新检测" };
-        StableLayout.Reserve(_run, executionLabels); StableLayout.Reserve(_pause, executionLabels);
+        if (_speechRoot is null) { StableLayout.Reserve(_run, executionLabels); StableLayout.Reserve(_pause, executionLabels); }
         _refreshTimer.Tick += (_, _) => { if (!_closed && (Interlocked.Exchange(ref _refreshPosted, 0) != 0 || _speechRoot is not null)) Refresh(); };
         _refreshTimer.Start();
         Refresh();

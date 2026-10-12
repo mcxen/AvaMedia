@@ -17,11 +17,12 @@ public sealed partial class ClassificationRunWindow : Window
     private readonly Action<Job>? _pause, _stop;
     private readonly Action<Job, string> _openAction;
     private readonly FolderClassificationProgress _progress = new();
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly Grid _body = new();
-    private readonly TextBlock _title = T("", 17, FontWeight.Bold, raw: true), _subtitle = T("", 12, brush: Muted, raw: true);
+    private readonly TextBlock _title = T("", 13, FontWeight.Bold, raw: true), _subtitle = T("", 11.5, brush: Muted, raw: true);
     private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
     private int _dirty = 1, _computing;
+    private long _lastApplied;
     private bool? _resultMode;
     private bool _closed;
     public static int Applied, Computed; public static double LastComputeMs, MaxComputeMs, MaxApplyMs;
@@ -31,13 +32,16 @@ public sealed partial class ClassificationRunWindow : Window
         _job = job; _pause = pause; _stop = stop; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
         Bind(BackgroundProperty, Resource(Page)); WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
-        var header = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new(22, 14, 22, 8) };
-        var titles = new StackPanel { Spacing = 2 }; titles.Children.Add(_title); titles.Children.Add(_subtitle);
+        Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
+            { Source = new Uri("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
+        var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12, Height = 50, Margin = new(18, 0) };
+        var titles = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        titles.Children.Add(_title); Grid.SetColumn(_subtitle, 1); titles.Children.Add(_subtitle);
         header.Children.Add(titles); Grid.SetColumn(_headerActions, 1); header.Children.Add(_headerActions);
         var root = new DockPanel(); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header); root.Children.Add(_body);
         Content = root;
         job.PropertyChanged += JobChanged;
-        // At most ten model recomputations per second; the snapshot is immutable so it is read off the UI thread.
+        // Coalesce notifications to at most four applications per second; compute immutable snapshots off the UI thread.
         _timer.Tick += (_, _) => Pump();
         Opened += async (_, _) =>
         {
@@ -50,7 +54,7 @@ public sealed partial class ClassificationRunWindow : Window
             _timer.Start(); Pump();
         };
         if (Environment.GetEnvironmentVariable("AVAMEDIA_UI_LAG_LOG") is { Length: > 0 } lagLog) StartLagProbe(lagLog);
-        Closed += (_, _) => { _closed = true; _timer.Stop(); job.PropertyChanged -= JobChanged; };
+        Closed += (_, _) => { _closed = true; _timer.Stop(); job.PropertyChanged -= JobChanged; if (Volatile.Read(ref _computing) == 0) DisposeRetiredPreviews(); };
     }
 
     internal Job Job => _job;
@@ -62,9 +66,9 @@ public sealed partial class ClassificationRunWindow : Window
         var probe = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Input, (_, _) =>
         {
             var now = clock.Elapsed.TotalMilliseconds; if (last > 0) lags.Add(Math.Max(0, now - last - 50)); last = now;
-            if (lags.Count % 40 != 0) return;
+            if (lags.Count == 0 || lags.Count % 40 != 0) return;
             var sorted = lags.OrderBy(x => x).ToArray();
-            File.WriteAllText(path, $"samples {sorted.Length} p50 {sorted[sorted.Length / 2]:0.0} ms p95 {sorted[(int)(sorted.Length * .95)]:0.0} ms max {sorted[^1]:0.0} ms; applies {Applied} computes {Computed} maxCompute {MaxComputeMs:0.0} ms maxApply {MaxApplyMs:0.0} ms; files {_progress.Files.Count} done {_progress.Completed}\n");
+            try { File.WriteAllText(path, $"samples {sorted.Length} p50 {sorted[sorted.Length / 2]:0.0} ms p95 {sorted[(int)(sorted.Length * .95)]:0.0} ms max {sorted[^1]:0.0} ms; applies {Applied} computes {Computed} maxCompute {MaxComputeMs:0.0} ms maxApply {MaxApplyMs:0.0} ms; files {_progress.Files.Count} done {_progress.Completed}\n"); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { Console.Error.WriteLine("lag probe: " + error.Message); }
         });
         probe.Start(); Closed += (_, _) => probe.Stop();
     }
@@ -73,16 +77,21 @@ public sealed partial class ClassificationRunWindow : Window
 
     private void Pump()
     {
-        if (_closed || Interlocked.CompareExchange(ref _dirty, 0, 1) != 1) return;
+        if (_closed || _lastApplied != 0 && System.Diagnostics.Stopwatch.GetElapsedTime(_lastApplied).TotalMilliseconds < 250) return;
+        if (Interlocked.CompareExchange(ref _dirty, 0, 1) != 1) return;
         if (Interlocked.Exchange(ref _computing, 1) == 1) { Interlocked.Exchange(ref _dirty, 1); return; }
         _ = Task.Run(() =>
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            try { _progress.Update(_job); }
+            try { _progress.Update(_job); ProjectRun(); }
             catch (Exception) { }
             watch.Stop(); LastComputeMs = watch.Elapsed.TotalMilliseconds; MaxComputeMs = Math.Max(MaxComputeMs, LastComputeMs);
             Interlocked.Increment(ref Computed);
-            Dispatcher.UIThread.Post(() => { Interlocked.Exchange(ref _computing, 0); if (!_closed) Apply(); }, DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(() =>
+            {
+                try { if (!_closed) Apply(); }
+                finally { DisposeRetiredPreviews(); _lastApplied = System.Diagnostics.Stopwatch.GetTimestamp(); Interlocked.Exchange(ref _computing, 0); }
+            }, DispatcherPriority.Background);
         });
     }
 
@@ -102,9 +111,8 @@ public sealed partial class ClassificationRunWindow : Window
         if (_resultMode != result)
         {
             _resultMode = result; _body.Children.Clear();
-            _body.Children.Add(result ? BuildResult() : BuildRun());
+            _body.Children.Add(result ? _resultView ??= BuildResult() : _runView ??= BuildRun());
         }
-        var rules = _job.Options.FolderClassification?.Rules ?? [];
         _title.Text = L("AI 媒体整理") + " · " + _job.Name;
         if (result)
         {
@@ -114,7 +122,7 @@ public sealed partial class ClassificationRunWindow : Window
         }
         else
         {
-            _subtitle.Text = string.Join(" · ", rules.Select(rule => L(rule.Name))) + $" · {_job.Inputs.Length} {L("个图片 / 视频")} · {L("关闭窗口后任务继续运行")}";
+            _subtitle.Text = L("从任务列表「查看任务」打开 · 关闭窗口后任务继续运行");
             RenderRun();
         }
         RenderHeaderActions(result);
@@ -136,9 +144,21 @@ public sealed partial class ClassificationRunWindow : Window
                     index => { _resultRule = rules[index].Id; _resultKey = null; RenderResult(); }));
             return;
         }
+        _headerActions.Children.Add(_percent);
+        _percent.Margin = new(0, 0, 8, 0);
         if (_pause is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
             _headerActions.Children.Add(Pill(_job.State == JobState.Paused ? "继续任务" : "临时停止", _job.State == JobState.Paused ? "play" : "pause", click: () => _pause(_job)));
         if (_stop is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
-            _headerActions.Children.Add(Pill("结束任务", "square", "danger", () => _stop(_job)));
+        {
+            var stop = Pill("结束任务", "square", "danger", () => _stop(_job));
+            stop.Bind(BackgroundProperty, Resource(Transparent)); stop.Bind(BorderBrushProperty, Resource(Red)); stop.BorderThickness = new(1);
+            if (Skin.UsesCustomChrome(ActualThemeVariant)) _headerActions.Children.Add(stop);
+            else
+            {
+                stop.BorderThickness = new(0); stop.Height = 26;
+                _headerActions.Children.Add(new Border { Child = stop, CornerRadius = new(14), BorderThickness = new(1),
+                    [!Border.BorderBrushProperty] = Resource(Red), VerticalAlignment = VerticalAlignment.Center });
+            }
+        }
     }
 }

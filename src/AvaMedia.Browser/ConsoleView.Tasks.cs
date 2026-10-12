@@ -30,13 +30,14 @@ public sealed partial class ConsoleView
     private JsonObject? _organizationSubmission;
     private Grid _tasksGrid = null!, _tasksListHeader = null!, _tasksMobileHeader = null!;
     private Control _subtitleListHeader = null!;
+    private ScrollViewer _taskFilterScroll = null!;
     private Border _listCard = null!, _detailCard = null!;
     private readonly ScrollViewer _detailScroll = new() { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
     private readonly ScrollViewer _taskScroll = new() { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
     private static readonly Dictionary<string, string> States = new() { ["Waiting"] = "等待", ["Running"] = "运行中", ["Paused"] = "已暂停", ["Stopping"] = "停止中", ["Completed"] = "已完成", ["Failed"] = "失败", ["Cancelled"] = "已停止" };
     private static readonly (string? State, string Label)[] Filters = [(null, "全部"), ("Running", "运行中"), ("Waiting", "等待"), ("Paused", "已暂停"), ("Completed", "已完成"), ("Failed", "失败"), ("Cancelled", "已停止")];
     private sealed record TaskRow(Border Container, Grid Layout, TextBlock Name, TextBlock Sub, StackPanel State, ProgressBar Progress, TextBlock Detail, Panel Actions, Border Accent)
-    { public string CurrentState { get; set; } = ""; public bool Mobile { get; set; } }
+    { public MediaThumbnail? Thumbnail { get; init; } public bool SubtitleSidebar { get; init; } public string CurrentState { get; set; } = ""; public bool Mobile { get; set; } }
 
     private static (string Icon, IBrush Brush) StateLook(string state) => state switch
     {
@@ -52,7 +53,7 @@ public sealed partial class ConsoleView
         var refresh = Action("刷新任务", RefreshTasks, "refresh-cw");
         var create = Action("创建任务", () => { _tabs.SelectedIndex = 0; return Task.CompletedTask; }, "plus", primary: true);
         _tasksListHeader = Header(Ui.Row(10, title, auto), Ui.Row(8, refresh, create));
-        var filterScroll = new ScrollViewer { Content = _filters, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        var filterScroll = _taskFilterScroll = new ScrollViewer { Content = _filters, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         var top = new StackPanel { Spacing = 12, Margin = new(14, 14, 14, 12) }; top.Children.Add(_tasksListHeader); top.Children.Add(filterScroll);
         _subtitleListHeader = Ui.Row(8, Ui.Text("所有任务", "strong"), Ui.Text("每 3 秒自动刷新", "caption"));
         _subtitleListHeader.IsVisible = false; top.Children.Insert(0, _subtitleListHeader);
@@ -81,18 +82,21 @@ public sealed partial class ConsoleView
         if (_tasksGrid is null) return;
         _tasksMobileHeader.IsVisible = _mobile; _tasksListHeader.IsVisible = !_mobile && _subtitlePage is null;
         _subtitleListHeader.IsVisible = !_mobile && _subtitlePage is not null;
+        _taskFilterScroll.IsVisible = _subtitlePage is null;
         _tasksPrevious.Content = _subtitlePage is null ? Ui.Content(L.T("上一页任务"), null) : Ui.Icon("chevron-left", 14);
         _tasksNext.Content = _subtitlePage is null ? Ui.Content(L.T("下一页任务"), null) : Ui.Icon("chevron-right", 14);
         ToolTip.SetTip(_tasksPrevious, L.T("上一页任务")); ToolTip.SetTip(_tasksNext, L.T("下一页任务"));
         if (_mobile)
         {
-            _tasksGrid.ColumnDefinitions = new("*"); _tasksGrid.Margin = new(16, 0, 16, 0);
+            _tasksGrid.ColumnDefinitions = new("*"); _tasksGrid.Margin = _subtitlePage is null ? new(16, 0, 16, 0) : new(0);
             _listCard.IsVisible = !_taskDetailOpen; _detailCard.IsVisible = _taskDetailOpen; Grid.SetColumn(_detailCard, 0);
             _listCard.Background = Brushes.Transparent; _listCard.BoxShadow = default;
         }
         else
         {
-            _tasksGrid.ColumnDefinitions = new(_subtitlePage is null ? "*,316" : "260,*"); _tasksGrid.Margin = new(18, 2, 18, 18);
+            _tasksGrid.ColumnDefinitions = new(_subtitlePage is null ? "*,316" : "280,*");
+            _tasksGrid.Margin = _subtitlePage is null ? new(18, 2, 18, 18) : new(24, 0, 24, 16);
+            _tasksGrid.ColumnSpacing = _subtitlePage is null ? 12 : 14;
             _listCard.IsVisible = _detailCard.IsVisible = true; Grid.SetColumn(_detailCard, 1);
             _listCard.Background = Palette.Card; _listCard.BoxShadow = BoxShadows.Parse("0 1 2 0 #0F000000, 0 0 0 1 #0D000000");
         }
@@ -193,6 +197,11 @@ public sealed partial class ConsoleView
         stack.Children.Add(head); stack.Children.Add(sub); stack.Children.Add(progress); stack.Children.Add(detail); stack.Children.Add(actions);
         var grid = new Grid(); grid.Children.Add(stack);
         var container = new Border { Child = grid, BorderBrush = Palette.Hairline, BorderThickness = new(0, 0, 0, 1), Background = Brushes.White };
+        container.PointerPressed += async (_, e) =>
+        {
+            if (e.Source is Control control && control.FindAncestorOfType<Button>() is null && control is not Button)
+                await Guard(() => OpenDetail(id));
+        };
         return new(container, grid, name, sub, state, progress, detail, actions, new Border()) { Mobile = true };
     }
     private string FeatureName(string id) => _features.FirstOrDefault(item => item.Text("id") == id).Text("name") is { Length: > 0 } name ? name : id;
@@ -202,12 +211,24 @@ public sealed partial class ConsoleView
         var id = task.Text("id"); var current = task.Text("state");
         var progressValue = task["progress"]?.GetValue<double>() ?? 0;
         row.Name.Text = task.Text("name");
+        if (row.Thumbnail is { } thumbnail) thumbnail.Path = task["inputs"].Items().FirstOrDefault()?.ToString();
         row.Sub.Text = row.Mobile ? $"{FeatureName(task.Text("featureId"))} · {Source(task)}" + (current is "Running" or "Paused" or "Stopping" ? $" · {progressValue:0}%" : "")
             : $"{FeatureName(task.Text("featureId"))} · {Source(task)}";
-        if (_subtitlePage is not null && !row.Mobile)
-            row.Sub.Text = FeatureName(task.Text("featureId")) + " · " + L.T(States.GetValueOrDefault(current, current)) + $" {progressValue:0}%";
+        if (row.SubtitleSidebar)
+            row.Sub.Text = FeatureName(task.Text("featureId")) + " · " + L.T(current == "Waiting" ? "等待语音识别" : States.GetValueOrDefault(current, current)) + (current == "Running" ? $" {progressValue:0}%" : "");
         var (icon, brush) = StateLook(current);
-        row.State.Children.Clear(); row.State.Children.Add(Ui.Icon(icon, 12, brush));
+        row.State.Children.Clear();
+        if (row.SubtitleSidebar)
+        {
+            row.State.Children.Add(Ui.Icon(current is "Running" or "Waiting" ? "loader-circle" : icon, 16, brush));
+            row.Detail.IsVisible = false;
+            var selectedSidebar = _detailId == id;
+            row.Accent.IsVisible = selectedSidebar;
+            row.Container.Background = selectedSidebar ? Palette.BlueSoft : Brushes.Transparent;
+            row.CurrentState = current;
+            return;
+        }
+        row.State.Children.Add(Ui.Icon(icon, 12, brush));
         var label = Ui.Text(L.T(States.GetValueOrDefault(current, current))); label.Foreground = brush; label.FontSize = 12; row.State.Children.Add(label);
         if (!row.Mobile && current is not ("Completed" or "Cancelled")) { var percent = Ui.Text($"{progressValue:0}%", "caption"); row.State.Children.Add(percent); }
         else if (!row.Mobile && current == "Completed") row.State.Children.Add(Ui.Text("100%", "caption"));
@@ -288,17 +309,21 @@ public sealed partial class ConsoleView
     }
     private TaskRow SubtitleSidebarRow(string id)
     {
-        var name = Ui.Text("", "strong", raw: true, trim: true);
-        var sub = Ui.Text("", "caption", raw: true, trim: true);
-        var detail = Ui.Text("", "caption", raw: true, trim: true);
-        var texts = new StackPanel { Spacing = 4, Margin = new(12, 10) };
-        texts.Children.Add(name); texts.Children.Add(sub); texts.Children.Add(detail);
-        var grid = new Grid { ColumnDefinitions = new("3,*"), MinHeight = 64 };
+        var name = Ui.Text("", "strong", raw: true, trim: true); name.FontSize = 12.5;
+        var sub = Ui.Text("", "caption", raw: true, trim: true); sub.FontSize = 11;
+        var texts = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        texts.Children.Add(name); texts.Children.Add(sub);
+        var thumb = new MediaThumbnail(38, 38);
+        var state = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var grid = new Grid { ColumnDefinitions = new("3,Auto,*,Auto"), ColumnSpacing = 8, MinHeight = 56 };
         var accent = new Border { Background = Palette.Blue };
-        grid.Children.Add(accent); Grid.SetColumn(texts, 1); grid.Children.Add(texts);
-        var container = new Border { Child = grid, BorderBrush = Palette.Hairline, BorderThickness = new(0, 0, 0, 1) };
+        grid.Children.Add(accent); Grid.SetColumn(thumb, 1); grid.Children.Add(thumb);
+        Grid.SetColumn(texts, 2); grid.Children.Add(texts); Grid.SetColumn(state, 3); grid.Children.Add(state);
+        state.Margin = new(0, 0, 8, 0);
+        var container = new Border { Child = grid, CornerRadius = new(9), Margin = new(10, 0, 10, 2) };
         container.PointerPressed += async (_, _) => await Guard(() => OpenDetail(id));
-        return new(container, grid, name, sub, new(), new(), detail, new StackPanel(), accent);
+        return new(container, grid, name, sub, state, new(), new(), new StackPanel(), accent)
+        { Thumbnail = thumb, SubtitleSidebar = true };
     }
     private void CloseDetail() { _taskDetailOpen = false; _detailId = null; RestoreSubtitleDetail(); LayoutTasks(); UpdateLayoutMode(); }
     private readonly Dictionary<string, Bitmap?> _thumbnails = new();

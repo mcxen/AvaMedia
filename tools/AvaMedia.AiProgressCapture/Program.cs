@@ -21,20 +21,30 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length is < 1 or > 2 || args.Length == 2 && args[1] != "--headless")
+        var paths = args.Where(arg => arg is not "--headless" and not "--classification").ToArray();
+        if (paths.Length > 1 || paths.Any(arg => arg.StartsWith("--", StringComparison.Ordinal))
+            || args.Count(arg => arg == "--headless") > 1 || args.Count(arg => arg == "--classification") > 1)
         {
-            Console.Error.WriteLine("Usage: AvaMedia.AiProgressCapture <output-directory> [--headless]");
+            Console.Error.WriteLine("Usage: AvaMedia.AiProgressCapture [output-directory] [--headless] [--classification]");
             return 2;
         }
+        var workingDirectory = Environment.CurrentDirectory;
         try
         {
-            _output = Path.GetFullPath(args[0]);
+            _output = Path.GetFullPath(paths.FirstOrDefault() ?? "/tmp/avamedia-ai-progress-v2/impl");
             Directory.CreateDirectory(_output);
             _temporary = Directory.CreateTempSubdirectory("avamedia-ai-progress-").FullName;
             // Isolate application settings and thumbnail caches from the user's installation.
-            Environment.SetEnvironmentVariable("XDG_DATA_HOME", Path.Combine(_temporary, "data"));
-            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", Path.Combine(_temporary, "config"));
-            Environment.SetEnvironmentVariable("DISPLAY", ":11");
+            // GetFolderPath can return an empty string for a directory that does not exist,
+            // making Storage.DefaultRoot (and thumb-cache) relative to the working directory.
+            foreach (var (variable, folder) in new[] { ("XDG_DATA_HOME", "data"), ("XDG_CONFIG_HOME", "config"), ("XDG_CACHE_HOME", "cache") })
+                Environment.SetEnvironmentVariable(variable, Directory.CreateDirectory(Path.Combine(_temporary, folder)).FullName);
+            Environment.CurrentDirectory = _temporary;
+            if (OperatingSystem.IsLinux() && Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) != Path.Combine(_temporary, "data"))
+                throw new InvalidOperationException("Application data must resolve to the capture's temporary directory.");
+            Environment.SetEnvironmentVariable("DISPLAY", Environment.GetEnvironmentVariable("DISPLAY") ?? ":11");
+            Environment.SetEnvironmentVariable("AVALONIA_GLOBAL_SCALE_FACTOR", "1");
+            Environment.SetEnvironmentVariable("AVALONIA_SCREEN_SCALE_FACTORS", "1");
             _headless = args.Contains("--headless");
             var builder = AppBuilder.Configure<App>();
             if (_headless) builder.UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
@@ -45,7 +55,7 @@ internal static class Program
             Motion.SetReducedMotion(true);
             Dispatcher.UIThread.Post(async () =>
             {
-                try { await RunAsync(); }
+                try { await RunAsync(args.Contains("--classification")); }
                 catch (Exception error) { Console.Error.WriteLine(error); Environment.ExitCode = 1; }
                 finally { Lifetime.Cancel(); }
             });
@@ -55,6 +65,7 @@ internal static class Program
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }
         finally
         {
+            Environment.CurrentDirectory = workingDirectory;
             if (_temporary.Length > 0)
                 try { Directory.Delete(_temporary, recursive: true); }
                 catch (IOException) { }
@@ -62,23 +73,26 @@ internal static class Program
         }
     }
 
-    private static async Task RunAsync()
+    private static async Task RunAsync(bool classificationOnly)
     {
         var fixtures = new Fixtures(_temporary);
         var settings = new AppSettings { Theme = "Light", Language = "zh-CN", ReduceMotion = true,
             CheckForUpdates = false, AutoUpdate = false, AutoDownloadRepairModel = false };
         var engine = new FixtureEngine(settings, fixtures);
+        if (!classificationOnly)
+        {
         var submission = new SpeechToolsWindow(engine, Catalog.Find("auto-subtitle"), "~/Movies/AvaMedia",
             fixtures.SpeechFiles, new ConversionOptions { Format = "srt", Transcription = new() { Model = SpeechModel.Base, Language = "zh" } },
             storage: new Storage(Path.Combine(_temporary, "settings")));
-        await CaptureAsync(submission, "subtitle-submit-desktop", 752, 448);
+        // Logical client dimensions from the .fw windows in the v2 HTML demos.
+        await CaptureAsync(submission, "subtitle-submit-desktop", 940, 560);
 
         var job = fixtures.SpeechJob();
         Job[] queue = [job, new() { FeatureId = "auto-subtitle", Inputs = [fixtures.SpeechFiles[1]], State = JobState.Waiting },
             new() { FeatureId = "auto-subtitle", Inputs = [fixtures.SpeechFiles[2]], State = JobState.Waiting }];
         var progress = new AiTaskWindow(job, () => false, () => Task.CompletedTask, () => { },
             () => Task.CompletedTask, () => false, () => { }, pause: () => { }, queueSummary: () => AiQueueInfo.Summarize(queue));
-        await CaptureAsync(progress, "subtitle-progress-desktop", 848, 560, async () =>
+        await CaptureAsync(progress, "subtitle-progress-desktop", 1060, 712, async () =>
         {
             // The window's asynchronous source lookup is finished before injecting the synthetic envelope.
             // Reflection is confined to this capture harness; the production API stays unchanged.
@@ -86,9 +100,10 @@ internal static class Program
             Field(progress, "_envelope").SetValue(progress, fixtures.Envelope);
             Method(progress, "RefreshSpeechProgress").Invoke(progress, null);
         });
+        }
 
-        var classification = new ClassificationRunWindow(fixtures.ClassificationJob(), _ => { }, _ => { }, (_, _) => { });
-        await CaptureAsync(classification, "progress-from-tasklist-desktop", 832, 552, async () =>
+        var classification = new ClassificationRunWindow(await fixtures.ClassificationJobAsync(), _ => { }, _ => { }, (_, _) => { });
+        await CaptureAsync(classification, "progress-from-tasklist-desktop", 1040, 690, async () =>
         {
             var deadline = DateTime.UtcNow.AddSeconds(15);
             while (Field(classification, "_runProjection").GetValue(classification) is null)
@@ -100,7 +115,7 @@ internal static class Program
         });
         await File.WriteAllTextAsync(Path.Combine(_output, "captures.json"), JsonSerializer.Serialize(new
         {
-            scale = 1, language = "zh-CN", display = _headless ? "headless-skia" : ":11", fixtureOnly = true,
+            scale = 1, dpi = 96, language = "zh-CN", display = _headless ? "headless-skia" : Environment.GetEnvironmentVariable("DISPLAY"), fixtureOnly = true,
             subtitleSegment = 3, subtitleSegments = 6, waitingSubtitleJobs = 2,
             classifiedFiles = 412, classificationFiles = 1284, captures = Captures
         }, new JsonSerializerOptions { WriteIndented = true }));
@@ -125,16 +140,24 @@ internal static class Program
         window.MinWidth = 0; window.MinHeight = 0;
         window.Width = width; window.Height = height;
         window.SizeToContent = SizeToContent.Manual;
-        window.Show();
         try
         {
+            window.Show();
             await SettleAsync(window);
             if (prepare is not null) await prepare();
             await SettleAsync(window);
             var size = window.ClientSize;
             if (Math.Abs(size.Width - width) > .1 || Math.Abs(size.Height - height) > .1)
                 throw new InvalidOperationException($"Unexpected client size for {name}: {size}");
-            using var bitmap = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96));
+            // Lay out the entire client at its logical size before rendering. Never crop a
+            // larger layout into a smaller bitmap or multiply dimensions by display scaling.
+            window.InvalidateMeasure();
+            window.Measure(size);
+            window.Arrange(new Rect(size));
+            window.UpdateLayout();
+            if (window.Bounds.Size != size)
+                throw new InvalidOperationException($"Unexpected layout size for {name}: {window.Bounds.Size}, client {size}");
+            using var bitmap = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height), new Vector(96, 96));
             bitmap.Render(window);
             var path = Path.Combine(_output, name + ".png");
             bitmap.Save(path);

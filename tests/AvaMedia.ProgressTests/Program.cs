@@ -33,7 +33,7 @@ Check(result.Remaining is {} constantRate&&Math.Abs(constantRate.TotalSeconds-79
 Check(new ProgressEstimate(ProgressEstimateState.Available,TimeSpan.FromSeconds(.1)).Text.EndsWith("00:00:01"),"Subsecond estimates never display a premature zero");
 Check(new ProgressEstimate(ProgressEstimateState.Available,TimeSpan.FromHours(25)+TimeSpan.FromSeconds(1)).Text.EndsWith("25:00:01"),"Long conversions preserve total hours beyond a day");
 
-var clock=new ManualClock();var controlled=new ControlledExecutor();var queue=new QueueService(controlled,clock);var jobs=new[]{new Job{Progress=80},new Job()};var run=queue.Run(jobs);
+var clock=new ManualClock();var controlled=new ControlledExecutor();var queue=new QueueService(controlled,clock);var jobs=new[]{new Job{Progress=80},new Job()};var run=queue.Run(jobs);await controlled.WhenStarted(jobs);
 Check(jobs.All(j=>j.Progress==0&&j.RemainingTimeText=="估算中"),"Each actual queue start clears stale progress and starts its own estimate");
 clock.Advance(10);controlled.Report(jobs[0],20);controlled.Report(jobs[1],50);
 Check(jobs[0].RemainingTimeText.EndsWith("00:00:40")&&jobs[1].RemainingTimeText.EndsWith("00:00:10"),"Parallel jobs own independent speed samples and remaining times");
@@ -45,11 +45,11 @@ controlled.Report(jobs[0],0);Check(jobs[0].RemainingTimeText=="估算中","An ac
 controlled.Complete();await run;Check(jobs.All(j=>j.State==JobState.Completed&&j.Progress==100&&j.Estimate is null),"Completed jobs clear remaining time and finish at one hundred percent");
 controlled.Report(jobs[0],2);Check(jobs[0].Progress==100&&jobs[0].Estimate is null,"Delayed backend callbacks cannot change a completed job");
 
-controlled=new();queue=new(controlled,clock);var stopped=new Job();run=queue.Run([stopped]);clock.Advance(10);controlled.Report(stopped,20);queue.Stop();await run;controlled.Report(stopped,80);
+controlled=new();queue=new(controlled,clock);var stopped=new Job();run=queue.Run([stopped]);await controlled.WhenStarted(stopped);clock.Advance(10);controlled.Report(stopped,20);queue.Stop();await run;controlled.Report(stopped,80);
 Check(stopped.State==JobState.Cancelled&&stopped.Estimate is null&&stopped.Progress==20,"Stopping clears the estimate and rejects late progress callbacks");
-stopped.State=JobState.Waiting;controlled=new();queue=new(controlled,clock);run=queue.Run([stopped]);Check(stopped.Progress==0&&stopped.RemainingTimeText=="估算中","Retrying a stopped job does not reuse its old countdown");controlled.Complete();await run;
+stopped.State=JobState.Waiting;controlled=new();queue=new(controlled,clock);run=queue.Run([stopped]);await controlled.WhenStarted(stopped);Check(stopped.Progress==0&&stopped.RemainingTimeText=="估算中","Retrying a stopped job does not reuse its old countdown");controlled.Complete();await run;
 await new QueueService(new FailingExecutor()).Run([stopped=new()]);Check(stopped.State==JobState.Failed&&stopped.RemainingTimeText==""&&stopped.Error=="codec failure","Failures retain the error and clear their estimates");
-controlled=new();queue=new(controlled,clock);var downloading=new Job{FeatureId="download"};run=queue.Run([downloading]);clock.Advance(10);var downloadDetail=typeof(Job).GetProperty("ProgressDetail");downloadDetail?.SetValue(downloading,"2 MiB/s · 剩余 00:40");controlled.Report(downloading,20);
+controlled=new();queue=new(controlled,clock);var downloading=new Job{FeatureId="download"};run=queue.Run([downloading]);await controlled.WhenStarted(downloading);clock.Advance(10);var downloadDetail=typeof(Job).GetProperty("ProgressDetail");downloadDetail?.SetValue(downloading,"2 MiB/s · 剩余 00:40");controlled.Report(downloading,20);
 Check(downloading.Estimate is null&&!downloading.Status.Contains("预计剩余")&&(downloadDetail is null||downloading.Status.Contains("剩余 00:40")),"Downloads keep the downloader's own ETA without a duplicate conversion estimate");controlled.Complete();await run;
 
 var engine=new MediaEngine(new(){AutoDetectGpu=false});var source=Path.Combine(root,"视频 sample.mp4");
@@ -66,18 +66,19 @@ AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOp
 void Pump(Task? task=null){var deadline=DateTime.UtcNow.AddSeconds(20);do{Dispatcher.UIThread.RunJobs();AvaloniaHeadlessPlatform.ForceRenderTimerTick();Dispatcher.UIThread.RunJobs();if(task is null||task.IsCompleted)break;if(DateTime.UtcNow>deadline)throw new TimeoutException("UI completion timed out");Thread.Sleep(5);}while(true);task?.GetAwaiter().GetResult();}
 var uiStore=new Storage(Path.Combine(root,"ui-state"));uiStore.SaveSettings(new(){NotifyComplete=false,MultiThread=true});uiStore.SaveJobs([new(){Inputs=[source]},new(){Inputs=[source]}]);
 var uiExecutor=new UiExecutor(engine);var main=new MainWindow(uiStore,uiExecutor);main.Show();Pump();main.FindControl<Button>("StartButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump();
-var uiJobs=main.FindControl<ListBox>("JobList")!.Items.Cast<Job>().ToArray();
+var uiJobs=main.FindControl<ListBox>("JobList")!.Items.Cast<Job>().ToArray();Pump(uiExecutor.WhenStarted(uiJobs));
 Check(main.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("估算中")==true)==2,"The actual task-list bindings show warmup for both running tasks");
 Pump(Task.Delay(2100));uiExecutor.Report(uiJobs[0],20);uiExecutor.Report(uiJobs[1],40);Pump();
-Check(main.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("预计剩余")==true)==2,"The actual task list displays each parallel job's estimated remaining time");
-bool EstimatesVisible()=>main.GetVisualDescendants().OfType<TextBlock>().Where(t=>t.Text?.Contains("预计剩余")==true).All(t=>t.Bounds.Width>0&&t.TranslatePoint(new Point(),main) is {} point&&point.X>=0&&point.X+t.Bounds.Width<=main.ClientSize.Width+.5);
+Check(EtaLabels().Count()==2,"The actual task list displays each parallel job's estimated remaining time");
+IEnumerable<TextBlock> EtaLabels()=>main.GetVisualDescendants().OfType<TextBlock>().Where(t=>t.IsEffectivelyVisible&&t.Text?.Contains("剩余")==true);
+bool EstimatesVisible(){main.UpdateLayout();return EtaLabels().All(t=>t.Bounds.Width>0&&t.TranslatePoint(new Point(),main) is {} point&&point.X>=0&&point.X+t.Bounds.Width<=main.ClientSize.Width+.5);}
 Check(EstimatesVisible(),"Long source paths cannot push the estimate beyond the visible task columns");
 main.CaptureRenderedFrame()!.Save(Path.Combine(root,"eta-light.png"));Application.Current!.RequestedThemeVariant=ThemeVariant.Dark;Pump();main.CaptureRenderedFrame()!.Save(Path.Combine(root,"eta-dark.png"));
 main.Width=main.MinWidth;Pump();Check(EstimatesVisible(),"Estimated remaining time stays inside the smallest supported main window");main.CaptureRenderedFrame()!.Save(Path.Combine(root,"eta-minimum.png"));
 var quietDeadline=DateTime.UtcNow.AddSeconds(9);while(main.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("进度暂未更新")==true)!=2){Pump();Thread.Sleep(10);if(DateTime.UtcNow>quietDeadline)throw new TimeoutException("Silent backend estimates did not expire in the task-list bindings");}
 Check(main.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("进度暂未更新")==true)==2,"The queue timer expires numeric ETA even when the backend stops reporting entirely");
 uiExecutor.Complete();var deadline=DateTime.UtcNow.AddSeconds(5);while(uiJobs.Any(j=>j.State==JobState.Running)){Pump();Thread.Sleep(5);if(DateTime.UtcNow>deadline)throw new TimeoutException("UI queue did not complete");}Pump();
-Check(main.GetVisualDescendants().OfType<TextBlock>().All(t=>t.Text?.Contains("预计剩余")!=true),"Completed task rows remove their countdowns through the same UI binding");main.Close();Pump();
+Check(!EtaLabels().Any(),"Completed task rows remove their countdowns through the same UI binding");main.Close();Pump();
 File.WriteAllText(Path.Combine(root,"report.json"),JsonSerializer.Serialize(new{checks=checks.Count,results=checks,outputs,measurements,macOSRuntimeVerified=false},new JsonSerializerOptions{WriteIndented=true}));Console.WriteLine($"Verified {checks.Count} progress checks / {outputs.Count} actual outputs. {root}");
 
 sealed class ManualClock:TimeProvider
@@ -92,8 +93,11 @@ sealed class ManualClock:TimeProvider
 class ControlledExecutor:IJobExecutor
 {
     private readonly ConcurrentDictionary<Guid,Action<double>> _callbacks=new();
+    private readonly ConcurrentDictionary<Guid,TaskCompletionSource> _started=new();
     private readonly TaskCompletionSource _release=new(TaskCreationOptions.RunContinuationsAsynchronously);
-    public async Task Execute(Job job,Action<double> progress,CancellationToken ct){_callbacks[job.Id]=progress;await _release.Task.WaitAsync(ct);}
+    public async Task Execute(Job job,Action<double> progress,CancellationToken ct){_callbacks[job.Id]=progress;_started.GetOrAdd(job.Id,_=>new(TaskCreationOptions.RunContinuationsAsynchronously)).TrySetResult();await _release.Task.WaitAsync(ct);}
+    // Queue execution starts on workers; assertions wait until each callback is registered.
+    public Task WhenStarted(params Job[] jobs)=>Task.WhenAll(jobs.Select(job=>_started.GetOrAdd(job.Id,_=>new(TaskCreationOptions.RunContinuationsAsynchronously)).Task)).WaitAsync(TimeSpan.FromSeconds(5));
     public void Report(Job job,double value)=>_callbacks[job.Id](value);
     public void Complete()=>_release.TrySetResult();
 }

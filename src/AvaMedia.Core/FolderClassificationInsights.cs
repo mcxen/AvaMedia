@@ -19,7 +19,11 @@ public sealed record FolderFileVisual(string Path, string Name, bool IsVideo, do
     public FolderCategoryOption[] Options { get; init; } = [];
 }
 public sealed record FolderCategoryOption(string RuleId, string CategoryId, string Name, double Similarity);
-public sealed record FolderGroupView(string RuleId, string CategoryId, string Name, string? ShootName, int Count, int Added, string[] CoverPaths);
+public sealed record FolderGroupView(string RuleId, string CategoryId, string Name, string? ShootName, int Count, int Added, string[] CoverPaths)
+{
+    public double? Similarity { get; init; }
+    public string? Scene { get; init; }
+}
 public sealed record FolderHistogram(double Min, double Max, double Threshold, int[] Bins, int Grouped, int Pending, int Failed);
 public sealed record FolderSourceSummary(string Folder, int Files, int Images, int Videos, long Bytes, string[] SamplePaths);
 public sealed record FolderBeforeAfter(FolderSourceSummary[] Sources, int Images, int Videos, long Bytes, FolderShootView[] Shoots, int PendingCount, string[] PendingSamples);
@@ -118,7 +122,12 @@ public static class FolderClassificationInsights
                 group.First().Decision!.OutfitShootName, group.Count(), Math.Max(0, group.Count() -
                     (previousCounts?.GetValueOrDefault(group.Key.RuleId + "/" + group.Key.CategoryId) ?? 0)),
                 group.OrderByDescending(item => Similarity(item.Decision)).ThenBy(item => item.File.Path, BatchRename.PathComparer)
-                    .Take(3).Select(item => item.File.Path).ToArray()))
+                    .Take(3).Select(item => item.File.Path).ToArray())
+            {
+                Similarity = group.Select(item => Similarity(item.Decision)).Where(value => value.HasValue).Average(),
+                Scene = group.Select(item => item.File.Result!.Media.Scenes?.Scores.MaxBy(score => score.Similarity)?.Label)
+                    .Where(label => label is not null).GroupBy(label => label).OrderByDescending(labels => labels.Count()).FirstOrDefault()?.Key
+            })
             .OrderBy(group => group.ShootName, StringComparer.Ordinal).ThenBy(group => group.Name, StringComparer.Ordinal).ToArray();
     }
 

@@ -1,6 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using AvaMedia.Core;
@@ -11,264 +11,306 @@ namespace AvaMedia.Desktop.Classification;
 
 public sealed partial class ClassificationRunWindow
 {
-    private readonly TextBlock _percent = T("0", 30, FontWeight.Bold, raw: true);
-    private readonly Border _overallBar = new() { Height = 6 };
-    private readonly TextBlock _counts = T("", 11.5, brush: Muted, raw: true), _elapsed = T("", 11.5, brush: Muted, raw: true);
-    private readonly Grid _stageRow = new();
-    private readonly StageCard[] _stages = new StageCard[5];
+    private readonly TextBlock _percent = T("", 26, FontWeight.Bold, raw: true);
+    private readonly StageCard[] _stages = new StageCard[4];
     private readonly Grid _preview = new() { ClipToBounds = true };
     private readonly ClassifyThumb _previewThumb = new(420) { CornerRadius = new(10) };
-    private readonly Canvas _tagLayer = new();
+    private readonly Image _livePreview = new() { Stretch = Stretch.UniformToFill };
+    private readonly Canvas _tagLayer = new() { IsHitTestVisible = false };
+    private readonly TextBlock _fileTitle = T("", 12, brush: Muted, raw: true), _activityTitle = T("", 11.5, brush: Muted, raw: true);
+    private readonly Grid _fileSteps = new() { ColumnSpacing = 8 };
     private readonly TextBlock _lookTitle = T("", 12, brush: Muted, raw: true), _framesTitle = T("", 11.5, brush: Muted, raw: true),
         _consistency = T("", 11.5, brush: Muted, raw: true), _colorsTitle = T("", 11.5, brush: Muted, raw: true);
-    private readonly Grid _frames = new() { Height = 52 };
+    private readonly StackPanel _frames = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
     private readonly Grid _colorBar = new() { Height = 12, ClipToBounds = true };
+    private readonly Border _colors = new() { CornerRadius = new(4), ClipToBounds = true, [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1) };
     private readonly WrapPanel _verdicts = new();
     private readonly TextBlock _reason = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, [!TextBlock.ForegroundProperty] = Resource(Ink) };
+    private readonly Border _reasonCard = new() { [!Border.BackgroundProperty] = Resource(LightBlue), CornerRadius = new(8), Padding = new(10, 8) };
     private readonly StackPanel _lookBody = new() { Spacing = 8 };
-    private readonly TextBlock _lookEmpty = T("等待第一个文件完成分析", 12, brush: Muted);
-    private readonly FileWall _wall = new();
-    private readonly TextBlock _groupsTitle = T("", 12, brush: Muted, raw: true);
-    private readonly StackPanel _groups = new() { Spacing = 0 };
-    private string? _currentKey, _groupsKey;
+    private readonly TextBlock _lookEmpty = T("等待文件分析", 12, brush: Muted);
+    private readonly FileFlow _wall = new();
+    private readonly TextBlock _groupsTitle = T("", 11.5, brush: Muted, raw: true), _groupsEmpty = T("尚未归组", 12, brush: Muted);
+    private readonly ListBox _groups = new() { Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(0) };
+    private readonly Dictionary<int, FileStep> _stepControls = [];
+    private readonly List<Border> _tagChips = [];
+    private FolderFileVisual? _renderedVisual;
+    private string? _framesKey;
+    private FolderGroupView[]? _renderedGroups;
+    private Control? _runView, _resultView;
 
     private Control BuildRun()
     {
-        var grid = new Grid { RowDefinitions = new("Auto,Auto,*"), Margin = new(22, 0, 22, 18), RowSpacing = 12 };
-        // Overall progress: big percentage, two-tone bar (analysed + grouped), counts and backend.
-        var top = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 14 };
-        top.Children.Add(_percent);
-        var bars = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        bars.Children.Add(_overallBar);
-        var line = new Grid { ColumnDefinitions = new("*,Auto") }; line.Children.Add(_counts); Grid.SetColumn(_elapsed, 1); line.Children.Add(_elapsed);
-        bars.Children.Add(line); Grid.SetColumn(bars, 1); top.Children.Add(bars);
-        grid.Children.Add(top);
-
-        _stageRow.ColumnDefinitions = new("*,16,*,16,*,16,*,16,*");
-        for (var i = 0; i < 5; i++)
+        var grid = new Grid { RowDefinitions = new("Auto,*"), Margin = new(18, 0, 18, 16), RowSpacing = 14 };
+        var stageRow = new Grid { ColumnDefinitions = new("*,16,*,16,*,16,*") };
+        for (var i = 0; i < 4; i++)
         {
-            _stages[i] = new StageCard(); Grid.SetColumn(_stages[i], i * 2); _stageRow.Children.Add(_stages[i]);
-            if (i < 4)
-            {
-                var chevron = new LucideIcon { Kind = "chevron-right", Width = 12, Height = 12, [!LucideIcon.ForegroundProperty] = Resource(Muted), HorizontalAlignment = HorizontalAlignment.Center };
-                Grid.SetColumn(chevron, i * 2 + 1); _stageRow.Children.Add(chevron);
-            }
+            _stages[i] = new StageCard(); Grid.SetColumn(_stages[i], i * 2); stageRow.Children.Add(_stages[i]);
+            if (i == 3) continue;
+            var chevron = new LucideIcon { Kind = "chevron-right", Width = 12, Height = 12, [!LucideIcon.ForegroundProperty] = Resource(Muted),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(chevron, i * 2 + 1); stageRow.Children.Add(chevron);
         }
-        Grid.SetRow(_stageRow, 1); grid.Children.Add(_stageRow);
-
-        var main = new Grid { ColumnDefinitions = new("*,300"), ColumnSpacing = 12 };
+        grid.Children.Add(stageRow);
+        var main = new Grid { ColumnDefinitions = new("*,250"), ColumnSpacing = 14 };
         var left = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 12 };
-        left.Children.Add(BuildLook());
-        var wallHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        wallHeader.Children.Add(T("文件流", 13, FontWeight.Bold));
-        wallHeader.Children.Add(T("按处理顺序 · 绿色完成 · 蓝圈处理中 · 橙色待确认 · 灰色排队", 11.5, brush: Muted));
-        var wallPanel = new DockPanel(); DockPanel.SetDock(wallHeader, Dock.Top); wallHeader.Margin = new(0, 0, 0, 8);
-        wallPanel.Children.Add(wallHeader); wallPanel.Children.Add(_wall);
-        var wallCard = Card(wallPanel); Grid.SetRow(wallCard, 1); left.Children.Add(wallCard);
-        main.Children.Add(left);
-
-        var groupsHeader = new StackPanel { Spacing = 2, Margin = new(0, 0, 0, 6) };
-        var gt = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        gt.Children.Add(T("分组正在形成", 13, FontWeight.Bold)); gt.Children.Add(_groupsTitle);
-        groupsHeader.Children.Add(gt);
-        groupsHeader.Children.Add(T("每完成 8 个文件重新归组，角标为本轮新加入", 11.5, brush: Muted));
-        var groupsPanel = new DockPanel(); DockPanel.SetDock(groupsHeader, Dock.Top);
-        groupsPanel.Children.Add(groupsHeader); groupsPanel.Children.Add(new ScrollViewer { Content = _groups });
-        var groupsCard = Card(groupsPanel); Grid.SetColumn(groupsCard, 1); main.Children.Add(groupsCard);
-        Grid.SetRow(main, 2); grid.Children.Add(main);
+        var current = new StackPanel { Spacing = 10 };
+        var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10 };
+        heading.Children.Add(T("第 2 步 · 当前文件", 13, FontWeight.Bold));
+        Grid.SetColumn(_fileTitle, 1); heading.Children.Add(_fileTitle); current.Children.Add(heading);
+        current.Children.Add(_fileSteps); var currentCard = Card(current); currentCard.Padding = new(14, 12); left.Children.Add(currentCard);
+        var look = BuildLook(); Grid.SetRow(look, 1); left.Children.Add(look); main.Children.Add(left);
+        var groupsPanel = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
+        groupsPanel.Children.Add(T("第 3 步 · 分组正在形成", 13, FontWeight.Bold));
+        _groups.ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
+        _groups.ItemTemplate = new FuncDataTemplate<FolderGroupView>((_, _) => new GroupRow(), supportsRecycling: true);
+        _groups.ContainerPrepared += (_, args) =>
+        {
+            if (args.Container is ListBoxItem item) { item.Padding = new(0); item.MinHeight = 0; item.HorizontalContentAlignment = HorizontalAlignment.Stretch; }
+        };
+        var groupBody = new Panel(); groupBody.Children.Add(_groups); groupBody.Children.Add(_groupsEmpty);
+        _groupsEmpty.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetRow(groupBody, 1); groupsPanel.Children.Add(groupBody);
+        var groupsCard = Card(groupsPanel); groupsCard.Padding = new(14, 12); Grid.SetColumn(groupsCard, 1); main.Children.Add(groupsCard);
+        Grid.SetRow(main, 1); grid.Children.Add(main);
         return grid;
     }
 
     private Control BuildLook()
     {
-        var grid = new Grid { ColumnDefinitions = new("240,*"), ColumnSpacing = 14, Height = 230 };
-        _preview.Children.Add(_previewThumb); _preview.Children.Add(_tagLayer);
-        _preview.Width = 240; _preview.Height = 230;
-        var previewBorder = new Border { CornerRadius = new(10), ClipToBounds = true, Child = _preview };
-        grid.Children.Add(previewBorder);
-        var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        title.Children.Add(T("AI 正在看", 13, FontWeight.Bold)); title.Children.Add(_lookTitle);
+        var grid = new Grid { ColumnDefinitions = new("2*,3.5*"), ColumnSpacing = 14 };
+        _preview.Children.Add(_previewThumb); _preview.Children.Add(_livePreview); _preview.Children.Add(_tagLayer);
+        _preview.SizeChanged += (_, _) => PositionTags();
+        grid.Children.Add(new Border { CornerRadius = new(10), ClipToBounds = true, Child = _preview });
+        var title = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
+        title.Children.Add(T("AI 正在看", 13, FontWeight.Bold)); Grid.SetColumn(_lookTitle, 1); title.Children.Add(_lookTitle);
         _lookBody.Children.Add(title);
-        _lookBody.Children.Add(_framesTitle); _lookBody.Children.Add(_frames); _lookBody.Children.Add(_consistency);
-        _lookBody.Children.Add(_colorsTitle);
-        _lookBody.Children.Add(new Border { CornerRadius = new(4), ClipToBounds = true, Child = _colorBar, [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1) });
-        _lookBody.Children.Add(T("各规则判断", 11.5, brush: Muted));
-        _verdicts.Orientation = Orientation.Horizontal; _lookBody.Children.Add(_verdicts);
-        _lookBody.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(LightBlue), CornerRadius = new(8), Padding = new(10, 7), Child = _reason });
-        var right = new Panel(); right.Children.Add(_lookBody); right.Children.Add(_lookEmpty);
-        Grid.SetColumn(right, 1); grid.Children.Add(right);
-        return Card(grid);
+        _lookBody.Children.Add(new ScrollViewer { Content = _frames, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
+        _lookBody.Children.Add(_consistency); _lookBody.Children.Add(_colorsTitle);
+        _colors.Child = _colorBar; _lookBody.Children.Add(_colors);
+        _lookBody.Children.Add(_verdicts); _reasonCard.Child = _reason; _lookBody.Children.Add(_reasonCard);
+        var detail = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), RowSpacing = 12 };
+        var summary = new Panel(); summary.Children.Add(_lookBody); summary.Children.Add(_lookEmpty); detail.Children.Add(summary);
+        var flowTitle = T("文件流 · 按处理顺序", 12, brush: Muted); Grid.SetRow(flowTitle, 1); detail.Children.Add(flowTitle);
+        Grid.SetRow(_wall, 2); detail.Children.Add(_wall);
+        Grid.SetColumn(detail, 1); grid.Children.Add(detail);
+        var card = Card(grid); card.Padding = new(14, 12); return card;
     }
 
     private void RenderRun()
     {
-        var p = _progress;
-        _percent.Text = $"{p.Percent:0}%";
-        var total = Math.Max(1, p.Files.Count);
-        var grouped = p.Files.Count(file => file.GroupId is not null && file.State == FolderFileState.Done);
-        var analysed = p.Files.Count(file => file.State is FolderFileState.Done or FolderFileState.Pending or FolderFileState.Failed);
-        _overallBar.Child = Bar(grouped / (double)total, Blue, 6, Math.Max(0, analysed - grouped) / (double)total);
-        var stage = p.Stages.FirstOrDefault(s => s.Stage == FolderClassificationStage.Tags);
-        var outfit = p.Stages.FirstOrDefault(s => s.Stage == FolderClassificationStage.Outfit);
-        var parts = new List<string> { $"{L("标签与规则")} {stage?.Done ?? 0}" };
-        if (outfit is { Enabled: true }) parts.Add($"{L("服装区域")} {outfit.Done}");
-        parts.Add($"{L("已归组")} {grouped}"); parts.Add($"{L("待确认")} {p.Pending}");
-        if (p.Failed > 0) parts.Add($"{L("失败")} {p.Failed}");
-        _counts.Text = string.Join(" · ", parts);
-        _elapsed.Text = $"{L("已用")} {Clock(p.Elapsed)}" + (_job.Activity?.Backend is { Length: > 0 } backend ? " · " + backend : "");
-        var stages = p.Stages.Where(s => s.Enabled).ToArray();
-        for (var i = 0; i < 5; i++)
+        if (_runProjection is not { } run) return;
+        _percent.Text = $"{_progress.Percent:0}%";
+        for (var i = 0; i < _stages.Length; i++)
         {
-            var visible = i < stages.Length;
-            _stages[i].IsVisible = visible;
-            if (_stageRow.Children.OfType<LucideIcon>().ElementAtOrDefault(i) is { } chevron) chevron.IsVisible = i < stages.Length - 1;
-            if (visible) _stages[i].Update(stages[i], p, i == stages.Length - 1 ? p.Regroup : null);
+            var node = run.Stages[i];
+            var count = i switch
+            {
+                0 => node.ElapsedSeconds is { } seconds ? Clock(TimeSpan.FromSeconds(seconds)) : "",
+                1 => $"{run.Done} / {run.Total}",
+                2 => run.Outfit && _progress.Regroup > 0 ? string.Format(L("第 {0} 次"), _progress.Regroup) : "",
+                _ => ""
+            };
+            _stages[i].Update(node, count, _job.State, i == 2 && _progress.Regroup > 0);
         }
-        RenderLook(p.Current ?? p.Files.LastOrDefault(file => file.State is FolderFileState.Done or FolderFileState.Pending));
-        _wall.Update(p.Files);
-        RenderGroups(p.Groups, p.Regroup);
+        _fileTitle.Text = run.Current is { } file ? file.Name + " · " + string.Format(L("第 {0} / {1} 个"), run.Ordinal, run.Total) : L("等待文件分析");
+        ToolTip.SetTip(_fileTitle, run.Current?.Path);
+        _activityTitle.Text = L(_job.State == JobState.Paused ? "已暂停" : _job.State == JobState.Stopping ? "正在停止" : run.Activity?.Stage ?? "等待开始");
+        if (run.Activity?.Backend is { Length: > 0 } backend) _activityTitle.Text += " · " + backend;
+        ToolTip.SetTip(_fileTitle, run.Current?.Path + "\n" + _activityTitle.Text);
+        foreach (var item in _stepControls.Values) item.IsVisible = false;
+        foreach (var step in run.Steps)
+        {
+            if (!_stepControls.TryGetValue(step.Index, out var control))
+            {
+                control = new FileStep(); _stepControls.Add(step.Index, control);
+                Grid.SetColumn(control, step.Index); _fileSteps.Children.Add(control);
+            }
+            control.IsVisible = true; control.Update(step, _job.State);
+        }
+        _fileSteps.ColumnDefinitions.Clear();
+        foreach (var step in run.Steps) _fileSteps.ColumnDefinitions.Add(new(1, GridUnitType.Star));
+        RenderLook(run);
+        _wall.Update(run.Files);
+        _groupsTitle.Text = run.Outfit ? (_progress.Regroup > 0 ? string.Format(L("第 {0} 次"), _progress.Regroup) : L("尚未归组")) : L("规则分类结果");
+        _groupsEmpty.IsVisible = run.Groups.Length == 0;
+        _groupsEmpty.Text = L(run.Outfit ? "等待服装区域识别" : "等待分类结果");
+        if (!ReferenceEquals(_renderedGroups, run.Groups)) { _renderedGroups = run.Groups; _groups.ItemsSource = run.Groups; }
     }
 
-    private static readonly Point[] TagSpots = [new(.55, .2), new(.08, .3), new(.05, .5), new(.5, .68), new(.1, .1)];
-
-    private void RenderLook(FolderFileVisual? visual)
+    private void RenderLook(RunProjection run)
     {
+        var visual = run.Current;
         _lookBody.IsVisible = visual is not null; _lookEmpty.IsVisible = visual is null;
-        _previewThumb.IsVisible = visual is not null;
-        if (visual is null) { _tagLayer.Children.Clear(); _currentKey = null; return; }
-        var key = visual.Path + "|" + visual.State + "|" + visual.Tags.Length + "|" + visual.Frames.Length + "|" + visual.OutfitColors.Length + "|" + visual.GroupId;
-        if (key == _currentKey) return; _currentKey = key;
-        _previewThumb.SetSource(visual.Path, visual.IsVideo ? visual.Frames.ElementAtOrDefault(visual.Frames.Length / 2)?.Seconds ?? 1 : null);
-        _tagLayer.Children.Clear();
-        foreach (var (tag, spot) in visual.Tags.Take(4).Zip(TagSpots))
+        _previewThumb.IsVisible = visual is not null && run.Preview is null;
+        _livePreview.Source = run.Preview; _livePreview.IsVisible = run.Preview is not null;
+        if (visual is null)
+        { _tagLayer.Children.Clear(); _tagChips.Clear(); _renderedVisual = null; _framesKey = null; return; }
+        var activeStage = _job.State == JobState.Paused ? "已暂停" : run.Activity?.Stage ?? "";
+        _lookTitle.Text = L(activeStage);
+        if (run.Frame is > 0 and var frame && run.FrameTotal is { } total)
+            _lookTitle.Text += " · " + string.Format(L("第 {0} / {1} 帧"), frame, total);
+        var selected = run.SelectedFrame;
+        _previewThumb.SetSource(visual.Path, visual.IsVideo ? visual.Frames.ElementAtOrDefault(Math.Max(0, selected))?.Seconds ?? 0 : null);
+        // Array references change when real evidence changes, including scores with unchanged tag counts.
+        if (_renderedVisual is null || visual.Path != _renderedVisual.Path || !ReferenceEquals(visual.Tags, _renderedVisual.Tags) ||
+            visual.Scene != _renderedVisual.Scene || visual.SceneScore != _renderedVisual.SceneScore)
         {
-            var chip = Chip(tag.Tag, tag.Score.ToString("0.00"), Surface);
-            chip.Bind(Border.BoxShadowProperty, Resource("UiSegmentShadow"));
-            Canvas.SetLeft(chip, spot.X * 240); Canvas.SetTop(chip, spot.Y * 230); _tagLayer.Children.Add(chip);
+            _tagLayer.Children.Clear(); _tagChips.Clear();
+            foreach (var tag in visual.Tags.OrderBy(tag => tag.Tag == "shirt" ? 1 : tag.Tag == "jeans" ? 2 : 0).Take(4))
+            {
+                var chip = Chip(WordLibraryCatalog.TagLabel(tag.Tag), tag.Score.ToString("0.00"), Surface);
+                chip.Bind(Border.BoxShadowProperty, Resource("UiSegmentShadow")); _tagLayer.Children.Add(chip); _tagChips.Add(chip);
+            }
+            if (visual.Scene is { } scene)
+            {
+                var chip = Chip(L("场景") + " · " + L(scene), visual.SceneScore?.ToString("0.00"), Surface);
+                chip.Bind(Border.BackgroundProperty, Resource(Dark)); chip.Padding = new(9, 3);
+                if (chip.Child is TextBlock label)
+                {
+                    label.FontSize = 11.5;
+                    foreach (var inline in label.Inlines!.OfType<Avalonia.Controls.Documents.Run>())
+                        inline.Bind(Avalonia.Controls.Documents.Run.ForegroundProperty, Resource(inline.FontWeight == FontWeight.SemiBold ? BlueSoft : White));
+                }
+                Canvas.SetLeft(chip, 8); Canvas.SetBottom(chip, 8); _tagLayer.Children.Add(chip);
+            }
+            PositionTags();
         }
-        if (visual.Scene is { } scene)
+        var framesKey = visual.Path + "|" + selected + "|" + run.FrameOwnership + "|" + string.Join(",", visual.Frames.Select(f => $"{f.Seconds:R}:{f.Consistent}"));
+        if (_framesKey != framesKey)
         {
-            var chip = new Border { [!Border.BackgroundProperty] = Resource(Dark), CornerRadius = new(11), Padding = new(9, 3), Child = new TextBlock { FontSize = 11.5, [!TextBlock.ForegroundProperty] = Resource(White),
-                Text = $"{L("场景")} · {L(scene)}" + (visual.SceneScore is { } s ? $"  {s:0.00}" : "") } };
-            Canvas.SetLeft(chip, 8); Canvas.SetBottom(chip, 8); _tagLayer.Children.Add(chip);
+            _framesKey = framesKey; _frames.Children.Clear();
+            // Only real sampled timestamps; an image itself is the single actual frame.
+            var frames = visual.IsVideo ? visual.Frames : [new FolderFrameVisual(0, visual.GroupId, true)];
+            _framesTitle.Text = visual.IsVideo ? frames.Length > 0 ? string.Format(L("采样画面 · {0} 帧"), frames.Length) : L("等待采样画面") : L("图片");
+            for (var i = 0; i < frames.Length; i++)
+            {
+                var thumb = new ClassifyThumb(72) { Width = 54, Height = 38, BorderThickness = new(i == selected ? 2 : 0), [!Border.BorderBrushProperty] = Resource(Blue) };
+                thumb.SetSource(visual.Path, visual.IsVideo ? frames[i].Seconds : null);
+                ToolTip.SetTip(thumb, _framesTitle.Text + " · " + (visual.IsVideo ? $"{frames[i].Seconds:0.00}s" : visual.Name));
+                _frames.Children.Add(thumb);
+            }
         }
-        if (visual.IsVideo)
+        _consistency.IsVisible = visual.IsVideo && run.FrameOwnership && activeStage != "识别服装区域";
+        _consistency.Text = $"{L("每帧归属一致率")} {visual.FrameConsistency:P0}";
+        if (_renderedVisual is null || !ReferenceEquals(visual.OutfitColors, _renderedVisual.OutfitColors))
         {
-            var chip = new Border { [!Border.BackgroundProperty] = Resource(Blue), CornerRadius = new(11), Padding = new(9, 3), Child = new TextBlock { FontSize = 11.5, [!TextBlock.ForegroundProperty] = Resource(White), FontWeight = FontWeight.SemiBold,
-                Text = $"{L("视频")} {TimeSpan.FromSeconds(visual.DurationSeconds):mm\\:ss}" } };
-            Canvas.SetRight(chip, 8); Canvas.SetTop(chip, 8); _tagLayer.Children.Add(chip);
+            _colorBar.Children.Clear(); _colorBar.ColumnDefinitions.Clear();
+            foreach (var color in visual.OutfitColors.Where(color => color.Share > .005).OrderByDescending(color => color.Share))
+            {
+                var block = new Border { Background = Avalonia.Media.Brush.Parse(color.Hex) };
+                ToolTip.SetTip(block, $"{color.Hex} · {color.Share:P0}");
+                Grid.SetColumn(block, _colorBar.ColumnDefinitions.Count);
+                _colorBar.ColumnDefinitions.Add(new(color.Share, GridUnitType.Star)); _colorBar.Children.Add(block);
+            }
         }
-        var stage = visual.State == FolderFileState.Processing ? L(_job.Activity?.Stage ?? "处理中") : L(visual.State == FolderFileState.Pending ? "待确认" : "已完成");
-        _lookTitle.Text = visual.Name + " · " + stage;
-        _frames.Children.Clear(); _frames.ColumnDefinitions.Clear();
-        var frames = visual.Frames.Length > 0 ? visual.Frames : [new FolderFrameVisual(0, visual.GroupId, true)];
-        _framesTitle.Text = visual.IsVideo ? $"{L("采样画面")} · {frames.Length} {L("帧")}" : L("图片");
-        for (var i = 0; i < frames.Length; i++)
+        _colorsTitle.IsVisible = _colors.IsVisible = run.Outfit && visual.OutfitColors.Length > 0;
+        _colorsTitle.Text = $"{L("服装主色")} · {L("人物占画面")} {visual.PersonRatio:P0}";
+        _verdicts.IsVisible = !run.Outfit;
+        if (_renderedVisual is null || !ReferenceEquals(visual.Verdicts, _renderedVisual.Verdicts))
         {
-            // Fixed-size cells: a still image shows one cell, never a stretched strip.
-            _frames.ColumnDefinitions.Add(visual.IsVideo && frames.Length >= 6 ? new(1, GridUnitType.Star) : new(new GridLength(68)));
-            var cell = new StackPanel { Spacing = 3, Margin = new(i == 0 ? 0 : 3, 0, 0, 0) };
-            var thumb = new ClassifyThumb(72) { Height = 40, BorderThickness = new(i + 1 == visual.InconsistentFrame ? 2 : 0), [!ClassifyThumb.BorderBrushProperty] = Resource(Orange) };
-            thumb.SetSource(visual.Path, visual.IsVideo ? frames[i].Seconds : null);
-            var time = new TextBlock { Text = visual.IsVideo ? $"{frames[i].Seconds:0.0}s" : "", FontSize = 9, [!TextBlock.ForegroundProperty] = Resource(White), Margin = new(3, 0), VerticalAlignment = VerticalAlignment.Bottom };
-            var holder = new Panel(); holder.Children.Add(thumb); holder.Children.Add(time);
-            cell.Children.Add(holder);
-            cell.Children.Add(new Border { Height = 4, CornerRadius = new(2), [!Border.BackgroundProperty] = Resource(frames[i].Consistent ? Blue : Orange) });
-            Grid.SetColumn(cell, i); _frames.Children.Add(cell);
+            _verdicts.Children.Clear();
+            foreach (var verdict in visual.Verdicts)
+            { var chip = Chip(verdict.RuleName, verdict.Value, rawValue: false); chip.Margin = new(0, 0, 6, 4); _verdicts.Children.Add(chip); }
         }
-        _consistency.Text = visual.IsVideo
-            ? $"{L("每帧归属一致率")} {visual.FrameConsistency:P0}" + (visual.InconsistentFrame > 0 ? $" · {L("第")} {visual.InconsistentFrame} {L("帧服装不同")}" : "")
-            : "";
-        _consistency.IsVisible = visual.IsVideo;
-        _colorBar.Children.Clear(); _colorBar.ColumnDefinitions.Clear();
-        var colors = visual.OutfitColors.Where(c => c.Share > .005).ToArray();
-        _colorsTitle.Text = colors.Length > 0 ? $"{L("服装主色")} · {L("人物占画面")} {visual.PersonRatio:P0}" : L("服装主色") + " · " + L("暂无");
-        for (var i = 0; i < colors.Length; i++)
-        {
-            _colorBar.ColumnDefinitions.Add(new(colors[i].Share, GridUnitType.Star));
-            var block = new Border { Background = new SolidColorBrush(Color.Parse(colors[i].Hex)) }; Grid.SetColumn(block, i); _colorBar.Children.Add(block);
-        }
-        _verdicts.Children.Clear();
-        foreach (var verdict in visual.Verdicts)
-        {
-            var chip = Chip(verdict.RuleName, verdict.Value, rawValue: false); chip.Margin = new(0, 0, 6, 4); _verdicts.Children.Add(chip);
-        }
+        _reasonCard.IsVisible = visual.Verdicts.Length > 0 || visual.Error is not null;
         _reason.Inlines!.Clear();
         _reason.Inlines.Add(new Avalonia.Controls.Documents.Run(L("归组理由")) { FontWeight = FontWeight.Bold });
-        _reason.Inlines.Add(new Avalonia.Controls.Documents.Run(" · " + visual.Reason));
+        _reason.Inlines.Add(new Avalonia.Controls.Documents.Run(" · " + L(visual.Reason)));
+        _renderedVisual = visual;
     }
 
-    private void RenderGroups(IReadOnlyList<FolderGroupView> groups, int regroup)
+    private void PositionTags()
     {
-        _groupsTitle.Text = regroup > 0 ? $"{L("第")} {regroup} {L("次归组")}" : L("尚未归组");
-        var key = regroup + ":" + string.Join(",", groups.Select(g => g.CategoryId + g.Count + "+" + g.Added));
-        if (key == _groupsKey) return; _groupsKey = key;
-        _groups.Children.Clear();
-        if (groups.Count == 0) { _groups.Children.Add(T("完成服装区域识别后开始归组", 12, brush: Muted)); return; }
-        var index = 0;
-        foreach (var group in groups.OrderByDescending(g => g.Count).Take(40))
+        Point[] positions = [new(.46, .10), new(.08, .20), new(.52, .64), new(.08, .45)];
+        for (var i = 0; i < _tagChips.Count; i++)
         {
-            index++;
-            var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10, Margin = new(0, 6) };
-            var mosaic = new Mosaic(52, 62, group.CoverPaths);
-            var holder = new Panel(); holder.Children.Add(mosaic);
-            if (group.Added > 0)
-            {
-                var badge = Badge("+" + group.Added, Blue); badge.HorizontalAlignment = HorizontalAlignment.Right; badge.VerticalAlignment = VerticalAlignment.Top;
-                badge.Margin = new(0, -4, -6, 0); holder.Children.Add(badge);
-            }
-            row.Children.Add(holder);
-            var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(T($"{index:00} {group.Name}", 12.5, FontWeight.SemiBold, raw: true));
-            if (group.ShootName is { } shoot) text.Children.Add(T(shoot, 11, brush: Muted, raw: true));
-            var count = new TextBlock { FontSize = 11, [!TextBlock.ForegroundProperty] = Resource(Muted) };
-            count.Inlines!.Add(new Avalonia.Controls.Documents.Run(group.Count.ToString()) { FontSize = 17, FontWeight = FontWeight.Bold, [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Ink) });
-            count.Inlines.Add(new Avalonia.Controls.Documents.Run(" " + L("个文件")));
-            text.Children.Add(count);
-            Grid.SetColumn(text, 1); row.Children.Add(text);
-            _groups.Children.Add(row);
-            _groups.Children.Add(new Rectangle { Height = 1, [!Rectangle.FillProperty] = Resource(Hairline) });
+            Canvas.SetLeft(_tagChips[i], Math.Clamp(positions[i].X * _preview.Bounds.Width, 8,
+                Math.Max(8, _preview.Bounds.Width - _tagChips[i].DesiredSize.Width - 8)));
+            Canvas.SetTop(_tagChips[i], positions[i].Y * Math.Max(0, _preview.Bounds.Height - 30));
         }
     }
 
-    /// <summary>One pipeline stage card: dot, name, model, stacked sample covers, counts and progress bar.</summary>
     private sealed class StageCard : Border
     {
-        private readonly Control _dotHolder = new Panel();
-        private readonly TextBlock _name = T("", 12.5, FontWeight.SemiBold), _model = T("", 11, brush: Muted, raw: true), _count = T("", 14, FontWeight.Bold, raw: true);
-        private readonly Panel _bar = new() { Height = 4 };
-        private readonly Mosaic _stack = new(34, 30, [], stacked: true);
+        private readonly TextBlock _number = T("", 12, FontWeight.Bold, White, raw: true);
+        private readonly Border _badge = new() { Width = 18, Height = 18, CornerRadius = new(9) };
+        private readonly TextBlock _name = T("", 12.5, FontWeight.Bold), _detail = T("", 11.5, brush: Muted, raw: true), _count = T("", 10.5, brush: Muted, raw: true);
         public StageCard()
         {
-            Bind(BackgroundProperty, Resource(Surface)); CornerRadius = new(14); Padding = new(12, 10); BorderThickness = new(1.5);
-            Bind(BoxShadowProperty, Resource("UiCardShadow"));
-            var grid = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto"), ColumnDefinitions = new("*,Auto") };
-            var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; title.Children.Add(_dotHolder); title.Children.Add(_name);
-            Grid.SetColumnSpan(title, 2); grid.Children.Add(title);
-            _model.Margin = new(13, 0, 0, 0); Grid.SetRow(_model, 1); Grid.SetColumnSpan(_model, 2); grid.Children.Add(_model);
-            _stack.Margin = new(0, 4, 0, 4); Grid.SetRow(_stack, 2); grid.Children.Add(_stack);
-            _count.VerticalAlignment = VerticalAlignment.Bottom; _count.Margin = new(0, 0, 0, 6);
-            Grid.SetRow(_count, 2); Grid.SetColumn(_count, 1); grid.Children.Add(_count);
-            Grid.SetRow(_bar, 3); Grid.SetColumnSpan(_bar, 2); grid.Children.Add(_bar);
-            Child = grid;
+            Bind(BackgroundProperty, Resource(Surface)); CornerRadius = new(12); Padding = new(12, 10); BorderThickness = new(1); MinHeight = 75;
+            _number.HorizontalAlignment = HorizontalAlignment.Center; _badge.Child = _number;
+            var grid = new Grid { ColumnDefinitions = new("Auto,*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 7, RowSpacing = 6 };
+            grid.Children.Add(_badge); Grid.SetColumn(_name, 1); grid.Children.Add(_name); Grid.SetColumn(_count, 2); grid.Children.Add(_count);
+            _detail.TextWrapping = TextWrapping.Wrap; _detail.TextTrimming = TextTrimming.None;
+            Grid.SetRow(_detail, 1); Grid.SetColumnSpan(_detail, 3); grid.Children.Add(_detail); Child = grid;
         }
-        public void Update(FolderStageProgress stage, FolderClassificationProgress progress, int? regroup)
+        public void Update(AiStageNodeDto node, string count, JobState state, bool started)
         {
-            var done = stage.Total > 0 && stage.Done >= stage.Total;
-            var brush = done ? Green : stage.Active || stage.Done > 0 ? Blue : Muted;
-            ((Panel)_dotHolder).Children.Clear(); ((Panel)_dotHolder).Children.Add(Dot(brush));
-            _name.Text = L(stage.Name);
-            _model.Text = stage.Stage switch
-            {
-                FolderClassificationStage.Scan => stage.Total.ToString(),
-                FolderClassificationStage.Group => L("每 8 个结果"),
-                _ => L(stage.Model)
-            };
-            _count.Text = regroup is { } r ? $"{r} {L("次")}" : $"{stage.Done} / {stage.Total}";
-            Bind(BorderBrushProperty, Resource(stage.Active ? Blue : Transparent));
-            _bar.Children.Clear(); _bar.Children.Add(Bar(regroup is not null ? (progress.Files.Count == 0 ? 0 : progress.Files.Count(f => f.GroupId is not null) / (double)progress.Files.Count) : stage.Fraction, done ? Green : Blue));
-            var samples = progress.Files.Where(f => f.State is FolderFileState.Done or FolderFileState.Pending).Take(3).Select(f => f.Path).ToArray();
-            _stack.SetPaths(samples);
+            _number.Text = (node.Index + 1).ToString(); _name.Text = L(node.Title); _count.Text = count;
+            _detail.Text = node.SubSteps.Length > 0 ? string.Join(" · ", node.SubSteps.Select(L)) : L(node.Detail);
+            _badge.Bind(Border.BackgroundProperty, Resource(node.State == "done" ? Green : node.State == "running" ? state == JobState.Paused ? Orange : Blue : started ? Blue : Muted));
+            Bind(BorderBrushProperty, Resource(node.State == "running" ? Blue : Hairline));
+            ToolTip.SetTip(this, _detail.Text);
+        }
+    }
+
+    private sealed class FileStep : Grid
+    {
+        private readonly Border _pending = new() { Width = 15, Height = 15, CornerRadius = new(8), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1.5), VerticalAlignment = VerticalAlignment.Center };
+        private readonly LucideIcon _icon = new() { Width = 17, Height = 17, VerticalAlignment = VerticalAlignment.Center };
+        private readonly TextBlock _name = T("", 12.5), _detail = T("", 11, brush: Muted, raw: true);
+        public FileStep()
+        {
+            ColumnDefinitions = new("Auto,*"); ColumnSpacing = 6;
+            _name.LineHeight = 18; _detail.LineHeight = 14;
+            Children.Add(_icon); Children.Add(_pending); var text = new StackPanel(); text.Children.Add(_name); text.Children.Add(_detail);
+            Grid.SetColumn(text, 1); Children.Add(text);
+        }
+        public void Update(AiStageNodeDto step, JobState state)
+        {
+            _name.Text = L(step.Title);
+            _detail.Text = step.Title == "规则判定" ? string.Format(L("{0} 组规则"), step.Detail) : step.Title == "读取画面" && step.Detail.Length > 0
+                ? string.Format(L("采样 {0} 帧"), step.Detail) : L(step.Detail);
+            _detail.IsVisible = _detail.Text.Length > 0;
+            var paused = state == JobState.Paused && step.State == "running";
+            var stopping = state == JobState.Stopping && step.State == "running";
+            _pending.IsVisible = step.State == "pending"; _icon.IsVisible = !_pending.IsVisible;
+            _icon.RenderTransform = step.State == "running" && !paused && !stopping ? new RotateTransform((Environment.TickCount64 / 250 % 8) * 45) : null;
+            _icon.Kind = paused ? "pause" : stopping ? "square" : step.State switch { "done" => "circle-check", "running" => "loader-circle", "failed" => "circle-alert", _ => "clock" };
+            _icon.Bind(LucideIcon.ForegroundProperty, Resource(paused ? Orange : stopping ? Muted : step.State switch { "done" => Green, "running" => Blue, "failed" => Red, _ => Muted }));
+            ToolTip.SetTip(this, _detail.Text);
+        }
+    }
+
+    private sealed class GroupRow : Border
+    {
+        private readonly Mosaic _mosaic = new(52, 52, []);
+        private readonly Border _badge = Badge("", Blue);
+        private readonly TextBlock _name = T("", 13, FontWeight.SemiBold, raw: true), _shoot = T("", 11.5, brush: Muted, raw: true), _count = T("", 17, FontWeight.Bold, raw: true);
+        public GroupRow()
+        {
+            Padding = new(0, 6); Bind(BorderBrushProperty, Resource(Hairline)); BorderThickness = new(0, 0, 0, 1);
+            var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
+            var cover = new Panel(); cover.Children.Add(_mosaic); cover.Children.Add(_badge);
+            _badge.HorizontalAlignment = HorizontalAlignment.Right; _badge.VerticalAlignment = VerticalAlignment.Top; _badge.Margin = new(0, -5, -6, 0); row.Children.Add(cover);
+            _badge.Bind(Border.BorderBrushProperty, Resource(Surface)); _badge.BorderThickness = new(2);
+            var text = new StackPanel { Spacing = 0, VerticalAlignment = VerticalAlignment.Center }; text.Children.Add(_name); text.Children.Add(_shoot);
+            var counts = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 }; counts.Children.Add(_count); counts.Children.Add(T("个文件", 11.5, brush: Muted)); text.Children.Add(counts);
+            Grid.SetColumn(text, 1); row.Children.Add(text); Child = row;
+        }
+        protected override void OnDataContextChanged(EventArgs e)
+        {
+            base.OnDataContextChanged(e);
+            if (DataContext is not FolderGroupView group) return;
+            _mosaic.SetPaths(group.CoverPaths); _name.Text = group.Name;
+            _shoot.Text = string.Join(" · ", new[] { group.Similarity is { } similarity ? $"{L("相似度")} {similarity:0.00}" : group.ShootName, L(group.Scene ?? "") }
+                .Where(value => !string.IsNullOrEmpty(value)));
+            _shoot.IsVisible = _shoot.Text.Length > 0; ToolTip.SetTip(_shoot, group.ShootName + " · " + _shoot.Text);
+            _count.Text = group.Count.ToString(); _badge.IsVisible = group.Added > 0;
+            if (_badge.Child is TextBlock text) text.Text = "+" + group.Added;
+            ToolTip.SetTip(_name, group.Name);
         }
     }
 }

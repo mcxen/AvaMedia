@@ -7,7 +7,7 @@ publish_dir=${CAPTURE_PUBLISH_DIR:-/tmp/avam-web}
 capture_port=${CAPTURE_PORT:-8765}
 export CAPTURE_URL="http://127.0.0.1:$capture_port"
 export CAPTURE_OUTPUT=${CAPTURE_OUTPUT:-/workspace/AvaMedia-sidebar-review/ai-progress/v2/impl}
-log_dir=$(mktemp -d /tmp/avam-web-capture.XXXXXX)
+log_dir=$(mktemp -d "${TMPDIR:-/tmp}/avam-web-capture.XXXXXX")
 echo "Logs: $log_dir"
 server_pid=''
 cleanup() { if [[ -n "$server_pid" ]]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi; }
