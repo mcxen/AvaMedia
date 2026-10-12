@@ -11,6 +11,7 @@ internal sealed class SpeechInferenceSession : IDisposable
     private readonly Func<WhisperFactory, WhisperProcessor> _configure;
     private readonly int _threads;
     private readonly Action<string, string?> _status;
+    private readonly Action<string>? _loading;
     private WhisperFactory? _factory;
     private WhisperProcessor? _processor;
     private WhisperVadFactory? _vadFactory;
@@ -19,9 +20,9 @@ internal sealed class SpeechInferenceSession : IDisposable
     private bool _speechGpu = true, _vadGpu = !OperatingSystem.IsMacOS();
 
     public SpeechInferenceSession(string model, Func<WhisperFactory, WhisperProcessor> configure, int threads,
-        Action<string, string?> status)
+        Action<string, string?> status, Action<string>? loading = null)
     {
-        _model = model; _configure = configure; _threads = threads; _status = status;
+        _model = model; _configure = configure; _threads = threads; _status = status; _loading = loading;
         try
         {
             try { LoadSpeech(); }
@@ -35,6 +36,7 @@ internal sealed class SpeechInferenceSession : IDisposable
 
     private void LoadSpeech()
     {
+        _loading?.Invoke("Whisper");
         _processor?.Dispose(); _processor = null;
         _factory?.Dispose(); _factory = null;
         _factory = WhisperFactory.FromPath(_model, new() { UseGpu = _speechGpu });
@@ -43,6 +45,7 @@ internal sealed class SpeechInferenceSession : IDisposable
 
     private void LoadVad()
     {
+        _loading?.Invoke("Silero VAD");
         _vad?.Dispose(); _vad = null;
         _vadFactory?.Dispose(); _vadFactory = null;
         _vadFactory = WhisperVadFactory.FromPath(SpeechAssets.EnsureVadModel());
@@ -51,8 +54,9 @@ internal sealed class SpeechInferenceSession : IDisposable
             .WithSpeechPadding(TimeSpan.FromMilliseconds(100)).Build();
     }
 
-    private void Report(string? reason = null) => _status(
-        $"Whisper: {(_speechGpu ? "GPU 优先" : "CPU")} · Silero: {(_vadGpu ? "GPU 优先" : "CPU")} · {RuntimeOptions.LoadedLibrary}",
+    public string Backend => $"Whisper: {(_speechGpu ? "GPU 优先" : "CPU")} · Silero: {(_vadGpu ? "GPU 优先" : "CPU")} · {RuntimeOptions.LoadedLibrary}";
+
+    private void Report(string? reason = null) => _status(Backend,
         reason ?? (OperatingSystem.IsMacOS() ? "当前原生运行时的 Silero Metal VAD 会中止进程，使用 CPU 检测语音。" : null));
 
     private void RetrySpeech(Exception error)

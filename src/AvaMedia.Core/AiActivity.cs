@@ -84,6 +84,14 @@ public sealed class AiActivityReporter(Action<AiActivity> report, string model, 
         });
     public void Advance(double current, double total, string unit, string? detail = null) =>
         Publish(value => value with { Current = current, Total = total, Unit = unit, Detail = detail ?? value.Detail });
+    /// <summary>Keep a stable sub-step label in history while its byte/time counters change.</summary>
+    public void StageStep(string stage, string step, double? current = null, double? total = null, string unit = "") =>
+        Publish(value => value with
+        {
+            Stage = stage, Detail = step, Current = current, Total = total, Unit = unit,
+            RecentStages = value.Stage == stage && value.Detail == step ? value.RecentStages : value.RecentStages.TakeLast(11)
+                .Append($"{AiActivity.FormatElapsed((DateTime.UtcNow - value.StartedUtc).TotalSeconds)} · {step}").ToArray()
+        });
     public void Backend(string backend) => Publish(value => value with { Backend = backend });
     public void Frame(byte[] png, string caption) => Publish(value => value with { Preview = png, PreviewCaption = caption });
     public void Result(string text, int? count = null) => Publish(value => value with

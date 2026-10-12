@@ -98,6 +98,45 @@ public partial class MainWindow
             return await job.ReadLogAsync(ct).ConfigureAwait(false);
         }
 
+        public async Task<AiTaskProgressDto> AiProgressAsync(Guid id, CancellationToken ct)
+        {
+            var captured = await Ui(() =>
+            {
+                var job = Find(id);
+                return (job.Id, job.State, job.Progress, job.ProgressDetail, Activity: job.Activity,
+                    Queue: AiQueueInfo.Summarize(owner._jobs), Private: Engine.Settings.EnableNsfwContent);
+            }, ct).ConfigureAwait(false);
+            // Only capture shared collection state on the dispatcher; project arrays on the request worker.
+            var activity = captured.Activity;
+            string Visible(string value) => captured.Private || !MediaPrivacy.IsSensitiveText(value) ? value : "";
+            string[] VisibleLines(string[] values) => values.Select(Visible).Where(value => value.Length > 0).ToArray();
+            var now = DateTime.UtcNow;
+            var nodes = activity?.Nodes.Select((node, index) =>
+            {
+                var snapshot = node.Snapshot;
+                var current = index == activity.CurrentNode;
+                var state = snapshot is null ? "pending" : snapshot.State == AiActivityState.Completed ? "done"
+                    : current && captured.State == JobState.Failed ? "failed"
+                    : current && captured.State == JobState.Completed ? "done" : "running";
+                var end = current && captured.State == JobState.Running ? now : snapshot?.UpdatedUtc;
+                double? elapsed = snapshot is null || end is null ? null : Math.Max(0, (end.Value - snapshot.StartedUtc).TotalSeconds);
+                return new AiStageNodeDto(index, node.Title, state, elapsed,
+                    VisibleLines(snapshot?.RecentStages ?? []), Visible(snapshot?.Detail ?? ""));
+            }).ToArray() ?? [];
+            var observations = activity?.Nodes.Select(node => node.Snapshot).OfType<AiActivity>().ToArray() ?? [];
+            if (observations.Length == 0 && activity is not null) observations = [activity];
+            return new(captured.Id.ToString(), Visible(activity?.Stage ?? ""), Visible(activity?.Detail ?? captured.ProgressDetail),
+                captured.Progress, observations.LastOrDefault(value => value.Backend.Length > 0)?.Backend ?? "", activity?.CurrentNode ?? -1, nodes,
+                VisibleLines(observations.SelectMany(value => value.RecentResults).TakeLast(30).ToArray()),
+                VisibleLines(observations.SelectMany(value => value.RecentStages).TakeLast(12).ToArray()),
+                Preview(activity) is { Length: > 0 }, AiProgressStore.GetSpeech(captured.Id.ToString()), captured.Queue);
+        }
+
+        public Task<byte[]?> AiPreviewAsync(Guid id, CancellationToken ct) => Ui(() => Preview(Find(id).Activity), ct);
+
+        private static byte[]? Preview(AiActivity? activity) => activity?.Preview
+            ?? activity?.Nodes.LastOrDefault(node => node.Snapshot?.Preview is { Length: > 0 })?.Snapshot?.Preview;
+
         public async Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct)
         {
             var (job, hidden) = await Ui(() =>
