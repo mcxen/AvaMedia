@@ -21,11 +21,11 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        var paths = args.Where(arg => arg != "--headless").ToArray();
+        var paths = args.Where(arg => arg is not "--headless" and not "--classification").ToArray();
         if (paths.Length > 1 || paths.Any(arg => arg.StartsWith("--", StringComparison.Ordinal))
-            || args.Count(arg => arg == "--headless") > 1)
+            || args.Count(arg => arg == "--headless") > 1 || args.Count(arg => arg == "--classification") > 1)
         {
-            Console.Error.WriteLine("Usage: AvaMedia.AiProgressCapture [output-directory] [--headless]");
+            Console.Error.WriteLine("Usage: AvaMedia.AiProgressCapture [output-directory] [--headless] [--classification]");
             return 2;
         }
         var workingDirectory = Environment.CurrentDirectory;
@@ -55,7 +55,7 @@ internal static class Program
             Motion.SetReducedMotion(true);
             Dispatcher.UIThread.Post(async () =>
             {
-                try { await RunAsync(); }
+                try { await RunAsync(args.Contains("--classification")); }
                 catch (Exception error) { Console.Error.WriteLine(error); Environment.ExitCode = 1; }
                 finally { Lifetime.Cancel(); }
             });
@@ -73,12 +73,14 @@ internal static class Program
         }
     }
 
-    private static async Task RunAsync()
+    private static async Task RunAsync(bool classificationOnly)
     {
         var fixtures = new Fixtures(_temporary);
         var settings = new AppSettings { Theme = "Light", Language = "zh-CN", ReduceMotion = true,
             CheckForUpdates = false, AutoUpdate = false, AutoDownloadRepairModel = false };
         var engine = new FixtureEngine(settings, fixtures);
+        if (!classificationOnly)
+        {
         var submission = new SpeechToolsWindow(engine, Catalog.Find("auto-subtitle"), "~/Movies/AvaMedia",
             fixtures.SpeechFiles, new ConversionOptions { Format = "srt", Transcription = new() { Model = SpeechModel.Base, Language = "zh" } },
             storage: new Storage(Path.Combine(_temporary, "settings")));
@@ -98,8 +100,9 @@ internal static class Program
             Field(progress, "_envelope").SetValue(progress, fixtures.Envelope);
             Method(progress, "RefreshSpeechProgress").Invoke(progress, null);
         });
+        }
 
-        var classification = new ClassificationRunWindow(fixtures.ClassificationJob(), _ => { }, _ => { }, (_, _) => { });
+        var classification = new ClassificationRunWindow(await fixtures.ClassificationJobAsync(), _ => { }, _ => { }, (_, _) => { });
         await CaptureAsync(classification, "progress-from-tasklist-desktop", 1040, 690, async () =>
         {
             var deadline = DateTime.UtcNow.AddSeconds(15);

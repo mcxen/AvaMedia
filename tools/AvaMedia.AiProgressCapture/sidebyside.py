@@ -29,10 +29,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="Implementation PNG directory; demos default to its parent")
     parser.add_argument("--demos", type=Path, help="Directory containing demo PNGs")
+    parser.add_argument("--name", choices=NAMES, help="Pair only this capture")
     args = parser.parse_args()
     demos = args.demos or args.output.parent
     count = 0
-    for name in NAMES:
+    for name in (args.name,) if args.name else NAMES:
         implementation = args.output / f"{name}.png"
         if not implementation.is_file():
             print(f"Skipped {name}: no implementation PNG")

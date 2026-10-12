@@ -32,6 +32,8 @@ public sealed partial class ClassificationRunWindow : Window
         _job = job; _pause = pause; _stop = stop; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
         Background = Page; WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
+        Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
+            { Source = new Uri("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
         var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12, Height = 50, Margin = new(18, 0) };
         var titles = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
         titles.Children.Add(_title); Grid.SetColumn(_subtitle, 1); titles.Children.Add(_subtitle);
@@ -147,6 +149,10 @@ public sealed partial class ClassificationRunWindow : Window
         if (_pause is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
             _headerActions.Children.Add(Pill(_job.State == JobState.Paused ? "继续任务" : "临时停止", _job.State == JobState.Paused ? "play" : "pause", click: () => _pause(_job)));
         if (_stop is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
-            _headerActions.Children.Add(Pill("结束任务", "square", "danger", () => _stop(_job)));
+        {
+            var stop = Pill("结束任务", "square", "danger", () => _stop(_job));
+            stop.Background = Brushes.Transparent; stop.BorderBrush = Red; stop.BorderThickness = new(1);
+            _headerActions.Children.Add(stop);
+        }
     }
 }

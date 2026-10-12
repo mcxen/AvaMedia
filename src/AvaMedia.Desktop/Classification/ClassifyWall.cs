@@ -101,7 +101,7 @@ internal sealed class FileWall : ListBox
         }
     }
 
-    private sealed class WallTile : Panel
+    internal sealed class WallTile : Panel
     {
         private readonly ClassifyThumb _thumb = new(48) { Width = Tile, Height = Tile };
         private readonly Border _ring = new() { CornerRadius = new(8), BorderBrush = Blue, BorderThickness = new(2), Margin = new(-2) };
@@ -132,6 +132,36 @@ internal sealed class FileWall : ListBox
             _badge.IsVisible = badge.fill is not null; _badge.Background = badge.fill;
             _badge.Child = badge.icon is { } icon ? new LucideIcon { Kind = icon, Width = 10, Height = 10, Foreground = file.State == FolderFileState.Processing ? Blue : Brushes.White }
                 : new TextBlock { Text = badge.text, FontSize = 10, FontWeight = FontWeight.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        }
+    }
+}
+
+/// <summary>Eight files around the current source, in input order, without realizing the full queue.</summary>
+internal sealed class FileFlow : Grid
+{
+    private readonly FileWall.WallTile[] _tiles = new FileWall.WallTile[8];
+    public FileFlow()
+    {
+        Height = FileWall.Tile; VerticalAlignment = VerticalAlignment.Top; ColumnSpacing = FileWall.Gap;
+        for (var i = 0; i < _tiles.Length; i++)
+        {
+            ColumnDefinitions.Add(new(1, GridUnitType.Star));
+            _tiles[i] = new() { HorizontalAlignment = HorizontalAlignment.Left };
+            Grid.SetColumn(_tiles[i], i); Children.Add(_tiles[i]);
+        }
+    }
+    public void Update(IReadOnlyList<FolderFileVisual> files)
+    {
+        var current = -1;
+        for (var i = 0; i < files.Count; i++) if (files[i].State == FolderFileState.Processing) { current = i; break; }
+        if (current < 0)
+            for (var i = 0; i < files.Count; i++) if (files[i].State == FolderFileState.Queued) { current = i; break; }
+        if (current < 0) current = files.Count - 1;
+        var start = Math.Clamp(current - 5, 0, Math.Max(0, files.Count - _tiles.Length));
+        for (var i = 0; i < _tiles.Length; i++)
+        {
+            _tiles[i].IsVisible = start + i < files.Count;
+            if (_tiles[i].IsVisible) _tiles[i].Set(files[start + i]);
         }
     }
 }

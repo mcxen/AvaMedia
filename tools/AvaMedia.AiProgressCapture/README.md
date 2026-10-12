@@ -3,7 +3,9 @@
 Captures the existing Chinese desktop windows using deterministic in-memory jobs,
 subtitle cues, activity histories, six speech segments (segment three running),
 two waiting subtitle jobs, and a classification snapshot with 412 of 1284 files
-processed. Solid-color thumbnails and a synthetic audio envelope are fixtures;
+processed. Classification uses generated people in a furnished room with five
+garment colours, a six-frame video (frame four running), partial clothing colour
+evidence, scene scores and group additions. Subtitle covers and a synthetic audio envelope are fixtures;
 the tool does not submit tasks or run AI inference. Settings and fixture files
 and thumbnail caches are isolated in existing temporary XDG data/config/cache
 directories and removed on exit. The capture also runs from that temporary
@@ -26,6 +28,9 @@ and pass `--demos /workspace/AvaMedia-sidebar-review/ai-progress/v2` to the Pyth
 ~/.dotnet/dotnet tools/AvaMedia.AiProgressCapture/bin/Debug/net8.0/AvaMedia.AiProgressCapture.dll /workspace/AvaMedia-sidebar-review/ai-progress/v2/impl
 python3 tools/AvaMedia.AiProgressCapture/sidebyside.py /workspace/AvaMedia-sidebar-review/ai-progress/v2/impl
 ```
+
+For the classification window alone, add `--classification` to the capture command
+and `--name progress-from-tasklist-desktop` to the comparison command.
 
 The output-directory argument is optional and defaults to `/tmp/avamedia-ai-progress-v2/impl`.
 The capture outputs are `subtitle-submit-desktop.png` (940 × 560),
