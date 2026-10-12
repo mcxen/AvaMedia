@@ -85,6 +85,44 @@ internal static class WebPreview
             { return Results.Problem(error.Message, statusCode: 400); }
             finally { admission.Release(); }
         });
+        // Segment boundary thumbnails (起点/终点) and frame-accurate nudging for clip editors.
+        app.MapGet("/web/preview/boundaries", async (string path, double start, double end, int? width, int? videoStreamIndex, IMcpWorkspace workspace, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            if (!admission.Wait(0)) { context.Response.Headers.RetryAfter = "1"; return Results.Problem("预览服务繁忙，请稍后重试。", statusCode: 429); }
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+            timeout.CancelAfter(TimeSpan.FromSeconds(40));
+            try
+            {
+                path = new McpFiles().Check(path, true);
+                if (!VideoFormats.IsVideo(path)) throw new ArgumentException("请选择视频。");
+                var version = McpMediaFile.Version(path);
+                var frameWidth = width > 240 ? 320 : 240;
+                await decoder.WaitAsync(timeout.Token);
+                SegmentBoundaryFrame[] frames;
+                try { frames = await SegmentBoundaryFrames.ReadAsync(workspace.Engine, path, start, end, frameWidth, frameWidth * 9 / 16, videoStreamIndex ?? 0, timeout.Token); }
+                finally { decoder.Release(); }
+                if (version != McpMediaFile.Version(path)) throw new IOException("读取期间源文件发生变化，请重试。");
+                return Results.Json(new { sourceVersion = version, frames = frames.Select(frame => new { edge = frame.Edge, seconds = frame.Seconds, image = Convert.ToBase64String(frame.Image) }) });
+            }
+            catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested) { return Results.Problem("预览超时。", statusCode: 408); }
+            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or InvalidDataException) { return Results.Problem(error.Message, statusCode: 400); }
+            finally { admission.Release(); }
+        });
+        app.MapGet("/web/preview/nudge", async (string path, double seconds, int frames, int? videoStreamIndex, IMcpWorkspace workspace, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            try
+            {
+                path = new McpFiles().Check(path, true);
+                var result = await SegmentBoundaryFrames.NudgeAsync(workspace.Engine, path, seconds, frames, videoStreamIndex ?? 0, timeout.Token);
+                return Results.Json(new { seconds = result });
+            }
+            catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested) { return Results.Problem("定位超时。", statusCode: 408); }
+            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or InvalidDataException) { return Results.Problem(error.Message, statusCode: 400); }
+        });
         async Task Run(HttpContext context, Func<CancellationToken, Task<(byte[] Frame, string Metadata)>> render)
         {
             context.Response.Headers.CacheControl = "no-store";
