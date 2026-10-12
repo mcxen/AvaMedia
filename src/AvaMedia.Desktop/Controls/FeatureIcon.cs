@@ -132,6 +132,11 @@ public sealed class FeatureIcon : Control
             c.DrawGeometry(null, new Pen(B("#5FB134"), 4), Geometry.Parse("M 58,18 A 16,16 0 1 1 46,62"));
             c.DrawGeometry(B("#5FB134"), null, Geometry.Parse("M 40,54 L 52,66 L 66,48"));
         }
-        else {Film(12,24);T("⚙",39,3,44,"#F1B32D",true);T("⚙",60,30,28,"#D6981C",true);}
+        else
+        {
+            Film(12,24);
+            using (c.PushTransform(Matrix.CreateTranslation(39,3))) LucideIcon.Draw(c, new Size(44,44), B("#F1B32D"), "settings");
+            using (c.PushTransform(Matrix.CreateTranslation(60,30))) LucideIcon.Draw(c, new Size(28,28), B("#D6981C"), "settings");
+        }
     }
 }

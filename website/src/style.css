@@ -633,19 +633,6 @@ h3 {
   font-size: 13px;
   line-height: 1.9;
 }
-.shortcuts {
-  display: flex;
-  gap: 6px;
-  margin-top: 15px;
-}
-kbd {
-  border: 1px solid #d5d9cc;
-  border-bottom-width: 3px;
-  border-radius: 4px;
-  padding: 5px 8px;
-  font-size: 10px;
-  color: #5b6350;
-}
 .extra-note {
   display: block;
   margin-top: 15px;

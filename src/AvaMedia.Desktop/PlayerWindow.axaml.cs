@@ -333,7 +333,7 @@ public partial class PlayerWindow : Window
             case PlayerCommand.NextFile: await ChangeFile(1); break;
             case PlayerCommand.Open: await Pick(); break;
             case PlayerCommand.Stop: await SeekAsync(0, false); break;
-            case PlayerCommand.Help: ShortcutHelp.IsVisible = !ShortcutHelp.IsVisible; ShowChrome(); break;
+            case PlayerCommand.Help: ToolTip.SetIsOpen(PlayerMenuButton, !ToolTip.GetIsOpen(PlayerMenuButton)); ShowChrome(); break;
             case PlayerCommand.Playlist: TogglePlaylist(); break;
             case PlayerCommand.Settings: OpenMenu(BuildSettingsMenu(), PlayerSettingsButton); break;
             case PlayerCommand.CaptureFrame: await CaptureFrameAsync(); break;
@@ -358,14 +358,14 @@ public partial class PlayerWindow : Window
         ShowChrome();
     }
     private bool IsPlayerOverlay(object? source) => source is Control control && control.GetVisualAncestors().Prepend(control)
-        .Any(ancestor => ancestor == VrPanel || ancestor == PlaylistPanel || ancestor == ShortcutHelp);
+        .Any(ancestor => ancestor == VrPanel || ancestor == PlaylistPanel);
 
     private void ShowChrome()
     {
         var fullscreen = WindowState == WindowState.FullScreen;
         HeaderBar.IsVisible = !fullscreen && !Skin.UsesCustomChrome(ActualThemeVariant);
         // Overlay the fullscreen picture so hiding controls does not resize it or generate pointer movement.
-        var overlay = fullscreen && !PlaylistPanel.IsVisible && !VrPanel.IsVisible && !ShortcutHelp.IsVisible;
+        var overlay = fullscreen && !PlaylistPanel.IsVisible && !VrPanel.IsVisible && !ToolTip.GetIsOpen(PlayerMenuButton);
         Grid.SetRow(ControlsBar, overlay ? 1 : 2);
         ControlsBar.VerticalAlignment = overlay ? VerticalAlignment.Bottom : VerticalAlignment.Stretch;
         ControlsBar.IsVisible = true;
@@ -522,7 +522,7 @@ public partial class PlayerWindow : Window
     internal ContextMenu BuildMenu()
     {
         MenuItem Command(string title, PlayerCommand command, KeyGesture? key = null)
-        { var item = new MenuItem { Header = title, InputGesture = key }; item.Click += (_, _) => CommandReady = ExecuteAsync(command); return item; }
+        { var item = new MenuItem { Header = title }; if (key is not null) ToolTip.SetTip(item, Localization.Text(title) + " (" + key + ")"); item.Click += (_, _) => CommandReady = ExecuteAsync(command); return item; }
         List<object> items = [Command("打开文件…", PlayerCommand.Open, new(Key.F3)), new Separator(),
             Command(_playIntent ? "暂停" : "播放", PlayerCommand.TogglePlayback, new(Key.Space)), Command("停止", PlayerCommand.Stop, new(Key.F4)),
             Command("上一文件", PlayerCommand.PreviousFile, new(Key.PageUp)), Command("下一文件", PlayerCommand.NextFile, new(Key.PageDown)),

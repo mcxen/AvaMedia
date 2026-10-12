@@ -21,7 +21,7 @@ internal sealed class Mosaic : Grid
             _thumbs = Enumerable.Range(0, 3).Select(i => new ClassifyThumb(48)
             {
                 Width = height * .85, Height = height * .85, Margin = new(i * 6, 3 - i * 1.5, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top, BorderBrush = Brushes.White, BorderThickness = new(1.5), CornerRadius = new(5)
+                VerticalAlignment = VerticalAlignment.Top, [!ClassifyThumb.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5), CornerRadius = new(5)
             }).ToArray();
             foreach (var thumb in _thumbs) Children.Add(thumb);
         }
@@ -56,12 +56,12 @@ internal sealed class FileWall : ListBox
 
     public FileWall()
     {
-        Background = Brushes.Transparent; BorderThickness = new(0); Padding = new(0);
+        Bind(BackgroundProperty, Resource(Transparent)); BorderThickness = new(0); Padding = new(0);
         SelectionMode = SelectionMode.Single; Focusable = false;
         ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
         ItemTemplate = new FuncDataTemplate<int>((_, _) => new WallRow(this), supportsRecycling: true);
         ItemContainerTheme = null;
-        ContainerPrepared += (_, args) => { if (args.Container is ListBoxItem item) { item.Padding = new(0); item.MinHeight = 0; item.Background = Brushes.Transparent; } };
+        ContainerPrepared += (_, args) => { if (args.Container is ListBoxItem item) { item.Padding = new(0); item.MinHeight = 0; item.Bind(BackgroundProperty, Resource(Transparent)); } };
         SizeChanged += (_, _) => Relayout();
     }
 
@@ -104,9 +104,9 @@ internal sealed class FileWall : ListBox
     private sealed class WallTile : Panel
     {
         private readonly ClassifyThumb _thumb = new(48) { Width = Tile, Height = Tile };
-        private readonly Border _ring = new() { CornerRadius = new(8), BorderBrush = Blue, BorderThickness = new(2), Margin = new(-2) };
+        private readonly Border _ring = new() { CornerRadius = new(8), [!Border.BorderBrushProperty] = Resource(Blue), BorderThickness = new(2), Margin = new(-2) };
         private readonly Border _badge = new() { Width = 16, Height = 16, CornerRadius = new(8), HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Bottom, Margin = new(0, 0, 0, 3), BorderBrush = Brushes.White, BorderThickness = new(1.5) };
+            VerticalAlignment = VerticalAlignment.Bottom, Margin = new(0, 0, 0, 3), [!Border.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5) };
         private string? _key;
         public WallTile()
         {
@@ -121,17 +121,17 @@ internal sealed class FileWall : ListBox
             ToolTip.SetTip(this, file.Name);
             _thumb.Opacity = file.State == FolderFileState.Queued ? .35 : 1;
             _ring.IsVisible = file.State == FolderFileState.Processing;
-            (IBrush? fill, string? icon, string? text) badge = file.State switch
+            (string? fill, string? icon, string? text) badge = file.State switch
             {
                 FolderFileState.Done => (Green, "check", null),
                 FolderFileState.Pending => (Orange, null, "?"),
                 FolderFileState.Failed => (Red, null, "!"),
-                FolderFileState.Processing => (Brushes.White, "loader-circle", null),
+                FolderFileState.Processing => (White, "loader-circle", null),
                 _ => (null, null, null)
             };
-            _badge.IsVisible = badge.fill is not null; _badge.Background = badge.fill;
-            _badge.Child = badge.icon is { } icon ? new LucideIcon { Kind = icon, Width = 10, Height = 10, Foreground = file.State == FolderFileState.Processing ? Blue : Brushes.White }
-                : new TextBlock { Text = badge.text, FontSize = 10, FontWeight = FontWeight.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            _badge.IsVisible = badge.fill is not null; _badge.Bind(Border.BackgroundProperty, Resource(badge.fill));
+            _badge.Child = badge.icon is { } icon ? new LucideIcon { Kind = icon, Width = 10, Height = 10, [!LucideIcon.ForegroundProperty] = Resource(file.State == FolderFileState.Processing ? Blue : White) }
+                : new TextBlock { Text = badge.text, FontSize = 10, FontWeight = FontWeight.Bold, [!TextBlock.ForegroundProperty] = Resource(White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         }
     }
 }

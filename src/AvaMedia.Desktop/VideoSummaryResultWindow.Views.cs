@@ -145,8 +145,8 @@ public sealed partial class VideoSummaryResultWindow
     {
         var root = new Grid { RowDefinitions = new("Auto,*"), Margin = new(12, 0, 12, 8), RowSpacing = 6 };
         var tools = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-        _search.MinHeight = 28; tools.Children.Add(_search); var count = Ui.Text("", "caption"); Grid.SetColumn(count, 1); tools.Children.Add(count); root.Children.Add(tools);
-        var list = new ListBox { HorizontalAlignment = HorizontalAlignment.Stretch, Classes = { "summary-transcript" } };
+        var count = Ui.Text("", "caption"); Grid.SetColumn(count, 1); tools.Children.Add(count); root.Children.Add(tools);
+        var list = _transcript; list.HorizontalAlignment = HorizontalAlignment.Stretch; list.Classes.Add("summary-transcript");
         ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         list.ItemTemplate = new FuncDataTemplate<SubtitleCue>((cue, _) =>
         {
@@ -155,25 +155,6 @@ public sealed partial class VideoSummaryResultWindow
             var stamp = TimeButton(cue.Start.TotalSeconds); stamp.VerticalAlignment = VerticalAlignment.Top; row.Children.Add(stamp);
             var text = SummaryDocumentView.Prose(cue.Text, formatted: false); Grid.SetColumn(text, 1); row.Children.Add(text); return row;
         });
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
-        var generation = 0;
-        async Task FilterAsync()
-        {
-            var revision = ++generation;
-            var query = _search.Text?.Trim() ?? "";
-            IReadOnlyList<SubtitleCue> matches;
-            try
-            {
-                matches = query.Length == 0 ? report.Transcript : await Task.Run(() => report.Transcript
-                    .Where(cue => cue.Text.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray(), _lifetime.Token);
-            }
-            catch (OperationCanceledException) when (_closed) { return; }
-            if (_closed || revision != generation) return;
-            list.ItemsSource = matches; Localization.SetText(count, $"{matches.Count} / {report.Transcript.Count} 条");
-        }
-        timer.Tick += async (_, _) => { timer.Stop(); await FilterAsync(); };
-        _search.TextChanged += (_, _) => { generation++; timer.Stop(); timer.Start(); };
-        Closed += (_, _) => timer.Stop();
         list.ItemsSource = report.Transcript; Localization.SetText(count, $"{report.Transcript.Count} / {report.Transcript.Count} 条");
         Grid.SetRow(list, 1); root.Children.Add(list); return root;
     }

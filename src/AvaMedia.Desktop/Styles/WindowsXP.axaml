@@ -3,6 +3,25 @@
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}">
+          <SolidColorBrush x:Key="UiClassificationNote" Color="#CEDFF5"/>
+          <BoxShadows x:Key="UiThumbnailShadow">0 0 0 0 #00000000</BoxShadows>
+          <SolidColorBrush x:Key="UiClassificationRuleFace" Color="#ECE9D8"/>
+          <Thickness x:Key="UiClassificationPillBorder">1</Thickness>
+          <SolidColorBrush x:Key="UiClassificationRuleText" Color="#000000"/>
+          <SolidColorBrush x:Key="UiClassificationPrimary" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="UiClassificationPrimaryText" Color="#000000"/>
+          <SolidColorBrush x:Key="UiFill" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="UiClassificationPage" Color="#ECE9D8"/>
+          <SolidColorBrush x:Key="UiAccentSoft" Color="#CEDFF5"/>
+          <SolidColorBrush x:Key="UiAccentDescription" Color="#716F64"/>
+          <SolidColorBrush x:Key="UiSuccessFill" Color="#168900"/>
+          <SolidColorBrush x:Key="UiBanner" Color="#FFF8E6"/>
+          <SolidColorBrush x:Key="UiBannerText" Color="#946300"/>
+          <SolidColorBrush x:Key="UiTrack" Color="#ACA899"/>
+          <SolidColorBrush x:Key="UiTransparent" Color="Transparent"/>
+          <BoxShadows x:Key="UiCardShadow">0 0 0 0 #00000000</BoxShadows>
+          <BoxShadows x:Key="UiSegmentShadow">0 0 0 0 #00000000</BoxShadows>
+          <BoxShadows x:Key="UiFocusShadow">0 0 0 0 #00000000</BoxShadows>
           <ResourceDictionary.MergedDictionaries><ResourceInclude Source="avares://AvaMedia.Desktop/Styles/WindowsXPControls.axaml"/></ResourceDictionary.MergedDictionaries>
           <SolidColorBrush x:Key="UiCanvas" Color="#ECE9D8"/>
           <SolidColorBrush x:Key="UiFeaturePanel" Color="#D6DFF7"/>

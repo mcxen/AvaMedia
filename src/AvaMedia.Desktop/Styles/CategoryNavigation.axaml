@@ -6,7 +6,7 @@
           <SolidColorBrush x:Key="UiNavigationRail" Color="#333333"/>
           <SolidColorBrush x:Key="UiNavigationText" Color="#EEEEEE"/>
           <SolidColorBrush x:Key="UiNavigationHover" Color="#454545"/>
-          <SolidColorBrush x:Key="UiNavigationSelection" Color="#5B5BFA"/>
+          <SolidColorBrush x:Key="UiNavigationSelection" Color="#007AFF"/>
           <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiTreeSelection" Color="#007AFF"/>
           <SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>
@@ -19,7 +19,7 @@
           <SolidColorBrush x:Key="UiNavigationRail" Color="#1A1A1A"/>
           <SolidColorBrush x:Key="UiNavigationText" Color="#EEEEEE"/>
           <SolidColorBrush x:Key="UiNavigationHover" Color="#303030"/>
-          <SolidColorBrush x:Key="UiNavigationSelection" Color="#5B5BFA"/>
+          <SolidColorBrush x:Key="UiNavigationSelection" Color="#0A84FF"/>
           <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiTreeSelection" Color="#0A84FF"/>
           <SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>

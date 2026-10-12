@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaMedia.Core;
@@ -27,7 +28,7 @@ internal sealed class ClassifyThumb : Border
 
     public ClassifyThumb(int decodeWidth = 96)
     {
-        _width = decodeWidth; ClipToBounds = true; Background = ClassifyUi.Fill; CornerRadius = new(6); Child = _image;
+        _width = decodeWidth; ClipToBounds = true; Bind(BackgroundProperty, Resource(Fill)); CornerRadius = new(6); Child = _image;
         EffectiveViewportChanged += (_, args) =>
         {
             var visible = args.EffectiveViewport.Width > 0 && args.EffectiveViewport.Intersects(new Rect(Bounds.Size));

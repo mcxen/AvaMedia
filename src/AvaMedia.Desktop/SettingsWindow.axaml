@@ -4,7 +4,6 @@
   </Window.Styles>
   <Grid RowDefinitions="Auto,*,40,Auto" Margin="20" RowSpacing="8">
     <Grid ColumnDefinitions="172,*" ColumnSpacing="20" Margin="0,0,0,4">
-      <TextBox x:Name="SettingsSearchInput" Watermark="搜索设置" AutomationProperties.Name="搜索设置" />
       <TextBlock Grid.Column="1" x:Name="SettingsPageTitle" Classes="settingsTitle" Text="软件通用" VerticalAlignment="Center" Margin="0" />
     </Grid>
     <Grid Grid.Row="1">
@@ -194,9 +193,8 @@
                     </Expander>
                   </StackPanel>
                   <Grid Grid.Row="1">
-                    <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
-                      <TextBox x:Name="ModelSearchInput" Watermark="搜索模型名称或用途" AutomationProperties.Name="搜索模型" />
-                      <ComboBox Grid.Column="1" x:Name="ModelFilterInput" HorizontalAlignment="Stretch" AutomationProperties.Name="模型筛选">
+                    <Grid ColumnDefinitions="160,*" ColumnSpacing="12">
+                      <ComboBox x:Name="ModelFilterInput" HorizontalAlignment="Stretch" AutomationProperties.Name="模型筛选">
                         <ComboBoxItem Content="全部模型" />
                         <ComboBoxItem Content="已安装" />
                         <ComboBoxItem Content="待下载" />

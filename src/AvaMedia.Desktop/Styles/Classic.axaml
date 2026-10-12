@@ -1,8 +1,4 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
-  <Styles.Resources>
-    <SolidColorBrush x:Key="UiClassicPrimary" Color="#5B5BFA"/>
-  </Styles.Resources>
-
   <!-- Shared structure; the classic appearance is scoped to the two standard themes. -->
   <Style Selector="Border.app-toolbar"><Setter Property="BorderThickness" Value="0,0,0,1"/></Style>
   <Style Selector="Border.feature-sidebar"><Setter Property="BorderThickness" Value="0,0,1,0"/></Style>
@@ -71,8 +67,8 @@
     <Setter Property="Padding" Value="6,2"/>
   </Style>
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary">
-    <Setter Property="Background" Value="{StaticResource UiClassicPrimary}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource UiClassicPrimary}"/>
+    <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
     <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
   </Style>
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.tool controls|ActionIcon:not(.danger):not(.success)">

@@ -74,8 +74,6 @@ public partial class MediaRouteWindow : Window
         KindPicker.ItemsSource = new[] { "全部文件", "仅视频", "仅图片", "仅音频", "仅文档", "其他文件" };
         KindPicker.SelectedIndex = 0;
         KindPicker.SelectionChanged += (_, _) => SelectKind();
-        ToolSearch.TextChanged += (_, _) => BuildRouteSections();
-        ToolSearch.KeyDown += SearchKeyDown;
         AddHandler(KeyDownEvent, RoutingKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         RouteScroll.ScrollChanged += (_, _) => UpdateFlowTarget();
         SourceList.AddHandler(ScrollViewer.ScrollChangedEvent, (_, _) => UpdateFlowTarget());

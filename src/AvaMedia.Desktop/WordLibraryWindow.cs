@@ -20,7 +20,6 @@ public sealed class WordLibraryWindow : Window
     private readonly bool _includeSemantic;
     private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 180, MaxWidth = 280 };
     private readonly ComboBox _category = new() { MinWidth = 140, MaxWidth = 220, HorizontalAlignment = HorizontalAlignment.Left };
-    private readonly TextBox _search = new() { Watermark = "搜索名称、描述或标签", HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly CheckBox _selectedOnly = new() { Content = "仅已选" };
     private readonly ListBox _list = new();
     private readonly TextBlock _count = Ui.Text("", "caption");
@@ -63,7 +62,7 @@ public sealed class WordLibraryWindow : Window
         tools.Children.Add(Ui.Button("删除词库", async () => await DeleteAsync())); root.Children.Add(tools);
         var filters = new Grid { ColumnDefinitions = new("230,180,*,Auto"), ColumnSpacing = 8 };
         filters.Children.Add(_libraries); Grid.SetColumn(_category, 1); filters.Children.Add(_category);
-        Grid.SetColumn(_search, 2); filters.Children.Add(_search); Grid.SetColumn(_selectedOnly, 3); filters.Children.Add(_selectedOnly);
+        Grid.SetColumn(_selectedOnly, 3); filters.Children.Add(_selectedOnly);
         _selectedOnly.IsVisible = target is not null; Grid.SetRow(filters, 1); root.Children.Add(filters);
         var information = new StackPanel { Spacing = 5 }; information.Children.Add(_source);
         if (target is not null)
@@ -105,7 +104,7 @@ public sealed class WordLibraryWindow : Window
             _categoryValue = (_category.SelectedItem as CategoryChoice)?.Value ?? "";
             Filter();
         };
-        _search.TextChanged += (_, _) => Filter(); _selectedOnly.IsCheckedChanged += (_, _) => Filter();
+        _selectedOnly.IsCheckedChanged += (_, _) => Filter();
         Localization.Changed += WordLanguageChanged;
         Closed += (_, _) => { Localization.Changed -= WordLanguageChanged; _settings.NsfwContentChanged -= PrivacyChanged; };
         Opened += async (_, _) =>
@@ -175,13 +174,9 @@ public sealed class WordLibraryWindow : Window
     }
     private WordRow[] VisibleRows()
     {
-        var category = (_category.SelectedItem as CategoryChoice)?.Value; var search = _search.Text?.Trim() ?? "";
+        var category = (_category.SelectedItem as CategoryChoice)?.Value;
         return _rows.Where(row => (string.IsNullOrEmpty(category) || row.Entry.Category == category)
-            && (_selectedOnly.IsChecked != true || row.Selected)
-            && (search.Length == 0 || WordLibraryCatalog.CandidateLabel(row.Entry).Contains(search, StringComparison.OrdinalIgnoreCase)
-                || row.Entry.Label.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || row.Entry.Description.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || row.Entry.Tags.Any(tag => tag.Contains(search, StringComparison.OrdinalIgnoreCase)))).ToArray();
+            && (_selectedOnly.IsChecked != true || row.Selected)).ToArray();
     }
     private void Filter()
     { if (!_updating) { _list.ItemsSource = VisibleRows(); UpdateCount(); } }

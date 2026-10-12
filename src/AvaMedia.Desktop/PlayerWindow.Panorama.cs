@@ -185,9 +185,9 @@ public partial class PlayerWindow
             return (object)choice;
         }).ToList();
         choices.Add(new Separator());
-        var settings = new MenuItem { Header = "VR 设置…", InputGesture = new(Key.V) };
+        var settings = new MenuItem { Header = "VR 设置…", [ToolTip.TipProperty] = Localization.Text("VR 设置…") + " (V)" };
         settings.Click += (_, _) => ToggleVrPanel(); choices.Add(settings);
-        var reset = new MenuItem { Header = "回正视角", InputGesture = new(Key.R), IsEnabled = Panorama.IsImmersive };
+        var reset = new MenuItem { Header = "回正视角", [ToolTip.TipProperty] = Localization.Text("回正视角") + " (R)", IsEnabled = Panorama.IsImmersive };
         reset.Click += (_, _) => RecenterPanorama(); choices.Add(reset);
         return new MenuItem { Header = "VR 视频", IsEnabled = _info?.HasVideo == true && !_deleting, ItemsSource = choices };
     }

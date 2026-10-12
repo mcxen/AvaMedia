@@ -23,7 +23,8 @@
           <SolidColorBrush x:Key="ShellTrack" Color="#E5E5EA"/>
           <SolidColorBrush x:Key="ShellRed" Color="#FF3B30"/>
           <SolidColorBrush x:Key="ShellGreen" Color="#34C759"/>
-          <SolidColorBrush x:Key="ShellWait" Color="#8E8E93"/>
+          <SolidColorBrush x:Key="ShellGreenText" Color="#248A3D"/>
+          <SolidColorBrush x:Key="ShellWait" Color="#86868B"/>
           <SolidColorBrush x:Key="ShellFlap" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="ShellWindow" Color="#FFFFFF"/>
         </ResourceDictionary>
@@ -47,6 +48,7 @@
           <SolidColorBrush x:Key="ShellTrack" Color="#3A3A3C"/>
           <SolidColorBrush x:Key="ShellRed" Color="#FF453A"/>
           <SolidColorBrush x:Key="ShellGreen" Color="#30D158"/>
+          <SolidColorBrush x:Key="ShellGreenText" Color="#30D158"/>
           <SolidColorBrush x:Key="ShellWait" Color="#98989D"/>
           <SolidColorBrush x:Key="ShellFlap" Color="#3A3A3C"/>
           <SolidColorBrush x:Key="ShellWindow" Color="#1E1E1E"/>
@@ -106,7 +108,7 @@
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ProgressBar"><Setter Property="Height" Value="4"/><Setter Property="MinHeight" Value="4"/><Setter Property="MaxHeight" Value="4"/><Setter Property="CornerRadius" Value="2"/><Setter Property="Background" Value="{DynamicResource ShellTrack}"/><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state"><Setter Property="FontSize" Value="11.5"/><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.running"><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreen}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreenText}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon"><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreen}"/></Style>

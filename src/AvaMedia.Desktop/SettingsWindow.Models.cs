@@ -16,14 +16,13 @@ public sealed partial class SettingsWindow
     private bool _onlineTarget;
     public void OpenModelManagement(string? modelId = null)
     {
-        SettingsSearchInput.Text = ""; ModelSearchInput.Text = ""; ModelFilterInput.SelectedIndex = 0;
+        ModelFilterInput.SelectedIndex = 0;
         _modelTarget = modelId; _onlineTarget = false; SettingsTabs.SelectedItem = ModelsTab;
         ModelSettingsTabs.SelectedItem = ModelLibraryTab;
         if (IsVisible) FocusModelTarget();
     }
     public void OpenOnlineAiSettings()
     {
-        SettingsSearchInput.Text = "";
         _modelTarget = null; _onlineTarget = true; SettingsTabs.SelectedItem = ProvidersTab;
         if (IsVisible) FocusModelTarget();
     }
@@ -89,7 +88,6 @@ public sealed partial class SettingsWindow
         _values.Add(() => ModelSourceInput.SelectedIndex); _values.Add(() => ModelSourceUrlInput.Text);
         _appliedValues = _values.Select(value => value()).ToArray();
         ModelFilterInput.SelectedIndex = 0;
-        ModelSearchInput.TextChanged += (_, _) => FilterModelRows();
         ModelFilterInput.SelectionChanged += (_, _) => FilterModelRows();
         foreach (var model in ModelCatalog.All)
         {
@@ -163,7 +161,6 @@ public sealed partial class SettingsWindow
 
     private void FilterModelRows()
     {
-        var query = ModelSearchInput.Text?.Trim() ?? "";
         foreach (var model in ModelCatalog.All)
         {
             if (!_modelRows.TryGetValue(model.Id, out var row)) continue;
@@ -175,8 +172,7 @@ public sealed partial class SettingsWindow
                 4 => ModelCatalog.RequiresSummaryRuntime(model.Id),
                 _ => true
             };
-            row.Container.IsVisible = stateMatches && (query.Length == 0
-                || new[] { model.Id, model.Name, Localization.Text(model.Purpose) }.Any(text => text.Contains(query, StringComparison.CurrentCultureIgnoreCase)));
+            row.Container.IsVisible = stateMatches;
         }
     }
 

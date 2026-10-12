@@ -68,9 +68,7 @@ public sealed partial class MediaAiWindow
     }
     private IEnumerable<ResultTag> FilterResultTags(IEnumerable<ResultTag> tags, bool search)
     {
-        var query = search ? _tagSearch.Text?.Trim() ?? "" : "";
-        return tags.Where(tag => (!search || ScopeMatches(tag)) && (query.Length == 0 || tag.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || tag.Category.Contains(query, StringComparison.OrdinalIgnoreCase) || tag.RawTags?.Any(raw => raw.Contains(query, StringComparison.OrdinalIgnoreCase)) == true));
+        return tags.Where(tag => !search || ScopeMatches(tag));
     }
     private IEnumerable<ResultTag> ResultTags(MediaTagResult result, bool search = false)
     {

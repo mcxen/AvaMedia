@@ -14,7 +14,6 @@ public sealed partial class MediaAiWindow
     private readonly TextBlock _detailTitle = Ui.Text("识别结果", "heading");
     // Only live/partial progress; the file list already shows each file's status and tag count.
     private readonly TextBlock _detailState = new() { Classes = { "caption" }, IsVisible = false };
-    private readonly TextBox _tagSearch = new() { Watermark = "查找标签", Name = "MediaAiTagSearch", Width = 240 };
     private readonly TextBlock _tagCount = Ui.Text("标签", "heading");
     private readonly Border _resultFilters = new() { IsVisible = false };
     private readonly Button _editTags = new() { Content = "编辑标签…", IsVisible = false };
@@ -135,8 +134,7 @@ public sealed partial class MediaAiWindow
         AutomationProperties.SetName(_preview, Localization.Text(video ? "视频预览" : "图片预览"));
         _detailTitle.Text = entry?.Name ?? Localization.Text("识别结果"); Localization.SetIsUserText(_detailTitle, true);
         ToolTip.SetTip(_detailTitle, entry?.Path);
-        _tagSearch.IsVisible = entry is not null && TryDisplayedResult(entry.Path, out _);
-        _tagPanel.IsVisible = _tagSearch.IsVisible || entry?.Status == Localization.Text("失败") && entry.Details.Length > 0;
+        _tagPanel.IsVisible = entry is not null && TryDisplayedResult(entry.Path, out _) || entry?.Status == Localization.Text("失败") && entry.Details.Length > 0;
         _editTags.IsVisible = entry is not null && _results.ContainsKey(entry.Path);
         _restoreTags.IsVisible = _editTags.IsVisible && _editedTags.ContainsKey(entry!.Path);
         if (entry is null || !TryDisplayedResult(entry.Path, out var result))

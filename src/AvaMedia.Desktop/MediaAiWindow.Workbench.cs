@@ -114,7 +114,7 @@ public sealed partial class MediaAiWindow
     {
         _chartSource.Width = 212; _scoreMode.Width = 132; _tagScope.Width = 128; _tagSort.Width = 140;
         _tagSort.Name = "MediaAiTagSort";
-        AutomationProperties.SetName(_tagSearch, "查找标签"); AutomationProperties.SetName(_tagScope, "标签类别");
+        AutomationProperties.SetName(_tagScope, "标签类别");
         AutomationProperties.SetName(_tagSort, "标签排序"); AutomationProperties.SetName(_scoreMode, "分数来源");
         AutomationProperties.SetName(_chartSource, "图表来源");
         var panel = WorkbenchActions(_chartSource, _scoreMode, _tagScope, _sampleSummary, _playSample, _followLive);
@@ -128,7 +128,7 @@ public sealed partial class MediaAiWindow
         _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold);
         var layout = new StackPanel { Spacing = 2 }; layout.Children.Add(panel);
         layout.Children.Add(WorkbenchActions(_tagThresholdRow, _sceneThresholdRow));
-        layout.Children.Add(WorkbenchActions(_tagSearch, _tagSort, _editTags, _restoreTags));
+        layout.Children.Add(WorkbenchActions(_tagSort, _editTags, _restoreTags));
         _tagThreshold.Value = (double)(_threshold.Value ?? .4m);
         _threshold.PropertyChanged += (_, change) => { if (change.Property == NumericUpDown.ValueProperty) SetThreshold((double)(_threshold.Value ?? .4m), false); };
         _tagThreshold.PropertyChanged += (_, change) => { if (change.Property == Slider.ValueProperty) SetThreshold(_tagThreshold.Value, false); };

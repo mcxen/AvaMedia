@@ -20,7 +20,6 @@ public partial class MediaRouteWindow
     private readonly Dictionary<MediaRouteEntry, (Border Row, TextBlock Disposition)> _sourceRows = [];
     private HashSet<string> _acceptedPaths = new(VideoFolderScanner.PathComparer);
     private bool _pointerFeedback;
-    private string _lastQuery = "";
 
     private static (string Key, string Title) SectionFor(Feature feature) => feature.Id switch
     {
@@ -40,12 +39,6 @@ public partial class MediaRouteWindow
     {
         if (_closed) return;
         var previous = _active?.Feature.Id;
-        var query = ToolSearch.Text?.Trim() ?? "";
-        if (query != _lastQuery) { RouteScroll.Offset = default; _lastQuery = query; }
-        var filtered = _routes.Where(route => query.Length == 0 ||
-            new[] { route.Title, route.Description, SectionFor(route.Feature).Title, route.Feature.Id,
-                Localization.Text(route.Title), Localization.Text(route.Description), Localization.Text(SectionFor(route.Feature).Title) }
-                .Any(text => text.Contains(query, StringComparison.OrdinalIgnoreCase))).ToArray();
         var majorKind = _selected.GroupBy(source => source.Kind).OrderByDescending(group => group.Count()).FirstOrDefault()?.Key;
         string[] order = majorKind switch
         {
@@ -55,7 +48,7 @@ public partial class MediaRouteWindow
             _ => ["video", "edit", "extract", "analysis", "audio", "image", "document", "tools", "files"]
         };
         _cards.Clear(); _sections.Clear(); _positions.Clear(); RouteSections.Children.Clear();
-        foreach (var group in filtered.GroupBy(route => SectionFor(route.Feature)).OrderBy(group => Array.IndexOf(order, group.Key.Key)))
+        foreach (var group in _routes.GroupBy(route => SectionFor(route.Feature)).OrderBy(group => Array.IndexOf(order, group.Key.Key)))
         {
             var heading = Ui.Text(group.Key.Title); heading.FontWeight = FontWeight.SemiBold; heading.Classes.Add("route-group");
             var grid = new Grid(); grid.Bind(Grid.ColumnSpacingProperty, new DynamicResourceExtension("UiSpacingSmall"));
@@ -71,9 +64,9 @@ public partial class MediaRouteWindow
         }
         ArrangeRouteSections();
         _active = _cards.Select(card => card.Route).FirstOrDefault(route => route.Feature.Id == previous && route.Enabled)
-            ?? _cards.Select(card => card.Route).FirstOrDefault(route => route.Enabled) ?? filtered.FirstOrDefault();
-        Localization.SetText(RouteCount, $"{filtered.Length} / {_routes.Count} 个工具");
-        EmptyText.IsVisible = filtered.Length == 0;
+            ?? _cards.Select(card => card.Route).FirstOrDefault(route => route.Enabled) ?? _routes.FirstOrDefault();
+        Localization.SetText(RouteCount, $"{_routes.Count} 个工具");
+        EmptyText.IsVisible = _routes.Count == 0;
         EmptyText.Text = Localization.Text(_selected.Length == 0 ? "尚未选择文件" : "没有匹配的工具");
         ActivateRoute(_active);
     }
@@ -223,18 +216,11 @@ public partial class MediaRouteWindow
         if (target is not null) { target.Focus(NavigationMethod.Directional); target.BringIntoView(); }
     }
 
-    private void SearchKeyDown(object? sender, KeyEventArgs args)
-    {
-        if (args.Key == Key.Escape && !string.IsNullOrEmpty(ToolSearch.Text)) { ToolSearch.Clear(); args.Handled = true; }
-        else if (args.Key == Key.Down && _cards.FirstOrDefault(card => card.Button.IsEnabled).Button is { } first)
-        { args.Handled = true; first.Focus(NavigationMethod.Directional); first.BringIntoView(); }
-    }
-
     private void RoutingKeyDown(object? sender, KeyEventArgs args)
     {
         if (_pointerFeedback) { _pointerFeedback = false; UpdateFlowTarget(); }
         if (args.Handled) return;
         if (args.Key == Key.F && (args.KeyModifiers.HasFlag(KeyModifiers.Control) || args.KeyModifiers.HasFlag(KeyModifiers.Meta)))
-        { args.Handled = true; ToolSearch.Focus(); ToolSearch.SelectAll(); }
+        { args.Handled = true; if (_cards.FirstOrDefault(card => card.Button.IsEnabled).Button is { } first) first.Focus(NavigationMethod.Directional); }
     }
 }

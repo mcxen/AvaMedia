@@ -30,7 +30,7 @@ public sealed partial class ClassificationRunWindow : Window
     {
         _job = job; _pause = pause; _stop = stop; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
-        Background = Page; WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
+        Bind(BackgroundProperty, Resource(Page)); WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         var header = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new(22, 14, 22, 8) };
         var titles = new StackPanel { Spacing = 2 }; titles.Children.Add(_title); titles.Children.Add(_subtitle);
         header.Children.Add(titles); Grid.SetColumn(_headerActions, 1); header.Children.Add(_headerActions);

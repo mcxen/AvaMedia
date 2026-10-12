@@ -150,7 +150,7 @@ public sealed partial class SettingsWindow : Window
     private static string RuntimeDescription => Localization.Format($"{AppIdentity.WindowTitle}\n.NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}");
     private void LanguageChanged(object? sender, EventArgs e)
     {
-        RuntimeInfo.Text = RuntimeDescription; FilterSettingsPages(); UpdateSettingsPageTitle();
+        RuntimeInfo.Text = RuntimeDescription; UpdateSettingsPageTitle();
     }
     private void MarkDirty() { if (!_initializing) { ApplyButton.IsEnabled = !_values.Select(value=>value()).SequenceEqual(_appliedValues); StatusText.IsVisible = false; } }
     private bool ApplyDraft()

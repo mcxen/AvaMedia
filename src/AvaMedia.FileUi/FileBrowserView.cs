@@ -22,7 +22,6 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private readonly FileTreeView _places;
     private readonly ListBox _entries = new();
     private readonly PathInput _address = new();
-    private readonly TextBox _search = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _selectionCount = new();
     private readonly ComboBox _types = new() { MinWidth = 140, MaxWidth = 300 };
@@ -53,10 +52,9 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
         var refresh = Button("刷新", async () => { if (CurrentFolder is { } folder) await NavigateAsync(folder, false); });
         Grid.SetColumn(refresh, 3); navigation.Children.Add(refresh); root.Children.Add(navigation);
         _address.KeyDown += async (_, args) => { if (args.Key == Key.Enter) { args.Handled = true; await OpenAddressAsync(); } };
-        _search.Watermark = _text("搜索当前文件夹"); _search.TextChanged += (_, _) => Filter();
         _hidden.Content = _text("显示隐藏文件"); _hidden.IsCheckedChanged += (_, _) => Filter();
-        var filter = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-        filter.Children.Add(_search); Grid.SetColumn(_hidden, 1); filter.Children.Add(_hidden); Grid.SetRow(filter, 1); root.Children.Add(filter);
+        var filter = new Grid();
+        filter.Children.Add(_hidden); Grid.SetRow(filter, 1); root.Children.Add(filter);
         var body = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
         _places.FolderSelected += async folder => await NavigateAsync(folder);
         body.Children.Add(_places);
@@ -91,7 +89,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
         Grid.SetColumn(_select, 3); actions.Children.Add(_select); Grid.SetRow(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = root;
         PropertyChanged += (_, args) => { if (args.Property == BoundsProperty) _places.Width = Bounds.Width < 650 ? 150 : 210; };
-        AutomationProperties.SetName(_address, _text("文件夹地址")); AutomationProperties.SetName(_search, _text("搜索当前文件夹"));
+        AutomationProperties.SetName(_address, _text("文件夹地址"));
         AutomationProperties.SetName(_places, _text("常用位置")); AutomationProperties.SetName(_entries, _text("文件列表")); AutomationProperties.SetName(_types, _text("文件类型"));
         KeyDown += async (_, args) =>
         {
@@ -126,7 +124,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
             var directory = await _source.ReadAsync(folder, token);
             if (_disposed || token.IsCancellationRequested) return;
             if (remember && _directory is { } previous && previous.Folder.Address != folder.Address) _history.Push(previous.Folder);
-            _directory = directory; _address.Text = _source.DisplayAddress(folder); _search.Text = "";
+            _directory = directory; _address.Text = _source.DisplayAddress(folder);
             _loading = false; Filter();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -165,9 +163,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private void Filter()
     {
         if (_disposed || _directory is null || _loading) return;
-        var search = _search.Text?.Trim() ?? "";
         _entries.ItemsSource = _directory.Entries.Where(entry => (_hidden.IsChecked == true || !entry.Hidden)
-            && entry.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
             && (entry.IsFolder || !_options.Folders && Matches(entry.Name)))
             .OrderByDescending(entry => entry.IsFolder).ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
         _status.Text = ""; UpdateSelection(); CompactDirectoryChanged();

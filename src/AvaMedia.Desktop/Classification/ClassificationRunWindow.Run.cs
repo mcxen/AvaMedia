@@ -24,7 +24,7 @@ public sealed partial class ClassificationRunWindow
     private readonly Grid _frames = new() { Height = 52 };
     private readonly Grid _colorBar = new() { Height = 12, ClipToBounds = true };
     private readonly WrapPanel _verdicts = new();
-    private readonly TextBlock _reason = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Ink };
+    private readonly TextBlock _reason = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, [!TextBlock.ForegroundProperty] = Resource(Ink) };
     private readonly StackPanel _lookBody = new() { Spacing = 8 };
     private readonly TextBlock _lookEmpty = T("等待第一个文件完成分析", 12, brush: Muted);
     private readonly FileWall _wall = new();
@@ -50,7 +50,7 @@ public sealed partial class ClassificationRunWindow
             _stages[i] = new StageCard(); Grid.SetColumn(_stages[i], i * 2); _stageRow.Children.Add(_stages[i]);
             if (i < 4)
             {
-                var chevron = new LucideIcon { Kind = "chevron-right", Width = 12, Height = 12, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center };
+                var chevron = new LucideIcon { Kind = "chevron-right", Width = 12, Height = 12, [!LucideIcon.ForegroundProperty] = Resource(Muted), HorizontalAlignment = HorizontalAlignment.Center };
                 Grid.SetColumn(chevron, i * 2 + 1); _stageRow.Children.Add(chevron);
             }
         }
@@ -91,10 +91,10 @@ public sealed partial class ClassificationRunWindow
         _lookBody.Children.Add(title);
         _lookBody.Children.Add(_framesTitle); _lookBody.Children.Add(_frames); _lookBody.Children.Add(_consistency);
         _lookBody.Children.Add(_colorsTitle);
-        _lookBody.Children.Add(new Border { CornerRadius = new(4), ClipToBounds = true, Child = _colorBar, BorderBrush = Hairline, BorderThickness = new(1) });
+        _lookBody.Children.Add(new Border { CornerRadius = new(4), ClipToBounds = true, Child = _colorBar, [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1) });
         _lookBody.Children.Add(T("各规则判断", 11.5, brush: Muted));
         _verdicts.Orientation = Orientation.Horizontal; _lookBody.Children.Add(_verdicts);
-        _lookBody.Children.Add(new Border { Background = LightBlue, CornerRadius = new(8), Padding = new(10, 7), Child = _reason });
+        _lookBody.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(LightBlue), CornerRadius = new(8), Padding = new(10, 7), Child = _reason });
         var right = new Panel(); right.Children.Add(_lookBody); right.Children.Add(_lookEmpty);
         Grid.SetColumn(right, 1); grid.Children.Add(right);
         return Card(grid);
@@ -142,19 +142,19 @@ public sealed partial class ClassificationRunWindow
         _tagLayer.Children.Clear();
         foreach (var (tag, spot) in visual.Tags.Take(4).Zip(TagSpots))
         {
-            var chip = Chip(tag.Tag, tag.Score.ToString("0.00"), Brushes.White);
-            chip.BoxShadow = BoxShadows.Parse("0 1 3 0 #22000000");
+            var chip = Chip(tag.Tag, tag.Score.ToString("0.00"), Surface);
+            chip.Bind(Border.BoxShadowProperty, Resource("UiSegmentShadow"));
             Canvas.SetLeft(chip, spot.X * 240); Canvas.SetTop(chip, spot.Y * 230); _tagLayer.Children.Add(chip);
         }
         if (visual.Scene is { } scene)
         {
-            var chip = new Border { Background = Dark, CornerRadius = new(11), Padding = new(9, 3), Child = new TextBlock { FontSize = 11.5, Foreground = Brushes.White,
+            var chip = new Border { [!Border.BackgroundProperty] = Resource(Dark), CornerRadius = new(11), Padding = new(9, 3), Child = new TextBlock { FontSize = 11.5, [!TextBlock.ForegroundProperty] = Resource(White),
                 Text = $"{L("场景")} · {L(scene)}" + (visual.SceneScore is { } s ? $"  {s:0.00}" : "") } };
             Canvas.SetLeft(chip, 8); Canvas.SetBottom(chip, 8); _tagLayer.Children.Add(chip);
         }
         if (visual.IsVideo)
         {
-            var chip = new Border { Background = Blue, CornerRadius = new(11), Padding = new(9, 3), Child = new TextBlock { FontSize = 11.5, Foreground = Brushes.White, FontWeight = FontWeight.SemiBold,
+            var chip = new Border { [!Border.BackgroundProperty] = Resource(Blue), CornerRadius = new(11), Padding = new(9, 3), Child = new TextBlock { FontSize = 11.5, [!TextBlock.ForegroundProperty] = Resource(White), FontWeight = FontWeight.SemiBold,
                 Text = $"{L("视频")} {TimeSpan.FromSeconds(visual.DurationSeconds):mm\\:ss}" } };
             Canvas.SetRight(chip, 8); Canvas.SetTop(chip, 8); _tagLayer.Children.Add(chip);
         }
@@ -168,12 +168,12 @@ public sealed partial class ClassificationRunWindow
             // Fixed-size cells: a still image shows one cell, never a stretched strip.
             _frames.ColumnDefinitions.Add(visual.IsVideo && frames.Length >= 6 ? new(1, GridUnitType.Star) : new(new GridLength(68)));
             var cell = new StackPanel { Spacing = 3, Margin = new(i == 0 ? 0 : 3, 0, 0, 0) };
-            var thumb = new ClassifyThumb(72) { Height = 40, BorderThickness = new(i + 1 == visual.InconsistentFrame ? 2 : 0), BorderBrush = Orange };
+            var thumb = new ClassifyThumb(72) { Height = 40, BorderThickness = new(i + 1 == visual.InconsistentFrame ? 2 : 0), [!ClassifyThumb.BorderBrushProperty] = Resource(Orange) };
             thumb.SetSource(visual.Path, visual.IsVideo ? frames[i].Seconds : null);
-            var time = new TextBlock { Text = visual.IsVideo ? $"{frames[i].Seconds:0.0}s" : "", FontSize = 9, Foreground = Brushes.White, Margin = new(3, 0), VerticalAlignment = VerticalAlignment.Bottom };
+            var time = new TextBlock { Text = visual.IsVideo ? $"{frames[i].Seconds:0.0}s" : "", FontSize = 9, [!TextBlock.ForegroundProperty] = Resource(White), Margin = new(3, 0), VerticalAlignment = VerticalAlignment.Bottom };
             var holder = new Panel(); holder.Children.Add(thumb); holder.Children.Add(time);
             cell.Children.Add(holder);
-            cell.Children.Add(new Border { Height = 4, CornerRadius = new(2), Background = frames[i].Consistent ? Blue : Orange });
+            cell.Children.Add(new Border { Height = 4, CornerRadius = new(2), [!Border.BackgroundProperty] = Resource(frames[i].Consistent ? Blue : Orange) });
             Grid.SetColumn(cell, i); _frames.Children.Add(cell);
         }
         _consistency.Text = visual.IsVideo
@@ -186,7 +186,7 @@ public sealed partial class ClassificationRunWindow
         for (var i = 0; i < colors.Length; i++)
         {
             _colorBar.ColumnDefinitions.Add(new(colors[i].Share, GridUnitType.Star));
-            var block = new Border { Background = Brush(colors[i].Hex) }; Grid.SetColumn(block, i); _colorBar.Children.Add(block);
+            var block = new Border { Background = new SolidColorBrush(Color.Parse(colors[i].Hex)) }; Grid.SetColumn(block, i); _colorBar.Children.Add(block);
         }
         _verdicts.Children.Clear();
         foreach (var verdict in visual.Verdicts)
@@ -221,13 +221,13 @@ public sealed partial class ClassificationRunWindow
             var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
             text.Children.Add(T($"{index:00} {group.Name}", 12.5, FontWeight.SemiBold, raw: true));
             if (group.ShootName is { } shoot) text.Children.Add(T(shoot, 11, brush: Muted, raw: true));
-            var count = new TextBlock { FontSize = 11, Foreground = Muted };
-            count.Inlines!.Add(new Avalonia.Controls.Documents.Run(group.Count.ToString()) { FontSize = 17, FontWeight = FontWeight.Bold, Foreground = Ink });
+            var count = new TextBlock { FontSize = 11, [!TextBlock.ForegroundProperty] = Resource(Muted) };
+            count.Inlines!.Add(new Avalonia.Controls.Documents.Run(group.Count.ToString()) { FontSize = 17, FontWeight = FontWeight.Bold, [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Ink) });
             count.Inlines.Add(new Avalonia.Controls.Documents.Run(" " + L("个文件")));
             text.Children.Add(count);
             Grid.SetColumn(text, 1); row.Children.Add(text);
             _groups.Children.Add(row);
-            _groups.Children.Add(new Rectangle { Height = 1, Fill = Hairline });
+            _groups.Children.Add(new Rectangle { Height = 1, [!Rectangle.FillProperty] = Resource(Hairline) });
         }
     }
 
@@ -240,8 +240,8 @@ public sealed partial class ClassificationRunWindow
         private readonly Mosaic _stack = new(34, 30, [], stacked: true);
         public StageCard()
         {
-            Background = Surface; CornerRadius = new(14); Padding = new(12, 10); BorderThickness = new(1.5);
-            BoxShadow = BoxShadows.Parse("0 1 3 0 #14000000");
+            Bind(BackgroundProperty, Resource(Surface)); CornerRadius = new(14); Padding = new(12, 10); BorderThickness = new(1.5);
+            Bind(BoxShadowProperty, Resource("UiCardShadow"));
             var grid = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto"), ColumnDefinitions = new("*,Auto") };
             var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; title.Children.Add(_dotHolder); title.Children.Add(_name);
             Grid.SetColumnSpan(title, 2); grid.Children.Add(title);
@@ -265,7 +265,7 @@ public sealed partial class ClassificationRunWindow
                 _ => L(stage.Model)
             };
             _count.Text = regroup is { } r ? $"{r} {L("次")}" : $"{stage.Done} / {stage.Total}";
-            BorderBrush = stage.Active ? Blue : Brushes.Transparent;
+            Bind(BorderBrushProperty, Resource(stage.Active ? Blue : Transparent));
             _bar.Children.Clear(); _bar.Children.Add(Bar(regroup is not null ? (progress.Files.Count == 0 ? 0 : progress.Files.Count(f => f.GroupId is not null) / (double)progress.Files.Count) : stage.Fraction, done ? Green : Blue));
             var samples = progress.Files.Where(f => f.State is FolderFileState.Done or FolderFileState.Pending).Take(3).Select(f => f.Path).ToArray();
             _stack.SetPaths(samples);

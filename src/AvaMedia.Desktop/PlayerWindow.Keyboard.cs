@@ -165,7 +165,7 @@ public partial class PlayerWindow
 
     private void DismissPlayerOverlay()
     {
-        if (ShortcutHelp.IsVisible) ShortcutHelp.IsVisible = false;
+        if (ToolTip.GetIsOpen(PlayerMenuButton)) ToolTip.SetIsOpen(PlayerMenuButton, false);
         else if (VrPanel.IsVisible) { ToggleVrPanel(); return; }
         else if (PlaylistPanel.IsVisible) { TogglePlaylist(); return; }
         else if (WindowState == WindowState.FullScreen) ToggleFullscreen();
@@ -177,7 +177,7 @@ public partial class PlayerWindow
     {
         if (WindowState != WindowState.FullScreen) { _chromeTimer.Stop(); return; }
         var captured = _chromePointer?.Captured as Control;
-        if (ShortcutHelp.IsVisible || PlaylistPanel.IsVisible || VrPanel.IsVisible || PanoramaImage.IsDragging
+        if (ToolTip.GetIsOpen(PlayerMenuButton) || PlaylistPanel.IsVisible || VrPanel.IsVisible || PanoramaImage.IsDragging
             || ControlsBar.IsPointerOver || captured == ControlsBar || captured?.GetVisualAncestors().Contains(ControlsBar) == true
             || Within<Notifications.NotificationPanel>(FocusManager?.GetFocusedElement() as Control)
             || _openMenu?.IsOpen == true || _keyboardNavigation && ControlsBar.IsKeyboardFocusWithin) return;

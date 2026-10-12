@@ -21,7 +21,6 @@ public sealed partial class ImageViewerWindow : Window
     private readonly TextBlock _zoomNotice = new() { Classes = { "viewer-zoom" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly DispatcherTimer _zoomNoticeTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
     private readonly TextBlock _empty = Ui.Text("打开图片、文件夹或压缩包");
-    private readonly TextBox _search = Ui.Input("");
     private readonly StackPanel _metadata = new() { Spacing = 1 };
     private readonly Border _info = new() { IsVisible = false };
     private readonly TextBlock _infoSummary = new() { Classes = { "viewer-summary" }, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -105,9 +104,8 @@ public sealed partial class ImageViewerWindow : Window
         ImageViewerToolbar.Configure(_animationButton, "pause", "暂停动画");
         ImageViewerToolbar.Configure(_fileActions, "more", "文件操作");
         _fileActions.Click += (_, _) => ShowFileActions();
-        _search.Watermark = Localization.Text("搜索图片"); Localization.SetIsUserText(_search, true);
-        var library = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(10) };
-        library.Children.Add(_search); Grid.SetRow(_files, 1); library.Children.Add(_files); Grid.SetRow(_recursive, 2); library.Children.Add(_recursive);
+        var library = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8, Margin = new(10) };
+        library.Children.Add(_files); Grid.SetRow(_recursive, 1); library.Children.Add(_recursive);
         _files.ItemTemplate = new FuncDataTemplate<ImageViewerEntry>((entry, _) =>
             entry is null ? null : new ImageLibraryItem(entry, ReadLibraryThumbnailAsync));
         var libraryPane = new Border { Child = library, Classes = { "viewer-library" } };
@@ -192,7 +190,6 @@ public sealed partial class ImageViewerWindow : Window
             if (index < 0) await GuardAsync(() => OpenAsync([entry.Container], entry.Member ?? entry.Container));
             else await LoadAsync(index);
         };
-        _search.TextChanged += (_, _) => RenderFiles();
         _recursive.IsCheckedChanged += async (_, _) => { _preferences.Recursive = _recursive.IsChecked == true; SavePreferences(); if (_sources.Length > 0) await GuardAsync(() => OpenAsync(_sources, CurrentEntry?.Member ?? CurrentEntry?.Container)); };
         _fit.SelectionChanged += (_, _) => _viewport.Fit(_fit.SelectedIndex switch { 1 => "down", 2 => "width", 3 => "actual", _ => "fit" });
         _viewport.ViewChanged += RefreshStatus;

@@ -127,7 +127,6 @@ public sealed partial class MediaAiWindow
             _updatingSelection = false; UpdateActions();
         };
         _list.SelectionChanged += async (_, _) => { RenderSelectedResult(); await RefreshSelectedPreviewAsync(); };
-        _tagSearch.TextChanged += (_, _) => RenderSelectedResult();
         _videoFramesSetting = AddSettingRow("视频采样帧数", _frames); AddSettingRow("类别分差", _sceneMargin);
         _settingsPanel.Children.Add(_autoTxt);
         _settingsPanel.Children.Add(_librarySummary);

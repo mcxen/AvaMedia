@@ -120,7 +120,6 @@ public partial class EditorWindow
         // Export bar: 输出配置… is in XAML; the primary action is the existing ConfirmButton.
         Move(ConfirmButton, QuickActionSlot); Restyle(ConfirmButton, "primary-pill"); ConfirmButton.MinWidth = 0;
         foreach (var control in new Control[] { ConfirmButton, PrecisionCombo, SpeedCombo, FadeInCombo, FadeOutCombo, DirectionCombo }) { control.ClearValue(HeightProperty); control.ClearValue(MinHeightProperty); }
-        KeyHints.IsVisible = false;
         foreach (var error in new[] { SegmentError, TimeError })
         {
             error.Margin = new Thickness(2, 6, 2, 0); error.IsVisible = !string.IsNullOrEmpty(error.Text);

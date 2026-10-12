@@ -10,8 +10,7 @@ using Avalonia.Media;
 namespace AvaMedia.FileUi;
 
 /// <summary>
-/// Compact presentation: icon navigation, breadcrumb, flat place list and checkbox rows. Search remains
-/// available through <see cref="SearchText"/> but has no visible field.
+/// Compact presentation: icon navigation, breadcrumb, flat place list and checkbox rows.
 /// </summary>
 public sealed partial class FileBrowserView
 {
@@ -25,8 +24,6 @@ public sealed partial class FileBrowserView
 
     /// <summary>Host actions shown in the compact footer next to the add button.</summary>
     public StackPanel FooterActions { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    /// <summary>Filters the current folder by name (no visible search field in compact mode).</summary>
-    public string SearchText { get => _search.Text ?? ""; set => _search.Text = value; }
     public bool ShowPlaces { get => _placesColumn.IsVisible; set => _placesColumn.IsVisible = value; }
     public bool ShowFooter { get; set; } = true;
     public Button AddButton => _select;

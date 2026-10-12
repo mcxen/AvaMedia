@@ -33,7 +33,7 @@ public sealed partial class VideoSummaryResultWindow : Window
     private readonly TextBlock _fileName = Ui.Text("", "title");
     private readonly TextBlock _metadata = Ui.Text("", "caption");
     private readonly Image _cover = new();
-    private readonly TextBox _search = new() { Watermark = "搜索字幕…" };
+    private readonly ListBox _transcript = new();
     private Button _copy = null!, _export = null!, _play = null!;
     private readonly VideoSummaryReport? _initialReport;
     private VideoSummaryReport? _report;
@@ -53,7 +53,7 @@ public sealed partial class VideoSummaryResultWindow : Window
         KeyDown += (_, args) =>
         {
             if (args.Key == Key.F && (args.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0 && _transcriptPage >= 0)
-            { _navigation.SelectedIndex = _transcriptPage; _search.Focus(); _search.SelectAll(); args.Handled = true; }
+            { _navigation.SelectedIndex = _transcriptPage; _transcript.Focus(); args.Handled = true; }
         };
         Closed += (_, _) =>
         {

@@ -19,7 +19,7 @@
       </MenuItem>
       <MenuItem Header="转换"><MenuItem Header="开始" Click="StartClick"/><MenuItem Header="停止" Click="StopClick"/></MenuItem>
       <MenuItem Header="窗口"><MenuItem Header="缩放窗口" Click="ZoomWindowClick"/><MenuItem Header="收起 / 展开标题栏" IsEnabled="{DynamicResource UiWindowShadeEnabled}" Click="ShadeWindowClick"/><Separator/><MenuItem Header="最小化窗口" Click="MinimizeWindowClick"/></MenuItem>
-      <MenuItem Header="帮助"><MenuItem Header="功能介绍" HotKey="F1" Click="HelpClick"/><MenuItem Header="关于 / 开源许可证" Click="AboutClick"/></MenuItem>
+      <MenuItem Header="帮助"><MenuItem Header="功能介绍" HotKey="F1" ToolTip.Tip="功能介绍 (F1)" Click="HelpClick"/><MenuItem Header="关于 / 开源许可证" Click="AboutClick"/></MenuItem>
     </Menu>
     <Border x:Name="AppToolbar" Classes="app-toolbar" Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" Background="{DynamicResource UiToolbar}">
       <StackPanel x:Name="ToolbarItems" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="{DynamicResource UiToolbarPadding}">

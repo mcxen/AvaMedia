@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- These templates are scoped to the submit window, independent of the app's button hover chrome. -->
-  <Style Selector="Button.classify-pill, Button.classify-rule, Button.classify-segment">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.classify-pill, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment">
     <Setter Property="MinHeight" Value="0" />
     <Setter Property="Template">
       <ControlTemplate>
@@ -16,22 +16,22 @@
     </Setter>
   </Style>
   <!-- Keep the presenter's background clear: the surrounding border owns the card surface. -->
-  <Style Selector="Button.classify-pill /template/ ContentPresenter#PART_ContentPresenter, Button.classify-pill:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.classify-pill:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Button.classify-pill:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.classify-rule /template/ ContentPresenter#PART_ContentPresenter, Button.classify-rule:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.classify-rule:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Button.classify-rule:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.classify-segment /template/ ContentPresenter#PART_ContentPresenter, Button.classify-segment:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.classify-segment:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Button.classify-segment:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.classify-pill /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-pill:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-pill:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-pill:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment:not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment:not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
   </Style>
-  <Style Selector="Button.classify-pill:disabled /template/ Border#SubmitButtonSurface">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.classify-pill:disabled /template/ Border#SubmitButtonSurface">
     <Setter Property="Opacity" Value="0.45" />
   </Style>
-  <Style Selector="Button.classify-segment.selected /template/ Border#SubmitButtonSurface">
-    <Setter Property="BoxShadow" Value="0 1 3 0 #20000000" />
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.classify-segment.selected /template/ Border#SubmitButtonSurface">
+    <Setter Property="BoxShadow" Value="{DynamicResource UiSegmentShadow}" />
   </Style>
-  <Style Selector="Button.classify-pill:focus-visible /template/ Border#SubmitButtonSurface, Button.classify-rule:focus-visible /template/ Border#SubmitButtonSurface, Button.classify-segment:focus-visible /template/ Border#SubmitButtonSurface">
-    <Setter Property="BoxShadow" Value="0 0 0 2 #8CC0FF" />
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.classify-pill:focus-visible /template/ Border#SubmitButtonSurface, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule:focus-visible /template/ Border#SubmitButtonSurface, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment:focus-visible /template/ Border#SubmitButtonSurface">
+    <Setter Property="BoxShadow" Value="{DynamicResource UiFocusShadow}" />
   </Style>
-  <Style Selector="CheckBox.classify-check">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.classify-check">
     <Setter Property="FontSize" Value="12" />
-    <Setter Property="Foreground" Value="#1D1D1F" />
+    <Setter Property="Foreground" Value="{DynamicResource UiText}" />
     <Setter Property="MinHeight" Value="22" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="Template">
@@ -39,7 +39,7 @@
         <Grid ColumnDefinitions="14,*" ColumnSpacing="7" Background="Transparent">
           <Border x:Name="CheckSurface" Width="14" Height="14" CornerRadius="4"
                   BorderThickness="1.5" VerticalAlignment="Center">
-            <Path x:Name="CheckMark" Data="M 2,6 L 5,9 L 10,3" Stroke="White" StrokeThickness="1.6" />
+            <Path x:Name="CheckMark" Data="M 2,6 L 5,9 L 10,3" Stroke="{DynamicResource UiAccentText}" StrokeThickness="1.6" />
           </Border>
           <ContentPresenter Grid.Column="1" x:Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
                             VerticalContentAlignment="Center" />
@@ -47,24 +47,24 @@
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="CheckBox.classify-check /template/ Border#CheckSurface">
-    <Setter Property="Background" Value="White" />
-    <Setter Property="BorderBrush" Value="#C7C7CC" />
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.classify-check /template/ Border#CheckSurface">
+    <Setter Property="Background" Value="{DynamicResource UiSurface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}" />
   </Style>
-  <Style Selector="CheckBox.classify-check /template/ Path#CheckMark">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.classify-check /template/ Path#CheckMark">
     <Setter Property="IsVisible" Value="False" />
   </Style>
-  <Style Selector="CheckBox.classify-check:checked /template/ Border#CheckSurface">
-    <Setter Property="Background" Value="#007AFF" />
-    <Setter Property="BorderBrush" Value="#007AFF" />
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.classify-check:checked /template/ Border#CheckSurface">
+    <Setter Property="Background" Value="{DynamicResource UiAccent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}" />
   </Style>
-  <Style Selector="CheckBox.classify-check:checked /template/ Path#CheckMark">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.classify-check:checked /template/ Path#CheckMark">
     <Setter Property="IsVisible" Value="True" />
   </Style>
-  <Style Selector="CheckBox.classify-check:focus-visible /template/ Border#CheckSurface">
-    <Setter Property="BoxShadow" Value="0 0 0 2 #8CC0FF" />
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.classify-check:focus-visible /template/ Border#CheckSurface">
+    <Setter Property="BoxShadow" Value="{DynamicResource UiFocusShadow}" />
   </Style>
-  <Style Selector="Slider.classify-tuner">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Slider.classify-tuner">
     <Setter Property="MinHeight" Value="0" />
     <Setter Property="Height" Value="16" />
     <Setter Property="Template">
@@ -77,7 +77,7 @@
               <Thumb x:Name="PART_Thumb" Width="8" Height="16">
                 <Thumb.Template>
                   <ControlTemplate>
-                    <Border x:Name="TunerThumb" Width="8" Height="8" CornerRadius="4" Background="#007AFF"
+                    <Border x:Name="TunerThumb" Width="8" Height="8" CornerRadius="4" Background="{DynamicResource UiAccent}"
                             VerticalAlignment="Center" />
                   </ControlTemplate>
                 </Thumb.Template>
@@ -88,10 +88,10 @@
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="Slider.classify-tuner /template/ Thumb /template/ Border#TunerThumb">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Slider.classify-tuner /template/ Thumb /template/ Border#TunerThumb">
     <Setter Property="Opacity" Value="0" />
   </Style>
-  <Style Selector="Slider.classify-tuner:pointerover /template/ Thumb /template/ Border#TunerThumb, Slider.classify-tuner:focus-visible /template/ Thumb /template/ Border#TunerThumb">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Slider.classify-tuner:pointerover /template/ Thumb /template/ Border#TunerThumb, Window:not(.mac-os9):not(.windows-xp) Slider.classify-tuner:focus-visible /template/ Thumb /template/ Border#TunerThumb">
     <Setter Property="Opacity" Value="1" />
   </Style>
 </Styles>

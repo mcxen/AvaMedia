@@ -42,8 +42,6 @@
   <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
     <Grid ColumnDefinitions="*,Auto">
       <files:FileImportActions x:Name="ImportPanel" HorizontalAlignment="Left"/>
-      <TextBox x:Name="ToolSearch" Grid.Column="1" Width="{DynamicResource UiEditorDetailsWidth}"
-               Watermark="搜索工具" AutomationProperties.Name="搜索工具"/>
     </Grid>
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>

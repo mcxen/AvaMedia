@@ -17,13 +17,13 @@ internal static class Palette
     public static readonly IBrush Blue = new SolidColorBrush(BlueColor);
     public static readonly IBrush BlueSoft = new SolidColorBrush(Color.Parse("#EAF3FF"));
     public static readonly IBrush Green = new SolidColorBrush(Color.Parse("#34C759"));
-    public static readonly IBrush GreenText = new SolidColorBrush(Color.Parse("#1F9D3A"));
+    public static readonly IBrush GreenText = new SolidColorBrush(Color.Parse("#248A3D"));
     public static readonly IBrush GreenSoft = new SolidColorBrush(Color.Parse("#E7F7EC"));
     public static readonly IBrush Orange = new SolidColorBrush(Color.Parse("#FF9500"));
     public static readonly IBrush OrangeSoft = new SolidColorBrush(Color.Parse("#FFF4E0"));
     public static readonly IBrush Red = new SolidColorBrush(Color.Parse("#FF3B30"));
     public static readonly IBrush RedSoft = new SolidColorBrush(Color.Parse("#FFECEB"));
-    public static readonly IBrush Banner = new SolidColorBrush(Color.Parse("#FFF6E0"));
+    public static readonly IBrush Banner = new SolidColorBrush(Color.Parse("#FFF8E6"));
     public static readonly IBrush BannerText = new SolidColorBrush(Color.Parse("#8A5A00"));
     public static readonly IBrush Dark = new SolidColorBrush(Color.Parse("#1C1C1E"));
 }

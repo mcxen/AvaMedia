@@ -43,7 +43,7 @@ public sealed class ClassificationSubmitWindow : Window
     {
         _engine = engine; _settings = settings; _enqueue = enqueue; _manageModels = manageModels; _showTasks = showTasks;
         _preferences = _storage.LoadToolOptions<FolderClassificationWindow.Preferences>("folder-classification") ?? new();
-        Title = L("新建 AI 媒体整理"); Width = 900; Height = 520; CanResize = false; Background = Brush("#FAFAFC");
+        Title = L("新建 AI 媒体整理"); Width = 900; Height = 520; CanResize = false; Bind(BackgroundProperty, Resource("UiClassificationPage"));
         Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new Uri("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
         foreach (var check in new[] { _recursive, _split, _writeText }) check.Classes.Add("classify-check");
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
@@ -81,10 +81,10 @@ public sealed class ClassificationSubmitWindow : Window
         _recursive.IsCheckedChanged += (_, _) => _ = RescanAsync();
         var place = Heading("放到哪里", null); place.Margin = new(0, 8, 0, 0); left.Children.Add(place);
         var dest = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10 };
-        dest.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 15, Height = 15, Foreground = Blue });
+        dest.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 15, Height = 15, [!LucideIcon.ForegroundProperty] = Resource(Blue) });
         var destText = new StackPanel(); destText.Children.Add(_destName); destText.Children.Add(_destPath); Grid.SetColumn(destText, 1); dest.Children.Add(destText);
         var change = Pill("更改…", click: () => _ = ChangeOutputAsync()); Grid.SetColumn(change, 2); dest.Children.Add(change);
-        left.Children.Add(new Border { Background = Surface, BorderBrush = Hairline, BorderThickness = new(1), CornerRadius = new(10), Padding = new(12, 8), Child = dest, BoxShadow = BoxShadows.Parse("0 1 3 0 #14000000") });
+        left.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Surface), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1), CornerRadius = new(10), Padding = new(12, 8), Child = dest, [!Border.BoxShadowProperty] = Resource("UiCardShadow") });
         left.Children.Add(Segmented(["复制到分类目录", "移动到分类目录"], _move ? 1 : 0, index => _move = index == 1));
         left.Children.Add(T("分析在后台进行；完成后先核对分组，再执行整理。", 11, brush: Muted));
         columns.Children.Add(left);
@@ -107,7 +107,7 @@ public sealed class ClassificationSubmitWindow : Window
         tuning.Children.Add(Tuner("服装相似度", _similarity, v => v.ToString("0.00")));
         var frames = Tuner("视频采样帧数", _frames, v => $"{v:0} {L("帧")}", segmented: true); Grid.SetColumn(frames, 1); tuning.Children.Add(frames);
         var thr = Tuner("标签阈值", _threshold, v => v.ToString("0.00")); Grid.SetColumn(thr, 2); tuning.Children.Add(thr);
-        right.Children.Add(new Border { Background = Surface, BorderBrush = Hairline, BorderThickness = new(1), CornerRadius = new(12), Padding = new(12, 10), Child = tuning, BoxShadow = BoxShadows.Parse("0 1 3 0 #14000000") });
+        right.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Surface), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1), CornerRadius = new(12), Padding = new(12, 10), Child = tuning, [!Border.BoxShadowProperty] = Resource("UiCardShadow") });
         var options = new Grid { ColumnDefinitions = new("Auto,Auto,*,Auto"), ColumnSpacing = 14 };
         options.Children.Add(_split); Grid.SetColumn(_writeText, 1); options.Children.Add(_writeText);
         var models = Pill("模型管理…", kind: "link", click: () => _ = _manageModels(this)); models.Padding = new(0); Grid.SetColumn(models, 3); options.Children.Add(models);
@@ -147,7 +147,7 @@ public sealed class ClassificationSubmitWindow : Window
                 for (var i = 0; i < (int)slider.Value; i++)
                 {
                     track.ColumnDefinitions.Add(new(1, GridUnitType.Star));
-                    var dash = new Border { Background = Blue, CornerRadius = new(1) };
+                    var dash = new Border { [!Border.BackgroundProperty] = Resource(Blue), CornerRadius = new(1) };
                     Grid.SetColumn(dash, i); track.Children.Add(dash);
                 }
             }
@@ -176,15 +176,15 @@ public sealed class ClassificationSubmitWindow : Window
             var rule = presets[i]; var on = _selected.Any(r => r.Id == rule.Id);
             var text = new StackPanel { Spacing = 2 };
             var title = new Grid { ColumnDefinitions = new(on ? "11,*" : "*"), ColumnSpacing = 5 };
-            if (on) title.Children.Add(new LucideIcon { Kind = "check", Width = 11, Height = 11, Foreground = Brushes.White });
-            var name = T(rule.Name, 12.5, FontWeight.SemiBold, on ? Brushes.White : Ink);
+            if (on) title.Children.Add(new LucideIcon { Kind = "check", Width = 11, Height = 11, [!LucideIcon.ForegroundProperty] = Resource("UiClassificationRuleText") });
+            var name = T(rule.Name, 12.5, FontWeight.SemiBold, on ? "UiClassificationRuleText" : Ink);
             Grid.SetColumn(name, on ? 1 : 0); title.Children.Add(name);
             text.Children.Add(title);
             var description = rule.ByOutfit ? L("按拍摄背景和服装分组") : string.Join(" / ", rule.Categories.Take(3).Select(c => L(c.Name))) + (rule.Categories.Length > 3 ? " …" : "");
-            text.Children.Add(new TextBlock { Text = description, FontSize = 10.5, Foreground = on ? Brush("#DDEBFF") : Muted, TextTrimming = TextTrimming.CharacterEllipsis });
+            text.Children.Add(new TextBlock { Text = description, FontSize = 10.5, [!TextBlock.ForegroundProperty] = Resource(on ? "UiAccentDescription" : Muted), TextTrimming = TextTrimming.CharacterEllipsis });
             var button = new Button
             {
-                Content = text, Background = on ? Blue : Surface, BorderBrush = on ? Blue : Hairline, BorderThickness = new(1), CornerRadius = new(10),
+                Content = text, [!Button.BackgroundProperty] = Resource(on ? "UiClassificationRuleFace" : Surface), [!Button.BorderBrushProperty] = Resource(on ? Blue : Hairline), BorderThickness = new(1), CornerRadius = new(10),
                 Padding = new(10, 5), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Height = 46, MinHeight = 46
             };
             button.Classes.Add("classify-rule");

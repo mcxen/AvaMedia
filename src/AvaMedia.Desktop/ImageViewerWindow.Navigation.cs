@@ -200,9 +200,8 @@ public sealed partial class ImageViewerWindow
         _bindingFiles = true;
         try
         {
-            var query = _search.Text?.Trim() ?? "";
             var entries = _showBookmarks ? _preferences.Bookmarks : _entries;
-            _files.ItemsSource = entries.Where(entry => entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+            _files.ItemsSource = entries;
             _files.SelectedItem = _index >= 0 && _index < _entries.Length ? _entries[_index] : null;
         }
         finally { _bindingFiles = false; }
@@ -381,6 +380,10 @@ public sealed partial class ImageViewerWindow
         rtl.IsCheckedChanged += (_, _) => { _preferences.RightToLeft = rtl.IsChecked == true; SavePreferences(); SetViewportFrame(); };
         var flyout = new Flyout { Content = new StackPanel { Spacing = 10, Children = { Ui.Text("间隔"), Ui.Parameter(interval, "间隔"), random, repeat, rtl, lockZoom } } }; flyout.ShowAt(_slideshowButton);
     }
-    private Task HelpAsync() => Ui.Message(this, "看图快捷键",
-        "← / →、Page Up / Down：翻图\nHome / End：首张 / 末张\n滚轮、+ / −：缩放；拖动：平移\n双击：适应 / 原始尺寸；1 / 0：适应 / 原始尺寸\nR / Shift+R：旋转；B：收藏\n空格：下一张；Shift+空格：上一张\nCtrl+1–9：幻灯片；Ctrl+0：停止；F11：全屏；Esc：退出全屏 / 停止播放\nAlt+Page Up / Down：多页图片翻页\nF：打开文件夹；F2 / Ctrl / ⌘ + O：打开图片\nCtrl / ⌘ + C：复制图片；P：打印\nCtrl / ⌘ + E：外部编辑；T：批量转换；Tab：图片列表；I：信息");
+    private Task HelpAsync()
+    {
+        ToolTip.SetTip(_fileActions, Localization.Text("← / →、Page Up / Down：翻图\nHome / End：首张 / 末张\n滚轮、+ / −：缩放；拖动：平移\n双击：适应 / 原始尺寸；1 / 0：适应 / 原始尺寸\nR / Shift+R：旋转；B：收藏\n空格：下一张；Shift+空格：上一张\nCtrl+1–9：幻灯片；Ctrl+0：停止；F11：全屏；Esc：退出全屏 / 停止播放\nAlt+Page Up / Down：多页图片翻页\nF：打开文件夹；F2 / Ctrl / ⌘ + O：打开图片\nCtrl / ⌘ + C：复制图片；P：打印\nCtrl / ⌘ + E：外部编辑；T：批量转换；Tab：图片列表；I：信息"));
+        ToolTip.SetIsOpen(_fileActions, true);
+        return Task.CompletedTask;
+    }
 }

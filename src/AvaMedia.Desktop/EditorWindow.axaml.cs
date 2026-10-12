@@ -90,7 +90,7 @@ public partial class EditorWindow : Window
             CropLayer.PixelStep=MediaEngine.IsImage(_options.Format)?1:2;
             CropX.Text=_options.CropX.ToString();CropY.Text=_options.CropY.ToString();CropWidth.Text=(_options.CropWidth>0?_options.CropWidth:_info.Width).ToString();CropHeight.Text=(_options.CropHeight>0?_options.CropHeight:_info.Height).ToString();UpdateCropLayer();
             Localization.SetText(MediaDescription,$"{Path.GetFileName(_path)}\n时长: {EditorTime.Format(_info.Duration)}    画面: {_info.Width} × {_info.Height}\n视频: {_info.VideoCodec}    音频: {_info.AudioCodec}");
-            if(_info.HasVideo){_previewReady=Frame(_previewView,_options.Start,_lifetime.Token);await _previewReady;_thumbnailsReady=Thumbnails(_lifetime.Token);await _thumbnailsReady;PreviewStatus.IsVisible=false;}else PreviewStatus.Text="♫ 音频预览";
+            if(_info.HasVideo){_previewReady=Frame(_previewView,_options.Start,_lifetime.Token);await _previewReady;_thumbnailsReady=Thumbnails(_lifetime.Token);await _thumbnailsReady;PreviewStatus.IsVisible=false;}else PreviewStatus.Text="音频预览";
             SoundButton.IsEnabled=_info.HasAudio;PlayButton.IsEnabled=_info.Duration>0;((TabItem)EditTabs.Items[0]!).IsVisible=_info.Duration>0;((TabItem)EditTabs.Items[1]!).IsVisible=_info.HasVideo&&!AudioEditing;if(_info.Duration<=0)EditTabs.SelectedIndex=1;
             if (_mode == "person-exclusion") ConfigureIntervalSelection();
             AudioStatus.Text=_info.HasAudio?"音频预览已就绪":"此文件不含音轨";

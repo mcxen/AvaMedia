@@ -102,15 +102,6 @@
                 <TextBlock Grid.Column="2" x:Name="SpeedField" Text="速度" VerticalAlignment="Center"/>
                 <ComboBox Grid.Column="3" x:Name="SpeedCombo" HorizontalAlignment="Stretch"/>
               </Grid>
-              <WrapPanel Grid.Row="3" x:Name="KeyHints" Classes="key-hints" IsVisible="False">
-                <Border Classes="keycap"><TextBlock Text="空格"/></Border><TextBlock Text="播放"/>
-                <Border Classes="keycap"><TextBlock Text="I"/></Border><TextBlock Text="设为起点"/>
-                <Border Classes="keycap"><TextBlock Text="O"/></Border><TextBlock Text="设为终点"/>
-                <Border Classes="keycap"><TextBlock Text="S"/></Border><TextBlock Text="在此分割"/>
-                <Border Classes="keycap"><TextBlock Text="Alt ↑/↓"/></Border><TextBlock Text="调整顺序"/>
-                <Border Classes="keycap"><TextBlock Text="Ctrl Z"/></Border><TextBlock Text="撤销"/>
-                <Border Classes="keycap"><TextBlock Text="Ctrl D"/></Border><TextBlock Text="复制片段"/>
-              </WrapPanel>
               <TextBlock Grid.Row="4" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
             </Grid>
           </Grid>

@@ -29,7 +29,7 @@ public sealed partial class ClassificationRunWindow
         var beforeHead = new StackPanel { Spacing = 2, Margin = new(0, 0, 0, 10) };
         grid.Children.Add(Card(new ScrollViewer { Content = _before }));
         var afterHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(0, 0, 0, 10) };
-        afterHead.Children.Add(new LucideIcon { Kind = "arrow-right", Width = 14, Height = 14, Foreground = Blue });
+        afterHead.Children.Add(new LucideIcon { Kind = "arrow-right", Width = 14, Height = 14, [!LucideIcon.ForegroundProperty] = Resource(Blue) });
         afterHead.Children.Add(T("整理后", 13, FontWeight.Bold)); afterHead.Children.Add(_afterTitle);
         var afterPanel = new DockPanel(); DockPanel.SetDock(afterHead, Dock.Top); afterPanel.Children.Add(afterHead);
         afterPanel.Children.Add(new ScrollViewer { Content = _after });
@@ -51,7 +51,7 @@ public sealed partial class ClassificationRunWindow
         // Bottom action bar: destination note left, organize actions right with one primary.
         var bar = new Grid { ColumnDefinitions = new("*,Auto") };
         var note = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        note.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 13, Height = 13, Foreground = Muted }); note.Children.Add(_destination);
+        note.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 13, Height = 13, [!LucideIcon.ForegroundProperty] = Resource(Muted) }); note.Children.Add(_destination);
         bar.Children.Add(note);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         actions.Children.Add(Pill("撤销上次整理", "undo-2", click: () => _openAction(_job, "undo")));
@@ -96,7 +96,7 @@ public sealed partial class ClassificationRunWindow
             {
                 _histogram.ColumnDefinitions.Add(new(1, GridUnitType.Star));
                 var low = histogram.Min + (histogram.Max - histogram.Min) * i / histogram.Bins.Length;
-                var bar = new Border { Background = low < histogram.Threshold ? Orange : Blue, CornerRadius = new(2, 2, 0, 0), Margin = new(1.5, 0),
+                var bar = new Border { [!Border.BackgroundProperty] = Resource(low < histogram.Threshold ? Orange : Blue), CornerRadius = new(2, 2, 0, 0), Margin = new(1.5, 0),
                     VerticalAlignment = VerticalAlignment.Bottom, Height = Math.Max(2, 68 * histogram.Bins[i] / (double)max) };
                 ToolTip.SetTip(bar, $"{low:0.00} · {histogram.Bins[i]}"); Grid.SetColumn(bar, i); _histogram.Children.Add(bar);
             }
@@ -104,10 +104,10 @@ public sealed partial class ClassificationRunWindow
             var labels = new[] { ($"{histogram.Min:0.00}", HorizontalAlignment.Left), ($"{histogram.Threshold:0.00} {L("阈值")}", HorizontalAlignment.Center), ($"{histogram.Max:0.00}", HorizontalAlignment.Right) };
             for (var i = 0; i < 3; i++) { var text = T(labels[i].Item1, 10.5, brush: Muted, raw: true); text.HorizontalAlignment = labels[i].Item2; Grid.SetColumn(text, i); _histAxis.Children.Add(text); }
             _histCounts.Inlines!.Clear();
-            void Add(int value, IBrush brush, string label)
+            void Add(int value, string brush, string label)
             {
-                _histCounts.Inlines!.Add(new Avalonia.Controls.Documents.Run(value + " ") { Foreground = brush, FontWeight = FontWeight.Bold });
-                _histCounts.Inlines.Add(new Avalonia.Controls.Documents.Run(L(label) + "    ") { Foreground = Ink });
+                _histCounts.Inlines!.Add(new Avalonia.Controls.Documents.Run(value + " ") { [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(brush), FontWeight = FontWeight.Bold });
+                _histCounts.Inlines.Add(new Avalonia.Controls.Documents.Run(L(label) + "    ") { [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Ink) });
             }
             Add(histogram.Grouped, GreenText, "已归组"); Add(histogram.Pending, Orange, "待确认"); Add(histogram.Failed, Ink, "失败");
         }
@@ -134,8 +134,8 @@ public sealed partial class ClassificationRunWindow
         var random = new Random(7);
         foreach (var path in samples)
         {
-            var thumb = new ClassifyThumb(40) { Width = 28, Height = 28, Margin = new(2), BorderBrush = Brushes.White, BorderThickness = new(1.5), CornerRadius = new(4),
-                RenderTransform = new RotateTransform(random.Next(-8, 9)), BoxShadow = BoxShadows.Parse("0 1 2 0 #22000000") };
+            var thumb = new ClassifyThumb(40) { Width = 28, Height = 28, Margin = new(2), [!ClassifyThumb.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5), CornerRadius = new(4),
+                RenderTransform = new RotateTransform(random.Next(-8, 9)), [!ClassifyThumb.BoxShadowProperty] = Resource("UiThumbnailShadow") };
             thumb.SetSource(path, VideoFormats.IsVideo(path) ? 1 : null); wrap.Children.Add(thumb);
         }
         _before.Children.Add(wrap);
@@ -169,7 +169,7 @@ public sealed partial class ClassificationRunWindow
         {
             var block = new StackPanel { Spacing = 8 };
             var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            head.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 13, Height = 13, Foreground = Blue });
+            head.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 13, Height = 13, [!LucideIcon.ForegroundProperty] = Resource(Blue) });
             head.Children.Add(T(shoot.Key.Length > 0 ? shoot.Key : L(rule.Name), 12.5, FontWeight.Bold, raw: true));
             head.Children.Add(T(shoot.Sum(g => g.Items.Length).ToString(), 12, brush: Muted, raw: true));
             block.Children.Add(head);
@@ -179,7 +179,7 @@ public sealed partial class ClassificationRunWindow
                 index++;
                 var card = new StackPanel { Width = 92, Spacing = 2, Margin = new(0, 0, 10, 6) };
                 card.Children.Add(new Mosaic(88, 100, group.Items.Take(3).Select(x => x.File.Path).ToArray()));
-                card.Children.Add(new TextBlock { Text = $"{index:00} {group.Key.CategoryName}", FontSize = 11.5, Foreground = Ink, TextWrapping = TextWrapping.Wrap, MaxLines = 2, Margin = new(0, 4, 0, 0) });
+                card.Children.Add(new TextBlock { Text = $"{index:00} {group.Key.CategoryName}", FontSize = 11.5, [!TextBlock.ForegroundProperty] = Resource(Ink), TextWrapping = TextWrapping.Wrap, MaxLines = 2, Margin = new(0, 4, 0, 0) });
                 card.Children.Add(T($"{group.Items.Length} {L("个文件")}", 11, brush: Muted, raw: true));
                 row.Children.Add(card);
             }
@@ -190,15 +190,15 @@ public sealed partial class ClassificationRunWindow
         if (pending.Length > 0)
         {
             var banner = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10 };
-            banner.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 15, Height = 15, Foreground = Orange });
+            banner.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 15, Height = 15, [!LucideIcon.ForegroundProperty] = Resource(Orange) });
             var text = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-            text.Inlines!.Add(new Avalonia.Controls.Documents.Run(L("待确认")) { FontWeight = FontWeight.Bold, Foreground = Ink });
-            text.Inlines.Add(new Avalonia.Controls.Documents.Run($"  {pending.Length} {L("个文件")} · {L("确认前不会整理")}") { Foreground = Muted });
+            text.Inlines!.Add(new Avalonia.Controls.Documents.Run(L("待确认")) { FontWeight = FontWeight.Bold, [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Ink) });
+            text.Inlines.Add(new Avalonia.Controls.Documents.Run($"  {pending.Length} {L("个文件")} · {L("确认前不会整理")}") { [!Avalonia.Controls.Documents.Run.ForegroundProperty] = Resource(Muted) });
             Grid.SetColumn(text, 1); banner.Children.Add(text);
             var mosaic = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
             foreach (var item in pending.Take(3)) { var t = new ClassifyThumb(40) { Width = 28, Height = 28 }; t.SetSource(item.File.Path, VideoFormats.IsVideo(item.File.Path) ? 1 : null); mosaic.Children.Add(t); }
             Grid.SetColumn(mosaic, 2); banner.Children.Add(mosaic);
-            _after.Children.Add(new Border { Background = Banner, CornerRadius = new(10), Padding = new(12, 8), Child = banner });
+            _after.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Banner), CornerRadius = new(10), Padding = new(12, 8), Child = banner });
         }
     }
 
@@ -216,7 +216,7 @@ public sealed partial class ClassificationRunWindow
             row.Children.Add(thumb);
             var text = new StackPanel { Spacing = 2 };
             text.Children.Add(T(System.IO.Path.GetFileName(file.Path), 12.5, FontWeight.SemiBold, raw: true));
-            var reason = new TextBlock { Text = decision.Evidence, FontSize = 11, Foreground = Muted, TextWrapping = TextWrapping.Wrap, MaxLines = 2 };
+            var reason = new TextBlock { Text = decision.Evidence, FontSize = 11, [!TextBlock.ForegroundProperty] = Resource(Muted), TextWrapping = TextWrapping.Wrap, MaxLines = 2 };
             Localization.SetIsUserText(reason, true); text.Children.Add(reason);
             var choices = new WrapPanel { Margin = new(0, 2, 0, 0) };
             foreach (var score in decision.Scores.OrderByDescending(s => s.Similarity).Take(2))
@@ -229,7 +229,7 @@ public sealed partial class ClassificationRunWindow
             var keep = Pill("保持待确认", height: 22); keep.Padding = new(8, 0); keep.Margin = new(0, 0, 4, 4); keep.IsHitTestVisible = false; choices.Children.Add(keep);
             text.Children.Add(choices);
             Grid.SetColumn(text, 1); row.Children.Add(text);
-            _pendingList.Children.Add(row); _pendingList.Children.Add(new Rectangle { Height = 1, Fill = Hairline });
+            _pendingList.Children.Add(row); _pendingList.Children.Add(new Rectangle { Height = 1, [!Rectangle.FillProperty] = Resource(Hairline) });
         }
     }
 

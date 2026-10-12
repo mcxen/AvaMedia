@@ -13,21 +13,41 @@
     <SolidColorBrush x:Key="ThemeBorderMidBrush" Color="#C7C7CC"/>
     <SolidColorBrush x:Key="ThemeControlMidBrush" Color="#F0F0F3"/>
     <SolidColorBrush x:Key="HighlightBrush" Color="#007AFF"/>
+
+    <SolidColorBrush x:Key="Surface" Color="White"/>
+    <SolidColorBrush x:Key="BlueHover" Color="#0A6CE0"/>
+    <SolidColorBrush x:Key="Red" Color="#FF3B30"/>
+    <SolidColorBrush x:Key="RedSoft" Color="#FFECEB"/>
+    <SolidColorBrush x:Key="RedSoftHover" Color="#FFDCDA"/>
+    <SolidColorBrush x:Key="SurfaceHover" Color="#F7F7F9"/>
+    <SolidColorBrush x:Key="SegmentFill" Color="#EBEBF0"/>
+    <SolidColorBrush x:Key="SegmentHover" Color="#E3E3E8"/>
+    <SolidColorBrush x:Key="RowHover" Color="#F7F8FA"/>
+    <SolidColorBrush x:Key="NavigationSelected" Color="#E8E8ED"/>
+    <SolidColorBrush x:Key="FieldBorder" Color="#C7C7CC"/>
+    <SolidColorBrush x:Key="Green" Color="#34C759"/>
+    <SolidColorBrush x:Key="Orange" Color="#FF9500"/>
+    <SolidColorBrush x:Key="BlueSoft" Color="#EEF5FF"/>
+    <SolidColorBrush x:Key="BlueSoftHover" Color="#E6F0FF"/>
+    <SolidColorBrush x:Key="TooltipSurface" Color="#1C1C1E"/>
+    <BoxShadows x:Key="SegmentShadow">0 1 3 0 #22000000</BoxShadows>
+    <BoxShadows x:Key="RowShadow">0 1 2 0 #1A000000</BoxShadows>
+    <BoxShadows x:Key="KnobShadow">0 1 3 0 #33000000</BoxShadows>
   </Styles.Resources>
 
-  <Style Selector="TextBlock"><Setter Property="Foreground" Value="#1D1D1F"/></Style>
-  <Style Selector="TextBlock.secondary"><Setter Property="Foreground" Value="#86868B"/><Setter Property="FontSize" Value="12"/></Style>
-  <Style Selector="TextBlock.caption"><Setter Property="Foreground" Value="#86868B"/><Setter Property="FontSize" Value="11.5"/></Style>
+  <Style Selector="TextBlock"><Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/></Style>
+  <Style Selector="TextBlock.secondary"><Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/><Setter Property="FontSize" Value="12"/></Style>
+  <Style Selector="TextBlock.caption"><Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/><Setter Property="FontSize" Value="11.5"/></Style>
   <Style Selector="TextBlock.title"><Setter Property="FontSize" Value="17"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="TextBlock.largeTitle"><Setter Property="FontSize" Value="28"/><Setter Property="FontWeight" Value="Bold"/></Style>
-  <Style Selector="TextBlock.section"><Setter Property="FontSize" Value="11.5"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="#86868B"/></Style>
+  <Style Selector="TextBlock.section"><Setter Property="FontSize" Value="11.5"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/></Style>
   <Style Selector="TextBlock.strong"><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="TextBlock.mono"><Setter Property="FontFamily" Value="avares://AvaMedia.Browser/Fonts#Noto Sans CJK SC"/><Setter Property="FontSize" Value="11.5"/></Style>
 
   <!-- Capsule buttons -->
   <Style Selector="Button">
-    <Setter Property="Background" Value="#F0F0F3"/>
-    <Setter Property="Foreground" Value="#1D1D1F"/>
+    <Setter Property="Background" Value="{DynamicResource Fill}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="999"/>
     <Setter Property="Padding" Value="12,5"/>
@@ -47,40 +67,40 @@
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="Button:pointerover /template/ Border#face"><Setter Property="Background" Value="#E6E6EB"/></Style>
+  <Style Selector="Button:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource FillHover}"/></Style>
   <Style Selector="Button:pressed /template/ Border#face"><Setter Property="Opacity" Value="0.8"/></Style>
   <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
-  <Style Selector="Button.primary"><Setter Property="Background" Value="#007AFF"/><Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="Bold"/></Style>
-  <Style Selector="Button.primary:pointerover /template/ Border#face"><Setter Property="Background" Value="#0A6CE0"/></Style>
+  <Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.primary:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource BlueHover}"/></Style>
   <Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="14.5"/><Setter Property="MinHeight" Value="40"/></Style>
-  <Style Selector="Button.danger"><Setter Property="Foreground" Value="#FF3B30"/><Setter Property="Background" Value="#FFECEB"/></Style>
-  <Style Selector="Button.danger:pointerover /template/ Border#face"><Setter Property="Background" Value="#FFDCDA"/></Style>
-  <Style Selector="Button.outline"><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#E0E0E5"/><Setter Property="BorderThickness" Value="1"/></Style>
-  <Style Selector="Button.outline:pointerover /template/ Border#face"><Setter Property="Background" Value="#F7F7F9"/></Style>
+  <Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/></Style>
+  <Style Selector="Button.danger:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource RedSoftHover}"/></Style>
+  <Style Selector="Button.outline"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/><Setter Property="BorderThickness" Value="1"/></Style>
+  <Style Selector="Button.outline:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource SurfaceHover}"/></Style>
   <Style Selector="Button.plain"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="6,4"/></Style>
-  <Style Selector="Button.plain:pointerover /template/ Border#face"><Setter Property="Background" Value="#F0F0F3"/></Style>
-  <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#007AFF"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.plain:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource Fill}"/></Style>
+  <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="Button.link:pointerover /template/ Border#face"><Setter Property="Background" Value="Transparent"/></Style>
   <Style Selector="Button.icon"><Setter Property="Padding" Value="0"/><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="0"/></Style>
   <Style Selector="Button.chip"><Setter Property="Padding" Value="10,4"/><Setter Property="MinHeight" Value="26"/><Setter Property="FontSize" Value="12.5"/></Style>
-  <Style Selector="Button.selected"><Setter Property="Background" Value="#007AFF"/><Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="Bold"/></Style>
-  <Style Selector="Button.selected:pointerover /template/ Border#face"><Setter Property="Background" Value="#0A6CE0"/></Style>
+  <Style Selector="Button.selected"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.selected:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource BlueHover}"/></Style>
   <Style Selector="Button.segment"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="12,6"/><Setter Property="FontSize" Value="13"/></Style>
-  <Style Selector="Button.segment.active"><Setter Property="Background" Value="#EBEBF0"/><Setter Property="FontWeight" Value="Bold"/></Style>
-  <Style Selector="Button.segment.active:pointerover /template/ Border#face"><Setter Property="Background" Value="#E3E3E8"/></Style>
+  <Style Selector="Button.segment.active"><Setter Property="Background" Value="{DynamicResource SegmentFill}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.segment.active:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource SegmentHover}"/></Style>
   <Style Selector="Button.segmentLight"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="12,5"/><Setter Property="CornerRadius" Value="7"/></Style>
-  <Style Selector="Button.segmentLight.active"><Setter Property="Background" Value="White"/><Setter Property="FontWeight" Value="Bold"/></Style>
-  <Style Selector="Button.segmentLight.active /template/ Border#face"><Setter Property="BoxShadow" Value="0 1 3 0 #22000000"/></Style>
-  <Style Selector="Button.segmentLight.active:pointerover /template/ Border#face"><Setter Property="Background" Value="White"/></Style>
+  <Style Selector="Button.segmentLight.active"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.segmentLight.active /template/ Border#face"><Setter Property="BoxShadow" Value="{DynamicResource SegmentShadow}"/></Style>
+  <Style Selector="Button.segmentLight.active:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource Surface}"/></Style>
   <Style Selector="Button.row"><Setter Property="Background" Value="Transparent"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
-  <Style Selector="Button.row:pointerover /template/ Border#face"><Setter Property="Background" Value="#F7F8FA"/></Style>
-  <Style Selector="Button.row.selected"><Setter Property="Background" Value="White"/><Setter Property="CornerRadius" Value="8"/></Style>
-  <Style Selector="Button.row.selected /template/ Border#face"><Setter Property="BoxShadow" Value="0 1 2 0 #1A000000"/></Style>
-  <Style Selector="Button.row.selected:pointerover /template/ Border#face"><Setter Property="Background" Value="White"/></Style>
+  <Style Selector="Button.row:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource RowHover}"/></Style>
+  <Style Selector="Button.row.selected"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="CornerRadius" Value="8"/></Style>
+  <Style Selector="Button.row.selected /template/ Border#face"><Setter Property="BoxShadow" Value="{DynamicResource RowShadow}"/></Style>
+  <Style Selector="Button.row.selected:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource Surface}"/></Style>
   <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="8,5"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
-  <Style Selector="Button.nav.active"><Setter Property="Background" Value="#E8E8ED"/></Style>
+  <Style Selector="Button.nav.active"><Setter Property="Background" Value="{DynamicResource NavigationSelected}"/></Style>
 
   <!-- Checkbox: rounded square, blue fill -->
   <Style Selector="CheckBox">
@@ -89,8 +109,8 @@
     <Setter Property="Template">
       <ControlTemplate>
         <Grid ColumnDefinitions="Auto,*" Background="Transparent">
-          <Border Name="box" Width="17" Height="17" CornerRadius="5" BorderThickness="1.2" BorderBrush="#C7C7CC" Background="White" VerticalAlignment="Center">
-            <Path Name="mark" Data="M 3.5,8.5 L 7,12 L 13.5,5" Stroke="White" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" IsVisible="False" Stretch="None"/>
+          <Border Name="box" Width="14" Height="14" CornerRadius="4" BorderThickness="1.2" BorderBrush="{DynamicResource FieldBorder}" Background="{DynamicResource Surface}" VerticalAlignment="Center">
+            <Path Name="mark" Data="M 2,6 L 5,9 L 10,3" Stroke="{DynamicResource Surface}" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round" IsVisible="False" Stretch="None"/>
           </Border>
           <ContentPresenter Grid.Column="1" Name="PART_ContentPresenter" Content="{TemplateBinding Content}" Margin="8,0,0,0" VerticalAlignment="Center"
                             IsVisible="{TemplateBinding Content, Converter={x:Static ObjectConverters.IsNotNull}}"/>
@@ -98,7 +118,7 @@
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="CheckBox:checked /template/ Border#box"><Setter Property="Background" Value="#007AFF"/><Setter Property="BorderBrush" Value="#007AFF"/></Style>
+  <Style Selector="CheckBox:checked /template/ Border#box"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="BorderBrush" Value="{DynamicResource Blue}"/></Style>
   <Style Selector="CheckBox:checked /template/ Path#mark"><Setter Property="IsVisible" Value="True"/></Style>
   <Style Selector="CheckBox:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
 
@@ -108,10 +128,10 @@
     <Setter Property="Template">
       <ControlTemplate>
         <Grid ColumnDefinitions="Auto,Auto" Background="Transparent">
-          <Border Name="track" Width="40" Height="24" CornerRadius="12" Background="#E5E5EA" VerticalAlignment="Center">
+          <Border Name="track" Width="40" Height="24" CornerRadius="12" Background="{DynamicResource Hairline}" VerticalAlignment="Center">
             <Panel Name="PART_SwitchKnob">
               <Panel Name="PART_MovingKnobs" />
-              <Border Name="knob" Width="20" Height="20" CornerRadius="10" Background="White" HorizontalAlignment="Left" Margin="2,0" BoxShadow="0 1 3 0 #33000000"/>
+              <Border Name="knob" Width="20" Height="20" CornerRadius="10" Background="{DynamicResource Surface}" HorizontalAlignment="Left" Margin="2,0" BoxShadow="{DynamicResource KnobShadow}"/>
             </Panel>
           </Border>
           <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Margin="8,0,0,0" VerticalAlignment="Center"
@@ -120,33 +140,33 @@
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="ToggleSwitch:checked /template/ Border#track"><Setter Property="Background" Value="#34C759"/></Style>
+  <Style Selector="ToggleSwitch:checked /template/ Border#track"><Setter Property="Background" Value="{DynamicResource Green}"/></Style>
   <Style Selector="ToggleSwitch:checked /template/ Border#knob"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
 
   <Style Selector="ComboBox">
-    <Setter Property="CornerRadius" Value="7"/><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#E0E0E5"/>
+    <Setter Property="CornerRadius" Value="7"/><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
     <Setter Property="MinHeight" Value="28"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Padding" Value="9,3"/>
   </Style>
   <Style Selector="TextBox">
-    <Setter Property="CornerRadius" Value="7"/><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#E0E0E5"/>
+    <Setter Property="CornerRadius" Value="7"/><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
     <Setter Property="FontSize" Value="12.5"/><Setter Property="Padding" Value="8,5"/>
   </Style>
   <Style Selector="ProgressBar">
-    <Setter Property="Foreground" Value="#007AFF"/><Setter Property="Background" Value="#E5E5EA"/>
+    <Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="Background" Value="{DynamicResource Hairline}"/>
     <Setter Property="MinHeight" Value="4"/><Setter Property="Height" Value="4"/><Setter Property="CornerRadius" Value="2"/>
   </Style>
   <Style Selector="ProgressBar:horizontal"><Setter Property="MinHeight" Value="4"/><Setter Property="CornerRadius" Value="2"/></Style>
-  <Style Selector="ProgressBar.paused"><Setter Property="Foreground" Value="#FF9500"/></Style>
-  <Style Selector="ProgressBar.done"><Setter Property="Foreground" Value="#34C759"/></Style>
-  <Style Selector="ProgressBar.failed"><Setter Property="Foreground" Value="#FF3B30"/></Style>
-  <Style Selector="Slider"><Setter Property="Foreground" Value="#007AFF"/></Style>
+  <Style Selector="ProgressBar.paused"><Setter Property="Foreground" Value="{DynamicResource Orange}"/></Style>
+  <Style Selector="ProgressBar.done"><Setter Property="Foreground" Value="{DynamicResource Green}"/></Style>
+  <Style Selector="ProgressBar.failed"><Setter Property="Foreground" Value="{DynamicResource Red}"/></Style>
+  <Style Selector="Slider"><Setter Property="Foreground" Value="{DynamicResource Blue}"/></Style>
   <Style Selector="ScrollBar:vertical"><Setter Property="Width" Value="8"/></Style>
   <Style Selector="ScrollBar:horizontal"><Setter Property="Height" Value="8"/></Style>
   <Style Selector="Expander"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="ListBox"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/></Style>
-  <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="#EEF5FF"/></Style>
-  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#F7F8FA"/></Style>
-  <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#E6F0FF"/></Style>
-  <Style Selector="ToolTip"><Setter Property="Background" Value="#1C1C1E"/><Setter Property="Foreground" Value="White"/><Setter Property="CornerRadius" Value="6"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource BlueSoft}"/></Style>
+  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource RowHover}"/></Style>
+  <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource BlueSoftHover}"/></Style>
+  <Style Selector="ToolTip"><Setter Property="Background" Value="{DynamicResource TooltipSurface}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="CornerRadius" Value="6"/><Setter Property="BorderThickness" Value="0"/></Style>
 </Styles>

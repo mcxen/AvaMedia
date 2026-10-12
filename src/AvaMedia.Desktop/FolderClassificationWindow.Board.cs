@@ -19,7 +19,6 @@ public sealed partial class FolderClassificationWindow
     private readonly ComboBox _boardRule = new() { MinWidth = 130 };
     private readonly StackPanel _baskets = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly Dictionary<string, BasketView> _basketViews = [];
-    private readonly TextBox _search = Ui.Input();
     private readonly CheckBox _onlyIncluded = new() { Content = "仅看已选" };
     private readonly Button _allFilter = new();
     private readonly Button _pendingFilter = new();
@@ -39,8 +38,7 @@ public sealed partial class FolderClassificationWindow
         var board = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), RowSpacing = 8 };
         var toolbar = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };
         _boardRule.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<FolderClassificationRule>((rule, _) => UserText(rule?.Name ?? ""));
-        toolbar.Children.Add(_boardRule); _search.Watermark = Localization.Text("搜索文件或标签");
-        Localization.SetIsUserText(_search, true); Grid.SetColumn(_search, 1); toolbar.Children.Add(_search);
+        toolbar.Children.Add(_boardRule);
         Grid.SetColumn(_onlyIncluded, 2); toolbar.Children.Add(_onlyIncluded); board.Children.Add(toolbar);
         var basketsScroll = new ScrollViewer { Content = _baskets, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, MaxHeight = 170 };
@@ -65,7 +63,7 @@ public sealed partial class FolderClassificationWindow
             _boardRuleId = (_boardRule.SelectedItem as FolderClassificationRule)?.Id;
             _basketId = AllBasket; RenderBoard(); RenderDetails();
         };
-        _search.TextChanged += (_, _) => QueueBoardRefresh(); _onlyIncluded.IsCheckedChanged += (_, _) => RenderBoard();
+        _onlyIncluded.IsCheckedChanged += (_, _) => RenderBoard();
         _boardTimer.Tick += (_, _) => { _boardTimer.Stop(); if (!_closed) RenderBoard(); };
         return board;
     }
@@ -152,12 +150,9 @@ public sealed partial class FolderClassificationWindow
             _allFilter.Content = Localization.Format($"全部 {_entries.Count}");
             _pendingFilter.Content = Localization.Format($"待分析 {_entries.Count(entry => AnalysisPending(entry, rule))}");
             _allFilter.Classes.Set("primary", _basketId == AllBasket); _pendingFilter.Classes.Set("primary", _basketId == PendingBasket);
-            var search = _search.Text?.Trim() ?? "";
             var visible = _entries.Where(entry => (_basketId == AllBasket || (_basketId == PendingBasket
                     ? AnalysisPending(entry, rule) : BasketFor(entry, rule) == _basketId))
-                && (_onlyIncluded.IsChecked != true || entry.Include)
-                && (search.Length == 0 || entry.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
-                    || entry.Details.Contains(search, StringComparison.OrdinalIgnoreCase))).ToArray();
+                && (_onlyIncluded.IsChecked != true || entry.Include)).ToArray();
             // Preserve selection and realized rows while only scores/counts change.
             if (_files.ItemsSource is not MediaFileEntry[] old || !old.SequenceEqual(visible)) _files.ItemsSource = visible;
             _files.SelectedItem = selected is not null && visible.Contains(selected) ? selected : visible.FirstOrDefault();

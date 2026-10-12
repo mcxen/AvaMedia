@@ -51,12 +51,9 @@ internal sealed class WordLibraryEditorWindow : Window
         { var button = Ui.Button(value, () => _category.Text = value); button.Margin = new(0,0,4,4); categories.Children.Add(button); }
         fields.Children.Add(categories);
         fields.Children.Add(Ui.Text("识别标签")); fields.Children.Add(_tags);
-        var search = Ui.Input(); search.Watermark = "搜索识别标签"; fields.Children.Add(search);
         var choices = new ComboBox { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280 };
         choices.ItemTemplate = new FuncDataTemplate<string>((tag, _) => Ui.Text(tag is null ? "" : WordLibraryCatalog.TagLabel(tag)));
-        void Filter() => choices.ItemsSource = WordLibraryCatalog.JoyTags.Where(tag => tag.Contains(search.Text ?? "", StringComparison.OrdinalIgnoreCase)
-            || WordLibraryCatalog.TagLabel(tag).Contains(search.Text ?? "", StringComparison.OrdinalIgnoreCase)).Order().Take(200).ToArray();
-        search.TextChanged += (_, _) => Filter(); Filter(); fields.Children.Add(choices);
+        choices.ItemsSource = WordLibraryCatalog.JoyTags.Order().ToArray(); fields.Children.Add(choices);
         fields.Children.Add(Ui.Button("添加识别标签", () =>
         {
             if (choices.SelectedItem is not string tag || _selectedTags.Count >= 32) return;
