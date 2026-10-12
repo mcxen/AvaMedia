@@ -264,6 +264,7 @@
       <ControlTheme x:Key="UiContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource AcContextMenu}"/>
       <ControlTheme x:Key="UiToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource AcToolTip}"/>
       <ControlTheme x:Key="UiButtonTheme" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"/>
+      <ControlTheme x:Key="UiToggleSwitchTheme" TargetType="ToggleSwitch" BasedOn="{StaticResource {x:Type ToggleSwitch}}"/>
       <ControlTheme x:Key="UiToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}"/>
       <ControlTheme x:Key="UiTextBoxTheme" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
       <ControlTheme x:Key="UiComboBoxTheme" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"/>
@@ -281,6 +282,7 @@
   </Styles.Resources>
   <Style Selector="Button"><Setter Property="Theme" Value="{DynamicResource UiButtonTheme}"/></Style>
   <Style Selector="ToggleButton"><Setter Property="Theme" Value="{DynamicResource UiToggleButtonTheme}"/></Style>
+  <Style Selector="ToggleSwitch"><Setter Property="Theme" Value="{DynamicResource UiToggleSwitchTheme}"/></Style>
   <Style Selector="TextBox"><Setter Property="Theme" Value="{DynamicResource UiTextBoxTheme}"/></Style>
   <Style Selector="ComboBox"><Setter Property="Theme" Value="{DynamicResource UiComboBoxTheme}"/></Style>
   <Style Selector="CheckBox"><Setter Property="Theme" Value="{DynamicResource UiCheckBoxTheme}"/></Style>

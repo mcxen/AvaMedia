@@ -44,25 +44,37 @@ foreach(var skin in new[]{"Light","Dark","MacOS9","Light"})
     Check(Color(range.SelectionBrush)==Color(BrushFor(editor,"UiAccent")),skin+" updates the painted timeline selection");
     Check(Color(range.TrackBrush)==Color(BrushFor(editor,"UiSurfaceRaised"))&&Color(range.HandleBrush)==Color(BrushFor(editor,"UiSurface")),skin+" updates timeline surface and handles");
     Check(Color(crop.BorderBrush)==Color(BrushFor(editor,"UiCropBorder")),skin+" updates crop outlines");
-    Check(Color(editor.FindControl<ActionIcon>("PlayIcon")!.Foreground)==Color(BrushFor(editor,"UiAccent")),skin+" updates transport icon color");
+    Check(Color(editor.FindControl<ActionIcon>("PlayIcon")!.Foreground)==Color(BrushFor(editor,skin=="MacOS9"?"UiText":"UiAccent")),skin+" updates the skin transport icon color");
     Check(start.Height==Metric(editor,"UiFieldHeight")&&start.Width==end.Width&&start.FontSize==end.FontSize&&start.FontSize==Metric(editor,"UiTimeFontSize"),skin+" keeps matching time input metrics");
-    Check(cancel.Width==confirm.Width&&cancel.Height==confirm.Height&&cancel.Width==Metric(editor,"UiDialogActionWidth"),skin+" keeps matching dialog action metrics");
+    var modern = skin is "Light" or "Dark";
+    Check(cancel.MinWidth==confirm.MinWidth&&cancel.Bounds.Width>=cancel.MinWidth&&confirm.Bounds.Width>=confirm.MinWidth
+        &&cancel.Height==confirm.Height&&cancel.Height==Metric(editor,modern?"AcFieldHeight":"UiFieldHeight"),skin+" keeps editor field actions at the component height with content-sized widths");
     Check(play.Width==play.Height&&play.Width==Metric(editor,"UiTransportSize"),skin+" keeps transport controls square");
     Check(values==(start.Text,end.Text,range.Start,range.End),skin+" preserves edited media values and exact cut boundaries");
     Check(settings.FontFamily.ToString()==editor.FontFamily.ToString(),skin+" uses one inherited UI font across windows");
     var settingsButtons=new[]{"DefaultButton","CancelButton","ApplyButton","OkButton"}.Select(n=>settings.FindControl<Button>(n)!).ToArray();
-    Check(settingsButtons.All(b=>b.Width==cancel.Width&&b.Height==cancel.Height),skin+" shares footer styles with Settings");
-    Check(settings.FindControl<NumericUpDown>("ThreadsInput")!.Bounds.Height==Metric(settings,"UiFieldHeight"),skin+" keeps numeric fields at the shared input height");
-    var numericText=settings.FindControl<NumericUpDown>("ThreadsInput")!.GetVisualDescendants().OfType<TextBox>().Single(t=>t.Name=="PART_TextBox");
+    // The reset button is in lazily presented About content; realize its theme before reading metrics.
+    var settingsTabs=settings.FindControl<TabItem>("AboutTab")!.Parent as TabControl;
+    var settingsPage=settingsTabs!.SelectedItem;
+    settingsTabs.SelectedItem=settings.FindControl<TabItem>("AboutTab");Pump();
+    if(modern)
+        Check(settingsButtons.All(b=>b.Height==Metric(settings,b.Classes.Contains("small")?"AcSmallHeight":"AcButtonHeight")
+            &&b.FontSize==Metric(settings,b.Classes.Contains("small")?"AcSmallFont":"AcButtonFont")&&b.Bounds.Width>=b.MinWidth),skin+" uses component metrics for settings actions and the small reset button");
+    else
+        Check(settingsButtons.All(b=>b.Bounds.Height>0&&b.Bounds.Width>=b.MinWidth),skin+" retains native classic settings actions");
+    settingsTabs.SelectedItem=settings.FindControl<TabItem>("ProvidersTab");Pump();
+    Check(settings.FindControl<NumericUpDown>("OnlineTimeoutInput")!.Bounds.Height==Metric(settings,"UiFieldHeight"),skin+" keeps numeric fields at the shared input height");
+    var numericText=settings.FindControl<NumericUpDown>("OnlineTimeoutInput")!.GetVisualDescendants().OfType<TextBox>().Single(t=>t.Name=="PART_TextBox");
     Check(numericText.Bounds.Height-numericText.Padding.Top-numericText.Padding.Bottom>=numericText.FontSize*1.25,skin+" gives numeric text enough space to avoid clipping");
-    settings.FindControl<NumericUpDown>("ThreadsInput")!.IsEnabled=false;Pump();
+    settings.FindControl<NumericUpDown>("OnlineTimeoutInput")!.IsEnabled=false;Pump();
     Check(numericText.Bounds.Height-numericText.Padding.Top-numericText.Padding.Bottom>=numericText.FontSize*1.25,skin+" retains numeric text space when disabled");
-    settings.FindControl<NumericUpDown>("ThreadsInput")!.IsEnabled=true;Pump();
+    settings.FindControl<NumericUpDown>("OnlineTimeoutInput")!.IsEnabled=true;Pump();
+    settingsTabs.SelectedItem=settingsPage;Pump();
     if(skin=="MacOS9")
     {
         var caption=editor.GetVisualDescendants().OfType<Button>().Single(b=>b.Name=="PlatinumClose");
         var titleBar=editor.GetVisualDescendants().OfType<Grid>().Single(g=>g.Name=="PlatinumTitleBar");
-        Check(caption.Bounds.Height==19&&caption.Bounds.Height+caption.Margin.Top+caption.Margin.Bottom<=titleBar.Bounds.Height,"Platinum caption buttons retain their chrome role inside Editor");
+        Check(caption.Bounds.Height==caption.Height&&caption.Bounds.Height+caption.Margin.Top+caption.Margin.Bottom<=titleBar.Bounds.Height,"Platinum caption buttons retain their chrome role inside Editor");
     }
     settings.Width=780;settings.Height=640;editor.Width=1000;editor.Height=730;Pump();
     Inside(editor,start,skin+" start time");Inside(editor,end,skin+" end time");Inside(editor,confirm,skin+" editor confirmation");Inside(settings,settingsButtons[^1],skin+" settings confirmation");

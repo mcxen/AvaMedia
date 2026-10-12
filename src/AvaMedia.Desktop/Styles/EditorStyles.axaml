@@ -25,7 +25,9 @@
   </Style>
 
   <!-- Redesigned quick editor: segmented modes, frame cards (skin-neutral resources). -->
-  <Style Selector="Window.editor TabControl.mode-tabs /template/ ItemsPresenter#PART_ItemsPresenter"><Setter Property="IsVisible" Value="False"/></Style>
+  <!-- Modes are presented by SegmentedControl; this container only owns the active page.
+       Do not instantiate hidden header controls while a skin reparents the window body. -->
+  <Style Selector="Window.editor TabControl.mode-tabs"><Setter Property="Template"><ControlTemplate><DockPanel><ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" IsVisible="False"/><ContentPresenter Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/></DockPanel></ControlTemplate></Setter></Style>
 
   <Style Selector="Window.editor Border.frame-badge">
     <Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="CornerRadius" Value="5"/><Setter Property="Padding" Value="6,1"/>
