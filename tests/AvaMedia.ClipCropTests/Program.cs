@@ -13,6 +13,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaMedia.Desktop;
 using AvaMedia.Desktop.Controls;
+using CropOverlay = AvaMedia.MediaUi.CropOverlay;
 #endif
 
 var root=Path.GetFullPath("artifacts/clip-crop-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));Directory.CreateDirectory(root);
