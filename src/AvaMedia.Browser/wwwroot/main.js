@@ -17,6 +17,11 @@ runtime.setModuleImports('console', {
   stopObservingVisibility: () => { stopVisibility(); stopVisibility = () => {}; },
   readPending: () => localStorage.getItem('avamedia.pending') || '',
   writePending: value => value ? localStorage.setItem('avamedia.pending', value) : localStorage.removeItem('avamedia.pending'),
+  downloadText: (name, text) => {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/x-subrip;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = name; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
   open: url => { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener'; link.click(); }
 });
 document.getElementById('out').replaceChildren();

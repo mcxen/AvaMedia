@@ -23,11 +23,13 @@ public sealed partial class ConsoleView
     private int? _taskNext, _detailNext;
     private string? _detailId, _taskFilter;
     private bool _refreshing, _logs, _taskDetailOpen;
+    private SubtitleProgressPage? _subtitlePage;
     private IReadOnlyDictionary<string, int> _counts = new Dictionary<string, int>();
     private Button _tasksPrevious = null!, _tasksNext = null!;
     private JsonNode? _organization;
     private JsonObject? _organizationSubmission;
     private Grid _tasksGrid = null!, _tasksListHeader = null!, _tasksMobileHeader = null!;
+    private Control _subtitleListHeader = null!;
     private Border _listCard = null!, _detailCard = null!;
     private readonly ScrollViewer _detailScroll = new() { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
     private readonly ScrollViewer _taskScroll = new() { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
@@ -52,6 +54,8 @@ public sealed partial class ConsoleView
         _tasksListHeader = Header(Ui.Row(10, title, auto), Ui.Row(8, refresh, create));
         var filterScroll = new ScrollViewer { Content = _filters, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         var top = new StackPanel { Spacing = 12, Margin = new(14, 14, 14, 12) }; top.Children.Add(_tasksListHeader); top.Children.Add(filterScroll);
+        _subtitleListHeader = Ui.Row(8, Ui.Text("所有任务", "strong"), Ui.Text("每 3 秒自动刷新", "caption"));
+        _subtitleListHeader.IsVisible = false; top.Children.Insert(0, _subtitleListHeader);
         // Mobile large title
         var large = Ui.Text("所有任务", "largeTitle");
         _tasksMobileHeader = new Grid { RowDefinitions = new("Auto,Auto"), Margin = new(2, 4, 2, 0), IsVisible = false };
@@ -75,7 +79,11 @@ public sealed partial class ConsoleView
     private void LayoutTasks()
     {
         if (_tasksGrid is null) return;
-        _tasksMobileHeader.IsVisible = _mobile; _tasksListHeader.IsVisible = !_mobile;
+        _tasksMobileHeader.IsVisible = _mobile; _tasksListHeader.IsVisible = !_mobile && _subtitlePage is null;
+        _subtitleListHeader.IsVisible = !_mobile && _subtitlePage is not null;
+        _tasksPrevious.Content = _subtitlePage is null ? Ui.Content(L.T("上一页任务"), null) : Ui.Icon("chevron-left", 14);
+        _tasksNext.Content = _subtitlePage is null ? Ui.Content(L.T("下一页任务"), null) : Ui.Icon("chevron-right", 14);
+        ToolTip.SetTip(_tasksPrevious, L.T("上一页任务")); ToolTip.SetTip(_tasksNext, L.T("下一页任务"));
         if (_mobile)
         {
             _tasksGrid.ColumnDefinitions = new("*"); _tasksGrid.Margin = new(16, 0, 16, 0);
@@ -84,7 +92,7 @@ public sealed partial class ConsoleView
         }
         else
         {
-            _tasksGrid.ColumnDefinitions = new("*,316"); _tasksGrid.Margin = new(18, 2, 18, 18);
+            _tasksGrid.ColumnDefinitions = new(_subtitlePage is null ? "*,316" : "260,*"); _tasksGrid.Margin = new(18, 2, 18, 18);
             _listCard.IsVisible = _detailCard.IsVisible = true; Grid.SetColumn(_detailCard, 1);
             _listCard.Background = Palette.Card; _listCard.BoxShadow = BoxShadows.Parse("0 1 2 0 #0F000000, 0 0 0 1 #0D000000");
         }
@@ -135,7 +143,7 @@ public sealed partial class ConsoleView
             for (var index = 0; index < items.Length; index++)
             {
                 var task = items[index]; var id = task.Text("id"); _taskData[id] = task;
-                if (!_taskRows.TryGetValue(id, out var row)) { row = _mobile ? MobileRow(id) : DesktopRow(id); _taskRows[id] = row; }
+                if (!_taskRows.TryGetValue(id, out var row)) { row = _subtitlePage is not null && !_mobile ? SubtitleSidebarRow(id) : _mobile ? MobileRow(id) : DesktopRow(id); _taskRows[id] = row; }
                 var position = _tasks.Children.IndexOf(row.Container);
                 if (position != index) { if (position >= 0) _tasks.Children.RemoveAt(position); _tasks.Children.Insert(Math.Min(index, _tasks.Children.Count), row.Container); }
                 UpdateRow(row, task);
@@ -144,7 +152,11 @@ public sealed partial class ConsoleView
             _taskPage.Text = L.F("共 {0} 项 · 第 {1} 页", page["total"], _taskOffset / TaskPageSize + 1);
             if (items.Length == 0 && _tasks.Children.Count == 0) _tasks.Children.Add(new Border { Padding = new(16, 24), Child = Ui.Text("没有符合条件的任务。", "secondary") });
             else if (items.Length > 0) foreach (var empty in _tasks.Children.OfType<Border>().Where(border => border.Child is TextBlock).ToArray()) _tasks.Children.Remove(empty);
-            if (_detailId is not null && _taskData.TryGetValue(_detailId, out var current)) UpdateDetailHeader(current);
+            if (_subtitlePage is null && _detailId is not null && _taskData.TryGetValue(_detailId, out var current))
+            {
+                UpdateDetailHeader(current);
+                if (!_logs && current.Text("featureId") == "auto-subtitle") await ReadDetailIfChanged();
+            }
         }
         finally { _refreshing = false; }
     }
@@ -192,6 +204,8 @@ public sealed partial class ConsoleView
         row.Name.Text = task.Text("name");
         row.Sub.Text = row.Mobile ? $"{FeatureName(task.Text("featureId"))} · {Source(task)}" + (current is "Running" or "Paused" or "Stopping" ? $" · {progressValue:0}%" : "")
             : $"{FeatureName(task.Text("featureId"))} · {Source(task)}";
+        if (_subtitlePage is not null && !row.Mobile)
+            row.Sub.Text = FeatureName(task.Text("featureId")) + " · " + L.T(States.GetValueOrDefault(current, current)) + $" {progressValue:0}%";
         var (icon, brush) = StateLook(current);
         row.State.Children.Clear(); row.State.Children.Add(Ui.Icon(icon, 12, brush));
         var label = Ui.Text(L.T(States.GetValueOrDefault(current, current))); label.Foreground = brush; label.FontSize = 12; row.State.Children.Add(label);
@@ -234,6 +248,8 @@ public sealed partial class ConsoleView
     private Task OpenDetail(string id)
     {
         if (_taskData.TryGetValue(id, out var opened) && opened.Text("featureId") == "folder-classification") return OpenClassification(id);
+        if (_taskData.TryGetValue(id, out opened) && opened.Text("featureId") == "auto-subtitle") return OpenSubtitle(id);
+        RestoreSubtitleDetail();
         _detailId = id; _detailOffset = 0; _logs = false; _organization = null; _organizationSubmission = null;
         if (_mobile) { _taskDetailOpen = true; _listCard.IsVisible = false; _detailCard.IsVisible = true; _fab.IsVisible = false; }
         foreach (var (key, row) in _taskRows) if (_taskData.TryGetValue(key, out var data)) { row.CurrentState = ""; UpdateRow(row, data); }
@@ -241,6 +257,7 @@ public sealed partial class ConsoleView
     }
     private Task OpenClassification(string id)
     {
+        RestoreSubtitleDetail();
         var tab = (TabItem)_tabs.Items[1]!;
         var list = tab.Content;
         ClassificationPage? page = null;
@@ -250,10 +267,54 @@ public sealed partial class ConsoleView
         tab.Content = page;
         return Task.CompletedTask;
     }
-    private void CloseDetail() { _taskDetailOpen = false; _detailId = null; LayoutTasks(); }
+    private Task OpenSubtitle(string id)
+    {
+        _detailId = id; _detailVersion++; _taskDetailOpen = true;
+        _subtitlePage = new SubtitleProgressPage(id, () => _mobile, CloseDetail, async () =>
+        {
+            RestoreSubtitleDetail(); _detailId = id; _detailOffset = 0; _logs = false;
+            _taskDetailOpen = true; LayoutTasks(); await ReadDetail();
+        });
+        _detailCard.Child = _subtitlePage; _detailCard.Background = Brushes.Transparent; _detailCard.BoxShadow = default;
+        LayoutTasks(); UpdateLayoutMode();
+        return Task.CompletedTask;
+    }
+    private void RestoreSubtitleDetail()
+    {
+        if (_subtitlePage is null) return;
+        _detailCard.Child = _detailScroll; _subtitlePage = null; _detailCard.Background = Palette.Card;
+        _detailCard.BoxShadow = BoxShadows.Parse("0 1 2 0 #0F000000, 0 0 0 1 #0D000000");
+        LayoutTasks(); UpdateLayoutMode();
+    }
+    private TaskRow SubtitleSidebarRow(string id)
+    {
+        var name = Ui.Text("", "strong", raw: true, trim: true);
+        var sub = Ui.Text("", "caption", raw: true, trim: true);
+        var detail = Ui.Text("", "caption", raw: true, trim: true);
+        var texts = new StackPanel { Spacing = 4, Margin = new(12, 10) };
+        texts.Children.Add(name); texts.Children.Add(sub); texts.Children.Add(detail);
+        var grid = new Grid { ColumnDefinitions = new("3,*"), MinHeight = 64 };
+        var accent = new Border { Background = Palette.Blue };
+        grid.Children.Add(accent); Grid.SetColumn(texts, 1); grid.Children.Add(texts);
+        var container = new Border { Child = grid, BorderBrush = Palette.Hairline, BorderThickness = new(0, 0, 0, 1) };
+        container.PointerPressed += async (_, _) => await Guard(() => OpenDetail(id));
+        return new(container, grid, name, sub, new(), new(), detail, new StackPanel(), accent);
+    }
+    private void CloseDetail() { _taskDetailOpen = false; _detailId = null; RestoreSubtitleDetail(); LayoutTasks(); UpdateLayoutMode(); }
     private readonly Dictionary<string, Bitmap?> _thumbnails = new();
     private readonly StackPanel _detailHeader = new() { Spacing = 10 };
+    private string? _detailResultKey;
+    private bool _readingSubtitleDetail;
+    private async Task ReadDetailIfChanged()
+    {
+        if (_readingSubtitleDetail) return;
+        _readingSubtitleDetail = true;
+        try { await ReadDetailCore(true); }
+        finally { _readingSubtitleDetail = false; }
+    }
     private async Task ReadDetail()
+        => await ReadDetailCore(false);
+    private async Task ReadDetailCore(bool onlyIfChanged)
     {
         if (_detailId is not { } id) return;
         var version = ++_detailVersion;
@@ -262,6 +323,9 @@ public sealed partial class ConsoleView
         var payload = await RemoteApi.Call(_logs ? "get_task_log" : "get_task", args);
         var task = _logs ? (await RemoteApi.Call("get_task", new() { ["taskId"] = id }))["task"]! : payload["task"]!;
         if (version != _detailVersion || _detailId != id) return;
+        var resultKey = id + ":" + _detailOffset + ":" + _logs + ":" + payload["result"]?.ToJsonString() + ":" + task.Text("state") + ":" + task.Text("error") + ":" + task.Text("output");
+        if (onlyIfChanged && _detailResultKey == resultKey) return;
+        _detailResultKey = resultKey;
         _detail.Children.Clear(); _detailNext = payload["nextOffset"]?.GetValue<int>();
         if (_mobile)
         {
