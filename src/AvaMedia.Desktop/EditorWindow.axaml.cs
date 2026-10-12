@@ -59,7 +59,7 @@ public partial class EditorWindow : Window
     public EditorWindow() : this(new MediaEngine(new()),"",new()) { }
     public EditorWindow(IMediaEngine engine,string path,ConversionOptions options,string mode="", IReadOnlyList<ConversionOptions>? segments=null, IVideoOrientationDetector? orientationDetector=null, IMediaPreview? previewFrames=null, bool removeSelected=false)
     {
-        InitializeComponent();BuildModeBar();_previewView=new(PreviewImage);_startView=new(StartImage);_endView=new(EndImage);_engine=engine;_previewFrames=previewFrames??engine;_path=path;_mode=mode;_options=options.Clone();_player=new(engine,path);Title=path;RefreshOptionControls();PlayButton.IsEnabled=false;SoundButton.IsEnabled=false;
+        InitializeComponent();BuildModeBar();InitializeChrome();_previewView=new(PreviewImage);_startView=new(StartImage);_endView=new(EndImage);_engine=engine;_previewFrames=previewFrames??engine;_path=path;_mode=mode;_options=options.Clone();_player=new(engine,path);Title=path;RefreshOptionControls();PlayButton.IsEnabled=false;SoundButton.IsEnabled=false;
         WindowArtwork.SetKind(this, Catalog.All.FirstOrDefault(f => f.Id == mode)?.Icon ?? (mode == "input-audio" ? "audio" : "clip"));
         InitializeQuickWorkflow(segments,orientationDetector,removeSelected);
         PrecisionCombo.ItemsSource=new[]{"0.01 s","0.1 s","1 s","1 帧"};PrecisionCombo.SelectedIndex=1;PrecisionCombo.SelectionChanged+=(_,_)=>TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;

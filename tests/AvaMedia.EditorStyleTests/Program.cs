@@ -44,6 +44,16 @@ if (Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_SHOTS") is { Length: > 0
         window.Show(); Complete(window.Ready); window.Width = 1240; window.Height = 780; Pump();
         window.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-editor-{skin.ToLowerInvariant()}.png")); window.Close(); Pump();
     }
+    foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
+    {
+        // Quick-clip mode: two segments so the filmstrip, segment rows and inspector cards are visible.
+        Skin.Apply(skin);
+        var quick = new EditorWindow(new MediaEngine(new()), source, new() { Format = "mp4", Start = .4, End = 1.6 }, "quick-workflow",
+            segments: [new() { Format = "mp4", Start = .4, End = 1.6 }, new() { Format = "mp4", Start = 2, End = 2.8 }]);
+        quick.Show(); Complete(quick.Ready); quick.Width = 1240; quick.Height = 780;
+        var until = DateTime.UtcNow.AddSeconds(4); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); } // let the filmstrip extract
+        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-quick-{skin.ToLowerInvariant()}.png")); quick.Close(); Pump();
+    }
     return;
 }
 

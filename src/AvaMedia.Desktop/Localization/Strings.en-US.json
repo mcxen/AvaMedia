@@ -3521,5 +3521,14 @@
   "连接地址": "Address",
   "起点": "In",
   "终点": "Out",
-  "调整顺序": "Reorder"
+  "调整顺序": "Reorder",
+  "时间线": "Timeline",
+  "缩放": "Zoom",
+  "时间线缩放": "Timeline zoom",
+  "缩略图时间线": "Thumbnail timeline",
+  "当前片段属性": "Segment properties",
+  "无裁剪 / 旋转": "No crop / rotation",
+  "淡入 {0} · 淡出 {1}": "Fade in {0} · Fade out {1}",
+  "{0} 个片段 · 合计 {1}": "{0} segments · total {1}",
+  "去除 {0} 段 · 保留 {1}": "Remove {0} · keep {1}"
 }

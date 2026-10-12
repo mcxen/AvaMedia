@@ -102,4 +102,16 @@
     <Setter Property="CornerRadius" Value="10"/>
     <Setter Property="Padding" Value="10,8,10,6"/>
   </Style>
+  <Style Selector="Window.editor Border.inspector">
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="Window.editor ListBox.clip-segments Border.segment-accent">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="Window.editor ListBox.clip-segments ListBoxItem:selected Border.segment-accent">
+    <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
+  </Style>
+  <Style Selector="Window.editor Grid.export-bar">
+    <Setter Property="MinHeight" Value="44"/>
+  </Style>
 </Styles>

@@ -92,35 +92,19 @@ public partial class MainWindow
         PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) UpdateMaximizeGlyph(); };
     }
 
-    private static bool IsInteractive(Control control)
-    {
-        for (Control? c = control; c is not null; c = c.Parent as Control)
-            if (c is Button or TextBox or MenuItem) return true;
-        return false;
-    }
+    private static bool IsInteractive(Control control) => WindowChrome.IsInteractive(control);
 
-    private void ToggleMaximize() => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void ToggleMaximize() => WindowChrome.ToggleMaximize(this);
 
     private void EnsureCaptionButtons()
     {
         if (_captionButtons is not null) return;
-        _captionButtons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(10, -4, -14, 0), Classes = { "caption-buttons" } };
-        Button Caption(string glyph, string name, Action click, bool close = false)
-        {
-            var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, Height = 14 }, Classes = { "caption" }, Focusable = false };
-            if (close) button.Classes.Add("close");
-            ToolTip.SetTip(button, Localization.Text(name));
-            Avalonia.Automation.AutomationProperties.SetName(button, Localization.Text(name));
-            button.Click += (_, _) => click();
-            return button;
-        }
-        _captionButtons.Children.Add(Caption("minus", "最小化窗口", () => WindowState = WindowState.Minimized));
-        _captionButtons.Children.Add(_maximizeButton = Caption("square", "最大化", ToggleMaximize));
-        _captionButtons.Children.Add(Caption("x", "关闭", Close, close: true));
+        _captionButtons = WindowChrome.CreateCaptionButtons(this, out var maximize);
+        _maximizeButton = maximize;
+        _captionButtons.Margin = new Thickness(10, -4, -14, 0);
         ModernTitleBar.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         Grid.SetColumn(_captionButtons, ModernTitleBar.ColumnDefinitions.Count - 1);
         ModernTitleBar.Children.Add(_captionButtons);
-        UpdateMaximizeGlyph();
     }
 
     private void UpdateMaximizeGlyph()
@@ -143,26 +127,6 @@ public partial class MainWindow
     private void EnsureResizeGrips()
     {
         if (_resizeGrips is not null || Content is not Grid root) return;
-        Border Grip(WindowEdge edge, HorizontalAlignment h, VerticalAlignment v, StandardCursorType cursor)
-        {
-            var horizontal = h == HorizontalAlignment.Stretch; var vertical = v == VerticalAlignment.Stretch;
-            var grip = new Border { Background = Brushes.Transparent, HorizontalAlignment = h, VerticalAlignment = v,
-                Width = horizontal ? double.NaN : 6, Height = vertical ? double.NaN : 6, Cursor = new Cursor(cursor), ZIndex = 1000 };
-            Grid.SetRowSpan(grip, Math.Max(1, root.RowDefinitions.Count)); Grid.SetColumnSpan(grip, Math.Max(1, root.ColumnDefinitions.Count));
-            grip.PointerPressed += (_, e) => { if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && WindowState == WindowState.Normal) BeginResizeDrag(edge, e); };
-            root.Children.Add(grip);
-            return grip;
-        }
-        _resizeGrips =
-        [
-            Grip(WindowEdge.West, HorizontalAlignment.Left, VerticalAlignment.Stretch, StandardCursorType.LeftSide),
-            Grip(WindowEdge.East, HorizontalAlignment.Right, VerticalAlignment.Stretch, StandardCursorType.RightSide),
-            Grip(WindowEdge.North, HorizontalAlignment.Stretch, VerticalAlignment.Top, StandardCursorType.TopSide),
-            Grip(WindowEdge.South, HorizontalAlignment.Stretch, VerticalAlignment.Bottom, StandardCursorType.BottomSide),
-            Grip(WindowEdge.NorthWest, HorizontalAlignment.Left, VerticalAlignment.Top, StandardCursorType.TopLeftCorner),
-            Grip(WindowEdge.NorthEast, HorizontalAlignment.Right, VerticalAlignment.Top, StandardCursorType.TopRightCorner),
-            Grip(WindowEdge.SouthWest, HorizontalAlignment.Left, VerticalAlignment.Bottom, StandardCursorType.BottomLeftCorner),
-            Grip(WindowEdge.SouthEast, HorizontalAlignment.Right, VerticalAlignment.Bottom, StandardCursorType.BottomRightCorner),
-        ];
+        _resizeGrips = WindowChrome.AddResizeGrips(this, root);
     }
 }

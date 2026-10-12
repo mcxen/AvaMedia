@@ -1,8 +1,14 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
-  <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto" ColumnDefinitions="*,0,0">
-    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" MinWidth="620">
-    <!-- Segmented mode switch mirrors EditTabs (headers, visibility and enabled state stay in the TabItems). -->
-    <Border x:Name="ModeBar" Classes="mode-switch" HorizontalAlignment="Center" Margin="0,0,0,8"><StackPanel x:Name="ModeButtons" Orientation="Horizontal" Spacing="2"/></Border>
+  <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,0,0">
+    <!-- Title bar: drag region, title/subtitle, mode switch, platform caption buttons (EditorWindow.Chrome.cs). -->
+    <Grid x:Name="EditorTitleBar" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto,*,Auto" MinHeight="44" Margin="0,0,0,8" Background="Transparent">
+      <StackPanel x:Name="EditorTitleText" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <local:LucideIcon Kind="scissors" Width="18" Height="18" Foreground="{DynamicResource UiAccent}"/>
+        <TextBlock x:Name="EditorTitle" Text="{Binding $parent[Window].Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+      </StackPanel>
+      <Border Grid.Column="1" x:Name="ModeBar" Classes="mode-switch" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel x:Name="ModeButtons" Orientation="Horizontal" Spacing="2"/></Border>
+    </Grid>
+    <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto,Auto,Auto" MinWidth="620">
     <Grid Grid.Row="1" x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
       <Grid MinHeight="120">
         <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Uniform"/></LayoutTransformControl></Viewbox>
@@ -137,27 +143,35 @@
       </TabItem>
     </TabControl>
     </Grid>
-    <GridSplitter Grid.Column="1" x:Name="SegmentPaneSplitter" IsVisible="False" ResizeDirection="Columns" HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Transparent"/>
-    <Border Grid.Column="2" x:Name="SegmentPane" IsVisible="False" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1">
-      <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8" Margin="10">
-        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
+    <GridSplitter Grid.Row="1" Grid.Column="1" x:Name="SegmentPaneSplitter" IsVisible="False" ResizeDirection="Columns" HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Transparent"/>
+    <Border Grid.Row="1" Grid.Column="2" x:Name="SegmentPane" IsVisible="False" Classes="inspector">
+      <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
+        <Border Grid.Row="4" Classes="editor-card" x:Name="InspectorCard">
+          <StackPanel Spacing="4">
+            <TextBlock Text="当前片段属性" FontWeight="SemiBold"/>
+            <TextBlock x:Name="InspectorTitle" Foreground="{DynamicResource UiAccent}" FontWeight="SemiBold"/>
+            <TextBlock x:Name="InspectorDetails" FontSize="12" TextWrapping="Wrap" FontFeatures="tnum" Foreground="{DynamicResource UiTextSecondary}"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="editor-card"><Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
           <TextBlock x:Name="SegmentCount" FontWeight="SemiBold" VerticalAlignment="Center"/>
           <Button Grid.Column="1" x:Name="PlayAllSegmentsButton" i18n:StableLayout.Samples="预览结果|停止预览" Content="预览结果" Click="PlayAllSegmentsClick"/>
           <CheckBox Grid.Row="1" Grid.ColumnSpan="2" x:Name="InvertSelectionCheck" Content="反选：去除所选片段" IsCheckedChanged="InvertSelectionChanged"/>
           <TextBlock Grid.Row="2" Grid.ColumnSpan="2" x:Name="SegmentTotalDuration" FontFeatures="tnum" i18n:StableLayout.Samples="总输出时长：888:88:88.888" Classes="caption"/>
-        </Grid>
+        </Grid></Border>
         <ListBox Grid.Row="1" x:Name="SegmentList" Classes="clip-segments" SelectionChanged="SegmentChanged" DoubleTapped="SegmentDoubleTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="88,*,Auto" ColumnSpacing="8" RowSpacing="5" Margin="4,6">
-                <Border Background="{DynamicResource UiMediaSurface}" Width="88" Height="50"><local:SegmentThumbnail Stretch="Uniform"/></Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+              <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="3,80,*,Auto" ColumnSpacing="8" RowSpacing="5" Margin="0,6,4,6">
+                <Border Grid.RowSpan="3" Classes="segment-accent" Width="3" CornerRadius="2"/>
+                <Border Grid.Column="1" Background="{DynamicResource UiMediaSurface}" Width="80" Height="45" CornerRadius="6" ClipToBounds="True"><local:SegmentThumbnail Stretch="UniformToFill"/></Border>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
                   <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
                   <TextBlock Text="{Binding DurationLabel}" FontSize="12" TextWrapping="Wrap"/>
                 </StackPanel>
-                <Button Grid.Column="2" Classes="transport segment-play" Click="PreviewSegmentClick" ToolTip.Tip="播放此片段" AutomationProperties.Name="播放此片段"><local:ActionIcon Kind="play" Width="18" Height="18"/></Button>
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding TimeRange}" FontFamily="{DynamicResource UiNumericFont}" FontSize="12" TextWrapping="Wrap"/>
-                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding EditSummary}" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasEdits}"/>
+                <Button Grid.Column="3" Classes="transport segment-play" Click="PreviewSegmentClick" ToolTip.Tip="播放此片段" AutomationProperties.Name="播放此片段"><local:ActionIcon Kind="play" Width="18" Height="18"/></Button>
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding TimeRange}" FontFamily="{DynamicResource UiNumericFont}" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding EditSummary}" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasEdits}"/>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
@@ -186,15 +200,16 @@
         <TextBlock Grid.Row="3" x:Name="SegmentError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
       </Grid>
     </Border>
-    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,4,0,0">
+    <Grid Grid.Row="2" Grid.ColumnSpan="3" x:Name="ExportBar" Classes="export-bar" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,8,0,0">
       <StackPanel x:Name="SegmentFooter" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" IsVisible="False">
         <Button x:Name="UndoSegmentButton" Content="撤销" Click="UndoSegmentClick"/>
         <Button x:Name="RedoSegmentButton" Content="重做" Click="RedoSegmentClick"/>
         <TextBlock x:Name="ActiveSegmentLabel" VerticalAlignment="Center"/>
       </StackPanel>
       <TextBlock Grid.Column="0" x:Name="ExportSummary" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}" Margin="0,0,8,0"/>
-      <Button Grid.Column="1" x:Name="EditorCancelButton" Classes="dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+      <Button Grid.Column="1" x:Name="FooterOptionsButton" Content="输出配置…" Click="OptionsClick" Height="{DynamicResource UiFieldHeight}" IsVisible="False"/>
+      <Button Grid.Column="2" x:Name="EditorCancelButton" Classes="dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
+      <Button Grid.Column="3" x:Name="ConfirmButton" Classes="primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
   </Grid>
 </Window>
