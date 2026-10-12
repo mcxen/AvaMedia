@@ -58,7 +58,7 @@ public partial class MainWindow
     private void AddTreeSection(StackPanel body, FeatureSection section)
     {
         var title = new TextBlock { Text = Localization.Text(section.Title), FontSize = 11, FontWeight = FontWeight.SemiBold,
-            Height = 20, Padding = new Thickness(20, 4, 0, 0), Classes = { "feature-tree-group" } };
+            Padding = new Thickness(20, 4, 0, 0), Classes = { "feature-tree-group" } };
         title.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiTextSecondary"));
         body.Children.Add(title);
         if (section.Formats)
@@ -76,7 +76,10 @@ public partial class MainWindow
         var label = FeatureNavigation.Label(feature);
         var content = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
         var icon = new LucideIcon { Kind = FeatureNavigation.Icon(feature), Width = 15, Height = 15, VerticalAlignment = VerticalAlignment.Center };
+        icon.Classes.Add("non-platinum");
         content.Children.Add(icon);
+        // Mac OS 9 shows its colored Platinum artwork instead of the line icon.
+        content.Children.Add(new FeatureIcon { Kind = feature.Icon, Label = "", Width = 18, Height = 16, VerticalAlignment = VerticalAlignment.Center, Classes = { "platinum-only" } });
         var text = new TextBlock { Text = Localization.Text(label), FontSize = 13, MaxLines = 1, TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
         var name = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -84,13 +87,12 @@ public partial class MainWindow
         Grid.SetColumn(name, 1); content.Children.Add(name);
         if (Catalog.IsBeta(feature))
         {
-            var badge = new Border { CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 0), VerticalAlignment = VerticalAlignment.Center,
-                Background = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0x95, 0x00)), Margin = new Thickness(0, 0, 4, 0),
-                Child = new TextBlock { Text = "BETA", FontSize = 9.5, FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0xE0, 0x82, 0x00)) } };
+            var badge = new Border { Padding = new Thickness(4, 0), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0),
+                Classes = { "beta-badge" }, Child = new TextBlock { Text = "BETA", FontSize = 9.5, FontWeight = FontWeight.Bold } };
             name.Children.Add(badge);
         }
         var button = TreeButton(feature, content, "UiTreeRowTheme");
-        button.Height = 26; button.Padding = new Thickness(30, 0, 6, 0);
+        button.Classes.Add("feature-tree-row"); button.Padding = new Thickness(30, 0, 6, 0);
         _featureIcons.Add(button, icon);
         AutomationProperties.SetName(button, label);
         SetFeatureSelection(button, feature.Id);

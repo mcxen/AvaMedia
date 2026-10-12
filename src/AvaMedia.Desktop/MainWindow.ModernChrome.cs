@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Media;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
@@ -56,9 +57,11 @@ public partial class MainWindow
         // The modern status bar gives the queue summary its natural width instead of trimming it.
         if (SummaryText.Parent is Grid status)
         {
-            status.ColumnDefinitions[0].Width = modern ? new GridLength(1, GridUnitType.Star) : new GridLength(2, GridUnitType.Star);
-            status.ColumnDefinitions[2].Width = modern ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
-            status.ColumnDefinitions[0].MinWidth = modern ? 170 : 0;
+            // All skins: the queue summary keeps its natural width; the output path takes the rest.
+            status.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            status.ColumnDefinitions[2].Width = GridLength.Auto;
+            status.ColumnDefinitions[0].MinWidth = 150;
+            SummaryText.TextTrimming = TextTrimming.None;
             status.ColumnDefinitions[6].Width = modern ? GridLength.Auto : new GridLength(142);
         }
         FeatureSidebar.Bind(BackgroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(modern ? "ShellSidebar" : "UiFeaturePanel"));

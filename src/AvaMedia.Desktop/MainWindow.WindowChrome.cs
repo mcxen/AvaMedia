@@ -36,7 +36,7 @@ public partial class MainWindow
     private Control? _macLights;
     private Border[]? _resizeGrips;
     private Button? _maximizeButton;
-    private bool _frameHooked;
+    private bool _frameHooked, _ownDecorations;
 
     private void ApplyWindowFrame(bool modern)
     {
@@ -45,7 +45,8 @@ public partial class MainWindow
         if (kind == WindowFrameKind.System)
         {
             ExtendClientAreaToDecorationsHint = false;
-            SystemDecorations = SystemDecorations.Full;
+            // Only undo our own change: Mac OS 9 / XP skins manage decorations for their custom frames.
+            if (_ownDecorations) { SystemDecorations = SystemDecorations.Full; _ownDecorations = false; }
             SetFrameParts(caption: false, lights: false, grips: false);
             return;
         }
@@ -62,7 +63,7 @@ public partial class MainWindow
         ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.NoChrome;
         // X11 cannot extend into WM decorations: drop them and supply our own resize edges.
         var ownFrame = !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS();
-        if (ownFrame) SystemDecorations = SystemDecorations.None;
+        if (ownFrame) { SystemDecorations = SystemDecorations.None; _ownDecorations = true; }
         SetFrameParts(caption: true, lights: false, grips: ownFrame);
     }
 

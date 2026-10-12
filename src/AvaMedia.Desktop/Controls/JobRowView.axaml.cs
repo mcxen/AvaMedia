@@ -121,9 +121,8 @@ public partial class JobRowView : UserControl
     {
         var job = _details?.Job;
         // The compact row keeps one thin progress line; the AI pipeline stays in 查看任务.
-        var compact = _owner?.ModernChrome == true;
+        var compact = _owner is { } owner && !owner.Classes.Contains("mac-os9") && !owner.Classes.Contains("windows-xp");
         ActivityView.Update(_owner?.IsQueuePresentationVisible == true && !compact ? job?.Activity : null);
-        ActivityView.IsVisible = !compact;
         PipelineProgress.IsVisible = compact || job?.Activity is null;
         ProgressSlot.Height = compact ? 4 : _owner?.CanViewAiTask(job!) == true ? 54 : 8;
         ProgressSlot.IsVisible = !compact || job?.State is JobState.Running or JobState.Stopping;

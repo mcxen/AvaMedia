@@ -27,3 +27,4 @@
 | clip-list.png | 批量剪辑 |
 
 完整提示词、参考文件、原图尺寸及 SHA-256 见 [manifest.json](manifest.json)。生成与接入流程见项目 [avamedia-icons Skill](../../../../../.agents/skills/avamedia-icons/SKILL.md)。
+| image-compress.png | 视频瘦身（由 image.png 派生，程序绘制压缩箭头） |

@@ -32,10 +32,10 @@
         <TextBlock Grid.Column="1" Text="{Binding Job.SubmittedBy}" Classes="queue-secondary" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
       </Grid>
       <TextBlock Text="{Binding MetaLine}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary modern-only" ToolTip.Tip="{Binding FileSummary}"/>
-      <StackPanel Classes="classic-only">
+      <StackPanel Classes="classic-only" ToolTip.Tip="{Binding FileSummary}">
         <TextBlock Text="{Binding MediaSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
         <TextBlock Text="{Binding CodecSummary}" IsVisible="{Binding HasCodecSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
-        <TextBlock Text="{Binding FileSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
+        <TextBlock Text="{Binding FileSummary}" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary non-platinum"/>
       </StackPanel>
     </StackPanel>
     <StackPanel Classes="queue-details" Grid.Column="2" VerticalAlignment="Center">
@@ -47,7 +47,7 @@
       <TextBlock Classes="classic-only queue-secondary" Text="{Binding SettingsSummary}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}"/>
       <Grid Classes="queue-status" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
       <Grid x:Name="ProgressSlot" Classes="queue-progress" Grid.ColumnSpan="2">
-        <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" MinHeight="0" VerticalAlignment="Center" Height="{DynamicResource UiQueueProgressHeight}"/>
+        <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
         <local:AiActivityView x:Name="ActivityView" Compact="True"/>
       </Grid>
       <Grid Classes="queue-state-slot" Grid.Row="1" Grid.ColumnSpan="2" Height="28">

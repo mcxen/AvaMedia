@@ -60,7 +60,8 @@ public sealed class CategoryHeader : Button
         _chevron.Bind(Path.StrokeProperty, new Binding(nameof(Foreground)) { Source = this });
         if (isTree)
         {
-            Padding = new Thickness(4, 0, 8, 0); MinHeight = 0; Height = 28; BorderThickness = default;
+            Padding = new Thickness(4, 0, 8, 0); MinHeight = 0; BorderThickness = default;
+            _chevron.Classes.Add("tree-chevron");
             _title.FontSize = 13; _title.FontWeight = FontWeight.SemiBold; _title.TextAlignment = TextAlignment.Left;
             _chevron.Width = 10; _chevron.Height = 10; _chevron.IsVisible = true;
             _chevron.Bind(Path.StrokeProperty, new DynamicResourceExtension("UiTextSecondary"));

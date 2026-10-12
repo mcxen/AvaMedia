@@ -566,6 +566,17 @@
         "method": "Lanczos resize and optimized RGBA PNG",
         "maxPixels": 256
       }
+    },
+    {
+      "kind": "image-compress",
+      "function": "视频瘦身",
+      "file": "image-compress.png",
+      "prompt": "Derived from image.png: picture scaled to 200px with pixel-stepped orange compress arrows drawn programmatically (PIL) in the Platinum palette.",
+      "sha256": "1a03dcaa0a6e1c24879998a9f3bdec17efa741de828fcfd71bcfdaf400795d4a",
+      "size": [
+        256,
+        256
+      ]
     }
   ]
 }

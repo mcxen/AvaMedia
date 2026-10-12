@@ -117,8 +117,8 @@
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host CheckBox"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-heading Grid > TextBlock:nth-child(1)"><Setter Property="Margin" Value="12,0,0,0"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton:disabled"><Setter Property="Opacity" Value="1"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Opacity" Value="1"/></Style>
+  <Style Selector="ListBox.task-list Button#CoverButton:disabled"><Setter Property="Opacity" Value="1"/></Style>
+  <Style Selector="ListBox.task-list Button#CoverButton:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Opacity" Value="1"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled"><Setter Property="Opacity" Value="1"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource ShellTrack}"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled TextBlock"><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
@@ -130,4 +130,25 @@
   <Style Selector="Window.main-window Button.caption:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource ShellRowHover}"/></Style>
   <Style Selector="Window.main-window Button.caption.close:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#C42B1C"/></Style>
   <Style Selector="Window.main-window Button.caption.close:pointerover controls|LucideIcon"><Setter Property="Foreground" Value="White"/></Style>
+  <!-- Tool tree sizing and per-skin parts (Mac OS 9 gets Platinum artwork, bars and triangles). -->
+  <Style Selector="Button.feature-tree-row"><Setter Property="Height" Value="26"/></Style>
+  <Style Selector="Button.feature-tree-category"><Setter Property="Height" Value="28"/></Style>
+  <Style Selector="TextBlock.feature-tree-group"><Setter Property="Height" Value="20"/></Style>
+  <Style Selector=":is(Control).platinum-only"><Setter Property="IsVisible" Value="False"/></Style>
+  <Style Selector="Window.mac-os9 :is(Control).platinum-only"><Setter Property="IsVisible" Value="True"/></Style>
+  <Style Selector="Window.mac-os9 :is(Control).non-platinum"><Setter Property="IsVisible" Value="False"/></Style>
+  <Style Selector="Border.beta-badge"><Setter Property="CornerRadius" Value="4"/><Setter Property="Background" Value="#24FF9500"/></Style>
+  <Style Selector="Border.beta-badge TextBlock"><Setter Property="Foreground" Value="#E08200"/></Style>
+  <Style Selector="Window.mac-os9 Border.beta-badge"><Setter Property="CornerRadius" Value="0"/><Setter Property="Background" Value="#DDDDDD"/><Setter Property="BorderBrush" Value="#666666"/><Setter Property="BorderThickness" Value="1"/></Style>
+  <Style Selector="Window.mac-os9 Border.beta-badge TextBlock"><Setter Property="Foreground" Value="#000000"/><Setter Property="FontWeight" Value="Normal"/></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-row"><Setter Property="Height" Value="21"/></Style>
+  <Style Selector="Window.mac-os9 TextBlock.feature-tree-group"><Setter Property="Height" Value="18"/><Setter Property="Padding" Value="20,3,0,0"/></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-category"><Setter Property="Height" Value="24"/><Setter Property="Margin" Value="0,1"/></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-category /template/ Border#PART_NavigationFace"><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="#808080"/><Setter Property="Background"><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Color="#F2F2F2" Offset="0"/><GradientStop Color="#D4D4D4" Offset="1"/></LinearGradientBrush></Setter></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-category:pressed /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="#A8A8A8"/></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-category Path.tree-chevron"><Setter Property="Fill" Value="#000000"/><Setter Property="Stroke" Value="#000000"/><Setter Property="StrokeThickness" Value="0.5"/></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-category controls|LucideIcon"><Setter Property="IsVisible" Value="False"/></Style>
+  <Style Selector="Window.mac-os9 Button.feature-tree-row /template/ Border#PART_NavigationFace"><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="Window.mac-os9 ListBox.task-list Grid.queue-state-slot"><Setter Property="Height" Value="22"/></Style>
+  <Style Selector="Window.mac-os9 ListBox.task-list StackPanel.queue-details"><Setter Property="Spacing" Value="1"/></Style>
 </Styles>
