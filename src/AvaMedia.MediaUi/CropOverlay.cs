@@ -23,6 +23,15 @@ public sealed class CropOverlay : Control
     public int PixelStep{get;set;}=2;
     public double AspectRatio{get;set;}
     public event Action<Rect>? Changed;
+    /// <summary>Optional badge drawn above the selection (e.g. size and ratio).</summary>
+    public string? Label{get;set;}
+    public IBrush? LabelBrush{get;set;}
+    /// <summary>Rule-of-thirds guides inside the selection.</summary>
+    public bool ShowGrid{get;set;}
+    /// <summary>Non-editable regions drawn as outlines with captions (e.g. other watermark regions).</summary>
+    public IReadOnlyList<(Rect Region,string Caption)> Others{get;set;}=[];
+    /// <summary>Shade outside the selection; off for watermark regions.</summary>
+    public bool Shade{get;set;}=true;
     private Point? _origin;
     private Rect _before;
     private int _gesture;
@@ -35,7 +44,12 @@ public sealed class CropOverlay : Control
         // Keep the empty selection interactive: Avalonia hit-tests drawn content.
         c.DrawRectangle(Brushes.Transparent,null,new Rect(Bounds.Size));
         var image=ImageRect;var rect=ScreenRect(Selection);
-        if(Selection.Width>0 && Selection.Height>0)
+        foreach(var (region,caption) in Others)
+        {
+            var other=ScreenRect(region);c.DrawRectangle(null,new Pen(Brushes.White,1.5),other);
+            if(caption.Length>0)DrawBadge(c,caption,new Point(other.X,other.Y),new SolidColorBrush(Color.FromArgb(200,28,28,30)));
+        }
+        if(Selection.Width>0 && Selection.Height>0 && Shade)
         {
             var shade=ShadeBrush;
             c.DrawRectangle(shade,null,new Rect(image.X,image.Y,image.Width,Math.Max(0,rect.Y-image.Y)));
@@ -44,7 +58,19 @@ public sealed class CropOverlay : Control
             c.DrawRectangle(shade,null,new Rect(rect.Right,rect.Y,Math.Max(0,image.Right-rect.Right),rect.Height));
         }
         c.DrawRectangle(SelectionBrush,new Pen(BorderBrush,2),rect);
+        if(ShowGrid && rect.Width>0)
+        {
+            var guide=new Pen(new SolidColorBrush(Color.FromArgb(110,255,255,255)),1);
+            for(var i=1;i<3;i++){c.DrawLine(guide,new Point(rect.X+rect.Width*i/3,rect.Y),new Point(rect.X+rect.Width*i/3,rect.Bottom));c.DrawLine(guide,new Point(rect.X,rect.Y+rect.Height*i/3),new Point(rect.Right,rect.Y+rect.Height*i/3));}
+        }
         foreach(var p in Corners(rect))c.DrawRectangle(HandleBrush,new Pen(BorderBrush,1),new Rect(p.X-4,p.Y-4,8,8));
+        if(!string.IsNullOrEmpty(Label) && rect.Width>0)DrawBadge(c,Label,new Point(rect.X+8,rect.Y+8),LabelBrush??BorderBrush);
+    }
+    private static void DrawBadge(DrawingContext c,string text,Point at,IBrush? background)
+    {
+        var format=new FormattedText(text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,Typeface.Default,11,Brushes.White);
+        var box=new Rect(at.X,Math.Max(0,at.Y-(at.Y>20?20:0)),format.Width+12,format.Height+4);
+        c.DrawRectangle(background,null,box,4,4);c.DrawText(format,new Point(box.X+6,box.Y+2));
     }
     private Rect ScreenRect(Rect source)
     {var image=ImageRect;var scaleX=image.Width/Math.Max(1,SourceWidth);var scaleY=image.Height/Math.Max(1,SourceHeight);return new(image.X+source.X*scaleX,image.Y+source.Y*scaleY,source.Width*scaleX,source.Height*scaleY);}

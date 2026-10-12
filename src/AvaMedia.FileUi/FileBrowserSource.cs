@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 
 namespace AvaMedia.FileUi;
@@ -26,4 +27,12 @@ public interface IFileBrowserSource
 
 public sealed record FileBrowserOptions(string Title, bool Folders = false, bool Multiple = false,
     IReadOnlyList<FilePickerFileType>? FileTypes = null, FileBrowserItem? StartFolder = null,
-    FilePickerFileType? SelectedFileType = null, bool AllowFolders = false, bool Embedded = false);
+    FilePickerFileType? SelectedFileType = null, bool AllowFolders = false, bool Embedded = false, bool Compact = false);
+
+/// <summary>Host-supplied glyphs for the compact presentation (FileUi ships no icon set).</summary>
+public interface IFileBrowserGlyphs
+{
+    Control Glyph(string name);
+    Control Entry(FileBrowserItem item);
+    Control Place(FileBrowserLocation location);
+}

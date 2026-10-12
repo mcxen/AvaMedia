@@ -14,7 +14,7 @@ using Avalonia.VisualTree;
 namespace AvaMedia.FileUi;
 
 /// <summary>Embeddable file browser, independent of Window, native engines and local paths.</summary>
-public sealed class FileBrowserView : UserControl, IDisposable
+public sealed partial class FileBrowserView : UserControl, IDisposable
 {
     private readonly IFileBrowserSource _source;
     private readonly FileBrowserOptions _options;
@@ -27,7 +27,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
     private readonly TextBlock _selectionCount = new();
     private readonly ComboBox _types = new() { MinWidth = 140, MaxWidth = 300 };
     private readonly CheckBox _hidden = new();
-    private readonly Button _back, _up, _select;
+    private Button _back = null!, _up = null!, _select = null!;
     private readonly Stack<FileBrowserItem> _history = new();
     private CancellationTokenSource? _navigation;
     private FileBrowserDirectory? _directory;
@@ -37,12 +37,13 @@ public sealed class FileBrowserView : UserControl, IDisposable
     public Func<Task<IReadOnlyList<FileBrowserItem>>>? PickExternalAsync { get; set; }
     public FileBrowserItem? CurrentFolder => _directory?.Folder;
 
-    public FileBrowserView(IFileBrowserSource source, FileBrowserOptions options, Func<string, string>? text = null)
+    public FileBrowserView(IFileBrowserSource source, FileBrowserOptions options, Func<string, string>? text = null, IFileBrowserGlyphs? glyphs = null)
     {
         _source = source; _options = options; _places = new(source) { Width = 210 }; _text = text ?? (value => value);
         _entries.SelectionMode = options.Multiple ? SelectionMode.Multiple : SelectionMode.Single;
         _entries.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
+        if (options.Compact) { BuildCompact(glyphs); return; }
         var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         var navigation = new Grid { ColumnDefinitions = new("Auto,Auto,*,Auto"), ColumnSpacing = 6 };
         _back = Button("后退", async () => { if (_history.TryPop(out var folder)) await NavigateAsync(folder, false); });
@@ -109,7 +110,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
         {
             var locations = await _source.GetLocationsAsync(CancellationToken.None);
             if (_disposed) return;
-            _places.SetLocations(locations);
+            _places.SetLocations(locations); SetCompactLocations(locations);
             if ((_options.StartFolder ?? locations.FirstOrDefault()?.Folder) is { } folder) await NavigateAsync(folder, false);
         }
         catch (Exception error) { ShowError(error); }
@@ -169,7 +170,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
             && entry.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
             && (entry.IsFolder || !_options.Folders && Matches(entry.Name)))
             .OrderByDescending(entry => entry.IsFolder).ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
-        _status.Text = ""; UpdateSelection();
+        _status.Text = ""; UpdateSelection(); CompactDirectoryChanged();
     }
 
     private bool Matches(string name) => _types.SelectedItem is not FilePickerFileType { Patterns: { Count: > 0 } patterns }
@@ -184,6 +185,7 @@ public sealed class FileBrowserView : UserControl, IDisposable
         _select.IsEnabled = !_loading && (Selection().Length > 0 || _options.Folders && CurrentFolder is not null);
         var count = Selection().Length;
         _selectionCount.Text = count == 0 ? "" : count + " " + _text("项已选择");
+        if (_options.Compact) UpdateCompactSelection(count);
     }
 
     private void Confirm()
