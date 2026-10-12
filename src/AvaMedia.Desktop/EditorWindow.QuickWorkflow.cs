@@ -119,6 +119,7 @@ public partial class EditorWindow
         SegmentUpButton.IsEnabled = !_removeSelected && index > 0;
         SegmentDownButton.IsEnabled = !_removeSelected && index >= 0 && index < _segments.Count - 1;
         SegmentTrack.SetItems(_segments.Select(s => new MediaUi.SegmentTimelineItem(s.Number, s.Options.Start, s.End, _removeSelected ? 1 : s.Options.Speed, Localization.Format($"片段 {s.Number}"), MediaTime.Format((s.End - s.Options.Start) / (_removeSelected ? 1 : Math.Max(.25, s.Options.Speed))))).ToArray(), index);
+        RefreshFilmstrip(index);
         UpdateSegmentActions();
     }
 

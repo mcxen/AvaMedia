@@ -10,9 +10,21 @@
         <TextBlock x:Name="PreviewStatus" Text="正在读取媒体…" Foreground="{DynamicResource UiMediaText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Grid>
     </Grid>
-    <ScrollViewer Grid.Row="2" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,6,0,0">
-      <media:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
-    </ScrollViewer>
+    <Border Grid.Row="2" x:Name="TimelineCard" Classes="editor-card" IsVisible="{Binding #SegmentTrackScroll.IsVisible}" Margin="0,6,0,0">
+      <Grid RowDefinitions="Auto,Auto">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+          <TextBlock Text="时间线" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="2" Text="缩放" Foreground="{DynamicResource UiTextSecondary}" VerticalAlignment="Center"/>
+          <Slider Grid.Column="3" x:Name="TimelineZoom" Minimum="1" Maximum="8" Value="1" Width="120" AutomationProperties.Name="时间线缩放"/>
+        </Grid>
+        <ScrollViewer Grid.Row="1" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,4,0,0">
+          <StackPanel x:Name="TimelineContent" Spacing="4">
+            <media:FilmstripTimeline x:Name="Filmstrip" AccentBrush="{DynamicResource UiAccent}" TrackBrush="{DynamicResource UiSurfaceRaised}" TextBrush="{DynamicResource UiTextSecondary}" RemoveBrush="{DynamicResource UiDanger}" AutomationProperties.Name="缩略图时间线"/>
+            <media:SegmentTimeline x:Name="SegmentTrack" Height="44" TrackBrush="{DynamicResource UiSurfaceRaised}" BorderBrush="{DynamicResource UiBorder}" SelectionBrush="{DynamicResource UiAccent}" TextBrush="{DynamicResource UiText}" SelectedTextBrush="{DynamicResource UiAccentText}"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Border>
     <Grid Grid.Row="3" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Height="{DynamicResource UiTransportRowHeight}" Margin="0,2,0,4">
       <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Left">
@@ -180,6 +192,7 @@
         <Button x:Name="RedoSegmentButton" Content="重做" Click="RedoSegmentClick"/>
         <TextBlock x:Name="ActiveSegmentLabel" VerticalAlignment="Center"/>
       </StackPanel>
+      <TextBlock Grid.Column="0" x:Name="ExportSummary" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}" Margin="0,0,8,0"/>
       <Button Grid.Column="1" x:Name="EditorCancelButton" Classes="dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
       <Button Grid.Column="2" x:Name="ConfirmButton" Classes="primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>

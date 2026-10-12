@@ -112,7 +112,7 @@ public partial class EditorWindow : Window
     }
     private bool CurrentPreview(int revision)=>!_closed&&revision==_previewRevision;
     private void SetPosition(double seconds,bool immediate=true)
-    {_position=Math.Clamp(seconds,0,SeekBar.Maximum);if(!EditorTime.ShouldRefresh(ref _positionPublished,immediate))return;_updating=true;SeekBar.Value=_position;_updating=false;CurrentTime.Text=EditorTime.Format(_position);if(QuickWorkflow){SegmentTrack.SetPosition(_position);UpdateSegmentActions();}}
+    {_position=Math.Clamp(seconds,0,SeekBar.Maximum);if(!EditorTime.ShouldRefresh(ref _positionPublished,immediate))return;_updating=true;SeekBar.Value=_position;_updating=false;CurrentTime.Text=EditorTime.Format(_position);if(QuickWorkflow){SegmentTrack.SetPosition(_position);Filmstrip.Position=_position;UpdateSegmentActions();}}
     private void Seek(double seconds,bool keepSequence=false)
     {
         if(_closed||_info is null)return;var (revision,token)=BeginPreview(keepSequence);SetPosition(seconds);

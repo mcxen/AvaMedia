@@ -28,6 +28,7 @@ public partial class EditorWindow : ISegmentThumbnailSource
             catch (ArgumentException) { } // Keep invalid text in the editor until the user fixes it.
         };
         SegmentTrack.NavigateRequested += (index, seconds) => _segmentReady = NavigateSegment(index, seconds);
+        InitializeFilmstrip();
         AddHandler(KeyDownEvent, SegmentKeyDown, RoutingStrategies.Tunnel);
         foreach (var combo in new[] { FadeInCombo, FadeOutCombo }) combo.SelectionChanged += (_, _) => ScheduleSegmentUpdate();
         Opened += (_, _) => RefreshSegments();
