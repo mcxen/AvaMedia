@@ -6,5 +6,6 @@
   <ItemGroup>
     <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
     <ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" />
+    <EmbeddedResource Include="component-layout.json" />
   </ItemGroup>
 </Project>

@@ -21,11 +21,11 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        var paths = args.Where(arg => arg is not "--headless" and not "--classification").ToArray();
+        var paths = args.Where(arg => arg is not "--headless" and not "--classification" and not "--gallery" and not "--gallery-view").ToArray();
         if (paths.Length > 1 || paths.Any(arg => arg.StartsWith("--", StringComparison.Ordinal))
-            || args.Count(arg => arg == "--headless") > 1 || args.Count(arg => arg == "--classification") > 1)
+            || args.Count(arg => arg == "--headless") > 1 || args.Count(arg => arg is "--classification" or "--gallery" or "--gallery-view") > 1)
         {
-            Console.Error.WriteLine("Usage: AvaMedia.AiProgressCapture [output-directory] [--headless] [--classification]");
+            Console.Error.WriteLine("用法：AvaMedia.AiProgressCapture [截图目录] [--headless] [--classification | --gallery | --gallery-view]");
             return 2;
         }
         var workingDirectory = Environment.CurrentDirectory;
@@ -38,15 +38,15 @@ internal static class Program
             // GetFolderPath can return an empty string for a directory that does not exist,
             // making Storage.DefaultRoot (and thumb-cache) relative to the working directory.
             foreach (var (variable, folder) in new[] { ("XDG_DATA_HOME", "data"), ("XDG_CONFIG_HOME", "config"), ("XDG_CACHE_HOME", "cache") })
-                Environment.SetEnvironmentVariable(variable, Directory.CreateDirectory(Path.Combine(_temporary, folder)).FullName);
+                Environment.SetEnvironmentVariable(variable, Directory.CreateDirectory(Environment.GetEnvironmentVariable(variable) ?? Path.Combine(_temporary, folder)).FullName);
             Environment.CurrentDirectory = _temporary;
-            if (OperatingSystem.IsLinux() && Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) != Path.Combine(_temporary, "data"))
-                throw new InvalidOperationException("Application data must resolve to the capture's temporary directory.");
+            if (OperatingSystem.IsLinux() && Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) != Environment.GetEnvironmentVariable("XDG_DATA_HOME"))
+                throw new InvalidOperationException("截图数据目录必须与 XDG_DATA_HOME 一致。");
             Environment.SetEnvironmentVariable("DISPLAY", Environment.GetEnvironmentVariable("DISPLAY") ?? ":11");
             Environment.SetEnvironmentVariable("AVALONIA_GLOBAL_SCALE_FACTOR", "1");
             Environment.SetEnvironmentVariable("AVALONIA_SCREEN_SCALE_FACTORS", "1");
             _headless = args.Contains("--headless");
-            var builder = AppBuilder.Configure<App>();
+            var builder = (args.Contains("--gallery") || args.Contains("--gallery-view")) ? AppBuilder.Configure<GalleryApp>() : AppBuilder.Configure<App>();
             if (_headless) builder.UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
             else builder.UsePlatformDetect();
             builder.LogToTrace().SetupWithoutStarting();
@@ -55,7 +55,7 @@ internal static class Program
             Motion.SetReducedMotion(true);
             Dispatcher.UIThread.Post(async () =>
             {
-                try { await RunAsync(args.Contains("--classification")); }
+                try { if (args.Contains("--gallery-view")) await ShowGalleryAsync(); else if (args.Contains("--gallery")) await CaptureGalleryAsync(); else await RunAsync(args.Contains("--classification")); }
                 catch (Exception error) { Console.Error.WriteLine(error); Environment.ExitCode = 1; }
                 finally { Lifetime.Cancel(); }
             });
@@ -70,6 +70,26 @@ internal static class Program
                 try { Directory.Delete(_temporary, recursive: true); }
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static async Task ShowGalleryAsync()
+    {
+        var window = ComponentGallery.CreateOverview();
+        var closed = new TaskCompletionSource(); window.Closed += (_, _) => closed.SetResult();
+        window.Show(); await closed.Task;
+    }
+
+    private static async Task CaptureGalleryAsync()
+    {
+        foreach (var theme in new[] { "Light", "Dark" })
+        {
+            Skin.Apply(theme);
+            for (var i = 0; i < 12; i++)
+            {
+                var window = ComponentGallery.Create(i);
+                await CaptureAsync(window, $"s{i + 1:00}-{theme.ToLowerInvariant()}", (int)Math.Ceiling(window.Width), (int)Math.Ceiling(window.Height));
+            }
         }
     }
 
