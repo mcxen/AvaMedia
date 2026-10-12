@@ -96,7 +96,7 @@ public sealed partial class SettingsWindow : Window
         draft.MinimizeToTray = MinimizeBehaviorInput.SelectedIndex == 1;
         draft.CloseToTray = CloseBehaviorInput.SelectedIndex == 1;
         // Preserve unusual legacy flag combinations until the user changes the merged choice.
-        if (UpdateModeInput.SelectedIndex != _settings.UpdateMode || _resettingDefaults) draft.SetUpdateMode(UpdateModeInput.SelectedIndex);
+        if (_updateModeEdited || _resettingDefaults) draft.SetUpdateMode(UpdateModeInput.SelectedIndex);
         draft.AccentColor = _accentColor;
         draft.CollapseCompletedTasks = CollapseInput.IsChecked == true;
         draft.PlayerNativeHighResolution = NativeHighResolutionInput.IsChecked == true;
@@ -149,7 +149,7 @@ public sealed partial class SettingsWindow : Window
         ErrorSoundInput.IsChecked = source.PlayErrorSound; ContextMenuInput.IsChecked = source.SystemContextMenu;
         MinimizeBehaviorInput.SelectedIndex = source.MinimizeToTray ? 1 : 0;
         CloseBehaviorInput.SelectedIndex = source.CloseToTray ? 1 : 0;
-        UpdateModeInput.SelectedIndex = source.UpdateMode; _accentColor = source.AccentColor;
+        UpdateModeInput.SelectedIndex = source.UpdateMode; _updateModeEdited = false; _accentColor = source.AccentColor;
         CollapseInput.IsChecked = source.CollapseCompletedTasks;
         NativeHighResolutionInput.IsChecked = source.PlayerNativeHighResolution;
         NativeSdrInput.IsChecked = source.PlayerNativeSdr;
@@ -181,7 +181,7 @@ public sealed partial class SettingsWindow : Window
             catch { _settings.CopyFrom(prior); throw; }
             ModelDownloadSources.Preference = ModelSourcePreference.From(_settings);
             RestoreSettingsView(pages, scrolls);
-            _applied = true; _resettingDefaults = false; _appliedValues=_values.Select(value=>value()).ToArray(); ApplyButton.IsEnabled = false; StatusText.IsVisible = false; return true;
+            _applied = true; _resettingDefaults = false; _updateModeEdited = false; _appliedValues=_values.Select(value=>value()).ToArray(); ApplyButton.IsEnabled = false; StatusText.IsVisible = false; return true;
         }
         catch (Exception ex) { StatusText.Text = ex.Message; StatusText.IsVisible = true;if(_settings.PlayErrorSound)_services.PlaySound(UiSound.Error); return false; }
     }

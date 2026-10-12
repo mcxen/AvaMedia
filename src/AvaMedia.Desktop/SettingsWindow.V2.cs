@@ -16,7 +16,7 @@ public sealed partial class SettingsWindow
     private static readonly string[] AccentChoices = ["Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Gray"];
     private static readonly string[] AccentNames = ["蓝色", "紫色", "粉色", "红色", "橙色", "黄色", "绿色", "灰色"];
     private string _accentColor = "Blue";
-    private bool _resettingDefaults;
+    private bool _resettingDefaults, _updateModeEdited;
     private readonly TextBlock _settingsPageTitle = new() { FontSize = 15, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new(184, 0, 0, 0) };
     private void InitializeV2Navigation()
     {
@@ -39,6 +39,9 @@ public sealed partial class SettingsWindow
         }
         _values.Add(() => _accentColor);
         _values.Add(() => _resettingDefaults);
+        _values.Add(() => _updateModeEdited);
+        UpdateModeInput.SelectionChanged += (_, _) =>
+        { if (!_initializing) { _updateModeEdited = true; MarkDirty(); } };
         for (var index = 0; index < AccentChoices.Length; index++)
         {
             var color = AccentChoices[index];
