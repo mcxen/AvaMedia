@@ -10,7 +10,7 @@
   <Style Selector="Border.completed-tasks-bar"><Setter Property="BorderThickness" Value="1,1,1,0"/></Style>
   <Style Selector="ListBox.task-list"><Setter Property="BorderThickness" Value="1,0,1,1"/></Style>
   <Style Selector="GridSplitter.workspace-splitter"><Setter Property="Background" Value="{DynamicResource UiDivider}"/></Style>
-  <Style Selector="Grid.queue-row"><Setter Property="Margin" Value="0,6"/></Style>
+  <Style Selector="Grid.queue-row"><Setter Property="Margin" Value="0,8"/></Style>
   <Style Selector="StackPanel.queue-details"><Setter Property="Spacing" Value="4"/></Style>
 
   <!-- BluePrint's inset 12px content shell, with Motrix's quiet neutral surfaces. -->

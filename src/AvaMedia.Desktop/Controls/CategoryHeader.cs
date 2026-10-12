@@ -21,7 +21,8 @@ public sealed class CategoryHeader : Button
     private readonly TextBlock _title;
     private readonly FeatureIcon? _icon;
     private readonly Path _chevron;
-    private readonly bool _isGroup;
+    private readonly bool _isGroup, _isTree;
+    private readonly TextBlock? _count;
     private bool _isPanelToggle;
 
     public bool IsExpanded { get => GetValue(IsExpandedProperty); set => SetValue(IsExpandedProperty, value); }
@@ -30,11 +31,21 @@ public sealed class CategoryHeader : Button
 
     public CategoryHeader() : this("收起", "") { }
 
-    public CategoryHeader(string title, string iconKind, bool isGroup = false)
+    /// <summary>Top-level row of the sidebar tool tree: chevron, line icon, title and tool count.</summary>
+    public CategoryHeader(string title, string iconKind, int count) : this(title, iconKind, isGroup: false, isTree: true)
     {
-        _isGroup = isGroup;
-        Classes.Add(isGroup ? "feature-group-header" : "category-rail");
-        this.Bind(ThemeProperty, new DynamicResourceExtension(isGroup ? "UiNavigationMenuTheme" : "UiNavigationRailTheme"));
+        _count!.Text = count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public void SetCount(int count) { if (_count is not null) _count.Text = count.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+
+    public CategoryHeader(string title, string iconKind, bool isGroup = false) : this(title, iconKind, isGroup, false) { }
+
+    private CategoryHeader(string title, string iconKind, bool isGroup, bool isTree)
+    {
+        _isGroup = isGroup; _isTree = isTree;
+        Classes.Add(isTree ? "feature-tree-category" : isGroup ? "feature-group-header" : "category-rail");
+        this.Bind(ThemeProperty, new DynamicResourceExtension(isTree ? "UiTreeRowTheme" : isGroup ? "UiNavigationMenuTheme" : "UiNavigationRailTheme"));
         this.Bind(CornerRadiusProperty, new DynamicResourceExtension("UiNavigationButtonRadius"));
         Background = Brushes.Transparent; BorderBrush = Brushes.Transparent; BorderThickness = new(1);
         Padding = isGroup ? new Thickness(4, 4) : new Thickness(1, 4);
@@ -47,7 +58,23 @@ public sealed class CategoryHeader : Button
             StrokeThickness = 1.5, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center, IsVisible = isGroup };
         _chevron.Bind(Path.StrokeProperty, new Binding(nameof(Foreground)) { Source = this });
-        if (isGroup)
+        if (isTree)
+        {
+            Padding = new Thickness(4, 0, 8, 0); MinHeight = 0; Height = 28; BorderThickness = default;
+            _title.FontSize = 13; _title.FontWeight = FontWeight.SemiBold; _title.TextAlignment = TextAlignment.Left;
+            _chevron.Width = 10; _chevron.Height = 10; _chevron.IsVisible = true;
+            _chevron.Bind(Path.StrokeProperty, new DynamicResourceExtension("UiTextSecondary"));
+            var icon = new LucideIcon { Kind = iconKind, Width = 15, Height = 15, VerticalAlignment = VerticalAlignment.Center };
+            icon.Bind(LucideIcon.ForegroundProperty, new DynamicResourceExtension("UiTreeIcon"));
+            _count = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+            _count.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiTextSecondary"));
+            var content = new Grid { ColumnDefinitions = new("14,Auto,*,Auto"), ColumnSpacing = 6 };
+            content.Children.Add(_chevron);
+            Grid.SetColumn(icon, 1); content.Children.Add(icon);
+            Grid.SetColumn(_title, 2); content.Children.Add(_title);
+            Grid.SetColumn(_count, 3); content.Children.Add(_count); Content = content;
+        }
+        else if (isGroup)
         {
             var content = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 6 };
             content.Children.Add(_title);
@@ -85,13 +112,15 @@ public sealed class CategoryHeader : Button
     private void UpdateState()
     {
         Classes.Set("expanded", IsExpanded); Classes.Set("selected", IsSelected);
-        this.Bind(ForegroundProperty, new DynamicResourceExtension(_isGroup ? "UiTextSecondary"
+        this.Bind(ForegroundProperty, new DynamicResourceExtension(_isTree ? "UiText" : _isGroup ? "UiTextSecondary"
             : IsSelected && !_isPanelToggle ? "UiNavigationSelectionText" : "UiNavigationText"));
         if (_isPanelToggle)
         {
             _title.Text = IsExpanded ? "收起" : "展开";
             _chevron.Data = Geometry.Parse(IsExpanded ? "M 5,2 L 5,16 M 13,4 L 8,9 L 13,14" : "M 5,2 L 5,16 M 9,4 L 14,9 L 9,14");
         }
+        else if (_isTree)
+            _chevron.Data = Geometry.Parse(IsExpanded ? "M 1,3 L 5,7 L 9,3" : "M 3,1 L 7,5 L 3,9");
         else if (_isGroup)
             _chevron.Data = Geometry.Parse(IsExpanded ? "M 1,3 L 6,8 L 11,3" : "M 3,1 L 8,6 L 3,11");
     }

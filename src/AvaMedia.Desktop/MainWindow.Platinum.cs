@@ -7,11 +7,10 @@ public partial class MainWindow
         ActualThemeVariantChanged += PlatinumPresentationChanged;
         Opened += PlatinumPresentationChanged;
         Closed += (_, _) => { ActualThemeVariantChanged -= PlatinumPresentationChanged; Opened -= PlatinumPresentationChanged; };
-        RefreshFeatureMetrics();
     }
 
     private void PlatinumPresentationChanged(object? sender, EventArgs args)
     {
-        RefreshFeatureMetrics(); RefreshOutputPath();
+        RefreshOutputPath();
     }
 }

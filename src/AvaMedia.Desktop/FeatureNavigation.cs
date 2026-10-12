@@ -2,35 +2,79 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-internal sealed record FeatureSection(string Title, bool Compact, Feature[] Features);
+/// <param name="Formats">Format targets render as a compact "转换为" chip group instead of tool rows.</param>
+internal sealed record FeatureSection(string Title, bool Formats, Feature[] Features);
 
+/// <summary>
+/// Sidebar tool tree. The disc category is shown as a group inside 工具集; background tasks stay hidden.
+/// Catalog categories are unchanged so routing and task storage keep their identifiers.
+/// </summary>
 internal static class FeatureNavigation
 {
-    public static string CategoryTitle(string category) => category == "光驱设备\\DVD\\CD\\ISO" ? "光盘" : category;
+    public const string DiscCategory = "光驱设备\\DVD\\CD\\ISO";
+    public static string[] Categories { get; } = ["视频", "音频", "图片", "文档", "工具集"];
+
+    public static string CategoryTitle(string category) => category == DiscCategory ? "光盘" : category;
+
+    /// <summary>Tree category that hosts a catalog category.</summary>
+    public static string TreeCategory(string category) => category == DiscCategory ? "工具集" : category;
 
     public static string CategoryIcon(string category) => category switch
     {
-        "视频" => "video", "音频" => "audio", "图片" => "image", "文档" => "document",
-        "工具集" => "gear", _ => "disc"
+        "视频" => "video", "音频" => "audio-lines", "图片" => "photo", "文档" => "file", _ => "settings"
+    };
+
+    /// <summary>Same-named tools in different categories get a qualified sidebar label.</summary>
+    public static string Label(Feature feature) => feature.Id switch
+    {
+        "voice-enhance" => "视频人声增强",
+        "audio-enhance" => "音频人声增强",
+        "person-clip" => "保留有人片段",
+        _ => feature.Label
+    };
+
+    public static string Icon(Feature feature) => feature.Id switch
+    {
+        "player" => "circle-play", "download" => "download", "info" => "info",
+        "mp4" => "arrow-left-right", "video-compress" => "shrink", "video-slim" => "arrow-down-to-line", "repair" => "wrench",
+        "clip" or "audio-clip" => "scissors", "person-clip" => "user-round", "delogo" => "eraser", "frames" => "photo",
+        "split" => "music", "extract-video" => "film", "join" or "audio-join" => "combine", "mux" or "audio-mix" => "layers",
+        "auto-subtitle" => "captions", "video-summary" => "sparkles", "voice-enhance" or "audio-enhance" => "mic",
+        "image-viewer" => "photo", "image-compress" => "shrink", "image-tools" or "crop" => "crop", "images-pdf" => "file-image",
+        "pdf-merge" => "files", "pdf-split" => "split", "pdf-age" => "file-clock", "pdf-compress" => "file-archive",
+        "pdf-text" => "file-text", "pdf-docx" => "file-type", "pdf-xlsx" => "file-spreadsheet", "text-pdf" => "file-output",
+        "rotate" => "rotate-right", "batch-rename" => "edit", "media-ai" => "tag", "folder-classification" => "folder",
+        "contact-sheet" => "layout-grid", "zip" => "file-archive", "unzip" => "archive", "dvd" or "iso" => "disc",
+        _ => "file"
     };
 
     public static IEnumerable<FeatureSection> Sections(string category, bool enableBeta)
     {
-        var features = Catalog.All.Where(feature => feature.Category == category && (enableBeta || !Catalog.IsBeta(feature)))
+        var features = Catalog.All.Where(feature => TreeCategory(feature.Category) == category
+                && (enableBeta || !Catalog.IsBeta(feature)))
             .GroupBy(SectionTitle).ToDictionary(group => group.Key, group => group.ToArray());
-        foreach (var title in SectionOrder(category))
+        foreach (var (title, order) in SectionOrder(category))
             if (features.TryGetValue(title, out var items))
-                yield return new(title == category ? "" : title, title == "格式转换" && category is ("音频" or "图片"), items);
+                yield return new(title, title == "转换为", order.Length == 0 ? items
+                    : items.OrderBy(item => Array.IndexOf(order, item.Id) is var index and >= 0 ? index : order.Length).ToArray());
     }
 
-    private static string[] SectionOrder(string category) => category switch
+    public static int Count(string category, bool enableBeta) => Sections(category, enableBeta).Sum(section => section.Features.Length);
+
+    private static (string Title, string[] Order)[] SectionOrder(string category) => category switch
     {
-        "视频" => ["播放", "格式与体积", "剪辑", "音视频轨道", "字幕与内容"],
-        "音频" => ["音频", "格式转换"],
-        "图片" => ["图片", "格式转换"],
-        "文档" => ["文档", "格式转换"],
-        "工具集" => ["媒体整理", "批量画面", "压缩与解压"],
-        _ => ["光驱设备\\DVD\\CD\\ISO"]
+        "视频" =>
+        [
+            ("播放", ["player", "download", "info"]),
+            ("格式与体积", ["mp4", "video-compress", "video-slim", "repair"]),
+            ("剪辑", ["clip", "person-clip", "delogo", "frames"]),
+            ("音视频轨道", ["split", "extract-video", "join", "mux"]),
+            ("字幕与内容", ["auto-subtitle", "video-summary", "voice-enhance"])
+        ],
+        "音频" => [("音频", []), ("转换为", [])],
+        "图片" => [("图片", []), ("转换为", [])],
+        "文档" => [("文档", []), ("格式转换", [])],
+        _ => [("媒体整理", []), ("批量画面", []), ("压缩与解压", []), ("光盘", [])]
     };
 
     private static string SectionTitle(Feature feature) => feature.Category switch
@@ -43,8 +87,8 @@ internal static class FeatureNavigation
             "split" or "extract-video" or "join" or "mux" => "音视频轨道",
             _ => "字幕与内容"
         },
-        "音频" => feature.Id == "audio-" + feature.Format ? "格式转换" : "音频",
-        "图片" => feature.Id == "image-" + feature.Format ? "格式转换" : "图片",
+        "音频" => feature.Id == "audio-" + feature.Format ? "转换为" : "音频",
+        "图片" => feature.Id == "image-" + feature.Format ? "转换为" : "图片",
         "文档" => feature.Operation is Operation.PdfMerge or Operation.PdfSplit or Operation.PdfAge or Operation.PdfCompress
             ? "文档" : "格式转换",
         "工具集" => feature.Id switch
@@ -53,6 +97,7 @@ internal static class FeatureNavigation
             "crop" or "rotate" or "contact-sheet" => "批量画面",
             _ => "媒体整理"
         },
-        _ => feature.Category
+        DiscCategory => "光盘",
+        _ => "后台任务"
     };
 }

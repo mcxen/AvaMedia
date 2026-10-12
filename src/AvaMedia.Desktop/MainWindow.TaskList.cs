@@ -34,6 +34,8 @@ public partial class MainWindow
                 if (previous < 0) _visibleJobs.Insert(index, visible[index]);
                 else _visibleJobs.Move(previous, index);
             }
+            // Empty queues show the route hint across the list; otherwise it stays below the rows.
+            Grid.SetRow(QueueDropHint, _visibleJobs.Count == 0 ? 2 : 3);
             var completed = _jobs.Count(job => job.State == JobState.Completed);
             CompletedTasksBar.IsVisible = completed > 0;
             CompletedTasksChevron.Data = _settings.CollapseCompletedTasks ? CollapsedTaskChevron : ExpandedTaskChevron;

@@ -46,26 +46,14 @@
     </Border>
     <Grid x:Name="WorkspaceLayout" Classes="workspace-layout" Grid.Row="2">
       <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiSidebarWidth}" MinWidth="{DynamicResource UiSidebarMinWidth}"/><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-      <Border x:Name="FeatureSidebar" Classes="feature-sidebar" Grid.Column="0" Background="Transparent" BorderBrush="{DynamicResource UiBorder}">
-        <Grid x:Name="SidebarLayout" ColumnDefinitions="54,*">
-          <Border Classes="category-rail-surface" Background="{DynamicResource UiNavigationRail}" CornerRadius="{DynamicResource UiNavigationRailRadius}">
-            <Grid RowDefinitions="*,Auto" Margin="5,8,5,5">
-              <Grid x:Name="Categories" VerticalAlignment="Top">
-                <Canvas x:Name="CategoryIndicatorLayer" IsHitTestVisible="False">
-                  <Border x:Name="CategoryActiveIndicator" Width="44" Height="52" Background="{DynamicResource UiNavigationSelection}" CornerRadius="{DynamicResource UiNavigationButtonRadius}"/>
-                </Canvas>
-              </Grid>
-              <local:CategoryHeader x:Name="SidebarToggle" Grid.Row="1" IsExpanded="True" Margin="0,8,0,0"/>
-            </Grid>
-          </Border>
-          <Border x:Name="FeaturePanel" Classes="feature-tool-panel" Grid.Column="1" Background="{DynamicResource UiFeaturePanel}" CornerRadius="{DynamicResource UiNavigationPanelRadius}" Margin="6,0,0,0" Padding="8,8,8,6">
-            <Grid x:Name="FeatureViewHost" ClipToBounds="True"/>
-          </Border>
-        </Grid>
+      <Border x:Name="FeatureSidebar" Classes="feature-sidebar" Grid.Column="0" Background="{DynamicResource UiFeaturePanel}" BorderBrush="{DynamicResource UiBorder}">
+        <ScrollViewer x:Name="FeatureTreeScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="FeatureTree" Margin="8,10,8,10" Spacing="1"/>
+        </ScrollViewer>
       </Border>
       <GridSplitter x:Name="SidebarSplitter" Classes="workspace-splitter" Grid.Column="1" ResizeDirection="Columns"/>
       <Border x:Name="TaskWorkspace" Classes="task-workspace" Grid.Column="2">
-      <Grid RowDefinitions="Auto,Auto,*">
+      <Grid x:Name="TaskArea" RowDefinitions="Auto,Auto,*,Auto">
         <Border Classes="completed-tasks-bar" x:Name="CompletedTasksBar" IsVisible="False" MinHeight="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" Background="{DynamicResource UiSurfaceRaised}">
           <Button x:Name="CompletedTasksToggle" Classes="tool" HorizontalAlignment="Left" Click="ToggleCompletedTasksClick">
             <StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}">
@@ -127,6 +115,13 @@
             </ContextMenu>
           </ListBox.ContextMenu>
         </ListBox>
+        <Grid x:Name="QueueDropHint" Grid.Row="3" Classes="queue-drop-hint" Margin="10,8,10,10" MinHeight="84" IsHitTestVisible="False">
+          <Rectangle RadiusX="10" RadiusY="10" Stroke="{DynamicResource UiBorder}" StrokeThickness="1.2" StrokeDashArray="4,3"/>
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="12,10">
+            <local:LucideIcon Kind="upload" Width="18" Height="18" HorizontalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}"/>
+            <TextBlock Text="将文件拖到这里，由「文件路由」识别类型并列出可用工具，选择后加入任务" TextWrapping="Wrap" TextAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
+          </StackPanel>
+        </Grid>
         <local:DownloadSpeedMonitor x:Name="NetworkMonitor" Grid.Row="2" IsVisible="False" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,6,8,6"/>
       </Grid>
       </Border>

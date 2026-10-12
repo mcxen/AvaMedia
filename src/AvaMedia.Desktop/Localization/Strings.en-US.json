@@ -3492,5 +3492,8 @@
   "冲突编号或七段文件名无效。": "Invalid conflict number or seven-field filename.",
   "VL 模型未返回有效的五维命名标签。": "The VL model did not return valid naming labels.",
   "分析期间源文件已改变，请重新生成预览。": "The source changed during analysis. Generate a new preview.",
-  "没有可分析的视频画面。": "No video frames are available for analysis."
+  "没有可分析的视频画面。": "No video frames are available for analysis.",
+  "保留有人片段": "Keep scenes with people",
+  "转换为": "Convert to",
+  "将文件拖到这里，由「文件路由」识别类型并列出可用工具，选择后加入任务": "Drop files here. File routing detects their type and lists matching tools; choose one to add tasks."
 }

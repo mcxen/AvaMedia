@@ -40,7 +40,7 @@
       </Grid>
       <TextBlock Text="{Binding SettingsSummary}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}" Classes="queue-secondary"/>
       <Grid x:Name="ProgressSlot">
-        <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource UiQueueProgressHeight}"/>
+        <ProgressBar x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" MinHeight="0" VerticalAlignment="Center" Height="{DynamicResource UiQueueProgressHeight}"/>
         <local:AiActivityView x:Name="ActivityView" Compact="True"/>
       </Grid>
       <Grid Classes="queue-state-slot" Height="28">

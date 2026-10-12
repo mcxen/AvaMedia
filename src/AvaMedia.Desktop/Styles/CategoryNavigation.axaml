@@ -8,6 +8,9 @@
           <SolidColorBrush x:Key="UiNavigationHover" Color="#454545"/>
           <SolidColorBrush x:Key="UiNavigationSelection" Color="#5B5BFA"/>
           <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeSelection" Color="#007AFF"/>
+          <SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeIcon" Color="#007AFF"/>
           <CornerRadius x:Key="UiNavigationRailRadius">0,10,10,0</CornerRadius>
           <CornerRadius x:Key="UiNavigationPanelRadius">12</CornerRadius>
           <CornerRadius x:Key="UiNavigationButtonRadius">6</CornerRadius>
@@ -18,6 +21,9 @@
           <SolidColorBrush x:Key="UiNavigationHover" Color="#303030"/>
           <SolidColorBrush x:Key="UiNavigationSelection" Color="#5B5BFA"/>
           <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeSelection" Color="#0A84FF"/>
+          <SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeIcon" Color="#0A84FF"/>
           <CornerRadius x:Key="UiNavigationRailRadius">0,10,10,0</CornerRadius>
           <CornerRadius x:Key="UiNavigationPanelRadius">12</CornerRadius>
           <CornerRadius x:Key="UiNavigationButtonRadius">6</CornerRadius>
@@ -28,6 +34,9 @@
           <SolidColorBrush x:Key="UiNavigationHover" Color="#DDDDDD"/>
           <SolidColorBrush x:Key="UiNavigationSelection" Color="#3D4E80"/>
           <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeSelection" Color="#3D4E80"/>
+          <SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeIcon" Color="#3D4E80"/>
           <CornerRadius x:Key="UiNavigationRailRadius">0</CornerRadius>
           <CornerRadius x:Key="UiNavigationPanelRadius">1</CornerRadius>
           <CornerRadius x:Key="UiNavigationButtonRadius">2</CornerRadius>
@@ -38,6 +47,9 @@
           <SolidColorBrush x:Key="UiNavigationHover" Color="#3672D7"/>
           <SolidColorBrush x:Key="UiNavigationSelection" Color="#163E91"/>
           <SolidColorBrush x:Key="UiNavigationSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeSelection" Color="#316AC5"/>
+          <SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="UiTreeIcon" Color="#215DC6"/>
           <CornerRadius x:Key="UiNavigationRailRadius">0,4,4,0</CornerRadius>
           <CornerRadius x:Key="UiNavigationPanelRadius">5</CornerRadius>
           <CornerRadius x:Key="UiNavigationButtonRadius">4</CornerRadius>
@@ -61,6 +73,27 @@
         <Style Selector="^.selected:pointerover /template/ Border#PART_NavigationFace, ^.selected:pressed /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
         <Style Selector="^:focus-visible /template/ Border#PART_NavigationFace"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
         <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.5"/></Style>
+      </ControlTheme>
+      <!-- Sidebar tool tree rows: compact macOS-style source list with a solid selection. -->
+      <ControlTheme x:Key="UiTreeRowTheme" TargetType="Button" BasedOn="{StaticResource UiNavigationMenuTheme}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource UiNavigationButtonRadius}"/>
+        <Style Selector="^.selected /template/ Border#PART_NavigationFace, ^.selected:pointerover /template/ Border#PART_NavigationFace, ^.selected:pressed /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiTreeSelection}"/></Style>
+        <Style Selector="^.selected"><Setter Property="Foreground" Value="{DynamicResource UiTreeSelectionText}"/></Style>
+        <Style Selector="^:focus-visible /template/ Border#PART_NavigationFace"><Setter Property="BorderThickness" Value="1"/></Style>
+      </ControlTheme>
+      <ControlTheme x:Key="UiFormatChipTheme" TargetType="Button" BasedOn="{StaticResource UiNavigationMenuTheme}">
+        <Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="7,2"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Style Selector="^.selected /template/ Border#PART_NavigationFace, ^.selected:pointerover /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiTreeSelection}"/><Setter Property="BorderBrush" Value="{DynamicResource UiTreeSelection}"/></Style>
+        <Style Selector="^.selected"><Setter Property="Foreground" Value="{DynamicResource UiTreeSelectionText}"/></Style>
       </ControlTheme>
       <ControlTheme x:Key="UiNavigationRailTheme" TargetType="Button" BasedOn="{StaticResource UiNavigationMenuTheme}">
         <Style Selector="^:pointerover /template/ Border#PART_NavigationFace"><Setter Property="Background" Value="{DynamicResource UiNavigationHover}"/></Style>

@@ -14,7 +14,7 @@ internal static class LucideIcons
         var name = action switch
         {
             "image" => "image-plus", "folder" => "folder-open", "recent" => "history",
-            "star-filled" => "star", "library" => "panel-left", "fullscreen" => "maximize",
+            "star-filled" => "star", "photo" => "image", "library" => "panel-left", "fullscreen" => "maximize",
             "previous" => "chevron-left", "next" => "chevron-right", "fit" => "expand", "actual" => "scaling",
             "rotate-left" => "rotate-ccw", "rotate-right" => "rotate-cw", "flip" => "flip-horizontal",
             "spread" => "book-open", "stop" => "square", "settings" => "sliders-horizontal", "close" => "x",
