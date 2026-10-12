@@ -1,6 +1,8 @@
 using System.Text.Json;
 using AvaMedia.Core;
 
+if (args.FirstOrDefault() == "long-phase") { await LongSummaryPhaseChecks.RunAsync(int.Parse(args[1])); return 0; }
+
 // Usage: dotnet run -- [mock|live] [workdir]
 //   mock (default): frame and summary refusal paths with mocked ISummaryModel.
 //   live: real Ollama vision/summary on a short synthetic video (needs `ollama serve`).
