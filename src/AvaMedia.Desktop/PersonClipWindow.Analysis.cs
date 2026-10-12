@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Layout;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
@@ -13,6 +14,7 @@ public sealed partial class PersonClipWindow
     private readonly TextBlock _resultSummary = Ui.Text("尚未分析", "caption");
     private readonly AiActivityView _activity = new() { Compact = true };
     private bool _busy;
+    private Entry? _retainedEntry;
 
     private PersonClipOptions ReadDetection() => new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum),
         _uncertain.IsChecked == true, _embedding.IsChecked == true, _reuseFrames.IsChecked == true,
@@ -38,21 +40,31 @@ public sealed partial class PersonClipWindow
 
     private void RefreshResults()
     {
-        _retained.ItemsSource=null;
         var entry = Selected;
         _review.IsEnabled = !_busy && !SelectedTaskActive && entry?.Result?.Segments.Count > 0;
         _rangePanel.IsEnabled = !_busy && !SelectedTaskActive && entry is not null;
-        if (entry?.Result is not { } result) { _resultSummary.Text = entry?.Error.Length>0?entry.Error:Localization.Text(entry?.Status ?? "尚未分析"); return; }
+        if (entry?.Result is not { } result)
+        {
+            _retained.ItemsSource = null; _retainedEntry = null;
+            _resultSummary.Text = entry?.Error.Length > 0 ? entry.Error : Localization.Text(entry?.Status ?? "尚未分析");
+            return;
+        }
         _resultSummary.Text = (entry.Observed?.Result.IsPartial == true ? Localization.Text("部分结果") + " · " : "") + Localization.Format($"保留 {result.Segments.Count} 个片段 · {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))}");
+        if (ReferenceEquals(_retainedEntry, entry) && ReferenceEquals(_retained.ItemsSource, result.Segments)) return;
+        _retainedEntry = entry;
         _retained.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionOptions>((segment,_)=>
         {
+            // Avalonia invokes the template with null when it clears a recycled row.
+            if (segment is null) return null;
             var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8,Margin=new(0,3) };
-            row.Children.Add(Ui.Text(MediaTime.Format(segment!.Start) + " – " + MediaTime.Format(segment.End)));
+            row.Children.Add(Ui.Text(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
             var remove=Ui.Button("移除",()=>
             {
                 if(_busy || SelectedTaskActive || entry.Result is not {} current)return;
                 entry.Result=current with { Segments=current.Segments.Where(item=>!ReferenceEquals(item,segment)).ToArray() };RefreshResults();UpdateDetectorSelection();
-            });remove.IsEnabled=!_busy && !SelectedTaskActive;Grid.SetColumn(remove,1);row.Children.Add(remove);return row;
+            });
+            remove.Bind(Button.IsEnabledProperty, new Binding(nameof(Button.IsEnabled)) { Source = _review });
+            Grid.SetColumn(remove,1);row.Children.Add(remove);return row;
         });
         _retained.ItemsSource=result.Segments;
     }
