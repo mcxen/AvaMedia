@@ -14,6 +14,7 @@ using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Desktop;
 using AvaMedia.Desktop.Controls;
+using CropOverlay = AvaMedia.MediaUi.CropOverlay;
 
 var root = Path.GetFullPath("artifacts/batch-crop-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 Directory.CreateDirectory(root);

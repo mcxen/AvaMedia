@@ -44,7 +44,7 @@ internal static class QueueListChecks
         check(first.Details.MediaSummary.Contains("320 × 180") && first.Details.MediaSummary.Contains("25 fps") && first.Details.MediaSummary.Contains("00:02"), "Task rows display actual duration, dimensions and frame rate");
         check(first.Details.CodecSummary.Contains("48 kHz") && first.Details.FileSummary.Contains("KB"), "Codec, audio sample rate and file size are read from the source");
         check(first.Details.SettingsSummary.Contains("H.264") && first.Details.SettingsSummary.Contains("640 × 360") && first.Details.SettingsSummary.Contains("截取"), "Output summary includes encoding, resolution and clip range");
-        check(first.Details.SourceTip.Contains(video) && first.Details.OutputName == "导出.mp4", "Full paths remain available in tooltips while rows show short filenames");
+        check(first.Details.Job.Inputs.Contains(video) && first.Details.OutputName == "导出.mp4", "Jobs retain full source paths while rows show short filenames");
         check(rows.All(r => r.GetVisualDescendants().OfType<ProgressBar>().Single().IsVisible), "Every task state keeps a visible progress bar");
         check(first.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 0 && second.GetVisualDescendants().OfType<ProgressBar>().Single().Value == 42, "Waiting and running rows display their actual progress");
         check(!second.Details!.StateDetail.Contains("42.0%") && second.Details.StateText.Contains("42.0%"), "The status percentage appears only once in each task row");
