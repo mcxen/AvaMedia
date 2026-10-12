@@ -135,6 +135,15 @@ public static class BatchVideoTools
         catch { bitmap.Dispose(); throw; }
     }
 
+    /// <summary>Geometry and timing shared by the incremental UI preview and the generated sheets.</summary>
+    public static (int Width, int Height, double Duration, double FrameRate) ContactSheetPreviewLayout(MediaInfo info, ContactSheetOptions options)
+    {
+        ValidateContactSheet(options);
+        var (width, height) = ContactSheetCellSize(info, options);
+        var (duration, frameRate) = VideoTiming(info);
+        return (width, height, duration, frameRate);
+    }
+
     private static (int Width, int Height) ContactSheetCellSize(MediaInfo info, ContactSheetOptions options)
     {
         double width = info.Width, height = info.Height;

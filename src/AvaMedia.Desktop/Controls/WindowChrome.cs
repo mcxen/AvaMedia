@@ -3,6 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using Avalonia.Controls.Shapes;
+using Avalonia.Platform;
 
 namespace AvaMedia.Desktop.Controls;
 
@@ -13,6 +16,48 @@ namespace AvaMedia.Desktop.Controls;
 /// </summary>
 internal static class WindowChrome
 {
+    /// <summary>Wrap a tool dialog with the same platform detection, drag and resize behavior as the shell.</summary>
+    public static Grid WrapDialog(Window window, Control content)
+    {
+        var root = new Grid { RowDefinitions = new("Auto,*") };
+        var titleBar = new Grid { Height = 48, ColumnDefinitions = new("88,*,Auto") };
+        var title = new TextBlock { FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        title.Bind(TextBlock.TextProperty, new Avalonia.Data.Binding(nameof(Window.Title)) { Source = window });
+        Grid.SetColumn(title, 1); titleBar.Children.Add(title);
+        var lights = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        foreach (var key in new[] { "UiDanger", "UiWarning", "UiSuccessFill" })
+        {
+            var light = new Ellipse { Width = 12, Height = 12 };
+            light.Bind(Shape.FillProperty, new DynamicResourceExtension(key)); lights.Children.Add(light);
+        }
+        titleBar.Children.Add(lights);
+        var captions = CreateCaptionButtons(window, out _); Grid.SetColumn(captions, 2); titleBar.Children.Add(captions);
+        root.Children.Add(titleBar); Grid.SetRow(content, 1); root.Children.Add(content);
+        var grips = AddResizeGrips(window, root);
+        var ownDecorations = false;
+        void Apply()
+        {
+            var modern = !Skin.UsesCustomChrome(window.ActualThemeVariant) && MainWindow.FrameKind != MainWindow.WindowFrameKind.System;
+            var mac = MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
+            titleBar.IsVisible = modern; lights.IsVisible = modern && mac && !OperatingSystem.IsMacOS(); captions.IsVisible = modern && !mac;
+            title.Margin = new(0, 0, mac ? 88 : 0, 0);
+            window.ExtendClientAreaToDecorationsHint = modern;
+            window.ExtendClientAreaTitleBarHeightHint = modern ? 48 : -1;
+            if (modern)
+            {
+                window.ExtendClientAreaChromeHints = mac && OperatingSystem.IsMacOS() ? ExtendClientAreaChromeHints.PreferSystemChrome : ExtendClientAreaChromeHints.NoChrome;
+                if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
+                { window.SystemDecorations = SystemDecorations.None; ownDecorations = true; }
+            }
+            else if (ownDecorations && !Skin.UsesCustomChrome(window.ActualThemeVariant))
+            { window.SystemDecorations = SystemDecorations.Full; ownDecorations = false; }
+            foreach (var grip in grips) grip.IsVisible = modern && ownDecorations;
+        }
+        HookDrag(window, titleBar, () => titleBar.IsVisible);
+        window.ActualThemeVariantChanged += (_, _) => Apply(); window.Opened += (_, _) => Apply();
+        return root;
+    }
+
     public static StackPanel CreateCaptionButtons(Window window, out Button maximize)
     {
         var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, Classes = { "caption-buttons" } };

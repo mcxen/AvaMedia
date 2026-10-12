@@ -148,6 +148,21 @@ public sealed partial class App : Application
                     await Task.Delay(1000);
                     var root = captureRoot!;
                     Directory.CreateDirectory(root);
+                    var sheetIndex = Array.IndexOf(desktop.Args, "--contact-sheet");
+                    if (sheetIndex >= 0)
+                    {
+                        var empty = new ContactSheetWindow(window.Engine, Path.Combine(root, "output"));
+                        empty.Show(window); await Task.Delay(200);
+                        await Capture(empty, Path.Combine(root, "impl-empty.png")); empty.Close();
+                        var inputs = sheetIndex + 1 < desktop.Args.Length
+                            ? BatchVideoTools.CollectVideos([desktop.Args[sheetIndex + 1]], true) : [];
+                        var sheet = new ContactSheetWindow(window.Engine, Path.Combine(root, "output"), inputs);
+                        sheet.Show(window); await Task.Delay(400);
+                        await Capture(sheet, Path.Combine(root, "impl-loading.png"));
+                        await Task.WhenAll(sheet.PreviewReady, sheet.FilmReady);
+                        await Capture(sheet, Path.Combine(root, "impl-preview.png")); sheet.Close();
+                        desktop.Shutdown(); return;
+                    }
                     await Capture(window, Path.Combine(root, "main.png"));
                     if(desktop.Args.Contains("--download"))await CaptureDownloadAsync(window,root);
                     var clipIndex = Array.IndexOf(desktop.Args, "--quick-clip");

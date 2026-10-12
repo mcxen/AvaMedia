@@ -1,0 +1,53 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <x:Double x:Key="SheetVideoWidth">236</x:Double>
+      <x:Double x:Key="SheetSettingsWidth">312</x:Double>
+      <x:Double x:Key="SheetRowHeight">34</x:Double>
+      <x:Double x:Key="SheetFilmHeight">30</x:Double>
+      <x:Double x:Key="SheetActionHeight">28</x:Double>
+      <CornerRadius x:Key="SheetActionRadius">14</CornerRadius>
+      <Thickness x:Key="SheetActionPadding">14,0</Thickness>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light"><CornerRadius x:Key="SheetCardRadius">14</CornerRadius><CornerRadius x:Key="SheetCellRadius">7</CornerRadius></ResourceDictionary>
+        <ResourceDictionary x:Key="Dark"><CornerRadius x:Key="SheetCardRadius">14</CornerRadius><CornerRadius x:Key="SheetCellRadius">7</CornerRadius></ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}"><CornerRadius x:Key="SheetCardRadius">0</CornerRadius><CornerRadius x:Key="SheetCellRadius">0</CornerRadius></ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><CornerRadius x:Key="SheetCardRadius">3</CornerRadius><CornerRadius x:Key="SheetCellRadius">3</CornerRadius></ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+  <Style Selector="Window.contact-sheet"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
+  <Style Selector="Window.contact-sheet Border.sheet-card">
+    <Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource SheetCardRadius}"/><Setter Property="ClipToBounds" Value="True"/><Setter Property="BoxShadow" Value="{DynamicResource UiCardShadow}"/>
+  </Style>
+  <Style Selector="Window.contact-sheet Border.sheet-cell, Window.contact-sheet Border.sheet-thumbnail">
+    <Setter Property="Background" Value="{DynamicResource UiTrack}"/><Setter Property="CornerRadius" Value="{DynamicResource SheetCellRadius}"/><Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+  <Style Selector="Window.contact-sheet Border.sheet-stage"><Setter Property="Background" Value="{DynamicResource UiFill}"/><Setter Property="CornerRadius" Value="{DynamicResource SheetCellRadius}"/></Style>
+  <Style Selector="Window.contact-sheet Grid.sheet-row"><Setter Property="MinHeight" Value="{DynamicResource SheetRowHeight}"/><Setter Property="Margin" Value="12,0"/></Style>
+  <Style Selector="Window.contact-sheet ListBox"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.contact-sheet ListBoxItem"><Setter Property="Padding" Value="8,7"/><Setter Property="Margin" Value="0,2"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) ListBoxItem"><Setter Property="CornerRadius" Value="8"/></Style>
+  <Style Selector="Window.contact-sheet TextBlock.sheet-secondary"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/><Setter Property="FontSize" Value="11.5"/></Style>
+  <Style Selector="Window.contact-sheet ListBoxItem:selected TextBlock"><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="Window.contact-sheet ListBoxItem:selected TextBlock.sheet-secondary"><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="Window.contact-sheet NumericUpDown"><Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/><Setter Property="MinWidth" Value="64"/></Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) NumericUpDown"><Setter Property="Background" Value="{DynamicResource UiFill}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="7"/></Style>
+  <Style Selector="Window.contact-sheet Border.sheet-segment"><Setter Property="Background" Value="{DynamicResource UiFill}"/><Setter Property="Padding" Value="2"/><Setter Property="Margin" Value="12,10"/><Setter Property="CornerRadius" Value="{DynamicResource SheetCellRadius}"/></Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) RadioButton.sheet-segment">
+    <Setter Property="Theme"><ControlTheme TargetType="RadioButton"><Setter Property="Template"><ControlTemplate><Border Name="SegmentFace" Background="{DynamicResource UiTransparent}" CornerRadius="7" Padding="3,5"><ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter></ControlTheme></Setter>
+  </Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) RadioButton.sheet-segment:checked /template/ Border#SegmentFace"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BoxShadow" Value="{DynamicResource UiSegmentShadow}"/></Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) RadioButton.sheet-segment:focus-visible /template/ Border#SegmentFace"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/><Setter Property="BorderThickness" Value="1"/></Style>
+  <Style Selector="Window.contact-sheet RadioButton.sheet-segment"><Setter Property="FontSize" Value="11.5"/></Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) Button.sheet-action">
+    <Setter Property="Height" Value="{DynamicResource SheetActionHeight}"/><Setter Property="MinHeight" Value="{DynamicResource SheetActionHeight}"/><Setter Property="Padding" Value="{DynamicResource SheetActionPadding}"/><Setter Property="CornerRadius" Value="{DynamicResource SheetActionRadius}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Window.contact-sheet:not(.mac-os9):not(.windows-xp) Button.sheet-action:not(.primary)"><Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
+  <Style Selector="Window.contact-sheet Button.caption"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="48"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
+  <Style Selector="Window.contact-sheet Button.sheet-link"><Setter Property="Foreground" Value="{DynamicResource UiAccent}"/><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="4,0"/><Setter Property="MinHeight" Value="22"/></Style>
+  <Style Selector="Window.contact-sheet Button.sheet-link /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.contact-sheet Border.sheet-timestamp"><Setter Property="Background" Value="{DynamicResource UiMediaOverlay}"/><Setter Property="CornerRadius" Value="3"/><Setter Property="Padding" Value="4,1"/></Style>
+  <Style Selector="Window.contact-sheet Border.sheet-timestamp TextBlock"><Setter Property="Foreground" Value="{DynamicResource UiMediaText}"/></Style>
+</Styles>
