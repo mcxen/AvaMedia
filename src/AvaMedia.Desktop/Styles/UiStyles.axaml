@@ -275,6 +275,7 @@
       <ControlTheme x:Key="UiScrollBarTheme" TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}"/>
       <ControlTheme x:Key="UiSliderTheme" TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}"/>
       <ControlTheme x:Key="UiProgressBarTheme" TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}"/>
+      <ControlTheme x:Key="UiListBoxTheme" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}"/>
       <ControlTheme x:Key="UiListBoxItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"/>
       <ControlTheme x:Key="UiExpanderTheme" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"/>
       <x:Double x:Key="UiCategoryHeight">32</x:Double>
@@ -283,6 +284,7 @@
   <Style Selector="Button"><Setter Property="Theme" Value="{DynamicResource UiButtonTheme}"/></Style>
   <Style Selector="ToggleButton"><Setter Property="Theme" Value="{DynamicResource UiToggleButtonTheme}"/></Style>
   <Style Selector="ToggleSwitch"><Setter Property="Theme" Value="{DynamicResource UiToggleSwitchTheme}"/></Style>
+  <Style Selector="Window.mac-os9 ToggleSwitch, Window.windows-xp ToggleSwitch"><Setter Property="Theme" Value="{DynamicResource UiToggleSwitchTheme}"/></Style>
   <Style Selector="TextBox"><Setter Property="Theme" Value="{DynamicResource UiTextBoxTheme}"/></Style>
   <Style Selector="ComboBox"><Setter Property="Theme" Value="{DynamicResource UiComboBoxTheme}"/></Style>
   <Style Selector="CheckBox"><Setter Property="Theme" Value="{DynamicResource UiCheckBoxTheme}"/></Style>
@@ -292,6 +294,8 @@
   <Style Selector="ScrollBar"><Setter Property="Theme" Value="{DynamicResource UiScrollBarTheme}"/></Style>
   <Style Selector="Slider"><Setter Property="Theme" Value="{DynamicResource UiSliderTheme}"/></Style>
   <Style Selector="ProgressBar"><Setter Property="Theme" Value="{DynamicResource UiProgressBarTheme}"/></Style>
+  <Style Selector="ListBox:not(.ac):not(.ac-segmented)"><Setter Property="Theme" Value="{DynamicResource UiListBoxTheme}"/></Style>
+  <Style Selector="Window.mac-os9 ListBox.ac:not(.ac-segmented), Window.windows-xp ListBox.ac:not(.ac-segmented)"><Setter Property="Theme" Value="{DynamicResource UiListBoxTheme}"/><Setter Property="ItemContainerTheme" Value="{DynamicResource UiListBoxItemTheme}"/></Style>
   <Style Selector="ListBoxItem"><Setter Property="Theme" Value="{DynamicResource UiListBoxItemTheme}"/></Style>
   <Style Selector="Expander"><Setter Property="Theme" Value="{DynamicResource UiExpanderTheme}"/></Style>
   <Style Selector="Menu"><Setter Property="Theme" Value="{DynamicResource UiMenuTheme}"/></Style>
@@ -400,7 +404,7 @@
        priority so the shared field height leaves room for a complete text line. -->
   <Style Selector="NumericUpDown:not(:disabled) /template/ TextBox#PART_TextBox, NumericUpDown:disabled /template/ TextBox#PART_TextBox"><Setter Property="MinHeight" Value="0"/><Setter Property="Margin" Value="0"/></Style>
   <Style Selector="ListBox"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/></Style>
-  <Style Selector="ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
-  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="ListBox:not(.ac) ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="ListBox:not(.ac) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
   <Style Selector="MenuItem /template/ TextBlock#PART_InputGestureText"><Setter Property="IsVisible" Value="False"/></Style>
 </Styles>

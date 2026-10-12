@@ -253,6 +253,16 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - 单项失败：本行红色状态符号和真实原因，卡片保持原表面颜色。
 - 任务失败或取消：标题百分比旁显示红色/灰色状态胶囊，隐藏暂停与结束按钮，只保留关闭/查看日志；已完成状态保持结果页操作。
 
+
+#### 7.9.6 标准容器与独立切换（补齐）
+
+- 独立 `ToggleButton.ac` / `AcToggleButton` 复用按钮高度、圆角与内边距；未选中使用 Fill，选中和混合使用强调色与白字，保留悬停、按下、焦点和禁用状态。
+- `Expander.ac` / `AcExpander` 复用 Simple 的四向展开及内容模板，标题最小高 `AcDisclosureHeight` 28、字 `AcBodyFont`；线性折叠箭头宽 `AcDisclosureSize` 14。`TreeView.ac` / `AcTreeView` 与 `AcTreeViewItem` 使用同一箭头，层级缩进由资源 `AcTreeIndentConverter` 提供（默认 16）；行最小高 `AcTreeRowHeight` 28、圆角 `AcFieldRadius`，子节点保留原树选择、键盘导航和按需生成。
+- `TabControl.ac` / `AcTabControl` 与真正的 `TabItem` 主题 `AcTabItem` 保留四边标签布局和 SelectedContent/SelectedContentTemplate。顶/底标签按 demo：字 `AcBodyFont` 13、标签间隔由 `AcTabMargin` 提供（右侧 22）、底留白 `AcTabPadding` 9、选中指示条 `AcTabIndicatorHeight` 2；左/右布局沿外侧显示指示条。ListBox 标签导航的主题另名 `AcTabSegmentItem`，不与 TabItem 混用。
+- `ListBox.ac` / `AcListBox`、`AcListBoxItem` 提供滚动及虚拟化容器。默认文本行最小高 `AcTextRowHeight` 36，`.media` 为 `AcListHeight` 56，允许内容撑高；圆角 `AcListRadius` 8、内边距 `AcListPadding` 0,10、行间距 `AcListMargin` 8。悬停 Fill、非活动选择 AcSelection、活动选择强调色与白字；焦点使用 AcFocusShadow，禁用降低透明度。`.surface` 包装已有 ListRow 时清除容器内边距、最小高和间距，避免双重表面。分段导航和专用宿主列表不自动套用普通列表主题。
+- 数值框默认总最小宽 `AcNumericMinWidth` 91（72 字段 + 4 间距 + 15 步进器），`.compact` 最小宽 `AcNumericCompactMinWidth` 64；宿主可以动态覆盖令牌，不在业务工厂中固定数值框列宽。
+- 新主题通过 `.ac` 选择器排除 `mac-os9` / `windows-xp`。两种经典皮肤继续采用宿主原生标准控件模板；现代浅深色使用既有 Ac/Ui 颜色令牌，不另建调色板。专用设置导航、主工具树和窗口菜单保持各自角色模板。
+
 ## 窗口内工具栏菜单栏（B 版）
 
 - 参考 `/workspace/AvaMedia-sidebar-review/menubar/menubar.html` 的 B 区域及浅深色截图；使用已有 52px 平台标题行，不另建标题栏，不实现 A / C 方案。菜单放在标题行左侧，标题居中；任务计数放在下方任务栏，为中文菜单和 Windows 窗口按钮留出空间。文字菜单高 26、字 13、左右内边距 10、间距 6、圆角 7。正常透明，悬停 Fill，展开 FillHover 与 Medium 字重，禁用使用三级文字色。

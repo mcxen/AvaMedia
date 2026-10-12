@@ -14,7 +14,7 @@
 <StyleInclude Source="avares://AvaMedia.Controls/Themes/Components.axaml" />
 ```
 
-普通控件添加 `ac` 类，按钮再添加 `primary`、`secondary`、`borderless` 或 `danger`。具名主题为 `AcButton`、`AcCheckBox`、`AcRadioButton`、`AcToggleSwitch`、`AcComboBox`、`AcNumericUpDown`、`AcTextBox`、`AcSlider`、`AcProgressBar`、`AcToolTip`、`AcScrollBar`。主题不覆盖 Avalonia 类型资源键，选择器排除宿主经典窗口类 `mac-os9` / `windows-xp`。
+普通控件添加 `ac` 类，按钮再添加 `primary`、`secondary`、`borderless` 或 `danger`。具名主题为 `AcButton`、`AcCheckBox`、`AcRadioButton`、`AcToggleSwitch`、`AcComboBox`、`AcNumericUpDown`、`AcTextBox`、`AcSlider`、`AcProgressBar`、`AcToolTip`、`AcScrollBar`、`AcToggleButton`、`AcExpander`、`AcTreeView/AcTreeViewItem`、`AcTabControl/AcTabItem`、`AcListBox/AcListBoxItem`。主题不覆盖 Avalonia 类型资源键，选择器排除宿主经典窗口类 `mac-os9` / `windows-xp`。
 
 组合类型：`Card`、`ListRow`、`SectionHeader`、`StatusPill`、`StageIndicator`、`SubStepRow`、`StatusGlyph`、`SegmentedControl`、`EmptyState`。状态取 `running`、`done` / `completed`、`paused`、`failed`、`waiting` / `cancelled`。它们只接收显示内容，不了解媒体任务或应用皮肤类型。
 
@@ -33,3 +33,5 @@ DISPLAY=:11 AVAMEDIA_CHROME=mac XDG_DATA_HOME=/tmp/avademo/data   ~/.dotnet/dotn
 ```
 
 使用 `--gallery` 将全部 12 类实控件分别截图；`compare_components.py` 将 demo 缩到相同 1x 尺寸后并排比较，不裁切组件。预览布局清单仅保存 HTML 的位置和示例内容，不含 CSS 绘制结果或 PNG，截图全部由 Avalonia 组件渲染。评审示例不进入应用任务界面。
+
+列表 `.ac.media` 使用 56px 行，普通列表为至少 36px；`.ac.surface` 可包装已有 ListRow，保留虚拟化。标签式 SegmentedControl 使用 `AcTabSegmentItem`。数值框最小宽通过 `AcNumericMinWidth`（91）和 `.compact` 的 `AcNumericCompactMinWidth`（64）动态调整。

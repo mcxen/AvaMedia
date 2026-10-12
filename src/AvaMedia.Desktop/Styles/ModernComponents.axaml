@@ -14,7 +14,11 @@
   <Style Selector="ToolTip"><Setter Property="Theme" Value="{DynamicResource UiToolTipTheme}"/><Setter Property="ToolTip.ShowDelay" Value="600"/></Style>
 <Style Selector="ListBox.ac-segmented ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcSegmentItem}"/></Style>
 <Style Selector="ListBox.ac-segmented ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource AcSegmentFace}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
-<Style Selector="ListBox.ac-segmented.tabs ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcTabItem}"/></Style>
+<Style Selector="ListBox.ac-segmented.tabs ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcTabSegmentItem}"/></Style>
 <Style Selector="ListBox.ac-segmented.tabs ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
 <Style Selector="Button.ac controls|LucideIcon"><Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) ToggleButton.ac"><Setter Property="Theme" Value="{DynamicResource AcToggleButton}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Expander"><Setter Property="Theme" Value="{DynamicResource AcExpander}"/></Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) TabControl:not(.settingsNavigation)"><Setter Property="Theme" Value="{DynamicResource AcTabControl}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) TabControl:not(.settingsNavigation) TabItem"><Setter Property="Theme" Value="{DynamicResource AcTabItem}"/></Style>
 </Styles>
