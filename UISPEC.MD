@@ -1,179 +1,538 @@
-# AvaMedia 界面规范 · macOS 26 浅色
+# AvaMedia 界面设计规范
 
-本文件是 AvaMedia 桌面端、编辑器和远程网页管理的统一视觉与交互规范（设计代号 “AvaMedia macOS 26 light”）。
-参考图在 [docs/ui/](docs/ui/)。任何界面改动前先读本文件和参考图；新界面必须能在这里找到依据，找不到时先补规范再写代码。
+本文件是 AvaMedia 桌面端（Avalonia .NET 8）、编辑器和远程网页管理（AvaMedia.Browser）的统一视觉与交互规范，设计代号“AvaMedia macOS 26 light”。参考图在 [docs/ui/](docs/ui/)。
 
-## 1. 设计令牌
+- 任何界面改动前先读本文件和参考图；新界面必须能在这里找到依据，找不到时先补规范再写代码。
+- 第 1 节“设计约束”是硬性规则，与其他章节冲突时以第 1 节为准。
+- 各节“参考代码”均摘自仓库现有文件，路径相对仓库根目录，供复制使用；代码有改动时以源文件为准。
 
-| 令牌 | 值 | 用途 |
-| --- | --- | --- |
-| 页面背景 | `#F2F3F7` | 窗口与网页底色 |
-| 侧栏底色 | `#F1F4FA` | 桌面左侧导航、工具树 |
-| 卡片 / 表面 | `#FFFFFF` | 卡片、列表、检查器 |
-| 填充 | `#F0F0F3` | 次级按钮、分段控件底、片段列表底 |
-| 分隔线 | `#E5E5EA` 1 px | 列表行之间的发丝线 |
-| 主文字 | `#1D1D1F` | 标题、正文 |
-| 次文字 | `#86868B` | 说明、时间、元数据 |
-| 系统蓝 | `#007AFF` | 主按钮、选中、链接、进度 |
-| 浅蓝 | `#EAF3FF` | 选中行、工具徽标底 |
-| 成功 | `#34C759`（文字 `#248A3D`） | 已完成、开关开启、在线 |
-| 暂停 / 警告 | `#FF9500` | 已暂停、提醒横幅图标 |
-| 失败 / 危险 | `#FF3B30` | 失败、删除 |
-| 等待 | `#86868B` | 等待、已取消 |
-| 横幅 | 底 `#FFF8E6`，文字 `#8A5A00` | 恢复提示 |
+## 目录
 
-状态色只用于状态图标、状态文字和进度条，不用来填满整行。
+1. 设计约束（MUST / MUST NOT）
+2. 设计原则
+3. 布局
+4. 颜色与主题（令牌、强调色、皮肤）
+5. 字体与文字
+6. 间距、圆角、行高、阴影
+7. 控件
+   7.1 按钮 · 7.2 分段控件与筛选胶囊 · 7.3 列表 · 7.4 任务行与任务列表 · 7.5 侧栏工具树 · 7.6 对话框 · 7.7 进度与状态图标 · 7.8 复选框、开关与图标
+8. 窗口与标题栏（按平台）
+9. 状态（交互态、任务态、空状态）
+10. 专用界面：编辑器与 AI 媒体整理提交窗口
+11. 远程网页与手机
+12. 文案与本地化
+13. 规范内矛盾的处理记录
+
+---
+
+## 1. 设计约束（MUST / MUST NOT）
+
+### 必须（MUST）
+
+1. 整体遵循 macOS 26 / Apple 风格：浅色为主要设计目标，系统蓝、发丝线、胶囊按钮、白色卡片。
+2. 任务列表（处理队列）始终与工具入口同时可见：主窗口为“侧栏工具树 + 任务区”，任何工具选择都不得遮挡或替换任务列表。
+3. 工具树同一时间只展开一个分类。
+4. 颜色一律引用主题资源（`DynamicResource`，如 `UiAccent`、`ShellBlue`、`QcAccent`），不硬编码颜色；新颜色先作为资源键加入各皮肤的主题字典。
+5. 简体中文（zh-CN）文案必须完整显示、不被裁切：控件宽度按中文内容留足，必要时允许换行；只有文件名等用户数据可省略，并提供完整悬停提示。
+6. 文档、发布和评审用截图使用 zh-CN 界面。
+7. 只有图标的按钮必须有 ToolTip 和无障碍名称（`AutomationProperties.Name`）。
+8. 快捷键全部保留且照常可用，只写在悬停提示（tooltip）中。
+9. 其他皮肤（深色、Mac OS 9 Platinum、Windows XP Luna）必须保持可用，不能出现不可读文字或错位。
+10. 窗口外观统一通过 `MainWindow.WindowChrome` / `Controls/WindowChrome.cs` 复用，不另写标题栏。
+11. 只显示真实数据；没有数据时显示简短空状态文字。
+
+### 禁止（MUST NOT）
+
+1. 界面任何位置不使用 emoji（图标、装饰、文案、状态均不可）。
+2. 不提供搜索框（工具树和工具列表不加搜索）。
+3. 不使用虚线拖放区和“拖到这里”提示框。
+4. 不在界面上直接显示快捷键：按钮上的键帽（如 [S] / [I] / [O] / Ctrl D）、底部快捷键提示行等都不要。
+5. 任务区不放工具入口；工具只在工具树 / 侧栏中出现。
+6. 一个区域（一屏）中不放多个蓝色主按钮。
+7. 状态色不填满整行。
+8. 不显示占位或假数据。
+9. 不混用其他图标库；不叠加多层装饰阴影；媒体预览的柔和投影按第 10.x 节执行。
+
+参考代码（快捷键只进 tooltip）——`src/AvaMedia.Desktop/EditorWindow.QuickLayout.cs`：
+
+```csharp
+ToolTip.SetTip(UndoSegmentButton, Localization.Text("撤销") + " (Ctrl Z)"); ToolTip.SetTip(RedoSegmentButton, Localization.Text("重做") + " (Ctrl Y)");
+```
+
+`src/AvaMedia.Desktop/EditorWindow.axaml`（图标按钮：tooltip + 无障碍名称）：
+
+```xml
+<Button Classes="ib small" Click="DuplicateSegmentClick" IsEnabled="{Binding #DuplicateSegmentButton.IsEnabled}" ToolTip.Tip="复制片段 (Ctrl D)" AutomationProperties.Name="复制片段"><local:LucideIcon Kind="copy" Width="14" Height="14"/></Button>
+```
+
+`src/AvaMedia.Desktop/Styles/ControlRoles.axaml`（所有 TextBlock 被裁切时自动给出完整提示）：
+
+```xml
+<Style Selector="TextBlock"><Setter Property="controls:OverflowTip.IsEnabled" Value="True"/></Style>
+```
+
+---
+
+## 2. 设计原则
+
+- **任务优先**：左侧选工具、右侧看队列，两者同屏；工具入口与任务区职责分离。
+- **克制**：一个区域最多一个主按钮；状态色只点缀图标、文字和进度条。
+- **真实**：所有计数、地址、状态来自真实数据（远程网页的计数来自服务器，不在本地估算）。
+- **平台一致**：使用平台窗口外观（见第 8 节），字体跟随系统。
+- **角色而非外观**：业务界面只选择控件角色（`primary`、`dialog-action`、`caption` 等 Classes），外观与尺寸由皮肤资源提供。
+- **功能不因换皮丢失**：所有已有功能和快捷键在各皮肤、各模式下都必须可达。
+
+---
+
+## 3. 布局
+
+- 主窗口为“侧栏 + 内容”两栏：侧栏为浮动圆角卡片（底色 `ShellSidebar` `#F1F4FA`），内容区白色卡片承载任务列表。
+- 页面外边距：桌面 18、手机 16；卡片间距 12；卡片内边距 14。
+- 设置窗口按分组卡片排列；“远程管理与 MCP”只显示真实数据（地址、状态、最近客户端）。
+- 任务详情在右侧面板（手机为整页）。
+
+参考代码 `src/AvaMedia.Desktop/Styles/MainShell.axaml`：
+
+```xml
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.feature-sidebar"><Setter Property="Margin" Value="8"/><Setter Property="CornerRadius" Value="18"/><Setter Property="Background" Value="{DynamicResource ShellSidebar}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="BoxShadow" Value="0 0 0 0.5 #1A000000, 0 4 16 -6 #26000000"/><Setter Property="Padding" Value="2,6,2,4"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-card"><Setter Property="Margin" Value="14,0,14,0"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BoxShadow" Value="0 0 0 0.5 #1F000000"/><Setter Property="ClipToBounds" Value="True"/></Style>
+```
+
+现代皮肤 / 经典皮肤专属元素用类名切换（同一文件）：
+
+```xml
+<Style Selector=":is(Control).modern-only"><Setter Property="IsVisible" Value="False"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) :is(Control).modern-only"><Setter Property="IsVisible" Value="True"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) :is(Control).classic-only"><Setter Property="IsVisible" Value="False"/></Style>
+```
+
+---
+
+## 4. 颜色与主题
+
+### 4.1 设计令牌（浅色）
+
+| 令牌 | 值 | 用途 | 资源键（示例） |
+| --- | --- | --- | --- |
+| 页面背景 | `#F2F3F7` | 窗口与网页底色 | `Palette.Page`（网页） |
+| 侧栏底色 | `#F1F4FA` | 桌面左侧导航、工具树 | `ShellSidebar` |
+| 卡片 / 表面 | `#FFFFFF` | 卡片、列表、检查器 | `UiSurface`、`ShellWindow` |
+| 填充 | `#F0F0F3` | 次级按钮、分段控件底、片段列表底 | `Fill`（网页） |
+| 分隔线 | `#E5E5EA` 1 px | 列表行之间的发丝线 | `ShellHeaderLine`、`Hairline`、`QcLine` |
+| 主文字 | `#1D1D1F` | 标题、正文 | `ShellLabel`、`TextPrimary`、`QcText` |
+| 次文字 | `#86868B` | 说明、时间、元数据 | `ShellSecondary`、`TextSecondary` |
+| 系统蓝 | `#007AFF` | 主按钮、选中、链接、进度 | `ShellBlue`、`UiTreeSelection`、`QcAccent`、`Blue` |
+| 浅蓝 | `#EAF3FF` | 选中行、工具徽标底 | `Palette.BlueSoft` |
+| 成功 | `#34C759`（文字 `#248A3D`） | 已完成、开关开启、在线 | `ShellGreen` |
+| 暂停 / 警告 | `#FF9500` | 已暂停、提醒横幅图标 | `Palette.Orange` |
+| 失败 / 危险 | `#FF3B30` | 失败、删除 | `ShellRed` |
+| 等待 | `#86868B` | 等待、已取消 | `ShellWait` |
+| 横幅 | 底 `#FFF8E6`，文字 `#8A5A00` | 恢复提示 | `Palette.Banner` / `BannerText` |
+
+深色皮肤对应值由各资源字典的 `Dark` 分支提供（如 `ShellBlue` `#0A84FF`、`ShellRed` `#FF453A`），代码不得自行换算。
+
+参考代码 `src/AvaMedia.Desktop/Styles/MainShell.axaml`（主题字典写法，节选）：
+
+```xml
+<ResourceDictionary.ThemeDictionaries>
+  <ResourceDictionary x:Key="Light">
+    <SolidColorBrush x:Key="ShellSidebar" Color="#F1F4FA"/>
+    <SolidColorBrush x:Key="ShellHeaderLine" Color="#E5E5EA"/>
+    <SolidColorBrush x:Key="ShellSelected" Color="#14007AFF"/>
+    <SolidColorBrush x:Key="ShellLabel" Color="#1D1D1F"/>
+    <SolidColorBrush x:Key="ShellSecondary" Color="#86868B"/>
+    <SolidColorBrush x:Key="ShellBlue" Color="#007AFF"/>
+    <SolidColorBrush x:Key="ShellTrack" Color="#E5E5EA"/>
+    <SolidColorBrush x:Key="ShellRed" Color="#FF3B30"/>
+    <SolidColorBrush x:Key="ShellGreen" Color="#34C759"/>
+    <SolidColorBrush x:Key="ShellGreenText" Color="#248A3D"/>
+    <SolidColorBrush x:Key="ShellWait" Color="#86868B"/>
+  </ResourceDictionary>
+  <ResourceDictionary x:Key="Dark">
+    <SolidColorBrush x:Key="ShellSidebar" Color="#2A2C31"/>
+    <SolidColorBrush x:Key="ShellBlue" Color="#0A84FF"/>
+    <SolidColorBrush x:Key="ShellRed" Color="#FF453A"/>
+    <SolidColorBrush x:Key="ShellGreen" Color="#30D158"/>
+  </ResourceDictionary>
+</ResourceDictionary.ThemeDictionaries>
+```
+
+网页调色板 `src/AvaMedia.Browser/Ui/Palette.cs`（节选）：
+
+```csharp
+/// <summary>macOS 26 light palette shared by the remote console.</summary>
+internal static class Palette
+{
+    public static readonly Color BlueColor = Color.Parse("#007AFF");
+    public static readonly IBrush Page = new SolidColorBrush(Color.Parse("#F2F3F7"));
+    public static readonly IBrush Hairline = new SolidColorBrush(Color.Parse("#E5E5EA"));
+    public static readonly IBrush Fill = new SolidColorBrush(Color.Parse("#F0F0F3"));
+    public static readonly IBrush BlueSoft = new SolidColorBrush(Color.Parse("#EAF3FF"));
+    public static readonly IBrush Banner = new SolidColorBrush(Color.Parse("#FFF8E6"));
+    public static readonly IBrush BannerText = new SolidColorBrush(Color.Parse("#8A5A00"));
+}
+```
+
+C# 中引用主题资源（而不是写死颜色）`src/AvaMedia.Desktop/FolderClassificationWindow.Board.cs`：
+
+```csharp
+view.Button.Bind(BorderBrushProperty, new DynamicResourceExtension(selected ? "UiAccent" : "UiBorder"));
+```
+
+自绘控件默认绑定强调色 `src/AvaMedia.Desktop/Controls/AudioWaveform.cs`：
+
+```csharp
+public AudioWaveform() { MinHeight = 100; Bind(AccentProperty, new DynamicResourceExtension("UiAccent")); }
+```
 
 - 分类界面颜色通过 `ClassifyUi.Resource` 动态绑定到所属控件的资源；`UiFill`、`UiClassificationPage`、`UiAccentSoft`、`UiAccentDescription`、`UiSuccessFill`、`UiBanner`、`UiBannerText`、`UiTrack`、`UiClassificationNote` 在浅色、深色、Platinum、XP 中分别定义。媒体采样得到的真实颜色仍直接显示。
 - 分类主按钮使用 `UiClassificationPrimary` / `UiClassificationPrimaryText`，规则卡片选中态使用 `UiClassificationRuleFace` / `UiClassificationRuleText`；经典皮肤采用原生浅色按钮底与深色文字。`UiClassificationPillBorder` 保留原生按钮边框；`UiCardShadow` / `UiSegmentShadow` / `UiFocusShadow` / `UiThumbnailShadow` 在经典皮肤中为空。现代提交模板排除 Mac OS 9 / XP。
 - 网页 `RemoteTheme.axaml` 中样式、模板和阴影均引用主题资源；成功文字使用 `#248A3D`、横幅使用 `#FFF8E6`、等待文字使用 `#86868B`。
 
-## 2. 字体、间距、圆角、行高
+### 4.2 强调色
 
-- 字体：桌面跟随系统（macOS 为 SF Pro / 苹方）；网页使用内置 Noto Sans SC 子集，像素字体只作回退。
-- 字号：大标题 26 粗；页面标题 17 粗；卡片标题 15 粗；正文 13；说明 11.5–12；等宽时间码 12。
+- 强调色只通过资源键提供：通用 `UiAccent` / `UiAccentBorder` / `UiAccentText` / `UiPrimaryHover` / `UiPrimaryPressed` / `UiSelection`；主窗口 `ShellBlue` / `ShellSelected`；工具树 `UiTreeSelection` / `UiTreeIcon`；快速剪辑 `QcAccent`；Avalonia 内置控件 `ThemeAccentColor` / `ThemeAccentBrush*`。
+- 强调色预设：仓库当前**没有**可切换的强调色预设功能，每个皮肤各有一个固定强调色（见 4.3）。若以后加入预设，必须以“覆盖上述资源键”的方式实现，不得在控件中判断预设名。
+- 现代浅色皮肤的强调色统一为系统蓝 `#007AFF`（深色 `#0A84FF`）。`Styles/UiStyles.axaml` 的通用键与内置控件强调色、`UiNavigationSelection` 已迁移到对应系统蓝（见第 13 节）。
+
+参考代码 `src/AvaMedia.Desktop/Styles/UiStyles.axaml`（节选）：
+
+```xml
+<SolidColorBrush x:Key="UiAccent" Color="#007AFF" />
+<SolidColorBrush x:Key="UiAccentBorder" Color="#007AFF" />
+<SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF" />
+<SolidColorBrush x:Key="UiPrimaryHover" Color="#0A6CE0" />
+<SolidColorBrush x:Key="UiPrimaryPressed" Color="#005FCC" />
+<Color x:Key="ThemeAccentColor">#007AFF</Color>
+```
+
+### 4.3 皮肤
+
+| 皮肤 | 菜单名 | ThemeVariant | 强调色 | 窗口框架 |
+| --- | --- | --- | --- | --- |
+| 浅色（主要目标） | 经典浅色 | `Light` | `#007AFF` | 平台窗口外观（第 8 节） |
+| 深色 | 深色 | `Dark` | `#0A84FF` | 平台窗口外观 |
+| Mac OS 9 | Mac OS 9 · Platinum | `Skin.MacOS9` | `#3D4E80` | `PlatinumWindowFrame` |
+| Windows XP | Windows XP · Luna | `Skin.WindowsXP` | `#215DC6`（树选中 `#316AC5`） | `WindowsXPWindowFrame` |
+
+- Mac OS 9 / XP 为自定义框架皮肤，样式表按需加载；窗口类名分别为 `mac-os9` / `windows-xp`，现代样式选择器一律排除它们（`:not(.mac-os9):not(.windows-xp)`）。
+- Platinum 保留原生浮雕按钮及清晰文字（关闭抗锯齿）；无圆角、无 Lucide 分类图标、灰色渐变分类条。
+- 深色使用对应 `Dark` 分支令牌；编辑器深色使用 Qc 令牌。
+- 命令行 `--macos9` / `--winxp` 可直接以对应皮肤启动，用于截图和验证。
+
+参考代码 `src/AvaMedia.Desktop/Skin.cs`：
+
+```csharp
+public static ThemeVariant MacOS9 { get; } = new("MacOS9", ThemeVariant.Light);
+public static ThemeVariant WindowsXP { get; } = new("WindowsXP", ThemeVariant.Light);
+public static bool UsesCustomChrome(ThemeVariant variant) => variant == MacOS9 || variant == WindowsXP;
+public static void Apply(string name)
+{
+    Dispatcher.UIThread.VerifyAccess();
+    if (name == "MacOS9") EnsureSkinStyles("Platinum");
+    if (name == "WindowsXP") EnsureSkinStyles("WindowsXP");
+    Application.Current!.RequestedThemeVariant = name switch { "MacOS9" => MacOS9, "WindowsXP" => WindowsXP, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+}
+```
+
+`src/AvaMedia.Desktop/MainWindow.axaml`（皮肤菜单）：
+
+```xml
+<MenuItem Header="皮肤"><MenuItem Header="经典浅色" Click="LightClick"/><MenuItem Header="深色" Click="DarkClick"/><MenuItem Header="Mac OS 9 · Platinum" Click="MacOS9Click"/><MenuItem Header="Windows XP · Luna" Click="WindowsXPClick"/></MenuItem>
+```
+
+`src/AvaMedia.Desktop/Styles/CategoryNavigation.axaml`（按皮肤提供同名键，节选）：
+
+```xml
+<ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+  <SolidColorBrush x:Key="UiTreeSelection" Color="#3D4E80"/>
+  <CornerRadius x:Key="UiNavigationRailRadius">0</CornerRadius>
+  <CornerRadius x:Key="UiNavigationPanelRadius">1</CornerRadius>
+  <CornerRadius x:Key="UiNavigationButtonRadius">2</CornerRadius>
+</ResourceDictionary>
+<ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}">
+  <SolidColorBrush x:Key="UiNavigationRail" Color="#215DC6"/>
+  <SolidColorBrush x:Key="UiTreeSelection" Color="#316AC5"/>
+</ResourceDictionary>
+```
+
+`src/AvaMedia.Desktop/App.MediaAi.cs`：
+
+```csharp
+if (args.Contains("--winxp")) settings.Theme = "WindowsXP";
+else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
+```
+
+---
+
+## 5. 字体与文字
+
+- 桌面跟随系统（macOS 为 SF Pro / 苹方）；网页使用内置 Noto Sans SC 子集，像素字体只作回退。
+- 字号：大标题 26 粗（手机网页大标题 28）；页面标题 17 粗；卡片标题 15 粗；正文 13；说明 11.5–12；等宽时间码 12。
+- 时间码：编辑器为 `mm:ss.mmm / 总时长`；快速剪辑字段为 `mm:ss.fff`，超过一小时为 `h:mm:ss.fff`；数字等宽。
+
+参考代码 `src/AvaMedia.Desktop/Styles/UiStyles.axaml`：
+
+```xml
+<FontFamily x:Key="UiFont">Inter, Segoe UI, PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC</FontFamily>
+```
+
+`src/AvaMedia.Browser/Ui/RemoteTheme.axaml`（网页文字角色）：
+
+```xml
+<Style Selector="TextBlock.secondary"><Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/><Setter Property="FontSize" Value="12"/></Style>
+<Style Selector="TextBlock.caption"><Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/><Setter Property="FontSize" Value="11.5"/></Style>
+<Style Selector="TextBlock.title"><Setter Property="FontSize" Value="17"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Style Selector="TextBlock.largeTitle"><Setter Property="FontSize" Value="28"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Style Selector="TextBlock.mono"><Setter Property="FontFamily" Value="avares://AvaMedia.Browser/Fonts#Noto Sans CJK SC"/><Setter Property="FontSize" Value="11.5"/></Style>
+```
+
+`src/AvaMedia.Desktop/Styles/MainShell.axaml`（主窗口标题）：
+
+```xml
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) TextBlock.modern-title-text"><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource ShellLabel}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) TextBlock.modern-subtitle"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
+```
+
+---
+
+## 6. 间距、圆角、行高、阴影
+
 - 间距：基础单位 4；卡片内边距 14；卡片间距 12；页面外边距桌面 18、手机 16。
-- 圆角：卡片 14；按钮为胶囊（高度的一半）；输入框、下拉 7；缩略图 6–9；分段控件 9（内段 7）。
-- 行高：任务行 ≥ 56；文件行 29；设置行 42–44；片段 / 区域行 32。
-- 阴影：卡片 `0 1 3 #14000000`；悬浮按钮 `0 6 16 #55007AFF`；不叠加多层阴影。
+- 圆角：卡片 14；按钮为胶囊（高度的一半）；输入框、下拉 7；缩略图 6–9；分段控件 9（内段 7）。主窗口侧栏卡片 18、队列卡片 12、状态栏 10 为主窗口专用值。
+- 行高：任务行 ≥ 56；文件行 29；设置行 42–44；片段 / 区域行 32；工具树分类行 28、工具行 26、小节标题 20（Platinum 为 24 / 21 / 18）。
+- 阴影：卡片 `0 1 3 #14000000`；悬浮按钮 `0 6 16 #55007AFF`；不叠加多层装饰阴影（主窗口卡片允许“0.5 px 描边 + 一层柔影”的组合，用于替代边框）。
+- 尺寸通过资源键提供（如 `UiFieldHeight`、`UiDialogActionHeight`、`UiTransportSize`、`UiTableHeaderHeight`、`UiQueuePreviewWidth`），业务代码不写死。
 
-## 3. 控件
+参考代码 `src/AvaMedia.Desktop/Styles/ControlRoles.axaml`：
 
-- **胶囊按钮**：默认浅灰填充、深色文字，可带 14 px Lucide 图标；`primary` 为系统蓝底白字，每个区域最多一个；`danger` 为红字；`link` 无底色蓝字。
-- **主按钮**：底部操作栏右侧，如“创建任务”。大号（高 40）只用于底部操作栏与手机悬浮按钮。
+```xml
+<Style Selector="Button.dialog-action">
+  <Setter Property="MinWidth" Value="{DynamicResource UiDialogActionWidth}"/>
+  <Setter Property="Height" Value="{DynamicResource UiDialogActionHeight}"/>
+  <Setter Property="MinHeight" Value="{DynamicResource UiDialogActionHeight}"/>
+  <Setter Property="Padding" Value="{DynamicResource UiDialogActionPadding}"/>
+</Style>
+<Style Selector="Button.step, Button.row-icon">
+  <Setter Property="Width" Value="{DynamicResource UiFieldHeight}"/>
+  <Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/>
+  <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
+</Style>
+```
+
+`src/AvaMedia.Desktop/Styles/MainShell.axaml`（工具树行高）：
+
+```xml
+<Style Selector="Button.feature-tree-row"><Setter Property="Height" Value="26"/></Style>
+<Style Selector="Button.feature-tree-category"><Setter Property="Height" Value="28"/></Style>
+<Style Selector="TextBlock.feature-tree-group"><Setter Property="Height" Value="20"/></Style>
+```
+
+---
+
+## 7. 控件
+
+### 7.1 按钮
+
+- **胶囊按钮**：默认浅灰填充、深色文字，可带 14 px Lucide 图标。
+- `primary`：系统蓝底白字，每个区域最多一个；放在底部操作栏右侧（如“创建任务”）。
+- 大号（高 40，网页 `Button.large`）只用于底部操作栏与手机悬浮按钮。
+- `danger`：红字（网页为红字 + 浅红底 `#FFECEB`）；`link`：无底色蓝字。
 - **图标按钮**：只有图标时必须有 ToolTip 和无障碍名称。
-- **分段控件**：浅灰底、选中段白底加细阴影；用于“所有任务 / 文件与任务下发 / 服务器”、“结果 / 处理日志”和编辑器模式切换。
+- 禁用：不透明度 0.45；主按钮禁用时改为轨道灰底 + 次文字色。
+- Mac OS 9 / XP 皮肤以原生默认按钮外观表达主按钮。
+
+参考代码 `src/AvaMedia.Desktop/Styles/ControlRoles.axaml`：
+
+```xml
+<!-- Classic skins express the primary action through their native default face. -->
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary">
+  <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
+  <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
+</Style>
+```
+
+`src/AvaMedia.Desktop/Styles/MainShell.axaml`（主窗口胶囊按钮）：
+
+```xml
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap"><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="30"/><Setter Property="MinWidth" Value="32"/><Setter Property="Padding" Value="9,0"/><Setter Property="CornerRadius" Value="15"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{DynamicResource ShellCapText}"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary"><Setter Property="Background" Value="{DynamicResource ShellBlue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="Padding" Value="13,0"/><Setter Property="FontWeight" Value="Medium"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource ShellTrack}"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
+```
+
+`src/AvaMedia.Browser/Ui/RemoteTheme.axaml`（网页按钮角色，节选）：
+
+```xml
+<Setter Property="CornerRadius" Value="999"/>
+<Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="14.5"/><Setter Property="MinHeight" Value="40"/></Style>
+<Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/></Style>
+<Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Style Selector="Button.icon"><Setter Property="Padding" Value="0"/><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="0"/></Style>
+```
+
+桌面代码创建按钮的辅助方法见 `src/AvaMedia.Desktop/Ui.cs`：`Ui.Button(text, action)`、`Ui.DialogButton(text, action, isDefault)`。
+
+### 7.2 分段控件与筛选胶囊
+
+- **分段控件**：浅灰底、选中段白底加细阴影；用于“所有任务 / 文件与任务下发 / 服务器”、“结果 / 处理日志”、复制 / 移动和编辑器模式切换。
 - **筛选胶囊**：文字 + 服务器计数（例如“等待 4”），选中为蓝底白字。计数来自服务器，不在本地估算。
+
+参考代码 `src/AvaMedia.Browser/Ui/RemoteTheme.axaml`：
+
+```xml
+<Style Selector="Button.segmentLight"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="12,5"/><Setter Property="CornerRadius" Value="7"/></Style>
+<Style Selector="Button.segmentLight.active"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Style Selector="Button.segmentLight.active /template/ Border#face"><Setter Property="BoxShadow" Value="{DynamicResource SegmentShadow}"/></Style>
+<Style Selector="Button.chip"><Setter Property="Padding" Value="10,4"/><Setter Property="MinHeight" Value="26"/><Setter Property="FontSize" Value="12.5"/></Style>
+<Style Selector="Button.selected"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+```
+
+快速剪辑分段令牌 `src/AvaMedia.Desktop/Styles/QuickClipStyles.axaml`：`QcSegTrack`（`#E9E9EE`）、`QcSegOn`（`#FFFFFF`）。
+
+### 7.3 列表
+
 - **发丝线列表**：白底，行与行之间 1 px `#E5E5EA`，左侧缩进与内容对齐；不画外框和斑马纹。
-- **复选框 / 开关**：复选框蓝色圆角方块；开关为绿色 iOS 样式。
-- **状态图标**（Lucide）：运行中 `loader-circle` 蓝；等待 `clock` 灰；已暂停 `pause` 橙；已完成 `check` 绿；失败 `circle-alert` 红；已取消 `ban` 灰。图标后跟状态文字和百分比。
-- **图标**：统一使用 Lucide 线性图标（描边 2），不用 emoji、不混用其他图标库。
+- 列表头使用 `UiTableHeaderHeight` 高度。
 
-## 4. 工具树与任务列表
+参考代码 `src/AvaMedia.Browser/Ui/RemoteTheme.axaml`（可点击行）：
 
-- **工具树**：按“视频 / 音频 / 图片 / 文档 / 工具集 / 光盘”分类的手风琴，同时只展开一个分类；分类行显示图标、名称和数量；展开后按小节列出工具“胶囊”，选中为蓝底白字。不提供搜索框。
-- **任务列表**：每行包含名称（粗体）、“工具 · 来源”、状态列（状态图标 + 文字 + 进度条 + 当前活动）和右对齐的操作按钮。列宽固定，状态列和操作列逐行对齐。
+```xml
+<Style Selector="Button.row"><Setter Property="Background" Value="Transparent"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/>
+  <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
+<Style Selector="Button.row:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource RowHover}"/></Style>
+```
+
+### 7.4 任务行与任务列表
+
+- 每行包含名称（粗体）、“工具 · 来源”、状态列（状态图标 + 文字 + 进度条 + 当前活动）和右对齐的操作按钮。列宽固定，状态列和操作列逐行对齐。行高 ≥ 56。
 - 每种状态只显示该状态可用的操作：运行中“暂停 / 停止”，等待“开始 / 暂停 / 停止”，已暂停“恢复 / 停止”，失败“重试”，全部带“详情”。
-- 选中行浅蓝底并在左侧显示 3 px 蓝色强调条；详情在右侧面板（手机为整页），包含缩略图、状态、操作、“结果 / 处理日志”分段、键值列表和日志框。
+- 选中行浅蓝底并在左侧显示 3 px 蓝色强调条。
+- 详情面板：缩略图、状态、操作、“结果 / 处理日志”分段、键值列表和日志框。
 - 列表每 3 秒刷新一次，刷新时保持行顺序与选中项，不整表重建；底部分页“共 N 项 · 第 n 页”。
 - 任务区只放任务，不放工具入口。
 
-## 5. 桌面窗口
+参考代码 `src/AvaMedia.Desktop/MainWindow.axaml`：
 
-- 使用平台窗口外观：macOS 红绿灯在左，Windows / Linux 按钮在右，统一通过 `MainWindow.WindowChrome` 复用，不另写标题栏。
-- 主窗口为“侧栏 + 内容”两栏：侧栏 `#F1F4FA`，内容区白色卡片；设置窗口按分组卡片排列，“远程管理与 MCP”只显示真实数据（地址、状态、最近客户端）。
-- 浅色皮肤为主要设计目标；其他皮肤（深色、Platinum 等）必须保持可用，不能出现不可读文字或错位。
+```xml
+<ListBox Classes="task-list" Grid.Row="2" x:Name="JobList" Padding="0" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="JobSelectionChanged">
+  <ListBox.ItemTemplate><DataTemplate><local:JobRowView/></DataTemplate></ListBox.ItemTemplate>
+```
 
-### AI 媒体整理提交窗口
+`src/AvaMedia.Desktop/Controls/JobRowView.axaml`（固定列宽）：
 
-- 紧凑窗口约 900 × 520，底色 `#FAFAFC`；两栏宽度比 1 : 1.75，栏间距 18；标题 15 粗，底部次级按钮和主按钮高 32。
-- 分类规则为四列等宽卡片，高 46、圆角 10、间距 8；标题 12.5 半粗。选中为系统蓝底、白色勾选及标题、浅蓝说明；未选中为白底与 1 px 分隔线色边框。悬停、按下保持卡片色彩；更多规则在卡片区域滚动。
-- 来源使用真实媒体组成 128 × 96 的 2 × 2 拼图，外圆角 10；下方为粗体名称与次色数量。输出目录卡片白底、圆角 10，蓝色文件夹图标及更改胶囊。
-- 参数卡片标签 11 次色、数值 15 粗；轨道高 4，系统蓝填充。帧数用与当前帧数相同数量的短划线表示；保留滑条点击、拖动和键盘调整，悬停或键盘聚焦时显示小滑块。
-- 复选框为 14 px 蓝色圆角方块；复制 / 移动分段使用灰底、白色选中段与轻阴影。
+```xml
+<Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/></Grid.ColumnDefinitions>
+```
 
-### 自动字幕提交与 AI 进度 v2
+`src/AvaMedia.Desktop/Styles/MainShell.axaml`（状态文字与进度条）：
 
-- 桌面提交窗口约 940 × 560，左侧文件列表与单张预览，右侧识别设置和四步运行说明；设置默认尺寸下完整显示，底栏为取消、加入队列、后台识别。选择项保留蓝底白字，主按钮使用系统蓝。
-- 桌面字幕进度约 1060 × 712：顶部任务、模型后端、百分比和操作；四张阶段卡片依次为读取音轨、语音模型、语音识别、保存结果。下方为分段轨、波形、最新字幕，右侧过程记录与完成后操作。
-- 阶段卡片高 160、圆角 12；运行阶段蓝色细边框，完成阶段绿色序号。仅对真实进度与已检测语音分段着色，未运行阶段保持灰色。
-- v2 尺寸对照以桌面窗口客户区为基准，标题区高 50；提交正文距顶 54，文件卡片按内容定高（3 行约 180），文件行高 56、内边距 8，预览固定高 160，禁止用剩余高度拉伸文件卡片。设置字段上下内边距 10，选择胶囊高 28，模型卡片约 50，运行说明卡片上下内边距 12、左右 16。
-- 字幕进度阶段框至正文间距 9；正文卡片上下内边距 14、左右 16，右侧卡片上下 12、左右 14，“完成后”卡片至少高 142；字幕行高至少 34、上下内边距 7，过程记录行上下 3，列表容器不再叠加默认内边距。长文本按需增高；长列表在既定视口内滚动。
-- 媒体整理进度阶段框至少高 75、内边距 12 / 10；当前文件卡片上下 12、左右 14，标题与步骤间距 10，不为活动文案额外保留一行（放入标题提示）。分组列表缩略图 52、行上下内边距 6。当前画面中的帧条高 38、帧间距 4，文件流缩略图高 44。
-- 媒体整理进度的候选帧按实际采样顺序单行显示，当前帧为 2 px 系统蓝框；标题显示真实帧序号。服装主色按检测比例分段，悬停显示百分比，下方为浅蓝归组理由。文件流固定单行 8 张，显示当前文件前后的处理顺序，完成为绿色勾、当前为蓝框、排队透明度 40%。分组封面使用左大右侧叠放两张的拼图，蓝色 +N 角标带白边，信息为分组名称、拍摄组及相似度 / 场景、17 px 粗体数量。预览类别标签为白色胶囊、蓝色置信度，场景标签置于左下角，深色半透明底、白字及浅蓝置信度；标签位置按预览宽高比例定位。标题百分比为 26 px 粗体，临时停止为普通胶囊，结束任务为红色 1 px 描边胶囊。
-- 网页字幕卡片左右外边距 24、间距 14，卡片上下内边距 18、左右 20；设置字段上下 10，常规单行字段至少高 40，立即执行紧随设置字段，提交按钮位于卡片底部。结果与日志卡片上下内边距 12、左右 14。
-- 手机摘要卡片约高 155，卡片间距 10；结果卡片高约 299（字幕列表视口 252），日志卡片上下内边距 12、左右 14，摘要与日志随实际内容增高；字幕行至少高 51、上下内边距 7。底栏高 96、按钮高 44，导航不补画设备状态栏。
-- 网页提交为服务器文件和识别设置两栏，宽度比约 1.9 : 1，主按钮置于设置卡片底部。进度页左侧任务导航宽 280，右侧显示任务缩略图、四步进度、当前活动、字幕结果和最近日志。
-- 手机字幕详情隐藏远程管理顶栏及底部标签栏，显示返回所有任务、居中任务详情；内容为摘要、字幕结果、日志卡片，暂停和停止固定在底栏。系统状态栏由设备提供，不在网页中模拟。
-- 字幕列表保留虚拟化和跟随最新字幕操作；长列表可滚动查看历史，空数据不生成字幕行。截图夹具只用于对照，不进入产品界面。
+```xml
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ProgressBar"><Setter Property="Height" Value="4"/><Setter Property="MinHeight" Value="4"/><Setter Property="MaxHeight" Value="4"/><Setter Property="CornerRadius" Value="2"/><Setter Property="Background" Value="{DynamicResource ShellTrack}"/><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state"><Setter Property="FontSize" Value="11.5"/><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.running"><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreenText}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
+```
 
-## 6. 编辑器布局
+远程网页轮询 `src/AvaMedia.Browser/ConsoleView.cs`：
 
-参考 `docs/ui/editor-demo.png`、`editor-crop.png`、`editor-demo-mac.png`。
+```csharp
+private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds(3) };
+```
 
-- 顶部：平台窗口外观 + 居中分段模式切换；快速剪辑仅有“剪辑 / 画面裁剪 / 自动转正”，经典编辑器保留“选项”。
-- 中部左侧：大预览（黑底圆角 10）+ 传输控制（跳到起点、上一帧、播放、下一帧、跳到终点、时间码 `mm:ss.mmm / 总时长`）。
-- 预览下方：胶片条时间线（缩略图由共享胶片条服务生成，可缩放），片段为蓝框，选中片段显示两端拖动柄；拖动柄时浮出该时间点缩略图和“起点 / 终点 时间码”。
-- 右侧检查器：片段列表（小缩略图、区间、时长）、选中片段的“起点 / 终点”首尾帧卡片（时间码、前后一帧微调、跳转），以及按卡片分组的参数；快捷键仅放在 tooltip 中，不显示键帽或提示行。
-- 快速剪辑：侧栏宽 330，片段行高 40，首尾帧高 75；时间字段为居中的 11.5 半粗 `mm:ss.fff`（超过一小时为 `h:mm:ss.fff`）。属性行高 34，值用 `#6E6E73`，无框下拉加细灰箭头。时间线工具按钮高 30，标尺高 14，胶片条高 52，底部仅显示 11 px 次文字摘要；缩放轨宽 70、蓝色填充、白色阴影滑块。底栏提供输出配置、下一个视频和进入导出选项；进入导出选项前，其他勾选的视频必须已有剪辑，否则保留编辑器与草稿，弹出“还有视频未剪辑”模态提示，逐行列出文件名，说明需先剪辑或取消勾选。提示沿用平台窗口外观、18 px 内边距和 12 px 间距，文件列表可滚动，底部右侧仅一个“好”主按钮。Platinum 保留原生浮雕按钮及清晰文字。
-- 底部导出栏：左侧摘要，右侧主按钮。
-- 所有已有功能和快捷键必须保留。
-- 快速剪辑三种模式始终显示公共标题栏、预览、传输控制、胶片条时间线与底栏。画面裁剪使用右侧检查器放置比例、精确坐标、重置与去水印选区；自动转正卡片追加在时间线下方，预览可适度缩小，卡片圆角 14、内边距上 12 / 左右与下 14，高约 148，保留方向胶囊、镜像、识别状态与操作。1280 × 800 下时间线不得被模式卡片替代。
-- 标题栏文件名 / 副标题之后放置带提示与无障碍名称的小型媒体信息图标；悬停和点击均打开卡片式浮层，显示文件名、时长、分辨率、视频与音频编码。信息行高 32，标签灰色、值右对齐且数字等宽；长文件名省略并提供完整悬停提示。深色使用 Qc 令牌，Platinum 保留原生控件外观。
-- 不再显示快速剪辑选项页卡片。“输出配置…”打开完整片段设置弹窗，预览摘要区显示实时音频状态与输出说明；音量、静音、音频效果和字幕等仍在此处。旋转 / 镜像在自动转正可达，速度 / 视频淡入淡出在剪辑侧栏可达，裁剪与去水印选区在画面裁剪可达，均读写同一片段选项。
+### 7.5 侧栏工具树
 
-## 人物检测任务详情（B 版）
-
-- 依据 `/workspace/AvaMedia-sidebar-review/person-task/person-task.html?v=b`、浅深色图及 `?v=s` 状态图：左栏占内容宽度约 42%，展示真实首帧或所选片段代表帧、文件名、分辨率 / 编码 / 时长与唯一状态胶囊；下方为保留片段、保留时长、用时、检测帧数的 2×2 数字卡。数字和时间码使用等宽数字。缺帧时只显示中性“暂无预览”空状态，投影复用 10.x 的公共预览容器。
-- 右栏上方为全长时间轴、图例和可横向滚动的片段缩略图条，选中片段以强调色描边；时间轴悬停提示放在条下方，不能遮挡图例。下面是可滚动片段列表，列表末尾的处理记录默认折叠一行，展开查看完整日志。
-- 进行中使用真实进度、采样帧数和部分结果增量填充时间轴；未检测部分不能视为已移除。失败显示红色原因并保留中断处及部分结果，不显示调整片段按钮。停止、暂停及等待保留真实队列操作。
-- 底部左侧新建任务 / 重新执行，右侧关闭 / 唯一主按钮调整片段，进行中右侧提供停止。全部计数与片段来自任务结果；没有结果显示“—”或简短空状态。缩略图仅加载可见项，后台解码、可取消、复用媒体缓存，不阻塞 UI。皮肤颜色与圆角复用 Ui / AvaMedia.Controls 主题令牌。
-
-## 7. 远程网页
-
-参考 `docs/ui/remote-*.png`。
-
-- **桌面（≥ 760 px）**：顶部为 logo、标题、连接状态胶囊、居中分段导航（所有任务 / 文件与任务下发 / 服务器）、“重新连接”。默认打开“所有任务”。
-- **新建任务**：三张编号卡片“1 选择文件 · 2 选择工具 · 3 输出与提交”，宽度约 1.35 : 1 : 1；底部操作栏放“包括子文件夹 / 立即执行”和主按钮；未确认的上次提交用顶部横幅提示“放弃 / 恢复”。
-- **文件浏览**：返回 / 上一级 / 面包屑 / 刷新；“常用位置”只列有意义的位置（不显示 /proc、/sys、/dev 等）；行首复选框，点文件夹进入。
-- **编辑器**：顶部为返回、文件胶囊、工具徽标；左侧舞台（预览、传输、时间线或工具专属底栏），右侧检查器。剪辑、裁剪、去水印、合并都调用真实接口（`/web/preview/frame|strip|boundaries|nudge`）。
-  - 剪辑：多片段、首尾帧卡片、逐帧微调、拖动柄缩略图浮层。
-  - 裁剪：比例胶囊（自由 / 16:9 / 9:16 / 4:3 / 3:4 / 1:1）、三分网格、输出尺寸。
-  - 去水印：多区域（最多 16 个），每个区域可设出现时间；非当前区域以标签框显示。
-  - 合并：缩略图行、拖动手柄排序并保留上下移按钮、按时长比例的色条。
-- **手机（< 760 px）**：大标题、底部标签栏（所有任务 / 任务下发 / 服务器）、卡片式任务、右下悬浮“创建任务”；新建任务为分步导航，底部固定“下一步”主按钮；编辑器上下排列。
-- 网页文案中英文双语：中文原文作为键，英文在 `src/AvaMedia.Browser/Strings/Remote.json` 和桌面词典中；文件名、路径等用户数据标记为 raw，不翻译。
-
-## 8. 禁止事项
-
+- 按“视频 / 音频 / 图片 / 文档 / 工具集 / 光盘”分类的手风琴，**同时只展开一个分类**；展开一个分类时其他分类自动收起。
+- 分类行显示图标、名称和数量；展开后按小节列出工具“胶囊”，选中为蓝底白字（`UiTreeSelection` / `UiTreeSelectionText`），图标用 `UiTreeIcon`。
 - 不提供搜索框。
-- 不使用虚线拖放区和“拖到这里”提示框。
-- 界面任何位置均不使用 emoji。
-- 任务区不放工具入口；工具只在工具树 / 侧栏中出现。
-- 不在一屏中放多个蓝色主按钮；不用状态色填满整行。
-- 不显示占位或假数据；没有数据时显示简短空状态文字。
-- 不在界面上直接显示快捷键（按钮上的键帽如 [S]/[I]/[O]/Ctrl D、底部快捷键提示行等都不要）；快捷键只写在悬停提示（tooltip）里，快捷键本身照常可用。
+- macOS 下工具树从红绿灯下方开始（见第 8 节）。
+- Beta 标记使用 `beta-badge`（浅橙底），Platinum 下为灰底黑框。
 
-### 10.x 媒体预览的投影与氛围光（视频处理工具通用）
+参考代码 `src/AvaMedia.Desktop/MainWindow.Categories.cs`（单分类展开）：
 
-参考代码：
+```csharp
+private void CollapseCategories() { _category = ""; ApplyCategoryState(); }
 
-- 公共容器：`src/AvaMedia.Desktop/Controls/MediaPreviewSurface.cs`。投影在 Viewbox 外绘制，保持显示像素半径；氛围光半径 72、扩散 12、颜色过渡 400ms。没有真实帧立即隐藏光晕；经典皮肤跳过后台取色。
-- 主题令牌：`src/AvaMedia.Desktop/Styles/MediaPreviewStyles.axaml`。`UiMediaPreviewShadow` 为三层中性投影，`UiMediaPreviewRadius` 为 10；氛围光透明度浅色 0.30、深色 0.18，经典皮肤投影为空并保留 0 / 3px 圆角。
-- 后台取色与缓存：`src/AvaMedia.Desktop/Controls/MediaPreviewColorSampler.cs`。单路后台解码最长边不超过 64px，128 帧有界缓存，以缩略图内容摘要、文件、时间点和预览尺寸区分；取消过期任务，不读取 UI 持有的位图。编码数据超过 2MiB 或源位图超过 400 万像素时跳过氛围光，保留中性投影，避免昂贵解码。
-- 可单元测试的纯计算：`src/AvaMedia.Core/MediaPreviewColors.cs` 的 `Sample` / `AverageBorder`。RGBA 边缘按 alpha 加权，四条外围边分别平均后等权合并；透明边和未完成的格子不参与，内部格子不取色。
-- 多宫格接入：`src/AvaMedia.Desktop/ContactSheetWindow.Preview.cs`，逐帧提交已经取得的缩略图字节，后台颜色完成后独立更新光晕，不等待取色再显示预览帧。
-- 交互预览流畅优先：`MediaPreviewSurface.UseAmbientLighting=False` 只绘制中性投影，不创建取色解码器、不提交后台取色或逐帧光晕更新。`FitContent=False` 保持裁剪和图片对比视口的原有尺寸与坐标；默认模式包在 Viewbox 外，投影跟随适应后的画面尺寸。
-- 推广接入：`EditorWindow.axaml` 的主预览、`BatchCropWindow.axaml`、`BatchRotateWindow.axaml`、`ImageCompressionWindow.axaml`，以及 `Controls/MediaPreviewPanel.cs` 的视频 / 图片视口。共享面板的音频波形、压缩包 / 目录列表不加；`ClipExportWindow` 仅有小缩略图，播放器没有独立封面区且直接呈现连续播放画面，均不加，播放器全屏保持原样。
+private void ApplyCategoryState()
+{
+    _updatingTree = true;
+    try
+    {
+        foreach (var (category, item) in _treeCategories)
+        {
+            var expanded = category == _category;
+            if (!expanded && item.Body.IsKeyboardFocusWithin) item.Header.Focus(NavigationMethod.Directional);
+            item.Header.IsExpanded = expanded;
+            item.Body.IsVisible = expanded;
+        }
+    }
+    finally { _updatingTree = false; }
+}
+```
 
-## 13. 规范内矛盾的处理记录
+`src/AvaMedia.Desktop/Styles/CategoryNavigation.axaml`（浅色）：
 
-| 问题 | 处理 |
-| --- | --- |
-| 旧规范第 4 节“工具少时不提供搜索框”与第 8 节“工具数量少的列表不加搜索框”是有条件的禁止，新约束要求“不提供搜索框” | **已修复**：统一为无条件禁止（第 1 节）；设置、文件浏览、媒体路由、分类、图片浏览、字幕结果及标签 / 词库界面的搜索框已移除，保留类别与状态筛选。 |
-| 旧规范“不使用 emoji 作为图标或装饰”只覆盖图标 / 装饰 | **已修复**：扩展为界面任何位置均不使用 emoji；输出路径与预览文案去掉装饰字符，齿轮与网站装饰改用共享 Lucide 路径。 |
-| 规范系统蓝 `#007AFF`，而 `Styles/UiStyles.axaml` 中 `UiAccent` / `ThemeAccentColor` 仍为 `#5B5BFA`，`UiNavigationSelection` 亦为 `#5B5BFA` | **已修复**：浅色通用强调色、内置控件和导航选中态统一为 `#007AFF`，深色为 `#0A84FF`；同时迁移悬停、按下和浅蓝配套色，经典皮肤强调色不变。 |
-| 网页横幅令牌为 `#FFF8E6`，`Palette.Banner` 实际为 `#FFF6E0`；成功文字令牌 `#248A3D`，`Palette.GreenText` 为 `#1F9D3A`；等待令牌 `#86868B`，`ShellWait` 为 `#8E8E93` | **已修复**：`Palette.Banner` 为 `#FFF8E6`，`Palette.GreenText` 与浅色 `ShellGreenText` 为 `#248A3D`，浅色 `ShellWait` 为 `#86868B`。 |
-| 部分代码仍硬编码颜色（如 `ClassificationSubmitStyles.axaml`、`Classification/ClassifyUi.cs`、`RemoteTheme.axaml` 中的样式） | **已修复（所列文件）**：提交样式与 `ClassifyUi` 及其调用界面使用动态主题资源，网页样式 / 模板也使用资源；新资源提供四种皮肤对应值，真实媒体采样色保留。 |
-| 直接显示快捷键的键帽、播放器 / 看图帮助及菜单右侧提示 | **已修复**：删除键帽和提示行，帮助改为 tooltip，菜单提示仅在 tooltip；现有键盘命令与 HotKey 保留。全仓未发现虚线拖放框；图表虚线、流程连线与 XP 焦点框保留。 |
+```xml
+<SolidColorBrush x:Key="UiTreeSelection" Color="#007AFF"/>
+<SolidColorBrush x:Key="UiTreeSelectionText" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="UiTreeIcon" Color="#007AFF"/>
+```
 
-## 多宫格截图窗口（A 版）
+### 7.6 对话框
 
-- 三栏：视频卡片宽 236、中间预览自适应、设置栏宽 312；栏间距 12。设置为“宫格 / 取帧 / 画面 / 输出”四组白色卡片，属性行高 34，紧凑数值控件保留直接输入与步进。
-- 视频行含勾选、真实缩略图、文件名、时长和状态；导入、移除、包含子文件夹固定在列表底部。预览卡片顶部为文件名与像素尺寸，下方胶片条可拖动两端，重置范围使用链接。
-- 底栏依次为真实生成摘要、打开输出文件夹、关闭、唯一主按钮“生成截图”；生成期间显示停止操作与真实进度。
-- 多宫格预览允许以当前参数展示结构：无视频时显示按单格宽高比例排布的浅灰圆角格、格内序号、“选择视频后显示预览”和输出尺寸。这是参数示意，不是假媒体数据；不画插图、emoji、虚线框。
-- 抽帧逐格填入，尚未完成的格子柔和明暗过渡；单帧失败显示“无法读取”，整段失败保留占位格并显示错误说明。参数及范围变化防抖 300ms，并取消旧抽帧。
-- 所有颜色引用现有 Ui 主题资源；尺寸及圆角由 ContactSheetStyles 提供。现代卡片圆角 14、缩略图及占位格圆角 7；Platinum 无圆角、XP 使用 3px 圆角，保留经典皮肤原生控件和文字。
+- 模态提示沿用平台窗口外观、18 px 内边距和 12 px 间距；列表内容可滚动；底部右侧只放一个主按钮（如“好”）。
+- 对话框按钮使用 `dialog-action` 角色。
+- 统一使用 `Ui` 辅助方法创建，不自建窗口。
 
-## 应用内文件选择器（B 版）
+参考代码 `src/AvaMedia.Desktop/Ui.cs`（签名）：
 
-- 参考 `/workspace/AvaMedia-sidebar-review/picker/demo-b.html` 的三栏布局：侧栏 220、内容自适应、检查器 270；顶部沿用平台窗口框架，路径导航与视图切换置于 48px 共享标题栏，嵌入模式保留独立导航行；媒体类型分段控件单独一行。侧栏依次为最近使用、个人收藏、位置、设备；收藏添加与移除为次级操作。
-- 媒体网格按可用宽度排成等宽列，卡片内边距 8、间距 12，封面比例 16:9；选中浅蓝底、2px 强调色边框。列表行高 54，复选框、缩略图、名称、时长、分辨率、大小、修改时间对齐；悬停使用主题 Hover，键盘焦点可辨认。
-- 检查器含真实封面或类型图标、完整文件名、媒体类型与信息行；未取得媒体信息显示“—”，读取失败继续显示类型图标。底栏高 60，左侧真实选择数量与大小，右侧系统选择、取消、唯一主按钮“打开 N 个文件”。文件夹及嵌入模式保留对应动作文字。
-- 媒体类型按扩展名计数，筛选说明写明隐藏数量。最近使用视图在文件列表上方提供最多三个真实最近文件夹入口；列表与网格共用选择、键盘和 Shift 范围选择，视图偏好持久化。
-- FileUi 的 Fb 主题资源覆盖浅色、深色、Mac OS 9、XP：现代圆角卡片与分段控件，经典皮肤分别使用 0 / 3px 圆角及各自选择文字色，按钮保留宿主原生外观。
-- 目录读取、筛选和排序不探测媒体；列表与网格行均虚拟化。布局结束后仅可见文件与检查器发起后台低优先级媒体请求，最多两个同时执行，离开视野、切换目录或筛选即取消；派生结果复用共享磁盘与内存缓存。
+```csharp
+public static async Task<bool> Confirm(Window owner,string title,string message,string action)
+public static Task MessageDialog(Window owner, string title, string message, IReadOnlyList<string> details)
+public static Task Message(Window owner,string title,string message)
+```
+
+调用示例 `src/AvaMedia.Desktop/EditorWindow.axaml.cs`：
+
+```csharp
+await Ui.MessageDialog(this, "还有视频未剪辑", "请先剪辑以下视频，或在视频列表中取消勾选，再进入导出选项。", names);
+```
+
+### 7.7 进度与状态图标
+
+- 进度条高 4、圆角 2，轨道 `ShellTrack`，填充系统蓝。
+- 状态图标（Lucide）：运行中 `loader-circle` 蓝；等待 `clock` 灰；已暂停 `pause` 橙；已完成 `check` 绿；失败 `circle-alert` 红；已取消 `ban` 灰。图标后跟状态文字和百分比。
+- 状态色只用于状态图标、状态文字和进度条。
+
+参考代码 `src/AvaMedia.Desktop/Styles/MainShell.axaml`：
+
+```xml
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon"><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreen}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
+```
+
+阶段卡片按状态取资源键 `src/AvaMedia.Desktop/AiProgress/SpeechStageCard.cs`：
+
+```csharp
+: state == JobState.Failed && current ? "UiDanger" : state == JobState.Paused && current ? "UiWarning" : "UiAccent";
+```
+
+### 7.8 复选框、开关与图标
+
+- 复选框：14 px 蓝色圆角方块；开关：绿色 iOS 样式。
+- 图标：统一使用 Lucide 线性图标（描边 2），通过 `LucideIcon` 控件（`src/AvaMedia.Desktop/Controls/LucideIcon.cs`）使用，不用 emoji、不混用其他图标库。
+
+参考代码 `src/AvaMedia.Desktop/Controls/WindowChrome.cs`：
+
+```csharp
+var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, Height = 14 }, Classes = { "caption" }, Focusable = false };
+```
+
+---
 
 ### 7.9 通用组件（AvaMedia.Controls）
 
@@ -263,13 +622,326 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - 数值框默认总最小宽 `AcNumericMinWidth` 91（72 字段 + 4 间距 + 15 步进器），`.compact` 最小宽 `AcNumericCompactMinWidth` 64；宿主可以动态覆盖令牌，不在业务工厂中固定数值框列宽。
 - 新主题通过 `.ac` 选择器排除 `mac-os9` / `windows-xp`。两种经典皮肤继续采用宿主原生标准控件模板；现代浅深色使用既有 Ac/Ui 颜色令牌，不另建调色板。专用设置导航、主工具树和窗口菜单保持各自角色模板。
 
-
 #### 7.9.7 原生浮层材质与回退
 
 - Avalonia 固定为 11.3.22：macOS Native 的 `AcrylicBlur` 映射到原生 Blur 模式，后端补偿级别为 0，可将 `ExperimentalAcrylicMaterial` 与原生背景模糊组合。这里不使用单独的 `Blur` 请求（该版本 Native 映射只接受 AcrylicBlur）。源码依据：[TopLevelImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Native/TopLevelImpl.cs)、[WindowBaseImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/WindowBaseImpl.mm)、[ExperimentalAcrylicBorder](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/ExperimentalAcrylicBorder.cs)。
 - `MaterialSurface` / `AcMaterialSurface` 用于组件下拉、ToolTip 和 Popover 的背景。只在 macOS 原生 `PopupRoot` 请求 `AcrylicBlur, None`；背景透明，并仅在 `ActualTransparencyLevel` 实际返回 AcrylicBlur/Blur 时启用材质。每个表面独占材质实例，避免不同浮层互相改写平台补偿。
 - `AcMaterialEnabled` 默认 true；`AcMaterialTintColor` 浅色 #F6F6F8、深色 #2C2C30，`AcMaterialTintOpacity` 0.8、`AcMaterialOpacity` 0.5。Mac OS 9 / XP 关闭材质；不支持的平台、内嵌和 overlay 浮层仍使用 `AcMenuFill` 半透明画刷。关闭或拆卸表面时恢复弹出宿主的原透明度请求与背景。
 - Avalonia 11 的此路径模糊原生浮层背后内容，不能直接模糊同一窗口内的兄弟控件。不把完整业务窗口设为模糊，也不把 Linux 的半透明截图描述为 macOS 原生材质验收。窗口内菜单栏和 NativeMenu 使用自己的主题，未在本轮接入范围内。
+---
+
+## 8. 窗口与标题栏（按平台）
+
+- 统一通过 `MainWindow.WindowChrome`（`src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`）和 `Controls/WindowChrome.cs` 复用，不另写标题栏。
+- **macOS**：客户区延伸到标题栏下方（标题栏高 52），原生红绿灯位于**左上角、侧栏卡片内部**，工具树从红绿灯下方开始（工具树上边距 34）。非 macOS 上用 `AVAMEDIA_CHROME=mac` 预览时绘制占位红绿灯。
+- **Windows / Linux**：不显示系统标题栏，最小化 / 最大化 / 关闭按钮位于**右上角**标题行；按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Linux（X11）去掉 WM 装饰并自带缩放边。
+- 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉不触发拖动。
+- `AVAMEDIA_CHROME=mac|win|system` 可覆盖平台检测；`system` 及 Mac OS 9 / XP 皮肤使用各自框架。
+- Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。
+
+参考代码 `src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`：
+
+```csharp
+internal static WindowFrameKind FrameKind => Environment.GetEnvironmentVariable("AVAMEDIA_CHROME")?.ToLowerInvariant() switch
+{
+    "mac" => WindowFrameKind.Mac,
+    "win" or "windows" or "linux" => WindowFrameKind.WinLinux,
+    "system" => WindowFrameKind.System,
+#if MACOS
+    _ => WindowFrameKind.Mac
+#else
+    _ => OperatingSystem.IsMacOS() ? WindowFrameKind.Mac : WindowFrameKind.WinLinux
+#endif
+};
+```
+
+```csharp
+ExtendClientAreaToDecorationsHint = true;
+ExtendClientAreaTitleBarHeightHint = 52;
+if (kind == WindowFrameKind.Mac)
+{
+    ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.PreferSystemChrome | ExtendClientAreaChromeHints.OSXThickTitleBar;
+    // Real macOS draws the native lights; elsewhere draw a placeholder to preview spacing.
+    SetFrameParts(caption: false, lights: !OperatingSystem.IsMacOS(), grips: false);
+    FeatureTree.Margin = new Thickness(8, 34, 8, 10);
+    return;
+}
+ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.NoChrome;
+// X11 cannot extend into WM decorations: drop them and supply our own resize edges.
+var ownFrame = !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS();
+if (ownFrame) { SystemDecorations = SystemDecorations.None; _ownDecorations = true; }
+SetFrameParts(caption: true, lights: false, grips: ownFrame);
+```
+
+```csharp
+var lights = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(14, 12, 0, 0),
+    VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false };
+foreach (var color in new[] { "#FF5F57", "#FEBC2E", "#28C840" })
+```
+
+`src/AvaMedia.Desktop/Controls/WindowChrome.cs`（右上角按钮与拖动）：
+
+```csharp
+panel.Children.Add(Caption("minus", "最小化窗口", () => window.WindowState = WindowState.Minimized));
+panel.Children.Add(maximize = Caption("square", "最大化", () => ToggleMaximize(window)));
+panel.Children.Add(Caption("x", "关闭", window.Close, close: true));
+```
+
+```csharp
+public static bool IsInteractive(Control control)
+{
+    for (Control? c = control; c is not null; c = c.Parent as Control)
+        if (c is Button or TextBox or MenuItem or Slider or ComboBox) return true;
+    return false;
+}
+
+/// <summary>Drag the window from a title region; double-click toggles maximize.</summary>
+public static void HookDrag(Window window, Control region, Func<bool> enabled) =>
+```
+
+`src/AvaMedia.Desktop/Styles/MainShell.axaml`：
+
+```xml
+<Style Selector="Window.main-window Button.caption"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+<Style Selector="Window.main-window Button.caption.close:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#C42B1C"/></Style>
+```
+
+`src/AvaMedia.Desktop/Controls/PlatinumWindowFrame.cs`：
+
+```csharp
+var close = CaptionButton("close", "关闭窗口", "PlatinumClose", () => window.Close()); titleBar.Children.Add(close);
+var zoom = CaptionButton("zoom", "缩放窗口", "PlatinumZoom", Zoom, window.CanResize && window.CanMaximize);
+var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade", ToggleShade);
+```
+
+---
+
+## 9. 状态
+
+### 9.1 交互态
+
+| 状态 | 规则 |
+| --- | --- |
+| 悬停 | 浅色叠加（`ShellCapsuleHover` / `ShellRowHover`，网页 `#E6E6EB`）；分类规则卡片悬停、按下保持卡片色彩 |
+| 按下 | 主按钮 `UiPrimaryPressed`；网页按钮不透明度 0.8 |
+| 选中 | 列表行浅蓝底 + 左侧 3 px 蓝条；工具胶囊、筛选胶囊蓝底白字；分段白底细阴影 |
+| 焦点 | 键盘可见焦点（`:focus-visible`）必须可辨认；滑条键盘聚焦时显示小滑块 |
+| 禁用 | 不透明度 0.45；主按钮禁用为灰底灰字 |
+
+### 9.2 任务状态
+
+| 状态 | 图标 / 颜色 | 可用操作 |
+| --- | --- | --- |
+| 运行中 | `loader-circle` 蓝 | 暂停、停止、详情 |
+| 等待 | `clock` 灰 | 开始、暂停、停止、详情 |
+| 已暂停 | `pause` 橙 | 恢复、停止、详情 |
+| 已完成 | `check` 绿 | 详情 |
+| 失败 | `circle-alert` 红 | 重试、详情 |
+| 已取消 | `ban` 灰 | 详情 |
+
+### 9.3 空状态与恢复
+
+- 没有数据时显示简短空状态文字，不显示占位或假数据。
+- 未确认的上次提交用顶部横幅（横幅色）提示“放弃 / 恢复”。
+
+---
+
+## 10. 专用界面
+
+### 10.1 编辑器
+
+参考 `docs/ui/editor-demo.png`、`editor-crop.png`、`editor-demo-mac.png`。
+
+- 顶部：平台窗口外观 + 居中分段模式切换；快速剪辑仅有“剪辑 / 画面裁剪 / 自动转正”，经典编辑器保留“选项”。
+- 中部左侧：大预览（黑底圆角 10）+ 传输控制（跳到起点、上一帧、播放、下一帧、跳到终点、时间码 `mm:ss.mmm / 总时长`）。
+- 预览下方：胶片条时间线（缩略图由共享胶片条服务生成，可缩放），片段为蓝框，选中片段显示两端拖动柄；拖动柄时浮出该时间点缩略图和“起点 / 终点 时间码”。
+- 右侧检查器：片段列表（小缩略图、区间、时长）、选中片段的“起点 / 终点”首尾帧卡片（时间码、前后一帧微调、跳转），以及按卡片分组的参数。
+- 底部导出栏：左侧摘要，右侧主按钮。
+- 所有已有功能和快捷键必须保留；快捷键只在 tooltip 中。
+- **快速剪辑尺寸**：侧栏宽 330，片段行高 40，首尾帧高 75；时间字段为居中的 11.5 半粗 `mm:ss.fff`（超过一小时为 `h:mm:ss.fff`）。属性行高 34，值用 `#6E6E73`（`QcValue`），无框下拉加细灰箭头。时间线工具按钮高 30，标尺高 14，胶片条高 52，底部仅显示 11 px 次文字摘要；缩放轨宽 70、蓝色填充、白色阴影滑块。
+- **快速剪辑结构**：三种模式始终显示公共标题栏、预览、传输控制、胶片条时间线与底栏。画面裁剪使用右侧检查器放置比例、精确坐标、重置与去水印选区；自动转正卡片追加在时间线下方，预览可适度缩小，卡片圆角 14、内边距上 12 / 左右与下 14，高约 148，保留方向胶囊、镜像、识别状态与操作。1280 × 800 下时间线不得被模式卡片替代。
+- **底栏**：提供输出配置、下一个视频和进入导出选项。进入导出选项前，其他勾选的视频必须已有剪辑，否则保留编辑器与草稿，弹出“还有视频未剪辑”模态提示，逐行列出文件名，说明需先剪辑或取消勾选（对话框规则见 7.6）。
+- **媒体信息**：标题栏文件名 / 副标题之后放置带提示与无障碍名称的小型媒体信息图标；悬停和点击均打开卡片式浮层，显示文件名、时长、分辨率、视频与音频编码。信息行高 32，标签灰色、值右对齐且数字等宽；长文件名省略并提供完整悬停提示。
+- **选项归属**：不再显示快速剪辑选项页卡片。“输出配置…”打开完整片段设置弹窗，预览摘要区显示实时音频状态与输出说明；音量、静音、音频效果和字幕等仍在此处。旋转 / 镜像在自动转正可达，速度 / 视频淡入淡出在剪辑侧栏可达，裁剪与去水印选区在画面裁剪可达，均读写同一片段选项。
+- 皮肤：深色使用 Qc 令牌；Platinum 保留原生浮雕按钮、原生控件外观及清晰文字。
+
+参考代码 `src/AvaMedia.Desktop/Styles/QuickClipStyles.axaml`（Qc 令牌，节选）：
+
+```xml
+<SolidColorBrush x:Key="QcLine" Color="#E5E5EA"/><SolidColorBrush x:Key="QcRowLine" Color="#F0F0F2"/><SolidColorBrush x:Key="QcText" Color="#1D1D1F"/>
+<SolidColorBrush x:Key="QcSecondary" Color="#86868B"/><SolidColorBrush x:Key="QcValue" Color="#6E6E73"/><SolidColorBrush x:Key="QcIcon" Color="#3A3A3C"/>
+<SolidColorBrush x:Key="QcAccent" Color="#007AFF"/><SolidColorBrush x:Key="QcAccentText" Color="#FFFFFF"/><SolidColorBrush x:Key="QcSegTrack" Color="#E9E9EE"/>
+<SolidColorBrush x:Key="QcSegOn" Color="#FFFFFF"/><SolidColorBrush x:Key="QcRowSelected" Color="#0F007AFF"/><SolidColorBrush x:Key="QcChip" Color="#F2F2F7"/>
+```
+
+`src/AvaMedia.Desktop/Styles/ControlRoles.axaml`（传输按钮）：
+
+```xml
+<Style Selector="Button.transport">
+  <Setter Property="Width" Value="{DynamicResource UiTransportSize}"/>
+  <Setter Property="Height" Value="{DynamicResource UiTransportSize}"/>
+  <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
+</Style>
+```
+
+### 10.2 AI 媒体整理提交窗口
+
+- 紧凑窗口约 900 × 520，底色 `#FAFAFC`；两栏宽度比 1 : 1.75，栏间距 18；标题 15 粗，底部次级按钮和主按钮高 32。
+- 分类规则为四列等宽卡片，高 46、圆角 10、间距 8；标题 12.5 半粗。选中为系统蓝底、白色勾选及标题、浅蓝说明；未选中为白底与 1 px 分隔线色边框。悬停、按下保持卡片色彩；更多规则在卡片区域滚动。
+- 来源使用真实媒体组成 128 × 96 的 2 × 2 拼图，外圆角 10；下方为粗体名称与次色数量。输出目录卡片白底、圆角 10，蓝色文件夹图标及更改胶囊。
+- 参数卡片标签 11 次色、数值 15 粗；轨道高 4，系统蓝填充。帧数用与当前帧数相同数量的短划线表示；保留滑条点击、拖动和键盘调整，悬停或键盘聚焦时显示小滑块。
+- 复选框为 14 px 蓝色圆角方块；复制 / 移动分段使用灰底、白色选中段与轻阴影。
+
+参考代码 `src/AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml`（颜色随皮肤切换，见第 13 节）：
+
+```xml
+<Setter Property="Background" Value="{DynamicResource UiAccent}" />
+<Setter Property="BorderBrush" Value="{DynamicResource UiAccent}" />
+```
+
+---
+
+
+### 10.x 媒体预览的投影与氛围光（视频处理工具通用）
+
+适用于所有带大预览区的视频、图片处理窗口，比如多宫格截图、剪辑、裁剪、去水印、压缩、转换、播放器封面区。
+
+- **投影（必须）：** 预览图使用柔和的多层投影，例如 `0 1 2 rgba(0,0,0,.06)`、`0 8 24 rgba(0,0,0,.10)`、`0 24 48 rgba(0,0,0,.08)`。圆角跟随预览卡片（10 到 14）。不要使用硬边框代替投影。
+- **氛围光（推荐）：** 从当前预览画面的边缘取主色，在预览背后画一圈大半径、低不透明度的光晕（不透明度 0.25 到 0.35，模糊半径不小于 60），颜色从画面边缘向外渐隐。画面变化时，颜色在 300 到 500ms 内平滑过渡。
+- **取色性能：** 只对缩小到 64px 以内的位图取色，放在后台线程计算，按帧或文件缓存，不能阻塞预览刷新和交互。
+- **何时关闭：**
+  - 没有真实画面时（占位格、加载失败、纯音频）不显示氛围光，只保留中性投影。
+  - Mac OS 9 和 XP 皮肤关闭氛围光，使用各自原有的样式。
+  - 深色主题下降低不透明度，避免发灰。
+- **实现：** 统一使用公共的预览容器控件，取色逻辑放在可单元测试的辅助类里，各窗口不要各写一套。实现完成后，在此处补上代码引用。
+
+参考代码：
+
+- 公共容器：`src/AvaMedia.Desktop/Controls/MediaPreviewSurface.cs`。投影在 Viewbox 外绘制，保持显示像素半径；氛围光半径 72、扩散 12、颜色过渡 400ms。没有真实帧立即隐藏光晕；经典皮肤跳过后台取色。
+- 主题令牌：`src/AvaMedia.Desktop/Styles/MediaPreviewStyles.axaml`。`UiMediaPreviewShadow` 为三层中性投影，`UiMediaPreviewRadius` 为 10；氛围光透明度浅色 0.30、深色 0.18，经典皮肤投影为空并保留 0 / 3px 圆角。
+- 后台取色与缓存：`src/AvaMedia.Desktop/Controls/MediaPreviewColorSampler.cs`。单路后台解码最长边不超过 64px，128 帧有界缓存，以缩略图内容摘要、文件、时间点和预览尺寸区分；取消过期任务，不读取 UI 持有的位图。编码数据超过 2MiB 或源位图超过 400 万像素时跳过氛围光，保留中性投影，避免昂贵解码。
+- 可单元测试的纯计算：`src/AvaMedia.Core/MediaPreviewColors.cs` 的 `Sample` / `AverageBorder`。RGBA 边缘按 alpha 加权，四条外围边分别平均后等权合并；透明边和未完成的格子不参与，内部格子不取色。
+- 多宫格接入：`src/AvaMedia.Desktop/ContactSheetWindow.Preview.cs`，逐帧提交已经取得的缩略图字节，后台颜色完成后独立更新光晕，不等待取色再显示预览帧。
+- 交互预览流畅优先：`MediaPreviewSurface.UseAmbientLighting=False` 只绘制中性投影，不创建取色解码器、不提交后台取色或逐帧光晕更新。`FitContent=False` 保持裁剪和图片对比视口的原有尺寸与坐标；默认模式包在 Viewbox 外，投影跟随适应后的画面尺寸。
+- 推广接入：`EditorWindow.axaml` 的主预览、`BatchCropWindow.axaml`、`BatchRotateWindow.axaml`、`ImageCompressionWindow.axaml`，以及 `Controls/MediaPreviewPanel.cs` 的视频 / 图片视口。共享面板的音频波形、压缩包 / 目录列表不加；`ClipExportWindow` 仅有小缩略图，播放器没有独立封面区且直接呈现连续播放画面，均不加，播放器全屏保持原样。
+
+## 人物检测任务详情（B 版）
+
+- 依据 `/workspace/AvaMedia-sidebar-review/person-task/person-task.html?v=b`、浅深色图及 `?v=s` 状态图：左栏占内容宽度约 42%，展示真实首帧或所选片段代表帧、文件名、分辨率 / 编码 / 时长与唯一状态胶囊；下方为保留片段、保留时长、用时、检测帧数的 2×2 数字卡。数字和时间码使用等宽数字。缺帧时只显示中性“暂无预览”空状态，投影复用 10.x 的公共预览容器。
+- 右栏上方为全长时间轴、图例和可横向滚动的片段缩略图条，选中片段以强调色描边；时间轴悬停提示放在条下方，不能遮挡图例。下面是可滚动片段列表，列表末尾的处理记录默认折叠一行，展开查看完整日志。
+- 进行中使用真实进度、采样帧数和部分结果增量填充时间轴；未检测部分不能视为已移除。失败显示红色原因并保留中断处及部分结果，不显示调整片段按钮。停止、暂停及等待保留真实队列操作。
+- 底部左侧新建任务 / 重新执行，右侧关闭 / 唯一主按钮调整片段，进行中右侧提供停止。全部计数与片段来自任务结果；没有结果显示“—”或简短空状态。缩略图仅加载可见项，后台解码、可取消、复用媒体缓存，不阻塞 UI。皮肤颜色与圆角复用 Ui / AvaMedia.Controls 主题令牌。
+
+## 11. 远程网页与手机
+
+参考 `docs/ui/remote-*.png`。断点 760 px。
+
+参考代码 `src/AvaMedia.Browser/ConsoleView.cs`：
+
+```csharp
+var mobile = Bounds.Width < 760;
+```
+
+### 11.1 桌面（≥ 760 px）
+
+- 顶部为 logo、标题、连接状态胶囊、居中分段导航（所有任务 / 文件与任务下发 / 服务器）、“重新连接”。默认打开“所有任务”。
+- **新建任务**：三张编号卡片“1 选择文件 · 2 选择工具 · 3 输出与提交”，宽度约 1.35 : 1 : 1；底部操作栏放“包括子文件夹 / 立即执行”和主按钮；未确认的上次提交用顶部横幅提示“放弃 / 恢复”。
+- **文件浏览**：返回 / 上一级 / 面包屑 / 刷新；“常用位置”只列有意义的位置（不显示 /proc、/sys、/dev 等）；行首复选框，点文件夹进入。不提供拖放区。
+- **编辑器**：顶部为返回、文件胶囊、工具徽标；左侧舞台（预览、传输、时间线或工具专属底栏），右侧检查器。剪辑、裁剪、去水印、合并都调用真实接口（`/web/preview/frame|strip|boundaries|nudge`）。
+  - 剪辑：多片段、首尾帧卡片、逐帧微调、拖动柄缩略图浮层。
+  - 裁剪：比例胶囊（自由 / 16:9 / 9:16 / 4:3 / 3:4 / 1:1）、三分网格、输出尺寸。
+  - 去水印：多区域（最多 16 个），每个区域可设出现时间；非当前区域以标签框显示。
+  - 合并：缩略图行、拖动手柄排序并保留上下移按钮、按时长比例的色条。
+
+### 11.2 手机（< 760 px）
+
+- 大标题、底部标签栏（所有任务 / 任务下发 / 服务器）、卡片式任务、右下悬浮“创建任务”（大号主按钮，悬浮阴影 `0 6 16 #55007AFF`）。
+- 新建任务为分步导航，底部固定“下一步”主按钮；编辑器上下排列。
+- 页面外边距 16。
+
+### 11.3 网页主题资源
+
+参考代码 `src/AvaMedia.Browser/Ui/RemoteTheme.axaml`：
+
+```xml
+<SolidColorBrush x:Key="Blue" Color="#007AFF"/>
+<SolidColorBrush x:Key="Fill" Color="#F0F0F3"/>
+<SolidColorBrush x:Key="FillHover" Color="#E6E6EB"/>
+<SolidColorBrush x:Key="Hairline" Color="#E5E5EA"/>
+<SolidColorBrush x:Key="TextPrimary" Color="#1D1D1F"/>
+<SolidColorBrush x:Key="TextSecondary" Color="#86868B"/>
+<SolidColorBrush x:Key="ThemeAccentBrush" Color="#007AFF"/>
+```
+
+宿主页面 `src/AvaMedia.Browser/wwwroot/app.css`：
+
+```css
+html,body,#out { width:100%; height:100%; margin:0; overflow:hidden; }
+body { font-family:system-ui,sans-serif; background:#f7f8fa; }
+```
+
+---
+
+## 12. 文案与本地化
+
+- 界面以简体中文为原文；中文原文作为键，英文在 `src/AvaMedia.Browser/Strings/Remote.json`（网页）和桌面词典 `src/AvaMedia.Desktop/Localization/Strings.en-US.json` 中。
+- 文件名、路径、用户输入等用户数据标记为 `raw`，不翻译。
+- 文案不含 emoji，不含快捷键键帽；快捷键写在 tooltip 文案中，如“撤销 (Ctrl Z)”。
+- zh-CN 文案不得被裁切；评审截图使用 zh-CN。
+
+参考代码 `src/AvaMedia.Browser/Strings/Remote.json`：
+
+```json
+ "1. 选择文件": "1. Choose files",
+ "2. 选择工具": "2. Choose tool",
+```
+
+`src/AvaMedia.Browser/Ui/L.cs`：
+
+```csharp
+if (change.NewValue is string text && !block.Classes.Contains("raw") && _english.TryGetValue(text, out var translated) && translated != text)
+```
+
+`src/AvaMedia.Desktop/Localization/Strings.en-US.json`：
+
+```json
+  "还有视频未剪辑": "Some videos still need editing",
+```
+
+---
+
+## 13. 规范内矛盾的处理记录
+
+| 问题 | 处理 |
+| --- | --- |
+| 旧规范第 4 节“工具少时不提供搜索框”与第 8 节“工具数量少的列表不加搜索框”是有条件的禁止，新约束要求“不提供搜索框” | **已修复**：统一为无条件禁止（第 1 节）；设置、文件浏览、媒体路由、分类、图片浏览、字幕结果及标签 / 词库界面的搜索框已移除，保留类别与状态筛选。 |
+| 旧规范“不使用 emoji 作为图标或装饰”只覆盖图标 / 装饰 | **已修复**：扩展为界面任何位置均不使用 emoji；输出路径与预览文案去掉装饰字符，齿轮与网站装饰改用共享 Lucide 路径。 |
+| 规范系统蓝 `#007AFF`，而 `Styles/UiStyles.axaml` 中 `UiAccent` / `ThemeAccentColor` 仍为 `#5B5BFA`，`UiNavigationSelection` 亦为 `#5B5BFA` | **已修复**：浅色通用强调色、内置控件和导航选中态统一为 `#007AFF`，深色为 `#0A84FF`；同时迁移悬停、按下和浅蓝配套色，经典皮肤强调色不变。 |
+| 网页横幅令牌为 `#FFF8E6`，`Palette.Banner` 实际为 `#FFF6E0`；成功文字令牌 `#248A3D`，`Palette.GreenText` 为 `#1F9D3A`；等待令牌 `#86868B`，`ShellWait` 为 `#8E8E93` | **已修复**：`Palette.Banner` 为 `#FFF8E6`，`Palette.GreenText` 与浅色 `ShellGreenText` 为 `#248A3D`，浅色 `ShellWait` 为 `#86868B`。 |
+| “不叠加多层阴影”与主窗口卡片 `0 0 0 0.5 …, 0 4 16 -6 …` 双层阴影 | 明确 0.5 px 描边阴影视为边框，不计入“多层装饰阴影”（第 6 节）。 |
+| 卡片圆角 14 与主窗口侧栏 18 / 队列卡片 12 | 14 为通用卡片值，主窗口专用值单独列出（第 6 节）。 |
+| 手机大标题：规范 26，网页 `largeTitle` 为 28 | 桌面大标题 26，手机网页大标题 28。 |
+| 强调色预设 | 仓库内未找到预设实现，按“仅通过资源键覆盖”写明扩展方式（4.2）。 |
+| 部分代码仍硬编码颜色（如 `ClassificationSubmitStyles.axaml`、`Classification/ClassifyUi.cs`、`RemoteTheme.axaml` 中的样式） | **已修复（所列文件）**：提交样式与 `ClassifyUi` 及其调用界面使用动态主题资源，网页样式 / 模板也使用资源；新资源提供四种皮肤对应值，真实媒体采样色保留。 |
+| 直接显示快捷键的键帽、播放器 / 看图帮助及菜单右侧提示 | **已修复**：删除键帽和提示行，帮助改为 tooltip，菜单提示仅在 tooltip；现有键盘命令与 HotKey 保留。全仓未发现虚线拖放框；图表虚线、流程连线与 XP 焦点框保留。 |
+
+## 多宫格截图窗口（A 版）
+
+- 三栏：视频卡片宽 236、中间预览自适应、设置栏宽 312；栏间距 12。设置为“宫格 / 取帧 / 画面 / 输出”四组白色卡片，属性行高 34，紧凑数值控件保留直接输入与步进。
+- 视频行含勾选、真实缩略图、文件名、时长和状态；导入、移除、包含子文件夹固定在列表底部。预览卡片顶部为文件名与像素尺寸，下方胶片条可拖动两端，重置范围使用链接。
+- 底栏依次为真实生成摘要、打开输出文件夹、关闭、唯一主按钮“生成截图”；生成期间显示停止操作与真实进度。
+- 多宫格预览允许以当前参数展示结构：无视频时显示按单格宽高比例排布的浅灰圆角格、格内序号、“选择视频后显示预览”和输出尺寸。这是参数示意，不是假媒体数据；不画插图、emoji、虚线框。
+- 抽帧逐格填入，尚未完成的格子柔和明暗过渡；单帧失败显示“无法读取”，整段失败保留占位格并显示错误说明。参数及范围变化防抖 300ms，并取消旧抽帧。
+- 所有颜色引用现有 Ui 主题资源；尺寸及圆角由 ContactSheetStyles 提供。现代卡片圆角 14、缩略图及占位格圆角 7；Platinum 无圆角、XP 使用 3px 圆角，保留经典皮肤原生控件和文字。
+
+## 应用内文件选择器（B 版）
+
+- 参考 `/workspace/AvaMedia-sidebar-review/picker/demo-b.html` 的三栏布局：侧栏 220、内容自适应、检查器 270；顶部沿用平台窗口框架，路径导航与视图切换置于 48px 共享标题栏，嵌入模式保留独立导航行；媒体类型分段控件单独一行。侧栏依次为最近使用、个人收藏、位置、设备；收藏添加与移除为次级操作。
+- 媒体网格按可用宽度排成等宽列，卡片内边距 8、间距 12，封面比例 16:9；选中浅蓝底、2px 强调色边框。列表行高 54，复选框、缩略图、名称、时长、分辨率、大小、修改时间对齐；悬停使用主题 Hover，键盘焦点可辨认。
+- 检查器含真实封面或类型图标、完整文件名、媒体类型与信息行；未取得媒体信息显示“—”，读取失败继续显示类型图标。底栏高 60，左侧真实选择数量与大小，右侧系统选择、取消、唯一主按钮“打开 N 个文件”。文件夹及嵌入模式保留对应动作文字。
+- 媒体类型按扩展名计数，筛选说明写明隐藏数量。最近使用视图在文件列表上方提供最多三个真实最近文件夹入口；列表与网格共用选择、键盘和 Shift 范围选择，视图偏好持久化。
+- FileUi 的 Fb 主题资源覆盖浅色、深色、Mac OS 9、XP：现代圆角卡片与分段控件，经典皮肤分别使用 0 / 3px 圆角及各自选择文字色，按钮保留宿主原生外观。
+- 目录读取、筛选和排序不探测媒体；列表与网格行均虚拟化。布局结束后仅可见文件与检查器发起后台低优先级媒体请求，最多两个同时执行，离开视野、切换目录或筛选即取消；派生结果复用共享磁盘与内存缓存。
 
 ## 窗口内工具栏菜单栏（B 版）
 
