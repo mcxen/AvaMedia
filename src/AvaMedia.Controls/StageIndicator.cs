@@ -33,7 +33,8 @@ public sealed class StatusGlyph : Control
     }
     public override void Render(DrawingContext context)
     {
-        var size = Math.Min(Bounds.Width, Bounds.Height); var center = new Point(size / 2, size / 2); var radius = Math.Max(0, size / 2 - (State == "done" ? 0 : 1));
+        var size = Math.Min(Bounds.Width, Bounds.Height); var center = new Point(size / 2, size / 2);
+        var radius = State is "info" or "failed" or "success" ? size * .375 : Math.Max(0, size / 2 - (State == "done" ? 0 : 1));
         if (State == "empty")
         {
             var pen = new Pen(Brush, 1.4); context.DrawRectangle(null, pen, new Rect(size * .14, size * .18, size * .72, size * .64), 3, 3);

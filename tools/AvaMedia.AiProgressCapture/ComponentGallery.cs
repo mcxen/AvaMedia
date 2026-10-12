@@ -216,7 +216,7 @@ internal static class ComponentGallery
         if (Has(cls, "ai")) return new Border { CornerRadius = new(11), [!Border.BackgroundProperty] = Resource("UiAccent"), Child = new LucideIcon { Kind = "film", Width = 24, Height = 24, [!LucideIcon.ForegroundProperty] = Resource("UiAccentText") } };
         if (Has(cls, "lr"))
         {
-            var parts = text.Split('\n', StringSplitOptions.RemoveEmptyEntries); var row = new ListRow();
+            var parts = text.Split('\n', StringSplitOptions.RemoveEmptyEntries); var row = new ListRow { IsEnabled = !Has(cls, "dis") };
             row.Margin = new(0); row.Classes.Set("text", Has(cls, "l36")); row.Classes.Set("ac-hover", Has(cls, "h")); row.Classes.Set("selected", Has(cls, "sel")); row.Classes.Set("active", Has(cls, "selk"));
             var grid = new Grid { ColumnDefinitions = new(Has(cls, "l56") ? "40,*,Auto" : "*,Auto"), ColumnSpacing = 10 };
             var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center }; panel.Children.Add(Label(parts.FirstOrDefault() ?? ""));

@@ -212,7 +212,7 @@
       <SolidColorBrush x:Key="AcBannerText" Color="#FFC861"/>
       <SolidColorBrush x:Key="AcStageLineBrush" Color="#1AFFFFFF"/>
       <SolidColorBrush x:Key="AcScrollHover" Color="#80FFFFFF"/>
-      <SolidColorBrush x:Key="AcScrollTrack" Color="#08FFFFFF"/>
+      <SolidColorBrush x:Key="AcScrollTrack" Color="#08000000"/>
       <BoxShadows x:Key="AcFocusShadow">0 0 0 3 #800A84FF</BoxShadows>
       <BoxShadows x:Key="AcErrorShadow">0 0 0 3 #38FF453A</BoxShadows>
       <BoxShadows x:Key="AcCardShadow">0 0 0 0.5 #14FFFFFF, 0 1 3 0 #66000000</BoxShadows>
