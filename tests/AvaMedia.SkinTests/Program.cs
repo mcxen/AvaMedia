@@ -25,6 +25,11 @@ void Pump() { Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRende
 void Capture(Window window, string name) { Pump(); window.CaptureRenderedFrame()!.Save(Path.Combine(root, name + ".png")); }
 void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(); }
 string Color(IBrush? brush) => brush is ISolidColorBrush color ? color.Color.ToString() : "";
+IBrush BrushFor(Control control, string key)
+{
+    if (control.TryFindResource(key, control.ActualThemeVariant, out var resource) && resource is IBrush brush) return brush;
+    throw new Exception("当前皮肤缺少资源：" + key);
+}
 // Compare each control's actual artwork while its containing window stays open.
 var iconKinds = Catalog.All.Select(f => f.Icon).Append("clip-list").Distinct().ToArray();
 Check(iconKinds.All(kind => AssetLoader.Exists(new Uri($"avares://AvaMedia.Desktop/Assets/FeatureIcons/macos9/{kind}.png"))), "Mac OS 9 embeds artwork for every functional icon kind");
@@ -69,8 +74,8 @@ Check(window.ActualThemeVariant == Skin.MacOS9 && window.Classes.Contains("mac-o
 Check(window.Content is PlatinumWindowFrame && window.SystemDecorations == SystemDecorations.None, "Platinum chrome replaces native decoration");
 Check(Color(window.Background) == "#ffcccccc", "Platinum palette resolves through the custom theme variant");
 Check(button.GetVisualDescendants().OfType<PlatinumBevel>().Any(), "Buttons use the shared vector bevel template");
-Check(checkbox.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single(p => p.Name == "checkMark").Stroke is not null, "The checked box uses a classic cross mark");
-Check(Color(slider.GetVisualDescendants().OfType<PlatinumBevel>().Single().Background) == "#ffbbbbbb", "The slider thumb inherits the Platinum control theme");
+Check(checkbox.GetVisualDescendants().OfType<PlatinumGlyph>().Single(p => p.Kind == "check").IsChecked == true, "经典复选框显示选中标记并保留状态");
+Check(Color(slider.GetVisualDescendants().OfType<PlatinumBevel>().Single().Background) == Color(BrushFor(slider, "UiAccentFace")), "滑块旋钮引用当前经典皮肤表面资源");
 Check(input.Text == "中文路径与参数 / Input" && combo.SelectedIndex == 0 && checkbox.IsChecked == true, "Skin switching retains control state");
 var face = button.GetVisualDescendants().OfType<PlatinumBevel>().Single();
 button.Focus(NavigationMethod.Tab); Pump(); Check(face.IsFocusedFace, "Keyboard focus has an immediate visible bezel");
@@ -78,7 +83,7 @@ var buttonPoint = button.TranslatePoint(new Point(20, 12), window)!.Value;
 window.MouseDown(buttonPoint, MouseButton.Left); Pump(); Check(face.IsPressed, "Pointer press uses an inset bevel");
 window.MouseUp(buttonPoint, MouseButton.Left); Pump(); Check(!face.IsPressed, "Releasing the pointer restores the raised bevel");
 var clicks = 0; button.Click += (_, _) => clicks++; Click(button); Check(clicks == 1, "The skinned button keeps its action");
-button.IsEnabled = false; Pump(); Check(!button.IsEnabled && button.Opacity < 1, "Disabled controls remain disabled and visibly distinct"); button.IsEnabled = true;
+button.IsEnabled = false; Pump(); Check(!button.IsEnabled && (button.Opacity < 1 || Color(button.Foreground) == Color(BrushFor(button, "UiTextSecondary"))), "禁用控件保留禁用行为和可辨识文字"); button.IsEnabled = true;
 combo.IsDropDownOpen = true; Pump(); Check(combo.IsDropDownOpen, "The skinned combo box opens its real popup"); combo.SelectedIndex = 1; combo.IsDropDownOpen = false;
 tabs.SelectedIndex = 1; Pump(); Check(tabs.SelectedIndex == 1, "The skinned tabs keep selection behavior"); tabs.SelectedIndex = 0;
 Capture(window, "components-macos9");
@@ -87,7 +92,7 @@ Check(options.Content is PlatinumWindowFrame && options.ActualThemeVariant == Sk
 Capture(options, "options-macos9");
 Application.Current!.RequestedThemeVariant = ThemeVariant.Dark; Pump();
 Check(ReferenceEquals(window.Content, original) && window.SystemDecorations == originalDecorations, "Switching back restores the original content and native chrome");
-Check(options.Content is not PlatinumWindowFrame && Color(window.Background) == "#ff202020", "Switching also restores an already open child window");
+Check(options.Content is not PlatinumWindowFrame && Color(window.Background) == Color(BrushFor(window, "UiCanvas")), "Switching also restores an already open child window");
 Check(input.Text == "中文路径与参数 / Input" && combo.SelectedIndex == 1, "Content reparenting preserves the edited values");
 Capture(window, "components-dark"); options.Close(); window.Close();
 
@@ -95,15 +100,23 @@ var state = new Storage(Path.Combine(root, "isolated-state")); state.SaveSetting
 var main = new MainWindow(state); main.Show(); Pump();
 Check(main.Content is PlatinumWindowFrame && main.ActualThemeVariant == Skin.MacOS9, "A saved Mac OS 9 skin is restored at startup");
 Capture(main, "main-macos9");
-var item = main.GetVisualDescendants().OfType<Menu>().First().Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("显示"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("皮肤"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("深色")));
+IEnumerable<MenuItem> MenuItems(ItemsControl menu)
+{
+    foreach (var entry in menu.Items.OfType<MenuItem>())
+    {
+        yield return entry;
+        foreach (var child in MenuItems(entry)) yield return child;
+    }
+}
+var item = MenuItems(main.GetVisualDescendants().OfType<Menu>().First()).Single(i => Equals(i.Header, Localization.Text("深色")));
 item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Pump(); Check(state.LoadSettings().Theme == "Dark", "The skin menu saves the selected theme");
-main.GetVisualDescendants().OfType<Menu>().First().Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("显示"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, Localization.Text("皮肤"))).Items.OfType<MenuItem>().Single(i => Equals(i.Header, "Mac OS 9 · Platinum")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Pump();
+MenuItems(main.GetVisualDescendants().OfType<Menu>().First()).Single(i => Equals(i.Header, "Mac OS 9 · Platinum")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Pump();
 Check(state.LoadSettings().Theme == "MacOS9" && main.Content is PlatinumWindowFrame, "The Mac OS 9 menu action changes and persists the skin");
 var frame = (PlatinumWindowFrame)main.Content!;
 var zoom = frame.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "PlatinumZoom"); Click(zoom); Check(main.WindowState == WindowState.Maximized, "The custom zoom button maximizes the window"); Click(zoom); Check(main.WindowState == WindowState.Normal, "The custom zoom button restores the window");
 main.Title = "Platinum Title Updated"; Pump(); Check(frame.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == main.Title), "The custom caption follows window title changes");
 main.CanMaximize = false; main.CanMinimize = false; Pump();
-Check(!zoom.IsEnabled && !frame.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "PlatinumMinimize").IsEnabled, "Caption buttons respect window capabilities");
+Check(!zoom.IsEnabled && !frame.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "PlatinumShade").IsVisible, "标题栏按钮遵循窗口缩放与收起能力");
 main.CanMaximize = true; main.CanMinimize = true; main.CanResize = false; Pump();
 Check(!zoom.IsEnabled, "A fixed-size window cannot be zoomed by its custom caption");
 main.CanResize = true;
