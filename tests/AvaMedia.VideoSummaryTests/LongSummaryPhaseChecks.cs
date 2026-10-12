@@ -8,6 +8,7 @@ internal static class LongSummaryPhaseChecks
         if (phase == 2) return LongSummaryCheckpointChecks.RunAsync();
         if (phase == 3) return SyntheticLongVideoFixture.CheckAsync();
         if (phase == 4) return LongSummaryMapChecks.RunAsync();
+        if (phase == 5) return LongSummaryReduceChecks.RunAsync();
         if (phase != 1) throw new ArgumentException("Unknown phase");
         var random = new Random(7241); var packer = new PromptPacker();
         foreach (var budget in new[] { TokenBudget.Local8K, TokenBudget.For(new("32K", 32768)), TokenBudget.For(new("128K", 131072)) })
