@@ -83,6 +83,7 @@ public sealed partial class ConsoleView
         _createColumns.Children.Add(_filesCard);
         Grid.SetColumn(_toolsCard, 1); _createColumns.Children.Add(_toolsCard);
         Grid.SetColumn(_outputCard, 2); _createColumns.Children.Add(_outputCard);
+        _createColumns.Children.Add(BuildSubtitleSubmit());
         PlaceForm();
         return _createColumns;
     }
@@ -137,6 +138,7 @@ public sealed partial class ConsoleView
     private void LayoutCreate()
     {
         if (_createColumns is null || _createPage is null || _desktopBar is null) return;
+        _subtitleFormHost.Content = null; _subtitleStartHost.Content = null; _subtitleSubmitHost.Content = null; _formStartHost.Content = null;
         _mobileTop.IsVisible = _mobile; _desktopCardBar.IsVisible = !_mobile; _mobileBarBorder.IsVisible = _mobile;
         _createPage.Margin = _mobile ? new(16, 0, 16, 18) : new(18, 2, 18, 18);
         _startHostDesktop.Content = null; _submitHostDesktop.Content = null; _submitHostMobile.Content = null;
@@ -164,6 +166,21 @@ public sealed partial class ConsoleView
         _recursiveHostDesktop.Content = null; _recursiveHostMobile.Content = null; _formStartHost.Content = null;
         if (_mobile) { _start.Content = null; _formStartHost.Content = _start; _recursive.Content = null; _recursiveHostMobile.Content = _recursive; }
         else { _start.Content = L.T("立即执行"); _startHostDesktop.Content = _start; _recursive.Content = L.T("包括子文件夹"); _recursiveHostDesktop.Content = _recursive; }
+        if (_subtitleSubmit is not null) _subtitleSubmit.IsVisible = SubtitleSubmission;
+        _formHostColumn.Content = null; _formHostEditor.Content = null;
+        if (SubtitleSubmission)
+        {
+            _filesCard.IsVisible = _toolsCard.IsVisible = _outputCard.IsVisible = false;
+            _desktopCardBar.IsVisible = false;
+            _startHostDesktop.Content = null; _submitHostDesktop.Content = null;
+            _start.Content = null; _subtitleStartHost.Content = _start; _subtitleSubmitHost.Content = _submit;
+            _submit.HorizontalAlignment = HorizontalAlignment.Stretch;
+            _subtitleFormHost.Content = _formScroll;
+        }
+        else if (_workspaceTabs.SelectedIndex == 1) _formHostEditor.Content = _formScroll;
+        else _formHostColumn.Content = _formScroll;
+        _selectedGroup.IsVisible = _inputs.Count > 0 && _workspaceTabs.SelectedIndex != 1 && !SubtitleSubmission;
+        RenderSubtitleInputs();
     }
     private readonly ContentControl _formStartHost = new(), _recursiveHostMobile = new(), _recursiveHostDesktop = new();
     private Border _mobileExtras = new() { IsVisible = false };
@@ -198,6 +215,7 @@ public sealed partial class ConsoleView
     /// <summary>The option form lives in column 3, or in the editor side panel while editing.</summary>
     private void PlaceForm()
     {
+        _subtitleFormHost.Content = null;
         _formHostColumn.Content = null; _formHostEditor.Content = null;
         if (_workspaceTabs.SelectedIndex == 1) _formHostEditor.Content = _formScroll; else _formHostColumn.Content = _formScroll;
         // The editor shows files as chips; the side panel keeps only the tool options.

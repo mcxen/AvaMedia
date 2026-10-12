@@ -30,6 +30,7 @@ public sealed partial class ConsoleView
         _optionReaders.Clear(); _optionControls.Clear(); _optionFields.Clear(); _toolOptions.Children.Clear();
         var form = feature?["form"];
         if (form is null) { UpdateRegion(); return; }
+        if (_activeFeature == "auto-subtitle") { BuildSubtitleOptions(form); return; }
         if (form.Text("hint") is { Length: > 0 } hint)
         {
             var hintText = Label(hint); hintText.FontSize = 12.5;

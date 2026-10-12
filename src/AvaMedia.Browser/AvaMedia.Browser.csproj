@@ -19,4 +19,15 @@
     <ProjectReference Include="../AvaMedia.MediaUi/AvaMedia.MediaUi.csproj" />
     <ProjectReference Include="../AvaMedia.FileUi/AvaMedia.FileUi.csproj" />
   </ItemGroup>
+  <!-- Consume the DTO declarations from the shared source without linking desktop-only
+       inference, process and disk services into WebAssembly. No second contract is maintained. -->
+  <Target Name="GenerateAiProgressDtos" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_AiContract>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../AvaMedia.Core/AiProgressContract.cs'))</_AiContract>
+      <_AiDtos>$([System.Text.RegularExpressions.Regex]::Match('$(_AiContract)', '(?s)public sealed record.*?(?=public static class)').Value)</_AiDtos>
+    </PropertyGroup>
+    <Error Condition="'$(_AiDtos)' == ''" Text="Shared AI progress DTO declarations were not found." />
+    <WriteLinesToFile File="$(IntermediateOutputPath)AiProgressDtos.g.cs" Lines="#nullable enable&#xA;namespace AvaMedia.Core%3B&#xA;$(_AiDtos)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup><Compile Include="$(IntermediateOutputPath)AiProgressDtos.g.cs" /></ItemGroup>
+  </Target>
 </Project>

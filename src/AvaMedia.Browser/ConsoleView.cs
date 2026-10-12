@@ -184,10 +184,11 @@ public sealed partial class ConsoleView : UserControl
         if (Bounds.Width <= 0) return;
         var mobile = Bounds.Width < 760;
         var changed = mobile != _mobile; _mobile = mobile;
-        _tabBar.IsVisible = mobile; _fab.IsVisible = mobile && _tabs.SelectedIndex == 1 && !_taskDetailOpen;
+        var subtitleDetail = mobile && _tabs.SelectedIndex == 1 && _subtitlePage is not null;
+        _tabBar.IsVisible = mobile && !subtitleDetail; _fab.IsVisible = mobile && _tabs.SelectedIndex == 1 && !_taskDetailOpen;
         ((Control)_navigation.Parent!).IsVisible = !mobile; _desktopHeaderTitle.IsVisible = !mobile;
         _header.Margin = mobile ? new(16, 12, 16, 4) : new(18, 10, 18, 10);
-        _header.IsVisible = !(mobile && _tabs.SelectedIndex == 0);
+        _header.IsVisible = !(mobile && _tabs.SelectedIndex == 0) && !subtitleDetail;
         if (changed) { SetConnection(_runtime is null ? null : Address()); LayoutCreate(); LayoutTasks(); LayoutEditor(); }
     }
     private static string Address() { var origin = BrowserHost.Origin(); return origin.Replace("http://", "").Replace("https://", ""); }
@@ -253,7 +254,7 @@ public sealed partial class ConsoleView : UserControl
             if (_selected.Children.Count > 0) _selected.Children.Add(Ui.Hairline(36));
             _selected.Children.Add(row);
         }
-        _selectedGroup.IsVisible = _inputs.Count > 0 && _workspaceTabs.SelectedIndex != 1;
+        _selectedGroup.IsVisible = _inputs.Count > 0 && _workspaceTabs.SelectedIndex != 1 && !SubtitleSubmission;
         var previous = _previewInput.SelectedItem;
         var previewItems = _inputs.Values.Where(item => !item.IsFolder).ToArray();
         _updatingPreviewInputs = true;
@@ -265,7 +266,7 @@ public sealed partial class ConsoleView : UserControl
         finally { _updatingPreviewInputs = false; }
         if (!Equals(previous, _previewInput.SelectedItem)) ClearPreview();
         if (_activeFeature.Length > 0) BuildToolOptions();
-        RenderFileChips(); RenderMerge(); UpdateSummary();
+        RenderFileChips(); RenderMerge(); RenderSubtitleInputs(); UpdateSummary();
     }
     private void UpdateFeature()
     {
@@ -277,7 +278,7 @@ public sealed partial class ConsoleView : UserControl
         BuildToolOptions();
         if (_submit is not null) _submit.IsVisible = id is not ("player" or "info");
         _start.IsVisible = id is not ("player" or "info");
-        RenderToolSelection(); UpdateEditorChrome(); UpdateSummary();
+        RenderToolSelection(); UpdateEditorChrome(); UpdateSummary(); LayoutCreate();
     }
     private JsonObject Submission()
     {
@@ -332,6 +333,8 @@ public sealed partial class ConsoleView : UserControl
             var page = await RemoteApi.Call("list_tasks", new() { ["limit"] = 1 });
             _taskOffset = Math.Max(0, ((page["total"]?.GetValue<int>() ?? 1) - 1) / TaskPageSize * TaskPageSize);
             await RefreshTasks();
+            if (result["tasks"].Items().FirstOrDefault(task => task.Text("featureId") == "auto-subtitle") is { } subtitle)
+                await OpenSubtitle(subtitle.Text("id"));
         }
         finally { _submitting = false; UpdatePending(); }
     }
@@ -339,6 +342,7 @@ public sealed partial class ConsoleView : UserControl
     {
         _form.IsEnabled = _pending is null && _connected && !_submitting; _files.IsEnabled = _pending is null && !_submitting;
         _toolTree.IsEnabled = _pending is null && !_submitting;
+        if (_subtitleSubmit is not null) _subtitleSubmit.IsEnabled = _pending is null && !_submitting && _connected;
         _recover.IsEnabled = _discard.IsEnabled = !_submitting;
         _banner.IsVisible = _pending is not null;
         if (_pending is not null)
