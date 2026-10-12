@@ -261,6 +261,7 @@ public sealed partial class AppSettings
         ModelWarmupCpuPercent=source.ModelWarmupCpuPercent;ModelWarmupGpuPercent=source.ModelWarmupGpuPercent;
         ModelWarmupRampSeconds=source.ModelWarmupRampSeconds;
         EnableNsfwContent=source.EnableNsfwContent;
+        ExclusiveToolUnlocked=source.ExclusiveToolUnlocked;
         MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;

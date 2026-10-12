@@ -30,6 +30,8 @@ public static partial class BatchRename
         ValidateStem(keyword);
     }
 
+    public static void ValidateRenameFileName(string name) => ValidateStem(name);
+
     private static void ValidateStem(string stem)
     {
         if (stem.Length > 220 || !OperatingSystem.IsWindows() && System.Text.Encoding.UTF8.GetByteCount(stem) > 255)

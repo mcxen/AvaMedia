@@ -331,6 +331,23 @@
                 </StackPanel>
                 <Border x:Name="McpSection" Classes="settingSection" />
                 <StackPanel Spacing="8">
+                  <TextBlock Classes="settingsHeading" Text="专属工具激活" />
+                  <Border Classes="settingSection">
+                    <StackPanel Spacing="10">
+                      <Grid x:Name="ExclusiveActivationPanel" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBox x:Name="ExclusivePasswordInput" PasswordChar="●" Watermark="请输入专属激活密码"
+                                 local:Localization.IsUserText="True" AutomationProperties.Name="专属激活密码" KeyDown="ExclusivePasswordKeyDown" />
+                        <Button Grid.Column="1" Content="激活" Classes="field-action" Click="ActivateExclusiveToolClick" />
+                      </Grid>
+                      <TextBlock x:Name="ExclusiveActivationStatus" TextWrapping="Wrap" IsVisible="False" />
+                      <StackPanel x:Name="ExclusiveToolsPanel" Spacing="8" IsVisible="False">
+                        <Button Content="打开专属重命名工具" Classes="field-action" Click="OpenExclusiveRenamerClick" />
+                        <TextBlock Classes="caption" Text="拖入文件夹，结合 VL 画面分析与命名规则生成预览，再批量重命名。" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+                <StackPanel Spacing="8">
                   <TextBlock Classes="settingsHeading" Text="运行信息" />
                   <TextBox x:Name="RuntimeInfo" Classes="log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="144" />
                 </StackPanel>
