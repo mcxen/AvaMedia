@@ -46,8 +46,8 @@ public sealed class OnlineAiClient : IDisposable
         catch (ProviderHttpException error) when (error.StatusCode is 404 or 405) { return null; }
     }
 
-    private sealed class ProviderHttpException(int statusCode, string message) : IOException(message)
-    { public int StatusCode { get; } = statusCode; }
+    public sealed class ProviderHttpException(int statusCode, string message, TimeSpan? retryAfter = null) : IOException(message)
+    { public int StatusCode { get; } = statusCode; public TimeSpan? RetryAfter { get; } = retryAfter; }
 
     internal async Task<JsonDocument> CompleteAsync(object request, CancellationToken ct)
     {
@@ -77,7 +77,7 @@ public sealed class OnlineAiClient : IDisposable
                     400 => "供应商拒绝请求，请检查模型和高级参数。",
                     _ => AppLanguage.IsChinese ? $"供应商请求失败（HTTP {(int)response.StatusCode}）。"
                         : $"Provider request failed (HTTP {(int)response.StatusCode})."
-                });
+                }, response.Headers.RetryAfter?.Delta ?? (response.Headers.RetryAfter?.Date is { } date ? (date > DateTimeOffset.UtcNow ? date - DateTimeOffset.UtcNow : TimeSpan.Zero) : null));
             await using var body = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
             using var buffer = new MemoryStream(); var bytes = new byte[8192]; int count;
             var maximum = method == HttpMethod.Get ? 8 * 1024 * 1024 : 1024 * 1024;
@@ -88,8 +88,8 @@ public sealed class OnlineAiClient : IDisposable
             }
             return JsonDocument.Parse(buffer.GetBuffer().AsMemory(0, (int)buffer.Length));
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new InvalidOperationException("供应商请求超时。"); }
-        catch (HttpRequestException) { throw new InvalidOperationException("无法连接供应商，请检查地址和网络。"); }
+        catch (OperationCanceledException error) when (!ct.IsCancellationRequested) { throw new InvalidOperationException("供应商请求超时。", error); }
+        catch (HttpRequestException error) { throw new InvalidOperationException("无法连接供应商，请检查地址和网络。", error); }
         catch (JsonException) { throw new InvalidDataException("供应商响应格式无效，请使用 Chat Completions 兼容接口。"); }
     }
     public void Dispose() => _client.Dispose();

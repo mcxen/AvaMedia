@@ -10,14 +10,15 @@ public sealed class OnlineSummaryModel : ISummaryToolModel
     private readonly OnlineAiOptions _options;
     private readonly bool _vision;
     private readonly string _model;
+    private readonly bool _boundedOutput;
     public string Backend => "线上 API";
     /// <summary>Model name sent in requests.</summary>
     public string ModelId => _model;
 
     /// <param name="model">Explicit model name; defaults to the provider's vision or text model.</param>
-    public OnlineSummaryModel(OnlineAiOptions options, bool vision = false, string? model = null)
+    public OnlineSummaryModel(OnlineAiOptions options, bool vision = false, string? model = null, bool boundedOutput = false)
     {
-        _options = options.Clone(); _vision = vision;
+        _options = options.Clone(); _vision = vision; _boundedOutput = boundedOutput;
         if (!string.IsNullOrWhiteSpace(model))
         {
             if (vision) _options.VisionModel = model.Trim(); else _options.TextModel = model.Trim();
@@ -32,18 +33,23 @@ public sealed class OnlineSummaryModel : ISummaryToolModel
     public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null,
         int tokens = 1024, JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
     {
-        if (schema is { } shape) prompt += "\nReturn only JSON matching this schema:\n" + shape.GetRawText();
+        if (!_boundedOutput && schema is { } shape) prompt += "\nReturn only JSON matching this schema:\n" + shape.GetRawText();
+        if (_boundedOutput && schema is { } boundedSchema && _options.ResponseFormat != OnlineAiResponseFormat.JsonSchema)
+            system += "\nReturn JSON matching: " + boundedSchema.GetRawText();
         var content = SummaryChatProtocol.Content(prompt, image, images, _vision);
         var inputBytes = Encoding.UTF8.GetByteCount(system) + (long)Encoding.UTF8.GetByteCount(prompt)
             + (images?.Sum(frame => (long)Encoding.UTF8.GetByteCount(frame.Label)) ?? 0);
         var request = ConversationRequest([new { role = "system", content = system.Replace("/no_think", "", StringComparison.Ordinal) },
             new { role = "user", content }], inputBytes, images?.Count ?? (image is null ? 0 : 1));
+        if (_boundedOutput) request[_options.TokenLimit == OnlineAiTokenLimit.MaxTokens ? "max_tokens" : "max_completion_tokens"] = tokens;
+
         if (schema is { } jsonSchema && _options.ResponseFormat != OnlineAiResponseFormat.Prompt)
             request["response_format"] = _options.ResponseFormat == OnlineAiResponseFormat.JsonSchema
                 ? new { type = "json_schema", json_schema = new { name = "video_summary", schema = jsonSchema, strict = true } }
                 : new { type = "json_object" };
         using var json = await _client.CompleteAsync(request, ct).ConfigureAwait(false);
         var (message, truncated) = SummaryChatProtocol.ReadResponse(json.RootElement, "线上 AI 响应格式无效，请使用 Chat Completions 兼容接口。");
+        if (truncated && _boundedOutput) throw new SummaryOutputLimitException("模型输出达到长度限制。");
         if (truncated) throw new InvalidDataException("线上 AI 输出达到长度限制，请选择输出更简洁的模型。");
         var result = SummaryChatProtocol.ReadText(message, "线上 AI 未返回有效内容。");
         return schema is null ? result : SummaryChatProtocol.JsonText(result);
