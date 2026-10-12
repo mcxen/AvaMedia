@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -20,6 +21,7 @@ public sealed partial class ContactSheetWindow
     private readonly TextBlock _startLabel = Label("开始 00:00.000", secondary: true);
     private readonly TextBlock _endLabel = Label("结束 00:00.000", secondary: true);
     private readonly Viewbox _preview = new() { Stretch = Stretch.Uniform };
+    private readonly MediaPreviewSurface _previewSurface = new();
     private readonly Filmstrip _range = new();
     private readonly Button _wholeLink = Ui.Button("使用整个视频", () => { });
     private readonly List<PreviewCell> _cells = [];
@@ -41,7 +43,8 @@ public sealed partial class ContactSheetWindow
         var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
         _previewTitle.TextWrapping = TextWrapping.NoWrap; _previewTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         header.Children.Add(_previewTitle); Grid.SetColumn(_previewSize, 1); header.Children.Add(_previewSize); panel.Children.Add(header);
-        var stage = new Border { Child = _preview, Padding = new(28), Classes = { "sheet-stage" } };
+        _previewSurface.PreviewContent = _preview;
+        var stage = new Border { Child = _previewSurface, Padding = new(28), Classes = { "sheet-stage" } };
         Grid.SetRow(stage, 1); panel.Children.Add(stage);
         _outputDimensions.HorizontalAlignment = HorizontalAlignment.Center;
         Grid.SetRow(_outputDimensions, 2); panel.Children.Add(_outputDimensions);
@@ -136,6 +139,7 @@ public sealed partial class ContactSheetWindow
     private void BuildCells(ContactSheetOptions options, int width, int height, bool loading)
     {
         ClearPreview();
+        _previewSurface.BeginGrid(options.Columns, options.Rows);
         const double gap = 4;
         var cellWidth = (560d - gap * (options.Columns - 1)) / options.Columns;
         var cellHeight = cellWidth * height / width;
@@ -192,6 +196,7 @@ public sealed partial class ContactSheetWindow
                     using var stream = new MemoryStream(data); var bitmap = new Bitmap(stream);
                     cell.Bitmap = bitmap; cell.Content.Children.Clear();
                     cell.Content.Children.Add(new Image { Source = bitmap, Stretch = Stretch.Fill });
+                    _previewSurface.SetFrame(i, data, PreviewFrameKey(entry.Path, seconds, bitmap.PixelSize));
                     cell.Face.CornerRadius = new(0);
                     if (options.Timestamps)
                     {
@@ -320,6 +325,7 @@ public sealed partial class ContactSheetWindow
     }
     private void ClearPreview()
     {
+        _previewSurface.ClearAmbient();
         _preview.Child = null;
         foreach (var cell in _cells) cell.Bitmap?.Dispose(); _cells.Clear();
     }
@@ -333,6 +339,8 @@ public sealed partial class ContactSheetWindow
             _preview.Child = new Image { Source = bitmap, Width = bitmap.Size.Width, Height = bitmap.Size.Height, Stretch = Stretch.Uniform };
             // Keep ownership with the same collection used for incremental frames.
             var content = new Grid(); _cells.Add(new(new Border(), content, new TextBlock()) { Bitmap = bitmap });
+            _previewSurface.BeginGrid(1, 1);
+            if (_previewSurface.AmbientEnabled) _ = ReadSheetAmbient(path);
             _previewTitle.Text = entry.Name; ToolTip.SetTip(_previewTitle, entry.Path);
             Localization.SetIsUserText(_previewTitle, true); _previewMessage.IsVisible = false;
             if (entry.Info is { } info)
@@ -342,6 +350,27 @@ public sealed partial class ContactSheetWindow
             }
         }
         catch (Exception ex) { ShowPreviewError(Localization.Format($"图片预览失败：{ex.Message}")); }
+    }
+
+    private static string PreviewFrameKey(string path, double seconds, PixelSize size)
+        => FormattableString.Invariant($"{path}|{seconds:R}|{size.Width}x{size.Height}");
+
+    private async Task ReadSheetAmbient(string path)
+    {
+        var content = _preview.Child;
+        try
+        {
+            // Generated sheets can be large: read and reduce them on the worker too.
+            var data = await Task.Run(async () =>
+            {
+                if (new FileInfo(path).Length > MediaPreviewColorSampler.MaximumEncodedBytes) return null;
+                return await File.ReadAllBytesAsync(path, _lifetime.Token).ConfigureAwait(false);
+            }, _lifetime.Token);
+            if (data is not null && !_closed && _preview.Child == content)
+                _previewSurface.SetFrame(0, data, PreviewFrameKey(path, 0, new PixelSize(64, 64)));
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) { /* A saved sheet remains usable without ambient decoration. */ }
     }
     private sealed class PreviewCell(Border face, Grid content, TextBlock number)
     {

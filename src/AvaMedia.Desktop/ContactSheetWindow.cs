@@ -194,7 +194,7 @@ public sealed partial class ContactSheetWindow : Window
         Closing += (_, _) =>
         {
             _closed = true; _previewWork?.Cancel(); _filmWork?.Cancel(); _lifetime.Cancel(); _operation?.Cancel();
-            _pulse.Stop(); ClearPreview(); ClearFilm();
+            _pulse.Stop(); ClearPreview(); _previewSurface.Dispose(); ClearFilm();
             foreach (var entry in _entries) { entry.CancelMetadata(); entry.Thumbnail?.Dispose(); }
         };
         foreach (var number in new[] { _columns, _rows, _cellWidth, _cellHeight, _sheets })

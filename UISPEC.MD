@@ -112,6 +112,16 @@
 - 不显示占位或假数据；没有数据时显示简短空状态文字。
 - 不在界面上直接显示快捷键（按钮上的键帽如 [S]/[I]/[O]/Ctrl D、底部快捷键提示行等都不要）；快捷键只写在悬停提示（tooltip）里，快捷键本身照常可用。
 
+### 10.x 媒体预览的投影与氛围光（视频处理工具通用）
+
+参考代码：
+
+- 公共容器：`src/AvaMedia.Desktop/Controls/MediaPreviewSurface.cs`。投影在 Viewbox 外绘制，保持显示像素半径；氛围光半径 72、扩散 12、颜色过渡 400ms。没有真实帧立即隐藏光晕；经典皮肤跳过后台取色。
+- 主题令牌：`src/AvaMedia.Desktop/Styles/MediaPreviewStyles.axaml`。`UiMediaPreviewShadow` 为三层中性投影，`UiMediaPreviewRadius` 为 10；氛围光透明度浅色 0.30、深色 0.18，经典皮肤投影为空并保留 0 / 3px 圆角。
+- 后台取色与缓存：`src/AvaMedia.Desktop/Controls/MediaPreviewColorSampler.cs`。单路后台解码最长边不超过 64px，128 帧有界缓存，以缩略图内容摘要、文件、时间点和预览尺寸区分；取消过期任务，不读取 UI 持有的位图。编码数据超过 2MiB 或源位图超过 400 万像素时跳过氛围光，保留中性投影，避免昂贵解码。
+- 可单元测试的纯计算：`src/AvaMedia.Core/MediaPreviewColors.cs` 的 `Sample` / `AverageBorder`。RGBA 边缘按 alpha 加权，四条外围边分别平均后等权合并；透明边和未完成的格子不参与，内部格子不取色。
+- 多宫格接入：`src/AvaMedia.Desktop/ContactSheetWindow.Preview.cs`，逐帧提交已经取得的缩略图字节，后台颜色完成后独立更新光晕，不等待取色再显示预览帧。
+
 ## 13. 规范内矛盾的处理记录
 
 | 问题 | 处理 |
