@@ -183,5 +183,72 @@
 
 业务界面只选择角色和内容；通用控件的颜色、圆角、高度和内边距在组件资源中定义。既有窗口的专用布局继续按本规范对应章节执行。详见 [组件库说明](src/AvaMedia.Controls/README.md)。
 
+#### 7.9.1 资源、类名与尺寸
+
+所有尺寸为逻辑像素，以下为 macOS 26 现代皮肤参考值；浅色与深色通过主题字典取色，Mac OS 9 / XP 覆盖同名尺寸、圆角与阴影。默认令牌见 [Defaults.axaml](src/AvaMedia.Controls/Themes/Defaults.axaml)，标准控件主题见 [ControlThemes.axaml](src/AvaMedia.Controls/Themes/ControlThemes.axaml)，角色样式见 [Components.axaml](src/AvaMedia.Controls/Themes/Components.axaml)。不整体替换 Themes.Simple。
+
+| 组件 | 主题键 / 类名 / 类型 | 高度与圆角 | 颜色与其他令牌 |
+| --- | --- | --- | --- |
+| 主按钮 | `AcButton`，`Button.ac.primary` | `AcButtonHeight` 28，主窗口 `AcShellButtonHeight` 30，`AcButtonRadius` 14 | `UiAccent` / `UiAccentText`，悬停 `UiPrimaryHover`，按下有反馈 |
+| 次按钮 | `Button.ac.secondary`（默认角色） | 同上，`AcButtonPadding` 12,0 | `UiFill` / `UiText` |
+| 无边框按钮 | `Button.ac.borderless` 或 `.link` | 同上 | `UiTransparent` / `UiAccent` |
+| 危险描边按钮 | `Button.ac.danger` | 同上，1px 描边 | `UiDanger` 文字与描边，`AcDangerFill` 12% 浅红底 |
+| 复选框 | `AcCheckBox`，`CheckBox.ac` | `AcChoiceSize` 16，`AcCheckRadius` 5 | 选中 `UiAccent` / `UiAccentText`，未选 `UiBorder` / `UiSurface`；支持不确定态 |
+| 单选按钮 | `AcRadioButton`，`RadioButton.ac` | 16px 圆形 | 选中系统蓝和白点，未选 `UiBorder` |
+| 开关 | `AcToggleSwitch`，`ToggleSwitch.ac` | `AcSwitchWidth` 32 × `AcSwitchHeight` 19，15px 白色旋钮 | 开启 `UiSuccessFill`，关闭 `UiTrack`；沿用键盘和切换行为 |
+| 下拉框 | `AcComboBox`，`ComboBox.ac` | `UiFieldHeight` 28，`AcFieldRadius` 7 | `UiFill` / `UiText`，弹出层 `UiSurface`；保留编辑、选择和键盘行为 |
+| 数值步进器 | `AcNumericUpDown`，`NumericUpDown.ac` | 28 / 7，`AcFieldPadding` 9,3 | `UiFill` / `UiText`，`UiNumericFont`；保留直接输入及上下步进 |
+| 文本框 | `AcTextBox`，`TextBox.ac` | 最小高 28 / 7；多行可增长 | `UiFill` / `UiText`，水印 `UiTextSecondary`，焦点 `UiAccent` |
+| 滑块 | `AcSlider`，`Slider.ac` | 轨道高 4，旋钮 `AcSliderThumb` 18 | `UiTrack` / `UiAccent`，白色旋钮 `UiSurface`，`AcKnobShadow` |
+| 进度条 | `AcProgressBar`，`ProgressBar.ac` | `AcProgressHeight` 4 / `AcProgressRadius` 2 | 轨道 `UiTrack`，填充 `UiAccent`，`.paused` 为 `UiWarning`，`.failed` 为 `UiDanger` |
+| 阶段指示器 | `StageIndicator`，`Border.ac-stage` | `AcStageHeight` 64 / `AcCardRadius` 12，`AcStageDot` 18 | 完成绿底白勾，当前蓝底白字、1.5px 蓝描边与浅蓝底，等待轨道灰；非当前无边框 |
+| 子步骤行 | `SubStepRow` / `StatusGlyph` | `AcStepIcon` 14；标题 12.5，说明 11.5 | 完成实心绿勾，进行中蓝色弧，等待灰圆，失败红色圈内感叹号；原因显示在本行并有完整提示 |
+| 分段控件 | `SegmentedControl`，`ListBox.ac-segmented` | 外圆角 `AcSegmentRadius` 9，段圆角 `AcSegmentItemRadius` 7，内边距 2 | 底 `UiFill`，选中 `UiSurface` / `UiText`，键盘和单选行为复用 ListBox |
+| 状态胶囊 | `StatusPill`，`Border.ac-status` | `AcStatusHeight` 20 / `AcStatusRadius` 10，`AcStatusPadding` 8,0，字号 11.5 | 运行 `AcRunningFill` / `UiAccent`，完成 `AcSuccessFill` / `UiSuccess`，暂停 `AcWarningFill` / `UiWarning`，失败 `AcDangerFill` / `UiDanger`，等待与取消 `AcWaitingFill` / `UiTextSecondary`；底色均为对应色约 12% |
+| 卡片 | `Card`，`Border.ac-card` | 圆角 12，`AcCardPadding` 16，卡片间距 `AcGap` 12 | `UiSurface`，`AcCardShadow` 极淡投影，无边框；经典皮肤无投影 |
+| 列表行 | `ListRow`，`Border.ac-list-row` / `.text` | 媒体行 `AcListHeight` 56，文字行 `AcTextRowHeight` 36，行间 `AcRowGap` 8 | 无分隔线；缩略图 `AcThumbnailSize` 40 × 40 / `AcThumbRadius` 6；右侧大号计数 `AcCountFont` 20 粗体且右对齐 |
+| 区块标题 | `SectionHeader`，`TextBlock.ac-section` | `AcSectionFont` 13 半粗，下方 8px | `UiText`；可选描述使用 `UiTextSecondary` |
+| 悬停提示 | `AcToolTip`，`ToolTip.ac` | 圆角 7，内边距 8,5 | `AcTooltipFill` / `UiText`，`UiBorder` |
+| 滚动条 | `AcScrollBar`，`ScrollBar.ac` | `AcScrollSize` 10，滑块 `AcScrollThumb` 6 / `AcScrollRadius` 3 | 透明轨道，`AcScrollBrush`，悬停 `UiTextSecondary`；经典皮肤保留箭头与原生样式 |
+| 空状态 | `EmptyState` | 居中状态符号、8px 间距和一行说明；窄处允许换行 | `UiTextSecondary`，无假数据或装饰插图 |
+
+标准控件带 `.ac` 时使用组件主题；宿主将现代窗口的通用控件统一接入。现有专用工具栏、交通灯和媒体控件保留各自角色尺寸。所有图标按钮继续具备 tooltip 与无障碍名称。禁用不透明度 `AcDisabledOpacity` 0.45，键盘焦点清晰可见。
+
+#### 7.9.2 进度与阶段
+
+- 确定和不确定进度均为 4px 条形。不确定条为 1.2s 往返滑块，行内禁止用环形替代条形；百分比放在标题或进度右侧，使用等宽数字，不叠在进度条上。减少动态效果时由宿主停止动画。
+- 步骤横向等宽，均高 64，说明最多两行省略并提供完整 tooltip；步骤间 12px 灰色箭头居中。右上计时、计数使用 `UiNumericFont` 和 `tnum`。
+- 分类进度窗口只在标题显示百分比，阶段卡片下不添加独立进度条。子步骤的进行中弧形仅表示该子步骤活动。
+
+参考代码：[StageIndicator.cs](src/AvaMedia.Controls/StageIndicator.cs)、[Surfaces.cs](src/AvaMedia.Controls/Surfaces.cs)、[SegmentedControl.cs](src/AvaMedia.Controls/SegmentedControl.cs)。
+
+```xml
+<Button Classes="ac secondary" Content="临时停止" />
+<Button Classes="ac danger" Content="结束任务" />
+<ProgressBar Classes="ac" Value="33" Maximum="100" />
+```
+
+```csharp
+var card = new AvaMedia.Controls.Card { Child = content };
+var stage = new AvaMedia.Controls.StageIndicator();
+stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284", "running");
+```
+
+#### 7.9.3 分类媒体内容与列表
+
+- 预览使用 `MediaPreviewSurface` 的统一投影；背景 `AcPreviewFill`、圆角 10，交互预览关闭氛围光。检测标签用白底胶囊、`UiText` 类别和 `UiAccent` 置信度文字，细投影；场景标签为半透明深色底与白字，不使用蓝色置信度块。
+- 真实候选画面等宽排列，缩略图圆角 6、当前项 2px 强调色框。服装主色比例条高 `AcColorBarHeight` 8、圆角 4，说明置于下方；实际采样色允许直接显示。归组理由浅蓝底，左侧强调色半粗标题，正文允许换行。
+- 文件流单行 8 个真实缩略图，已完成右下角 14px 绿色圆形勾，当前 2px 蓝框，等待透明度 `AcQueuedOpacity` 0.4；不补假数据。
+- 分组采用通用列表行：40px 叠放缩略图和右上蓝色 `+N` 胶囊、两行信息、右侧 20px 粗体计数与“个文件”。组数增加后在卡片内滚动，不能挤压末行。只有真实有变化才显示 `+N`。
+- 分类与字幕等任务共用 `JobRowView` 的行模板、状态胶囊和 4px 进度，入口按钮统一为“查看任务”。
+
+实现引用：[分类进度窗口](src/AvaMedia.Desktop/Classification/ClassificationRunWindow.Run.cs)、[文件流](src/AvaMedia.Desktop/Classification/ClassifyWall.cs)、[任务行](src/AvaMedia.Desktop/Controls/JobRowView.axaml)。参考 `/workspace/AvaMedia-sidebar-review/**/demo-*.png` 与对应 HTML，以及 `ai-progress/v2/progress-from-tasklist-desktop.html`；该 HTML 中说明文字依真实数据变化，不能为匹配截图伪造分析结果。
+
+#### 7.9.4 空状态与错误状态（补充 9.3）
+
+- 分组/结果尚无内容：居中状态符号和一句说明，不留空白。
+- 单项失败：本行红色状态符号和真实原因，卡片保持原表面颜色。
+- 任务失败或取消：标题百分比旁显示红色/灰色状态胶囊，隐藏暂停与结束按钮，只保留关闭/查看日志；已完成状态保持结果页操作。
+
 ---
 
