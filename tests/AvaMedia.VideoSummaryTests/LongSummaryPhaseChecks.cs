@@ -5,6 +5,7 @@ internal static class LongSummaryPhaseChecks
     public static void Check(bool ok, string name) { if (!ok) throw new Exception("FAIL: " + name); }
     public static Task RunAsync(int phase)
     {
+        if (phase == 2) return LongSummaryCheckpointChecks.RunAsync();
         if (phase != 1) throw new ArgumentException("Unknown phase");
         var random = new Random(7241); var packer = new PromptPacker();
         foreach (var budget in new[] { TokenBudget.Local8K, TokenBudget.For(new("32K", 32768)), TokenBudget.For(new("128K", 131072)) })

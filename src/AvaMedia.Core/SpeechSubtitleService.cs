@@ -4,7 +4,12 @@ using Whisper.net;
 
 namespace AvaMedia.Core;
 
-public sealed record SubtitleCue(TimeSpan Start, TimeSpan End, string Text);
+public sealed record SubtitleCue(TimeSpan Start, TimeSpan End, string Text)
+{
+    public string Language { get; init; } = "auto";
+    public int Track { get; init; }
+    public double LanguageConfidence { get; init; }
+}
 
 public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstaller? installer = null)
 {
@@ -24,7 +29,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     }
 
     public async Task<IReadOnlyList<SubtitleCue>> TranscribeAsync(Job source, TranscriptionOptions speech, int audioTrack,
-        Action<double> progress, CancellationToken ct, Action<AiActivity>? activityProgress = null, MediaInfo? sourceInfo = null)
+        Action<double> progress, CancellationToken ct, Action<AiActivity>? activityProgress = null, MediaInfo? sourceInfo = null, SummaryCheckpointStore? checkpoints = null)
     {
         var temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-transcript-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
@@ -44,14 +49,14 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         };
         try
         {
-            await ExecuteAsync(task, progress, ct, allowEmpty: true, saveTaskResult: false, sourceInfo: sourceInfo).ConfigureAwait(false);
-            return SubtitleTranscript.Parse(await File.ReadAllTextAsync(task.Output, ct).ConfigureAwait(false));
+            await ExecuteAsync(task, progress, ct, allowEmpty: true, saveTaskResult: false, sourceInfo: sourceInfo, checkpoints: checkpoints).ConfigureAwait(false);
+            return task.SubtitleResult?.Cues ?? SubtitleTranscript.Parse(await File.ReadAllTextAsync(task.Output, ct).ConfigureAwait(false));
         }
         finally { Directory.Delete(temporary, true); }
     }
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false, bool saveTaskResult = true,
-        MediaInfo? sourceInfo = null)
+        MediaInfo? sourceInfo = null, SummaryCheckpointStore? checkpoints = null)
     {
         await using var updates = new AiProgressUpdates();
         var reportProgress = progress;
@@ -156,12 +161,22 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                     // The reporter resets observations on a new node; preserve the resolved backend.
                     if (!string.IsNullOrEmpty(inference.Backend)) activity.Backend(inference.Backend);
                     var result = new List<SubtitleCue>();
+                    var chunkHash = SummaryCheckpointStore.Hash(new { sourceFile.FullName, sourceLength, sourceWriteUtc, speech.Model, speech.Language, options.AudioStreamIndex, options.Start, duration, options.Speed });
                     var wav = Path.Combine(temporary, "speech.wav");
                     var regionWav = Path.Combine(temporary, "speech-region.wav");
                     for (var from = 0d; from < duration; from += ChunkSeconds)
                     {
                         ct.ThrowIfCancellationRequested();
                         tracker!.Begin((int)(from / ChunkSeconds));
+                        var chunkPath = $"asr/track-{options.AudioStreamIndex}/chunk-{(int)(from / ChunkSeconds):0000}.json";
+                        var hash = SummaryCheckpointStore.Hash(new { chunkHash, from });
+                        if (checkpoints is not null && await checkpoints.ReadAsync<SpeechChunk>(chunkPath, hash, ct) is { } cached)
+                        {
+                            result.AddRange(cached.Cues); tracker.Detected(cached.VoiceIntervals);
+                            Transcript(new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true });
+                            Recognized(Math.Min(duration, from + ChunkSeconds)); tracker.Complete(); continue;
+                        }
+                        var firstCue = result.Count;
                         var begin = Math.Max(0, from - 1);
                         var end = Math.Min(duration, from + ChunkSeconds + 1);
                         Detail("提取音轨");
@@ -176,11 +191,13 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         IReadOnlyList<VadSegmentData> speechSegments;
                         await using (var detectionAudio = File.OpenRead(wav))
                             speechSegments = await inference.DetectSpeechAsync(detectionAudio, ct).ConfigureAwait(false);
-                        tracker.Detected(speechSegments.Select(region => new VoiceInterval(options.Start + begin + region.Start.TotalSeconds,
-                            options.Start + begin + region.End.TotalSeconds)));
+                        var intervals = speechSegments.Select(region => new VoiceInterval(options.Start + begin + region.Start.TotalSeconds,
+                            options.Start + begin + region.End.TotalSeconds)).ToArray();
+                        tracker.Detected(intervals);
                         if (speechSegments.Count == 0)
                         {
                             activity.Result($"{MediaTime.Format(begin)} – {MediaTime.Format(end)} · 未检测到语音", result.Count);
+                            if (checkpoints is not null) await checkpoints.WriteAsync(chunkPath, hash, new SpeechChunk([], intervals, "auto"), ct);
                             Recognized(Math.Min(duration, from + ChunkSeconds)); tracker.Complete(); continue;
                         }
                         tracker.Stage("识别字幕");
@@ -218,12 +235,18 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                                     start = Math.Max(start, previous.End.TotalSeconds * options.Speed);
                                 }
                                 if (stop <= start) continue;
-                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text));
+                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text) { Language = segment.Language ?? speech.Language, Track = options.AudioStreamIndex });
                                 tracker.Cue();
                                 Transcript(new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true });
                                 activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
                                 Recognized(stop);
                             }
+                        }
+                        if (checkpoints is not null)
+                        {
+                            var chunkCues = result.Skip(firstCue).ToArray();
+                            var language = chunkCues.GroupBy(c => c.Language).OrderByDescending(g => g.Count()).FirstOrDefault()?.Key ?? "auto";
+                            await checkpoints.WriteAsync(chunkPath, hash, new SpeechChunk(chunkCues, intervals, language), ct);
                         }
                         Recognized(Math.Min(duration, from + ChunkSeconds));
                         tracker.Complete();
