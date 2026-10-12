@@ -9,7 +9,7 @@ using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
-public enum MediaOptionsKind { Video, Audio, Image, VideoOnly, InputVideo, InputAudio, Frames, ClipEdit, ClipExport }
+public enum MediaOptionsKind { Video, Audio, Image, VideoOnly, InputVideo, InputAudio, ClipEdit, ClipExport }
 public sealed class OptionsTabHeadersConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -54,8 +54,8 @@ public sealed class OptionsWindow : Window
         // QuickClip switches the outer preset to MP4 when a Copy draft gains processing.
         // Validate the resulting encoding mode, rather than blocking that established transition.
         if(_copyMode==true && (MediaEngine.HasFilters(result) || result.SampleRate>0 || result.AudioChannels>0))result.CopyStreams=false;
-        if(_kind is MediaOptionsKind.Image or MediaOptionsKind.Frames or MediaOptionsKind.VideoOnly or MediaOptionsKind.InputAudio or MediaOptionsKind.InputVideo || _format=="gif")result.CopyStreams=false;
-        if(result.Speed is <.25 or >4 || result.Quality is <1 or >63 || result.Volume<0 || result.FadeIn<0 || result.FadeOut<0 || result.FrameInterval<=0)throw new ArgumentException("参数超出允许范围。");
+        if(_kind is MediaOptionsKind.Image or MediaOptionsKind.VideoOnly or MediaOptionsKind.InputAudio or MediaOptionsKind.InputVideo || _format=="gif")result.CopyStreams=false;
+        if(result.Speed is <.25 or >4 || result.Quality is <1 or >63 || result.Volume<0 || result.FadeIn<0 || result.FadeOut<0)throw new ArgumentException("参数超出允许范围。");
         if(_copyMode==true){var validation=result.Clone();validation.CopyStreams=false;if(validation.VideoCodec=="copy")validation.VideoCodec="自动";if(validation.AudioCodec=="copy")validation.AudioCodec="自动";MediaEngine.ValidateEncodingOptions(validation);}
         else MediaEngine.ValidateEncodingOptions(result);
         return result;
@@ -100,11 +100,11 @@ public sealed class OptionsWindow : Window
         var input=_kind is MediaOptionsKind.InputAudio or MediaOptionsKind.InputVideo or MediaOptionsKind.ClipEdit;
         var outputOnly=_kind==MediaOptionsKind.ClipExport;
         var image=_kind==MediaOptionsKind.Image;
-        var hasAudio=!image && _kind is not (MediaOptionsKind.VideoOnly or MediaOptionsKind.Frames);
+        var hasAudio=!image && _kind != MediaOptionsKind.VideoOnly;
         StackPanel? primaryPage=null;
         if(!audioOnly)
         {
-            var video=Page(image?"图片":_kind==MediaOptionsKind.Frames?"抽帧":"视频");primaryPage=video;
+            var video=Page(image?"图片":"视频");primaryPage=video;
             if(_kind!=MediaOptionsKind.ClipEdit)
             {
                 StackPanel dimensions=video;
@@ -125,25 +125,24 @@ public sealed class OptionsWindow : Window
                 var quality=_draft.ImageQuality??(legacy?(int)Math.Round(_format=="jpg"?100-(Math.Clamp(_draft.Quality/4d,2,12)-2)*99/29d:Math.Clamp(100-_draft.Quality*90d/63,10,100)):_imageQualityDefault??90);
                 Number(video,_format=="jpg"?"JPEG 画质 (1 – 100)":"WebP 画质 (1 – 100)",quality,(o,v)=>o.ImageQuality=legacy && v==quality?null:(int)v,true,1,100);
             }
-            else if(!input && _kind!=MediaOptionsKind.Frames && (image?_format=="avif":VideoFormats.OriginalOutputExtensions.Contains(_format)))
+            else if(!input && (image?_format=="avif":VideoFormats.OriginalOutputExtensions.Contains(_format)))
             {
                 if(image)Number(video,"质量 (值越低质量越高)",_draft.Quality,(o,v)=>o.Quality=(int)v,true,1,63);
                 else if(_copyMode!=true)VideoEncodingFields(video);
             }
-            if(_kind==MediaOptionsKind.Frames)Number(video,"导出帧间隔 (秒)",_draft.FrameInterval,(o,v)=>o.FrameInterval=v,false,.01,86400);
             if(!image && _kind!=MediaOptionsKind.ClipEdit)
             {
-                var encoding=Advanced(video,_kind==MediaOptionsKind.Frames?"视频轨":input?"视频轨与帧率":"编码与视频轨",_draft.VideoStreamIndex!=0 || _draft.VideoCodec is not ("自动" or "copy") || _draft.Fps!=0);
+                var encoding=Advanced(video,input?"视频轨与帧率":"编码与视频轨",_draft.VideoStreamIndex!=0 || _draft.VideoCodec is not ("自动" or "copy") || _draft.Fps!=0);
                 if(!outputOnly)Track(encoding,"视频轨","video",_draft.VideoStreamIndex,(o,v)=>o.VideoStreamIndex=v);
-                if(!input && _kind!=MediaOptionsKind.Frames && _format!="gif" && _copyMode!=true)Choice(encoding,"视频编码器",["copy",..VideoCodecs(_format)],_draft.VideoCodec,(o,v)=>o.VideoCodec=v);
-                if(_kind!=MediaOptionsKind.Frames)Number(encoding,"帧率 (0 = 原始)",_draft.Fps,(o,v)=>o.Fps=v,false,0,240);
+                if(!input && _format!="gif" && _copyMode!=true)Choice(encoding,"视频编码器",["copy",..VideoCodecs(_format)],_draft.VideoCodec,(o,v)=>o.VideoCodec=v);
+                Number(encoding,"帧率 (0 = 原始)",_draft.Fps,(o,v)=>o.Fps=v,false,0,240);
             }
             if(!outputOnly)
             {
                 var processing=_kind==MediaOptionsKind.ClipEdit?video:Advanced(video,"画面处理",(_draft.LosslessRotation??_draft.Rotation)!=0 || _draft.Flip || _draft.Speed!=1 || _draft.FadeIn!=0 || _draft.FadeOut!=0);
                 Choice(processing,"旋转角度",["0","90","180","270"],(_draft.LosslessRotation??_draft.Rotation).ToString(),(o,v)=>
                 {if(o.LosslessRotation is not null){o.LosslessRotation=int.Parse(v);o.Rotation=0;}else o.Rotation=int.Parse(v);});Check(processing,"水平镜像",_draft.Flip,(o,v)=>o.Flip=v);
-                if(!image && _kind is not (MediaOptionsKind.Frames or MediaOptionsKind.ClipEdit)){Number(processing,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);Fades(processing);}
+                if(!image && _kind != MediaOptionsKind.ClipEdit){Number(processing,"速度 (0.25 – 4)",_draft.Speed,(o,v)=>o.Speed=v,false,.25,4);Fades(processing);}
             }
         }
         if(hasAudio && _format!="gif")
@@ -178,7 +177,7 @@ public sealed class OptionsWindow : Window
                 Check(effects,"反向播放所选音频",_draft.ReverseAudio,(o,v)=>o.ReverseAudio=v);
             }
         }
-        if(!audioOnly && !image && _kind!=MediaOptionsKind.Frames && !outputOnly)
+        if(!audioOnly && !image && !outputOnly)
         {
             var subtitle=Page("字幕");
             string[] modes=input?["关闭","烧录到画面"]:["关闭","烧录到画面","保留源字幕轨","附加外部字幕轨"];
@@ -240,7 +239,7 @@ public sealed class OptionsWindow : Window
         if(!input)
         {
             var other=Advanced(primaryPage!,"文件与导出",_draft.CopyStreams || !_draft.KeepMetadata);
-            if(!image && _format!="gif" && _kind is not (MediaOptionsKind.Frames or MediaOptionsKind.VideoOnly) && !_copyMode.HasValue)Check(other,"流复制 (不重新编码)",_draft.CopyStreams,(o,v)=>o.CopyStreams=v);
+            if(!image && _format!="gif" && _kind != MediaOptionsKind.VideoOnly && !_copyMode.HasValue)Check(other,"流复制 (不重新编码)",_draft.CopyStreams,(o,v)=>o.CopyStreams=v);
             Check(other,"保留元数据",_draft.KeepMetadata,(o,v)=>o.KeepMetadata=v);
         }
         if(!audioOnly && !outputOnly && _draft.DelogoWidth>0)

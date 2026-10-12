@@ -16,7 +16,6 @@
 | 视频 / 音频混流、提取音频、提取视频流 | `ConvertWindow` → `MediaEngine` | 保留轨道与时长规则；共享输出名分配优化，不复制各工具的执行链。 |
 | 格式转换、修复 / 重新封装 | `ConversionBatch` → `MediaEngine` | 保留重新编码与封装复制区别；音频格式判断不再每次分配临时数组。 |
 | 视频压缩、视频瘦身 | `VideoCompression`、`VideoSlimming` | 保留两种能力：指定码率 / 体积和采样画质约束搜索并不等价，不能作为冗余删除。 |
-| 导出帧 | `ConvertWindow` → `Operation.Frames` | 保留按间隔连续导帧；与多宫格抽样排版是不同输出。 |
 | 多宫格截图 | `BatchVideoTools` | 预览和正式输出使用同一抽样、绘制、时间戳路径；删除逐格临时 PNG、加字后的再次编码和独立 FFmpeg 拼图进程。 |
 | 字幕、音量 / 降噪 / 人声增强等剪辑附加处理 | `SubtitleOptions`、`MediaFilters`、`SpeechSubtitleService` | 保留字幕时间轴、轨道复制限制与音频处理；不合并转录推理和媒体滤镜的职责。 |
 

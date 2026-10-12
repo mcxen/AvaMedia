@@ -62,7 +62,7 @@ public sealed partial class ConsoleView
     private readonly ScrollViewer _sideScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private Border _stageCard = new(), _sideCard = new();
     private readonly ScrollViewer _editorScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-    private bool HasEditor => _activeFeature is "clip" or "crop" or "delogo" or "join" or "rotate" or "contact-sheet" or "person-clip" or "frames";
+    private bool HasEditor => _activeFeature is "clip" or "crop" or "delogo" or "join" or "rotate" or "contact-sheet" or "person-clip";
 
     private Control BuildEditor()
     {
@@ -287,7 +287,7 @@ public sealed partial class ConsoleView
     private static string ToolIcon(string id) => id switch
     {
         "clip" or "person-clip" => "scissors", "crop" => "crop", "delogo" => "eraser", "join" => "layers",
-        "rotate" => "rotate-cw", "contact-sheet" or "frames" => "image-file", _ => "film"
+        "rotate" => "rotate-cw", "contact-sheet" => "image-file", _ => "film"
     };
     private void UpdateEditorSummary() => UpdateClipSummary();
     private readonly TextBlock _cropSize = Ui.Text("", "secondary", raw: true);

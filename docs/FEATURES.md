@@ -4,7 +4,7 @@
 
 | 类别 | 当前功能 | 说明与限制 |
 | --- | --- | --- |
-| 转换 | 视频／音频／图片转换，合并、混流、流提取、重新封装、媒体信息、导出帧 | 编码与硬件能力取决于所用 FFmpeg；见 [音频配置](AUDIO-OPTIONS.md)、[GPU 转码](GPU-TRANSCODING.md)、[TS](TS-VIDEO.md)、[旧视频格式](LEGACY-VIDEO.md) |
+| 转换 | 视频／音频／图片转换，合并、混流、流提取、重新封装、媒体信息 | 编码与硬件能力取决于所用 FFmpeg；见 [音频配置](AUDIO-OPTIONS.md)、[GPU 转码](GPU-TRANSCODING.md)、[TS](TS-VIDEO.md)、[旧视频格式](LEGACY-VIDEO.md) |
 | 视频压缩与瘦身 | 质量、码率与目标体积压缩；分析画面后瘦身 | 质量模式不保证体积；瘦身不能还原历史原片，见 [视频压缩](VIDEO-COMPRESSION.md)、[视频瘦身](VIDEO-SLIMMING.md) |
 | 视频编辑 | 多片段剪辑、时间区间、裁剪、旋转、镜像、速度、淡入淡出与去水印 | Fast Copy 切点受关键帧限制；去水印使用矩形插值。见 [快速剪辑](QUICK-CLIP.md)、[视频编辑](VIDEO-EDITING.md) |
 | 批量视频 | 共用／逐文件裁剪和旋转，离线人脸方向建议，保留源容器及属性导出 | 人脸不清晰时需确认；画面滤镜需要重新编码。见 [批量裁剪](BATCH-CROP.md)、[批量旋转](BATCH-ROTATE.md)、[原属性导出](SOURCE-VIDEO-EXPORT.md) |

@@ -25,7 +25,6 @@
 | 快速剪辑 | QuickClipWorkspaceWindow、EditorWindow、ClipExportWindow | 批量分割、预览结果、文件勾选/就绪状态与导出页对齐；新多片段流程待浏览器验收 |
 | 保留有人片段 | PersonClipWindow | 分析证据、候选片段复核、选取/排除、导出与部分结果 |
 | 去除水印 | EditorWindow | 客户端去水印模式、模型配置与预览/处理路径核对及验收 |
-| 导出帧 | ConvertWindow | 帧格式、区间、采样和输出列表对应及验收 |
 | 播放器 | PlayerWindow | 网页内播放工作区、媒体/字幕/轨道操作；核对服务器可供浏览器播放的路径 |
 | 视频下载 | DownloadWindow | 链接分析、格式/清晰度/字幕选择、批量条目与下载任务 |
 | 自动字幕 | SpeechToolsWindow、SubtitleReviewWindow | 识别结果校对、时间轴、字幕样式和二次导出 |

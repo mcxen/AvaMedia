@@ -93,7 +93,6 @@ public sealed class MediaFileRouter(bool enableBeta = false) : IMediaFileRouter
                     Add("dvd", "DVD / VOB 转换", "按顺序合并 VOB 并转换视频", source => Extension(source, ".vob"));
                     Add("split", "提取音频", "把视频声音导出为独立音频", Video);
                     Add("extract-video", "提取视频流", "复制视频轨道，移除音频", Video);
-                    Add("frames", "导出视频帧", "按时间间隔保存画面", Video);
                     Add("contact-sheet", "多宫格截图", "按时间采样，拼成多宫格图片", Video);
                     Add("auto-subtitle", subtitleTitle, "识别语音并生成字幕", Speech);
                     Add("video-summary", "视频总结", "本地摘要、内容总结、字幕提取与分析", Video);

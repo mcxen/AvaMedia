@@ -25,7 +25,7 @@ public partial class MediaRouteWindow
     {
         "video-compress" or "video-slim" or "mp4" or "join" or "dvd" or "repair" or "mux" => ("video", "转换与体积"),
         "clip" or "person-clip" or "crop" or "rotate" or "delogo" => ("edit", "剪辑与画面"),
-        "split" or "extract-video" or "frames" or "contact-sheet" => ("extract", "提取与截图"),
+        "split" or "extract-video" or "contact-sheet" => ("extract", "提取与截图"),
         "auto-subtitle" or "video-summary" => ("analysis", "字幕与分析"),
         "media-ai" or "folder-classification" => ("tools", "工具集"),
         "voice-enhance" => ("audio", "音频处理"),

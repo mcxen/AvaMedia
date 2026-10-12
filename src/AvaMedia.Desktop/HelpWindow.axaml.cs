@@ -31,7 +31,6 @@ public partial class HelpWindow : Window
         OtherFeatureList.Children.Add(FeatureCard(Catalog.Find("auto-subtitle"), "把说话内容识别成字幕，保存字幕文件或带字幕的视频。"));
         OtherFeatureList.Children.Add(FeatureCard(Catalog.Find("voice-enhance"), "减弱背景噪声，让说话声更清楚。"));
         OtherFeatureList.Children.Add(FeatureCard(Catalog.Find("delogo"), "用周围像素填补水印选区，无法还原被遮挡的原画面。"));
-        OtherFeatureList.Children.Add(FeatureCard(Catalog.Find("frames"), "按时间间隔，把视频画面保存为图片。"));
         OtherFeatureList.Children.Add(FeatureCard(Catalog.Find("repair"), "更换视频封装，不重新压缩；不能保证修复损坏文件。"));
         OtherFeatureList.Children.Add(FeatureCard("光盘", "把未加密的 VOB 视频转成普通视频，或把光盘数据复制为 ISO。", "disc"));
         OtherFeatureList.Children.Add(FeatureCard("PDF → DOCX / XLSX", "提取 PDF 里的文字，不保留原排版；扫描件需另行识别文字。", "document"));

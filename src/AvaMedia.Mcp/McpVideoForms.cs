@@ -116,7 +116,6 @@ internal static class McpVideoForms
             case "split": Format("m4a", "mp3", "wav", "flac", "opus"); Time(); Track("audioStreamIndex", "音频轨道", "audio"); Number("audioBitrate", "音频码率（kbps）", "输出", 16, 1024); break;
             case "extract-video": Format("mkv", "mp4", "ts"); Track("videoStreamIndex", "视频轨道", "video"); break;
             case "repair": Format("mkv", "mp4", "mov", "ts"); hint = "以流复制重新封装，保留源编码；无法修复已经丢失的画面数据。"; break;
-            case "frames": Time(); Number("frameInterval", "帧间隔（秒）", "采样", .04, 3600, .1); Number("width", "图片宽度（0 原尺寸）", "输出", 0, 16384); Format("png", "jpg"); break;
             case "contact-sheet":
                 Number("contactSheet.columns", "列数", "网格", 1, 10); Number("contactSheet.rows", "行数", "网格", 1, 10);
                 Number("contactSheet.cellWidth", "单格长边上限", "网格", 64, 1920); Number("contactSheet.cellHeight", "单格短边上限", "网格", 64, 1080);

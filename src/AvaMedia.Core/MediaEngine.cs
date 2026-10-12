@@ -191,14 +191,14 @@ public sealed class MediaEngine : IMediaEngine
         if(feature.Operation is not (Operation.Download or Operation.IsoCopy)) foreach(var path in job.Inputs) if(!File.Exists(path)) throw new FileNotFoundException("源文件不存在",path);
         if(string.IsNullOrWhiteSpace(job.Output)) throw new ArgumentException("输出路径不能为空。");
         if(feature.Operation is not (Operation.Download or Operation.IsoCopy) && job.Inputs.Any(p=>string.Equals(Path.GetFullPath(p),Path.GetFullPath(job.Output),OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal))) throw new ArgumentException("输出不能覆盖源文件。");
-        if(!double.IsFinite(o.Start) || !double.IsFinite(o.End) || !double.IsFinite(o.Speed) || !double.IsFinite(o.Volume) || !double.IsFinite(o.Fps) || !double.IsFinite(o.FadeIn) || !double.IsFinite(o.FadeOut) || !double.IsFinite(o.FrameInterval))throw new ArgumentException("参数必须是有限数值。");
+        if(!double.IsFinite(o.Start) || !double.IsFinite(o.End) || !double.IsFinite(o.Speed) || !double.IsFinite(o.Volume) || !double.IsFinite(o.Fps) || !double.IsFinite(o.FadeIn) || !double.IsFinite(o.FadeOut))throw new ArgumentException("参数必须是有限数值。");
         if(o.Start<0 || o.End<0 || (o.End>0 && o.End<=o.Start)) throw new ArgumentException("结束时间必须晚于开始时间。");
         if(o.Speed is <0.25 or >4) throw new ArgumentException("速度必须在 0.25 到 4 倍之间。");
         if(o.CropWidth<0 || o.CropHeight<0 || o.CropX<0 || o.CropY<0 || o.Width<0 || o.Height<0 || o.DelogoX<0 || o.DelogoY<0 || o.DelogoWidth<0 || o.DelogoHeight<0) throw new ArgumentException("尺寸及坐标不能小于零。");
         if((o.CropWidth>0)!=(o.CropHeight>0)) throw new ArgumentException("裁剪宽度和高度必须同时设置。");
         if((o.DelogoWidth>0)!=(o.DelogoHeight>0)) throw new ArgumentException("水印区域宽度和高度必须同时设置。");
         DelogoFilter.Validate(o);
-        if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0 || o.FrameInterval<=0) throw new ArgumentException("参数超出允许范围。");
+        if(o.FadeIn<0 || o.FadeOut<0 || o.Volume<0 || o.AudioBitrate<16 || o.Fps<0) throw new ArgumentException("参数超出允许范围。");
         if(feature.Operation==Operation.Download){if(job.Inputs.Length!=1)throw new ArgumentException("每个下载任务须包含一个视频链接。");_=DownloadLinks.Normalize(job.Inputs[0]);(o.Download??new()).Validate();}
         if(feature.Operation==Operation.IsoCopy && (job.Inputs.Length!=1 || string.IsNullOrWhiteSpace(job.Inputs[0])))throw new ArgumentException("光盘复制任务须包含一个设备路径。");
         if(feature.Operation is Operation.PdfAge or Operation.PdfCompress || PdfTools.Supports(feature.Operation) && o.Pdf is not null)PdfTools.Validate(job);
@@ -270,7 +270,7 @@ public sealed class MediaEngine : IMediaEngine
             if(feature.Operation==Operation.Join && IsAudio(options.Format) && !infos[index].HasAudio && !edit.Mute && !options.Mute || feature.Operation==Operation.AudioMix && !infos[index].HasAudio)throw new ArgumentException("音频合并或混音输入必须包含音轨。");
             lengths.Add(MediaFilters.Duration(infos[index],edit));
         }
-        if(feature.Operation is Operation.Frames or Operation.SplitVideo && !infos[0].HasVideo)throw new ArgumentException("此文件不包含视频画面。");
+        if(feature.Operation==Operation.SplitVideo && !infos[0].HasVideo)throw new ArgumentException("此文件不包含视频画面。");
         if(feature.Operation==Operation.Mux && (!infos[0].HasVideo || !infos[1].HasAudio))throw new ArgumentException("第一个文件需包含视频，第二个文件需包含音频。");
         var fullDuration=feature.Operation switch{Operation.Join=>lengths.Sum(),Operation.AudioMix=>lengths.Max(),Operation.Mux when !options.Mute && job.InputOptions?.ElementAtOrDefault(1)?.Mute!=true=>lengths.Min(),_=>lengths[0]};
         if(!double.IsFinite(fullDuration))throw new ArgumentException("合并与混流输入须有有效媒体时长。");
@@ -661,10 +661,9 @@ public sealed class MediaEngine : IMediaEngine
                 else a.AddRange(["-map",map]);
             }
             else a.Add("-vn");
-            if(!o.Mute && !IsImage(o.Format) && o.Format!="gif" && f.Operation!=Operation.Frames)a.AddRange(["-map",o.KeepAllAudioStreams?"0:a?":$"0:a:{o.AudioStreamIndex}?"]);
+            if(!o.Mute && !IsImage(o.Format) && o.Format!="gif")a.AddRange(["-map",o.KeepAllAudioStreams?"0:a?":$"0:a:{o.AudioStreamIndex}?"]);
         }
         if(o.CopyStreams && f.Id=="clip")a.AddRange(["-avoid_negative_ts","make_zero"]);
-        if(f.Operation==Operation.Frames) {videoFilters.Add("fps=1/"+Number(o.FrameInterval));Directory.CreateDirectory(job.Output);}
         if(o.Format=="ico"){int w=o.Width>0?o.Width:o.Height>0?o.Height:256,h=o.Height>0?o.Height:w;videoFilters.Add($"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2");}
         if(o.Format=="gif") {if(o.Fps>0)videoFilters.Add("fps="+Number(o.Fps));videoFilters.Add("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse");}
         int complex=a.IndexOf("-filter_complex");
@@ -676,12 +675,12 @@ public sealed class MediaEngine : IMediaEngine
         }
         if(videoFilters.Count>0 && !IsAudio(o.Format))Filters(videoFilters,"[vout]","[vedited]","-vf");
         if(audioFilters.Count>0 && !o.Mute && infos.Any(i=>i.HasAudio) && !IsImage(o.Format) && o.Format!="gif" && f.Operation!=Operation.SplitVideo)Filters(audioFilters,"[aout]","[aedited]","-af");
-        if(o.Mute || IsImage(o.Format) || o.Format=="gif" || f.Operation==Operation.Frames)a.Add("-an");
+        if(o.Mute || IsImage(o.Format) || o.Format=="gif")a.Add("-an");
         if(!o.KeepMetadata)a.AddRange(["-map_metadata","-1"]);
         if(o.CopyStreams)a.AddRange(["-c","copy"]);
-        else if(f.Operation==Operation.Frames || IsImage(o.Format))
+        else if(IsImage(o.Format))
         {
-            if(f.Operation!=Operation.Frames)a.AddRange(["-frames:v","1"]);
+            a.AddRange(["-frames:v","1"]);
             if(o.Format=="jpg")a.AddRange(["-q:v",Number(o.ImageQuality is {} jq?2+(100-jq)*29/99d:Math.Clamp(o.Quality/4d,2,12))]);
             if(o.Format=="webp")
             {
@@ -721,7 +720,7 @@ public sealed class MediaEngine : IMediaEngine
         if(o.Threads>0 && !o.CopyStreams)a.AddRange(["-threads",o.Threads.ToString()]);
         SubtitleOptions.Map(a,o,job.Inputs.Length);
         VideoFormats.AppendMuxerArguments(a,o.Format);
-        a.Add(f.Operation==Operation.Frames?Path.Combine(job.Output,"frame-%06d.png"):job.Output);return a;
+        a.Add(job.Output);return a;
     }
     public static string UniqueOutput(string folder,string name,string format,IEnumerable<string>? reserved=null,bool directory=false)
     {

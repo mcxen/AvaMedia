@@ -70,15 +70,15 @@ public sealed class ConvertWindow : Window
                     _entries.Add(new(path));
             },RoutingStrategies.Bubble,handledEventsToo:true);
         }
-        var panel=new Grid{RowDefinitions=new(feature.Operation==Operation.Frames?"Auto,Auto,Auto,*,Auto,Auto":"Auto,Auto,*,Auto,Auto"),Margin=new(12),RowSpacing=6};
-        var optionRow=feature.Operation==Operation.Frames?2:1;
+        var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto"),Margin=new(12),RowSpacing=6};
+        const int optionRow=1;
         var sourceOutput=feature.Id is "crop" or "rotate";
         var initialFormat=sourceOutput?SourceVideoExport.Selection(_options):_options.Format;
         var top=new WrapPanel{Orientation=Orientation.Horizontal,IsVisible=feature.Operation!=Operation.Unzip};
         var formatChoices=GetFormats(feature).Append(_options.Format).Distinct().ToArray();
         var formats=Ui.ComponentCombo(formatChoices,initialFormat);formats.Width=double.NaN;formats.MinWidth=sourceOutput?180:110;formats.MaxWidth=280;
         if(formatChoices.Length>1){top.Children.Add(Ui.ComponentText("输出格式"));top.Children.Add(formats);}
-        var kind=feature.Operation==Operation.Frames?MediaOptionsKind.Frames:feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
+        var kind=feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
         var media=feature.Operation!=Operation.Info && (feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id is "repair" or "crop" or "rotate");
         var list=new ListBox{ItemsSource=_entries,SelectionMode=visualImages?SelectionMode.Single:SelectionMode.Multiple,Classes={"ac-group"}};
         var setting=new Button{ Classes = { "ac" },Content="输出配置…",IsVisible=media};setting.Click+=async(_,_)=>
@@ -176,38 +176,6 @@ public sealed class ConvertWindow : Window
             Opened+=(_,_)=>{if(_entries.Count>0)list.SelectedIndex=0;};Closed+=(_,_)=>_preview.Dispose();
         }
         Grid.SetRow(inputArea,optionRow+1);panel.Children.Add(inputArea);
-        if(feature.Operation==Operation.Frames)
-        {
-            var durations=new Dictionary<string,double>(VideoFolderScanner.PathComparer);var expected=Ui.ComponentText("","caption");var generation=0;
-            void CountFrames()
-            {
-                if(durations.Count!=_entries.Count){expected.Text="";return;}
-                var selected=_entries.Where(entry=>entry.Include).ToArray();double frames=0;
-                foreach(var entry in selected)
-                {
-                    var options=entry.Options??_options;var end=options.End>0?Math.Min(options.End,durations[entry.Path]):durations[entry.Path];
-                    frames+=Math.Max(0,Math.Ceiling((end-options.Start)/options.FrameInterval));
-                }
-                expected.Text=selected.Length>0?Localization.Format($"预计 {frames} 帧"):"";
-            }
-            void WatchFrames(ConversionEntry entry)=>entry.PropertyChanged+=(_,change)=>{if(change.PropertyName is nameof(ConversionEntry.Include) or nameof(ConversionEntry.Summary))CountFrames();};
-            foreach(var entry in _entries)WatchFrames(entry);
-            _entries.CollectionChanged+=(_,change)=>{foreach(var entry in change.NewItems?.OfType<ConversionEntry>()??[])WatchFrames(entry);};
-            async Task ReadDurations()
-            {
-                var revision=++generation;
-                try{foreach(var entry in _entries.ToArray()){if(!durations.ContainsKey(entry.Path)){var info=await engine.Probe(entry.Path,_lifetime.Token);if(revision!=generation)return;durations[entry.Path]=info.Duration;}}if(revision==generation)CountFrames();}
-                catch(Exception){if(revision==generation)expected.Text="";}
-            }
-            _entries.CollectionChanged+=(_,_)=>{durations.Clear();_=ReadDurations();};Opened+=(_,_)=>_=ReadDurations();
-
-            var frameInterval=new NumericUpDown { Classes = { "ac" }, Minimum=.1m,Maximum=86400,Value=(decimal)_options.FrameInterval,Text=MediaEngine.Number(_options.FrameInterval),Increment=1,Width=88 };
-            var intervalRow=new Grid{ColumnDefinitions=new("Auto,*"),ColumnSpacing=8,Margin=new(0,0,0,4)};
-            intervalRow.Children.Add(Ui.ComponentText("每隔几秒导出一帧"));var intervalAdjust=Ui.ComponentAdjust(frameInterval,60);Grid.SetColumn(intervalAdjust,1);intervalRow.Children.Add(intervalAdjust);
-            Grid.SetRow(intervalRow,1);panel.Children.Add(intervalRow);
-            frameInterval.ValueChanged+=(_,_)=>{if(frameInterval.Value is {} value){_options.FrameInterval=(double)value;foreach(var entry in _entries.Where(entry=>entry.Options is not null)){var options=entry.Options!.Clone();options.FrameInterval=(double)value;entry.SetOptions(options);}CountFrames();}};
-            Grid.SetColumn(expected,2);intervalRow.ColumnDefinitions=new("Auto,*,Auto");intervalRow.Children.Add(expected);
-        }
         if(feature.Id=="mp4")
         {
             var preset=Ui.ComponentCombo(["保持原尺寸","通用 MP4 · 1080p","手机视频 · 720p","无损转封装","自定义设置"],_options.CopyStreams?"无损转封装":_options.Height==1080?"通用 MP4 · 1080p":_options.Height==720?"手机视频 · 720p":_options.Width==0&&_options.Height==0?"保持原尺寸":"自定义设置");

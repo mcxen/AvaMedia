@@ -10,7 +10,7 @@ public abstract class Observable : INotifyPropertyChanged
     protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     { if (EqualityComparer<T>.Default.Equals(field, value)) return false; field = value; Raise(name); return true; }
 }
-public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, Frames, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary, PersonClip, MediaTag, ImageView, FolderClassify }
+public enum Operation { Convert, Join, Mux, AudioMix, SplitAudio, SplitVideo, VideoCompress, PdfMerge, PdfSplit, PdfText, PdfDocx, PdfXlsx, TextPdf, ImagesPdf, Zip, Unzip, Download, Info, Player, IsoCopy, ImageCompress, PdfAge, PdfCompress, BatchTools, Transcribe, VideoSlim, VideoSummary, PersonClip, MediaTag, ImageView, FolderClassify }
 public sealed record Feature(string Id, string Label, string Category, string Format, string Icon, Operation Operation = Operation.Convert);
 public static class Catalog
 {
@@ -28,7 +28,6 @@ public static class Catalog
         Add("clip","快速剪辑","视频","mp4","clip");
         Add("person-clip","保留有人片段 · Beta","视频","mp4","clip-list",Operation.PersonClip);
         Add("delogo","去除水印","视频","mp4","erase");
-        Add("frames","导出帧","视频","png","frames",Operation.Frames);
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
         Add("download","视频下载","视频","mp4","download",Operation.Download);
         Add("auto-subtitle","自动字幕","视频","mp4","document",Operation.Transcribe);
@@ -72,7 +71,7 @@ public static class Catalog
     }
     public static Feature Find(string id) => All.First(f=>f.Id == id);
     public static bool IsBeta(Feature feature) => feature.Id is "person-clip";
-    public static bool DirectoryOutput(Operation operation) => operation is Operation.Frames or Operation.PdfSplit or Operation.Unzip or Operation.VideoSummary;
+    public static bool DirectoryOutput(Operation operation) => operation is Operation.PdfSplit or Operation.Unzip or Operation.VideoSummary;
     public static bool DirectoryOutput(Job job) => DirectoryOutput(Find(job.FeatureId).Operation)
         || job.FeatureId == "contact-sheet" && job.Options.ContactSheet?.SheetsPerVideo > 1;
 }
@@ -137,7 +136,6 @@ public sealed partial class ConversionOptions
     public bool VoiceEnhancement { get; set; }
     public int VoiceEnhancementStrength { get; set; } = 80;
     public bool ReverseAudio { get; set; }
-    public double FrameInterval { get; set; } = 1;
     public string Subtitle { get; set; } = "";
     public SubtitleMode SubtitleMode { get; set; }
     public int SubtitleStreamIndex { get; set; } = -1;

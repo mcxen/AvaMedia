@@ -259,7 +259,7 @@ public sealed partial class ConsoleView
             {
                 "player" or "download" or "info" => "播放",
                 "mp4" or "video-compress" or "video-slim" or "repair" => "格式与体积",
-                "clip" or "person-clip" or "delogo" or "frames" => "剪辑",
+                "clip" or "person-clip" or "delogo" => "剪辑",
                 "split" or "extract-video" or "join" or "mux" => "音视频轨道",
                 _ => "字幕与内容"
             },
@@ -270,7 +270,7 @@ public sealed partial class ConsoleView
             _ => category
         };
     }
-    private static readonly string[] VideoOrder = ["player", "download", "info", "mp4", "video-compress", "video-slim", "repair", "clip", "person-clip", "delogo", "frames", "split", "extract-video", "join", "mux"];
+    private static readonly string[] VideoOrder = ["player", "download", "info", "mp4", "video-compress", "video-slim", "repair", "clip", "person-clip", "delogo", "split", "extract-video", "join", "mux"];
     private void RenderToolTree()
     {
         _toolTree.Children.Clear(); _toolChips.Clear();

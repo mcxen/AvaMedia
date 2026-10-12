@@ -37,7 +37,7 @@ internal static class FeatureNavigation
     {
         "player" => "circle-play", "download" => "download", "info" => "info",
         "mp4" => "arrow-left-right", "video-compress" => "shrink", "video-slim" => "arrow-down-to-line", "repair" => "wrench",
-        "clip" or "audio-clip" => "scissors", "person-clip" => "user-round", "delogo" => "eraser", "frames" => "photo",
+        "clip" or "audio-clip" => "scissors", "person-clip" => "user-round", "delogo" => "eraser",
         "split" => "music", "extract-video" => "film", "join" or "audio-join" => "combine", "mux" or "audio-mix" => "layers",
         "auto-subtitle" => "captions", "video-summary" => "sparkles", "voice-enhance" or "audio-enhance" => "mic",
         "image-viewer" => "photo", "image-compress" => "shrink", "image-tools" or "crop" => "crop", "images-pdf" => "file-image",
@@ -67,7 +67,7 @@ internal static class FeatureNavigation
         [
             ("播放", ["player", "download", "info"]),
             ("格式与体积", ["mp4", "video-compress", "video-slim", "repair"]),
-            ("剪辑", ["clip", "person-clip", "delogo", "frames"]),
+            ("剪辑", ["clip", "person-clip", "delogo"]),
             ("音视频轨道", ["split", "extract-video", "join", "mux"]),
             ("字幕与内容", ["auto-subtitle", "video-summary", "voice-enhance"])
         ],
@@ -83,7 +83,7 @@ internal static class FeatureNavigation
         {
             "player" or "download" or "info" => "播放",
             "mp4" or "video-compress" or "video-slim" or "repair" => "格式与体积",
-            "clip" or "person-clip" or "delogo" or "frames" => "剪辑",
+            "clip" or "person-clip" or "delogo" => "剪辑",
             "split" or "extract-video" or "join" or "mux" => "音视频轨道",
             _ => "字幕与内容"
         },

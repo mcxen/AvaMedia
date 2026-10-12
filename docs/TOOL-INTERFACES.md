@@ -1,12 +1,12 @@
 # 工具界面与入口清单
 
-更新：2026-10-11。以当前 `Catalog.All` 的 **64 项**为准，其中 62 个工具入口、2 个内部后台任务。共用界面按实现检查，再核对工具之间的格式、数量、顺序、参数及输出差异。窗口和子弹窗的完整源码覆盖见 [界面审查](UI-DESIGN-REVIEW.md)；通用规则见 [UISPEC.MD](../UISPEC.MD)，服务与所有权见 [架构](ARCHITECTURE.md)。
+更新：2026-10-13。以当前 `Catalog.All` 的 **63 项**为准，其中 61 个工具入口、2 个内部后台任务。共用界面按实现检查，再核对工具之间的格式、数量、顺序、参数及输出差异。窗口和子弹窗的完整源码覆盖见 [界面审查](UI-DESIGN-REVIEW.md)；通用规则见 [UISPEC.MD](../UISPEC.MD)，服务与所有权见 [架构](ARCHITECTURE.md)。
 
 ## 工具入口与工作区
 
 | 分类 | 全部入口 | 实际界面 |
 | --- | --- | --- |
-| 视频（18） | 格式转换、视频压缩、视频瘦身、视频合并、提取音频、快速剪辑、保留有人片段 · Beta、去除水印、导出帧、天池播放器、视频下载、自动字幕、视频总结、人声增强、视频 / 音频混流、提取视频流、媒体信息、修复 / 重新封装 | `ConvertWindow`、压缩 / 瘦身、剪辑工作区 / 编辑器 / 导出页、人物分析、播放器、下载 / 浏览器、语音工具 / 字幕校对、总结 / 结果、媒体信息 |
+| 视频（17） | 格式转换、视频压缩、视频瘦身、视频合并、提取音频、快速剪辑、保留有人片段 · Beta、去除水印、天池播放器、视频下载、自动字幕、视频总结、人声增强、视频 / 音频混流、提取视频流、媒体信息、修复 / 重新封装 | `ConvertWindow`、压缩 / 瘦身、剪辑工作区 / 编辑器 / 导出页、人物分析、播放器、下载 / 浏览器、语音工具 / 字幕校对、总结 / 结果、媒体信息 |
 | 音频（14） | MP3、FLAC、WAV、M4A、OGG、AAC、AC3、WMA、OPUS、AIFF、音频合并、音频混合、音频剪辑、人声增强 | `ConvertWindow`、`EditorWindow`、`OptionsWindow`、`SpeechToolsWindow`、`VoicePreviewWindow` |
 | 图片（12） | JPG、PNG、WebP、BMP、TIFF、GIF、ICO、AVIF、天池看图、图片压缩、裁剪 / 缩放 / 旋转、图片 → PDF | `ConvertWindow`、看图 / 批量导出、`ImageCompressionWindow`、图片编辑与 `PdfWorkspaceWindow` |
 | 文档（8） | PDF 合并、PDF 拆分、PDF 做旧、PDF 压缩、PDF → TXT、PDF → DOCX、PDF → XLSX、TXT → PDF | 共用 `PdfWorkspaceWindow`，按工具显示排页、预览、参数与输出 |
