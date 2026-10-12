@@ -106,7 +106,19 @@
     "circle-check",
     "circle-pause",
     "circle-x",
-    "clock"
+    "clock",
+    "cpu",
+    "globe",
+    "smartphone",
+    "grip-vertical",
+    "loader-circle",
+    "ban",
+    "hard-drive",
+    "house",
+    "monitor",
+    "chevron-up",
+    "chevrons-left",
+    "chevrons-right"
   ],
   "sha256": {
     "image-plus": "270ecd11d0bbfadaf5d5e540eebd994d5f99828ca04a3ab48fcf840a1d6a9724",

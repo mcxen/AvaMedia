@@ -22,6 +22,7 @@ internal static class LucideIcons
             "backward" => "rewind", "forward" => "fast-forward", "speaker" => "volume-2", "muted" => "volume-x",
             "minus" => "minus", "up" => "arrow-up", "down" => "arrow-down", "remove" => "circle-minus",
             "edit" => "pencil", "clear" or "cancel" => "x", "gear" => "settings", "reset" => "refresh-cw",
+            "folder-closed" => "folder", "image-file" => "image", "settings-gear" => "settings",
             _ => action
         };
         if (Cache.TryGetValue(name, out var geometries)) return geometries;

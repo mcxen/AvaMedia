@@ -190,7 +190,7 @@ public partial class MainWindow : Window
     {
         _appliedSettings=_settings.Clone();
         var w=new SettingsWindow(_settings,_optionServices);
-        w.SetMcpStatus(() => _mcp?.Status ?? "已关闭");
+        w.SetMcpStatus(() => _mcp?.Status ?? "已关闭"); w.SetMcpClients(() => _mcp?.RecentClients ?? []);
         w.Applied+=(_,_)=>ApplyOptions();
         await w.ShowDialog<bool>(this);
     }

@@ -329,7 +329,6 @@
                     </StackPanel>
                   </Border>
                 </StackPanel>
-                <Border x:Name="McpSection" Classes="settingSection" />
                 <StackPanel Spacing="8">
                   <TextBlock Classes="settingsHeading" Text="专属工具激活" />
                   <Border Classes="settingSection">
@@ -352,6 +351,13 @@
                   <TextBox x:Name="RuntimeInfo" Classes="log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="144" />
                 </StackPanel>
               </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+        <TabItem x:Name="RemoteTab" Header="远程管理与 MCP">
+          <Border Classes="settingsPage">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <Border x:Name="McpSection" Classes="settingSection" />
             </ScrollViewer>
           </Border>
         </TabItem>
