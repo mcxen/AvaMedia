@@ -43,7 +43,7 @@ public sealed class PathInput : UserControl
         _editor.Focus(); _editor.SelectAll();
     }
     private void EndEdit() { _editor.IsVisible = false; _display.IsVisible = true; UpdateCaption(); }
-    public new bool Focus() { Edit(); return _editor.IsFocused; }
+    public bool Focus() { Edit(); return _editor.IsFocused; }
     public void SelectAll() { Edit(); _editor.SelectAll(); }
     private void UpdateCaption()
     {
