@@ -61,7 +61,7 @@ if ($Runtime.StartsWith('osx-')) {
     Get-ChildItem -LiteralPath $publishRoot -Directory | Where-Object { $_.Name -notin @('licenses','docs','scripts') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Recurse -Force }
     foreach ($directory in @('licenses','docs','scripts')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
     foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
-    $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw -Encoding UTF8).Replace('__VERSION__',$Version).Replace('__CHINESE_NAME__',[Security.SecurityElement]::Escape($appBrand.ChineseName))
+    $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw -Encoding UTF8).Replace('__VERSION__',$Version).Replace('__APPLICATION_NAME__',[Security.SecurityElement]::Escape($appBrand.EnglishName))
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
     & python3 (Join-Path $PSScriptRoot 'macos/Declare-MediaTypes.py') $bundle
     if ($LASTEXITCODE -ne 0) { throw 'macOS media file association declaration failed.' }

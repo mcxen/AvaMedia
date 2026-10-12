@@ -6,7 +6,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 
 namespace AvaMedia.Desktop;
-internal static class Ui
+internal static partial class Ui
 {
     public static Button Button(string text,Action action)
     {

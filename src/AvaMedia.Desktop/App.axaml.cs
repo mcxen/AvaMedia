@@ -10,6 +10,14 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop;
 public sealed partial class App : Application
 {
+    public App()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            Name = "AvaMedia";
+            InitializeNativeMenu();
+        }
+    }
     private MainWindow? _mcpBackgroundWindow;
     internal static AppSettings? StartupSettings { get; private set; }
     internal static void ScheduleInstalledPlayerRegistration()

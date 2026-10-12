@@ -187,12 +187,14 @@ public partial class MainWindow : Window
         catch(Exception ex){await Ui.Message(this,"重试任务",ex.Message);}
     }
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+        => await ShowSettingsAsync(this);
+    internal async Task ShowSettingsAsync(Window owner)
     {
         _appliedSettings=_settings.Clone();
         var w=new SettingsWindow(_settings,_optionServices);
         w.SetMcpStatus(() => _mcp?.Status ?? "已关闭"); w.SetMcpClients(() => _mcp?.RecentClients ?? []);
         w.Applied+=(_,_)=>ApplyOptions();
-        await w.ShowDialog<bool>(this);
+        await w.ShowDialog<bool>(owner);
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
@@ -270,5 +272,9 @@ public partial class MainWindow : Window
         _helpWindow.Closed+=(_,_)=>_helpWindow=null;
         _helpWindow.Show(this);
     }
-    private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)=>await Ui.MessageFormatted(this,Localization.Format($"关于{Localization.Key(AppIdentity.ChineseName)}"),$"{Localization.Format($"{Localization.Key(AppIdentity.ChineseName+" · "+AppIdentity.EnglishName)} {AppIdentity.Version}")}\nAvalonia + C# 多媒体工具\n\n独立实现的客户端，界面布局参考 FormatFactory 5.10.0。\n版权所有 © 2026 AvaMedia contributors。\n原创代码和矢量图标采用 AGPL-3.0-only 许可证。\n本程序不提供担保，可按该许可证修改和再分发。\n许可全文见 LICENSE；源码见 https://github.com/mcxen/AvaMedia。\n\nAvalonia: MIT · NAudio: MIT · PDFsharp: MIT · PdfPig: Apache-2.0\n内置 FFmpeg 8.1.3 通过独立进程调用，采用 GPL-3.0-or-later；对应源码随 Release 提供。\n内置 yt-dlp 和 QuickJS-NG，保留各组件的第三方许可证。\n\n完整版权声明见 THIRD-PARTY-NOTICES.md 和 licenses/。\nFormatFactory 名称及原产品资源归各权利人所有。");
+    private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (OperatingSystem.IsMacOS()) { await Ui.AboutAsync(this); return; }
+        await Ui.MessageFormatted(this,Localization.Format($"关于{Localization.Key(AppIdentity.ChineseName)}"),$"{Localization.Format($"{Localization.Key(AppIdentity.ChineseName+" · "+AppIdentity.EnglishName)} {AppIdentity.Version}")}\nAvalonia + C# 多媒体工具\n\n独立实现的客户端，界面布局参考 FormatFactory 5.10.0。\n版权所有 © 2026 AvaMedia contributors。\n原创代码和矢量图标采用 AGPL-3.0-only 许可证。\n本程序不提供担保，可按该许可证修改和再分发。\n许可全文见 LICENSE；源码见 https://github.com/mcxen/AvaMedia。\n\nAvalonia: MIT · NAudio: MIT · PDFsharp: MIT · PdfPig: Apache-2.0\n内置 FFmpeg 8.1.3 通过独立进程调用，采用 GPL-3.0-or-later；对应源码随 Release 提供。\n内置 yt-dlp 和 QuickJS-NG，保留各组件的第三方许可证。\n\n完整版权声明见 THIRD-PARTY-NOTICES.md 和 licenses/。\nFormatFactory 名称及原产品资源归各权利人所有。");
+    }
 }

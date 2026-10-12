@@ -13,6 +13,14 @@ internal static class ToolFilePicker
 {
     private static IStorageFolder? _lastFolder;
 
+    internal static async Task<string[]> OpenRecentFilesAsync(Window owner)
+    {
+        var options = new FilePickerOpenOptions { Title = "最近使用", AllowMultiple = true };
+        var selected = await ShowAsync(owner, new(options.Title, Multiple: true),
+            async dialog => (await dialog.StorageProvider.OpenFilePickerAsync(options)).Cast<IStorageItem>().ToArray(), startRecent: true);
+        return selected.OfType<IStorageFile>().Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
+    }
+
     public static async Task<IReadOnlyList<IStorageFile>> OpenFilesAsync(Window owner, FilePickerOpenOptions options)
     {
         var selected = await ShowAsync(owner, new(options.Title ?? "选择文件", Multiple: options.AllowMultiple,
@@ -42,7 +50,7 @@ internal static class ToolFilePicker
         };
 
     private static async Task<IReadOnlyList<IStorageItem>> ShowAsync(Window owner, FileBrowserOptions options,
-        Func<Window, Task<IReadOnlyList<IStorageItem>>> external)
+        Func<Window, Task<IReadOnlyList<IStorageItem>>> external, bool startRecent = false)
     {
         var source = new DesktopFileBrowserSource(owner.StorageProvider);
         var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs());
@@ -78,7 +86,11 @@ internal static class ToolFilePicker
             finally { selecting = false; view.IsEnabled = true; }
         };
         view.Cancelled += () => dialog.Close();
-        dialog.Opened += async (_, _) => await view.InitializeAsync();
+        dialog.Opened += async (_, _) =>
+        {
+            await view.InitializeAsync();
+            if (startRecent) await view.ShowRecentAsync();
+        };
         dialog.Closed += (_, _) => view.Dispose();
         return await dialog.ShowDialog<IReadOnlyList<IStorageItem>?>(owner) ?? [];
     }
