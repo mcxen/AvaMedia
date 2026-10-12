@@ -28,7 +28,7 @@ internal static partial class Ui
         info.Children.Add(new Image { Source = icon, Width = 80, Height = 80, HorizontalAlignment = HorizontalAlignment.Center });
         TextBlock Center(string value, string? role = null)
         {
-            var text = Text(value, role);
+            var text = ComponentText(value, role);
             text.HorizontalAlignment = HorizontalAlignment.Center;
             text.TextAlignment = Avalonia.Media.TextAlignment.Center;
             return text;

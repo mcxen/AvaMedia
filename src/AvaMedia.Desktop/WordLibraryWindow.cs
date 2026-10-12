@@ -18,12 +18,12 @@ public sealed class WordLibraryWindow : Window
     private readonly AppSettings _settings;
     private readonly WordLibraryTarget? _target;
     private readonly bool _includeSemantic;
-    private readonly ComboBox _libraries = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 180, MaxWidth = 280 };
-    private readonly ComboBox _category = new() { MinWidth = 140, MaxWidth = 220, HorizontalAlignment = HorizontalAlignment.Left };
-    private readonly CheckBox _selectedOnly = new() { Content = "仅已选" };
+    private readonly ComboBox _libraries = new() { Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 180, MaxWidth = 280 };
+    private readonly ComboBox _category = new() { Classes = { "ac" }, MinWidth = 140, MaxWidth = 220, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly CheckBox _selectedOnly = new() { Classes = { "ac" }, Content = "仅已选" };
     private readonly ListBox _list = new();
-    private readonly TextBlock _count = Ui.Text("", "caption");
-    private readonly TextBlock _source = Ui.Text("", "caption");
+    private readonly TextBlock _count = Ui.ComponentText("", "caption");
+    private readonly TextBlock _source = Ui.ComponentText("", "caption");
     private readonly HashSet<SelectedWord> _selected = [];
     private WordLibrary[] _catalog = [];
     private WordRow[] _rows = [];
@@ -67,7 +67,7 @@ public sealed class WordLibraryWindow : Window
         var information = new StackPanel { Spacing = 5 }; information.Children.Add(_source);
         if (target is not null)
         {
-            information.Children.Add(Ui.Text(includeSemantic ? "勾选标签，或全选当前列表；语义候选在下次分析时识别。" : target == WordLibraryTarget.JoyTag
+            information.Children.Add(Ui.ComponentText(includeSemantic ? "勾选标签，或全选当前列表；语义候选在下次分析时识别。" : target == WordLibraryTarget.JoyTag
                 ? "仅可选择 JoyTag 支持的标签；内容分级候选可用于视频语义匹配。"
                 : "自定义描述参与语义匹配；内容分级为候选结果，需人工确认。", "caption"));
             var selection = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -80,7 +80,7 @@ public sealed class WordLibraryWindow : Window
         {
             if (row is null) return new TextBlock();
             var grid = new Grid { ColumnDefinitions = new("28,190,*"), ColumnSpacing = 8, Margin = new(2, 1) };
-            var check = new CheckBox { IsEnabled = row.Supported, IsVisible = target is not null };
+            var check = new CheckBox { Classes = { "ac" }, IsEnabled = row.Supported, IsVisible = target is not null };
             Avalonia.Automation.AutomationProperties.SetName(check, WordLibraryCatalog.CandidateLabel(row.Entry));
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(WordRow.Selected)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);
             var label = new TextBlock { Text = WordLibraryCatalog.CandidateLabel(row.Entry), TextTrimming = TextTrimming.CharacterEllipsis };

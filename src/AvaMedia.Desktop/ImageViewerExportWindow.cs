@@ -11,15 +11,15 @@ internal sealed class ImageViewerExportWindow : Window
 {
     private readonly ImageViewerEntry[] _entries;
     private readonly List<CheckBox> _selected = [];
-    private readonly ComboBox _format = new() { ItemsSource = new[] { "PNG", "JPEG", "WebP", "TIFF", "BMP", "AVIF" }, SelectedIndex = 0 };
-    private readonly NumericUpDown _quality = new() { Minimum = 1, Maximum = 100, Value = 90, Increment = 1 };
-    private readonly NumericUpDown _size = new() { Minimum = 0, Maximum = 32768, Value = 0, Increment = 100 };
-    private readonly CheckBox _transform = new() { Content = "应用当前旋转与镜像", IsChecked = true };
-    private readonly CheckBox _strip = new() { Content = "移除 EXIF / GPS 信息" };
-    private readonly TextBox _folder = Ui.Input("");
-    private readonly TextBlock _status = Ui.Status();
-    private readonly TextBlock _errors = Ui.Text("", "caption");
-    private readonly ProgressBar _progress = new() { Minimum = 0, Maximum = 100, Height = 5 };
+    private readonly ComboBox _format = new() { Classes = { "ac" }, ItemsSource = new[] { "PNG", "JPEG", "WebP", "TIFF", "BMP", "AVIF" }, SelectedIndex = 0 };
+    private readonly NumericUpDown _quality = new() { Classes = { "ac" }, Minimum = 1, Maximum = 100, Value = 90, Increment = 1 };
+    private readonly NumericUpDown _size = new() { Classes = { "ac" }, Minimum = 0, Maximum = 32768, Value = 0, Increment = 100 };
+    private readonly CheckBox _transform = new() { Classes = { "ac" }, Content = "应用当前旋转与镜像", IsChecked = true };
+    private readonly CheckBox _strip = new() { Classes = { "ac" }, Content = "移除 EXIF / GPS 信息" };
+    private readonly TextBox _folder = Ui.ComponentInput("");
+    private readonly TextBlock _status = Ui.ComponentStatus();
+    private readonly TextBlock _errors = Ui.ComponentText("", "caption");
+    private readonly ProgressBar _progress = new() { Classes = { "ac" }, Minimum = 0, Maximum = 100};
     private readonly Button _start = Ui.Button("开始转换", () => { });
     private readonly Button _cancel = Ui.Button("取消", () => { });
     private readonly StackPanel _settings = new() { Spacing = 8 };
@@ -48,19 +48,19 @@ internal sealed class ImageViewerExportWindow : Window
         selection.Children.Add(buttons); var list = new StackPanel { Spacing = 6 };
         for (var index = 0; index < entries.Length; index++)
         {
-            var check = new CheckBox { Content = entries[index].Name, IsChecked = index == current };
+            var check = new CheckBox { Classes = { "ac" }, Content = entries[index].Name, IsChecked = index == current };
             Localization.SetIsUserText(check, true); check.IsCheckedChanged += (_, _) => RefreshActions();
             _selected.Add(check); list.Children.Add(check);
         }
         var scroll = new ScrollViewer { Content = list }; Grid.SetRow(scroll, 1); selection.Children.Add(scroll); body.Children.Add(selection);
-        _settings.Children.Add(Ui.Text("输出格式", "settingsHeading")); _settings.Children.Add(Ui.Parameter(_format, "输出格式"));
-        var qualityFields = new StackPanel { Spacing = 8, IsVisible = HasQuality, Children = { Ui.Text("质量（1–100）", "caption"), Ui.Parameter(_quality, "质量（1–100）") } };
+        _settings.Children.Add(Ui.ComponentText("输出格式", "settingsHeading")); _settings.Children.Add(Ui.ComponentParameter(_format, "输出格式"));
+        var qualityFields = new StackPanel { Spacing = 8, IsVisible = HasQuality, Children = { Ui.ComponentText("质量（1–100）", "caption"), Ui.ComponentParameter(_quality, "质量（1–100）") } };
         _settings.Children.Add(qualityFields); _format.SelectionChanged += (_, _) => qualityFields.IsVisible = HasQuality;
-        _settings.Children.Add(Ui.Text("最长边像素，0 保持原尺寸", "caption")); _settings.Children.Add(Ui.Parameter(_size, "最长边像素，0 保持原尺寸"));
+        _settings.Children.Add(Ui.ComponentText("最长边像素，0 保持原尺寸", "caption")); _settings.Children.Add(Ui.ComponentParameter(_size, "最长边像素，0 保持原尺寸"));
         _settings.Children.Add(_transform); _settings.Children.Add(_strip);
-        _settings.Children.Add(Ui.Text("保存到", "settingsHeading")); Localization.SetIsUserText(_folder, true); _settings.Children.Add(Ui.Parameter(_folder, "保存到"));
+        _settings.Children.Add(Ui.ComponentText("保存到", "settingsHeading")); Localization.SetIsUserText(_folder, true); _settings.Children.Add(Ui.ComponentParameter(_folder, "保存到"));
         _settings.Children.Add(Ui.Button("选择文件夹…", async () => { if (await Ui.Folder(this, "转换图片保存到") is { } folder) _folder.Text = folder; }));
-        _settings.Children.Add(Ui.Text("动画导出当前文件的首帧", "caption"));
+        _settings.Children.Add(Ui.ComponentText("动画导出当前文件的首帧", "caption"));
         var settingsScroll = new ScrollViewer { Content = _settings, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         Grid.SetColumn(settingsScroll, 1); body.Children.Add(settingsScroll); root.Children.Add(body);
         var progress = new StackPanel { Spacing = 5 }; progress.Children.Add(_progress); progress.Children.Add(_status);

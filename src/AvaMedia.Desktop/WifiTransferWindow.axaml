@@ -8,19 +8,19 @@
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,14">
       <TextBlock Text="网络地址" VerticalAlignment="Center" Margin="0,0,10,0"/>
-      <ComboBox x:Name="NetworkInput" Grid.Column="1" HorizontalAlignment="Stretch" i18n:Localization.IsUserText="True"/>
-      <Button x:Name="RefreshNetworkButton" Grid.Column="2" Content="刷新网络" Click="RefreshNetworkClick" Margin="8,0,0,0"/>
-      <Button x:Name="StartReceiveButton" Grid.Column="3" Content="开启传输" Click="StartReceiveClick" Margin="8,0,0,0"/>
-      <Button x:Name="StopReceiveButton" Grid.Column="4" Content="关闭传输" Click="StopReceiveClick" Margin="8,0,0,0" IsEnabled="False"/>
+      <ComboBox Classes="ac" x:Name="NetworkInput" Grid.Column="1" HorizontalAlignment="Stretch" i18n:Localization.IsUserText="True"/>
+      <Button Classes="ac" x:Name="RefreshNetworkButton" Grid.Column="2" Content="刷新网络" Click="RefreshNetworkClick" Margin="8,0,0,0"/>
+      <Button Classes="ac" x:Name="StartReceiveButton" Grid.Column="3" Content="开启传输" Click="StartReceiveClick" Margin="8,0,0,0"/>
+      <Button Classes="ac" x:Name="StopReceiveButton" Grid.Column="4" Content="关闭传输" Click="StopReceiveClick" Margin="8,0,0,0" IsEnabled="False"/>
     </Grid>
     <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,12">
-      <CheckBox x:Name="AutoCloseInput" Content="空闲 5 分钟自动关闭" IsChecked="True"
+      <CheckBox Classes="ac" x:Name="AutoCloseInput" Content="空闲 5 分钟自动关闭" IsChecked="True"
                 IsCheckedChanged="AutoCloseChanged" VerticalAlignment="Center"/>
       <TextBlock x:Name="ConnectionStatus" i18n:StableLayout.StatusLines="2" Grid.Column="1" Text="传输已关闭"
                  Margin="16,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="240,16,*">
-      <Border Padding="12" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" CornerRadius="{DynamicResource UiControlRadius}">
+      <Border Classes="ac-card">
         <Grid RowDefinitions="Auto,Auto,*">
           <TextBlock Text="传输用户" FontSize="{DynamicResource UiFontTitle}" FontWeight="SemiBold"/>
           <TextBlock x:Name="UserSummary" Grid.Row="1" Margin="0,6,0,12" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
@@ -46,8 +46,8 @@
               <Image x:Name="QrImage" Width="176" Height="176" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None"/>
             </Border>
             <StackPanel Grid.Column="2" Spacing="8">
-              <TextBox x:Name="AddressText" IsReadOnly="True" TextWrapping="Wrap" MinHeight="56" i18n:Localization.IsUserText="True"/>
-              <Button x:Name="CopyAddressButton" Content="复制扫码地址" Click="CopyAddressClick" IsEnabled="False"/>
+              <TextBox Classes="ac" x:Name="AddressText" IsReadOnly="True" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
+              <Button Classes="ac" x:Name="CopyAddressButton" Content="复制扫码地址" Click="CopyAddressClick" IsEnabled="False"/>
               <TextBlock Text="仅限可信局域网；关闭传输后地址失效。" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
             </StackPanel>
           </Grid>
@@ -57,7 +57,7 @@
           <Grid RowDefinitions="Auto,*,Auto" Margin="10">
             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
               <TextBlock x:Name="ReceiveSummary" Text="尚未接收文件" VerticalAlignment="Center" TextWrapping="Wrap"/>
-              <Button Grid.Column="1" Content="打开接收目录" Click="OpenReceiveFolderClick" Margin="10,0,0,0"/>
+              <Button Classes="ac" Grid.Column="1" Content="打开接收目录" Click="OpenReceiveFolderClick" Margin="10,0,0,0"/>
             </Grid>
             <ListBox x:Name="ReceivedList" Grid.Row="1" SelectionMode="Multiple" SelectionChanged="SelectionChanged"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -71,15 +71,15 @@
                       <TextBlock Text="{Binding UserName}" FontSize="{DynamicResource UiFontCaption}" i18n:Localization.IsUserText="True"/>
                     </StackPanel>
                     <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
-                    <ProgressBar Value="{Binding Progress}" Maximum="100" IsVisible="{Binding Receiving}" Height="5"/>
+                    <ProgressBar Classes="ac" Value="{Binding Progress}" Maximum="100" IsVisible="{Binding Receiving}"/>
                   </StackPanel>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,12,0,10">
-              <Button x:Name="SelectReceivedButton" Content="全选已接收" Click="SelectReceivedClick" IsEnabled="False"/>
-              <Button x:Name="ImportReceivedButton" Content="导入转换" Click="ImportReceivedClick" IsEnabled="False"/>
-              <Button x:Name="CompressReceivedButton" Content="高画质视频压缩" Click="CompressReceivedClick" IsEnabled="False"/>
+              <Button Classes="ac" x:Name="SelectReceivedButton" Content="全选已接收" Click="SelectReceivedClick" IsEnabled="False"/>
+              <Button Classes="ac" x:Name="ImportReceivedButton" Content="导入转换" Click="ImportReceivedClick" IsEnabled="False"/>
+              <Button Classes="ac" x:Name="CompressReceivedButton" Content="高画质视频压缩" Click="CompressReceivedClick" IsEnabled="False"/>
             </StackPanel>
           </Grid>
         </TabItem>
@@ -100,8 +100,8 @@
               </ListBox.ItemTemplate>
             </ListBox>
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-              <Button x:Name="AddSharedButton" Content="添加分享文件" Click="AddSharedClick"/>
-              <Button x:Name="RemoveSharedButton" Content="取消分享" Click="RemoveSharedClick" IsEnabled="False"/>
+              <Button Classes="ac" x:Name="AddSharedButton" Content="添加分享文件" Click="AddSharedClick"/>
+              <Button Classes="ac" x:Name="RemoveSharedButton" Content="取消分享" Click="RemoveSharedClick" IsEnabled="False"/>
             </StackPanel>
           </Grid>
         </TabItem>

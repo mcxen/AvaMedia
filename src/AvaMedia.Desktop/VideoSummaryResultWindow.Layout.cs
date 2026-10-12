@@ -24,7 +24,7 @@ public sealed partial class VideoSummaryResultWindow
         identity.Children.Add(_fileName); identity.Children.Add(_metadata);
         Grid.SetColumn(identity, 1); header.Children.Add(identity);
         var headerActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        _play = new Button { Content = "播放", Classes = { "tool" }, IsEnabled = false };
+        _play = new Button { Content = "播放", Classes = { "ac", "tool" }, IsEnabled = false };
         _play.Click += async (_, _) => await PlayAsync(0); headerActions.Children.Add(_play);
         Grid.SetColumn(headerActions, 2); header.Children.Add(headerActions);
         root.Children.Add(new Border { Child = header, Classes = { "summary-toolbar" } });
@@ -36,9 +36,9 @@ public sealed partial class VideoSummaryResultWindow
         ScrollViewer.SetVerticalScrollBarVisibility(_navigation, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         navBar.Children.Add(_navigation);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        _copy = new Button { Content = "复制", Classes = { "tool" }, IsEnabled = false };
+        _copy = new Button { Content = "复制", Classes = { "ac", "tool" }, IsEnabled = false };
         _copy.Click += async (_, _) => await CopyAsync(); actions.Children.Add(_copy);
-        _export = new Button { Content = "导出…", Classes = { "tool" }, IsEnabled = false };
+        _export = new Button { Content = "导出…", Classes = { "ac", "tool" }, IsEnabled = false };
         _export.Click += (_, _) =>
         {
             if (_report is null || _navigation.SelectedIndex < 0) return;
@@ -60,7 +60,7 @@ public sealed partial class VideoSummaryResultWindow
         _notice.TextTrimming = TextTrimming.CharacterEllipsis; _notice.TextWrapping = TextWrapping.NoWrap;
         footer.Children.Add(_notice);
         var bottomActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var folder = new Button { Content = "输出目录", Classes = { "tool" } };
+        var folder = new Button { Content = "输出目录", Classes = { "ac", "tool" } };
         folder.Click += (_, _) => { try { PlatformServices.OpenFolder(_folder); } catch (Exception error) { ShowNotice(error.Message, true); } };
         bottomActions.Children.Add(folder); bottomActions.Children.Add(Ui.DialogButton("关闭", Close));
         Grid.SetColumn(bottomActions, 1); footer.Children.Add(bottomActions);
@@ -90,19 +90,18 @@ public sealed partial class VideoSummaryResultWindow
     private static Border Card(string title, Control content)
     {
         var body = new StackPanel { Spacing = 6 };
-        if (title.Length > 0) body.Children.Add(Ui.Text(title, "summary-section")); body.Children.Add(content);
-        return new Border { Child = body, Classes = { "summary-card" } };
+        if (title.Length > 0) body.Children.Add(Ui.ComponentText(title, "summary-section")); body.Children.Add(content);
+        return new AvaMedia.Controls.Card { Child = body, Margin = new(0, 0, 0, 6) };
     }
 
     private static Control Empty(string title, string detail)
     {
-        var body = new StackPanel { Spacing = 6 }; body.Children.Add(Ui.Text(title, "title")); body.Children.Add(Ui.Text(detail, "caption"));
-        return Reader(body);
+        return new AvaMedia.Controls.EmptyState { Text = title, Detail = detail, IsError = true };
     }
 
     private Button TimeButton(double seconds)
     {
-        var button = new Button { Content = EditorTime.Format(seconds), Classes = { "summary-time", "tool" },
+        var button = new Button { Content = EditorTime.Format(seconds), Classes = { "ac", "summary-time", "tool" },
             HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = _engine is not null && File.Exists(_source)
                 && double.IsFinite(seconds) && seconds >= 0 && seconds <= (_report?.Duration ?? 0) };
         Localization.SetIsUserText(button, true);

@@ -27,16 +27,16 @@ public sealed partial class NotificationPanel : UserControl
             if (entry is null) return new Border();
             var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6, Margin = new(0, 3) };
             var labels = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 6, RowSpacing = 2 };
-            var title = Ui.Text(NotificationCenter.Text(entry.Message.Title)); title.FontWeight = entry.Read ? FontWeight.Normal : FontWeight.SemiBold;
+            var title = Ui.ComponentText(NotificationCenter.Text(entry.Message.Title)); title.FontWeight = entry.Read ? FontWeight.Normal : FontWeight.SemiBold;
             title.TextWrapping = TextWrapping.NoWrap; title.TextTrimming = TextTrimming.CharacterEllipsis;
-            var time = Ui.Text(entry.Created.ToString("HH:mm"), "caption"); Grid.SetColumn(time, 1);
+            var time = Ui.ComponentText(entry.Created.ToString("HH:mm"), "caption"); Grid.SetColumn(time, 1);
             var body = NotificationCenter.Text(entry.Message.Body);
-            var preview = Ui.Text(string.Join(" · ", body.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)), "caption");
+            var preview = Ui.ComponentText(string.Join(" · ", body.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)), "caption");
             preview.TextWrapping = TextWrapping.NoWrap; preview.TextTrimming = TextTrimming.CharacterEllipsis;
             preview.IsVisible = !string.IsNullOrWhiteSpace(body) && body != title.Text;
             Grid.SetRow(preview, 1); Grid.SetColumnSpan(preview, 2);
             labels.Children.Add(title); labels.Children.Add(time); labels.Children.Add(preview); row.Children.Add(labels);
-            var remove = new Button { Content = "×", Classes = { "tool", "notification-action", "notification-icon" } };
+            var remove = new Button { Content = "×", Classes = { "ac", "tool", "notification-action", "notification-icon", "icon", "borderless", "small" } };
             AutomationProperties.SetName(remove, Localization.Text("移除通知"));
             ToolTip.SetTip(remove, Localization.Text("移除通知"));
             remove.Click += (_, args) => { args.Handled = true; _center.Remove(entry); };
@@ -104,7 +104,7 @@ public sealed partial class NotificationPanel : UserControl
             var selected = _center.Selected;
             if (_center.History)
             {
-                Heading.Classes.Remove("error"); Heading.Text = Localization.Text("通知中心"); Timestamp.Text = "";
+                Heading.Classes.Remove("error"); NoticeFrame.Classes.Remove("warning"); Heading.Text = Localization.Text("通知中心"); Timestamp.Text = "";
                 Timestamp.IsVisible = false;
                 HistoryList.ItemsSource = _center.Entries.ToArray(); HistoryList.SelectedItem = null;
                 Counter.Text = Localization.Format($"{_center.Entries.Count} 条通知"); ProgressPanel.IsVisible = false;
@@ -117,6 +117,8 @@ public sealed partial class NotificationPanel : UserControl
                 MessageScroll.IsVisible = !string.IsNullOrWhiteSpace(text) && text != Heading.Text;
                 if (_selectedKey != message.Key) { _selectedKey = message.Key; MessageScroll.Offset = default; }
                 Heading.Classes.Set("error", message.Kind == NotificationKind.Error);
+                NoticeFrame.Classes.Set("warning", message.Kind == NotificationKind.Warning);
+                ProgressText.State = message.Kind switch { NotificationKind.Error => "failed", NotificationKind.Success => "completed", NotificationKind.Warning => "paused", _ => "running" };
                 ProgressPanel.IsVisible = message.Progress is not null || message.Indeterminate;
                 ProgressBar.IsIndeterminate = message.Indeterminate; ProgressBar.Value = Math.Clamp(message.Progress ?? 0, 0, 100);
                 ProgressText.Text = message.Progress is { } percent ? $"{percent:0}%" : "";
@@ -139,7 +141,7 @@ public sealed partial class NotificationPanel : UserControl
         for (var index = 0; index < actions.Count; index++)
         {
             var action = actions[index]; var actionIndex = index;
-            var button = new Button { Content = Localization.Text(action.Label), Classes = { "notification-action" }, Margin = new(0, 0, 6, 2),
+            var button = new Button { Content = Localization.Text(action.Label), Classes = { "ac", "notification-action" }, Margin = new(0, 0, 6, 2),
                 IsEnabled = entry is { Busy: false } && action.Enabled?.Invoke() != false };
             if (action.Primary) button.Classes.Add("primary");
             button.Click += async (_, _) => { if (_center.Selected is { } current) await _center.InvokeAsync(current, actionIndex); };

@@ -205,10 +205,10 @@ public partial class MediaRouteWindow : Window
         if (!single) Grid.SetRowSpan(frame, 3); grid.Children.Add(frame);
         var name = new TextBlock { Text = entry.Name, TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeight.SemiBold };
         Localization.SetIsUserText(name, true); ToolTip.SetTip(name, entry.Source.Path);
-        var include = new CheckBox { Content = name, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var include = new CheckBox { Classes = { "ac" }, Content = name, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         include.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MediaRouteEntry.Include)) { Mode = BindingMode.TwoWay });
         var titleRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 4 }; titleRow.Children.Add(include);
-        var disposition = Ui.Text("", "caption"); disposition.Classes.Add("route-disposition"); disposition.VerticalAlignment = VerticalAlignment.Center;
+        var disposition = Ui.ComponentText("", "caption"); disposition.Classes.Add("route-disposition"); disposition.VerticalAlignment = VerticalAlignment.Center;
         disposition.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.Disposition)));
         Grid.SetColumn(disposition, 1); titleRow.Children.Add(disposition);
         Grid.SetRow(titleRow, single ? 1 : 0); Grid.SetColumn(titleRow, single ? 0 : 1); grid.Children.Add(titleRow);
@@ -216,7 +216,7 @@ public partial class MediaRouteWindow : Window
         caption.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.Caption))); Grid.SetRow(caption, single ? 2 : 1); Grid.SetColumn(caption, single ? 0 : 1); grid.Children.Add(caption);
         var hint = new TextBlock { Classes = { "caption" }, TextWrapping = TextWrapping.Wrap };
         hint.Bind(TextBlock.TextProperty, new Binding(nameof(MediaRouteEntry.PreviewHint))); Grid.SetRow(hint, single ? 3 : 2); Grid.SetColumn(hint, single ? 0 : 1); grid.Children.Add(hint);
-        var row = new Border { Child = grid, Classes = { "route-source" }, DataContext = entry };
+        var row = new AvaMedia.Controls.Card { Child = grid, Classes = { "route-source" }, DataContext = entry };
         row.AttachedToVisualTree += (_, _) =>
         {
             _sourceRows[entry] = (row, disposition); UpdateSourceFeedback();

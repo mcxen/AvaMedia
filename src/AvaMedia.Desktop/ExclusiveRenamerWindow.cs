@@ -21,11 +21,11 @@ public sealed class ExclusiveRenamerWindow : Window
     private readonly Func<IEnumerable<string>, IDisposable>? _reserveFiles;
     private readonly ObservableCollection<Entry> _entries = [];
     private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple };
-    private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
-    private readonly ComboBox _mode = Ui.Combo(["本地 VL · Qwen3.5", "线上 VL", "文件夹与文件名规则"], "本地 VL · Qwen3.5");
-    private readonly ComboBox _providers = new() { MinWidth = 140, MaxWidth = 260 };
-    private readonly TextBlock _status = Ui.Status("拖入文件夹或浏览选择，生成新名称后可逐项编辑。");
-    private readonly TextBlock _modelHint = Ui.Text("", "caption");
+    private readonly CheckBox _recursive = new() { Classes = { "ac" }, Content = "包含子文件夹", IsChecked = true };
+    private readonly ComboBox _mode = Ui.ComponentCombo(["本地 VL · Qwen3.5", "线上 VL", "文件夹与文件名规则"], "本地 VL · Qwen3.5");
+    private readonly ComboBox _providers = new() { Classes = { "ac" }, MinWidth = 140, MaxWidth = 260 };
+    private readonly TextBlock _status = Ui.ComponentStatus("拖入文件夹或浏览选择，生成新名称后可逐项编辑。");
+    private readonly TextBlock _modelHint = Ui.ComponentText("", "caption");
     private readonly Button _generate, _rename, _undo, _stop, _manage;
     private readonly StackPanel _toolbar = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private readonly StackPanel _models = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -90,19 +90,19 @@ public sealed class ExclusiveRenamerWindow : Window
         _toolbar.Children.Add(Ui.Button("全选", () => { foreach (var row in _entries) row.Include = true; }));
         _toolbar.Children.Add(Ui.Button("反选", () => { foreach (var row in _entries) row.Include = !row.Include; }));
         root.Children.Add(_toolbar);
-        _models.Children.Add(Ui.Text("分析方式")); _models.Children.Add(_mode); _models.Children.Add(_providers);
+        _models.Children.Add(Ui.ComponentText("分析方式")); _models.Children.Add(_mode); _models.Children.Add(_providers);
         Avalonia.Automation.AutomationProperties.SetName(_mode, "分析方式");
         Avalonia.Automation.AutomationProperties.SetName(_providers, "AI 供应商");
         _manage = Ui.Button("模型设置…", async () => await ConfigureAsync()); _models.Children.Add(_manage);
         Grid.SetRow(_models, 1); root.Children.Add(_models);
         _mode.SelectionChanged += (_, _) => RefreshMode(); RefreshProviders(); RefreshMode();
         Grid.SetRow(_modelHint, 2); root.Children.Add(_modelHint);
-        var contract = Ui.Text("前缀_场景_视角_装扮_动作_评级_原标识 · 保留扩展名，无法确认的特征标为未知", "caption");
+        var contract = Ui.ComponentText("前缀_场景_视角_装扮_动作_评级_原标识 · 保留扩展名，无法确认的特征标为未知", "caption");
         Grid.SetRow(contract, 3); root.Children.Add(contract);
         var table = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 4 };
         var header = new Grid { ColumnDefinitions = new("32,*,*,140"), ColumnSpacing = 8, Classes = { "table-header" } };
         foreach (var (column, title) in new[] { (1, "原文件名"), (2, "建议新文件名（可编辑）"), (3, "状态") })
-        { var label = Ui.Text(title, "caption"); Grid.SetColumn(label, column); header.Children.Add(label); }
+        { var label = Ui.ComponentText(title, "caption"); Grid.SetColumn(label, column); header.Children.Add(label); }
         table.Children.Add(header); _list.ItemsSource = _entries;
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters =
             { new Setter(PaddingProperty, new Thickness(4, 5)), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
@@ -111,14 +111,14 @@ public sealed class ExclusiveRenamerWindow : Window
             var row = new Grid { ColumnDefinitions = new("32,*,*,140"), ColumnSpacing = 8 };
             var check = new CheckBox(); check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(Entry.Include)) { Mode = BindingMode.TwoWay });
             check.Bind(Avalonia.Automation.AutomationProperties.NameProperty, new Binding(nameof(Entry.Name))); row.Children.Add(check);
-            var name = Ui.Text(""); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
+            var name = Ui.ComponentText(""); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(name, true); name.Bind(TextBlock.TextProperty, new Binding(nameof(Entry.Name)));
             name.Bind(ToolTip.TipProperty, new Binding(nameof(Entry.Path))); Grid.SetColumn(name, 1); row.Children.Add(name);
-            var edit = Ui.Input(); Localization.SetIsUserText(edit, true);
+            var edit = Ui.ComponentInput(); Localization.SetIsUserText(edit, true);
             Avalonia.Automation.AutomationProperties.SetName(edit, "建议新文件名");
             edit.Bind(TextBox.TextProperty, new Binding(nameof(Entry.NewName)) { Mode = BindingMode.TwoWay });
             edit.Bind(ToolTip.TipProperty, new Binding(nameof(Entry.NewName))); Grid.SetColumn(edit, 2); row.Children.Add(edit);
-            var state = Ui.Text("", "caption"); state.Bind(TextBlock.TextProperty, new Binding(nameof(Entry.Status)));
+            var state = Ui.ComponentText("", "caption"); state.Bind(TextBlock.TextProperty, new Binding(nameof(Entry.Status)));
             state.Bind(ToolTip.TipProperty, new Binding(nameof(Entry.Details))); Grid.SetColumn(state, 3); row.Children.Add(state);
             return row;
         });

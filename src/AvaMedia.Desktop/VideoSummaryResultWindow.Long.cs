@@ -50,7 +50,7 @@ public sealed partial class VideoSummaryResultWindow
         {
             var stack = new StackPanel { Spacing = 8 }; stack.Children.Add(Card("摘要", SummaryDocumentView.Prose(report.Summary)));
             foreach (var point in report.KeyPoints) stack.Children.Add(LongPoint(point));
-            foreach (var limitation in report.Limitations) stack.Children.Add(Ui.Text(limitation, "caption"));
+            foreach (var limitation in report.Limitations) stack.Children.Add(Ui.ComponentText(limitation, "caption"));
             return Reader(stack);
         }));
         if (report.Chapters.Length > 0) _pages.Add(new("章节", LongVideoSummaryOrchestrator.Markdown(report, []), "md", () =>
@@ -98,7 +98,7 @@ public sealed partial class VideoSummaryResultWindow
                 if (evidence is not null) await PlayAsync(evidence.Start);
             });
             link.Classes.Add("link"); Localization.SetIsUserText(link, true);
-            var tooltip = Ui.Text("读取引用…", "caption"); ToolTip.SetTip(link, tooltip);
+            var tooltip = Ui.ComponentText("读取引用…", "caption"); ToolTip.SetTip(link, tooltip);
             link.PointerEntered += async (_, _) =>
             {
                 try { var evidence = await new EvidenceStore(_folder).LoadAsync(id, _lifetime.Token); if (!_closed) { Localization.SetIsUserText(tooltip, true); tooltip.Text = evidence?.Text ?? Localization.Text("引用不可用"); } }

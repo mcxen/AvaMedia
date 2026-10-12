@@ -12,11 +12,11 @@ public sealed partial class SubtitleStyleEditor
     private Point? _customPosition;
     private Vector _dragOffset;
     private bool _dragging, _changingTime, _disposed;
-    private readonly Slider _seek = new() { Name = "SubtitlePreviewSeek", Minimum = 0, Maximum = 1 };
-    private readonly TextBox _time = new() { Name = "SubtitlePreviewTime", Width = 140 };
+    private readonly Slider _seek = new() { Classes = { "ac" }, Name = "SubtitlePreviewSeek", Minimum = 0, Maximum = 1 };
+    private readonly TextBox _time = new() { Classes = { "ac" }, Name = "SubtitlePreviewTime", Width = 140 };
     private readonly StackPanel _timeline = new() { Spacing = 6, IsVisible = false };
-    private readonly TextBlock _previewNotice = Ui.Text("", "caption");
-    private readonly TextBlock _totalTime = Ui.Text("", "caption");
+    private readonly TextBlock _previewNotice = Ui.ComponentText("", "caption");
+    private readonly TextBlock _totalTime = Ui.ComponentText("", "caption");
     private CancellationTokenSource? _videoSource, _seekFrame;
     private IMediaEngine? _previewEngine;
     private string? _previewPath;

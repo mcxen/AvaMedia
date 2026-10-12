@@ -42,11 +42,11 @@ public partial class HelpWindow : Window
 
     private static Border FeatureCard(string title, string description, string icon)
     {
-        var heading = Ui.Text(title);
+        var heading = Ui.ComponentText(title);
         heading.FontWeight = FontWeight.SemiBold;
         var text = new StackPanel { Spacing = 4 };
         text.Children.Add(heading);
-        text.Children.Add(Ui.Text(description, "caption"));
+        text.Children.Add(Ui.ComponentText(description, "caption"));
         var layout = new Grid { ColumnDefinitions = new("40,*"), ColumnSpacing = 8 };
         Control artwork = icon == "wifi"
             ? new ActionIcon { Kind = "wifi", Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Top }

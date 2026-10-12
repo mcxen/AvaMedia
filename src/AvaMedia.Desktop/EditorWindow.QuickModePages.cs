@@ -60,9 +60,9 @@ public partial class EditorWindow
             QuickMediaRows.Children.Add(border); _quickMediaValues.Add(value);
         }
         Move(PreviewNote, QuickPreviewNoteSlot);
-        Restyle(PreviewNote, "sec"); PreviewNote.FontSize = 12; PreviewNote.LineHeight = 18.6;
+        Restyle(PreviewNote, "sec"); PreviewNote.Bind(TextBlock.FontSizeProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcCaptionFont"));
         Move(AudioStatus, QuickAudioStatusSlot);
-        Restyle(AudioStatus); AudioStatus.FontSize = 12; AudioStatus.TextWrapping = TextWrapping.Wrap;
+        Restyle(AudioStatus); AudioStatus.Bind(TextBlock.FontSizeProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcBodyFont")); AudioStatus.TextWrapping = TextWrapping.Wrap;
         Move(EditOptionsButton, QuickOutputSlot);
         Restyle(EditOptionsButton, "pill", "tall");
         Localization.SetContent(EditOptionsButton, $"输出配置…");
@@ -85,7 +85,7 @@ public partial class EditorWindow
             var row = new Grid { ColumnDefinitions = new("*,Auto") };
             row.Children.Add(new TextBlock { Text = Localization.Text(label), VerticalAlignment = VerticalAlignment.Center });
             Move(input, row); Grid.SetColumn(input, 1);
-            input.Width = 88; input.Height = 26; input.MinHeight = 0; input.FontSize = 12;
+            input.Classes.Add("ac");
             input.TextAlignment = TextAlignment.Right;
             rows.Children.Add(new Border { Classes = { "ac-setting-row", "divider" }, Child = row });
         }

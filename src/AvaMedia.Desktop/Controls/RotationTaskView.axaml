@@ -1,22 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.Controls.RotationTaskView">
   <UserControl.Styles>
-    <Style Selector="ToggleButton.rotation-choice">
-      <Setter Property="MinHeight" Value="32"/>
-      <Setter Property="Padding" Value="12,5"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/>
-    </Style>
-    <Style Selector="ToggleButton.rotation-choice:checked">
-      <Setter Property="Background" Value="{DynamicResource UiSelection}"/>
-      <Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
-    </Style>
-    <Style Selector="ToggleButton.rotation-choice:checked /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource UiSelection}"/>
-      <Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
-    </Style>
+
   </UserControl.Styles>
   <Grid RowDefinitions="*,Auto,Auto,Auto" RowSpacing="12">
     <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
@@ -54,35 +39,35 @@
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
       <TextBlock x:Name="PreviewTime" Text="00:00:00" Classes="caption" VerticalAlignment="Center"/>
-      <Slider Grid.Column="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" IsEnabled="False" AutomationProperties.Name="旋转预览时间"/>
+      <Slider Classes="ac" Grid.Column="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" IsEnabled="False" AutomationProperties.Name="旋转预览时间"/>
       <TextBlock Grid.Column="2" x:Name="DurationText" Text="00:00:00" Classes="caption" VerticalAlignment="Center"/>
     </Grid>
     <StackPanel Grid.Row="2" Spacing="8">
       <WrapPanel>
         <TextBlock Text="旋转方向" VerticalAlignment="Center" Margin="0,0,12,6"/>
-        <ToggleButton x:Name="KeepDirection" Content="无需旋转" Classes="rotation-choice" Margin="0,0,6,6" AutomationProperties.Name="无需旋转"/>
-        <ToggleButton x:Name="ClockwiseDirection" Content="顺时针 90°" Classes="rotation-choice" Margin="0,0,6,6" AutomationProperties.Name="顺时针旋转 90 度"/>
-        <ToggleButton x:Name="CounterclockwiseDirection" Content="逆时针 90°" Classes="rotation-choice" Margin="0,0,6,6" AutomationProperties.Name="逆时针旋转 90 度"/>
-        <ToggleButton x:Name="UpsideDownDirection" Content="旋转 180°" Classes="rotation-choice" Margin="0,0,6,6" AutomationProperties.Name="旋转 180 度"/>
+        <RadioButton x:Name="KeepDirection" Content="无需旋转" Classes="ac rotation-choice" GroupName="rotation-direction" Margin="0,0,6,6" AutomationProperties.Name="无需旋转"/>
+        <RadioButton x:Name="ClockwiseDirection" Content="顺时针 90°" Classes="ac rotation-choice" GroupName="rotation-direction" Margin="0,0,6,6" AutomationProperties.Name="顺时针旋转 90 度"/>
+        <RadioButton x:Name="CounterclockwiseDirection" Content="逆时针 90°" Classes="ac rotation-choice" GroupName="rotation-direction" Margin="0,0,6,6" AutomationProperties.Name="逆时针旋转 90 度"/>
+        <RadioButton x:Name="UpsideDownDirection" Content="旋转 180°" Classes="ac rotation-choice" GroupName="rotation-direction" Margin="0,0,6,6" AutomationProperties.Name="旋转 180 度"/>
       </WrapPanel>
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <TextBlock x:Name="DetectionSummary" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
-        <Button Grid.Column="1" x:Name="UseDetectionButton" Content="采用检测方向" Classes="tool" IsVisible="False" Click="UseDetectionClick"/>
+        <Button Grid.Column="1" x:Name="UseDetectionButton" Content="采用检测方向" Classes="ac tool" IsVisible="False" Click="UseDetectionClick"/>
       </Grid>
     </StackPanel>
     <Expander Grid.Row="3" x:Name="ExportSettings" Header="输出设置" IsExpanded="False" HorizontalContentAlignment="Stretch">
       <StackPanel Spacing="10" Margin="0,10,0,0">
         <Grid ColumnDefinitions="Auto,200,Auto,*,Auto" ColumnSpacing="8">
           <TextBlock Text="输出格式" VerticalAlignment="Center"/>
-          <ComboBox Grid.Column="1" x:Name="FormatCombo" AutomationProperties.Name="旋转输出格式"/>
+          <ComboBox Classes="ac" Grid.Column="1" x:Name="FormatCombo" AutomationProperties.Name="旋转输出格式"/>
           <TextBlock Grid.Column="2" Text="保存位置" VerticalAlignment="Center" Margin="8,0,0,0"/>
-          <TextBox Grid.Column="3" x:Name="OutputInput" IsReadOnly="True" AutomationProperties.Name="旋转输出文件夹"/>
-          <Button Grid.Column="4" x:Name="BrowseOutputButton" Content="浏览…" Classes="field-action" Click="BrowseOutputClick"/>
+          <TextBox Classes="ac" Grid.Column="3" x:Name="OutputInput" IsReadOnly="True" AutomationProperties.Name="旋转输出文件夹"/>
+          <Button Grid.Column="4" x:Name="BrowseOutputButton" Content="浏览…" Classes="ac field-action" Click="BrowseOutputClick"/>
         </Grid>
         <WrapPanel>
-          <CheckBox x:Name="SourceOutputInput" Content="输出至源文件目录" Margin="0,0,18,0"/>
-          <CheckBox x:Name="SettingNameInput" Content="添加设置名称" Margin="0,0,18,0"/>
-          <CheckBox x:Name="QueueOnlyInput" Content="仅加入队列"/>
+          <CheckBox Classes="ac" x:Name="SourceOutputInput" Content="输出至源文件目录" Margin="0,0,18,0"/>
+          <CheckBox Classes="ac" x:Name="SettingNameInput" Content="添加设置名称" Margin="0,0,18,0"/>
+          <CheckBox Classes="ac" x:Name="QueueOnlyInput" Content="仅加入队列"/>
         </WrapPanel>
         <TextBlock x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
       </StackPanel>

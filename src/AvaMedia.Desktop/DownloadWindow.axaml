@@ -4,27 +4,27 @@
     <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="链接或分享文本" VerticalAlignment="Center"/>
-        <Button Grid.Column="1" x:Name="PasteLinksButton" Content="粘贴" Click="PasteClick" Classes="tool"/>
-        <Button Grid.Column="2" x:Name="ClearLinksButton" Content="清空" Click="ClearClick" Classes="tool"/>
+        <Button Grid.Column="1" x:Name="PasteLinksButton" Content="粘贴" Click="PasteClick" Classes="ac tool"/>
+        <Button Grid.Column="2" x:Name="ClearLinksButton" Content="清空" Click="ClearClick" Classes="ac tool"/>
       </Grid>
-      <TextBox Grid.Row="1" x:Name="LinksInput" AcceptsReturn="True" Height="82" TextWrapping="Wrap"/>
+      <TextBox Classes="ac" Grid.Row="1" x:Name="LinksInput" AcceptsReturn="True" TextWrapping="Wrap"/>
       <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-        <Button x:Name="InspectButton" i18n:StableLayout.Samples="解析链接|取消解析" Content="解析链接" Click="InspectClick"/>
-        <Button Grid.Column="1" x:Name="BrowserCaptureButton" Content="网页视频识别" Click="BrowserCaptureClick"/>
+        <Button Classes="ac" x:Name="InspectButton" i18n:StableLayout.Samples="解析链接|取消解析" Content="解析链接" Click="InspectClick"/>
+        <Button Classes="ac" Grid.Column="1" x:Name="BrowserCaptureButton" Content="网页视频识别" Click="BrowserCaptureClick"/>
         <Grid Grid.Column="2" ColumnDefinitions="72,*" ColumnSpacing="8">
-          <ProgressBar x:Name="InspectProgress" Height="4" MinHeight="4" VerticalAlignment="Center" IsVisible="False"/>
+          <ProgressBar Classes="ac" x:Name="InspectProgress" VerticalAlignment="Center" IsVisible="False"/>
           <TextBlock Grid.Column="1" x:Name="InspectStatus" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
         </Grid>
-        <CheckBox Grid.Column="3" x:Name="ExpandPlaylist" Content="展开列表（最多 100 项）" VerticalAlignment="Center"/>
+        <CheckBox Classes="ac" Grid.Column="3" x:Name="ExpandPlaylist" Content="展开列表（最多 100 项）" VerticalAlignment="Center"/>
       </Grid>
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="*,1,260" ColumnSpacing="8">
-      <Border Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1">
+      <Border Classes="ac-card">
         <Grid RowDefinitions="Auto,*">
           <Grid x:Name="SelectionToolbar" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="12,8" IsVisible="False">
             <TextBlock x:Name="SelectionSummary" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" x:Name="RetryFailedButton" Content="重试失败项" Click="RetryFailedClick" Classes="tool" IsVisible="False"/>
-            <CheckBox Grid.Column="2" x:Name="SelectAllCheck" Content="全选" IsCheckedChanged="SelectAllChanged" IsVisible="False"/>
+            <Button Grid.Column="1" x:Name="RetryFailedButton" Content="重试失败项" Click="RetryFailedClick" Classes="ac tool" IsVisible="False"/>
+            <CheckBox Classes="ac" Grid.Column="2" x:Name="SelectAllCheck" Content="全选" IsCheckedChanged="SelectAllChanged" IsVisible="False"/>
           </Grid>
           <Grid Grid.Row="1">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -33,7 +33,7 @@
                   <DataTemplate>
                     <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="8,6">
                       <Grid ColumnDefinitions="Auto,96,*" ColumnSpacing="8">
-                        <CheckBox IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Center"/>
+                        <CheckBox Classes="ac" IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Center"/>
                         <controls:RemoteThumbnail Grid.Column="1" SourceUrl="{Binding ThumbnailUrl}" Height="54"/>
                         <StackPanel Grid.Column="2" Spacing="2" PointerPressed="VideoRowPressed">
                           <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"/>
@@ -55,41 +55,41 @@
           <StackPanel Spacing="6">
             <Grid ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
               <TextBlock Text="格式" VerticalAlignment="Center"/>
-              <ComboBox Grid.Column="1" x:Name="DownloadFormat" HorizontalAlignment="Stretch" SelectionChanged="FormatChanged"/>
+              <ComboBox Classes="ac" Grid.Column="1" x:Name="DownloadFormat" HorizontalAlignment="Stretch" SelectionChanged="FormatChanged"/>
               <Grid Grid.Column="2" Grid.ColumnSpan="2" x:Name="DownloadQualityPanel" ColumnDefinitions="Auto,*" ColumnSpacing="8">
                 <TextBlock Text="画质" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="1" x:Name="DownloadQuality" HorizontalAlignment="Stretch"/>
+                <ComboBox Classes="ac" Grid.Column="1" x:Name="DownloadQuality" HorizontalAlignment="Stretch"/>
               </Grid>
             </Grid>
             <Grid x:Name="DownloadSubtitlesPanel" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
               <TextBlock Text="字幕（中 / 英）" VerticalAlignment="Center"/>
-              <ComboBox Grid.Column="1" x:Name="DownloadSubtitles" HorizontalAlignment="Stretch"/>
-              <CheckBox Grid.Column="2" x:Name="SaveMetadata" Content="保留元数据" IsChecked="True" VerticalAlignment="Center"/>
+              <ComboBox Classes="ac" Grid.Column="1" x:Name="DownloadSubtitles" HorizontalAlignment="Stretch"/>
+              <CheckBox Classes="ac" Grid.Column="2" x:Name="SaveMetadata" Content="保留元数据" IsChecked="True" VerticalAlignment="Center"/>
             </Grid>
           </StackPanel>
           <Expander x:Name="NetworkOptions" Header="登录与网络" HorizontalAlignment="Stretch">
             <StackPanel Spacing="6" Margin="0,6,0,0">
               <StackPanel Spacing="4">
                 <TextBlock Text="使用登录态"/>
-                <ComboBox x:Name="CookieSource" SelectionChanged="CookieSourceChanged"/>
+                <ComboBox Classes="ac" x:Name="CookieSource" SelectionChanged="CookieSourceChanged"/>
               </StackPanel>
               <StackPanel x:Name="CookieFilePanel" IsVisible="False" Spacing="4">
                 <TextBlock Text="Cookie 文件"/>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                  <TextBox IsReadOnly="True" x:Name="CookieFileInput" Watermark="cookies.txt"/>
-                  <Button Grid.Column="1" Content="浏览…" Click="CookieFileClick" Classes="field-action"/>
+                  <TextBox Classes="ac" IsReadOnly="True" x:Name="CookieFileInput" Watermark="cookies.txt"/>
+                  <Button Grid.Column="1" Content="浏览…" Click="CookieFileClick" Classes="ac field-action"/>
                 </Grid>
               </StackPanel>
               <StackPanel Spacing="4">
                 <TextBlock Text="代理（可选）"/>
-                <ComboBox x:Name="ProxyPreset" SelectionChanged="ProxyPresetChanged"/>
-                <TextBox x:Name="DownloadProxy" Watermark="http://127.0.0.1:7890"/>
+                <ComboBox Classes="ac" x:Name="ProxyPreset" SelectionChanged="ProxyPresetChanged"/>
+                <TextBox Classes="ac" x:Name="DownloadProxy" Watermark="http://127.0.0.1:7890"/>
               </StackPanel>
               <StackPanel Spacing="4">
                 <TextBlock Text="外部浏览器连接"/>
-                <ComboBox x:Name="BrowserConnectionPreset" SelectionChanged="ConnectionPresetChanged"/>
-                <TextBox x:Name="BrowserEndpoint" Text="http://127.0.0.1:9222"/>
-                <Button x:Name="ExternalBrowserCaptureButton" Content="从外部浏览器识别" Click="ExternalBrowserCaptureClick" Classes="tool"/>
+                <ComboBox Classes="ac" x:Name="BrowserConnectionPreset" SelectionChanged="ConnectionPresetChanged"/>
+                <TextBox Classes="ac" x:Name="BrowserEndpoint" Text="http://127.0.0.1:9222"/>
+                <Button x:Name="ExternalBrowserCaptureButton" Content="从外部浏览器识别" Click="ExternalBrowserCaptureClick" Classes="ac tool"/>
               </StackPanel>
             </StackPanel>
           </Expander>
@@ -97,16 +97,16 @@
       </ScrollViewer>
     </Grid>
     <Grid Grid.Row="2" x:Name="DownloadOutputFields" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
-      <TextBox IsReadOnly="True" Grid.Column="1" Grid.ColumnSpan="2" x:Name="DownloadFolder" AutomationProperties.Name="保存位置"/>
-      <Button Grid.Column="3" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/>
+      <TextBox Classes="ac" IsReadOnly="True" Grid.Column="1" Grid.ColumnSpan="2" x:Name="DownloadFolder" AutomationProperties.Name="保存位置"/>
+      <Button Grid.Column="3" Content="浏览…" Click="BrowseFolderClick" Classes="ac field-action"/>
       <TextBlock Grid.Row="1" x:Name="OutputNameLabel" Text="文件名" VerticalAlignment="Center" IsVisible="False"/>
-      <TextBox Grid.Row="1" Grid.Column="1" x:Name="DownloadOutputName" IsVisible="False"/>
+      <TextBox Classes="ac" Grid.Row="1" Grid.Column="1" x:Name="DownloadOutputName" IsVisible="False"/>
       <TextBlock Grid.Row="1" Grid.Column="2" x:Name="DownloadExtension" VerticalAlignment="Center" IsVisible="False"/>
     </Grid>
     <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
       <TextBlock x:Name="DownloadError" i18n:StableLayout.StatusLines="2" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap" VerticalAlignment="Center" IsVisible="False"/>
-      <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="dialog-action"/>
-      <Button Grid.Column="2" x:Name="AddDownloadsButton" Content="加入下载队列" Click="ConfirmClick" IsDefault="True" Classes="primary dialog-action" IsEnabled="False"/>
+      <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="ac dialog-action"/>
+      <Button Grid.Column="2" x:Name="AddDownloadsButton" Content="加入下载队列" Click="ConfirmClick" IsDefault="True" Classes="ac primary dialog-action" IsEnabled="False"/>
     </Grid>
   </Grid>
 </Window>

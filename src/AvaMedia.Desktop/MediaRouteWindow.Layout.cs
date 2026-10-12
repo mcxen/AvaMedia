@@ -50,7 +50,7 @@ public partial class MediaRouteWindow
         _cards.Clear(); _sections.Clear(); _positions.Clear(); RouteSections.Children.Clear();
         foreach (var group in _routes.GroupBy(route => SectionFor(route.Feature)).OrderBy(group => Array.IndexOf(order, group.Key.Key)))
         {
-            var heading = Ui.Text(group.Key.Title); heading.FontWeight = FontWeight.SemiBold; heading.Classes.Add("route-group");
+            var heading = Ui.ComponentText(group.Key.Title); heading.FontWeight = FontWeight.SemiBold; heading.Classes.Add("route-group");
             var grid = new Grid(); grid.Bind(Grid.ColumnSpacingProperty, new DynamicResourceExtension("UiSpacingSmall"));
             grid.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("UiSpacingSmall"));
             var section = new StackPanel(); section.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("UiSpacingSmall"));
@@ -102,7 +102,7 @@ public partial class MediaRouteWindow
 
     private Button RouteCard(MediaRouteOption route)
     {
-        var button = new Button { Classes = { "route-card" }, IsEnabled = route.Enabled };
+        var button = new Button { Classes = { "ac", "route-card" }, IsEnabled = route.Enabled };
         AutomationProperties.SetName(button, Localization.Text(route.Title));
         AutomationProperties.SetHelpText(button, Localization.Join(" · ", [Localization.Text(route.Description),
             route.Enabled ? Localization.Format($"接收 {route.Files.Length} 项 · 跳过 {route.SkippedCount} 项") : Localization.Text(route.DisabledReason)]));
@@ -111,11 +111,11 @@ public partial class MediaRouteWindow
         var icon = new FeatureIcon { Kind = route.Feature.Icon, VerticalAlignment = VerticalAlignment.Center };
         icon.Bind(WidthProperty, new DynamicResourceExtension("UiIconLarge")); icon.Bind(HeightProperty, new DynamicResourceExtension("UiIconLarge"));
         body.Children.Add(icon);
-        var title = Ui.Text(route.Title); title.FontWeight = FontWeight.SemiBold; title.TextWrapping = TextWrapping.Wrap;
+        var title = Ui.ComponentText(route.Title); title.FontWeight = FontWeight.SemiBold; title.TextWrapping = TextWrapping.Wrap;
         title.MaxLines = 2; title.TextTrimming = TextTrimming.CharacterEllipsis; title.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(title, 1); body.Children.Add(title);
-        var summary = !route.Enabled ? Ui.Text(route.DisabledReason, "caption") : route.SkippedCount > 0
-            ? Ui.FormattedText($"接收 {route.Files.Length} 项 · 跳过 {route.SkippedCount} 项", "caption") : Ui.Text(route.Description, "caption");
+        var summary = !route.Enabled ? Ui.ComponentText(route.DisabledReason, "caption") : route.SkippedCount > 0
+            ? Ui.ComponentFormattedText($"接收 {route.Files.Length} 项 · 跳过 {route.SkippedCount} 项", "caption") : Ui.ComponentText(route.Description, "caption");
         summary.TextWrapping = TextWrapping.Wrap; summary.MaxLines = 2; summary.TextTrimming = TextTrimming.CharacterEllipsis;
         Grid.SetRow(summary, 1); Grid.SetColumnSpan(summary, 2); body.Children.Add(summary); button.Content = body;
         button.PointerEntered += (_, _) => ActivateRoute(route, true);

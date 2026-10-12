@@ -57,7 +57,7 @@ public sealed partial class ImageViewerWindow
     {
         if (CurrentEntry is not { } entry) return;
         if (entry.InArchive) throw new InvalidOperationException("压缩包中的图片请解压后整理。");
-        if (!await Ui.Confirm(this, "移到回收站", entry.Name, "移到回收站")) return;
+        if (!await Ui.ComponentConfirm(this, "移到回收站", entry.Name, "移到回收站")) return;
         await new RecycleBin().MoveAsync(entry.Container, _lifetime.Token);
         _removedEntries.Add(entry.Identity);
         _preferences.Bookmarks = _preferences.Bookmarks.Where(item => item.Identity != entry.Identity).ToArray(); SavePreferences();
@@ -137,9 +137,9 @@ public sealed partial class ImageViewerWindow
     {
         if (_document is null) return;
         var dialog = new Window { Title = "预览效果", Width = 440, Height = 280, MinWidth = 400, MinHeight = 240, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var effect = new ComboBox { ItemsSource = new[] { "原图", "反色", "柔化", "柔化与锐化" }, SelectedIndex = 0 };
-        var gamma = new NumericUpDown { Minimum = .1m, Maximum = 5, Value = 1, Increment = .1m };
-        var fields = new StackPanel { Spacing = 10, Children = { Ui.Text("预览效果", "caption"), Ui.Parameter(effect, "预览效果"), Ui.Text("伽马", "caption"), Ui.Parameter(gamma, "伽马") } };
+        var effect = new ComboBox { Classes = { "ac" }, ItemsSource = new[] { "原图", "反色", "柔化", "柔化与锐化" }, SelectedIndex = 0 };
+        var gamma = new NumericUpDown { Classes = { "ac" }, Minimum = .1m, Maximum = 5, Value = 1, Increment = .1m };
+        var fields = new StackPanel { Spacing = 10, Children = { Ui.ComponentText("预览效果", "caption"), Ui.ComponentParameter(effect, "预览效果"), Ui.ComponentText("伽马", "caption"), Ui.ComponentParameter(gamma, "伽马") } };
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         actions.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
         actions.Children.Add(Ui.DialogButton("应用", () => dialog.Close(true), isDefault: true));

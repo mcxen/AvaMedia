@@ -266,11 +266,11 @@ public partial class PdfWorkspaceWindow : Window
             if (page == _active) card.Classes.Add("active");
             if (page.BreakAfter) card.Classes.Add("cut");
             var content = new StackPanel { Spacing = 6 }; card.Child = content;
-            var select = new CheckBox { Content = Localization.Format($"第 {page.Info.Number} 页"), IsChecked = page.Included, IsEnabled = CanArrange };
+            var select = new CheckBox { Classes = { "ac" }, Content = Localization.Format($"第 {page.Info.Number} 页"), IsChecked = page.Included, IsEnabled = CanArrange };
             select.IsCheckedChanged += (_, _) => { if (page.Included == (select.IsChecked == true)) return; Remember(); page.Included = select.IsChecked == true; RefreshSummary(); };
             content.Children.Add(select);
             var image = new Image { Height = 156, Stretch = Stretch.Uniform };
-            var previewButton = new Button { Content = image, Padding = new(2), HorizontalContentAlignment = HorizontalAlignment.Stretch, Background = Brushes.White };
+            var previewButton = new Button { Classes = { "ac" }, Content = image, HorizontalContentAlignment = HorizontalAlignment.Stretch, Background = Brushes.White };
             previewButton.Click += (_, _) => { _active = page; HighlightActive(); UpdatePreview(); };
             content.Children.Add(previewButton); renderTargets.Add((page, image));
             var name = new TextBlock { Text = Path.GetFileName(page.Path), TextTrimming = TextTrimming.CharacterEllipsis, Classes = { "caption" } };
@@ -287,7 +287,7 @@ public partial class PdfWorkspaceWindow : Window
                 Grid.SetColumn(right, 1); Grid.SetColumn(rotate, 2); actions.Children.Add(left); actions.Children.Add(right); if(!IsExtraction) actions.Children.Add(rotate); content.Children.Add(actions);
                 if (_feature.Operation == Operation.PdfSplit)
                 {
-                    var cut = new CheckBox { Content = Localization.Text("在此拆分"), IsChecked = page.BreakAfter, IsEnabled = SplitMode.SelectedIndex == 0 };
+                    var cut = new CheckBox { Classes = { "ac" }, Content = Localization.Text("在此拆分"), IsChecked = page.BreakAfter, IsEnabled = SplitMode.SelectedIndex == 0 };
                     cut.IsCheckedChanged += (_, _) => { Remember(); page.BreakAfter = cut.IsChecked == true; card.Classes.Set("cut", page.BreakAfter); RefreshSummary(); };
                     content.Children.Add(cut);
                 }
@@ -458,7 +458,7 @@ public partial class PdfWorkspaceWindow : Window
             var content = new Grid { RowDefinitions = new("108,*"), RowSpacing = 6 };
             var label = new TextBlock { Text = Localization.Text(preset.Label), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetRow(label,1); content.Children.Add(image); content.Children.Add(label);
-            var button = new Button { Content = content, Height = 164, Classes = { "pdf-effect" } };
+            var button = new Button { Content = content, Classes = { "ac", "pdf-effect" } };
             Avalonia.Automation.AutomationProperties.SetName(button,Localization.Text(preset.Label));
             button.Click += (_, _) => ApplyAgePreset(preset);
             Grid.SetColumn(button,index%2); Grid.SetRow(button,index/2); AgePresets.Children.Add(button); _agePresetCards.Add((button,image));

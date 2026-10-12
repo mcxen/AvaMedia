@@ -10,8 +10,8 @@ internal sealed class WordLibraryEditorWindow : Window
 {
     private readonly ObservableCollection<WordCandidate> _entries;
     private readonly ListBox _list = new();
-    private readonly TextBox _name, _label = Ui.Input(), _category = Ui.Input(), _description = Ui.Input();
-    private readonly TextBlock _error = Ui.Text("", "error");
+    private readonly TextBox _name, _label = Ui.ComponentInput(), _category = Ui.ComponentInput(), _description = Ui.ComponentInput();
+    private readonly TextBlock _error = Ui.ComponentText("", "error");
     private readonly WrapPanel _tags = new();
     private readonly HashSet<string> _selectedTags = new(StringComparer.OrdinalIgnoreCase);
     private bool _loading;
@@ -22,17 +22,17 @@ internal sealed class WordLibraryEditorWindow : Window
         Title = "编辑词库"; Width = 980; Height = 700; MinWidth = 850; MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         _entries = new(library?.Entries ?? [new("猫", "动物", "A photo of a cat.", ["cat"])]);
-        _name = Ui.Input(library is null ? "我的词库" : library.BuiltIn ? library.Name + " 副本" : library.Name);
+        _name = Ui.ComponentInput(library is null ? "我的词库" : library.BuiltIn ? library.Name + " 副本" : library.Name);
         Localization.SetIsUserText(_name,true);
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), RowSpacing = 8, Margin = new(12) };
-        var title = new StackPanel { Spacing = 6 }; title.Children.Add(Ui.Text("词库名称")); title.Children.Add(_name); root.Children.Add(title);
+        var title = new StackPanel { Spacing = 6 }; title.Children.Add(Ui.ComponentText("词库名称")); title.Children.Add(_name); root.Children.Add(title);
         var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
         var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 };
-        left.Children.Add(Ui.Text("词条")); _list.ItemsSource = _entries;
+        left.Children.Add(Ui.ComponentText("词条")); _list.ItemsSource = _entries;
         _list.ItemTemplate = new FuncDataTemplate<WordCandidate>((entry, _) =>
         {
             var row = new StackPanel { Spacing = 1, Margin = new(2, 1) };
-            var label=Ui.Text(entry?.Label??"");var category=Ui.Text(entry?.Category??"","caption");Localization.SetIsUserText(label,true);Localization.SetIsUserText(category,true);row.Children.Add(label);row.Children.Add(category);return row;
+            var label=Ui.ComponentText(entry?.Label??"");var category=Ui.ComponentText(entry?.Category??"","caption");Localization.SetIsUserText(label,true);Localization.SetIsUserText(category,true);row.Children.Add(label);row.Children.Add(category);return row;
         });
         Grid.SetRow(_list, 1); left.Children.Add(_list);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -45,14 +45,14 @@ internal sealed class WordLibraryEditorWindow : Window
         Grid.SetRow(actions, 2); left.Children.Add(actions); body.Children.Add(left);
         var fields = new StackPanel { Spacing = 8 };
         foreach (var (caption, input) in new[] { ("中文名称", _label), ("类别", _category), ("语义描述", _description) })
-        { Localization.SetIsUserText(input, true); fields.Children.Add(Ui.Text(caption)); fields.Children.Add(input); }
+        { Localization.SetIsUserText(input, true); fields.Children.Add(Ui.ComponentText(caption)); fields.Children.Add(input); }
         var categories = new WrapPanel();
         foreach (var value in _entries.Select(entry => entry.Category).Distinct().Take(12))
         { var button = Ui.Button(value, () => _category.Text = value); button.Margin = new(0,0,4,4); categories.Children.Add(button); }
         fields.Children.Add(categories);
-        fields.Children.Add(Ui.Text("识别标签")); fields.Children.Add(_tags);
-        var choices = new ComboBox { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280 };
-        choices.ItemTemplate = new FuncDataTemplate<string>((tag, _) => Ui.Text(tag is null ? "" : WordLibraryCatalog.TagLabel(tag)));
+        fields.Children.Add(Ui.ComponentText("识别标签")); fields.Children.Add(_tags);
+        var choices = new ComboBox { Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280 };
+        choices.ItemTemplate = new FuncDataTemplate<string>((tag, _) => Ui.ComponentText(tag is null ? "" : WordLibraryCatalog.TagLabel(tag)));
         choices.ItemsSource = WordLibraryCatalog.JoyTags.Order().ToArray(); fields.Children.Add(choices);
         fields.Children.Add(Ui.Button("添加识别标签", () =>
         {

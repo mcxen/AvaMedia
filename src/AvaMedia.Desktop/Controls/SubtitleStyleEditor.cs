@@ -16,9 +16,9 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
     private readonly NumericUpDown _size;
     private readonly NumericUpDown _margin;
     private readonly TextBox _color;
-    private readonly TextBlock _colorError = Ui.Text("颜色格式：#RRGGBB", "error");
-    private readonly TextBlock _positionText = Ui.Text("", "caption");
-    private readonly Button _resetPosition = new() { Name = "SubtitleResetPosition", Content = "恢复对齐", Classes = { "field-action" } };
+    private readonly TextBlock _colorError = Ui.ComponentText("颜色格式：#RRGGBB", "error");
+    private readonly TextBlock _positionText = Ui.ComponentText("", "caption");
+    private readonly Button _resetPosition = new() { Name = "SubtitleResetPosition", Content = "恢复对齐", Classes = { "ac", "field-action" } };
     private readonly ToggleButton[] _positions = new ToggleButton[9];
     private readonly Image _frame = new() { Name = "SubtitlePreviewFrame", Stretch = Stretch.Fill };
     private readonly TextBlock _sample = new() { Text = "字幕预览", TextWrapping = TextWrapping.Wrap };
@@ -45,24 +45,24 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         _fields = new StackPanel { Spacing = 6 }; _root.Children.Add(_fields);
         var automatic = Localization.Text("自动");
         var fonts = FontManager.Current.SystemFonts.Select(font => font.Name).Append(options.SubtitleFont).Where(name => name.Length > 0).Distinct().OrderBy(name => name);
-        _font = Ui.Combo(new[] { automatic }.Concat(fonts), options.SubtitleFont.Length > 0 ? options.SubtitleFont : automatic); _font.Name = "SubtitleFont";
+        _font = Ui.ComponentCombo(new[] { automatic }.Concat(fonts), options.SubtitleFont.Length > 0 ? options.SubtitleFont : automatic); _font.Name = "SubtitleFont";
         Localization.SetIsUserText(_font, true);
         Add(_fields, "字体", _font);
         _size = Number("SubtitleFontSize", options.SubtitleFontSize, 0, 200);
         Add(_fields, "字号", _size);
-        _color = Ui.Input(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB"; _color.IsReadOnly = true;
+        _color = Ui.ComponentInput(options.SubtitleColor); _color.Name = "SubtitleColor"; _color.Watermark = "#RRGGBB"; _color.IsReadOnly = true;
         var colors = new StackPanel { Spacing = 4 };
         var palette = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var hex in new[] { "#FFFFFF", "#FFFF00", "#FFD166", "#00E5FF", "#FF6B6B", "#76FF03", "#C792EA", "#000000" })
         {
-            var swatch = new Button { Width = 22, Height = 22, MinWidth = 22, MinHeight = 22, Padding = new(2), Margin = new(0, 0, 4, 4),
-                Content = new Border { Width = 14, Height = 14, Background = SolidColorBrush.Parse(hex) } };
+            var swatch = new Button { Classes = { "ac" }, Width = 22, MinWidth = 22, Margin = new(0, 0, 4, 4),
+                Content = new Border { Width = 14, Background = SolidColorBrush.Parse(hex) } };
             AutomationProperties.SetName(swatch, hex); ToolTip.SetTip(swatch, hex);
             swatch.Click += (_, _) => _color.Text = hex; palette.Children.Add(swatch);
         }
         colors.Children.Add(palette);
         var initialColor = Color.TryParse(options.SubtitleColor, out var parsedColor) ? parsedColor : Colors.White;
-        var channels = new[] { Ui.Number(initialColor.R,0,255), Ui.Number(initialColor.G,0,255), Ui.Number(initialColor.B,0,255) };
+        var channels = new[] { Ui.ComponentNumber(initialColor.R,0,255), Ui.ComponentNumber(initialColor.G,0,255), Ui.ComponentNumber(initialColor.B,0,255) };
         var colorRow = new Grid { ColumnDefinitions = new("18,*,*,*"), ColumnSpacing = 4 };
         var swatchPreview = new Border { Width = 18, Height = 18, Background = new SolidColorBrush(initialColor) }; colorRow.Children.Add(swatchPreview);
         var syncingColor=false;
@@ -111,7 +111,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         _caption = new Border { Name = "SubtitlePreviewCaption", Child = _sample, Padding = new(4, 2), Background = new SolidColorBrush(Color.Parse("#66000000")) };
         _captionLayer.Children.Add(_caption); _screen.Children.Add(_captionLayer);
         _preview = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Top };
-        var previewText = Ui.Input(Localization.Text("字幕预览")); previewText.Name = "SubtitlePreviewText"; previewText.Watermark = "预览文字";
+        var previewText = Ui.ComponentInput(Localization.Text("字幕预览")); previewText.Name = "SubtitlePreviewText"; previewText.Watermark = "预览文字";
         Localization.SetIsUserText(_sample, true); _sample.Text = previewText.Text;
         Localization.SetIsUserText(previewText, true); AutomationProperties.SetName(previewText, "预览文字");
         previewText.TextChanged += (_, _) => { _sample.Text = previewText.Text ?? ""; UpdatePreview(); };
@@ -216,9 +216,9 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         return (int)value;
     }
     private static void Add(Panel fields, string label, Control control)
-    { control=Ui.Parameter(control,label);
+    { control=Ui.ComponentParameter(control,label);
         var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 8 };
-        row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control); fields.Children.Add(row);
+        row.Children.Add(Ui.ComponentText(label)); Grid.SetColumn(control, 1); row.Children.Add(control); fields.Children.Add(row);
     }
     public void Dispose() { _disposed = true; _videoSource?.Cancel(); _seekFrame?.Cancel(); _videoSource?.Dispose(); _seekFrame?.Dispose(); _frame.Source = null; _bitmap?.Dispose(); _bitmap = null; }
 }
@@ -229,10 +229,10 @@ public sealed class VoiceEnhancementControl : UserControl
     public Slider StrengthInput { get; }
     public VoiceEnhancementControl(ConversionOptions options, bool required = false)
     {
-        EnabledInput = new CheckBox { Name = "VoiceEnhancement", Content = "人声增强", IsChecked = required || options.VoiceEnhancement, IsVisible = !required };
-        StrengthInput = new Slider { Name = "VoiceStrength", Minimum = 1, Maximum = 100, TickFrequency = 1, IsSnapToTickEnabled = true, Value = options.VoiceEnhancementStrength };
-        var value = Ui.Text("", "caption"); var row = new Grid { ColumnDefinitions = new("80,*,42"), ColumnSpacing = 8 };
-        row.Children.Add(Ui.Text("降噪强度")); Grid.SetColumn(StrengthInput, 1); row.Children.Add(StrengthInput); Grid.SetColumn(value, 2); row.Children.Add(value);
+        EnabledInput = new CheckBox { Classes = { "ac" }, Name = "VoiceEnhancement", Content = "人声增强", IsChecked = required || options.VoiceEnhancement, IsVisible = !required };
+        StrengthInput = new Slider { Classes = { "ac" }, Name = "VoiceStrength", Minimum = 1, Maximum = 100, TickFrequency = 1, IsSnapToTickEnabled = true, Value = options.VoiceEnhancementStrength };
+        var value = Ui.ComponentText("", "caption"); var row = new Grid { ColumnDefinitions = new("80,*,42"), ColumnSpacing = 8 };
+        row.Children.Add(Ui.ComponentText("降噪强度")); Grid.SetColumn(StrengthInput, 1); row.Children.Add(StrengthInput); Grid.SetColumn(value, 2); row.Children.Add(value);
         var root = new StackPanel { Spacing = 8 }; root.Children.Add(EnabledInput); root.Children.Add(row); Content = root;
         void Refresh() { row.IsVisible = EnabledInput.IsChecked == true; value.Text = ((int)StrengthInput.Value).ToString(CultureInfo.InvariantCulture) + "%"; }
         EnabledInput.IsCheckedChanged += (_, _) => Refresh();

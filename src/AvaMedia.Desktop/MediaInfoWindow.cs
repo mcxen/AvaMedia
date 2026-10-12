@@ -12,7 +12,7 @@ public sealed class MediaInfoWindow : Window
     private readonly IMediaEngine _engine;
     private readonly ListBox _files = new();
     private readonly StackPanel _details = new() { Spacing = 6 };
-    private readonly TextBlock _status = Ui.Status();
+    private readonly TextBlock _status = Ui.ComponentStatus();
     private readonly Button _export;
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _probe;
@@ -40,7 +40,7 @@ public sealed class MediaInfoWindow : Window
             catch(Exception error) { _status.Text = error.Message; }
         }); Grid.SetColumn(_export, 1); footer.Children.Add(_export);
         var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); footer.Children.Add(close); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
-        _files.ItemTemplate = new FuncDataTemplate<string>((path, _) => { var text = Ui.Text(System.IO.Path.GetFileName(path)); Localization.SetIsUserText(text, true); text.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; return text; });
+        _files.ItemTemplate = new FuncDataTemplate<string>((path, _) => { var text = Ui.ComponentText(System.IO.Path.GetFileName(path)); Localization.SetIsUserText(text, true); text.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; return text; });
         _files.SelectionChanged += async (_, _) => await ReadAsync();
         Closed += (_, _) => { _lifetime.Cancel(); _probe?.Cancel(); }; AddFiles(files);
     }
@@ -59,7 +59,7 @@ public sealed class MediaInfoWindow : Window
         {
             var info = await _engine.Probe(path, operation.Token); if(operation.IsCancellationRequested || _probe != operation) return;
             using var json = JsonDocument.Parse(info.RawJson); var root = json.RootElement;
-            var title = Ui.Text(System.IO.Path.GetFileName(path), "heading"); Localization.SetIsUserText(title, true); _details.Children.Add(title);
+            var title = Ui.ComponentText(System.IO.Path.GetFileName(path), "heading"); Localization.SetIsUserText(title, true); _details.Children.Add(title);
             Row("时长", MediaTime.Format(info.Duration)); Row("文件大小", $"{new FileInfo(path).Length / 1000000d:0.##} MB");
             if(info.HasVideo) { Row("画面", $"{info.Width} × {info.Height}"); Row("帧率", $"{info.FrameRate:0.###} fps"); }
             if(root.TryGetProperty("format", out var format))
@@ -68,8 +68,8 @@ public sealed class MediaInfoWindow : Window
             {
                 var tracks = root.GetProperty("streams").EnumerateArray().Where(stream => stream.TryGetProperty("codec_type", out var kind) && kind.GetString() == type).ToArray();
                 if(tracks.Length == 0) continue;
-                _details.Children.Add(Ui.Text(type == "video" ? "视频轨" : type == "audio" ? "音轨" : "字幕轨", "heading"));
-                for(var i = 0; i < tracks.Length; i++) { var text = Ui.Text(TrackSelector.Label(tracks[i], i)); Localization.SetIsUserText(text, true); _details.Children.Add(text); }
+                _details.Children.Add(Ui.ComponentText(type == "video" ? "视频轨" : type == "audio" ? "音轨" : "字幕轨", "heading"));
+                for(var i = 0; i < tracks.Length; i++) { var text = Ui.ComponentText(TrackSelector.Label(tracks[i], i)); Localization.SetIsUserText(text, true); _details.Children.Add(text); }
             }
             _json = info.RawJson; _export.IsEnabled = true; _status.Text = "";
         }
@@ -79,7 +79,7 @@ public sealed class MediaInfoWindow : Window
     }
     private void Row(string label, string value)
     {
-        var row = new Grid { ColumnDefinitions = new("110,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.Text(label, "caption"));
-        var text = Ui.Text(value); Localization.SetIsUserText(text, true); Grid.SetColumn(text, 1); row.Children.Add(text); _details.Children.Add(row);
+        var row = new Grid { ColumnDefinitions = new("110,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.ComponentText(label, "caption"));
+        var text = Ui.ComponentText(value); Localization.SetIsUserText(text, true); Grid.SetColumn(text, 1); row.Children.Add(text); _details.Children.Add(row);
     }
 }

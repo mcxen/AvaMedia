@@ -23,15 +23,15 @@ public sealed partial class SpeechToolsWindow : Window
     private readonly ObservableCollection<string> _files = [];
     private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SpeechFiles", MinHeight = 96, MaxHeight = 220, SelectionMode = SelectionMode.Multiple };
-    private readonly TextBlock _count = Ui.Text("", "caption");
-    private readonly TextBlock _empty = Ui.Text("暂无文件", "caption");
-    private readonly Button _remove = new() { Content = "移除选中", IsEnabled = false, Classes = { "field-action" } };
+    private readonly TextBlock _count = Ui.ComponentText("", "caption");
+    private readonly AvaMedia.Controls.EmptyState _empty = new() { Text = "暂无文件" };
+    private readonly Button _remove = new() { Content = "移除选中", IsEnabled = false, Classes = { "ac", "field-action" } };
     private readonly ComboBox _output, _language, _model;
     private readonly VoiceEnhancementControl _voice;
     private readonly TextBox _folder;
     private readonly CheckBox _sourceFolder;
     private readonly Button _browse, _confirm;
-    private readonly TextBlock _notice = Ui.Status();
+    private readonly TextBlock _notice = Ui.ComponentStatus();
     private readonly CancellationTokenSource _lifetime = new();
     private bool _busy, _outputChosen;
     private string _error = "";
@@ -71,7 +71,7 @@ public sealed partial class SpeechToolsWindow : Window
         _sources.ItemsSource = _files;
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
         {
-            var text = Ui.Text(Path.GetFileName(path!)); text.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; text.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
+            var text = Ui.ComponentText(Path.GetFileName(path!)); text.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; text.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
             Localization.SetIsUserText(text, true); ToolTip.SetTip(text, path); return text;
         });
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
@@ -84,15 +84,15 @@ public sealed partial class SpeechToolsWindow : Window
         Grid.SetRow(fields, 2); source.Children.Add(fields);
         string[] outputs = _transcribe ? ["MP4", "MKV", "SRT", "ASS"]
             : feature.Category == "音频" ? ["原格式", "WAV", "M4A", "MP3", "FLAC"] : ["原格式", "MP4", "MKV", "MOV", "WAV", "M4A", "MP3"];
-        _output = Ui.Combo(outputs, outputs[0]); _output.Name = "SpeechOutput";
+        _output = Ui.ComponentCombo(outputs, outputs[0]); _output.Name = "SpeechOutput";
         if (_transcribe) ToolTip.SetTip(_output, "烧录字幕 · MP4、烧录字幕 · MKV、字幕文件 · SRT、样式字幕 · ASS");
         if (_transcribe) _output.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "mp4", "mkv", "srt", "ass" }, _initial.Format));
         else if (options is not null) _output.SelectedIndex = Math.Max(0, Array.IndexOf(outputs, options.Format.ToUpperInvariant()));
         if(options is null&&saved is not null)_output.SelectedIndex=Math.Clamp(saved.Output,0,outputs.Length-1);
         if (!_transcribe) Add(fields, "输出内容", _output);
-        _language = Ui.Combo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别"); _language.Name = "SpeechLanguage";
+        _language = Ui.ComponentCombo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别"); _language.Name = "SpeechLanguage";
         _language.SelectedIndex = Math.Max(0, Array.IndexOf(TranscriptionOptions.Languages, _initial.Transcription?.Language ?? "auto"));
-        _model = Ui.Combo(["Base · 60 MB", "Tiny · 32 MB", "Small · 190 MB"], _initial.Transcription?.Model switch
+        _model = Ui.ComponentCombo(["Base · 60 MB", "Tiny · 32 MB", "Small · 190 MB"], _initial.Transcription?.Model switch
         { SpeechModel.Tiny => "Tiny · 32 MB", SpeechModel.Small => "Small · 190 MB", _ => "Base · 60 MB" }); _model.Name = "SpeechModel";
         _voice = new VoiceEnhancementControl(_initial, !_transcribe);
         if (_transcribe)
@@ -116,19 +116,19 @@ public sealed partial class SpeechToolsWindow : Window
         }
         var saving = new StackPanel { Spacing = 6 };
         var outputRow = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
-        _folder = Ui.Input(outputFolder); _folder.IsReadOnly = true; _folder.Name = "SpeechOutputFolder"; Localization.SetIsUserText(_folder, true);
+        _folder = Ui.ComponentInput(outputFolder); _folder.IsReadOnly = true; _folder.Name = "SpeechOutputFolder"; Localization.SetIsUserText(_folder, true);
         AutomationProperties.SetName(_folder, "保存位置"); outputRow.Children.Add(_folder);
-        _browse = new Button { Content = "浏览…", Classes = { "field-action" } };
+        _browse = new Button { Content = "浏览…", Classes = { "ac", "field-action" } };
         _browse.Click += async (_, _) => { if (!_busy && await Ui.Folder(this, "选择输出目录") is { } selected && !_lifetime.IsCancellationRequested) _folder.Text = selected; };
         Grid.SetColumn(_browse, 1); outputRow.Children.Add(_browse);
-        _sourceFolder = new CheckBox { Name = "SpeechSourceFolder", Content = "源目录", IsChecked = !editing && engine.Settings.OutputToSource };
+        _sourceFolder = new CheckBox { Classes = { "ac" }, Name = "SpeechSourceFolder", Content = "源目录", IsChecked = !editing && engine.Settings.OutputToSource };
         ToolTip.SetTip(_sourceFolder, "输出至源文件目录"); _sourceFolder.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(_sourceFolder, 2); outputRow.Children.Add(_sourceFolder); saving.Children.Add(outputRow); Grid.SetRow(saving, 1);
         root.Children.Add(saving);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var cancel = Ui.DialogButton("取消", () => Close(null)); cancel.MinWidth = 88; actions.Children.Add(cancel);
-        _confirm = new Button { Name = "SpeechConfirm", Content = editing ? "保存修改" : "加入队列", IsDefault = true, MinWidth = 112, Classes = { "primary", "dialog-action" } };
+        _confirm = new Button { Name = "SpeechConfirm", Content = editing ? "保存修改" : "加入队列", IsDefault = true, MinWidth = 112, Classes = { "ac", "primary", "dialog-action" } };
         _confirm.Click += (_, _) =>
         {
             if (_busy) return; _busy = true; _error = ""; Refresh(); fields.IsEnabled = source.IsEnabled = saving.IsEnabled = false;
@@ -238,7 +238,7 @@ public sealed partial class SpeechToolsWindow : Window
     {
         AutomationProperties.SetName(control, label);
         var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 6 };
-        row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control);
+        row.Children.Add(Ui.ComponentText(label)); Grid.SetColumn(control, 1); row.Children.Add(control);
         if (column > 0) Grid.SetColumn(row, column); panel.Children.Add(row);
     }
 }

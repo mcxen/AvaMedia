@@ -71,4 +71,38 @@ internal static partial class Ui
     }
 
     public static Card ComponentCard(Control content) => new() { Child = content };
+
+    public static async Task<bool> ComponentConfirm(Window owner, string title, string message, string action)
+    {
+        var dialog = new Window { Title = title, Width = 480, SizeToContent = SizeToContent.Height,
+            CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var body = new StackPanel();
+        body.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("AcGap"));
+        body.Children.Add(ComponentText(message));
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("AcRowGap"));
+        buttons.Children.Add(DialogButton("取消", () => dialog.Close(false)));
+        buttons.Children.Add(DialogButton(action, () => dialog.Close(true), isDefault: true));
+        body.Children.Add(buttons);
+        var sheet = new Border { Classes = { "ac-sheet" }, Child = body };
+        dialog.Content = Controls.WindowChrome.WrapDialog(dialog, sheet);
+        return await dialog.ShowDialog<bool>(owner);
+    }
+
+    public static Task ComponentMessageDialog(Window owner, string title, string message, IReadOnlyList<string> details)
+    {
+        var dialog = new Window { Title = title, Width = 480, Height = 300,
+            CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var body = new Grid { RowDefinitions = new("Auto,*,Auto") };
+        body.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcGap"));
+        body.Children.Add(new Notice { Title = Localization.Text(title), Detail = Localization.Text(message), State = "warning" });
+        var names = ComponentText(string.Join("\n", details));
+        Localization.SetIsUserText(names, true);
+        body.Children.Add(new ScrollViewer { Content = names, [Grid.RowProperty] = 1 });
+        var okay = DialogButton("好", () => dialog.Close(), isDefault: true);
+        okay.HorizontalAlignment = HorizontalAlignment.Right;
+        body.Children.Add(okay); Grid.SetRow(okay, 2);
+        dialog.Content = Controls.WindowChrome.WrapDialog(dialog, ComponentCard(body));
+        return dialog.ShowDialog(owner);
+    }
 }

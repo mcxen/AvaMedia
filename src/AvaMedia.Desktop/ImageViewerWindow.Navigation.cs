@@ -368,17 +368,17 @@ public sealed partial class ImageViewerWindow
     }
     private void ShowPlaybackSettings()
     {
-        var interval = new ComboBox { ItemsSource = _interval.ItemsSource, SelectedIndex = _interval.SelectedIndex };
+        var interval = new ComboBox { Classes = { "ac" }, ItemsSource = _interval.ItemsSource, SelectedIndex = _interval.SelectedIndex };
         interval.SelectionChanged += (_, _) => _interval.SelectedIndex = interval.SelectedIndex;
-        var random = new CheckBox { Content = "随机播放", IsChecked = _preferences.Random };
-        var repeat = new CheckBox { Content = "循环播放", IsChecked = _preferences.Repeat };
-        var lockZoom = new CheckBox { Content = "保持缩放比例", IsChecked = _preferences.LockZoom };
+        var random = new CheckBox { Classes = { "ac" }, Content = "随机播放", IsChecked = _preferences.Random };
+        var repeat = new CheckBox { Classes = { "ac" }, Content = "循环播放", IsChecked = _preferences.Repeat };
+        var lockZoom = new CheckBox { Classes = { "ac" }, Content = "保持缩放比例", IsChecked = _preferences.LockZoom };
         lockZoom.IsCheckedChanged += (_, _) => { _preferences.LockZoom = lockZoom.IsChecked == true; SavePreferences(); };
-        var rtl = new CheckBox { Content = "从右向左阅读", IsChecked = _preferences.RightToLeft };
+        var rtl = new CheckBox { Classes = { "ac" }, Content = "从右向左阅读", IsChecked = _preferences.RightToLeft };
         random.IsCheckedChanged += (_, _) => { _preferences.Random = random.IsChecked == true; SavePreferences(); };
         repeat.IsCheckedChanged += (_, _) => { _preferences.Repeat = repeat.IsChecked == true; SavePreferences(); };
         rtl.IsCheckedChanged += (_, _) => { _preferences.RightToLeft = rtl.IsChecked == true; SavePreferences(); SetViewportFrame(); };
-        var flyout = new Flyout { Content = new StackPanel { Spacing = 10, Children = { Ui.Text("间隔"), Ui.Parameter(interval, "间隔"), random, repeat, rtl, lockZoom } } }; flyout.ShowAt(_slideshowButton);
+        var flyout = new Flyout { Content = new StackPanel { Spacing = 10, Children = { Ui.ComponentText("间隔"), Ui.ComponentParameter(interval, "间隔"), random, repeat, rtl, lockZoom } } }; flyout.ShowAt(_slideshowButton);
     }
     private Task HelpAsync()
     {

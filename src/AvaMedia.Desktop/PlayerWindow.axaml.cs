@@ -430,7 +430,7 @@ public partial class PlayerWindow : Window
         body.Children.Add(new TextBlock { Text = "将原始文件移入回收站？", TextWrapping = TextWrapping.Wrap });
         var fileText = new TextBlock { Text = path, TextWrapping = TextWrapping.Wrap }; Localization.SetIsUserText(fileText, true);
         var file = new ScrollViewer { Content = fileText }; Grid.SetRow(file, 1); body.Children.Add(file);
-        var remember = new CheckBox { Content = "以后直接进回收站，不再确认" }; Grid.SetRow(remember, 2); body.Children.Add(remember);
+        var remember = new CheckBox { Classes = { "ac" }, Content = "以后直接进回收站，不再确认" }; Grid.SetRow(remember, 2); body.Children.Add(remember);
         var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Spacing = 12 };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
         var confirm = Ui.DialogButton("移入回收站", () => { if (remember.IsChecked == true) SetConfirmDeletion(false); dialog.Close(true); }); confirm.Classes.Add("primary"); buttons.Children.Add(confirm);

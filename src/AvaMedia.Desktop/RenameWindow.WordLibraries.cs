@@ -7,7 +7,7 @@ public sealed partial class RenameWindow
 {
     private WordCandidate[] _semanticCandidates = [];
     private string? _semanticLibraryError;
-    private readonly TextBlock _semanticLibrarySummary = Ui.Text("尚未选择词库候选", "caption");
+    private readonly TextBlock _semanticLibrarySummary = Ui.ComponentText("尚未选择词库候选", "caption");
 
     private void InitializeSemanticWordLibraries()
     {

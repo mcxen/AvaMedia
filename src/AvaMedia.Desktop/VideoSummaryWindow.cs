@@ -19,26 +19,26 @@ public sealed class VideoSummaryWindow : Window
     private readonly ObservableCollection<string> _files = [];
     private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SummaryFiles", MinHeight = 96, MaxHeight = 180, SelectionMode = SelectionMode.Multiple };
-    private readonly TextBlock _empty = Ui.Text("添加或拖入视频", "caption");
-    private readonly TextBlock _notice = Ui.Status();
-    private readonly CheckBox _abstract = new() { Content = "摘要" }, _summary = new() { Content = "视频内容总结" },
+    private readonly AvaMedia.Controls.EmptyState _empty = new() { Text = "添加或拖入视频" };
+    private readonly TextBlock _notice = Ui.ComponentStatus();
+    private readonly CheckBox _abstract = new() { Classes = { "ac" }, Content = "摘要" }, _summary = new() { Content = "视频内容总结" },
         _subtitles = new() { Content = "字幕提取" }, _analysis = new() { Content = "内容分析" },
         _frames = new() { Content = "分析视频画面" },
         _sourceFolder = new() { Content = "输出至源文件目录" };
     private readonly ComboBox _source, _language, _speechLanguage, _speechModel, _provider;
-    private readonly ComboBox _onlineProvider = new() { Name = "SummaryOnlineProvider", HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 140, MaxWidth = 240 };
+    private readonly ComboBox _onlineProvider = new() { Classes = { "ac" }, Name = "SummaryOnlineProvider", HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 140, MaxWidth = 240 };
     private readonly StackPanel _onlineProviderRow = new();
-    private readonly ComboBox _localVision = new() { HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 260 };
+    private readonly ComboBox _localVision = new() { Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 260 };
     private readonly StackPanel _localVisionRow = new();
     private readonly Grid _localRuntime = new() { ColumnDefinitions = new("*,*,Auto"), ColumnSpacing = 12, MinHeight = 30 };
-    private readonly Button _warmAction = new() { Content = "预热模型", Classes = { "field-action" } };
+    private readonly Button _warmAction = new() { Content = "预热模型", Classes = { "ac", "field-action" } };
     private string _runtimeVisionId = "";
     private sealed record LocalVisionChoice(string Id, string Name);
     private sealed record OnlineProviderChoice(string Id, string Name, bool UserText = true);
-    private readonly TextBlock _modelNotice = Ui.Text("", "caption");
+    private readonly TextBlock _modelNotice = Ui.ComponentText("", "caption");
     private readonly Button? _configureOnline;
-    private readonly TextBox _external = Ui.Input(), _focus = Ui.Input(), _folder;
-    private readonly NumericUpDown _frameCount = new() { Minimum = 1, Maximum = 48, Increment = 1 },
+    private readonly TextBox _external = Ui.ComponentInput(), _focus = Ui.ComponentInput(), _folder;
+    private readonly NumericUpDown _frameCount = new() { Classes = { "ac" }, Minimum = 1, Maximum = 48, Increment = 1 },
         _subtitleTrack = new() { Minimum = -1, Maximum = 100, Increment = 1 },
         _audioTrack = new() { Minimum = 0, Maximum = 100, Increment = 1 },
         _chunkSize = new() { Minimum = 1000, Maximum = 4000, Increment = 100 };
@@ -46,9 +46,9 @@ public sealed class VideoSummaryWindow : Window
     private readonly Button _confirm;
     private readonly CancellationTokenSource _lifetime = new();
     public bool ResumeRequested { get; private set; }
-    private readonly CheckBox _allAudioTracks = new() { Content = "全部音轨" }, _autoAudioTrack = new() { Content = "按语言自动选择音轨" },
+    private readonly CheckBox _allAudioTracks = new() { Classes = { "ac" }, Content = "全部音轨" }, _autoAudioTrack = new() { Content = "按语言自动选择音轨" },
         _strictSequential = new() { Content = "严格顺序理解" };
-    private readonly NumericUpDown _longConcurrency = new() { Minimum = 1, Maximum = 16, Increment = 1 };
+    private readonly NumericUpDown _longConcurrency = new() { Classes = { "ac" }, Minimum = 1, Maximum = 16, Increment = 1 };
     private readonly bool _editing;
     private bool _busy;
 
@@ -68,7 +68,7 @@ public sealed class VideoSummaryWindow : Window
         toolbar.AddFilesAsync = async () => AddFiles(await Ui.Pick(this, "选择视频"));
         toolbar.ReportErrorAsync = error => { ShowError(error); return Task.CompletedTask; };
         imports.ImportDroppedAsync = items => { AddFiles(items.Select(file => file.TryGetLocalPath()).OfType<string>()); return Task.CompletedTask; };
-        var remove = new Button { Content = "移除选中", Classes = { "field-action" } };
+        var remove = new Button { Content = "移除选中", Classes = { "ac", "field-action" } };
         remove.Click += (_, _) =>
         {
             if (_busy) return;
@@ -78,7 +78,7 @@ public sealed class VideoSummaryWindow : Window
         toolbar.Children.Add(remove);
         if (resultFolder is not null && File.Exists(Path.Combine(resultFolder, "report.json")))
         {
-            var results = new Button { Content = "查看结果", Classes = { "field-action" } };
+            var results = new Button { Content = "查看结果", Classes = { "ac", "field-action" } };
             results.Click += (_, _) =>
             {
                 try { new VideoSummaryResultWindow(resultFolder, engine, _files.FirstOrDefault()).Show(this); }
@@ -88,14 +88,14 @@ public sealed class VideoSummaryWindow : Window
         }
         if (allowResume && resultFolder is not null && File.Exists(Path.Combine(resultFolder, "work", "manifest.json")))
         {
-            var resume = new Button { Content = "继续", Classes = { "field-action" } };
+            var resume = new Button { Content = "继续", Classes = { "ac", "field-action" } };
             ToolTip.SetTip(resume, "继续已有任务，复用已完成的识别、画面和分段结果。");
             resume.Click += (_, _) => { ResumeRequested = true; Close(null); }; toolbar.Children.Add(resume);
         }
         _sources.ItemsSource = _files;
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
         {
-            var label = Ui.Text(Path.GetFileName(path!)); Localization.SetIsUserText(label, true);
+            var label = Ui.ComponentText(Path.GetFileName(path!)); Localization.SetIsUserText(label, true);
             label.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; label.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
             ToolTip.SetTip(label, path); return label;
         });
@@ -114,28 +114,28 @@ public sealed class VideoSummaryWindow : Window
         { choice.Margin = new(0, 0, 14, 0); choice.IsCheckedChanged += (_, _) => Refresh(); outputs.Children.Add(choice); }
         _frames.IsChecked = options.AnalyzeFrames;
         fields.Children.Add(outputs);
-        _provider = Ui.Combo(["本地模型", "线上 AI"], "本地模型");
+        _provider = Ui.ComponentCombo(["本地模型", "线上 AI"], "本地模型");
         _provider.SelectedIndex = (int)options.Provider; _provider.Name = "SummaryProvider";
-        _language = Ui.Combo(["简体中文", "English", "日本語"], options.OutputLanguage);
+        _language = Ui.ComponentCombo(["简体中文", "English", "日本語"], options.OutputLanguage);
         var choiceRow = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
         Add(choiceRow, "总结模型", _provider); Add(choiceRow, "输出语言", _language, 1); fields.Children.Add(choiceRow);
         var localChoices = new[] { ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryVisionId }
             .Select(id => new LocalVisionChoice(id, ModelCatalog.Find(id).Name)).ToArray();
         _localVision.ItemsSource = localChoices;
         _localVision.ItemTemplate = new FuncDataTemplate<LocalVisionChoice>((item, _) =>
-        { var label = Ui.Text(item?.Name ?? ""); Localization.SetIsUserText(label, true); return label; });
+        { var label = Ui.ComponentText(item?.Name ?? ""); Localization.SetIsUserText(label, true); return label; });
         _localVision.SelectedItem = localChoices.FirstOrDefault(choice => choice.Id == options.LocalVisionModelId) ?? localChoices[0];
         Add(_localVisionRow, "本地画面模型", _localVision); fields.Children.Add(_localVisionRow);
         _onlineProvider.ItemTemplate = new FuncDataTemplate<OnlineProviderChoice>((item, _) =>
-        { var label = Ui.Text(item?.Name ?? ""); Localization.SetIsUserText(label, item?.UserText == true); return label; });
+        { var label = Ui.ComponentText(item?.Name ?? ""); Localization.SetIsUserText(label, item?.UserText == true); return label; });
         RefreshOnlineProviders(options.OnlineProviderId);
         Add(_onlineProviderRow, "供应商", _onlineProvider); fields.Children.Add(_onlineProviderRow);
-        _source = Ui.Combo(["自动：优先字幕，否则识别语音", "视频字幕轨", "语音识别", "外部字幕文件"], "自动：优先字幕，否则识别语音");
+        _source = Ui.ComponentCombo(["自动：优先字幕，否则识别语音", "视频字幕轨", "语音识别", "外部字幕文件"], "自动：优先字幕，否则识别语音");
         _source.SelectedIndex = (int)options.TranscriptSource; _source.Name = "SummaryTranscriptSource";
         var recognition = new StackPanel { Spacing=6 };
         Add(recognition, "字幕来源", _source);
         _external.IsReadOnly = true; _external.Text = options.SubtitleFile; Localization.SetIsUserText(_external, true);
-        var pickSubtitle = new Button { Content = "浏览…", Classes = { "field-action" } };
+        var pickSubtitle = new Button { Content = "浏览…", Classes = { "ac", "field-action" } };
         pickSubtitle.Click += async (_, _) =>
         {
             try
@@ -148,9 +148,9 @@ public sealed class VideoSummaryWindow : Window
         };
         _externalRow = new() { Spacing = 8 };
         Add(_externalRow, "字幕文件", WithButton(_external, pickSubtitle)); recognition.Children.Add(_externalRow);
-        _speechLanguage = Ui.Combo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别");
+        _speechLanguage = Ui.ComponentCombo(["自动识别", "中文", "英语", "日语", "韩语", "法语", "德语", "西班牙语", "俄语"], "自动识别");
         _speechLanguage.SelectedIndex = Math.Max(0, Array.IndexOf(TranscriptionOptions.Languages, options.Speech.Language));
-        _speechModel = Ui.Combo(["Tiny · 32 MB", "Base · 60 MB", "Small · 190 MB"], options.Speech.Model switch
+        _speechModel = Ui.ComponentCombo(["Tiny · 32 MB", "Base · 60 MB", "Small · 190 MB"], options.Speech.Model switch
         { SpeechModel.Base => "Base · 60 MB", SpeechModel.Small => "Small · 190 MB", _ => "Tiny · 32 MB" });
         ToolTip.SetTip(_speechModel, "轻量 Tiny、标准 Base、Small");
         _speechFields = new() { Spacing = 6 };
@@ -162,7 +162,7 @@ public sealed class VideoSummaryWindow : Window
         modelRow.Children.Add(_modelNotice);
         if (configureOnlineAi is not null)
         {
-            _configureOnline = new Button { Content = "配置供应商…", Classes = { "field-action" } };
+            _configureOnline = new Button { Content = "配置供应商…", Classes = { "ac", "field-action" } };
             _configureOnline.Click += async (_, _) =>
             {
                 try
@@ -176,7 +176,7 @@ public sealed class VideoSummaryWindow : Window
         }
         if (manageModels is not null)
         {
-            var manage = new Button { Content = "模型管理", Classes = { "field-action" } };
+            var manage = new Button { Content = "模型管理", Classes = { "ac", "field-action" } };
             manage.Click += async (_, _) => { try { await manageModels(this); _modelWarmup.RefreshModels(); } catch (Exception error) { ShowError(error); } };
             Grid.SetColumn(manage, 2); modelRow.Children.Add(manage);
         }
@@ -197,8 +197,8 @@ public sealed class VideoSummaryWindow : Window
         ToolTip.SetTip(_longConcurrency, "超过 20 分钟的视频使用；本地模型始终并发 1。");
         foreach(var child in advanced.Children.ToArray()){advanced.Children.Remove(child);recognition.Children.Add(child);}
         fields.Children.Add(new Expander { Header = "识别设置", Content = recognition, HorizontalAlignment = HorizontalAlignment.Stretch });
-        var saving = new StackPanel { Spacing = 6 }; _folder = Ui.Input(outputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
-        var browse = new Button { Content = "浏览…", Classes = { "field-action" } };
+        var saving = new StackPanel { Spacing = 6 }; _folder = Ui.ComponentInput(outputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
+        var browse = new Button { Content = "浏览…", Classes = { "ac", "field-action" } };
         browse.Click += async (_, _) =>
         {
             try { if (await Ui.Folder(this, "选择输出目录") is { } folder && !_lifetime.IsCancellationRequested) _folder.Text = folder; }
@@ -213,7 +213,7 @@ public sealed class VideoSummaryWindow : Window
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         actions.Children.Add(Ui.DialogButton("取消", () => Close(null)));
-        _confirm = new Button { Content = _editing ? "保存修改" : "加入队列", IsDefault = true, Classes = { "primary", "dialog-action" } };
+        _confirm = new Button { Content = _editing ? "保存修改" : "加入队列", IsDefault = true, Classes = { "ac", "primary", "dialog-action" } };
         _confirm.Click += async (_, _) =>
         {
             if (_busy) return; _busy = true; Refresh(); imports.IsEnabled = fields.IsEnabled = saving.IsEnabled = false;
@@ -346,10 +346,10 @@ public sealed class VideoSummaryWindow : Window
         grid.Children.Add(control); Grid.SetColumn(button, 1); grid.Children.Add(button); return grid;
     }
     private static void Add(Panel panel, string label, Control control, int column = 0)
-    { control=Ui.Parameter(control,label);
+    { control=Ui.ComponentParameter(control,label);
         AutomationProperties.SetName(control, label);
         var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 6 };
-        row.Children.Add(Ui.Text(label)); Grid.SetColumn(control, 1); row.Children.Add(control);
+        row.Children.Add(Ui.ComponentText(label)); Grid.SetColumn(control, 1); row.Children.Add(control);
         if (column > 0) Grid.SetColumn(row, column);
         panel.Children.Add(row);
     }

@@ -147,7 +147,9 @@ public partial class EditorWindow
         var panel = new Panel();
         Move(image, panel); image.Stretch = Avalonia.Media.Stretch.UniformToFill;
         panel.Children.Add(new Border { Classes = { "tag" }, Child = new TextBlock { Text = Localization.Text(tag) }, IsHitTestVisible = false });
-        frame.Content = new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Child = panel };
+        var frameContent = new Border { ClipToBounds = true, Child = panel };
+        frameContent.Bind(Border.CornerRadiusProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcThumbRadius"));
+        frame.Content = frameContent;
         card.Children.Add(frame);
         var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 3, Margin = new Thickness(0, 5, 0, 0) };
         Move(minus, row); Restyle(minus, "nudge"); minus.Content = QuickIcon("chevron-left", 12);

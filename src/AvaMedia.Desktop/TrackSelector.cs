@@ -15,8 +15,9 @@ internal sealed class TrackSelector : ComboBox
     public int Index => (SelectedItem as Track)?.Index ?? throw new ArgumentException("请选择媒体轨道。");
     public TrackSelector(IMediaEngine? engine, string? path, string type, int selected, CancellationToken lifetime = default)
     {
+        Classes.Add("ac");
         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
-        ItemTemplate = new FuncDataTemplate<Track>((track, _) => { var text = Ui.Text(track?.Label ?? ""); Localization.SetIsUserText(text, true); return text; });
+        ItemTemplate = new FuncDataTemplate<Track>((track, _) => { var text = Ui.ComponentText(track?.Label ?? ""); Localization.SetIsUserText(text, true); return text; });
         var first = new Track(selected, selected<0?Localization.Text("自动选择"):Localization.Format($"第 {selected + 1} 条")); ItemsSource = new[] { first }; SelectedItem = first;
         if(engine is not null && !string.IsNullOrWhiteSpace(path)) _ = LoadAsync(engine, path, type, selected, lifetime);
     }

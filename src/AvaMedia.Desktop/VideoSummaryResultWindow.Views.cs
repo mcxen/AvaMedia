@@ -48,7 +48,7 @@ public sealed partial class VideoSummaryResultWindow
             for (var index = 0; index < report.Highlights.Length; index++)
             {
                 var row = new Grid { ColumnDefinitions = new("22,*"), ColumnSpacing = 6 };
-                var number = Ui.Text((index + 1).ToString("00"), "caption"); Localization.SetIsUserText(number, true);
+                var number = Ui.ComponentText((index + 1).ToString("00"), "caption"); Localization.SetIsUserText(number, true);
                 number.VerticalAlignment = VerticalAlignment.Top; number.Margin = new(0, 2, 0, 0); row.Children.Add(number);
                 var point = new StackPanel { Spacing = 2 };
                 point.Children.Add(SummaryDocumentView.Prose(report.Highlights[index]));
@@ -60,7 +60,7 @@ public sealed partial class VideoSummaryResultWindow
         if (report.Limitations.Length > 0)
         {
             var scope = new StackPanel { Spacing = 2 };
-            foreach (var limitation in report.Limitations) scope.Children.Add(Ui.Text(limitation, "caption"));
+            foreach (var limitation in report.Limitations) scope.Children.Add(Ui.ComponentText(limitation, "caption"));
             primary.Children.Add(Card("范围", scope));
         }
 
@@ -83,7 +83,7 @@ public sealed partial class VideoSummaryResultWindow
             {
                 var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
                 if (chapter.Seconds is { } time) row.Children.Add(TimeButton(time));
-                var title = Ui.Text(chapter.Title); Localization.SetIsUserText(title, true);
+                var title = Ui.ComponentText(chapter.Title); Localization.SetIsUserText(title, true);
                 title.TextTrimming = TextTrimming.CharacterEllipsis; title.VerticalAlignment = VerticalAlignment.Center;
                 Grid.SetColumn(title, 1); row.Children.Add(title); list.Children.Add(row);
             }
@@ -115,7 +115,7 @@ public sealed partial class VideoSummaryResultWindow
         {
             var chapter = report.Chapters[index]; var content = new StackPanel { Spacing = 4 };
             var top = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-            var heading = Ui.Text(chapter.Title, "summary-section"); Localization.SetIsUserText(heading, true); top.Children.Add(heading);
+            var heading = Ui.ComponentText(chapter.Title, "summary-section"); Localization.SetIsUserText(heading, true); top.Children.Add(heading);
             if (chapter.Seconds is { } time) { var stamp = TimeButton(time); Grid.SetColumn(stamp, 1); top.Children.Add(stamp); }
             content.Children.Add(top); content.Children.Add(new SummaryDocumentView(chapter.Text));
             content.Children.Add(EvidenceLinks(report, chapter.EvidenceIds));
@@ -145,7 +145,7 @@ public sealed partial class VideoSummaryResultWindow
     {
         var root = new Grid { RowDefinitions = new("Auto,*"), Margin = new(12, 0, 12, 8), RowSpacing = 6 };
         var tools = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-        var count = Ui.Text("", "caption"); Grid.SetColumn(count, 1); tools.Children.Add(count); root.Children.Add(tools);
+        var count = Ui.ComponentText("", "caption"); Grid.SetColumn(count, 1); tools.Children.Add(count); root.Children.Add(tools);
         var list = _transcript; list.HorizontalAlignment = HorizontalAlignment.Stretch; list.Classes.Add("summary-transcript");
         ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         list.ItemTemplate = new FuncDataTemplate<SubtitleCue>((cue, _) =>
@@ -240,14 +240,14 @@ public sealed partial class VideoSummaryResultWindow
     private static Control Information(VideoSummaryReport report)
     {
         var source = new StackPanel { Spacing = 4 };
-        source.Children.Add(Ui.FormattedText($"字幕来源：{Localization.Key(report.TranscriptSource)}", "caption"));
-        source.Children.Add(Ui.FormattedText($"输出语言：{Localization.Key(report.Language)}", "caption"));
+        source.Children.Add(Ui.ComponentFormattedText($"字幕来源：{Localization.Key(report.TranscriptSource)}", "caption"));
+        source.Children.Add(Ui.ComponentFormattedText($"输出语言：{Localization.Key(report.Language)}", "caption"));
         if (report.Models.Length > 0)
         {
-            var models = Ui.Text(string.Join("\n", report.Models), "caption"); Localization.SetIsUserText(models, true); source.Children.Add(models);
+            var models = Ui.ComponentText(string.Join("\n", report.Models), "caption"); Localization.SetIsUserText(models, true); source.Children.Add(models);
         }
         var scope = new StackPanel { Spacing = 4 };
-        foreach (var limitation in report.Limitations) scope.Children.Add(Ui.Text(limitation, "caption"));
+        foreach (var limitation in report.Limitations) scope.Children.Add(Ui.ComponentText(limitation, "caption"));
         return Split(Card("生成信息", source), Card("结果范围", scope));
     }
 }

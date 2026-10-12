@@ -29,7 +29,7 @@ public sealed partial class RenameWindow
         Category("媒体信息", [("按媒体信息命名", new(RenameAction.Template) { Text = "{name}_{width}x{height}" })]);
         if (_settings.EnableBetaFeatures)
         {
-            var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(Ui.Text("智能命名 · Beta", "settingsHeading"));
+            var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(Ui.ComponentText("智能命名 · Beta", "settingsHeading"));
             panel.Children.Add(Ui.Button("关键词匹配", () => { _semantic.IsChecked = true; _semanticPanel.BringIntoView(); })); _catalog.Children.Add(panel);
         }
         void Category(string name, (string Label, RenameOperation Rule)[] tools)
@@ -77,8 +77,8 @@ public sealed partial class RenameWindow
     private void BuildRuleEditor()
     {
         _ruleEditor.Children.Clear(); _invalidRuleInputs.Clear();
-        if (_ruleList.SelectedItem is not RenameStep step) { _ruleEditor.Children.Add(Ui.Text("从左侧添加命名规则。", "caption")); return; }
-        var rule = step.Operation; _ruleEditor.Children.Add(Ui.Text(step.Label, "settingsHeading"));
+        if (_ruleList.SelectedItem is not RenameStep step) { _ruleEditor.Children.Add(Ui.ComponentText("从左侧添加命名规则。", "caption")); return; }
+        var rule = step.Operation; _ruleEditor.Children.Add(Ui.ComponentText(step.Label, "settingsHeading"));
         switch (rule.Action)
         {
             case RenameAction.Template:
@@ -89,7 +89,7 @@ public sealed partial class RenameWindow
                     var button = Ui.Button(label, () => { var position = template.CaretIndex; template.Text = (template.Text ?? "").Insert(position, token); template.CaretIndex = position + token.Length; template.Focus(); });
                     button.Margin = new(0, 0, 4, 4); button.Classes.Add("field-action"); tokens.Children.Add(button);
                 }
-                _ruleEditor.Children.Add(tokens); _ruleEditor.Children.Add(Ui.Text("扩展名自动保留", "caption")); Numbering(); break;
+                _ruleEditor.Children.Add(tokens); _ruleEditor.Children.Add(Ui.ComponentText("扩展名自动保留", "caption")); Numbering(); break;
             case RenameAction.Add:
                 Text("添加文本", rule.Text, text => step.Operation = step.Operation with { Text = text }); Placement(); break;
             case RenameAction.Replace:
@@ -103,7 +103,7 @@ public sealed partial class RenameWindow
                 Number("字符数量", 1, 1000000, rule.Count, value => step.Operation = step.Operation with { Count = value });
                 Toggle("从末尾计算", rule.FromEnd, value => step.Operation = step.Operation with { FromEnd = value });
                 if (rule.Action == RenameAction.Move) Number("移至位置", 0, 1000000, rule.Destination, value => step.Operation = step.Operation with { Destination = value });
-                _ruleEditor.Children.Add(Ui.Text("位置从 0 开始", "caption")); break;
+                _ruleEditor.Children.Add(Ui.ComponentText("位置从 0 开始", "caption")); break;
             case RenameAction.Case:
             case RenameAction.ExtensionCase:
                 Choice("大小写", ["小写", "大写", "单词首字母大写", "首字母大写"], (int)rule.Case, value => step.Operation = step.Operation with { Case = (RenameCase)value }); break;
@@ -114,12 +114,12 @@ public sealed partial class RenameWindow
             case RenameAction.Date:
                 Choice("日期来源", ["修改时间", "创建时间"], (int)rule.Date, value => step.Operation = step.Operation with { Date = (RenameDate)value });
                 var dateFormats = new[] { "yyyyMMdd", "yyyy-MM-dd", "yyyy-MM-dd_HH-mm", "yyyy年MM月dd日", "yyyyMMdd_HHmmss" };
-                var dateChoice = Ui.Combo(dateFormats.Append(rule.DateFormat).Distinct(), rule.DateFormat);
-                dateChoice.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((pattern, _) => { try { return Ui.Text(DateTime.Today.ToString(pattern)); } catch(FormatException) { return Ui.Text(pattern??""); } });
+                var dateChoice = Ui.ComponentCombo(dateFormats.Append(rule.DateFormat).Distinct(), rule.DateFormat);
+                dateChoice.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((pattern, _) => { try { return Ui.ComponentText(DateTime.Today.ToString(pattern)); } catch(FormatException) { return Ui.ComponentText(pattern??""); } });
                 AddRow(_ruleEditor,"日期样式",dateChoice);dateChoice.SelectionChanged+=(_,_)=>{if(dateChoice.SelectedItem is string pattern)step.Operation=step.Operation with {DateFormat=pattern};}; Placement(); break;
             case RenameAction.Extension:
                 Text("扩展名", rule.Text, text => step.Operation = step.Operation with { Text = text });
-                _ruleEditor.Children.Add(Ui.Text("只修改扩展名，不转换文件格式。", "caption")); break;
+                _ruleEditor.Children.Add(Ui.ComponentText("只修改扩展名，不转换文件格式。", "caption")); break;
         }
         void Numbering()
         {
@@ -134,7 +134,7 @@ public sealed partial class RenameWindow
             {
                 Number("字符位置", 0, 1000000, rule.Position, value => step.Operation = step.Operation with { Position = value });
                 Toggle("从末尾计算", rule.FromEnd, value => step.Operation = step.Operation with { FromEnd = value });
-                _ruleEditor.Children.Add(Ui.Text("位置从 0 开始", "caption"));
+                _ruleEditor.Children.Add(Ui.ComponentText("位置从 0 开始", "caption"));
             }
             else
             {
@@ -143,10 +143,10 @@ public sealed partial class RenameWindow
             }
         }
         TextBox Text(string label, string value, Action<string> change)
-        { var box = Ui.Input(value); Localization.SetIsUserText(box, true); AddRow(_ruleEditor, label, box); box.TextChanged += (_, _) => change(box.Text ?? ""); return box; }
+        { var box = Ui.ComponentInput(value); Localization.SetIsUserText(box, true); AddRow(_ruleEditor, label, box); box.TextChanged += (_, _) => change(box.Text ?? ""); return box; }
         void Number(string label, int min, int max, int value, Action<int> change)
         {
-            var input = new NumericUpDown { Minimum = min, Maximum = max, Value = value, Increment = 1 }; AddRow(_ruleEditor, label, input);
+            var input = new NumericUpDown { Classes = { "ac" }, Minimum = min, Maximum = max, Value = value, Increment = 1 }; AddRow(_ruleEditor, label, input);
             input.PropertyChanged += (_, args) =>
             {
                 if (args.Property != NumericUpDown.ValueProperty && args.Property != NumericUpDown.TextProperty) return;
@@ -156,9 +156,9 @@ public sealed partial class RenameWindow
             };
         }
         void Toggle(string label, bool value, Action<bool> change)
-        { var check = new CheckBox { Content = label, IsChecked = value }; check.IsCheckedChanged += (_, _) => change(check.IsChecked == true); _ruleEditor.Children.Add(check); }
+        { var check = new CheckBox { Classes = { "ac" }, Content = label, IsChecked = value }; check.IsCheckedChanged += (_, _) => change(check.IsChecked == true); _ruleEditor.Children.Add(check); }
         void Choice(string label, string[] choices, int value, Action<int> change)
-        { var combo = new ComboBox { ItemsSource = choices.Select(Localization.Text).ToArray(), SelectedIndex = value, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 120, MaxWidth = 240 }; AddRow(_ruleEditor, label, combo); combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) change(combo.SelectedIndex); }; }
+        { var combo = new ComboBox { Classes = { "ac" }, ItemsSource = choices.Select(Localization.Text).ToArray(), SelectedIndex = value, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 120, MaxWidth = 240 }; AddRow(_ruleEditor, label, combo); combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) change(combo.SelectedIndex); }; }
     }
     private async Task SaveRulesAsync()
     {

@@ -19,8 +19,8 @@
           <TextBlock Text="功能介绍" Classes="title"/>
           <TextBlock Text="转换、压缩和编辑视频、音频、图片与 PDF。" TextWrapping="Wrap"/>
         </StackPanel>
-        <Border Background="{DynamicResource UiSurfaceRaised}" Padding="{DynamicResource UiSectionPadding}"
-                CornerRadius="{DynamicResource UiControlRadius}">
+        <Border Classes="ac-card"
+               >
           <Grid ColumnDefinitions="*,*,*" ColumnSpacing="{DynamicResource UiSpacingMedium}">
             <StackPanel Spacing="{DynamicResource UiSpacingSmall}">
               <TextBlock Text="1. 选择功能" FontWeight="SemiBold" TextWrapping="Wrap"/>
@@ -48,6 +48,6 @@
       </StackPanel>
     </ScrollViewer>
     <Button Grid.Row="1" Content="关闭" Click="CloseClick" IsCancel="True"
-            Classes="dialog-action" HorizontalAlignment="Right"/>
+            Classes="ac dialog-action" HorizontalAlignment="Right"/>
   </Grid>
 </Window>

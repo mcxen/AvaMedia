@@ -26,12 +26,12 @@ public sealed partial class VideoSummaryResultWindow : Window
     private readonly List<Bitmap> _images = [];
     private readonly List<Page> _pages = [];
     private readonly SemaphoreSlim _playGate = new(1, 1);
-    private readonly ListBox _navigation = new() { Classes = { "summary-nav" } };
+    private readonly AvaMedia.Controls.SegmentedControl _navigation = new() { Classes = { "summary-nav", "tabs" } };
     private readonly ContentControl _body = new() { HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
         VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Stretch };
-    private readonly TextBlock _notice = Ui.Text("读取结果…", "caption");
-    private readonly TextBlock _fileName = Ui.Text("", "title");
-    private readonly TextBlock _metadata = Ui.Text("", "caption");
+    private readonly TextBlock _notice = Ui.ComponentText("读取结果…", "caption");
+    private readonly TextBlock _fileName = Ui.ComponentText("", "title");
+    private readonly TextBlock _metadata = Ui.ComponentText("", "caption");
     private readonly Image _cover = new();
     private readonly ListBox _transcript = new();
     private Button _copy = null!, _export = null!, _play = null!;

@@ -47,11 +47,11 @@ public sealed class SubtitleReviewWindow : Window
     private readonly IMediaEngine _engine;
     private readonly ConversionRequest _request;
     private readonly Source[] _sources;
-    private readonly ComboBox _files = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _files = new() { Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ListBox _cues = new();
-    private readonly TextBlock _cueCount = Ui.Text("", "caption");
-    private readonly TextBox _start = Ui.Input(), _end = Ui.Input(), _text = Ui.Input();
-    private readonly TextBlock _notice = Ui.Status();
+    private readonly TextBlock _cueCount = Ui.ComponentText("", "caption");
+    private readonly TextBox _start = Ui.ComponentInput(), _end = Ui.ComponentInput(), _text = Ui.ComponentInput();
+    private readonly TextBlock _notice = Ui.ComponentStatus();
     private readonly ComboBox _format;
     private readonly TextBox _folder;
     private readonly CheckBox _sourceFolder;
@@ -86,30 +86,30 @@ public sealed class SubtitleReviewWindow : Window
         ToolExecution.SaveOnClose(this, FlushTaskEditsAsync);
         var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
         var fileRow = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };
-        fileRow.Children.Add(Ui.Text("源文件")); Grid.SetColumn(_files, 1); fileRow.Children.Add(_files);
+        fileRow.Children.Add(Ui.ComponentText("源文件")); Grid.SetColumn(_files, 1); fileRow.Children.Add(_files);
         _cueCount.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(_cueCount, 2); fileRow.Children.Add(_cueCount); root.Children.Add(fileRow);
         var content = new Grid { ColumnDefinitions = new("300,*,340"), ColumnSpacing = 8 };
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>
         {
             if (source is null) return new TextBlock();
             var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-            var name = Ui.Text(System.IO.Path.GetFileName(source.Path)); Localization.SetIsUserText(name, true);
+            var name = Ui.ComponentText(System.IO.Path.GetFileName(source.Path)); Localization.SetIsUserText(name, true);
             name.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; row.Children.Add(name);
-            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(Source.Status))); Grid.SetColumn(status, 1); row.Children.Add(status); return row;
+            var status = new AvaMedia.Controls.StatusPill { State = "waiting" }; status.Bind(AvaMedia.Controls.StatusPill.TextProperty, new Binding(nameof(Source.Status))); Grid.SetColumn(status, 1); row.Children.Add(status); return row;
         });
         _cues.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.PaddingProperty, new Thickness(6, 2)), new Setter(ListBoxItem.MinHeightProperty, 0d), new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _cues.ItemTemplate = new FuncDataTemplate<CueDraft>((cue, _) =>
         {
             var row = new Grid { ColumnDefinitions = new("148,*"), ColumnSpacing = 8 };
-            var time = Ui.Text("", "caption"); time.TextTrimming = TextTrimming.CharacterEllipsis; time.TextWrapping = TextWrapping.NoWrap;
+            var time = Ui.ComponentText("", "caption"); time.TextTrimming = TextTrimming.CharacterEllipsis; time.TextWrapping = TextWrapping.NoWrap;
             time.Bind(TextBlock.TextProperty, new Binding(nameof(CueDraft.Time))); row.Children.Add(time);
-            var text = Ui.Text(""); text.Bind(TextBlock.TextProperty, new Binding(nameof(CueDraft.Summary)));
+            var text = Ui.ComponentText(""); text.Bind(TextBlock.TextProperty, new Binding(nameof(CueDraft.Summary)));
             Localization.SetIsUserText(text, true); text.TextTrimming = TextTrimming.CharacterEllipsis; text.TextWrapping = TextWrapping.NoWrap;
             Grid.SetColumn(text, 1); row.Children.Add(text); return row;
         });
         var listHeader = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Margin = new(0, 0, 0, 4) };
-        listHeader.Children.Add(Ui.Text("字幕"));
+        listHeader.Children.Add(Ui.ComponentText("字幕"));
         var addCue = Ui.Button("添加", () =>
         {
             if (_busy || Selected?.Cues is not {} cues) return;
@@ -160,13 +160,13 @@ public sealed class SubtitleReviewWindow : Window
         _style = new SubtitleStyleEditor(request.Options) { Compact = true };
         var styleScroll = new ScrollViewer { Content = _style, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         var output = new Grid { ColumnDefinitions = new("*,*,Auto"), ColumnSpacing = 8 };
-        _format = Ui.Combo(["SRT", "ASS", "MP4", "MKV"], "SRT");
+        _format = Ui.ComponentCombo(["SRT", "ASS", "MP4", "MKV"], "SRT");
         AutomationProperties.SetName(_format, "输出内容"); ToolTip.SetTip(_format, "字幕文件 · SRT、样式字幕 · ASS、带字幕视频 · MP4、带字幕视频 · MKV");
         _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", "mp4", "mkv" }, request.Options.Format));
         output.Children.Add(_format);
-        _folder = Ui.Input(request.OutputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
+        _folder = Ui.ComponentInput(request.OutputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
         Avalonia.Automation.AutomationProperties.SetName(_folder, "字幕保存位置");
-        _sourceFolder = new CheckBox { Content = "源目录", IsChecked = request.OutputToSource }; ToolTip.SetTip(_sourceFolder, "输出至源文件目录");
+        _sourceFolder = new CheckBox { Classes = { "ac" }, Content = "源目录", IsChecked = request.OutputToSource }; ToolTip.SetTip(_sourceFolder, "输出至源文件目录");
         Grid.SetColumn(_folder, 1); output.Children.Add(_folder);
         var browse = Ui.Button("浏览…", async () =>
         {

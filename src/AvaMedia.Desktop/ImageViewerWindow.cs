@@ -20,7 +20,7 @@ public sealed partial class ImageViewerWindow : Window
     private readonly ListBox _files = new();
     private readonly TextBlock _zoomNotice = new() { Classes = { "viewer-zoom" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly DispatcherTimer _zoomNoticeTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
-    private readonly TextBlock _empty = Ui.Text("打开图片、文件夹或压缩包");
+    private readonly TextBlock _empty = Ui.ComponentText("打开图片、文件夹或压缩包");
     private readonly StackPanel _metadata = new() { Spacing = 1 };
     private readonly Border _info = new() { IsVisible = false };
     private readonly TextBlock _infoSummary = new() { Classes = { "viewer-summary" }, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -35,9 +35,9 @@ public sealed partial class ImageViewerWindow : Window
     private readonly Button _bookmarkButton = Ui.Button("收藏", () => { });
     private readonly Button _mapButton = Ui.Button("地图", () => { });
     private bool _spread;
-    private readonly CheckBox _recursive = new() { Content = "包含子文件夹" };
-    private readonly ComboBox _fit = new() { Width = 110, ItemsSource = new[] { "适应窗口", "仅缩小", "适应宽度", "原始尺寸" }, SelectedIndex = 0 };
-    private readonly ComboBox _interval = new() { Width = 78, ItemsSource = new[] { "2 秒", "5 秒", "10 秒", "30 秒" }, SelectedIndex = 1 };
+    private readonly CheckBox _recursive = new() { Classes = { "ac" }, Content = "包含子文件夹" };
+    private readonly ComboBox _fit = new() { Classes = { "ac" }, Width = 110, ItemsSource = new[] { "适应窗口", "仅缩小", "适应宽度", "原始尺寸" }, SelectedIndex = 0 };
+    private readonly ComboBox _interval = new() { Classes = { "ac" }, Width = 78, ItemsSource = new[] { "2 秒", "5 秒", "10 秒", "30 秒" }, SelectedIndex = 1 };
     private readonly DispatcherTimer _animation = new();
     private readonly DispatcherTimer _slideshow = new();
     private readonly Storage _storage = new();

@@ -12,7 +12,7 @@ internal sealed class VoicePreviewWindow : Window
     private readonly ConversionOptions _options;
     private readonly string _temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-voice-preview-" + Guid.NewGuid().ToString("N"));
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly TextBlock _status = Ui.Text("", "caption");
+    private readonly TextBlock _status = Ui.ComponentText("", "caption");
     private readonly StackPanel _actions = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private PlayerWindow? _player;
     public VoicePreviewWindow(IMediaEngine engine, string source, ConversionOptions options)

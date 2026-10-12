@@ -9,11 +9,11 @@ public sealed partial class RenameWindow
 {
     private readonly AppSettings _settings;
     private readonly Func<Window, Task>? _manageModels;
-    private readonly CheckBox _semantic = new() { Content = "关键词匹配重命名 · Beta" };
-    private readonly TextBox _keywords = new() { AcceptsReturn = true, Height = 88, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+    private readonly CheckBox _semantic = new() { Classes = { "ac" }, Content = "关键词匹配重命名 · Beta" };
+    private readonly TextBox _keywords = new() { Classes = { "ac" }, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         Watermark = Localization.Text("做饭，骑车，海边") };
     private readonly NumericUpDown _semanticFrames = SemanticNumber(1, 32, 8, 1);
-    private readonly CheckBox _semanticReuse = new() { Content = "复用相似画面", IsChecked = true };
+    private readonly CheckBox _semanticReuse = new() { Classes = { "ac" }, Content = "复用相似画面", IsChecked = true };
     private readonly NumericUpDown _semanticThreshold = SemanticNumber(0, 1, .55m, .05m);
     private readonly NumericUpDown _semanticMargin = SemanticNumber(0, 1, .03m, .01m);
     private readonly StackPanel _semanticPanel = new() { Spacing = 8, IsVisible = false };

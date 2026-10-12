@@ -19,9 +19,9 @@ internal static class ImageViewerToolbar
     {
         var hasText = kind is null || showLabel;
         button.Classes.Add("viewer-tool");
-        button.Width = hasText ? double.NaN : 30; button.MinWidth = 30;
-        button.Height = button.MinHeight = 30;
-        button.Padding = new(hasText ? 8 : 5, 5); button.Margin = new(0, 0, 2, 0);
+        button.Classes.Add("ac"); button.Classes.Add("borderless");
+        button.Classes.Set("icon", !hasText);
+        button.Margin = new(0, 0, 2, 0);
         button.HorizontalContentAlignment = HorizontalAlignment.Center;
         button.VerticalContentAlignment = VerticalAlignment.Center;
         SetAction(button, kind, label, showLabel);
