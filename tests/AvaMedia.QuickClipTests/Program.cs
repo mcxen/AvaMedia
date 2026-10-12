@@ -42,7 +42,8 @@ var perSource = QuickClipBatch.CreateJobs([new(input, new()), new(portrait, new(
 Check(perSource.All(j => Path.GetDirectoryName(j.Output) == root && !j.Inputs.Contains(j.Output)), "Source directory outputs can overwrite inputs.");
 var parts = ClipSplit.Create(new() { Start = .5, End = 3.5, Speed = 2 }, 4, new(Parts: 3));
 Check(parts.Count == 3 && parts[0].Start == .5 && parts[2].End == 3.5 && parts[0].End == parts[1].Start && parts[1].End == parts[2].Start && parts.All(o => o.Speed == 2), "Splits lost boundaries or filters.");
-var splitDraft = new ConversionOptions { Start = .5, End = 3.5, Speed = 2, CropX = 80, CropY = 40, CropWidth = 64, CropHeight = 40 };
+// Pixel comparisons need explicit quality: this synthetic lossless source has an unusually low bitrate.
+var splitDraft = new ConversionOptions { Start = .5, End = 3.5, Speed = 2, CropX = 80, CropY = 40, CropWidth = 64, CropHeight = 40, VideoRateMode = VideoRateMode.Quality, Quality = 1 };
 var timedParts = ClipSplit.Create(splitDraft, 4, new(ClipSplitMode.FixedDuration, SegmentSeconds: 1.2));
 Check(timedParts.Count == 3 && timedParts[0].Start == .5 && timedParts[2].End == 3.5 && Math.Abs(timedParts[2].End - timedParts[2].Start - .6) < 1e-9, "Fixed-duration split lost its remainder.");
 Check(timedParts.Zip(timedParts.Skip(1)).All(p => p.First.End == p.Second.Start) && timedParts.All(o => o.Speed == 2 && o.CropX == 80 && o.CropWidth == 64), "Fixed-duration boundaries are not contiguous or lost editing parameters.");
@@ -90,6 +91,7 @@ Check(rejected, "Fast Copy accepted filters.");
 Check(SHA256.HashData(File.ReadAllBytes(input)).SequenceEqual(originalHash), "Source media changed.");
 
 Check(SHA256.HashData(File.ReadAllBytes(pattern)).SequenceEqual(patternHash), "Splitting changes the source video bytes.");
+QuickClipWorkspaceChecks.Run(engine, input, portrait, info, Check);
 File.WriteAllText(Path.Combine(root, "report.json"), JsonSerializer.Serialize(new { checks, outputs, packetCopyVerified = true }, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"PASS: {checks} quick clip checks / {outputs.Count} actual outputs. {root}");
 

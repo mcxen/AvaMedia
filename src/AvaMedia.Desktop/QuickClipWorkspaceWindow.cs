@@ -60,17 +60,13 @@ internal sealed class QuickClipWorkspaceWindow : Window
             for (var index = Array.IndexOf(selected, source); index < selected.Length; index++)
             {
                 var current = selected[index];
-                var editor = new EditorWindow(_engine, current.Path, current.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", current.Edit?.Segments, removeSelected: current.Edit?.RemoveSelected ?? false);
+                var editor = new EditorWindow(_engine, current.Path, current.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", current.Edit?.Segments, removeSelected: current.Edit?.RemoveSelected ?? false,
+                    uneditedVideoNames: () => _sources.Where(item => item.Include && item.Edit is null && !ReferenceEquals(item, current))
+                        .Select(item => System.IO.Path.GetFileName(item.Path)).ToArray());
                 editor.SetWorkflowStep(index + 1, selected.Length);
                 if (await ToolExecution.ShowAsync<ClipEditResult>(this, editor) is not { } result) break;
                 current.Edit = result;
                 if (!editor.ProceedToExport) continue;
-                foreach (var pending in _sources.Where(item => item.Include && item.Edit is null))
-                {
-                    var info = await _engine.Probe(pending.Path);
-                    if (!info.HasVideo || info.Duration <= 0) throw new ArgumentException("请先选择有效视频。");
-                    pending.Edit = new(pending.Path, info, [new() { End = info.Duration, VideoStreamIndex = info.VideoStreamIndex, AudioStreamIndex = info.AudioStreamIndex }]);
-                }
                 ToolExecution.Complete(this, _sources.Where(item => item.Include).Select(item => item.Edit!).ToArray());
                 return;
             }

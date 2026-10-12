@@ -60,6 +60,8 @@ public partial class EditorWindow
     public IReadOnlyList<ClipSegmentEntry> Segments => _segments;
     public Task DirectionReady => _directionReady;
     public bool ProceedToExport { get; private set; }
+    private readonly Func<IReadOnlyList<string>>? _uneditedVideoNames;
+    private bool _showingUneditedPrompt;
     public void SetWorkflowCompletion(string action = "下一步：导出选项 →") => Localization.SetContent(ConfirmButton, $"{Localization.Key(action)}");
     private void NextVideoClick(object? sender, RoutedEventArgs e) => ConfirmClick(QuickNextVideoButton, e);
 

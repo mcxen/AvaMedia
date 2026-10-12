@@ -112,6 +112,7 @@ public partial class EditorWindow
         Move(PlaySelectionButton, QuickPlaySlot); Restyle(PlaySelectionButton, "pill");
         Move(PlayAllSegmentsButton, QuickPlaySlot); Restyle(PlayAllSegmentsButton, "pill");
         Move(InvertSelectionCheck, QuickInvertSlot);
+        BuildQuickModePages();
 
         // Export bar: 输出配置… is in XAML; the primary action is the existing ConfirmButton.
         Move(ConfirmButton, QuickActionSlot); Restyle(ConfirmButton, "primary-pill"); ConfirmButton.MinWidth = 0;
@@ -152,7 +153,12 @@ public partial class EditorWindow
     private void SyncQuickMode()
     {
         var clip = EditTabs.SelectedIndex <= 0;
-        QuickTimelineCard.IsVisible = clip; QuickTabsCard.IsVisible = !clip;
+        var direction = ReferenceEquals(EditTabs.SelectedItem, DirectionTab);
+        var options = EditTabs.SelectedIndex == 2;
+        QuickTimelineCard.IsVisible = clip;
+        QuickTabsCard.IsVisible = !clip && !direction && !options;
+        QuickDirectionCard.IsVisible = direction;
+        QuickOptionsCard.IsVisible = options;
     }
 
     private void QuickCropRowClick(object? sender, RoutedEventArgs e)
@@ -191,5 +197,6 @@ public partial class EditorWindow
         if (!_removeSelected && Math.Abs(_options.Speed - 1) > 1e-9) parts.Add(Core.MediaEngine.Number(_options.Speed) + "×");
         QuickStatus.Text = string.Join(" · ", parts.Where(p => p.Length > 0));
         QuickTotalTime.Text = " / " + FilmstripTimeline.Long(_info?.Duration ?? 0);
+        RefreshQuickModePages(number);
     }
 }

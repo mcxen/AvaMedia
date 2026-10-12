@@ -34,6 +34,12 @@
     </ResourceDictionary>
   </Styles.Resources>
 
+  <Style Selector="Window.message-dialog"><Setter Property="Background" Value="{DynamicResource QcCanvas}"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.message-dialog TextBlock"><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.message-dialog TextBlock.heading"><Setter Property="FontSize" Value="17"/></Style>
+  <Style Selector="Window.message-dialog:not(.mac-os9):not(.windows-xp) Button.primary"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="BorderBrush" Value="{DynamicResource QcAccent}"/><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/><Setter Property="CornerRadius" Value="18"/></Style>
+  <Style Selector="Window.message-dialog:not(.mac-os9):not(.windows-xp) Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter, Window.message-dialog:not(.mac-os9):not(.windows-xp) Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="BorderBrush" Value="{DynamicResource QcAccent}"/><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/></Style>
+
   <Style Selector="Window.editor Grid#QuickRoot"><Setter Property="Background" Value="{DynamicResource QcCanvas}"/></Style>
   <Style Selector="Window.editor Grid#QuickRoot TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcText}"/><Setter Property="FontSize" Value="13"/></Style>
   <Style Selector="Window.editor Grid#QuickRoot TextBlock.sec"><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>
@@ -174,4 +180,38 @@
   <Style Selector="Window.mac-os9 Grid#QuickRoot Button.pill /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="BoxShadow" Value="none"/></Style>
   <Style Selector="Window.mac-os9 Grid#QuickRoot Button.frame"><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.mac-os9 Grid#QuickRoot Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="{DynamicResource QcAccent}"/></Style>
+
+  <!-- Quick mode cards keep the original editing controls and share the surrounding quick layout. -->
+  <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Height" Value="28"/><Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Margin" Value="0,0,6,0"/><Setter Property="Padding" Value="11,0"/><Setter Property="CornerRadius" Value="14"/>
+    <Setter Property="Background" Value="{DynamicResource QcChip}"/><Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource QcChip}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="14"/>
+  </Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcRowSelected}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip.selected"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="White"/><Setter Property="Background" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip.selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="Foreground" Value="White"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.direction-chip:focus-visible /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox.mirror-switch">
+    <Setter Property="Template"><ControlTemplate>
+      <Grid ColumnDefinitions="Auto,34" ColumnSpacing="8" Background="Transparent">
+        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" VerticalContentAlignment="Center"/>
+        <Border Name="MirrorTrack" Grid.Column="1" Height="20" CornerRadius="10" Background="{DynamicResource QcLine}" VerticalAlignment="Center">
+          <Border Name="MirrorThumb" Width="16" Height="16" Margin="2" CornerRadius="8" Background="White" HorizontalAlignment="Left" BoxShadow="0 1 2 0 #33000000"/>
+        </Border>
+      </Grid>
+    </ControlTemplate></Setter>
+  </Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox.mirror-switch:checked /template/ Border#MirrorTrack"><Setter Property="Background" Value="#34C759"/></Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox.mirror-switch:checked /template/ Border#MirrorThumb"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox.mirror-switch:focus-visible /template/ Border#MirrorTrack"><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.audio-dot"><Setter Property="Background" Value="{DynamicResource QcSecondary}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.audio-dot.ready"><Setter Property="Background" Value="#34C759"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button.direction-chip"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderThickness" Value="2"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button.direction-chip.selected"><Setter Property="Background" Value="{DynamicResource QcRowSelected}"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button.direction-chip /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
 </Styles>

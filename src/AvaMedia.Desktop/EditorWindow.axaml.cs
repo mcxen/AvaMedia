@@ -57,10 +57,11 @@ public partial class EditorWindow : Window
         return new{source=_path,width=_info.Width,height=_info.Height,decodedFrames=_player.DecodedFrames,trimStart=_options.Start,trimEnd=_options.End,thumbnails=true,cropOverlay=true};
     }
     public EditorWindow() : this(new MediaEngine(new()),"",new()) { }
-    public EditorWindow(IMediaEngine engine,string path,ConversionOptions options,string mode="", IReadOnlyList<ConversionOptions>? segments=null, IVideoOrientationDetector? orientationDetector=null, IMediaPreview? previewFrames=null, bool removeSelected=false)
+    public EditorWindow(IMediaEngine engine,string path,ConversionOptions options,string mode="", IReadOnlyList<ConversionOptions>? segments=null, IVideoOrientationDetector? orientationDetector=null, IMediaPreview? previewFrames=null, bool removeSelected=false, Func<IReadOnlyList<string>>? uneditedVideoNames=null)
     {
         InitializeComponent();BuildModeBar();InitializeChrome();_previewView=new(PreviewImage);_startView=new(StartImage);_endView=new(EndImage);_engine=engine;_previewFrames=previewFrames??engine;_path=path;_mode=mode;_options=options.Clone();_player=new(engine,path);Title=path;RefreshOptionControls();PlayButton.IsEnabled=false;SoundButton.IsEnabled=false;
         WindowArtwork.SetKind(this, Catalog.All.FirstOrDefault(f => f.Id == mode)?.Icon ?? (mode == "input-audio" ? "audio" : "clip"));
+        _uneditedVideoNames = uneditedVideoNames;
         InitializeQuickWorkflow(segments,orientationDetector,removeSelected);
         PrecisionCombo.ItemsSource=new[]{"0.01 s","0.1 s","1 s","1 帧"};PrecisionCombo.SelectedIndex=1;PrecisionCombo.SelectionChanged+=(_,_)=>TrimBar.Step=PrecisionCombo.SelectedIndex==3?0:Precision;
         CropRatio.ItemsSource=new[]{"自由选区","原画面比例","16:9","4:3","1:1","9:16"};CropRatio.SelectedIndex=0;
@@ -312,7 +313,25 @@ public partial class EditorWindow : Window
     {
         try
         {
-            if(QuickWorkflow){var result=ReadClipEdit();ProceedToExport=!ReferenceEquals(sender,QuickNextVideoButton);ToolExecution.Complete(this,result);return;}
+            if (QuickWorkflow)
+            {
+                var proceedToExport = !ReferenceEquals(sender, QuickNextVideoButton);
+                if (_showingUneditedPrompt) return;
+                if (proceedToExport && _uneditedVideoNames?.Invoke() is { Count: > 0 } names)
+                {
+                    _showingUneditedPrompt = true;
+                    try
+                    {
+                        await Ui.MessageDialog(this, "还有视频未剪辑", "请先剪辑以下视频，或在视频列表中取消勾选，再进入导出选项。", names);
+                    }
+                    finally { _showingUneditedPrompt = false; }
+                    return;
+                }
+                var result = ReadClipEdit();
+                ProceedToExport = proceedToExport;
+                ToolExecution.Complete(this, result);
+                return;
+            }
             var draft=ReadDraft();var feature=Catalog.All.FirstOrDefault(item=>item.Id==_mode)??Catalog.Find("mp4");
             MediaEngine.ValidateEdits(new(){FeatureId=feature.Id,Inputs=[_path],Output=Path.Combine(Path.GetTempPath(),"validate-output."+draft.Format),Options=draft},[_info!]);Close(draft);
         }

@@ -3603,5 +3603,13 @@
   "阈值": "Threshold",
   "首次运行会下载 JoyTag、MediaPipe 与 DINOv2 模型": "JoyTag, MediaPipe and DINOv2 models download on first use.",
   "{0} 个图片 / 视频": "{0} images / videos",
-  "{0} 个图片": "{0} images"
+  "{0} 个图片": "{0} images",
+  "还有视频未剪辑": "Some videos still need editing",
+  "请先剪辑以下视频，或在视频列表中取消勾选，再进入导出选项。": "Edit the following videos, or uncheck them in the video list, before proceeding to export options.",
+  "好": "OK",
+  "当前片段方向": "Current segment orientation",
+  "只影响片段 {0}，输出时生效": "Affects only segment {0}, applied on export",
+  "媒体信息": "Media information",
+  "输出设置": "Output settings",
+  "画面": "Dimensions"
 }

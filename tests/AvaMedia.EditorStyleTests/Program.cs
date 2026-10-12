@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaMedia.Core;
 using AvaMedia.Desktop;
@@ -63,8 +64,38 @@ if (Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_SHOTS") is { Length: > 0
         quick.SeekForReview(84.36 * scale);
         until = DateTime.UtcNow.AddSeconds(3); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); }
         quick.FindControl<AvaMedia.MediaUi.FilmstripTimeline>("Filmstrip")!.ShowHandleCallout(true); Pump();
-        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-quick-{skin.ToLowerInvariant()}.png")); quick.Close(); Pump();
+        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-quick-{skin.ToLowerInvariant()}.png"));
+        // Review-only presentation state; production detection and its handlers are unchanged.
+        Find<ComboBox>(quick, "DirectionCombo").SelectedIndex = 1;
+        quick.ReadClipEdit(); // Flush the debounced segment edit before capturing the shared footer.
+        Find<TextBlock>(quick, "DirectionStatus").Text = "识别建议：顺时针 90°；当前片段：顺时针 90°\n依据：画面中的人脸和地平线朝向一致，多帧结果相同";
+        Find<Button>(quick, "ApplyDirectionButton").IsEnabled = true;
+        Find<TabControl>(quick, "EditTabs").SelectedItem = Find<TabItem>(quick, "DirectionTab"); Pump();
+        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-orient-{skin.ToLowerInvariant()}.png"));
+        Find<TabControl>(quick, "EditTabs").SelectedIndex = 2; Pump();
+        quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-options-{skin.ToLowerInvariant()}.png"));
+        quick.Close(); Pump();
     }
+    Skin.Apply("Light");
+    var promptEditor = new EditorWindow(new MediaEngine(new()), video, new(), "quick-workflow",
+        uneditedVideoNames: () => ["海边日落.mp4", "城市夜景.mov"]);
+    promptEditor.SetWorkflowStep(1, 3);
+    promptEditor.Show(); Complete(promptEditor.Ready); promptEditor.Width = 1280; promptEditor.Height = 800; Pump();
+    Click(promptEditor, "ConfirmButton");
+    var prompt = promptEditor.OwnedWindows.Single(); Pump();
+    using (var editorFrame = promptEditor.CaptureRenderedFrame() ?? throw new Exception("Editor did not render."))
+    using (var promptFrame = prompt.CaptureRenderedFrame() ?? throw new Exception("Unedited-video prompt did not render."))
+    using (var composite = new RenderTargetBitmap(editorFrame.PixelSize, new Vector(96, 96)))
+    {
+        using (var drawing = composite.CreateDrawingContext())
+        {
+            drawing.DrawImage(editorFrame, new Rect(editorFrame.Size));
+            drawing.DrawImage(promptFrame, new Rect(new Point((editorFrame.Size.Width - promptFrame.Size.Width) / 2,
+                (editorFrame.Size.Height - promptFrame.Size.Height) / 2), promptFrame.Size));
+        }
+        composite.Save(Path.Combine(shots, "impl4-unedited-prompt.png"));
+    }
+    prompt.Close(); promptEditor.Close(); Pump();
     return;
 }
 

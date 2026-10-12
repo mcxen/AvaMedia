@@ -277,6 +277,45 @@
             </StackPanel>
           </Border>
           <Border x:Name="QuickTabsCard" Classes="qc-card" CornerRadius="14" Padding="8" IsVisible="False" MinHeight="150"/>
+          <Border x:Name="QuickDirectionCard" Classes="qc-card" CornerRadius="14" Padding="14,12,14,14" MinHeight="148" IsVisible="False">
+            <StackPanel>
+              <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                <TextBlock Text="当前片段方向" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="1" x:Name="QuickDirectionScope" Classes="sec" FontSize="11.5" VerticalAlignment="Center"/>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <WrapPanel x:Name="QuickDirectionChips" Orientation="Horizontal"/>
+                <Panel Grid.Column="1" x:Name="QuickMirrorSlot" VerticalAlignment="Center"/>
+              </Grid>
+              <Border Height="0.5" Background="{DynamicResource QcLine}" Margin="0,12"/>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel x:Name="QuickDirectionStatusSlot" Spacing="4">
+                  <TextBlock x:Name="QuickDirectionSummary" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
+                  <TextBlock x:Name="QuickDirectionReason" Classes="sec" FontSize="11.5" LineHeight="17" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" x:Name="QuickDirectionActions" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+          <Border x:Name="QuickOptionsCard" Classes="qc-card" CornerRadius="14" Padding="14,12,14,14" MinHeight="214" IsVisible="False">
+            <Grid ColumnDefinitions="*,300" ColumnSpacing="14">
+              <StackPanel Spacing="8">
+                <TextBlock Text="媒体信息" FontWeight="SemiBold"/>
+                <Border Classes="qc-card" CornerRadius="12" ClipToBounds="True">
+                  <StackPanel x:Name="QuickMediaRows"/>
+                </Border>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="10">
+                <TextBlock Text="输出设置" FontWeight="SemiBold"/>
+                <Panel x:Name="QuickPreviewNoteSlot"/>
+                <Grid ColumnDefinitions="7,*" ColumnSpacing="8">
+                  <Border x:Name="QuickAudioDot" Classes="audio-dot" Width="7" Height="7" CornerRadius="4" VerticalAlignment="Center"/>
+                  <Panel Grid.Column="1" x:Name="QuickAudioStatusSlot"/>
+                </Grid>
+                <Panel x:Name="QuickEditOptionsSlot"/>
+              </StackPanel>
+            </Grid>
+          </Border>
         </Panel>
       </Grid>
       <Border Grid.Column="1" Classes="qc-chrome" BorderThickness="0.5,0,0,0">

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 
@@ -89,6 +90,27 @@ internal static class Ui
         var confirm=DialogButton(action,()=>dialog.Close(true));confirm.Classes.Add("primary");buttons.Children.Add(confirm);
         Grid.SetRow(buttons,1);body.Children.Add(buttons);dialog.Content=body;
         return await dialog.ShowDialog<bool>(owner);
+    }
+    public static Task MessageDialog(Window owner, string title, string message, IReadOnlyList<string> details)
+    {
+        var dialog = new Window { Width = 480, Height = 280, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        dialog.Classes.Add("message-dialog");
+        dialog.Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
+            { Source = new Uri("avares://AvaMedia.Desktop/Styles/QuickClipStyles.axaml") });
+        Localization.SetTitle(dialog, $"{Localization.Key(title)}");
+        var body = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 12, Margin = new(18) };
+        body.Children.Add(Text(Localization.Text(title), "heading"));
+        body.Children.Add(Text(Localization.Text(message)));
+        Grid.SetRow(body.Children[1], 1);
+        var names = Text(string.Join("\n", details));
+        names.VerticalAlignment = VerticalAlignment.Top;
+        names.LineHeight = 26;
+        Localization.SetIsUserText(names, true);
+        body.Children.Add(new ScrollViewer { Content = names, [Grid.RowProperty] = 2 });
+        var okay = DialogButton(Localization.Text("好"), () => dialog.Close(), isDefault: true);
+        okay.HorizontalAlignment = HorizontalAlignment.Right;
+        Grid.SetRow(okay, 3); body.Children.Add(okay); dialog.Content = body;
+        return dialog.ShowDialog(owner);
     }
     public static Task Message(Window owner,string title,string message)
         => Notify(owner,title,message);
