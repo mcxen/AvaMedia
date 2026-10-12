@@ -7,6 +7,7 @@
     <ApplicationIcon>Assets/AppIcon/v2/app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="AvaMedia.UiCapture" />
     <Content Include="../AvaMedia.Browser/bin/$(Configuration)/net8.0-browser/publish/wwwroot/**/*"
              Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -1,6 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using AvaMedia.FileUi;
+using AvaMedia.Core;
+using Avalonia;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -40,16 +44,39 @@ internal static class ToolFilePicker
     private static async Task<IReadOnlyList<IStorageItem>> ShowAsync(Window owner, FileBrowserOptions options,
         Func<Window, Task<IReadOnlyList<IStorageItem>>> external)
     {
-        var view = new FileBrowserView(new DesktopFileBrowserSource(owner.StorageProvider), options, Localization.Text);
+        var source = new DesktopFileBrowserSource(owner.StorageProvider);
+        var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs());
         Localization.SetIsUserText(view, true);
         var dialog = new Window
         {
-            Title = Localization.Text(options.Title), Width = 880, Height = 600, MinWidth = 680, MinHeight = 420,
+            Title = Localization.Text(options.Title), Width = 1280, Height = 800, MinWidth = 760, MinHeight = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = view
         };
+        dialog.Content = WindowChrome.WrapDialog(dialog, view, view.ExtractNavigationBar());
+        Skin.SetIsEnabled(dialog, true);
         Controls.WindowArtwork.SetKind(dialog, "document");
         view.PickExternalAsync = async () => (await external(dialog)).Select(item => DesktopFileBrowserSource.Wrap(item)!).ToArray();
-        view.Selected += selected => { _lastFolder = view.CurrentFolder?.NativeItem as IStorageFolder; dialog.Close(selected.Select(item => (IStorageItem)item.NativeItem!).ToArray()); };
+        var selecting = false;
+        view.Selected += async selected =>
+        {
+            if (selecting) return;
+            selecting = true; view.IsEnabled = false;
+            try
+            {
+                var items = new List<IStorageItem>();
+                foreach (var item in selected)
+                {
+                    var resolved = item.NativeItem as IStorageItem ?? (await source.ResolveAsync(item.Address, CancellationToken.None))?.NativeItem as IStorageItem;
+                    if (resolved is null) throw new IOException(Localization.Text("找不到可选择的文件或文件夹。"));
+                    items.Add(resolved);
+                }
+                await source.RecordSelectionAsync(selected, CancellationToken.None);
+                _lastFolder = view.CurrentFolder?.NativeItem as IStorageFolder ?? await items[0].GetParentAsync();
+                dialog.Close(items.ToArray());
+            }
+            catch (Exception error) { await Ui.Message(dialog, "打开失败", error.Message); }
+            finally { selecting = false; view.IsEnabled = true; }
+        };
         view.Cancelled += () => dialog.Close();
         dialog.Opened += async (_, _) => await view.InitializeAsync();
         dialog.Closed += (_, _) => view.Dispose();
@@ -57,20 +84,25 @@ internal static class ToolFilePicker
     }
 }
 
-internal sealed class DesktopFileBrowserSource(IStorageProvider storage) : IFileBrowserSource
+internal sealed class DesktopFileBrowserSource(IStorageProvider storage, FilePickerStateStore? state = null, FilePickerMediaCache? media = null) : IFileBrowserSource
 {
-    public async Task<IReadOnlyList<FileBrowserLocation>> GetLocationsAsync(CancellationToken cancellationToken)
+    private static readonly FilePickerStateStore SharedState = new();
+    private static readonly Lazy<FilePickerMediaCache> SharedMedia = new(() => FilePickerMediaCache.Create(new MediaEngine(new Storage().LoadSettings()), new MediaThumbnailCache(maxConcurrency: 2)));
+    private readonly FilePickerStateStore _state = state ?? SharedState;
+    private FilePickerMediaCache Media => media ?? SharedMedia.Value;
+    public Task<IReadOnlyList<FileBrowserLocation>> GetLocationsAsync(CancellationToken cancellationToken)
+        => Task.Run<IReadOnlyList<FileBrowserLocation>>(async () =>
     {
         var locations = new List<FileBrowserLocation>();
         var known = new HashSet<Uri>();
-        async Task Add(string label, string path)
+        async Task Add(string label, string path, bool device = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(path)) return;
             try
             {
                 if (await storage.TryGetFolderFromPathAsync(path) is { } folder && known.Add(folder.Path))
-                    locations.Add(new(Localization.Text(label), Wrap(folder)!));
+                    locations.Add(new(Localization.Text(label), Wrap(folder)!, device));
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
         }
@@ -81,9 +113,17 @@ internal sealed class DesktopFileBrowserSource(IStorageProvider storage) : IFile
         await Add("文档", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
         await Add("图片", Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
         await Add("视频", Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
-        foreach (var drive in DriveInfo.GetDrives()) await Add(drive.Name, drive.Name);
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            if (!OperatingSystem.IsWindows() && drive.Name != "/" && !new[] { "/Volumes/", "/media/", "/mnt/", "/home/", "/workspace" }
+                .Any(prefix => drive.Name.StartsWith(prefix, StringComparison.Ordinal))) continue;
+            if (!OperatingSystem.IsWindows() && new[] { "/proc", "/sys", "/dev", "/run", "/snap", "/boot" }
+                .Any(prefix => drive.Name.TrimEnd('/') == prefix || drive.Name.StartsWith(prefix + "/", StringComparison.Ordinal))) continue;
+            try { if (drive.IsReady) await Add(drive.Name == Path.GetPathRoot(Environment.CurrentDirectory) ? "系统磁盘" : string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.Name : drive.VolumeLabel, drive.Name, true); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
         return locations;
-    }
+    }, cancellationToken);
 
     public async Task<FileBrowserItem?> ResolveAsync(string address, CancellationToken cancellationToken)
     {
@@ -98,22 +138,90 @@ internal sealed class DesktopFileBrowserSource(IStorageProvider storage) : IFile
         => Task.Run(async () =>
         {
             var entries = new List<FileBrowserEntry>();
-            await foreach (var item in ((IStorageFolder)folder.NativeItem!).GetItemsAsync().WithCancellation(cancellationToken))
+            if (folder.Address is "avamedia:recent" or "avamedia:recent-folders")
+            {
+                var history = await _state.LoadAsync(cancellationToken).ConfigureAwait(false);
+                foreach (var visit in folder.Address == "avamedia:recent" ? history.Files : history.Folders)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try { entries.Add(LocalEntry(folder.Address == "avamedia:recent" ? new FileInfo(visit.Path) : new DirectoryInfo(visit.Path))); }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+                }
+                return new FileBrowserDirectory(folder, null, entries);
+            }
+            if (Path.IsPathFullyQualified(folder.Address))
+            {
+                var directory = new DirectoryInfo(folder.Address);
+                foreach (var item in directory.EnumerateFileSystemInfos())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try { entries.Add(LocalEntry(item)); }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+                }
+                var parent = directory.Parent;
+                return new FileBrowserDirectory(folder, parent is null ? null : new(parent.Name, parent.FullName, true), entries);
+            }
+            // Non-local storage providers retain their granted storage objects.
+            var native = folder.NativeItem as IStorageFolder ?? (await ResolveAsync(folder.Address, cancellationToken))?.NativeItem as IStorageFolder
+                ?? throw new DirectoryNotFoundException(folder.Address);
+            await foreach (var item in native.GetItemsAsync().WithCancellation(cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 ulong? size = null; DateTimeOffset? modified = null;
-                var hidden = item.Name.StartsWith('.');
-                try
-                {
-                    var properties = await item.GetBasicPropertiesAsync(); size = properties.Size; modified = properties.DateModified;
-                    if (item.TryGetLocalPath() is { } path) hidden |= (File.GetAttributes(path) & FileAttributes.Hidden) != 0;
-                }
+                try { var properties = await item.GetBasicPropertiesAsync(); size = properties.Size; modified = properties.DateModified; }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
-                entries.Add(new(Wrap(item)!, size, modified, hidden));
+                entries.Add(new(Wrap(item)!, size, modified, item.Name.StartsWith('.')));
             }
-            return new FileBrowserDirectory(folder, Wrap(await ((IStorageFolder)folder.NativeItem!).GetParentAsync()), entries);
+            return new FileBrowserDirectory(folder, Wrap(await native.GetParentAsync()), entries);
         }, cancellationToken);
 
+    private static FileBrowserEntry LocalEntry(FileSystemInfo info)
+        => new(new(info.Name, info.FullName, info is DirectoryInfo), info is FileInfo file ? (ulong)file.Length : null,
+            new DateTimeOffset(info.LastWriteTimeUtc), info.Name.StartsWith('.') || info.Attributes.HasFlag(FileAttributes.Hidden));
+
+    public async Task<IReadOnlyList<FileBrowserItem>> ReadFoldersAsync(FileBrowserItem folder, CancellationToken token)
+    {
+        if (!Path.IsPathFullyQualified(folder.Address)) return (await ReadAsync(folder, token)).Entries.Where(entry => entry.IsFolder && !entry.Hidden).Select(entry => entry.Item).ToArray();
+        return await Task.Run(() => new DirectoryInfo(folder.Address).EnumerateDirectories().Where(info =>
+        { token.ThrowIfCancellationRequested(); return !info.Name.StartsWith('.') && !info.Attributes.HasFlag(FileAttributes.Hidden); })
+            .Select(info => new FileBrowserItem(info.Name, info.FullName, true)).ToArray(), token);
+    }
+    public Task<FileBrowserDirectory> ReadRecentAsync(bool folders, CancellationToken token)
+        => ReadAsync(new(folders ? "最近文件夹" : "最近文件", folders ? "avamedia:recent-folders" : "avamedia:recent", true), token);
+
+    public async Task<FileBrowserHistory> GetHistoryAsync(CancellationToken token)
+    {
+        var history = await _state.LoadAsync(token);
+        FileBrowserItem Item(string path, bool folder) => new(Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } name ? name : path, path, folder);
+        return new(history.Files.Select(visit => new FileBrowserVisit(Item(visit.Path, false), visit.Time)).ToArray(),
+            history.Folders.Select(visit => new FileBrowserVisit(Item(visit.Path, true), visit.Time)).ToArray(), history.Favorites.Select(path => Item(path, true)).ToArray());
+    }
+    public async Task RecordSelectionAsync(IReadOnlyList<FileBrowserItem> items, CancellationToken token)
+        => await _state.RecordAsync(items.Where(item => !item.IsFolder && Path.IsPathFullyQualified(item.Address)).Select(item => item.Address),
+            items.Where(item => item.IsFolder && Path.IsPathFullyQualified(item.Address)).Select(item => item.Address), token);
+    public async Task SetFavoriteAsync(FileBrowserItem folder, bool favorite, CancellationToken token) => await _state.FavoriteAsync(folder.Address, favorite, token);
+    public async Task<bool> GetGridModeAsync(CancellationToken token) => (await _state.LoadAsync(token)).Grid;
+    public async Task SetGridModeAsync(bool grid, CancellationToken token) => await _state.SetGridAsync(grid, token);
+    public async Task<FileBrowserMedia?> GetMediaAsync(FileBrowserEntry entry, CancellationToken token)
+    {
+        if (entry.IsFolder || !Path.IsPathFullyQualified(entry.Item.Address)) return null;
+        var result = await Media.GetAsync(entry.Item.Address, entry.Size, entry.Modified, token).ConfigureAwait(false);
+        return new(result.Duration, result.Width, result.Height, result.FrameRate, result.VideoCodec, result.AudioCodec, result.Thumbnail);
+    }
+
     public string DisplayAddress(FileBrowserItem item) => item.Address;
-    internal static FileBrowserItem? Wrap(IStorageItem? item) => item is null ? null : new(item.Name, item.TryGetLocalPath() ?? item.Path.ToString(), item is IStorageFolder, item);
+    internal static FileBrowserItem? Wrap(IStorageItem? item) => item is null ? null : new(item.Name, item.TryGetLocalPath() is { } local ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(local)) : item.Path.ToString(), item is IStorageFolder, item);
+}
+
+internal sealed class DesktopFileBrowserGlyphs : IFileBrowserGlyphs
+{
+    public Control Glyph(string name) => Glyph(name, false);
+    public Control Glyph(string name, bool selected)
+    {
+        var icon = new LucideIcon { Kind = name.Replace("-muted", "").Replace("-white", ""), Width = 16, Height = 16 };
+        icon.Bind(LucideIcon.ForegroundProperty, new DynamicResourceExtension(name.EndsWith("-white", StringComparison.Ordinal) ? "FbCheckText" : selected ? "FbSelectedGlyph" : "FbAccent"));
+        return icon;
+    }
+    public Control Entry(FileBrowserItem item) => Glyph(FileBrowserKinds.Glyph(item));
+    public Control Place(FileBrowserLocation location) => Glyph(location.Device ? "hard-drive" : "folder");
 }

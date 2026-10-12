@@ -15,7 +15,7 @@ using AvaMedia.Core;
 using AvaMedia.Desktop;
 using AvaMedia.Desktop.Controls;
 
-internal static class Program
+internal static partial class Program
 {
     private static readonly string[] Themes = ["Light", "Dark", "MacOS9", "WindowsXP"];
     private static readonly string[] Names = ["light", "dark", "macos9", "winxp"];
@@ -25,16 +25,19 @@ internal static class Program
     private static bool _hold;
     private static bool _tracePointer;
     private static bool _reviewOnly;
+    private static bool _pickerOnly;
     private static int _reviewTheme = Themes.Length - 1;
     private static readonly List<object> Captures = [];
 
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length < 2) { Console.Error.WriteLine("Usage: AvaMedia.UiCapture <output> <sample-directory> [--hold] [--review-only] [--theme=MacOS9] [--trace-pointer]"); return 2; }
+        if (args.Length < 2) { Console.Error.WriteLine("Usage: AvaMedia.UiCapture <output> <sample-directory> [--hold] [--review-only] [--theme=MacOS9] [--trace-pointer] [--picker]"); return 2; }
         _output = Path.GetFullPath(args[0]); _samples = Path.GetFullPath(args[1]); _hold = args.Contains("--hold");
         _tracePointer = args.Contains("--trace-pointer");
         _reviewOnly = args.Contains("--review-only");
+        _pickerOnly = args.Contains("--picker");
+        if (_pickerOnly) _reviewTheme = 0;
         var themeArgument = args.FirstOrDefault(arg => arg.StartsWith("--theme=", StringComparison.Ordinal));
         if (themeArgument is not null)
         {
@@ -74,6 +77,7 @@ internal static class Program
 
     private static async Task Run()
     {
+        if (_pickerOnly) { await CapturePicker(); Lifetime.Cancel(); return; }
         var video = Path.Combine(_samples, "航天员.mp4");
         var audio = Path.Combine(_samples, "示例音轨.wav");
         var image = Path.Combine(_samples, "航天员.png");

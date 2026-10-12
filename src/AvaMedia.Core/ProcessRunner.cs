@@ -6,12 +6,22 @@ public sealed record ProcessResult(int ExitCode,string Output,string Error)
 { public bool Interrupted { get; init; } }
 public static class ProcessRunner
 {
+    private static readonly AsyncLocal<bool> LowPriority = new();
+    public static IDisposable BackgroundWork()
+    {
+        var previous = LowPriority.Value; LowPriority.Value = true;
+        return new PriorityScope(previous);
+    }
+    private sealed class PriorityScope(bool previous) : IDisposable
+    {
+        public void Dispose() => LowPriority.Value = previous;
+    }
     public static Process Start(string executable,IEnumerable<string> arguments,bool input=false)
     {
         var p=new Process {StartInfo=new ProcessStartInfo(executable) {UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,RedirectStandardInput=input,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8}};
         foreach(var arg in CpuResourcePolicy.ToolArguments(executable,arguments)) p.StartInfo.ArgumentList.Add(arg);
         p.Start();
-        if(JobExecutionControl.IsTaskContext || Path.GetFileNameWithoutExtension(executable).Equals("llama-server",StringComparison.OrdinalIgnoreCase))
+        if(LowPriority.Value || JobExecutionControl.IsTaskContext || Path.GetFileNameWithoutExtension(executable).Equals("llama-server",StringComparison.OrdinalIgnoreCase))
             CpuResourcePolicy.LowerWorkerPriority(p);
         return p;
     }
