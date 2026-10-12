@@ -1,6 +1,8 @@
+using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
@@ -12,12 +14,18 @@ public sealed record PersonClipRequest(IReadOnlyList<ClipEditResult> Edits, stri
 
 public sealed partial class PersonClipWindow : Window
 {
-    private sealed class Entry(string path)
+    private sealed class Entry(string path) : Observable
     {
         public string Path { get; } = path;
         public PersonClipRange[] Excluded { get; set; } = [];
         public ClipEditResult? Result { get; set; }
-        public string Status { get; set; } = "待分析";
+        private string _status = "待分析";
+        public string Status
+        {
+            get => _status;
+            set { if (Set(ref _status, value)) Raise(nameof(DisplayName)); }
+        }
+        public string DisplayName => System.IO.Path.GetFileName(Path) + " · " + Localization.Text(Status);
         public string Error { get; set; } = "";
         public Job? Task { get; set; }
         public PersonDetectionTaskResult? Observed { get; set; }
@@ -27,7 +35,7 @@ public sealed partial class PersonClipWindow : Window
     private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
     private readonly Func<Window, string?, Task> _manageModels;
-    private readonly List<Entry> _entries = [];
+    private readonly ObservableCollection<Entry> _entries = [];
     private readonly ListBox _files = new() { Name = "PersonClipFiles" };
     private readonly ListBox _ranges = new() { Name = "PersonClipExcludedRanges", Height = 200 };
     private readonly TextBox _start = new() { IsReadOnly = true, Name = "PersonClipExcludeStart", Text = "00:00:00.000" };
@@ -67,6 +75,13 @@ public sealed partial class PersonClipWindow : Window
         bool editing = false, bool? outputToSource = null, Action<IReadOnlyList<Job>, bool>? enqueue = null, Action<Job>? stopTask = null, Action? newTask = null, Action<Job>? pauseTask = null, Action<Job>? resumeTask = null)
     {
         _engine = engine; _settings = settings; _manageModels = manageModels; _enqueue = enqueue; _stopTask = stopTask; _pauseTask = pauseTask; _resumeTask = resumeTask;
+        _files.ItemsSource = _entries;
+        _files.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<Entry>((_, _) =>
+        {
+            var label = Ui.Text("");
+            label.Bind(TextBlock.TextProperty, new Binding(nameof(Entry.DisplayName)));
+            return label;
+        });
         Title = "保留有人片段 · Beta"; Width = 1120; Height = 850; MinWidth = 980; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ToolExecution.SaveOnClose(this, FlushTaskEditsAsync);
@@ -192,7 +207,7 @@ public sealed partial class PersonClipWindow : Window
     }
     private void RefreshFiles()
     {
-        var index = _files.SelectedIndex; _files.ItemsSource = _entries.Select(entry => Path.GetFileName(entry.Path) + " · " + Localization.Text(entry.Status)).ToArray();
+        var index = _files.SelectedIndex;
         _files.SelectedIndex = _entries.Count == 0 ? -1 : Math.Clamp(index, 0, _entries.Count - 1); RefreshRanges(); RefreshResults(); UpdateDetectorSelection();
     }
     private void RefreshRanges()
