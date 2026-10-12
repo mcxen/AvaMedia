@@ -122,7 +122,7 @@ foreach (var angle in new[] { 90, 270, 180 })
     direction.SelectedItem = BatchRotate.Direction(angle); var screenshot = Capture(window, "rotate-preview-" + angle + ".png");
     Check(window.CreateRequest().Rotation == angle && window.Entries.All(e => e.Status.StartsWith(BatchRotate.Direction(angle))), "Direction selection not shared with all videos.");
     Check(window.FindControl<LayoutTransformControl>("RotationTransform")!.LayoutTransform is RotateTransform t && t.Angle == angle, "Preview transform does not match output angle.");
-    var size = BatchRotate.OutputSize(infos[wide], angle); var pane = window.FindControl<Border>("ResultPane")!;
+    var size = BatchRotate.OutputSize(infos[wide], angle); var pane = window.FindControl<Control>("ResultPane")!;
     var pixels = Frame(screenshot, 1200, 760); var scale = Math.Min(pane.Bounds.Width / size.Width, pane.Bounds.Height / size.Height);
     foreach (var (fx, fy) in new[] { (.25, .25), (.75, .75) })
     {
