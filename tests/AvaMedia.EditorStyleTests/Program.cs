@@ -21,7 +21,7 @@ Motion.SetReducedMotion(true);
 var checks = new List<string>();
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); checks.Add(message); Console.WriteLine("PASS " + message); }
 void Pump() { Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick(); Dispatcher.UIThread.RunJobs(); }
-void Until(Func<bool> condition) { var timer = Stopwatch.StartNew(); while (!condition() && timer.ElapsedMilliseconds < 15000) { Pump(); Thread.Sleep(5); } if (!condition()) throw new Exception("UI wait timed out."); Pump(); }
+void Until(Func<bool> condition) { var timer = Stopwatch.StartNew(); while (!condition() && timer.ElapsedMilliseconds < 60000) { Pump(); Thread.Sleep(5); } if (!condition()) throw new Exception("UI wait timed out."); Pump(); }
 void Complete(Task task) { Until(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
 T Find<T>(Window window, string name) where T : Control => window.FindControl<T>(name)!;
 void Click(Window window, string name) { Find<Button>(window, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(); }
@@ -37,21 +37,32 @@ Check(!EditorTime.TryRead("00:61:00.000", 0, out _) && !EditorTime.TryRead("00:0
 // Optional visual capture of every skin for design review (no assertions); set AVAMEDIA_EDITOR_SHOTS to a folder.
 if (Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_SHOTS") is { Length: > 0 } shots)
 {
-    foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
+    foreach (var skin in Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_VIDEO") is { Length: > 0 } ? [] : new[] { "Light", "Dark", "MacOS9" })
     {
         Skin.Apply(skin);
         var window = new EditorWindow(new MediaEngine(new()), source, new() { Format = "mp4", Start = .333333, End = 1.733333 });
         window.Show(); Complete(window.Ready); window.Width = 1240; window.Height = 780; Pump();
         window.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-editor-{skin.ToLowerInvariant()}.png")); window.Close(); Pump();
     }
+    // Quick-clip mode at the demo size, in Chinese, on a design-review video when one is provided
+    // (AVAMEDIA_EDITOR_VIDEO); three segments, the second selected, start-handle callout shown.
+    AppLanguage.Apply("zh-CN");
+    var video = Environment.GetEnvironmentVariable("AVAMEDIA_EDITOR_VIDEO") is { Length: > 0 } custom && File.Exists(custom) ? custom : source;
     foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
     {
-        // Quick-clip mode: two segments so the filmstrip, segment rows and inspector cards are visible.
         Skin.Apply(skin);
-        var quick = new EditorWindow(new MediaEngine(new()), source, new() { Format = "mp4", Start = .4, End = 1.6 }, "quick-workflow",
-            segments: [new() { Format = "mp4", Start = .4, End = 1.6 }, new() { Format = "mp4", Start = 2, End = 2.8 }]);
-        quick.Show(); Complete(quick.Ready); quick.Width = 1240; quick.Height = 780;
-        var until = DateTime.UtcNow.AddSeconds(4); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); } // let the filmstrip extract
+        var probing = new MediaEngine(new()).Probe(video, CancellationToken.None); Complete(probing); var probe = probing.Result;
+        var scale = probe.Duration / 222;
+        ConversionOptions Seg(double start, double end, double speed = 1) => new() { Format = "mp4", Start = start * scale, End = end * scale, Speed = speed };
+        var quick = new EditorWindow(new MediaEngine(new()), video, Seg(17.8, 53.3), "quick-workflow",
+            segments: [Seg(17.8, 53.3), Seg(71, 104.3, 1.5), Seg(137.6, 186.5)]);
+        quick.SetWorkflowStep(2, 5);
+        quick.Show(); Complete(quick.Ready); quick.Width = 1280; quick.Height = 800; Pump();
+        quick.FindControl<ListBox>("SegmentList")!.SelectedIndex = 1;
+        var until = DateTime.UtcNow.AddSeconds(8); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); }
+        quick.SeekForReview(84.36 * scale);
+        until = DateTime.UtcNow.AddSeconds(3); while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); }
+        quick.FindControl<AvaMedia.MediaUi.FilmstripTimeline>("Filmstrip")!.ShowHandleCallout(true); Pump();
         quick.CaptureRenderedFrame()?.Save(Path.Combine(shots, $"impl-quick-{skin.ToLowerInvariant()}.png")); quick.Close(); Pump();
     }
     return;

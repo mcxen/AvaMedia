@@ -37,6 +37,7 @@ public partial class EditorWindow
         {
             ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.PreferSystemChrome;
             EditorTitleText.Margin = new Thickness(72, 0, 0, 0); // room for the native traffic lights
+            QuickTitleBar.Margin = new Thickness(70, 0, 70, 0);
             SetEditorFrameParts(false, false);
             return;
         }
@@ -52,16 +53,17 @@ public partial class EditorWindow
         {
             _editorCaption = WindowChrome.CreateCaptionButtons(this, out _);
             _editorCaption.Margin = new Thickness(8, -4, -8, 0);
-            Grid.SetColumn(_editorCaption, 3);
-            EditorTitleBar.Children.Add(_editorCaption);
+            if (QuickRoot.IsVisible) { _editorCaption.Margin = new Thickness(6, 0, 0, 0); QuickCaptionSlot.Children.Add(_editorCaption); }
+            else { Grid.SetColumn(_editorCaption, 3); EditorTitleBar.Children.Add(_editorCaption); }
         }
         if (_editorCaption is not null) _editorCaption.IsVisible = caption;
-        if (grips && _editorGrips is null) _editorGrips = WindowChrome.AddResizeGrips(this, EditorLayout);
+        if (grips && _editorGrips is null) _editorGrips = WindowChrome.AddResizeGrips(this, WindowRoot);
         foreach (var grip in _editorGrips ?? []) grip.IsVisible = grips;
     }
 
     private void RefreshInspector()
     {
+        RefreshQuickLayout();
         FooterOptionsButton.IsVisible = QuickWorkflow;
         var segment = _activeSegment;
         InspectorTitle.Text = segment?.Title ?? "";

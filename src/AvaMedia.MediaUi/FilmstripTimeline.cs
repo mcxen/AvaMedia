@@ -20,22 +20,23 @@ public sealed class FilmstripTimeline : Control
     public static readonly StyledProperty<IBrush?> TextBrushProperty = AvaloniaProperty.Register<FilmstripTimeline, IBrush?>(nameof(TextBrush), Brushes.Gray);
     public static readonly StyledProperty<IBrush?> PlayheadBrushProperty = AvaloniaProperty.Register<FilmstripTimeline, IBrush?>(nameof(PlayheadBrush), Brushes.Red);
     public static readonly StyledProperty<IBrush?> RemoveBrushProperty = AvaloniaProperty.Register<FilmstripTimeline, IBrush?>(nameof(RemoveBrush), Brushes.OrangeRed);
-    public static readonly StyledProperty<IBrush?> CalloutBrushProperty = AvaloniaProperty.Register<FilmstripTimeline, IBrush?>(nameof(CalloutBrush), new SolidColorBrush(Color.Parse("#1C1C1E")));
+    public static readonly StyledProperty<IBrush?> CalloutBrushProperty = AvaloniaProperty.Register<FilmstripTimeline, IBrush?>(nameof(CalloutBrush), Brushes.White);
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
     public IBrush? TrackBrush { get => GetValue(TrackBrushProperty); set => SetValue(TrackBrushProperty, value); }
     public IBrush? TextBrush { get => GetValue(TextBrushProperty); set => SetValue(TextBrushProperty, value); }
     public IBrush? PlayheadBrush { get => GetValue(PlayheadBrushProperty); set => SetValue(PlayheadBrushProperty, value); }
     public IBrush? RemoveBrush { get => GetValue(RemoveBrushProperty); set => SetValue(RemoveBrushProperty, value); }
+    public static readonly StyledProperty<IBrush?> CalloutTextBrushProperty = AvaloniaProperty.Register<FilmstripTimeline, IBrush?>(nameof(CalloutTextBrush), Brushes.Black);
+    public IBrush? CalloutTextBrush { get => GetValue(CalloutTextBrushProperty); set => SetValue(CalloutTextBrushProperty, value); }
     public IBrush? CalloutBrush { get => GetValue(CalloutBrushProperty); set => SetValue(CalloutBrushProperty, value); }
     static FilmstripTimeline() => AffectsRender<FilmstripTimeline>(AccentBrushProperty, TrackBrushProperty, TextBrushProperty, PlayheadBrushProperty, RemoveBrushProperty, CalloutBrushProperty);
 
     private IReadOnlyList<Segment> _segments = [];
     private IReadOnlyList<(double Seconds, IImage Image)> _strip = [];
-    private double _duration, _position, _dragValue;
+    private double _duration, _position, _dragValue, _zoom = 1, _viewStart;
     private int _selected = -1, _dragIndex = -1, _hoverIndex = -1;
     private bool _dragStart, _hoverStart, _seeking;
-    private const double RulerHeight = 16, LabelHeight = 16, StripTop = RulerHeight + LabelHeight, StripHeight = 48;
-    public const double CalloutHeight = 86;
+    private const double RulerHeight = 14, StripTop = RulerHeight, StripHeight = 52;
 
     public bool RemoveMode { get; set; }
     /// <summary>Localizes the callout edge names (起点 / 终点).</summary>
@@ -45,70 +46,98 @@ public sealed class FilmstripTimeline : Control
     /// <summary>(index, isStart, seconds, finished)</summary>
     public event Action<int, bool, double, bool>? HandleMoved;
 
-    public FilmstripTimeline() { Height = StripTop + StripHeight + 6; ClipToBounds = false; Cursor = new Cursor(StandardCursorType.Hand); }
-    public double Duration { get => _duration; set { _duration = value; InvalidateVisual(); } }
-    public double Position { get => _position; set { _position = value; InvalidateVisual(); } }
+    public FilmstripTimeline() { Height = StripTop + StripHeight + 4; ClipToBounds = false; Cursor = new Cursor(StandardCursorType.Hand); }
+    public double Duration { get => _duration; set { _duration = value; ClampView(); InvalidateVisual(); } }
+    public double Position { get => _position; set { _position = value; FollowPlayhead(); InvalidateVisual(); } }
+    /// <summary>1 = whole source visible; larger values show duration / zoom seconds around the playhead.</summary>
+    public double Zoom { get => _zoom; set { _zoom = Math.Clamp(value, 1, 64); _viewStart = _position - VisibleDuration / 2; ClampView(); InvalidateVisual(); } }
     public int Selected => _selected;
+    /// <summary>Show the handle callout of the selected segment without a pointer (design review captures).</summary>
+    public void ShowHandleCallout(bool start) { _hoverIndex = _selected; _hoverStart = start; InvalidateVisual(); }
     public bool Dragging => _dragIndex >= 0;
     public void SetSegments(IReadOnlyList<Segment> segments, int selected) { _segments = segments; _selected = selected; InvalidateVisual(); }
     public void SetStrip(IReadOnlyList<(double Seconds, IImage Image)> strip) { _strip = strip; InvalidateVisual(); }
     public IImage? NearestFrame(double seconds) => _strip.Count == 0 ? null : _strip.MinBy(item => Math.Abs(item.Seconds - seconds)).Image;
-    /// <summary>Horizontal offset of a time, for keeping the playhead visible when zoomed.</summary>
     public double OffsetOf(double seconds) => X(seconds);
 
-    private Rect Track => new(6, StripTop, Math.Max(1, Bounds.Width - 12), StripHeight);
-    private double X(double seconds) => Track.X + (_duration <= 0 ? 0 : Math.Clamp(seconds / _duration, 0, 1) * Track.Width);
-    private double Time(double x) => _duration <= 0 ? 0 : Math.Clamp((x - Track.X) / Track.Width, 0, 1) * _duration;
+    private double VisibleDuration => _duration / _zoom;
+    private void ClampView() => _viewStart = Math.Clamp(_viewStart, 0, Math.Max(0, _duration - VisibleDuration));
+    private void FollowPlayhead()
+    {
+        if (_zoom <= 1 || _dragIndex >= 0) return;
+        if (_position < _viewStart || _position > _viewStart + VisibleDuration) { _viewStart = _position - VisibleDuration * .1; ClampView(); }
+    }
+    private Rect Track => new(4, StripTop, Math.Max(1, Bounds.Width - 8), StripHeight);
+    private double X(double seconds) => Track.X + (_duration <= 0 ? 0 : (seconds - _viewStart) / VisibleDuration * Track.Width);
+    private double Time(double x) => _duration <= 0 ? 0 : Math.Clamp(_viewStart + (x - Track.X) / Track.Width * VisibleDuration, 0, _duration);
+
+    private static double TickStep(double visible, double width)
+    {
+        foreach (var step in new double[] { .1, .2, .5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600 })
+            if (step / Math.Max(visible, 1e-6) * width >= 70) return step;
+        return 7200;
+    }
 
     public override void Render(DrawingContext context)
     {
         var track = Track; var text = TextBrush ?? Brushes.Gray; var accent = AccentBrush ?? Brushes.DodgerBlue;
-        // Ruler: one tick per ~90 px so zooming reveals finer labels.
-        var ticks = Math.Clamp((int)(track.Width / 90), 2, 60);
-        for (var index = 0; index <= ticks; index++)
+        if (_duration <= 0) { context.DrawRectangle(TrackBrush, null, track, 8, 8); return; }
+        var step = TickStep(VisibleDuration, track.Width);
+        for (var seconds = Math.Ceiling(_viewStart / step) * step; seconds <= _viewStart + VisibleDuration + 1e-6; seconds += step)
         {
-            var seconds = _duration * index / ticks; var label = Format(Short(seconds), 10.5, text);
-            var x = Math.Clamp(X(seconds) - (index == 0 ? 6 : index == ticks ? label.Width - 6 : label.Width / 2), 0, Math.Max(0, Bounds.Width - label.Width));
-            context.DrawText(label, new Point(x, 0));
+            var label = Format(Tick(seconds, step), 10, text);
+            context.DrawText(label, new Point(Math.Min(X(seconds), Bounds.Width - label.Width), 0));
         }
-        using (context.PushClip(new RoundedRect(track, 6)))
+        using (context.PushClip(new RoundedRect(track, 8)))
         {
             context.FillRectangle(TrackBrush ?? Brushes.LightGray, track);
             if (_strip.Count > 0)
             {
-                // Repeat frames so cells stay roughly 16:9 at any zoom.
-                var cells = Math.Max(_strip.Count, (int)Math.Ceiling(track.Width / (track.Height * 16 / 9)));
-                var cell = track.Width / cells;
+                var cell = track.Height * 1.25;
+                var cells = (int)Math.Ceiling(track.Width / cell);
                 for (var index = 0; index < cells; index++)
                 {
-                    var image = NearestFrame(_duration * (index + .5) / cells)!;
-                    var target = new Rect(track.X + cell * index, track.Y, cell + .5, track.Height);
+                    var target = new Rect(track.X + cell * index, track.Y, cell, track.Height);
+                    var image = NearestFrame(Time(target.Center.X))!;
                     var scale = Math.Max(target.Width / image.Size.Width, target.Height / image.Size.Height);
                     var source = new Size(target.Width / scale, target.Height / scale);
                     context.DrawImage(image, new Rect((image.Size.Width - source.Width) / 2, (image.Size.Height - source.Height) / 2, source.Width, source.Height), target);
-                    context.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(60, 0, 0, 0)), 1), target.TopLeft, target.BottomLeft);
+                    context.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(85, 0, 0, 0)), 1), target.TopRight, target.BottomRight);
                 }
             }
-            if (!RemoveMode) context.FillRectangle(new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)), track);
+            // Unselected source is dimmed so the segment boxes read as "kept".
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(RemoveMode ? (byte)40 : (byte)110, 255, 255, 255)), track);
         }
-        for (var index = 0; index < _segments.Count; index++)
+        Rect? selectedBox = null;
+        using (context.PushClip(new Rect(0, track.Y - 4, Bounds.Width, track.Height + 8)))
+            for (var index = 0; index < _segments.Count; index++)
+            {
+                var segment = _segments[index]; var selected = index == _selected;
+                var start = index == _dragIndex && _dragStart ? _dragValue : segment.Start;
+                var end = index == _dragIndex && !_dragStart ? _dragValue : segment.End;
+                var box = new Rect(X(start), track.Y - 2, Math.Max(3, X(end) - X(start)), track.Height + 4);
+                var stroke = RemoveMode ? RemoveBrush ?? Brushes.OrangeRed : selected ? accent : Brushes.White;
+                var color = ((stroke as ISolidColorBrush)?.Color ?? Colors.White);
+                context.DrawRectangle(new SolidColorBrush(color, selected ? .15 : .13), new Pen(stroke, selected ? 3 : 2), box.Deflate(selected ? 1.5 : 1), 7, 7);
+                var label = Format(segment.Label, 10.5, Brushes.White, true);
+                using (context.PushClip(box)) { context.DrawText(Format(segment.Label, 10.5, new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)), true), new Point(box.X + 6, box.Y + 5)); context.DrawText(label, new Point(box.X + 6, box.Y + 4)); }
+                if (selected) selectedBox = box;
+            }
+        if (selectedBox is { } chosen)
         {
-            var segment = _segments[index]; var selected = index == _selected;
-            var start = index == _dragIndex && _dragStart ? _dragValue : segment.Start;
-            var end = index == _dragIndex && !_dragStart ? _dragValue : segment.End;
-            var stroke = RemoveMode ? RemoveBrush ?? Brushes.OrangeRed : accent;
-            var box = new Rect(X(start), track.Y - 1, Math.Max(2, X(end) - X(start)), track.Height + 2);
-            var color = (stroke as ISolidColorBrush)?.Color ?? Colors.DodgerBlue;
-            context.DrawRectangle(new SolidColorBrush(color, selected ? .2 : .1), new Pen(stroke, selected ? 2.4 : 1.4), box, 5, 5);
-            var label = Format(segment.Label, 10.5, stroke, true);
-            context.DrawText(label, new Point(Math.Clamp(box.X + 4, 0, Math.Max(0, Bounds.Width - label.Width)), RulerHeight + 1));
-            if (selected)
-                foreach (var x in new[] { box.X, box.Right })
-                    context.DrawRectangle(stroke, new Pen(Brushes.White, 1), new Rect(x - 4, track.Y + track.Height / 2 - 12, 8, 24), 3, 3);
+            var handle = RemoveMode ? RemoveBrush ?? Brushes.OrangeRed : accent;
+            foreach (var x in new[] { chosen.X, chosen.Right })
+                if (x >= -6 && x <= Bounds.Width + 6) context.DrawRectangle(handle, null, new Rect(x - 5.5, track.Y + track.Height / 2 - 17, 11, 34), 4, 4);
         }
-        var head = X(_position); var playhead = PlayheadBrush ?? Brushes.Red;
-        context.DrawLine(new Pen(playhead, 1.6), new Point(head, RulerHeight + 4), new Point(head, track.Bottom + 4));
-        context.DrawEllipse(playhead, null, new Point(head, RulerHeight + 6), 4.5, 4.5);
+        var head = X(_position);
+        if (head >= track.X - 1 && head <= track.Right + 1)
+        {
+            var playhead = PlayheadBrush ?? Brushes.Red;
+            context.FillRectangle(playhead, new Rect(head - 1, track.Y - 20, 2, track.Height + 26));
+            var cap = new StreamGeometry();
+            using (var g = cap.Open()) { g.BeginFigure(new Point(head - 6, track.Y - 20), true); g.LineTo(new Point(head + 6, track.Y - 20)); g.LineTo(new Point(head, track.Y - 10)); g.EndFigure(true); }
+            context.DrawGeometry(playhead, null, cap);
+        }
         if (_dragIndex >= 0) DrawCallout(context, X(_dragValue), _dragValue, _dragStart);
         else if (_hoverIndex >= 0 && _hoverIndex < _segments.Count)
         {
@@ -117,30 +146,42 @@ public sealed class FilmstripTimeline : Control
         }
     }
 
+    /// <summary>Callout above the handle: white card with the nearest strip frame and "起点 01:11.000".</summary>
     private void DrawCallout(DrawingContext context, double x, double seconds, bool start)
     {
-        var frame = NearestFrame(seconds); const double width = 132, imageHeight = 70;
-        var box = new Rect(Math.Clamp(x - width / 2, 0, Math.Max(0, Bounds.Width - width)), -CalloutHeight - 6, width, CalloutHeight);
-        context.DrawRectangle(CalloutBrush, null, box, 8, 8);
-        var imageRect = new Rect(box.X + 4, box.Y + 4, width - 8, imageHeight);
+        var frame = NearestFrame(seconds); const double width = 110, imageHeight = 58, height = 82;
+        var box = new Rect(Math.Clamp(x - width / 2, 0, Math.Max(0, Bounds.Width - width)), Track.Y - 10 - height, width, height);
+        var pointer = new StreamGeometry();
+        using (var g = pointer.Open()) { g.BeginFigure(new Point(x - 6, box.Bottom - 1), true); g.LineTo(new Point(x + 6, box.Bottom - 1)); g.LineTo(new Point(x, box.Bottom + 5)); g.EndFigure(true); }
+        context.DrawRectangle(new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), null, box.Translate(new Vector(0, 3)).Inflate(1), 9, 9);
+        context.DrawRectangle(CalloutBrush, new Pen(new SolidColorBrush(Color.FromArgb(35, 0, 0, 0)), .5), box, 8, 8);
+        context.DrawGeometry(CalloutBrush, null, pointer);
+        var imageRect = new Rect(box.X + 3, box.Y + 3, width - 6, imageHeight);
         if (frame is not null)
-            using (context.PushClip(new RoundedRect(imageRect, 5)))
+            using (context.PushClip(new RoundedRect(imageRect, 6)))
             {
                 var scale = Math.Max(imageRect.Width / frame.Size.Width, imageRect.Height / frame.Size.Height);
                 var source = new Size(imageRect.Width / scale, imageRect.Height / scale);
                 context.DrawImage(frame, new Rect((frame.Size.Width - source.Width) / 2, (frame.Size.Height - source.Height) / 2, source.Width, source.Height), imageRect);
             }
-        var label = Format(Translate(start ? "起点" : "终点") + " " + Long(seconds), 10.5, Brushes.White, true);
-        context.DrawText(label, new Point(box.X + (width - label.Width) / 2, imageRect.Bottom + 1));
+        else context.DrawRectangle(TrackBrush, null, imageRect, 6, 6);
+        var label = Format(Translate(start ? "起点" : "终点") + " " + Short2(seconds), 10.5, CalloutTextBrush ?? Brushes.Black, true);
+        context.DrawText(label, new Point(box.X + (width - label.Width) / 2, imageRect.Bottom + 3));
     }
 
     private (int Index, bool Start)? HandleAt(Point point)
     {
-        if (_selected < 0 || _selected >= _segments.Count || point.Y < RulerHeight) return null;
+        if (_selected < 0 || _selected >= _segments.Count || point.Y < StripTop - 8) return null;
         var segment = _segments[_selected];
         if (Math.Abs(point.X - X(segment.Start)) <= 8) return (_selected, true);
         if (Math.Abs(point.X - X(segment.End)) <= 8) return (_selected, false);
         return null;
+    }
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        if (_zoom <= 1) return;
+        _viewStart -= (e.Delta.Y + e.Delta.X) * VisibleDuration * .1; ClampView(); InvalidateVisual(); e.Handled = true;
     }
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
@@ -186,6 +227,11 @@ public sealed class FilmstripTimeline : Control
 
     private static FormattedText Format(string text, double size, IBrush brush, bool bold = false) =>
         new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default, FontStyle.Normal, bold ? FontWeight.Bold : FontWeight.Normal), size, brush);
+    private static string Tick(double seconds, double step) => step < 1 ? Compact(seconds).TrimEnd('0').TrimEnd('.') : Short(seconds);
+    /// <summary>mm:ss.fff as in the demo callout.</summary>
+    public static string Short2(double seconds) => Long(seconds);
     public static string Short(double seconds) { var time = TimeSpan.FromSeconds(Math.Max(0, seconds)); return time.TotalHours >= 1 ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}" : $"{time.Minutes}:{time.Seconds:00}"; }
+    /// <summary>m:ss.fff (h:mm:ss.fff past an hour), as in the segment list.</summary>
+    public static string Compact(double seconds) { var time = TimeSpan.FromSeconds(Math.Max(0, seconds)); return time.TotalHours >= 1 ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}" : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}"; }
     public static string Long(double seconds) { var time = TimeSpan.FromSeconds(Math.Max(0, seconds)); return (time.TotalHours >= 1 ? $"{(int)time.TotalHours}:" : "") + $"{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}"; }
 }

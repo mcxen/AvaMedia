@@ -56,9 +56,24 @@ internal sealed class QuickClipWorkspaceWindow : Window
         if(_editing) return; _editing = true;
         try
         {
-            var editor = new EditorWindow(_engine, source.Path, source.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", source.Edit?.Segments, removeSelected: source.Edit?.RemoveSelected ?? false);
-            editor.SetWorkflowCompletion("保存剪辑");
-            if(await ToolExecution.ShowAsync<ClipEditResult>(this,editor) is {} result) source.Edit = result;
+            var selected = _sources.Where(item => item.Include || ReferenceEquals(item, source)).ToArray();
+            for (var index = Array.IndexOf(selected, source); index < selected.Length; index++)
+            {
+                var current = selected[index];
+                var editor = new EditorWindow(_engine, current.Path, current.Edit?.Segments.FirstOrDefault() ?? new(), "quick-workflow", current.Edit?.Segments, removeSelected: current.Edit?.RemoveSelected ?? false);
+                editor.SetWorkflowStep(index + 1, selected.Length);
+                if (await ToolExecution.ShowAsync<ClipEditResult>(this, editor) is not { } result) break;
+                current.Edit = result;
+                if (!editor.ProceedToExport) continue;
+                foreach (var pending in _sources.Where(item => item.Include && item.Edit is null))
+                {
+                    var info = await _engine.Probe(pending.Path);
+                    if (!info.HasVideo || info.Duration <= 0) throw new ArgumentException("请先选择有效视频。");
+                    pending.Edit = new(pending.Path, info, [new() { End = info.Duration, VideoStreamIndex = info.VideoStreamIndex, AudioStreamIndex = info.AudioStreamIndex }]);
+                }
+                ToolExecution.Complete(this, _sources.Where(item => item.Include).Select(item => item.Edit!).ToArray());
+                return;
+            }
             RefreshFiles();
         }
         catch(Exception error) { _status.Text = error.Message; }

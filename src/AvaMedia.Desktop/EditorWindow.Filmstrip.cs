@@ -33,10 +33,13 @@ public partial class EditorWindow
 
     private void ApplyTimelineZoom()
     {
+        if (QuickRoot.IsVisible) { Filmstrip.Width = double.NaN; Filmstrip.Zoom = TimelineZoom.Value; return; }
         var width = Math.Max(200, SegmentTrackScroll.Bounds.Width) * TimelineZoom.Value;
         Filmstrip.Width = SegmentTrack.MinWidth = width;
         SegmentTrack.Width = width;
     }
+    private void ZoomOutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => TimelineZoom.Value = Math.Max(TimelineZoom.Minimum, TimelineZoom.Value / 1.5);
+    private void ZoomInClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => TimelineZoom.Value = Math.Min(TimelineZoom.Maximum, TimelineZoom.Value * 1.5);
 
     private void RefreshFilmstrip(int selected)
     {

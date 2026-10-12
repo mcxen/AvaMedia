@@ -1,0 +1,177 @@
+<!-- Quick-clip editor layout (EditorWindow QuickRoot), see editor/clip-editor-demo.html and UISPEC.MD. -->
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="QcCanvas" Color="#F5F5F7"/><SolidColorBrush x:Key="QcChrome" Color="#FBFBFD"/><SolidColorBrush x:Key="QcCard" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="QcLine" Color="#E5E5EA"/><SolidColorBrush x:Key="QcRowLine" Color="#F0F0F2"/><SolidColorBrush x:Key="QcText" Color="#1D1D1F"/>
+          <SolidColorBrush x:Key="QcSecondary" Color="#86868B"/><SolidColorBrush x:Key="QcValue" Color="#6E6E73"/><SolidColorBrush x:Key="QcIcon" Color="#3A3A3C"/>
+          <SolidColorBrush x:Key="QcAccent" Color="#007AFF"/><SolidColorBrush x:Key="QcAccentText" Color="#FFFFFF"/><SolidColorBrush x:Key="QcSegTrack" Color="#E9E9EE"/>
+          <SolidColorBrush x:Key="QcSegOn" Color="#FFFFFF"/><SolidColorBrush x:Key="QcRowSelected" Color="#0F007AFF"/><SolidColorBrush x:Key="QcChip" Color="#F2F2F7"/>
+          <SolidColorBrush x:Key="QcBarIdle" Color="#D1D1D6"/><SolidColorBrush x:Key="QcHover" Color="#0D000000"/><SolidColorBrush x:Key="QcPreview" Color="#0C0C0E"/>
+          <SolidColorBrush x:Key="QcStrip" Color="#E5E5EA"/><SolidColorBrush x:Key="QcPillLine" Color="#24000000"/><SolidColorBrush x:Key="QcPlayhead" Color="#FF3B30"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="QcCanvas" Color="#1C1C1E"/><SolidColorBrush x:Key="QcChrome" Color="#232325"/><SolidColorBrush x:Key="QcCard" Color="#2C2C2E"/>
+          <SolidColorBrush x:Key="QcLine" Color="#26FFFFFF"/><SolidColorBrush x:Key="QcRowLine" Color="#3A3A3C"/><SolidColorBrush x:Key="QcText" Color="#F5F5F7"/>
+          <SolidColorBrush x:Key="QcSecondary" Color="#98989D"/><SolidColorBrush x:Key="QcValue" Color="#AEAEB2"/><SolidColorBrush x:Key="QcIcon" Color="#D1D1D6"/>
+          <SolidColorBrush x:Key="QcAccent" Color="#0A84FF"/><SolidColorBrush x:Key="QcAccentText" Color="#FFFFFF"/><SolidColorBrush x:Key="QcSegTrack" Color="#3A3A3C"/>
+          <SolidColorBrush x:Key="QcSegOn" Color="#636366"/><SolidColorBrush x:Key="QcRowSelected" Color="#260A84FF"/><SolidColorBrush x:Key="QcChip" Color="#3A3A3C"/>
+          <SolidColorBrush x:Key="QcBarIdle" Color="#48484A"/><SolidColorBrush x:Key="QcHover" Color="#14FFFFFF"/><SolidColorBrush x:Key="QcPreview" Color="#000000"/>
+          <SolidColorBrush x:Key="QcStrip" Color="#3A3A3C"/><SolidColorBrush x:Key="QcPillLine" Color="#33FFFFFF"/><SolidColorBrush x:Key="QcPlayhead" Color="#FF453A"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+          <SolidColorBrush x:Key="QcCanvas" Color="#CCCCCC"/><SolidColorBrush x:Key="QcChrome" Color="#DDDDDD"/><SolidColorBrush x:Key="QcCard" Color="#EEEEEE"/>
+          <SolidColorBrush x:Key="QcLine" Color="#777777"/><SolidColorBrush x:Key="QcRowLine" Color="#BBBBBB"/><SolidColorBrush x:Key="QcText" Color="#111111"/>
+          <SolidColorBrush x:Key="QcSecondary" Color="#555555"/><SolidColorBrush x:Key="QcValue" Color="#333333"/><SolidColorBrush x:Key="QcIcon" Color="#111111"/>
+          <SolidColorBrush x:Key="QcAccent" Color="#3D4E80"/><SolidColorBrush x:Key="QcAccentText" Color="#111111"/><SolidColorBrush x:Key="QcSegTrack" Color="#BBBBBB"/>
+          <SolidColorBrush x:Key="QcSegOn" Color="#FFFFFF"/><SolidColorBrush x:Key="QcRowSelected" Color="#C7CDE0"/><SolidColorBrush x:Key="QcChip" Color="#DDDDDD"/>
+          <SolidColorBrush x:Key="QcBarIdle" Color="#999999"/><SolidColorBrush x:Key="QcHover" Color="#22000000"/><SolidColorBrush x:Key="QcPreview" Color="#000000"/>
+          <SolidColorBrush x:Key="QcStrip" Color="#BBBBBB"/><SolidColorBrush x:Key="QcPillLine" Color="#777777"/><SolidColorBrush x:Key="QcPlayhead" Color="#CC0000"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <Style Selector="Window.editor Grid#QuickRoot"><Setter Property="Background" Value="{DynamicResource QcCanvas}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcText}"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBlock.sec"><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBlock.value"><Setter Property="Foreground" Value="{DynamicResource QcValue}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBlock.mono"><Setter Property="FontFeatures" Value="tnum"/><Setter Property="FontWeight" Value="Medium"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBlock.head"><Setter Property="FontSize" Value="11.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot controls|LucideIcon"><Setter Property="Foreground" Value="{DynamicResource QcIcon}"/><Setter Property="Width" Value="15"/><Setter Property="Height" Value="15"/></Style>
+
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-chrome"><Setter Property="Background" Value="{DynamicResource QcChrome}"/><Setter Property="BorderBrush" Value="{DynamicResource QcLine}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-card"><Setter Property="UseLayoutRounding" Value="False"/><Setter Property="Background" Value="{DynamicResource QcCard}"/><Setter Property="BorderBrush" Value="{DynamicResource QcLine}"/><Setter Property="BorderThickness" Value="0.5"/><Setter Property="CornerRadius" Value="12"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-row"><Setter Property="BorderBrush" Value="{DynamicResource QcRowLine}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="Height" Value="34"/><Setter Property="Padding" Value="12,0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-row.last"><Setter Property="BorderThickness" Value="0"/></Style>
+
+  <!-- Buttons: flat icon buttons, white pills, the round play button and the blue primary. -->
+  <Style Selector="Window.editor Grid#QuickRoot Button"><Setter Property="Foreground" Value="{DynamicResource QcText}"/><Setter Property="FontSize" Value="12.5"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.ib"><Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="16"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.ib.small"><Setter Property="Width" Value="26"/><Setter Property="Height" Value="26"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.ib:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcHover}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.ib:disabled controls|LucideIcon"><Setter Property="Opacity" Value="0.35"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ToggleButton.ib"><Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="16"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ToggleButton.ib:checked /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ToggleButton.ib:checked controls|LucideIcon"><Setter Property="Foreground" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.play"><Setter Property="Width" Value="40"/><Setter Property="Height" Value="40"/><Setter Property="CornerRadius" Value="20"/><Setter Property="Background" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.play:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="Opacity" Value="0.9"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.play"><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.play controls|ActionIcon"><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.pill"><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="13,0"/><Setter Property="CornerRadius" Value="15"/><Setter Property="Background" Value="{DynamicResource QcCard}"/><Setter Property="BorderBrush" Value="{DynamicResource QcLine}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.pill.tall"><Setter Property="Height" Value="34"/><Setter Property="CornerRadius" Value="17"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.pill:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcChip}"/><Setter Property="BorderBrush" Value="{DynamicResource QcLine}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.primary-pill"><Setter Property="Height" Value="36"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="20,0"/><Setter Property="CornerRadius" Value="18"/><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="BorderThickness" Value="0"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.primary-pill:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Height" Value="16"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="{DynamicResource QcAccent}"/><Setter Property="FontSize" Value="11"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.nudge"><Setter Property="Width" Value="24"/><Setter Property="Height" Value="22"/><Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="11"/><Setter Property="Background" Value="{DynamicResource QcChip}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.nudge controls|LucideIcon"><Setter Property="Width" Value="12"/><Setter Property="Height" Value="12"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.row-button"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.frame"><Setter Property="Padding" Value="0"/><Setter Property="Height" Value="75"/><Setter Property="CornerRadius" Value="8"/><Setter Property="ClipToBounds" Value="True"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="{DynamicResource QcPreview}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcPreview}"/></Style>
+
+  <!-- Title bar segmented control (ModeButtons are built by EditorWindow.Modes.cs). -->
+  <Style Selector="Window.editor Grid#QuickRoot Border#ModeBar"><Setter Property="Background" Value="{DynamicResource QcSegTrack}"/><Setter Property="CornerRadius" Value="999"/><Setter Property="Padding" Value="2"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border#ModeBar Button.mode"><Setter Property="Height" Value="29"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="13.5,0"/><Setter Property="CornerRadius" Value="999"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Foreground" Value="{DynamicResource QcIcon}"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border#ModeBar Button.mode.active"><Setter Property="Background" Value="{DynamicResource QcSegOn}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border#ModeBar Button.mode.active /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcSegOn}"/><Setter Property="BoxShadow" Value="0 1 3 0 #33000000"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border#ModeBar Button.mode controls|LucideIcon"><Setter Property="Width" Value="13"/><Setter Property="Height" Value="13"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.caption"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="44"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.caption:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcHover}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.caption.close:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#E81123"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.caption controls|LucideIcon"><Setter Property="Width" Value="14"/><Setter Property="Height" Value="14"/></Style>
+
+  <!-- Flat inputs: combos in the property list and the precision pill, time boxes in the frame cards. -->
+  <Style Selector="Window.editor Grid#QuickRoot ComboBox.flat"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Height" Value="28"/><Setter Property="Padding" Value="4,0,0,0"/><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="{DynamicResource QcValue}"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ComboBox.flat:pointerover /template/ Border#Background"><Setter Property="Background" Value="Transparent"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ComboBox.flat /template/ Border#Background"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBox.qc-time"><Setter Property="FontFamily" Value="Inter, Segoe UI, PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC"/><Setter Property="TextAlignment" Value="Center"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Height" Value="22"/><Setter Property="Padding" Value="0"/><Setter Property="Width" Value="NaN"/><Setter Property="MinWidth" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="11.5"/><Setter Property="FontFeatures" Value="tnum"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBox.qc-time /template/ Border#PART_BorderElement"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBox.qc-time:focus /template/ Border#PART_BorderElement"><Setter Property="Background" Value="{DynamicResource QcChip}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Slider.zoom"><Setter Property="Width" Value="70"/><Setter Property="MinHeight" Value="0"/></Style>
+
+  <!-- Segment list rows. -->
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem"><Setter Property="Margin" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcRowSelected}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcHover}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected TextBlock.sec"><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected TextBlock.value"><Setter Property="Foreground" Value="{DynamicResource QcValue}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-bar"><Setter Property="Background" Value="{DynamicResource QcBarIdle}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected Border.qc-bar"><Setter Property="Background" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected TextBlock.name"><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.tag"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Padding" Value="6,1"/><Setter Property="Margin" Value="5"/><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="VerticalAlignment" Value="Top"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.tag TextBlock"><Setter Property="Foreground" Value="White"/><Setter Property="FontSize" Value="10"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot CheckBox"><Setter Property="FontSize" Value="12.5"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <!-- Template-level pill chrome: app-wide editor button styles would otherwise flatten the border. -->
+  <Style Selector="Window.editor Grid#QuickRoot Button.pill /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcCard}"/><Setter Property="BorderBrush" Value="{DynamicResource QcPillLine}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="15"/><Setter Property="BoxShadow" Value="0 1 2 0 #0D000000"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.pill.tall /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="CornerRadius" Value="17"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.pill:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcChip}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border#QuickPrecisionPill"><Setter Property="BorderBrush" Value="{DynamicResource QcPillLine}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BoxShadow" Value="0 1 2 0 #0D000000"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-card"><Setter Property="UseLayoutRounding" Value="False"/><Setter Property="BorderBrush" Value="{DynamicResource QcPillLine}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.ib controls|ActionIcon"><Setter Property="Foreground" Value="{DynamicResource QcIcon}"/><Setter Property="Width" Value="16"/><Setter Property="Height" Value="16"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.play controls|ActionIcon"><Setter Property="Foreground" Value="{DynamicResource QcAccentText}"/><Setter Property="Width" Value="17"/><Setter Property="Height" Value="17"/></Style>
+  <!-- SimpleTheme uses different named parts from Fluent. Keep the actual ComboBox and its popup/keyboard behavior. -->
+  <Style Selector="Window.editor Grid#QuickRoot ComboBox.flat">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid ColumnDefinitions="*,16" Background="Transparent">
+          <ContentPresenter Name="ContentPresenter" Margin="{TemplateBinding Padding}" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" VerticalContentAlignment="Center" HorizontalContentAlignment="Right" Foreground="{TemplateBinding Foreground}"/>
+          <controls:LucideIcon Grid.Column="1" Kind="chevron-down" Width="10" Height="10" Foreground="{DynamicResource QcValue}" IsHitTestVisible="False"/>
+          <Popup Name="PART_Popup" MinWidth="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}" IsLightDismissEnabled="True" IsOpen="{TemplateBinding IsDropDownOpen, Mode=TwoWay}" PlacementTarget="{TemplateBinding}" InheritsTransform="True">
+            <Border Background="{DynamicResource QcCard}" BorderBrush="{DynamicResource QcLine}" BorderThickness="1" CornerRadius="7" Padding="2">
+              <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"><ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/></ScrollViewer>
+            </Border>
+          </Popup>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Window.editor Grid#QuickRoot ComboBox.flat TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcValue}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot ComboBox#PrecisionCombo"><Setter Property="FontSize" Value="12.5"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.qc-row controls|LucideIcon"><Setter Property="Foreground" Value="{DynamicResource QcValue}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBox.qc-time /template/ Border#border">
+    <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="BoxShadow" Value="none"/>
+  </Style>
+  <Style Selector="Window.editor Grid#QuickRoot TextBox.qc-time:focus /template/ Border#border"><Setter Property="Background" Value="{DynamicResource QcChip}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Slider.zoom">
+    <Setter Property="Height" Value="22"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid VerticalAlignment="Center" Height="22">
+          <Border Background="{DynamicResource QcStrip}" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+          <Track Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value, Mode=TwoWay}" Orientation="Horizontal" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+            <Track.DecreaseButton><RepeatButton Focusable="False" Background="{DynamicResource QcAccent}" Height="4" MinHeight="0" Padding="0"><RepeatButton.Template><ControlTemplate><Border Background="{TemplateBinding Background}" CornerRadius="2"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseButton>
+            <Track.Thumb><Thumb Name="thumb" Width="14" Height="14"><Thumb.Template><ControlTemplate><Border Background="White" BorderBrush="#30000000" BorderThickness="0.5" CornerRadius="7" BoxShadow="0 1 3 0 #33000000"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+            <Track.IncreaseButton><RepeatButton Focusable="False" Background="Transparent" Height="4" MinHeight="0" Padding="0"><RepeatButton.Template><ControlTemplate><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseButton>
+          </Track>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Window.editor Grid#QuickRoot CheckBox"><Setter Property="MinHeight" Value="16"/><Setter Property="Padding" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot StackPanel#QuickZoomSlot Button.ib"><Setter Property="Height" Value="30"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Slider.zoom /template/ Thumb#thumb"><Setter Property="Template"><ControlTemplate><Border Background="White" BorderBrush="#30000000" BorderThickness="1" CornerRadius="7" BoxShadow="0 1 3 0 #33000000"/></ControlTemplate></Setter></Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox">
+    <Setter Property="Template"><ControlTemplate>
+      <Grid ColumnDefinitions="16,*" ColumnSpacing="7" Background="Transparent">
+        <Border Name="QuickCheckFace" Width="16" Height="16" CornerRadius="5" BorderThickness="1" BorderBrush="{DynamicResource QcBarIdle}" Background="{DynamicResource QcCard}" VerticalAlignment="Center">
+          <Path Name="QuickCheckMark" Data="M 3,7 L 6,10 L 11,4" Stroke="White" StrokeThickness="1.5" IsVisible="False"/>
+        </Border>
+        <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" VerticalContentAlignment="Center"/>
+      </Grid>
+    </ControlTemplate></Setter>
+  </Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox:checked /template/ Border#QuickCheckFace"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="BorderBrush" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox:checked /template/ Path#QuickCheckMark"><Setter Property="IsVisible" Value="True"/></Style>
+  <Style Selector="Window.editor:not(.mac-os9) Grid#QuickRoot CheckBox:focus-visible /template/ Border#QuickCheckFace"><Setter Property="BorderBrush" Value="{DynamicResource QcAccent}"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button.pill /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="BoxShadow" Value="none"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button.frame"><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.mac-os9 Grid#QuickRoot Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="{DynamicResource QcAccent}"/></Style>
+</Styles>

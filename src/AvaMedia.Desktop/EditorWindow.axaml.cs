@@ -112,7 +112,7 @@ public partial class EditorWindow : Window
     }
     private bool CurrentPreview(int revision)=>!_closed&&revision==_previewRevision;
     private void SetPosition(double seconds,bool immediate=true)
-    {_position=Math.Clamp(seconds,0,SeekBar.Maximum);if(!EditorTime.ShouldRefresh(ref _positionPublished,immediate))return;_updating=true;SeekBar.Value=_position;_updating=false;CurrentTime.Text=EditorTime.Format(_position);if(QuickWorkflow){SegmentTrack.SetPosition(_position);Filmstrip.Position=_position;UpdateSegmentActions();}}
+    {_position=Math.Clamp(seconds,0,SeekBar.Maximum);if(!EditorTime.ShouldRefresh(ref _positionPublished,immediate))return;_updating=true;SeekBar.Value=_position;_updating=false;CurrentTime.Text=EditorTime.Format(_position);if(QuickWorkflow){SegmentTrack.SetPosition(_position);Filmstrip.Position=_position;QuickCurrentTime.Text=MediaUi.FilmstripTimeline.Long(_position);UpdateSegmentActions();}}
     private void Seek(double seconds,bool keepSequence=false)
     {
         if(_closed||_info is null)return;var (revision,token)=BeginPreview(keepSequence);SetPosition(seconds);
@@ -126,7 +126,7 @@ public partial class EditorWindow : Window
     private async Task Thumbnails(ConversionOptions options,int revision,CancellationToken ct)
     {if(_info?.HasVideo==true){await Frame(_startView,options.Start,ct,thumbnailRevision:revision);await Frame(_endView,options.End,ct,endExclusive:options.End>0,thumbnailRevision:revision);}}
     private void ScheduleThumbs(){var token=_thumbs.Restart(_lifetime.Token);var revision=++_thumbnailRevision;var options=_options.Clone();async Task Run(){try{await Task.Delay(180,token);await Thumbnails(options,revision,token);}catch(OperationCanceledException){}catch(Exception e){if(!_closed&&revision==_thumbnailRevision){PreviewStatus.Text=Localization.Format($"边界预览失败：{e.Message}");PreviewStatus.IsVisible=true;}}}_thumbnailsReady=Run();}
-    private void UpdateTimes(){_updating=true;StartTime.Text=EditorTime.Format(_options.Start);EndTime.Text=EditorTime.Format(_options.End);_updating=false;TrimBar.Start=double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,TrimBar.Duration):0;TrimBar.End=double.IsFinite(_options.End)?Math.Clamp(_options.End,TrimBar.Start,TrimBar.Duration):TrimBar.Duration;TrimBar.InvalidateVisual();ValidateInputs();}
+    private void UpdateTimes(){_updating=true;StartTime.Text=QuickWorkflow?EditorTime.FormatQuick(_options.Start):EditorTime.Format(_options.Start);EndTime.Text=QuickWorkflow?EditorTime.FormatQuick(_options.End):EditorTime.Format(_options.End);_updating=false;TrimBar.Start=double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,TrimBar.Duration):0;TrimBar.End=double.IsFinite(_options.End)?Math.Clamp(_options.End,TrimBar.Start,TrimBar.Duration):TrimBar.Duration;TrimBar.InvalidateVisual();ValidateInputs();}
     private void SetPlaybackButton(bool playing)
     {
         PlayIcon.Kind=playing?"pause":"play";
@@ -312,7 +312,7 @@ public partial class EditorWindow : Window
     {
         try
         {
-            if(QuickWorkflow){ToolExecution.Complete(this,ReadClipEdit());return;}
+            if(QuickWorkflow){var result=ReadClipEdit();ProceedToExport=!ReferenceEquals(sender,QuickNextVideoButton);ToolExecution.Complete(this,result);return;}
             var draft=ReadDraft();var feature=Catalog.All.FirstOrDefault(item=>item.Id==_mode)??Catalog.Find("mp4");
             MediaEngine.ValidateEdits(new(){FeatureId=feature.Id,Inputs=[_path],Output=Path.Combine(Path.GetTempPath(),"validate-output."+draft.Format),Options=draft},[_info!]);Close(draft);
         }

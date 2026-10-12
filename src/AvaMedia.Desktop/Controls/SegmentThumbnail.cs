@@ -20,6 +20,8 @@ public sealed class SegmentThumbnail : Image
     private ISegmentThumbnailSource? _owner;
     private readonly PreviewRequest _request = new();
     private (double Start, int Stream)? _loaded;
+    /// <summary>Show the segment's last frame instead of its first.</summary>
+    public bool AtEnd { get; set; }
     public SegmentThumbnail()
     {
         _view = new(this); DataContextChanged += (_, _) => Bind();
@@ -67,13 +69,15 @@ public sealed class SegmentThumbnail : Image
     private async void Refresh()
     {
         if (_entry is not { } entry || _owner is not { } owner) return;
-        var key = (entry.Options.Start, entry.Options.VideoStreamIndex);
+        var options = entry.Options.Clone();
+        if (AtEnd && entry.End > options.Start) options.Start = Math.Max(options.Start, entry.End - 0.05);
+        var key = (options.Start, options.VideoStreamIndex);
         if (_loaded == key) return;
         _loaded = key; var token = _request.Restart(CancellationToken.None);
         _view.Clear();
         try
         {
-            var data = await owner.ReadSegmentThumbnail(entry.SourcePath, entry.Options.Clone(), token);
+            var data = await owner.ReadSegmentThumbnail(entry.SourcePath, options, token);
             token.ThrowIfCancellationRequested();
             if (!ReferenceEquals(_entry, entry) || !_request.IsCurrent(token)) return;
             _view.Show(data);

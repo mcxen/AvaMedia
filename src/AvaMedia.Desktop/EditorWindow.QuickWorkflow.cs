@@ -28,6 +28,8 @@ public sealed class ClipSegmentEntry : Observable
     public double OutputDuration => Math.Max(0, End - _options.Start) / Math.Max(.25, _options.Speed);
     public string Title => IsExclusion ? Localization.Format($"去除片段 {Number}") : Localization.Format($"片段 {Number}");
     public string DurationLabel => IsExclusion ? MediaTime.Format(Math.Max(0, End - _options.Start)) : MediaTime.Format(OutputDuration) + " · " + MediaEngine.Number(_options.Speed) + "×";
+    public string ShortRange => MediaUi.FilmstripTimeline.Compact(_options.Start) + " – " + MediaUi.FilmstripTimeline.Compact(End);
+    public string ShortDuration => MediaEngine.Number(Math.Round((IsExclusion ? Math.Max(0, End - _options.Start) : OutputDuration) * 10) / 10) + " s" + (IsExclusion || Math.Abs(_options.Speed - 1) < 1e-9 ? "" : " · " + MediaEngine.Number(_options.Speed) + "×");
     public string TimeRange => MediaTime.Format(_options.Start) + " → " + (End > 0 ? MediaTime.Format(End) : Localization.Text("视频结尾"));
     public string EditSummary => Localization.Join(" · ", new[] {
         _options.CropWidth > 0 ? Localization.Format($"裁剪 {_options.CropWidth}×{_options.CropHeight}") : "",
@@ -39,7 +41,7 @@ public sealed class ClipSegmentEntry : Observable
     public string Summary => Title + " · " + TimeRange + "\n" + DurationLabel + (HasEdits ? "\n" + EditSummary : "");
     private void RefreshLabels()
     {
-        foreach (var property in new[] { nameof(Title), nameof(DurationLabel), nameof(TimeRange), nameof(EditSummary), nameof(HasEdits), nameof(Summary) }) Raise(property);
+        foreach (var property in new[] { nameof(Title), nameof(DurationLabel), nameof(TimeRange), nameof(ShortRange), nameof(ShortDuration), nameof(EditSummary), nameof(HasEdits), nameof(Summary) }) Raise(property);
     }
 }
 
@@ -57,7 +59,9 @@ public partial class EditorWindow
     private bool QuickWorkflow => _mode == "quick-workflow";
     public IReadOnlyList<ClipSegmentEntry> Segments => _segments;
     public Task DirectionReady => _directionReady;
-    public void SetWorkflowCompletion(string action) => ConfirmButton.Content=Localization.Text(action);
+    public bool ProceedToExport { get; private set; }
+    public void SetWorkflowCompletion(string action = "下一步：导出选项 →") => Localization.SetContent(ConfirmButton, $"{Localization.Key(action)}");
+    private void NextVideoClick(object? sender, RoutedEventArgs e) => ConfirmClick(QuickNextVideoButton, e);
 
     private void InitializeQuickWorkflow(IReadOnlyList<ConversionOptions>? segments, IVideoOrientationDetector? detector, bool removeSelected)
     {
@@ -73,7 +77,7 @@ public partial class EditorWindow
         Width = 1380;
         EditOptionsButton.Content = "其他编辑选项…";
         PreviewNote.Text = "速度与方向可预览；裁剪、淡入淡出及其他效果在输出时生效。";
-        ConfirmButton.Content = "下一步：导出选项";
+        SetWorkflowCompletion();
         DirectionCombo.ItemsSource = new[] { "保持原方向", "顺时针 90°", "旋转 180°", "逆时针 90°" };
         Avalonia.Automation.AutomationProperties.SetName(DirectionCombo, "当前片段旋转方向");
         Avalonia.Automation.AutomationProperties.SetName(SegmentList, "视频片段列表");
@@ -86,6 +90,7 @@ public partial class EditorWindow
         _removeSelected = removeSelected;
         InvertSelectionCheck.IsChecked = removeSelected;
         ApplySelectionMode();
+        BuildQuickLayout();
         SyncDirectionControls(); InitializeSegmentEditing(); RefreshSegments();
         Closed += (_, _) => { ClearDirectionDetection(); _segmentEditTimer.Stop(); };
     }
@@ -93,7 +98,9 @@ public partial class EditorWindow
     public void SetWorkflowStep(int current, int total)
     {
         Localization.SetTitle(this, $"快速剪辑 · 编辑 {current}/{total} · {Path.GetFileName(_path)}");
-        ConfirmButton.Content = current < total ? "下一个视频 →" : "下一步：导出选项 →";
+        _workflowStep = Localization.Format($"编辑 {current}/{total} · {Path.GetFileName(_path)}"); RefreshQuickLayout();
+        QuickNextVideoButton.IsVisible = current < total;
+        SetWorkflowCompletion();
     }
 
     private void CommitActiveSegment()

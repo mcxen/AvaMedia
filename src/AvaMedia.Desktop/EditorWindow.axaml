@@ -1,4 +1,6 @@
 <Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
+  <Window.Styles><StyleInclude Source="avares://AvaMedia.Desktop/Styles/QuickClipStyles.axaml"/></Window.Styles>
+  <Grid x:Name="WindowRoot">
   <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,0,0">
     <!-- Title bar: drag region, title/subtitle, mode switch, platform caption buttons (EditorWindow.Chrome.cs). -->
     <Grid x:Name="EditorTitleBar" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto,*,Auto" MinHeight="44" Margin="0,0,0,8" Background="Transparent">
@@ -35,7 +37,7 @@
       <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Left">
         <Button x:Name="BackwardButton" Classes="transport" Click="BackwardClick" ToolTip.Tip="向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
-        <Button x:Name="PlayButton" Classes="transport" Click="PlayClick" ToolTip.Tip="播放" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
+        <Button x:Name="PlayButton" Classes="transport" Click="PlayClick" ToolTip.Tip="播放 (空格)" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
         <Button x:Name="StopButton" Classes="transport" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop" /></Button>
         <Button x:Name="ForwardButton" Classes="transport" Click="ForwardClick" ToolTip.Tip="向后定位" AutomationProperties.Name="向后定位"><local:ActionIcon Kind="forward" /></Button>
       </StackPanel>
@@ -60,7 +62,7 @@
                 <TextBox x:Name="StartTime" Classes="time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
                   <Button x:Name="StartMinusButton" Classes="step" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
-                  <Button x:Name="SetStartButton" Classes="field-action" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetStartClick">
+                  <Button x:Name="SetStartButton" Classes="field-action" ToolTip.Tip="设为起点 (I)" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetStartClick">
                   <TextBlock Text="设为起点"/>
                 </Button>
                   <Button Grid.Column="2" x:Name="StartPlusButton" Classes="step" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
@@ -76,7 +78,7 @@
                 <TextBox x:Name="EndTime" Classes="time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
                   <Button x:Name="EndMinusButton" Classes="step" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
-                  <Button x:Name="SetEndButton" Classes="field-action" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetEndClick">
+                  <Button x:Name="SetEndButton" Classes="field-action" ToolTip.Tip="设为终点 (O)" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetEndClick">
                   <TextBlock Text="设为终点"/>
                 </Button>
                   <Button Grid.Column="2" x:Name="EndPlusButton" Classes="step" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
@@ -100,7 +102,7 @@
                 <TextBlock Grid.Column="2" x:Name="SpeedField" Text="速度" VerticalAlignment="Center"/>
                 <ComboBox Grid.Column="3" x:Name="SpeedCombo" HorizontalAlignment="Stretch"/>
               </Grid>
-              <WrapPanel Grid.Row="3" x:Name="KeyHints" Classes="key-hints">
+              <WrapPanel Grid.Row="3" x:Name="KeyHints" Classes="key-hints" IsVisible="False">
                 <Border Classes="keycap"><TextBlock Text="空格"/></Border><TextBlock Text="播放"/>
                 <Border Classes="keycap"><TextBlock Text="I"/></Border><TextBlock Text="设为起点"/>
                 <Border Classes="keycap"><TextBlock Text="O"/></Border><TextBlock Text="设为终点"/>
@@ -162,16 +164,18 @@
         <ListBox Grid.Row="1" x:Name="SegmentList" Classes="clip-segments" SelectionChanged="SegmentChanged" DoubleTapped="SegmentDoubleTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="3,80,*,Auto" ColumnSpacing="8" RowSpacing="5" Margin="0,6,4,6">
-                <Border Grid.RowSpan="3" Classes="segment-accent" Width="3" CornerRadius="2"/>
-                <Border Grid.Column="1" Background="{DynamicResource UiMediaSurface}" Width="80" Height="45" CornerRadius="6" ClipToBounds="True"><local:SegmentThumbnail Stretch="UniformToFill"/></Border>
-                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
-                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
-                  <TextBlock Text="{Binding DurationLabel}" FontSize="12" TextWrapping="Wrap"/>
+              <!-- Compact row (demo): status bar, start/end thumbnails, name + range, duration · speed. Play via 播放片段 or double-click. -->
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto" Height="40" Margin="12,0" ToolTip.Tip="{Binding Summary}">
+                <Border Classes="qc-bar" Width="4" Height="26" CornerRadius="2" Margin="0,0,9,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" Margin="0,0,9,0" VerticalAlignment="Center">
+                  <Border Width="26" Height="15" CornerRadius="3" ClipToBounds="True" Background="{DynamicResource QcPreview}"><local:SegmentThumbnail Stretch="UniformToFill"/></Border>
+                  <Border Width="26" Height="15" CornerRadius="3" ClipToBounds="True" Background="{DynamicResource QcPreview}"><local:SegmentThumbnail AtEnd="True" Stretch="UniformToFill"/></Border>
                 </StackPanel>
-                <Button Grid.Column="3" Classes="transport segment-play" Click="PreviewSegmentClick" ToolTip.Tip="播放此片段" AutomationProperties.Name="播放此片段"><local:ActionIcon Kind="play" Width="18" Height="18"/></Button>
-                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding TimeRange}" FontFamily="{DynamicResource UiNumericFont}" FontSize="12" TextWrapping="Wrap"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding EditSummary}" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasEdits}"/>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                  <TextBlock Classes="name" Text="{Binding Title}" FontSize="12.5" FontWeight="Medium"/>
+                  <TextBlock Classes="sec mono" Text="{Binding ShortRange}" FontSize="11"/>
+                </StackPanel>
+                <TextBlock Grid.Column="3" Classes="value mono" Text="{Binding ShortDuration}" FontSize="12" VerticalAlignment="Center"/>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
@@ -211,5 +215,125 @@
       <Button Grid.Column="2" x:Name="EditorCancelButton" Classes="dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
       <Button Grid.Column="3" x:Name="ConfirmButton" Classes="primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
+  </Grid>
+  <!-- Quick-clip layout (editor/clip-editor-demo). Built only in quick-workflow mode: EditorWindow.QuickLayout.cs moves the
+       existing named controls (preview, transport, filmstrip, segment list, frame fields, combos, footer actions) into the slots below. -->
+  <Grid x:Name="QuickRoot" IsVisible="False" RowDefinitions="44,*,60">
+    <Border Classes="qc-chrome" BorderThickness="0,0,0,0.5">
+      <Grid x:Name="QuickTitleBar" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Background="Transparent">
+        <Border Width="22" Height="22" CornerRadius="6" Margin="14,0,10,0" VerticalAlignment="Center">
+          <Border.Background><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#3B9BFF"/><GradientStop Offset="1" Color="#007AFF"/></LinearGradientBrush></Border.Background>
+          <local:LucideIcon Kind="film" Width="13" Height="13" Foreground="White"/>
+        </Border>
+        <TextBlock Grid.Column="1" Text="快速剪辑" FontWeight="Bold" FontSize="13.5" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="2" x:Name="QuickSubtitle" Classes="sec" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <StackPanel Grid.Column="4" x:Name="QuickHistorySlot" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"/>
+        <StackPanel Grid.Column="5" x:Name="QuickCaptionSlot" Orientation="Horizontal"/>
+        <Panel Grid.ColumnSpan="6" x:Name="QuickModeSlot" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,330">
+      <Grid Margin="14,14,14,0" RowDefinitions="*,Auto,Auto">
+        <Border x:Name="QuickPreviewCard" CornerRadius="14" Background="{DynamicResource QcPreview}" ClipToBounds="True" MinHeight="180">
+          <Panel>
+            <Panel x:Name="QuickPreviewSlot"/>
+            <Border x:Name="QuickSegmentBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12" Padding="9,3" CornerRadius="999" Background="#77000000" IsHitTestVisible="False">
+              <TextBlock x:Name="QuickSegmentBadgeText" Foreground="White" FontSize="11.5" FontWeight="SemiBold" FontFeatures="tnum"/>
+            </Border>
+            <TextBlock HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="14,12" FontSize="11" Foreground="#CCFFFFFF" IsHitTestVisible="False" Text="预览始终显示原媒体；速度与方向可预览，裁剪与淡入淡出在输出时生效"/>
+          </Panel>
+        </Border>
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" Margin="2,10,2,4">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock x:Name="QuickCurrentTime" Classes="mono" FontSize="15" FontWeight="SemiBold" Text="00:00.000"/>
+            <TextBlock x:Name="QuickTotalTime" Classes="sec mono" Text=" / 00:00.000" VerticalAlignment="Center"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" x:Name="QuickTransportSlot" Margin="-12,0,0,0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <Button x:Name="PreviousSegmentButton" Classes="ib" Click="PreviousSegmentClick" ToolTip.Tip="上一个片段" AutomationProperties.Name="上一个片段"><local:LucideIcon Kind="skip-back"/></Button>
+          </StackPanel>
+          <StackPanel Grid.Column="2" x:Name="QuickTransportRight" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Border x:Name="QuickPrecisionPill" Height="28" CornerRadius="14" Background="{DynamicResource QcCard}" BorderBrush="{DynamicResource QcLine}" BorderThickness="0.5" Padding="12,0,4,0">
+              <StackPanel Orientation="Horizontal" x:Name="QuickPrecisionSlot"><TextBlock Text="精度" FontSize="12.5" VerticalAlignment="Center"/></StackPanel>
+            </Border>
+            <ToggleButton x:Name="QuickLoopButton" Classes="ib" Margin="6,0,0,0" IsChecked="{Binding #LoopSegmentCheck.IsChecked, Mode=TwoWay}" ToolTip.Tip="循环播放片段" AutomationProperties.Name="循环播放片段"><local:LucideIcon Kind="repeat"/></ToggleButton>
+          </StackPanel>
+        </Grid>
+        <Panel Grid.Row="2" Margin="0,0,0,12">
+          <Border x:Name="QuickTimelineCard" Classes="qc-card" CornerRadius="14" Padding="14,8,14,10">
+            <StackPanel Spacing="0">
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Button Classes="pill" Click="AddSegmentClick" ToolTip.Tip="新增片段" AutomationProperties.Name="新增片段"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="plus" Width="13" Height="13"/><TextBlock Text="新增片段" FontSize="12.5"/></StackPanel></Button>
+                  <Button Classes="pill" Click="SplitAtPositionClick" IsEnabled="{Binding #SplitAtPositionButton.IsEnabled}" ToolTip.Tip="在此分割 (S)" AutomationProperties.Name="在此分割"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="scissors" Width="13" Height="13"/><TextBlock Text="在此分割" FontSize="12.5"/></StackPanel></Button>
+                  <Button Classes="pill" Click="SetStartClick" ToolTip.Tip="设为起点 (I)" AutomationProperties.Name="设为起点"><TextBlock Text="设为起点" FontSize="12.5"/></Button>
+                  <Button Classes="pill" Click="SetEndClick" ToolTip.Tip="设为终点 (O)" AutomationProperties.Name="设为终点"><TextBlock Text="设为终点" FontSize="12.5"/></Button>
+                </StackPanel>
+                <StackPanel Grid.Column="2" x:Name="QuickZoomSlot" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                  <Button Classes="ib" Click="ZoomOutClick" ToolTip.Tip="缩小时间线" AutomationProperties.Name="缩小时间线"><local:LucideIcon Kind="zoom-out"/></Button>
+                </StackPanel>
+              </Grid>
+              <Panel x:Name="QuickFilmstripSlot" Margin="0,0,0,0"/>
+              <TextBlock x:Name="QuickTimelineSummary" Classes="sec" FontSize="11" Margin="0,6,0,0" FontFeatures="tnum"/>
+            </StackPanel>
+          </Border>
+          <Border x:Name="QuickTabsCard" Classes="qc-card" CornerRadius="14" Padding="8" IsVisible="False" MinHeight="150"/>
+        </Panel>
+      </Grid>
+      <Border Grid.Column="1" Classes="qc-chrome" BorderThickness="0.5,0,0,0">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="16,14,16,14">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,7">
+              <TextBlock Text="片段" Classes="head" VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                <Button Classes="ib small" Click="DuplicateSegmentClick" IsEnabled="{Binding #DuplicateSegmentButton.IsEnabled}" ToolTip.Tip="复制片段 (Ctrl D)" AutomationProperties.Name="复制片段"><local:LucideIcon Kind="copy" Width="14" Height="14"/></Button>
+                <Button Classes="ib small" Click="RemoveSegmentClick" IsEnabled="{Binding #RemoveSegmentButton.IsEnabled}" ToolTip.Tip="删除片段 (Delete)" AutomationProperties.Name="删除片段"><local:LucideIcon Kind="trash-2" Width="14" Height="14"/></Button>
+                <Button Classes="ib small" ToolTip.Tip="更多片段操作（Alt ↑/↓ 调整顺序）" AutomationProperties.Name="更多片段操作">
+                  <local:LucideIcon Kind="grip-vertical" Width="14" Height="14"/>
+                  <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                      <MenuItem Header="新增片段" Click="AddSegmentClick"/>
+                      <MenuItem Header="批量分割…" IsEnabled="{Binding #SplitSegmentButton.IsEnabled}" Click="SplitSegmentClick"/>
+                      <Separator/>
+                      <MenuItem Header="上移" ToolTip.Tip="上移 (Alt ↑)" IsEnabled="{Binding #SegmentUpButton.IsEnabled}" Click="SegmentUpClick"/>
+                      <MenuItem Header="下移" ToolTip.Tip="下移 (Alt ↓)" IsEnabled="{Binding #SegmentDownButton.IsEnabled}" Click="SegmentDownClick"/>
+                    </MenuFlyout>
+                  </Button.Flyout>
+                </Button>
+              </StackPanel>
+            </Grid>
+            <Border Classes="qc-card" x:Name="QuickSegmentListSlot" ClipToBounds="True"/>
+            <Panel x:Name="QuickSegmentErrorSlot"/>
+            <TextBlock x:Name="QuickFramesHeader" Classes="head" Margin="0,14,0,7" Text="起点 / 终点"/>
+            <Border Classes="qc-card" Padding="10">
+              <Grid ColumnDefinitions="*,10,*">
+                <StackPanel x:Name="QuickStartCard" Spacing="0"/>
+                <StackPanel Grid.Column="2" x:Name="QuickEndCard" Spacing="0"/>
+              </Grid>
+            </Border>
+            <Panel x:Name="QuickTimeErrorSlot"/>
+            <Border Classes="qc-card" Margin="0,10,0,0">
+              <StackPanel>
+                <Border Classes="qc-row"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="速度" VerticalAlignment="Center"/><Panel Grid.Column="1" x:Name="QuickSpeedSlot" HorizontalAlignment="Right"/></Grid></Border>
+                <Border Classes="qc-row"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="淡入 / 淡出" VerticalAlignment="Center"/><StackPanel Grid.Column="1" x:Name="QuickFadeSlot" Orientation="Horizontal" HorizontalAlignment="Right"/></Grid></Border>
+                <Border Classes="qc-row"><Button Classes="row-button" Click="QuickCropRowClick" AutomationProperties.Name="裁剪"><Grid ColumnDefinitions="Auto,*,Auto"><TextBlock Text="裁剪" VerticalAlignment="Center"/><TextBlock Grid.Column="1" x:Name="QuickCropValue" Classes="value" HorizontalAlignment="Right" VerticalAlignment="Center"/><local:LucideIcon Grid.Column="2" Kind="chevron-right" Width="12" Height="12" Margin="6,0,0,0"/></Grid></Button></Border>
+                <Border Classes="qc-row last"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="旋转方向" VerticalAlignment="Center"/><Panel Grid.Column="1" x:Name="QuickDirectionSlot" HorizontalAlignment="Right"/></Grid></Border>
+              </StackPanel>
+            </Border>
+            <StackPanel x:Name="QuickPlaySlot" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"/>
+            <Panel x:Name="QuickInvertSlot" Margin="0,10,0,0"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+    <Border Grid.Row="2" Classes="qc-chrome" BorderThickness="0,0.5,0,0" Padding="18,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="QuickStatus" Classes="sec" FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <StackPanel Grid.Column="1" x:Name="QuickActionSlot" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <Button Classes="pill tall" Content="输出配置…" Click="OptionsClick" AutomationProperties.Name="输出配置"/>
+          <Button x:Name="QuickNextVideoButton" Classes="pill tall" Content="下一个视频 →" Click="NextVideoClick" IsVisible="False" IsEnabled="{Binding #ConfirmButton.IsEnabled}"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
   </Grid>
 </Window>
