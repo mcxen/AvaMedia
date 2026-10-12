@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
+<Window xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:media="using:AvaMedia.MediaUi" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.EditorWindow" Classes="editor" Width="1240" Height="780" MinWidth="1000" MinHeight="650" WindowStartupLocation="CenterOwner">
   <Window.Styles><StyleInclude Source="avares://AvaMedia.Desktop/Styles/QuickClipStyles.axaml"/></Window.Styles>
   <Grid x:Name="WindowRoot">
   <Grid x:Name="EditorLayout" Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,0,0">
@@ -8,7 +8,7 @@
         <local:LucideIcon Kind="scissors" Width="18" Height="18" Foreground="{DynamicResource UiAccent}"/>
         <TextBlock x:Name="EditorTitle" Text="{Binding $parent[Window].Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
       </StackPanel>
-      <Border Grid.Column="1" x:Name="ModeBar" Classes="mode-switch" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel x:Name="ModeButtons" Orientation="Horizontal" Spacing="2"/></Border>
+      <Border Grid.Column="1" x:Name="ModeBar"  HorizontalAlignment="Center" VerticalAlignment="Center"><ac:SegmentedControl x:Name="ModeButtons"/></Border>
     </Grid>
     <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto,Auto,Auto" MinWidth="620">
     <Grid Grid.Row="1" x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
@@ -20,12 +20,12 @@
         <TextBlock x:Name="PreviewStatus" Text="正在读取媒体…" Foreground="{DynamicResource UiMediaText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Grid>
     </Grid>
-    <Border Grid.Row="2" x:Name="TimelineCard" Classes="editor-card" IsVisible="{Binding #SegmentTrackScroll.IsVisible}" Margin="0,6,0,0">
+    <Border Grid.Row="2" x:Name="TimelineCard" Classes="ac-card" IsVisible="{Binding #SegmentTrackScroll.IsVisible}" Margin="0,6,0,0">
       <Grid RowDefinitions="Auto,Auto">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
           <TextBlock Text="时间线" FontWeight="SemiBold" VerticalAlignment="Center"/>
           <TextBlock Grid.Column="2" Text="缩放" Foreground="{DynamicResource UiTextSecondary}" VerticalAlignment="Center"/>
-          <Slider Grid.Column="3" x:Name="TimelineZoom" Minimum="1" Maximum="8" Value="1" Width="120" AutomationProperties.Name="时间线缩放"/>
+          <Slider Classes="ac" Grid.Column="3" x:Name="TimelineZoom" Minimum="1" Maximum="8" Value="1" Width="120" AutomationProperties.Name="时间线缩放"/>
         </Grid>
         <ScrollViewer Grid.Row="1" x:Name="SegmentTrackScroll" IsVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,4,0,0">
           <StackPanel x:Name="TimelineContent" Spacing="4">
@@ -38,15 +38,15 @@
     <Grid Grid.Row="3" x:Name="PreviewTransport" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource UiSpacingMedium}" Height="{DynamicResource UiTransportRowHeight}" Margin="0,2,0,4">
       <TextBlock FontFeatures="tnum" x:Name="CurrentTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}" HorizontalAlignment="Left">
-        <Button x:Name="BackwardButton" Classes="transport" Click="BackwardClick" ToolTip.Tip="向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
-        <Button x:Name="PlayButton" Classes="transport" Click="PlayClick" ToolTip.Tip="播放 (空格)" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
-        <Button x:Name="StopButton" Classes="transport" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop" /></Button>
-        <Button x:Name="ForwardButton" Classes="transport" Click="ForwardClick" ToolTip.Tip="向后定位" AutomationProperties.Name="向后定位"><local:ActionIcon Kind="forward" /></Button>
+        <Button x:Name="BackwardButton" Classes="ac transport icon borderless" Click="BackwardClick" ToolTip.Tip="向前定位" AutomationProperties.Name="向前定位"><local:ActionIcon Kind="backward" /></Button>
+        <Button x:Name="PlayButton" Classes="ac transport icon borderless" Click="PlayClick" ToolTip.Tip="播放 (空格)" AutomationProperties.Name="播放"><local:ActionIcon x:Name="PlayIcon" Kind="play" /></Button>
+        <Button x:Name="StopButton" Classes="ac transport icon borderless" Click="StopClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:ActionIcon Kind="stop" /></Button>
+        <Button x:Name="ForwardButton" Classes="ac transport icon borderless" Click="ForwardClick" ToolTip.Tip="向后定位" AutomationProperties.Name="向后定位"><local:ActionIcon Kind="forward" /></Button>
       </StackPanel>
-      <Slider Grid.Column="2" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" MinWidth="80" Height="{DynamicResource UiPlayerTimelineHeight}" VerticalAlignment="Center"/>
+      <Slider Classes="ac" Grid.Column="2" x:Name="SeekBar" Minimum="0" Maximum="1" Value="0" MinWidth="80" Height="{DynamicResource UiPlayerTimelineHeight}" VerticalAlignment="Center"/>
       <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" HorizontalAlignment="Right" VerticalAlignment="Center">
-        <CheckBox x:Name="LoopSegmentCheck" Content="循环" IsVisible="False"/>
-        <Button x:Name="SoundButton" Classes="transport" Click="SoundClick" ToolTip.Tip="静音" AutomationProperties.Name="静音"><local:ActionIcon x:Name="SoundIcon" Kind="speaker" /></Button>
+        <CheckBox Classes="ac" x:Name="LoopSegmentCheck" Content="循环" IsVisible="False"/>
+        <Button x:Name="SoundButton" Classes="ac transport icon borderless" Click="SoundClick" ToolTip.Tip="静音" AutomationProperties.Name="静音"><local:ActionIcon x:Name="SoundIcon" Kind="speaker" /></Button>
         <TextBlock FontFeatures="tnum" x:Name="TotalTime" i18n:StableLayout.Samples="888:88:88.888" Classes="time" Text="00:00:00.000"/>
       </StackPanel>
     </Grid>
@@ -55,54 +55,54 @@
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
           <Grid ColumnDefinitions="186,*,186" ColumnSpacing="12" Margin="8,6">
             <!-- Start / end frame cards of the selected segment: frame, timecode, one-step nudge and jump. -->
-            <Border Classes="frame-card" VerticalAlignment="Top">
+            <Border Classes="ac-card" VerticalAlignment="Top">
               <StackPanel Spacing="6">
                 <Grid>
-                  <Button Classes="boundary-preview" Height="90" Click="JumpStartClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
+                  <Button Classes="ac boundary-preview" Click="JumpStartClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段起点" AutomationProperties.Name="预览片段起点"><Image x:Name="StartImage" Stretch="Uniform"/></Button>
                   <Border Classes="frame-badge start" IsHitTestVisible="False"><TextBlock Text="起点"/></Border>
                 </Grid>
-                <TextBox x:Name="StartTime" Classes="time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
+                <TextBox x:Name="StartTime" Classes="ac time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="开始时间"/>
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
-                  <Button x:Name="StartMinusButton" Classes="step" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
-                  <Button x:Name="SetStartButton" Classes="field-action" ToolTip.Tip="设为起点 (I)" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetStartClick">
+                  <Button x:Name="StartMinusButton" Classes="ac step icon borderless" Click="StartMinus" ToolTip.Tip="减少开始时间" AutomationProperties.Name="减少开始时间"><local:ActionIcon Kind="minus" /></Button>
+                  <Button x:Name="SetStartButton" Classes="ac field-action" ToolTip.Tip="设为起点 (I)" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetStartClick">
                   <TextBlock Text="设为起点"/>
                 </Button>
-                  <Button Grid.Column="2" x:Name="StartPlusButton" Classes="step" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
+                  <Button Grid.Column="2" x:Name="StartPlusButton" Classes="ac step icon borderless" Click="StartPlus" ToolTip.Tip="增加开始时间" AutomationProperties.Name="增加开始时间"><local:ActionIcon Kind="plus" /></Button>
                 </Grid>
               </StackPanel>
             </Border>
-            <Border Grid.Column="2" Classes="frame-card" VerticalAlignment="Top">
+            <Border Grid.Column="2" Classes="ac-card" VerticalAlignment="Top">
               <StackPanel Spacing="6">
                 <Grid>
-                  <Button Classes="boundary-preview" Height="90" Click="JumpEndClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段终点" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
+                  <Button Classes="ac boundary-preview" Click="JumpEndClick" DoubleTapped="BoundaryPreviewDoubleTapped" ToolTip.Tip="预览片段终点" AutomationProperties.Name="预览片段终点"><Image x:Name="EndImage" Stretch="Uniform"/></Button>
                   <Border Classes="frame-badge end" IsHitTestVisible="False"><TextBlock Text="终点"/></Border>
                 </Grid>
-                <TextBox x:Name="EndTime" Classes="time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
+                <TextBox x:Name="EndTime" Classes="ac time" Text="00:00:00.000" LostFocus="TimeEdited" AutomationProperties.Name="结束时间"/>
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
-                  <Button x:Name="EndMinusButton" Classes="step" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
-                  <Button x:Name="SetEndButton" Classes="field-action" ToolTip.Tip="设为终点 (O)" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetEndClick">
+                  <Button x:Name="EndMinusButton" Classes="ac step icon borderless" Click="EndMinus" ToolTip.Tip="减少结束时间" AutomationProperties.Name="减少结束时间"><local:ActionIcon Kind="minus" /></Button>
+                  <Button x:Name="SetEndButton" Classes="ac field-action" ToolTip.Tip="设为终点 (O)" HorizontalAlignment="Stretch" Grid.Column="1" Click="SetEndClick">
                   <TextBlock Text="设为终点"/>
                 </Button>
-                  <Button Grid.Column="2" x:Name="EndPlusButton" Classes="step" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
+                  <Button Grid.Column="2" x:Name="EndPlusButton" Classes="ac step icon borderless" Click="EndPlus" ToolTip.Tip="增加结束时间" AutomationProperties.Name="增加结束时间"><local:ActionIcon Kind="plus" /></Button>
                 </Grid>
               </StackPanel>
             </Border>
             <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" VerticalAlignment="Top">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <local:RangeBar x:Name="TrimBar"/>
-                <Button Grid.Column="1" x:Name="PlaySelectionButton" Classes="field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="PlaySelectionButton" Classes="ac field-action" Content="播放片段" Click="PlaySelectionClick" VerticalAlignment="Center"/>
               </Grid>
               <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="6">
                 <TextBlock Text="淡入效果" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="1" x:Name="FadeInCombo" HorizontalAlignment="Stretch"/>
+                <ComboBox Classes="ac" Grid.Column="1" x:Name="FadeInCombo" HorizontalAlignment="Stretch"/>
                 <TextBlock Grid.Column="2" Text="淡出效果" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="3" x:Name="FadeOutCombo" HorizontalAlignment="Stretch"/>
+                <ComboBox Classes="ac" Grid.Column="3" x:Name="FadeOutCombo" HorizontalAlignment="Stretch"/>
               </Grid>
               <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="6">
                 <TextBlock Text="精度" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="1" x:Name="PrecisionCombo" HorizontalAlignment="Stretch"/>
+                <ComboBox Classes="ac" Grid.Column="1" x:Name="PrecisionCombo" HorizontalAlignment="Stretch"/>
                 <TextBlock Grid.Column="2" x:Name="SpeedField" Text="速度" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="3" x:Name="SpeedCombo" HorizontalAlignment="Stretch"/>
+                <ComboBox Classes="ac" Grid.Column="3" x:Name="SpeedCombo" HorizontalAlignment="Stretch"/>
               </Grid>
               <TextBlock Grid.Row="4" x:Name="TimeError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
             </Grid>
@@ -113,25 +113,25 @@
         <ScrollViewer HorizontalScrollBarVisibility="Auto"><StackPanel Spacing="6" Margin="8,4">
           <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
             <TextBlock Text="选区比例" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="CropRatio" HorizontalAlignment="Left" MinWidth="140" MaxWidth="220" SelectionChanged="RatioChanged"/>
-            <Button Grid.Column="2" Content="重置选区" Click="ResetCropClick" Classes="field-action"/>
-            <CheckBox Grid.Column="3" x:Name="DelogoMode" Content="将选区用于去除水印" IsCheckedChanged="DelogoChanged" VerticalAlignment="Center"/>
+            <ComboBox Classes="ac" Grid.Column="1" x:Name="CropRatio" HorizontalAlignment="Left" MinWidth="140" MaxWidth="220" SelectionChanged="RatioChanged"/>
+            <Button Grid.Column="2" Content="重置选区" Click="ResetCropClick" Classes="ac field-action"/>
+            <CheckBox Classes="ac" Grid.Column="3" x:Name="DelogoMode" Content="将选区用于去除水印" IsCheckedChanged="DelogoChanged" VerticalAlignment="Center"/>
           </Grid>
           <Expander Header="精确坐标" HorizontalAlignment="Stretch">
             <StackPanel Spacing="6" Margin="0,6,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="X" VerticalAlignment="Center"/><TextBox x:Name="CropX" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="Y" VerticalAlignment="Center"/><TextBox x:Name="CropY" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="宽度" VerticalAlignment="Center"/><TextBox x:Name="CropWidth" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="高度" VerticalAlignment="Center"/><TextBox x:Name="CropHeight" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><Button Content="应用坐标" Click="ApplyCropClick" Classes="field-action"/></StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="X" VerticalAlignment="Center"/><TextBox Classes="ac" x:Name="CropX" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="Y" VerticalAlignment="Center"/><TextBox Classes="ac" x:Name="CropY" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="宽度" VerticalAlignment="Center"/><TextBox Classes="ac" x:Name="CropWidth" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><TextBlock Text="高度" VerticalAlignment="Center"/><TextBox Classes="ac" x:Name="CropHeight" Width="{DynamicResource UiCoordinateWidth}" Text="0"/><Button Content="应用坐标" Click="ApplyCropClick" Classes="ac field-action"/></StackPanel>
             </StackPanel>
           </Expander>
           <TextBlock x:Name="CropError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
         </StackPanel></ScrollViewer>
       </TabItem>
       <TabItem Header="选项">
-        <StackPanel Spacing="6" Margin="8,4"><TextBlock x:Name="MediaDescription" TextWrapping="Wrap"/><Button x:Name="EditOptionsButton" Content="输出配置…" HorizontalAlignment="Left" Click="OptionsClick"/><TextBlock x:Name="AudioStatus" Text="预览音频正在准备…" Classes="caption"/><TextBlock x:Name="PreviewNote" Text="预览始终显示原媒体；剪辑、速度、裁剪与淡入淡出在输出时生效。" TextWrapping="Wrap"/></StackPanel>
+        <StackPanel Spacing="6" Margin="8,4"><TextBlock x:Name="MediaDescription" TextWrapping="Wrap"/><Button Classes="ac" x:Name="EditOptionsButton" Content="输出配置…" HorizontalAlignment="Left" Click="OptionsClick"/><TextBlock x:Name="AudioStatus" Text="预览音频正在准备…" Classes="caption"/><TextBlock x:Name="PreviewNote" Text="预览始终显示原媒体；剪辑、速度、裁剪与淡入淡出在输出时生效。" TextWrapping="Wrap"/></StackPanel>
       </TabItem>
       <TabItem x:Name="DirectionTab" Header="自动转正" IsVisible="False">
         <ScrollViewer><StackPanel Margin="24,16" Spacing="{DynamicResource UiSpacingMedium}">
-          <StackPanel Orientation="Horizontal" Spacing="16"><TextBlock Text="旋转方向" VerticalAlignment="Center"/><ComboBox x:Name="DirectionCombo" Width="220" SelectionChanged="DirectionChanged"/><CheckBox x:Name="MirrorCheck" Content="水平镜像" IsCheckedChanged="MirrorChanged"/></StackPanel>
-          <StackPanel Orientation="Horizontal" Spacing="10"><Button x:Name="DetectDirectionButton" Content="检测方向" Click="DetectDirectionClick"/><Button x:Name="CancelDetectionButton" Content="取消识别" Click="CancelDetectionClick" IsVisible="False"/><Button x:Name="ApplyDirectionButton" Content="应用建议方向" Click="ApplyDirectionClick" IsEnabled="False"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="16"><TextBlock Text="旋转方向" VerticalAlignment="Center"/><ComboBox Classes="ac" x:Name="DirectionCombo" Width="220" SelectionChanged="DirectionChanged"/><ToggleSwitch Classes="ac" x:Name="MirrorCheck" Content="水平镜像" IsCheckedChanged="MirrorChanged"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="10"><Button Classes="ac" x:Name="DetectDirectionButton" Content="检测方向" Click="DetectDirectionClick"/><Button Classes="ac" x:Name="CancelDetectionButton" Content="取消识别" Click="CancelDetectionClick" IsVisible="False"/><Button Classes="ac" x:Name="ApplyDirectionButton" Content="应用建议方向" Click="ApplyDirectionClick" IsEnabled="False"/></StackPanel>
           <TextBlock x:Name="DirectionStatus" Text="尚未识别方向" TextWrapping="Wrap"/>
 
         </StackPanel></ScrollViewer>
@@ -141,17 +141,17 @@
     <GridSplitter Grid.Row="1" Grid.Column="1" x:Name="SegmentPaneSplitter" IsVisible="False" ResizeDirection="Columns" HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Background="Transparent"/>
     <Border Grid.Row="1" Grid.Column="2" x:Name="SegmentPane" IsVisible="False" Classes="inspector">
       <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
-        <Border Grid.Row="4" Classes="editor-card" x:Name="InspectorCard">
+        <Border Grid.Row="4" Classes="ac-card" x:Name="InspectorCard">
           <StackPanel Spacing="4">
             <TextBlock Text="当前片段属性" FontWeight="SemiBold"/>
             <TextBlock x:Name="InspectorTitle" Foreground="{DynamicResource UiAccent}" FontWeight="SemiBold"/>
             <TextBlock x:Name="InspectorDetails" FontSize="12" TextWrapping="Wrap" FontFeatures="tnum" Foreground="{DynamicResource UiTextSecondary}"/>
           </StackPanel>
         </Border>
-        <Border Classes="editor-card"><Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
+        <Border Classes="ac-card"><Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
           <TextBlock x:Name="SegmentCount" FontWeight="SemiBold" VerticalAlignment="Center"/>
-          <Button Grid.Column="1" x:Name="PlayAllSegmentsButton" i18n:StableLayout.Samples="预览结果|停止预览" Content="预览结果" Click="PlayAllSegmentsClick"/>
-          <CheckBox Grid.Row="1" Grid.ColumnSpan="2" x:Name="InvertSelectionCheck" Content="反选：去除所选片段" IsCheckedChanged="InvertSelectionChanged"/>
+          <Button Classes="ac" Grid.Column="1" x:Name="PlayAllSegmentsButton" i18n:StableLayout.Samples="预览结果|停止预览" Content="预览结果" Click="PlayAllSegmentsClick"/>
+          <CheckBox Classes="ac" Grid.Row="1" Grid.ColumnSpan="2" x:Name="InvertSelectionCheck" Content="反选：去除所选片段" IsCheckedChanged="InvertSelectionChanged"/>
           <TextBlock Grid.Row="2" Grid.ColumnSpan="2" x:Name="SegmentTotalDuration" FontFeatures="tnum" i18n:StableLayout.Samples="总输出时长：888:88:88.888" Classes="caption"/>
         </Grid></Border>
         <ListBox Grid.Row="1" x:Name="SegmentList" Classes="clip-segments" SelectionChanged="SegmentChanged" DoubleTapped="SegmentDoubleTapped" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -174,9 +174,9 @@
           </ListBox.ItemTemplate>
         </ListBox>
         <Grid Grid.Row="2" ColumnDefinitions="*,*,Auto" ColumnSpacing="6">
-          <Button x:Name="AddSegmentButton" Content="新增片段" Click="AddSegmentClick"/>
-          <Button Grid.Column="1" x:Name="RemoveSegmentButton" Content="删除片段" Click="RemoveSegmentClick"/>
-          <Button Grid.Column="2" Content="更多片段操作" Classes="field-action">
+          <Button Classes="ac" x:Name="AddSegmentButton" Content="新增片段" Click="AddSegmentClick"/>
+          <Button Classes="ac" Grid.Column="1" x:Name="RemoveSegmentButton" Content="删除片段" Click="RemoveSegmentClick"/>
+          <Button Grid.Column="2" Content="更多片段操作" Classes="ac field-action">
             <Button.Flyout>
               <MenuFlyout Placement="TopEdgeAlignedRight">
                 <MenuItem Header="复制片段" IsEnabled="{Binding #DuplicateSegmentButton.IsEnabled}" Click="DuplicateSegmentClick"/>
@@ -188,25 +188,25 @@
               </MenuFlyout>
             </Button.Flyout>
           </Button>
-          <Button x:Name="DuplicateSegmentButton" IsVisible="False" Click="DuplicateSegmentClick"/>
-          <Button x:Name="SplitAtPositionButton" IsVisible="False" Click="SplitAtPositionClick"/>
-          <Button x:Name="SplitSegmentButton" IsVisible="False" Click="SplitSegmentClick"/>
-          <Button x:Name="SegmentUpButton" IsVisible="False" Click="SegmentUpClick"/>
-          <Button x:Name="SegmentDownButton" IsVisible="False" Click="SegmentDownClick"/>
+          <Button Classes="ac" x:Name="DuplicateSegmentButton" IsVisible="False" Click="DuplicateSegmentClick"/>
+          <Button Classes="ac" x:Name="SplitAtPositionButton" IsVisible="False" Click="SplitAtPositionClick"/>
+          <Button Classes="ac" x:Name="SplitSegmentButton" IsVisible="False" Click="SplitSegmentClick"/>
+          <Button Classes="ac" x:Name="SegmentUpButton" IsVisible="False" Click="SegmentUpClick"/>
+          <Button Classes="ac" x:Name="SegmentDownButton" IsVisible="False" Click="SegmentDownClick"/>
         </Grid>
         <TextBlock Grid.Row="3" x:Name="SegmentError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
       </Grid>
     </Border>
     <Grid Grid.Row="2" Grid.ColumnSpan="3" x:Name="ExportBar" Classes="export-bar" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,8,0,0">
       <StackPanel x:Name="SegmentFooter" Orientation="Horizontal" Spacing="{DynamicResource UiSpacingMedium}" IsVisible="False">
-        <Button x:Name="UndoSegmentButton" Content="撤销" Click="UndoSegmentClick"/>
-        <Button x:Name="RedoSegmentButton" Content="重做" Click="RedoSegmentClick"/>
+        <Button Classes="ac" x:Name="UndoSegmentButton" Content="撤销" Click="UndoSegmentClick"/>
+        <Button Classes="ac" x:Name="RedoSegmentButton" Content="重做" Click="RedoSegmentClick"/>
         <TextBlock x:Name="ActiveSegmentLabel" VerticalAlignment="Center"/>
       </StackPanel>
       <TextBlock Grid.Column="0" x:Name="ExportSummary" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}" Margin="0,0,8,0"/>
-      <Button Grid.Column="1" x:Name="FooterOptionsButton" Content="输出配置…" Click="OptionsClick" Height="{DynamicResource UiFieldHeight}" IsVisible="False"/>
-      <Button Grid.Column="2" x:Name="EditorCancelButton" Classes="dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="3" x:Name="ConfirmButton" Classes="primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+      <Button Classes="ac" Grid.Column="1" x:Name="FooterOptionsButton" Content="输出配置…" Click="OptionsClick" Height="{DynamicResource UiFieldHeight}" IsVisible="False"/>
+      <Button Grid.Column="2" x:Name="EditorCancelButton" Classes="ac dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
+      <Button Grid.Column="3" x:Name="ConfirmButton" Classes="ac primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
   </Grid>
   <!-- Quick-clip layout (editor/clip-editor-demo). Built only in quick-workflow mode: EditorWindow.QuickLayout.cs moves the
@@ -221,7 +221,7 @@
         <TextBlock Grid.Column="1" Text="快速剪辑" FontWeight="Bold" FontSize="13.5" VerticalAlignment="Center"/>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" Spacing="4" VerticalAlignment="Center">
           <TextBlock x:Name="QuickSubtitle" Classes="sec" MaxWidth="260" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-          <Button x:Name="QuickInfoButton" Classes="ib small" ToolTip.Tip="媒体信息" AutomationProperties.Name="媒体信息" PointerEntered="QuickInfoPointerEntered" Click="QuickInfoClick">
+          <Button x:Name="QuickInfoButton" Classes="ac ib small icon borderless" ToolTip.Tip="媒体信息" AutomationProperties.Name="媒体信息" PointerEntered="QuickInfoPointerEntered" Click="QuickInfoClick">
             <local:LucideIcon Kind="info" Width="14" Height="14"/>
             <Button.Flyout>
               <Flyout Placement="BottomEdgeAlignedLeft">
@@ -255,7 +255,7 @@
             <TextBlock x:Name="QuickTotalTime" Classes="sec mono" Text=" / 00:00.000" VerticalAlignment="Center"/>
           </StackPanel>
           <StackPanel Grid.Column="1" x:Name="QuickTransportSlot" Margin="-12,0,0,0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-            <Button x:Name="PreviousSegmentButton" Classes="ib" Click="PreviousSegmentClick" ToolTip.Tip="上一个片段" AutomationProperties.Name="上一个片段"><local:LucideIcon Kind="skip-back"/></Button>
+            <Button x:Name="PreviousSegmentButton" Classes="ac ib icon borderless" Click="PreviousSegmentClick" ToolTip.Tip="上一个片段" AutomationProperties.Name="上一个片段"><local:LucideIcon Kind="skip-back"/></Button>
           </StackPanel>
           <StackPanel Grid.Column="2" x:Name="QuickTransportRight" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Border x:Name="QuickPrecisionPill" Height="28" CornerRadius="14" Background="{DynamicResource QcCard}" BorderBrush="{DynamicResource QcLine}" BorderThickness="0.5" Padding="12,0,4,0">
@@ -265,25 +265,25 @@
           </StackPanel>
         </Grid>
         <StackPanel Grid.Row="2" Margin="0,0,0,12" Spacing="12">
-          <Border x:Name="QuickTimelineCard" Classes="qc-card" CornerRadius="14" Padding="14,8,14,10">
+          <Border x:Name="QuickTimelineCard" Classes="ac-card" CornerRadius="14" Padding="14,8,14,10">
             <StackPanel Spacing="0">
               <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <Button Classes="pill" Click="AddSegmentClick" ToolTip.Tip="新增片段" AutomationProperties.Name="新增片段"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="plus" Width="13" Height="13"/><TextBlock Text="新增片段" FontSize="12.5"/></StackPanel></Button>
-                  <Button Classes="pill" Click="SplitAtPositionClick" IsEnabled="{Binding #SplitAtPositionButton.IsEnabled}" ToolTip.Tip="在此分割 (S)" AutomationProperties.Name="在此分割"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="scissors" Width="13" Height="13"/><TextBlock Text="在此分割" FontSize="12.5"/></StackPanel></Button>
-                  <Button Classes="pill" Click="SetStartClick" ToolTip.Tip="设为起点 (I)" AutomationProperties.Name="设为起点"><TextBlock Text="设为起点" FontSize="12.5"/></Button>
-                  <Button Classes="pill" Click="SetEndClick" ToolTip.Tip="设为终点 (O)" AutomationProperties.Name="设为终点"><TextBlock Text="设为终点" FontSize="12.5"/></Button>
+                  <Button Classes="ac pill" Click="AddSegmentClick" ToolTip.Tip="新增片段" AutomationProperties.Name="新增片段"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="plus" Width="13" Height="13"/><TextBlock Text="新增片段" FontSize="12.5"/></StackPanel></Button>
+                  <Button Classes="ac pill" Click="SplitAtPositionClick" IsEnabled="{Binding #SplitAtPositionButton.IsEnabled}" ToolTip.Tip="在此分割 (S)" AutomationProperties.Name="在此分割"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="scissors" Width="13" Height="13"/><TextBlock Text="在此分割" FontSize="12.5"/></StackPanel></Button>
+                  <Button Classes="ac pill" Click="SetStartClick" ToolTip.Tip="设为起点 (I)" AutomationProperties.Name="设为起点"><TextBlock Text="设为起点" FontSize="12.5"/></Button>
+                  <Button Classes="ac pill" Click="SetEndClick" ToolTip.Tip="设为终点 (O)" AutomationProperties.Name="设为终点"><TextBlock Text="设为终点" FontSize="12.5"/></Button>
                 </StackPanel>
                 <StackPanel Grid.Column="2" x:Name="QuickZoomSlot" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                  <Button Classes="ib" Click="ZoomOutClick" ToolTip.Tip="缩小时间线" AutomationProperties.Name="缩小时间线"><local:LucideIcon Kind="zoom-out"/></Button>
+                  <Button Classes="ac ib icon borderless" Click="ZoomOutClick" ToolTip.Tip="缩小时间线" AutomationProperties.Name="缩小时间线"><local:LucideIcon Kind="zoom-out"/></Button>
                 </StackPanel>
               </Grid>
               <Panel x:Name="QuickFilmstripSlot" Margin="0,0,0,0"/>
               <TextBlock x:Name="QuickTimelineSummary" Classes="sec" FontSize="11" Margin="0,6,0,0" FontFeatures="tnum"/>
             </StackPanel>
           </Border>
-          <Border x:Name="QuickTabsCard" Classes="qc-card" CornerRadius="14" Padding="8" IsVisible="False" MinHeight="150"/>
-          <Border x:Name="QuickDirectionCard" Classes="qc-card" CornerRadius="14" Padding="14,12,14,14" MinHeight="148" IsVisible="False">
+          <Border x:Name="QuickTabsCard" Classes="ac-card" CornerRadius="14" Padding="8" IsVisible="False" MinHeight="150"/>
+          <Border x:Name="QuickDirectionCard" Classes="ac-card" CornerRadius="14" Padding="14,12,14,14" MinHeight="148" IsVisible="False">
             <StackPanel>
               <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
                 <TextBlock Text="当前片段方向" FontWeight="SemiBold"/>
@@ -322,9 +322,9 @@
             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,7">
               <TextBlock Text="片段" Classes="head" VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
-                <Button Classes="ib small" Click="DuplicateSegmentClick" IsEnabled="{Binding #DuplicateSegmentButton.IsEnabled}" ToolTip.Tip="复制片段 (Ctrl D)" AutomationProperties.Name="复制片段"><local:LucideIcon Kind="copy" Width="14" Height="14"/></Button>
-                <Button Classes="ib small" Click="RemoveSegmentClick" IsEnabled="{Binding #RemoveSegmentButton.IsEnabled}" ToolTip.Tip="删除片段 (Delete)" AutomationProperties.Name="删除片段"><local:LucideIcon Kind="trash-2" Width="14" Height="14"/></Button>
-                <Button Classes="ib small" ToolTip.Tip="更多片段操作（Alt ↑/↓ 调整顺序）" AutomationProperties.Name="更多片段操作">
+                <Button Classes="ac ib small icon borderless" Click="DuplicateSegmentClick" IsEnabled="{Binding #DuplicateSegmentButton.IsEnabled}" ToolTip.Tip="复制片段 (Ctrl D)" AutomationProperties.Name="复制片段"><local:LucideIcon Kind="copy" Width="14" Height="14"/></Button>
+                <Button Classes="ac ib small icon borderless" Click="RemoveSegmentClick" IsEnabled="{Binding #RemoveSegmentButton.IsEnabled}" ToolTip.Tip="删除片段 (Delete)" AutomationProperties.Name="删除片段"><local:LucideIcon Kind="trash-2" Width="14" Height="14"/></Button>
+                <Button Classes="ac ib small icon borderless" ToolTip.Tip="更多片段操作（Alt ↑/↓ 调整顺序）" AutomationProperties.Name="更多片段操作">
                   <local:LucideIcon Kind="grip-vertical" Width="14" Height="14"/>
                   <Button.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedRight">
@@ -338,22 +338,22 @@
                 </Button>
               </StackPanel>
             </Grid>
-            <Border Classes="qc-card" x:Name="QuickSegmentListSlot" ClipToBounds="True"/>
+            <Border Classes="ac-card" x:Name="QuickSegmentListSlot" ClipToBounds="True"/>
             <Panel x:Name="QuickSegmentErrorSlot"/>
             <TextBlock x:Name="QuickFramesHeader" Classes="head" Margin="0,14,0,7" Text="起点 / 终点"/>
-            <Border Classes="qc-card" Padding="10">
+            <Border Classes="ac-card" Padding="10">
               <Grid ColumnDefinitions="*,10,*">
                 <StackPanel x:Name="QuickStartCard" Spacing="0"/>
                 <StackPanel Grid.Column="2" x:Name="QuickEndCard" Spacing="0"/>
               </Grid>
             </Border>
             <Panel x:Name="QuickTimeErrorSlot"/>
-            <Border Classes="qc-card" Margin="0,10,0,0">
+            <Border Classes="ac-card" Margin="0,10,0,0">
               <StackPanel>
-                <Border Classes="qc-row"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="速度" VerticalAlignment="Center"/><Panel Grid.Column="1" x:Name="QuickSpeedSlot" HorizontalAlignment="Right"/></Grid></Border>
-                <Border Classes="qc-row"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="淡入 / 淡出" VerticalAlignment="Center"/><StackPanel Grid.Column="1" x:Name="QuickFadeSlot" Orientation="Horizontal" HorizontalAlignment="Right"/></Grid></Border>
-                <Border Classes="qc-row"><Button Classes="row-button" Click="QuickCropRowClick" AutomationProperties.Name="裁剪"><Grid ColumnDefinitions="Auto,*,Auto"><TextBlock Text="裁剪" VerticalAlignment="Center"/><TextBlock Grid.Column="1" x:Name="QuickCropValue" Classes="value" HorizontalAlignment="Right" VerticalAlignment="Center"/><local:LucideIcon Grid.Column="2" Kind="chevron-right" Width="12" Height="12" Margin="6,0,0,0"/></Grid></Button></Border>
-                <Border Classes="qc-row last"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="旋转方向" VerticalAlignment="Center"/><Panel Grid.Column="1" x:Name="QuickDirectionSlot" HorizontalAlignment="Right"/></Grid></Border>
+                <Border Classes="ac-setting-row divider"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="速度" VerticalAlignment="Center"/><Panel Grid.Column="1" x:Name="QuickSpeedSlot" HorizontalAlignment="Right"/></Grid></Border>
+                <Border Classes="ac-setting-row divider"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="淡入 / 淡出" VerticalAlignment="Center"/><StackPanel Grid.Column="1" x:Name="QuickFadeSlot" Orientation="Horizontal" HorizontalAlignment="Right"/></Grid></Border>
+                <Border Classes="ac-setting-row divider"><Button Classes="ac row-button" Click="QuickCropRowClick" AutomationProperties.Name="裁剪"><Grid ColumnDefinitions="Auto,*,Auto"><TextBlock Text="裁剪" VerticalAlignment="Center"/><TextBlock Grid.Column="1" x:Name="QuickCropValue" Classes="value" HorizontalAlignment="Right" VerticalAlignment="Center"/><local:LucideIcon Grid.Column="2" Kind="chevron-right" Width="12" Height="12" Margin="6,0,0,0"/></Grid></Button></Border>
+                <Border Classes="ac-setting-row divider last"><Grid ColumnDefinitions="Auto,*"><TextBlock Text="旋转方向" VerticalAlignment="Center"/><Panel Grid.Column="1" x:Name="QuickDirectionSlot" HorizontalAlignment="Right"/></Grid></Border>
               </StackPanel>
             </Border>
             <StackPanel x:Name="QuickPlaySlot" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0"/>
@@ -368,7 +368,7 @@
         <TextBlock x:Name="QuickStatus" Classes="sec" FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
         <StackPanel Grid.Column="1" x:Name="QuickActionSlot" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <Panel x:Name="QuickOutputSlot"/>
-          <Button x:Name="QuickNextVideoButton" Classes="pill tall" Content="下一个视频 →" Click="NextVideoClick" IsVisible="False" IsEnabled="{Binding #ConfirmButton.IsEnabled}"/>
+          <Button x:Name="QuickNextVideoButton" Classes="ac pill tall" Content="下一个视频 →" Click="NextVideoClick" IsVisible="False" IsEnabled="{Binding #ConfirmButton.IsEnabled}"/>
         </StackPanel>
       </Grid>
     </Border>

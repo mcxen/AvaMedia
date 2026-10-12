@@ -17,7 +17,7 @@ public partial class EditorWindow
         foreach (var label in DirectionCombo.Items.OfType<string>())
         {
             var index = QuickDirectionChips.Children.Count;
-            var chip = new Button { Content = Localization.Text(label), Classes = { "direction-chip" }, Tag = index };
+            var chip = new Button { Content = Localization.Text(label), Classes = { "ac", "direction-chip" }, Tag = index };
             chip.Bind(IsEnabledProperty, DirectionCombo.GetObservable(IsEnabledProperty));
             chip.Click += (_, _) => DirectionCombo.SelectedIndex = index;
             QuickDirectionChips.Children.Add(chip);
@@ -55,7 +55,7 @@ public partial class EditorWindow
             var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
             row.Children.Add(new TextBlock { Text = Localization.Text(label), Classes = { "sec" }, VerticalAlignment = VerticalAlignment.Center });
             Grid.SetColumn(value, 1); row.Children.Add(value);
-            var border = new Border { Classes = { "qc-row" }, Height = 32, Child = row };
+            var border = new Border { Classes = { "ac-setting-row", "divider" }, Height = 32, Child = row };
             if (label == "音频") border.Classes.Add("last");
             QuickMediaRows.Children.Add(border); _quickMediaValues.Add(value);
         }
@@ -79,7 +79,7 @@ public partial class EditorWindow
         CropRatio.HorizontalAlignment = HorizontalAlignment.Stretch;
         QuickCropInspector.Children.Add(new TextBlock { Text = Localization.Text("精确坐标"), Classes = { "head" } });
         var rows = new StackPanel();
-        QuickCropInspector.Children.Add(new Border { Classes = { "qc-card" }, Child = rows });
+        QuickCropInspector.Children.Add(new Border { Classes = { "ac-card" }, Child = rows });
         foreach (var (label, input) in new[] { ("X", CropX), ("Y", CropY), ("宽度", CropWidth), ("高度", CropHeight) })
         {
             var row = new Grid { ColumnDefinitions = new("*,Auto") };
@@ -87,12 +87,12 @@ public partial class EditorWindow
             Move(input, row); Grid.SetColumn(input, 1);
             input.Width = 88; input.Height = 26; input.MinHeight = 0; input.FontSize = 12;
             input.TextAlignment = TextAlignment.Right;
-            rows.Children.Add(new Border { Classes = { "qc-row" }, Child = row });
+            rows.Children.Add(new Border { Classes = { "ac-setting-row", "divider" }, Child = row });
         }
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var apply = new Button { Content = Localization.Text("应用坐标"), Classes = { "pill" } };
+        var apply = new Button { Content = Localization.Text("应用坐标"), Classes = { "ac", "pill" } };
         apply.Click += ApplyCropClick; actions.Children.Add(apply);
-        var reset = new Button { Content = Localization.Text("重置选区"), Classes = { "pill" } };
+        var reset = new Button { Content = Localization.Text("重置选区"), Classes = { "ac", "pill" } };
         reset.Click += ResetCropClick; actions.Children.Add(reset);
         QuickCropInspector.Children.Add(actions);
         Move(DelogoMode, QuickCropInspector);
@@ -102,7 +102,7 @@ public partial class EditorWindow
     private void RefreshQuickDirectionChips()
     {
         foreach (var chip in QuickDirectionChips.Children.OfType<Button>())
-            chip.Classes.Set("selected", chip.Tag is int index && index == DirectionCombo.SelectedIndex);
+            chip.Classes.Set("primary", chip.Tag is int index && index == DirectionCombo.SelectedIndex);
     }
 
     private void RefreshQuickDirectionStatus()

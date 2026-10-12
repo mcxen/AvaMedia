@@ -41,6 +41,16 @@ public partial class EditorWindow
     {
         foreach (var name in new[] { "transport", "field-action", "primary", "dialog-action", "step", "time", "caption" }) control.Classes.Remove(name);
         foreach (var name in classes) control.Classes.Add(name);
+        control.Classes.Add("ac");
+        if (control is Button)
+        {
+            foreach (var role in new[] { "icon", "borderless", "large", "shell", "primary" }) control.Classes.Remove(role);
+            if (classes.Any(role => role is "ib" or "nudge")) { control.Classes.Add("icon"); control.Classes.Add("borderless"); }
+            if (classes.Contains("nudge")) { control.Classes.Add("small"); control.Bind(WidthProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcSmallHeight")); }
+            if (classes.Contains("pill")) control.Classes.Add("shell");
+            if (classes.Contains("primary-pill")) { control.Classes.Add("primary"); control.Classes.Add("large"); }
+            if (classes.Contains("link")) control.Classes.Add("borderless");
+        }
     }
 
     private static Control QuickIcon(string kind, double size = 15) => new LucideIcon { Kind = kind, Width = size, Height = size };
@@ -51,11 +61,11 @@ public partial class EditorWindow
         Width = 1280; Height = 800; MinWidth = 1100; MinHeight = 700;
 
         // Title bar.
-        Move(ModeBar, QuickModeSlot); ModeButtons.Spacing = 0;
+        Move(ModeBar, QuickModeSlot);
         // Keep the classic tab and its named controls, but omit it from the quick mode switch.
         ((TabItem)EditTabs.Items[2]!).IsVisible = false;
         var icons = new Dictionary<string, string> { ["剪辑"] = "scissors", ["画面裁剪"] = "crop", ["自动转正"] = "rotate-cw" };
-        foreach (var button in ModeButtons.Children.OfType<Button>())
+        foreach (var button in ModeButtons.Items.OfType<ListBoxItem>())
             if (button.Tag is TabItem { Header: string header })
             {
                 button.ClearValue(ContentControl.ContentProperty);
@@ -73,7 +83,7 @@ public partial class EditorWindow
         Move(BackwardButton, QuickTransportSlot); Restyle(BackwardButton, "ib"); BackwardButton.Content = QuickIcon("chevron-left", 17);
         Move(PlayButton, QuickTransportSlot); Restyle(PlayButton, "ib", "play");
         Move(ForwardButton, QuickTransportSlot); Restyle(ForwardButton, "ib"); ForwardButton.Content = QuickIcon("chevron-right", 17);
-        _nextSegmentButton = new Button { Classes = { "ib" }, Content = QuickIcon("skip-forward") };
+        _nextSegmentButton = new Button { Classes = { "ac", "ib" }, Content = QuickIcon("skip-forward") };
         _nextSegmentButton.Click += NextSegmentClick;
         ToolTip.SetTip(_nextSegmentButton, Localization.Text("下一个片段")); Avalonia.Automation.AutomationProperties.SetName(_nextSegmentButton, Localization.Text("下一个片段"));
         QuickTransportSlot.Children.Add(_nextSegmentButton);
@@ -85,7 +95,7 @@ public partial class EditorWindow
         // Timeline card.
         Move(Filmstrip, QuickFilmstripSlot);
         Move(TimelineZoom, QuickZoomSlot); Restyle(TimelineZoom, "zoom"); TimelineZoom.VerticalAlignment = VerticalAlignment.Center; TimelineZoom.ClearValue(WidthProperty);
-        var zoomIn = new Button { Classes = { "ib" }, Content = QuickIcon("zoom-in") }; zoomIn.Click += ZoomInClick;
+        var zoomIn = new Button { Classes = { "ac", "ib" }, Content = QuickIcon("zoom-in") }; zoomIn.Click += ZoomInClick;
         ToolTip.SetTip(zoomIn, Localization.Text("放大时间线")); Avalonia.Automation.AutomationProperties.SetName(zoomIn, Localization.Text("放大时间线"));
         QuickZoomSlot.Children.Add(zoomIn);
         Filmstrip.CalloutBrush = this.FindResource("QcCard") as Avalonia.Media.IBrush ?? Filmstrip.CalloutBrush;
@@ -130,7 +140,7 @@ public partial class EditorWindow
 
     private void BuildBoundaryCard(StackPanel card, Image image, string tag, Button minus, TextBox time, Button plus, string link, EventHandler<RoutedEventArgs> jump)
     {
-        var frame = new Button { Classes = { "frame" } };
+        var frame = new Button { Classes = { "ac", "frame" } };
         frame.Click += jump;
         ToolTip.SetTip(frame, Localization.Text(link));
         Avalonia.Automation.AutomationProperties.SetName(frame, Localization.Text(link));
@@ -141,10 +151,14 @@ public partial class EditorWindow
         card.Children.Add(frame);
         var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 3, Margin = new Thickness(0, 5, 0, 0) };
         Move(minus, row); Restyle(minus, "nudge"); minus.Content = QuickIcon("chevron-left", 12);
-        Move(time, row); Restyle(time, "qc-time"); Grid.SetColumn(time, 1);
+        Move(time, row); Restyle(time, "qc-time");
+        time.Bind(TextBox.FontSizeProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcSmallFont"));
+        time.Bind(TextBox.FontFamilyProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("UiNumericFont"));
+        time.Bind(TextBox.PaddingProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcNoBorder"));
+        Grid.SetColumn(time, 1);
         Move(plus, row); Restyle(plus, "nudge"); plus.Content = QuickIcon("chevron-right", 12); Grid.SetColumn(plus, 2);
         card.Children.Add(row);
-        var jumpLink = new Button { Classes = { "link" }, Content = Localization.Text(link), Margin = new Thickness(0, 3, 0, 0) };
+        var jumpLink = new Button { Classes = { "ac", "link" }, Content = Localization.Text(link), Margin = new Thickness(0, 3, 0, 0) };
         jumpLink.Click += jump;
         card.Children.Add(jumpLink);
     }

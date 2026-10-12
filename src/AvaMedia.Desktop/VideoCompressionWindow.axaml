@@ -2,17 +2,17 @@
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoCompressionWindow"
         Title="视频压缩" Width="1200" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
   <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="8">
-    <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurface}" Padding="12">
+    <Border Classes="ac-card">
       <ContentControl x:Name="PreviewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
     </Border>
-    <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1" Background="{DynamicResource UiSurfaceRaised}" Padding="12">
+    <Border Classes="ac-card" Grid.Column="1">
       <Grid RowDefinitions="*,Auto" RowSpacing="8">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
           <StackPanel Spacing="8">
             <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…" AllowFolders="True">
               <files:FileImportActions.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></files:FileImportActions.Styles>
-              <Button x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
-              <Button x:Name="RemoveInvalidButton" Content="移除错误文件" Click="RemoveInvalidClick" IsEnabled="False"/>
+              <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
+              <Button Classes="ac" x:Name="RemoveInvalidButton" Content="移除错误文件" Click="RemoveInvalidClick" IsEnabled="False"/>
             </files:FileImportActions>
             <Grid MinHeight="112">
               <ListBox x:Name="SourceList" MinHeight="112" MaxHeight="240" SelectionMode="Multiple" AutomationProperties.Name="批量压缩视频" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -34,70 +34,70 @@
             </Grid>
             <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
               <TextBlock Text="压缩方式" VerticalAlignment="Center"/>
-              <ComboBox Grid.Column="1" x:Name="ModeInput" AutomationProperties.Name="压缩模式" HorizontalAlignment="Stretch"/>
+              <ComboBox Classes="ac" Grid.Column="1" x:Name="ModeInput" AutomationProperties.Name="压缩模式" HorizontalAlignment="Stretch"/>
             </Grid>
             <Grid x:Name="AutoSection" ColumnDefinitions="72,*" ColumnSpacing="6">
               <TextBlock Text="画质档位" VerticalAlignment="Center"/>
-              <ComboBox Grid.Column="1" x:Name="PresetInput" AutomationProperties.Name="画质档位" HorizontalAlignment="Stretch"/>
+              <ComboBox Classes="ac" Grid.Column="1" x:Name="PresetInput" AutomationProperties.Name="画质档位" HorizontalAlignment="Stretch"/>
             </Grid>
             <TextBlock x:Name="PresetDescription" Classes="caption" TextWrapping="Wrap"/>
             <Grid x:Name="QualitySection" ColumnDefinitions="72,*,72" ColumnSpacing="6" IsVisible="False">
               <TextBlock Text="质量（1–51）" VerticalAlignment="Center" ToolTip.Tip="数值越小，画质越高"/>
-              <Slider Grid.Column="1" Minimum="1" Maximum="51" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="质量（1–51）" VerticalAlignment="Center"/>
-              <NumericUpDown Grid.Column="2" x:Name="QualityInput" Minimum="1" Maximum="51" Increment="1" Value="23" FormatString="0" AutomationProperties.Name="质量（1–51）"/>
+              <Slider Classes="ac" Grid.Column="1" Minimum="1" Maximum="51" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="质量（1–51）" VerticalAlignment="Center"/>
+              <NumericUpDown Classes="ac" Grid.Column="2" x:Name="QualityInput" Minimum="1" Maximum="51" Increment="1" Value="23" FormatString="0" AutomationProperties.Name="质量（1–51）"/>
             </Grid>
             <Grid x:Name="QualityPresets" ColumnDefinitions="*,*,*" ColumnSpacing="6" IsVisible="False">
-              <Button Content="高 · 20" Click="HighQualityClick"/>
-              <Button Grid.Column="1" Content="中 · 23" Click="MediumQualityClick"/>
-              <Button Grid.Column="2" Content="低 · 28" Click="LowQualityClick"/>
+              <Button Classes="ac" Content="高 · 20" Click="HighQualityClick"/>
+              <Button Classes="ac" Grid.Column="1" Content="中 · 23" Click="MediumQualityClick"/>
+              <Button Classes="ac" Grid.Column="2" Content="低 · 28" Click="LowQualityClick"/>
             </Grid>
             <Grid x:Name="BitrateSection" ColumnDefinitions="72,*" ColumnSpacing="6" RowDefinitions="Auto,Auto" RowSpacing="6" IsVisible="False">
               <TextBlock Text="平均码率" VerticalAlignment="Center" ToolTip.Tip="视频平均码率（kbps）"/>
-              <NumericUpDown Grid.Column="1" x:Name="BitrateInput" Minimum="64" Maximum="200000" Increment="500" Value="4000" FormatString="0" AutomationProperties.Name="视频平均码率（kbps）" HorizontalAlignment="Stretch"/>
-              <ComboBox Grid.Row="1" Grid.Column="1" x:Name="BitratePresetInput" AutomationProperties.Name="常用视频码率" HorizontalAlignment="Stretch"/>
+              <NumericUpDown Classes="ac" Grid.Column="1" x:Name="BitrateInput" Minimum="64" Maximum="200000" Increment="500" Value="4000" FormatString="0" AutomationProperties.Name="视频平均码率（kbps）" HorizontalAlignment="Stretch"/>
+              <ComboBox Classes="ac" Grid.Row="1" Grid.Column="1" x:Name="BitratePresetInput" AutomationProperties.Name="常用视频码率" HorizontalAlignment="Stretch"/>
             </Grid>
             <Grid x:Name="PercentageSection" ColumnDefinitions="72,*,64" ColumnSpacing="6">
               <TextBlock Text="目标体积" VerticalAlignment="Center" ToolTip.Tip="目标体积（原文件 %）"/>
-              <Slider Grid.Column="1" Minimum="5" Maximum="95" Value="{Binding #PercentageInput.Value, Mode=TwoWay}" TickFrequency="5" IsSnapToTickEnabled="True" AutomationProperties.Name="目标体积（原文件 %）" VerticalAlignment="Center"/>
-              <NumericUpDown Grid.Column="2" x:Name="PercentageInput" Minimum="5" Maximum="95" Increment="5" Value="60" FormatString="0" AutomationProperties.Name="目标体积（原文件 %）"/>
+              <Slider Classes="ac" Grid.Column="1" Minimum="5" Maximum="95" Value="{Binding #PercentageInput.Value, Mode=TwoWay}" TickFrequency="5" IsSnapToTickEnabled="True" AutomationProperties.Name="目标体积（原文件 %）" VerticalAlignment="Center"/>
+              <NumericUpDown Classes="ac" Grid.Column="2" x:Name="PercentageInput" Minimum="5" Maximum="95" Increment="5" Value="60" FormatString="0" AutomationProperties.Name="目标体积（原文件 %）"/>
             </Grid>
             <Grid x:Name="PercentagePresets" ColumnDefinitions="*,*,*" ColumnSpacing="6">
-              <Button Content="轻量 80%" Click="LightClick"/>
-              <Button Grid.Column="1" Content="均衡 60%" Click="BalancedClick"/>
-              <Button Grid.Column="2" Content="更小 40%" Click="SmallClick"/>
+              <Button Classes="ac" Content="轻量 80%" Click="LightClick"/>
+              <Button Classes="ac" Grid.Column="1" Content="均衡 60%" Click="BalancedClick"/>
+              <Button Classes="ac" Grid.Column="2" Content="更小 40%" Click="SmallClick"/>
             </Grid>
             <Grid x:Name="SizeSection" ColumnDefinitions="72,*" ColumnSpacing="6" IsVisible="False">
               <TextBlock Text="目标体积" VerticalAlignment="Center" ToolTip.Tip="每个视频的目标体积（MB）"/>
-              <NumericUpDown Grid.Column="1" x:Name="SizeInput" Minimum="0.1" Maximum="1000000" Increment="5" Value="50" FormatString="0.##" AutomationProperties.Name="每个视频的目标体积（MB）" HorizontalAlignment="Stretch"/>
+              <NumericUpDown Classes="ac" Grid.Column="1" x:Name="SizeInput" Minimum="0.1" Maximum="1000000" Increment="5" Value="50" FormatString="0.##" AutomationProperties.Name="每个视频的目标体积（MB）" HorizontalAlignment="Stretch"/>
             </Grid>
             <TextBlock x:Name="ModeDescription" Classes="caption" TextWrapping="Wrap"/>
             <Expander x:Name="OutputOptions" Header="输出参数" HorizontalAlignment="Stretch">
               <StackPanel Spacing="6" Margin="0,6,0,0">
                 <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
                   <TextBlock Text="输出格式" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" x:Name="FormatInput" AutomationProperties.Name="输出格式" HorizontalAlignment="Stretch"/>
+                  <ComboBox Classes="ac" Grid.Column="1" x:Name="FormatInput" AutomationProperties.Name="输出格式" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
                   <TextBlock Text="视频编码" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" x:Name="CodecInput" AutomationProperties.Name="视频编码" HorizontalAlignment="Stretch"/>
+                  <ComboBox Classes="ac" Grid.Column="1" x:Name="CodecInput" AutomationProperties.Name="视频编码" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
                   <TextBlock Text="分辨率上限" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" x:Name="ResolutionInput" AutomationProperties.Name="分辨率上限" HorizontalAlignment="Stretch"/>
+                  <ComboBox Classes="ac" Grid.Column="1" x:Name="ResolutionInput" AutomationProperties.Name="分辨率上限" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
                   <TextBlock Text="帧率上限" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" x:Name="FrameRateInput" AutomationProperties.Name="帧率上限" HorizontalAlignment="Stretch"/>
+                  <ComboBox Classes="ac" Grid.Column="1" x:Name="FrameRateInput" AutomationProperties.Name="帧率上限" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
-                  <CheckBox x:Name="KeepAudioInput" Content="保留声音" IsChecked="True" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" x:Name="AudioInput" AutomationProperties.Name="音频码率" HorizontalAlignment="Stretch"/>
+                  <CheckBox Classes="ac" x:Name="KeepAudioInput" Content="保留声音" IsChecked="True" VerticalAlignment="Center"/>
+                  <ComboBox Classes="ac" Grid.Column="1" x:Name="AudioInput" AutomationProperties.Name="音频码率" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
                   <TextBlock Text="编码速度" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" x:Name="SpeedInput" AutomationProperties.Name="编码速度" HorizontalAlignment="Stretch"/>
+                  <ComboBox Classes="ac" Grid.Column="1" x:Name="SpeedInput" AutomationProperties.Name="编码速度" HorizontalAlignment="Stretch"/>
                 </Grid>
-                <CheckBox x:Name="GpuInput" Content="优先 GPU 编码" IsChecked="True"/>
+                <CheckBox Classes="ac" x:Name="GpuInput" Content="优先 GPU 编码" IsChecked="True"/>
               </StackPanel>
             </Expander>
             <controls:SizeComparisonView x:Name="SizeChart"/>
@@ -106,15 +106,15 @@
         </ScrollViewer>
         <StackPanel Grid.Row="1" Spacing="6">
           <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-            <TextBox x:Name="OutputInput" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
-            <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="field-action"/>
-            <CheckBox x:Name="SourceFolderInput" Grid.Column="2" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
-            <CheckBox x:Name="SettingNameInput" Grid.Column="3" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
+            <TextBox Classes="ac" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" IsReadOnly="True"/>
+            <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
+            <CheckBox Classes="ac" x:Name="SourceFolderInput" Grid.Column="2" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
+            <CheckBox Classes="ac" x:Name="SettingNameInput" Grid.Column="3" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
           </Grid>
           <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap"/>
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-            <Button Content="取消" Classes="dialog-action" IsCancel="True" Click="CancelClick"/>
-            <Button x:Name="ConfirmButton" Grid.Column="1" HorizontalAlignment="Right" Content="加入队列" Classes="dialog-action primary" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>
+            <Button Content="取消" Classes="ac dialog-action" IsCancel="True" Click="CancelClick"/>
+            <Button x:Name="ConfirmButton" Grid.Column="1" HorizontalAlignment="Right" Content="加入队列" Classes="ac dialog-action primary" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>
           </Grid>
         </StackPanel>
       </Grid>

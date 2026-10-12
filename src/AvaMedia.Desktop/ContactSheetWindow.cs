@@ -13,6 +13,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
+using AvaMedia.Controls;
 using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
@@ -31,14 +32,14 @@ public sealed partial class ContactSheetWindow : Window
     private readonly Button _generate;
     private readonly Button _stop;
     private readonly CheckBox _recursive;
-    private readonly NumericUpDown _columns = Ui.Number(3, 1, 10);
-    private readonly NumericUpDown _rows = Ui.Number(3, 1, 10);
-    private readonly NumericUpDown _cellWidth = Ui.Number(320, 64, 1920);
-    private readonly NumericUpDown _cellHeight = Ui.Number(180, 64, 1080);
-    private readonly NumericUpDown _sheets = Ui.Number(1, 1, 100);
-    private readonly ToggleSwitch _timestamps = new() { IsChecked = true, OnContent = "", OffContent = "" };
-    private readonly Dictionary<string, RadioButton> _presets = [];
-    private readonly List<RadioButton> _formats = [];
+    private readonly NumericUpDown _columns = Ui.ComponentNumber(3, 1, 10);
+    private readonly NumericUpDown _rows = Ui.ComponentNumber(3, 1, 10);
+    private readonly NumericUpDown _cellWidth = Ui.ComponentNumber(320, 64, 1920);
+    private readonly NumericUpDown _cellHeight = Ui.ComponentNumber(180, 64, 1080);
+    private readonly NumericUpDown _sheets = Ui.ComponentNumber(1, 1, 100);
+    private readonly ToggleSwitch _timestamps = new() { Classes = { "ac" }, IsChecked = true, OnContent = "", OffContent = "" };
+    private readonly SegmentedControl _presets;
+    private readonly SegmentedControl _formats;
     private string _format = "jpg";
     private CancellationTokenSource? _operation;
     private bool _importing;
@@ -74,7 +75,7 @@ public sealed partial class ContactSheetWindow : Window
         _list.ItemTemplate = new FuncDataTemplate<VideoEntry>((entry, _) =>
         {
             var row = new Grid { ColumnDefinitions = new("20,46,*"), ColumnSpacing = 8 };
-            var check = new CheckBox { MinHeight = 20, VerticalAlignment = VerticalAlignment.Center };
+            var check = new CheckBox { Classes = { "ac" }, VerticalAlignment = VerticalAlignment.Center };
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(VideoEntry.Include)) { Mode = BindingMode.TwoWay });
             AutomationProperties.SetName(check, "包含视频 " + entry?.Name); row.Children.Add(check);
             var image = new Image { Width = 46, Height = 28, Stretch = Stretch.UniformToFill };
@@ -94,7 +95,7 @@ public sealed partial class ContactSheetWindow : Window
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list);
         _importBar = new StackPanel { Spacing = 6, Margin = new(6, 0, 6, 2) };
         var imports = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var import = new Button { Content = "添加视频…", Classes = { "sheet-action" } };
+        var import = new Button { Content = "添加视频…", Classes = { "ac", "sheet-action" } };
         var filesItem = new MenuItem { Header = "选择视频…" };
         filesItem.Click += async (_, _) =>
         {
@@ -127,22 +128,22 @@ public sealed partial class ContactSheetWindow : Window
         remove.Classes.Add("sheet-action"); imports.Children.Add(remove);
         _importBar.Children.Add(new Border { Child = imports, BorderThickness = new(0, 1, 0, 0), Padding = new(0, 8, 0, 0) });
         Resource((Border)_importBar.Children[0], Border.BorderBrushProperty, "UiBorder");
-        _recursive = new CheckBox { Content = "包含子文件夹", IsChecked = true };
+        _recursive = new CheckBox { Classes = { "ac" }, Content = "包含子文件夹", IsChecked = true };
         _importBar.Children.Add(_recursive); Grid.SetRow(_importBar, 2); filesArea.Children.Add(_importBar);
-        var videoCard = Card(filesArea, new(6, 10)); videoCard.Bind(WidthProperty, new DynamicResourceExtension("SheetVideoWidth"));
+        var videoCard = Card(filesArea); videoCard.Bind(WidthProperty, new DynamicResourceExtension("SheetVideoWidth"));
         body.Children.Add(videoCard);
 
         var previewCard = CreatePreview(); Grid.SetColumn(previewCard, 1); body.Children.Add(previewCard);
         _sheetPanel = new StackPanel { Spacing = 12 };
         _sheetPanel.Bind(WidthProperty, new DynamicResourceExtension("SheetSettingsWidth"));
         var gridSettings = new StackPanel();
-        gridSettings.Children.Add(Segments(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], "sheet-grid", value =>
+        _presets = Segments(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], value =>
         {
             if (_updating || value == "自定义") return;
             var parts = value.Split('×'); _updating = true;
             _columns.Value = int.Parse(parts[0].Trim()); _rows.Value = int.Parse(parts[1].Trim()); _updating = false;
             SchedulePreview();
-        }, _presets));
+        }); gridSettings.Children.Add(_presets);
         AddRow(gridSettings, "列数", _columns); AddRow(gridSettings, "行数", _rows);
         AddRow(gridSettings, "每个视频拼图数量", _sheets);
         _sheetPanel.Children.Add(Group("宫格", gridSettings));
@@ -151,21 +152,21 @@ public sealed partial class ContactSheetWindow : Window
         _samplingDescription.Margin = new(12, 2, 12, 10); sampling.Children.Add(_samplingDescription);
         _sheetPanel.Children.Add(Group("取帧", sampling));
         var picture = new StackPanel();
-        var dimensions = new Grid { ColumnDefinitions = new("64,Auto,64"), ColumnSpacing = 6 };
+        var dimensions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto"), ColumnSpacing = 6 };
         dimensions.Children.Add(_cellWidth); var times = Label("×", secondary: true); Grid.SetColumn(times, 1); dimensions.Children.Add(times);
         Grid.SetColumn(_cellHeight, 2); dimensions.Children.Add(_cellHeight);
         AddRow(picture, "单格最大宽高", dimensions); AddRow(picture, "显示每帧时间戳", _timestamps);
         _sheetPanel.Children.Add(Group("画面", picture));
         var outputSettings = new StackPanel();
-        var formatButtons = Segments(["JPG", "PNG"], "sheet-format", value => { _format = value.ToLowerInvariant(); InvalidatePlan(); });
+        var formatButtons = Segments(["JPG", "PNG"], value => { _format = value.ToLowerInvariant(); InvalidatePlan(); });
         formatButtons.Margin = new(0); formatButtons.Width = 110;
-        _formats.AddRange(((Grid)formatButtons.Child!).Children.Cast<RadioButton>());
+        _formats = formatButtons;
         AddRow(outputSettings, "图片格式", formatButtons);
         var location = new StackPanel { Spacing = 6, Margin = new(12, 4, 12, 10) }; location.Children.Add(Label("保存位置", secondary: true));
-        _output = Ui.Input(outputFolder); _output.IsReadOnly = true; Localization.SetIsUserText(_output, true);
+        _output = Ui.ComponentInput(outputFolder); _output.IsReadOnly = true; Localization.SetIsUserText(_output, true);
         ToolTip.SetTip(_output, outputFolder);
         var outputRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 }; outputRow.Children.Add(_output);
-        var browse = new Button { Content = "浏览…", Classes = { "field-action" } };
+        var browse = new Button { Content = "浏览…", Classes = { "ac", "field-action" } };
         browse.Click += async (_, _) =>
         {
             if (await Ui.Folder(this, "选择截图目录") is { } path) { _output.Text = path; ToolTip.SetTip(_output, path); }
@@ -182,7 +183,7 @@ public sealed partial class ContactSheetWindow : Window
         _stop = Ui.Button("停止", () => _operation?.Cancel()); _stop.Classes.Add("sheet-action"); _stop.IsEnabled = false; _stop.IsVisible = false;
         Grid.SetColumn(_stop, 2); bottom.Children.Add(_stop);
         var close = Ui.Button("关闭", Close); close.Classes.Add("sheet-action"); close.IsCancel = true; Grid.SetColumn(close, 3); bottom.Children.Add(close);
-        _generate = new Button { Content = "生成截图", IsDefault = true, Classes = { "primary", "sheet-action" } };
+        _generate = new Button { Content = "生成截图", IsDefault = true, Classes = { "ac", "primary", "sheet-action" } };
         _generate.Click += async (_, _) => await Generate(); Grid.SetColumn(_generate, 4); bottom.Children.Add(_generate);
         Grid.SetRow(bottom, 1); root.Children.Add(bottom); Content = WindowChrome.WrapDialog(this, root);
         DragDrop.SetAllowDrop(this, true);
@@ -200,7 +201,7 @@ public sealed partial class ContactSheetWindow : Window
         foreach (var number in new[] { _columns, _rows, _cellWidth, _cellHeight, _sheets })
             number.ValueChanged += (_, _) => { if (!_updating) SchedulePreview(); };
         _timestamps.IsCheckedChanged += (_, _) => { if (!_updating) SchedulePreview(); };
-        _updating = true; UpdatePreset(); _formats.First(button => button.Content as string == _format.ToUpperInvariant()).IsChecked = true; _updating = false;
+        _updating = true; UpdatePreset(); _formats.SelectedItem = _format.ToUpperInvariant(); _updating = false;
         if (initial is not null) AddPaths(initial);
         Opened += (_, _) => { if (_entries.Count > 0) _list.SelectedIndex = 0; else SchedulePreview(); };
         InvalidatePlan(); Controls.WindowArtwork.SetKind(this, "frames");
@@ -208,45 +209,39 @@ public sealed partial class ContactSheetWindow : Window
 
     private static TextBlock Label(string text, bool secondary = false, bool bold = false)
     {
-        var label = Ui.Text(text); if (secondary) label.Classes.Add("sheet-secondary");
+        var label = Ui.ComponentText(text); if (secondary) label.Classes.Add("caption");
         if (bold) label.FontWeight = FontWeight.SemiBold; return label;
     }
     private static void Resource(AvaloniaObject target, AvaloniaProperty property, string key)
         => target.Bind(property, new DynamicResourceExtension(key));
-    private static Border Card(Control content, Thickness padding = default)
-        => new() { Child = content, Padding = padding, Classes = { "sheet-card" } };
+    private static Border Card(Control content)
+        => new AvaMedia.Controls.Card { Child = content };
     private static StackPanel Group(string title, Control content)
     {
         var panel = new StackPanel { Spacing = 6 }; var label = Label(title, secondary: true, bold: true); label.Margin = new(4, 0);
-        panel.Children.Add(label); panel.Children.Add(Card(content)); return panel;
+        label.Classes.Add("ac-section"); panel.Children.Add(label); panel.Children.Add(new Border { Classes = { "ac-group" }, Child = content }); return panel;
     }
     private static void AddRow(StackPanel parent, string label, Control input)
     {
         if (parent.Children.Count > 0)
         {
-            var line = new Border { Height = 1 }; Resource(line, Border.BackgroundProperty, "UiBorder"); parent.Children.Add(line);
+            var line = new Border(); Resource(line, Border.BorderThicknessProperty, "AcHairlineThickness"); Resource(line, Border.BorderBrushProperty, "AcHairline"); parent.Children.Add(line);
         }
         AutomationProperties.SetName(input, label); input.HorizontalAlignment = HorizontalAlignment.Right;
         input.VerticalAlignment = VerticalAlignment.Center;
         var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Classes = { "sheet-row" } };
         row.Children.Add(Label(label)); Grid.SetColumn(input, 1); row.Children.Add(input); parent.Children.Add(row);
     }
-    private static Border Segments(string[] labels, string group, Action<string> changed, Dictionary<string, RadioButton>? buttons = null)
+    private static SegmentedControl Segments(string[] labels, Action<string> changed)
     {
-        var grid = new Grid { ColumnDefinitions = new(string.Join(",", labels.Select(_ => "*"))) };
-        for (var i = 0; i < labels.Length; i++)
-        {
-            var value = labels[i]; var button = new RadioButton { Content = value, GroupName = group, Classes = { "sheet-segment" } };
-            AutomationProperties.SetName(button, value); buttons?.Add(value, button);
-            button.IsCheckedChanged += (_, _) => { if (button.IsChecked == true) changed(value); };
-            Grid.SetColumn(button, i); grid.Children.Add(button);
-        }
-        return new Border { Child = grid, Classes = { "sheet-segment" } };
+        var segments = new SegmentedControl { ItemsSource = labels, Classes = { "sheet-segments" } };
+        segments.SelectionChanged += (_, _) => { if (segments.SelectedItem is string value) changed(value); };
+        return segments;
     }
     private void UpdatePreset()
     {
         var key = $"{Integer(_columns)} × {Integer(_rows)}";
-        _presets[_presets.ContainsKey(key) ? key : "自定义"].IsChecked = true;
+        _presets.SelectedItem = _presets.Items.Contains(key) ? key : "自定义";
     }
     private async Task OpenOutputFolder()
     {

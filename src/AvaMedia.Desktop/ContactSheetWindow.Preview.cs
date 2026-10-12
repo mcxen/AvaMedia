@@ -86,7 +86,7 @@ public sealed partial class ContactSheetWindow
             for (var i = 0; i < _cells.Count; i++)
                 if (_cells[i].Loading) _cells[i].Face.Opacity = .82 + .18 * Math.Sin(_pulseTick * .16 - i * .45);
         };
-        return Card(panel, new(18, 14, 18, 12));
+        return Card(panel);
     }
 
     private void SelectVideo()

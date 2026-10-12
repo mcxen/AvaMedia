@@ -12,26 +12,30 @@ public partial class EditorWindow
 {
     private void BuildModeBar()
     {
-        ModeButtons.Children.Clear();
+        ModeButtons.Items.Clear();
         // Visual order follows the design: clip, crop, direction, options.
         var tabs = EditTabs.Items.OfType<TabItem>().ToList();
         var order = tabs.OrderBy(tab => ReferenceEquals(tab, DirectionTab) ? 2 : tabs.IndexOf(tab) >= 2 ? 3 : tabs.IndexOf(tab)).ToList();
         foreach (var tab in order)
         {
-            var button = new Button { Classes = { "mode" } };
+            var button = new ListBoxItem();
             button.Bind(ContentControl.ContentProperty, tab.GetObservable(HeaderedContentControl.HeaderProperty));
             button.Bind(IsVisibleProperty, tab.GetObservable(IsVisibleProperty));
             button.Bind(IsEnabledProperty, tab.GetObservable(IsEnabledProperty));
-            button.Click += (_, _) => EditTabs.SelectedItem = tab;
             button.Tag = tab;
-            ModeButtons.Children.Add(button);
+            ModeButtons.Items.Add(button);
         }
+        ModeButtons.SelectionChanged += (_, _) =>
+        {
+            if (ModeButtons.SelectedItem is ListBoxItem { Tag: TabItem tab } && tab.IsVisible && tab.IsEnabled)
+                EditTabs.SelectedItem = tab;
+        };
         EditTabs.SelectionChanged += (_, e) => { if (ReferenceEquals(e.Source, EditTabs)) UpdateModeBar(); };
         UpdateModeBar();
     }
     private void UpdateModeBar()
     {
-        foreach (var button in ModeButtons.Children.OfType<Button>())
-            button.Classes.Set("active", ReferenceEquals(button.Tag, EditTabs.SelectedItem));
+        ModeButtons.SelectedItem = ModeButtons.Items.OfType<ListBoxItem>()
+            .FirstOrDefault(item => ReferenceEquals(item.Tag, EditTabs.SelectedItem));
     }
 }

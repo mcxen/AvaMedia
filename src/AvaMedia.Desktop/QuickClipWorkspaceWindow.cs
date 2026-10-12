@@ -19,7 +19,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
     private readonly List<Source> _sources;
     private readonly ListBox _files = new();
     private readonly StackPanel _segments = new() { Spacing = 6 };
-    private readonly TextBlock _status = Ui.Status();
+    private readonly TextBlock _status = Ui.ComponentStatus();
     private readonly Button _export;
     private bool _editing;
     public QuickClipWorkspaceWindow(IMediaEngine engine, IEnumerable<string> paths, IEnumerable<ClipEditResult>? edits)
@@ -39,9 +39,9 @@ internal sealed class QuickClipWorkspaceWindow : Window
         {
             if(source is null)return new Border();
             var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
-            var include = new CheckBox { Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include, MinHeight = 0, Padding = new(0) }; Localization.SetIsUserText(include, true);
+            var include = new CheckBox { Classes = { "ac" }, Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include}; Localization.SetIsUserText(include, true);
             include.IsCheckedChanged += (_, _) => { source.Include = include.IsChecked == true; Refresh(); }; row.Children.Add(include);
-            var state = Ui.Text(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption"); Grid.SetColumn(state, 1); row.Children.Add(state); return row;
+            var state = Ui.ComponentText(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption"); Grid.SetColumn(state, 1); row.Children.Add(state); return row;
         });
         var body = new Grid { ColumnDefinitions = new("300,*"), ColumnSpacing = 8 }; body.Children.Add(_files);
         body.Children.Add(new ScrollViewer { Content = _segments, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
@@ -81,9 +81,9 @@ internal sealed class QuickClipWorkspaceWindow : Window
         _segments.Children.Clear();
         if(_files.SelectedItem is Source source)
         {
-            var name = Ui.Text(System.IO.Path.GetFileName(source.Path), "heading"); Localization.SetIsUserText(name, true); _segments.Children.Add(name);
+            var name = Ui.ComponentText(System.IO.Path.GetFileName(source.Path), "heading"); Localization.SetIsUserText(name, true); _segments.Children.Add(name);
             _segments.Children.Add(Ui.Button(source.Edit is null ? "剪辑此视频…" : "继续编辑…", async () => await EditAsync(source)));
-            foreach(var segment in source.Edit?.OutputSegments ?? []) _segments.Children.Add(Ui.Text(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
+            foreach(var segment in source.Edit?.OutputSegments ?? []) _segments.Children.Add(Ui.ComponentText(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
         }
         var selected = _sources.Where(source => source.Include).ToArray(); var ready = selected.Count(source => source.Edit?.OutputSegments.Count > 0);
         _status.Text = Localization.Format($"已剪辑 {ready} / {selected.Length} 个视频"); _export.IsEnabled = ready > 0 && ready == selected.Length;
