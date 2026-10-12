@@ -12,6 +12,7 @@ using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Desktop;
 using AvaMedia.Mcp;
+using FrameStrip = AvaMedia.Mcp.FrameStrip;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
@@ -105,6 +106,136 @@ internal static class Program
             }
             Require(FrameStrip.Times(8, 4).SequenceEqual(new[] { 1d, 3d, 5d, 7d }), "Samples must be at evenly spaced cell centres.");
             return Task.CompletedTask;
+        });
+        await Case("frame-strip-invalid-duration", () =>
+        {
+            foreach (var duration in new[] { 0, -1, double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+                Require(FrameStrip.Times(duration, 10).SequenceEqual(new[] { 0d }) &&
+                    AvaMedia.Core.FrameStrip.Times(duration, 10).SequenceEqual(new[] { 0d }), "Invalid duration must sample zero.");
+            return Task.CompletedTask;
+        });
+        await StripCase("frame-strip-cache-hit", async path =>
+        {
+            var preview = new StripPreview();
+            var cache = new FrameStripCache(preview);
+            var first = await cache.GetAsync(path, 8, 4);
+            var second = await cache.GetAsync(path, 8, 4);
+            Require(preview.Calls == 4 && ReferenceEquals(first, second), "Cache hit re-extracted frames.");
+            Require(first.Select(frame => frame.Seconds).SequenceEqual(new[] { 1d, 3d, 5d, 7d }) &&
+                first.Select(frame => frame.Image[0]).SequenceEqual(new byte[] { 1, 2, 3, 4 }), "Frame data or times changed.");
+            Require(preview.Requests.All(request => request == (Path.GetFullPath(path), 160, 90, false, 0)), "Wrong preview arguments.");
+        });
+        await StripCase("frame-strip-cache-mtime-invalidation", async path =>
+        {
+            var preview = new StripPreview();
+            var cache = new FrameStripCache(preview);
+            await cache.GetAsync(path, 8, 2);
+            File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddSeconds(10));
+            await cache.GetAsync(path, 8, 2);
+            Require(preview.Calls == 4, "Changed source mtime reused stale frames.");
+        });
+        await StripCase("frame-strip-cache-key-options-and-length", async path =>
+        {
+            var preview = new StripPreview();
+            var cache = new FrameStripCache(preview);
+            await cache.GetAsync(path, 8, 1);
+            await cache.GetAsync(path, 8, 2);
+            await cache.GetAsync(path, 8, 1, width: 320);
+            await cache.GetAsync(path, 8, 1, height: 180);
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 2);
+            Require(preview.Calls == 6, "Count, dimensions or stream did not distinguish cache entries.");
+            var modified = File.GetLastWriteTimeUtc(path);
+            await File.AppendAllTextAsync(path, "changed length");
+            File.SetLastWriteTimeUtc(path, modified);
+            await cache.GetAsync(path, 8, 1);
+            Require(preview.Calls == 7, "Changed source length reused stale frames.");
+        });
+        await StripCase("frame-strip-cache-lru", async path =>
+        {
+            var preview = new StripPreview();
+            var cache = new FrameStripCache(preview, capacity: 2);
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 0);
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 1);
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 0);
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 2);
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 0);
+            Require(preview.Calls == 3, "Recently used strip was evicted.");
+            await cache.GetAsync(path, 8, 1, videoStreamIndex: 1);
+            Require(preview.Calls == 4, "Least recently used strip was not evicted.");
+        });
+        await StripCase("frame-strip-cache-concurrent-dedupe", async path =>
+        {
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var preview = new StripPreview((_, ct) => release.Task.WaitAsync(ct));
+            var cache = new FrameStripCache(preview);
+            var first = cache.GetAsync(path, 8, 4);
+            var second = cache.GetAsync(path, 8, 4);
+            try { Require(preview.Calls == 1 && !first.IsCompleted && !second.IsCompleted, "Concurrent request started another extraction."); }
+            finally { release.TrySetResult(); }
+            var results = await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+            Require(preview.Calls == 4 && ReferenceEquals(results[0], results[1]), "Concurrent callers did not share their extraction.");
+        });
+        await StripCase("frame-strip-cache-progress", async path =>
+        {
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstReported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var lateReported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var preview = new StripPreview((call, ct) => call == 2 ? release.Task.WaitAsync(ct) : Task.CompletedTask);
+            var cache = new FrameStripCache(preview);
+            var reports = new List<FrameStripFrame>();
+            var lateReports = new List<FrameStripFrame>();
+            var first = cache.GetAsync(path, 8, 4, progress: new StripProgress(frame =>
+            { reports.Add(frame); if (frame.Index == 0) firstReported.TrySetResult(); }));
+            Task<IReadOnlyList<FrameStripFrame>>? late = null;
+            try
+            {
+                await firstReported.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Require(!first.IsCompleted && reports.Count == 1, "Progress waited for the entire strip.");
+                late = cache.GetAsync(path, 8, 4, progress: new StripProgress(frame =>
+                { lateReports.Add(frame); if (frame.Index == 0) lateReported.TrySetResult(); }));
+                await lateReported.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Require(!late.IsCompleted, "Late caller did not join in-flight extraction.");
+            }
+            finally { release.TrySetResult(); }
+            var frames = await first.WaitAsync(TimeSpan.FromSeconds(5));
+            await late!.WaitAsync(TimeSpan.FromSeconds(5));
+            Require(reports.SequenceEqual(frames) && lateReports.SequenceEqual(frames), "Progress missed, duplicated or reordered frames.");
+            var hits = new List<FrameStripFrame>();
+            var hit = cache.GetAsync(path, 8, 4, progress: new StripProgress(hits.Add));
+            Require(hit.IsCompletedSuccessfully && hits.SequenceEqual(frames) && preview.Calls == 4, "Cache hit must report all frames immediately.");
+        });
+        await StripCase("frame-strip-cache-caller-cancellation", async path =>
+        {
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var preview = new StripPreview((_, ct) => release.Task.WaitAsync(ct));
+            var cache = new FrameStripCache(preview);
+            using var cancellation = new CancellationTokenSource();
+            var first = cache.GetAsync(path, 8, 4, ct: cancellation.Token);
+            var second = cache.GetAsync(path, 8, 4);
+            try
+            {
+                cancellation.Cancel();
+                try { await first.WaitAsync(TimeSpan.FromSeconds(5)); Require(false, "Cancelled caller completed successfully."); }
+                catch (OperationCanceledException) { }
+                Require(!second.IsCompleted && preview.Calls == 1, "Cancelling one caller affected the shared extraction.");
+            }
+            finally { release.TrySetResult(); }
+            var frames = await second.WaitAsync(TimeSpan.FromSeconds(5));
+            var hit = await cache.GetAsync(path, 8, 4);
+            Require(frames.Count == 4 && preview.Calls == 4 && ReferenceEquals(frames, hit), "Surviving caller or completed cache was lost.");
+        });
+        await StripCase("frame-strip-cache-failure-not-cached", async path =>
+        {
+            foreach (var failure in new Exception[] { new IOException("Expected failure"), new OperationCanceledException() })
+            {
+                var preview = new StripPreview((call, _) => call == 2 ? Task.FromException(failure) : Task.CompletedTask);
+                var cache = new FrameStripCache(preview);
+                try { await cache.GetAsync(path, 8, 3); Require(false, "Extraction failure was swallowed."); }
+                catch (Exception error) when (error.GetType() == failure.GetType()) { }
+                var retry = await cache.GetAsync(path, 8, 3);
+                await cache.GetAsync(path, 8, 3);
+                Require(preview.Calls == 5 && retry.Count == 3 && retry[0].Image[0] == 3, "Failed or cancelled partial extraction was cached.");
+            }
         });
         await Case("delogo-legacy-graph", () =>
         {
@@ -244,6 +375,38 @@ internal static class Program
         public Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct) => throw new NotSupportedException();
         public Task<string> LogAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
         public Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    private static Task StripCase(string name, Func<string, Task> action) => Case(name, async () =>
+    {
+        var path = Path.GetTempFileName();
+        try { await action(path); }
+        finally { File.Delete(path); }
+    });
+
+    private sealed class StripProgress(Action<FrameStripFrame> report) : IProgress<FrameStripFrame>
+    {
+        public void Report(FrameStripFrame value) => report(value);
+    }
+
+    private sealed class StripPreview(Func<int, CancellationToken, Task>? beforeFrame = null) : IMediaPreview
+    {
+        private int _calls;
+        public int Calls => Volatile.Read(ref _calls);
+        public readonly List<(string Path, int Width, int Height, bool Pad, int Stream)> Requests = [];
+
+        public async Task<byte[]> Thumbnail(string input, double seconds, int width = 640, int height = 360,
+            CancellationToken ct = default, bool pad = true, int videoStreamIndex = 0, bool endExclusive = false)
+        {
+            var call = Interlocked.Increment(ref _calls);
+            Requests.Add((input, width, height, pad, videoStreamIndex));
+            if (beforeFrame is not null) await beforeFrame(call, ct);
+            ct.ThrowIfCancellationRequested();
+            return [(byte)call];
+        }
+
+        public Task<double> AdjacentFrameTime(string input, double seconds, int direction,
+            CancellationToken ct = default, int videoStreamIndex = 0) => throw new NotSupportedException();
     }
 
     private sealed class PreviewStub(params double[] times) : IMediaPreview

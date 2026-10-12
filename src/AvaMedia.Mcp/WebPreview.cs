@@ -14,6 +14,7 @@ internal static class WebPreview
         // Bound both decoders and waiting/slow responses. This budget is separate from queued jobs.
         var admission = new SemaphoreSlim(3, 3);
         var decoder = new SemaphoreSlim(1, 1);
+        FrameStripCache? stripCache = null;
         app.MapGet("/web/preview/frame", (string path, double seconds, int? width, int? videoStreamIndex, int? audioStreamIndex,
             IMcpWorkspace workspace, HttpContext context) => Run(context, async ct =>
         {
@@ -64,18 +65,19 @@ internal static class WebPreview
                 if (!VideoFormats.IsVideo(path)) throw new ArgumentException("胶片条请选择视频。");
                 var version = McpMediaFile.Version(path);
                 var info = await workspace.Engine.Probe(path, timeout.Token, videoStreamIndex ?? 0);
-                var times = FrameStrip.Times(info.Duration, count ?? 10);
-                var frames = new List<object>();
                 await decoder.WaitAsync(timeout.Token);
-                try
+                async Task<IReadOnlyList<FrameStripFrame>> ReadStrip()
                 {
-                    foreach (var seconds in times)
+                    try
                     {
-                        var image = await workspace.Engine.Thumbnail(path, seconds, FrameStrip.Width, FrameStrip.Height, timeout.Token, pad: false, videoStreamIndex: info.VideoStreamIndex);
-                        frames.Add(new { seconds, image = Convert.ToBase64String(image) });
+                        stripCache ??= new FrameStripCache(workspace.Engine);
+                        return await stripCache.GetAsync(path, info.Duration, count ?? 10, videoStreamIndex: info.VideoStreamIndex);
                     }
+                    finally { decoder.Release(); }
                 }
-                finally { decoder.Release(); }
+                // Keep the decoder lease until shared work finishes, even if this response is cancelled.
+                var strip = await ReadStrip().WaitAsync(timeout.Token);
+                var frames = strip.Select(frame => new { seconds = frame.Seconds, image = Convert.ToBase64String(frame.Image) });
                 if (version != McpMediaFile.Version(path)) throw new IOException("读取期间源文件发生变化，请重试。");
                 return Results.Json(new { duration = info.Duration, width = info.Width, height = info.Height, sourceVersion = version, frames });
             }

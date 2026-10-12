@@ -3,12 +3,8 @@ namespace AvaMedia.Mcp;
 /// <summary>Evenly spaced filmstrip sample times (cell centres) for the remote clip editor.</summary>
 public static class FrameStrip
 {
-    public const int Width = 160, Height = 90, MaxCount = 24;
+    public const int Width = Core.FrameStrip.Width, Height = Core.FrameStrip.Height, MaxCount = Core.FrameStrip.MaxCount;
 
     public static double[] Times(double duration, int count)
-    {
-        count = Math.Clamp(count, 1, MaxCount);
-        if (!double.IsFinite(duration) || duration <= 0) return [0];
-        return Enumerable.Range(0, count).Select(index => duration * ((index + .5) / count)).ToArray();
-    }
+        => Core.FrameStrip.Times(duration, count);
 }
