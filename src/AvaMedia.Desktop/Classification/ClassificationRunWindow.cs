@@ -1,0 +1,122 @@
+using System.ComponentModel;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
+using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
+using static AvaMedia.Desktop.Classification.ClassifyUi;
+
+namespace AvaMedia.Desktop.Classification;
+
+/// <summary>Detail window of one AI 媒体整理 task: live pipeline while running, before/after review when finished.</summary>
+public sealed partial class ClassificationRunWindow : Window
+{
+    private readonly Job _job;
+    private readonly Action<Job>? _pause, _stop;
+    private readonly Action<Job, string> _openAction;
+    private readonly FolderClassificationProgress _progress = new();
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+    private readonly Grid _body = new();
+    private readonly TextBlock _title = T("", 17, FontWeight.Bold, raw: true), _subtitle = T("", 12, brush: Muted, raw: true);
+    private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+    private int _dirty = 1, _computing;
+    private bool? _resultMode;
+    private bool _closed;
+    public static int Applied, Computed; public static double LastComputeMs, MaxComputeMs;
+
+    public ClassificationRunWindow(Job job, Action<Job>? pause, Action<Job>? stop, Action<Job, string> openAction)
+    {
+        _job = job; _pause = pause; _stop = stop; _openAction = openAction;
+        Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
+        Background = Page; WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
+        var header = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new(22, 14, 22, 8) };
+        var titles = new StackPanel { Spacing = 2 }; titles.Children.Add(_title); titles.Children.Add(_subtitle);
+        header.Children.Add(titles); Grid.SetColumn(_headerActions, 1); header.Children.Add(_headerActions);
+        var root = new DockPanel(); DockPanel.SetDock(header, Dock.Top); root.Children.Add(header); root.Children.Add(_body);
+        Content = root;
+        job.PropertyChanged += JobChanged;
+        // At most ten model recomputations per second; the snapshot is immutable so it is read off the UI thread.
+        _timer.Tick += (_, _) => Pump();
+        Opened += async (_, _) =>
+        {
+            if (job.ClassificationSnapshot is null)
+            {
+                try { job.InitializeClassificationSnapshot(await Task.Run(() => FolderClassificationTaskStore.LoadAsync(job))); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { }
+            }
+            job.ClassificationRegroup ??= await Task.Run(() => FolderClassificationTaskStore.LoadRegroup(job));
+            _timer.Start(); Pump();
+        };
+        Closed += (_, _) => { _closed = true; _timer.Stop(); job.PropertyChanged -= JobChanged; };
+    }
+
+    internal Job Job => _job;
+    private void JobChanged(object? sender, PropertyChangedEventArgs e) => Interlocked.Exchange(ref _dirty, 1);
+    internal void Invalidate() => Interlocked.Exchange(ref _dirty, 1);
+
+    private void Pump()
+    {
+        if (_closed || Interlocked.CompareExchange(ref _dirty, 0, 1) != 1) return;
+        if (Interlocked.Exchange(ref _computing, 1) == 1) { Interlocked.Exchange(ref _dirty, 1); return; }
+        _ = Task.Run(() =>
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            try { _progress.Update(_job); }
+            catch (Exception) { }
+            watch.Stop(); LastComputeMs = watch.Elapsed.TotalMilliseconds; MaxComputeMs = Math.Max(MaxComputeMs, LastComputeMs);
+            Interlocked.Increment(ref Computed);
+            Dispatcher.UIThread.Post(() => { Interlocked.Exchange(ref _computing, 0); if (!_closed) Apply(); }, DispatcherPriority.Background);
+        });
+    }
+
+    private bool Active => _job.State is JobState.Waiting or JobState.Running or JobState.Paused or JobState.Stopping;
+
+    private void Apply()
+    {
+        Interlocked.Increment(ref Applied);
+        var result = !Active;
+        if (_resultMode != result)
+        {
+            _resultMode = result; _body.Children.Clear();
+            _body.Children.Add(result ? BuildResult() : BuildRun());
+        }
+        var rules = _job.Options.FolderClassification?.Rules ?? [];
+        _title.Text = L("AI 媒体整理") + " · " + _job.Name;
+        if (result)
+        {
+            var finished = _job.State == JobState.Completed ? L("已完成") : L(_job.Status);
+            _subtitle.Text = $"{finished} · {L("用时")} {Clock(Elapsed())} · {L("完成")} {_progress.Completed} {L("个")}，{L("待确认")} {_progress.Pending} {L("个")}，{L("失败")} {_progress.Failed} {L("个")}";
+            RenderResult();
+        }
+        else
+        {
+            _subtitle.Text = string.Join(" · ", rules.Select(rule => L(rule.Name))) + $" · {_job.Inputs.Length} {L("个图片 / 视频")} · {L("关闭窗口后任务继续运行")}";
+            RenderRun();
+        }
+        RenderHeaderActions(result);
+    }
+
+    private TimeSpan Elapsed() => _progress.Elapsed;
+
+    private string? _headerKey;
+    private void RenderHeaderActions(bool result)
+    {
+        var key = result ? "result:" + string.Join(",", _job.Options.FolderClassification?.Rules.Select(r => r.Id) ?? []) : "run:" + _job.State;
+        if (key == _headerKey) return; _headerKey = key;
+        _headerActions.Children.Clear();
+        if (result)
+        {
+            var rules = _job.Options.FolderClassification?.Rules ?? [];
+            if (rules.Length > 1)
+                _headerActions.Children.Add(Segmented(rules.Select(rule => rule.Name).ToArray(), Math.Max(0, Array.FindIndex(rules, r => r.Id == _resultRule)),
+                    index => { _resultRule = rules[index].Id; _resultKey = null; RenderResult(); }));
+            return;
+        }
+        if (_pause is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
+            _headerActions.Children.Add(Pill(_job.State == JobState.Paused ? "继续任务" : "临时停止", _job.State == JobState.Paused ? "play" : "pause", click: () => _pause(_job)));
+        if (_stop is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
+            _headerActions.Children.Add(Pill("结束任务", "square", "danger", () => _stop(_job)));
+    }
+}

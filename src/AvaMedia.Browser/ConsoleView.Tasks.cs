@@ -233,10 +233,22 @@ public sealed partial class ConsoleView
     }
     private Task OpenDetail(string id)
     {
+        if (_taskData.TryGetValue(id, out var opened) && opened.Text("featureId") == "folder-classification") return OpenClassification(id);
         _detailId = id; _detailOffset = 0; _logs = false; _organization = null; _organizationSubmission = null;
         if (_mobile) { _taskDetailOpen = true; _listCard.IsVisible = false; _detailCard.IsVisible = true; _fab.IsVisible = false; }
         foreach (var (key, row) in _taskRows) if (_taskData.TryGetValue(key, out var data)) { row.CurrentState = ""; UpdateRow(row, data); }
         return ReadDetail();
+    }
+    private Task OpenClassification(string id)
+    {
+        var tab = (TabItem)_tabs.Items[1]!;
+        var list = tab.Content;
+        ClassificationPage? page = null;
+        page = new ClassificationPage(id, () => _mobile, () => { tab.Content = list; _ = Guard(RefreshTasks); },
+            async (task, action) => { await RemoteApi.Call("control_task", new() { ["taskId"] = task, ["action"] = action }); await page!.Refresh(); },
+            task => { tab.Content = list; _detailId = task; _detailOffset = 0; _logs = false; _organization = null; _organizationSubmission = null; return ReadDetail(); });
+        tab.Content = page;
+        return Task.CompletedTask;
     }
     private void CloseDetail() { _taskDetailOpen = false; _detailId = null; LayoutTasks(); }
     private readonly Dictionary<string, Bitmap?> _thumbnails = new();
