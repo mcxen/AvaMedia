@@ -15,7 +15,8 @@ using AvaMedia.Mcp;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-// Explicitly invoked acceptance: native MainWindow, official HTTP MCP client and real MediaEngine.
+// No arguments: focused contract tests without a desktop or server.
+// Two arguments: explicitly invoked acceptance with native MainWindow, HTTP MCP client and real MediaEngine.
 // Every mutation is confined to fixture copies and a separate queue/settings directory.
 internal static class Program
 {
@@ -30,6 +31,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Length == 0) return RunContracts().GetAwaiter().GetResult();
         if (args.Length != 2) { Console.Error.WriteLine("Usage: AvaMedia.McpTests <new-output-directory> <portrait-image>"); return 2; }
         Root = Path.GetFullPath(args[0]);
         if (Directory.Exists(Root)) throw new ArgumentException("Acceptance output directory must be new.");
@@ -52,6 +54,213 @@ internal static class Program
         });
         Dispatcher.UIThread.MainLoop(Lifetime.Token);
         return Environment.ExitCode;
+    }
+
+    private static async Task<int> RunContracts()
+    {
+        await Case("task-counts-all-states-and-empty", () =>
+        {
+            var states = Enum.GetValues<JobState>();
+            var counts = McpTaskCounts.From(states.Concat([JobState.Running, JobState.Running]));
+            Require(counts.Count == states.Length + 1 && counts["All"] == states.Length + 2, "Missing state keys or wrong total.");
+            foreach (var state in states) Require(counts[state.ToString()] == (state == JobState.Running ? 3 : 1), "Wrong count for " + state);
+            var sparse = McpTaskCounts.From([JobState.Waiting, JobState.Waiting]);
+            Require(sparse["All"] == 2 && states.All(state => sparse[state.ToString()] == (state == JobState.Waiting ? 2 : 0)), "Absent states must have zero counts.");
+            var empty = McpTaskCounts.From([]);
+            Require(empty.Count == states.Length + 1 && empty.Values.All(value => value == 0), "Empty queue lost zero-valued counts.");
+            return Task.CompletedTask;
+        });
+        await Case("task-page-carries-unfiltered-counts", async () =>
+        {
+            var counts = McpTaskCounts.From([JobState.Waiting, JobState.Running, JobState.Running, JobState.Completed]);
+            var task = new McpTaskView(Guid.NewGuid(), "audio-mp3", "Test", "Running", 0, "", "", [], "", "MCP", "");
+            var expected = new McpTaskPage([task], 2, 1, null) { Counts = counts };
+            var workspace = new PageWorkspace(expected);
+            using var cancellation = new CancellationTokenSource();
+            var page = await new McpTools(workspace, new McpFiles()).ListTasks(1, 1, "Running", cancellation.Token);
+            Require(workspace.Request == (1, 1, "Running", cancellation.Token), "ListTasks lost pagination, state or cancellation.");
+            Require(ReferenceEquals(page, expected) && ReferenceEquals(page.Counts, counts), "ListTasks discarded the workspace page or counts.");
+            var payload = JsonSerializer.SerializeToElement(page, Json);
+            Require(payload.GetProperty("tasks").GetArrayLength() == 1 && payload.GetProperty("total").GetInt32() == 2, "Wrong filtered page.");
+            var serializedCounts = payload.GetProperty("counts");
+            foreach (var pair in counts) Require(serializedCounts.GetProperty(pair.Key).GetInt32() == pair.Value, "Task counts were lost during serialization.");
+            Require(serializedCounts.GetProperty("All").GetInt32() == 4, "Counts must describe the whole queue, not the page.");
+        });
+        await Case("frame-strip-count-clamping", () =>
+        {
+            foreach (var (requested, expected) in new[] { (int.MinValue, 1), (-1, 1), (0, 1), (1, 1), (12, 12), (24, 24), (25, 24), (int.MaxValue, 24) })
+                Require(FrameStrip.Times(10, requested).Length == expected, "Wrong clamped count for " + requested);
+            return Task.CompletedTask;
+        });
+        await Case("frame-strip-dimensions-and-increasing-times", () =>
+        {
+            Require(FrameStrip.Width == 160 && FrameStrip.Height == 90, "Unexpected filmstrip dimensions.");
+            foreach (var duration in new[] { .001, .01, .05, .1, 1, 10, 123.456 })
+            foreach (var count in new[] { 1, 2, 12, 24 })
+            {
+                var times = FrameStrip.Times(duration, count);
+                Require(times.Length == count, "Wrong sample count.");
+                Require(times.All(time => double.IsFinite(time) && time >= 0 && time < duration), "Sample outside duration " + duration);
+                Require(times.Zip(times.Skip(1), (left, right) => left < right).All(increasing => increasing), "Repeated or reversed sample times for duration " + duration);
+            }
+            Require(FrameStrip.Times(8, 4).SequenceEqual(new[] { 1d, 3d, 5d, 7d }), "Samples must be at evenly spaced cell centres.");
+            return Task.CompletedTask;
+        });
+        await Case("delogo-legacy-graph", () =>
+        {
+            var options = new ConversionOptions { DelogoX = 10, DelogoY = 20, DelogoWidth = 30, DelogoHeight = 40 };
+            Require(DelogoFilter.Regions(options).SequenceEqual(new[] { new DelogoRegion(10, 20, 30, 40) }), "Legacy region changed.");
+            // Literal graph from the legacy MediaFilters implementation, including prefixed labels.
+            foreach (var prefix in new[] { "", "clip" })
+            {
+                var expected = $"split[{prefix}original][{prefix}patch];[{prefix}patch]" +
+                    "pad=iw+4:ih+4:2:2,fillborders=left=2:right=2:top=2:bottom=2:mode=smear," +
+                    "delogo=x=12:y=22:w=30:h=40,crop=30:40:12:22:exact=1" +
+                    $"[{prefix}repaired];[{prefix}original][{prefix}repaired]overlay=10:20";
+                Require(DelogoFilter.Build(options, prefix).SequenceEqual(new[] { expected }), "Legacy delogo graph changed.");
+            }
+            return Task.CompletedTask;
+        });
+        await Case("delogo-extra-timed-regions", () =>
+        {
+            var options = new ConversionOptions { Start = 2, DelogoX = 10, DelogoY = 20, DelogoWidth = 30, DelogoHeight = 40,
+                DelogoRegions = [new(50, 60, 20, 10, 2.5, 4.5), new(80, 90, 10, 20, 5.25, 8.75)] };
+            DelogoFilter.Validate(options);
+            var regions = DelogoFilter.Regions(options);
+            Require(regions.Length == 3 && regions[0] == new DelogoRegion(10, 20, 30, 40) && regions.Skip(1).SequenceEqual(options.DelogoRegions), "Legacy and extra regions must retain order.");
+            var filters = DelogoFilter.Build(options);
+            Require(filters.Count == 3 && !filters[0].Contains("enable="), "Legacy region unexpectedly has a time limit.");
+            Require(filters[1].Contains("[d1original][d1repaired]overlay=50:60:enable=between(t\\,0.5\\,2.5)"), "First timed region lost its graph labels or source-time offset.");
+            Require(filters[2].Contains("[d2original][d2repaired]overlay=80:90:enable=between(t\\,3.25\\,6.75)"), "Second timed region lost its graph labels or source-time offset.");
+            return Task.CompletedTask;
+        });
+        await Case("delogo-region-count-and-range-validation", async () =>
+        {
+            var options = new ConversionOptions { DelogoWidth = 10, DelogoHeight = 10,
+                DelogoRegions = Enumerable.Repeat(new DelogoRegion(20, 20, 10, 10, 1, 2), 15).ToArray() };
+            DelogoFilter.Validate(options);
+            Require(DelogoFilter.Regions(options).Length == 16, "Sixteen regions should be accepted.");
+            options.DelogoRegions = Enumerable.Repeat(new DelogoRegion(20, 20, 10, 10, 1, 2), 16).ToArray();
+            await RejectArgument(() => { DelogoFilter.Validate(options); return Task.CompletedTask; }, "Seventeen regions were accepted.");
+            foreach (var end in new[] { 1d, 2d })
+            {
+                options.DelogoRegions = [new(20, 20, 10, 10, 2, end)];
+                await RejectArgument(() => { DelogoFilter.Validate(options); return Task.CompletedTask; }, "End <= Start was accepted.");
+            }
+            // End == 0 is the documented open-ended sentinel, not an invalid range.
+            options.DelogoRegions = [new(20, 20, 10, 10, 2, 0)];
+            DelogoFilter.Validate(options);
+        });
+        await Case("client-log-aggregation-order-and-limit", async () =>
+        {
+            // Keep the production type internal; exercise its public methods without starting a listener.
+            var type = typeof(McpService).Assembly.GetType("AvaMedia.Mcp.McpClientLog", throwOnError: true)!;
+            var log = Activator.CreateInstance(type, nonPublic: true)!;
+            void Note(string address, string agent, bool mcp = true) => type.GetMethod("Note")!.Invoke(log, [IPAddress.Parse(address), agent, mcp]);
+            McpClientView[] Snapshot() => (McpClientView[])type.GetMethod("Snapshot")!.Invoke(log, null)!;
+            Require(Snapshot().Length == 0, "New client log must be empty.");
+            Note("127.0.0.1", "agent-a");
+            var first = Snapshot().Single();
+            await Task.Delay(2);
+            Note("127.0.0.1", "agent-b");
+            Note("127.0.0.2", "agent-a");
+            Note("127.0.0.1", "agent-a", false);
+            await Task.Delay(2);
+            Note("::ffff:127.0.0.1", "agent-a");
+            var snapshot = Snapshot();
+            Require(snapshot.Length == 4 && snapshot[0].Address == "127.0.0.1" && snapshot[0].Agent == "agent-a" && snapshot[0].Kind == "MCP", "Most recently seen peer must be first; address, agent and kind must distinguish peers.");
+            Require(snapshot[0].Requests == 2 && snapshot.Skip(1).All(peer => peer.Requests == 1), "Requests were not aggregated per peer.");
+            Require(snapshot[0].FirstSeenUtc == first.FirstSeenUtc && snapshot[0].LastSeenUtc > first.LastSeenUtc, "Repeated requests must retain first seen and advance last seen.");
+            for (var index = 0; index < 21; index++)
+            {
+                await Task.Delay(2);
+                Note("127.0.0.3", "peer-" + index);
+                Require(Snapshot().Length <= 20, "Client log exceeded its limit.");
+            }
+            snapshot = Snapshot();
+            Require(snapshot.Length == 20 && snapshot.Select(peer => peer.Agent).SequenceEqual(Enumerable.Range(1, 20).Reverse().Select(index => "peer-" + index)), "Log must evict oldest peers and return newest first.");
+            Require(snapshot.Zip(snapshot.Skip(1), (left, right) => left.LastSeenUtc >= right.LastSeenUtc).All(ordered => ordered), "Client timestamps are out of order.");
+        });
+        await Case("segment-boundary-read", async () =>
+        {
+            var preview = new PreviewStub();
+            using var cancellation = new CancellationTokenSource();
+            var frames = await SegmentBoundaryFrames.ReadAsync(preview, "clip.mp4", 1.25, 2.75, 160, 90, 3, cancellation.Token);
+            Require(frames.Length == 2 && frames[0].Edge == "start" && frames[0].Seconds == 1.25 && frames[1].Edge == "end" && frames[1].Seconds == 2.75, "Wrong boundary labels or source times.");
+            Require(frames[0].Image.SequenceEqual(new byte[] { 1 }) && frames[1].Image.SequenceEqual(new byte[] { 2 }), "Boundary image bytes were lost or swapped.");
+            Require(preview.Thumbnails.SequenceEqual(new[] {
+                ("clip.mp4", 1.25, 160, 90, cancellation.Token, false, 3, false),
+                ("clip.mp4", 2.75, 160, 90, cancellation.Token, false, 3, true) }), "Boundary preview must forward size, stream and cancellation, with an exclusive end and no padding.");
+        });
+        await Case("segment-boundary-nudge", async () =>
+        {
+            using var cancellation = new CancellationTokenSource();
+            foreach (var (frames, times) in new[] { (2, new[] { 1.08, 1.21 }), (-2, new[] { .93, .81 }) })
+            {
+                var preview = new PreviewStub(times);
+                var result = await SegmentBoundaryFrames.NudgeAsync(preview, "clip.mp4", 1, frames, 3, cancellation.Token);
+                Require(result == times[1], "Nudge must return the decoded frame timestamp.");
+                Require(preview.Steps.SequenceEqual(new[] {
+                    ("clip.mp4", 1d, Math.Sign(frames), cancellation.Token, 3),
+                    ("clip.mp4", times[0], Math.Sign(frames), cancellation.Token, 3) }), "Nudge must chain real timestamps and forward direction, stream and cancellation.");
+            }
+            foreach (var count in new[] { -30, -1, 1, 30 })
+            {
+                var times = Enumerable.Range(1, Math.Abs(count)).Select(index => 2 + Math.Sign(count) * index * .04).ToArray();
+                var preview = new PreviewStub(times);
+                Require(await SegmentBoundaryFrames.NudgeAsync(preview, "clip.mp4", 2, count) == times[^1] && preview.Steps.Count == Math.Abs(count), "Valid nudge limits were not honored.");
+            }
+        });
+        await Case("segment-boundary-invalid-inputs", async () =>
+        {
+            var preview = new PreviewStub();
+            foreach (var (start, end) in new[] { (-1d, 2d), (1d, 1d), (2d, 1d), (double.NaN, 2d), (0d, double.PositiveInfinity) })
+                await RejectArgument(() => SegmentBoundaryFrames.ReadAsync(preview, "clip.mp4", start, end, 160, 90), "Invalid segment range was accepted.");
+            foreach (var count in new[] { -31, 0, 31 })
+                await RejectArgument(() => SegmentBoundaryFrames.NudgeAsync(preview, "clip.mp4", 1, count), "Invalid nudge count was accepted.");
+            Require(preview.Thumbnails.Count == 0 && preview.Steps.Count == 0, "Invalid arguments reached media preview.");
+        });
+        Console.WriteLine($"{Checks.Count - Failures} passed, {Failures} failed.");
+        return Failures == 0 ? 0 : 1;
+    }
+
+    private static async Task RejectArgument(Func<Task> action, string message)
+    {
+        try { await action(); }
+        catch (ArgumentException) { return; }
+        Require(false, message);
+    }
+
+    private sealed class PageWorkspace(McpTaskPage page) : IMcpWorkspace
+    {
+        public (int Offset, int Limit, string? State, CancellationToken Cancellation) Request;
+        public Task<McpTaskPage> ListAsync(int offset, int limit, string? state, CancellationToken ct)
+        { Request = (offset, limit, state, ct); return Task.FromResult(page); }
+        public IMediaEngine Engine => throw new NotSupportedException();
+        public Task<McpTaskResult> GetAsync(Guid id, bool includeResult, int offset, int limit, CancellationToken ct) => throw new NotSupportedException();
+        public Task<McpSubmission?> FindSubmissionAsync(string requestId, string hash, CancellationToken ct) => throw new NotSupportedException();
+        public Task<McpSubmission> SubmitAsync(string requestId, string hash, Func<string[], Job[]> create, bool start, CancellationToken ct) => throw new NotSupportedException();
+        public Task<McpTaskView> ControlAsync(Guid id, string action, CancellationToken ct) => throw new NotSupportedException();
+        public Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct) => throw new NotSupportedException();
+        public Task<string> LogAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    private sealed class PreviewStub(params double[] times) : IMediaPreview
+    {
+        public readonly List<(string Path, double Seconds, int Width, int Height, CancellationToken Cancellation, bool Pad, int Stream, bool EndExclusive)> Thumbnails = [];
+        public readonly List<(string Path, double Seconds, int Direction, CancellationToken Cancellation, int Stream)> Steps = [];
+        public Task<byte[]> Thumbnail(string input, double seconds, int width = 640, int height = 360,
+            CancellationToken ct = default, bool pad = true, int videoStreamIndex = 0, bool endExclusive = false)
+        {
+            Thumbnails.Add((input, seconds, width, height, ct, pad, videoStreamIndex, endExclusive));
+            return Task.FromResult(new byte[] { endExclusive ? (byte)2 : (byte)1 });
+        }
+        public Task<double> AdjacentFrameTime(string input, double seconds, int direction, CancellationToken ct = default, int videoStreamIndex = 0)
+        {
+            Steps.Add((input, seconds, direction, ct, videoStreamIndex));
+            return Task.FromResult(times[Steps.Count - 1]);
+        }
     }
 
     private static async Task Run(string portrait)
