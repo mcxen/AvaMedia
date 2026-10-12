@@ -13,7 +13,8 @@ internal static partial class Ui
     // contract so the host's classic themes can continue to select native faces.
     public static TextBlock ComponentText(string text, string? role = null)
     {
-        var label = Text(text, role);
+        var label = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        if (role is not null) label.Classes.Add(role);
         var caption = role is "caption" or "settingsDescription";
         if (role is "heading" or "settingsHeading" or "settingsTitle")
         {
@@ -66,7 +67,7 @@ internal static partial class Ui
     {
         Avalonia.Automation.AutomationProperties.SetName(control, label);
         if (control is NumericUpDown number) return ComponentAdjust(number);
-        if (control is TextBox or ComboBox or CheckBox or RadioButton or ToggleSwitch or Slider) control.Classes.Add("ac");
+        if (control is TextBox or ComboBox or CheckBox or RadioButton or ToggleSwitch or Slider or Avalonia.Controls.Primitives.ToggleButton or Expander or TreeView or TabControl or ListBox) control.Classes.Add("ac");
         return control;
     }
 

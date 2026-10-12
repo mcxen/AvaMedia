@@ -26,6 +26,11 @@
     <Setter Property="MinHeight" Value="{DynamicResource UiDialogActionHeight}"/>
     <Setter Property="Padding" Value="{DynamicResource UiDialogActionPadding}"/>
   </Style>
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.ac.dialog-action">
+    <Setter Property="Height" Value="{DynamicResource AcButtonHeight}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="{DynamicResource AcButtonPadding}"/>
+  </Style>
   <Style Selector="Button.step, Button.row-icon">
     <Setter Property="Width" Value="{DynamicResource UiFieldHeight}"/>
     <Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/>

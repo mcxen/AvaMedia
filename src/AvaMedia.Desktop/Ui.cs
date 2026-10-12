@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 
@@ -23,28 +23,20 @@ internal static partial class Ui
     }
     public static Button DialogButton(string text,Action action,bool isDefault=false)
     {var button=Button(text,action);button.Classes.Add("dialog-action");button.IsDefault=isDefault||text is "确定" or "保存";button.IsCancel=text is "取消" or "关闭";if(button.IsDefault)button.Classes.Add("primary");return button;}
-    public static TextBlock Text(string text,string? role=null)
-    {var label=new TextBlock{Text=text,TextWrapping=TextWrapping.Wrap,VerticalAlignment=VerticalAlignment.Center};if(role is not null)label.Classes.Add(role);return label;}
-    public static TextBlock Status(string text="", string? role="caption")
-    {var label=Text(text,role);StableLayout.SetStatusLines(label,2);return label;}
-    public static TextBlock FormattedText(FormattableString text,string? role=null)
-    {var label=Text("",role);Localization.SetText(label,text);return label;}
-    public static TextBox Input(string value="",int width=0) => new(){Text=value,MinWidth=width,HorizontalAlignment=HorizontalAlignment.Stretch};
-    public static NumericUpDown Number(double value,double minimum,double maximum,double step=1) => new()
-    {Value=(decimal)value,Minimum=(decimal)minimum,Maximum=(decimal)maximum,Increment=(decimal)step,FormatString=step>=1?"0":"0.##"};
-    public static Control Parameter(Control control,string label)
-    {
-        Avalonia.Automation.AutomationProperties.SetName(control,label);
-        if(control is not NumericUpDown number)return control;
-        return Adjust(number);
-    }
+    public static TextBlock Text(string text,string? role=null) => ComponentText(text,role);
+    public static TextBlock Status(string text="", string? role="caption") => ComponentStatus(text,role);
+    public static TextBlock FormattedText(FormattableString text,string? role=null) => ComponentFormattedText(text,role);
+    public static TextBox Input(string value="",int width=0) => ComponentInput(value,width);
+    public static NumericUpDown Number(double value,double minimum,double maximum,double step=1) => ComponentNumber(value,minimum,maximum,step);
+    public static Control Parameter(Control control,string label) => ComponentParameter(control,label);
     public static Control Adjust(NumericUpDown input,double? maximum=null)
     {
+        input.Classes.Set("ac",true);
         var min=(double)input.Minimum;var max=maximum??Math.Min((double)input.Maximum,1000000);
         max=Math.Max(min+.000001,max);var logarithmic=max-min>1000;
         double Scale(double value)=>logarithmic?Math.Log10(Math.Max(0,value-min)+1):value;
         double Unscale(double value)=>logarithmic?Math.Pow(10,value)+min-1:value;
-        var slider=new Slider{Minimum=Scale(min),Maximum=Scale(max),Value=Scale(Math.Clamp((double)(input.Value??input.Minimum),min,max)),MinWidth=64};
+        var slider=new Slider{Minimum=Scale(min),Maximum=Scale(max),Value=Scale(Math.Clamp((double)(input.Value??input.Minimum),min,max)),MinWidth=64,Classes={"ac"}};
         slider.SmallChange=(slider.Maximum-slider.Minimum)/100;slider.LargeChange=slider.SmallChange*10;
         var syncing=false;
         slider.PropertyChanged+=(_,change)=>
@@ -66,52 +58,21 @@ internal static partial class Ui
         slider.IsEnabled=input.IsEnabled;
         var name=Avalonia.Automation.AutomationProperties.GetName(input);
         Avalonia.Automation.AutomationProperties.SetName(slider,string.IsNullOrEmpty(name)?input.Name??"调整数值":name);
-        var row=new Grid{ColumnDefinitions=new("*,88"),ColumnSpacing=10};row.Children.Add(slider);
-        input.Width=88;input.HorizontalAlignment=HorizontalAlignment.Stretch;Grid.SetColumn(input,1);row.Children.Add(input);return row;
+        var row=new Grid{ColumnDefinitions=new("*,Auto")};
+        row.Bind(Grid.ColumnSpacingProperty,new DynamicResourceExtension("AcRowGap"));row.Children.Add(slider);
+        input.Width=double.NaN;
+        input.Bind(NumericUpDown.MinWidthProperty,new DynamicResourceExtension(input.Classes.Contains("compact")?"AcNumericCompactMinWidth":"AcNumericMinWidth"));
+        input.HorizontalAlignment=HorizontalAlignment.Stretch;Grid.SetColumn(input,1);row.Children.Add(input);return row;
     }
-    public static ComboBox Combo(IEnumerable<string> items,string selected)
-    {
-        var list=items.ToArray();
-        var longest=list.Select(item=>item?.Length??0).DefaultIfEmpty(4).Max();
-        return new(){ItemsSource=list,SelectedItem=list.Contains(selected)?selected:list.FirstOrDefault(),HorizontalAlignment=HorizontalAlignment.Left,Width=Math.Clamp(longest*14+36,96,280)};
-    }
+    public static ComboBox Combo(IEnumerable<string> items,string selected) => ComponentCombo(items,selected);
     public static async Task<string[]> Pick(Window owner,string title,bool multiple=true)
     {var files=await ToolFilePicker.OpenFilesAsync(owner, new(){Title=Localization.Text(title),AllowMultiple=multiple});return files.Select(f=>f.TryGetLocalPath()).OfType<string>().ToArray();}
     public static async Task<string?> Folder(Window owner,string title)
     {var folders=await ToolFilePicker.OpenFoldersAsync(owner, new(){Title=Localization.Text(title),AllowMultiple=false});return folders.FirstOrDefault()?.TryGetLocalPath();}
-    // Modal yes/no confirmation for destructive in-window actions; the action button keeps the dialog's single primary role.
-    public static async Task<bool> Confirm(Window owner,string title,string message,string action)
-    {
-        var dialog=new Window{Title=title,Width=480,Height=220,MinWidth=400,MinHeight=200,CanResize=false,WindowStartupLocation=WindowStartupLocation.CenterOwner};
-        var body=new Grid{RowDefinitions=new("*,Auto"),RowSpacing=8,Margin=new(12)};
-        body.Children.Add(new ScrollViewer{Content=Text(message)});
-        var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8};
-        buttons.Children.Add(DialogButton("取消",()=>dialog.Close(false)));
-        var confirm=DialogButton(action,()=>dialog.Close(true));confirm.Classes.Add("primary");buttons.Children.Add(confirm);
-        Grid.SetRow(buttons,1);body.Children.Add(buttons);dialog.Content=body;
-        return await dialog.ShowDialog<bool>(owner);
-    }
-    public static Task MessageDialog(Window owner, string title, string message, IReadOnlyList<string> details)
-    {
-        var dialog = new Window { Width = 480, Height = 280, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        dialog.Classes.Add("message-dialog");
-        dialog.Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
-            { Source = new Uri("avares://AvaMedia.Desktop/Styles/QuickClipStyles.axaml") });
-        Localization.SetTitle(dialog, $"{Localization.Key(title)}");
-        var body = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 12, Margin = new(18) };
-        body.Children.Add(Text(Localization.Text(title), "heading"));
-        body.Children.Add(Text(Localization.Text(message)));
-        Grid.SetRow(body.Children[1], 1);
-        var names = Text(string.Join("\n", details));
-        names.VerticalAlignment = VerticalAlignment.Top;
-        names.LineHeight = 26;
-        Localization.SetIsUserText(names, true);
-        body.Children.Add(new ScrollViewer { Content = names, [Grid.RowProperty] = 2 });
-        var okay = DialogButton(Localization.Text("好"), () => dialog.Close(), isDefault: true);
-        okay.HorizontalAlignment = HorizontalAlignment.Right;
-        Grid.SetRow(okay, 3); body.Children.Add(okay); dialog.Content = body;
-        return dialog.ShowDialog(owner);
-    }
+    public static Task<bool> Confirm(Window owner,string title,string message,string action)
+        => ComponentConfirm(owner,title,message,action);
+    public static Task MessageDialog(Window owner,string title,string message,IReadOnlyList<string> details)
+        => ComponentMessageDialog(owner,title,message,details);
     public static Task Message(Window owner,string title,string message)
         => Notify(owner,title,message);
     public static Task MessageFormatted(Window owner,string title,FormattableString message)
