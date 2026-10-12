@@ -54,15 +54,7 @@ internal static class ToolFilePicker
     {
         var source = new DesktopFileBrowserSource(owner.StorageProvider);
         var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs());
-        Localization.SetIsUserText(view, true);
-        var dialog = new Window
-        {
-            Title = Localization.Text(options.Title), Width = 1280, Height = 800, MinWidth = 760, MinHeight = 480,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, Content = view
-        };
-        dialog.Content = WindowChrome.WrapDialog(dialog, view, view.ExtractNavigationBar());
-        Skin.SetIsEnabled(dialog, true);
-        Controls.WindowArtwork.SetKind(dialog, "document");
+        var dialog = CreateDialog(view, options, startRecent);
         view.PickExternalAsync = async () => (await external(dialog)).Select(item => DesktopFileBrowserSource.Wrap(item)!).ToArray();
         var selecting = false;
         view.Selected += async selected =>
@@ -85,6 +77,22 @@ internal static class ToolFilePicker
             catch (Exception error) { await Ui.Message(dialog, "打开失败", error.Message); }
             finally { selecting = false; view.IsEnabled = true; }
         };
+        return await dialog.ShowDialog<IReadOnlyList<IStorageItem>?>(owner) ?? [];
+    }
+
+    internal static Window CreateDialog(FileBrowserView view, FileBrowserOptions options, bool startRecent = false)
+    {
+        Localization.SetIsUserText(view, true);
+        var dialog = new Window
+        {
+            Title = Localization.Text(options.Title), Width = 1280, Height = 800, MinWidth = 760, MinHeight = 480,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        // Build the complete logical tree before attaching it to the window. Attaching view first
+        // would leave it in both parents' child collections; replacing Content then clears its parent.
+        dialog.Content = WindowChrome.WrapDialog(dialog, view, view.ExtractNavigationBar());
+        Skin.SetIsEnabled(dialog, true);
+        Controls.WindowArtwork.SetKind(dialog, "document");
         view.Cancelled += () => dialog.Close();
         dialog.Opened += async (_, _) =>
         {
@@ -92,7 +100,7 @@ internal static class ToolFilePicker
             if (startRecent) await view.ShowRecentAsync();
         };
         dialog.Closed += (_, _) => view.Dispose();
-        return await dialog.ShowDialog<IReadOnlyList<IStorageItem>?>(owner) ?? [];
+        return dialog;
     }
 }
 
