@@ -82,6 +82,28 @@ internal sealed class SpeechInferenceSession : IDisposable
         }
     }
 
+    public (string Language, double Confidence) DetectLanguage(string wav, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var stream = File.OpenRead(wav); using var reader = new BinaryReader(stream);
+        if (new string(reader.ReadChars(4)) != "RIFF") throw new InvalidDataException("语言检测需要 PCM WAV。");
+        reader.ReadInt32(); if (new string(reader.ReadChars(4)) != "WAVE") throw new InvalidDataException("WAV 头无效。");
+        while (stream.Position + 8 <= stream.Length)
+        {
+            var name = new string(reader.ReadChars(4)); var size = reader.ReadUInt32();
+            if (name == "data")
+            {
+                var samples = new float[(int)Math.Min(480000, size / 2)];
+                for (int i = 0; i < samples.Length; i++) samples[i] = reader.ReadInt16() / 32768f;
+                var (language, probability) = _processor!.DetectLanguageWithProbability(samples);
+                ct.ThrowIfCancellationRequested(); return (language ?? "auto", probability);
+            }
+            stream.Seek(size + size % 2, SeekOrigin.Current);
+        }
+        return ("auto", 0);
+    }
+    public void ChangeLanguage(string language) => _processor!.ChangeLanguage(language);
+
     public async IAsyncEnumerable<SegmentData> ProcessAsync(Stream audio, [EnumeratorCancellation] CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

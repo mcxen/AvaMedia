@@ -215,6 +215,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                                 "-i", wav, "-t", MediaEngine.Number(regionStop - regionStart), "-c:a", "pcm_s16le", regionWav], ct).ConfigureAwait(false);
                             if (prepared.ExitCode != 0) throw new InvalidDataException("提取语音区间失败。\n" + prepared.Error);
                             chunkBegin = begin + regionStart; chunkEnd = begin + regionStop;
+                            var detectedLanguage = checkpoints is not null && speech.Language == "auto"
+                                ? inference.DetectLanguage(regionWav, ct) : (Language: speech.Language, Confidence: 1d);
                             await using var audio = File.OpenRead(regionWav);
                             await foreach (var segment in inference.ProcessAsync(audio, ct).ConfigureAwait(false))
                             {
@@ -235,7 +237,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                                     start = Math.Max(start, previous.End.TotalSeconds * options.Speed);
                                 }
                                 if (stop <= start) continue;
-                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text) { Language = segment.Language ?? speech.Language, Track = options.AudioStreamIndex });
+                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text) { Language = segment.Language ?? speech.Language, Track = options.AudioStreamIndex, LanguageConfidence = detectedLanguage.Confidence });
                                 tracker.Cue();
                                 Transcript(new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true });
                                 activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
@@ -250,6 +252,29 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         }
                         Recognized(Math.Min(duration, from + ChunkSeconds));
                         tracker.Complete();
+                    }
+                    if (checkpoints is not null && speech.Language == "auto")
+                    {
+                        var repaired = await LongSummaryMediaPolicy.RepairLanguagesAsync(result.Select(c => new SummaryCue(c.Start.Ticks.ToString(), c.Start.TotalSeconds, c.End.TotalSeconds, c.Text, Language: c.Language, Track: c.Track, LanguageConfidence: c.LanguageConfidence)).ToArray(), async (cue, language, cancellation) =>
+                        {
+                            var repairPath = $"asr/track-{options.AudioStreamIndex}/language-{cue.Id}.json";
+                            var repairHash = SummaryCheckpointStore.Hash(new { chunkHash, cue, language });
+                            if (await checkpoints.ReadAsync<SummaryCue>(repairPath, repairHash, cancellation) is { } cachedRepair) return cachedRepair;
+                            var extracted = await ProcessRunner.Run(engine.FFmpeg, ["-v", "error", "-nostdin", "-y", "-ss", MediaEngine.Number(options.Start + cue.Start * options.Speed),
+                                "-i", job.Inputs[0], "-map", $"0:a:{options.AudioStreamIndex}", "-t", MediaEngine.Number((cue.End - cue.Start) * options.Speed),
+                                "-vn", "-sn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", regionWav], cancellation);
+                            if (extracted.ExitCode != 0) throw new InvalidDataException("语言复核音轨提取失败。");
+                            inference.ChangeLanguage(language);
+                            try
+                            {
+                                await using var audio = File.OpenRead(regionWav); var text = new StringBuilder();
+                                await foreach (var segment in inference.ProcessAsync(audio, cancellation)) text.Append(segment.Text.Trim()).Append(' ');
+                                var corrected = text.Length == 0 ? cue : cue with { Text = text.ToString().Trim(), Language = language };
+                                await checkpoints.WriteAsync(repairPath, repairHash, corrected, cancellation); return corrected;
+                            }
+                            finally { inference.ChangeLanguage("auto"); }
+                        }, ct);
+                        result = repaired.Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text) { Language = c.Language, Track = c.Track, LanguageConfidence = c.LanguageConfidence }).ToList();
                     }
                     return result;
                 }, ct).ConfigureAwait(false);
