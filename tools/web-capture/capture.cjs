@@ -13,7 +13,7 @@ const output = process.env.CAPTURE_OUTPUT || '/workspace/AvaMedia-sidebar-review
 const origin = process.env.CAPTURE_URL || 'http://127.0.0.1:8765';
 // CSS pixels at 1280 x 800, DPR 1. Overrides let reviewers adjust after UI edits.
 const points = {
-  createTab: [646, 30], addFiles: [120, 212], pickerFirstRow: [370, 264],
+  createTab: [646, 30], addFiles: [120, 194], pickerFirstRow: [370, 264],
   tasksTab: [525, 30], runningTask: [170, 182], mobileRunningTask: [170, 246],
   ...JSON.parse(process.env.CAPTURE_POINTS || '{}'),
 };
@@ -85,7 +85,7 @@ async function save(page, name, width, height) {
     await click('createTab');
     // Add each server file through the real picker. Keep demo input order and
     // avoid platform-dependent multi-selection keyboard gestures on the canvas.
-    for (const [addY, rowOffset] of [[points.addFiles[1], 52], [256, 26], [312, 0]]) {
+    for (const [addY, rowOffset] of [[points.addFiles[1], 52], [228, 26], [281, 0]]) {
       const browseCount = calls.avamedia_browse_directory || 0;
       await page.mouse.click(points.addFiles[0], addY);
       await until(() => (calls.avamedia_browse_directory || 0) > browseCount, 'subtitle server file picker', 10000);

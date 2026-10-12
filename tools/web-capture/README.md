@@ -34,6 +34,7 @@ Optional environment settings:
 | `CHROME_PATH` | Explicit Chrome or cached Playwright Chromium executable |
 | `PLAYWRIGHT_MODULE` | Explicit Playwright module directory |
 | `CAPTURE_POINTS` | Override canvas click coordinates after a UI change |
+| `TMPDIR` | Temporary capture logs and browser profile directory |
 
 For a writable temporary output and an existing publish:
 

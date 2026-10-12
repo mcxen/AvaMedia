@@ -35,8 +35,10 @@ The capture outputs are `subtitle-submit-desktop.png` (940 × 560),
 `sidebyside.py` requires Pillow (`python3 -m pip install --user pillow` if missing).
 It checks all six demo names, skips those without an implementation PNG, and
 writes `compare-<name>.png` with demo on the left and implementation on the right.
-The implementation remains at native size; the full demo is resized
-proportionally to the same height. Demo PNGs default to the output directory's
+The implementation remains at native size. Desktop demos are cropped to the
+complete `.fw` target window and converted from their 2× PNGs to logical pixels,
+so card heights can be compared at 1:1 scale without the background windows.
+Web and mobile demos retain their complete viewport. Demo PNGs default to the output directory's
 parent, or can be specified with `--demos`.
 
 Native X11 capture and visual review completed on 2026-10-12. The subtitle
