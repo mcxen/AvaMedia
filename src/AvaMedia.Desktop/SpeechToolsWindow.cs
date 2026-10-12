@@ -12,7 +12,7 @@ using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
-public sealed class SpeechToolsWindow : Window
+public sealed partial class SpeechToolsWindow : Window
 {
     private sealed record Preferences(ConversionOptions Options,int Output);
     private readonly IMediaEngine _engine;
@@ -24,7 +24,7 @@ public sealed class SpeechToolsWindow : Window
     private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SpeechFiles", MinHeight = 96, MaxHeight = 220, SelectionMode = SelectionMode.Multiple };
     private readonly TextBlock _count = Ui.Text("", "caption");
-    private readonly TextBlock _empty = Ui.Text("添加或拖入音视频文件", "caption");
+    private readonly TextBlock _empty = Ui.Text("暂无文件", "caption");
     private readonly Button _remove = new() { Content = "移除选中", IsEnabled = false, Classes = { "field-action" } };
     private readonly ComboBox _output, _language, _model;
     private readonly VoiceEnhancementControl _voice;
@@ -157,7 +157,8 @@ public sealed class SpeechToolsWindow : Window
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 2); root.Children.Add(footer);
         foreach (var child in root.Children.Where(child => child != _preview)) Grid.SetColumnSpan(child, 2);
         Content = root;
-        ToolExecution.Configure(this,_confirm,_transcribe ? "后台识别" : "后台增强",editing);
+        if (_transcribe) BuildSubtitleSubmission(imports.AddFilesAsync);
+        else ToolExecution.Configure(this,_confirm,"后台增强",editing);
         _sources.SelectionChanged += (_, _) =>
         {
             _remove.IsEnabled = !_busy && _sources.SelectedItems?.Count > 0;
@@ -201,7 +202,7 @@ public sealed class SpeechToolsWindow : Window
             if (speech.Language != language || speech.Model != model) speech.ReviewedCues = null;
             speech.Language = language; speech.Model = model; options.Transcription = speech;
             if (options.Format is "srt" or "ass") options.VoiceEnhancement = false;
-            return new(_feature, _files.ToArray(), folder, options, OutputToSource: _sourceFolder.IsChecked == true, StartImmediately: ToolExecution.StartImmediately(this));
+            return new(_feature, _files.ToArray(), folder, options, OutputToSource: _sourceFolder.IsChecked == true, StartImmediately: _startSpeechImmediately);
         }
         options.VideoCodec = "copy"; options.AudioCodec = "自动";
         var inputs = _files.Select(path =>
@@ -218,10 +219,11 @@ public sealed class SpeechToolsWindow : Window
     {
         var hasFolder = _sourceFolder.IsChecked == true || !string.IsNullOrWhiteSpace(_folder.Text);
         _confirm.IsEnabled = !_busy && _files.Count > 0 && hasFolder;
-        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
+        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : _transcribe ? "后台识别" : "加入队列");
         _remove.IsEnabled = !_busy && _sources.SelectedItems?.Count > 0;
         _empty.IsVisible = _files.Count == 0;
         _preview.IsVisible = _files.Count > 0;
+        if (_queueSpeech is not null) _queueSpeech.IsEnabled = _confirm.IsEnabled;
         _count.Text = _files.Count > 0 ? Localization.Format($"{_files.Count} 个文件") : "";
         _folder.IsEnabled = _browse.IsEnabled = !_busy && _sourceFolder.IsChecked != true;
         if (!_busy)

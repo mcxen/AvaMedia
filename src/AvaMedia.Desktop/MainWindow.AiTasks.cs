@@ -99,7 +99,7 @@ public partial class MainWindow
             rotation?.IsReview == true ? () => SubmitReviewedRotationAsync(rotation) : () => ShowAiResultAsync(job),
             () => { _queue.Stop(job); Save(); Refresh(); }, () => RequestTaskRunAsync(job),
             () => job.State == JobState.Waiting ? CanStartTask(job) : CanContinueTask(job) || CanRequeueTask(job),
-            () => { _ = Configure(Catalog.Find(job.FeatureId)); }, rotation, () => PauseTask(job));
+            () => { _ = Configure(Catalog.Find(job.FeatureId)); }, rotation, () => PauseTask(job), () => AiQueueInfo.Summarize(_jobs));
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         window.Show(this);
