@@ -35,3 +35,5 @@ DISPLAY=:11 AVAMEDIA_CHROME=mac XDG_DATA_HOME=/tmp/avademo/data   ~/.dotnet/dotn
 使用 `--gallery` 将全部 12 类实控件分别截图；`compare_components.py` 将 demo 缩到相同 1x 尺寸后并排比较，不裁切组件。预览布局清单仅保存 HTML 的位置和示例内容，不含 CSS 绘制结果或 PNG，截图全部由 Avalonia 组件渲染。评审示例不进入应用任务界面。
 
 列表 `.ac.media` 使用 56px 行，普通列表为至少 36px；`.ac.surface` 可包装已有 ListRow，保留虚拟化。标签式 SegmentedControl 使用 `AcTabSegmentItem`。数值框最小宽通过 `AcNumericMinWidth`（91）和 `.compact` 的 `AcNumericCompactMinWidth`（64）动态调整。
+
+浮层 `MaterialSurface`：macOS 原生 PopupRoot 请求 `AcrylicBlur, None`，实际获得模糊后才显示每实例的 ExperimentalAcrylicMaterial。下拉、ToolTip 和 Popover 模板已接入；内嵌/覆盖浮层、不支持的平台和经典皮肤继续用 AcMenuFill 半透明画刷。AcMaterialEnabled 可关闭材质；AcMaterialTintColor/AcMaterialTintOpacity/AcMaterialOpacity 控制材质。

@@ -263,6 +263,14 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - 数值框默认总最小宽 `AcNumericMinWidth` 91（72 字段 + 4 间距 + 15 步进器），`.compact` 最小宽 `AcNumericCompactMinWidth` 64；宿主可以动态覆盖令牌，不在业务工厂中固定数值框列宽。
 - 新主题通过 `.ac` 选择器排除 `mac-os9` / `windows-xp`。两种经典皮肤继续采用宿主原生标准控件模板；现代浅深色使用既有 Ac/Ui 颜色令牌，不另建调色板。专用设置导航、主工具树和窗口菜单保持各自角色模板。
 
+
+#### 7.9.7 原生浮层材质与回退
+
+- Avalonia 固定为 11.3.22：macOS Native 的 `AcrylicBlur` 映射到原生 Blur 模式，后端补偿级别为 0，可将 `ExperimentalAcrylicMaterial` 与原生背景模糊组合。这里不使用单独的 `Blur` 请求（该版本 Native 映射只接受 AcrylicBlur）。源码依据：[TopLevelImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Native/TopLevelImpl.cs)、[WindowBaseImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/WindowBaseImpl.mm)、[ExperimentalAcrylicBorder](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/ExperimentalAcrylicBorder.cs)。
+- `MaterialSurface` / `AcMaterialSurface` 用于组件下拉、ToolTip 和 Popover 的背景。只在 macOS 原生 `PopupRoot` 请求 `AcrylicBlur, None`；背景透明，并仅在 `ActualTransparencyLevel` 实际返回 AcrylicBlur/Blur 时启用材质。每个表面独占材质实例，避免不同浮层互相改写平台补偿。
+- `AcMaterialEnabled` 默认 true；`AcMaterialTintColor` 浅色 #F6F6F8、深色 #2C2C30，`AcMaterialTintOpacity` 0.8、`AcMaterialOpacity` 0.5。Mac OS 9 / XP 关闭材质；不支持的平台、内嵌和 overlay 浮层仍使用 `AcMenuFill` 半透明画刷。关闭或拆卸表面时恢复弹出宿主的原透明度请求与背景。
+- Avalonia 11 的此路径模糊原生浮层背后内容，不能直接模糊同一窗口内的兄弟控件。不把完整业务窗口设为模糊，也不把 Linux 的半透明截图描述为 macOS 原生材质验收。窗口内菜单栏和 NativeMenu 使用自己的主题，未在本轮接入范围内。
+
 ## 窗口内工具栏菜单栏（B 版）
 
 - 参考 `/workspace/AvaMedia-sidebar-review/menubar/menubar.html` 的 B 区域及浅深色截图；使用已有 52px 平台标题行，不另建标题栏，不实现 A / C 方案。菜单放在标题行左侧，标题居中；任务计数放在下方任务栏，为中文菜单和 Windows 窗口按钮留出空间。文字菜单高 26、字 13、左右内边距 10、间距 6、圆角 7。正常透明，悬停 Fill，展开 FillHover 与 Medium 字重，禁用使用三级文字色。
