@@ -3662,5 +3662,8 @@
   "正在停止": "Stopping",
   "已跳过": "Skipped",
   "下载语音模型 · {0}": "Downloading speech model · {0}",
-  "加载语音模型 · {0}": "Loading speech model · {0}"
+  "加载语音模型 · {0}": "Loading speech model · {0}",
+  "保存字幕 · 字幕草稿": "Save subtitles · Subtitle draft",
+  "提取音轨 · 第 {0} / {1} 段": "Extract audio · Chunk {0} / {1}",
+  "预览 · {0}": "Preview · {0}"
 }

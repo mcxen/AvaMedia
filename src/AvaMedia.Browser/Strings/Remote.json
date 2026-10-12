@@ -230,5 +230,12 @@
   "字幕文件 · SRT": "Subtitle file · SRT",
   "样式字幕 · ASS": "Styled subtitles · ASS",
   "跟随最新字幕": "Follow latest subtitles",
-  "第 {0}/{1} 段": "Segment {0}/{1}"
+  "第 {0}/{1} 段": "Segment {0}/{1}",
+  "任务详情": "Task details",
+  "{0} 条": "{0} cues",
+  "读取音轨": "Read audio track",
+  "语音模型": "Speech model",
+  "语音识别": "Speech recognition",
+  "保存结果": "Save results",
+  "等待语音识别": "Waiting for speech recognition"
 }

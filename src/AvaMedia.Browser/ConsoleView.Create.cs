@@ -166,7 +166,10 @@ public sealed partial class ConsoleView
         _recursiveHostDesktop.Content = null; _recursiveHostMobile.Content = null; _formStartHost.Content = null;
         if (_mobile) { _start.Content = null; _formStartHost.Content = _start; _recursive.Content = null; _recursiveHostMobile.Content = _recursive; }
         else { _start.Content = L.T("立即执行"); _startHostDesktop.Content = _start; _recursive.Content = L.T("包括子文件夹"); _recursiveHostDesktop.Content = _recursive; }
+        _createPage.RowSpacing = SubtitleSubmission && !_banner.IsVisible ? 0 : 12;
         if (_subtitleSubmit is not null) _subtitleSubmit.IsVisible = SubtitleSubmission;
+        if (_formScroll.Content is Border formPadding)
+            formPadding.Padding = SubtitleSubmission ? new(0) : new(14, 4, 14, 14);
         _formHostColumn.Content = null; _formHostEditor.Content = null;
         if (SubtitleSubmission)
         {

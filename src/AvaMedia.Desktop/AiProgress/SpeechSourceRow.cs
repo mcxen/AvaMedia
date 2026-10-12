@@ -21,7 +21,7 @@ internal sealed class SpeechSourceRow : Grid
     public SpeechSourceRow(IMediaEngine engine, string path, CancellationToken lifetime)
     {
         _engine = engine; _path = path; _lifetime = lifetime;
-        ColumnDefinitions = new("64,*"); ColumnSpacing = 10; Margin = new(4); MinHeight = 48;
+        ColumnDefinitions = new("64,*"); ColumnSpacing = 10; MinHeight = 40;
         var cover = SpeechUi.Card(_image, 0); cover.Width = 64; cover.Height = 40; cover.CornerRadius = new(6); cover.ClipToBounds = true; Children.Add(cover);
         var texts = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         var name = SpeechUi.Text(Path.GetFileName(path)); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;

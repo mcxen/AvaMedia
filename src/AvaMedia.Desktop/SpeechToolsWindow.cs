@@ -224,6 +224,7 @@ public sealed partial class SpeechToolsWindow : Window
         _empty.IsVisible = _files.Count == 0;
         _preview.IsVisible = _files.Count > 0;
         if (_queueSpeech is not null) _queueSpeech.IsEnabled = _confirm.IsEnabled;
+        if (_subtitleBody is not null) _subtitleBody.IsEnabled = !_busy;
         _count.Text = _files.Count > 0 ? Localization.Format($"{_files.Count} 个文件") : "";
         _folder.IsEnabled = _browse.IsEnabled = !_busy && _sourceFolder.IsChecked != true;
         if (!_busy)

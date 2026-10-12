@@ -27,31 +27,32 @@ public sealed partial class ConsoleView
             titles.Children.Add(Ui.Text(pair.Value.Name, "strong", raw: true, trim: true));
             titles.Children.Add(Ui.Text(pair.Key, "caption", raw: true, trim: true));
             var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 12, MinHeight = 56 };
-            row.Children.Add(Ui.Icon(Ui.FileIcon(pair.Value.Name, pair.Value.IsFolder), 28, Palette.Secondary));
+            row.Children.Add(new MediaThumbnail(58, 40) { Path = pair.Key });
             Grid.SetColumn(titles, 1); row.Children.Add(titles);
             var remove = Action("移除", () => { _inputs.Remove(pair.Key); _excludedInputs.Remove(pair.Key); RenderInputs(); return Task.CompletedTask; });
+            remove.Height = 28; remove.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(remove, 2); row.Children.Add(remove);
             return new Border { Child = row, BorderBrush = Palette.Hairline, BorderThickness = new(0, 0, 0, 1) };
         });
-        var files = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), RowSpacing = 12 };
-        files.Children.Add(Header(Ui.Text("服务器文件", "title"), Ui.Text("每个文件生成一个任务", "caption")));
+        var files = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,Auto,*"), RowSpacing = 10 };
+        files.Children.Add(Ui.Row(10, Ui.Text("服务器文件", "strong"), Ui.Text("每个文件生成一个任务", "caption")));
         var type = new Border { Background = Palette.Fill, CornerRadius = new(9), Padding = new(12, 10), Child = Ui.Text("任务类型：自动字幕") };
         Grid.SetRow(type, 1); files.Children.Add(type);
         Grid.SetRow(_subtitleFilesEmpty, 2); files.Children.Add(_subtitleFilesEmpty);
         Grid.SetRow(_subtitleFiles, 3); files.Children.Add(_subtitleFiles);
-        var fileActions = Actions(Action("添加服务器文件…", PickSubtitleFiles, "plus"), Action("更换工具", () =>
+        var fileActions = Actions(Action("添加服务器文件…", PickSubtitleFiles), Action("更换工具", () =>
         {
             _feature.SelectedItem = _features.FirstOrDefault(f => f.Text("id") == "video-compress") ?? _features.FirstOrDefault();
             LayoutCreate(); return Task.CompletedTask;
         }));
         Grid.SetRow(fileActions, 4); files.Children.Add(fileActions);
         var settings = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), RowSpacing = 12 };
-        settings.Children.Add(Ui.Text("识别设置", "title"));
+        settings.Children.Add(Ui.Text("识别设置", "strong"));
         Grid.SetRow(_subtitleFormHost, 1); settings.Children.Add(_subtitleFormHost);
         var start = Ui.Line("立即执行", _subtitleStartHost, 44); Grid.SetRow(start, 2); settings.Children.Add(start);
         Grid.SetRow(_subtitleSubmitHost, 3); settings.Children.Add(_subtitleSubmitHost);
         var left = Ui.Card(files, new(18)); var right = Ui.Card(settings, new(18));
-        _subtitleSubmit = new Grid { ColumnDefinitions = new("1.7*,1*"), ColumnSpacing = 12, IsVisible = false };
+        _subtitleSubmit = new Grid { ColumnDefinitions = new("1.9*,1*"), ColumnSpacing = 12, IsVisible = false };
         _subtitleSubmit.Children.Add(left); Grid.SetColumn(right, 1); _subtitleSubmit.Children.Add(right);
         Grid.SetColumnSpan(_subtitleSubmit, 3); return _subtitleSubmit;
     }
@@ -85,32 +86,54 @@ public sealed partial class ConsoleView
         _toolOptions.Children.Clear();
         var fields = form["fields"].Items().ToDictionary(f => f.Text("path"));
         var languageNames = new Dictionary<string, string> { ["auto"] = "自动识别", ["zh"] = "中文", ["en"] = "英语", ["ja"] = "日语", ["ko"] = "韩语", ["fr"] = "法语", ["de"] = "德语", ["es"] = "西班牙语", ["ru"] = "俄语" };
-        Control Choices(string path, string label, Func<JsonNode, string> caption)
+        Control Choices(string path, string label, Func<JsonNode, string> caption, bool modelCards = false)
         {
             if (!fields.TryGetValue(path, out var field)) return new StackPanel();
             var choices = field["choices"].Items().ToArray();
             var selected = ReadOption(_optionDraft, path)?.DeepClone() ?? choices.FirstOrDefault()?["value"]?.DeepClone();
-            var panel = new WrapStack { Spacing = 6 };
+            Panel panel = modelCards ? new Grid { ColumnDefinitions = new(string.Join(",", choices.Select(_ => "*"))), ColumnSpacing = 6 } : new WrapStack { Spacing = 6 };
             void Update()
             {
-                foreach (var button in panel.Children.OfType<Button>()) button.Classes.Set("selected", JsonNode.DeepEquals((JsonNode?)button.Tag, selected));
+                foreach (var button in panel.Children.OfType<Button>())
+                {
+                    var active = JsonNode.DeepEquals((JsonNode?)button.Tag, selected);
+                    button.Classes.Set("selected", active);
+                    if (modelCards && button.Content is StackPanel content)
+                        foreach (var text in content.Children.OfType<TextBlock>()) text.Foreground = active ? Brushes.White : (text.Classes.Contains("caption") ? Palette.Secondary : Palette.Text);
+                }
             }
             foreach (var choice in choices)
             {
                 var button = new Button { Content = caption(choice), Tag = choice["value"]?.DeepClone(), Classes = { "chip" } };
+                if (modelCards)
+                {
+                    var content = new StackPanel { Spacing = 2 };
+                    var name = Ui.Text(caption(choice), "strong", raw: true); name.FontSize = 12; name.TextWrapping = TextWrapping.Wrap;
+                    content.Children.Add(name);
+                    content.Children.Add(Ui.Text(choice["value"]?.ToString() switch { "1" => "tiny", "0" => "base", "2" => "small", _ => "" }, "caption", raw: true));
+                    button.Content = content; button.CornerRadius = new(9); button.MinHeight = 62;
+                    button.Padding = new(9, 7); button.Classes.Add("outline");
+                    button.HorizontalAlignment = HorizontalAlignment.Stretch; button.HorizontalContentAlignment = HorizontalAlignment.Left;
+                    Grid.SetColumn(button, panel.Children.Count);
+                }
                 button.Click += (_, _) => { selected = ((JsonNode?)button.Tag)?.DeepClone(); Update(); };
                 panel.Children.Add(button);
             }
             Update(); _optionReaders[path] = () => selected?.DeepClone();
-            var row = new StackPanel { Spacing = 8 }; row.Children.Add(Ui.Text(label, "secondary")); row.Children.Add(panel);
+            var row = new Grid { ColumnDefinitions = new("96,*"), ColumnSpacing = 12, MinHeight = 42 };
+            row.Children.Add(Ui.Text(label, "secondary")); Grid.SetColumn(panel, 1); row.Children.Add(panel);
             _toolOptions.Children.Add(row); _toolOptions.Children.Add(Ui.Hairline()); return panel;
         }
         Choices("transcription.language", "语言", c => L.T(languageNames.GetValueOrDefault(c["value"]?.ToString() ?? "", c.Text("label"))));
-        Choices("transcription.model", "模型", c => L.T(c["value"]?.ToString() switch { "1" => "Whisper · 轻量", "0" => "Whisper · 标准", "2" => "Whisper · Small", _ => c.Text("label") }));
+        Choices("transcription.model", "模型", c => L.T(c["value"]?.ToString() switch { "1" => "Whisper · 轻量", "0" => "Whisper · 标准", "2" => "Whisper · Small", _ => c.Text("label") }), modelCards: true);
         var recognition = new ToggleSwitch { IsChecked = ReadOption(_optionDraft, "transcription.recognitionOnly")?.GetValue<bool>() == true };
         _optionReaders["transcription.recognitionOnly"] = () => JsonValue.Create(recognition.IsChecked == true);
-        _toolOptions.Children.Add(Ui.Line("仅识别字幕结果", recognition, 44));
-        var hint = Ui.Text("开启后固定为 SRT，结果保存在任务中", "caption"); hint.TextWrapping = TextWrapping.Wrap; _toolOptions.Children.Add(hint);
+        var hint = Ui.Text("开启后固定为 SRT，结果保存在任务中", "caption"); hint.TextWrapping = TextWrapping.Wrap;
+        var recognitionRow = new Grid { ColumnDefinitions = new("96,*"), ColumnSpacing = 12, MinHeight = 44 };
+        recognitionRow.Children.Add(Ui.Text("仅识别字幕结果", "secondary"));
+        var recognitionValue = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10 };
+        recognitionValue.Children.Add(recognition); Grid.SetColumn(hint, 1); recognitionValue.Children.Add(hint);
+        Grid.SetColumn(recognitionValue, 1); recognitionRow.Children.Add(recognitionValue); _toolOptions.Children.Add(recognitionRow);
         _toolOptions.Children.Add(Ui.Hairline());
         var format = Choices("format", "格式", c => L.T(c["value"]?.ToString() switch
         { "mp4" => "烧录字幕 · MP4", "mkv" => "烧录字幕 · MKV", "srt" => "字幕文件 · SRT", "ass" => "样式字幕 · ASS", _ => c.Text("label") }));
