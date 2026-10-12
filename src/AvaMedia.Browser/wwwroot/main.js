@@ -6,6 +6,7 @@ const runtime = await dotnet.withDiagnosticTracing(false).create();
 runtime.setModuleImports('console', {
   call: async (name, args) => JSON.stringify(await client.call(name, JSON.parse(args))),
   origin: () => location.origin,
+  language: () => new URLSearchParams(location.search).get('lang') || localStorage.getItem('avamedia.lang') || navigator.language || 'zh-CN',
   observeVisibility: callback => {
     stopVisibility();
     const changed = () => callback(!document.hidden);

@@ -15,18 +15,8 @@ public sealed partial class ConsoleView
     private readonly Dictionary<string, JsonObject> _drafts = new();
     private string _activeFeature = "";
     private JsonObject _optionDraft = new();
-    private readonly ComboBox _category = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private JsonNode[] _features = [];
 
-    private void FilterFeatures()
-    {
-        var id = (_feature.SelectedItem as JsonNode).Text("id");
-        var category = _category.SelectedItem as string;
-        var visible = _features.Where(item => category == "全部工具" || item.Text("category") == category
-            || category == "视频" && item["form"] is not null).ToArray();
-        _feature.ItemsSource = visible;
-        _feature.SelectedItem = visible.FirstOrDefault(item => item.Text("id") == id) ?? visible.FirstOrDefault();
-    }
     private void BuildToolOptions()
     {
         SaveOptions();
@@ -40,13 +30,21 @@ public sealed partial class ConsoleView
         _optionReaders.Clear(); _optionControls.Clear(); _optionFields.Clear(); _toolOptions.Children.Clear();
         var form = feature?["form"];
         if (form is null) { UpdateRegion(); return; }
-        _toolOptions.Children.Add(Label(form.Text("hint")));
+        if (form.Text("hint") is { Length: > 0 } hint)
+        {
+            var hintText = Label(hint); hintText.FontSize = 12.5;
+            _toolOptions.Children.Add(new Border { Child = hintText, Background = Palette.Fill, CornerRadius = new(9), Padding = new(11, 8) });
+        }
         AddMediaDetails(form);
         AddVideoBatchControls();
-        if (form.Flag("preview")) _toolOptions.Children.Add(Action("打开视频编辑 / 预览", () => { _workspaceTabs.SelectedIndex = 1; return RefreshPreview(); }));
+        if (form.Flag("preview") || HasEditor)
+        {
+            _openEditor = Action("打开视频编辑 / 预览", () => { _workspaceTabs.SelectedIndex = 1; return _activeFeature == "join" ? Task.CompletedTask : RefreshPreview(); }, "film");
+            _openEditor.IsVisible = _workspaceTabs.SelectedIndex != 1; _toolOptions.Children.Add(_openEditor);
+        }
         foreach (var group in form["fields"].Items().GroupBy(field => field.Text("group")))
         {
-            var groupPanel = new StackPanel { Spacing = 6 };
+            var groupPanel = new StackPanel { Spacing = 4 };
             foreach (var field in group)
             {
                 var panel = new StackPanel { Spacing = 4 }; groupPanel.Children.Add(panel);
@@ -59,7 +57,7 @@ public sealed partial class ConsoleView
                         track.SelectionChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); ScheduleParameterPreview(); };
                         Field(panel, field.Text("label"), control); break;
                     case "boolean":
-                        var check = new CheckBox { Content = field.Text("label"), IsChecked = value?.GetValue<bool>() == true };
+                        var check = new CheckBox { Content = field.Text("label"), IsChecked = value?.GetValue<bool>() == true, Margin = new(0, 4) };
                         check.IsCheckedChanged += (_, _) => { UpdateOptionVisibility(); UpdateRegion(); };
                         _optionReaders[path] = () => JsonValue.Create(check.IsChecked == true); control = check; panel.Children.Add(control); break;
                     case "number":
@@ -87,13 +85,13 @@ public sealed partial class ConsoleView
                 }
                 _optionControls[path] = control; _optionFields[path] = (panel, field);
             }
-            _toolOptions.Children.Add(new Expander { Header = group.Key, Content = groupPanel, IsExpanded = _toolOptions.Children.OfType<Expander>().Count() == 0,
-                HorizontalAlignment = HorizontalAlignment.Stretch });
+            _toolOptions.Children.Add(Section(group.Key, groupPanel, _toolOptions.Children.OfType<OptionSection>().Count() == 0));
         }
         UpdateOptionVisibility();
         if (_previewInfo is not null) ShowMediaInfo(_previewInfo);
         UpdateRegion();
     }
+    private static OptionSection Section(string title, StackPanel body, bool expanded) => new(title, body, expanded);
     private void UpdateOptionVisibility()
     {
         _compressionPlan.Text = "";
@@ -106,9 +104,10 @@ public sealed partial class ConsoleView
                 var value = _optionReaders.TryGetValue(dependency, out var read) ? read() : ReadOption(_optionDraft, dependency);
                 return condition["values"].Items().Any(expected => JsonNode.DeepEquals(expected, value));
             });
-        foreach (var expander in _toolOptions.Children.OfType<Expander>())
-            if (expander.Content is StackPanel panel) expander.IsVisible = panel.Children.Any(child => child.IsVisible);
+        foreach (var section in _toolOptions.Children.OfType<OptionSection>())
+            section.IsVisible = section.Body.Children.Any(child => child.IsVisible);
     }
+    private Control? _openEditor;
     private void SaveOptions()
     {
         foreach (var (path, read) in _optionReaders) SetOption(_optionDraft, path, read());
@@ -120,9 +119,10 @@ public sealed partial class ConsoleView
         if (_activeFeature == "clip") options["copyStreams"] = _clipPreset.SelectedIndex == 3;
         if (_activeFeature is "video-compress" or "video-slim")
             options["format"] = options[_activeFeature == "video-compress" ? "videoCompression" : "videoSlimming"]?["format"]?.DeepClone();
-        if (_activeFeature is "crop" or "delogo")
+        if (_activeFeature == "delogo") ApplyDelogoRegions(options);
+        else if (_activeFeature == "crop")
         {
-            var prefix = _activeFeature == "crop" ? "crop" : "delogo";
+            var prefix = "crop";
             if ((ReadOption(options, prefix + "Width")?.GetValue<double>() ?? 0) <= 0 || (ReadOption(options, prefix + "Height")?.GetValue<double>() ?? 0) <= 0)
                 throw new ArgumentException("请先在预览中框选区域，或拖动区域滑块。");
         }
@@ -163,6 +163,14 @@ public sealed partial class ConsoleView
         foreach (var item in items) _inputs.Add(item.Key, item.Value);
         RenderInputs();
     }
+    private void MoveInputTo(string path, int target)
+    {
+        var items = _inputs.ToList(); var index = items.FindIndex(item => item.Key == path);
+        if (index < 0) return; target = Math.Clamp(target, 0, items.Count - 1); if (target == index) return;
+        var moved = items[index]; items.RemoveAt(index); items.Insert(target, moved); _inputs.Clear();
+        foreach (var item in items) _inputs.Add(item.Key, item.Value);
+        RenderInputs();
+    }
 
     private TabItem? _fileChoiceTab;
     private FileBrowserView? _fileChoice;
@@ -185,5 +193,20 @@ public sealed partial class ConsoleView
         _fileChoiceTab = new TabItem { Header = title, Content = panel };
         _workspaceTabs.Items.Add(_fileChoiceTab); _workspaceTabs.SelectedItem = _fileChoiceTab;
         await picker.InitializeAsync();
+    }
+}
+
+/// <summary>Collapsible option group: "⌄ 标题" header with plain rows below.</summary>
+internal sealed class OptionSection : StackPanel
+{
+    public StackPanel Body { get; }
+    public OptionSection(string title, StackPanel body, bool expanded)
+    {
+        Body = body; Spacing = 4; body.IsVisible = expanded;
+        var icon = Ui.Icon(expanded ? "chevron-down" : "chevron-right", 12, Palette.Secondary);
+        var text = Ui.Text(title, "section");
+        var header = new Button { Content = Ui.Row(5, icon, text), Classes = { "plain" }, Padding = new(0, 4), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+        header.Click += (_, _) => { body.IsVisible = !body.IsVisible; icon.Kind = body.IsVisible ? "chevron-down" : "chevron-right"; };
+        Children.Add(header); Children.Add(body);
     }
 }

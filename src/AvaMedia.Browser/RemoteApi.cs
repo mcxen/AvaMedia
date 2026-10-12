@@ -10,6 +10,7 @@ internal static partial class BrowserHost
     [JSImport("writePending", "console")] internal static partial void WritePending(string value);
     [JSImport("open", "console")] internal static partial void Open(string url);
     [JSImport("origin", "console")] internal static partial string Origin();
+    [JSImport("language", "console")] internal static partial string Language();
     [JSImport("observeVisibility", "console")] internal static partial void ObserveVisibility(
         [JSMarshalAs<JSType.Function<JSType.Boolean>>] Action<bool> callback);
     [JSImport("stopObservingVisibility", "console")] internal static partial void StopObservingVisibility();

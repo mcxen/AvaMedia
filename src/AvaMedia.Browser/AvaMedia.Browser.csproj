@@ -7,6 +7,13 @@
   </PropertyGroup>
   <ItemGroup>
     <AvaloniaResource Include="../AvaMedia.Desktop/Assets/Fonts/Platinum/*.ttf" Link="Fonts/%(Filename)%(Extension)" />
+    <!-- Noto Sans CJK SC (OFL 1.1), subset to GB2312 + Big5 level 1 + Latin; the pixel font remains the fallback. -->
+    <AvaloniaResource Include="Fonts/*.otf" />
+    <EmbeddedResource Include="../AvaMedia.Desktop/Localization/Strings.en-US.json" LogicalName="AvaMedia.Browser.Strings.Desktop.json" Link="Strings/Desktop.json" />
+    <EmbeddedResource Include="Strings/Remote.json" LogicalName="AvaMedia.Browser.Strings.Remote.json" />
+    <Compile Include="../AvaMedia.Desktop/Controls/LucideIcons.cs" Link="Shared/LucideIcons.cs" />
+    <Compile Include="../AvaMedia.Desktop/Controls/LucideIcon.cs" Link="Shared/LucideIcon.cs" />
+    <EmbeddedResource Include="../AvaMedia.Desktop/Assets/ToolbarIcons/Lucide/*.svg" LogicalName="AvaMedia.Desktop.Lucide.%(Filename).svg" Link="Lucide/%(Filename).svg" />
     <PackageReference Include="Avalonia.Browser" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.3.22" />
     <ProjectReference Include="../AvaMedia.MediaUi/AvaMedia.MediaUi.csproj" />
