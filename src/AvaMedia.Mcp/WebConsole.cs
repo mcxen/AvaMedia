@@ -10,6 +10,7 @@ internal static class WebConsole
     public static void Map(WebApplication app)
     {
         WebPreview.Map(app);
+        WebClassification.Map(app);
         var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
         if (File.Exists(Path.Combine(webRoot, "index.html")))
         {

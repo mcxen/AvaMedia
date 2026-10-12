@@ -65,7 +65,7 @@ public static partial class FolderOutfitClassification
             var decisions = Group(output, rule, includeNsfw, ct);
             output = output.Select(file => file with { Decisions = file.Decisions.Select(decision => decision.RuleId == rule.Id
                 && (!decision.Manual || decision.OutfitIncludesNsfw != includeNsfw)
-                ? decisions[file.Media.Path] : decision).ToArray() }).ToArray();
+                ? decisions[file.Media.Path] with { ByOutfit = true } : decision).ToArray() }).ToArray();
         }
         return WithShootTitles(output);
     }

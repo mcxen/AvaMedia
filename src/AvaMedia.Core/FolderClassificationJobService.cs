@@ -19,6 +19,11 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
         Validate(job);
+        // Resuming keeps the elapsed time already spent.
+        job.ClassificationStartedUtc = job.ClassificationStartedUtc is { } started && job.ClassificationFinishedUtc is { } finished
+            ? DateTime.UtcNow - (finished - started) : DateTime.UtcNow;
+        job.ClassificationFinishedUtc = null;
+        job.ClassificationRegroup ??= FolderClassificationTaskStore.LoadRegroup(job);
         var spec = job.Options.FolderClassification!.Clone();
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         void PrivacyChanged(object? sender, EventArgs args)
@@ -55,7 +60,8 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 .Select(file => file.Path).ToHashSet(BatchRename.PathComparer) : [];
             void Publish()
             {
-                job.ClassificationSnapshot = new(job.Inputs.Select(path => files[path]).ToArray());
+                FolderClassificationTaskStore.Publish(job, job.Inputs.Select(path => files[path]).ToArray());
+                foreach (var file in job.ClassificationSnapshot!.Files) files[file.Path] = file;
                 var done = total - pending.Count + processed.Count;
                 job.ProgressDetail = $"{done} / {total}";
                 progress(total == 0 ? 100 : Math.Clamp(byOutfit
@@ -71,6 +77,8 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 ct.ThrowIfCancellationRequested();
                 job.Activity = new("按相似服装分组", "JoyTag / DINOv2", DateTime.UtcNow, DateTime.UtcNow);
                 job.ProgressDetail = "按相似服装分组"; progress(job.Progress);
+                var before = FolderClassificationInsights.Groups(job.ClassificationSnapshot!.Files, null)
+                    .ToDictionary(group => group.RuleId + "/" + group.CategoryId, group => group.Count);
                 var grouped = FolderOutfitClassification.Apply(ready.Select(file => file.Result!), rules, PrivateEnabled(), ct);
                 foreach (var result in grouped)
                 {
@@ -79,6 +87,10 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     files[file.Path] = file;
                 }
                 sinceGrouping = 0; groupedOnce = true; Publish();
+                var after = FolderClassificationInsights.Groups(job.ClassificationSnapshot!.Files, before);
+                job.ClassificationRegroup = new((job.ClassificationRegroup?.Ordinal ?? 0) + 1,
+                    after.ToDictionary(group => group.RuleId + "/" + group.CategoryId, group => group.Added), DateTime.UtcNow);
+                FolderClassificationTaskStore.SaveRegroup(job, job.ClassificationRegroup);
             }
             // Recover cached tag results before waiting for JoyTag, which another queue job may be using.
             var missingAppearance = byOutfit ? files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending
@@ -191,7 +203,8 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     {
                         if (update.Activity is { } activity)
                         {
-                            job.Activity = MediaPrivacy.Filter(activity, PrivateEnabled());
+                            job.Activity = MediaPrivacy.Filter(activity with
+                            { Detail = Path.GetFileName(path) + (activity.Detail.Length > 0 ? " · " + activity.Detail : "") }, PrivateEnabled());
                             job.ProgressDetail = activity.Stage; progress(job.Progress);
                         }
                         if (update.Result is { } complete) result = complete;
@@ -218,7 +231,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             progress(job.Progress);
             if (failures > 0) throw new InvalidOperationException(job.ProgressDetail);
         }
-        finally { engine.Settings.NsfwContentChanged -= PrivacyChanged; }
+        finally { job.ClassificationFinishedUtc = DateTime.UtcNow; engine.Settings.NsfwContentChanged -= PrivacyChanged; }
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>

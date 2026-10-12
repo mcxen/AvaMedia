@@ -122,6 +122,7 @@ public sealed record FolderClassificationDecision(string RuleId, string Name, st
     double Agreement, string Evidence, bool Manual = false)
 {
     public bool NeedsReview => CategoryId is null;
+    public bool ByOutfit { get; init; }
     public bool OutfitIncludesNsfw { get; init; }
     public string? OutfitShootName { get; init; }
     public string DisplayName => OutfitShootName is { } shoot ? shoot + " · " + CategoryName : CategoryName;
@@ -199,7 +200,7 @@ public static class FolderClassification
 
     private static FolderClassificationDecision Decide(MediaTagResult media, FolderClassificationRule rule)
     {
-        if (rule.ByOutfit) return new(rule.Id, rule.Name, null, "待确认", [], [], null, 0, "等待同批服装分组");
+        if (rule.ByOutfit) return new(rule.Id, rule.Name, null, "待确认", [], [], null, 0, "等待同批服装分组") { ByOutfit = true };
         if (rule.ByDuration) return FolderClassificationPresets.DecideDuration(media, rule);
         if (FolderNippleClassification.Resolve(rule) is { } detection)
             return FolderNippleClassification.Decide(media, rule, detection);

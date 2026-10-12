@@ -120,6 +120,72 @@ public partial class MainWindow
                 }).Where(file => file.Decisions.Count > 0).ToArray();
         }
 
+        public async Task<FolderClassificationLive> ClassificationLiveAsync(Guid id, CancellationToken ct)
+        {
+            var job = await Ui(() => ClassificationJob(id), ct).ConfigureAwait(false);
+            var loaded = job.ClassificationSnapshot ?? await FolderClassificationTaskStore.LoadAsync(job, ct).ConfigureAwait(false);
+            return await Ui(() =>
+            {
+                job.InitializeClassificationSnapshot(loaded);
+                var spec = job.Options.FolderClassification!;
+                var privateEnabled = Engine.Settings.EnableNsfwContent;
+                var rules = spec.Rules.Where(rule => privateEnabled || !MediaPrivacy.IsSensitiveRule(rule)).ToArray();
+                var allowed = rules.Select(rule => rule.Id).ToHashSet();
+                var excluded = spec.ExcludedPaths.ToHashSet(BatchRename.PathComparer);
+                var snapshot = new FolderClassificationTaskSnapshot(job.ClassificationSnapshot!.Files.Where(file => !excluded.Contains(file.Path))
+                    .Select(file => FilterClassification(file, privateEnabled, allowed)).ToArray());
+                var regroup = job.ClassificationRegroup ??= FolderClassificationTaskStore.LoadRegroup(job);
+                if (regroup is not null && !privateEnabled)
+                {
+                    var visible = FolderClassificationInsights.Groups(snapshot.Files, null).Select(group => group.RuleId + "/" + group.CategoryId).ToHashSet();
+                    regroup = regroup with { Added = regroup.Added.Where(pair => visible.Contains(pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value) };
+                }
+                return new FolderClassificationLive(snapshot, rules, rules.FirstOrDefault(rule => rule.ByOutfit)?.OutfitSimilarity ?? spec.TagThreshold,
+                    spec.SourceFolders.Length > 0 ? spec.SourceFolders : job.Inputs.Select(Path.GetDirectoryName).OfType<string>().Distinct(BatchRename.PathComparer).ToArray(),
+                    regroup, job.State == JobState.Running ? job.Activity?.Stage : null, job.Progress, job.ClassificationElapsed);
+            }, ct).ConfigureAwait(false);
+        }
+
+        public async Task<FolderClassificationTaskFile> ResolveClassificationAsync(Guid id, string path, string ruleId, string categoryId, CancellationToken ct)
+        {
+            var live = await ClassificationLiveAsync(id, ct).ConfigureAwait(false);
+            var visibleRule = live.Rules.FirstOrDefault(rule => rule.Id == ruleId) ?? throw new ArgumentException("分类规则不可用。");
+            if (!live.Snapshot.Files.Any(file => BatchRename.PathComparer.Equals(file.Path, path))
+                || !FolderOutfitClassification.Categories(visibleRule, live.Snapshot.Files.Select(file => file.Result).OfType<FolderClassifiedFile>())
+                    .Any(category => category.Id == categoryId)) throw new ArgumentException("文件或分类类别不可用。");
+            var job = await Ui(() =>
+            {
+                var job = ClassificationJob(id);
+                var spec = job.Options.FolderClassification!;
+                if (spec.ExcludedPaths.Contains(path, BatchRename.PathComparer)) throw new ArgumentException("文件已从任务中排除。");
+                var rule = spec.Rules.FirstOrDefault(rule => rule.Id == ruleId) ?? throw new ArgumentException("分类规则不存在。");
+                if (!Engine.Settings.EnableNsfwContent && MediaPrivacy.IsSensitiveRule(rule)) throw new ArgumentException("分类规则不可用。");
+                if (!Engine.Settings.EnableNsfwContent && job.ClassificationSnapshot?.Files.SelectMany(file => file.Result?.Decisions ?? [])
+                    .Any(decision => decision.RuleId == ruleId && decision.CategoryId == categoryId && decision.OutfitIncludesNsfw) == true)
+                    throw new ArgumentException("分类类别不可用。");
+                return job;
+            }, ct).ConfigureAwait(false);
+            var resolving = await Ui(() => FolderClassificationTaskStore.ResolveAsync(job, path, ruleId, categoryId, ct), ct).ConfigureAwait(false);
+            var resolved = await resolving.ConfigureAwait(false);
+            return await Ui(() => FilterClassification(resolved, Engine.Settings.EnableNsfwContent,
+                job.Options.FolderClassification!.Rules.Where(rule => Engine.Settings.EnableNsfwContent || !MediaPrivacy.IsSensitiveRule(rule)).Select(rule => rule.Id).ToHashSet()), ct).ConfigureAwait(false);
+        }
+
+        private Job ClassificationJob(Guid id)
+        {
+            var job = Find(id);
+            if (job.FeatureId != "folder-classification" || job.Options.FolderClassification is null) throw new ArgumentException("不是分类任务。");
+            return job;
+        }
+
+        private static FolderClassificationTaskFile FilterClassification(FolderClassificationTaskFile file, bool privateEnabled, HashSet<string> allowed)
+            => privateEnabled || file.Result is not { } result ? file : file with { Result = result with
+            {
+                Media = MediaPrivacy.Filter(result.Media, false),
+                Decisions = result.Decisions.Where(decision => allowed.Contains(decision.RuleId) && !decision.OutfitIncludesNsfw).ToArray(),
+                Tags = result.Tags.Where(tag => !MediaPrivacy.IsSensitiveTag(tag)).ToArray()
+            } };
+
         public Task<McpTaskPage> ListAsync(int offset, int limit, string? state, CancellationToken ct) => Ui(() =>
         {
             JobState? filter = null;
