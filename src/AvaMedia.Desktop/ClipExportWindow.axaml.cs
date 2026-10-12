@@ -32,7 +32,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         JoinSegments.IsVisible=allowJoin || _requiresJoin;JoinSegments.IsChecked=_requiresJoin || allowJoin && (state?.JoinSegments??true);
         JoinSegments.IsEnabled=!_requiresJoin;
         JoinSegments.IsCheckedChanged+=(_,_)=>ValidateExport();
-        FormatCombo.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset,_)=>Ui.Text(QuickClipBatch.PresetLabel(preset??QuickClipBatch.DefaultPreset)));
+        FormatCombo.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset,_)=>Ui.ComponentText(QuickClipBatch.PresetLabel(preset??QuickClipBatch.DefaultPreset)));
         FormatCombo.ItemsSource=QuickClipBatch.Presets;FormatCombo.SelectedItem=state?.Preset??QuickClipBatch.DefaultPreset;
         ExportFolder.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty)ValidateExport();};
         SetOutputLocation();ValidateExport();

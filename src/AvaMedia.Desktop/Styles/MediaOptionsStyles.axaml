@@ -1,13 +1,19 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Style Selector="TabControl.settingsNavigation.mediaOptionsNavigation">
-    <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate></Setter>
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ac="using:AvaMedia.Controls" xmlns:local="using:AvaMedia.Desktop">
+  <Styles.Resources><local:OptionsTabHeadersConverter x:Key="OptionsTabHeaders"/></Styles.Resources>
+  <Style Selector="TabControl.mediaOptionsNavigation">
     <Setter Property="Template">
       <ControlTemplate>
-        <Grid RowDefinitions="Auto,*" RowSpacing="8">
-          <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,0,0,1" Padding="0,0,0,8">
-            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
-          </Border>
-          <ContentPresenter Grid.Row="1" Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="0" Margin="0" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        <Grid RowDefinitions="Auto,*" RowSpacing="{DynamicResource AcGap}">
+          <!-- TabControl needs its presenter to resolve the selected page's container. -->
+          <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"
+                          Height="0" Opacity="0" IsHitTestVisible="False"/>
+          <ac:SegmentedControl ItemsSource="{Binding Items, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource OptionsTabHeaders}}"
+                               SelectedIndex="{Binding SelectedIndex, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                               HorizontalAlignment="Left">
+          </ac:SegmentedControl>
+          <ContentPresenter Grid.Row="1" Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}"
+                            ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
         </Grid>
       </ControlTemplate>
     </Setter>

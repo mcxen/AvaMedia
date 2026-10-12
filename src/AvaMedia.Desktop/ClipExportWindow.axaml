@@ -18,17 +18,17 @@
     <StackPanel Grid.Row="2" Spacing="6">
       <Grid ColumnDefinitions="Auto,160,*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="输出格式" VerticalAlignment="Center"/>
-        <ComboBox Grid.Column="1" x:Name="FormatCombo" HorizontalAlignment="Stretch" SelectionChanged="FormatChanged"/>
-        <TextBox Grid.Column="2" x:Name="ExportFolder" IsReadOnly="True" AutomationProperties.Name="保存位置"/>
-        <Button Grid.Column="3" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick" Classes="field-action"/>
-        <CheckBox Grid.Column="4" x:Name="OutputToSource" Content="源目录" IsCheckedChanged="OutputLocationChanged" VerticalAlignment="Center" ToolTip.Tip="保存到各视频所在文件夹"/>
-        <CheckBox Grid.Column="5" x:Name="AddSettingName" Content="设置名称" VerticalAlignment="Center" ToolTip.Tip="添加设置名称"/>
-        <Button Grid.Column="6" x:Name="ExportOptionsButton" Content="编码与质量…" Click="ExportOptionsClick"/>
+        <ComboBox Classes="ac" Grid.Column="1" x:Name="FormatCombo" HorizontalAlignment="Stretch" SelectionChanged="FormatChanged"/>
+        <TextBox Classes="ac" Grid.Column="2" x:Name="ExportFolder" IsReadOnly="True" AutomationProperties.Name="保存位置"/>
+        <Button Grid.Column="3" x:Name="BrowseFolderButton" Content="浏览…" Click="BrowseFolderClick" Classes="ac field-action"/>
+        <CheckBox Classes="ac" Grid.Column="4" x:Name="OutputToSource" Content="源目录" IsCheckedChanged="OutputLocationChanged" VerticalAlignment="Center" ToolTip.Tip="保存到各视频所在文件夹"/>
+        <CheckBox Classes="ac" Grid.Column="5" x:Name="AddSettingName" Content="设置名称" VerticalAlignment="Center" ToolTip.Tip="添加设置名称"/>
+        <Button Classes="ac" Grid.Column="6" x:Name="ExportOptionsButton" Content="编码与质量…" Click="ExportOptionsClick"/>
       </Grid>
       <TextBlock x:Name="FormatNote" Classes="caption" TextWrapping="Wrap"/>
-      <CheckBox x:Name="JoinSegments" Content="将每个视频的保留片段合并为一个文件" IsVisible="False"/>
+      <CheckBox Classes="ac" x:Name="JoinSegments" Content="将每个视频的保留片段合并为一个文件" IsVisible="False"/>
     </StackPanel>
     <TextBlock Grid.Row="3" x:Name="ExportError" Foreground="{DynamicResource UiDanger}" TextWrapping="Wrap"/>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><Button x:Name="BackToEditingButton" Classes="dialog-action" Content="返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入队列" Classes="primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><Button x:Name="BackToEditingButton" Classes="ac dialog-action" Content="返回编辑" HorizontalAlignment="Left" Click="BackClick"/><Button Grid.Column="1" x:Name="ExportCancelButton" Classes="ac dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/><Button Grid.Column="2" x:Name="JoinQueueButton" Content="加入队列" Classes="ac primary dialog-action" Click="ConfirmClick" IsDefault="True"/></Grid>
   </Grid>
 </Window>
