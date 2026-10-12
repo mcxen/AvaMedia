@@ -196,6 +196,25 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         _ => ""
     };
     public bool HasStateDetail => StateDetail.Length > 0;
+    // Compact (light / dark skin) row: "tool → output", one meta line and a short state.
+    public string TargetLine => $"{Localization.Text(FeatureNavigation.Label(Catalog.Find(Job.FeatureId)))}  →  {OutputName}";
+    public string MetaLine => Localization.Join(" · ", new[] { MediaSummary, CodecSummary }.Where(s => s.Length > 0));
+    public string CompactState => Job.State switch
+    {
+        JobState.Running when Job.Activity is null => Job.Status.Replace("  ", " "),
+        JobState.Running => Localization.Text("处理中"),
+        JobState.Waiting => Localization.Text("等待中"),
+        JobState.Paused => Job.Progress > 0 ? Localization.Format($"{Localization.Key("已暂停")}  {Job.Progress:0.0}%") : Localization.Text("已暂停"),
+        JobState.Completed => Localization.Join(" · ", new[] { Localization.Text("完成"), Job.HasInternalOutput ? "" : _outputSize }.Where(s => s.Length > 0)),
+        _ => StateText
+    };
+    public string StateIcon => Job.State switch
+    {
+        JobState.Waiting => "clock", JobState.Completed => "circle-check", JobState.Failed => "circle-alert",
+        JobState.Paused => "circle-pause", JobState.Cancelled or JobState.Stopping => "circle-x", _ => ""
+    };
+    public bool HasStateIcon => StateIcon.Length > 0;
+    public string StateTip => HasStateDetail ? StateText + "\n" + StateDetail : StateText;
     public void Refresh()
     {
         if (_disposed) return;
@@ -216,7 +235,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         Raise(string.Empty);
     }
     internal void RefreshProgress()
-    { Raise(nameof(StateText)); Raise(nameof(StateDetail)); Raise(nameof(HasStateDetail)); }
+    { Raise(nameof(StateText)); Raise(nameof(StateDetail)); Raise(nameof(HasStateDetail)); Raise(nameof(CompactState)); Raise(nameof(StateTip)); }
     private async Task ReadSizesAsync(string[] inputs, string output, CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;

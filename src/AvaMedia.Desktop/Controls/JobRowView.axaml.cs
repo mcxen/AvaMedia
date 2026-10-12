@@ -50,7 +50,6 @@ public partial class JobRowView : UserControl
         _owner = this.GetVisualAncestors().OfType<MainWindow>().FirstOrDefault();
         if (_owner is null || DataContext is not Job job) return;
         _details = new(job);
-        ProgressSlot.Height = _owner.CanViewAiTask(job) ? 54 : 8;
         RowRoot.DataContext = _details;
         job.PropertyChanged += JobChanged;
         _owner.JobDisplayChanged += Refresh;
@@ -77,7 +76,9 @@ public partial class JobRowView : UserControl
         _details.Refresh();
         RefreshActivity();
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
-        foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
+        foreach (var state in Enum.GetValues<JobState>())
+            foreach (var target in new Control[] { StateText, CompactStateText, StateIcon })
+                target.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
         var canDrag = _owner.CanDragOutput(job);
         OutputDragGrip.IsVisible = canDrag;
@@ -119,9 +120,14 @@ public partial class JobRowView : UserControl
     private void RefreshActivity()
     {
         var job = _details?.Job;
-        ActivityView.Update(_owner?.IsQueuePresentationVisible == true ? job?.Activity : null);
-        PipelineProgress.IsVisible = job?.Activity is null;
-        StateLine.IsVisible = job is not { State: JobState.Running, Activity: not null };
+        // The compact row keeps one thin progress line; the AI pipeline stays in 查看任务.
+        var compact = _owner?.ModernChrome == true;
+        ActivityView.Update(_owner?.IsQueuePresentationVisible == true && !compact ? job?.Activity : null);
+        ActivityView.IsVisible = !compact;
+        PipelineProgress.IsVisible = compact || job?.Activity is null;
+        ProgressSlot.Height = compact ? 4 : _owner?.CanViewAiTask(job!) == true ? 54 : 8;
+        ProgressSlot.IsVisible = !compact || job?.State is JobState.Running or JobState.Stopping;
+        StateLine.IsVisible = compact || job is not { State: JobState.Running, Activity: not null };
     }
     private async Task LoadAsync(JobRowDetails details, IMediaEngine engine, PreviewKey key, CancellationTokenSource cancellation)
     {

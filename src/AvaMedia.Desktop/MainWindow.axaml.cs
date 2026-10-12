@@ -54,7 +54,7 @@ public partial class MainWindow : Window
         InitializeModelActivity();
         InitializeNotifications();
         ShowCategory(_category);Refresh();
-        InitializePlatinumPresentation();
+        InitializePlatinumPresentation(); InitializeModernChrome();
         DragDrop.SetAllowDrop(this,true);
         AddHandler(DragDrop.DropEvent,Drop,Avalonia.Interactivity.RoutingStrategies.Bubble,handledEventsToo:true);
         AddHandler(DragDrop.DragOverEvent,DragOver,Avalonia.Interactivity.RoutingStrategies.Bubble,handledEventsToo:true);
@@ -163,7 +163,7 @@ public partial class MainWindow : Window
         PresentDownloadSpeedMonitor();
         StartButton.IsEnabled=CanManageTasks && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
         UpdateTaskEditingActions();
-        SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count} 个任务  ·  完成 {_jobs.Count(j=>j.State==JobState.Completed)}  ·  失败 {_jobs.Count(j=>j.State==JobState.Failed)}");
+        SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count(j=>j.State is JobState.Running or JobState.Stopping)} 个进行中 · {_jobs.Count(j=>j.State is JobState.Waiting or JobState.Paused)} 个等待 · {_jobs.Count(j=>j.State==JobState.Failed)} 个失败");RefreshTaskSummary();
         if(refreshRows)JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)

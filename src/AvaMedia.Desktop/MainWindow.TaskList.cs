@@ -35,11 +35,11 @@ public partial class MainWindow
                 else _visibleJobs.Move(previous, index);
             }
             // Empty queues show the route hint across the list; otherwise it stays below the rows.
-            Grid.SetRow(QueueDropHint, _visibleJobs.Count == 0 ? 2 : 3);
+            Grid.SetRow(QueueDropHint, _visibleJobs.Count == 0 && !ModernChrome ? 2 : 3);
             var completed = _jobs.Count(job => job.State == JobState.Completed);
             CompletedTasksBar.IsVisible = completed > 0;
             CompletedTasksChevron.Data = _settings.CollapseCompletedTasks ? CollapsedTaskChevron : ExpandedTaskChevron;
-            Localization.SetText(CompletedTasksLabel, $"已完成（{completed}）");
+            Localization.SetText(CompletedTasksLabel, $"已完成 {completed} 个任务");
             var action = Localization.Text(_settings.CollapseCompletedTasks ? "展开已完成任务" : "折叠已完成任务");
 
             AutomationProperties.SetName(CompletedTasksToggle, action);

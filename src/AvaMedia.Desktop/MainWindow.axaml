@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:notifications="using:AvaMedia.Desktop.Notifications" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
+<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:notifications="using:AvaMedia.Desktop.Notifications" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Classes="main-window" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
   <Window.Styles>
     <Style Selector="Border.tool-drop-indicator"><Setter Property="IsVisible" Value="False"/></Style>
     <Style Selector="Button.feature-menu.drop-target Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
@@ -21,12 +21,12 @@
       <MenuItem Header="窗口"><MenuItem Header="缩放窗口" Click="ZoomWindowClick"/><MenuItem Header="收起 / 展开标题栏" IsEnabled="{DynamicResource UiWindowShadeEnabled}" Click="ShadeWindowClick"/><Separator/><MenuItem Header="最小化窗口" Click="MinimizeWindowClick"/></MenuItem>
       <MenuItem Header="帮助"><MenuItem Header="功能介绍" HotKey="F1" Click="HelpClick"/><MenuItem Header="关于 / 开源许可证" Click="AboutClick"/></MenuItem>
     </Menu>
-    <Border Classes="app-toolbar" Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" Background="{DynamicResource UiToolbar}">
-      <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="{DynamicResource UiToolbarPadding}">
-        <Button Classes="tool" Click="RouteOutputsClick" ToolTip.Tip="拖入产出文件选择下一步工具；单击路由选中任务的产出" AutomationProperties.Name="文件路由"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="list"/><TextBlock Text="文件路由" VerticalAlignment="Center"/></StackPanel></Button>
-        <Button Classes="tool" Click="OutputClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="folder"/><TextBlock Text="输出文件夹" VerticalAlignment="Center"/></StackPanel></Button>
-        <Button Classes="tool" Click="SettingsClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="gear"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></Button>
-        <Button Classes="tool" Click="WifiTransferClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="wifi"/><TextBlock Text="WiFi 传文件" VerticalAlignment="Center"/></StackPanel></Button>
+    <Border x:Name="AppToolbar" Classes="app-toolbar" Grid.Row="{DynamicResource UiMainToolbarRow}" Height="{DynamicResource UiToolbarHeight}" BorderBrush="{DynamicResource UiDivider}" Background="{DynamicResource UiToolbar}">
+      <StackPanel x:Name="ToolbarItems" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="{DynamicResource UiToolbarPadding}">
+        <Button x:Name="RouteButton" Classes="tool" Click="RouteOutputsClick" ToolTip.Tip="拖入产出文件选择下一步工具；单击路由选中任务的产出" AutomationProperties.Name="文件路由"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="list"/><TextBlock Text="文件路由" VerticalAlignment="Center"/></StackPanel></Button>
+        <Button x:Name="OutputFolderButton" Classes="tool" Click="OutputClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="folder"/><TextBlock Text="输出文件夹" VerticalAlignment="Center"/></StackPanel></Button>
+        <Button x:Name="OptionsButton" Classes="tool" Click="SettingsClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="gear"/><TextBlock Text="选项" VerticalAlignment="Center"/></StackPanel></Button>
+        <Button x:Name="WifiButton" Classes="tool" Click="WifiTransferClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="wifi"/><TextBlock Text="WiFi 传文件" VerticalAlignment="Center"/></StackPanel></Button>
         <Border Background="{DynamicResource UiDivider}" Width="1" Height="{DynamicResource UiToolbarSeparatorHeight}" Margin="5,0"/>
         <Button x:Name="EditTaskButton" Classes="tool" Click="EditSelectedClick" AutomationProperties.Name="编辑任务"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="edit"/><TextBlock Text="编辑" VerticalAlignment="Center"/></StackPanel></Button>
         <Button x:Name="RemoveButton" Classes="tool" Click="RemoveClick"><StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}"><local:ActionIcon Kind="remove" Classes="danger"/><TextBlock Text="移除" VerticalAlignment="Center"/></StackPanel></Button>
@@ -53,6 +53,23 @@
       </Border>
       <GridSplitter x:Name="SidebarSplitter" Classes="workspace-splitter" Grid.Column="1" ResizeDirection="Columns"/>
       <Border x:Name="TaskWorkspace" Classes="task-workspace" Grid.Column="2">
+      <Grid x:Name="TaskShell" RowDefinitions="Auto,Auto,*,Auto">
+        <Grid x:Name="ModernTitleBar" Classes="modern-title" IsVisible="False" ColumnDefinitions="Auto,Auto,*,Auto">
+          <Border Classes="capsule" VerticalAlignment="Center">
+            <Button x:Name="AppMenuButton" Classes="cap" ToolTip.Tip="菜单" AutomationProperties.Name="菜单"><local:LucideIcon Kind="panel-left" Width="16" Height="16"/></Button>
+          </Border>
+          <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+            <TextBlock Classes="modern-title-text" Text="任务"/>
+            <TextBlock x:Name="TaskSummaryText" Classes="modern-subtitle"/>
+          </StackPanel>
+          <Border Grid.Column="3" Classes="capsule" VerticalAlignment="Center"><StackPanel x:Name="ModernToolCapsule" Orientation="Horizontal" Spacing="2"/></Border>
+        </Grid>
+        <Grid x:Name="ModernQueueBar" Grid.Row="1" Classes="modern-queuebar" IsVisible="False" ColumnDefinitions="Auto,*,Auto,Auto">
+          <TextBlock Classes="modern-section" Text="任务列表" VerticalAlignment="Center"/>
+          <Border Grid.Column="2" Classes="capsule" VerticalAlignment="Center"><StackPanel x:Name="ModernEditCapsule" Orientation="Horizontal" Spacing="2"/></Border>
+          <Border Grid.Column="3" Classes="capsule" Margin="10,0,0,0" VerticalAlignment="Center"><StackPanel x:Name="ModernRunCapsule" Orientation="Horizontal" Spacing="2"/></Border>
+        </Grid>
+        <Border x:Name="QueueCard" Grid.Row="2" Classes="queue-card">
       <Grid x:Name="TaskArea" RowDefinitions="Auto,Auto,*,Auto">
         <Border Classes="completed-tasks-bar" x:Name="CompletedTasksBar" IsVisible="False" MinHeight="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" Background="{DynamicResource UiSurfaceRaised}">
           <Button x:Name="CompletedTasksToggle" Classes="tool" HorizontalAlignment="Left" Click="ToggleCompletedTasksClick">
@@ -64,12 +81,12 @@
         </Border>
         <Border Grid.Row="1" Classes="platinum-list-heading queue-heading" Height="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" Background="{DynamicResource UiSurfaceRaised}">
           <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <TextBlock Text="封面 / 预览" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0"/>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/></Grid.ColumnDefinitions>
+            <TextBlock Text="封面 / 预览" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0">
-              <TextBlock Text="文件 / 媒体信息" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0"/>
+              <TextBlock Text="文件 / 媒体信息" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             </Border>
-            <TextBlock Grid.Column="2" Text="输出设置 / 任务状态" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0"/>
+            <TextBlock Grid.Column="2" Text="输出设置 / 任务状态" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
           </Grid>
         </Border>
         <ListBox Classes="task-list" Grid.Row="2" x:Name="JobList" Padding="0" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="JobSelectionChanged">
@@ -124,9 +141,12 @@
         </Grid>
         <local:DownloadSpeedMonitor x:Name="NetworkMonitor" Grid.Row="2" IsVisible="False" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,6,8,6"/>
       </Grid>
+        </Border>
+        <Border x:Name="ModernStatusHost" Grid.Row="3" Classes="modern-status-host"/>
+      </Grid>
       </Border>
     </Grid>
-    <StackPanel Grid.Row="3">
+    <StackPanel x:Name="StatusBarPanel" Grid.Row="3">
     <Border Classes="app-statusbar" Height="{DynamicResource UiStatusBarHeight}" Background="{DynamicResource UiStatusSurface}"><Grid ColumnDefinitions="2*,Auto,*,Auto,Auto,Auto,142,Auto" Margin="{DynamicResource UiStatusPadding}">
       <Grid ColumnDefinitions="Auto,*">
         <local:ActionIcon Kind="folder" Width="16" Height="16" Margin="0,0,4,0" VerticalAlignment="Center" IsVisible="{DynamicResource UiShowOutputIcon}"/>

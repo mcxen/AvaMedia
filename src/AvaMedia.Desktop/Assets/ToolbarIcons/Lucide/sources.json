@@ -101,7 +101,12 @@
     "tag",
     "user-round",
     "video",
-    "wrench"
+    "wrench",
+    "circle-alert",
+    "circle-check",
+    "circle-pause",
+    "circle-x",
+    "clock"
   ],
   "sha256": {
     "image-plus": "270ecd11d0bbfadaf5d5e540eebd994d5f99828ca04a3ab48fcf840a1d6a9724",

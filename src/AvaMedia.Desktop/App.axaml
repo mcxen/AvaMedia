@@ -12,5 +12,6 @@
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ImageViewer.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/VideoSummaryStyles.axaml" />
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/Classic.axaml" />
+    <StyleInclude Source="avares://AvaMedia.Desktop/Styles/MainShell.axaml" />
   </Application.Styles>
 </Application>
