@@ -201,7 +201,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public string MetaLine => Localization.Join(" · ", new[] { MediaSummary, CodecSummary }.Where(s => s.Length > 0));
     public string CompactState => Job.State switch
     {
-        JobState.Running when Job.Activity is null => Job.Status.Replace("  ", " "),
+        JobState.Running when Job.Activity is null => ShortRunning(),
         JobState.Running => Localization.Text("处理中"),
         JobState.Waiting => Localization.Text("等待中"),
         JobState.Paused => Job.Progress > 0 ? Localization.Format($"{Localization.Key("已暂停")}  {Job.Progress:0.0}%") : Localization.Text("已暂停"),
@@ -214,7 +214,21 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         JobState.Paused => "circle-pause", JobState.Cancelled or JobState.Stopping => "circle-x", _ => ""
     };
     public bool HasStateIcon => StateIcon.Length > 0;
-    public string StateTip => HasStateDetail ? StateText + "\n" + StateDetail : StateText;
+    // Mockup form "转换中 62.0% · 剩余 01:20"; encoder detail stays in the tooltip.
+    private string ShortRunning()
+    {
+        var text = Job.Status;
+        if (Job.ProgressDetail.Length > 0) text = text.Replace(" · " + Job.ProgressDetail, "");
+        var remaining = Job.RemainingTimeText;
+        if (remaining.Length > 0)
+        {
+            var time = remaining.Replace("预计剩余 ", "");
+            if (time.Length == 8 && time.StartsWith("00:")) time = time[3..];
+            text = text.Replace(" · " + remaining, "") + " · 剩余 " + time;
+        }
+        return Localization.Text(text.Replace("  ", " "));
+    }
+    public string StateTip => Job.State == JobState.Running ? Localization.Text(Job.Status) : HasStateDetail ? StateText + "\n" + StateDetail : StateText;
     public void Refresh()
     {
         if (_disposed) return;

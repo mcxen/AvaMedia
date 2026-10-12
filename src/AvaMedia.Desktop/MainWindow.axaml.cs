@@ -59,7 +59,7 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent,Drop,Avalonia.Interactivity.RoutingStrategies.Bubble,handledEventsToo:true);
         AddHandler(DragDrop.DragOverEvent,DragOver,Avalonia.Interactivity.RoutingStrategies.Bubble,handledEventsToo:true);
     }
-    private Task Configure(Feature feature, string[]? files = null) => StartToolWorkflow(() => ConfigureCoreAsync(feature, files));
+    private Task Configure(Feature feature, string[]? files = null) { MarkFeatureSelected(feature.Id); return StartToolWorkflow(() => ConfigureCoreAsync(feature, files)); }
 
     private async Task ConfigureCoreAsync(Feature feature,string[]? files=null)
     {

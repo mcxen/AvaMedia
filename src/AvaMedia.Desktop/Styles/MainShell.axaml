@@ -4,7 +4,7 @@
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="ShellSidebar" Color="#EEF1F8"/>
+          <SolidColorBrush x:Key="ShellSidebar" Color="#F1F4FA"/>
           <SolidColorBrush x:Key="ShellCapsule" Color="#F2FFFFFF"/>
           <SolidColorBrush x:Key="ShellCapsuleHover" Color="#0F000000"/>
           <SolidColorBrush x:Key="ShellHairline" Color="#1F000000"/>
@@ -95,7 +95,7 @@
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource ShellSelected}"/><Setter Property="BorderBrush" Value="{DynamicResource ShellSeparator}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Grid.queue-row"><Setter Property="Margin" Value="0"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list StackPanel.queue-details"><Setter Property="Spacing" Value="3"/><Setter Property="Margin" Value="0,0,12,0"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="12,0,0,0"/><Setter Property="Height" Value="36"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="12,0,0,0"/><Setter Property="Height" Value="34"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Border.queue-artwork"><Setter Property="CornerRadius" Value="5"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Image.queue-cover"><Setter Property="Stretch" Value="UniformToFill"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-name"><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Medium"/><Setter Property="Foreground" Value="{DynamicResource ShellLabel}"/></Style>
@@ -112,13 +112,22 @@
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreen}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#ViewResultButton"><Setter Property="MinHeight" Value="18"/><Setter Property="Height" Value="18"/><Setter Property="Padding" Value="6,0"/><Setter Property="FontSize" Value="11"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Grid.queue-drop-hint"><Setter Property="Margin" Value="10"/><Setter Property="MinHeight" Value="70"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Grid.queue-drop-hint Rectangle"><Setter Property="Stroke" Value="{DynamicResource ShellDash}"/><Setter Property="StrokeThickness" Value="1.5"/><Setter Property="RadiusX" Value="12"/><Setter Property="RadiusY" Value="12"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Grid.queue-drop-hint TextBlock"><Setter Property="FontSize" Value="12.5"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Grid.queue-drop-hint controls|LucideIcon"><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host"><Setter Property="Margin" Value="14,10,14,12"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host Border.app-statusbar"><Setter Property="Height" Value="30"/><Setter Property="CornerRadius" Value="10"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BoxShadow" Value="0 0 0 0.5 #1A000000"/><Setter Property="Padding" Value="12,0"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host CheckBox"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-heading Grid > TextBlock:nth-child(1)"><Setter Property="Margin" Value="12,0,0,0"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton:disabled"><Setter Property="Opacity" Value="1"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Opacity" Value="1"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled"><Setter Property="Opacity" Value="1"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource ShellTrack}"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled TextBlock"><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled controls|ActionIcon, Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary:disabled controls|ActionIcon.success"><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host TextBlock.status-summary"><Setter Property="TextTrimming" Value="None"/><Setter Property="Margin" Value="14,0"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host controls|SplitFlapPercentage"><Setter Property="Background" Value="{DynamicResource ShellFlap}"/><Setter Property="BorderBrush" Value="{DynamicResource ShellSeparator}"/><Setter Property="BorderThickness" Value="0.5"/><Setter Property="CornerRadius" Value="4"/><Setter Property="FontSize" Value="10.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource ShellLabel}"/><Setter Property="Margin" Value="5,0,12,0"/></Style>
+  <Style Selector="Window.main-window Button.caption"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+  <Style Selector="Window.main-window Button.caption controls|LucideIcon"><Setter Property="Foreground" Value="{DynamicResource ShellLabel}"/><Setter Property="Width" Value="12"/><Setter Property="Height" Value="12"/></Style>
+  <Style Selector="Window.main-window Button.caption:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource ShellRowHover}"/></Style>
+  <Style Selector="Window.main-window Button.caption.close:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#C42B1C"/></Style>
+  <Style Selector="Window.main-window Button.caption.close:pointerover controls|LucideIcon"><Setter Property="Foreground" Value="White"/></Style>
 </Styles>

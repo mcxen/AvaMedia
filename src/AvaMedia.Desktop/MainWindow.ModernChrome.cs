@@ -27,7 +27,6 @@ public partial class MainWindow
         _statusHome = _statusBar?.Parent as Panel;
         AppMenuButton.Click += (_, _) => _appMenuFlyout?.ShowAt(AppMenuButton);
         Classes.CollectionChanged += (_, _) => ApplyChrome();
-        TaskArea.SizeChanged += (_, _) => FitQueueList();
         ApplyChrome();
     }
 
@@ -54,19 +53,18 @@ public partial class MainWindow
         ApplicationMenu.IsVisible = AppToolbar.IsVisible = !modern;
         ModernTitleBar.IsVisible = ModernQueueBar.IsVisible = modern;
         Grid.SetRowSpan(WorkspaceLayout, modern ? 2 : 1);
-        // Modern: rows take their content height and the route drop zone fills the rest.
-        TaskArea.RowDefinitions[2].Height = modern ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
-        TaskArea.RowDefinitions[3].Height = modern ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
-        RefreshTaskList(); FitQueueList();
+        // The modern status bar gives the queue summary its natural width instead of trimming it.
+        if (SummaryText.Parent is Grid status)
+        {
+            status.ColumnDefinitions[0].Width = modern ? new GridLength(1, GridUnitType.Star) : new GridLength(2, GridUnitType.Star);
+            status.ColumnDefinitions[2].Width = modern ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+            status.ColumnDefinitions[0].MinWidth = modern ? 170 : 0;
+            status.ColumnDefinitions[6].Width = modern ? GridLength.Auto : new GridLength(142);
+        }
+        FeatureSidebar.Bind(BackgroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(modern ? "ShellSidebar" : "UiFeaturePanel"));
+        ApplyWindowFrame(modern);
+        RefreshTaskList();
         if (_visibleJobs.Count > 0) JobDisplayChanged?.Invoke();
-    }
-
-    private void FitQueueList()
-    {
-        if (!ModernChrome) { JobList.MaxHeight = double.PositiveInfinity; return; }
-        var used = CompletedTasksBar.IsVisible ? CompletedTasksBar.Bounds.Height : 0;
-        used += TaskArea.Children.OfType<Border>().FirstOrDefault(border => border.Classes.Contains("queue-heading"))?.Bounds.Height ?? 26;
-        JobList.MaxHeight = Math.Max(60, TaskArea.Bounds.Height - used - 90);
     }
 
     private static void Cap(Panel capsule, Control control)

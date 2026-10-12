@@ -186,7 +186,7 @@
       <x:Double x:Key="UiStatusBarHeight">28</x:Double>
       <x:Double x:Key="UiTableHeaderHeight">28</x:Double>
       <x:Double x:Key="UiToolbarSeparatorHeight">24</x:Double>
-      <GridLength x:Key="UiSidebarWidth">270</GridLength>
+      <GridLength x:Key="UiSidebarWidth">262</GridLength>
       <x:Double x:Key="UiSidebarMinWidth">220</x:Double>
       <x:Double x:Key="UiFeatureIconHeight">18</x:Double>
       <x:Double x:Key="UiFeatureRowHeight">34</x:Double>
@@ -195,10 +195,10 @@
       <x:Double x:Key="UiCategoryIconSize">20</x:Double>
       <x:Double x:Key="UiFeatureGroupHeight">24</x:Double>
       <GridLength x:Key="UiQueuePreviewWidth">90</GridLength>
-      <x:Double x:Key="UiQueueRowHeight">60</x:Double>
-      <x:Double x:Key="UiQueueCoverHeight">36</x:Double>
-      <x:Double x:Key="UiQueueArtworkWidth">64</x:Double>
-      <x:Double x:Key="UiQueueArtworkHeight">36</x:Double>
+      <x:Double x:Key="UiQueueRowHeight">54</x:Double>
+      <x:Double x:Key="UiQueueCoverHeight">34</x:Double>
+      <x:Double x:Key="UiQueueArtworkWidth">56</x:Double>
+      <x:Double x:Key="UiQueueArtworkHeight">34</x:Double>
       <x:Double x:Key="UiQueueIconWidth">30</x:Double>
       <x:Double x:Key="UiQueueIconHeight">26</x:Double>
       <x:Double x:Key="UiQueueProgressHeight">4</x:Double>

@@ -3495,7 +3495,6 @@
   "没有可分析的视频画面。": "No video frames are available for analysis.",
   "保留有人片段": "Keep scenes with people",
   "转换为": "Convert to",
-  "将文件拖到这里，由「文件路由」识别类型并列出可用工具，选择后加入任务": "Drop files here. File routing detects their type and lists matching tools; choose one to add tasks.",
   "{0} 个进行中 · {1} 个等待 · {2} 个失败": "{0} running · {1} waiting · {2} failed",
   "已完成 {0} 个任务": "{0} completed tasks",
   "任务列表": "Task list",

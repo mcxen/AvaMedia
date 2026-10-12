@@ -126,14 +126,19 @@ public partial class MainWindow
         if (theme == "UiTreeRowTheme") button.HorizontalAlignment = HorizontalAlignment.Stretch;
         button.Click += async (_, _) =>
         {
-            _selectedFeatureId = feature.Id;
-            foreach (var active in _featureButtons) SetFeatureSelection(active.Value, active.Key);
             await Configure(feature);
         };
         button.KeyDown += (_, args) => NavigateFeatureRows(feature.Id, args);
         EnableFeatureDrop(button, content, feature);
         _featureButtons.Add(feature.Id, button);
         return button;
+    }
+
+    // The tool last opened (tree click, routing, drag-drop) keeps the blue selected row.
+    private void MarkFeatureSelected(string id)
+    {
+        _selectedFeatureId = id;
+        foreach (var active in _featureButtons) SetFeatureSelection(active.Value, active.Key);
     }
 
     private void SetFeatureSelection(Button button, string id)

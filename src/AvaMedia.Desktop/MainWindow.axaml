@@ -132,13 +132,6 @@
             </ContextMenu>
           </ListBox.ContextMenu>
         </ListBox>
-        <Grid x:Name="QueueDropHint" Grid.Row="3" Classes="queue-drop-hint" Margin="10,8,10,10" MinHeight="84" IsHitTestVisible="False">
-          <Rectangle RadiusX="10" RadiusY="10" Stroke="{DynamicResource UiBorder}" StrokeThickness="1.2" StrokeDashArray="4,3"/>
-          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="12,10">
-            <local:LucideIcon Kind="upload" Width="18" Height="18" HorizontalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}"/>
-            <TextBlock Text="将文件拖到这里，由「文件路由」识别类型并列出可用工具，选择后加入任务" TextWrapping="Wrap" TextAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiTextSecondary}"/>
-          </StackPanel>
-        </Grid>
         <local:DownloadSpeedMonitor x:Name="NetworkMonitor" Grid.Row="2" IsVisible="False" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,6,8,6"/>
       </Grid>
         </Border>
@@ -153,7 +146,7 @@
         <TextBlock Grid.Column="1" i18n:Localization.IsUserText="True" x:Name="OutputPath" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource UiStatusText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
       </Grid>
       <CheckBox x:Name="Multithread" Grid.Column="1" Foreground="{DynamicResource UiStatusText}" Content="使用多线程" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
-      <TextBlock x:Name="SummaryText" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
+      <TextBlock x:Name="SummaryText" Classes="status-summary" TextTrimming="CharacterEllipsis" Grid.Column="2" Margin="16,0" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Foreground="{DynamicResource UiStatusText}"/>
       <TextBlock x:Name="ElapsedText" i18n:StableLayout.Samples="耗时: 88:88:88|Elapsed: 88:88:88" Grid.Column="3" Foreground="{DynamicResource UiStatusText}" Text="耗时: 00:00:00" FontFeatures="tnum" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" Margin="10,0"/>
       <CheckBox x:Name="Notify" Grid.Column="4" Foreground="{DynamicResource UiStatusText}" Content="完成通知" IsChecked="True" VerticalAlignment="Center" FontSize="{DynamicResource UiFontCaption}" MinHeight="20"/>
       <Grid Grid.Column="5" ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Center" Margin="16,0,4,0">
