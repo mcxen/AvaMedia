@@ -1,0 +1,27 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+    <ResourceInclude Source="avares://AvaMedia.Controls/Themes/Defaults.axaml"/>
+    <ResourceInclude Source="avares://AvaMedia.Controls/Themes/ControlThemes.axaml"/>
+  </ResourceDictionary.MergedDictionaries></ResourceDictionary></Styles.Resources>
+
+  <Style Selector="Border.ac-card"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/><Setter Property="Padding" Value="{DynamicResource AcCardPadding}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Border.ac-stage"><Setter Property="Height" Value="{DynamicResource AcStageHeight}"/><Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/><Setter Property="Padding" Value="{DynamicResource AcStagePadding}"/></Style>
+  <Style Selector="Border.ac-list-row"><Setter Property="Height" Value="{DynamicResource AcListHeight}"/><Setter Property="Margin" Value="{DynamicResource AcListMargin}"/><Setter Property="Padding" Value="{DynamicResource AcListPadding}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Border.ac-list-row.text"><Setter Property="Height" Value="{DynamicResource AcTextRowHeight}"/></Style>
+  <Style Selector="Border.ac-status"><Setter Property="Height" Value="{DynamicResource AcStatusHeight}"/><Setter Property="CornerRadius" Value="{DynamicResource AcStatusRadius}"/><Setter Property="Padding" Value="{DynamicResource AcStatusPadding}"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style Selector="TextBlock.ac-section"><Setter Property="FontSize" Value="{DynamicResource AcSectionFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Margin" Value="{DynamicResource AcSectionMargin}"/></Style>
+  <Style Selector="ListBox.ac-segmented"><Setter Property="Background" Value="{DynamicResource UiFill}"/><Setter Property="CornerRadius" Value="{DynamicResource AcSegmentRadius}"/><Setter Property="Padding" Value="{DynamicResource AcSegmentPadding}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>
+  <Style Selector="ListBox.ac-segmented ListBoxItem"><Setter Property="Padding" Value="10,4"/><Setter Property="MinHeight" Value="24"/><Setter Property="CornerRadius" Value="{DynamicResource AcSegmentItemRadius}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="FontSize" Value="{DynamicResource AcButtonFont}"/></Style>
+  <Style Selector="ListBox.ac-segmented ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.ac"><Setter Property="Theme" Value="{DynamicResource AcButton}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) CheckBox.ac"><Setter Property="Theme" Value="{DynamicResource AcCheckBox}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) RadioButton.ac"><Setter Property="Theme" Value="{DynamicResource AcRadioButton}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) ToggleSwitch.ac"><Setter Property="Theme" Value="{DynamicResource AcToggleSwitch}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) ComboBox.ac"><Setter Property="Theme" Value="{DynamicResource AcComboBox}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) NumericUpDown.ac"><Setter Property="Theme" Value="{DynamicResource AcNumericUpDown}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) TextBox.ac"><Setter Property="Theme" Value="{DynamicResource AcTextBox}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) Slider.ac"><Setter Property="Theme" Value="{DynamicResource AcSlider}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) ProgressBar.ac"><Setter Property="Theme" Value="{DynamicResource AcProgressBar}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) ToolTip.ac"><Setter Property="Theme" Value="{DynamicResource AcToolTip}"/></Style>
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) ScrollBar.ac"><Setter Property="Theme" Value="{DynamicResource AcScrollBar}"/></Style>
+</Styles>

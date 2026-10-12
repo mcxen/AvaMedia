@@ -1,0 +1,13 @@
+using Avalonia;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+
+namespace AvaMedia.Controls;
+
+/// <summary>组件的资源契约；宿主可在任意主题字典覆盖同名键。</summary>
+public static class ComponentResources
+{
+    public const string ButtonTheme = "AcButton", ProgressTheme = "AcProgressBar", CardRadius = "AcCardRadius",
+        CardPadding = "AcCardPadding", Gap = "AcGap", StageHeight = "AcStageHeight", ProgressHeight = "AcProgressHeight";
+    public static DynamicResourceExtension Resource(string key) => new(key);
+    public static void BindResource(AvaloniaObject control, AvaloniaProperty property, string key) => control.Bind(property, Resource(key));
+}
