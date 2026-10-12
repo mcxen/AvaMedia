@@ -100,6 +100,8 @@ internal static class ClassifyUi
                     Content = new TextBlock { Text = raw ? labels[i] : L(labels[i]), FontSize = 12, FontWeight = i == selected ? FontWeight.SemiBold : FontWeight.Normal, Foreground = Ink },
                     Background = i == selected ? Surface : Brushes.Transparent, CornerRadius = new(7), BorderThickness = new(0), Padding = new(11, 4)
                 };
+                button.Classes.Add("classify-segment");
+                if (i == selected) button.Classes.Add("selected");
                 button.Click += (_, _) => { if (selected == index) return; selected = index; Render(); changed(index); };
                 row.Children.Add(button);
             }

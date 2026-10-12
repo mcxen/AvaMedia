@@ -24,7 +24,7 @@ public sealed partial class ClassificationRunWindow : Window
     private int _dirty = 1, _computing;
     private bool? _resultMode;
     private bool _closed;
-    public static int Applied, Computed; public static double LastComputeMs, MaxComputeMs;
+    public static int Applied, Computed; public static double LastComputeMs, MaxComputeMs, MaxApplyMs;
 
     public ClassificationRunWindow(Job job, Action<Job>? pause, Action<Job>? stop, Action<Job, string> openAction)
     {
@@ -49,10 +49,25 @@ public sealed partial class ClassificationRunWindow : Window
             job.ClassificationRegroup ??= await Task.Run(() => FolderClassificationTaskStore.LoadRegroup(job));
             _timer.Start(); Pump();
         };
+        if (Environment.GetEnvironmentVariable("AVAMEDIA_UI_LAG_LOG") is { Length: > 0 } lagLog) StartLagProbe(lagLog);
         Closed += (_, _) => { _closed = true; _timer.Stop(); job.PropertyChanged -= JobChanged; };
     }
 
     internal Job Job => _job;
+
+    /// <summary>Diagnostics only: samples UI-thread latency with a 50 ms timer and writes percentiles to a file.</summary>
+    private void StartLagProbe(string path)
+    {
+        var lags = new List<double>(); var clock = System.Diagnostics.Stopwatch.StartNew(); var last = 0d;
+        var probe = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Input, (_, _) =>
+        {
+            var now = clock.Elapsed.TotalMilliseconds; if (last > 0) lags.Add(Math.Max(0, now - last - 50)); last = now;
+            if (lags.Count % 40 != 0) return;
+            var sorted = lags.OrderBy(x => x).ToArray();
+            File.WriteAllText(path, $"samples {sorted.Length} p50 {sorted[sorted.Length / 2]:0.0} ms p95 {sorted[(int)(sorted.Length * .95)]:0.0} ms max {sorted[^1]:0.0} ms; applies {Applied} computes {Computed} maxCompute {MaxComputeMs:0.0} ms maxApply {MaxApplyMs:0.0} ms; files {_progress.Files.Count} done {_progress.Completed}\n");
+        });
+        probe.Start(); Closed += (_, _) => probe.Stop();
+    }
     private void JobChanged(object? sender, PropertyChangedEventArgs e) => Interlocked.Exchange(ref _dirty, 1);
     internal void Invalidate() => Interlocked.Exchange(ref _dirty, 1);
 
@@ -76,6 +91,13 @@ public sealed partial class ClassificationRunWindow : Window
     private void Apply()
     {
         Interlocked.Increment(ref Applied);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        try { ApplyCore(); }
+        finally { MaxApplyMs = Math.Max(MaxApplyMs, watch.Elapsed.TotalMilliseconds); }
+    }
+
+    private void ApplyCore()
+    {
         var result = !Active;
         if (_resultMode != result)
         {

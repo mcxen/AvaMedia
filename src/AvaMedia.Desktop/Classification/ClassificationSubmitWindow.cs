@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Automation;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -41,7 +43,9 @@ public sealed class ClassificationSubmitWindow : Window
     {
         _engine = engine; _settings = settings; _enqueue = enqueue; _manageModels = manageModels; _showTasks = showTasks;
         _preferences = _storage.LoadToolOptions<FolderClassificationWindow.Preferences>("folder-classification") ?? new();
-        Title = L("新建 AI 媒体整理"); Width = 900; Height = 520; CanResize = false; Background = Surface;
+        Title = L("新建 AI 媒体整理"); Width = 900; Height = 520; CanResize = false; Background = Brush("#FAFAFC");
+        Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new Uri("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
+        foreach (var check in new[] { _recursive, _split, _writeText }) check.Classes.Add("classify-check");
         WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         _output = _preferences.OutputFolder; _recursive.IsChecked = _preferences.Recursive; _split.IsChecked = _preferences.SplitTypes;
         _writeText.IsChecked = _preferences.WriteText; _frames.Value = Math.Clamp(_preferences.VideoFrames, 1, 32); _threshold.Value = (double)_preferences.TagThreshold;
@@ -57,7 +61,7 @@ public sealed class ClassificationSubmitWindow : Window
 
     private Control Build()
     {
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), Margin = new(22, 14, 22, 16), RowSpacing = 16 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), Margin = new(22, 14, 22, 16), RowSpacing = 12 };
         var header = new Grid { ColumnDefinitions = new("*,Auto") };
         var titles = new StackPanel { Spacing = 2 };
         titles.Children.Add(T("新建 AI 媒体整理", 15, FontWeight.Bold)); titles.Children.Add(T("选择来源与分类方式，任务会在后台运行", 11.5, brush: Muted));
@@ -80,14 +84,16 @@ public sealed class ClassificationSubmitWindow : Window
         dest.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 15, Height = 15, Foreground = Blue });
         var destText = new StackPanel(); destText.Children.Add(_destName); destText.Children.Add(_destPath); Grid.SetColumn(destText, 1); dest.Children.Add(destText);
         var change = Pill("更改…", click: () => _ = ChangeOutputAsync()); Grid.SetColumn(change, 2); dest.Children.Add(change);
-        left.Children.Add(new Border { BorderBrush = Hairline, BorderThickness = new(1), CornerRadius = new(10), Padding = new(12, 8), Child = dest });
+        left.Children.Add(new Border { Background = Surface, BorderBrush = Hairline, BorderThickness = new(1), CornerRadius = new(10), Padding = new(12, 8), Child = dest, BoxShadow = BoxShadows.Parse("0 1 3 0 #14000000") });
         left.Children.Add(Segmented(["复制到分类目录", "移动到分类目录"], _move ? 1 : 0, index => _move = index == 1));
         left.Children.Add(T("分析在后台进行；完成后先核对分组，再执行整理。", 11, brush: Muted));
         columns.Children.Add(left);
 
         var right = new StackPanel { Spacing = 10 };
         right.Children.Add(Heading("按什么分", _ruleSummary));
-        right.Children.Add(_ruleGrid);
+        right.Children.Add(new ScrollViewer { Content = _ruleGrid, MaxHeight = 154,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
         var more = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         more.Children.Add(Pill("添加分类组…", click: () => _ = OpenAdvancedAsync()));
         var saved = Pill("已保存分类", "chevron-down", iconAfter: true);
@@ -99,9 +105,9 @@ public sealed class ClassificationSubmitWindow : Window
         right.Children.Add(more);
         var tuning = new Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 18 };
         tuning.Children.Add(Tuner("服装相似度", _similarity, v => v.ToString("0.00")));
-        var frames = Tuner("视频采样帧数", _frames, v => $"{v:0} {L("帧")}"); Grid.SetColumn(frames, 1); tuning.Children.Add(frames);
+        var frames = Tuner("视频采样帧数", _frames, v => $"{v:0} {L("帧")}", segmented: true); Grid.SetColumn(frames, 1); tuning.Children.Add(frames);
         var thr = Tuner("标签阈值", _threshold, v => v.ToString("0.00")); Grid.SetColumn(thr, 2); tuning.Children.Add(thr);
-        right.Children.Add(new Border { BorderBrush = Hairline, BorderThickness = new(1), CornerRadius = new(12), Padding = new(12, 10), Child = tuning });
+        right.Children.Add(new Border { Background = Surface, BorderBrush = Hairline, BorderThickness = new(1), CornerRadius = new(12), Padding = new(12, 10), Child = tuning, BoxShadow = BoxShadows.Parse("0 1 3 0 #14000000") });
         var options = new Grid { ColumnDefinitions = new("Auto,Auto,*,Auto"), ColumnSpacing = 14 };
         options.Children.Add(_split); Grid.SetColumn(_writeText, 1); options.Children.Add(_writeText);
         var models = Pill("模型管理…", kind: "link", click: () => _ = _manageModels(this)); models.Padding = new(0); Grid.SetColumn(models, 3); options.Children.Add(models);
@@ -124,37 +130,66 @@ public sealed class ClassificationSubmitWindow : Window
         return row;
     }
 
-    private static Control Tuner(string label, Slider slider, Func<double, string> format)
+    private static Control Tuner(string label, Slider slider, Func<double, string> format, bool segmented = false)
     {
         var value = T(format(slider.Value), 15, FontWeight.Bold, raw: true);
-        slider.ValueChanged += (_, _) => value.Text = format(slider.Value);
-        slider.Margin = new(0, -6, 0, -8);
+        slider.Classes.Add("classify-tuner");
+        AutomationProperties.SetName(slider, L(label));
+        var track = new Grid { Height = 4, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        void RefreshTrack()
+        {
+            value.Text = format(slider.Value);
+            track.Children.Clear(); track.ColumnDefinitions.Clear();
+            if (segmented)
+            {
+                // Each dash represents one sampled frame; the value always comes from the real slider.
+                track.ColumnSpacing = 2;
+                for (var i = 0; i < (int)slider.Value; i++)
+                {
+                    track.ColumnDefinitions.Add(new(1, GridUnitType.Star));
+                    var dash = new Border { Background = Blue, CornerRadius = new(1) };
+                    Grid.SetColumn(dash, i); track.Children.Add(dash);
+                }
+            }
+            else track.Children.Add(Bar((slider.Value - slider.Minimum) / (slider.Maximum - slider.Minimum), Blue));
+        }
+        slider.ValueChanged += (_, _) => RefreshTrack();
+        RefreshTrack();
+        var input = new Grid { Height = 16 };
+        input.Children.Add(track); input.Children.Add(slider);
         var panel = new StackPanel { Spacing = 2 };
-        panel.Children.Add(T(label, 11, brush: Muted)); panel.Children.Add(value); panel.Children.Add(slider);
+        panel.Children.Add(T(label, 11, brush: Muted)); panel.Children.Add(value); panel.Children.Add(input);
         return panel;
     }
 
     private void RenderRules()
     {
         _ruleGrid.Children.Clear(); _ruleGrid.RowDefinitions.Clear();
-        var presets = FolderClassificationRule.Presets.Where(Visible).ToList();
+        string[] order = ["similar-outfits", "scenery", "people-count", "framing", "video-duration", "body-pose",
+            "viewpoint", "everyday-clothes", "indoor-location", "empty-shot", "contact", "age-appearance"];
+        var presets = FolderClassificationRule.Presets.Where(Visible)
+            .OrderBy(rule => Array.IndexOf(order, rule.Id) is var index && index >= 0 ? index : order.Length).ToList();
         foreach (var extra in _selected.Where(rule => presets.All(p => p.Id != rule.Id))) presets.Add(extra);
         for (var i = 0; i < presets.Count; i++)
         {
             if (i % 4 == 0) _ruleGrid.RowDefinitions.Add(new(GridLength.Auto));
             var rule = presets[i]; var on = _selected.Any(r => r.Id == rule.Id);
             var text = new StackPanel { Spacing = 2 };
-            var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
+            var title = new Grid { ColumnDefinitions = new(on ? "11,*" : "*"), ColumnSpacing = 5 };
             if (on) title.Children.Add(new LucideIcon { Kind = "check", Width = 11, Height = 11, Foreground = Brushes.White });
-            title.Children.Add(new TextBlock { Text = L(rule.Name), FontSize = 12, FontWeight = FontWeight.SemiBold, Foreground = on ? Brushes.White : Ink });
+            var name = T(rule.Name, 12.5, FontWeight.SemiBold, on ? Brushes.White : Ink);
+            Grid.SetColumn(name, on ? 1 : 0); title.Children.Add(name);
             text.Children.Add(title);
             var description = rule.ByOutfit ? L("按拍摄背景和服装分组") : string.Join(" / ", rule.Categories.Take(3).Select(c => L(c.Name))) + (rule.Categories.Length > 3 ? " …" : "");
             text.Children.Add(new TextBlock { Text = description, FontSize = 10.5, Foreground = on ? Brush("#DDEBFF") : Muted, TextTrimming = TextTrimming.CharacterEllipsis });
             var button = new Button
             {
                 Content = text, Background = on ? Blue : Surface, BorderBrush = on ? Blue : Hairline, BorderThickness = new(1), CornerRadius = new(10),
-                Padding = new(10, 7), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 46
+                Padding = new(10, 5), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Height = 46, MinHeight = 46
             };
+            button.Classes.Add("classify-rule");
+            AutomationProperties.SetName(button, L(rule.Name));
+            ToolTip.SetTip(button, L(rule.Name) + " · " + description);
             button.Click += (_, _) => Toggle(rule);
             Grid.SetRow(button, i / 4); Grid.SetColumn(button, i % 4); _ruleGrid.Children.Add(button);
         }
@@ -217,10 +252,11 @@ public sealed class ClassificationSubmitWindow : Window
                 if (i < samples.Length) thumb.SetSource(samples[i], VideoFormats.IsVideo(samples[i]) ? 1 : null);
                 Grid.SetColumn(thumb, i % 2 * 2); Grid.SetRow(thumb, i / 2 * 2); mosaic.Children.Add(thumb);
             }
-            card.Children.Add(mosaic);
-            card.Children.Add(T(Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar)), 12.5, FontWeight.SemiBold, raw: true));
-            var kinds = source.Videos > 0 && source.Images > 0 ? L("图片 / 视频") : source.Videos > 0 ? L("视频") : L("图片");
-            card.Children.Add(T($"{source.Files.Length} {L("个")}{kinds}", 11, brush: Muted, raw: true));
+            card.Children.Add(new Border { Width = 128, Height = 96, CornerRadius = new(10), ClipToBounds = true, Child = mosaic, Margin = new(0, 0, 0, 5) });
+            card.Children.Add(T(Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar)), 12.5, FontWeight.Bold, raw: true));
+            var count = source.Videos > 0 && source.Images > 0 ? Localization.Format($"{source.Files.Length} 个图片 / 视频")
+                : source.Videos > 0 ? Localization.Format($"{source.Files.Length} 个视频") : Localization.Format($"{source.Files.Length} 个图片");
+            card.Children.Add(T(count, 11, brush: Muted, raw: true));
             card.ContextMenu = new ContextMenu { Items = { new MenuItem { Header = L("移除"), Command = new Command(() => { _sources.Remove(source); RenderSources(); }) } } };
             _sourceCards.Children.Add(card);
         }
@@ -231,9 +267,11 @@ public sealed class ClassificationSubmitWindow : Window
 
     private void RenderDestination()
     {
-        _destName.Text = string.IsNullOrWhiteSpace(_output) ? L("尚未选择") : Path.GetFileName(_output.TrimEnd(Path.DirectorySeparatorChar));
+        _destName.Text = L("分类结果");
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        _destPath.Text = _output.StartsWith(home, StringComparison.Ordinal) ? "~" + _output[home.Length..] : _output;
+        _destPath.Text = string.IsNullOrWhiteSpace(_output) ? L("尚未选择")
+            : home.Length > 0 && _output.StartsWith(home, StringComparison.Ordinal) ? "~" + _output[home.Length..] : _output;
+        ToolTip.SetTip(_destPath, _output);
     }
 
     private async Task ChangeOutputAsync()
@@ -256,7 +294,7 @@ public sealed class ClassificationSubmitWindow : Window
         _busy = true; UpdateSubmit();
         try
         {
-            if (string.IsNullOrWhiteSpace(_output)) throw new ArgumentException("请选择分类目录。");
+            if (string.IsNullOrWhiteSpace(_output)) throw new ArgumentException(L("请选择分类目录。"));
             var rules = _selected.Select(rule => rule.ByOutfit ? rule with { OutfitSimilarity = Math.Round(_similarity.Value, 2) } : rule).ToArray();
             FolderClassification.ValidateRules(rules);
             var options = new MediaTagOptions((int)_frames.Value) { SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
