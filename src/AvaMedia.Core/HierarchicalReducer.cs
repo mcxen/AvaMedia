@@ -43,10 +43,11 @@ public sealed class HierarchicalReducer(ISummaryModel model, TokenBudget budget,
         var hash = SummaryCheckpointStore.Hash(new { model.ModelId, prompt, budget, promptVersion = 1 });
         var path = $"reduce/{id}.json";
         if (checkpoints is not null && await checkpoints.ReadAsync<ChapterNode>(path, hash, ct) is { } cached) return cached;
+        var allowed = compact.SelectMany(c => c.Citations.Concat(c.KeyPoints.SelectMany(p => p.Citations))).ToHashSet(StringComparer.Ordinal);
+        if (allowed.Count == 0) return new(id, children[0].Start, children[^1].End, children[0].Title, "", [], [], "degraded");
         var reply = await gate.RunAsync(_packer.Counter.Count(prompt) + budget.SystemPrompt + budget.MaxOutput,
             () => model.CompleteAsync(System, prompt, ct, tokens: budget.MaxOutput), ct);
         var value = JsonSerializer.Deserialize<Reply>(reply, LongSummaryJson.Options) ?? throw new InvalidDataException("章节归纳 JSON 无效。");
-        var allowed = compact.SelectMany(c => c.Citations.Concat(c.KeyPoints.SelectMany(p => p.Citations))).ToHashSet(StringComparer.Ordinal);
         if (value.Title is null || value.Title.Length > 100 || value.Summary is null || value.Summary.Length > 600 || value.KeyPoints is null || value.KeyPoints.Length > 5
             || value.KeyPoints.Any(p => p is null || p.Text is null || p.Text.Length > 600 || p.Citations is null || p.Citations.Length == 0 || p.Citations.Any(c => !allowed.Contains(c)))) throw new InvalidDataException("章节归纳内容或引用无效。");
         var points = value.KeyPoints.GroupBy(p => p.Text).Select(g => new SummaryKeyPoint(g.Key, CitationLimiter.Limit(g.SelectMany(p => p.Citations)))).ToArray();
@@ -54,6 +55,7 @@ public sealed class HierarchicalReducer(ISummaryModel model, TokenBudget budget,
         if (checkpoints is not null) await checkpoints.WriteAsync(path, hash, node, ct); return node;
     }
     public static ChapterNode FromSegment(SegmentOutput output) => new(output.Range.Id, output.Range.Start, output.Range.End,
-        output.Result.TopicLabel, output.Result.Summary, output.Result.Claims.Take(5).Select(c => new SummaryKeyPoint(c.Text, CitationLimiter.Limit(c.Evidence))).ToArray(),
-        CitationLimiter.Limit(output.Result.Claims.SelectMany(c => c.Evidence)));
+        output.Result.TopicLabel, output.Result.Summary, output.Result.Claims.Select(c => new SummaryKeyPoint(c.Text, CitationLimiter.Limit(c.Evidence)))
+            .Concat(output.Result.Events.Select(e => new SummaryKeyPoint(e.Text, CitationLimiter.Limit(e.Evidence)))).Take(5).ToArray(),
+        CitationLimiter.Limit(output.Result.Claims.SelectMany(c => c.Evidence).Concat(output.Result.Events.SelectMany(e => e.Evidence))));
 }

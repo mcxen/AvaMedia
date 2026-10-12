@@ -38,6 +38,7 @@ public interface IMcpWorkspace
     Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct);
     Task<FolderClassificationLive> ClassificationLiveAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     Task<AiTaskProgressDto> AiProgressAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    Task<SummaryEvidence?> SummaryEvidenceAsync(Guid id, string evidenceId, CancellationToken ct) => throw new NotSupportedException();
     Task<byte[]?> AiPreviewAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     Task<FolderClassificationTaskFile> ResolveClassificationAsync(Guid id, string path, string ruleId, string categoryId, CancellationToken ct) => throw new NotSupportedException();
     IMediaEngine Engine { get; }

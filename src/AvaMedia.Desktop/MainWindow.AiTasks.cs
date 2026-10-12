@@ -82,7 +82,7 @@ public partial class MainWindow
         "rotate" when job.Options.Orientation is not null => job.OrientationResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(job.Output),
         "media-ai" => job.MediaTagResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "tags")),
         "person-clip" => job.PersonDetectionResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(job.HasInternalOutput ? job.Output : AiTaskResults.PathFor(job, "people")),
-        "video-summary" => job.SummaryReport is not null || File.Exists(Path.Combine(AiPartialResults.SummaryFolder(job), "report.json"))
+        "video-summary" => job.LongSummaryReport is not null || job.SummaryReport is not null || File.Exists(Path.Combine(AiPartialResults.SummaryFolder(job), "report.json"))
             || job.State == JobState.Completed && File.Exists(Path.Combine(job.Output, "report.json")),
         "auto-subtitle" => job.SubtitleResult is not null || job.State is not (JobState.Waiting or JobState.Running or JobState.Stopping) && File.Exists(AiTaskResults.PathFor(job, "subtitles")),
         _ => job.State is JobState.Completed or JobState.Paused or JobState.Cancelled or JobState.Failed && (File.Exists(job.Output) || Directory.Exists(job.Output))

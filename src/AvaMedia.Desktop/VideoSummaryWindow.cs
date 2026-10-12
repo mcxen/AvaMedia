@@ -45,11 +45,15 @@ public sealed class VideoSummaryWindow : Window
     private readonly StackPanel _externalRow, _speechFields;
     private readonly Button _confirm;
     private readonly CancellationTokenSource _lifetime = new();
+    public bool ResumeRequested { get; private set; }
+    private readonly CheckBox _allAudioTracks = new() { Content = "全部音轨" }, _autoAudioTrack = new() { Content = "按语言自动选择音轨" },
+        _strictSequential = new() { Content = "严格顺序理解" };
+    private readonly NumericUpDown _longConcurrency = new() { Minimum = 1, Maximum = 16, Increment = 1 };
     private readonly bool _editing;
     private bool _busy;
 
     public VideoSummaryWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? files = null, VideoSummaryOptions? initial = null,
-        string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null)
+        string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null, bool allowResume = false)
     {
         _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new Storage().LoadToolOptions<VideoSummaryOptions>("video-summary") ?? new() { ExtractSubtitles=false, AnalyzeContent=false,Speech=new(){Model=SpeechModel.Base} };
         _modelWarmup = new(this, engine, engine.Settings);
@@ -81,6 +85,12 @@ public sealed class VideoSummaryWindow : Window
                 catch (Exception error) { ShowError(error); }
             };
             toolbar.Children.Add(results);
+        }
+        if (allowResume && resultFolder is not null && File.Exists(Path.Combine(resultFolder, "work", "manifest.json")))
+        {
+            var resume = new Button { Content = "继续", Classes = { "field-action" } };
+            ToolTip.SetTip(resume, "继续已有任务，复用已完成的识别、画面和分段结果。");
+            resume.Click += (_, _) => { ResumeRequested = true; Close(null); }; toolbar.Children.Add(resume);
         }
         _sources.ItemsSource = _files;
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
@@ -180,6 +190,11 @@ public sealed class VideoSummaryWindow : Window
         subtitle.SelectionChanged+=(_,_)=>{if(subtitle.SelectedItem is not null)_subtitleTrack.Value=subtitle.Index;};audio.SelectionChanged+=(_,_)=>{if(audio.SelectedItem is not null)_audioTrack.Value=audio.Index;};
         _sources.SelectionChanged+=(_,_)=>{var path=_sources.SelectedItem as string;subtitle.SetSource(engine,path,"subtitle",(int)(_subtitleTrack.Value??-1),_lifetime.Token);audio.SetSource(engine,path,"audio",(int)(_audioTrack.Value??0),_lifetime.Token);};
         Add(advanced,"字幕轨",subtitle);Add(advanced,"音轨",audio); Add(advanced, "分段字符数", _chunkSize);
+        _allAudioTracks.IsChecked = options.AllAudioTracks; _autoAudioTrack.IsChecked = options.AutoSelectAudioTrack;
+        _strictSequential.IsChecked = options.StrictSequential; _longConcurrency.Value = options.LongSummaryConcurrency;
+        advanced.Children.Add(_autoAudioTrack); advanced.Children.Add(_allAudioTracks); advanced.Children.Add(_strictSequential);
+        Add(advanced, "长视频并发", _longConcurrency);
+        ToolTip.SetTip(_longConcurrency, "超过 20 分钟的视频使用；本地模型始终并发 1。");
         foreach(var child in advanced.Children.ToArray()){advanced.Children.Remove(child);recognition.Children.Add(child);}
         fields.Children.Add(new Expander { Header = "识别设置", Content = recognition, HorizontalAlignment = HorizontalAlignment.Stretch });
         var saving = new StackPanel { Spacing = 6 }; _folder = Ui.Input(outputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
@@ -257,6 +272,8 @@ public sealed class VideoSummaryWindow : Window
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
             TranscriptSource = (VideoTranscriptSource)_source.SelectedIndex, SubtitleFile = _external.Text?.Trim() ?? "",
             SubtitleTrack = (int)(_subtitleTrack.Value ?? -1), AudioTrack = (int)(_audioTrack.Value ?? 0),
+            AllAudioTracks = _allAudioTracks.IsChecked == true, AutoSelectAudioTrack = _autoAudioTrack.IsChecked == true,
+            StrictSequential = _strictSequential.IsChecked == true, LongSummaryConcurrency = (int)(_longConcurrency.Value ?? 4),
             Speech = new() { Model = _speechModel.SelectedIndex switch { 1 => SpeechModel.Base, 2 => SpeechModel.Small, _ => SpeechModel.Tiny },
                 Language = TranscriptionOptions.Languages[Math.Max(0, _speechLanguage.SelectedIndex)] },
             AnalyzeFrames = _frames.IsChecked == true, FrameCount = (int)(_frameCount.Value ?? 12),

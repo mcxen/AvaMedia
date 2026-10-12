@@ -13,7 +13,7 @@ public sealed class ConcurrencyGate
     public ConcurrencyGate(string modelKey, bool local, int concurrency = 4, int requestsPerMinute = 120, int tokensPerMinute = 256000)
     {
         if (concurrency is < 1 or > 16 || requestsPerMinute < 1 || tokensPerMinute < 1) throw new ArgumentOutOfRangeException(nameof(concurrency));
-        _gate = Shared.GetOrAdd(local ? "local-summary" : modelKey + ":" + concurrency, _ => new(local ? 1 : concurrency));
+        _gate = Shared.GetOrAdd(local ? "local-summary" : modelKey, _ => new(local ? 1 : concurrency));
         _rate = local ? null : Rates.GetOrAdd(modelKey, _ => new()); _rpm = requestsPerMinute; _tpm = tokensPerMinute;
     }
     public async Task<T> RunAsync<T>(int tokens, Func<Task<T>> call, CancellationToken ct)

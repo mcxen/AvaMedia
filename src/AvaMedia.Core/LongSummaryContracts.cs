@@ -18,7 +18,7 @@ public sealed record RollingContext(string PrevSummary, IReadOnlyList<string> Op
 }
 public sealed record SegmentJob(string SegmentId, double Start, double End, string Language,
     RollingContext Context, IReadOnlyList<SummaryCue> Transcript, IReadOnlyList<SummaryFrame> Frames, string Focus,
-    bool VisualOnly = false);
+    bool VisualOnly = false, string OutputLanguage = "简体中文");
 public sealed record SummaryEvent(double Start, double End, string Text, string[] Evidence);
 public sealed record SummaryClaim(string Id, string Text, string[] Evidence, string Confidence = "low");
 public sealed record SummaryEntity(string Name, string Type, string[] Aliases);
@@ -38,6 +38,7 @@ public sealed record LongSummaryReport(double Duration, string Language, string 
 {
     public int Version { get; init; } = 2;
     public bool IsPartial { get; init; }
+    public string[] Limitations { get; init; } = [];
     // Segment results live in work/map; the report stays bounded independently of transcript size.
     public string SegmentIndex { get; init; } = "work/segments.json";
 }

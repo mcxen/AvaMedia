@@ -19,19 +19,31 @@ public static class ShotDetector
         CancellationToken ct, double step = 5)
     {
         if (step <= 0) throw new ArgumentOutOfRangeException(nameof(step));
-        var boundaries = new List<ShotBoundary>(); byte[]? previous = null; double previousScore = 0;
-        for (var time = 0d; time < duration; time += step)
+        var boundaries = new List<ShotBoundary>();
+        var args = new[] { "-v", "error", "-nostdin", "-i", source, "-map", "0:v:0", "-vf", $"setpts=PTS-STARTPTS,fps={MediaEngine.Number(1 / step)},scale=64:64", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1" };
+        using var process = await ProcessRunner.StartAsync(engine.FFmpeg, args, ct);
+        using var cancelled = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
+        var error = process.StandardError.ReadToEndAsync();
+        var current = new byte[64 * 64 * 3]; var previous = new byte[current.Length]; int scanned = 0; double previousScore = 0;
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            var image = await engine.Thumbnail(source, time, 96, 64, ct);
-            var signature = VideoFrameSimilarity.FromEncoded(image);
-            if (previous is not null)
+            while (await VideoSummarySampling.ReadFrameAsync(process.StandardOutput.BaseStream, current, ct))
             {
-                var score = Difference(previous, signature);
-                if (score >= .12 && score >= previousScore) boundaries.Add(new(time, score));
-                previousScore = score;
+                if (scanned > 0)
+                {
+                    var score = VideoSummarySampling.Difference(current, previous);
+                    if (score >= .12 && score >= previousScore && scanned * step < duration) boundaries.Add(new(scanned * step, score));
+                    previousScore = score;
+                }
+                scanned++; (current, previous) = (previous, current);
             }
-            previous = signature;
+            await process.WaitForExitAsync(ct);
+            if (process.ExitCode != 0 || scanned == 0) throw new InvalidDataException("镜头扫描失败：" + await error);
+        }
+        finally
+        {
+            if (!process.HasExited) { try { process.Kill(true); } catch (InvalidOperationException) { } }
+            await process.WaitForExitAsync(); await error;
         }
         return FromBoundaries(duration, boundaries);
     }

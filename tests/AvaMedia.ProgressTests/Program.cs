@@ -11,6 +11,8 @@ using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Desktop;
 
+if (args.FirstOrDefault() == "long-summary") { LongSummaryProgressChecks.Run(); return; }
+
 var root=Path.GetFullPath("artifacts/progress-"+DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8)).ToString("yyyyMMdd-HHmmss"));Directory.CreateDirectory(root);
 var checks=new List<string>();var outputs=new List<string>();
 void Check(bool condition,string message){if(!condition)throw new Exception(message);checks.Add(message);Console.WriteLine("PASS "+message);}

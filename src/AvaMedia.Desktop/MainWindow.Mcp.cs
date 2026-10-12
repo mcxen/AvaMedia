@@ -129,7 +129,15 @@ public partial class MainWindow
                 captured.Progress, observations.LastOrDefault(value => value.Backend.Length > 0)?.Backend ?? "", activity?.CurrentNode ?? -1, nodes,
                 VisibleLines(observations.SelectMany(value => value.RecentResults).TakeLast(30).ToArray()),
                 VisibleLines(observations.SelectMany(value => value.RecentStages).TakeLast(12).ToArray()),
-                Preview(activity) is { Length: > 0 }, AiProgressStore.GetSpeech(captured.Id.ToString()), captured.Queue);
+                Preview(activity) is { Length: > 0 }, AiProgressStore.GetSpeech(captured.Id.ToString()), captured.Queue)
+            { SummarySegments = SummaryProgressStore.Get(captured.Id.ToString())?.Select(s => s with { Summary = Visible(s.Summary) }).ToArray() };
+        }
+
+        public async Task<SummaryEvidence?> SummaryEvidenceAsync(Guid id, string evidenceId, CancellationToken ct)
+        {
+            var captured = await Ui(() => { var job = Find(id); return (Folder: job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job), Feature: job.FeatureId); }, ct);
+            if (captured.Feature != "video-summary") return null;
+            return await new EvidenceStore(captured.Folder).LoadAsync(evidenceId, ct);
         }
 
         public Task<byte[]?> AiPreviewAsync(Guid id, CancellationToken ct) => Ui(() => Preview(Find(id).Activity), ct);
@@ -312,9 +320,18 @@ public partial class MainWindow
             else if (job.FeatureId == "auto-subtitle")
                 result = job.SubtitleResult ?? await AiTaskResults.LoadAsync<SubtitleTaskResult>(AiTaskResults.PathFor(job, "subtitles"), ct).ConfigureAwait(false);
             else if (job.FeatureId == "video-summary")
-                result = job.SummaryReport
-                    ?? await AiTaskResults.LoadAsync<VideoSummaryReport>(Path.Combine(
-                        job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job), "report.json"), ct).ConfigureAwait(false);
+            {
+                var folder = job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job);
+                var snapshot = job.LongSummaryReport is { } report
+                    ? new LongSummaryTaskSnapshot(report, job.SummarySegments, job.SummarySegments.Length)
+                    : await LongVideoSummaryOrchestrator.LoadAsync(folder, ct).ConfigureAwait(false);
+                if (snapshot is not null)
+                {
+                    result = snapshot with { Segments = snapshot.Segments.Skip(offset).Take(limit).ToArray() };
+                    next = offset + limit < snapshot.TotalSegments ? offset + limit : null;
+                }
+                else result = job.SummaryReport ?? await AiTaskResults.LoadAsync<VideoSummaryReport>(Path.Combine(folder, "report.json"), ct).ConfigureAwait(false);
+            }
             else if (job.FeatureId == "folder-organize")
                 result = await AiTaskResults.LoadAsync<FolderOrganizationResult>(AiTaskResults.PathFor(job, "organization-result"), ct).ConfigureAwait(false);
             else if (job.FeatureId == "model-download")

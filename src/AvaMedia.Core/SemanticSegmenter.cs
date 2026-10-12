@@ -1,7 +1,7 @@
 namespace AvaMedia.Core;
 
 public sealed record SummarySignals(double Duration, IReadOnlyList<SummaryCue> Cues, IReadOnlyList<SummaryShot> Shots,
-    IReadOnlyList<VoiceInterval> VoiceIntervals, IReadOnlyList<SummaryFrame> Frames);
+    IReadOnlyList<VoiceInterval> VoiceIntervals, IReadOnlyList<SummaryFrame> Frames, bool OcrAvailable = false, bool HasAudio = true);
 public sealed class SemanticSegmenter(PromptPacker? promptPacker = null)
 {
     private readonly PromptPacker _packer = promptPacker ?? new();
@@ -16,7 +16,7 @@ public sealed class SemanticSegmenter(PromptPacker? promptPacker = null)
         var ocrChanges = signals.Frames.OrderBy(f => f.T).Zip(signals.Frames.OrderBy(f => f.T).Skip(1))
             .Where(p => p.First.Ocr != p.Second.Ocr && p.Second.Ocr.Length > 0).Select(p => p.Second.T).ToArray();
         var boundaries = cues.Length == 0
-            ? Enumerable.Range(1, (int)Math.Ceiling(signals.Duration / Target)).Select(i => Math.Min(signals.Duration, i * Target)).ToArray()
+            ? signals.Shots.Select(s => s.Start).Where(t => t > 0).Concat(Enumerable.Range(1, (int)Math.Ceiling(signals.Duration / Target)).Select(i => Math.Min(signals.Duration, i * Target))).Distinct().OrderBy(t => t).ToArray()
             : cues.Select(c => c.Start).Where(t => t > 0 && !cues.Any(c => c.Start < t && c.End > t + .001)).Append(signals.Duration).Distinct().OrderBy(t => t).ToArray();
         double Score(double t) => signals.Shots.Where(s => Math.Abs(s.Start - t) <= 5).Select(s => s.Score * .35).DefaultIfEmpty(0).Max()
             + (visualOnly ? 0 : (silences.Any(s => Math.Abs(s - t) <= 5) ? .25 : 0) + topics.Where(s => Math.Abs(s.T - t) <= 5).Select(s => s.Score * .3).DefaultIfEmpty(0).Max())

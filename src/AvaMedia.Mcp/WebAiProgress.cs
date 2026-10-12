@@ -46,12 +46,19 @@ internal static class WebAiProgress
         routes.MapGet("/segments", async Task<IResult> (Guid id, IMcpWorkspace workspace, CancellationToken ct) =>
         {
             var progress = await workspace.AiProgressAsync(id, ct);
-            return progress.Speech is null ? Results.NotFound() : Results.Ok(progress.Speech);
+            return progress.SummarySegments is not null ? Results.Ok(progress.SummarySegments) : progress.Speech is null ? Results.NotFound() : Results.Ok(progress.Speech);
+        });
+        routes.MapGet("/summary/evidence/{evidenceId}", async Task<IResult> (Guid id, string evidenceId, IMcpWorkspace workspace, CancellationToken ct) =>
+        {
+            if (evidenceId.Length > 100) return Results.BadRequest();
+            var evidence = await workspace.SummaryEvidenceAsync(id, evidenceId, ct);
+            return evidence is null ? Results.NotFound() : Results.Ok(evidence);
         });
         routes.MapGet("/results", async Task<IResult> (Guid id, int? after, IMcpWorkspace workspace, CancellationToken ct) =>
         {
             if (after is < 0) return Results.BadRequest();
-            var result = await workspace.GetAsync(id, true, 0, 1, ct);
+            var result = await workspace.GetAsync(id, true, after ?? 0, 100, ct);
+            if (result.Result is LongSummaryTaskSnapshot summary) return Results.Ok(summary);
             var cues = (result.Result as SubtitleTaskResult)?.Cues ?? [];
             return Results.Ok(new { total = cues.Length, cues = cues.Skip(after ?? 0).Select(cue =>
                 new { start = cue.Start.TotalSeconds, end = cue.End.TotalSeconds, text = cue.Text }).ToArray() });

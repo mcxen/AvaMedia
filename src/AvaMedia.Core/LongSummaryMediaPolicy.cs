@@ -19,7 +19,7 @@ public static class LongSummaryMediaPolicy
     public static string NormalizeLanguage(string language) => language.ToLowerInvariant() switch { "chi" or "zho" or "zh-cn" => "zh", "eng" => "en", "jpn" => "ja", _ => language.ToLowerInvariant() };
     public static int SelectTrack(IReadOnlyList<SummaryMediaTrack> tracks, string preferred) => tracks.FirstOrDefault(t => NormalizeLanguage(t.Language) == NormalizeLanguage(preferred))?.Index
         ?? tracks.FirstOrDefault(t => t.Default)?.Index ?? tracks.FirstOrDefault()?.Index ?? -1;
-    public static bool VisualOnly(SummarySignals signals) => signals.Cues.Count == 0 || signals.VoiceIntervals.Count > 0
+    public static bool VisualOnly(SummarySignals signals) => !signals.HasAudio || signals.Cues.Count == 0 || signals.VoiceIntervals.Count > 0
         && signals.VoiceIntervals.Sum(v => Math.Max(0, v.EndSeconds - v.StartSeconds)) / signals.Duration < .03;
     public static IReadOnlyList<SummaryCue> MergeTracks(IEnumerable<IEnumerable<SummaryCue>> tracks) => tracks.SelectMany(t => t).OrderBy(c => c.Start).ThenBy(c => c.Track).ToArray();
     public static async Task<IReadOnlyList<SummaryCue>> RepairLanguagesAsync(IReadOnlyList<SummaryCue> cues,

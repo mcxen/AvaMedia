@@ -8,6 +8,7 @@ namespace AvaMedia.Core;
 
 public sealed record SpeechSegmentProgress(int Index, double StartSeconds, double EndSeconds, string State,
     double RecognizedSeconds, int VoiceIntervalCount, int CueCount);
+public sealed record SummarySegmentProgress(string SegmentId, double Start, double End, string State, string Summary);
 public sealed record VoiceInterval(double StartSeconds, double EndSeconds);
 public sealed record SpeechProgressSnapshot(double DurationSeconds, double SegmentSeconds, int CurrentSegment,
     SpeechSegmentProgress[] Segments, VoiceInterval[] VoiceIntervals, int CueCount, string SubStage);
@@ -17,7 +18,10 @@ public sealed record AiStageNodeDto(int Index, string Title, string State, doubl
     string[] SubSteps, string Detail);
 public sealed record AiTaskProgressDto(string JobId, string Stage, string Detail, double Percent, string Backend,
     int CurrentNode, AiStageNodeDto[] Nodes, string[] RecentResults, string[] RecentStages, bool HasPreview,
-    SpeechProgressSnapshot? Speech, AiQueueSummary Queue);
+    SpeechProgressSnapshot? Speech, AiQueueSummary Queue)
+{
+    public SummarySegmentProgress[]? SummarySegments { get; init; }
+}
 
 public static class AiProgressStore
 {

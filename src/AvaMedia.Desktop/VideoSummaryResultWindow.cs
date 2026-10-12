@@ -41,9 +41,9 @@ public sealed partial class VideoSummaryResultWindow : Window
     private bool _closed;
     private int _transcriptPage = -1;
 
-    public VideoSummaryResultWindow(string folder, IMediaEngine? engine = null, string? source = null, VideoSummaryReport? report = null)
+    public VideoSummaryResultWindow(string folder, IMediaEngine? engine = null, string? source = null, VideoSummaryReport? report = null, Job? summaryJob = null)
     {
-        _folder = Path.GetFullPath(folder); _engine = engine; _source = source; _initialReport = report;
+        _summaryJob = summaryJob; _folder = Path.GetFullPath(folder); _engine = engine; _source = source; _initialReport = report;
         Title = "视频总结结果"; Width = 1180; Height = 760; MinWidth = 860; MinHeight = 520;
         Classes.Add("video-summary-result"); WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, "document"); Content = CreateLayout();
@@ -57,7 +57,7 @@ public sealed partial class VideoSummaryResultWindow : Window
         };
         Closed += (_, _) =>
         {
-            _closed = true; _lifetime.Cancel();
+            _closed = true; _longTimer.Stop(); _lifetime.Cancel();
             foreach (var image in _images) image.Dispose(); _images.Clear();
         };
     }
@@ -66,6 +66,7 @@ public sealed partial class VideoSummaryResultWindow : Window
     {
         try
         {
+            if (_initialReport is null && await LoadLongAsync()) return;
             var report = _initialReport;
             if (report is null)
             {

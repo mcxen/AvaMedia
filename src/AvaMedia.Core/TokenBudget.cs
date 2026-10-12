@@ -20,13 +20,14 @@ public sealed class ConservativeTokenCounter : ITokenCounter
 }
 public sealed record TokenBudget(int Context, int MaxOutput, int SystemPrompt, int Safety, int FrameLimit)
 {
+    public int OutputLimit { get; init; } = 4096;
     public int Input => Context - MaxOutput - SystemPrompt - Safety;
     public static TokenBudget Local8K => new(8192, 1024, 1024, 820, 4);
     public static TokenBudget For(OnlineAiModelInfo info)
     {
         var context = info.ContextTokens ?? 8192;
         var output = Math.Min(info.MaxOutputTokens ?? 2048, context >= 32768 ? 2048 : 1024);
-        var result = new TokenBudget(context, output, 1024, (int)Math.Ceiling(context * .1), context >= 32768 ? 8 : 4);
+        var result = new TokenBudget(context, output, 1024, (int)Math.Ceiling(context * .1), context >= 32768 ? 8 : 4) { OutputLimit = info.MaxOutputTokens ?? 4096 };
         if (result.Input < 512) throw new ArgumentException("模型上下文不足以总结视频。");
         return result;
     }

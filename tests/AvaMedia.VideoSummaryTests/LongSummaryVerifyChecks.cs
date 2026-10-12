@@ -14,6 +14,8 @@ internal static class LongSummaryVerifyChecks
         var budget = TokenBudget.Local8K; var silent = SyntheticLongVideoFixture.Create(silent: true);
         LongSummaryPhaseChecks.Check(LongSummaryMediaPolicy.VisualOnly(silent), "no speech visual-only");
         var visualPlan = new SemanticSegmenter().Plan(silent, budget, visualOnly: true);
+        var shotAligned = new SemanticSegmenter().Plan(silent with { Shots = ShotDetector.FromBoundaries(10800, [new(270, 1)]) }, budget, visualOnly: true);
+        LongSummaryPhaseChecks.Check(shotAligned.Segments[0].End == 270, "visual-only prefers actual shot boundary over fixed windows");
         LongSummaryPhaseChecks.Check(visualPlan.Segments.Count == 45, "silent clip coverage");
         var mixed = new[] { new SummaryCue("a", 0, 4, "中文", Language: "zh"), new("b", 5, 9, "English", Language: "en"), new("c", 10, 14, "日本語", Language: "ja"), new("d", 15, 19, "不确定", Language: "auto", LanguageConfidence: .1), new("e", 20, 24, "日本語", Language: "ja") };
         var repaired = await LongSummaryMediaPolicy.RepairLanguagesAsync(mixed, (c, l, _) => Task.FromResult(c with { Language = l, LanguageConfidence = .9 }), default);

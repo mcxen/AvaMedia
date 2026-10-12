@@ -36,6 +36,11 @@ public sealed class SummaryCheckpointStore(string root)
         }
         finally { _gate.Release(); }
     }
+    public async Task<T?> ReadAvailableAsync<T>(string path, CancellationToken ct = default) where T : class
+    {
+        var manifest = await ManifestAsync(ct);
+        return manifest.TryGetValue(path, out var entry) ? await ReadAsync<T>(path, entry.InputHash, ct) : null;
+    }
     public async Task WriteAsync<T>(string path, string inputHash, T value, CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);

@@ -29,6 +29,13 @@ public sealed class VideoSummaryOptions
     public int FrameCount { get; set; } = 12;
     public string OutputLanguage { get; set; } = "简体中文";
     public string Focus { get; set; } = "";
+    public double LongVideoThresholdMinutes { get; set; } = 20;
+    public int LongSummaryConcurrency { get; set; } = 4;
+    public int LongSummaryRequestsPerMinute { get; set; } = 120;
+    public int LongSummaryTokensPerMinute { get; set; } = 256000;
+    public bool StrictSequential { get; set; }
+    public bool AutoSelectAudioTrack { get; set; } = true;
+    public bool AllAudioTracks { get; set; }
     public int ChunkCharacters { get; set; } = 2400;
     public bool NeedsAi => ExtractAbstract || SummarizeContent || AnalyzeContent;
 
@@ -51,6 +58,8 @@ public sealed class VideoSummaryOptions
             throw new ArgumentException("请选择有效的外部字幕文件。");
         if (TranscriptSource == VideoTranscriptSource.External && Path.GetExtension(SubtitleFile).ToLowerInvariant() is not (".srt" or ".vtt" or ".ass" or ".ssa"))
             throw new ArgumentException("外部字幕支持 SRT、VTT、ASS 和 SSA。");
+        if (!double.IsFinite(LongVideoThresholdMinutes) || LongVideoThresholdMinutes < 20 || LongSummaryConcurrency is < 1 or > 16
+            || LongSummaryRequestsPerMinute < 1 || LongSummaryTokensPerMinute < 8192) throw new ArgumentException("长视频阈值须至少 20 分钟，并发须为 1–16，配额须有效。");
         Speech.Validate();
         if (FrameCount is < 1 or > 48 || ChunkCharacters is < 1000 or > 4000)
             throw new ArgumentException("画面采样数须为 1–48，分段字符数须为 1000–4000。");

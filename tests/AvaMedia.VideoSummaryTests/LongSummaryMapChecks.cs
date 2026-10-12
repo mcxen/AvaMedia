@@ -6,7 +6,7 @@ internal static class LongSummaryMapChecks
     internal sealed class FakeModel(Func<string, int, int, string> response) : ISummaryModel
     {
         private int _calls, _active, _peak;
-        public int Calls => _calls; public int Peak => _peak;
+        public int Calls => _calls; public int Peak => _peak; public int Disposals { get; private set; }
         public string ModelId { get; } = "fake-" + Guid.NewGuid().ToString("N");
         public string Backend => "fake";
         public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null,
@@ -17,7 +17,7 @@ internal static class LongSummaryMapChecks
             try { await Task.Delay(2, ct); return response(prompt, count, tokens); }
             finally { Interlocked.Decrement(ref _active); }
         }
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }
     internal static string Valid(string prompt)
     {
@@ -43,6 +43,9 @@ internal static class LongSummaryMapChecks
             var bad = new FakeModel((p, i, _) => i == 1 ? "{bad JSON" : Valid(p));
             var repaired = await new SegmentMapper(bad, TokenBudget.Local8K, new(root), new(bad.ModelId, false)).MapAsync(source, default);
             LongSummaryPhaseChecks.Check(repaired.Result.Status == "done" && bad.Calls == 2, "one JSON repair");
+            var malformed = new FakeModel((p, i, _) => i == 1 ? throw new InvalidDataException("provider returned malformed JSON") : Valid(p));
+            var restored = await new SegmentMapper(malformed, TokenBudget.Local8K, new(root), new(malformed.ModelId, true)).MapAsync(source, default);
+            LongSummaryPhaseChecks.Check(restored.Result.Status == "done" && malformed.Calls == 2, "malformed model response repaired without aborting task");
             var broken = new FakeModel((_, _, _) => "{}");
             var degraded = await new SegmentMapper(broken, TokenBudget.Local8K, new(root), new(broken.ModelId, true)).MapAsync(source, default);
             LongSummaryPhaseChecks.Check(degraded.Result.Status == "degraded" && broken.Calls == 2, "invalid contract degraded without abort");

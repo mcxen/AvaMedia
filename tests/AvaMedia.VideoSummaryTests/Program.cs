@@ -9,8 +9,8 @@ if (args.FirstOrDefault() == "long-phase") { await LongSummaryPhaseChecks.RunAsy
 var mode = args.ElementAtOrDefault(0) ?? "mock";
 var root = Path.GetFullPath(args.ElementAtOrDefault(1) ?? "artifacts/video-summary-tests");
 Directory.CreateDirectory(root);
-var ffmpeg = File.Exists("/usr/bin/ffmpeg") ? "/usr/bin/ffmpeg" : "ffmpeg";
-var ffprobe = File.Exists("/usr/bin/ffprobe") ? "/usr/bin/ffprobe" : "ffprobe";
+var ffmpeg = Environment.GetEnvironmentVariable("AVAMEDIA_TEST_FFMPEG") ?? (File.Exists("/usr/bin/ffmpeg") ? "/usr/bin/ffmpeg" : "ffmpeg");
+var ffprobe = Environment.GetEnvironmentVariable("AVAMEDIA_TEST_FFPROBE") ?? (File.Exists("/usr/bin/ffprobe") ? "/usr/bin/ffprobe" : "ffprobe");
 
 static void Check(bool ok, string name) { if (!ok) throw new Exception("FAIL: " + name); Console.WriteLine("PASS: " + name); }
 

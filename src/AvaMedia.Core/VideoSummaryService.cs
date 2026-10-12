@@ -35,8 +35,8 @@ public sealed record VideoSummaryReport(string Source, double Duration, string T
 public sealed record VideoSummaryOnlineModels(OnlineAiOptions VisionProvider, string VisionModel, OnlineAiOptions SummaryProvider, string SummaryModel);
 
 /// <param name="modelFactory">Model override (tests) keyed by ModelCatalog.SummaryVisionId / SummaryTextId.</param>
-public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models = null,
-    Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null)
+public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore? models = null,
+    Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null, IOcrEngine? ocrEngine = null)
 {
     private readonly ModelStore _models = models ?? new();
     private const string RefusedFrameText = "〔视觉模型拒绝描述此帧〕";
@@ -76,6 +76,10 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
     public async Task<VideoSummaryResult> ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
         Validate(job); var options = job.Options.VideoSummary!;
+        var probed = await engine.Probe(job.Inputs[0], ct, audioStreamIndex: options.AudioTrack).ConfigureAwait(false);
+        if (LongVideoSummaryOrchestrator.UsesLongPath(probed.Duration, options))
+            return await ExecuteLongAsync(job, probed, progress, ct).ConfigureAwait(false);
+        job.LongSummaryReport = null; job.SummarySegments = [];
         job.SummaryReport = null; job.SubtitleResult = null;
         var partialFolder = AiPartialResults.SummaryFolder(job);
         if (Directory.Exists(partialFolder)) Directory.Delete(partialFolder, true);
@@ -117,7 +121,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
         {
             Directory.CreateDirectory(staging);
             activity.Stage("读取视频"); job.ProgressDetail = "读取视频";
-            var info = await engine.Probe(job.Inputs[0], ct, audioStreamIndex: options.AudioTrack).ConfigureAwait(false);
+            var info = probed;
             if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有画面和有效时长的视频。");
             job.Duration = info.Duration;
             activity.Node("字幕与语音");
@@ -379,7 +383,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
     { public void Report(ModelDownloadProgress value) => report(value); }
 
     private async Task<(IReadOnlyList<SubtitleCue> Cues, string Source)> ReadTranscriptAsync(Job job, MediaInfo info, string staging,
-        Action<double> progress, AiActivityReporter activity, CancellationToken ct)
+        Action<double> progress, AiActivityReporter activity, CancellationToken ct, SummaryCheckpointStore? checkpoints = null)
     {
         var options = job.Options.VideoSummary!; var extracted = Path.Combine(staging, ".source.srt");
         try
@@ -401,7 +405,16 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
                 if (selected >= tracks.Length) throw new ArgumentException("视频没有所选字幕轨。");
                 bool TextTrack(JsonElement stream) => stream.TryGetProperty("codec_name", out var codec)
                     && codec.GetString() is "subrip" or "ass" or "ssa" or "webvtt" or "mov_text" or "text";
-                if (selected < 0) selected = Array.FindIndex(tracks, TextTrack);
+                if (selected < 0)
+                {
+                    if (checkpoints is not null)
+                    {
+                        var preferred = options.Speech.Language == "auto" ? options.OutputLanguage switch { "English" => "en", "日本語" => "ja", _ => "zh" } : options.Speech.Language;
+                        var available = LongSummaryMediaPolicy.Tracks(info.RawJson, "subtitle").Where(t => t.Codec is "subrip" or "ass" or "ssa" or "webvtt" or "mov_text" or "text").ToArray();
+                        selected = LongSummaryMediaPolicy.SelectTrack(available, preferred);
+                    }
+                    else selected = Array.FindIndex(tracks, TextTrack);
+                }
                 if (selected >= 0 && TextTrack(tracks[selected]))
                 {
                     activity.Stage("提取视频字幕");
@@ -415,7 +428,7 @@ public sealed class VideoSummaryService(IMediaEngine engine, ModelStore? models 
             }
             if (!info.HasAudio) return ([], "无音轨");
             var recognized = await new SpeechSubtitleService(engine).TranscribeAsync(job, options.Speech, options.AudioTrack,
-                value => progress(value * .4), ct, activity.Observe, info).ConfigureAwait(false);
+                value => progress(value * .4), ct, activity.Observe, info, checkpoints).ConfigureAwait(false);
             return (recognized, "Whisper");
         }
         finally { if (File.Exists(extracted)) File.Delete(extracted); }

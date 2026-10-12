@@ -115,7 +115,7 @@ internal static class VideoSummarySampling
     }
 
     // A local block score keeps small moving subjects from vanishing in a full-frame average.
-    private static double Difference(byte[] current, byte[] previous)
+    internal static double Difference(byte[] current, byte[] previous)
     {
         double sum = 0, peak = 0;
         for (var by = 0; by < ScanSize; by += 8)
@@ -134,7 +134,7 @@ internal static class VideoSummarySampling
         return Math.Max(sum / (current.Length * 255), peak * .5);
     }
 
-    private static async Task<bool> ReadFrameAsync(Stream input, byte[] buffer, CancellationToken ct)
+    internal static async Task<bool> ReadFrameAsync(Stream input, byte[] buffer, CancellationToken ct)
     {
         var offset = 0;
         while (offset < buffer.Length)

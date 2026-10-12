@@ -399,7 +399,7 @@ public sealed partial class ConsoleView
                 _detail.Children.Add(Label(nsfw.Text("model") + " · " + nsfw.Text("backend")));
                 foreach (var frame in nsfw["frames"].Items()) _detail.Children.Add(Label($"{frame["seconds"]?.GetValue<double>():0.0} 秒 · {frame["score"]?.GetValue<double>():P1}"));
             }
-            var budget = 1400; _detail.Children.Add(RenderResult(result, ref budget));
+            var budget = 1400; _detail.Children.Add(result is JsonObject longResult && longResult["report"]?["version"]?.GetValue<int>() == 2 ? LongSummaryResult(result) : RenderResult(result, ref budget));
         }
         else
         {

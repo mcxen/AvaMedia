@@ -21,6 +21,8 @@ public static class AiPartialResults
             await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), subtitles, CancellationToken.None).ConfigureAwait(false);
         if (job.OrientationResult is { } orientation)
             await AiTaskResults.SaveAsync(job.Output, orientation, CancellationToken.None).ConfigureAwait(false);
+        if (job.LongSummaryReport is { } longReport)
+            await LongVideoSummaryOrchestrator.SaveReportAsync(SummaryFolder(job), longReport, CancellationToken.None).ConfigureAwait(false);
         if (job.SummaryReport is { } report)
             await AiTaskResults.SaveAsync(Path.Combine(SummaryFolder(job), "report.json"), report, CancellationToken.None).ConfigureAwait(false);
     }

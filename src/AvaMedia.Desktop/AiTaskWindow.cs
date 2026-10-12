@@ -65,6 +65,7 @@ public sealed partial class AiTaskWindow : Window
         {
             var outcome = new StackPanel { Spacing = 6 };
             outcome.Children.Add(_summary); outcome.Children.Add(_details);
+            if (job.FeatureId == "video-summary") BuildLongSummaryProgress(outcome);
             body.Children.Add(new ScrollViewer { Content = outcome, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         }
         var records = new StackPanel { Spacing = 8 };
@@ -146,7 +147,7 @@ public sealed partial class AiTaskWindow : Window
     { if (_closed) return; if (_rotation?.SettingsExpanded == true) _records.IsExpanded = false; RefreshActions(); }
     private void Refresh()
     {
-        _rotation?.Update();
+        _rotation?.Update(); RefreshLongSummaryProgress();
         _status.Text = _job.State == JobState.Running ? Localization.Format($"运行中 {_job.Progress:0}%")
             : Localization.Text(_job.State switch
             { JobState.Waiting => "等待中", JobState.Completed => "完成", JobState.Failed => "失败",

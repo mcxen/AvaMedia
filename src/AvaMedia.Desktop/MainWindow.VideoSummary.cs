@@ -13,7 +13,7 @@ public partial class MainWindow
         try
         {
             var folder = job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job);
-            new VideoSummaryResultWindow(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport).Show(this);
+            new VideoSummaryResultWindow(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport, summaryJob: job).Show(this);
         }
         catch (Exception error) { await Ui.Message(this, "视频总结结果", error.Message); }
     }
@@ -27,7 +27,7 @@ public partial class MainWindow
     private async Task ConfigureVideoSummaryWindowAsync(string[]? files, Job? editing = null)
     {
         var window = new VideoSummaryWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,
-            files, editing?.Options.VideoSummary, editing?.Output, async owner =>
+            files, editing?.Options.VideoSummary, editing is null ? null : File.Exists(Path.Combine(AiPartialResults.SummaryFolder(editing), "work", "manifest.json")) ? AiPartialResults.SummaryFolder(editing) : editing.Output, async owner =>
             {
                 var settings = new SettingsWindow(_settings, _optionServices);
                 settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
@@ -37,9 +37,19 @@ public partial class MainWindow
                 var settings = new SettingsWindow(_settings, _optionServices);
                 settings.OpenOnlineAiSettings(); settings.Applied += (_, _) => ApplyOptions();
                 await settings.ShowDialog<bool>(owner);
-            });
+            }, allowResume: editing is not null && editing.State is not (JobState.Completed or JobState.Running or JobState.Stopping));
         var request = await ToolExecution.ShowAsync<ConversionRequest>(this, window);
-        if (request is null) return;
+        if (request is null)
+        {
+            if (editing is not null && window.ResumeRequested)
+            {
+                _editingJobs.Remove(editing);
+                if (CanContinueTask(editing)) await ContinueTasksAsync([editing]);
+                else if (CanRequeueTask(editing)) await RestartTasksAsync([editing]);
+                else if (CanStartTask(editing)) await StartQueueAsync([editing]);
+            }
+            return;
+        }
         try
         {
             var reserved = editing is null ? _jobs.Select(job => job.Output) : EditingReservations(editing);

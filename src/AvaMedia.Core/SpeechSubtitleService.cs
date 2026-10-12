@@ -37,6 +37,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         recognition.AudioStreamIndex = audioTrack; recognition.VoiceEnhancement = false;
         var task = new Job { FeatureId = "auto-subtitle", Inputs = source.Inputs,
             Output = Path.Combine(temporary, "subtitles.srt"), Options = recognition };
+        if (checkpoints is not null) task.Id = source.Id;
         task.PropertyChanged += (_, change) =>
         {
             if (change.PropertyName == nameof(Job.Activity) && task.Activity is { } activity)
@@ -237,7 +238,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                                     start = Math.Max(start, previous.End.TotalSeconds * options.Speed);
                                 }
                                 if (stop <= start) continue;
-                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text) { Language = segment.Language ?? speech.Language, Track = options.AudioStreamIndex, LanguageConfidence = detectedLanguage.Confidence });
+                                result.Add(new(TimeSpan.FromSeconds(start / options.Speed), TimeSpan.FromSeconds(stop / options.Speed), text) { Language = string.IsNullOrWhiteSpace(segment.Language) || segment.Language == "auto" ? detectedLanguage.Language : segment.Language, Track = options.AudioStreamIndex, LanguageConfidence = detectedLanguage.Confidence });
                                 tracker.Cue();
                                 Transcript(new(result.ToArray(), sourceLength, sourceWriteUtc) { IsPartial = true });
                                 activity.Result($"{MediaTime.Format(start / options.Speed)} – {MediaTime.Format(stop / options.Speed)}  {text}", result.Count);
