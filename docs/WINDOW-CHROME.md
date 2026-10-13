@@ -5,8 +5,10 @@
 | 平台 | 整窗策略 | 标题布局 |
 |---|---|---|
 | Windows 10 / 11 | `SystemDecorations.Full`，不透明主题背景，`TransparencyLevelHint=[None]`。现代模式扩展客户区，`NoChrome`；保留系统框架样式、缩放、贴靠和 DWM 阴影。在打开、状态恢复及尺寸变化的 Win32 消息完成后设置 1px DWM 客户区边缘。Win11（build >= 22000）正常窗口请求 `DWMWA_WINDOW_CORNER_PREFERENCE=DWMWCP_ROUND`；其他窗口状态用 `DWMWCP_DEFAULT`，形状交给系统。Win10 原生直角和阴影，无原生圆角 API。 | 标题行右侧共享最小化 / 最大化 / 关闭按钮。不能用 `SystemDecorations.None` 删除系统框架。 |
-| macOS | 保留 `SystemDecorations.Full`、不透明窗口；扩展客户区，`PreferSystemChrome | OSXThickTitleBar`；原生 NSWindow 提供圆角、阴影和红绿灯。 | 主窗口标题行 52px、工具树上边距 34px；编辑器 44px，工具窗口 48px。 |
+| macOS | 保留 `SystemDecorations.Full`、不透明窗口；扩展客户区，`PreferSystemChrome | OSXThickTitleBar`；原生 NSWindow 提供圆角、阴影和红绿灯。 | 主窗口标题行 52pt，红绿灯与右侧按钮同一垂直中心，侧栏卡片左侧内缩 20pt（窗口左边距 28pt）。工具树在滚动区外保留标题带。编辑器 44pt、工具窗口 48pt，红绿灯左边距 16pt。 |
 | Linux | 所有窗口保留 `SystemDecorations.Full`，不扩展客户区，不去掉 WM 装饰。窗口管理器提供边框及缩放，合成器决定阴影和圆角；能力不足时允许一致的原生直角。 | 原生标题栏；工具窗口隐藏重复的客户区标题，业务标题内容仍可作为工具栏显示。 |
+
+macOS 红绿灯统一由 `Controls/WindowChrome.Mac.cs` 从实际标题行计算位置，使用 [NSWindow.standardWindowButton](https://developer.apple.com/documentation/appkit/nswindow/standardwindowbutton(_:)) 获取系统按钮，保持原生视图层级、按钮尺寸及间距。布局完成后在 UI 线程对齐，响应打开、激活、标题、尺寸、缩放及状态变化；全屏 / 最小化 / 经典皮肤跳过。按钮宿主范围不足时扩展原生标题宿主，保证绘制与点击区域一致。坐标均为逻辑点，不乘 Retina 倍率。主窗口预览占位沿用同一标题行中心；真实 macOS 不显示占位。依据 [Apple 窗口规范](https://developer.apple.com/design/human-interface-guidelines/windows) 使用系统窗口控件，不仿绘红绿灯。
 
 窗口背景必须使用不透明的主题资源。内部卡片的 `CornerRadius` / `BoxShadow` 不代表整窗形状；不得将整窗设成透明，再用自绘圆角 Border 或额外阴影窗口替代原生形状。Windows 的逐像素透明或窗口 region 会失去 DWM 圆角资格。[Microsoft 圆角说明](https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/ui/apply-rounded-corners)说明了原生框架要求及最大化、贴靠和虚拟机中的限制。
 

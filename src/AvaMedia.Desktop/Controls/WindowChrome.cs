@@ -60,6 +60,9 @@ internal static partial class WindowChrome
                 window.ExtendClientAreaTitleBarHeightHint = Metric(window, "UiToolTitleBarHeight", 48);
         }
         HookDrag(window, titleBar, () => !Skin.UsesCustomChrome(window.ActualThemeVariant));
+        HookMacTrafficLights(window, () => titleBar, () =>
+            window.TryFindResource("UiToolTitleLightInset", window.ActualThemeVariant, out var inset)
+                && inset is Thickness thickness ? thickness.Left : 16);
         UpdateDialog(window, Apply);
         return root;
     }

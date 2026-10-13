@@ -700,7 +700,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 ## 8. 窗口与标题栏（按平台）
 
 - 统一通过 `MainWindow.WindowChrome`（`src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`）和 `Controls/WindowChrome.cs` 复用，不另写标题栏。
-- **macOS**：客户区延伸到标题栏下方（标题栏高 52），原生红绿灯位于**左上角、侧栏卡片内部**，工具树从红绿灯下方开始（工具树上边距 34）。非 macOS 上用 `AVAMEDIA_CHROME=mac` 预览时绘制占位红绿灯。
+- **macOS**：客户区延伸到标题栏下方（主窗口标题行高 52）。使用 `NSWindow.standardWindowButton` 提供的原生红绿灯，保留系统尺寸、按钮间距、悬停 / 失焦及全屏行为，不重绘或替换按钮。红绿灯与实际标题行 / 右侧工具按钮共用垂直中心；位置使用逻辑点，不乘 Retina 缩放。主窗口红绿灯在侧栏卡片左边缘内缩 `UiMainTitleLightInset=20`，当前窗口左边距为 28pt；工具树使用独立的固定标题留白，滚动时不进入按钮区。工具及编辑器窗口左边距使用 `UiToolTitleLightInset` 的 Left（16pt），编辑器标题内容保留 `UiToolTitleGutter=88` 的按钮区域。打开、布局 / 尺寸 / 缩放变化、激活及退出全屏后统一重新对齐；全屏和经典皮肤交给系统。非 macOS 的 `AVAMEDIA_CHROME=mac` 仅绘制同位置的预览占位。
 - **Windows**：保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`；最小化 / 最大化 / 关闭按钮位于**右上角**标题行，按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Win11 显式请求 DWM `DWMWA_WINDOW_CORNER_PREFERENCE=DWMWCP_ROUND`，阴影由系统提供；Win10 保留原生直角与阴影，不伪造 Win11 圆角。最大化、全屏、贴靠时形状由系统决定。
 - **Linux**：主窗口、编辑器及所有工具窗口统一保留 `SystemDecorations.Full`，由窗口管理器和合成器提供边框、缩放及阴影；不单独去掉某个工具窗口的装饰。圆角、阴影能力取决于桌面环境。`AVAMEDIA_CHROME=mac` 只预览客户区布局，仍保留 Linux 原生装饰。
 - **整窗表面**：所有 `Window` 子类及临时 `new Window` 通过 `Skin` 的统一注册接入 `Controls/WindowChrome.cs`；已有主窗口、编辑器标题布局也调用同一平台策略。Windows / macOS 整窗使用不透明主题背景及 `TransparencyLevelHint=None`；禁止用透明整窗 + 自绘圆角边框或阴影替换系统形状。macOS 保留原生框架、圆角和阴影；内部卡片圆角不代表窗体圆角。
@@ -727,11 +727,7 @@ internal static WindowFrameKind FrameKind => Environment.GetEnvironmentVariable(
 
 当前平台实现见 `Controls/WindowChrome.Platform.cs`：保留 `SystemDecorations.Full` 和不透明背景，Windows / macOS 扩展客户区；Linux 保留 WM 装饰，mac 预览只改变客户区布局。不要复制去掉系统装饰的旧参考片段。
 
-```csharp
-var lights = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(14, 12, 0, 0),
-    VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false };
-foreach (var color in new[] { "#FF5F57", "#FEBC2E", "#28C840" })
-```
+macOS 原生按钮定位见 `Controls/WindowChrome.Mac.cs`：由共享入口读取实际标题行中心，必要时扩展原生标题宿主的点击范围，保留系统按钮视图层级。主窗口固定标题留白及非 macOS 占位见 `MainWindow.WindowChrome.cs`；占位只在预览模式显示，位置与原生布局使用同一基准。
 
 `src/AvaMedia.Desktop/Controls/WindowChrome.cs`（右上角按钮与拖动）：
 

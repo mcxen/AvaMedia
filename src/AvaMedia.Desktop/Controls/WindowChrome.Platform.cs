@@ -101,6 +101,7 @@ internal static partial class WindowChrome
                 : ExtendClientAreaChromeHints.NoChrome
             : ExtendClientAreaChromeHints.Default;
         ApplyWindowsFrame(window, extended);
+        RequestMacTrafficLights(window);
     }
 
     private static void ApplyWindowsFrame(Window window, bool extended)
