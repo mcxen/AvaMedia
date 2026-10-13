@@ -35,7 +35,8 @@ public sealed class FilmstripTimeline : Control
     private IReadOnlyList<(double Seconds, IImage Image)> _strip = [];
     private double _duration, _position, _dragValue, _zoom = 1, _viewStart;
     private int _selected = -1, _dragIndex = -1, _hoverIndex = -1;
-    private bool _dragStart, _hoverStart, _seeking;
+    private bool _dragStart, _hoverStart, _seeking, _completeSeek;
+    private double _seekValue;
     private const double RulerHeight = 14, StripTop = RulerHeight, StripHeight = 52;
 
     public bool RemoveMode { get; set; }
@@ -43,6 +44,7 @@ public sealed class FilmstripTimeline : Control
     public Func<string, string> Translate { get; set; } = text => text;
     /// <summary>Seek to a time; the int is the segment under the pointer or -1.</summary>
     public event Action<int, double>? NavigateRequested;
+    public event Action<double>? NavigateCompleted;
     /// <summary>(index, isStart, seconds, finished)</summary>
     public event Action<int, bool, double, bool>? HandleMoved;
 
@@ -196,7 +198,7 @@ public sealed class FilmstripTimeline : Control
         }
         var time = Time(point.X);
         var hit = point.Y >= StripTop ? Enumerable.Range(0, _segments.Count).Where(index => _segments[index].Start <= time && time <= _segments[index].End).DefaultIfEmpty(-1).First() : -1;
-        _seeking = true; e.Pointer.Capture(this); NavigateRequested?.Invoke(hit, time); e.Handled = true;
+        _seeking = true; _completeSeek = hit < 0; _seekValue = time; e.Pointer.Capture(this); NavigateRequested?.Invoke(hit, time); e.Handled = true;
     }
     protected override void OnPointerMoved(PointerEventArgs e)
     {
@@ -208,7 +210,7 @@ public sealed class FilmstripTimeline : Control
             _dragValue = _dragStart ? Math.Clamp(time, 0, segment.End - minimum) : Math.Clamp(time, segment.Start + minimum, _duration);
             HandleMoved?.Invoke(_dragIndex, _dragStart, _dragValue, false); InvalidateVisual();
         }
-        else if (_seeking) NavigateRequested?.Invoke(-1, time);
+        else if (_seeking) { _completeSeek = true; _seekValue = time; NavigateRequested?.Invoke(-1, time); }
         else
         {
             var handle = HandleAt(point); var index = handle?.Index ?? -1; var start = handle?.Start ?? false;
@@ -221,9 +223,14 @@ public sealed class FilmstripTimeline : Control
     {
         base.OnPointerReleased(e);
         if (_dragIndex >= 0) { var index = _dragIndex; _dragIndex = -1; HandleMoved?.Invoke(index, _dragStart, _dragValue, true); InvalidateVisual(); }
-        _seeking = false; e.Pointer.Capture(null);
+        CompleteSeek(); e.Pointer.Capture(null);
     }
-    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { _dragIndex = -1; _seeking = false; InvalidateVisual(); base.OnPointerCaptureLost(e); }
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { _dragIndex = -1; CompleteSeek(); InvalidateVisual(); base.OnPointerCaptureLost(e); }
+    private void CompleteSeek()
+    {
+        var complete = _seeking && _completeSeek; _seeking = _completeSeek = false;
+        if (complete) NavigateCompleted?.Invoke(_seekValue);
+    }
 
     private static FormattedText Format(string text, double size, IBrush brush, bool bold = false) =>
         new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default, FontStyle.Normal, bold ? FontWeight.Bold : FontWeight.Normal), size, brush);

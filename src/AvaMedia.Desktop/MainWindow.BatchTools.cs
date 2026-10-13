@@ -14,7 +14,8 @@ public partial class MainWindow
         }
         if (screenshots)
         {
-            Controls.WindowChrome.ShowIndependent(new ContactSheetWindow(Engine, _settings.OutputFolder, files));
+            Controls.WindowChrome.ShowIndependent(new ContactSheetWindow(Engine, _settings.OutputFolder, files,
+                jobs => AddToolJobs(jobs, true), () => _jobs.Select(job => job.Output)));
             return Task.CompletedTask;
         }
         var window = new RenameWindow(Engine, _settings, files, manageModels: ManageModels, reserveFiles: _queue.ReserveFiles);

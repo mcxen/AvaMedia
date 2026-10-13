@@ -79,7 +79,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     private async void BrowseFolderClick(object? sender,RoutedEventArgs e){if(await Ui.Folder(this,"选择导出文件夹") is {} folder)ExportFolder.Text=folder;}
     private async void ExportOptionsClick(object? sender,RoutedEventArgs e)
     {
-        var options=_options.Clone();options.Format=Preset=="Fast Copy"?"mp4":Preset.ToLowerInvariant();
+        var options=_options.Clone();options.Format=SourceOutput.VideoFormat(Preset=="Fast Copy"?SourceOutput.Original:Preset.ToLowerInvariant(),_edits.FirstOrDefault()?.Path);
         if(await new OptionsWindow(options,copyStreamsMode:Preset=="Fast Copy",kind:MediaOptionsKind.ClipExport).ShowDialog<ConversionOptions?>(this) is {} result)
         {_options=result;RefreshFormatNote();ValidateExport();}
     }

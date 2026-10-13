@@ -231,7 +231,7 @@ public sealed partial class MediaAiWindow
             var position = seconds ?? _positions.GetValueOrDefault(entry.Path);
             if (_previewBitmap is not null && _previewSeconds is { } shown && Math.Abs(shown - position) < .0001) return;
             var video = VideoFormats.IsVideo(entry.Path);
-            var bytes = await _engine.Thumbnail(entry.Path, position, 480, video ? 300 : 512, request.Token, pad: false);
+            var bytes = await _engine.Thumbnail(entry.Path, position, video ? VideoPreviewSizes.Boundary.Width : 480, video ? VideoPreviewSizes.Boundary.Height : 512, request.Token, pad: false);
             if (_closed || request.IsCancellationRequested || _previewRequest != request) return;
             using var stream = new MemoryStream(bytes);
             var next = new Bitmap(stream); var previous = _previewBitmap;

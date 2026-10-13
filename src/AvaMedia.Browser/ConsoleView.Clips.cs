@@ -22,7 +22,7 @@ public sealed partial class ConsoleView
     private readonly Dictionary<string, ClipDraft> _clips = new(StringComparer.Ordinal);
     private readonly CheckBox _removeSegments = new() { Content = "反选：去除所选片段" };
     private readonly CheckBox _joinSegments = new() { Content = "将每个视频的保留片段合并导出" };
-    private readonly ComboBox _clipPreset = new() { ItemsSource = new[] { "MP4", "MKV", "TS", "原格式 / 原码率" }, SelectedIndex = 0 };
+    private readonly ComboBox _clipPreset = new() { ItemsSource = new[] { "MP4", "MKV", "TS", "原格式 / 原码率", "原格式" }, SelectedIndex = 3 };
     private readonly TextBlock _clipSummary = Ui.Text("", "caption");
     private readonly StackPanel _clipSide = new() { Spacing = 10 };
     private readonly StackPanel _segmentRows = new() { Spacing = 2 };

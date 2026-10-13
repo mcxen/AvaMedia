@@ -27,7 +27,7 @@
 | 去除水印 | EditorWindow | 客户端去水印模式、模型配置与预览/处理路径核对及验收 |
 | 播放器 | PlayerWindow | 网页内播放工作区、媒体/字幕/轨道操作；核对服务器可供浏览器播放的路径 |
 | 视频下载 | DownloadWindow | 链接分析、格式/清晰度/字幕选择、批量条目与下载任务 |
-| 自动字幕 | SpeechToolsWindow、SubtitleReviewWindow | 识别结果校对、时间轴、字幕样式和二次导出 |
+| 自动字幕 | SpeechToolsWindow、SubtitleReviewWindow | 已接入识别后校对、虚拟化列表、拖动时间区间、文字/样式修改、浏览器草稿、ASS 效果预览及二次导出；真实流程待验收，跨端共享校对草稿仍待完成 |
 | 视频总结 | VideoSummaryWindow、VideoSummaryResultWindow | 配置项、证据/章节/字幕分视图、部分结果与导出 |
 | 人声增强 | VoicePreviewWindow、SpeechToolsWindow | 增强前后试听、模型状态、音频参数与导出 |
 | 视频/音频混流 | ConvertWindow、OptionsWindow | 两个来源的轨道选择已接入，来源角色/顺序及运行待验收 |

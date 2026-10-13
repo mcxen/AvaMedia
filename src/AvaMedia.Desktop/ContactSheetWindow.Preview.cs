@@ -13,6 +13,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class ContactSheetWindow
 {
     private readonly TextBlock _previewTitle = Label("选择视频后显示预览", bold: true);
+    private readonly TextBlock _videoInformationLabel = Label("", secondary: true);
     private readonly TextBlock _previewSize = Label("", secondary: true);
     private readonly TextBlock _previewMessage = Label("", secondary: true);
     private readonly TextBlock _outputDimensions = Label("", secondary: true);
@@ -37,16 +38,17 @@ public sealed partial class ContactSheetWindow
 
     private Border CreatePreview()
     {
-        var panel = new Grid { RowDefinitions = new("Auto,*,Auto,Auto,Auto"), RowSpacing = 12 };
+        var panel = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,Auto,Auto"), RowSpacing = 12 };
         var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
         _previewTitle.TextWrapping = TextWrapping.NoWrap; _previewTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         header.Children.Add(_previewTitle); Grid.SetColumn(_previewSize, 1); header.Children.Add(_previewSize); panel.Children.Add(header);
+        Grid.SetRow(_videoInformationLabel, 1); panel.Children.Add(_videoInformationLabel);
         _previewSurface.PreviewContent = _preview;
         var stage = new Border { Child = _previewSurface, Classes = { "sheet-stage" } };
-        Grid.SetRow(stage, 1); panel.Children.Add(stage);
+        Grid.SetRow(stage, 2); panel.Children.Add(stage);
         _outputDimensions.HorizontalAlignment = HorizontalAlignment.Center;
-        Grid.SetRow(_outputDimensions, 2); panel.Children.Add(_outputDimensions);
-        _previewMessage.IsVisible = false; Grid.SetRow(_previewMessage, 3); panel.Children.Add(_previewMessage);
+        Grid.SetRow(_outputDimensions, 3); panel.Children.Add(_outputDimensions);
+        _previewMessage.IsVisible = false; Grid.SetRow(_previewMessage, 4); panel.Children.Add(_previewMessage);
         var timeline = new Grid { RowDefinitions = new("Auto,Auto"), RowSpacing = 4 };
         _range.Bind(HeightProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("SheetFilmHeight"));
         Resource(_range, AvaMedia.MediaUi.RangeBar.TrackBrushProperty, "UiTrack");
@@ -67,7 +69,7 @@ public sealed partial class ContactSheetWindow
         };
         Grid.SetColumn(_wholeLink, 1); labels.Children.Add(_wholeLink);
         _endLabel.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(_endLabel, 2); labels.Children.Add(_endLabel);
-        Grid.SetRow(labels, 1); timeline.Children.Add(labels); Grid.SetRow(timeline, 4); panel.Children.Add(timeline);
+        Grid.SetRow(labels, 1); timeline.Children.Add(labels); Grid.SetRow(timeline, 5); panel.Children.Add(timeline);
         _range.Changed += (start, end) =>
         {
             _wholeVideo = start == 0 && Math.Abs(end - _range.Duration) < .001;
@@ -90,10 +92,10 @@ public sealed partial class ContactSheetWindow
             _previewEntry = entry; _wholeVideo = true;
             _range.Start = 0; _range.Duration = entry?.Info?.Duration ?? 0; _range.End = _range.Duration;
             _filmWork?.Cancel(); ClearFilm();
-            _range.IsEnabled = _range.Duration > 0 && _operation is null;
-            _wholeLink.IsEnabled = entry is not null && _operation is null;
+            _range.IsEnabled = _range.Duration > 0 && !_importing;
+            _wholeLink.IsEnabled = entry is not null && !_importing;
             UpdateRangeLabels();
-            if (entry is not null && _operation is null) StartFilm(entry);
+            if (entry is not null && !_importing) StartFilm(entry);
         }
         SchedulePreview();
     }
@@ -107,7 +109,7 @@ public sealed partial class ContactSheetWindow
 
     private void SchedulePreview()
     {
-        if (_closed || _operation is not null) return;
+        if (_closed || _importing) return;
         _previewWork?.Cancel();
         var work = new CancellationTokenSource(); _previewWork = work;
         var entry = _previewEntry;
@@ -118,8 +120,9 @@ public sealed partial class ContactSheetWindow
         ToolTip.SetTip(_previewTitle, entry?.Path);
         Localization.SetIsUserText(_previewTitle, entry is not null);
         _previewMessage.IsVisible = false;
+        _videoInformationLabel.IsVisible = entry is not null && options.VideoInformation;
         _previewSize.IsVisible = entry is not null; _outputDimensions.IsVisible = entry is null;
-        BuildCells(options, options.CellWidth, options.CellHeight, entry is not null);
+        BuildCells(options, options.CellWidth * options.ExportScale, options.CellHeight * options.ExportScale, entry is not null);
         if (entry is null)
         {
             StopPreviewMotion(); _previewWork = null; work.Dispose(); PreviewReady = Task.CompletedTask; return;
@@ -155,8 +158,9 @@ public sealed partial class ContactSheetWindow
         }
         _preview.Child = grid;
         RefreshPreviewMotion();
-        Localization.SetText(_previewSize, $"输出 {width * options.Columns} × {height * options.Rows}");
-        Localization.SetText(_outputDimensions, $"输出尺寸 {width * options.Columns} × {height * options.Rows} 像素");
+        var outputHeight = height * options.Rows + BatchVideoTools.ContactSheetHeaderHeight(width, options);
+        Localization.SetText(_previewSize, $"输出 {width * options.Columns} × {outputHeight}");
+        Localization.SetText(_outputDimensions, $"输出尺寸 {width * options.Columns} × {outputHeight} 像素");
     }
 
     private async Task RenderPreview(VideoEntry entry, ContactSheetOptions options, CancellationTokenSource work)
@@ -171,13 +175,16 @@ public sealed partial class ContactSheetWindow
             if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0)
                 throw new InvalidDataException("文件不含可截图的视频或无法读取时长。");
             var layout = BatchVideoTools.ContactSheetPreviewLayout(info, options);
+            var imageSize = BatchVideoTools.ContactSheetImageSize(info, options);
+            _videoInformationLabel.Text = BatchVideoTools.ContactSheetVideoInformation(info);
+            _videoInformationLabel.IsVisible = options.VideoInformation;
             var end = options.EndSeconds > 0 ? Math.Min(options.EndSeconds, layout.Duration) : layout.Duration;
             if (options.StartSeconds >= end) throw new ArgumentException("开始时间超出视频时长。");
             _range.Duration = layout.Duration; if (_wholeVideo) _range.End = layout.Duration;
             _range.IsEnabled = true; _range.InvalidateVisual(); UpdateRangeLabels();
             BuildCells(options, layout.Width, layout.Height, loading: true);
             var count = options.Columns * options.Rows; var failed = 0;
-            var scale = Math.Min(1, 900d / Math.Max(layout.Width * options.Columns, layout.Height * options.Rows));
+            var scale = Math.Min(1, 560d / Math.Max(layout.Width * options.Columns, layout.Height * options.Rows));
             for (var i = 0; i < count; i++)
             {
                 token.ThrowIfCancellationRequested();
@@ -197,7 +204,7 @@ public sealed partial class ContactSheetWindow
                     if (options.Timestamps)
                     {
                         var timestamp = Label(TimeSpan.FromSeconds(seconds).ToString(layout.Duration >= 3600 ? @"h\:mm\:ss" : @"mm\:ss"));
-                        timestamp.FontSize = 10; timestamp.FontWeight = FontWeight.SemiBold;
+                        timestamp.FontSize = 10; timestamp.FontWeight = FontWeight.Normal; SheetLabel(timestamp);
                         cell.Content.Children.Add(new Border
                         {
                             Child = timestamp, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
@@ -211,9 +218,9 @@ public sealed partial class ContactSheetWindow
                     token.ThrowIfCancellationRequested(); failed++; cell.Number.Text = "无法读取"; cell.Number.FontSize = 11;
                 }
                 cell.Loading = false; StopCellMotion(cell);
-                Localization.SetText(_previewSize, $"正在抽帧 {i + 1} / {count} · {layout.Width * options.Columns} × {layout.Height * options.Rows}");
+                Localization.SetText(_previewSize, $"正在抽帧 {i + 1} / {count} · {imageSize.Width} × {imageSize.Height}");
             }
-            Localization.SetText(_previewSize, $"预览 · 第 1 / {options.SheetsPerVideo} 张 · {layout.Width * options.Columns} × {layout.Height * options.Rows}");
+            Localization.SetText(_previewSize, $"预览 · 第 1 / {options.SheetsPerVideo} 张 · {imageSize.Width} × {imageSize.Height}");
             if (failed == count) ShowPreviewError("整个视频读取失败：未能读取任何预览帧。");
             else if (_preview.Child is Grid grid)
             {
@@ -326,49 +333,9 @@ public sealed partial class ContactSheetWindow
         _preview.Child = null;
         foreach (var cell in _cells) cell.Bitmap?.Dispose(); _cells.Clear();
     }
-    private void ShowPreview(VideoEntry entry, string path, ContactSheetOptions options)
-    {
-        try
-        {
-            _previewWork?.Cancel(); StopPreviewMotion(); ClearPreview();
-            _previewSize.IsVisible = true; _outputDimensions.IsVisible = false;
-            using var stream = File.OpenRead(path); var bitmap = Bitmap.DecodeToWidth(stream, 900);
-            _preview.Child = new Image { Source = bitmap, Width = bitmap.Size.Width, Height = bitmap.Size.Height, Stretch = Stretch.Uniform };
-            // Keep ownership with the same collection used for incremental frames.
-            var content = new Grid(); _cells.Add(new(new Border(), content, new TextBlock()) { Bitmap = bitmap });
-            _previewSurface.BeginGrid(1, 1);
-            if (_previewSurface.AmbientEnabled) _ = ReadSheetAmbient(path);
-            _previewTitle.Text = entry.Name; ToolTip.SetTip(_previewTitle, entry.Path);
-            Localization.SetIsUserText(_previewTitle, true); _previewMessage.IsVisible = false;
-            if (entry.Info is { } info)
-            {
-                var layout = BatchVideoTools.ContactSheetPreviewLayout(info, options);
-                Localization.SetText(_previewSize, $"已生成 · 第 {options.SheetsPerVideo} / {options.SheetsPerVideo} 张 · {layout.Width * options.Columns} × {layout.Height * options.Rows}");
-            }
-        }
-        catch (Exception ex) { ShowPreviewError(Localization.Format($"图片预览失败：{ex.Message}")); }
-    }
-
     private static string PreviewFrameKey(string path, double seconds, PixelSize size)
         => FormattableString.Invariant($"{path}|{seconds:R}|{size.Width}x{size.Height}");
 
-    private async Task ReadSheetAmbient(string path)
-    {
-        var content = _preview.Child;
-        try
-        {
-            // Generated sheets can be large: read and reduce them on the worker too.
-            var data = await Task.Run(async () =>
-            {
-                if (new FileInfo(path).Length > MediaPreviewColorSampler.MaximumEncodedBytes) return null;
-                return await File.ReadAllBytesAsync(path, _lifetime.Token).ConfigureAwait(false);
-            }, _lifetime.Token);
-            if (data is not null && !_closed && _preview.Child == content)
-                _previewSurface.SetFrame(0, data, PreviewFrameKey(path, 0, new PixelSize(64, 64)));
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception) { /* A saved sheet remains usable without ambient decoration. */ }
-    }
     private sealed class PreviewCell(Border face, Grid content, TextBlock number)
     {
         public Border Face { get; } = face;

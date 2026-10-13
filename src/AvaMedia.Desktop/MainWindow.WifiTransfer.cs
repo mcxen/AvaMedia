@@ -32,7 +32,7 @@ public partial class MainWindow
         if (compressVideo)
             await ConfigureVideoCompressionAsync(files, new()
             {
-                Mode = VideoCompressionMode.Quality, Quality = 18, Codec = "hevc", Format = "mp4",
+                Mode = VideoCompressionMode.Quality, Quality = 18, Codec = "hevc", Format = SourceOutput.Original,
                 MaxDimension = 0, MaxFrameRate = 0, Speed = VideoEncodingSpeed.Slow, AudioBitrate = 192
             });
         else await RouteFilesAsync(files);

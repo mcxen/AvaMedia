@@ -28,7 +28,7 @@ public sealed partial class SettingsWindow : Window
         Localization.Changed += LanguageChanged;
         InitializeMcpSettings();
         Populate(settings);
-        RefreshExclusiveTools();
+        InitializeExclusiveTools();
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
         foreach (var input in new[] { AutoGpuInput, NotifyInput, ReducedMotionInput, AddSettingNameInput,
@@ -71,7 +71,13 @@ public sealed partial class SettingsWindow : Window
         if (OperatingSystem.IsMacOS()) ContextMenuRow.GetLogicalDescendants().OfType<TextBlock>().First().Text = "添加到 Finder 快速操作";
         Content = null;
         var frame = Controls.WindowChrome.WrapDialog(this, SettingsRoot, _settingsPageTitle);
-        if (frame.Children[0] is Grid titleBar) titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("StPage"));
+        if (frame.Children[0] is Grid titleBar)
+        {
+            // The settings sidebar runs to the top edge (v2 demo): the title row floats over the content
+            // and only keeps a transparent hit surface for dragging.
+            titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("StTitleBar")); titleBar.ZIndex = 1;
+            Grid.SetRow(SettingsRoot, 0); Grid.SetRowSpan(SettingsRoot, 2);
+        }
         Content = frame;
 
         Closed += (_, _) => { Localization.Changed -= LanguageChanged; _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
@@ -195,7 +201,7 @@ public sealed partial class SettingsWindow : Window
     private void ApplyClick(object? sender, RoutedEventArgs args) => ApplyDraft();
     private void OkClick(object? sender, RoutedEventArgs args) { if (ApplyDraft()) Close(true); }
     private void CancelClick(object? sender, RoutedEventArgs args) => Close(_applied);
-    private void ResetClick(object? sender, RoutedEventArgs args) { _resettingDefaults = true; Populate(SettingsPresentation.DefaultsForWindow(_settings, !MediaEngine.UsesBundledTools)); RefreshExclusiveTools(); MarkDirty(); }
+    private void ResetClick(object? sender, RoutedEventArgs args) { _resettingDefaults = true; Populate(SettingsPresentation.DefaultsForWindow(_settings, !MediaEngine.UsesBundledTools)); MarkDirty(); }
     private async void HardwareTestClick(object? sender, RoutedEventArgs args)
     {
         HardwareTestButton.IsEnabled = false;

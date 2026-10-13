@@ -16,6 +16,8 @@ runtime.setModuleImports('console', {
   },
   stopObservingVisibility: () => { stopVisibility(); stopVisibility = () => {}; },
   readPending: () => localStorage.getItem('avamedia.pending') || '',
+  readDraft: key => localStorage.getItem('avamedia.review.' + key) || '',
+  writeDraft: (key, value) => value ? localStorage.setItem('avamedia.review.' + key, value) : localStorage.removeItem('avamedia.review.' + key),
   writePending: value => value ? localStorage.setItem('avamedia.pending', value) : localStorage.removeItem('avamedia.pending'),
   downloadText: (name, text) => {
     const url = URL.createObjectURL(new Blob([text], { type: 'application/x-subrip;charset=utf-8' }));

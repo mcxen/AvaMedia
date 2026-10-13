@@ -48,7 +48,7 @@ public partial class MainWindow
         catch (Exception error) { if (!_closing) SummaryText.Text = "MCP 服务：" + error.Message; }
     }
 
-    private sealed class DesktopMcpWorkspace(MainWindow owner) : IMcpWorkspace
+    private sealed partial class DesktopMcpWorkspace(MainWindow owner) : IMcpWorkspace
     {
         public IMediaEngine Engine => owner.Engine;
         private Task<T> Ui<T>(Func<T> action, CancellationToken ct) => Dispatcher.UIThread.InvokeAsync(() =>
@@ -59,6 +59,7 @@ public partial class MainWindow
         }).GetTask();
 
         private Job Find(Guid id) => owner._jobs.FirstOrDefault(job => job.Id == id) ?? throw new ArgumentException("任务不存在：" + id);
+        public Task<ConversionOptions> OptionsAsync(Guid id, CancellationToken ct) => Ui(() => Find(id).Options.Clone(), ct);
         private McpTaskView View(Job job)
         {
             var activity = job.Activity;
@@ -339,7 +340,11 @@ public partial class MainWindow
             else if (job.FeatureId == "model-download")
                 result = await AiTaskResults.LoadAsync<System.Text.Json.JsonElement?>(job.Output, ct).ConfigureAwait(false);
             else if (job.FeatureId == "batch-rename")
-                result = new { Plan = job.Options.Rename?.Plan, Journal = job.Output, Applied = job.State == JobState.Completed };
+            {
+                var journal = await AiTaskResults.LoadAsync<BatchRename.RenameJournal>(job.Output, ct).ConfigureAwait(false);
+                result = new { Plan = job.Options.Rename?.Plan, Journal = job.Output, JournalState = journal?.State,
+                    Applied = job.State == JobState.Completed && journal?.State == "completed" };
+            }
             else if (view.State == nameof(JobState.Completed) && view.CompletionKind == nameof(JobCompletionKind.Unchanged))
                 result = new { CompletionKind = view.CompletionKind, Message = view.CompletionMessage, PreservedInputs = view.Inputs };
             else if (job.State == JobState.Completed) result = new { Output = job.Output };

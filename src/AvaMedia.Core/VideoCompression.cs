@@ -16,7 +16,7 @@ public sealed record VideoCompressionOptions
     public VideoEncodingSpeed Speed { get; init; } = VideoEncodingSpeed.Balanced;
     public double Percentage { get; init; } = 60;
     public double TargetMegabytes { get; init; } = 50;
-    public string Format { get; init; } = "mp4";
+    public string Format { get; init; } = SourceOutput.Original;
     public string Codec { get; init; } = "h264";
     public int MaxDimension { get; init; } = 1920;
     public int MaxFrameRate { get; init; }
@@ -34,7 +34,7 @@ public sealed record VideoCompressionOptions
             throw new ArgumentException("目标体积百分比须在 5–95 之间。");
         if (!double.IsFinite(TargetMegabytes) || TargetMegabytes is < .1 or > 1000000)
             throw new ArgumentException("目标体积须在 0.1–1000000 MB 之间。");
-        if (Format is not ("mp4" or "mov" or "m4v" or "mkv" or "ts") || Codec is not ("h264" or "hevc"))
+        if (Format != SourceOutput.Original && !SourceOutput.CompressionVideoFormats.Contains(Format) || Codec is not ("h264" or "hevc"))
             throw new ArgumentException("视频压缩支持 MP4 / MOV / M4V / MKV / TS 和 H.264 / HEVC。");
         if (MaxDimension is not (0 or 1920 or 1280 or 854) || MaxFrameRate is not (0 or 30 or 24))
             throw new ArgumentException("请选择有效的分辨率与帧率上限。");

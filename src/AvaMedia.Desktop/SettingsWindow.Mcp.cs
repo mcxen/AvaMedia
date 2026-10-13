@@ -122,7 +122,7 @@ public sealed partial class SettingsWindow
         if (caption is not null) text.Children.Add(Secondary(new TextBlock { Text = caption, [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont"), TextWrapping = TextWrapping.Wrap }));
         grid.Children.Add(text);
         var right = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = new DynamicResourceExtension("StControlGap"), VerticalAlignment = VerticalAlignment.Center, [!MarginProperty] = new DynamicResourceExtension("StRowControlMargin") };
-        foreach (var control in trailing) right.Children.Add(control);
+        foreach (var control in trailing) { control.VerticalAlignment = VerticalAlignment.Center; right.Children.Add(control); }
         Grid.SetColumn(right, 1); grid.Children.Add(right); return grid;
     }
 

@@ -57,6 +57,7 @@ public partial class VideoSlimmingWindow : Window
     private bool _adding;
     private bool _closed;
     private string _completionStatus = "";
+    private static readonly string[] Formats = [SourceOutput.Original, .. SourceOutput.CompressionVideoFormats];
 
     public VideoSlimmingWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoSlimmingWindow(IMediaEngine engine, string outputFolder, string[] files,
@@ -69,10 +70,10 @@ public partial class VideoSlimmingWindow : Window
         var options = initial ?? new Storage().LoadToolOptions<VideoSlimmingOptions>("video-slim") ?? new();
         PresetInput.ItemsSource = new[] { "保真", "均衡", "更小" };
         CodecInput.ItemsSource = new[] { "HEVC（H.265）", "H.264（兼容性优先）" };
-        FormatInput.ItemsSource = new[] { "MKV", "MP4" };
+        FormatInput.ItemsSource = Formats.Select(format => format == SourceOutput.Original ? format : format.ToUpperInvariant()).ToArray();
         PresetInput.SelectedIndex = (int)options.Preset;
         CodecInput.SelectedIndex = options.Codec == "h264" ? 1 : 0;
-        FormatInput.SelectedIndex = options.Format == "mp4" ? 1 : 0;
+        FormatInput.SelectedIndex = Math.Max(0, Array.IndexOf(Formats, options.Format));
         OutputInput.Text = outputFolder;
         SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource;
         if (editing) { Title = "编辑视频瘦身任务"; ConfirmButton.Content = "保存修改"; }
@@ -112,7 +113,7 @@ public partial class VideoSlimmingWindow : Window
     {
         Preset = (VideoSlimmingPreset)PresetInput.SelectedIndex,
         Codec = CodecInput.SelectedIndex == 1 ? "h264" : "hevc",
-        Format = FormatInput.SelectedIndex == 1 ? "mp4" : "mkv"
+        Format = Formats[Math.Max(0, FormatInput.SelectedIndex)]
     };
     private void UpdateOutput()
     {
@@ -129,7 +130,7 @@ public partial class VideoSlimmingWindow : Window
             entry.ValidationError = "";
             if (entry.Info is { } info)
             {
-                try { VideoSlimming.ValidateSource(info, options); }
+                try { VideoSlimming.ValidateSource(info, options with { Format = SourceOutput.VideoFormat(options.Format, entry.Path, compression: true) }); }
                 catch (ArgumentException exception) { entry.ValidationError = exception.Message; }
             }
             entry.Refresh();

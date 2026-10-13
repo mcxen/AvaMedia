@@ -1,4 +1,4 @@
-<UserControl xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.Notifications.NotificationPanel">
+<UserControl xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.Notifications.NotificationPanel">
   <UserControl.Styles>
 
     <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="4,2"/></Style>
@@ -6,10 +6,11 @@
   <Border x:Name="NoticeFrame" Classes="ac-notice">
     <Border>
       <StackPanel Spacing="8">
-        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-          <TextBlock x:Name="Heading" FontSize="{DynamicResource UiFontBody}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
-          <TextBlock x:Name="Timestamp" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
-          <Button Grid.Column="2" Classes="ac tool notification-action notification-icon icon borderless small" Content="×" Click="DismissClick" VerticalAlignment="Top" AutomationProperties.Name="关闭当前通知" ToolTip.Tip="关闭当前通知"/>
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+          <ac:StatusGlyph x:Name="NoticeGlyph" State="empty" Width="16" Height="16" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Heading" Grid.Column="1" FontSize="{DynamicResource UiFontBody}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Timestamp" Grid.Column="2" Classes="caption" VerticalAlignment="Center"/>
+          <Button Grid.Column="3" Classes="ac tool notification-action notification-icon icon borderless small" Click="DismissClick" VerticalAlignment="Top" AutomationProperties.Name="关闭当前通知" ToolTip.Tip="关闭当前通知"><local:LucideIcon Kind="x" Width="14" Height="14"/></Button>
         </Grid>
         <ScrollViewer x:Name="MessageScroll" MaxHeight="144" HorizontalScrollBarVisibility="Disabled">
           <SelectableTextBlock x:Name="MessageText" TextWrapping="Wrap" FontSize="{DynamicResource UiFontBody}" LineHeight="18" Foreground="{DynamicResource UiText}"/>
@@ -23,9 +24,9 @@
         <WrapPanel x:Name="Actions"/>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
           <Grid x:Name="Navigation" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="2">
-            <Button x:Name="Previous" Classes="ac tool notification-action notification-icon icon borderless small" Content="‹" Click="PreviousClick" AutomationProperties.Name="上一条通知"/>
+            <Button x:Name="Previous" Classes="ac tool notification-action notification-icon icon borderless small" Click="PreviousClick" AutomationProperties.Name="上一条通知" ToolTip.Tip="上一条通知"><local:LucideIcon Kind="chevron-left" Width="14" Height="14"/></Button>
             <TextBlock FontFeatures="tnum" x:Name="Counter" Grid.Column="1" TextAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Text, RelativeSource={RelativeSource Self}}" VerticalAlignment="Center" Classes="caption"/>
-            <Button x:Name="Next" Grid.Column="2" Classes="ac tool notification-action notification-icon icon borderless small" Content="›" Click="NextClick" AutomationProperties.Name="下一条通知"/>
+            <Button x:Name="Next" Grid.Column="2" Classes="ac tool notification-action notification-icon icon borderless small" Click="NextClick" AutomationProperties.Name="下一条通知" ToolTip.Tip="下一条通知"><local:LucideIcon Kind="chevron-right" Width="14" Height="14"/></Button>
           </Grid>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <Button x:Name="RemoveButton" Classes="ac tool notification-action notification-utility borderless small" Content="移除" Click="RemoveClick" AutomationProperties.Name="移除通知"/>

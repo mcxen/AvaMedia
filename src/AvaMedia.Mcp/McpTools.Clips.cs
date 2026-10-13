@@ -10,7 +10,7 @@ public sealed partial class McpTools
 {
     [McpServerTool(Name = "avamedia_export_clips", Title = "导出已编辑片段", Destructive = false, UseStructuredContent = true)]
     [Description("Export reviewed per-file segments with the same quick clipping planner as desktop. sourceVersion comes from the web preview. Supports ordered separate segments or joining retained segments per source, and removing selected intervals. Reuse requestId unchanged to recover a lost submission response.")]
-    public Task<McpSubmission> ExportClips(string requestId, McpClipEdit[] edits, string preset = "MP4",
+    public Task<McpSubmission> ExportClips(string requestId, McpClipEdit[] edits, string preset = SourceOutput.Original,
         ConversionOptions? exportOptions = null, bool joinSegments = false, string? outputFolder = null,
         bool startImmediately = true, CancellationToken ct = default)
     {

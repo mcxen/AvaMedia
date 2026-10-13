@@ -70,9 +70,11 @@
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                 <TextBlock Text="输出格式" VerticalAlignment="Center"/>
                 <ComboBox Classes="ac" Grid.Column="1" x:Name="FormatCombo" SelectedIndex="0" SelectionChanged="ParametersChanged" HorizontalAlignment="Stretch" ToolTip.Tip="WebP 支持透明；JPEG 透明区域填白；PNG 无损">
+                  <ComboBoxItem Tag="原格式"><TextBlock Text="原格式"/></ComboBoxItem>
                   <ComboBoxItem Tag="webp"><TextBlock Text="WebP"/></ComboBoxItem>
                   <ComboBoxItem Tag="jpg"><TextBlock Text="JPEG"/></ComboBoxItem>
                   <ComboBoxItem Tag="png"><TextBlock Text="PNG"/></ComboBoxItem>
+                  <ComboBoxItem Tag="bmp"><TextBlock Text="BMP"/></ComboBoxItem>
                 </ComboBox>
               </Grid>
               <CheckBox Classes="ac" x:Name="LosslessInput" Content="WebP 无损编码"/>

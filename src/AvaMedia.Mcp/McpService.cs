@@ -17,6 +17,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
     private readonly object _activity = new();
     private WebApplication? _app;
     private McpSettings? _running;
+    private bool _exclusiveUnlocked;
     private int _activeRequests;
     private long _quietSince = System.Diagnostics.Stopwatch.GetTimestamp();
     public string Status { get; private set; } = "已关闭";
@@ -35,7 +36,9 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
         await _lifecycle.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_app is not null && _running is { } active && settings.Enabled && active.Port == settings.Port && active.AllowLan == settings.AllowLan) return;
+            var exclusiveUnlocked = workspace.Engine.Settings.ExclusiveToolUnlocked;
+            if (_app is not null && _running is { } active && settings.Enabled && active.Port == settings.Port && active.AllowLan == settings.AllowLan
+                && _exclusiveUnlocked == exclusiveUnlocked) return;
             await StopCoreAsync().ConfigureAwait(false);
             if (!settings.Enabled) return;
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
@@ -50,7 +53,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
             builder.Services.AddSingleton<McpFiles>();
             builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()
                 .WithExposedHeaders("Mcp-Protocol-Version", "Mcp-Session-Id")));
-            builder.Services.AddMcpServer(options =>
+            var mcp = builder.Services.AddMcpServer(options =>
             {
                 options.ServerInfo = new Implementation { Name = "AvaMedia", Version = typeof(McpService).Assembly.GetName().Version?.ToString() ?? "1.0" };
                 options.ServerInstructions = "AvaMedia exposes the desktop's shared task queue and local media services. Call avamedia_capabilities first. "
@@ -74,6 +77,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
                   }
                   finally { NoteActivity(-1); }
               }));
+            if (exclusiveUnlocked) mcp.WithTools<McpExclusiveTools>();
             var app = builder.Build();
             app.UseCors();
             app.Use(async (context, next) =>
@@ -87,7 +91,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
             app.MapMcp("/mcp");
             try { await app.StartAsync(ct).ConfigureAwait(false); }
             catch { await app.DisposeAsync().ConfigureAwait(false); throw; }
-            _app = app; _running = settings; Endpoint = $"http://127.0.0.1:{settings.Port}/mcp";
+            _app = app; _running = settings; _exclusiveUnlocked = exclusiveUnlocked; Endpoint = $"http://127.0.0.1:{settings.Port}/mcp";
             Status = settings.AllowLan ? "运行中 · 局域网" : "运行中 · 本机"; Changed?.Invoke();
         }
         catch (Exception error)

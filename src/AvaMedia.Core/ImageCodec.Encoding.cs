@@ -3,14 +3,14 @@ using ImageMagick;
 
 namespace AvaMedia.Core;
 
-public sealed record ImageEncodingOptions(string Format = "png", int Quality = 90, int MaxDimension = 0,
+public sealed record ImageEncodingOptions(string Format = SourceOutput.Original, int Quality = 90, int MaxDimension = 0,
     int Rotation = 0, bool Flip = false, bool StripMetadata = false, bool Lossless = false)
 {
     public void Validate()
     {
-        if (Format is not ("jpg" or "png" or "webp" or "tiff" or "bmp" or "avif")) throw new ArgumentException("输出格式无效。");
+        if (Format != SourceOutput.Original && !SourceOutput.ImageEncodingFormats.Contains(Format)) throw new ArgumentException("输出格式无效。");
         if (Quality is < 1 or > 100 || MaxDimension is < 0 or > 32768) throw new ArgumentException("输出尺寸或质量无效。");
-        if (Lossless && Format == "jpg") throw new ArgumentException("JPEG 不支持无损编码。");
+        if (Lossless && Format is "jpg" or "jpeg") throw new ArgumentException("JPEG 不支持无损编码。");
     }
 }
 public sealed record ImageEncodingResult(long Bytes, int Width, int Height);
@@ -53,6 +53,7 @@ public static partial class ImageCodec
     public static async Task<ImageEncodingResult> ExportAsync(ImageViewerEntry entry, string destination,
         ImageEncodingOptions options, CancellationToken token, long? smallerThan = null)
     {
+        options = options with { Format = SourceOutput.ImageFormat(options.Format, entry.Name) };
         options.Validate(); destination = Path.GetFullPath(destination);
         if (File.Exists(destination)) throw new IOException("输出文件已存在，请选择新的名称。");
         await DecodeGate.WaitAsync(token).ConfigureAwait(false);
@@ -98,13 +99,13 @@ public static partial class ImageCodec
 
     private static void ConfigureEncoding(IMagickImage<byte> image, ImageEncodingOptions options)
     {
-        if (options.Format == "jpg" || options.StripMetadata) NormalizeColor(image);
-        if (options.Format == "jpg")
+        if (options.Format is "jpg" or "jpeg" || options.StripMetadata) NormalizeColor(image);
+        if (options.Format is "jpg" or "jpeg")
         { image.BackgroundColor = MagickColors.White; image.Alpha(AlphaOption.Remove); }
         if (options.StripMetadata) image.Strip();
         image.Quality = (uint)options.Quality;
         image.Format = options.Format switch
-        { "jpg" => MagickFormat.Jpeg, "webp" => MagickFormat.WebP, "tiff" => MagickFormat.Tiff,
+        { "jpg" or "jpeg" => MagickFormat.Jpeg, "webp" => MagickFormat.WebP, "tif" or "tiff" => MagickFormat.Tiff,
             "bmp" => MagickFormat.Bmp, "avif" => MagickFormat.Avif, _ => MagickFormat.Png };
         if (options.Format == "png") image.Settings.SetDefines(new ImageMagick.Formats.PngWriteDefines
         { CompressionLevel = 9, PreserveColorMap = true });

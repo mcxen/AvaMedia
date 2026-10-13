@@ -92,7 +92,8 @@ public sealed class ConvertWindow : Window
                 var single=!ConversionBatch.IsGrouped(feature)&&_entries.Count==1;
                 var current=single?_entries[0].Options??_options:_options;
                 var draft=SelectOutput(current,feature,selection,_entries.FirstOrDefault()?.Path??"");
-                var dialog=new OptionsWindow(draft,copyStreamsMode:feature.Id=="repair"?true:null,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:draft.Format=="jpg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality,previewEngine:engine,previewSource:_entries.FirstOrDefault()?.Path);
+                draft=SourceOutput.Resolve(feature,draft,_entries.FirstOrDefault()?.Path);
+                var dialog=new OptionsWindow(draft,copyStreamsMode:feature.Id=="repair"?true:null,kind:kind,allowAllAudioStreams:feature.Operation is not (Operation.Join or Operation.AudioMix),imageQualityDefault:draft.Format is "jpg" or "jpeg"?engine.Settings.JpegQuality:engine.Settings.WebpQuality,previewEngine:engine,previewSource:_entries.FirstOrDefault()?.Path);
                 var changed=await dialog.ShowDialog<ConversionOptions?>(this);
                 if(changed is null)return;
                 _options=SelectOutput(changed,feature,selection,_entries.FirstOrDefault()?.Path??"");
@@ -264,9 +265,9 @@ public sealed class ConvertWindow : Window
                     }
                     if(ConversionBatch.IsGrouped(selected))MediaEngine.ValidateEdits(candidate,infos);
                 }
-                var remembered=candidate.Options.Clone();remembered.Start=remembered.End=0;remembered.Subtitle="";remembered.CropX=remembered.CropY=remembered.CropWidth=remembered.CropHeight=0;remembered.DelogoX=remembered.DelogoY=remembered.DelogoWidth=remembered.DelogoHeight=0;
+                var remembered=_options.Clone();remembered.Start=remembered.End=0;remembered.Subtitle="";remembered.CropX=remembered.CropY=remembered.CropWidth=remembered.CropHeight=0;remembered.DelogoX=remembered.DelogoY=remembered.DelogoWidth=remembered.DelogoHeight=0;
                 new Storage().SaveToolOptions(feature.Id,remembered);
-                _lifetime.Token.ThrowIfCancellationRequested();ToolExecution.Complete(this, new ConversionRequest(selected,inputs,folderPath,candidate.Options,OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits,StartImmediately:ToolExecution.StartImmediately(this)));
+                _lifetime.Token.ThrowIfCancellationRequested();ToolExecution.Complete(this, new ConversionRequest(selected,inputs,folderPath,_options.Clone(),OutputToSource:sourceFolder.IsChecked==true&&sourceFolder.IsEnabled,SettingName:addName.IsChecked==true?OutputPreferences.SettingLabel(candidate):"",InputOptions:edits,StartImmediately:ToolExecution.StartImmediately(this)));
             }
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)validation.Text=ex.Message;}
@@ -303,15 +304,15 @@ public sealed class ConvertWindow : Window
 
     private static IEnumerable<string> GetFormats(Feature f)=>f.Id switch
     {
-        "mp4" or "clip"=>["mp4","mkv","mov","webm","avi","flv","wmv","mpg","ts","3gp","3g2","gif"],
+        "mp4" or "clip"=>[SourceOutput.Original,"mp4","mkv","mov","webm","avi","flv","wmv","mpg","ts","3gp","3g2","gif"],
         "crop"=>[SourceVideoExport.Original,"mp4","mkv","webm","mov","avi","ts"],
         "rotate"=>[SourceVideoExport.Original,SourceVideoExport.FastRotation,"mp4","mkv","webm","mov","avi","ts"],
-        "repair"=>["mkv","mp4","mov","ts"],
-        "delogo"=>["mp4","mkv","mov","ts"],
+        "repair"=>[SourceOutput.Original,"mkv","mp4","mov","ts"],
+        "delogo"=>[SourceOutput.Original,"mp4","mkv","mov","ts"],
         _ when f.Category=="音频"||f.Operation==Operation.SplitAudio=>["mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"],
-        _ when f.Category=="图片"=>["jpg","png","webp","bmp","tiff","gif","ico","avif"],
-        _ when f.Operation==Operation.SplitVideo=>["mkv","mp4","mov","ts"],
-        _ when f.Operation is Operation.Join or Operation.Mux=>["mp4","mkv","webm","avi","mov","ts","3gp","3g2"],
+        _ when f.Category=="图片"=>[SourceOutput.Original,"jpg","png","webp","bmp","tiff","gif","ico","avif"],
+        _ when f.Operation==Operation.SplitVideo=>[SourceOutput.Original,"mkv","mp4","mov","ts"],
+        _ when f.Operation is Operation.Join or Operation.Mux=>[SourceOutput.Original,"mp4","mkv","webm","avi","mov","ts","3gp","3g2"],
         _=>[f.Format]
     };
 }

@@ -220,7 +220,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 8 };
         row.Children.Add(Ui.ComponentText(label)); Grid.SetColumn(control, 1); row.Children.Add(control); fields.Children.Add(row);
     }
-    public void Dispose() { _disposed = true; _videoSource?.Cancel(); _seekFrame?.Cancel(); _videoSource?.Dispose(); _seekFrame?.Dispose(); _frame.Source = null; _bitmap?.Dispose(); _bitmap = null; }
+    public void Dispose() { _disposed = true; _videoSource?.Cancel(); _previewRequests.Dispose(); _videoSource?.Dispose(); _frame.Source = null; _bitmap?.Dispose(); _bitmap = null; }
 }
 
 public sealed class VoiceEnhancementControl : UserControl

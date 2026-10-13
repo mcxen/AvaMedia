@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Threading;
 using AvaMedia.Core;
 
@@ -13,6 +14,8 @@ internal sealed class VoicePreviewWindow : Window
     private readonly string _temporary = Path.Combine(Path.GetTempPath(), "AvaMedia-voice-preview-" + Guid.NewGuid().ToString("N"));
     private readonly CancellationTokenSource _lifetime = new();
     private readonly TextBlock _status = Ui.ComponentText("", "caption");
+    private readonly AvaMedia.Controls.EmptyState _empty = new() { Text = "选择试听原声或增强效果" };
+    private readonly ProgressBar _progress = new() { Classes = { "ac" }, Maximum = 100, IsVisible = false };
     private readonly StackPanel _actions = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     private PlayerWindow? _player;
     public VoicePreviewWindow(IMediaEngine engine, string source, ConversionOptions options)
@@ -20,7 +23,11 @@ internal sealed class VoicePreviewWindow : Window
         _engine = engine; _source = source; _options = options.Clone();
         Title = "人声试听 · 10 秒"; Width = 450; Height = 240; MinWidth = 400; MinHeight = 220; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
-        root.Children.Add(new ScrollViewer { Content = _status });
+        root.Bind(MarginProperty, new DynamicResourceExtension("UiPagePadding"));
+        root.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcRowGap"));
+        var state = new Grid { RowDefinitions = new("*,Auto") }; state.Children.Add(_empty); state.Children.Add(_status);
+        Grid.SetRow(_progress, 1); state.Children.Add(_progress); _status.IsVisible = false;
+        _progress.Bind(HeightProperty, new DynamicResourceExtension("AcProgressHeight")); root.Children.Add(state);
         _actions.Children.Add(Ui.Button("试听原声", async () => await PlayAsync(false))); _actions.Children.Add(Ui.Button("试听增强", async () => await PlayAsync(true)));
         Grid.SetRow(_actions, 1); root.Children.Add(_actions);
         var close = Ui.DialogButton("关闭", Close); close.HorizontalAlignment = HorizontalAlignment.Right;
@@ -35,7 +42,8 @@ internal sealed class VoicePreviewWindow : Window
     }
     private async Task PrepareAndPlayAsync(bool enhanced)
     {
-        _actions.IsEnabled = false;
+        _actions.IsEnabled = false; _empty.IsVisible = false; _status.IsVisible = _progress.IsVisible = true;
+        _progress.Value = 0; _status.Text = Localization.Text("准备试听");
         try
         {
             var output = Path.Combine(_temporary, enhanced ? "enhanced.wav" : "original.wav"); Directory.CreateDirectory(_temporary);
@@ -46,7 +54,7 @@ internal sealed class VoicePreviewWindow : Window
                 var options = _options.Clone(); options.Format = "wav"; options.CopyStreams = false; options.AudioCodec = "pcm_s16le";
                 options.Transcription = null; options.VoiceEnhancement = enhanced; options.End = Math.Min(info.Duration, options.Start + 10);
                 await _engine.Execute(new() { FeatureId = "audio-wav", Inputs = [_source], Output = output, Options = options },
-                    percent => Dispatcher.UIThread.Post(() => { if(!_lifetime.IsCancellationRequested) _status.Text = Localization.Text("准备试听") + $" · {percent:0}%"; }), _lifetime.Token);
+                    percent => Dispatcher.UIThread.Post(() => { if(!_lifetime.IsCancellationRequested) { _progress.Value = percent; _status.Text = Localization.Text("准备试听") + $" · {percent:0}%"; } }), _lifetime.Token);
             }
             if(_lifetime.IsCancellationRequested) return;
             if(_player is null) { _player = new PlayerWindow(_engine); _player.Closed += (_, _) => _player = null; }
@@ -54,8 +62,8 @@ internal sealed class VoicePreviewWindow : Window
             await _player.OpenAtAsync(output, 0); _player.Activate(); _status.Text = Localization.Text(enhanced ? "试听增强" : "试听原声");
         }
         catch(OperationCanceledException) { }
-        catch(Exception error) { if(!_lifetime.IsCancellationRequested) _status.Text = error.Message; }
-        finally { if(!_lifetime.IsCancellationRequested) _actions.IsEnabled = true; }
+        catch(Exception error) { if(!_lifetime.IsCancellationRequested) { _status.IsVisible=false; _empty.IsVisible=_empty.IsError=true; _empty.Text=Localization.Text("无法准备试听"); _empty.Detail=error.Message; } }
+        finally { if(!_lifetime.IsCancellationRequested) { _actions.IsEnabled = true; _progress.IsVisible=false; } }
     }
     private async Task CleanupAsync()
     {

@@ -120,11 +120,11 @@ public sealed class OptionsWindow : Window
                 Number(dimensions,"画面宽度 (0 = 原始)",_draft.Width,(o,v)=>o.Width=(int)v,true,0,_format=="ico"?256:32768);
                 Number(dimensions,"画面高度 (0 = 原始)",_draft.Height,(o,v)=>o.Height=(int)v,true,0,_format=="ico"?256:32768);
             }
-            if(image && _format is "jpg" or "webp")
+            if(image && _format is "jpg" or "jpeg" or "webp")
             {
                 var legacy=_draft.ImageQuality is null && _draft.Quality!=23;
-                var quality=_draft.ImageQuality??(legacy?(int)Math.Round(_format=="jpg"?100-(Math.Clamp(_draft.Quality/4d,2,12)-2)*99/29d:Math.Clamp(100-_draft.Quality*90d/63,10,100)):_imageQualityDefault??90);
-                Number(video,_format=="jpg"?"JPEG 画质 (1 – 100)":"WebP 画质 (1 – 100)",quality,(o,v)=>o.ImageQuality=legacy && v==quality?null:(int)v,true,1,100);
+                var quality=_draft.ImageQuality??(legacy?(int)Math.Round(_format is "jpg" or "jpeg"?100-(Math.Clamp(_draft.Quality/4d,2,12)-2)*99/29d:Math.Clamp(100-_draft.Quality*90d/63,10,100)):_imageQualityDefault??90);
+                Number(video,_format is "jpg" or "jpeg"?"JPEG 画质 (1 – 100)":"WebP 画质 (1 – 100)",quality,(o,v)=>o.ImageQuality=legacy && v==quality?null:(int)v,true,1,100);
             }
             else if(!input && (image?_format=="avif":VideoFormats.OriginalOutputExtensions.Contains(_format)))
             {

@@ -20,19 +20,19 @@ public static class Catalog
     {
         List<Feature> f = [];
         void Add(string id, string text, string cat, string ext, string icon, Operation op = Operation.Convert) => f.Add(new(id,text,cat,ext,icon,op));
-        Add("mp4","格式转换","视频","mp4","formats");
-        Add("video-compress","视频压缩","视频","mp4","gear",Operation.VideoCompress);
-        Add("video-slim","视频瘦身","视频","mkv","image-compress",Operation.VideoSlim);
-        Add("join","视频合并","视频","mp4","join",Operation.Join);
+        Add("mp4","格式转换","视频",SourceOutput.Original,"formats");
+        Add("video-compress","视频压缩","视频",SourceOutput.Original,"gear",Operation.VideoCompress);
+        Add("video-slim","视频瘦身","视频",SourceOutput.Original,"image-compress",Operation.VideoSlim);
+        Add("join","视频合并","视频",SourceOutput.Original,"join",Operation.Join);
         Add("split","提取音频","视频","m4a","audio",Operation.SplitAudio);
-        Add("clip","快速剪辑","视频","mp4","clip");
-        Add("person-clip","保留有人片段 · Beta","视频","mp4","clip-list",Operation.PersonClip);
-        Add("delogo","去除水印","视频","mp4","erase");
+        Add("clip","快速剪辑","视频",SourceOutput.Original,"clip");
+        Add("person-clip","保留有人片段 · Beta","视频",SourceOutput.Original,"clip-list",Operation.PersonClip);
+        Add("delogo","去除水印","视频",SourceOutput.Original,"erase");
         Add("player",AppIdentity.PlayerChineseName,"视频","","player",Operation.Player);
         Add("download","视频下载","视频","mp4","download",Operation.Download);
-        Add("auto-subtitle","自动字幕","视频","mp4","document",Operation.Transcribe);
+        Add("auto-subtitle","自动字幕","视频",SourceOutput.Original,"document",Operation.Transcribe);
         Add("video-summary","视频总结","视频","","info",Operation.VideoSummary);
-        Add("voice-enhance","人声增强","视频","mp4","audio");
+        Add("voice-enhance","人声增强","视频",SourceOutput.Original,"audio");
         foreach(var x in new[]{"mp3","flac","wav","m4a","ogg","aac","ac3","wma","opus","aiff"}) Add("audio-"+x,"→ "+x.ToUpperInvariant(),"音频",x,"audio");
         Add("audio-join","音频合并","音频","mp3","join",Operation.Join);
         Add("audio-mix","音频混合","音频","mp3","audio",Operation.AudioMix);
@@ -40,8 +40,8 @@ public static class Catalog
         Add("audio-enhance","人声增强","音频","wav","audio");
         foreach(var x in new[]{"jpg","png","webp","bmp","tiff","gif","ico","avif"}) Add("image-"+x,"→ "+x.ToUpperInvariant(),"图片",x,"image");
         Add("image-viewer","天池看图","图片","","image",Operation.ImageView);
-        Add("image-compress","图片压缩","图片","webp","image-compress",Operation.ImageCompress);
-        Add("image-tools","裁剪 / 缩放 / 旋转","图片","png","crop");
+        Add("image-compress","图片压缩","图片",SourceOutput.Original,"image-compress",Operation.ImageCompress);
+        Add("image-tools","裁剪 / 缩放 / 旋转","图片",SourceOutput.Original,"crop");
         Add("images-pdf","图片 → PDF","图片","pdf","document",Operation.ImagesPdf);
         Add("pdf-merge","PDF 合并","文档","pdf","pdf-merge",Operation.PdfMerge);
         Add("pdf-split","PDF 拆分","文档","pdf","pdf-split",Operation.PdfSplit);
@@ -63,10 +63,10 @@ public static class Catalog
         Add("unzip","解压 ZIP","工具集","","unzip",Operation.Unzip);
         Add("dvd","DVD / VOB 转换","光驱设备\\DVD\\CD\\ISO","mp4","disc",Operation.Join);
         Add("iso","光盘 → ISO","光驱设备\\DVD\\CD\\ISO","iso","disc",Operation.IsoCopy);
-        Add("mux","视频 / 音频混流","视频","mkv","audio",Operation.Mux);
-        Add("extract-video","提取视频流","视频","mkv","split",Operation.SplitVideo);
+        Add("mux","视频 / 音频混流","视频",SourceOutput.Original,"audio",Operation.Mux);
+        Add("extract-video","提取视频流","视频",SourceOutput.Original,"split",Operation.SplitVideo);
         Add("info","媒体信息","视频","json","info",Operation.Info);
-        Add("repair","修复 / 重新封装","视频","mkv","archive");
+        Add("repair","修复 / 重新封装","视频",SourceOutput.Original,"archive");
         return f;
     }
     public static Feature Find(string id) => All.First(f=>f.Id == id);

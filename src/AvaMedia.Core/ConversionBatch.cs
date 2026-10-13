@@ -14,6 +14,7 @@ public static class ConversionBatch
         if(drafts.Count==0)throw new ArgumentException("请添加文件。");
         foreach(var draft in drafts)
         {
+            draft.Options=SourceOutput.Resolve(feature,draft.Options,draft.Inputs.FirstOrDefault());
             draft.Output=Path.Combine(Path.GetTempPath(),"AvaMedia-validation-"+Guid.NewGuid()+"."+draft.Options.Format);
             MediaEngine.Validate(draft);
         }

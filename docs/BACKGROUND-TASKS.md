@@ -4,7 +4,7 @@
 
 macOS 点击 Dock 图标触发应用的 `ActivationKind.Reopen`，复用并恢复隐藏或最小化的主窗口；独立播放器模式恢复原播放器，不创建新的转换窗口。恢复时保持任务队列和播放会话。普通应用切换不主动恢复后台窗口，Finder 打开媒体文件仍进入播放器。[Avalonia 的 Dock 重新打开事件](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Native/AvaloniaNativeApplicationPlatform.cs)。
 
-在“选项 → 系统”分别设置：
+在“设置 → 通用”分别设置：
 
 | 设置 | 默认 | 行为 |
 | --- | --- | --- |

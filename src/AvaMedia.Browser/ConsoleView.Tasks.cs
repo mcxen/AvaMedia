@@ -423,6 +423,8 @@ public sealed partial class ConsoleView
         _detail.Children.Add(facts);
         if (payload["result"] is { } result)
         {
+            if (task.Text("featureId") == "auto-subtitle" && task.Text("state") is "Completed" or "Failed" or "Cancelled")
+                _detail.Children.Add(Action("校对字幕 / 再次导出", () => OpenSubtitleReview(id)));
             if (result is JsonObject && result["nsfw"] is { } nsfw)
             {
                 _detail.Children.Add(Label("NSFW 内容识别"));
@@ -523,7 +525,7 @@ public sealed partial class ConsoleView
         if (path is null || !Ui.FileIcon(path, false).StartsWith("video") && Ui.FileIcon(path, false) != "image-file") return;
         try
         {
-            var (image, _) = await RemotePreview.Read(path, 1, 640, 0, 0, CancellationToken.None);
+            var (image, _) = await RemotePreview.Read(path, 1, 320, 0, 0, CancellationToken.None);
             using var stream = new MemoryStream(image); _thumbnails[id] = new Bitmap(stream);
             if (_detailId == id && _taskData.TryGetValue(id, out var task)) UpdateDetailHeader(task);
         }

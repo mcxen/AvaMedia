@@ -42,6 +42,10 @@ internal static class RemotePreview
         if (!response.IsSuccessStatusCode) throw new InvalidOperationException(body.Text("detail") is { Length: > 0 } detail ? detail : "预览加载失败，请重试。");
         return body ?? throw new InvalidDataException("预览服务没有返回内容。");
     }
+    public static Task<(byte[] Image, JsonNode Metadata)> Subtitle(JsonObject body, CancellationToken ct) =>
+        Send(new(HttpMethod.Post, BrowserHost.Origin() + "/web/preview/subtitle")
+        { Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json") }, ct);
+
     private static async Task<(byte[] Image, JsonNode Metadata)> Send(HttpRequestMessage request, CancellationToken ct)
     {
         using var ownedRequest = request;

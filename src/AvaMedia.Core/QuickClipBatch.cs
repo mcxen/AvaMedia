@@ -6,16 +6,16 @@ public sealed record QuickClipInput(string Path, ConversionOptions Options);
 public static class QuickClipBatch
 {
     public const string DefaultPreset = "Fast Copy";
-    public static string[] Presets { get; } = ["Fast Copy", "MP4", "MKV", "TS"];
+    public static string[] Presets { get; } = ["Fast Copy", SourceOutput.Original, "MP4", "MKV", "TS"];
     public static string PresetLabel(string preset) => preset == "Fast Copy" ? "原格式 / 原码率" : preset;
     public static IReadOnlySet<string> VideoExtensions => VideoFormats.InputExtensions;
 
     public static ConversionOptions ResolveOptions(string path, string preset, ConversionOptions draft)
     {
-        if (!Presets.Contains(preset)) throw new ArgumentException("请选择 Fast Copy、MP4、MKV 或 TS。");
+        if (!Presets.Contains(preset)) throw new ArgumentException("请选择原格式、Fast Copy、MP4、MKV 或 TS。");
         var options = draft.Clone();
         options.CopyStreams = preset == "Fast Copy";
-        options.Format = options.CopyStreams ? System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant() : preset.ToLowerInvariant();
+        options.Format = options.CopyStreams ? System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant() : SourceOutput.VideoFormat(preset.ToLowerInvariant(), path);
         if (options.CopyStreams && !VideoFormats.OriginalOutputExtensions.Contains(options.Format)) throw new ArgumentException("Fast Copy 不支持此文件的容器，请选择 MP4 或 MKV。");
         return options;
     }

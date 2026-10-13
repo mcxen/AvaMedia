@@ -52,7 +52,7 @@ public static class VlMediaNaming
             return new(parts[0].ToUpperInvariant(), Field(parts[1], "未知场景"), Field(parts[2], "未知视角"), Field(parts[3], "未知装扮"),
                 Field(parts[4], "未知动作"), parts[5].ToUpperInvariant(), Field(parts[6], Hash(path), int.MaxValue)) { QualityIsExplicit = true };
         // File-specific labels take precedence over the enclosing folder's labels.
-        var contexts = new[] { Clean(stem), Clean(folderContext ?? Path.GetFileName(Path.GetDirectoryName(path)) ?? "") };
+        var contexts = new[] { IsOpaqueIdentifier(stem) ? "" : Clean(stem), Clean(folderContext ?? Path.GetFileName(Path.GetDirectoryName(path)) ?? "") };
         // A source ID such as BC-AA-539 must not mask a recognized code in the folder.
         var prefix = contexts.Select(Prefix).FirstOrDefault(value => value.Length > 0)
             ?? contexts.Select(OriginalPrefix).FirstOrDefault(value => value.Length > 0) ?? "MEDIA";
@@ -152,6 +152,7 @@ public static class VlMediaNaming
     }
     private static string Identifier(string stem, string path)
     {
+        if (IsOpaqueIdentifier(stem)) return Field(stem, Hash(path), int.MaxValue);
         var code = Regex.Match(stem, @"(?<![A-Za-z0-9])(?:[A-Za-z]{1,8}-){1,3}\d{1,12}(?![A-Za-z0-9])");
         if (code.Success) return code.Value;
         var tail = Regex.Match(stem, @"(?:^|[_\-\s(（])([A-Fa-f0-9]{8,64}|\d{1,16})[)）]?$", RegexOptions.CultureInvariant);
@@ -166,6 +167,10 @@ public static class VlMediaNaming
         return label.Length > 0 ? label + "-" + Hash(path) : Hash(path);
     }
     private static bool IsPrefix(string value) => Regex.IsMatch(value, @"^[A-Z][A-Z0-9-]{1,11}$");
+    // Download services use mixed-case IDs: their leading letters are not filming/category codes.
+    private static bool IsOpaqueIdentifier(string value) => value.Length is >= 16 and <= 64
+        && value.All(character => char.IsAsciiLetterOrDigit(character) || character == '-')
+        && value.Any(char.IsAsciiLetterLower) && value.Any(char.IsAsciiLetterUpper) && value.Any(char.IsAsciiDigit);
     private static bool IsQuality(string value) => value is "SSSR" or "SSR" or "SR" or "低画质";
     private static string Clean(string value)
     {

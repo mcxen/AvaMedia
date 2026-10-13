@@ -12,7 +12,7 @@ public sealed partial class MediaAiWindow
     private readonly Button _warmStart = new() { Content = "预热模型" };
     private readonly Button _warmStop = new() { Content = "停止预热", IsVisible = false };
     private readonly Button _warmRelease = new() { Content = "释放模型", IsVisible = false };
-    private readonly ProgressBar _warmProgress = new() { Height = 3, MinHeight = 3, IsIndeterminate = true, IsVisible = false };
+    private readonly ProgressBar _warmProgress = new() { Height = 4, MinHeight = 4, IsVisible = false };
     private readonly Dictionary<string, Control> _runtimeModels = [];
     private readonly ModelStore _runtimeStore = new();
     private bool _releasingWarmModels;
@@ -48,7 +48,7 @@ public sealed partial class MediaAiWindow
         var management = Ui.Button("模型管理…", async () => await ManageModelsAsync());
         Grid.SetColumn(management, 2); actions.Children.Add(management);
         Grid.SetColumn(_warmStatus, 3); actions.Children.Add(_warmStatus);
-        var progressSlot = new Grid { Height = 3 }; progressSlot.Children.Add(_warmProgress);
+        var progressSlot = new Grid { Height = 4 }; progressSlot.Children.Add(_warmProgress);
         var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(badges); panel.Children.Add(progressSlot); panel.Children.Add(actions);
         _warmStart.Click += (_, _) => _captionWarmup.Retry();
         _warmStop.Click += (_, _) => _captionWarmup.Stop();
@@ -96,6 +96,7 @@ public sealed partial class MediaAiWindow
         _warmRelease.IsVisible = states.Any(state => state.Loaded);
         _warmRelease.IsEnabled = !loading && !_releasingWarmModels && !states.Any(state => state.Preparing || state.State == ModelLoadState.InUse);
         _warmProgress.IsVisible = loading;
+        _warmProgress.IsIndeterminate = loading;
         _warmStatus.Text = Localization.Text(_captionWarmup?.Stopped == true ? "预热已停止，开始分析时将按需加载"
             : _captionWarmup?.Error is not null ? "模型准备失败" : "");
         ToolTip.SetTip(_warmStatus, _captionWarmup?.Error?.Message);

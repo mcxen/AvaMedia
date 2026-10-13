@@ -4,16 +4,16 @@ namespace AvaMedia.Core;
 
 public sealed record ImageCompressionOptions
 {
-    public string Format { get; init; } = "webp";
+    public string Format { get; init; } = SourceOutput.Original;
     public int Quality { get; init; } = 82;
     public bool Lossless { get; init; }
     public int MaxDimension { get; init; }
     public void Validate()
     {
-        if (Format is not ("jpg" or "webp" or "png")) throw new ArgumentException("请选择 JPEG、WebP 或 PNG 输出。");
+        if (Format != SourceOutput.Original && !SourceOutput.CompressionImageFormats.Contains(Format)) throw new ArgumentException("请选择原格式、JPEG、WebP、PNG 或 BMP 输出。");
         if (Quality is < 1 or > 100) throw new ArgumentException("图片质量须在 1–100 之间。");
         if (MaxDimension is < 0 or > 32768) throw new ArgumentException("最长边须在 1–32768 像素之间，或选择保持原尺寸。");
-        if (Lossless && Format == "jpg") throw new ArgumentException("JPEG 不支持无损编码，请选择 WebP 或 PNG。");
+        if (Lossless && Format is "jpg" or "jpeg") throw new ArgumentException("JPEG 不支持无损编码，请选择 WebP 或 PNG。");
     }
 }
 
@@ -63,10 +63,12 @@ public static class ImageCompression
         var jobs = new List<Job>();
         foreach (var input in inputs)
         {
+            var options = request.Options with { Format = SourceOutput.ImageFormat(request.Options.Format, input, compression: true) };
+            options.Validate();
             var folder = request.OutputToSource ? Path.GetDirectoryName(input)! : Path.GetFullPath(request.OutputFolder);
-            var output = MediaEngine.UniqueOutput(folder, Path.GetFileNameWithoutExtension(input) + "_compressed", request.Options.Format, used);
+            var output = MediaEngine.UniqueOutput(folder, Path.GetFileNameWithoutExtension(input) + "_compressed", options.Format, used);
             jobs.Add(new() { FeatureId = "image-compress", Inputs = [input], Output = output,
-                Options = new() { Format = request.Options.Format, ImageCompression = request.Options } });
+                Options = new() { Format = options.Format, ImageCompression = options } });
             used.Add(output);
         }
         return jobs;
@@ -97,6 +99,7 @@ public sealed class ImageCompressor(IMediaEngine engine) : IImageCompressor
     public async Task<ImageCompressionResult> CompressAsync(string input, string output, ImageCompressionOptions options,
         CancellationToken cancellationToken = default, bool keepLargerPreview = false)
     {
+        options = options with { Format = SourceOutput.ImageFormat(options.Format, input, compression: true) };
         options.Validate();
         var source = HeifImage.Supports(input) ? await InspectHeifAsync(input, cancellationToken).ConfigureAwait(false) :
             await InspectAsync(input, cancellationToken).ConfigureAwait(false);
@@ -156,7 +159,7 @@ public sealed class ImageCompressor(IMediaEngine engine) : IImageCompressor
         var prefix = source.PreFilter.Length > 0 ? source.PreFilter + "," : "";
         var resized = size.Width != source.Width || size.Height != source.Height;
         var scale = resized ? $",scale={size.Width}:{size.Height}:flags=lanczos" : "";
-        if (options.Format == "jpg")
+        if (options.Format is "jpg" or "jpeg")
         {
             // Explicit white compositing keeps transparent input from becoming black JPEG pixels.
             args.AddRange(["-filter_complex",
@@ -169,7 +172,8 @@ public sealed class ImageCompressor(IMediaEngine engine) : IImageCompressor
             args.AddRange(["-filter_threads", "1"]);
         }
         args.AddRange(["-an", "-sn", "-dn", "-frames:v", "1", "-map_metadata", "-1", "-threads", "2"]);
-        if (options.Format == "jpg") args.AddRange(["-c:v", "mjpeg", "-q:v", MediaEngine.Number(2 + (100 - options.Quality) * 29d / 99)]);
+        if (options.Format is "jpg" or "jpeg") args.AddRange(["-c:v", "mjpeg", "-q:v", MediaEngine.Number(2 + (100 - options.Quality) * 29d / 99)]);
+        else if (options.Format == "bmp") args.AddRange(["-c:v", "bmp"]);
         else if (options.Format == "png") args.AddRange(["-c:v", "png", "-compression_level", "9", "-pred", "mixed"]);
         // HEIF and high-depth PNG retain their specialized media decode; WebP uses the shared image encoder.
         else args.AddRange(["-c:v", "png", "-compression_level", "1"]);

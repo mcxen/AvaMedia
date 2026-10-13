@@ -326,7 +326,7 @@ public sealed partial class ConsoleView
                 SaveOptions();
                 var result = _activeFeature == "contact-sheet"
                     ? await RemotePreview.ContactSheet(path, _optionDraft["contactSheet"]!.DeepClone(), ct)
-                    : await RemotePreview.Read(path, seconds, _preview.Bounds.Width > 640 ? 960 : 640,
+                    : await RemotePreview.Read(path, seconds, _preview.Bounds.Width > 480 ? 640 : 480,
                         _optionDraft["videoStreamIndex"]?.GetValue<int>() ?? 0, _optionDraft["audioStreamIndex"]?.GetValue<int>() ?? 0, ct);
                 ct.ThrowIfCancellationRequested();
                 // Let input/layout run before decoding the bounded thumbnail on the WASM UI thread.
@@ -375,6 +375,7 @@ public sealed partial class ConsoleView
     }
     private void UpdatePreviewActivity()
     {
+        _subtitleReview?.SetActive(_pageVisible && _tabs.SelectedItem == _subtitleReviewTab);
         if (!PreviewActive)
         {
             CancelPreview();

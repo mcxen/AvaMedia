@@ -25,7 +25,7 @@
 
 重名、已有目标和无效名称在对应行显示错误，悬停查看原因；存在错误时不能执行。执行前再次检查系统保留名称、越界路径和源文件是否改变。先暂存全部文件，再分配目标名称，支持交换名称；运行异常时回滚已经移动的文件。点击“撤销上一次重命名”可恢复上一次成功操作，恢复前再次验证文件及目标名称。
 
-成功操作记录位于 `%LOCALAPPDATA%\AvaMedia\batch-rename.json`，执行中的恢复记录位于同目录的 `batch-rename.json.pending`。操作异常中断或进程崩溃后如存在未完成的 `in-progress` / `recovery-required` 状态，记录包含原路径、暂存路径和目标路径，供人工恢复；处理恢复记录前禁止新操作覆盖它。已完整回滚的失败操作保留上一次成功记录，仍可撤销。批量工具打开时暂停主窗口交互，成功重命名或撤销后同步转换队列内的输入路径。
+成功操作记录位于用户数据目录的 `AvaMedia/batch-rename.json`，Windows 为 `%LOCALAPPDATA%\AvaMedia`，macOS 为 `~/Library/Application Support/AvaMedia`；执行中的恢复记录为同目录的 `batch-rename.json.pending`。操作异常中断或进程崩溃后如存在未完成的 `in-progress` / `recovery-required` 状态，记录包含原路径、暂存路径和目标路径，供人工恢复；处理恢复记录前禁止新操作覆盖它。已完整回滚的失败操作保留上一次成功记录，仍可撤销。批量工具使用无 Owner 的独立窗口，主窗口队列可继续操作。重命名 / 撤销通过 `QueueService.ReserveFiles` 保留涉及的文件及日志路径，阻止相关文件同时被任务使用；成功后同步转换队列内的输入路径。
 
 ## 多宫格帧截图
 

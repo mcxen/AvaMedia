@@ -63,6 +63,11 @@ public partial class MainWindow : Window
 
     private async Task ConfigureCoreAsync(Feature feature,string[]? files=null)
     {
+        if (feature.Id == FeatureNavigation.ExclusiveRenamer.Id)
+        {
+            await OpenExclusiveRenamerAsync(this);
+            return;
+        }
         if(feature.Operation==Operation.ImageView)
         {
             var viewer = CreateImageViewerWindow(files); viewer.ShowForViewing(this); return;
@@ -163,7 +168,6 @@ public partial class MainWindow : Window
         PresentDownloadSpeedMonitor();
         StartButton.IsEnabled=CanManageTasks && _jobs.Any(CanStartTask);StopButton.IsEnabled=_queue.IsRunning&&!_queue.IsStopping;RemoveButton.IsEnabled=SelectedJobs().Any(CanRemoveTask);
         UpdateTaskEditingActions();
-        SummaryText.Text=_jobs.Count==0?"":Localization.Format($"{_jobs.Count(j=>j.State is JobState.Running or JobState.Stopping)} 个进行中 · {_jobs.Count(j=>j.State is JobState.Waiting or JobState.Paused)} 个等待 · {_jobs.Count(j=>j.State==JobState.Failed)} 个失败");RefreshTaskSummary();
         if(refreshRows)JobDisplayChanged?.Invoke();
     }
     private async void StartClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)

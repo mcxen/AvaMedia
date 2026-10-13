@@ -38,7 +38,7 @@ public sealed class SegmentThumbnail : Image
         using var request = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime);
         if (ready is not null) await ready.WaitAsync(request.Token);
         await DecodeGate.WaitAsync(request.Token);
-        try { return await preview.Thumbnail(path, options.Start, 176, 100, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
+        try { return await preview.Thumbnail(path, options.Start, VideoPreviewSizes.Row.Width, VideoPreviewSizes.Row.Height, request.Token, pad: false, videoStreamIndex: options.VideoStreamIndex); }
         finally { DecodeGate.Release(); }
     }
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

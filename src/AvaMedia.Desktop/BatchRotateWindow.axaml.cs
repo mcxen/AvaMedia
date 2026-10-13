@@ -47,7 +47,8 @@ public sealed partial class BatchRotateWindow : Window
     private int _sharedRotation = 90;
     private bool _detecting;
     private bool _syncingDirection;
-    private CancellationTokenSource? _previewCancellation;
+    private readonly LatestPreviewRequest _previewRequests = new();
+    private PreviewDrag? _previewDrag;
     private Task _previewReady = Task.CompletedTask;
     private BatchRotateEntry? _active;
     private bool _updating;
@@ -56,7 +57,7 @@ public sealed partial class BatchRotateWindow : Window
     public int Rotation => PerFile ? _active?.Rotation ?? 0 : _sharedRotation;
     public bool PerFile => ModeCombo.SelectedIndex == 1;
     public Task DetectionReady => _detectionReady;
-    public string Format => FormatCombo.SelectedItem as string ?? "mp4";
+    public string Format => FormatCombo.SelectedItem as string ?? SourceVideoExport.Original;
     public Task Ready => WaitForReady();
 
     public BatchRotateWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder) { }
@@ -84,6 +85,8 @@ public sealed partial class BatchRotateWindow : Window
         SourceOutputInput.IsCheckedChanged+=(_,_)=>{OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;RefreshValidation();};
         OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;
         OutputInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) RefreshValidation(); };
+        _previewDrag = new(PreviewSeek, () => { if (!_closed && _active?.Info is not null) _previewReady = LoadPreview(_active); });
+        _previewDrag.Attach();
         PreviewSeek.PropertyChanged += (_, args) =>
         {
             if (args.Property == Slider.ValueProperty && !_updating && _active?.Info is not null) _previewReady = LoadPreview(_active, true);
@@ -92,7 +95,7 @@ public sealed partial class BatchRotateWindow : Window
         AddHandler(DragDrop.DragOverEvent, (_, args) => args.DragEffects = _detecting ? DragDropEffects.None : DragDropEffects.Copy);
         AddHandler(DragDrop.DropEvent, (_, args) =>
         { if (!_detecting) ReportSkipped(AddFiles(args.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? [])); });
-        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); foreach (var job in _detectionJobs.Keys) job.PropertyChanged -= DetectionChanged; _previewCancellation?.Cancel(); DisposePreview(); };
+        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); foreach (var job in _detectionJobs.Keys) job.PropertyChanged -= DetectionChanged; _previewRequests.Dispose(); DisposePreview(); };
         if (files is not null) AddFiles(files);
         RefreshValidation();
     }
@@ -154,17 +157,21 @@ public sealed partial class BatchRotateWindow : Window
         PreviewSeek.Value = 0; PreviewSeek.IsEnabled = entry.Info is not null; _updating = false;
     }
 
-    private async Task LoadPreview(BatchRotateEntry entry, bool debounce = false)
+    private Task LoadPreview(BatchRotateEntry entry, bool debounce = false)
     {
-        _previewCancellation?.Cancel();
-        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _previewCancellation = cancellation; var token = cancellation.Token; var seconds = PreviewSeek.Value;
+        var seconds = PreviewSeek.Value;
+        var size = _previewDrag?.IsDragging == true ? VideoPreviewSizes.Scrub : VideoPreviewSizes.Preview;
+        return _previewRequests.Request(token => RenderPreview(entry, seconds, size, token), _lifetime.Token, immediate: !debounce);
+    }
+
+    private async Task RenderPreview(BatchRotateEntry entry, double seconds, VideoPreviewSize size, CancellationToken token)
+    {
         PreviewStatus.Text = "正在读取预览…"; PreviewStatus.IsVisible = true;
         try
         {
-            if (debounce) await Task.Delay(120, token);
             if (entry.Info is null) return;
-            var bytes = await _engine.Thumbnail(entry.Path, seconds, 960, 540, token, pad: false, videoStreamIndex: entry.Info.VideoStreamIndex);
+            size = VideoPreviewSizes.Bound(entry.Info, size);
+            var bytes = await _engine.Thumbnail(entry.Path, seconds, size.Width, size.Height, token, pad: false, videoStreamIndex: entry.Info.VideoStreamIndex);
             token.ThrowIfCancellationRequested(); using var stream = new MemoryStream(bytes); var bitmap = new Bitmap(stream);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -180,11 +187,6 @@ public sealed partial class BatchRotateWindow : Window
         {
             if (!_closed && !token.IsCancellationRequested && _active == entry)
             { PreviewStatus.Text = Localization.Format($"预览失败：{ex.Message}"); PreviewStatus.IsVisible = true; }
-        }
-        finally
-        {
-            if (ReferenceEquals(_previewCancellation, cancellation)) _previewCancellation = null;
-            cancellation.Dispose();
         }
     }
 
@@ -372,7 +374,7 @@ public sealed partial class BatchRotateWindow : Window
 
     private void ClearPreview()
     {
-        _previewCancellation?.Cancel(); DisposePreview();
+        _previewRequests.Cancel(); DisposePreview();
         PreviewStatus.Text = "添加视频后可对比旋转前后的方向"; PreviewStatus.IsVisible = true;
         PreviewName.Text = ""; PreviewSeek.IsEnabled = false;
     }
