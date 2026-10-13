@@ -20,7 +20,7 @@ internal sealed class SpeechStageCard : AvaMedia.Controls.Card
     public SpeechStageCard(int index)
     {
         _index = index;
-        this.Bind(PaddingProperty, new DynamicResourceExtension("AcStagePadding")); Height = 160;
+        this.Bind(PaddingProperty, new DynamicResourceExtension("AcStagePadding")); this.Bind(HeightProperty, new DynamicResourceExtension("SpeechStageHeight"));
         this.Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         var root = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
         var header = new Grid { ColumnDefinitions = new("18,*,Auto"), ColumnSpacing = 7 };

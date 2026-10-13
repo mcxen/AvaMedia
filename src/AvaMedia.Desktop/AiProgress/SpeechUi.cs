@@ -18,6 +18,7 @@ internal static class SpeechUi
     {
         // 通用控件和调色板由应用资源统一提供，不在窗口里覆写颜色与尺寸。
         window.Classes.Add("component-window");
+        window.Resources["SpeechStageHeight"] = 160d;
     }
 
     public static void PreserveChoiceFace(ToggleButton button)

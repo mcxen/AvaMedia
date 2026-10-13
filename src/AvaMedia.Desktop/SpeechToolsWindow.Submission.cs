@@ -18,6 +18,7 @@ public sealed partial class SpeechToolsWindow
     private bool _startSpeechImmediately = true;
     private Button? _queueSpeech;
     private Grid? _subtitleBody;
+    private Control? _subtitleCover;
 
     private void BuildSubtitleSubmission(Func<Task>? pick)
     {
@@ -49,17 +50,18 @@ public sealed partial class SpeechToolsWindow
             foreach (var slider in media.Children.OfType<Slider>().ToArray()) media.Children.Remove(slider);
         }
         var preview = new Grid(); preview.Children.Add(_preview);
-        var previewLabel = Ui.ComponentText(""); previewLabel.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiMediaText"));
+        var previewLabel = Ui.ComponentText("打开预览"); previewLabel.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiMediaText"));
         var previewContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var previewIcon = new Controls.LucideIcon { Kind = "play", Width = 12, Height = 12 }; previewIcon.Bind(Controls.LucideIcon.ForegroundProperty, new DynamicResourceExtension("UiMediaText")); previewContent.Children.Add(previewIcon); previewContent.Children.Add(previewLabel);
         var play = new Button { Classes = { "ac" }, Content = previewContent, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Left };
         play.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiMediaOverlay"));
         play.Click += (_, _) => { if (_sources.SelectedItem is string path) new PlayerWindow(_engine, [path]).ShowForPlayback(this); };
-        _sources.SelectionChanged += (_, _) => { Localization.SetText(previewLabel, $"预览 · {Path.GetFileName(_sources.SelectedItem as string ?? "")}"); play.IsEnabled = _sources.SelectedItem is string; };
+        _sources.SelectionChanged += (_, _) => play.IsEnabled = _sources.SelectedItem is string;
         Avalonia.Automation.AutomationProperties.SetName(play, "打开预览");
-        preview.Children.Add(play); var cover = new Border { Child = preview, ClipToBounds = true };
+        preview.Children.Add(play); var cover = new Border { Child = preview };
         cover.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("AcThumbRadius"));
+        _subtitleCover = cover;
         cover.Margin = new(0, 4, 0, 0); Grid.SetRow(cover, 3); source.Children.Add(cover); columns.Children.Add(source);
 
         var settings = new StackPanel { Spacing = 14 };

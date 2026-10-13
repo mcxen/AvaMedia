@@ -47,6 +47,7 @@ public sealed partial class VideoSummaryResultWindow : Window
         Title = "视频总结结果"; Width = 1180; Height = 760; MinWidth = 860; MinHeight = 520;
         Classes.Add("video-summary-result"); WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowArtwork.SetKind(this, "document"); Content = CreateLayout();
+        _body.Content = new AvaMedia.Controls.EmptyState { Text = "读取结果…" };
         Localization.SetIsUserText(_fileName, true);
         Opened += async (_, _) => await LoadAsync();
         _navigation.SelectionChanged += (_, _) => SelectPage();
@@ -93,7 +94,7 @@ public sealed partial class VideoSummaryResultWindow : Window
             if (report.Frames.FirstOrDefault() is { } first) await LoadImageAsync(_cover, first.Image);
         }
         catch (OperationCanceledException) when (_closed) { }
-        catch (Exception error) { if (!_closed) { ShowNotice(error.Message, true); _body.Content = Empty("无法读取结果", error.Message); } }
+        catch (Exception error) { if (!_closed) { _notice.Text = ""; var failure = Empty("无法读取结果", "请检查结果目录和报告文件。"); ToolTip.SetTip(failure, error.Message); _body.Content = failure; } }
     }
 
     private void SelectPage()
