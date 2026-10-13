@@ -13,6 +13,8 @@ namespace AvaMedia.Desktop;
 public partial class BrowserDownloadWindow : Window
 {
     private readonly ObservableCollection<DownloadEntry> _entries = [];
+    private NativeWebView? _browser;
+    private NativeWebView Browser => _browser ?? throw new InvalidOperationException("浏览器不可用");
     private readonly Dictionary<string, DownloadEntry> _media = new(StringComparer.Ordinal);
     private readonly HashSet<string> _discardedMedia = new(StringComparer.Ordinal);
     private readonly string _token = Guid.NewGuid().ToString("N");
@@ -35,29 +37,28 @@ public partial class BrowserDownloadWindow : Window
         using var reader = new StreamReader(stream);
         _script = reader.ReadToEnd().Replace("__AVAMEDIA_TOKEN__", _token, StringComparison.Ordinal)
             .Replace("'__AVAMEDIA_VIDEO_LABEL__'", JsonSerializer.Serialize(Localization.Text("视频")), StringComparison.Ordinal);
-        Browser.EnvironmentRequested += EnvironmentRequested;
-        Browser.AdapterCreated += AdapterCreated;
-        Browser.NavigationStarted += NavigationStarted;
-        Browser.NavigationCompleted += NavigationCompleted;
-        Browser.NewWindowRequested += NewWindowRequested;
-        Browser.WebResourceRequested += ResourceRequested;
-        Browser.WebMessageReceived += MessageReceived;
         _scanTimer.Tick += async (_, _) => await ScanAsync();
         Closed += (_, _) => { _closed = true; _scanTimer.Stop(); _lifetime.Cancel(); };
         AutomationProperties.SetName(AddressInput, "网站地址");
         AutomationProperties.SetName(MediaList, "嗅探到的视频");
-        if (OperatingSystem.IsWindows() && !WebViewAdapterInfo.GetAdapterInfo(WebViewAdapterType.WebView2).IsInstalled)
+        if (Ui.NativeBrowserUnavailableReason() is { } reason)
         {
-            Browser.IsVisible = false;
-            NavigateButton.IsEnabled = ReloadButton.IsEnabled = false;
-            InstallRuntimeButton.IsVisible = true;
-            BrowserStatus.Text = "需要安装 Microsoft Edge WebView2 Runtime。";
+            AddressInput.IsEnabled = NavigateButton.IsEnabled = ReloadButton.IsEnabled = false;
+            InstallRuntimeButton.IsVisible = OperatingSystem.IsWindows();
+            BrowserUnavailable.Detail = reason; BrowserUnavailable.IsVisible = true;
+            EmptyMedia.Detail = "浏览器可用后才能识别视频";
         }
-        else if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsWindows())
+        else
         {
-            Browser.IsVisible = false;
-            NavigateButton.IsEnabled = ReloadButton.IsEnabled = false;
-            BrowserStatus.Text = "浏览器嗅探当前支持 macOS 和 Windows。";
+            _browser = new NativeWebView();
+            Browser.EnvironmentRequested += EnvironmentRequested;
+            Browser.AdapterCreated += AdapterCreated;
+            Browser.NavigationStarted += NavigationStarted;
+            Browser.NavigationCompleted += NavigationCompleted;
+            Browser.NewWindowRequested += NewWindowRequested;
+            Browser.WebResourceRequested += ResourceRequested;
+            Browser.WebMessageReceived += MessageReceived;
+            BrowserHost.Content = _browser;
         }
     }
 
@@ -101,9 +102,9 @@ public partial class BrowserDownloadWindow : Window
     }
     private void NavigateClick(object? sender, RoutedEventArgs e) => Navigate();
     private void AddressKeyDown(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter) { e.Handled = true; Navigate(); } }
-    private void BackClick(object? sender, RoutedEventArgs e) { if (!_saving) Browser.GoBack(); }
-    private void ForwardClick(object? sender, RoutedEventArgs e) { if (!_saving) Browser.GoForward(); }
-    private void ReloadClick(object? sender, RoutedEventArgs e) { if (!_saving) Browser.Refresh(); }
+    private void BackClick(object? sender, RoutedEventArgs e) { if (_ready && !_saving) Browser.GoBack(); }
+    private void ForwardClick(object? sender, RoutedEventArgs e) { if (_ready && !_saving) Browser.GoForward(); }
+    private void ReloadClick(object? sender, RoutedEventArgs e) { if (_ready && !_saving) Browser.Refresh(); }
     private void CancelClick(object? sender, RoutedEventArgs e) => Close();
     private void InstallRuntimeClick(object? sender, RoutedEventArgs e)
     {
@@ -255,7 +256,7 @@ public partial class BrowserDownloadWindow : Window
     }
     private async void LocateMediaClick(object? sender, RoutedEventArgs e)
     {
-        if (_closed || _saving || sender is not Control { DataContext: DownloadEntry { HasPageLocation: true } entry }) return;
+        if (!_ready || _closed || _saving || sender is not Control { DataContext: DownloadEntry { HasPageLocation: true } entry }) return;
         try
         {
             await Browser.InvokeScript($"window.__avaMediaLocate?.({JsonSerializer.Serialize(entry.PageLocationId)});")
@@ -269,14 +270,14 @@ public partial class BrowserDownloadWindow : Window
         var selected = _entries.Count(entry => entry.IsChecked);
         Localization.SetText(MediaCount, $"发现 { _entries.Count } 个视频");
         EmptyMedia.IsVisible = _entries.Count == 0;
-        UseMediaButton.IsEnabled = !_saving && selected > 0;
+        UseMediaButton.IsEnabled = _ready && !_saving && selected > 0;
         _selecting = true;
         SelectAll.IsChecked = selected == 0 ? false : selected == _entries.Count ? true : null;
         _selecting = false;
     }
     private async void UseMediaClick(object? sender, RoutedEventArgs e)
     {
-        if (_saving) return;
+        if (!_ready || _saving) return;
         var videos = _entries.Where(entry => entry.IsChecked).Select(entry => entry.Video!).ToArray();
         if (videos.Length == 0) return;
         _saving = true; RefreshSelection();

@@ -162,6 +162,7 @@ public partial class MediaRouteWindow : Window
 
     private void RefreshRoutes()
     {
+        EmptySources.IsVisible = _entries.Count == 0;
         _selected = _entries.Where(entry => entry.Include).Select(entry => entry.Source).ToArray();
         _routes = _router.Routes(_selected);
         Localization.SetText(SourceCount, $"{_selected.Length} / {_entries.Count} 项");

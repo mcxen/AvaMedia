@@ -248,6 +248,7 @@ public partial class DownloadWindow : Window
     private void RefreshSelection()
     {
         if(SelectionSummary is null)return;
+        EmptyDownloads.IsVisible = _entries.Count == 0;
         var ready=_entries.Count(e=>e.IsReady);var selected=_entries.Count(e=>e.IsChecked&&e.IsReady);var errors=_entries.Count(e=>e.HasError);
         SelectionSummary.Text=Localization.Join(" · ",new[]
         {

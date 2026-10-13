@@ -233,6 +233,8 @@ public partial class WifiTransferWindow : Window
     private void RefreshControls()
     {
         if (StartReceiveButton is null) return;
+        EmptyReceivedList.IsVisible = _visibleReceived.Count == 0;
+        EmptySharedList.IsVisible = _shared.Count == 0;
         var closing = _lifetime.IsCancellationRequested;
         NetworkInput.IsEnabled = RefreshNetworkButton.IsEnabled = !_busy && !closing && _service is null;
         StartReceiveButton.IsEnabled = !_busy && !closing && _service is null && NetworkInput.SelectedItem is WifiNetwork;
@@ -316,6 +318,7 @@ public partial class WifiTransferWindow : Window
                 _shared.Add(new(file)); _service?.AddShare(file);
             }
             ActivityText.Text = Localization.Text(_service is null ? "文件已添加 · 传输未开启" : "文件已分享");
+            RefreshControls();
         }
         catch (Exception exception) { await Ui.Message(this, "分享文件失败", exception.Message); }
     }
