@@ -17,11 +17,7 @@ public partial class MainWindow
             if (outputs.Length > 0)
                 await RouteFilesAsync(await Task.Run(() => ExpandOutputs(outputs)));
             else
-            {
-                var files = await ToolFilePicker.OpenFilesAsync(this, new()
-                { Title = Localization.Text("文件路由"), AllowMultiple = true, FileTypeFilter = [FilePickerFileTypes.All] });
-                await RouteFilesAsync(files.Select(file => file.TryGetLocalPath()).OfType<string>());
-            }
+                await ShowFileRouterAsync([]);
         }
         catch (Exception error)
         {
@@ -42,6 +38,10 @@ public partial class MainWindow
     {
         var files = paths.Where(File.Exists).Select(Path.GetFullPath).Distinct(VideoFolderScanner.PathComparer).ToArray();
         if (files.Length == 0) return;
+        await ShowFileRouterAsync(files);
+    }
+    private async Task ShowFileRouterAsync(string[] files)
+    {
         if (_mediaRouteWindow is { } existing) { existing.AddFiles(files); existing.Activate(); return; }
         var window = new MediaRouteWindow(Engine, files, new MediaFileRouter(_settings.EnableBetaFeatures));
         _mediaRouteWindow = window;

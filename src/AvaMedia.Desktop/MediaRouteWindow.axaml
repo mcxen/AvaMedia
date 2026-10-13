@@ -41,7 +41,7 @@
   </Window.Styles>
   <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
     <Grid ColumnDefinitions="*,Auto">
-      <files:FileImportActions x:Name="ImportPanel" HorizontalAlignment="Left"/>
+      <files:FileImportActions x:Name="ImportPanel" HorizontalAlignment="Left" AllowFolders="True"/>
     </Grid>
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>

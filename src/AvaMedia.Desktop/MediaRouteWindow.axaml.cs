@@ -67,7 +67,12 @@ public partial class MediaRouteWindow : Window
     {
         InitializeComponent(); _engine = engine; _router = router ?? new MediaFileRouter();
         ImportPanel.AddFilesAsync = PickFilesAsync;
-        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
+        ImportPanel.AddFoldersAsync = PickFoldersAsync;
+        ImportPanel.ReportErrorAsync = error =>
+        {
+            AppDiagnostics.Record("Pick routing files or folders", error);
+            return Ui.Message(this, "导入失败", error.Message);
+        };
         WindowArtwork.SetKind(this, "split");
         SourceList.ItemsSource = _entries;
         SourceList.ItemTemplate = new FuncDataTemplate<MediaRouteEntry>((entry, _) => entry is null ? new Border() : SourceCard(entry));
@@ -165,13 +170,21 @@ public partial class MediaRouteWindow : Window
     private void OpenRoute(MediaRouteOption route)
     { if (!_closed && route.Enabled) { _request = new(route.Feature.Id, route.Files); Close(_request); } }
     private async Task PickFilesAsync()
+        => AddFiles(await Ui.Pick(this, "添加到文件路由"));
+    private async Task PickFoldersAsync()
     {
-        try { AddFiles(await Ui.Pick(this, "添加到文件路由")); }
-        catch (Exception error)
+        var folders = await ToolFilePicker.OpenFoldersAsync(this, new()
+        { Title = Localization.Text("添加到文件路由"), AllowMultiple = true });
+        var paths = folders.Select(folder => folder.TryGetLocalPath()).OfType<string>().ToArray();
+        if (paths.Length == 0 || _closed) return;
+        var files = await Task.Run(() =>
         {
-            AppDiagnostics.Record("Pick routing files", error);
-            if (!_closed) DestinationSummary.Text = Localization.Format($"导入失败：{error.Message}");
-        }
+            var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint };
+            return paths.SelectMany(path => Directory.EnumerateFiles(path, "*", options))
+                .Order(VideoFolderScanner.PathComparer).ToArray();
+        }, _lifetime.Token);
+        AddFiles(files);
     }
     private void DeselectClick(object? sender, RoutedEventArgs args) => SetSelection(_ => false);
     private void CancelClick(object? sender, RoutedEventArgs args) => Close();
