@@ -8,6 +8,10 @@ namespace AvaMedia.FileUi;
 
 internal static class FileBrowserTheme
 {
+    // Fb owns the B-layout surfaces, 54px rows and classic selection colors.
+    // Ac supplies action/navigation metrics and composition (segments, cards,
+    // section headers and empty states); Ui supplies host radii. Do not replace
+    // the neutral virtualized layout rows with the generic selected ListBox face.
     public static void Install(Control view)
     {
         void Palette(ThemeVariant variant, string surface, string sidebar, string panel, string text, string muted,

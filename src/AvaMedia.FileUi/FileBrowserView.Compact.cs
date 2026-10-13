@@ -76,6 +76,7 @@ public sealed partial class FileBrowserView
         _entries.SelectionChanged += (_, _) => UpdateSelection();
         ScrollViewer.SetHorizontalScrollBarVisibility(_entries, ScrollBarVisibility.Disabled);
         Grid.SetRow(_entries, 1); files.Children.Add(_entries);
+        Grid.SetRow(_empty, 1); files.Children.Add(_empty);
         Grid.SetColumn(files, 1); body.Children.Add(files);
         Grid.SetRow(body, 1); root.Children.Add(body);
 

@@ -126,6 +126,7 @@ public sealed partial class FileBrowserView
         _listHeader.Child = ListHeader(); _listHeader.IsVisible = false;
         Grid.SetRow(_listHeader, 2); files.Children.Add(_listHeader);
         _entries.Padding = new(16, 8); _entries.BorderThickness = new(0); _entries.SelectionMode = SelectionMode.Single;
+        _entries.Classes.Add("surface");
         FileBrowserTheme.Bind(_entries, BackgroundProperty, "Surface");
         _entries.ItemTemplate = new FuncDataTemplate<MediaRow>((row, _) => row is null ? null : RenderMediaRow(row));
         // The virtualized item is a layout row, not a selectable file. Give it a neutral
@@ -160,6 +161,7 @@ public sealed partial class FileBrowserView
             if (_gridMode && columns != _columns) { _columns = columns; RebuildRows(); }
         };
         Grid.SetRow(_entries, 3); files.Children.Add(_entries); Grid.SetColumn(files, 1); body.Children.Add(files);
+        Grid.SetRow(_empty, 3); files.Children.Add(_empty);
         FileBrowserTheme.Bind(_inspectorHost, WidthProperty, "InspectorWidth");
         FileBrowserTheme.Bind(_inspectorHost, Border.BackgroundProperty, "Panel"); FileBrowserTheme.Bind(_inspectorHost, Border.BorderBrushProperty, "Line");
         _inspectorHost.BorderThickness = new(1, 0, 0, 0); _inspectorHost.Child = new ScrollViewer { Content = _inspector, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -365,6 +367,7 @@ public sealed partial class FileBrowserView
             button.PointerExited += (_, _) => FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, active ? "Selected" : "Sidebar");
             FileBrowserTheme.Bind(button, Avalonia.Controls.Button.ForegroundProperty, active ? "SelectionText" : "Text");
             ToolTip.SetTip(button, folder?.Address ?? name);
+            AutomationProperties.SetName(button, name);
             if (glyph == "star" && folder is not null)
             {
                 var remove = new MenuItem { Header = _text("移除收藏") };

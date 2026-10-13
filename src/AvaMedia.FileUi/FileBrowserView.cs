@@ -23,6 +23,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private readonly Func<FormattableString, string> _format;
     private readonly FileTreeView _places;
     private readonly ListBox _entries = new();
+    private readonly AvaMedia.Controls.EmptyState _empty = new() { IsVisible = false, Margin = new(18) };
     private readonly PathInput _address = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _selectionCount = new();
@@ -113,6 +114,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
         var work = _navigation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _mediaWork?.Update([]); _chosen.Clear(); _focusEntry = null; _anchor = 0;
         _filtering = false; _loading = true; _entries.IsEnabled = false; _entries.ItemsSource = null;
+        _empty.IsVisible = false;
         _status.Text = _text("正在读取…"); UpdateSelection(); UpdateInspector(null);
         return (work, work.Token);
     }
@@ -199,6 +201,11 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
                 if (hidden > 0) _status.Text += " · " + _format($"已隐藏 {hidden} 个文件");
             }
             UpdateSelection();
+            _empty.IsError = false;
+            _empty.Text = _text(_recent ? "暂无最近使用" : _options.Folders ? "此位置没有可显示的文件夹" : _kind == FileBrowserKind.All ? "此位置没有可显示的文件" : "此位置没有此类型的文件");
+            var hiddenCount = directory.Entries.Count - entries.Length;
+            _empty.Detail = hiddenCount > 0 ? _format($"已隐藏 {hiddenCount} 个文件") : "";
+            _empty.IsVisible = entries.Length == 0;
         }
         finally { if (version == _filterVersion) { _filtering = false; QueueVisibleMedia(); } }
     }
@@ -242,7 +249,13 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private static TextBlock Label(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center };
     private static string Size(ulong? size) => size is not { } bytes ? "—" : bytes < 1024 ? $"{bytes} B"
         : bytes < 1024 * 1024 ? $"{bytes / 1024d:0.#} KB" : bytes < 1024 * 1024 * 1024 ? $"{bytes / (1024d * 1024):0.#} MB" : $"{bytes / (1024d * 1024 * 1024):0.#} GB";
-    private void ShowError(Exception error) { if (!_disposed) _status.Text = error.Message; }
+    private void ShowError(Exception error)
+    {
+        if (_disposed) return;
+        _status.Text = error.Message;
+        if (_visibleEntries.Length == 0 && !_options.Compact)
+        { _empty.Text = _text("无法读取此位置"); _empty.Detail = error.Message; _empty.IsError = true; _empty.IsVisible = true; }
+    }
     public void Dispose()
     {
         if (_disposed) return;
