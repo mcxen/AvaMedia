@@ -1,5 +1,9 @@
 using System.Text.Json;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using Avalonia.Media;
+using AvaMedia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using AvaMedia.Core;
@@ -10,7 +14,8 @@ namespace AvaMedia.Desktop;
 public sealed class MediaInfoWindow : Window
 {
     private readonly IMediaEngine _engine;
-    private readonly ListBox _files = new();
+    private readonly ListBox _files = new(){Classes={"ac","surface"}};
+    private readonly EmptyState _empty = new(){Text=Localization.Text("尚未添加文件")};
     private readonly StackPanel _details = new() { Spacing = 6 };
     private readonly TextBlock _status = Ui.ComponentStatus();
     private readonly Button _export;
@@ -22,9 +27,11 @@ public sealed class MediaInfoWindow : Window
         _engine = engine; Title = "媒体信息"; Width = 1120; Height = 620; MinWidth = 700; MinHeight = 440; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
         root.Children.Add(ToolFilePicker.ImportActions(this, async () => { try { AddFiles(await Ui.Pick(this, "选择媒体文件")); } catch(Exception error) { _status.Text = error.Message; } }));
-        var body = new Grid { ColumnDefinitions = new("220,*,*"), ColumnSpacing = 8 }; body.Children.Add(_files);
+        root.Bind(MarginProperty,new DynamicResourceExtension("UiPagePadding"));root.Bind(Grid.RowSpacingProperty,new DynamicResourceExtension("AcGap"));
+        var body = new Grid { ColumnDefinitions = new("220,*,*"), ColumnSpacing = 8 };
+        var fileArea=new Grid();fileArea.Children.Add(_files);fileArea.Children.Add(_empty);body.Children.Add(fileArea);
         ScrollViewer.SetHorizontalScrollBarVisibility(_files, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
-        body.Children.Add(new ScrollViewer { Content = _details, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
+        body.Children.Add(new ScrollViewer { Content = Ui.ComponentCard(_details), [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
         var preview=new MediaPreviewPanel(engine);Grid.SetColumn(preview,2);body.Children.Add(preview);
         _files.SelectionChanged+=(_,_)=>preview.SetSource(_files.SelectedItem as string);Closed+=(_,_)=>preview.Dispose();
         var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_status);
@@ -40,26 +47,30 @@ public sealed class MediaInfoWindow : Window
             catch(Exception error) { _status.Text = error.Message; }
         }); Grid.SetColumn(_export, 1); footer.Children.Add(_export);
         var close = Ui.DialogButton("关闭", Close); Grid.SetColumn(close, 2); footer.Children.Add(close); Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
-        _files.ItemTemplate = new FuncDataTemplate<string>((path, _) => { var text = Ui.ComponentText(System.IO.Path.GetFileName(path)); Localization.SetIsUserText(text, true); text.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; return text; });
+        _files.ItemTemplate = new FuncDataTemplate<string>((path, _) => { var text = Ui.ComponentText(System.IO.Path.GetFileName(path)); Localization.SetIsUserText(text, true); text.TextTrimming = TextTrimming.CharacterEllipsis; text.TextWrapping=TextWrapping.NoWrap;ToolTip.SetTip(text,path);return new ListRow{Child=text}; });
         _files.SelectionChanged += async (_, _) => await ReadAsync();
         Closed += (_, _) => { _lifetime.Cancel(); _probe?.Cancel(); }; AddFiles(files);
     }
     private void AddFiles(IEnumerable<string> files)
     {
         _files.ItemsSource = (_files.ItemsSource?.OfType<string>() ?? []).Concat(files.Where(File.Exists)).Select(System.IO.Path.GetFullPath).Distinct(VideoFolderScanner.PathComparer).ToArray();
+        _empty.IsVisible=!_files.ItemsSource!.OfType<string>().Any();
         if(_files.SelectedItem is null) _files.SelectedIndex = 0;
+        if(_empty.IsVisible){_export.IsEnabled=false;_details.Children.Clear();_details.Children.Add(new EmptyState{Text=Localization.Text("选择文件查看媒体信息")});}
     }
     private async Task ReadAsync()
     {
         _probe?.Cancel(); _json = null; _export.IsEnabled = false; _details.Children.Clear();
-        if(_files.SelectedItem is not string path) return;
+        if(_files.SelectedItem is not string path){_status.Text="";_details.Children.Add(new EmptyState{Text=Localization.Text("选择文件查看媒体信息")});return;}
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); operation.CancelAfter(TimeSpan.FromSeconds(30)); _probe = operation;
-        _status.Text = Localization.Text("正在读取媒体信息…");
+        var filename=Ui.ComponentText(System.IO.Path.GetFileName(path),"heading");Localization.SetIsUserText(filename,true);ToolTip.SetTip(filename,path);_details.Children.Add(filename);
+        _details.Children.Add(new Notice{Title=Localization.Text("正在读取媒体信息…"),State="running"});
+        _status.Text="";
         try
         {
             var info = await _engine.Probe(path, operation.Token); if(operation.IsCancellationRequested || _probe != operation) return;
             using var json = JsonDocument.Parse(info.RawJson); var root = json.RootElement;
-            var title = Ui.ComponentText(System.IO.Path.GetFileName(path), "heading"); Localization.SetIsUserText(title, true); _details.Children.Add(title);
+            _details.Children.Clear();_details.Children.Add(filename);
             Row("时长", MediaTime.Format(info.Duration)); Row("文件大小", $"{new FileInfo(path).Length / 1000000d:0.##} MB");
             if(info.HasVideo) { Row("画面", $"{info.Width} × {info.Height}"); Row("帧率", $"{info.FrameRate:0.###} fps"); }
             if(root.TryGetProperty("format", out var format))
@@ -73,9 +84,15 @@ public sealed class MediaInfoWindow : Window
             }
             _json = info.RawJson; _export.IsEnabled = true; _status.Text = "";
         }
-        catch(OperationCanceledException) { if(!_lifetime.IsCancellationRequested && _probe == operation) _status.Text = Localization.Text("读取已取消或超时"); }
-        catch(Exception error) { if(!_lifetime.IsCancellationRequested && _probe == operation) _status.Text = error.Message; }
+        catch(OperationCanceledException) { if(!_lifetime.IsCancellationRequested && _probe == operation) ShowError(filename,Localization.Text("读取已取消或超时")); }
+        catch(Exception error) { if(!_lifetime.IsCancellationRequested && _probe == operation) ShowError(filename,error.Message); }
         finally { if(_probe == operation) _probe = null; }
+    }
+    private void ShowError(TextBlock filename,string message)
+    {
+        _details.Children.Clear();_details.Children.Add(filename);
+        var notice=new Notice{Title=Localization.Text("无法读取媒体信息"),Detail=message,State="failed"};
+        Localization.SetIsUserText(notice,true);_details.Children.Add(notice);
     }
     private void Row(string label, string value)
     {

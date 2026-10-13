@@ -6,6 +6,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
@@ -65,7 +66,7 @@ public sealed class OptionsWindow : Window
     {
         var selectedPage = (_tabs?.SelectedItem as TabItem)?.Tag as string;
         _subtitleStyle?.Dispose();_subtitleStyle=null;_visualPreview?.Dispose();_visualPreview=null;
-        _readers.Clear();var root=new Grid{RowDefinitions=new("Auto,*,Auto"),Margin=new(12),ColumnSpacing=8};_layoutRoot=root;
+        _readers.Clear();var root=new Grid{RowDefinitions=new("Auto,*,Auto"),Margin=new(12),ColumnSpacing=8};_layoutRoot=root;root.Bind(MarginProperty,new DynamicResourceExtension("UiPagePadding"));root.Bind(Grid.ColumnSpacingProperty,new DynamicResourceExtension("AcGap"));
         if(_previewEngine is not null && _previewSource is not null)
         {
             root.ColumnDefinitions=new("*,320");_visualPreview=new MediaPreviewPanel(_previewEngine);
@@ -263,11 +264,11 @@ public sealed class OptionsWindow : Window
             Grid.SetRow(pageContent,1);root.Children.Add(pageContent);
         }
         Content=root;UpdatePreviewWidth();RefreshVisualPreview();
-        StackPanel Page(string title){var panel=new StackPanel{Spacing=8,Margin=new(0,0,4,0)};panel.Children.Add(Ui.ComponentText(title,"settingsTitle"));tabs.Items.Add(new TabItem{Header=title,Tag=title,Content=new ScrollViewer{Content=panel,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled}});return panel;}
+        StackPanel Page(string title){var panel=new StackPanel{Spacing=8,Margin=new(0,0,4,0)};panel.Children.Add(Ui.ComponentText(title,"settingsTitle"));tabs.Items.Add(new TabItem{Header=title,Tag=title,Content=new ScrollViewer{Content=Ui.ComponentCard(panel),HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled}});return panel;}
         static StackPanel Advanced(StackPanel panel,string title,bool expanded)
         {
-            var content=new StackPanel{Spacing=8,Margin=new(0,8,0,4)};
-            panel.Children.Add(new Expander{Header=title,Content=content,IsExpanded=expanded,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch});return content;
+            var content=new StackPanel{Margin=new(0,8,0,4)};content.Bind(StackPanel.SpacingProperty,new DynamicResourceExtension("AcRowGap"));
+            panel.Children.Add(new Expander{Header=title,Content=Ui.ComponentCard(content),IsExpanded=expanded,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch});return content;
         }
         void Fades(StackPanel panel){Number(panel,"淡入时长 (秒)",_draft.FadeIn,(o,v)=>o.FadeIn=v,false,0,86400);Number(panel,"淡出时长 (秒)",_draft.FadeOut,(o,v)=>o.FadeOut=v,false,0,86400);}
     }
@@ -292,9 +293,8 @@ public sealed class OptionsWindow : Window
     private static void Add(Panel panel,string label,Control control)
     {
         Avalonia.Automation.AutomationProperties.SetName(control,label);
-        control.HorizontalAlignment=HorizontalAlignment.Left;control.MaxWidth=288;
-        var row=new Grid{ColumnDefinitions=new("132,*"),ColumnSpacing=6};row.Children.Add(Ui.ComponentText(label));Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);
-        if(control is ComboBox)control.Width=248;
+        control.HorizontalAlignment=HorizontalAlignment.Stretch;
+        var row=new Grid{ColumnDefinitions=new("Auto,*")};row.Bind(Grid.ColumnSpacingProperty,new DynamicResourceExtension("AcGap"));var caption=Ui.ComponentText(label);caption.MinWidth=132;row.Children.Add(caption);Grid.SetColumn(control,1);row.Children.Add(control);panel.Children.Add(row);
     }
     private void VideoEncodingFields(StackPanel panel)
     {
@@ -328,7 +328,7 @@ public sealed class OptionsWindow : Window
     {
         var box=Ui.ComponentNumber(value,min,max,integer?1:.01);Avalonia.Automation.AutomationProperties.SetName(box,label);
         if(label=="音量 (%)")box.Name="VolumePercent";if(label=="音频淡入时长 (秒)")box.Name="AudioFadeInInput";if(label=="音频淡出时长 (秒)")box.Name="AudioFadeOutInput";
-        box.Width=88;Add(panel,label,Ui.ComponentAdjust(box,max>1000?Math.Min(max,100000):null));
+        box.Bind(WidthProperty,new DynamicResourceExtension("UiCoordinateWidth"));Add(panel,label,Ui.ComponentAdjust(box,max>1000?Math.Min(max,100000):null));
         _readers.Add(o=>
         {
             if(!panel.IsVisible)return;

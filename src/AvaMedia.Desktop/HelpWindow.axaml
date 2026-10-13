@@ -7,12 +7,12 @@
       <Setter Property="Background" Value="{DynamicResource UiSurface}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/>
-      <Setter Property="Padding" Value="{DynamicResource UiSectionPadding}"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/>
+      <Setter Property="Padding" Value="{DynamicResource AcCardPadding}"/>
       <Setter Property="Margin" Value="4"/>
     </Style>
   </Window.Styles>
-  <Grid Margin="{DynamicResource UiSectionPadding}" RowDefinitions="*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
+  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="*,Auto" RowSpacing="{DynamicResource UiSpacingMedium}">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="{DynamicResource UiSpacingLarge}">
         <StackPanel Spacing="{DynamicResource UiSpacingSmall}">

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using AvaMedia.Core;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 
 namespace AvaMedia.Desktop;
 
@@ -21,7 +22,8 @@ public sealed class HardwareTestWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(12), RowSpacing = 8 };
         _log = new() { Name = "HardwareLog", Classes={"log"}, IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.NoWrap, Text = "正在检测本平台的 GPU 编码能力…" };
-        root.Children.Add(_log);
+        root.Bind(MarginProperty,new DynamicResourceExtension("UiPagePadding"));root.Bind(Grid.RowSpacingProperty,new DynamicResourceExtension("AcGap"));
+        root.Children.Add(Ui.ComponentCard(_log));
         var ok = new Button { Name = "OkButton", Content = "关闭", Classes={ "ac","dialog-action"}, HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true, IsCancel = true };
         ok.Click += (_, _) => Close(); Grid.SetRow(ok, 1); root.Children.Add(ok); Content = root;
         Opened += async (_, _) => await Test();

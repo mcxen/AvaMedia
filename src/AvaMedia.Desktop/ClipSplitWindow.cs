@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using AvaMedia.Core;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using AvaMedia.Controls;
 using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
@@ -42,8 +44,8 @@ public sealed class ClipSplitWindow : Window
         Grid.SetColumn(secondsAdjust, 1); secondsRow.Children.Add(secondsAdjust); _secondsPanel.Children.Add(secondsRow);
         _timeline.Start=draft.Start;_timeline.End=end;
         var fields = new StackPanel { Spacing = 6 }; fields.Children.Add(_partsPanel); fields.Children.Add(_secondsPanel);
-        fields.Children.Add(Ui.ComponentText("点击添加分割点，拖动调整；选中后按 Delete 删除。","caption"));fields.Children.Add(_timeline);
-        Grid.SetRow(fields, 2); grid.Children.Add(fields);
+        fields.Children.Add(Ui.ComponentText("点击添加分割点，拖动调整。","caption"));ToolTip.SetTip(_timeline,Localization.Text("删除所选分割点 (Delete)"));fields.Children.Add(_timeline);
+        var parameters=Ui.ComponentCard(fields);Grid.SetRow(parameters,2);grid.Children.Add(parameters);
         Control content=_preview;
         MediaPreviewPanel? mediaPreview=null;
         if(engine is not null&&source is not null)
@@ -57,10 +59,13 @@ public sealed class ClipSplitWindow : Window
         Grid.SetRow(note, 4); grid.Children.Add(note);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         buttons.Children.Add(Ui.DialogButton("取消", () => Close(null)));
-        _confirm = Ui.DialogButton("确定", () => { Refresh(); if (_segments is not null) Close(_segments); });
+        _confirm = Ui.DialogButton("确定", () => { Refresh(); if (_segments is not null) Close(_segments); },isDefault:true);
         buttons.Children.Add(_confirm); Grid.SetRow(buttons, 5); grid.Children.Add(buttons); Content = grid;
         _mode.SelectionChanged += (_, _) => Refresh(); _parts.ValueChanged += (_, _) => Refresh();
         _seconds.ValueChanged += (_, _) => Refresh(); _timeline.Changed+=()=>{_mode.SelectedIndex=2;Refresh();if(_timeline.SelectedTime is {} seconds)mediaPreview?.SetPosition(seconds);};
+        grid.Bind(MarginProperty,new DynamicResourceExtension("UiPagePadding"));grid.Bind(Grid.RowSpacingProperty,new DynamicResourceExtension("AcGap"));
+        _preview.Classes.Add("ac");_preview.Classes.Add("surface");
+        _preview.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((text,_)=>new ListRow{Child=Ui.ComponentText(text??"")});
         Refresh();
     }
 
