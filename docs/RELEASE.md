@@ -12,6 +12,8 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 4. Linux x64 由 `scripts/Package-Linux.sh` 生成自包含 `tar.gz`（不内置 FFmpeg，见 [Linux 版本](LINUX.md)），在 xvfb 下执行 `--capture` 启动检查后与其它安装包一同发布。
 5. Mac 应用 ZIP 只用于 macOS job 内部的 Mach-O 架构和 Unix 权限检查，不上传 artifact 或主 Release。`Publish-Release.ps1` 先发布 `media-v版本` 媒体归档，再发布主 Release；主下载列表为 Mac DMG、Windows portable ZIP、setup EXE 和 Linux tar.gz，SHA256 写入版本说明。
 
+主 Release 的下载表并列提供 GitHub 官方链接和 TVV.TW 镜像链接，四种安装包均可直接选择下载源。镜像地址按 [TVV.TW 官方说明](https://tvv.tw/)在原始下载链接前添加 `https://tvv.tw/`，由 `Publish-Release.ps1` 在发布或重跑发布时生成。
+
 `Build-Bootstrap.ps1` 编译 Windows x64 C / macOS ARM64 Cocoa 启动器，不依赖 .NET 8；主程序采用 framework-dependent 发布。启动器仅在首次配置与安装时通过官方 hostfxr API 按应用的 runtimeconfig 检查运行时版本、架构及 .NET / ASP.NET Core 两个框架，保持原有进程名、参数、播放器和更新入口。
 
 `Prepare-Runtime.ps1` 在打包时从 Microsoft 官方 .NET 8 发布元数据中固定稳定版下载地址及 SHA512，保存为 `runtime-bootstrap.json`。首次安装只下载官方归档，不下载或执行远程脚本；Windows 使用系统 PowerShell 解压，macOS 使用系统 tar。运行时先在临时目录完成下载、校验与 hostfxr 检查，再原子移动到当前用户的 `AvaMedia/runtimes` 缓存。下载失败可重试；多个首次启动窗口共用安装锁。Windows 缓存位于 `%LOCALAPPDATA%\AvaMedia\runtimes`，Mac 位于 `~/Library/Application Support/AvaMedia/runtimes`。程序也检查环境变量和标准系统 .NET 安装目录，完整的现有运行时可离线启动；首次安装需要网络。

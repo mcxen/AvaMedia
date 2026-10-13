@@ -694,7 +694,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 | 空 / 错误态 | `AcEmptyIconSize=40`、`AcEmptyGap=6`、`AcEmptyDetailWidth=220`、`AcEmptyPadding=16`、`AcEmptyActionMargin=0,8,0,0` | 与列表同层；`IsError` 同时对应 `error` 类与失败符号，Actions 只放真实操作。 |
 | 工具标题 / 位置 | `UiToolTitleBarHeight=48`、`UiToolTitleGutter=88`、`UiToolTitleLightInset=16,0,0,0`、`UiToolWindowGap=12` | WrapDialog 只显示一处窗口标题；不改主窗口 52 / 编辑器 44 或原生 DWM 策略。Skin 注册独立窗口的位置记忆。 |
 
-- 原生浏览器等依赖能力必须在附着宿主前判断；不可用时用 EmptyState.error 替代，不以 `IsVisible=False` 掩盖仍会初始化的原生控件。Linux 浏览器嗅探不附着适配器，窗口保留真实不可用原因及关闭操作；运行时缺失 / 能力查询失败同样兜底。公共宿主先保底，业务列表 / 重试及完整接入在专项任务完成。
+- 原生浏览器等依赖能力必须在附着宿主前判断；不可用时用 EmptyState.error 替代，不以 `IsVisible=False` 掩盖仍会初始化的原生控件。Linux 下载窗口隐藏“网页视频识别”及“内嵌浏览器”登录态选项，解析失败不自动打开内嵌浏览器；链接解析、外部浏览器 CDP 识别及其登录态选项继续提供。Linux 不附着原生浏览器适配器，直接创建嗅探窗口时保留真实不可用原因及关闭操作；Windows 运行时缺失 / 能力查询失败同样兜底，保留入口以便安装运行时。公共宿主先保底，业务列表 / 重试及完整接入在专项任务完成。
 - 加载顺序：组件 Defaults / ControlThemes → UiStyles → PlatformTokenLayer → 宿主角色 / ComponentSkins → 窗口专项与经典皮肤。窗口局部资源覆盖同名 Ac 键仅影响该窗口；新专项样式先写入本规范。
 
 ## 8. 窗口与标题栏（按平台）

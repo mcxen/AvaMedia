@@ -7,12 +7,14 @@ namespace AvaMedia.Desktop;
 
 internal static partial class Ui
 {
+    internal static bool NativeBrowserSupported => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+
     /// <summary>Check before creating or attaching a browser, including XAML-created views.</summary>
     internal static string? NativeBrowserUnavailableReason()
     {
         // The desktop browser currently supports Windows and macOS. Do not probe
         // WebKitGTK by creating an adapter: missing native libraries throw async void.
-        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
+        if (!NativeBrowserSupported)
             return Localization.Text("浏览器嗅探当前支持 macOS 和 Windows。");
         try
         {

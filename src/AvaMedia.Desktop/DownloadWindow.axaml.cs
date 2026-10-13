@@ -66,13 +66,15 @@ public partial class DownloadWindow : Window
     public DownloadWindow(AppSettings settings,string folder,IEnumerable<string>? links=null,IVideoDownloadService? service=null,Job? editingJob=null)
     {
         InitializeComponent();ToolExecution.Configure(this,AddDownloadsButton,"开始下载",editingJob is not null);_service=service??new VideoDownloadService(settings);_editing=editingJob is not null;
+        BrowserCaptureButton.IsVisible=Ui.NativeBrowserSupported;
         var options=editingJob?.Options.Download??new();
         _qualityHeights=new[]{0,2160,1440,1080,720,480,360}.Append(options.MaxHeight).Distinct().OrderBy(height=>height==0?int.MaxValue:height).Reverse().ToArray();
         DownloadList.ItemsSource=_entries;DownloadFolder.Text=folder;LinksInput.Text=string.Join(Environment.NewLine,links??[]);
         DownloadFormat.ItemsSource=new[]{"MP4 视频","MKV 视频","MP3 音频","M4A 音频"};DownloadFormat.SelectedIndex=Math.Max(0,Array.IndexOf(new[]{"mp4","mkv","mp3","m4a"},editingJob?.Options.Format??"mp4"));
         DownloadQuality.ItemsSource=_qualityHeights.Select(height=>height switch{0=>"最佳",2160=>"2160p / 4K",1440=>"1440p / 2K",_=>height+"p"}).ToArray();DownloadQuality.SelectedIndex=Array.IndexOf(_qualityHeights,options.MaxHeight);
         DownloadSubtitles.ItemsSource=new[]{"不保存字幕","人工字幕","含自动字幕"};DownloadSubtitles.SelectedIndex=options.Subtitles?options.AutoSubtitles?2:1:0;
-        CookieSource.ItemsSource=new[]{"不读取登录态","Firefox","Chrome","Edge","Safari","Brave","cookies.txt 文件","浏览器 CDP","内嵌浏览器"};CookieSource.SelectedIndex=options.UseWebViewCookies?8:options.UseBrowserCookies?7:options.CookieFile.Length>0?6:Math.Max(0,Array.IndexOf(new[]{"","firefox","chrome","edge","safari","brave"},options.CookieBrowser));
+        var cookieSources=new[]{"不读取登录态","Firefox","Chrome","Edge","Safari","Brave","cookies.txt 文件","浏览器 CDP","内嵌浏览器"};
+        CookieSource.ItemsSource=Ui.NativeBrowserSupported?cookieSources:cookieSources[..8];CookieSource.SelectedIndex=options.UseWebViewCookies&&Ui.NativeBrowserSupported?8:options.UseBrowserCookies?7:options.CookieFile.Length>0?6:Math.Max(0,Array.IndexOf(new[]{"","firefox","chrome","edge","safari","brave"},options.CookieBrowser));
         BrowserConnectionPreset.ItemsSource=new[]{"本机浏览器 · 默认连接","本机浏览器 · 备用连接","自定义地址"};
         ProxyPreset.ItemsSource=new[]{"不使用代理","本机代理 · 7890","本机代理 · 1080","自定义代理"};
         BrowserEndpoint.Text=options.Browser?.Endpoint??options.CdpEndpoint;
@@ -128,7 +130,7 @@ public partial class DownloadWindow : Window
         CookieFile=CookieSource.SelectedIndex==6?CookieFileInput.Text?.Trim()??"":"",
         Proxy=DownloadProxy.Text?.Trim()??"",Subtitles=DownloadSubtitlesPanel.IsVisible&&DownloadSubtitles.SelectedIndex>0,
         AutoSubtitles=DownloadSubtitlesPanel.IsVisible&&DownloadSubtitles.SelectedIndex==2,Metadata=SaveMetadata.IsChecked==true,UseBrowserCookies=CookieSource.SelectedIndex==7,
-        UseWebViewCookies=CookieSource.SelectedIndex==8,
+        UseWebViewCookies=Ui.NativeBrowserSupported&&CookieSource.SelectedIndex==8,
         CdpEndpoint=BrowserEndpoint.Text?.Trim()??BrowserVideoCapture.DefaultEndpoint
     };
     public VideoDownloadRequest ReadRequest()
@@ -155,7 +157,7 @@ public partial class DownloadWindow : Window
     private void InspectClick(object? sender,RoutedEventArgs e)
     {
         if(_busy){_inspection?.Cancel();InspectButton.IsEnabled=false;}
-        else if(_entries.Any(entry=>entry.Video?.WebView is not null))BrowserCaptureClick(sender,e);
+        else if(Ui.NativeBrowserSupported&&_entries.Any(entry=>entry.Video?.WebView is not null))BrowserCaptureClick(sender,e);
         else _ready=InspectAsync();
     }
     private void RetryFailedClick(object? sender,RoutedEventArgs e)=>_ready=InspectAsync(retryFailed:true);
@@ -191,7 +193,7 @@ public partial class DownloadWindow : Window
                     }
                 }
                 catch(OperationCanceledException){pending.Fail("已取消解析，可重新解析此链接。");throw;}
-                catch(Exception ex){pending.Fail(DownloadDiagnostics.Redact(ex.Message));browserFallbacks.Add(urls[i]);}
+                catch(Exception ex){pending.Fail(DownloadDiagnostics.Redact(ex.Message));if(Ui.NativeBrowserSupported)browserFallbacks.Add(urls[i]);}
                 RefreshSelection();
                 if(_entries.Count>=100){truncated|=i<urls.Count-1;break;}
             }
@@ -293,6 +295,7 @@ public partial class DownloadWindow : Window
     private async Task<bool> CaptureBrowserAsync(string url,bool replaceEntries,CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if(!Ui.NativeBrowserSupported)return false;
         var browser=new BrowserDownloadWindow(url,_editing);
         using var cancellation=token.Register(()=>Dispatcher.UIThread.Post(()=>browser.Close()));
         var videos=await browser.ShowDialog<IReadOnlyList<DownloadVideo>?>(this);
