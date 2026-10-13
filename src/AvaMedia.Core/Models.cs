@@ -265,6 +265,7 @@ public sealed partial class AppSettings
         MultiThread=source.MultiThread;NotifyComplete=source.NotifyComplete;CollapseCompletedTasks=source.CollapseCompletedTasks;
         AutomaticThreads=source.AutomaticThreads;AccentColor=source.AccentColor;LastUpdateCheck=source.LastUpdateCheck;
         ReduceMotion=source.ReduceMotion;Theme=source.Theme;Language=source.Language;AutoDetectGpu=source.AutoDetectGpu;
+        LinuxInterfaceScalePercent=source.LinuxInterfaceScalePercent;
         ConfirmPlayerDeletion=source.ConfirmPlayerDeletion;
         PlayerNativeHighResolution=source.PlayerNativeHighResolution;PlayerNativeSdr=source.PlayerNativeSdr;
         CpuThreads=source.CpuThreads;CpuReservePercent=source.CpuReservePercent;JpegQuality=source.JpegQuality;WebpQuality=source.WebpQuality;

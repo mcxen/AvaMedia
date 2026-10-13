@@ -25,6 +25,11 @@
     <AvaloniaResource Include="Assets/AppIcon/v2/app.ico" />
     <AvaloniaResource Include="Assets/AppIcon/v2/app.png" />
     <AvaloniaResource Include="Assets/Fonts/Platinum/*.ttf" />
+    <AvaloniaResource Include="Assets/Fonts/Inter/*.ttf;Assets/Fonts/NotoSansSC/*.ttf" />
+    <Content Include="../../licenses/fonts/inter/OFL.txt" Link="licenses/fonts/inter/OFL.txt"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../licenses/fonts/noto-sans-sc/OFL.txt" Link="licenses/fonts/noto-sans-sc/OFL.txt"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets/ToolbarIcons/Lucide/*.svg" LogicalName="AvaMedia.Desktop.Lucide.%(Filename).svg" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Controls.WebView" Version="11.4.1" />

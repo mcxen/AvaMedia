@@ -1,0 +1,25 @@
+[
+  {
+    "family": "Inter",
+    "file": "Inter.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz,wght%5D.ttf",
+    "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031",
+    "weights": {
+      "400": "Regular",
+      "500": "Medium",
+      "600": "SemiBold",
+      "700": "Bold"
+    }
+  },
+  {
+    "family": "Noto Sans SC",
+    "file": "NotoSansSC.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+    "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+    "weights": {
+      "400": "Regular",
+      "500": "Medium",
+      "700": "Bold"
+    }
+  }
+]

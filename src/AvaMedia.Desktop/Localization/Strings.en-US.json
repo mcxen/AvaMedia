@@ -3760,5 +3760,7 @@
   "橙色": "Orange",
   "黄色": "Yellow",
   "绿色": "Green",
-  "灰色": "Gray"
+  "灰色": "Gray",
+  "界面缩放": "Interface scale",
+  "保存后重启生效；跟随系统使用桌面缩放。": "Restart after saving to apply; Follow system uses the desktop scale."
 }

@@ -1,0 +1,44 @@
+[
+  {
+    "file": "Inter/Inter-Regular.ttf",
+    "bytes": 147316,
+    "codepoints": 764,
+    "sha256": "235cca88412664ceb1117d304615183e3626e7a2f825feeb8a33ab706f4e1515"
+  },
+  {
+    "file": "Inter/Inter-Medium.ttf",
+    "bytes": 147340,
+    "codepoints": 764,
+    "sha256": "f0292d4fa39ad7c857143560f9bee00298db6f85605b18a95212d500f4402416"
+  },
+  {
+    "file": "Inter/Inter-SemiBold.ttf",
+    "bytes": 147672,
+    "codepoints": 764,
+    "sha256": "bededfc724304c528f43802906def0e77faf3cb5eabc4f9d244592a0fb825b22"
+  },
+  {
+    "file": "Inter/Inter-Bold.ttf",
+    "bytes": 147804,
+    "codepoints": 764,
+    "sha256": "2ad7259237647e929abd3e972f70ec5533ec8171389b875800f81b7c7dd2512c"
+  },
+  {
+    "file": "NotoSansSC/NotoSansSC-Regular.ttf",
+    "bytes": 2476996,
+    "codepoints": 7863,
+    "sha256": "ad82f62c5558210195df0dcae2a4bc1578b0df7b280c81618ae51ded89465f8a"
+  },
+  {
+    "file": "NotoSansSC/NotoSansSC-Medium.ttf",
+    "bytes": 2475724,
+    "codepoints": 7863,
+    "sha256": "0d939b2a48ea3240ffd3c86fb402aab2b8062f58991c5b08a2a5fbabcad854cc"
+  },
+  {
+    "file": "NotoSansSC/NotoSansSC-Bold.ttf",
+    "bytes": 2477572,
+    "codepoints": 7863,
+    "sha256": "c38b5e088fb199fd9e12ecf654cfe47ca74d1aab64089ff83ccb9024d2e249b5"
+  }
+]

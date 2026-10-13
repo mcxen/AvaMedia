@@ -19,7 +19,7 @@ public sealed partial class SettingsWindow
             if (args.Key == Key.F && (args.KeyModifiers.HasFlag(KeyModifiers.Control) || args.KeyModifiers.HasFlag(KeyModifiers.Meta)))
             { SettingsTabs.Focus(); args.Handled = true; }
         };
-        foreach (var choice in new Avalonia.Controls.Primitives.SelectingItemsControl[] { ThemeInput, LanguageInput, OutputLocationInput, CloseBehaviorInput, MinimizeBehaviorInput, ThreadsInput, UpdateModeInput })
+        foreach (var choice in new Avalonia.Controls.Primitives.SelectingItemsControl[] { ThemeInput, LanguageInput, LinuxScaleInput, OutputLocationInput, CloseBehaviorInput, MinimizeBehaviorInput, ThreadsInput, UpdateModeInput })
         { _values.Add(() => choice.SelectedIndex); choice.SelectionChanged += (_, _) => MarkDirty(); }
         InitializeV2Navigation();
         OutputLocationInput.SelectionChanged += (_, _) => OutputFolderRow.IsEnabled = OutputLocationInput.SelectedIndex == 0;

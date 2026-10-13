@@ -71,3 +71,7 @@ The Mac OS 9 skin adapts the bevel color arrangement from [classic.css](https://
 Platinum embeds the unmodified **Fusion Pixel 12px Prop zh-Hans** font from [Fusion Pixel Font 2026.09.25](https://github.com/TakWolf/fusion-pixel-font/releases/tag/2026.09.25), under SIL Open Font License 1.1. It supplies portable pixel-style Latin and Simplified Chinese text. Attribution, the full OFL, upstream contributor notices and the font checksum are preserved in `licenses/fonts/fusion-pixel/`.
 
 Windows 安装程序由 Inno Setup 6.4.3 编译，保留其安装器版权信息和来源标识；构建工具许可证见 licenses/installer/InnoSetup-6.4.3.txt，来源 https://github.com/jrsoftware/issrc/tree/is-6_4_3。
+
+## Desktop interface fonts
+
+Inter and Noto Sans SC are redistributed as static subsets under SIL Open Font License 1.1. Copyright 2020 The Inter Project Authors; copyright 2014–2021 Adobe (Reserved Font Name “Source”). Neither subset uses the reserved name. The full licenses ship in `licenses/fonts/inter/OFL.txt` and `licenses/fonts/noto-sans-sc/OFL.txt`. Upstream source URLs and SHA256 hashes are recorded in `src/AvaMedia.Desktop/Assets/Fonts/sources.json`; output sizes, coverage and hashes in `subsets.json`. Rebuild with `scripts/Subset-DesktopFonts.py` (fonttools 4.65.0). Inter uses text optical size 14 at weights 400/500/600/700; Noto Sans SC uses weights 400/500/700.

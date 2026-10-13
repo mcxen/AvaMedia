@@ -186,6 +186,21 @@
                       </StackPanel>
                     </Grid>
                   </Border>
+                  <Border x:Name="LinuxScaleRow" Classes="ac-setting-row settingsRow">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="界面缩放" TextWrapping="Wrap"/>
+                        <TextBlock Classes="settingsDescription" Text="保存后重启生效；跟随系统使用桌面缩放。" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <ComboBox x:Name="LinuxScaleInput" Grid.Column="1" Width="190" Classes="ac" VerticalAlignment="Center">
+                        <ComboBoxItem Content="跟随系统"/>
+                        <ComboBoxItem Content="100%"/>
+                        <ComboBoxItem Content="125%"/>
+                        <ComboBoxItem Content="150%"/>
+                        <ComboBoxItem Content="200%"/>
+                      </ComboBox>
+                    </Grid>
+                  </Border>
                   <Border Classes="ac-setting-row settingsRow">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                       <StackPanel VerticalAlignment="Center">

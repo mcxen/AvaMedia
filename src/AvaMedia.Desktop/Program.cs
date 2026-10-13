@@ -29,7 +29,9 @@ internal static class Program
     }
     public static AppBuilder BuildAvaloniaApp()
     {
-        var builder = AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
+        LinuxInterfaceScaling.Configure();
+        var builder = AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(PlatformAppearance.FontOptions()).LogToTrace();
         if (OperatingSystem.IsMacOS())
         {
             var background = Environment.GetCommandLineArgs().Any(argument => argument is "--mcp-background" or "--server");

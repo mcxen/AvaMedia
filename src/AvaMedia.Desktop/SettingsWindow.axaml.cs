@@ -1,3 +1,4 @@
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -69,7 +70,7 @@ public sealed partial class SettingsWindow : Window
         if (OperatingSystem.IsMacOS()) ContextMenuRow.GetLogicalDescendants().OfType<TextBlock>().First().Text = "添加到 Finder 快速操作";
         Content = null;
         var frame = Controls.WindowChrome.WrapDialog(this, SettingsRoot, _settingsPageTitle);
-        if (frame.Children[0] is Grid titleBar) titleBar.Bind(Panel.BackgroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StPage"));
+        if (frame.Children[0] is Grid titleBar) titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("StPage"));
         Content = frame;
 
         Closed += (_, _) => { Localization.Changed -= LanguageChanged; _lifetime.Cancel(); _lifetime.Dispose(); if (_ownsServices) _services.Dispose(); };
@@ -81,6 +82,9 @@ public sealed partial class SettingsWindow : Window
         var draft = _settings.Clone();
         draft.Theme = SettingsThemeKeys[Math.Clamp(ThemeInput.SelectedIndex, 0, SettingsThemeKeys.Length - 1)];
         draft.Language = SettingsLanguageKeys[Math.Clamp(LanguageInput.SelectedIndex, 0, SettingsLanguageKeys.Length - 1)];
+        if (OperatingSystem.IsLinux())
+            draft.LinuxInterfaceScalePercent = LinuxInterfaceScaling.Percentages[
+                Math.Clamp(LinuxScaleInput.SelectedIndex, 0, LinuxInterfaceScaling.Percentages.Length - 1)];
         draft.OutputFolder = OutputInput.Text?.Trim() ?? "";
         draft.FFmpegPath = MediaEngine.UsesBundledTools ? _settings.FFmpegPath : FfmpegInput.Text?.Trim() ?? "";
         draft.FFprobePath = MediaEngine.UsesBundledTools ? _settings.FFprobePath : FfprobeInput.Text?.Trim() ?? "";
@@ -132,6 +136,8 @@ public sealed partial class SettingsWindow : Window
         _initializing = true;
         ThemeInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsThemeKeys, source.Theme));
         LanguageInput.SelectedIndex = Math.Max(0, Array.IndexOf(SettingsLanguageKeys, source.Language));
+        LinuxScaleRow.IsVisible = OperatingSystem.IsLinux();
+        LinuxScaleInput.SelectedIndex = Math.Max(0, Array.IndexOf(LinuxInterfaceScaling.Percentages, source.LinuxInterfaceScalePercent));
         ExternalToolPaths.IsVisible = true;
         foreach (var input in new[] { FfmpegInput, FfprobeInput, YtdlpInput })
         { input.IsReadOnly = MediaEngine.UsesBundledTools; input.Watermark = Localization.Text(MediaEngine.UsesBundledTools ? "内置" : "自动查找"); }
