@@ -5,11 +5,14 @@ using SkiaSharp;
 namespace AvaMedia.Core;
 
 // CellWidth/CellHeight bound the long/short edges; each video's display ratio determines the actual cell size.
-public sealed record ContactSheetOptions(int Columns = 3, int Rows = 3, int CellWidth = 320, int CellHeight = 180, int SheetsPerVideo = 1, string Format = "jpg", bool Timestamps = true, double StartSeconds = 0, double EndSeconds = 0, string Font = "default", string InterfaceFont = "");
+public sealed record ContactSheetOptions(int Columns = 3, int Rows = 3, int CellWidth = 320, int CellHeight = 180,
+    int SheetsPerVideo = 1, string Format = "jpg", bool Timestamps = true, double StartSeconds = 0, double EndSeconds = 0,
+    string Font = "default", int ExportScale = 3, bool Sharpen = false, bool VideoInformation = true,
+    string InterfaceFont = "", bool AvoidBlur = false);
 public sealed record ContactSheetProgress(string Input, int Sheet, double Percent, string Message);
 
 /// <summary>Video collection and contact-sheet generation.</summary>
-public static class BatchVideoTools
+public static partial class BatchVideoTools
 {
     public static string[] CollectVideos(IEnumerable<string> paths, bool recursive)
     {
@@ -38,8 +41,9 @@ public static class BatchVideoTools
 
     public static void ValidateContactSheet(ContactSheetOptions o)
     {
+        if (o.ExportScale is < 1 or > 4) throw new ArgumentException("导出倍率须在 1–4。整张拼图不能超过 4000 万像素。");
         if (o.Columns is < 1 or > 10 || o.Rows is < 1 or > 10 || o.SheetsPerVideo is < 1 or > 100) throw new ArgumentException("行列数须在 1–10，每个视频拼图数量须在 1–100。");
-        if (Math.Min(o.CellWidth, o.CellHeight) < 64 || Math.Max(o.CellWidth, o.CellHeight) > 1920 || Math.Min(o.CellWidth, o.CellHeight) > 1080 || (long)o.CellWidth * o.CellHeight * o.Rows * o.Columns > 40000000)
+        if (Math.Min(o.CellWidth, o.CellHeight) < 64 || Math.Max(o.CellWidth, o.CellHeight) > 1920 || Math.Min(o.CellWidth, o.CellHeight) > 1080 || (long)o.CellWidth * o.CellHeight * o.Rows * o.Columns * o.ExportScale * o.ExportScale > 40000000)
             throw new ArgumentException("单格长边上限须在 64–1920，短边上限须在 64–1080；整张拼图不能超过 4000 万像素。");
         if (o.Font is not ("default" or "inter" or "noto-sans-sc" or "fusion-pixel")) throw new ArgumentException("请选择内置文字字体或默认字体。");
         if (o.Format is not ("jpg" or "png")) throw new ArgumentException("截图格式须为 JPG 或 PNG。");
@@ -53,7 +57,7 @@ public static class BatchVideoTools
         var (width, height) = ContactSheetCellSize(info, options);
         var scale = Math.Min(1, 900d / Math.Max(width * options.Columns, height * options.Rows));
         using var bitmap = await RenderContactSheet(engine, input, info, options, 0,
-            Math.Max(1, (int)(width * scale)), Math.Max(1, (int)(height * scale)), null, token).ConfigureAwait(false);
+            Math.Max(1, (int)(width * scale)), Math.Max(1, (int)(height * scale)), null, token, preview: true).ConfigureAwait(false);
         using var image = SKImage.FromBitmap(bitmap);
         using var encoded = image.Encode(SKEncodedImageFormat.Png, 100) ?? throw new InvalidOperationException("截图编码失败。");
         token.ThrowIfCancellationRequested();
@@ -68,7 +72,7 @@ public static class BatchVideoTools
         var outputs = new List<string>();
         for (var sheet = 0; sheet < options.SheetsPerVideo; sheet++)
         {
-            using var bitmap = await RenderContactSheet(engine, input, info, options, sheet, width, height, progress, ct).ConfigureAwait(false);
+            using var bitmap = await RenderContactSheet(engine, input, info, options, sheet, width * options.ExportScale, height * options.ExportScale, progress, ct).ConfigureAwait(false);
             using var image = SKImage.FromBitmap(bitmap);
             using var encoded = image.Encode(options.Format == "jpg" ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png, 95)
                 ?? throw new InvalidOperationException("拼图编码失败。");
@@ -95,6 +99,7 @@ public static class BatchVideoTools
         var info = await engine.Probe(input, ct).ConfigureAwait(false);
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0)
             throw new InvalidDataException("文件不含可截图的视频或无法读取时长。");
+        ContactSheetImageSize(info, options);
         var (duration, _) = VideoTiming(info);
         if (options.StartSeconds >= (options.EndSeconds > 0 ? Math.Min(options.EndSeconds, duration) : duration))
             throw new ArgumentException("开始时间超出视频时长。");
@@ -102,18 +107,32 @@ public static class BatchVideoTools
     }
 
     private static async Task<SKBitmap> RenderContactSheet(IMediaEngine engine, string input, MediaInfo info,
-        ContactSheetOptions options, int sheet, int width, int height, IProgress<ContactSheetProgress>? progress, CancellationToken ct)
+        ContactSheetOptions options, int sheet, int width, int height, IProgress<ContactSheetProgress>? progress, CancellationToken ct, bool preview = false)
     {
         var (duration, fps) = VideoTiming(info);
         var end = options.EndSeconds > 0 ? Math.Min(options.EndSeconds, duration) : duration;
         var count = options.Columns * options.Rows;
         var total = count * options.SheetsPerVideo;
         using var fonts = new ContactSheetFonts(options);
-        var bitmap = new SKBitmap(width * options.Columns, height * options.Rows);
+        var textScale = preview ? 1 : options.ExportScale;
+        var textSize = Math.Max(12 * textScale, width / 22f);
+        var header = ContactSheetHeaderHeight(width, options, textScale);
+        if ((long)width * options.Columns * (height * options.Rows + header) > 40000000)
+            throw new ArgumentException("含视频信息的整张拼图不能超过 4000 万像素，请减小单格尺寸或导出倍率。");
+        using var colorSpace = SKColorSpace.CreateSrgb();
+        var bitmap = new SKBitmap(new SKImageInfo(width * options.Columns, height * options.Rows + header,
+            SKColorType.Bgra8888, SKAlphaType.Premul, colorSpace));
         try
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
+            if (options.VideoInformation)
+            {
+                fonts.DrawLine(canvas, Path.GetFileName(input), 8 * textScale, textSize + 8 * textScale, textSize,
+                    bitmap.Width - 16 * textScale);
+                fonts.DrawLine(canvas, ContactSheetVideoInformation(info), 8 * textScale, textSize * 2.35f + 8 * textScale,
+                    textSize, bitmap.Width - 16 * textScale);
+            }
             for (var cell = 0; cell < count; cell++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -121,12 +140,23 @@ public static class BatchVideoTools
                 var requested = options.StartSeconds + (end - options.StartSeconds) * (index + .5) / total;
                 // Keep every cell within the final frame, including short and low-frame-rate sources.
                 var seconds = Math.Min(requested, Math.Max(0, duration - Math.Max(.08, 1 / fps)));
-                var data = await engine.Thumbnail(input, seconds, width, height, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
+                byte[] data;
+                if (preview) data = await engine.Thumbnail(input, seconds, width, height, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
+                else
+                {
+                    var extracted = await ExtractContactSheetCandidate(engine, input, info, seconds, width, height,
+                        options, fps, duration, ct).ConfigureAwait(false);
+                    data = extracted.Data; seconds = extracted.Seconds;
+                }
                 using var frame = SKBitmap.Decode(data) ?? throw new InvalidDataException("无法读取截图画面。");
                 canvas.Save();
-                canvas.Translate(cell % options.Columns * width, cell / options.Columns * height);
-                canvas.DrawBitmap(frame, new SKRect(0, 0, width, height));
-                if (options.Timestamps) DrawContactSheetTimestamp(canvas, width, height, seconds, fonts, 1);
+                canvas.Translate(cell % options.Columns * width, header + cell / options.Columns * height);
+                if (!preview && (frame.Width != width || frame.Height != height))
+                    throw new InvalidDataException("高清抽帧像素与单格尺寸不一致。");
+                // Export frames already have their final dimensions; composing never rescales them.
+                if (preview) canvas.DrawBitmap(frame, new SKRect(0, 0, width, height));
+                else canvas.DrawBitmap(frame, 0, 0);
+                if (options.Timestamps) DrawContactSheetTimestamp(canvas, width, height, seconds, fonts, textScale);
                 canvas.Restore();
                 progress?.Report(new(input, sheet + 1, (sheet + (cell + 1) * .95 / count) * 100 / options.SheetsPerVideo, $"抽帧 {index + 1}/{total}"));
             }
@@ -143,7 +173,23 @@ public static class BatchVideoTools
         ValidateContactSheet(options);
         var (width, height) = ContactSheetCellSize(info, options);
         var (duration, frameRate) = VideoTiming(info);
-        return (width, height, duration, frameRate);
+        return (width * options.ExportScale, height * options.ExportScale, duration, frameRate);
+    }
+
+    public static int ContactSheetHeaderHeight(int cellWidth, ContactSheetOptions options, int? textScale = null)
+    {
+        var scale = textScale ?? options.ExportScale;
+        return options.VideoInformation ? (int)Math.Ceiling(Math.Max(12 * scale, cellWidth / 22f) * 2.8 + 16 * scale) : 0;
+    }
+
+    public static (int Width, int Height) ContactSheetImageSize(MediaInfo info, ContactSheetOptions options)
+    {
+        var layout = ContactSheetPreviewLayout(info, options);
+        var width = layout.Width * options.Columns;
+        var height = layout.Height * options.Rows + ContactSheetHeaderHeight(layout.Width, options);
+        if ((long)width * height > 40000000)
+            throw new ArgumentException("含视频信息的整张拼图不能超过 4000 万像素，请减小单格尺寸或导出倍率。");
+        return (width, height);
     }
 
     private static (int Width, int Height) ContactSheetCellSize(MediaInfo info, ContactSheetOptions options)
