@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Layout;
 
 namespace AvaMedia.Desktop;
@@ -80,8 +81,9 @@ internal static class ToolExecution
         {
             if (button.Parent is not Panel parent) return;
             var index = parent.Children.IndexOf(button);
-            var wrapper = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12,
+            var wrapper = new StackPanel { Orientation = Orientation.Horizontal,
                 HorizontalAlignment = button.HorizontalAlignment, VerticalAlignment = button.VerticalAlignment };
+            wrapper.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("AcGap"));
             Grid.SetColumn(wrapper, Grid.GetColumn(button)); Grid.SetRow(wrapper, Grid.GetRow(button));
             Grid.SetColumnSpan(wrapper, Grid.GetColumnSpan(button)); Grid.SetRowSpan(wrapper, Grid.GetRowSpan(button));
             parent.Children.Remove(button); wrapper.Children.Add(choice); wrapper.Children.Add(button); parent.Children.Insert(index, wrapper);

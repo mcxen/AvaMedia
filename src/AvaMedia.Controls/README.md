@@ -16,7 +16,7 @@
 
 普通控件添加 `ac` 类，按钮再添加 `primary`、`secondary`、`borderless` 或 `danger`。具名主题为 `AcButton`、`AcCheckBox`、`AcRadioButton`、`AcToggleSwitch`、`AcComboBox`、`AcNumericUpDown`、`AcTextBox`、`AcSlider`、`AcProgressBar`、`AcToolTip`、`AcScrollBar`、`AcToggleButton`、`AcExpander`、`AcTreeView/AcTreeViewItem`、`AcTabControl/AcTabItem`、`AcListBox/AcListBoxItem`。主题不覆盖 Avalonia 类型资源键，选择器排除宿主经典窗口类 `mac-os9` / `windows-xp`。
 
-组合类型：`Card`、`ListRow`、`SectionHeader`、`StatusPill`、`StageIndicator`、`SubStepRow`、`StatusGlyph`、`SegmentedControl`、`EmptyState`。状态取 `running`、`done` / `completed`、`paused`、`failed`、`waiting` / `cancelled`。它们只接收显示内容，不了解媒体任务或应用皮肤类型。
+组合类型：`Card`、`Sheet`、`ListRow`、`SectionHeader`、`StatusPill`、`StageIndicator`、`SubStepRow`、`StatusGlyph`、`SegmentedControl`、`EmptyState`。状态取 `running`、`done` / `completed`、`paused`、`failed`、`waiting` / `cancelled`。它们只接收显示内容，不了解媒体任务或应用皮肤类型。
 
 `Themes/Defaults.axaml` 提供浅色与深色默认值。宿主覆盖 `Ui*` 颜色及 `Ac*` 尺寸和表面令牌，组合组件使用动态资源，已有实例也会响应皮肤切换。具体契约及 macOS 参考尺寸见仓库 UISPEC.MD 的 7.9 节。经典皮肤的标准控件继续由宿主主题提供；组合控件的圆角和阴影由同名 `Ac*` 令牌覆盖。
 
@@ -37,3 +37,12 @@ DISPLAY=:11 AVAMEDIA_CHROME=mac XDG_DATA_HOME=/tmp/avademo/data   ~/.dotnet/dotn
 列表 `.ac.media` 使用 56px 行，普通列表为至少 36px；`.ac.surface` 可包装已有 ListRow，保留虚拟化。标签式 SegmentedControl 使用 `AcTabSegmentItem`。数值框最小宽通过 `AcNumericMinWidth`（91）和 `.compact` 的 `AcNumericCompactMinWidth`（64）动态调整。
 
 浮层 `MaterialSurface`：macOS 原生 PopupRoot 请求 `AcrylicBlur, None`，实际获得模糊后才显示每实例的 ExperimentalAcrylicMaterial。下拉、ToolTip 和 Popover 模板已接入；内嵌/覆盖浮层、不支持的平台和经典皮肤继续用 AcMenuFill 半透明画刷。AcMaterialEnabled 可关闭材质；AcMaterialTintColor/AcMaterialTintOpacity/AcMaterialOpacity 控制材质。
+
+## 公共宿主契约（UISPEC 7.9.8）
+
+- Card 默认 `AcCardRadius=12`、`AcCardPadding=16`；平台或窗口用资源覆盖，组件不带外边距。SectionHeader 通过 AcSectionFont / AcSectionMargin 提供标题层级。
+- Sheet 默认 `AcSheetFace`、`AcSheetRadius=16`、`AcSheetPadding=18,20,18,16`（左、上、右、下）。用于顶层窗口正文时加 `window` 类，去掉额外圆角 / 弹出阴影，只保留一层内边距；不要再包带 padding 的 Card。
+- 文本框禁用 `AcFieldDisabledOpacity=0.45`，按钮等仍用 `AcDisabledOpacity=0.4`；多行最小高度 AcMultilineHeight，错误说明间距 AcFieldErrorMargin。
+- StatusPill 的高度 / 圆角 / 内边距及点大小 / 间距分别为 AcStatusHeight / AcStatusRadius / AcStatusPadding / AcStatusDotSize / AcStatusGap。State 只选颜色，Text 由宿主本地化，同区域同任务只显示一次状态。
+- EmptyState 的 IsError 同步 `error` 类与失败符号，Detail 为空时隐藏。图标 / 间距 / 说明宽 / 外留白 / 操作区分别用 AcEmptyIconSize / AcEmptyGap / AcEmptyDetailWidth / AcEmptyPadding / AcEmptyActionMargin；Actions 间距用 AcRowGap。
+- 原生能力查询由宿主在创建 / 附着前完成；不可用时交付 EmptyState.error，不把隐藏原生控件当作防止初始化的措施。桌面宿主通过 App 内容注册保护 XAML 中的浏览器，完整业务接入由下载专项完成。

@@ -37,6 +37,12 @@ public sealed partial class App : Application
     }
     public override void Initialize()
     {
+        // Inspect content before the Window template attaches native controls. Hiding
+        // a NativeWebView does not stop its async adapter initialization.
+        ContentControl.ContentProperty.Changed.AddClassHandler<Window>((window, change) =>
+        {
+            if (change.NewValue is Control content) Ui.GuardNativeBrowserHost(window, content);
+        });
         Avalonia.Controls.ToolTip.ToolTipOpeningEvent.AddClassHandler<Avalonia.Controls.TextBlock>((text, args) =>
         {
             // Full text and paths supplement ellipsized content, never repeat text already visible.

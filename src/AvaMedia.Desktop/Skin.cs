@@ -59,6 +59,7 @@ public sealed partial class Skin : AvaloniaObject
             _textMode = RenderOptions.GetTextRenderingMode(window);
             WindowArtwork.Enable(window);
             WindowChrome.RegisterPlatformFrame(window);
+            WindowChrome.RegisterToolPlacement(window);
             window.ActualThemeVariantChanged += Changed;
             window.Opened += Changed;
             window.Closed += Closed;

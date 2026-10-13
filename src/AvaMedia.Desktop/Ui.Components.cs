@@ -73,6 +73,11 @@ internal static partial class Ui
 
     public static Card ComponentCard(Control content) => new() { Child = content };
 
+    public static Sheet ComponentSheet(Control content) => new() { Child = content, Classes = { "window" } };
+
+    public static EmptyState ComponentEmptyState(string text, string detail = "", bool isError = false)
+        => new() { Text = Localization.Text(text), Detail = Localization.Text(detail), IsError = isError };
+
     public static async Task<bool> ComponentConfirm(Window owner, string title, string message, string action)
     {
         var dialog = new Window { Title = title, Width = 480, SizeToContent = SizeToContent.Height,
@@ -85,7 +90,7 @@ internal static partial class Ui
         buttons.Children.Add(DialogButton("取消", () => dialog.Close(false)));
         buttons.Children.Add(DialogButton(action, () => dialog.Close(true), isDefault: true));
         body.Children.Add(buttons);
-        var sheet = new Border { Classes = { "ac-sheet" }, Child = body };
+        var sheet = ComponentSheet(body);
         dialog.Content = Controls.WindowChrome.WrapDialog(dialog, sheet);
         return await dialog.ShowDialog<bool>(owner);
     }
@@ -103,7 +108,7 @@ internal static partial class Ui
         var okay = DialogButton("好", () => dialog.Close(), isDefault: true);
         okay.HorizontalAlignment = HorizontalAlignment.Right;
         body.Children.Add(okay); Grid.SetRow(okay, 2);
-        dialog.Content = Controls.WindowChrome.WrapDialog(dialog, ComponentCard(body));
+        dialog.Content = Controls.WindowChrome.WrapDialog(dialog, ComponentSheet(body));
         return dialog.ShowDialog(owner);
     }
 }

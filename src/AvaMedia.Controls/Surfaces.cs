@@ -12,6 +12,12 @@ public class Card : Border
     protected override Type StyleKeyOverride => typeof(Border);
     public Card() => Classes.Add("ac-card");
 }
+/// <summary>Form surface. Add the window role when hosted below native window chrome.</summary>
+public class Sheet : Border
+{
+    protected override Type StyleKeyOverride => typeof(Border);
+    public Sheet() => Classes.Add("ac-sheet");
+}
 public class ListRow : Border
 {
     protected override Type StyleKeyOverride => typeof(Border);
@@ -35,7 +41,10 @@ public sealed class StatusPill : Border
     public StatusPill()
     {
         Classes.Add("ac-status");
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 }; row.Children.Add(_dot); row.Children.Add(_text); Child = row;
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        BindResource(row, StackPanel.SpacingProperty, "AcStatusGap");
+        BindResource(_dot, WidthProperty, "AcStatusDotSize"); BindResource(_dot, HeightProperty, "AcStatusDotSize");
+        row.Children.Add(_dot); row.Children.Add(_text); Child = row;
         _text.Bind(TextBlock.TextProperty, this.GetObservable(TextProperty));
         BindResource(_text, TextBlock.FontSizeProperty, "AcCaptionFont");
         PropertyChanged += (_, change) => { if (change.Property == StateProperty) Refresh(); };
@@ -60,7 +69,7 @@ public sealed class EmptyState : StackPanel
     public static readonly StyledProperty<string> DetailProperty = AvaloniaProperty.Register<EmptyState, string>(nameof(Detail), "");
     public static readonly StyledProperty<bool> IsErrorProperty = AvaloniaProperty.Register<EmptyState, bool>(nameof(IsError));
     private readonly TextBlock _text = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, FontWeight = FontWeight.SemiBold };
-    private readonly TextBlock _detail = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxWidth = 220 };
+    private readonly TextBlock _detail = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center };
     private readonly StatusGlyph _icon = new() { State = "empty", Width = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Center };
     public StackPanel Actions { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Margin = new(0, 8, 0, 0) };
     public string Text { get => GetValue(TextProperty); set => SetValue(TextProperty, value); }
@@ -69,12 +78,29 @@ public sealed class EmptyState : StackPanel
     public EmptyState()
     {
         BindResource(_icon, WidthProperty, "AcEmptyIconSize"); BindResource(_icon, HeightProperty, "AcEmptyIconSize");
-        Classes.Add("ac-empty"); HorizontalAlignment = HorizontalAlignment.Center; VerticalAlignment = VerticalAlignment.Center; Spacing = 6;
+        Classes.Add("ac-empty"); HorizontalAlignment = HorizontalAlignment.Center; VerticalAlignment = VerticalAlignment.Center;
+        BindResource(this, SpacingProperty, "AcEmptyGap");
+        BindResource(this, MarginProperty, "AcEmptyPadding");
+        BindResource(_detail, MaxWidthProperty, "AcEmptyDetailWidth");
+        BindResource(Actions, StackPanel.SpacingProperty, "AcRowGap");
+        BindResource(Actions, MarginProperty, "AcEmptyActionMargin");
         _text.Bind(TextBlock.TextProperty, this.GetObservable(TextProperty)); _detail.Bind(TextBlock.TextProperty, this.GetObservable(DetailProperty));
         BindResource(_text, TextBlock.FontSizeProperty, "AcBodyFont"); BindResource(_text, TextBlock.ForegroundProperty, "UiText");
         BindResource(_detail, TextBlock.FontSizeProperty, "AcCaptionFont"); BindResource(_detail, TextBlock.ForegroundProperty, "UiTextSecondary");
         Children.Add(_icon); Children.Add(_text); Children.Add(_detail); Children.Add(Actions);
-        PropertyChanged += (_, e) => { if (e.Property == IsErrorProperty) _icon.State = IsError ? "failed" : "empty"; if (e.Property == DetailProperty) _detail.IsVisible = Detail.Length > 0; };
+        Actions.IsVisible = false;
+        Actions.Children.CollectionChanged += (_, _) => Actions.IsVisible = Actions.Children.Count > 0;
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == IsErrorProperty) RefreshError();
+            if (e.Property == DetailProperty) _detail.IsVisible = !string.IsNullOrWhiteSpace(Detail);
+        };
+        RefreshError();
         _detail.IsVisible = false;
+    }
+    private void RefreshError()
+    {
+        Classes.Set("error", IsError);
+        _icon.State = IsError ? "failed" : "empty";
     }
 }

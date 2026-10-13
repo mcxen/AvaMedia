@@ -3,6 +3,7 @@
 <x:Boolean x:Key="AcMaterialEnabled">False</x:Boolean>
 <BoxShadows x:Key="AcPopupShadow">none</BoxShadows>
 <CornerRadius x:Key="AcCardRadius">0</CornerRadius>
+<CornerRadius x:Key="AcSheetRadius">0</CornerRadius>
 <CornerRadius x:Key="AcStatusRadius">0</CornerRadius>
 <CornerRadius x:Key="AcThumbRadius">0</CornerRadius>
 <CornerRadius x:Key="AcCheckRadius">0</CornerRadius>
@@ -14,6 +15,7 @@
 <CornerRadius x:Key="AcListRadius">0</CornerRadius>
 <CornerRadius x:Key="AcGroupRadius">0</CornerRadius>
 <SolidColorBrush x:Key="AcCardFace" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="AcSheetFace" Color="#FFFFFF"/>
 <SolidColorBrush x:Key="AcSegmentFace" Color="#FFFFFF"/>
 <SolidColorBrush x:Key="AcWarningText" Color="#795314"/>
 <BoxShadows x:Key="AcCardShadow">none</BoxShadows>
@@ -33,6 +35,7 @@
 <x:Boolean x:Key="AcMaterialEnabled">False</x:Boolean>
 <BoxShadows x:Key="AcPopupShadow">none</BoxShadows>
 <CornerRadius x:Key="AcCardRadius">3</CornerRadius>
+<CornerRadius x:Key="AcSheetRadius">3</CornerRadius>
 <CornerRadius x:Key="AcStatusRadius">3</CornerRadius>
 <CornerRadius x:Key="AcThumbRadius">3</CornerRadius>
 <CornerRadius x:Key="AcCheckRadius">3</CornerRadius>
@@ -44,6 +47,7 @@
 <CornerRadius x:Key="AcListRadius">3</CornerRadius>
 <CornerRadius x:Key="AcGroupRadius">3</CornerRadius>
 <SolidColorBrush x:Key="AcCardFace" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="AcSheetFace" Color="#FFFFFF"/>
 <SolidColorBrush x:Key="AcSegmentFace" Color="#FFFFFF"/>
 <SolidColorBrush x:Key="AcWarningText" Color="#946300"/>
 <BoxShadows x:Key="AcCardShadow">none</BoxShadows>

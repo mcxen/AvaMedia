@@ -439,11 +439,11 @@
     <Setter Property="BoxShadow" Value="{DynamicResource AcErrorShadow}"/></Style>
 
     <Style Selector="^:disabled">
-    <Setter Property="Opacity" Value=".45"/>
+    <Setter Property="Opacity" Value="{DynamicResource AcFieldDisabledOpacity}"/>
     <Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
 
     <Style Selector="^[AcceptsReturn=true]">
-    <Setter Property="MinHeight" Value="76"/>
+    <Setter Property="MinHeight" Value="{DynamicResource AcMultilineHeight}"/>
     <Setter Property="Padding" Value="{DynamicResource AcMultilinePadding}"/>
     <Setter Property="VerticalContentAlignment" Value="Top"/>
     <Setter Property="LineHeight" Value="18.85"/></Style>
