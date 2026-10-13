@@ -6,40 +6,69 @@ namespace AvaMedia.Core;
 internal static class SummaryStructuredResponse
 {
     internal static async Task<JsonElement> CompleteAsync(ISummaryModel model, string system, string prompt,
-        JsonElement schema, CancellationToken ct, int tokens, string operation, Action<string>? onRepair = null)
+        JsonElement schema, CancellationToken ct, int tokens, string operation, Action<string>? onRepair = null,
+        Action<JsonElement>? onCandidate = null, Action<string>? onInvalidCandidate = null)
     {
         // Transport, provider errors, output limits and cancellation are not format errors.
         ct.ThrowIfCancellationRequested();
         var reply = await model.CompleteAsync(system, prompt, ct, tokens: tokens, schema: schema).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
-        JsonException firstError;
-        try { return Parse(reply, schema); }
-        catch (JsonException error) { firstError = error; }
+        var first = Parse(reply, schema);
+        if (first.Candidate is { } firstCandidate) onCandidate?.Invoke(firstCandidate);
+        if (first.Error is null) return first.Root!.Value;
+        onInvalidCandidate?.Invoke(Describe(first.Error));
 
         ct.ThrowIfCancellationRequested();
         onRepair?.Invoke(operation);
-        var correction = prompt + "\n\n上一次输出未通过 JSON 格式校验。错误：" + Describe(firstError) +
+        var correction = prompt + "\n\n上一次输出未通过 JSON 格式校验。错误：" + Describe(first.Error) +
             "\n请根据上方原任务和原资料重新生成完整 JSON，严格符合下方 schema。只输出 JSON，不输出思考过程、解释或代码围栏。" +
-            "不增加资料未支持的事实，不省略必需字段，不把缺少依据的结论填成事实；没有支持的表述时使用允许的空数组。" +
+            "不增加资料未支持的事实，不省略必需字段，不把缺少依据的结论填成事实；只有 schema 允许时才使用空数组。" +
             "\nSchema：\n" + schema.GetRawText();
         reply = await model.CompleteAsync(system, correction, ct, tokens: tokens, schema: schema).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
-        try { return Parse(reply, schema); }
-        catch (JsonException error)
-        {
-            throw new InvalidDataException($"总结模型的{operation}在一次格式纠正后仍不符合 JSON 结构：{Describe(error)}", error);
-        }
+        var second = Parse(reply, schema);
+        if (second.Candidate is { } secondCandidate) onCandidate?.Invoke(secondCandidate);
+        if (second.Error is null) return second.Root!.Value;
+        onInvalidCandidate?.Invoke(Describe(second.Error));
+        throw new InvalidDataException($"总结模型的{operation}在一次格式纠正后仍不符合 JSON 结构：{Describe(second.Error)}", second.Error);
     }
 
     private static string Describe(JsonException error) => error.Message.Length > 300 ? error.Message[..300] : error.Message;
 
-    private static JsonElement Parse(string reply, JsonElement schema)
+    private static (JsonElement? Root, JsonElement? Candidate, JsonException? Error) Parse(string reply, JsonElement schema)
     {
         var text = reply.Trim();
         if (!text.StartsWith('{') && MediaCaptionService.LooksLikeRefusal(text)) throw new VideoSummaryModelRefusedException();
-        using var document = JsonDocument.Parse(reply);
-        Validate(document.RootElement, schema, "$");
-        return document.RootElement.Clone();
+        JsonElement? candidate = null;
+        try
+        {
+            using var document = JsonDocument.Parse(reply);
+            // Only schema-declared fields are exported. Providers may attach internal reasoning
+            // as additional fields; validation still checks the untouched original response.
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+                candidate = JsonSerializer.SerializeToElement(Candidate(document.RootElement, schema));
+            Validate(document.RootElement, schema, "$");
+            return (document.RootElement.Clone(), candidate, null);
+        }
+        catch (JsonException error) { return (null, candidate, error); }
+        // Callbacks run outside this catch: their cancellation/IO/serialization errors are real
+        // failures and must never be reclassified as malformed model output.
+    }
+
+    private static object? Candidate(JsonElement value, JsonElement schema)
+    {
+        var type = schema.GetProperty("type").GetString();
+        if (type == "object" && value.ValueKind == JsonValueKind.Object)
+        {
+            var properties = schema.GetProperty("properties");
+            return value.EnumerateObject().Where(property => properties.TryGetProperty(property.Name, out _))
+                .GroupBy(property => property.Name, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => Candidate(group.Last().Value, properties.GetProperty(group.Key)), StringComparer.Ordinal);
+        }
+        if (type == "array" && value.ValueKind == JsonValueKind.Array)
+            return value.EnumerateArray().Select(item => Candidate(item, schema.GetProperty("items"))).ToArray();
+        // Unexpected objects cannot bypass the allowlist via a primitive field.
+        return value.ValueKind is JsonValueKind.Object or JsonValueKind.Array ? null : value.Clone();
     }
 
     // This validates the complete schema used by summaries, including later chapter entries,

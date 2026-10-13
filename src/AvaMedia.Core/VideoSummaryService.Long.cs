@@ -21,7 +21,7 @@ public sealed partial class VideoSummaryService
         var transcriptHash = SummaryCheckpointStore.Hash(new { sourceHash, options.TranscriptSource, options.SubtitleTrack, options.AudioTrack, options.AutoSelectAudioTrack,
             options.AllAudioTracks, speech.Model, options.OutputLanguage, transcriptPolicyVersion = 2, external = external is null ? null : new { external.FullName, external.Length, external.LastWriteTimeUtc } });
         var visionIdentity = online is null ? options.LocalVisionModelId : SummaryCheckpointStore.Hash(new { online.VisionProvider.Endpoint, online.VisionModel });
-        var signalHash = SummaryCheckpointStore.Hash(new { transcriptHash, options.AnalyzeFrames, visionIdentity, ocr = ocr.GetType().FullName, ocrVersion = 1, options.FrameCount, budget.FrameLimit, agentVersion = VideoSummaryFrameAgent.Version });
+        var signalHash = SummaryCheckpointStore.Hash(new { transcriptHash, options.AnalyzeFrames, options.Focus, visionIdentity, ocr = ocr.GetType().FullName, ocrVersion = 1, options.FrameCount, budget.FrameLimit, agentVersion = VideoSummaryFrameAgent.Version });
         var activity = new AiActivityReporter(a => job.Activity = a, "视频信号", "段", ["提取信号"]);
         // Complete visual extraction before acquiring the summary lease, reusing both existing caches.
         var signals = await store.GetOrCreateAsync("signals.json", signalHash, Extract, ct);
@@ -95,11 +95,10 @@ public sealed partial class VideoSummaryService
                 {
                     var hash = SummaryCheckpointStore.Hash(new { sourceHash, visionIdentity, range.Start, range.End,
                         transcript = SummaryCheckpointStore.Hash(selectedCues.Where(c => c.Start < range.End && c.End > range.Start)),
-                        options.FrameCount, budget.FrameLimit, ocr = ocr.GetType().FullName, ocrVersion = 1, agentVersion = VideoSummaryFrameAgent.Version });
+                        options.FrameCount, options.Focus, budget.FrameLimit, ocr = ocr.GetType().FullName, ocrVersion = 1, agentVersion = VideoSummaryFrameAgent.Version });
                     var investigation = await store.GetOrCreateAsync($"frames/{range.Id}-agent.json", hash, async token =>
                     {
-                        var seeds = new[] { range.Start + (range.End - range.Start) * .15, range.Start + (range.End - range.Start) * .5,
-                            range.Start + (range.End - range.Start) * .85 };
+                        var seeds = VideoSummaryCoverage.Window(range.Start, range.End, Math.Min(options.FrameCount, budget.FrameLimit));
                         var cues = selectedCues.Where(c => c.Start < range.End && c.End > range.Start)
                             .Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text)
                                 { Language = c.Language, Track = c.Track, LanguageConfidence = c.LanguageConfidence }).ToArray();
@@ -112,7 +111,7 @@ public sealed partial class VideoSummaryService
                                 await SummaryCheckpointStore.AtomicWriteAsync(Path.Combine(folder, relative), png, frameToken).ConfigureAwait(false);
                                 activity.Frame(png, id); return relative;
                             }, detail => { job.ProgressDetail = detail; activity.Stage(detail); }, token,
-                            value => store.WriteAsync($"frames/{range.Id}-agent-partial.json", hash, value, CancellationToken.None)).ConfigureAwait(false);
+                            value => store.WriteAsync($"frames/{range.Id}-agent-partial.json", hash, value, CancellationToken.None), focus: options.Focus).ConfigureAwait(false);
                     }, cancellation);
                     foreach (var observation in investigation.Observations)
                     {
