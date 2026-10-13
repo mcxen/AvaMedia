@@ -8,6 +8,8 @@ internal static partial class BrowserHost
     [JSImport("call", "console")] internal static partial Task<string> Call(string name, string args);
     [JSImport("readPending", "console")] internal static partial string ReadPending();
     [JSImport("writePending", "console")] internal static partial void WritePending(string value);
+    [JSImport("readDraft", "console")] internal static partial string ReadDraft(string key);
+    [JSImport("writeDraft", "console")] internal static partial void WriteDraft(string key, string value);
     [JSImport("open", "console")] internal static partial void Open(string url);
     [JSImport("downloadText", "console")] internal static partial void DownloadText(string name, string text);
     [JSImport("origin", "console")] internal static partial string Origin();

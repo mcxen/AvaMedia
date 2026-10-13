@@ -6,19 +6,19 @@
 
 | 主题 | 文档 |
 | --- | --- |
-| 安装、平台、设置 | [Windows 与 macOS](PLATFORMS.md) · [首次使用](FIRST-RUN-SETUP.md) · [选项设置](SETTINGS.md) · [普通选项](GENERAL-OPTIONS.md) |
+| 安装、平台、设置 | [Windows 与 macOS](PLATFORMS.md) · [Linux](LINUX.md) · [首次使用](FIRST-RUN-SETUP.md) · [选项设置](SETTINGS.md) · [普通选项](GENERAL-OPTIONS.md) · [更新网络](UPDATE-NETWORK.md) |
 | 任务与结果 | [任务管理](TASK-MANAGEMENT.md) · [后台任务与托盘](BACKGROUND-TASKS.md) · [通知](NOTIFICATIONS.md) · [剩余时间](PROGRESS-ESTIMATE.md) · [文件路由](MEDIA-ROUTING.md) |
 | 转换与压缩 | [视频压缩](VIDEO-COMPRESSION.md) · [视频瘦身](VIDEO-SLIMMING.md) · [图片压缩](IMAGE-COMPRESSION.md) · [GPU 转码](GPU-TRANSCODING.md) · [HEIC](HEIC.md) · [TS 视频](TS-VIDEO.md) · [旧视频格式](LEGACY-VIDEO.md) |
 | 剪辑与导出 | [快速剪辑](QUICK-CLIP.md) · [视频编辑](VIDEO-EDITING.md) · [批量裁剪](BATCH-CROP.md) · [批量旋转](BATCH-ROTATE.md) · [原属性导出](SOURCE-VIDEO-EXPORT.md) · [音频配置](AUDIO-OPTIONS.md) · [字幕与选轨](SUBTITLE-OPTIONS.md) |
 | 播放与看图 | [天池播放器](PLAYER.md) · [原生播放](PLAYER-NATIVE.md) · [VR 视频](PLAYER-VR.md) · [天池看图](IMAGE-VIEWER.md) |
-| AI 与模型 | [AI 标签工作台](MEDIA-AI.md) · [NSFW 标签](NSFW-REVIEW.md) · [自动媒体整理](FOLDER-CLASSIFICATION.md) · [视频总结与画面描述](VIDEO-SUMMARY.md) · [保留有人片段](PERSON-CLIP.md) · [自动字幕与人声增强](SPEECH-TOOLS.md) · [词库](WORD-LIBRARIES.md) · [模型管理](MODELS.md) · [模型安装](MODEL-INSTALLATION.md) |
+| AI 与模型 | [自动标签分类工作台](MEDIA-AI.md) · [NSFW 标签](NSFW-REVIEW.md) · [自动媒体整理](FOLDER-CLASSIFICATION.md) · [服装分类基础](OUTFIT-CLASSIFICATION-FOUNDATIONS.md) · [视频总结与画面描述](VIDEO-SUMMARY.md) · [长视频总结](LONG-VIDEO-SUMMARY.md) · [保留有人片段](PERSON-CLIP.md) · [自动字幕与人声增强](SPEECH-TOOLS.md) · [词库](WORD-LIBRARIES.md) · [模型管理](MODELS.md) · [模型安装](MODEL-INSTALLATION.md) · [模型加速](MODEL-ACCELERATION.md) |
 | 文件与文档 | [视频下载](VIDEO-DOWNLOAD.md) · [WiFi 传文件](WIFI-TRANSFER.md) · [PDF 工作区](PDF-WORKSPACE.md) · [批量工具](BATCH-TOOLS.md) |
 | 外观 | [Mac OS 9](MACOS9-SKIN.md) · [Windows XP](WINDOWS-XP-SKIN.md) · [文档图标](DOCUMENT-ICONS.md) · [界面截图](assets/screenshots/README.md) |
 
 ## 开发与发布
 
-- [架构与接口](ARCHITECTURE.md)、[异步任务架构](ASYNC-TASK-ARCHITECTURE.md)、[MCP 服务](MCP.md)、[空闲内存](IDLE-MEMORY.md)。
-- [界面规范](../UISPEC.MD)、[工具入口与工作区](TOOL-INTERFACES.md)、[动态布局](UI-LAYOUT-STABILITY.md)、[2026-10-11 界面源码审查](UI-DESIGN-REVIEW.md)。
+- [架构与接口](ARCHITECTURE.md)、[异步任务架构](ASYNC-TASK-ARCHITECTURE.md)、[跨工具资源调度](MEDIA-RESOURCE-SCHEDULING.md)、[MCP 服务](MCP.md)、[网页视频功能对齐状态](WEB-VIDEO-PARITY.md)、[共享文件选择](FILE-SELECTION.md)、[空闲内存](IDLE-MEMORY.md)。
+- [界面规范](../UISPEC.MD)、[通用组件库](../src/AvaMedia.Controls/README.md)、[工具入口与工作区](TOOL-INTERFACES.md)、[侧栏工具树](SIDEBAR-TREE.md)、[窗口框架](WINDOW-CHROME.md)、[动态布局](UI-LAYOUT-STABILITY.md)、[2026-10-11 界面源码审查](UI-DESIGN-REVIEW.md)。
 - [自动发布与打包](RELEASE.md)、[macOS FFmpeg 配方](FFMPEG-MACOS.md)、[第三方声明](../THIRD-PARTY-NOTICES.md)。
 - [验收与测量记录](acceptance/README.md)：按日期和范围查看真实模型、媒体输出、界面、消融与性能证据。
 - [版本记录](releases/README.md)：发布说明、历史变更和已归档的校验数据。

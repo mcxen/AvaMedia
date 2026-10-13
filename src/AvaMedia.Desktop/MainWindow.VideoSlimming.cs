@@ -16,7 +16,7 @@ public partial class MainWindow
             var jobs = VideoSlimming.CreateJobs(request.Files, request.OutputFolder, request.Options, reserved);
             foreach (var job in jobs)
                 if (request.Analyses.TryGetValue(job.Inputs[0], out var analysis))
-                    job.Options.VideoSlimming = request.Options with { Analysis = analysis };
+                    job.Options.VideoSlimming = job.Options.VideoSlimming! with { Analysis = analysis };
             OutputPreferences.Apply(jobs, _settings, reserved, request.OutputToSource, "Slim " + request.Options.Codec.ToUpperInvariant());
             if (editing is not null) ApplyEditedJobs(editing, jobs);
             else

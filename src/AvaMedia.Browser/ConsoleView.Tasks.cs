@@ -423,6 +423,8 @@ public sealed partial class ConsoleView
         _detail.Children.Add(facts);
         if (payload["result"] is { } result)
         {
+            if (task.Text("featureId") == "auto-subtitle" && task.Text("state") is "Completed" or "Failed" or "Cancelled")
+                _detail.Children.Add(Action("校对字幕 / 再次导出", () => OpenSubtitleReview(id)));
             if (result is JsonObject && result["nsfw"] is { } nsfw)
             {
                 _detail.Children.Add(Label("NSFW 内容识别"));

@@ -48,7 +48,7 @@ public static class QuickClipWorkflow
             var inputs=PrepareExports([edit],preset,exportOptions);
             if(preset!="Fast Copy" && inputs.Count>64)throw new ArgumentException("单个视频合并最多 64 个片段，请减少片段数量或选择原格式 / 原码率。");
             var options=preset=="Fast Copy"?inputs[0].Options.Clone():exportOptions.Clone();
-            if(preset!="Fast Copy"){options.Format=preset.ToLowerInvariant();options.CopyStreams=false;}
+            if(preset!="Fast Copy"){options.Format=SourceOutput.VideoFormat(preset.ToLowerInvariant(),edit.Path);options.CopyStreams=false;}
             // One retained range can go straight through clipping, including its editing settings.
             var single=inputs.Count==1;
             if(single)options=inputs[0].Options.Clone();

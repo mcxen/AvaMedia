@@ -12,7 +12,7 @@ internal sealed class ImageViewerExportWindow : Window
 {
     private readonly ImageViewerEntry[] _entries;
     private readonly List<CheckBox> _selected = [];
-    private readonly ComboBox _format = new() { Classes = { "ac" }, ItemsSource = new[] { "PNG", "JPEG", "WebP", "TIFF", "BMP", "AVIF" }, SelectedIndex = 0 };
+    private readonly ComboBox _format = new() { Classes = { "ac" }, ItemsSource = new[] { SourceOutput.Original, "PNG", "JPEG", "WebP", "TIFF", "BMP", "AVIF" }, SelectedIndex = 0 };
     private readonly NumericUpDown _quality = new() { Classes = { "ac" }, Minimum = 1, Maximum = 100, Value = 90, Increment = 1 };
     private readonly NumericUpDown _size = new() { Classes = { "ac" }, Minimum = 0, Maximum = 32768, Value = 0, Increment = 100 };
     private readonly CheckBox _transform = new() { Classes = { "ac" }, Content = "应用当前旋转与镜像", IsChecked = true };
@@ -79,7 +79,7 @@ internal sealed class ImageViewerExportWindow : Window
         RefreshActions();
         Closing += (_, args) => { if (_running) { args.Cancel = true; _closeRequested = true; _operation?.Cancel(); } };
     }
-    private bool HasQuality => _format.SelectedIndex is 1 or 2 or 5;
+    private bool HasQuality => _format.SelectedIndex is 0 or 2 or 3 or 6;
     private void RefreshActions() => _start.IsEnabled = !_running && _selected.Any(item => item.IsChecked == true) && !string.IsNullOrWhiteSpace(_folder.Text);
     private async Task RunAsync()
     {
@@ -95,7 +95,7 @@ internal sealed class ImageViewerExportWindow : Window
         if (HasQuality) ToolInputs.CommitNumber(_quality, integer: true);
         ToolInputs.CommitNumber(_size, integer: true);
         var folder = Path.GetFullPath(_folder.Text); var format = _format.SelectedIndex switch
-        { 1 => "jpg", 2 => "webp", 3 => "tiff", 4 => "bmp", 5 => "avif", _ => "png" };
+        { 1 => "png", 2 => "jpg", 3 => "webp", 4 => "tiff", 5 => "bmp", 6 => "avif", _ => SourceOutput.Original };
         var options = new ImageEncodingOptions(format, HasQuality ? (int)(_quality.Value ?? 90) : 90, (int)(_size.Value ?? 0),
             _transform.IsChecked == true ? _rotation : 0, _transform.IsChecked == true && _flip, _strip.IsChecked == true);
         _running = true; _settings.IsEnabled = _selectionActions.IsEnabled = _start.IsEnabled = false; foreach (var item in _selected) item.IsEnabled = false;
@@ -112,8 +112,9 @@ internal sealed class ImageViewerExportWindow : Window
                 try
                 {
                     var name = Path.GetFileNameWithoutExtension(entry.Name.Replace('\\', '/').Split('/')[^1]);
-                    var output = MediaEngine.UniqueOutput(folder, name + "_converted", format, used); used.Add(output);
-                    await ImageCodec.ExportAsync(entry, output, options, operation.Token); done++;
+                    var resolved = options with { Format = SourceOutput.ImageFormat(format, entry.Name) };
+                    var output = MediaEngine.UniqueOutput(folder, name + "_converted", resolved.Format, used); used.Add(output);
+                    await ImageCodec.ExportAsync(entry, output, resolved, operation.Token); done++;
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
                 { errors.Add(entry.Name + " · " + error.Message); _errors.Text = string.Join(Environment.NewLine, errors); }

@@ -76,6 +76,6 @@ public static class SubtitleOptions
         if (o.SubtitleLanguage.Length > 0) args.AddRange(["-metadata:s:s", "language=" + o.SubtitleLanguage.ToLowerInvariant()]);
     }
 
-    internal static string FilterValue(string value) => Escape(Escape(value, "\\':"), "\\'[],;");
+    public static string FilterValue(string value) => Escape(Escape(value, "\\':"), "\\'[],;");
     private static string Escape(string value, string special) => string.Concat(value.Select(c => special.Contains(c) ? "\\" + c : c.ToString()));
 }

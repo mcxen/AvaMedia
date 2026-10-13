@@ -82,11 +82,11 @@ public sealed partial class SpeechToolsWindow : Window
         _sources.SelectionChanged += (_,_) => _preview.SetSource(_sources.SelectedItem as string);
         Closed += (_,_) => _preview.Dispose();
         var parameterCard = Ui.ComponentCard(fields); Grid.SetRow(parameterCard, 2); source.Children.Add(parameterCard);
-        string[] outputs = _transcribe ? ["MP4", "MKV", "SRT", "ASS"]
+        string[] outputs = _transcribe ? ["原格式视频", "MP4", "MKV", "SRT", "ASS"]
             : feature.Category == "音频" ? ["原格式", "WAV", "M4A", "MP3", "FLAC"] : ["原格式", "MP4", "MKV", "MOV", "WAV", "M4A", "MP3"];
         _output = Ui.ComponentCombo(outputs, outputs[0]); _output.Name = "SpeechOutput";
         if (_transcribe) ToolTip.SetTip(_output, "烧录字幕 · MP4、烧录字幕 · MKV、字幕文件 · SRT、样式字幕 · ASS");
-        if (_transcribe) _output.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "mp4", "mkv", "srt", "ass" }, _initial.Format));
+        if (_transcribe) _output.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { SourceOutput.Original, "mp4", "mkv", "srt", "ass" }, _initial.Format));
         else if (options is not null) _output.SelectedIndex = Math.Max(0, Array.IndexOf(outputs, options.Format.ToUpperInvariant()));
         if(options is null&&saved is not null)_output.SelectedIndex=Math.Clamp(saved.Output,0,outputs.Length-1);
         if (!_transcribe) Add(fields, "输出内容", _output);
@@ -182,7 +182,7 @@ public sealed partial class SpeechToolsWindow : Window
         var known = _files.ToHashSet(VideoFolderScanner.PathComparer);
         foreach (var path in files.Where(File.Exists).Select(Path.GetFullPath).Where(known.Add)) _files.Add(path);
         if (_transcribe && !_outputChosen && _files.Count > 0 && !_files.Any(VideoFormats.IsVideo))
-        { _output.SelectedIndex = 2; _outputChosen = false; }
+        { _output.SelectedIndex = 3; _outputChosen = false; }
         SelectFirst(); _error = ""; Refresh();
     }
 
@@ -195,7 +195,7 @@ public sealed partial class SpeechToolsWindow : Window
         _voice.ReadInto(options);
         if (_transcribe)
         {
-            options.Format = new[] { "mp4", "mkv", "srt", "ass" }[Math.Max(0, _output.SelectedIndex)];
+            options.Format = new[] { SourceOutput.Original, "mp4", "mkv", "srt", "ass" }[Math.Max(0, _output.SelectedIndex)];
             var language = TranscriptionOptions.Languages[_language.SelectedIndex];
             var model = _model.SelectedIndex switch { 1 => SpeechModel.Tiny, 2 => SpeechModel.Small, _ => SpeechModel.Base };
             var speech = options.Transcription ?? new();

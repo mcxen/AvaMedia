@@ -17,11 +17,11 @@ internal static class McpVideoForms
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public static ConversionOptions Defaults(Feature feature) => new()
     {
-        Format = feature.Format.Length > 0 ? feature.Format : "mp4",
+        Format = feature.Operation == Operation.Transcribe ? "srt" : feature.Id is "crop" or "rotate" ? SourceVideoExport.Original : feature.Format.Length > 0 ? feature.Format : "mp4",
         CopyStreams = feature.Id is "repair" or "extract-video",
         VoiceEnhancement = feature.Id == "voice-enhance",
         Rotation = feature.Id == "rotate" ? 90 : 0,
-        Transcription = feature.Operation == Operation.Transcribe ? new() : null,
+        Transcription = feature.Operation == Operation.Transcribe ? new() { RecognitionOnly = true } : null,
         VideoSummary = feature.Operation == Operation.VideoSummary ? new() : null,
         PersonClip = feature.Operation == Operation.PersonClip ? new() : null,
         VideoCompression = feature.Operation == Operation.VideoCompress ? new() : null,
@@ -56,7 +56,7 @@ internal static class McpVideoForms
         }
         void Encoding()
         {
-            Format("mp4", "mkv", "mov", "webm", "ts", "avi");
+            Format(SourceOutput.Original, "mp4", "mkv", "mov", "webm", "ts", "avi");
             Strings("videoCodec", "视频编码", "输出", "自动", "libx264", "libx265", "libvpx-vp9");
             Choice("videoRateMode", "码率控制", "输出", ["沿用源文件", "质量", "指定码率"], [0, 1, 2]);
             Number("quality", "质量值（越小越清晰）", "输出", 0, 51);
@@ -106,7 +106,9 @@ internal static class McpVideoForms
                 Number("fadeOut", "画面淡出（秒）", "淡入淡出", 0, 60, .1);
                 Encoding(); Subtitle(); fields.RemoveAll(field => field.Path == "format");
                 hint = "每个文件独立编辑多个片段；拖动区间边界，支持裁剪、旋转、速度、淡入淡出和字幕。原格式 / 原码率按关键帧切分。"; break;
-            case "crop": Region("crop", "裁剪区域"); Encoding(); hint = "在参考画面中框选，按相同像素或画面比例应用到勾选视频，检查逐文件计划后导出。"; break;
+            case "crop": Region("crop", "裁剪区域"); Encoding(); fields.RemoveAll(field => field.Path == "format");
+                Format(SourceVideoExport.Original, "mp4", "mkv", "mov", "webm", "ts", "avi");
+                hint = "在参考画面中框选，按相同像素或画面比例应用到勾选视频，检查逐文件计划后导出。"; break;
             case "delogo": Region("delogo", "水印区域"); Encoding(); hint = "在预览中框选水印区域，服务器处理区域内的画面。"; break;
             case "rotate": Rotate(); fields.RemoveAll(field => field.Path == "flip");
                 Format(SourceVideoExport.Original, SourceVideoExport.FastRotation, "mp4", "mkv", "mov", "webm", "avi", "ts");
@@ -114,8 +116,8 @@ internal static class McpVideoForms
             case "join": Encoding(); hint = "按下方文件顺序合并；使用上移、下移调整顺序。"; break;
             case "mux": Encoding(); hint = "依次添加视频、音频两个文件；读取实际轨道后选择，支持调整文件顺序。"; break;
             case "split": Format("m4a", "mp3", "wav", "flac", "opus"); Time(); Track("audioStreamIndex", "音频轨道", "audio"); Number("audioBitrate", "音频码率（kbps）", "输出", 16, 1024); break;
-            case "extract-video": Format("mkv", "mp4", "ts"); Track("videoStreamIndex", "视频轨道", "video"); break;
-            case "repair": Format("mkv", "mp4", "mov", "ts"); hint = "以流复制重新封装，保留源编码；无法修复已经丢失的画面数据。"; break;
+            case "extract-video": Format(SourceOutput.Original, "mkv", "mp4", "ts"); Track("videoStreamIndex", "视频轨道", "video"); break;
+            case "repair": Format(SourceOutput.Original, "mkv", "mp4", "mov", "ts"); hint = "以流复制重新封装，保留源编码；无法修复已经丢失的画面数据。"; break;
             case "contact-sheet":
                 Number("contactSheet.columns", "列数", "网格", 1, 10); Number("contactSheet.rows", "行数", "网格", 1, 10);
                 Number("contactSheet.cellWidth", "单格长边上限", "网格", 64, 1920); Number("contactSheet.cellHeight", "单格短边上限", "网格", 64, 1080);
@@ -126,7 +128,7 @@ internal static class McpVideoForms
                 hint = "预览第一张拼图；按视频显示比例生成单格，采样均匀分布在所选区间。多张结果保存到独立目录。"; break;
             case "voice-enhance": Encoding(); Number("voiceEnhancementStrength", "人声增强强度", "声音", 0, 100); Check("noiseReduction", "降噪", "声音"); break;
             case "video-compress":
-                Strings("videoCompression.format", "输出格式", "压缩", "mp4", "mkv", "mov", "ts");
+                Strings("videoCompression.format", "输出格式", "压缩", [SourceOutput.Original, .. SourceOutput.CompressionVideoFormats]);
                 Strings("videoCompression.codec", "编码", "压缩", "h264", "hevc");
                 Choice("videoCompression.mode", "压缩模式", "压缩", ["自动", "质量", "码率", "原体积百分比", "目标 MB"], [0, 1, 2, 3, 4]);
                 Choice("videoCompression.preset", "自动档位", "压缩", ["高画质", "均衡", "更小"], [0, 1, 2]);
@@ -141,12 +143,12 @@ internal static class McpVideoForms
                 Check("videoCompression.preferGpu", "优先 GPU", "压缩"); break;
             case "video-slim":
                 Choice("videoSlimming.preset", "瘦身档位", "瘦身", ["保留画质", "均衡", "更小"], [0, 1, 2]);
-                Strings("videoSlimming.codec", "编码", "瘦身", "hevc", "h264"); Strings("videoSlimming.format", "输出格式", "瘦身", "mkv", "mp4");
+                Strings("videoSlimming.codec", "编码", "瘦身", "hevc", "h264"); Strings("videoSlimming.format", "输出格式", "瘦身", [SourceOutput.Original, .. SourceOutput.CompressionVideoFormats]);
                 hint = "服务器分析画质与体积后执行瘦身，保持完整视频。"; break;
             case "auto-subtitle":
                 Strings("transcription.language", "识别语言", "语音", TranscriptionOptions.Languages);
                 Choice("transcription.model", "语音模型", "语音", ["Base", "Tiny", "Small"], [0, 1, 2]);
-                Check("transcription.recognitionOnly", "仅识别字幕结果", "语音"); Format("mp4", "mkv", "srt", "ass"); Number("subtitleFontSize", "字幕字号（0 自动）", "字幕", 0, 200); break;
+                hint = "先后台识别，再从任务详情打开字幕校对；校对后可导出 SRT、ASS 或带字幕视频。"; break;
             case "person-clip":
                 Number("personClip.detection.framesPerSecond", "每秒采样帧数", "人物检测", .25, 16, .25);
                 Number("personClip.detection.threshold", "置信度阈值", "人物检测", .1, .9, .05);

@@ -161,9 +161,9 @@ public sealed class SubtitleReviewWindow : Window
         _style = new SubtitleStyleEditor(request.Options) { Compact = true };
         var styleScroll = new ScrollViewer { Content = _style, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         var output = new Grid { ColumnDefinitions = new("*,*,Auto"), ColumnSpacing = 8 };
-        _format = Ui.ComponentCombo(["SRT", "ASS", "MP4", "MKV"], "SRT");
+        _format = Ui.ComponentCombo(["SRT", "ASS", "原格式视频", "MP4", "MKV"], "SRT");
         AutomationProperties.SetName(_format, "输出内容"); ToolTip.SetTip(_format, "字幕文件 · SRT、样式字幕 · ASS、带字幕视频 · MP4、带字幕视频 · MKV");
-        _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", "mp4", "mkv" }, request.Options.Format));
+        _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", SourceOutput.Original, "mp4", "mkv" }, request.Options.Format));
         output.Children.Add(_format);
         _folder = Ui.ComponentInput(request.OutputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
         Avalonia.Automation.AutomationProperties.SetName(_folder, "字幕保存位置");
@@ -256,7 +256,7 @@ public sealed class SubtitleReviewWindow : Window
             if (sources.Length == 0) throw new ArgumentException("请先识别或添加字幕。");
             var options = sources.Select(source =>
             {
-                CheckSource(source); var edit = (_request.InputOptions?.ElementAtOrDefault(Array.IndexOf(_sources,source))??_request.Options).Clone(); edit.Format = new[] { "srt", "ass", "mp4", "mkv" }[_format.SelectedIndex];
+                CheckSource(source); var edit = (_request.InputOptions?.ElementAtOrDefault(Array.IndexOf(_sources,source))??_request.Options).Clone(); edit.Format = new[] { "srt", "ass", SourceOutput.Original, "mp4", "mkv" }[_format.SelectedIndex];
                 if (edit.Format != "srt") _style.ReadInto(edit);
                 edit.Transcription ??= new(); edit.Transcription.RecognitionOnly = false; edit.Transcription.ReviewedCues = ReadCues(source);
                 edit.Transcription.ReviewedSourceLength = source.Length; edit.Transcription.ReviewedSourceWriteUtc = source.WriteUtc;

@@ -225,7 +225,9 @@ public sealed class MediaEngine : IMediaEngine
     public static bool IsImage(string format) => format is "jpg" or "jpeg" or "png" or "webp" or "bmp" or "tif" or "tiff" or "ico" or "avif" or "heic" or "heif";
     public static void Validate(Job job)
     {
-        var feature=Catalog.Find(job.FeatureId);var o=job.Options;
+        var feature=Catalog.Find(job.FeatureId);
+        job.Options=SourceOutput.Resolve(feature,job.Options,job.Inputs.FirstOrDefault());
+        var o=job.Options;
         if(o.Orientation is not null){OrientationTaskService.Validate(job);return;}
         if(AutomationTasks.Supports(job)){AutomationTasks.Validate(job);return;}
         if(feature.Operation==Operation.FolderClassify){FolderClassificationJobService.Validate(job);return;}
@@ -723,7 +725,7 @@ public sealed class MediaEngine : IMediaEngine
         else if(IsImage(o.Format))
         {
             a.AddRange(["-frames:v","1"]);
-            if(o.Format=="jpg")a.AddRange(["-q:v",Number(o.ImageQuality is {} jq?2+(100-jq)*29/99d:Math.Clamp(o.Quality/4d,2,12))]);
+            if(o.Format is "jpg" or "jpeg")a.AddRange(["-q:v",Number(o.ImageQuality is {} jq?2+(100-jq)*29/99d:Math.Clamp(o.Quality/4d,2,12))]);
             if(o.Format=="webp")
             {
                 var quality=Number(o.ImageQuality is {} wq?wq:Math.Clamp(100-o.Quality*90d/63,10,100));

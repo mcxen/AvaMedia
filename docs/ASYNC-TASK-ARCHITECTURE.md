@@ -1,6 +1,6 @@
-# 异步任务架构与工具入口审计
+# 异步任务架构与工具入口
 
-日期：2026-10-10。范围：当前 `Catalog.All` 的 62 个工具入口、主窗口调度、任务窗口、模型下载 / 加载 / 预热及暂停控制。结论来自源码与受影响项目编译；未运行功能回归、真实模型并发、媒体输出、性能或 UI 验收。
+更新：2026-10-13。范围：`Catalog.All` 的可见工具入口、内部后台任务、主窗口调度、任务窗口、模型下载 / 加载 / 预热及暂停控制。本文记录实现；历史编译记录不表示当前功能、真实模型并发、媒体输出、性能或 UI 已验收。
 
 ## 当前链路
 
@@ -40,12 +40,12 @@
 
 停止预热立即撤下 UI 请求、停止按钮与进度。旧原生加载可在后台完成取消清理，其进度 / 最终回调不能覆盖新请求或重新显示预热进度。加载失败和模型占用仍由模型状态展示。
 
-## 62 个入口的覆盖
+## 工具入口的执行方式
 
 | 工具入口 | 配置 / 执行方式与检查结果 |
 | --- | --- |
 | `video-summary`、`media-ai`、`folder-classification`、`person-clip`、`auto-subtitle`、`rotate` | 独立工具 / 任务窗口，后台排队与模型准备；总结、标签、整理、人物、字幕和方向检测之间没有全局运行状态入口锁。通用任务窗口提供暂停 / 继续，标签、整理、人物和方向窗口也提供控制。 |
-| `mp4`、`video-compress`、`video-slim`、`join`、`split`、`clip`、`delogo`、`frames`、`voice-enhance`、`mux`、`extract-video`、`repair` | 转换 / 压缩 / 瘦身 / 裁剪配置改为非模态，快速剪辑沿用现有非模态编辑 / 导出链路；确认只提交本次任务。 |
+| `mp4`、`video-compress`、`video-slim`、`join`、`split`、`clip`、`delogo`、`voice-enhance`、`mux`、`extract-video`、`repair` | 转换 / 压缩 / 瘦身 / 裁剪配置改为非模态，快速剪辑沿用现有非模态编辑 / 导出链路；确认只提交本次任务。 |
 | `audio-mp3`、`audio-flac`、`audio-wav`、`audio-m4a`、`audio-ogg`、`audio-aac`、`audio-ac3`、`audio-wma`、`audio-opus`、`audio-aiff`、`audio-join`、`audio-mix`、`audio-clip`、`audio-enhance` | 通用转换 / 语音工具非模态配置；媒体进程由后台执行器运行，每个工具独立排队。 |
 | `image-jpg`、`image-png`、`image-webp`、`image-bmp`、`image-tiff`、`image-gif`、`image-ico`、`image-avif`、`image-tools`、`image-compress`、`images-pdf` | 图片转换、编辑、压缩和图片 PDF 使用非模态配置。图片压缩移除“已有队列运行时不能立即开始”的限制，确认只启动本批新增任务。 |
 | `pdf-merge`、`pdf-split`、`pdf-age`、`pdf-compress`、`pdf-text`、`pdf-docx`、`pdf-xlsx`、`text-pdf` | PDF 工作区使用非模态收集请求，统一确认协议和“仅加入队列”选择；探测 / 预览保留窗口自己的取消控制。 |
@@ -54,7 +54,7 @@
 | `dvd`、`iso` | 复用非模态转换窗口和后台执行器；保持源设备 / 文件的任务占用保护。 |
 | `player`、`image-viewer`、`info` | 保持独立查看窗口，读取 / 播放不依赖媒体队列空闲。 |
 
-所有上述工具的任务编辑窗口也使用非模态协议。文件选择器、当前工具内的参数编辑、设置、危险文件操作确认仍是短期对话框，未用于包裹后台任务生命周期。
+任务配置和编辑使用非模态协议；应用内文件选择器、设置、帮助和任务详情同样使用无 Owner 的独立窗口。危险文件操作确认、需要返回编辑结果的表单和系统原生文件选择器可使用短期模态窗口，不包裹后台任务生命周期。单帧截图只在播放器内执行，不再有 `frames` 工具或队列任务。
 
 ## 保留的局部限制
 
@@ -63,4 +63,4 @@
 - 执行器尚未退出的任务不能编辑、移除、重新执行；暂停反馈不代表文件或原生资源已经释放。
 - 清空整张任务列表及应用更新安装仍需要适当的空闲状态，单任务控制和新工具不依赖这一条件。
 
-源码检查确认主窗口没有按 `_queue.IsRunning` 拒绝打开工具，配置和任务编辑不再使用 `ShowDialog`；该状态仅用于调度会话、停止 / 托盘摘要、清空列表和更新安装。UI 规则见 [UISPEC.MD](../UISPEC.MD#78-后台任务模型准备与即时暂停)，任务操作见 [任务管理](TASK-MANAGEMENT.md)。
+源码检查确认主窗口没有按 `_queue.IsRunning` 拒绝打开工具，配置和任务编辑不再使用 `ShowDialog`；该状态仅用于调度会话、停止 / 托盘摘要、清空列表和更新安装。UI 规则见 [UISPEC.MD](../UISPEC.MD#792-进度与阶段)，任务操作见 [任务管理](TASK-MANAGEMENT.md)。

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 namespace AvaMedia.Mcp;
 
 internal sealed record WebContactSheetPreview(string Path, ContactSheetOptions Options);
+internal sealed record WebSubtitlePreview(string Path, string SourceVersion, double Seconds, string Text, McpSubtitleStyle Style, int VideoStreamIndex = 0);
 
 internal static class WebPreview
 {
@@ -126,6 +127,32 @@ internal static class WebPreview
             catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested) { return Results.Problem("定位超时。", statusCode: 408); }
             catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or InvalidDataException) { return Results.Problem(error.Message, statusCode: 400); }
         });
+        app.MapPost("/web/preview/subtitle", (WebSubtitlePreview request, IMcpWorkspace workspace, HttpContext context) => Run(context, async ct =>
+        {
+            var path = new McpFiles().Check(request.Path, true);
+            McpTools.CheckSubtitleSource(path, request.SourceVersion);
+            if (!double.IsFinite(request.Seconds) || request.Seconds < 0 || request.Text.Length > 20000)
+                throw new ArgumentException("字幕预览参数无效。");
+            var style = new ConversionOptions(); McpTools.ApplySubtitleStyle(style, request.Style);
+            var info = await workspace.Engine.Probe(path, ct, request.VideoStreamIndex);
+            if (!info.HasVideo) throw new ArgumentException("音频文件没有可预览的视频画面。");
+            var seconds = Math.Min(request.Seconds, Math.Max(0, info.Duration - .05));
+            var folder = Path.Combine(Path.GetTempPath(), "AvaMedia-subtitle-preview-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            try
+            {
+                var source = Path.Combine(folder, "source.png"); var ass = Path.Combine(folder, "subtitle.ass"); var target = Path.Combine(folder, "preview.png");
+                await File.WriteAllBytesAsync(source, await workspace.Engine.Thumbnail(path, seconds, VideoPreviewSizes.Preview.Width, VideoPreviewSizes.Preview.Height, ct, pad: false, videoStreamIndex: request.VideoStreamIndex), ct);
+                await File.WriteAllTextAsync(ass, SpeechSubtitles.Ass([new(TimeSpan.Zero, TimeSpan.FromSeconds(1), request.Text)], style, info.Width, info.Height), ct);
+                var filter = "ass=filename=" + SubtitleOptions.FilterValue(ass.Replace("\\", "/"));
+                var rendered = await ProcessRunner.Run(workspace.Engine.FFmpeg, ["-v", "error", "-i", source, "-vf", filter, "-frames:v", "1", "-y", target], ct);
+                if (rendered.ExitCode != 0) throw new IOException(rendered.Error.Contains("No such filter")
+                    ? "服务器 FFmpeg 缺少字幕渲染能力，请使用应用内置的完整 FFmpeg。" : "字幕预览生成失败：" + rendered.Error);
+                McpTools.CheckSubtitleSource(path, request.SourceVersion);
+                return (await File.ReadAllBytesAsync(target, ct), JsonSerializer.Serialize(new { seconds }));
+            }
+            finally { Directory.Delete(folder, true); }
+        }));
         async Task Run(HttpContext context, Func<CancellationToken, Task<(byte[] Frame, string Metadata)>> render)
         {
             context.Response.Headers.CacheControl = "no-store";

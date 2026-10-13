@@ -33,6 +33,7 @@ public interface IMcpWorkspace
 {
     Task<McpTaskPage> ListAsync(int offset, int limit, string? state, CancellationToken ct);
     Task<McpTaskResult> GetAsync(Guid id, bool includeResult, int offset, int limit, CancellationToken ct);
+    Task<ConversionOptions> OptionsAsync(Guid id, CancellationToken ct);
     Task<McpSubmission?> FindSubmissionAsync(string requestId, string hash, CancellationToken ct);
     Task<McpSubmission> SubmitAsync(string requestId, string hash, Func<string[], Job[]> create, bool start, CancellationToken ct);
     Task<McpTaskView> ControlAsync(Guid id, string action, CancellationToken ct);

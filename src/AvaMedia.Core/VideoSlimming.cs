@@ -11,11 +11,11 @@ public sealed record VideoSlimmingOptions
 {
     public VideoSlimmingPreset Preset { get; init; } = VideoSlimmingPreset.Balanced;
     public string Codec { get; init; } = "hevc";
-    public string Format { get; init; } = "mkv";
+    public string Format { get; init; } = SourceOutput.Original;
     public VideoSlimmingAnalysis? Analysis { get; init; }
     public void Validate()
     {
-        if (!Enum.IsDefined(Preset) || Codec is not ("h264" or "hevc") || Format is not ("mp4" or "mkv"))
+        if (!Enum.IsDefined(Preset) || Codec is not ("h264" or "hevc") || Format != SourceOutput.Original && !SourceOutput.CompressionVideoFormats.Contains(Format))
             throw new ArgumentException("请选择有效的瘦身档位、编码与输出格式。");
     }
 }
@@ -39,7 +39,7 @@ public sealed record VideoSlimmingAnalysis(string SourcePath, long SourceBytes, 
         var file = new FileInfo(input);
         return file.Exists && SourcePath == Path.GetFullPath(input) && SourceBytes == file.Length &&
             ModifiedUtcTicks == file.LastWriteTimeUtc.Ticks && Preset == options.Preset && Codec == options.Codec &&
-            Format == options.Format && Threads == threads && SourceBytes > 0 &&
+            Format == SourceOutput.VideoFormat(options.Format, input, compression: true) && Threads == threads && SourceBytes > 0 &&
             Samples > 0 && double.IsFinite(SampleSeconds) && SampleSeconds > 0 &&
             double.IsFinite(Duration) && Duration > 0 && Width > 0 && Height > 0 && OutputWidth > 0 && OutputHeight > 0 &&
             double.IsFinite(PixelAspectRatio) && PixelAspectRatio > 0 &&
@@ -108,6 +108,7 @@ public sealed partial class VideoSlimming(MediaEngine engine)
         Action<double, string>? progress = null, CancellationToken ct = default)
     {
         options.Validate(); input = Path.GetFullPath(input);
+        options = options with { Format = SourceOutput.VideoFormat(options.Format, input, compression: true) };
         ct.ThrowIfCancellationRequested();
         var threads = Threads();
         if (options.Analysis is { } cached && cached.Matches(input, options, threads))
@@ -364,11 +365,12 @@ public sealed partial class VideoSlimming(MediaEngine engine)
             args.AddRange(["-map", "0:s?", "-c:s", "copy", "-map_metadata", "0", "-map_chapters", "0"]);
             if (format == "mkv") args.AddRange(["-map", "0:t?", "-c:t", "copy"]);
         }
-        if (format == "mp4")
+        if (format is "mp4" or "mov" or "m4v")
         {
             args.AddRange(["-movflags", "+faststart"]);
             if (encoder == "libx265") args.AddRange(["-tag:v", "hvc1"]);
         }
+        VideoFormats.AppendMuxerArguments(args, format);
         args.AddRange(["-progress", "pipe:1", "-nostats", output]);
         return args;
     }
@@ -390,9 +392,9 @@ public sealed partial class VideoSlimming(MediaEngine engine)
         foreach (var stream in streams)
         {
             var type = Text(stream, "codec_type"); var codec = Text(stream, "codec_name");
-            if (options.Format == "mp4" && (type == "audio" && codec is not ("aac" or "mp3" or "ac3" or "eac3" or "alac" or "opus" or "flac") ||
+            if (options.Format is "mp4" or "mov" or "m4v" && (type == "audio" && options.Format != "mov" && codec is not ("aac" or "mp3" or "ac3" or "eac3" or "alac" or "opus" or "flac") ||
                 type == "subtitle" && codec != "mov_text" || type == "attachment"))
-                throw new ArgumentException("此音轨、字幕或附件无法原样保留在 MP4，请选择 MKV。");
+                throw new ArgumentException("此音轨、字幕或附件无法原样保留在所选容器，请选择 MKV。");
             if (options.Format == "mkv" && type == "subtitle" && codec == "mov_text")
                 throw new ArgumentException("此视频的字幕适合 MP4，请选择 MP4 以原样保留。");
         }

@@ -1918,6 +1918,7 @@
   "边距": "Margin",
   "0 = 自动": "0 = automatic",
   "原格式": "Original format",
+  "原格式视频": "Video in original format",
   "自动字幕 · Subtitle preview": "Subtitle preview",
   "适合讲话降噪；背景音乐需要人声分离。": "For speech denoising; background music requires voice separation.",
   "选择音视频文件": "Select audio or video files",

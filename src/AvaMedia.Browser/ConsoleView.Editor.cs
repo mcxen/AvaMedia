@@ -375,6 +375,7 @@ public sealed partial class ConsoleView
     }
     private void UpdatePreviewActivity()
     {
+        _subtitleReview?.SetActive(_pageVisible && _tabs.SelectedItem == _subtitleReviewTab);
         if (!PreviewActive)
         {
             CancelPreview();

@@ -57,7 +57,7 @@ public sealed partial class BatchRotateWindow : Window
     public int Rotation => PerFile ? _active?.Rotation ?? 0 : _sharedRotation;
     public bool PerFile => ModeCombo.SelectedIndex == 1;
     public Task DetectionReady => _detectionReady;
-    public string Format => FormatCombo.SelectedItem as string ?? "mp4";
+    public string Format => FormatCombo.SelectedItem as string ?? SourceVideoExport.Original;
     public Task Ready => WaitForReady();
 
     public BatchRotateWindow() : this(new MediaEngine(new()), new AppSettings().OutputFolder) { }

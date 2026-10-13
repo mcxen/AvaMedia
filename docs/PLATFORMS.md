@@ -5,7 +5,7 @@
 ## 安装包与运行时
 
 - Windows：portable ZIP 或每用户 setup 安装包。
-- macOS：包含 `AvaMedia.app` 的 ARM64 DMG；最低系统版本声明为 **macOS 13.4**。应用使用 ad-hoc 签名，尚未进行 Developer ID 签名和公证。
+- macOS：包含 `天池万象转换.app` 的 ARM64 DMG；最低系统版本声明为 **macOS 13.4**。应用使用 ad-hoc 签名，尚未进行 Developer ID 签名和公证。
 - 当前应用包不包含 .NET。首次启动缺少可用的 .NET 8／ASP.NET Core 运行时时，由原生启动器下载、校验并安装到当前用户缓存，再启动应用；无需开发 SDK 或管理员权限。
 
 macOS 13.4 的下限来自打包 ONNX Runtime ARM64 原生库的部署要求。QuickJS 从固定源码构建并指定 13.4 部署目标；归档检查核对依赖实际部署版本。该声明不代表已经完成 macOS 13.4 设备上的全部功能验收。
@@ -14,7 +14,7 @@ macOS 13.4 的下限来自打包 ONNX Runtime ARM64 原生库的部署要求。Q
 
 新构建内置 FFmpeg／FFprobe **9.0.2**、yt-dlp 和 QuickJS-NG。FFmpeg 版本来自共用的 [源码锁](../scripts/macos/ffmpeg-sources.lock.json)，各平台打包引擎、动态库、版本清单和许可证；精确对应源码由 Release 链接的媒体归档提供。见 [FFmpeg 配方](FFMPEG-MACOS.md)。
 
-工具查找支持配置路径、环境变量、应用 `tools`、用户工具目录、项目工具目录、PATH 和 macOS Homebrew 路径；用户指定路径优先。开发构建需要自行准备工具，安装包直接使用内置工具。
+Windows / macOS 包固定使用应用 `tools` 中的内置媒体工具；有内置清单而工具缺失时提示重新安装，不回退到用户配置或系统工具。未内置工具的构建在应用目录查找后，依次使用配置路径、环境变量、项目工具目录、macOS Homebrew 路径和 PATH。开发构建需自行准备工具，Linux 包的依赖见 [Linux 说明](LINUX.md)。
 
 HEIC／HEIF 可进入图片路由、压缩、转换、缩放／旋转及图片合成 PDF。macOS 信息读取与支持的静态图片预览使用系统 ImageIO；压缩编码沿用 FFmpeg。分块 HEIC 需要所用 FFmpeg 支持 Tile Grid、`stream_groups` 与 `xstack`，见 [HEIC](HEIC.md)。
 

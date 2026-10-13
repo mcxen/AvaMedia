@@ -239,12 +239,13 @@ public AudioWaveform() { MinHeight = 100; Bind(AccentProperty, new DynamicResour
 public static ThemeVariant MacOS9 { get; } = new("MacOS9", ThemeVariant.Light);
 public static ThemeVariant WindowsXP { get; } = new("WindowsXP", ThemeVariant.Light);
 public static bool UsesCustomChrome(ThemeVariant variant) => variant == MacOS9 || variant == WindowsXP;
-public static void Apply(string name)
+public static void Apply(string name, string? accent = null)
 {
     Dispatcher.UIThread.VerifyAccess();
     if (name == "MacOS9") EnsureSkinStyles("Platinum");
     if (name == "WindowsXP") EnsureSkinStyles("WindowsXP");
-    Application.Current!.RequestedThemeVariant = name switch { "MacOS9" => MacOS9, "WindowsXP" => WindowsXP, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+    Application.Current!.RequestedThemeVariant = name switch { "System" => ThemeVariant.Default, "MacOS9" => MacOS9, "WindowsXP" => WindowsXP, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Light };
+    ApplyAccent(accent);
 }
 ```
 
@@ -466,7 +467,7 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 - 独立任务详情窗口：文件名、类型图标、唯一状态和操作，使用“结果 / 文件与参数 / 处理日志”三个分段。结果保留完整原因及真实体积、编码、画质等指标；文件与参数按键值列表显示来源、实际产出与所选参数；处理日志可滚动、选择、复制并显示读取状态。复用 Card、StatusPill、SegmentedControl、TextBox.ac 和公共窗口框架，颜色、间距与字号引用现有动态令牌。
 - 所有任务行及右键菜单均提供“查看任务详情”；已完成、失败、取消和进行中的普通任务双击进入详情，等待或暂停且可编辑的任务保留编辑路径。AI 专项任务界面保留原有入口。查看日志直接切到任务详情的日志区，通知只承载简短结果与进入详情的操作，清除通知不影响详情与日志。
 - 视频瘦身在无法安全减小体积时显示“无需瘦身”和真实原因，作为已完成的信息结果；明确显示“保留原视频，未生成新文件”。没有实际产出时不显示输出预览、播放、打开输出或拖拽产出操作；预估体积与实际体积分开标注，没有指标显示“—”，不伪造体积或画质评分。
-- 列表每 3 秒刷新一次，刷新时保持行顺序与选中项，不整表重建；底部分页“共 N 项 · 第 n 页”。
+- 桌面任务行订阅队列状态并合并进度通知；远程网页每 3 秒轮询，底部分页“共 N 项 · 第 n 页”。刷新保持行顺序与选中项，不整表重建。
 - 任务区只放任务，不放工具入口。
 
 参考代码 `src/AvaMedia.Desktop/MainWindow.axaml`：
@@ -500,7 +501,7 @@ private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds
 
 ### 7.5 侧栏工具树
 
-- 按“视频 / 音频 / 图片 / 文档 / 工具集 / 光盘”分类的手风琴，**同时只展开一个分类**；展开一个分类时其他分类自动收起。
+- 按“视频 / 音频 / 图片 / 文档 / 工具集”分类的手风琴，**同时只展开一个分类**；展开一个分类时其他分类自动收起。光盘作为工具集内的用途分组，目录原分类和工具 ID 保持不变；侧栏映射以 `FeatureNavigation` 为准。
 - 分类行显示图标、名称和数量；展开后按小节列出工具“胶囊”，选中为蓝底白字（`UiTreeSelection` / `UiTreeSelectionText`），图标用 `UiTreeIcon`。
 - 不提供搜索框。
 - macOS 下工具树从红绿灯下方开始（见第 8 节）。

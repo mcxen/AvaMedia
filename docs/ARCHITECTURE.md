@@ -1,14 +1,18 @@
 # 架构与接口层
 
-更新：2026-10-11。本文记录当前模块、依赖方向与生命周期；界面约束由 [UISPEC.MD](../UISPEC.MD) 维护，逐项覆盖见 [工具界面](TOOL-INTERFACES.md) 和 [界面源码审查](UI-DESIGN-REVIEW.md)。开发与检查范围以 [AGENTS.md](../AGENTS.md) 为准。
+更新：2026-10-13。本文记录当前模块、依赖方向与生命周期；界面约束由 [UISPEC.MD](../UISPEC.MD) 维护，逐项覆盖见 [工具界面](TOOL-INTERFACES.md)，历史源码审查见 [界面源码审查](UI-DESIGN-REVIEW.md)。开发与检查范围以 [AGENTS.md](../AGENTS.md) 为准。
 
 ## 模块与依赖
 
 | 模块 | 职责 | 边界与入口 |
 | --- | --- | --- |
 | `AvaMedia.Core` | 工具目录、媒体参数与校验、任务计划与执行、队列、存储、模型与结果 | 不引用 Avalonia；`Catalog.All`、`QueueService`、`Storage`、`MediaEngine` |
-| `AvaMedia.Mcp` | 本地 MCP HTTP 服务、工具协议、文件与请求校验 | 只引用 Core；通过 `IMcpWorkspace` 接入宿主的真实队列，不创建另一份队列 |
-| `AvaMedia.Desktop` | 窗口、预览、皮肤、交互、平台播放、应用级下载与通知 | 引用 Core / MCP；`MainWindow` 组合服务，`DesktopMcpWorkspace` 将外部操作调度到既有入口 |
+| `AvaMedia.Controls` | 通用控件、具名主题、默认令牌与动效契约 | 仅依赖 Avalonia / Themes.Simple，可独立打包，不引用业务项目 |
+| `AvaMedia.FileUi` | 文件浏览、路径输入、文件树与导入操作 | 引用 Controls / Avalonia，通过 `IFileBrowserSource` 接入本地或服务器目录，不引用 Core / Desktop |
+| `AvaMedia.MediaUi` | 剪辑时间线、预览、裁剪与区域编辑等共享控件 | 仅依赖 Avalonia；通过宿主提供的媒体数据与回调工作 |
+| `AvaMedia.Mcp` | MCP HTTP 服务、网页接口、文件与请求校验、服务器媒体预览 | 引用 Core / ASP.NET Core；通过 `IMcpWorkspace` 接入宿主的真实队列，不创建另一份队列 |
+| `AvaMedia.Desktop` | 窗口、预览、皮肤、交互、平台播放、应用级下载与通知 | 引用 Core / MCP / Controls / FileUi / MediaUi；`MainWindow` 组合服务，`DesktopMcpWorkspace` 将外部操作调度到既有入口 |
+| `AvaMedia.Browser` | Avalonia WebAssembly 远程管理客户端 | 引用 FileUi / MediaUi；通过 HTTP 操作服务器文件与队列，不把 Core 的本地进程、磁盘或推理服务带入浏览器 |
 | `AvaMedia.Bootstrap` | CLR 启动前的运行时安装、原生首次配置与启动 | Windows C / macOS Objective-C；通过待应用配置交接给 `FirstRunSetup`，不承载媒体业务 |
 | `scripts/`、平台打包目录 | 编译、媒体工具构建、安装器与 Release | 版本、品牌与依赖配方统一；发布流程见 [RELEASE.md](RELEASE.md) |
 | `tests/`、`docs/acceptance/` | 专项验证入口与注明环境的历史证据 | 不参与产品运行；存在验证入口不表示默认执行，也不表示当前版本已验收 |
@@ -17,8 +21,15 @@
 flowchart LR
   Bootstrap[原生 Bootstrap] -->|启动| Desktop[Avalonia Desktop]
   Desktop -->|项目引用| Core[AvaMedia.Core]
+  Desktop -->|项目引用| Controls[AvaMedia.Controls]
+  Desktop -->|项目引用| FileUi[AvaMedia.FileUi]
+  Desktop -->|项目引用| MediaUi[AvaMedia.MediaUi]
+  FileUi -->|项目引用| Controls
   Desktop -->|托管服务| Mcp[AvaMedia.Mcp]
   Mcp -->|项目引用| Core
+  Browser[Avalonia Browser] -->|项目引用| FileUi
+  Browser -->|项目引用| MediaUi
+  Browser -->|HTTP| Mcp
   Client[外部 AI 客户端] -->|本地 HTTP / MCP| Mcp
   Mcp -->|IMcpWorkspace| Workspace[DesktopMcpWorkspace]
   Workspace -->|调度既有入口| Desktop
@@ -26,9 +37,11 @@ flowchart LR
 
 项目依赖单向；图中的 MCP 回调是宿主注入的接口实现，不是 MCP 对 Desktop 的程序集引用。服务配置、认证和工具契约见 [MCP](MCP.md)。
 
+Browser 从 Core 的 `AiProgressContract.cs` 提取共享 DTO 声明，并链接桌面的 Lucide 与语言资源；这些共享源不构成对 Desktop / Core 程序集的引用。Browser 的发布 `wwwroot` 由桌面项目复制并通过同一 HTTP 服务提供；普通桌面编译不会自动生成浏览器发布资源。`website/` 是独立宣传页，不承担远程管理。
+
 ## 工具、任务与结果流转
 
-`Catalog.All` 是工具 ID、分类、输出格式和 Beta 状态的来源。`FeatureNavigation` 组织工具箱用途分组，`MediaFileRouter.Accepts / Routes` 决定文件接收条件，`MainWindow.Configure` 打开对应工作区。格式别名可以共用一个路由卡片；链接下载和设备输入有独立入口。不能从路由卡片数推断工具数量。
+`Catalog.All` 是工具 ID、分类和输出格式的来源，`Catalog.IsBeta` 定义工具的 Beta 标记。`FeatureNavigation` 将目录的六类映射为侧栏五类单开手风琴，光盘作为工具集内的分组，内部后台任务隐藏。`MediaFileRouter.Accepts / Routes` 决定文件接收条件，`MainWindow.Configure` 打开对应工作区。格式别名可以共用一个路由卡片；链接下载和设备输入有独立入口。不能从路由卡片数推断工具数量。
 
 ```mermaid
 flowchart LR
@@ -54,8 +67,8 @@ flowchart LR
 
 | 层 | 实现入口 | 责任 |
 | --- | --- | --- |
-| 基础模板 | `App.axaml` → `SimpleTheme` | 控件行为、命名部件、焦点及基本状态 |
-| 语义资源 | `Styles/UiStyles.axaml` | 表面、文字、状态色、字体、尺寸、间距及默认模板引用 |
+| 基础模板与通用组件 | `App.axaml` → `SimpleTheme` → `AvaMedia.Controls/Themes/Components.axaml` | 控件行为、具名主题、组合控件、默认令牌、焦点及基本状态 |
+| 语义与平台资源 | `Styles/UiStyles.axaml`、`PlatformTokenLayer`、`Styles/ComponentSkins.axaml` | 表面、文字、状态色、平台字体与度量、皮肤资源覆盖 |
 | 组件角色 | `Styles/ControlRoles.axaml`、`Ui` | `primary`、`dialog-action`、`field-action`、`transport`、时间、预览与字段名称 |
 | 工作区约束 | `EditorStyles`、`PlayerStyles`、`SettingsStyles`、`VideoSummaryStyles` | 本工作区的对齐与结构，不复制通用皮肤指标 |
 | 皮肤 | `Skin`、`Platinum*.axaml`、`WindowsXP*.axaml` | 应用主题、经典控件与窗口装饰；按需加载经典资源 |
@@ -109,7 +122,7 @@ flowchart LR
 
 编辑器与播放器共用 `PreviewRequest` 的过期取消、`MediaFrameView` 的位图所有权及 `EditorTime` 的刷新节流。`MediaPreviewCache` 的标识含源路径、大小、修改时间、轨道、尺寸、定位方式及工具路径；相同请求合并生成，视频预览最多两个并发。单项上限 8 MB，总体 16 MB 内存 / 128 MB 磁盘；媒体探测仅在内存中限量保留。
 
-`PresentationVisible` 控制视频像素交付；隐藏 / 最小化保留时钟和音频，恢复沿用当前会话。BGRA 使用池化帧缓冲；时间文字与滑块最多每秒刷新十次，画面按源帧率呈现。`ProcessRunner.StartAsync` 把进程创建移出 UI 线程；已在后台的播放解码仍使用同步创建。探测完整读取结构化 JSON，普通进程日志保留长度限制。
+`PresentationVisible` 控制视频像素交付；隐藏 / 最小化保留时钟和音频，恢复沿用当前会话。BGRA 缓冲由播放会话持有并复用，释放随会话结束；时间文字与滑块最多每秒刷新十次，画面按源帧率呈现。`ProcessRunner.StartAsync` 把进程创建移出 UI 线程；已在后台的播放解码仍使用同步创建。探测完整读取结构化 JSON，普通进程日志保留长度限制。
 
 ### 模型与数据
 

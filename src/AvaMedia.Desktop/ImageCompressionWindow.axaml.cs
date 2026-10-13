@@ -130,13 +130,13 @@ public sealed partial class ImageCompressionWindow : Window
     }
     private void SetOptions(ImageCompressionOptions options)
     {
-        FormatCombo.SelectedIndex = options.Format switch { "jpg" => 1, "png" => 2, _ => 0 };
+        FormatCombo.SelectedIndex = options.Format switch { "webp" => 1, "jpg" or "jpeg" => 2, "png" => 3, "bmp" => 4, _ => 0 };
         QualityInput.Value = options.Quality; LosslessInput.IsChecked = options.Lossless;
         ResizeInput.IsChecked = options.MaxDimension > 0; EdgeInput.Value = options.MaxDimension > 0 ? options.MaxDimension : 1920;
         PresetCombo.SelectedIndex = options == new ImageCompressionOptions() ? 0 :
             options == new ImageCompressionOptions { Quality = 65, MaxDimension = 1920 } ? 1 :
             options == new ImageCompressionOptions { Quality = 92 } ? 2 :
-            options == new ImageCompressionOptions { Quality = 100, Lossless = true } ? 3 : 4;
+            options == new ImageCompressionOptions { Format = "webp", Quality = 100, Lossless = true } ? 3 : 4;
     }
     private void PresetChanged(object? sender, SelectionChangedEventArgs args)
     {
@@ -146,7 +146,7 @@ public sealed partial class ImageCompressionWindow : Window
         {
             1 => new() { Quality = 65, MaxDimension = 1920 },
             2 => new() { Quality = 92 },
-            3 => new() { Quality = 100, Lossless = true },
+            3 => new() { Format = "webp", Quality = 100, Lossless = true },
             _ => new()
         });
         _initializing = false; ParametersChanged(PresetCombo, null!);
@@ -236,7 +236,7 @@ public sealed partial class ImageCompressionWindow : Window
             if (entry.Result is { } old) DeletePreview(old.Path);
             entry.SetResult(null);
             Directory.CreateDirectory(_temporary);
-            var output = Path.Combine(_temporary, Guid.NewGuid().ToString("N") + "." + options.Format);
+            var output = Path.Combine(_temporary, Guid.NewGuid().ToString("N") + "." + SourceOutput.ImageFormat(options.Format, entry.Path, compression: true));
             var result = await _compressor.CompressAsync(entry.Path, output, options, token, keepLargerPreview: true);
             token.ThrowIfCancellationRequested();
             entry.SetResult(result); entry.ResultOptions = options;

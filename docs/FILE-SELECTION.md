@@ -6,7 +6,7 @@
 
 ## 共享组件
 
-`src/AvaMedia.FileUi` 仅依赖 Avalonia，不引用 Desktop、Core、FFmpeg 或本地 AI 库。
+`src/AvaMedia.FileUi` 依赖 Avalonia 和 AvaMedia.Controls，不引用 Desktop、Core、FFmpeg 或本地 AI 库。
 
 - `FileBrowserView`：原有浏览组件，提供常用位置 / 目录树、路径导航、普通列表、隐藏文件开关、文件类型、单选和多选。嵌入端沿用原有 Compact 呈现。
 - `PathInput`：浏览地址默认显示末两级名称，超长部分省略；悬停查看完整路径，点击编辑完整地址。编辑时 Esc 恢复原值，Enter 确认。目录导航失败后恢复当前目录的地址，避免地址与列表不一致。网页任务的输出目录、分类复制目标和字幕等参数通过独立文件树选择，采用只读紧凑路径显示，不要求手填路径。

@@ -19,7 +19,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     public static void Validate(Job job)
     {
         if (job.Inputs.Length != 1) throw new ArgumentException("每个字幕任务处理一个文件。");
-        if (job.Options.Format is not ("mp4" or "mkv" or "srt" or "ass")) throw new ArgumentException("自动字幕支持 MP4、MKV、SRT 和 ASS。");
+        if (job.Options.Format is not ("srt" or "ass") && !VideoFormats.OriginalOutputExtensions.Contains(job.Options.Format)) throw new ArgumentException("请选择支持的视频容器、SRT 或 ASS。");
         (job.Options.Transcription ?? new()).Validate();
         if (job.Options.Transcription?.RecognitionOnly == true && job.Options.Format != "srt")
             throw new ArgumentException("后台识别任务使用 SRT 草稿。");
@@ -75,8 +75,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         activity.Stage("读取音轨");
         var info = sourceInfo ?? await engine.Probe(job.Inputs[0], ct, options.VideoStreamIndex, options.AudioStreamIndex).ConfigureAwait(false);
         if (!info.HasAudio || info.Duration <= 0) throw new ArgumentException("文件没有可识别的音轨或有效时长。");
-        if (options.Format is "mp4" or "mkv" && !info.HasVideo) throw new ArgumentException("音频文件请选择 SRT 或 ASS 字幕输出。");
-        if (options.Format is "mp4" or "mkv")
+        if (options.Format is not ("srt" or "ass") && !info.HasVideo) throw new ArgumentException("音频文件请选择 SRT 或 ASS 字幕输出。");
+        if (options.Format is not ("srt" or "ass"))
         {
             var filters = await ProcessRunner.Run(engine.FFmpeg, ["-hide_banner", "-filters"], ct).ConfigureAwait(false);
             if (filters.ExitCode != 0 || !System.Text.RegularExpressions.Regex.IsMatch(filters.Output + filters.Error, @"\bsubtitles\b"))

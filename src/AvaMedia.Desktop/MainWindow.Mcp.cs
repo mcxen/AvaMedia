@@ -59,6 +59,7 @@ public partial class MainWindow
         }).GetTask();
 
         private Job Find(Guid id) => owner._jobs.FirstOrDefault(job => job.Id == id) ?? throw new ArgumentException("任务不存在：" + id);
+        public Task<ConversionOptions> OptionsAsync(Guid id, CancellationToken ct) => Ui(() => Find(id).Options.Clone(), ct);
         private McpTaskView View(Job job)
         {
             var activity = job.Activity;

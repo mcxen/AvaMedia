@@ -5,7 +5,7 @@ namespace AvaMedia.Core;
 
 public sealed record PersonClipTaskOptions
 {
-    public const string DefaultExportPreset = "MP4";
+    public const string DefaultExportPreset = SourceOutput.Original;
     public PersonClipOptions Detection { get; init; } = new();
     public string ExportPreset { get; init; } = DefaultExportPreset;
     public bool AnalysisOnly { get; init; }

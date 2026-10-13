@@ -47,7 +47,7 @@ public partial class VideoCompressionWindow : Window
     private bool _closed;
     private bool _updatingControls;
     private static readonly int[] CommonBitrates = [0, 500, 1000, 2000, 4000, 8000, 12000, 20000];
-    private static readonly string[] Formats = ["mp4", "mov", "m4v", "mkv", "ts"];
+    private static readonly string[] Formats = [SourceOutput.Original, .. SourceOutput.CompressionVideoFormats];
 
     public VideoCompressionWindow() : this(new MediaEngine(new()), "", []) { }
     public VideoCompressionWindow(IMediaEngine engine, string outputFolder, string[] files, VideoCompressionOptions? initial = null, bool editing = false)
@@ -73,7 +73,7 @@ public partial class VideoCompressionWindow : Window
         SpeedInput.ItemsSource = new[] { "快速编码", "均衡", "慢速编码" };
         BitratePresetInput.ItemsSource = new[] { "自定义码率", "500 kbps", "1000 kbps（1 Mbps）", "2000 kbps（2 Mbps）",
             "4000 kbps（4 Mbps）", "8000 kbps（8 Mbps）", "12000 kbps（12 Mbps）", "20000 kbps（20 Mbps）" };
-        FormatInput.ItemsSource = new[] { "MP4", "MOV（QuickTime）", "M4V（Apple 视频）", "MKV", "TS（MPEG-TS）" };
+        FormatInput.ItemsSource = Formats.Select(format => format == SourceOutput.Original ? format : format.ToUpperInvariant()).ToArray();
         CodecInput.ItemsSource = new[] { "H.264（兼容性优先）", "HEVC（H.265）" };
         ResolutionInput.ItemsSource = new[] { "保持原分辨率", "最长边 1920", "最长边 1280", "最长边 854" };
         FrameRateInput.ItemsSource = new[] { "保持原帧率", "不超过 30 fps", "不超过 24 fps" };
@@ -241,7 +241,7 @@ public partial class VideoCompressionWindow : Window
             {
                 entry.Plan = null; entry.Error = entry.InspectionError;
                 if (entry.Info is { } source && entry.Error.Length == 0)
-                    try { entry.Plan = VideoCompression.Plan(entry.Bytes, source, options); }
+                    try { entry.Plan = VideoCompression.Plan(entry.Bytes, source, options with { Format = SourceOutput.VideoFormat(options.Format, entry.Path, compression: true) }); }
                     catch (ArgumentException exception) { entry.Error = exception.Message; }
                 entry.Refresh();
             }
@@ -311,7 +311,7 @@ public partial class VideoCompressionWindow : Window
             foreach (var entry in available)
             {
                 if (!File.Exists(entry.Path)) throw new FileNotFoundException("源视频已移走，请重新添加。", entry.Path);
-                _ = VideoCompression.Plan(new FileInfo(entry.Path).Length, entry.Info!, options);
+                _ = VideoCompression.Plan(new FileInfo(entry.Path).Length, entry.Info!, options with { Format = SourceOutput.VideoFormat(options.Format, entry.Path, compression: true) });
             }
             var folder = SourceFolderInput.IsChecked == true ? Path.GetDirectoryName(available[0].Path)! : OutputInput.Text;
             if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("请选择输出目录。");

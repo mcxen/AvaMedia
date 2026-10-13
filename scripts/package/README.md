@@ -1,5 +1,7 @@
 # 天池万象转换 · AvaMedia
 
+<!-- 安装包首页模板：Bundle-UserDocuments.ps1 将本文件复制为包根目录 README.md，以下相对链接按包根目录解析。仓库阅读入口为 ../../README.md。 -->
+
 使用方法与功能限制见 [功能说明](docs/FEATURES.md)。
 
 - 安装与配置：[Windows / macOS](docs/PLATFORMS.md)、[Linux](docs/LINUX.md)、[首次使用](docs/FIRST-RUN-SETUP.md)、[设置](docs/SETTINGS.md)。
