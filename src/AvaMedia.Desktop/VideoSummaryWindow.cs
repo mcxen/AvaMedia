@@ -16,6 +16,7 @@ public sealed class VideoSummaryWindow : Window
 {
     private readonly LocalModelWarmupController _modelWarmup;
     private readonly IMediaEngine _engine;
+    private readonly string _localSummaryModelId;
     private readonly ObservableCollection<string> _files = [];
     private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SummaryFiles", MinHeight = 96, MaxHeight = 180, SelectionMode = SelectionMode.Multiple };
@@ -56,6 +57,7 @@ public sealed class VideoSummaryWindow : Window
         string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null, bool allowResume = false)
     {
         _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new Storage().LoadToolOptions<VideoSummaryOptions>("video-summary") ?? new() { ExtractSubtitles=false, AnalyzeContent=false,Speech=new(){Model=SpeechModel.Base} };
+        _localSummaryModelId = options.LocalSummaryModelId;
         _modelWarmup = new(this, engine, engine.Settings);
         Title = _editing ? "编辑任务 · 视频总结" : "视频总结";
         Width = 920; Height = 640; MinWidth = 760; MinHeight = 520;
@@ -267,6 +269,7 @@ public sealed class VideoSummaryWindow : Window
         var options = new VideoSummaryOptions {
             Provider = (VideoSummaryProvider)_provider.SelectedIndex,
             LocalVisionModelId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id,
+            LocalSummaryModelId = _localSummaryModelId,
             OnlineProviderId = (_onlineProvider.SelectedItem as OnlineProviderChoice)?.Id ?? "",
             ExtractAbstract = _abstract.IsChecked == true, SummarizeContent = _summary.IsChecked == true,
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
@@ -310,8 +313,8 @@ public sealed class VideoSummaryWindow : Window
         _confirm.IsEnabled = !_busy && _files.Count > 0 && (ai || _subtitles.IsChecked == true);
         _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
         _modelWarmup?.Update(ai && !online ? (_frames.IsChecked == true
-            ? new[] { (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryTextId }
-            : [ModelCatalog.SummaryTextId]) : [], _files.FirstOrDefault());
+            ? new[] { (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id, _localSummaryModelId }.Distinct().ToArray()
+            : [_localSummaryModelId]) : [], _files.FirstOrDefault());
         _localRuntime.IsVisible = ai && !online;
         var visionId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id;
         if (_runtimeVisionId != visionId)
@@ -319,7 +322,7 @@ public sealed class VideoSummaryWindow : Window
             _runtimeVisionId = visionId; _localRuntime.Children.Clear();
             var store = new ModelStore();
             _localRuntime.Children.Add(new ModelRuntimeView(store.Root, visionId, "画面"));
-            var text = new ModelRuntimeView(store.Root, ModelCatalog.SummaryTextId, "文本"); Grid.SetColumn(text, 1); _localRuntime.Children.Add(text);
+            var text = new ModelRuntimeView(store.Root, _localSummaryModelId, "文本"); Grid.SetColumn(text, 1); _localRuntime.Children.Add(text);
             Grid.SetColumn(_warmAction, 2); _localRuntime.Children.Add(_warmAction);
         }
         _localRuntime.Children[0].IsVisible = _frames.IsChecked == true;
