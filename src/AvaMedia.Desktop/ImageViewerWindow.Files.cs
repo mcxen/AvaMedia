@@ -9,7 +9,7 @@ public sealed partial class ImageViewerWindow
     {
         if (_entries.Length == 0) return Task.CompletedTask;
         var window = new ImageViewerExportWindow(_entries, Math.Max(0, _index), _viewport.Rotation, _viewport.Flipped);
-        return window.ShowDialog(this);
+        return Controls.WindowChrome.ShowIndependentAsync(window);
     }
     private async Task TransferAsync(bool move)
     {

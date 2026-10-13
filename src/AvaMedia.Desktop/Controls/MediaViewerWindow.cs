@@ -50,8 +50,7 @@ internal static class MediaViewerWindow
             window.Position = new PixelPoint(area.X + Math.Max(0, (area.Width - (int)Math.Round(window.Width * scale)) / 2),
                 area.Y + Math.Max(0, (area.Height - (int)Math.Round(window.Height * scale)) / 2));
         }
-        // An owner makes macOS media windows fullscreen auxiliaries and keeps them above the task window.
-        window.Show();
+        WindowChrome.ShowIndependent(window);
         window.Activate();
     }
 }

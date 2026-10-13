@@ -96,7 +96,7 @@ public sealed partial class App
                 new("功能介绍", () =>
                 {
                     if (window is MainWindow main) main.ShowNativeHelp();
-                    else new HelpWindow().Show(window);
+                    else Controls.WindowChrome.ShowIndependent(new HelpWindow());
                 }, () => window.IsEnabled)
             ])
         ];

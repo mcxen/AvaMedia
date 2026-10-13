@@ -51,7 +51,7 @@ internal static class ToolExecution
         var completion = new TaskCompletionSource<T?>(TaskCreationOptions.RunContinuationsAsynchronously);
         Completions.Add(window, new(value => completion.TrySetResult(value as T)));
         window.Closed += (_, _) => { Completions.Remove(window); completion.TrySetResult(null); };
-        window.Show(owner);
+        Controls.WindowChrome.ShowIndependent(window);
         return completion.Task;
     }
 

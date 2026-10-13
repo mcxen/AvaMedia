@@ -157,12 +157,12 @@ public sealed partial class App : Application
                     if (sheetIndex >= 0)
                     {
                         var empty = new ContactSheetWindow(window.Engine, Path.Combine(root, "output"));
-                        empty.Show(window); await Task.Delay(200);
+                        Controls.WindowChrome.ShowIndependent(empty); await Task.Delay(200);
                         await Capture(empty, Path.Combine(root, "impl-empty.png")); empty.Close();
                         var inputs = sheetIndex + 1 < desktop.Args.Length
                             ? BatchVideoTools.CollectVideos([desktop.Args[sheetIndex + 1]], true) : [];
                         var sheet = new ContactSheetWindow(window.Engine, Path.Combine(root, "output"), inputs);
-                        sheet.Show(window); await Task.Delay(400);
+                        Controls.WindowChrome.ShowIndependent(sheet); await Task.Delay(400);
                         await Capture(sheet, Path.Combine(root, "impl-loading.png"));
                         await Task.WhenAll(sheet.PreviewReady, sheet.FilmReady);
                         await Capture(sheet, Path.Combine(root, "impl-preview.png")); sheet.Close();
@@ -174,16 +174,16 @@ public sealed partial class App : Application
                     if (clipIndex >= 0 && desktop.Args.Length > clipIndex + 1)
                     {
                         var clip = new EditorWindow(window.Engine, desktop.Args[clipIndex + 1], new(), "quick-workflow");
-                        clip.SetWorkflowStep(1,1);clip.Show(window);await clip.Ready;await Task.Delay(300);
+                        clip.SetWorkflowStep(1,1);Controls.WindowChrome.ShowIndependent(clip);await clip.Ready;await Task.Delay(300);
                         await Capture(clip,Path.Combine(root,"quick-clip.png"));var edit=clip.ReadClipEdit();clip.Close();
-                        var export = new ClipExportWindow([edit],Path.Combine(root,"output"));export.Show(window);await Task.Delay(200);
+                        var export = new ClipExportWindow([edit],Path.Combine(root,"output"));Controls.WindowChrome.ShowIndependent(export);await Task.Delay(200);
                         await Capture(export,Path.Combine(root,"quick-clip-export.png"));export.Close();
                     }
                     var rotateIndex = Array.IndexOf(desktop.Args, "--batch-rotate");
                     if (rotateIndex >= 0 && desktop.Args.Length > rotateIndex + 1)
                     {
                         var rotate = new BatchRotateWindow(window.Engine, Path.Combine(root, "output"), [desktop.Args[rotateIndex + 1]]);
-                        rotate.Show(window); await rotate.Ready;
+                        Controls.WindowChrome.ShowIndependent(rotate); await rotate.Ready;
                         if (desktop.Args.Contains("--detect-orientation")) await rotate.DetectDirectionsAsync();
                         await Task.Delay(300);
                         await Capture(rotate, Path.Combine(root, "batch-rotate.png"));
@@ -196,7 +196,7 @@ public sealed partial class App : Application
                     if (index >= 0 && desktop.Args.Length > index + 1)
                     {
                         var editor = new EditorWindow(window.Engine, desktop.Args[index + 1], new ConversionOptions());
-                        editor.Show(window);
+                        Controls.WindowChrome.ShowIndependent(editor);
                         await editor.Ready;
                         await Task.Delay(700);
                         await Capture(editor, Path.Combine(root, "editor.png"));

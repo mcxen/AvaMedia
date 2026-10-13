@@ -47,9 +47,9 @@ public sealed partial class SettingsWindow
         if (!_settings.ExclusiveToolUnlocked) return;
         try
         {
-            for (var owner = Owner; owner is not null; owner = owner.Owner)
-                if (owner is MainWindow main) { await main.OpenExclusiveRenamerAsync(this); return; }
-            await new ExclusiveRenamerWindow(new MediaEngine(_settings), _settings).ShowDialog(this);
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime { MainWindow: MainWindow main })
+            { await main.OpenExclusiveRenamerAsync(this); return; }
+            await Controls.WindowChrome.ShowIndependentAsync(new ExclusiveRenamerWindow(new MediaEngine(_settings), _settings));
         }
         catch (Exception error) { await Ui.Message(this, "专属重命名工具", error.Message); }
     }

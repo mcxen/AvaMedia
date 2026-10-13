@@ -123,7 +123,7 @@ public partial class MainWindow : Window
         }
         if(feature.Operation==Operation.Info)
         {
-            files??=await Ui.Pick(this,"选择媒体文件",true);new MediaInfoWindow(Engine,files).Show(this);return;
+            files??=await Ui.Pick(this,"选择媒体文件",true);Controls.WindowChrome.ShowIndependent(new MediaInfoWindow(Engine,files));return;
         }
         if(feature.Operation==Operation.Player)
         {
@@ -194,7 +194,7 @@ public partial class MainWindow : Window
         var w=new SettingsWindow(_settings,_optionServices);
         w.SetMcpStatus(() => _mcp?.Status ?? "已关闭"); w.SetMcpClients(() => _mcp?.RecentClients ?? []);
         w.Applied+=(_,_)=>ApplyOptions();
-        await w.ShowDialog<bool>(owner);
+        await Controls.WindowChrome.ShowIndependentAsync(w);
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
@@ -270,7 +270,7 @@ public partial class MainWindow : Window
         if(_helpWindow is { } existing){existing.Activate();return;}
         _helpWindow=new HelpWindow();
         _helpWindow.Closed+=(_,_)=>_helpWindow=null;
-        _helpWindow.Show(this);
+        Controls.WindowChrome.ShowIndependent(_helpWindow);
     }
     private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {

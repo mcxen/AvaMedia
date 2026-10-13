@@ -12,10 +12,10 @@ public partial class MainWindow
             var settings = new SettingsWindow(_settings, _optionServices);
             if (online) settings.OpenOnlineAiSettings(); else settings.OpenModelManagement();
             settings.Applied += (_, _) => ApplyOptions();
-            await settings.ShowDialog<bool>(tool);
+            await Controls.WindowChrome.ShowIndependentAsync(settings);
         }
         var window = new ExclusiveRenamerWindow(Engine, _settings, Configure, _queue.ReserveFiles);
         window.Renamed += SynchronizeFileChanges;
-        await window.ShowDialog(owner);
+        await Controls.WindowChrome.ShowIndependentAsync(window);
     }
 }

@@ -84,7 +84,7 @@ internal static class ToolFilePicker
         // Retain owner lifetime, but show an ordinary independent window rather than a modal sheet.
         void OwnerClosed(object? sender, EventArgs args) => dialog.Close();
         owner.Closed += OwnerClosed;
-        try { dialog.Show(owner); return await completion.Task; }
+        try { Controls.WindowChrome.ShowIndependent(dialog); return await completion.Task; }
         finally { owner.Closed -= OwnerClosed; }
     }
 

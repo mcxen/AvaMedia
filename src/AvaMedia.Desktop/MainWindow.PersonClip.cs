@@ -11,7 +11,7 @@ public partial class MainWindow
         {
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(modelId); settings.Applied += (_, _) => ApplyOptions();
-            await settings.ShowDialog<bool>(owner);
+            await Controls.WindowChrome.ShowIndependentAsync(settings);
         }
         var folder = editing is null || editing.HasInternalOutput ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!;
         var window = new PersonClipWindow(Engine, _settings, files, ManageModels, folder,

@@ -33,7 +33,7 @@ public partial class MainWindow
         if (_closing) return;
         if (!IsVisible) RestoreFromTray();
         var window = new SettingsWindow(_settings, _optionServices); window.OpenModelManagement();
-        window.Applied += (_, _) => ApplyOptions(); await window.ShowDialog<bool>(this);
+        window.Applied += (_, _) => ApplyOptions(); await Controls.WindowChrome.ShowIndependentAsync(window);
     }
     private bool CanRetryNotification(Job[] jobs) => jobs.Any(job => _jobs.Contains(job) && CanRequeueTask(job)
         && (job.CanRetry || job.State == JobState.Completed));

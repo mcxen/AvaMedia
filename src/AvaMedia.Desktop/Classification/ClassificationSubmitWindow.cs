@@ -282,7 +282,8 @@ public sealed class ClassificationSubmitWindow : Window
     private async Task OpenAdvancedAsync()
     {
         // The full rule editor stays in the advanced window; it reuses the same saved preferences.
-        if (Owner is MainWindow main) main.OpenAdvancedClassification(_sources.Select(s => s.Path).ToArray());
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime { MainWindow: MainWindow main })
+            main.OpenAdvancedClassification(_sources.Select(s => s.Path).ToArray());
         Close(); await Task.CompletedTask;
     }
 

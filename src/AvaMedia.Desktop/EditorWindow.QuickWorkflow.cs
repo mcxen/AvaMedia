@@ -307,9 +307,7 @@ public partial class EditorWindow
         var job = new Job { FeatureId = "rotate", Inputs = [_path], Options = new() { Format = "json", VideoStreamIndex = _options.VideoStreamIndex,
             Orientation = new(SourceVideoExport.Original, _engine.Settings.OutputFolder, _engine.Settings.OutputToSource, _engine.Settings.AddSettingName) } };
         job.Output = AiTaskResults.InternalOutputFor(job); _directionJob = job;
-        _directionOwner = null;
-        for (var owner = Owner as Window; owner is not null; owner = owner.Owner as Window)
-            if (owner is MainWindow main) { _directionOwner = main; break; }
+        _directionOwner = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow as MainWindow;
         DetectDirectionButton.IsEnabled = false; CancelDetectionButton.IsVisible = true; ApplyDirectionButton.IsEnabled = false; _directionResult = null;
         DirectionStatus.Text = "后台检测中 · 关闭此窗口后继续运行";
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

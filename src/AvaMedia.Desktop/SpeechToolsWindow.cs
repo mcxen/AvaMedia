@@ -108,7 +108,7 @@ public sealed partial class SpeechToolsWindow : Window
             var preview = Ui.Button("试听原声和增强效果…", async () =>
             {
                 if (_busy || _sources.SelectedItem is not string path) return;
-                try { var options = _initial.Clone(); _voice.ReadInto(options); await new VoicePreviewWindow(_engine, path, options).ShowDialog(this); }
+                try { var options = _initial.Clone(); _voice.ReadInto(options); await Controls.WindowChrome.ShowIndependentAsync(new VoicePreviewWindow(_engine, path, options)); }
                 catch (Exception error) { _notice.Text = error.Message; }
             });
             preview.VerticalAlignment = VerticalAlignment.Top; Grid.SetColumn(preview, 1); voiceRow.Children.Add(preview);

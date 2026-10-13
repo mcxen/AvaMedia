@@ -10,16 +10,16 @@ public partial class MainWindow
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement();
             settings.Applied += (_, _) => ApplyOptions();
-            await settings.ShowDialog<bool>(owner);
+            await Controls.WindowChrome.ShowIndependentAsync(settings);
         }
         if (screenshots)
         {
-            new ContactSheetWindow(Engine, _settings.OutputFolder, files).Show(this);
+            Controls.WindowChrome.ShowIndependent(new ContactSheetWindow(Engine, _settings.OutputFolder, files));
             return Task.CompletedTask;
         }
         var window = new RenameWindow(Engine, _settings, files, manageModels: ManageModels, reserveFiles: _queue.ReserveFiles);
         window.Renamed += SynchronizeFileChanges;
-        window.Show(this);
+        Controls.WindowChrome.ShowIndependent(window);
         return Task.CompletedTask;
     }
 }

@@ -13,7 +13,7 @@ public partial class MainWindow
         try
         {
             var folder = job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job);
-            new VideoSummaryResultWindow(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport, summaryJob: job).Show(this);
+            Controls.WindowChrome.ShowIndependent(new VideoSummaryResultWindow(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport, summaryJob: job));
         }
         catch (Exception error) { await Ui.Message(this, "视频总结结果", error.Message); }
     }
@@ -31,12 +31,12 @@ public partial class MainWindow
             {
                 var settings = new SettingsWindow(_settings, _optionServices);
                 settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-                await settings.ShowDialog<bool>(owner);
+                await Controls.WindowChrome.ShowIndependentAsync(settings);
             }, async owner =>
             {
                 var settings = new SettingsWindow(_settings, _optionServices);
                 settings.OpenOnlineAiSettings(); settings.Applied += (_, _) => ApplyOptions();
-                await settings.ShowDialog<bool>(owner);
+                await Controls.WindowChrome.ShowIndependentAsync(settings);
             }, allowResume: editing is not null && editing.State is not (JobState.Completed or JobState.Running or JobState.Stopping));
         var request = await ToolExecution.ShowAsync<ConversionRequest>(this, window);
         if (request is null)

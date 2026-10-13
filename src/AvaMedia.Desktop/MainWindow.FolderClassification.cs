@@ -18,9 +18,9 @@ public partial class MainWindow
         {
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-            await settings.ShowDialog<bool>(owner);
+            await Controls.WindowChrome.ShowIndependentAsync(settings);
         }, ShowClassificationTasks);
-        submit.Show(this); return Task.CompletedTask;
+        Controls.WindowChrome.ShowIndependent(submit); return Task.CompletedTask;
     }
 
     /// <summary>Full rule editor (custom groups, manual review); opened from the compact submit window.</summary>
@@ -34,7 +34,7 @@ public partial class MainWindow
             (task, action) => OpenClassificationWindow(task: task, action: action));
         _classificationRuns[job.Id] = run;
         run.Closed += (_, _) => _classificationRuns.Remove(job.Id);
-        run.Show(this);
+        Controls.WindowChrome.ShowIndependent(run);
     }
 
     private void OpenClassificationWindow(string[]? files = null, Job? task = null, string? action = null)
@@ -51,7 +51,7 @@ public partial class MainWindow
         {
             var settings = new SettingsWindow(_settings, _optionServices);
             settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-            await settings.ShowDialog<bool>(owner);
+            await Controls.WindowChrome.ShowIndependentAsync(settings);
         }, job =>
         {
             foreach (var id in _classificationWindows.Where(pair => ReferenceEquals(pair.Value, window)).Select(pair => pair.Key).ToArray())
@@ -81,7 +81,7 @@ public partial class MainWindow
                 catch (Exception error) { await Ui.Message(window, "打开分类任务失败", error.Message); }
             };
         }
-        window.Show(this);
+        Controls.WindowChrome.ShowIndependent(window);
     }
 
     private void ShowClassificationTasks()

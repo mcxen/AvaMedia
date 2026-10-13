@@ -53,7 +53,7 @@ internal static class ModelNotifications
         else if (desktop.MainWindow is { } owner)
         {
             using var options = new AppOptionsServices(); var preferences = new AvaMedia.Core.Storage().LoadSettings();
-            var window = new SettingsWindow(preferences, options); window.OpenModelManagement(); await window.ShowDialog<bool>(owner);
+            var window = new SettingsWindow(preferences, options); window.OpenModelManagement(); await Controls.WindowChrome.ShowIndependentAsync(window);
         }
     }
 }

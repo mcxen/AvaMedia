@@ -102,7 +102,7 @@ public partial class MainWindow
             () => { _ = Configure(Catalog.Find(job.FeatureId)); }, rotation, () => PauseTask(job), () => AiQueueInfo.Summarize(_jobs), Engine);
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
-        window.Show(this);
+        Controls.WindowChrome.ShowIndependent(window);
         return Task.CompletedTask;
     }
 

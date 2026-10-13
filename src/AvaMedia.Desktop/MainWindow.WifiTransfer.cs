@@ -21,7 +21,7 @@ public partial class MainWindow
             var window = new WifiTransferWindow(ImportWifiFilesAsync);
             _wifiTransferWindow = window;
             window.Closed += (_, _) => _wifiTransferWindow = null;
-            window.Show(this);
+            Controls.WindowChrome.ShowIndependent(window);
         }
         catch (Exception exception) { await Ui.Message(this, "WiFi 传文件", exception.Message); }
     }

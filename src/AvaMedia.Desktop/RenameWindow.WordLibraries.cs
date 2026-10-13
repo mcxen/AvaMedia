@@ -14,7 +14,7 @@ public sealed partial class RenameWindow
         _semanticParameters.Children.Add(Ui.Button("从词库添加…", async () =>
         {
             var picker = new WordLibraryWindow(WordLibraryTarget.Semantic, settings: _settings);
-            await picker.ShowDialog(this);
+            await Controls.WindowChrome.ShowIndependentAsync(picker);
             if (_closed) return;
             ReloadSemanticCandidates();
         }));
