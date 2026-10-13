@@ -3,6 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../AvaMedia.Controls/AvaMedia.Controls.csproj" />
     <PackageReference Include="Avalonia" Version="11.3.22" />
   </ItemGroup>
 </Project>

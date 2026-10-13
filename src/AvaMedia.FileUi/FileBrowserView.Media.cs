@@ -1,9 +1,11 @@
+using AvaMedia.Controls;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -27,14 +29,16 @@ public sealed partial class FileBrowserView
     private Dictionary<FileBrowserKind, int> _kindCounts = [];
     private FileBrowserHistory _recentHistory = new([], [], []);
     private readonly StackPanel _sidebar = new() { Spacing = 2 };
-    private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
+    private sealed record MediaTab(FileBrowserKind Kind, int Count);
+    private readonly SegmentedControl _tabs = new();
+    private readonly SegmentedControl _viewMode = new();
+    private bool _syncingTabs, _syncingMode;
     private readonly StackPanel _recentFolders = new() { Spacing = 8, Margin = new(16, 8) };
     private readonly StackPanel _inspector = new() { Spacing = 4, Margin = new(16) };
     private readonly Border _inspectorHost = new();
     private readonly Border _listHeader = new();
     private Border? _footerHost;
     private Grid? _mediaRoot, _navigationBar;
-    private Button _listMode = null!, _largeMode = null!;
     private VisibleMediaWork<FileBrowserEntry, FileBrowserMedia?>? _mediaWork;
     private FileBrowserCell? _inspectorCell;
     private readonly Dictionary<string, TextBlock> _infoValues = [];
@@ -42,6 +46,18 @@ public sealed partial class FileBrowserView
     private void BuildMediaPicker(IFileBrowserGlyphs? glyphs)
     {
         _glyphs = glyphs;
+        foreach (var segment in new[] { _tabs, _viewMode })
+        {
+            // Host Simple styles also target selected presenters; the shared segmented
+            // component owns its face, so keep its content presenter transparent in every state.
+            foreach (var state in new[] { "", ":selected", ":pointerover", ":focus" })
+                segment.Styles.Add(new Style(selector =>
+                {
+                    var item = selector.OfType<ListBoxItem>();
+                    if (state.Length > 0) item = item.Class(state);
+                    return item.Template().OfType<ContentPresenter>();
+                }) { Setters = { new Setter(ContentPresenter.BackgroundProperty, Brushes.Transparent) } });
+        }
         FileBrowserTheme.Bind(this, BackgroundProperty, "Surface");
         FileBrowserTheme.Bind(this, ForegroundProperty, "Text");
         var root = _mediaRoot = new Grid { RowDefinitions = new("Auto,Auto,*,Auto") };
@@ -51,19 +67,40 @@ public sealed partial class FileBrowserView
         navigation.Children.Add(_back); Grid.SetColumn(_up, 1); navigation.Children.Add(_up);
         var path = new Grid(); path.Children.Add(new ScrollViewer { Content = _crumbs, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled });
         _address.IsVisible = false; path.Children.Add(_address); Grid.SetColumn(path, 2); navigation.Children.Add(path);
-        var mode = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-        _listMode = IconButton("list", "列表视图", () => SetGridModeAsync(false));
-        _largeMode = IconButton("layout-grid", "大图视图", () => SetGridModeAsync(true));
-        mode.Children.Add(_listMode); mode.Children.Add(_largeMode);
-        var modeHost = new Border { Padding = new(2), Child = mode }; FileBrowserTheme.Bind(modeHost, Border.BackgroundProperty, "Fill"); FileBrowserTheme.Bind(modeHost, Border.CornerRadiusProperty, "Radius");
-        Grid.SetColumn(modeHost, 3); navigation.Children.Add(modeHost); root.Children.Add(navigation);
-        var filter = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new(16, 8) };
-        var tabHost = new Border { Padding = new(2), HorizontalAlignment = HorizontalAlignment.Left, Child = _tabs };
-        FileBrowserTheme.Bind(tabHost, Border.BackgroundProperty, "Fill"); FileBrowserTheme.Bind(tabHost, Border.CornerRadiusProperty, "Radius");
-        filter.Children.Add(new ScrollViewer { Content = tabHost, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        _viewMode.ItemsSource = new[] { false, true };
+        _viewMode.ItemTemplate = new FuncDataTemplate<bool>((grid, _) =>
+        {
+            var label = _text(grid ? "大图视图" : "列表视图");
+            var icon = _glyphs?.Glyph(grid ? "layout-grid-muted" : "list-muted") ?? (Control)Label(label);
+            ToolTip.SetTip(icon, label); AutomationProperties.SetName(icon, label);
+            return icon;
+        });
+        _viewMode.SelectionChanged += async (_, _) =>
+        {
+            if (_syncingMode || _viewMode.SelectedItem is not bool grid) return;
+            try { await SetGridModeAsync(grid); } catch (OperationCanceledException) { } catch (Exception error) { ShowError(error); }
+        };
+        AutomationProperties.SetName(_viewMode, _text("视图切换"));
+        Grid.SetColumn(_viewMode, 3); navigation.Children.Add(_viewMode); root.Children.Add(navigation);
+        var filter = new Grid { ColumnDefinitions = new("*,Auto"), Margin = new(16, 10) };
+        _tabs.ItemTemplate = new FuncDataTemplate<MediaTab>((tab, _) =>
+        {
+            if (tab is null) return null;
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
+            row.Children.Add(Label(_text(FileBrowserKinds.Name(tab.Kind))));
+            var count = Label(tab.Count.ToString()); FileBrowserTheme.Bind(count, TextBlock.ForegroundProperty, "Muted"); row.Children.Add(count);
+            return row;
+        });
+        _tabs.SelectionChanged += async (_, _) =>
+        {
+            if (_syncingTabs || _tabs.SelectedItem is not MediaTab tab) return;
+            try { await SetMediaKindAsync(tab.Kind); } catch (OperationCanceledException) { } catch (Exception error) { ShowError(error); }
+        };
+        AutomationProperties.SetName(_tabs, _text("媒体类型"));
+        filter.Children.Add(new ScrollViewer { Content = _tabs, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled });
         var menu = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _types.IsVisible = _options.FileTypes is { Count: > 1 } && !_options.Folders;
-        menu.Children.Add(_types);
+        _types.Classes.Add("ac"); menu.Children.Add(_types);
         var more = IconButton("ellipsis", "更多选项", () => Task.CompletedTask);
         var refresh = new MenuItem { Header = _text("刷新") };
         refresh.Click += async (_, _) => { if (_recent) { await RefreshHistoryAsync(); await ShowRecentAsync(); } else if (CurrentFolder is { } folder) await NavigateAsync(folder, false); };
@@ -73,7 +110,9 @@ public sealed partial class FileBrowserView
         more.ContextMenu = new ContextMenu { ItemsSource = new[] { refresh, hidden, editPath } };
         more.Click += (_, _) => more.ContextMenu.Open(more);
         menu.Children.Add(more); Grid.SetColumn(menu, 1); filter.Children.Add(menu);
-        Grid.SetRow(filter, 1); root.Children.Add(filter);
+        var filterHost = new Border { Child = filter, BorderThickness = new(0, 0, 0, 1) };
+        FileBrowserTheme.Bind(filterHost, Border.BorderBrushProperty, "Line");
+        Grid.SetRow(filterHost, 1); root.Children.Add(filterHost);
 
         var body = new Grid { ColumnDefinitions = new("Auto,*,Auto") };
         _placesColumn.Bind(WidthProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FbSidebarWidth"));
@@ -82,27 +121,42 @@ public sealed partial class FileBrowserView
         body.Children.Add(_placesColumn);
         var files = new Grid { RowDefinitions = new("Auto,Auto,Auto,*") };
         files.Children.Add(_recentFolders);
-        _status.FontSize = 12; _status.Margin = new(18, 10, 18, 6); FileBrowserTheme.Bind(_status, TextBlock.ForegroundProperty, "Muted");
+        _status.FontSize = 12; _status.Margin = new(18, 12, 18, 6); FileBrowserTheme.Bind(_status, TextBlock.ForegroundProperty, "Muted");
         Grid.SetRow(_status, 1); files.Children.Add(_status);
         _listHeader.Child = ListHeader(); _listHeader.IsVisible = false;
         Grid.SetRow(_listHeader, 2); files.Children.Add(_listHeader);
-        _entries.Padding = new(10, 6); _entries.BorderThickness = new(0); _entries.SelectionMode = SelectionMode.Single;
+        _entries.Padding = new(16, 8); _entries.BorderThickness = new(0); _entries.SelectionMode = SelectionMode.Single;
         FileBrowserTheme.Bind(_entries, BackgroundProperty, "Surface");
         _entries.ItemTemplate = new FuncDataTemplate<MediaRow>((row, _) => row is null ? null : RenderMediaRow(row));
-        _entries.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters =
+        // The virtualized item is a layout row, not a selectable file. Give it a neutral
+        // template so host ListBoxItem pointer/selection styles cannot tint the entire row.
+        var rowTheme = new ControlTheme(typeof(ListBoxItem))
         {
-            new Setter(ListBoxItem.PaddingProperty, new Thickness(0)), new Setter(ListBoxItem.MarginProperty, new Thickness(0)),
-            new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent), new Setter(ListBoxItem.FocusableProperty, false)
-        } });
-        // Selection and keyboard focus belong to individual cells, not the virtualized row container.
-        _entries.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>().Template().OfType<ContentPresenter>())
-            { Setters = { new Setter(ContentPresenter.BackgroundProperty, Brushes.Transparent) } });
+            Setters =
+            {
+                new Setter(ListBoxItem.PaddingProperty, new Thickness(0)),
+                new Setter(ListBoxItem.MarginProperty, new Thickness(0)),
+                new Setter(ListBoxItem.FocusableProperty, false),
+                new Setter(ListBoxItem.TemplateProperty, new FuncControlTemplate<ListBoxItem>((item, _) =>
+                {
+                    var presenter = new ContentPresenter
+                    { Background = Brushes.Transparent, BorderThickness = new(0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                    presenter.Bind(ContentPresenter.ContentProperty, new Binding(nameof(ListBoxItem.Content)) { Source = item });
+                    presenter.Bind(ContentPresenter.ContentTemplateProperty, new Binding(nameof(ListBoxItem.ContentTemplate)) { Source = item });
+                    return presenter;
+                }))
+            }
+        };
+        _entries.ItemContainerTheme = rowTheme;
+        // Hosts may explicitly style ListBoxItem.Theme; pin the neutral layout theme on
+        // each realized container so that such a style cannot replace this template.
+        _entries.ContainerPrepared += (_, args) => args.Container.Theme = rowTheme;
         _entries.KeyDown += MediaKeyDown;
         _entries.AddHandler(ScrollViewer.ScrollChangedEvent, (_, _) => QueueVisibleMedia(), RoutingStrategies.Bubble);
         _entries.LayoutUpdated += (_, _) => QueueVisibleMedia();
         _entries.SizeChanged += (_, _) =>
         {
-            var columns = Math.Max(1, (int)Math.Floor((_entries.Bounds.Width - 20) / 170));
+            var columns = Math.Max(1, (int)Math.Floor((_entries.Bounds.Width - 32 + 12) / 180));
             if (_gridMode && columns != _columns) { _columns = columns; RebuildRows(); }
         };
         Grid.SetRow(_entries, 3); files.Children.Add(_entries); Grid.SetColumn(files, 1); body.Children.Add(files);
@@ -110,8 +164,8 @@ public sealed partial class FileBrowserView
         FileBrowserTheme.Bind(_inspectorHost, Border.BackgroundProperty, "Panel"); FileBrowserTheme.Bind(_inspectorHost, Border.BorderBrushProperty, "Line");
         _inspectorHost.BorderThickness = new(1, 0, 0, 0); _inspectorHost.Child = new ScrollViewer { Content = _inspector, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Grid.SetColumn(_inspectorHost, 2); body.Children.Add(_inspectorHost); Grid.SetRow(body, 2); root.Children.Add(body);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), ColumnSpacing = 10, Margin = new(18, 12) };
-        _selectionCount.FontSize = 12.5; _selectionCount.VerticalAlignment = VerticalAlignment.Center; footer.Children.Add(_selectionCount);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), ColumnSpacing = 10, Margin = new(18, 0) };
+        _selectionCount.FontSize = 12.5; _selectionCount.FontWeight = FontWeight.Medium; _selectionCount.TextWrapping = TextWrapping.Wrap; _selectionCount.VerticalAlignment = VerticalAlignment.Center; footer.Children.Add(_selectionCount);
         var external = Button("系统选择…", async () =>
         {
             if (PickExternalAsync is { } pick && await pick() is { Count: > 0 } selected && !_disposed) Selected?.Invoke(selected);
@@ -119,9 +173,9 @@ public sealed partial class FileBrowserView
         var cancel = Button("取消", () => { Cancelled?.Invoke(); return Task.CompletedTask; }); cancel.IsVisible = !_options.Embedded;
         Grid.SetColumn(cancel, 2); footer.Children.Add(cancel);
         _select = Button("打开 0 个文件", () => { Confirm(); return Task.CompletedTask; }); _select.Classes.Add("primary");
-        foreach (var button in new[] { external, cancel, _select }) { button.Classes.Add("dialog-action"); button.MinWidth = 72; FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "ActionRadius"); }
+        foreach (var button in new[] { external, cancel, _select }) { button.Classes.Add("ac"); button.Classes.Add("dialog-action"); if (button != _select) button.Classes.Add("secondary"); button.MinWidth = 72; button.Height = 30; button.Padding = new(18, 0); FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "ActionRadius"); }
         Grid.SetColumn(_select, 3); footer.Children.Add(_select);
-        var footerHost = _footerHost = new Border { Child = footer, BorderThickness = new(0, 1, 0, 0) };
+        var footerHost = _footerHost = new Border { Height = 60, Child = footer, BorderThickness = new(0, 1, 0, 0) };
         FileBrowserTheme.Bind(footerHost, Border.BackgroundProperty, "Panel"); FileBrowserTheme.Bind(footerHost, Border.BorderBrushProperty, "Line");
         Grid.SetRow(footerHost, 3); root.Children.Add(footerHost);
         Content = root;
@@ -140,6 +194,9 @@ public sealed partial class FileBrowserView
     {
         if (_navigationBar is null || _mediaRoot is null || !_mediaRoot.Children.Remove(_navigationBar)) return null;
         FileBrowserTheme.Install(_navigationBar);
+        // Remove the navigation slot as well as its control: the host owns this row now.
+        _mediaRoot.RowDefinitions = new("Auto,*,Auto");
+        foreach (var child in _mediaRoot.Children) Grid.SetRow(child, Grid.GetRow(child) - 1);
         _navigationBar.Margin = new(8, 0); return _navigationBar;
     }
     public bool GridMode => _gridMode;
@@ -159,8 +216,8 @@ public sealed partial class FileBrowserView
     }
     private void UpdateModeButtons()
     {
-        FileBrowserTheme.Bind(_listMode, Avalonia.Controls.Button.BackgroundProperty, _gridMode ? "Fill" : "Surface");
-        FileBrowserTheme.Bind(_largeMode, Avalonia.Controls.Button.BackgroundProperty, _gridMode ? "Surface" : "Fill");
+        _syncingMode = true;
+        try { _viewMode.SelectedItem = _gridMode; } finally { _syncingMode = false; }
         _listHeader.IsVisible = !_gridMode;
         UpdateResponsivePanels();
     }
@@ -288,7 +345,7 @@ public sealed partial class FileBrowserView
         _sidebar.Children.Clear();
         void Heading(string title)
         {
-            var label = Label(_text(title)); label.FontSize = 11; label.FontWeight = FontWeight.SemiBold; label.Margin = new(8, 14, 0, 4);
+            var label = new SectionHeader { Text = _text(title), VerticalAlignment = VerticalAlignment.Center }; label.FontSize = 11; label.FontWeight = FontWeight.SemiBold; label.Margin = new(8, 12, 0, 4);
             FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, "Muted"); _sidebar.Children.Add(label);
         }
         void Place(string name, string glyph, FileBrowserItem? folder, Func<Task>? action = null, string? count = null)
@@ -296,14 +353,16 @@ public sealed partial class FileBrowserView
             var active = folder is null ? _recent && name == _text(_directory?.Folder.Name ?? "") : !_recent && CurrentFolder?.Address == folder.Address;
             var row = new Grid { ColumnDefinitions = new("20,*,Auto"), ColumnSpacing = 7 };
             if (_glyphs is not null) row.Children.Add(_glyphs.Glyph(glyph, active));
-            var label = Label(name); label.FontSize = 13; label.TextWrapping = TextWrapping.Wrap; ToolTip.SetTip(label, name);
+            var label = Label(name); label.FontSize = 13; label.TextTrimming = TextTrimming.CharacterEllipsis; label.FontWeight = active ? FontWeight.SemiBold : FontWeight.Normal; ToolTip.SetTip(label, name);
             Grid.SetColumn(label, 1); row.Children.Add(label);
             if (count is not null) { var number = Label(count); number.FontSize = 11; FileBrowserTheme.Bind(number, TextBlock.ForegroundProperty, "Muted"); Grid.SetColumn(number, 2); row.Children.Add(number); }
             var button = Button(name, action ?? (async () => { if (folder is not null) await NavigateAsync(folder); }));
             button.Content = row; button.HorizontalAlignment = HorizontalAlignment.Stretch; button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            button.MinHeight = 30; button.Padding = new(8, 0); button.BorderThickness = new(0);
-            FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "Radius");
+            button.Classes.Add("ac"); button.Classes.Add("borderless"); button.Height = 28; button.MinHeight = 0; button.Padding = new(8, 0); button.BorderThickness = new(0);
+            FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "NavigationRadius");
             FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, active ? "Selected" : "Sidebar");
+            button.PointerEntered += (_, _) => FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, active ? "Selected" : "Hover");
+            button.PointerExited += (_, _) => FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, active ? "Selected" : "Sidebar");
             FileBrowserTheme.Bind(button, Avalonia.Controls.Button.ForegroundProperty, active ? "SelectionText" : "Text");
             ToolTip.SetTip(button, folder?.Address ?? name);
             if (glyph == "star" && folder is not null)
@@ -326,6 +385,7 @@ public sealed partial class FileBrowserView
             await _source.SetFavoriteAsync(folder, !_recentHistory.Favorites.Any(item => item.Address == folder.Address), _lifetime.Token);
             await RefreshHistoryAsync();
         });
+        favorite.Classes.Add("ac"); favorite.Classes.Add("borderless"); favorite.Classes.Add("small"); favorite.HorizontalAlignment = HorizontalAlignment.Left;
         favorite.IsEnabled = CurrentFolder is not null; favorite.FontSize = 11.5; favorite.Margin = new(8, 4); _sidebar.Children.Add(favorite);
         Heading("位置"); foreach (var location in _locations.Where(item => !item.Device)) Place(location.Name, LocationGlyph(location.Name), location.Folder);
         Heading("设备"); foreach (var location in _locations.Where(item => item.Device)) Place(location.Name, "hard-drive", location.Folder);
@@ -345,30 +405,30 @@ public sealed partial class FileBrowserView
         var index = 0;
         foreach (var visit in _recentHistory.Folders.Take(3))
         {
-            var button = Button(visit.Item.Name, () => NavigateAsync(visit.Item)); button.MinHeight = 52; button.HorizontalContentAlignment = HorizontalAlignment.Left;
+            var button = Button(visit.Item.Name, () => NavigateAsync(visit.Item)); button.Classes.Add("ac"); button.Classes.Add("borderless"); button.Height = double.NaN; button.MinHeight = 52; button.HorizontalContentAlignment = HorizontalAlignment.Left;
             button.Content = _glyphs is null ? Label(visit.Item.Name) : Line(_glyphs.Glyph("folder"), visit.Item.Name);
-            ToolTip.SetTip(button, visit.Item.Address); Grid.SetColumn(button, index++); row.Children.Add(button);
+            var card = new Card { Child = button, Padding = new(0) };
+            ToolTip.SetTip(button, visit.Item.Address); Grid.SetColumn(card, index++); row.Children.Add(card);
         }
         _recentFolders.Children.Add(row);
     }
     private void UpdateTabs()
     {
-        _tabs.Children.Clear();
-        foreach (var kind in new[] { FileBrowserKind.All, FileBrowserKind.Video, FileBrowserKind.Image, FileBrowserKind.Audio, FileBrowserKind.Subtitle, FileBrowserKind.Pdf })
+        _syncingTabs = true;
+        try
         {
-            var count = _kindCounts.GetValueOrDefault(kind);
-            var button = Button($"{FileBrowserKinds.Name(kind)} {count}", () => SetMediaKindAsync(kind));
-            button.Padding = new(12, 4); button.FontSize = 12.5; button.MinHeight = 28; button.BorderThickness = new(0);
-            button.IsVisible = !_options.Folders; button.FontWeight = kind == _kind ? FontWeight.SemiBold : FontWeight.Normal;
-            FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, kind == _kind ? "Surface" : "Fill"); FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "Radius");
-            _tabs.Children.Add(button);
+            _tabs.IsVisible = !_options.Folders;
+            _tabs.ItemsSource = new[] { FileBrowserKind.All, FileBrowserKind.Video, FileBrowserKind.Image, FileBrowserKind.Audio, FileBrowserKind.Subtitle, FileBrowserKind.Pdf }
+                .Select(kind => new MediaTab(kind, _kindCounts.GetValueOrDefault(kind))).ToArray();
+            _tabs.SelectedIndex = (int)_kind;
         }
+        finally { _syncingTabs = false; }
     }
     private void UpdateInspector(FileBrowserEntry? entry)
     {
         if (_options.Compact) return;
         _inspectorCell?.ReleaseImage(); _inspectorCell = null; _inspector.Children.Clear(); _infoValues.Clear();
-        if (entry is null) { var empty = Label(_text("选择文件以查看预览和信息")); empty.TextWrapping = TextWrapping.Wrap; FileBrowserTheme.Bind(empty, TextBlock.ForegroundProperty, "Muted"); _inspector.Children.Add(empty); return; }
+        if (entry is null) { _inspector.Children.Add(new EmptyState { Text = _text("选择文件以查看预览和信息"), Margin = new(0, 24) }); return; }
         _inspectorCell = new(entry, true, _glyphs, _text, preview: true); _inspector.Children.Add(_inspectorCell);
         void Info(string name, string value)
         {
@@ -378,7 +438,8 @@ public sealed partial class FileBrowserView
             Grid.SetColumn(content, 1); row.Children.Add(content); _infoValues[name] = content;
             var border = new Border { Child = row, BorderThickness = new(0, 0, 0, 1) }; FileBrowserTheme.Bind(border, Border.BorderBrushProperty, "Line"); _inspector.Children.Add(border);
         }
-        Info("类型", _text(entry.IsFolder ? "文件夹" : FileBrowserKinds.Name(FileBrowserKinds.FromName(entry.Name))));
+        var type = Label(_text(entry.IsFolder ? "文件夹" : FileBrowserKinds.Name(FileBrowserKinds.FromName(entry.Name))));
+        type.FontSize = 11.5; type.Margin = new(0, 0, 0, 10); FileBrowserTheme.Bind(type, TextBlock.ForegroundProperty, "Muted"); _inspector.Children.Add(type);
         if (!entry.IsFolder) { Info("时长", "—"); Info("分辨率", "—"); Info("帧率", "—"); Info("编码", "—"); Info("大小", Size(entry.Size)); }
         Info("修改时间", entry.Modified?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—");
         Info("位置", entry.Item.Address);

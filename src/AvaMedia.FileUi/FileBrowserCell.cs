@@ -9,7 +9,7 @@ using Avalonia.Media.Imaging;
 namespace AvaMedia.FileUi;
 
 /// <summary>A realized card or list row. Decoded images exist only for realized controls.</summary>
-internal sealed class FileBrowserCell : Border
+internal sealed class FileBrowserCell : AvaMedia.Controls.ListRow
 {
     public FileBrowserEntry Entry { get; }
     private readonly Image _image = new() { Stretch = Stretch.UniformToFill };
@@ -33,7 +33,9 @@ internal sealed class FileBrowserCell : Border
         { Data = Geometry.Parse("M3,8 L6,11 L13,4"), StrokeThickness = 2, Width = 14, Height = 14 };
         if (_mark is Avalonia.Controls.Shapes.Path checkPath) FileBrowserTheme.Bind(checkPath, Avalonia.Controls.Shapes.Shape.StrokeProperty, "CheckText");
         _check.Child = _mark; FileBrowserTheme.Bind(_check, CornerRadiusProperty, "CheckRadius");
-        BorderThickness = new(2); Padding = new(6); Margin = new(0, 0, 0, grid ? 10 : 2);
+        BorderThickness = new(2); Padding = new(8); Margin = new(0, 0, 0, grid ? 12 : 2);
+        MinHeight = 0;
+        if (grid) { FileBrowserTheme.Bind(this, PaddingProperty, "CardPadding"); FileBrowserTheme.Bind(this, MarginProperty, "RowGap"); }
         FileBrowserTheme.Bind(this, CornerRadiusProperty, grid ? "CardRadius" : "Radius");
         var cover = new Grid(); cover.Children.Add(_image);
         _placeholder = glyphs?.Glyph(FileBrowserKinds.Glyph(entry.Item)) ?? new TextBlock { Text = text(entry.IsFolder ? "文件夹" : FileBrowserKinds.Name(FileBrowserKinds.FromName(entry.Name))), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
@@ -41,24 +43,33 @@ internal sealed class FileBrowserCell : Border
         _placeholder.HorizontalAlignment = HorizontalAlignment.Center; _placeholder.VerticalAlignment = VerticalAlignment.Center;
         cover.Children.Add(_placeholder);
         _duration.FontSize = grid ? 10.5 : 11.5; _duration.Text = ""; _duration.Margin = new(3); _duration.VerticalAlignment = VerticalAlignment.Bottom; _duration.HorizontalAlignment = HorizontalAlignment.Right;
-        FileBrowserTheme.Bind(_duration, TextBlock.BackgroundProperty, "Panel"); FileBrowserTheme.Bind(_duration, TextBlock.ForegroundProperty, "Text");
-        if (grid) cover.Children.Add(_duration);
+        _duration.FontFeatures = new() { FontFeature.Parse("tnum") };
+        if (grid)
+        {
+            var durationBadge = new Border { Child = _duration, Padding = new(1, 0), Margin = new(4), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
+            FileBrowserTheme.Bind(durationBadge, BackgroundProperty, "DurationFill"); FileBrowserTheme.Bind(durationBadge, CornerRadiusProperty, "DurationRadius");
+            FileBrowserTheme.Bind(_duration, TextBlock.ForegroundProperty, "DurationText");
+            durationBadge.IsVisible = false;
+            _duration.PropertyChanged += (_, change) => { if (change.Property == TextBlock.TextProperty) durationBadge.IsVisible = !string.IsNullOrEmpty(_duration.Text) && _duration.Text != "—"; };
+            cover.Children.Add(durationBadge);
+        }
         var coverHost = new Border { Child = cover, ClipToBounds = true };
         FileBrowserTheme.Bind(coverHost, BackgroundProperty, "Fill"); FileBrowserTheme.Bind(coverHost, CornerRadiusProperty, "Radius");
-        var name = _name = new TextBlock { Text = entry.Name, FontSize = preview ? 15 : 12.5, VerticalAlignment = VerticalAlignment.Center };
+        var name = _name = new TextBlock { Text = entry.Name, FontSize = preview ? 15 : 12.5, FontWeight = FontWeight.Normal, VerticalAlignment = VerticalAlignment.Center };
         name.Classes.Add("raw"); ToolTip.SetTip(name, entry.Item.Address);
         if (preview) { name.TextWrapping = TextWrapping.Wrap; name.FontWeight = FontWeight.SemiBold; }
         else name.TextTrimming = TextTrimming.CharacterEllipsis;
         _metadata.Text = entry.IsFolder ? text("文件夹") : Size(entry.Size); _metadata.FontSize = 11; FileBrowserTheme.Bind(_metadata, TextBlock.ForegroundProperty, "Muted");
         if (grid)
         {
-            var content = new Grid { RowDefinitions = new("*,Auto,Auto"), RowSpacing = 4 };
+            var content = new Grid { RowDefinitions = new("Auto,Auto,Auto"), RowSpacing = 4 };
+            if (preview) { content.RowDefinitions = new("Auto,Auto"); content.RowSpacing = 12; }
             var imageArea = new Grid { Height = preview ? 140 : 96 };
-            SizeChanged += (_, _) => { imageArea.Height = Math.Max(48, (Bounds.Width - (preview ? 0 : 16)) * 9 / 16); if (!preview) Height = imageArea.Height + 70; }; imageArea.Children.Add(coverHost);
+            SizeChanged += (_, _) => { imageArea.Height = Math.Max(48, (Bounds.Width - (preview ? 0 : 20)) * 9 / 16); if (!preview) Height = imageArea.Height + 70; }; imageArea.Children.Add(coverHost);
             if (!preview) { _check.Margin = new(6); _check.HorizontalAlignment = HorizontalAlignment.Left; _check.VerticalAlignment = VerticalAlignment.Top; imageArea.Children.Add(_check); }
             content.Children.Add(imageArea); Grid.SetRow(name, 1); content.Children.Add(name);
             if (!preview) { Grid.SetRow(_metadata, 2); content.Children.Add(_metadata); FileBrowserTheme.Bind(this, HeightProperty, "GridRowHeight"); }
-            else { MinHeight = 190; Padding = new(0); BorderThickness = new(0); }
+            else { Height = double.NaN; MinHeight = 0; Padding = new(0); Margin = new(0); BorderThickness = new(0); }
             Child = content;
         }
         else
@@ -86,8 +97,8 @@ internal sealed class FileBrowserCell : Border
     public void UpdateSelection(bool selected, bool focused)
     {
         _selected = selected; _focused = focused; _mark.IsVisible = selected;
-        FileBrowserTheme.Bind(_check, BackgroundProperty, selected ? "Accent" : "Surface");
-        FileBrowserTheme.Bind(_check, BorderBrushProperty, selected ? "Accent" : "Line"); UpdateFace(IsPointerOver);
+        FileBrowserTheme.Bind(_check, BackgroundProperty, selected ? "Accent" : "CheckFace");
+        FileBrowserTheme.Bind(_check, BorderBrushProperty, selected ? "Accent" : "CheckLine"); UpdateFace(IsPointerOver);
     }
     private void UpdateFace(bool hover)
     {
@@ -95,7 +106,7 @@ internal sealed class FileBrowserCell : Border
         FileBrowserTheme.Bind(this, BorderBrushProperty, _selected && _grid || _focused ? "Accent" : _preview ? "Panel" : "Surface");
         // Classic skins use a dark selection; every child must follow its selection text resource.
         foreach (var label in new[] { _metadata, _resolution, _duration, _location, _modified })
-            if (label is not null) FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, _selected && (!_grid || !ReferenceEquals(label, _duration)) ? "SelectionText" : ReferenceEquals(label, _duration) && _grid ? "Text" : "Muted");
+            if (label is not null) FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, _selected && (!_grid || !ReferenceEquals(label, _duration)) ? "SelectedMuted" : ReferenceEquals(label, _duration) && _grid ? "DurationText" : "Muted");
         FileBrowserTheme.Bind(_name, TextBlock.ForegroundProperty, _selected ? "SelectionText" : "Text");
         FileBrowserTheme.Bind(this, TextElement.ForegroundProperty, _selected ? "SelectionText" : "Text");
         if (!_grid) FileBrowserTheme.Bind(_duration, TextBlock.BackgroundProperty, _selected ? "Selected" : hover ? "Hover" : "Surface");

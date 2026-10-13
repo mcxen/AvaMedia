@@ -104,7 +104,7 @@ public sealed partial class FileBrowserView
     {
         var button = new Button { Content = _glyphs?.Glyph(glyph) ?? (object)_text(label), Width = 30, Height = 30, Padding = new(0), MinHeight = 0,
             HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center };
-        button.Classes.Add("icon");
+        button.Classes.Add("ac"); button.Classes.Add("icon"); button.Classes.Add("borderless");
         FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, "ToolbarFill");
         FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BorderThicknessProperty, "ToolbarBorder");
         FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "Radius");
