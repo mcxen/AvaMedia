@@ -9,6 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="AvaMedia.UiCapture" />
     <Content Include="../AvaMedia.Browser/bin/$(Configuration)/net8.0-browser/publish/wwwroot/**/*"
+             Exclude="../AvaMedia.Browser/bin/$(Configuration)/net8.0-browser/publish/wwwroot/**/*.gz;../AvaMedia.Browser/bin/$(Configuration)/net8.0-browser/publish/wwwroot/**/*.br"
              Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../.agents/skills/avamedia-mcp/**/*" Exclude="../../.agents/skills/avamedia-mcp/**/__pycache__/**"

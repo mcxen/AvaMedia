@@ -18,4 +18,13 @@
       <ResolvedFileToPublish Remove="@(_UnusedPublishedSpeechNative)" />
     </ItemGroup>
   </Target>
+  <!-- Metal shaders are macOS content; ONNX import libraries are build inputs, not Windows runtime assets. -->
+  <Target Name="SelectPublishedPlatformContent" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'ggml-metal.metal' and !$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'onnxruntime.lib' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))" />
+    </ItemGroup>
+  </Target>
 </Project>
