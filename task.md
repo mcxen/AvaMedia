@@ -2,12 +2,10 @@
 
 更新于 2026-10-13。
 
-## 进行中
-
-- 多宫格截图字体选择，以及预览低清、导出高清（后台任务）。已提交 `3da0445`、`ecf3abe`、`2af6879`，`ContactSheetFonts.cs`、`ContactSheetFrames.cs` 还有未提交的改动，Codex 正在收尾。报告：`/workspace/AvaMedia-sidebar-review/sheetfont/report.md`。
 
 ## 待修复
 
+- 多宫格：`ContactSheetFonts.cs`（`compositefont:` 前缀）和 `ContactSheetFrames.cs`（锐化前 `yuv444p`）仍有未提交改动，主工作区保留，未随本轮推送。
 - Linux 下使用 mac 外框预览时，帮助等工具窗口同时出现系统装饰和自绘标题栏，需要统一到 `WindowChrome.ApplyPlatformFrame`。
 - 任务行的开始、暂停、停止、恢复、重试操作只做了构建和截图，需要用真实任务跑一遍。
 - 普通已完成任务还没有 demo 里的缩略图和完整详情。
