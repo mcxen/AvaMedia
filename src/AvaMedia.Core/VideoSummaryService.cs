@@ -168,13 +168,14 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                             await File.WriteAllBytesAsync(Path.Combine(partialFolder, relative), png, token).ConfigureAwait(false);
                             activity.Frame(png, id); return relative;
                         }, detail => { job.ProgressDetail = detail; activity.Stage(detail); }, ct, SaveInvestigation).ConfigureAwait(false);
-                    agentTrace.AddRange(investigation.Steps); notes.AddRange(investigation.Uncertainties);
+                    notes.AddRange(investigation.Uncertainties);
                     sampling = sampling with { SelectedFrames = investigation.Frames.Length };
                     await SaveInvestigation(investigation).ConfigureAwait(false);
                     await File.WriteAllTextAsync(Path.Combine(staging, "agent-trace.json"), JsonSerializer.Serialize(investigation), ct).ConfigureAwait(false);
                     progress(60);
                     async Task SaveInvestigation(VideoSummaryFrameAgentResult value)
                     {
+                        agentTrace.Clear(); agentTrace.AddRange(value.Steps);
                         foreach (var frame in value.Frames)
                         {
                             var descriptions = value.Observations.Where(item => item.FrameIds.Length == 1 && item.FrameIds.Contains(frame.Id)).Select(item => item.Text).ToArray();
