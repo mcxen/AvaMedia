@@ -3,7 +3,7 @@ namespace AvaMedia.Core;
 /// <summary>Renders the selected frame with the same filters used by the export command.</summary>
 public static class MediaVisualPreview
 {
-    public static async Task<byte[]> RenderAsync(IMediaEngine engine,string source,MediaInfo info,ConversionOptions options,double seconds,CancellationToken token)
+    public static async Task<byte[]> RenderAsync(IMediaEngine engine,string source,MediaInfo info,ConversionOptions options,double seconds,CancellationToken token,VideoPreviewSize? previewSize=null)
     {
         var draft=options.Clone();
         var width=draft.CropWidth>0?draft.CropWidth:info.Width;var height=draft.CropHeight>0?draft.CropHeight:info.Height;
@@ -11,7 +11,8 @@ public static class MediaVisualPreview
         if(draft.Width>0&&draft.Height>0){width=draft.Width;height=draft.Height;}
         else if(draft.Width>0){width=draft.Width;height=Math.Max(1,(int)Math.Round(width/ratio));}
         else if(draft.Height>0){height=draft.Height;width=Math.Max(1,(int)Math.Round(height*ratio));}
-        var scale=Math.Min(1,1200d/Math.Max(width,height));
+        var size=previewSize??VideoPreviewSizes.Preview;
+        var scale=Math.Min(1,Math.Min(size.Width/(double)Math.Max(1,width),size.Height/(double)Math.Max(1,height)));
         draft.Width=Math.Max(1,(int)Math.Round(width*scale));draft.Height=Math.Max(1,(int)Math.Round(height*scale));
         draft.Format=MediaEngine.IsImage(options.Format)&&options.Format is "jpg" or "jpeg" or "webp"?options.Format:"png";
         draft.Start=info.Duration>0?Math.Clamp(seconds,0,Math.Max(0,info.Duration-.001)):0;draft.End=0;

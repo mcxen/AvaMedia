@@ -28,7 +28,9 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     private readonly Grid _root;
     private readonly Grid _actions;
     private readonly CancellationTokenSource _lifetime=new();
-    private CancellationTokenSource? _work;
+    private readonly LatestPreviewRequest _previewRequests = new();
+    private PreviewDrag? _seekDrag;
+    private bool _compact;
     private Bitmap? _sourceBitmap,_resultBitmap;
     private MediaInfo? _info;
     private string? _path;
@@ -64,6 +66,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         var fit=Ui.Button("适应窗口",_view.ResetView);buttons.Children.Add(fit);
         Grid.SetRow(_actions,3);_root.Children.Add(_actions);Content=_root;
         Avalonia.Automation.AutomationProperties.SetName(_seek,"预览位置");
+        _seekDrag = new(_seek, () => _ = LoadAsync(immediate: true)); _seekDrag.Attach();
         _seek.PropertyChanged+=(_,change)=>{if(change.Property==Slider.ValueProperty&&!_updating&&_path is not null){_requestedPosition=_seek.Value;_=LoadAsync();}};
         _view.DoubleTapped+=(_,args)=>
         {
@@ -87,6 +90,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         set
         {
             if(!value)return;
+            _compact=true;
             _status.IsVisible=false;_actions.IsVisible=false;_root.RowSpacing=4;
             ToolTip.SetTip(_seek,_position.Text);
             _position.PropertyChanged+=(_,change)=>{if(change.Property==TextBlock.TextProperty)ToolTip.SetTip(_seek,_position.Text);};
@@ -102,24 +106,29 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         if(key==_sourceKey)return;_sourceKey=key;ToolTip.SetTip(_status,null);
         var changed=_path!=path||_options?.VideoStreamIndex!=options?.VideoStreamIndex||_options?.AudioStreamIndex!=options?.AudioStreamIndex;_path=path;_options=options?.Clone();
         if(changed){_view.ResetView();ShowEmpty(path is null?"选择文件以预览":"正在读取预览…");_info=null;_requestedPosition=options?.Start??0;ClearBitmaps();_updating=true;_seek.Value=0;_updating=false;}
-        if(path is null){_work?.Cancel();ShowEmpty("选择文件以预览");_seek.IsVisible=_archive.IsVisible=false;_open.IsEnabled=_listen.IsVisible=_waveform.IsVisible=false;return;}
-        _=LoadAsync();
+        if(path is null){_previewRequests.Cancel();ShowEmpty("选择文件以预览");_seek.IsVisible=_archive.IsVisible=false;_open.IsEnabled=_listen.IsVisible=_waveform.IsVisible=false;return;}
+        _=LoadAsync(immediate: true);
     }
 
     public void SetPosition(double seconds)
     {
         if(_closed||_path is null||!double.IsFinite(seconds))return;
-        _requestedPosition=Math.Max(0,seconds);_updating=true;_seek.Value=Math.Clamp(_requestedPosition,0,_seek.Maximum);_updating=false;_=LoadAsync();
+        _requestedPosition=Math.Max(0,seconds);_updating=true;_seek.Value=Math.Clamp(_requestedPosition,0,_seek.Maximum);_updating=false;_=LoadAsync(immediate: true);
     }
 
-    private async Task LoadAsync()
+    private Task LoadAsync(bool immediate = false)
     {
-        _work?.Cancel();_work?.Dispose();_work=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        if (_closed || _path is null) return Task.CompletedTask;
+        var path = _path; var options = _options?.Clone(); var seconds = _requestedPosition;
+        var size = _seekDrag?.IsDragging == true ? VideoPreviewSizes.Scrub : _compact ? VideoPreviewSizes.Compact : VideoPreviewSizes.Preview;
+        return _previewRequests.Request(token => RenderAsync(path, options, seconds, size, token), _lifetime.Token, immediate);
+    }
+
+    private async Task RenderAsync(string path, ConversionOptions? options, double seconds, VideoPreviewSize size, CancellationToken token)
+    {
         _empty.IsError=false;ToolTip.SetTip(_empty,null);
-        var token=_work.Token;var path=_path!;var options=_options?.Clone();var seconds=_requestedPosition;
         try
         {
-            await Task.Delay(180,token);
             if(Path.GetExtension(path).Equals(".zip",StringComparison.OrdinalIgnoreCase)||Directory.Exists(path))
             {
                 var items=await Task.Run(()=>ReadArchive(path,token),token);token.ThrowIfCancellationRequested();
@@ -129,7 +138,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
             }
             var info=_info??await _engine.Probe(path,token,options?.VideoStreamIndex??0,options?.AudioStreamIndex??0);token.ThrowIfCancellationRequested();_info=info;
             _archive.IsVisible=false;_waveform.IsVisible=!info.HasVideo&&info.HasAudio;_view.IsVisible=info.HasVideo&&_sourceBitmap is not null;_listen.IsVisible=info.HasAudio&&options is not null;_open.IsEnabled=info.HasVideo||info.HasAudio;
-            _updating=true;_seek.Maximum=Math.Max(0,info.Duration-.04);seconds=Math.Clamp(seconds,0,_seek.Maximum);_requestedPosition=seconds;_seek.Value=seconds;_seek.IsVisible=info.Duration>0;_updating=false;
+            _updating=true;_seek.Maximum=Math.Max(0,info.Duration-.04);seconds=Math.Clamp(seconds,0,_seek.Maximum);_requestedPosition=Math.Clamp(_requestedPosition,0,_seek.Maximum);_seek.Value=_requestedPosition;_seek.IsVisible=info.Duration>0;_updating=false;
             if(!info.HasVideo)
             {
                 if(!info.HasAudio){ShowEmpty("此文件没有可预览的音视频内容");return;}
@@ -144,8 +153,9 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
                 _empty.IsVisible=false;_auxiliary.IsVisible=true;
                 _status.Text=Localization.Text("音频波形 · 15 秒片段");Localization.SetText(_position,$"{MediaTime.Format(seconds)} / {MediaTime.Format(info.Duration)}");return;
             }
-            var source=await _engine.Thumbnail(path,seconds,1200,900,token,pad:false,videoStreamIndex:info.VideoStreamIndex);
-            var result=options is null?source:await MediaVisualPreview.RenderAsync(_engine,path,info,options,seconds,token);
+            size=VideoPreviewSizes.Bound(info,size);
+            var source=await _engine.Thumbnail(path,seconds,size.Width,size.Height,token,pad:false,videoStreamIndex:info.VideoStreamIndex);
+            var result=options is null?source:await MediaVisualPreview.RenderAsync(_engine,path,info,options,seconds,token,size);
             token.ThrowIfCancellationRequested();if(_closed||path!=_path)return;
             ClearBitmaps();_sourceBitmap=Decode(source);_resultBitmap=Decode(result);
             _view.Source=_sourceBitmap;_view.Result=_resultBitmap;_view.SideBySide=options is not null;
@@ -175,5 +185,5 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     private static string FormatSize(long size)=>$"{size/1024d:0.#} KB";
     private static Bitmap Decode(byte[] data){using var stream=new MemoryStream(data);return new Bitmap(stream);}
     private void ClearBitmaps(){_view.Source=_view.Result=null;_sourceBitmap?.Dispose();_resultBitmap?.Dispose();_sourceBitmap=_resultBitmap=null;}
-    public void Dispose(){if(_closed)return;_closed=true;_lifetime.Cancel();_work?.Cancel();_work?.Dispose();ClearBitmaps();_previewSurface.Dispose();_lifetime.Dispose();}
+    public void Dispose(){if(_closed)return;_closed=true;_lifetime.Cancel();_previewRequests.Dispose();ClearBitmaps();_previewSurface.Dispose();_lifetime.Dispose();}
 }

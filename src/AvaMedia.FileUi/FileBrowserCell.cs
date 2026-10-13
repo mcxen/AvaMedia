@@ -121,7 +121,7 @@ internal sealed class FileBrowserCell : AvaMedia.Controls.ListRow
         if (media.Thumbnail is not { Length: > 0 } bytes || _bitmap is not null) return;
         try
         {
-            using var stream = new MemoryStream(bytes); _bitmap = Bitmap.DecodeToWidth(stream, _grid ? 480 : 96);
+            using var stream = new MemoryStream(bytes); _bitmap = Bitmap.DecodeToWidth(stream, _grid ? 320 : 96);
             _image.Source = _bitmap; _placeholder.IsVisible = false;
         }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException) { }

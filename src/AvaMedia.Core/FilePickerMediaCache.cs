@@ -31,7 +31,7 @@ public sealed class FilePickerMediaCache
             catch (Exception error) when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception or JsonException) { }
             try
             {
-                var thumbnail = await thumbnails.GetAsync(path, 480, ct: token).ConfigureAwait(false);
+                var thumbnail = await thumbnails.GetAsync(path, VideoPreviewSizes.PickerWidth, ct: token).ConfigureAwait(false);
                 cover = await File.ReadAllBytesAsync(thumbnail, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { throw; }
@@ -44,7 +44,7 @@ public sealed class FilePickerMediaCache
     {
         var fullPath = Path.GetFullPath(path);
         if (OperatingSystem.IsWindows()) fullPath = fullPath.ToUpperInvariant();
-        var identity = $"picker-media-v1|{fullPath.Length}:{fullPath}|{size}|{modified?.UtcTicks}";
+        var identity = $"picker-media-v2|{fullPath.Length}:{fullPath}|{size}|{modified?.UtcTicks}";
         var key = _keys[(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity))[0]) % _keys.Length];
         await key.WaitAsync(token).ConfigureAwait(false);
         try

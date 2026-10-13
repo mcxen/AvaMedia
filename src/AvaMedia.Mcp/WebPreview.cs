@@ -23,12 +23,13 @@ internal static class WebPreview
                 throw new ArgumentException("预览请选择视频或图片。");
             if (!double.IsFinite(seconds) || seconds < 0)
                 throw new ArgumentException("预览时间无效。");
-            // Two cache-friendly sizes; clients cannot request full-resolution decoding output.
-            var frameWidth = width > 640 ? 960 : 640;
+            // Cache-friendly display budgets, including the small covers used by file rows.
+            var frameWidth = VideoPreviewSizes.RemoteWidth(width);
             var sourceVersion = McpMediaFile.Version(path);
             var info = await workspace.Engine.Probe(path, ct, videoStreamIndex ?? 0, audioStreamIndex ?? 0);
             if (info.Duration > 0) seconds = Math.Min(seconds, Math.Max(0, info.Duration - .05));
-            var frame = await workspace.Engine.Thumbnail(path, seconds, frameWidth, frameWidth * 9 / 16, ct, pad: false, videoStreamIndex: info.VideoStreamIndex);
+            var size = VideoPreviewSizes.Bound(info, new(frameWidth, frameWidth * 3 / 4));
+            var frame = await workspace.Engine.Thumbnail(path, seconds, size.Width, size.Height, ct, pad: false, videoStreamIndex: info.VideoStreamIndex);
             if (sourceVersion != McpMediaFile.Version(path)) throw new IOException("读取期间源文件发生变化，请重试。");
             var metadata = JsonSerializer.Serialize(new { seconds, info = new
             {

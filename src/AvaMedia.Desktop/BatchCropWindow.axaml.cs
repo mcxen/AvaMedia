@@ -32,7 +32,8 @@ public sealed partial class BatchCropWindow : Window
     private readonly ObservableCollection<BatchCropEntry> _entries = [];
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _loadSlots = new(2);
-    private CancellationTokenSource? _previewCancellation;
+    private readonly LatestPreviewRequest _previewRequests = new();
+    private PreviewDrag? _previewDrag;
     private Task _previewReady = Task.CompletedTask;
     private BatchCropEntry? _active;
     private BatchCropEntry? _reference;
@@ -61,6 +62,8 @@ public sealed partial class BatchCropWindow : Window
         OutputInput.IsEnabled=BrowseOutputButton.IsEnabled=SourceOutputInput.IsChecked!=true;
         foreach (var input in new[] { CropXInput, CropYInput, CropWidthInput, CropHeightInput })
             input.PropertyChanged += (_, args) => { if (args.Property == NumericUpDown.ValueProperty && !_updating) RefreshValidation(); };
+        _previewDrag = new(PreviewSeek, () => { if (!_closed && _active?.Info is not null) _previewReady = LoadPreview(_active); });
+        _previewDrag.Attach();
         PreviewSeek.PropertyChanged += (_, args) =>
         {
             if (args.Property == Slider.ValueProperty && !_updating && _active?.Info is not null)
@@ -83,7 +86,7 @@ public sealed partial class BatchCropWindow : Window
         });
         Closed += (_, _) =>
         {
-            _closed = true; _lifetime.Cancel(); _previewCancellation?.Cancel();
+            _closed = true; _lifetime.Cancel(); _previewRequests.Dispose();
             (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
         };
         if (files is not null) AddFiles(files);
@@ -158,18 +161,21 @@ public sealed partial class BatchCropWindow : Window
         _updating = false;
     }
 
-    private async Task LoadPreview(BatchCropEntry entry, bool debounce = false)
+    private Task LoadPreview(BatchCropEntry entry, bool debounce = false)
     {
-        _previewCancellation?.Cancel();
-        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _previewCancellation = cancellation; var token = cancellation.Token;
         var seconds = PreviewSeek.Value;
+        var size = _previewDrag?.IsDragging == true ? VideoPreviewSizes.Scrub : VideoPreviewSizes.Preview;
+        return _previewRequests.Request(token => RenderPreview(entry, seconds, size, token), _lifetime.Token, immediate: !debounce);
+    }
+
+    private async Task RenderPreview(BatchCropEntry entry, double seconds, VideoPreviewSize size, CancellationToken token)
+    {
         CropLayer.Enabled = false; PreviewStatus.Text = "正在读取预览…"; PreviewStatus.IsVisible = true;
         try
         {
-            if (debounce) await Task.Delay(120, token);
             if (entry.Info is null) return;
-            var bytes = await _engine.Thumbnail(entry.Path, seconds, 960, 540, token, pad: false, videoStreamIndex: entry.Info.VideoStreamIndex);
+            size = VideoPreviewSizes.Bound(entry.Info, size);
+            var bytes = await _engine.Thumbnail(entry.Path, seconds, size.Width, size.Height, token, pad: false, videoStreamIndex: entry.Info.VideoStreamIndex);
             token.ThrowIfCancellationRequested();
             using var stream = new MemoryStream(bytes);
             var bitmap = new Bitmap(stream);
@@ -186,11 +192,6 @@ public sealed partial class BatchCropWindow : Window
         {
             if (!_closed && !token.IsCancellationRequested && _active == entry)
             { PreviewStatus.Text = Localization.Format($"预览失败：{ex.Message}"); PreviewStatus.IsVisible = true; CropLayer.Enabled = false; }
-        }
-        finally
-        {
-            if (ReferenceEquals(_previewCancellation, cancellation)) _previewCancellation = null;
-            cancellation.Dispose();
         }
     }
 
@@ -300,7 +301,7 @@ public sealed partial class BatchCropWindow : Window
     { foreach (var entry in _entries) entry.Include = true; }
     private void ClearPreview()
     {
-        _previewCancellation?.Cancel(); _active = null; CropLayer.Enabled = false;
+        _previewRequests.Cancel(); _active = null; CropLayer.Enabled = false;
         (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
         PreviewStatus.Text = "尚未选择视频"; PreviewStatus.IsVisible = true;
         PreviewName.Text = ""; PreviewSeek.IsEnabled = false; CropLayer.InvalidateVisual();
@@ -310,7 +311,7 @@ public sealed partial class BatchCropWindow : Window
         RemoveButton.IsEnabled=FileList.SelectedItems?.Count>0;
         _active = args.AddedItems.OfType<BatchCropEntry>().LastOrDefault() ?? FileList.SelectedItem as BatchCropEntry;
         if (_active is null) { ClearPreview(); return; }
-        _previewCancellation?.Cancel(); (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
+        _previewRequests.Cancel(); (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
         CropLayer.Enabled = false; PreviewStatus.Text = _active.Error is { } error ? Localization.Format($"无法读取视频：{error}") : "正在读取预览…"; PreviewStatus.IsVisible = true;
         PreviewName.Text = _active.Name; PrepareSeek(_active);
         if (_active.Info is not null)
@@ -349,7 +350,7 @@ public sealed partial class BatchCropWindow : Window
         _options = result;
         if (streamsChanged)
         {
-            _mediaRevision++; if (videoChanged) _reference = null; _previewCancellation?.Cancel();
+            _mediaRevision++; if (videoChanged) _reference = null; _previewRequests.Cancel();
             (PreviewImage.Source as Bitmap)?.Dispose(); PreviewImage.Source = null;
             PreviewStatus.Text = "正在读取所选媒体轨…"; PreviewStatus.IsVisible = true; CropLayer.Enabled = false;
             foreach (var entry in _entries) { entry.Info = null; entry.Error = null; entry.Ready = LoadEntry(entry); }

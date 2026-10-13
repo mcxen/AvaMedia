@@ -321,7 +321,7 @@ internal sealed class PersonTaskView : Grid, ISegmentThumbnailSource, IDisposabl
             // The engine caches encoded frames; both native decoding and file/process work stay off the UI thread.
             var bitmap = await Task.Run(async () =>
             {
-                var data = await _engine.Thumbnail(path, seconds, 800, 450, token, pad: false, videoStreamIndex: stream).ConfigureAwait(false);
+                var data = await _engine.Thumbnail(path, seconds, VideoPreviewSizes.Compact.Width, VideoPreviewSizes.Compact.Height, token, pad: false, videoStreamIndex: stream).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 using var memory = new MemoryStream(data); return new Bitmap(memory);
             }, token);
