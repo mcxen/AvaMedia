@@ -5,7 +5,9 @@ public sealed partial class Storage
 {
     private readonly string _root;
     private readonly JobLogStore _logs;
-    internal static string DefaultRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia");
+    internal static string DefaultRoot => Environment.GetEnvironmentVariable("AVAMEDIA_STATE_DIRECTORY") is { Length: > 0 } root
+        ? Path.GetFullPath(root)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia");
     private static readonly JsonSerializerOptions Json = new() {WriteIndented=true};
     private readonly object _queueWrite = new();
     private long _queueVersion;

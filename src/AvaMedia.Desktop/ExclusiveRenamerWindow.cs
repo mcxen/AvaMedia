@@ -175,26 +175,22 @@ public sealed class ExclusiveRenamerWindow : Window
     private async Task ImportAsync(IEnumerable<string> paths)
     {
         if (_busy || _closed) return;
-        var folders = paths.Where(Directory.Exists).Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
+        var folders = paths.Where(Directory.Exists).Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))
+            .Distinct(BatchRename.PathComparer).ToArray();
         if (folders.Length == 0) { _status.Text = Localization.Text("请拖入或选择文件夹。"); return; }
         var recursive = _recursive.IsChecked == true;
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
         try
         {
             _status.Text = Localization.Text("正在扫描媒体文件…");
-            var pathsFound = await Task.Run(() => BatchRename.CollectMedia(folders, recursive, operation.Token), operation.Token);
+            var pathsFound = await Task.Run(() => VlMediaRenamer.CollectInputs(folders, recursive, operation.Token), operation.Token);
             if (_closed) return;
             var existing = _entries.Select(entry => entry.Path).ToHashSet(BatchRename.PathComparer); var added = 0;
-            foreach (var path in pathsFound)
+            foreach (var input in pathsFound)
             {
+                var path = input.Path;
                 if (!existing.Add(path)) continue;
-                var directory = Path.GetDirectoryName(path)!;
-                var folder = folders.First(root => BatchRename.PathComparer.Equals(directory, root)
-                    || directory.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar,
-                        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
-                var relative = Path.GetRelativePath(folder, directory);
-                var context = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)) + (relative == "." ? "" : " / " + relative);
-                var entry = new Entry(path, context);
+                var entry = new Entry(path, input.FolderContext);
                 entry.PropertyChanged += (_, args) => { if (args.PropertyName is nameof(Entry.Include) or nameof(Entry.Ready)) UpdateActions(); };
                 _entries.Add(entry); added++;
             }

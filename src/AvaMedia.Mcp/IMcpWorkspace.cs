@@ -17,6 +17,7 @@ public sealed record McpRuntimeView(string Version, string Platform, bool Backgr
 public sealed record McpResourceUpdate(int? CpuReservePercent = null, int? CpuThreads = null,
     bool? MultiThread = null);
 public sealed record McpSubmission(string RequestId, McpTaskView[] Tasks);
+public sealed record McpRenameUndo(Guid TaskId, RenameItem[] Changes, bool AlreadyUndone);
 public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset)
 {
     /// <summary>Unfiltered task count per state name plus "All"; lets clients show filter badges without extra calls.</summary>
@@ -35,6 +36,7 @@ public interface IMcpWorkspace
     Task<McpSubmission?> FindSubmissionAsync(string requestId, string hash, CancellationToken ct);
     Task<McpSubmission> SubmitAsync(string requestId, string hash, Func<string[], Job[]> create, bool start, CancellationToken ct);
     Task<McpTaskView> ControlAsync(Guid id, string action, CancellationToken ct);
+    Task<McpRenameUndo> UndoRenameAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct);
     Task<string> LogAsync(Guid id, CancellationToken ct);
     Task<FolderClassifiedFile[]> ClassificationAsync(Guid id, CancellationToken ct);

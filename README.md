@@ -81,6 +81,8 @@ dotnet run --project src/AvaMedia.Desktop -c Release --no-build
 
 源码运行需准备 FFmpeg / FFprobe；下载功能另需 yt-dlp 和 QuickJS-NG。可使用 Release 说明链接的媒体工具包。未内置工具的开发构建可在“选项 → 外部工具”配置路径，或使用 `AVAMEDIA_FFMPEG`、`AVAMEDIA_FFPROBE`、`AVAMEDIA_YT-DLP` 环境变量；工具查找也支持项目 `.tools`、PATH 和 macOS Homebrew 路径。正式安装包优先使用内置引擎。
 
+需要隔离本地验收的设置、队列与任务日志时，可在启动进程前设置 `AVAMEDIA_STATE_DIRECTORY` 为独立目录；模型缓存与 AI 检查点仍共享。MCP 后台宿主也可使用 `--mcp-state-directory` 显式指定工作区。
+
 日常源码修改只构建受影响项目并完成必要静态检查；仅修改文档或资源时不运行构建和测试。功能回归按明确要求执行，范围遵循 [`AGENTS.md`](AGENTS.md)。
 
 ### 代码结构
