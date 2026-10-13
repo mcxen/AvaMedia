@@ -41,7 +41,7 @@ public sealed partial class SettingsWindow
     private sealed class ModelRow
     {
         public required Control Container { get; init; }
-        public required TextBlock Status { get; init; }
+        public required AvaMedia.Controls.StatusPill Status { get; init; }
         public required TextBlock Error { get; init; }
         public required StackPanel ProgressPanel { get; init; }
         public required TextBlock ProgressText { get; init; }
@@ -91,12 +91,11 @@ public sealed partial class SettingsWindow
         ModelFilterInput.SelectionChanged += (_, _) => FilterModelRows();
         foreach (var model in ModelCatalog.All)
         {
-            var status = Ui.Text("读取状态…", "caption");
-            status.TextWrapping = TextWrapping.NoWrap; status.TextTrimming = TextTrimming.CharacterEllipsis;
+            var status = new AvaMedia.Controls.StatusPill { Text = Localization.Text("读取状态…"), HorizontalAlignment = HorizontalAlignment.Right };
             var name = Ui.Text(model.Name, "settingsHeading");
             name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
             ToolTip.SetTip(name, model.Name);
-            var identity = new Grid { ColumnDefinitions = new("*,120"), ColumnSpacing = 12 };
+            var identity = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StRowGap") };
             identity.Children.Add(name); Grid.SetColumn(status, 1); identity.Children.Add(status);
             var metadata = Ui.FormattedText($"{Localization.Key(model.Purpose)} · {ModelSize(model.DownloadSize)} · {model.License}", "caption");
             metadata.TextWrapping = TextWrapping.NoWrap; metadata.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -110,26 +109,26 @@ public sealed partial class SettingsWindow
             var importFiles = new MenuItem { Header = "选择文件…" }; importFiles.Click += (_, _) => _ = ImportModelAsync(model, folder: false);
             var importFolder = new MenuItem { Header = "选择文件夹…" }; importFolder.Click += (_, _) => _ = ImportModelAsync(model, folder: true);
             import.Items.Add(importFiles); import.Items.Add(importFolder);
-            var more = new Button { Content = "更多…", Classes = { "field-action" }, MinWidth = 88, HorizontalAlignment = HorizontalAlignment.Right,
+            var more = new Button { Content = "更多…", Classes = { "field-action" }, [!MinWidthProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StCompactFieldWidth"), HorizontalAlignment = HorizontalAlignment.Right,
                 Flyout = new MenuFlyout { Items = { import, verify, delete } } };
-            download.Classes.Add("primary");
+            download.Classes.Add("secondary");
             // Keep the action slot and focused control stable when download becomes cancel.
-            var buttons = new Grid { ColumnDefinitions = new("*,112,88"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
+            var buttons = new Grid { ColumnDefinitions = new("*,112,88"), [!Grid.ColumnSpacingProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StModelActionGap"), VerticalAlignment = VerticalAlignment.Center };
             buttons.Children.Add(metadata);
             download.Classes.Add("field-action"); Grid.SetColumn(download, 1); buttons.Children.Add(download);
             Grid.SetColumn(more, 2); buttons.Children.Add(more);
 
             var progressText = Ui.Text("", "caption");
             progressText.TextWrapping = TextWrapping.NoWrap; progressText.TextTrimming = TextTrimming.CharacterEllipsis;
-            var progressBar = new ProgressBar { Minimum = 0, Maximum = 100, Height = 4, MinHeight = 4 };
-            var progressPanel = new StackPanel { Spacing = 4, IsVisible = false };
+            var progressBar = new ProgressBar { Minimum = 0, Maximum = 100, [!HeightProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StModelProgressHeight"), [!MinHeightProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StModelProgressHeight") };
+            var progressPanel = new StackPanel { [!StackPanel.SpacingProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StDetailGap"), IsVisible = false };
             progressPanel.Children.Add(progressText); progressPanel.Children.Add(progressBar);
             var error = Ui.Text("", "settingError"); error.IsVisible = false; error.VerticalAlignment = VerticalAlignment.Top;
             error.TextWrapping = TextWrapping.NoWrap; error.TextTrimming = TextTrimming.CharacterEllipsis;
             // Progress and errors share a reserved area so actions never resize a model row.
-            var details = new Grid { Height = 26, ClipToBounds = true };
+            var details = new Grid { [!HeightProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StModelDetailsHeight"), ClipToBounds = true };
             details.Children.Add(progressPanel); details.Children.Add(error);
-            var panel = new Grid { RowDefinitions = new("Auto,Auto,Auto,26"), RowSpacing = 6 };
+            var panel = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto"), [!Grid.RowSpacingProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("StModelGap") };
             panel.Children.Add(identity); Grid.SetRow(buttons, 1); panel.Children.Add(buttons);
             if (MediaTagRuntime.Supports(model.Id))
             {
@@ -137,7 +136,7 @@ public sealed partial class SettingsWindow
                 Grid.SetRow(runtime, 2); panel.Children.Add(runtime);
             }
             Grid.SetRow(details, 3); panel.Children.Add(details);
-            var container = new Border { Classes = { "settingSection", "modelRow" }, Child = panel };
+            var container = new AvaMedia.Controls.Card { Classes = { "settingSection", "modelRow" }, Child = panel };
             ModelList.Children.Add(container);
             _modelRows.Add(model.Id, new()
             {
@@ -272,7 +271,7 @@ public sealed partial class SettingsWindow
             : model.Supported && !busy;
         row.Download.Content = Localization.Text(downloading ? "取消下载" : row.Downloaded > 0 && !row.Installed ? "继续下载"
             : download?.Error is not null || backgroundFailure ? "重试下载" : row.Installed ? "修复下载" : "下载");
-        row.Download.Classes.Set("primary", downloading || !row.Installed);
+        row.Status.State = backgroundFailure || row.ErrorMessage is not null || download?.Error is not null ? "failed" : busy ? "running" : row.Installed ? "completed" : "waiting";
         row.Verify.IsEnabled = row.Installed && !busy;
         row.Delete.IsEnabled = !busy && _modelStore.HasLocalData(model.Id);
         row.Import.IsEnabled = model.Supported && !busy && model.Files.Count > 0;

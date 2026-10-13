@@ -17,7 +17,7 @@ public sealed partial class SettingsWindow
     private static readonly string[] AccentNames = ["蓝色", "紫色", "粉色", "红色", "橙色", "黄色", "绿色", "灰色"];
     private string _accentColor = "Blue";
     private bool _resettingDefaults, _updateModeEdited;
-    private readonly TextBlock _settingsPageTitle = new() { FontSize = 15, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new(184, 0, 0, 0) };
+    private readonly TextBlock _settingsPageTitle = new() { [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StPageTitleFont"), FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, [!MarginProperty] = new DynamicResourceExtension("StTitleMargin") };
     private void InitializeV2Navigation()
     {
         var pages = new[] { GeneralTab, AppearanceTab, PlayerTab, ConversionTab, ModelsTab, ProvidersTab, RemoteTab, ToolsTab, AboutTab };
@@ -28,10 +28,12 @@ public sealed partial class SettingsWindow
             var color = colors[index]; var icon = icons[index];
             pages[index].HeaderTemplate = new FuncDataTemplate<string>((label, _) =>
             {
-                var glyph = new LucideIcon { Kind = icon, Width = 13, Height = 13, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                var tile = new Border { Width = 20, Height = 20, [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiSettingsIconRadius"), Child = glyph };
+                var glyph = new LucideIcon { Kind = icon, [!WidthProperty] = new DynamicResourceExtension("StNavigationIconSize"), [!HeightProperty] = new DynamicResourceExtension("StNavigationIconSize"), [!LucideIcon.ForegroundProperty] = new DynamicResourceExtension("StIconText"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                var tile = new Border { [!WidthProperty] = new DynamicResourceExtension("StNavigationTileSize"), [!HeightProperty] = new DynamicResourceExtension("StNavigationTileSize"), [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiSettingsIconRadius"), Child = glyph };
                 tile.Bind(Border.BackgroundProperty, new DynamicResourceExtension("St" + color));
-                var row = new Grid { ColumnDefinitions = new("20,*"), ColumnSpacing = 9 };
+                var row = new Grid { [!Grid.ColumnSpacingProperty] = new DynamicResourceExtension("StNavigationIconGap") };
+                row.ColumnDefinitions.Add(new ColumnDefinition { [!ColumnDefinition.WidthProperty] = new DynamicResourceExtension("StNavigationIconColumn") });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
                 row.Children.Add(tile);
                 var text = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(text, 1); row.Children.Add(text); return row;

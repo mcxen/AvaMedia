@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:ac="using:AvaMedia.Controls" xmlns:local="using:AvaMedia.Desktop" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.SettingsWindow" Title="设置" Width="900" Height="760" MinWidth="880" MinHeight="640" Classes="settings" WindowStartupLocation="CenterOwner">
+<Window xmlns="https://github.com/avaloniaui" xmlns:ac="using:AvaMedia.Controls" xmlns:local="using:AvaMedia.Desktop" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AvaMedia.Desktop.SettingsWindow" Title="设置" Width="{DynamicResource StWindowWidth}" Height="{DynamicResource StWindowHeight}" MinWidth="{DynamicResource StWindowMinWidth}" MinHeight="{DynamicResource StWindowMinHeight}" Classes="settings" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/SettingsStyles.axaml"/>
   </Window.Styles>
@@ -7,16 +7,16 @@
       <TabItem x:Name="GeneralTab" Header="通用">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <TextBlock Classes="settingsHeading" Text="输出"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="保存位置" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ac:SegmentedControl x:Name="OutputLocationInput">
                           <ListBoxItem Content="默认输出文件夹"/>
                           <ListBoxItem Content="源文件所在目录"/>
@@ -25,23 +25,23 @@
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow indented" x:Name="OutputFolderRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="默认输出文件夹" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBox x:Name="OutputInput" Classes="ac" Width="205" AutomationProperties.Name="输出文件夹"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <TextBox x:Name="OutputInput" Classes="ac" Width="{DynamicResource StOutputFieldWidth}" AutomationProperties.Name="输出文件夹"/>
                         <Button x:Name="OutputBrowseButton" Content="浏览…" Click="OutputBrowseClick" Classes="ac small"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="文件名附加格式或设置名称" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="例如 旅行_1080p.mp4" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="AddSettingNameInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="文件名附加格式或设置名称"/>
                       </StackPanel>
                     </Grid>
@@ -52,32 +52,32 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="显示完成通知" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="NotifyInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="显示完成通知"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="打开输出文件夹" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="OpenOutputInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="打开输出文件夹"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="全部成功后关闭电脑" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="仅在队列中所有任务成功时执行" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="ShutdownInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="全部成功后关闭电脑"/>
                       </StackPanel>
                     </Grid>
@@ -88,11 +88,11 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="折叠已完成任务" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="CollapseInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="折叠已完成任务"/>
                       </StackPanel>
                     </Grid>
@@ -103,12 +103,12 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="关闭窗口时" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="任务会在后台继续进行" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ac:SegmentedControl x:Name="CloseBehaviorInput">
                           <ListBoxItem Content="退出应用"/>
                           <ListBoxItem Content="继续在托盘运行"/>
@@ -117,11 +117,11 @@
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="最小化时" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ac:SegmentedControl x:Name="MinimizeBehaviorInput">
                           <ListBoxItem Content="保留在程序坞"/>
                           <ListBoxItem Content="隐藏到托盘"/>
@@ -135,22 +135,22 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow" x:Name="ContextMenuRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="添加到系统上下文菜单" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="在文件管理器右键菜单中显示 AvaMedia" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="ContextMenuInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="添加到系统上下文菜单"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow" x:Name="PlayerIntegrationRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="天池播放器" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <Button x:Name="RegisterPlayerButton" Content="注册天池播放器" Click="RegisterPlayerClick" Classes="ac small"/>
                         <Button x:Name="DefaultPlayerButton" Content="设为默认播放器" Click="DefaultPlayerClick" Classes="ac small"/>
                       </StackPanel>
@@ -165,18 +165,18 @@
       <TabItem x:Name="AppearanceTab" Header="外观与声音">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <TextBlock Classes="settingsHeading" Text="外观"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="界面皮肤" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="可选：跟随系统、浅色、深色、Mac OS 9、Windows XP" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox x:Name="ThemeInput" Width="190" Classes="ac">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <ComboBox x:Name="ThemeInput" Width="{DynamicResource StThemeChoiceWidth}" Classes="ac">
                           <ComboBoxItem Content="跟随系统"/>
                           <ComboBoxItem Content="浅色"/>
                           <ComboBoxItem Content="深色"/>
@@ -187,12 +187,12 @@
                     </Grid>
                   </Border>
                   <Border x:Name="LinuxScaleRow" Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="界面缩放" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="保存后重启生效；跟随系统使用桌面缩放。" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <ComboBox x:Name="LinuxScaleInput" Grid.Column="1" Width="190" Classes="ac" VerticalAlignment="Center">
+                      <ComboBox x:Name="LinuxScaleInput" Grid.Column="1" Width="{DynamicResource StThemeChoiceWidth}" Classes="ac" VerticalAlignment="Center">
                         <ComboBoxItem Content="跟随系统"/>
                         <ComboBoxItem Content="100%"/>
                         <ComboBoxItem Content="125%"/>
@@ -202,21 +202,21 @@
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="强调色" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <StackPanel x:Name="AccentPalette" Orientation="Horizontal" Spacing="7"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <StackPanel x:Name="AccentPalette" Orientation="Horizontal" Spacing="{DynamicResource StSwatchGap}"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="界面语言" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ac:SegmentedControl x:Name="LanguageInput">
                           <ListBoxItem Content="跟随系统"/>
                           <ListBoxItem Content="简体中文"/>
@@ -226,11 +226,11 @@
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="减少界面动效" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="ReducedMotionInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="减少界面动效"/>
                       </StackPanel>
                     </Grid>
@@ -241,31 +241,31 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="操作音效" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="OperationSoundInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="操作音效"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="完成音效" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="CompleteSoundInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="完成音效"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="错误音效" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="ErrorSoundInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="错误音效"/>
                       </StackPanel>
                     </Grid>
@@ -279,27 +279,27 @@
       <TabItem x:Name="PlayerTab" Header="播放器">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <TextBlock Classes="settingsHeading" Text="播放"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="优先使用原生高分辨率播放" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="NativeHighResolutionInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="优先使用原生高分辨率播放"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="原生播放输出 SDR" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="在不支持 HDR 的显示器上避免画面发灰" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="NativeSdrInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="原生播放输出 SDR"/>
                       </StackPanel>
                     </Grid>
@@ -310,11 +310,11 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="删除文件前确认" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="ConfirmDeletionInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="删除文件前确认"/>
                       </StackPanel>
                     </Grid>
@@ -328,27 +328,27 @@
       <TabItem x:Name="ConversionTab" Header="转换与性能">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <TextBlock Classes="settingsHeading" Text="硬件加速"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="自动适配 GPU" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="GPU 优先，不可用时回退到 CPU" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="AutoGpuInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="自动适配 GPU"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="GPU 能力" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <Button x:Name="HardwareTestButton" Content="查看 GPU 能力" Click="HardwareTestClick" Classes="ac small"/>
                       </StackPanel>
                     </Grid>
@@ -359,25 +359,25 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="每个任务的线程数" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="可选：自动、1（单线程）、2、4、8、12、16" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox x:Name="ThreadsInput" Width="180" Classes="ac"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <ComboBox x:Name="ThreadsInput" Width="{DynamicResource StChoiceWidth}" Classes="ac"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="CPU 预留比例" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="0–80%，为系统和其他应用保留算力" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider x:Name="CpuReserveInput" Classes="ac" Width="160" Minimum="0" Maximum="80" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Text="{Binding #CpuReserveInput.Value, StringFormat={}{0:0}%}" Width="38" TextAlignment="Right" VerticalAlignment="Center" Classes="settingsDescription"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <Slider x:Name="CpuReserveInput" Classes="ac" Width="{DynamicResource StSliderWidth}" Minimum="0" Maximum="80" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Text="{Binding #CpuReserveInput.Value, StringFormat={}{0:0}%}" Width="{DynamicResource StSliderValueWidth}" TextAlignment="Right" VerticalAlignment="Center" Classes="settingsDescription"/>
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -387,24 +387,24 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="JPEG 质量" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider x:Name="JpegQualityInput" Classes="ac" Width="160" Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Text="{Binding #JpegQualityInput.Value, StringFormat={}{0:0}}" Width="38" TextAlignment="Right" VerticalAlignment="Center" Classes="settingsDescription"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <Slider x:Name="JpegQualityInput" Classes="ac" Width="{DynamicResource StSliderWidth}" Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Text="{Binding #JpegQualityInput.Value, StringFormat={}{0:0}}" Width="{DynamicResource StSliderValueWidth}" TextAlignment="Right" VerticalAlignment="Center" Classes="settingsDescription"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="WebP 质量" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Slider x:Name="WebpQualityInput" Classes="ac" Width="160" Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Text="{Binding #WebpQualityInput.Value, StringFormat={}{0:0}}" Width="38" TextAlignment="Right" VerticalAlignment="Center" Classes="settingsDescription"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <Slider x:Name="WebpQualityInput" Classes="ac" Width="{DynamicResource StSliderWidth}" Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Text="{Binding #WebpQualityInput.Value, StringFormat={}{0:0}}" Width="{DynamicResource StSliderValueWidth}" TextAlignment="Right" VerticalAlignment="Center" Classes="settingsDescription"/>
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -417,64 +417,64 @@
       <TabItem x:Name="ModelsTab" Header="本地模型">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <Border x:Name="ModelLifecycleSection"/>
               <TextBlock Classes="settingsHeading" Text="下载"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="模型下载源" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox x:Name="ModelSourceInput" Width="180" Classes="ac"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <ComboBox x:Name="ModelSourceInput" Width="{DynamicResource StChoiceWidth}" Classes="ac"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow indented" x:Name="ModelSourceCustomRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="自定义地址" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="选择“自定义”后可用" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBox x:Name="ModelSourceUrlInput" Classes="ac" Width="270" Watermark="兼容 Hugging Face 路径的镜像地址"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <TextBox x:Name="ModelSourceUrlInput" Classes="ac" Width="{DynamicResource StAddressFieldWidth}" Watermark="兼容 Hugging Face 路径的镜像地址"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="启动时自动下载图片修复模型" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="AutoRepairModelInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="启动时自动下载图片修复模型"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                 </StackPanel>
               </Border>
-              <TextBlock x:Name="ModelSourceHint" Classes="settingsDescription" TextWrapping="Wrap" Margin="10,5,10,0"/>
+              <TextBlock x:Name="ModelSourceHint" Classes="settingsDescription" TextWrapping="Wrap" Margin="{DynamicResource StHintMargin}"/>
               <TextBlock Classes="settingsHeading" Text="标签与内容"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="AI 标签候选词" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <Button Content="管理词库…" Click="ManageWordLibraries" Classes="ac small"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="启用 NSFW 分组与标签" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="NsfwContentInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="启用 NSFW 分组与标签"/>
                       </StackPanel>
                     </Grid>
@@ -485,26 +485,26 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="管理本地模型" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <Button x:Name="ModelLibraryButton" Content="查看模型库…" Classes="ac small" Click="ModelLibraryClick"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                 </StackPanel>
               </Border>
-              <StackPanel x:Name="ModelLibraryPanel" IsVisible="False" Margin="0,8,0,0">
-                <ComboBox x:Name="ModelFilterInput" Classes="ac" Width="180" HorizontalAlignment="Left">
+              <StackPanel x:Name="ModelLibraryPanel" IsVisible="False" Margin="{DynamicResource StLibraryMargin}">
+                <ComboBox x:Name="ModelFilterInput" Classes="ac" Width="{DynamicResource StChoiceWidth}" HorizontalAlignment="Left">
                   <ComboBoxItem Content="全部模型"/>
                   <ComboBoxItem Content="已安装"/>
                   <ComboBoxItem Content="待下载"/>
                   <ComboBoxItem Content="下载中"/>
                   <ComboBoxItem Content="本地大模型"/>
                 </ComboBox>
-                <StackPanel x:Name="ModelList" Spacing="8" Margin="0,8,0,0"/>
+                <StackPanel x:Name="ModelList" Spacing="{DynamicResource StControlGap}" Margin="{DynamicResource StLibraryMargin}"/>
                 <TextBlock x:Name="ModelStatus" Classes="settingError" TextWrapping="Wrap"/>
               </StackPanel>
             </StackPanel>
@@ -514,26 +514,26 @@
       <TabItem x:Name="ProvidersTab" Header="在线 AI">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <TextBlock Classes="settingsHeading" Text="供应商"/>
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="默认供应商" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox x:Name="OnlineProviderInput" Classes="ac" Width="220" local:Localization.IsUserText="True"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <ComboBox x:Name="OnlineProviderInput" Classes="ac" Width="{DynamicResource StProviderFieldWidth}" local:Localization.IsUserText="True"/>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <Button x:Name="AddProviderButton" Content="添加供应商…" Click="AddProviderClick" Classes="ac small"/>
                         <Button x:Name="DeleteProviderButton" Content="删除" Click="DeleteProviderClick" Classes="ac small danger"/>
                       </StackPanel>
@@ -546,42 +546,42 @@
                 <Border Classes="ac-group">
                   <StackPanel>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="启用" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                           <ToggleSwitch x:Name="OnlineEnabledInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="启用"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="名称" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <TextBox x:Name="OnlineNameInput" Classes="ac" Width="270" local:Localization.IsUserText="True"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <TextBox x:Name="OnlineNameInput" Classes="ac" Width="{DynamicResource StAddressFieldWidth}" local:Localization.IsUserText="True"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="接口地址" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <TextBox x:Name="OnlineEndpointInput" Classes="ac" Width="270" local:Localization.IsUserText="True" Watermark="https://…/v1"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <TextBox x:Name="OnlineEndpointInput" Classes="ac" Width="{DynamicResource StAddressFieldWidth}" local:Localization.IsUserText="True" Watermark="https://…/v1"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="API Key" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <TextBox x:Name="OnlineKeyInput" Classes="ac" Width="145" PasswordChar="●" local:Localization.IsUserText="True"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <TextBox x:Name="OnlineKeyInput" Classes="ac" Width="{DynamicResource StShortFieldWidth}" PasswordChar="●" local:Localization.IsUserText="True"/>
                           <Button x:Name="RevealProviderKeyButton" Content="显示" Click="RevealProviderKeyClick" Classes="ac small"/>
                           <Button x:Name="ProviderSetupSection" Content="获取密钥" Click="ProviderApiKeyClick" Classes="ac small link" IsVisible="False"/>
                         </StackPanel>
@@ -593,32 +593,32 @@
                 <Border Classes="ac-group">
                   <StackPanel>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="文本模型" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <AutoCompleteBox x:Name="OnlineTextModelInput" Classes="ac" Width="270" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" local:Localization.IsUserText="True"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <AutoCompleteBox x:Name="OnlineTextModelInput" Classes="ac" Width="{DynamicResource StAddressFieldWidth}" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" local:Localization.IsUserText="True"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="视觉模型" TextWrapping="Wrap"/>
                           <TextBlock Classes="settingsDescription" Text="留空沿用文本模型" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <AutoCompleteBox x:Name="OnlineVisionModelInput" Classes="ac" Width="270" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" local:Localization.IsUserText="True"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <AutoCompleteBox x:Name="OnlineVisionModelInput" Classes="ac" Width="{DynamicResource StAddressFieldWidth}" MinimumPrefixLength="0" FilterMode="ContainsOrdinal" IsTextCompletionEnabled="False" local:Localization.IsUserText="True"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                           <Button x:Name="FetchProviderModelsButton" Content="连接并获取模型" Click="FetchProviderModelsClick" Classes="ac small primary"/>
                           <Button x:Name="CancelProviderModelsButton" Content="取消" Click="CancelProviderModelsClick" Classes="ac small" IsVisible="False"/>
                           <Button x:Name="ProviderDocsButton" Content="文档" Click="ProviderDocsClick" Classes="ac small link"/>
@@ -628,16 +628,16 @@
                   </StackPanel>
                 </Border>
                 <TextBlock x:Name="ProviderStatus" Classes="settingsDescription" IsVisible="False" TextWrapping="Wrap"/>
-                <TextBlock x:Name="OnlineLimitsText" Classes="settingsDescription" TextWrapping="Wrap" Margin="10,4"/>
+                <TextBlock x:Name="OnlineLimitsText" Classes="settingsDescription" TextWrapping="Wrap" Margin="{DynamicResource StStatusMargin}"/>
                 <TextBlock Classes="settingsHeading" Text="高级"/>
                 <Border Classes="ac-group">
                   <StackPanel>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="输出长度参数" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                           <ac:SegmentedControl x:Name="OnlineTokenInput">
                             <ListBoxItem Content="max_tokens"/>
                             <ListBoxItem Content="max_completion_tokens"/>
@@ -646,11 +646,11 @@
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="结构化输出" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                           <ac:SegmentedControl x:Name="OnlineFormatInput">
                             <ListBoxItem Content="提示词约束"/>
                             <ListBoxItem Content="JSON 对象"/>
@@ -660,13 +660,13 @@
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="请求超时" TextWrapping="Wrap"/>
                           <TextBlock Classes="settingsDescription" Text="10–600 秒" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <NumericUpDown x:Name="OnlineTimeoutInput" Classes="ac" Minimum="10" Maximum="600" Increment="10" Width="88"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <NumericUpDown x:Name="OnlineTimeoutInput" Classes="ac" Minimum="10" Maximum="600" Increment="10" Width="{DynamicResource StCompactFieldWidth}"/>
                         </StackPanel>
                       </Grid>
                     </Border>
@@ -680,7 +680,7 @@
       <TabItem x:Name="RemoteTab" Header="远程管理">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <Border x:Name="McpSection"/>
             </StackPanel>
           </ScrollViewer>
@@ -689,41 +689,41 @@
       <TabItem x:Name="ToolsTab" Header="高级">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
+            <StackPanel Spacing="{DynamicResource StNoGap}">
               <StackPanel x:Name="ExternalToolPaths">
                 <TextBlock Classes="settingsHeading" Text="外部工具"/>
                 <Border Classes="ac-group">
                   <StackPanel>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="FFmpeg" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <TextBox x:Name="FfmpegInput" Classes="ac" Width="225" Watermark="自动查找"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <TextBox x:Name="FfmpegInput" Classes="ac" Width="{DynamicResource StLanguageFieldWidth}" Watermark="自动查找"/>
                           <Button Content="选取…" Click="FfmpegBrowseClick" Classes="ac small"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="FFprobe" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <TextBox x:Name="FfprobeInput" Classes="ac" Width="225" Watermark="自动查找"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <TextBox x:Name="FfprobeInput" Classes="ac" Width="{DynamicResource StLanguageFieldWidth}" Watermark="自动查找"/>
                           <Button Content="选取…" Click="FfprobeBrowseClick" Classes="ac small"/>
                         </StackPanel>
                       </Grid>
                     </Border>
                     <Border Classes="ac-setting-row settingsRow">
-                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                         <StackPanel VerticalAlignment="Center">
                           <TextBlock Text="yt-dlp" TextWrapping="Wrap"/>
                           <TextBlock Classes="settingsDescription" Text="留空使用内置工具" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                          <TextBox x:Name="YtdlpInput" Classes="ac" Width="225" Watermark="自动查找"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                          <TextBox x:Name="YtdlpInput" Classes="ac" Width="{DynamicResource StLanguageFieldWidth}" Watermark="自动查找"/>
                           <Button Content="选取…" Click="YtdlpBrowseClick" Classes="ac small"/>
                         </StackPanel>
                       </Grid>
@@ -735,11 +735,11 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="开启 Beta 功能" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ToggleSwitch x:Name="BetaInput" OnContent="{x:Null}" OffContent="{x:Null}" AutomationProperties.Name="开启 Beta 功能"/>
                       </StackPanel>
                     </Grid>
@@ -750,25 +750,25 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="激活密码" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <StackPanel x:Name="ExclusiveActivationPanel" Orientation="Horizontal" Spacing="8">
-                          <TextBox x:Name="ExclusivePasswordInput" Classes="ac" Width="215" PasswordChar="●" Watermark="请输入专属激活密码" local:Localization.IsUserText="True" KeyDown="ExclusivePasswordKeyDown"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <StackPanel x:Name="ExclusiveActivationPanel" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}">
+                          <TextBox x:Name="ExclusivePasswordInput" Classes="ac" Width="{DynamicResource StMediumFieldWidth}" PasswordChar="●" Watermark="请输入专属激活密码" local:Localization.IsUserText="True" KeyDown="ExclusivePasswordKeyDown"/>
                           <Button Content="激活" Classes="ac small" Click="ActivateExclusiveToolClick"/>
                         </StackPanel>
                       </StackPanel>
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="专属重命名工具" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="激活后可用" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <StackPanel x:Name="ExclusiveToolsPanel" IsVisible="False">
                           <Button Content="打开" Classes="ac small" Click="OpenExclusiveRenamerClick"/>
                         </StackPanel>
@@ -781,7 +781,7 @@
               <TextBlock Classes="settingsHeading" Text="运行信息"/>
               <Border Classes="ac-group">
                 <StackPanel>
-                  <TextBox x:Name="RuntimeInfo" Classes="ac" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Margin="12,8"/>
+                  <TextBox x:Name="RuntimeInfo" Classes="ac" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Margin="{DynamicResource StToolsMargin}"/>
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -791,10 +791,10 @@
       <TabItem x:Name="AboutTab" Header="关于">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="0">
-              <Border Classes="ac-group" Margin="0,10,0,0">
-                <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0,20">
-                  <Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="64" Height="64"/>
+            <StackPanel Spacing="{DynamicResource StNoGap}">
+              <Border Classes="ac-group" Margin="{DynamicResource StSectionGap}">
+                <StackPanel HorizontalAlignment="Center" Spacing="{DynamicResource StDetailGap}" Margin="{DynamicResource StAboutMargin}">
+                  <Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="{DynamicResource StAboutIconSize}" Height="{DynamicResource StAboutIconSize}"/>
                   <TextBlock Text="AvaMedia" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="VersionText" Classes="settingsDescription"/>
                 </StackPanel>
@@ -803,12 +803,12 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="更新方式" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox x:Name="UpdateModeInput" Width="240" Classes="ac">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
+                        <ComboBox x:Name="UpdateModeInput" Width="{DynamicResource StLongFieldWidth}" Classes="ac">
                           <ComboBoxItem Content="仅手动检查"/>
                           <ComboBoxItem Content="启动时检查并提示"/>
                           <ComboBoxItem Content="自动下载，退出时安装"/>
@@ -817,11 +817,11 @@
                     </Grid>
                   </Border>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <TextBlock x:Name="LastUpdateCheckText" Classes="settingsDescription" VerticalAlignment="Center"/>
                         <Button x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" Classes="ac small"/>
                       </StackPanel>
@@ -833,12 +833,12 @@
               <Border Classes="ac-group">
                 <StackPanel>
                   <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="恢复默认设置" TextWrapping="Wrap"/>
                         <TextBlock Classes="settingsDescription" Text="仅重置本窗口中的设置" TextWrapping="Wrap"/>
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <Button x:Name="DefaultButton" Content="恢复默认…" Click="ResetClick" Classes="ac small danger"/>
                       </StackPanel>
                     </Grid>
@@ -850,7 +850,7 @@
         </Border>
       </TabItem>
     </TabControl>
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="272,0,26,14">
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource StControlGap}" Margin="{DynamicResource StFooterMargin}">
       <TextBlock x:Name="StatusText" Classes="settingError" IsVisible="False" TextWrapping="Wrap" VerticalAlignment="Center"/>
       <Button Grid.Column="1" x:Name="CancelButton" Classes="ac settingsFooter" Content="取消" Click="CancelClick" IsCancel="True"/>
       <Button Grid.Column="2" x:Name="ApplyButton" Classes="ac settingsFooter" Content="应用" Click="ApplyClick" IsEnabled="False"/>

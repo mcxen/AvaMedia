@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Controls;
 using Avalonia.Automation;
 using Avalonia.Layout;
@@ -12,8 +14,8 @@ public sealed partial class SettingsWindow
     private readonly ToggleSwitch _modelWarmChoice = new() { OnContent = null, OffContent = null };
     private readonly NumericUpDown _warmInitialCpu = WarmPercent(), _warmInitialGpu = WarmPercent(),
         _warmCpu = WarmPercent(), _warmGpu = WarmPercent();
-    private readonly NumericUpDown _warmRamp = new() { Minimum = 1, Maximum = 30, Increment = 1, Width = 100 };
-    private static NumericUpDown WarmPercent() => new() { Minimum = 1, Maximum = 100, Increment = 5, Width = 100 };
+    private readonly NumericUpDown _warmRamp = new() { Minimum = 1, Maximum = 30, Increment = 1 };
+    private static NumericUpDown WarmPercent() => new() { Minimum = 1, Maximum = 100, Increment = 5 };
     private readonly ComboBox _modelIdleChoice = Ui.Combo(["空闲 1 分钟", "空闲 5 分钟（推荐）", "空闲 15 分钟", "空闲 30 分钟", "保持到退出应用"], "空闲 5 分钟（推荐）");
     private readonly Button _releaseModels = new() { Content = "立即释放空闲模型", Classes = { "ac", "small" } };
     private bool _releasingModels;
@@ -25,7 +27,7 @@ public sealed partial class SettingsWindow
         _warmRamp.Value = source.ModelWarmupRampSeconds;
         var index = Array.IndexOf(ModelIdleChoices, source.TagModelIdleMinutes);
         _modelIdleChoice.SelectedIndex = index < 0 ? 1 : index;
-        _modelIdleChoice.Classes.Add("ac"); _modelIdleChoice.Width = 200;
+        _modelIdleChoice.Classes.Add("ac"); _modelIdleChoice.Bind(WidthProperty, new DynamicResourceExtension("StIdleChoiceWidth"));
     }
     private void InitializeModelLifecycle()
     {
@@ -37,17 +39,17 @@ public sealed partial class SettingsWindow
         foreach (var (label, cpuInput, gpuInput) in new[] { ("打开工具时", _warmInitialCpu, _warmInitialGpu), ("选择素材后", _warmCpu, _warmGpu) })
         {
             AutomationProperties.SetName(cpuInput, label + " CPU (%)"); AutomationProperties.SetName(gpuInput, label + " GPU (%)");
-            cpuInput.Classes.Add("ac"); gpuInput.Classes.Add("ac"); cpuInput.Width = gpuInput.Width = 60;
+            cpuInput.Classes.Add("ac"); gpuInput.Classes.Add("ac"); cpuInput.Bind(WidthProperty, new DynamicResourceExtension("StWarmupWidth")); gpuInput.Bind(WidthProperty, new DynamicResourceExtension("StWarmupWidth"));
             var row = Row(label, label == "选择素材后" ? "不能低于打开工具时的比例" : null,
-                Secondary(new TextBlock { Text = "CPU", FontSize = 11 }), cpuInput,
-                Secondary(new TextBlock { Text = "%", FontSize = 11 }),
-                Secondary(new TextBlock { Text = "GPU", FontSize = 11 }), gpuInput,
-                Secondary(new TextBlock { Text = "%", FontSize = 11 }));
-            row.Margin = new(18, 0, 0, 0); intensity.Children.Add(row);
+                Secondary(new TextBlock { Text = "CPU", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont") }), cpuInput,
+                Secondary(new TextBlock { Text = "%", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont") }),
+                Secondary(new TextBlock { Text = "GPU", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont") }), gpuInput,
+                Secondary(new TextBlock { Text = "%", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont") }));
+            row.Bind(MarginProperty, new DynamicResourceExtension("StChildRowMargin")); intensity.Children.Add(row);
         }
-        _warmRamp.Classes.Add("ac"); _warmRamp.Width = 60;
-        var ramp = Row("逐步增加用时", "1–30 秒", _warmRamp, Secondary(new TextBlock { Text = "秒", FontSize = 11 }));
-        ramp.Margin = new(18, 0, 0, 0); intensity.Children.Add(ramp);
+        _warmRamp.Classes.Add("ac"); _warmRamp.Bind(WidthProperty, new DynamicResourceExtension("StWarmupWidth"));
+        var ramp = Row("逐步增加用时", "1–30 秒", _warmRamp, Secondary(new TextBlock { Text = "秒", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont") }));
+        ramp.Bind(MarginProperty, new DynamicResourceExtension("StChildRowMargin")); intensity.Children.Add(ramp);
         panel.Children.Add(GroupTitle("预热工作比例")); panel.Children.Add(Group(intensity));
         intensity.IsEnabled = _modelWarmChoice.IsChecked == true;
         AutomationProperties.SetName(_modelWarmChoice, "打开工具时预加载模型");
@@ -82,11 +84,6 @@ public sealed partial class SettingsWindow
         MediaTagRuntime.Changed += ModelRuntimeChanged;
         Closed += (_, _) => MediaTagRuntime.Changed -= ModelRuntimeChanged;
         UpdateReleaseModelsAction();
-    }
-    private static Grid LifecycleField(string label, Control input)
-    {
-        var row = new Grid { ColumnDefinitions = new("144,*"), ColumnSpacing = 12 };
-        row.Children.Add(Ui.Text(label)); Grid.SetColumn(input, 1); row.Children.Add(input); return row;
     }
     private static void ConstrainWarmup(NumericUpDown initial, NumericUpDown selected)
     {

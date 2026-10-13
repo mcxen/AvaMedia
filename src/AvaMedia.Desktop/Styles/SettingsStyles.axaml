@@ -1,27 +1,102 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:auto="using:Avalonia.Automation" xmlns:local="using:AvaMedia.Desktop">
-  <Styles.Resources><ResourceDictionary><ResourceDictionary.ThemeDictionaries>
-    <ResourceDictionary x:Key="Light">
+  <Styles.Resources><ResourceDictionary>
+    <x:Double x:Key="StWindowWidth">900</x:Double>
+    <x:Double x:Key="StWindowMinWidth">880</x:Double>
+    <x:Double x:Key="StAboutIconSize">64</x:Double>
+    <x:Double x:Key="StCompactFieldWidth">88</x:Double>
+    <x:Double x:Key="StSliderValueWidth">38</x:Double>
+    <x:Double x:Key="StShortFieldWidth">145</x:Double>
+    <x:Double x:Key="StSliderWidth">160</x:Double>
+    <x:Double x:Key="StChoiceWidth">180</x:Double>
+    <x:Double x:Key="StThemeChoiceWidth">190</x:Double>
+    <x:Double x:Key="StOutputFieldWidth">205</x:Double>
+    <x:Double x:Key="StMediumFieldWidth">215</x:Double>
+    <x:Double x:Key="StProviderFieldWidth">220</x:Double>
+    <x:Double x:Key="StLanguageFieldWidth">225</x:Double>
+    <x:Double x:Key="StLongFieldWidth">240</x:Double>
+    <x:Double x:Key="StAddressFieldWidth">270</x:Double>
+    <x:Double x:Key="StWindowHeight">760</x:Double>
+    <x:Double x:Key="StWindowMinHeight">640</x:Double>
+    <x:Double x:Key="StNoGap">0</x:Double>
+    <x:Double x:Key="StDetailGap">4</x:Double>
+    <x:Double x:Key="StSwatchGap">7</x:Double>
+    <x:Double x:Key="StControlGap">8</x:Double>
+    <x:Double x:Key="StPropertyGap">16</x:Double>
+    <Thickness x:Key="StSectionGap">0,10,0,0</Thickness>
+    <Thickness x:Key="StAboutMargin">0,20</Thickness>
+    <Thickness x:Key="StLibraryMargin">0,8,0,0</Thickness>
+    <Thickness x:Key="StStatusMargin">10,4</Thickness>
+    <Thickness x:Key="StHintMargin">10,5,10,0</Thickness>
+    <Thickness x:Key="StToolsMargin">12,8</Thickness>
+    <Thickness x:Key="StFooterMargin">272,0,26,14</Thickness>
+    <x:Double x:Key="StBodyFont">13</x:Double>
+    <x:Double x:Key="StPageTitleFont">15</x:Double>
+    <x:Double x:Key="StGroupTitleFont">12</x:Double>
+    <x:Double x:Key="StDescriptionFont">11</x:Double>
+    <x:Double x:Key="StNavigationHeight">30</x:Double>
+    <x:Double x:Key="StNavigationIconSize">13</x:Double>
+    <x:Double x:Key="StNavigationTileSize">20</x:Double>
+    <x:Double x:Key="StNavigationIconGap">9</x:Double>
+    <x:Double x:Key="StSwatchSize">16</x:Double>
+    <Thickness x:Key="StNavigationGap">0,0,0,10</Thickness>
+    <Thickness x:Key="StRowPadding">12,7</Thickness>
+    <Thickness x:Key="StIndentedRowPadding">30,7,12,7</Thickness>
+    <Thickness x:Key="StHeadingMargin">10,18,0,6</Thickness>
+    <Thickness x:Key="StContentMargin">26,0,26,12</Thickness>
+    <Thickness x:Key="StTitleMargin">184,0,0,0</Thickness>
+    <Thickness x:Key="StSidebarMargin">8,0,8,8</Thickness>
+    <Thickness x:Key="StSidebarPadding">10,0,10,10</Thickness>
+    <Thickness x:Key="StBrandMargin">8,0,8,12</Thickness>
+    <x:Double x:Key="StBrandIconSize">32</x:Double>
+    <x:Double x:Key="StBrandGap">10</x:Double>
+    <CornerRadius x:Key="StSidebarRadius">13</CornerRadius>
+    <Thickness x:Key="StNavigationPadding">8,0</Thickness>
+    <x:Double x:Key="StToggleHeight">22</x:Double>
+    <x:Double x:Key="StFooterActionWidth">64</x:Double>
+    <Thickness x:Key="StModelPadding">12</Thickness>
+    <x:Double x:Key="StWarmupWidth">60</x:Double>
+    <x:Double x:Key="StIdleChoiceWidth">200</x:Double>
+    <x:Double x:Key="StPortWidth">90</x:Double>
+    <x:Double x:Key="StEndpointWidth">250</x:Double>
+    <x:Double x:Key="StModelProgressHeight">4</x:Double>
+    <x:Double x:Key="StModelDetailsHeight">26</x:Double>
+    <x:Double x:Key="StModelGap">6</x:Double>
+    <x:Double x:Key="StModelActionGap">8</x:Double>
+    <Thickness x:Key="StChildRowMargin">18,0,0,0</Thickness>
+    <Thickness x:Key="StWarningMargin">30,2,12,6</Thickness>
+    <Thickness x:Key="StWarningPadding">10,7</Thickness>
+    <Thickness x:Key="StHairlineMargin">12,0</Thickness>
+    <x:Double x:Key="StHairlineHeight">0.5</x:Double>
+    <x:Double x:Key="StRowGap">12</x:Double>
+    <x:Double x:Key="StTextGap">1</x:Double>
+    <Thickness x:Key="StRowLabelMargin">12,7,0,7</Thickness>
+    <Thickness x:Key="StRowControlMargin">0,7,12,7</Thickness>
+    <GridLength x:Key="StNavigationColumnWidth">246</GridLength>
+    <GridLength x:Key="StNavigationIconColumn">20</GridLength>
+    <GridLength x:Key="StBrandIconColumn">32</GridLength>
+<ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light"><SolidColorBrush x:Key="StIconText" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="StPage" Color="#F2F3F7"/><SolidColorBrush x:Key="StSidebar" Color="#FAFBFD"/>
       <SolidColorBrush x:Key="StBlue" Color="#007AFF"/><SolidColorBrush x:Key="StPurple" Color="#AF52DE"/><SolidColorBrush x:Key="StPink" Color="#FF2D55"/><SolidColorBrush x:Key="StRed" Color="#FF3B30"/><SolidColorBrush x:Key="StOrange" Color="#FF9500"/><SolidColorBrush x:Key="StYellow" Color="#FFCC00"/><SolidColorBrush x:Key="StGreen" Color="#34C759"/><SolidColorBrush x:Key="StGray" Color="#8E8E93"/><SolidColorBrush x:Key="StCyan" Color="#30B0C7"/>
     </ResourceDictionary>
-    <ResourceDictionary x:Key="Dark">
+    <ResourceDictionary x:Key="Dark"><SolidColorBrush x:Key="StIconText" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="StPage" Color="#1C1C1E"/><SolidColorBrush x:Key="StSidebar" Color="#29292B"/>
       <SolidColorBrush x:Key="StBlue" Color="#0A84FF"/><SolidColorBrush x:Key="StPurple" Color="#BF5AF2"/><SolidColorBrush x:Key="StPink" Color="#FF375F"/><SolidColorBrush x:Key="StRed" Color="#FF453A"/><SolidColorBrush x:Key="StOrange" Color="#FF9F0A"/><SolidColorBrush x:Key="StYellow" Color="#FFD60A"/><SolidColorBrush x:Key="StGreen" Color="#30D158"/><SolidColorBrush x:Key="StGray" Color="#98989D"/><SolidColorBrush x:Key="StCyan" Color="#64D2FF"/>
     </ResourceDictionary>
-    <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}"><SolidColorBrush x:Key="StPage" Color="#CCCCCC"/><SolidColorBrush x:Key="StSidebar" Color="#DDDDDD"/></ResourceDictionary>
-    <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><SolidColorBrush x:Key="StPage" Color="#ECE9D8"/><SolidColorBrush x:Key="StSidebar" Color="#F4F3EC"/></ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}"><SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#CCCCCC"/><SolidColorBrush x:Key="StSidebar" Color="#DDDDDD"/></ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#ECE9D8"/><SolidColorBrush x:Key="StSidebar" Color="#F4F3EC"/></ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources>
-  <Style Selector="Window.settings"><Setter Property="Background" Value="{DynamicResource StPage}"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style Selector="Window.settings"><Setter Property="Background" Value="{DynamicResource StPage}"/><Setter Property="FontSize" Value="{DynamicResource StBodyFont}"/></Style>
   <Style Selector="TabControl.settingsNavigation">
     <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Vertical"/></ItemsPanelTemplate></Setter>
     <Setter Property="Template"><ControlTemplate>
-      <Grid ColumnDefinitions="246,*">
-        <Border Margin="8,0,8,8" Padding="10,0,10,10" Background="{DynamicResource StSidebar}" CornerRadius="13" BorderBrush="{DynamicResource AcHairline}" BorderThickness="0.5">
-          <StackPanel><Grid ColumnDefinitions="32,*" ColumnSpacing="10" Margin="8,0,8,12"><Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="32" Height="32"/><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="AvaMedia" FontWeight="SemiBold"/><TextBlock Text="设置" FontSize="11" Foreground="{DynamicResource UiTextSecondary}"/></StackPanel></Grid>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource StNavigationColumnWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <Border Margin="{DynamicResource StSidebarMargin}" Padding="{DynamicResource StSidebarPadding}" Background="{DynamicResource StSidebar}" CornerRadius="{DynamicResource StSidebarRadius}" BorderBrush="{DynamicResource AcHairline}" BorderThickness="0.5">
+          <StackPanel><Grid ColumnSpacing="{DynamicResource StBrandGap}" Margin="{DynamicResource StBrandMargin}"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource StBrandIconColumn}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="{DynamicResource StBrandIconSize}" Height="{DynamicResource StBrandIconSize}"/><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="AvaMedia" FontWeight="SemiBold"/><TextBlock Text="设置" FontSize="{DynamicResource StDescriptionFont}" Foreground="{DynamicResource UiTextSecondary}"/></StackPanel></Grid>
             <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
           </StackPanel>
         </Border>
-        <Grid Grid.Column="1" RowDefinitions="*" Margin="26,0,26,12">
+        <Grid Grid.Column="1" RowDefinitions="*" Margin="{DynamicResource StContentMargin}">
 
           <ContentPresenter Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="0" Margin="0" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
         </Grid>
@@ -30,25 +105,25 @@
   </Style>
   <Style Selector="TabControl.settingsNavigation > TabItem">
     <Setter Property="auto:AutomationProperties.Name" Value="{Binding Header, RelativeSource={RelativeSource Self}}"/>
-    <Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/><Setter Property="Height" Value="{DynamicResource AcShellButtonHeight}"/><Setter Property="MinHeight" Value="{DynamicResource AcShellButtonHeight}"/><Setter Property="Padding" Value="8,0"/>
+    <Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/><Setter Property="Height" Value="{DynamicResource StNavigationHeight}"/><Setter Property="MinHeight" Value="{DynamicResource StNavigationHeight}"/><Setter Property="Padding" Value="{DynamicResource StNavigationPadding}"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Background" Value="Transparent"/>
     <Setter Property="Template"><ControlTemplate><Border Name="NavigationFace" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0" CornerRadius="{DynamicResource AcListRadius}"><ContentPresenter Name="PART_HeaderPresenter" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"/></Border></ControlTemplate></Setter>
   </Style>
   <Style Selector="TabControl.settingsNavigation > TabItem:pointerover"><Setter Property="Background" Value="{DynamicResource UiHover}"/></Style>
   <Style Selector="TabControl.settingsNavigation > TabItem:selected"><Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/></Style>
   <Style Selector="TabControl.settingsNavigation > TabItem:focus-visible /template/ Border#NavigationFace"><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
-  <Style Selector="TabItem#ConversionTab, TabItem#ProvidersTab"><Setter Property="Margin" Value="0,0,0,10"/></Style>
+  <Style Selector="TabItem#ConversionTab, TabItem#ProvidersTab"><Setter Property="Margin" Value="{DynamicResource StNavigationGap}"/></Style>
   <Style Selector="Window.settings Border.settingsPage"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.settings Border.ac-group"><Setter Property="CornerRadius" Value="{DynamicResource UiSettingsGroupRadius}"/><Setter Property="BoxShadow" Value="none"/></Style>
-  <Style Selector="Window.settings Border.settingsRow"><Setter Property="Padding" Value="12,7"/><Setter Property="MinHeight" Value="{DynamicResource UiSettingRowHeight}"/></Style>
-  <Style Selector="Window.settings Border.settingsRow.indented"><Setter Property="Padding" Value="30,7,12,7"/></Style>
+  <Style Selector="Window.settings Border.settingsRow"><Setter Property="Padding" Value="{DynamicResource StRowPadding}"/><Setter Property="MinHeight" Value="{DynamicResource UiSettingRowHeight}"/></Style>
+  <Style Selector="Window.settings Border.settingsRow.indented"><Setter Property="Padding" Value="{DynamicResource StIndentedRowPadding}"/></Style>
   <Style Selector="Window.settings Border.settingsRow"><Setter Property="BorderBrush" Value="{DynamicResource AcStageLineBrush}"/><Setter Property="BorderThickness" Value="0,0.5,0,0"/></Style>
-  <Style Selector="Window.settings TextBlock.settingsHeading"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/><Setter Property="Margin" Value="10,18,0,6"/></Style>
+  <Style Selector="Window.settings TextBlock.settingsHeading"><Setter Property="FontSize" Value="{DynamicResource StGroupTitleFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/><Setter Property="Margin" Value="{DynamicResource StHeadingMargin}"/></Style>
   <Style Selector="Window.settings TextBlock.settingsDescription"><Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
-  <Style Selector="Window.settings ToggleSwitch"><Setter Property="MinHeight" Value="22"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
-  <Style Selector="Window.settings Button.settingsFooter"><Setter Property="MinWidth" Value="64"/></Style>
-  <Style Selector="Window.settings Border.modelRow"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="Padding" Value="12"/><Setter Property="CornerRadius" Value="{DynamicResource UiSettingsGroupRadius}"/></Style>
-  <Style Selector="Window.settings Button.ac.accentSwatch"><Setter Property="Width" Value="16"/><Setter Property="Height" Value="16"/><Setter Property="MinHeight" Value="16"/><Setter Property="MinWidth" Value="16"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="{DynamicResource AcSegmentRadius}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.settings ToggleSwitch"><Setter Property="MinHeight" Value="{DynamicResource StToggleHeight}"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style Selector="Window.settings Button.settingsFooter"><Setter Property="MinWidth" Value="{DynamicResource StFooterActionWidth}"/></Style>
+  <Style Selector="Window.settings Border.modelRow"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="Padding" Value="{DynamicResource StModelPadding}"/><Setter Property="CornerRadius" Value="{DynamicResource UiSettingsGroupRadius}"/></Style>
+  <Style Selector="Window.settings Button.ac.accentSwatch"><Setter Property="Width" Value="{DynamicResource StSwatchSize}"/><Setter Property="Height" Value="{DynamicResource StSwatchSize}"/><Setter Property="MinHeight" Value="{DynamicResource StSwatchSize}"/><Setter Property="MinWidth" Value="{DynamicResource StSwatchSize}"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="{DynamicResource AcSegmentRadius}"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.settings Button.ac.accentSwatch.selected"><Setter Property="BorderBrush" Value="{DynamicResource UiText}"/><Setter Property="BorderThickness" Value="2"/></Style>
   <Style Selector="Window.mac-os9.settings Border.ac-group, Window.mac-os9.settings /template/ Border"><Setter Property="CornerRadius" Value="0"/></Style>
   <Style Selector="Window.windows-xp.settings Border.ac-group"><Setter Property="CornerRadius" Value="3"/></Style>

@@ -20,9 +20,9 @@ public sealed partial class SettingsWindow
 {
     private readonly ToggleSwitch _mcpEnabled = new() { OnContent = null, OffContent = null };
     private readonly ToggleSwitch _mcpLan = new() { OnContent = null, OffContent = null };
-    private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, Width = 90, HorizontalAlignment = HorizontalAlignment.Right };
-    private readonly ComboBox _mcpEndpoint = new() { Width = 250, HorizontalAlignment = HorizontalAlignment.Right };
-    private readonly TextBox _mcpAddress = new() { IsReadOnly = true, Width = 250, HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly NumericUpDown _mcpPort = new() { Minimum = 1024, Maximum = 65535, Increment = 1, [!WidthProperty] = new DynamicResourceExtension("StPortWidth"), HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly ComboBox _mcpEndpoint = new() { [!WidthProperty] = new DynamicResourceExtension("StEndpointWidth"), HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly TextBox _mcpAddress = new() { IsReadOnly = true, [!WidthProperty] = new DynamicResourceExtension("StEndpointWidth"), HorizontalAlignment = HorizontalAlignment.Right };
     private readonly AvaMedia.Controls.StatusPill _mcpStatusPill = new();
     private readonly StackPanel _mcpClients = new();
     private Func<string>? _readMcpStatus;
@@ -63,9 +63,9 @@ public sealed partial class SettingsWindow
 
         _mcpEndpoint.Classes.Add("ac"); _mcpAddress.Classes.Add("ac"); _mcpPort.Classes.Add("ac");
         var panel = new StackPanel();
-        var portRow = Row("端口", "1024–65535", _mcpPort); portRow.Margin = new(18, 0, 0, 0);
-        var lanRow = Row("允许局域网连接", "同一网络中的设备可管理本机文件与任务", _mcpLan); lanRow.Margin = new(18, 0, 0, 0);
-        var warning = new Border { Classes = { "ac-notice", "warning" }, Margin = new(30, 2, 12, 6), Padding = new(10, 7),
+        var portRow = Row("端口", "1024–65535", _mcpPort); portRow.Bind(MarginProperty, new DynamicResourceExtension("StChildRowMargin"));
+        var lanRow = Row("允许局域网连接", "同一网络中的设备可管理本机文件与任务", _mcpLan); lanRow.Bind(MarginProperty, new DynamicResourceExtension("StChildRowMargin"));
+        var warning = new Border { Classes = { "ac-notice", "warning" }, [!MarginProperty] = new DynamicResourceExtension("StWarningMargin"), [!Border.PaddingProperty] = new DynamicResourceExtension("StWarningPadding"),
             Child = new TextBlock { Text = "服务不要求令牌，只在可信网络中开启。", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontCaption"), TextWrapping = TextWrapping.Wrap } };
         warning.Child.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("AcBannerText"));
         void UpdateDependencies() { portRow.IsEnabled = lanRow.IsEnabled = _mcpEnabled.IsChecked == true; warning.IsVisible = _mcpLan.IsChecked == true; }
@@ -109,19 +109,19 @@ public sealed partial class SettingsWindow
     }
     private Border Hairline()
     {
-        var line = new Border { Height = .5, Margin = new(12, 0) };
+        var line = new Border { [!HeightProperty] = new DynamicResourceExtension("StHairlineHeight"), [!MarginProperty] = new DynamicResourceExtension("StHairlineMargin") };
         line.Bind(Border.BackgroundProperty, this.GetResourceObservable("AcStageLineBrush")); return line;
     }
     private TextBlock GroupTitle(string text) => new() { Text = text, Classes = { "settingsHeading" } };
     private TextBlock Secondary(TextBlock text) { text.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("UiTextSecondary")); return text; }
     private Grid Row(string? label, string? caption, params Control[] trailing)
     {
-        var grid = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 16, [!Grid.MinHeightProperty] = new DynamicResourceExtension("UiSettingRowHeight") };
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1, Margin = new(12, 7, 0, 7) };
+        var grid = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = new DynamicResourceExtension("StPropertyGap"), [!Grid.MinHeightProperty] = new DynamicResourceExtension("UiSettingRowHeight") };
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, [!StackPanel.SpacingProperty] = new DynamicResourceExtension("StTextGap"), [!MarginProperty] = new DynamicResourceExtension("StRowLabelMargin") };
         if (label is not null) text.Children.Add(new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap });
-        if (caption is not null) text.Children.Add(Secondary(new TextBlock { Text = caption, FontSize = 11, TextWrapping = TextWrapping.Wrap }));
+        if (caption is not null) text.Children.Add(Secondary(new TextBlock { Text = caption, [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("StDescriptionFont"), TextWrapping = TextWrapping.Wrap }));
         grid.Children.Add(text);
-        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Margin = new(0, 7, 12, 7) };
+        var right = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = new DynamicResourceExtension("StControlGap"), VerticalAlignment = VerticalAlignment.Center, [!MarginProperty] = new DynamicResourceExtension("StRowControlMargin") };
         foreach (var control in trailing) right.Children.Add(control);
         Grid.SetColumn(right, 1); grid.Children.Add(right); return grid;
     }
@@ -148,13 +148,13 @@ public sealed partial class SettingsWindow
         foreach (var (client, index) in clients.Take(8).Select((client, index) => (client, index)))
         {
             if (index > 0) _mcpClients.Children.Add(Hairline());
-            var icon = new LucideIcon { Kind = client.Kind == "MCP" ? "cpu" : "wifi", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }; icon.Bind(LucideIcon.ForegroundProperty, this.GetResourceObservable("UiText"));
+            var icon = new LucideIcon { Kind = client.Kind == "MCP" ? "cpu" : "wifi", [!WidthProperty] = new DynamicResourceExtension("StSwatchSize"), [!HeightProperty] = new DynamicResourceExtension("StSwatchSize"), VerticalAlignment = VerticalAlignment.Center }; icon.Bind(LucideIcon.ForegroundProperty, this.GetResourceObservable("UiText"));
             var row = Row(null, null);
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1 };
             text.Children.Add(new TextBlock { Text = (client.Kind == "MCP" ? "MCP" : Localization.Text("网页")) + " · " + Describe(client) });
             text.Children.Add(Secondary(new TextBlock { Text = Localization.Format($"{client.Address} · {Relative(client.LastSeenUtc)} · {client.Requests} 次请求"), [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontCaption") }));
             row.Children.Clear();
-            row.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { icon, text } });
+            row.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = new DynamicResourceExtension("StRowGap"), Children = { icon, text } });
             _mcpClients.Children.Add(row);
         }
     }
