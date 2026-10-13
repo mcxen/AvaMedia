@@ -116,7 +116,7 @@ public partial class PlayerWindow
 
     private bool IsPlaybackControl(Control? source)
         => source is not null && source.GetVisualAncestors().Prepend(source)
-            .Any(control => control == ControlsBar || control == HeaderBar || control == PlaylistPanel || control == VrPanel);
+            .Any(control => control == ControlsBar || control == PlaylistPanel || control == VrPanel);
 
     private void FocusPlayback()
     {

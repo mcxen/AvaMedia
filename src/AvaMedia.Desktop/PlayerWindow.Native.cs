@@ -25,8 +25,7 @@ public partial class PlayerWindow
             _firstFrame.TrySetCanceled(); _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _opening.Restart(); FirstFrameUtc = null; FirstFrameLatencyMs = 0; PlaybackError = "";
             SetFiles([source.Path]); CurrentPath = source.Path; _info = null; _position = 0;
-            FileName.Text = Path.GetFileName(Path.TrimEndingDirectorySeparator(source.Path));
-            Title = FileName.Text + " — " + AvaMedia.Core.AppIdentity.PlayerTitle; ToolTip.SetTip(FileName, source.Path);
+            Title = Path.GetFileName(Path.TrimEndingDirectorySeparator(source.Path)) + " — " + AvaMedia.Core.AppIdentity.PlayerTitle;
             RefreshPlaylist(); await PlayNativeAsync(source.Path, source, 0);
         }
     }
@@ -85,7 +84,7 @@ public partial class PlayerWindow
                         Avalonia.Automation.AutomationProperties.SetName(PlayerMuteButton, _muted ? "取消静音" : "静音");
                     }
                     if (name == "path" && value.ValueKind == JsonValueKind.String && File.Exists(value.GetString()))
-                    { CurrentPath = value.GetString()!; FileName.Text = Path.GetFileName(CurrentPath); Title = FileName.Text + " — " + AvaMedia.Core.AppIdentity.PlayerTitle; }
+                    { CurrentPath = value.GetString()!; Title = Path.GetFileName(CurrentPath) + " — " + AvaMedia.Core.AppIdentity.PlayerTitle; }
                 }),
                 async token =>
                 {

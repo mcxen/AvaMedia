@@ -90,7 +90,7 @@ public sealed partial class App : Application
                 StartMediaAi(desktop, args);
                 base.OnFrameworkInitializationCompleted(); return;
             }
-            if (!args.Contains("--capture") && !args.Contains("--convert") && (args.Contains("--play") || args.Any(File.Exists)))
+            if (args.Contains("--player-benchmark"))
             {
                 var settings = StartupSettings ?? new Storage().LoadSettings();
                 Localization.Apply(settings.Language);
@@ -101,17 +101,6 @@ public sealed partial class App : Application
                 var player = new PlayerWindow(engine, files, preferences: new Storage(), loadedSettings: settings);
                 desktop.MainWindow = player;
                 FirstRunSetup.AttachFailureNotice(player);
-                if (!args.Contains("--player-benchmark"))
-                {
-                    var options = new AppOptionsServices();
-                    var lifetime = new CancellationTokenSource();
-                    player.Opened += async (_, _) =>
-                    {
-                        ScheduleInstalledPlayerRegistration();
-                        await ApplicationUpdater.Shared.StartupAsync(player, settings, options.CheckUpdatesAsync, lifetime.Token);
-                    };
-                    player.Closed += (_, _) => { lifetime.Cancel(); options.Dispose(); };
-                }
                 InitializeModelInstallation(desktop, player, args);
                 var benchmark = Array.IndexOf(args, "--player-benchmark");
                 if (benchmark >= 0 && benchmark + 1 < args.Length)
@@ -143,12 +132,20 @@ public sealed partial class App : Application
             MainWindow window;
             if(captureRoot is not null){var storage=new Storage(Path.Combine(captureRoot,"capture-state"));storage.SaveSettings(new(){OutputFolder=Path.GetFullPath(Path.Combine(captureRoot,"output")),NotifyComplete=false});window=new MainWindow(storage);}else window=new MainWindow();
             if(desktop.Args?.Contains("--dark")==true)RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Dark;
+            if(desktop.Args?.Contains("--light")==true)RequestedThemeVariant=Avalonia.Styling.ThemeVariant.Light;
             if(desktop.Args?.Contains("--macos9")==true)Skin.Apply("MacOS9");
             if(desktop.Args?.Contains("--winxp")==true)Skin.Apply("WindowsXP");
             desktop.MainWindow = window;
             FirstRunSetup.AttachFailureNotice(window);
             InitializeModelInstallation(desktop, window, args);
             if (args.Contains("--convert")) window.Opened += async (_, _) => await window.ImportForConversionAsync(args);
+            else if (captureRoot is null && (args.Contains("--play") || args.Any(File.Exists)))
+            {
+                var files = args.Where(path => !path.StartsWith("--", StringComparison.Ordinal) && File.Exists(path)).ToArray();
+                // System-open playback shares the normal shell lifetime, so closing it leaves the queue available.
+                window.Opened += (_, _) => Dispatcher.UIThread.Post(() =>
+                    new PlayerWindow(window.Engine, files, loadedSettings: StartupSettings).ShowForPlayback(window));
+            }
             if (desktop.Args?.Contains("--capture") == true)
             {
                 window.Opened += async (_, _) =>
@@ -255,21 +252,11 @@ public sealed partial class App : Application
             }
             paths = paths.Where(path => SystemPlayerIntegration.Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)).ToArray();
             if (paths.Length == 0) return;
-            var player = desktop.Windows.OfType<PlayerWindow>().FirstOrDefault(window => window.CanOpenFiles);
-            if (player is null)
-            {
-                var settings = new Storage().LoadSettings();
-                player = new PlayerWindow(new MediaEngine(settings), paths, loadedSettings: settings);
-                player.Show();
-            }
-            else
-            {
-                player.Show();
-                player.OpenFiles(paths);
-            }
-            if (player.WindowState == Avalonia.Controls.WindowState.Minimized)
-                player.WindowState = Avalonia.Controls.WindowState.Normal;
-            player.Activate();
+            var settings = StartupSettings ?? new Storage().LoadSettings();
+            var engine = desktop.MainWindow is MainWindow main ? main.Engine : new MediaEngine(settings);
+            var player = new PlayerWindow(engine, paths, loadedSettings: settings);
+            if (desktop.MainWindow is { } source) player.ShowForPlayback(source);
+            else player.Show();
         });
     }
 

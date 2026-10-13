@@ -65,7 +65,7 @@ public partial class MainWindow : Window
     {
         if(feature.Operation==Operation.ImageView)
         {
-            var viewer = CreateImageViewerWindow(files); viewer.Show(this); return;
+            var viewer = CreateImageViewerWindow(files); viewer.ShowForViewing(this); return;
         }
         if(feature.Id=="folder-classification")
         {

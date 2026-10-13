@@ -320,9 +320,9 @@ public sealed partial class ImageViewerWindow
     private void ToggleFullscreen()
     {
         if (WindowState == WindowState.FullScreen)
-        { WindowState = _beforeFullscreen; _chrome.IsVisible = true; _body.ColumnDefinitions[0].Width = _beforeLibrary; }
+            WindowState = _beforeFullscreen;
         else
-        { _beforeFullscreen = WindowState; _beforeLibrary = _body.ColumnDefinitions[0].Width; _body.ColumnDefinitions[0].Width = new GridLength(0); WindowState = WindowState.FullScreen; _chrome.IsVisible = false; }
+            WindowState = WindowState.FullScreen;
     }
     private void HandleKey(object? sender, KeyEventArgs e)
     {

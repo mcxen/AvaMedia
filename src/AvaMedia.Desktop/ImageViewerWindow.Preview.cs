@@ -16,7 +16,7 @@ public sealed partial class ImageViewerWindow
         if (image is not Bitmap bitmap) return;
         // Keep the displayed frame alive independently of its source row or playback session.
         var snapshot = bitmap.CreateScaledBitmap(bitmap.PixelSize, BitmapInterpolationMode.None);
-        try { new CoverPreviewWindow(snapshot, caption).Show(owner); }
+        try { MediaViewerWindow.Show(new CoverPreviewWindow(snapshot, caption), owner); }
         catch { snapshot.Dispose(); throw; }
     }
 
@@ -51,7 +51,8 @@ public sealed partial class ImageViewerWindow
             _tools.Children.Add(ImageViewerToolbar.Divider());
             Add("fullscreen", "全屏", ToggleFullscreen);
             Add("close", "关闭窗口", Close);
-            Grid.SetRow(_tools, 1); root.Children.Add(_tools); Content = root;
+            Grid.SetRow(_tools, 1); root.Children.Add(_tools);
+            MediaViewerWindow.Configure(this, root, new AvaMedia.Core.Storage(), "image-preview-window");
             _viewport.SetImages(snapshot);
             Opened += (_, _) => _viewport.Focus();
             Closed += (_, _) => { _viewport.SetImages(null); snapshot.Dispose(); };

@@ -69,13 +69,6 @@ public partial class PlayerWindow : Window
         SetFiles(files ?? []);
         PlayerSeek.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && !_updating && _info is not null) CommandReady = SeekAsync(PlayerSeek.Value); };
         PlayerVolume.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && _player is not null) { _player.Volume = (float)(PlayerVolume.Value / 100); NoticeFormatted($"音量 {PlayerVolume.Value:0}%"); } };
-        HeaderBar.PointerPressed += (_, e) =>
-        {
-            if (e.Source is Control source && (source is Button || source.GetVisualAncestors().Any(a => a is Button))) return;
-            if (!e.GetCurrentPoint(HeaderBar).Properties.IsLeftButtonPressed) return;
-            if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            else BeginMoveDrag(e);
-        };
         VideoArea.ContextRequested += (_, e) => { if (IsPlayerOverlay(e.Source)) return; OpenMenu(BuildMenu(), VideoArea); e.Handled = true; };
         InitializeKeyboard();
         InitializePanorama();
@@ -93,14 +86,19 @@ public partial class PlayerWindow : Window
         ActualThemeVariantChanged += (_, _) => ShowChrome();
         PropertyChanged += (_, e) =>
         {
-            if (e.Property == WindowStateProperty) ShowChrome();
+            if (e.Property == WindowStateProperty)
+            {
+                if (WindowState == WindowState.FullScreen && e.OldValue is WindowState previous && previous != WindowState.FullScreen)
+                    _windowedState = previous;
+                ShowChrome();
+            }
             if (e.Property == WindowStateProperty || e.Property == IsVisibleProperty)
                 if (_player is not null) _player.PresentationVisible = IsVisible && WindowState != WindowState.Minimized;
             if (e.Property == BoundsProperty) { PlayerVolume.IsVisible = Bounds.Width >= 900; PlayerTotalGroup.IsVisible = Bounds.Width >= 880; }
         };
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None);
-        AddHandler(DragDrop.DropEvent, (_, e) => { if (_deleting || _closed) return; var paths = e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToArray(); if (paths?.Length > 0) { SetFiles(paths); Ready = OpenAsync(_playlist[0]); } });
+        AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = CanOpenFiles && e.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; });
+        AddHandler(DragDrop.DropEvent, (_, e) => { e.Handled = true; if (!CanOpenFiles) return; OpenFiles(e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []); FocusPlayback(); });
         Opened += (_, _) => { FocusPlayback(); if (_playlist.Length > 0) Ready = OpenAsync(_playlist[0]); };
         Closed += (_, _) =>
         {
@@ -110,32 +108,17 @@ public partial class PlayerWindow : Window
             _nativeCancellation?.Cancel();
             _load?.Dispose(); _seek.Dispose(); _folderLoad?.Dispose(); _lifetime.Dispose();
         };
+        Controls.MediaViewerWindow.Configure(this, (Control)Content!, _preferences, "player-window");
         RefreshTransport(); RefreshPlaylist(); ShowChrome();
     }
 
     private void LanguageChanged(object? sender, EventArgs e)
     {
         Title = CurrentPath.Length == 0 ? AppIdentity.PlayerTitle : Path.GetFileName(CurrentPath) + " — " + AppIdentity.PlayerTitle;
-        if (CurrentPath.Length == 0) { FileName.Text = AppIdentity.PlayerTitle; PlayerStatus.Text = AppIdentity.PlayerWelcome; }
+        if (CurrentPath.Length == 0) PlayerStatus.Text = AppIdentity.PlayerWelcome;
     }
 
-    public void ShowForPlayback(Window source)
-    {
-        if (IsVisible) { Activate(); return; }
-        // An owned macOS window becomes a fullscreen auxiliary and cannot enter its own fullscreen space.
-        // Use the source only to choose the display; keep playback as an independent top-level window.
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        if (source.Screens.ScreenFromWindow(source) is { } screen)
-        {
-            var area = screen.WorkingArea; var scale = screen.Scaling;
-            Width = Math.Max(MinWidth, Math.Min(Width, area.Width / scale));
-            Height = Math.Max(MinHeight, Math.Min(Height, area.Height / scale));
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            Position = new(area.X + Math.Max(0, (area.Width - (int)Math.Round(Width * scale)) / 2),
-                area.Y + Math.Max(0, (area.Height - (int)Math.Round(Height * scale)) / 2));
-        }
-        Show();
-    }
+    public void ShowForPlayback(Window source) => Controls.MediaViewerWindow.Show(this, source);
 
     public Task OpenAsync(string path)
         => StartOpen(path, 0, 0, 0, true);
@@ -166,7 +149,7 @@ public partial class PlayerWindow : Window
             var old = _player; _player = null; _info = null; RefreshTransport();
             if (old is not null) { await old.Stop(); old.Dispose(); }
             if (!Current(revision)) return;
-            CurrentPath = path; Title = Path.GetFileName(path) + " — " + AppIdentity.PlayerTitle; FileName.Text = Path.GetFileName(path); ToolTip.SetTip(FileName, path);
+            CurrentPath = path; Title = Path.GetFileName(path) + " — " + AppIdentity.PlayerTitle;
             PlaybackError = ""; _nativeDiagnostics.Clear(); PlayerStatus.Text = "正在打开…"; PlayerStatus.IsVisible = true; ClearVideoFrame();
             if (DetectDisc(path) is { } disc) { await PlayNativeAsync(path, disc, position, playing); return; }
             var info = await _engine.Probe(path, token, video, audio); token.ThrowIfCancellationRequested();
@@ -353,8 +336,6 @@ public partial class PlayerWindow : Window
             _windowedState = WindowState;
             WindowState = WindowState.FullScreen;
         }
-        Avalonia.Automation.AutomationProperties.SetName(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
-        ToolTip.SetTip(FullscreenButton, WindowState == WindowState.FullScreen ? "退出全屏" : "全屏");
         ShowChrome();
     }
     private bool IsPlayerOverlay(object? source) => source is Control control && control.GetVisualAncestors().Prepend(control)
@@ -363,10 +344,11 @@ public partial class PlayerWindow : Window
     private void ShowChrome()
     {
         var fullscreen = WindowState == WindowState.FullScreen;
-        HeaderBar.IsVisible = !fullscreen && !Skin.UsesCustomChrome(ActualThemeVariant);
+        Avalonia.Automation.AutomationProperties.SetName(FullscreenButton, Localization.Text(fullscreen ? "退出全屏" : "全屏"));
+        ToolTip.SetTip(FullscreenButton, Localization.Text(fullscreen ? "退出全屏" : "全屏"));
         // Overlay the fullscreen picture so hiding controls does not resize it or generate pointer movement.
         var overlay = fullscreen && !PlaylistPanel.IsVisible && !VrPanel.IsVisible && !ToolTip.GetIsOpen(PlayerMenuButton);
-        Grid.SetRow(ControlsBar, overlay ? 1 : 2);
+        Grid.SetRow(ControlsBar, overlay ? 0 : 1);
         ControlsBar.VerticalAlignment = overlay ? VerticalAlignment.Bottom : VerticalAlignment.Stretch;
         ControlsBar.IsVisible = true;
         SetPosition(_position);
@@ -407,8 +389,7 @@ public partial class PlayerWindow : Window
             else
             {
                 CurrentPath = ""; PlaybackError = ""; _fileIndex = 0; _loadedFolder = null; SetPosition(0); PlayerTotal.Text = EditorTime.Format(0);
-                FileName.Text = Title = AppIdentity.PlayerTitle; PlayerStatus.Text = "已移入回收站\n拖入媒体文件，或按 F3 打开"; PlayerStatus.IsVisible = true;
-                ToolTip.SetTip(FileName, null);
+                Title = AppIdentity.PlayerTitle; PlayerStatus.Text = Localization.Text("已移入回收站") + "\n" + AppIdentity.PlayerWelcome; PlayerStatus.IsVisible = true;
                 RefreshPlaylist(); PlaylistStatus.Text = "0 个文件";
             }
         }
@@ -549,9 +530,7 @@ public partial class PlayerWindow : Window
         }
         var uniform = new MenuItem { Header = "保持画面比例", ToggleType = MenuItemToggleType.Radio, IsChecked = VideoImage.Stretch == Stretch.Uniform };
         uniform.Click += (_, _) => VideoImage.Stretch = Stretch.Uniform;
-        var fill = new MenuItem { Header = "拉伸填满", ToggleType = MenuItemToggleType.Radio, IsChecked = VideoImage.Stretch == Stretch.Fill };
-        fill.Click += (_, _) => VideoImage.Stretch = Stretch.Fill;
-        items.Add(new MenuItem { Header = "画面比例", ItemsSource = new[] { uniform, fill } });
+        items.Add(new MenuItem { Header = "画面比例", ItemsSource = new[] { uniform } });
         items.Add(PanoramaMenu());
         var capture = Command("截取当前帧（保存到视频目录）", PlayerCommand.CaptureFrame, new(Key.E, OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control));
         capture.IsEnabled = CanCaptureFrame; items.Add(capture);
@@ -566,7 +545,7 @@ public partial class PlayerWindow : Window
         var notifications = new MenuItem { Header = "通知中心…" };
         notifications.Click += (_, _) => Notifications.NotificationCenter.Shared.OpenHistory(this); items.Add(notifications);
         var close = new MenuItem { Header = "关闭" }; close.Click += (_, _) => Close(); items.Add(close);
-        return new ContextMenu { ItemsSource = items };
+        return new ContextMenu { Classes = { "ac" }, ItemsSource = items };
     }
     private ContextMenu BuildSettingsMenu()
     {
@@ -578,9 +557,6 @@ public partial class PlayerWindow : Window
     private void SpeedClick(object? sender, RoutedEventArgs e) => OpenMenu(SpeedMenu(), PlayerSpeed);
     private void SettingsClick(object? sender, RoutedEventArgs e) => OpenMenu(BuildSettingsMenu(), PlayerSettingsButton);
     private void PlaylistClick(object? sender, RoutedEventArgs e) => TogglePlaylist();
-    private void MinimizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-    private void MaximizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    private void CloseClick(object? sender, RoutedEventArgs e) => Close();
     private void OpenClick(object? sender, RoutedEventArgs e) => CommandReady = Pick();
     private void CaptureClick(object? sender, RoutedEventArgs e) => CommandReady = CaptureFrameAsync();
     private void PlayClick(object? sender, RoutedEventArgs e) => CommandReady = TogglePlaybackAsync();

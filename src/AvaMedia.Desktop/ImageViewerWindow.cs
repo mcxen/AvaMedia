@@ -79,6 +79,19 @@ public sealed partial class ImageViewerWindow : Window
         _preferences = _storage.LoadToolOptions<Preferences>("image-viewer") ?? new();
         _interval.SelectedIndex = Math.Clamp(_preferences.Interval, 0, 3); _recursive.IsChecked = _preferences.Recursive;
         BuildInterface(); WireEvents();
+        MediaViewerWindow.Configure(this, _body, _storage, "image-viewer-window");
+        PropertyChanged += (_, change) =>
+        {
+            if (change.Property != WindowStateProperty) return;
+            if (WindowState == WindowState.FullScreen)
+            {
+                _beforeFullscreen = change.OldValue is WindowState previous ? previous : WindowState.Normal;
+                _beforeLibrary = _body.ColumnDefinitions[0].Width;
+                _body.ColumnDefinitions[0].Width = new GridLength(0); _chrome.IsVisible = false;
+            }
+            else if (change.OldValue is WindowState.FullScreen)
+            { _body.ColumnDefinitions[0].Width = _beforeLibrary; _chrome.IsVisible = true; }
+        };
         Opened += async (_, _) =>
         {
             if (initial is not null) await GuardAsync(() => OpenAsync(initial, selected));
@@ -97,6 +110,7 @@ public sealed partial class ImageViewerWindow : Window
         };
         Closed += (_, _) => { _lifetime.Dispose(); };
     }
+    public void ShowForViewing(Window source) => MediaViewerWindow.Show(this, source);
     private void BuildInterface()
     {
         ImageViewerToolbar.Configure(_slideshowButton, "play", "幻灯片");

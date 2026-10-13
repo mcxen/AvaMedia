@@ -44,7 +44,7 @@ public sealed partial class MediaAiWindow
             var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path,
                 reserveFiles: _reserveFiles);
             viewer.Moved += mappings => { ApplyFileMappings(mappings, "已移动"); RenderSelectedResult(); };
-            viewer.Show(this);
+            viewer.ShowForViewing(this);
         };
         // Fixed summary: file, state, preview and the actions that act on the result.
         var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };

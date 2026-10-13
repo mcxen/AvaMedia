@@ -17,6 +17,6 @@ public static class AppIdentity
     public static string Version => typeof(AppIdentity).Assembly.GetName().Version!.ToString(3);
     public static string WindowTitle => DisplayName + " " + Version;
     public static string PlayerTitle => AppLanguage.IsChinese ? PlayerChineseName : PlayerEnglishName;
-    public static string PlayerWelcome => PlayerTitle + (AppLanguage.IsChinese ? "\n拖入媒体文件，或按 F3 打开" : "\nDrop media files here, or press F3 to open");
+    public static string PlayerWelcome => AppLanguage.IsChinese ? "打开视频或音频文件" : "Open video or audio files";
     public static string ConvertMenuLabel => AppLanguage.IsChinese ? "使用" + ChineseName : "Convert with " + EnglishName;
 }

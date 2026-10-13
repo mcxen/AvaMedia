@@ -23,8 +23,9 @@ internal static class WindowChrome
         var root = new Grid { RowDefinitions = new("Auto,*") };
         var titleBar = new Grid { Height = 48, ColumnDefinitions = new("88,*,Auto") };
         if (titleContent is not null) titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("UiSurface"));
-        var title = new TextBlock { FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var title = new TextBlock { FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         title.Bind(TextBlock.TextProperty, new Avalonia.Data.Binding(nameof(Window.Title)) { Source = window });
+        title.Bind(ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(Window.Title)) { Source = window });
         var headerContent = titleContent ?? title;
         Grid.SetColumn(headerContent, 1); titleBar.Children.Add(headerContent);
         var lights = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
@@ -42,12 +43,13 @@ internal static class WindowChrome
         {
             var modern = !Skin.UsesCustomChrome(window.ActualThemeVariant) && MainWindow.FrameKind != MainWindow.WindowFrameKind.System;
             var mac = MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
-            titleBar.IsVisible = modern || titleContent is not null;
+            var fullscreen = window.WindowState == WindowState.FullScreen;
+            titleBar.IsVisible = !fullscreen && (modern || titleContent is not null);
             titleBar.ColumnDefinitions[0].Width = new GridLength(modern ? 88 : 0);
             lights.IsVisible = modern && mac && !OperatingSystem.IsMacOS(); captions.IsVisible = modern && !mac;
             title.Margin = new(0, 0, mac ? 88 : 0, 0);
             window.ExtendClientAreaToDecorationsHint = modern;
-            window.ExtendClientAreaTitleBarHeightHint = modern ? 48 : -1;
+            window.ExtendClientAreaTitleBarHeightHint = fullscreen ? 0 : modern ? 48 : -1;
             if (modern)
             {
                 window.ExtendClientAreaChromeHints = mac && OperatingSystem.IsMacOS() ? ExtendClientAreaChromeHints.PreferSystemChrome : ExtendClientAreaChromeHints.NoChrome;
@@ -56,10 +58,11 @@ internal static class WindowChrome
             }
             else if (ownDecorations && !Skin.UsesCustomChrome(window.ActualThemeVariant))
             { window.SystemDecorations = SystemDecorations.Full; ownDecorations = false; }
-            foreach (var grip in grips) grip.IsVisible = modern && ownDecorations;
+            foreach (var grip in grips) grip.IsVisible = modern && ownDecorations && window.WindowState == WindowState.Normal;
         }
         HookDrag(window, titleBar, () => titleBar.IsVisible);
         window.ActualThemeVariantChanged += (_, _) => Apply(); window.Opened += (_, _) => Apply();
+        window.PropertyChanged += (_, change) => { if (change.Property == Window.WindowStateProperty) Apply(); };
         return root;
     }
 

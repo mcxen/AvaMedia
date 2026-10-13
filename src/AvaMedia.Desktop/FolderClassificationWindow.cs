@@ -211,7 +211,7 @@ public sealed partial class FolderClassificationWindow : Window
             var viewer = new ImageViewerWindow(_entries.Where(item => ImageFormats.Supports(item.Path)).Select(item => item.Path), entry.Path,
                 reserveFiles: _reserveFiles);
             viewer.Moved += ApplyViewerMoves;
-            viewer.Show(this); return;
+            viewer.ShowForViewing(this); return;
         }
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(entry.Path) { UseShellExecute = true }); }
         catch (Exception error) { _ = Ui.Message(this, "打开文件失败", error.Message); }
