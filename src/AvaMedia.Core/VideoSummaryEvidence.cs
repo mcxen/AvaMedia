@@ -17,6 +17,8 @@ internal static class VideoSummaryEvidencePolicy
         "施工|拆除|维护活动|学校|社区中心|住宅区|讨论|交谈|谈话|互动|准备.{0,6}(活动|事件)|construction|demolition|maintenance|school|community cent|residential|discuss|interact|convers|talk|prepar\\w*.{0,20}(event|activit)|工事|取り壊し|イベント|会話",
         "镜头.{0,8}(切换|切镜|平移|移动|摇摄|推拉|转动)|camera.{0,20}(pan|mov|cut|zoom|rotat)|カメラ.{0,12}(移動|切り替|パン|ズーム)",
         "身份|姓名|名叫|identity|named|氏名|身元",
+        // The summary harness receives pixels and transcript text, not an audio understanding result.
+        "音乐|配乐|音效|伴奏|背景音|环境音|欢呼声|掌声|噪声|音量|music|soundtrack|sound effect|background (sound|audio|noise)|applause|cheering|audible|音楽|効果音|歓声|拍手",
         "表明|意味着|表示.{0,6}(禁止|限制|停止)|可能|似乎|目的|体现|反映|象征|社会|suggest|indicat|possibly|purpose|seems|reflect|symbol|social|意味|と思"
     }.Select(pattern => new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))).ToArray();
     private static readonly Regex TemporalAction = new("进入|离开|进出|走向|走出|位置.{0,4}(变|移)|enter|leav|walking (towards|away)|position.{0,12}(chang|mov)|入る|出る|位置.{0,4}(変|移)",
@@ -37,7 +39,7 @@ internal static class VideoSummaryEvidencePolicy
         // Partial samples also cannot establish absence across the full video's contents.
         if (ContentAbsence.IsMatch(claim.Text) && !ContentAbsence.IsMatch(speech)) return false;
         // These topics require speech attribution; visual observations currently have no OCR,
-        // place/identity verification or measured camera tracking capability.
+        // place/identity verification, audio understanding or measured camera tracking capability.
         foreach (var topic in UnverifiedTopics)
             if (topic.IsMatch(claim.Text) && !topic.IsMatch(speech)) return false;
         if (TemporalAction.IsMatch(claim.Text) && !cited.Any(item => VideoSummaryEvidencePolicy.IsSpeech(item.Kind) || item.Kind == "sequence")) return false;
@@ -163,6 +165,7 @@ internal sealed class VideoSummaryGrounding(ISummaryModel model, IReadOnlyList<V
                 "transcript 是字幕，speech_transcript 是未核实的识别语句，建议不能写成已执行，否定不能写成肯定。frame 是未经核实的单图描述，sequence 是多图观察，comparison 是大间隔图像比较。" +
                 "视觉描述里的标志文字及含义、地点用途、施工或拆除、活动目的、人物身份、镜头切换或移动均未独立验证，不能当作依据；仅字幕或识别语句明确提到时可表述为说话内容，不能认定为作者观点。" +
                 "单图不证明动作过程，大间隔比较不证明中间事件；画面边缘进出不等于进出建筑；不同时间的图不等于切镜。" +
+                "静态画面不能证明配乐、声音或音乐氛围；舞蹈姿态也不证明有音乐。客观衣着颜色不支持色彩和谐、突出主体等审美评价。" +
                 "原资料写镜头静止时，‘镜头切换’不被支持。\n原资料：\n" + EvidenceText(sources) + "\n唯一候选：\n" + ClaimText([claim]),
                 ct, tokens: 64, schema: ReviewSchema).ConfigureAwait(false);
             using var json = ParseResponse(response);

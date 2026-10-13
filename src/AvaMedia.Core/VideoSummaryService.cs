@@ -35,7 +35,7 @@ public sealed record VideoSummaryReport(string Source, double Duration, string T
 
 public sealed record VideoSummaryOnlineModels(OnlineAiOptions VisionProvider, string VisionModel, OnlineAiOptions SummaryProvider, string SummaryModel);
 
-/// <param name="modelFactory">Model override (tests) keyed by ModelCatalog.SummaryVisionId / SummaryTextId.</param>
+/// <param name="modelFactory">Model override (tests) keyed by the selected local model ID; online stages use SummaryVisionId / SummaryTextId.</param>
 public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore? models = null,
     Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null, IOcrEngine? ocrEngine = null)
 {
@@ -207,10 +207,11 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             if (options.NeedsAi && evidence.Count > 0)
             {
                 activity.Node("内容总结");
-                await using var textModel = await OpenModelAsync(ModelCatalog.SummaryTextId, onlineModels, options, activity, ct).ConfigureAwait(false);
-                summaryModel = online ? onlineModels!.SummaryProvider.Name + " · " + onlineModels.SummaryModel : ModelCatalog.Find(ModelCatalog.SummaryTextId).Name;
+                var summaryId = online ? ModelCatalog.SummaryTextId : options.LocalSummaryModelId;
+                await using var textModel = await OpenModelAsync(summaryId, onlineModels, options, activity, ct).ConfigureAwait(false);
+                summaryModel = online ? onlineModels!.SummaryProvider.Name + " · " + onlineModels.SummaryModel : ModelCatalog.Find(summaryId).Name;
                 summaryProviderId = online ? onlineModels!.SummaryProvider.Id : null;
-                summaryModelId = online ? onlineModels!.SummaryModel : ModelCatalog.SummaryTextId;
+                summaryModelId = online ? onlineModels!.SummaryModel : summaryId;
                 usedModels.Add(summaryModel);
                 activity.Backend(textModel.Backend);
                 job.ProgressDetail = "生成总结"; activity.Stage("生成总结", detail: summaryModel);

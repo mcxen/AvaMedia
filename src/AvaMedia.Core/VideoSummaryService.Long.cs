@@ -13,7 +13,9 @@ public sealed partial class VideoSummaryService
         var sourceHash = SummaryCheckpointStore.Hash(new { file.FullName, file.Length, file.LastWriteTimeUtc, info.Duration, job.Options.VideoStreamIndex });
         await store.WriteAsync("probe.json", sourceHash, info, ct);
         var online = options.Provider == VideoSummaryProvider.Online ? ResolveOnlineModels(engine.Settings.OnlineAi, options) : null;
-        var budget = online is null ? TokenBudget.Local8K : TokenBudget.For(online.SummaryProvider.ModelInfo.FirstOrDefault(m => m.Id == online.SummaryModel) ?? new(online.SummaryModel));
+        var budget = online is null
+            ? options.LocalSummaryModelId == ModelCatalog.SummaryQwen35Id ? TokenBudget.For(new(options.LocalSummaryModelId, 16384, 4096)) : TokenBudget.Local8K
+            : TokenBudget.For(online.SummaryProvider.ModelInfo.FirstOrDefault(m => m.Id == online.SummaryModel) ?? new(online.SummaryModel));
         var speech = options.Speech.Clone(); speech.Language = "auto";
         var external = options.TranscriptSource == VideoTranscriptSource.External ? new FileInfo(options.SubtitleFile) : null;
         var transcriptHash = SummaryCheckpointStore.Hash(new { sourceHash, options.TranscriptSource, options.SubtitleTrack, options.AudioTrack, options.AutoSelectAudioTrack,
@@ -29,7 +31,7 @@ public sealed partial class VideoSummaryService
         if (options.ExtractSubtitles) await File.WriteAllTextAsync(Path.Combine(folder, "subtitles.srt"), SpeechSubtitles.Srt(subtitleCues), ct);
         await using var text = online is not null && modelFactory is null
             ? new OnlineSummaryModel(online.SummaryProvider, model: online.SummaryModel, boundedOutput: true)
-            : await OpenLongModelAsync(ModelCatalog.SummaryTextId, online, options, activity, ct);
+            : await OpenLongModelAsync(online is null ? options.LocalSummaryModelId : ModelCatalog.SummaryTextId, online, options, activity, ct);
         var identity = online is null ? text.ModelId : SummaryCheckpointStore.Hash(new { online.SummaryProvider.Endpoint, online.SummaryModel });
         var model = new RetryingSummaryModel(new LongSummaryModel(text, identity));
         var gate = new ConcurrencyGate(identity, options.Provider == VideoSummaryProvider.Local, options.LongSummaryConcurrency, options.LongSummaryRequestsPerMinute, options.LongSummaryTokensPerMinute);
@@ -37,7 +39,8 @@ public sealed partial class VideoSummaryService
         if (Directory.Exists(job.Output)) throw new IOException("总结输出目录已存在，请选择新的输出位置。");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         CopyDirectory(folder, job.Output, ct);
-        return new([], report.Summary, text.ModelId);
+        return new([], report.Summary, online is null ? ModelCatalog.Find(options.LocalSummaryModelId).Name : online.SummaryProvider.Name + " · " + online.SummaryModel)
+            { SummaryProviderId = online?.SummaryProvider.Id, SummaryModelId = online?.SummaryModel ?? options.LocalSummaryModelId };
 
         async Task<SummarySignals> Extract(CancellationToken cancellation)
         {
