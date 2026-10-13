@@ -6,7 +6,7 @@ namespace AvaMedia.Core;
 
 public sealed record UpdateResult(bool HasUpdate, string Message, Uri? ReleasePage = null,
     bool CheckSucceeded = true, DateTimeOffset? RetryAt = null, Version? LatestVersion = null,
-    ReleaseAsset? Asset = null);
+    ReleaseAsset? Asset = null, string? ReleaseNotes = null);
 
 public sealed record ReleaseAsset(string Name, Uri DownloadUrl, long Size, string Sha256);
 
@@ -86,7 +86,7 @@ public sealed class ReleaseUpdateClient(HttpClient client)
             }
         }
         return new(true, $"新版本 {normalizedLatest} 可用，当前版本 {normalizedCurrent}。", page,
-            LatestVersion: normalizedLatest, Asset: asset);
+            LatestVersion: normalizedLatest, Asset: asset, ReleaseNotes: release.TryGetProperty("body", out var notes) ? notes.GetString() : null);
     }
     private static UpdateResult Unavailable() => new(false, "网络暂时不可用，正在后台重试更新检查。",
         CheckSucceeded: false, RetryAt: DateTimeOffset.UtcNow.AddMinutes(1));

@@ -14,6 +14,7 @@ internal static class UpdateNotifications
     private static AppSettings? _settings;
     private static bool _automatic;
     private static bool _downloading;
+    private static object? _lastFailure;
     private static bool Silent => _automatic && _settings is { AutoUpdate: true, SilentUpdate: true };
     static UpdateNotifications() => ApplicationUpdater.Shared.ProgressChanged += (_, _) => Dispatcher.UIThread.Post(() => Refresh());
 
@@ -22,7 +23,15 @@ internal static class UpdateNotifications
         _result = result; _owner = new(owner); _settings = settings; _automatic = automatic; Refresh(reopen: !automatic);
     }
     public static void Error(Window owner, string title, string message)
-        => NotificationCenter.Shared.Publish(owner, new(Guid.NewGuid().ToString("N"), title, message, NotificationKind.Error));
+        => NotificationCenter.Shared.Publish(owner, new("application-update-error", title, message, NotificationKind.Error,
+            [new("查看更新", OpenUpdatesAsync), new("查看日志", () => { ApplicationUpdater.Shared.OpenLog(); return Task.CompletedTask; }, Enabled: () => ApplicationUpdater.Shared.HasLog)]), reopen: true);
+
+    public static void Installed(Window owner, string version)
+        => NotificationCenter.Shared.Publish(owner, new("application-update-installed", "更新安装成功",
+            (FormattableString)$"已更新至 {version}。", NotificationKind.Success, [new("查看更新", OpenUpdatesAsync)]));
+
+    private static Task OpenUpdatesAsync() => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
+        { MainWindow: MainWindow main } ? main.OpenSoftwareUpdatesAsync() : Task.CompletedTask;
 
     public static bool CheckCompleted(UpdateResult result)
     {
@@ -33,55 +42,34 @@ internal static class UpdateNotifications
 
     private static void Refresh(bool reopen = false)
     {
-        if (_result is not { } result || Silent) return;
+        if (_result is null) return;
         var owner = _owner?.TryGetTarget(out var target) == true ? target : null;
-        var updater = ApplicationUpdater.Shared; var progress = updater.Progress;
-        var actions = new List<NotificationAction>(); object title = "检测新版本", body = result.Message;
-        var kind = NotificationKind.Information;
-        double? percent = null; var indeterminate = false;
-        if (!result.CheckSucceeded) { title = "正在重试更新检查…"; indeterminate = true; kind = NotificationKind.Progress; }
-        if (result.HasUpdate)
+        var updater = ApplicationUpdater.Shared;
+        var status = updater.Status;
+        var newFailure = status.Error && !Equals(_lastFailure, status.Message);
+        _lastFailure = status.Error ? status.Message : null;
+        if (Silent && !status.Error) return;
+        var actions = new List<NotificationAction>();
+        switch (status.Action)
         {
-            title = "发现新版本";
-            if (progress.IsBusy || _downloading)
-            {
-                title = progress.Phase switch
-                {
-                    UpdatePhase.Downloading => "正在下载更新…",
-                    UpdatePhase.Retrying => "正在重试下载更新…",
-                    _ => "正在准备更新…"
-                };
-                kind = NotificationKind.Progress;
-                body = progress.Phase == UpdatePhase.Retrying ? "网络暂时不可用，将自动重试下载。" :
-                    (FormattableString)$"{progress.ReceivedBytes / 1048576d:0.0} / {progress.TotalBytes / 1048576d:0.0} MB";
-                percent = progress.TotalBytes > 0 ? 100d * progress.ReceivedBytes / progress.TotalBytes : null;
-                indeterminate = progress.Phase is UpdatePhase.Preparing or UpdatePhase.Retrying || percent is null;
+            case "停止下载":
                 actions.Add(new("停止下载", () => { updater.CancelDownload(); return Task.CompletedTask; }, Enabled: () => updater.CanCancelDownload));
-            }
-            else if (updater.IsPrepared)
-            {
-                if (progress.Phase == UpdatePhase.Failed)
-                {
-                    title = "更新安装失败"; body = progress.Error ?? "更新失败"; kind = NotificationKind.Error;
-                    actions.Add(new("重试安装", updater.RetryInstallerAsync, Primary: true));
-                }
-                else
-                {
-                    title = "更新已准备好"; body = "更新已准备好，将在退出应用时安装。"; kind = NotificationKind.Success;
-                    actions.Add(new("退出并安装", ExitAsync, Primary: true, Enabled: CanExit));
-                }
-            }
-            else
-            {
-                if (progress.Phase == UpdatePhase.Failed) { title = "更新失败"; body = progress.Error ?? "更新失败"; kind = NotificationKind.Error; }
-                if (result.Asset is not null && ApplicationUpdater.CanInstall)
-                    actions.Add(new(progress.Phase == UpdatePhase.Failed ? "重试下载" : "下载更新", () =>
-                    { _ = DownloadAsync(result); return Task.CompletedTask; }, Primary: true, Enabled: () => !_downloading && !updater.IsDownloading));
-            }
+                break;
+            case "重试安装": actions.Add(new("重试安装", updater.RetryInstallerAsync, Primary: true)); break;
+            case "重启并更新": actions.Add(new("重启并更新", updater.RestartAsync, Primary: true, Enabled: () => updater.CanRestart)); break;
+            case "下载更新" or "重试下载" when updater.LatestResult is { } result:
+                actions.Add(new(status.Action, () => { _ = DownloadAsync(result); return Task.CompletedTask; },
+                    Primary: true, Enabled: () => !_downloading && !updater.IsDownloading));
+                break;
         }
-        if (result.ReleasePage is { } page) actions.Add(new("打开发布页", () =>
+        actions.Add(new("查看更新", OpenUpdatesAsync));
+        if (status.Error && updater.HasLog) actions.Add(new("查看日志", () => { updater.OpenLog(); return Task.CompletedTask; }));
+        if (updater.ReleasePage is { } page) actions.Add(new("打开发布页", () =>
         { Process.Start(new ProcessStartInfo(page.AbsoluteUri) { UseShellExecute = true }); return Task.CompletedTask; }));
-        NotificationCenter.Shared.Publish(owner, new("application-update", title, body, kind, actions, percent, indeterminate), reopen: reopen);
+        var kind = status.Error ? NotificationKind.Error : status.Busy ? NotificationKind.Progress
+            : status.Success ? NotificationKind.Success : NotificationKind.Information;
+        NotificationCenter.Shared.Publish(owner, new("application-update", status.Title, status.Message, kind, actions,
+            status.Percent, status.Busy && status.Percent is null), reopen: reopen || newFailure);
     }
     private static async Task DownloadAsync(UpdateResult result)
     {
@@ -91,15 +79,5 @@ internal static class UpdateNotifications
         catch (OperationCanceledException) { }
         catch (Exception error) { AppDiagnostics.Record("Update notification download", error); }
         finally { _downloading = false; Refresh(); }
-    }
-    private static bool CanExit() => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-        && ApplicationUpdater.Shared.IsPrepared && ApplicationUpdater.Shared.Progress.Phase == UpdatePhase.Ready
-        && (desktop.MainWindow is not MainWindow main || main.CanExitForUpdate);
-    private static Task ExitAsync()
-    {
-        if (!CanExit()) return Task.CompletedTask;
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        { if (desktop.MainWindow is MainWindow main) main.RequestExit(); else desktop.Shutdown(); }
-        return Task.CompletedTask;
     }
 }

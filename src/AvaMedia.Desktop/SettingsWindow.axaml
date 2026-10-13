@@ -816,16 +816,26 @@
                       </StackPanel>
                     </Grid>
                   </Border>
-                  <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
-                      <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="" TextWrapping="Wrap"/>
-                      </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
-                        <TextBlock x:Name="LastUpdateCheckText" Classes="settingsDescription" VerticalAlignment="Center"/>
-                        <Button x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" Classes="ac small"/>
-                      </StackPanel>
-                    </Grid>
+                  <Border x:Name="UpdateStatusCard" Classes="ac-setting-row settingsRow">
+                    <StackPanel Spacing="{DynamicResource StControlGap}">
+                      <TextBlock x:Name="UpdateStatusTitle" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                      <TextBlock x:Name="UpdateMetadataText" Classes="settingsDescription" TextWrapping="Wrap"/>
+                      <SelectableTextBlock x:Name="UpdateStatusMessage" TextWrapping="Wrap"/>
+                      <ProgressBar x:Name="UpdateProgressBar" Minimum="0" Maximum="100" Classes="ac"
+                                   Foreground="{DynamicResource UiAccent}" Background="{DynamicResource UiTrack}" IsVisible="False"/>
+                      <TextBlock x:Name="LastUpdateCheckText" Classes="settingsDescription" TextWrapping="Wrap"/>
+                      <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}"/>
+                        <Button x:Name="UpdateReleaseButton" Content="打开发布页" Click="UpdateReleaseClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
+                        <Button x:Name="UpdateLogButton" Content="查看日志" Click="UpdateLogClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
+                        <Button x:Name="UpdatePrimaryButton" Click="UpdatePrimaryClick" Classes="ac small primary" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
+                      </WrapPanel>
+                      <Expander x:Name="UpdateReleaseNotes" Header="更新说明" IsVisible="False">
+                        <ScrollViewer MaxHeight="{DynamicResource StUpdateNotesHeight}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                          <SelectableTextBlock x:Name="UpdateReleaseNotesText" Classes="raw" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
+                        </ScrollViewer>
+                      </Expander>
+                    </StackPanel>
                   </Border>
                 </StackPanel>
               </Border>

@@ -66,8 +66,19 @@ wait_for_instances() {
     done
 }
 complete() {
+    printf '%s\n' "$version" > "$work/installed-version.tmp"
+    /bin/mv "$work/installed-version.tmp" "$work/installed-version"
     /bin/rm -f "$error" "$package" "$work/pending.json" "$work/helper.json" "$work/ready" "$work/armed"
     log "Update $version complete."
+    if [ -f "$work/restart" ]; then
+        /bin/rm -f "$work/restart"
+        # Release our locks before the relaunched app restores its update state.
+        release_lock "$install_lock"
+        install_owned=0
+        release_lock "$guardian_lock"
+        guardian_owned=0
+        /usr/bin/open "$target" || log 'Update installed, but application relaunch failed.'
+    fi
 }
 [ "$kind" = mac ] && [ -f "$package" ] && [ -d "$stage/Contents" ] && [ -d "$target/Contents" ] || exit 1
 if ! acquire_lock "$guardian_lock"; then exit 0; fi

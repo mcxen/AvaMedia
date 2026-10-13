@@ -65,6 +65,7 @@ public partial class MainWindow
             else item.Click += (_, _) => { if (command.Enabled?.Invoke() != false) command.Execute?.Invoke(); };
             _menuStateUpdates.Add(() =>
             {
+                if (command.HeaderText is { } header) item.Header = Localization.Text(header());
                 item.IsEnabled = command.Enabled?.Invoke() ?? true;
                 item.IsChecked = command.Checked?.Invoke() ?? false;
             });

@@ -24,6 +24,11 @@ public sealed partial class App
         AddNativeItem(application, "设置…", () => _ = RunNativeCommandAsync(() =>
             NativeTaskWindow!.ShowSettingsAsync(NativeMenuWindow!)),
             () => NativeTaskWindow is { CanUseNativeMenu: true } && NativeMenuWindow is { IsEnabled: true });
+        var updates = new NativeMenuItem(Localization.Text(ApplicationUpdater.Shared.MenuTitle));
+        updates.Click += (_, _) => _ = RunNativeCommandAsync(() => NativeTaskWindow?.OpenSoftwareUpdatesAsync() ?? Task.CompletedTask);
+        application.NeedsUpdate += (_, _) =>
+        { updates.Header = Localization.Text(ApplicationUpdater.Shared.MenuTitle); updates.IsEnabled = NativeTaskWindow is { CanUseNativeMenu: true }; };
+        application.Add(updates);
         application.Add(new NativeMenuItemSeparator());
         AddNativeItem(application, "隐藏 AvaMedia", HideNativeApplication);
         application.Add(new NativeMenuItemSeparator());
@@ -97,7 +102,9 @@ public sealed partial class App
                 {
                     if (window is MainWindow main) main.ShowNativeHelp();
                     else Controls.WindowChrome.ShowIndependent(new HelpWindow());
-                }, () => window.IsEnabled)
+                }, () => window.IsEnabled),
+                new("软件更新…", () => _ = RunNativeCommandAsync(() => NativeTaskWindow?.OpenSoftwareUpdatesAsync() ?? Task.CompletedTask),
+                    () => NativeTaskWindow is { CanUseNativeMenu: true }, HeaderText: () => ApplicationUpdater.Shared.MenuTitle)
             ])
         ];
     }
@@ -115,7 +122,7 @@ public sealed partial class App
             };
             void Refresh()
             {
-                item.Header = command.ExistingItem?.Header?.ToString() ?? Localization.Text(command.Header);
+                item.Header = command.ExistingItem?.Header?.ToString() ?? Localization.Text(command.HeaderText?.Invoke() ?? command.Header);
                 item.IsEnabled = command.Enabled?.Invoke() ?? true;
                 item.IsChecked = command.Checked?.Invoke() ?? false;
             }

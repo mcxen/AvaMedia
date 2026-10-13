@@ -20,6 +20,7 @@ public partial class MainWindow
         _appliedSettings = _settings.Clone();
         Notify.IsCheckedChanged += (_, _) => _settings.NotifyComplete = Notify.IsChecked == true;
         InitializeBackground();
+        InitializeUpdateEntry();
         AddHandler(Button.ClickEvent, (_, _) =>
         { if (_settings.PlayOperationSound) _optionServices.PlaySound(UiSound.Operation); }, Avalonia.Interactivity.RoutingStrategies.Bubble);
         AddHandler(MenuItem.ClickEvent, (_, _) =>

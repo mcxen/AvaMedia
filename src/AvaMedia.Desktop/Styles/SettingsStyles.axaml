@@ -59,6 +59,8 @@
     <x:Double x:Key="StPortWidth">90</x:Double>
     <x:Double x:Key="StEndpointWidth">250</x:Double>
     <x:Double x:Key="StModelProgressHeight">4</x:Double>
+    <x:Double x:Key="StUpdateNotesHeight">200</x:Double>
+    <Thickness x:Key="StUpdateActionMargin">4,2</Thickness>
     <x:Double x:Key="StModelDetailsHeight">26</x:Double>
     <x:Double x:Key="StModelGap">6</x:Double>
     <x:Double x:Key="StModelActionGap">8</x:Double>
@@ -128,4 +130,5 @@
   <Style Selector="Window.mac-os9.settings Border.ac-group, Window.mac-os9.settings /template/ Border"><Setter Property="CornerRadius" Value="0"/></Style>
   <Style Selector="Window.windows-xp.settings Border.ac-group"><Setter Property="CornerRadius" Value="3"/></Style>
   <Style Selector="Window.settings ListBox.ac-segmented ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+  <Style Selector="Window.settings TextBlock#UpdateStatusTitle.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
 </Styles>

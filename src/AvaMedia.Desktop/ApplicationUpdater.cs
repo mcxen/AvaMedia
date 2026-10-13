@@ -28,6 +28,7 @@ internal sealed partial class ApplicationUpdater
     private AppSettings? _startupSettings;
     private Func<CancellationToken, Task<UpdateResult>>? _startupCheck;
     private volatile PreparedUpdate? _pending;
+    private bool _installationFeedbackShown;
     private volatile bool _exiting;
     private volatile UpdateProgress _progress = new(UpdatePhase.Idle);
     public UpdateProgress Progress => _progress;
@@ -90,7 +91,7 @@ internal sealed partial class ApplicationUpdater
             {
                 var wait = result.RetryAt is { } retry && retry - DateTimeOffset.UtcNow > delay ? retry - DateTimeOffset.UtcNow : delay;
                 await Task.Delay(wait, ct);
-                result = await check(ct);
+                result = await CheckAsync(check, ct);
                 delay = TimeSpan.FromMinutes(Math.Min(5, delay.TotalMinutes * 2));
             }
             ct.ThrowIfCancellationRequested();
@@ -110,23 +111,26 @@ internal sealed partial class ApplicationUpdater
     public async Task StartupAsync(Window owner, AppSettings settings, Func<CancellationToken, Task<UpdateResult>> check, CancellationToken ct)
     {
         _startupOwner = new(owner); _startupSettings = settings; _startupCheck = check;
-        bool Silent() => settings.AutoUpdate && settings.SilentUpdate;
+        ScheduleDailyChecks();
         try
         {
             if (FirstRunSetup.Failed) return;
+            await ReadInstallationOutcomeAsync(ct);
+            if (!_installationFeedbackShown)
+            {
+                _installationFeedbackShown = true;
+                if (_installedVersion is { } installed) Notifications.UpdateNotifications.Installed(owner, installed);
+                if (_installationError is { } installationError) Notifications.UpdateNotifications.Error(owner, "更新安装失败", installationError);
+            }
             await RestorePreparedAsync(settings, ct);
             if (_pending is { } prepared)
                 Notifications.UpdateNotifications.Show(owner, new(true, "更新已准备好，将在退出应用时安装。",
                     new Uri("https://github.com/mcxen/AvaMedia/releases/tag/v" + prepared.Version), LatestVersion: Version.Parse(prepared.Version)),
                     settings, automatic: prepared.Automatic);
-            if (File.Exists(ErrorPath) && !Silent())
-            {
-                var error = await File.ReadAllTextAsync(ErrorPath, ct);
-                File.Delete(ErrorPath);
-                Notifications.UpdateNotifications.Error(owner, "更新安装失败", error);
-            }
             if (!settings.CheckForUpdates && !settings.AutoUpdate) return;
-            var result = await check(ct);
+            var result = await CheckAsync(check, ct);
+            if (!result.CheckSucceeded && !_exiting)
+                Notifications.UpdateNotifications.Show(owner, result, settings, automatic: true);
             if (!settings.CheckForUpdates && !settings.AutoUpdate || !result.HasUpdate || !result.CheckSucceeded || _exiting) return;
             await HandleUpdateAsync(owner, settings, result, ct);
         }
@@ -134,7 +138,7 @@ internal sealed partial class ApplicationUpdater
         catch (Exception ex)
         {
             Trace.TraceWarning("自动更新失败：{0}", ex.Message);
-            if (!Silent() && !_exiting && Progress.Phase != UpdatePhase.Failed)
+            if (!_exiting && Progress.Phase != UpdatePhase.Failed)
                 Notifications.UpdateNotifications.Error(owner, "更新失败", ex.Message);
         }
     }
@@ -162,10 +166,7 @@ internal sealed partial class ApplicationUpdater
     private void ReportProgress(UpdateProgress progress)
     {
         _progress = progress;
-        if (ProgressChanged is not { } changed) return;
-        foreach (EventHandler subscriber in changed.GetInvocationList())
-            try { subscriber(this, EventArgs.Empty); }
-            catch (Exception error) { AppDiagnostics.Record("Update progress observer", error); }
+        NotifyStateChanged();
     }
 
     private async Task PrepareCoreAsync(UpdateResult result, bool automatic, CancellationToken ct)
@@ -193,6 +194,9 @@ internal sealed partial class ApplicationUpdater
             }
             if (result.Asset is not { } asset || !TryTarget(out var target, out var kind))
                 throw new InvalidOperationException("当前安装不支持应用内更新，请从发布页下载安装包。");
+            _installationError = null;
+            _installedVersion = null;
+            _checkState = _checkState with { Result = result };
             ReportProgress(new(UpdatePhase.Downloading, TotalBytes: asset.Size));
             var id = Guid.NewGuid().ToString("N");
             var parent = Path.GetDirectoryName(target)!;

@@ -16,7 +16,11 @@ internal sealed partial class ApplicationUpdater
         try { File.WriteAllText(temporary, JsonSerializer.Serialize(value)); File.Move(temporary, path, true); }
         finally { File.Delete(temporary); }
     }
-    private static void SavePrepared(PreparedUpdate update) => WriteJson(Marker(update, "pending.json"), update);
+    private static void SavePrepared(PreparedUpdate update)
+    {
+        File.WriteAllText(Marker(update, "target.txt"), update.Target, new UTF8Encoding(false));
+        WriteJson(Marker(update, "pending.json"), update);
+    }
     private static Process? FindInstaller(PreparedUpdate update)
     {
         var ready = ReadReadyInstaller(update);

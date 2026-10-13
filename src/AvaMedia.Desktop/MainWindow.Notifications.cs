@@ -8,6 +8,8 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     internal bool CanExitForUpdate => !_closing && !_queue.IsRunning && _editingJobs.Count == 0;
+    internal string? UpdateRestartBlockedReason => _closing ? "正在退出应用…" : _queue.IsRunning
+        ? "任务正在处理，完成后可重启并更新。" : _editingJobs.Count > 0 ? "请先完成任务编辑，再重启并更新。" : null;
     private void NotificationsClick(object? sender, RoutedEventArgs args) => NotificationCenter.Shared.OpenHistory(this);
     private void ToggleNotificationsClick(object? sender, RoutedEventArgs args)
     {

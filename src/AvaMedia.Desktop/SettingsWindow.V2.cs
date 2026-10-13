@@ -59,7 +59,7 @@ public sealed partial class SettingsWindow
     {
         foreach (var button in AccentPalette.Children.OfType<Button>()) button.Classes.Set("selected", button.Tag as string == _accentColor);
     }
-    private void RefreshLastUpdateCheck() => LastUpdateCheckText.Text = _settings.LastUpdateCheck is { } time
+    private void RefreshLastUpdateCheck() => LastUpdateCheckText.Text = (ApplicationUpdater.Shared.CheckState.CheckedAt ?? _settings.LastUpdateCheck) is { } time
         ? Localization.Text("上次检查：") + time.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : Localization.Text("尚未检查更新");
     private void ModelLibraryClick(object? sender, RoutedEventArgs args)
     {

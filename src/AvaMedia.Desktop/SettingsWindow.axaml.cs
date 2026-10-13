@@ -60,6 +60,7 @@ public sealed partial class SettingsWindow : Window
         InitializeModelManagement();
         InitializeModelLifecycle();
         InitializeSettingsNavigation();
+        InitializeUpdateStatus();
         ContextMenuInput.IsEnabled = _services.CanUseContextMenu; MinimizeBehaviorInput.IsEnabled = CloseBehaviorInput.IsEnabled = _services.CanUseTray;
         PlayerIntegrationRow.IsVisible = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
         if (OperatingSystem.IsMacOS())
@@ -173,7 +174,7 @@ public sealed partial class SettingsWindow : Window
     private static string RuntimeDescription => Localization.Format($"{AppIdentity.WindowTitle}\n.NET {Environment.Version}\n{System.Runtime.InteropServices.RuntimeInformation.OSDescription}\nCPU logical processors: {Environment.ProcessorCount}\nSettings: {Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia")}");
     private void LanguageChanged(object? sender, EventArgs e)
     {
-        RuntimeInfo.Text = RuntimeDescription; UpdateSettingsPageTitle();
+        RuntimeInfo.Text = RuntimeDescription; UpdateSettingsPageTitle(); RefreshUpdateStatus();
     }
     private void MarkDirty() { if (!_initializing) { ApplyButton.IsEnabled = !_values.Select(value=>value()).SequenceEqual(_appliedValues); StatusText.IsVisible = false; } }
     private bool ApplyDraft()
@@ -209,10 +210,10 @@ public sealed partial class SettingsWindow : Window
     private async void CheckUpdatesClick(object? sender, RoutedEventArgs args)
     {
         CheckUpdatesButton.IsEnabled = false;
-        try { var result = await _services.CheckUpdatesAsync(_lifetime.Token); if (IsVisible) { _settings.LastUpdateCheck = DateTimeOffset.Now; Applied?.Invoke(this, EventArgs.Empty); RefreshLastUpdateCheck(); Notifications.UpdateNotifications.Show(this, result); } }
+        try { var result = await ApplicationUpdater.Shared.CheckAsync(_services.CheckUpdatesAsync, _lifetime.Token); if (IsVisible) { _settings.LastUpdateCheck = ApplicationUpdater.Shared.CheckState.CheckedAt; Applied?.Invoke(this, EventArgs.Empty); RefreshUpdateStatus(); Notifications.UpdateNotifications.Show(this, result); } }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (IsVisible) Notifications.UpdateNotifications.Error(this, "版本检查失败", ex.Message); }
-        finally { if (IsVisible) CheckUpdatesButton.IsEnabled = true; }
+        finally { if (IsVisible) RefreshUpdateStatus(); }
     }
     private async void RegisterPlayerClick(object? sender, RoutedEventArgs args)
     {
