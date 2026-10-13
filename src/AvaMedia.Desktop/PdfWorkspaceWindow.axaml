@@ -1,21 +1,29 @@
 <Window xmlns:ac="using:AvaMedia.Controls" xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.PdfWorkspaceWindow" Width="1260" Height="840" MinWidth="1020" MinHeight="680" WindowStartupLocation="CenterOwner">
+  <Window.Resources>
+    <x:Double x:Key="PdfPageCardWidth">154</x:Double>
+    <x:Double x:Key="PdfAgePageCardWidth">208</x:Double>
+    <x:Double x:Key="PdfThumbnailHeight">156</x:Double>
+    <x:Double x:Key="PdfPreviewHeight">280</x:Double>
+    <x:Double x:Key="PdfPresetPreviewHeight">108</x:Double>
+  </Window.Resources>
   <Window.Styles>
-    <Style Selector="Border.pdf-card"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/></Style>
+    <Style Selector="Border.pdf-card"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/></Style>
+    <Style Selector="Button.pdf-page-preview"><Setter Property="Height" Value="NaN"/><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="Padding" Value="{DynamicResource AcSegmentPadding}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
     <Style Selector="Border.pdf-card.active"><Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}"/><Setter Property="BorderThickness" Value="1"/></Style>
     <Style Selector="Border.pdf-card.cut"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
-    <Style Selector="Button.pdf-effect"><Setter Property="Padding" Value="6"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="Button.pdf-effect"><Setter Property="Height" Value="NaN"/><Setter Property="MinHeight" Value="{DynamicResource AcButtonHeight}"/><Setter Property="Padding" Value="6"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="BorderThickness" Value="1"/></Style>
     <Style Selector="Button.pdf-effect.active"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}"/></Style>
     <Style Selector="controls|ImageCompareView"><Setter Property="Surface" Value="{DynamicResource UiSurface}"/><Setter Property="Checker" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Accent" Value="{DynamicResource UiAccent}"/></Style>
   </Window.Styles>
-  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
+  <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
     <files:FileImportActions x:Name="ImportPanel">
       <Button Classes="ac" x:Name="ClearButton" Content="清空" Click="ClearClick"/>
     </files:FileImportActions>
-    <Grid Grid.Row="1" x:Name="BodyGrid" ColumnDefinitions="*,360" ColumnSpacing="8">
+    <Grid Grid.Row="1" x:Name="BodyGrid" ColumnDefinitions="*,360" ColumnSpacing="{DynamicResource AcRowGap}">
       <Border Classes="ac-card">
         <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
-          <Grid x:Name="BoardToolbar" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+          <Grid x:Name="BoardToolbar" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
             <Button Classes="ac" x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
             <Button Classes="ac" Grid.Column="1" x:Name="InvertButton" Content="反选" Click="InvertClick"/>
             <Button Classes="ac" Grid.Column="2" x:Name="UndoButton" Content="撤销" Click="UndoClick" IsEnabled="False"/>
@@ -34,54 +42,54 @@
           </Grid>
         </Grid>
       </Border>
-      <Grid Grid.Column="1" x:Name="DetailPane" RowDefinitions="Auto,*" RowSpacing="12">
-        <Grid x:Name="PreviewPanel" RowDefinitions="Auto,Auto" RowSpacing="8">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <Grid Grid.Column="1" x:Name="DetailPane" RowDefinitions="Auto,*" RowSpacing="{DynamicResource AcGap}">
+        <Grid x:Name="PreviewPanel" RowDefinitions="Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
             <TextBlock x:Name="PreviewTitle" Text="页面预览" FontWeight="SemiBold" TextWrapping="Wrap"/>
             <ProgressBar Classes="ac" Grid.Column="1" x:Name="PreviewProgress" IsVisible="False" IsIndeterminate="True" Width="60" VerticalAlignment="Center"/>
           </Grid>
-          <Border Classes="ac-card" Grid.Row="1" x:Name="PagePreviewFrame" Height="280">
-            <Image x:Name="PagePreview" Stretch="Uniform"/>
+          <Border Classes="ac-card" Grid.Row="1" x:Name="PagePreviewFrame" Height="{DynamicResource PdfPreviewHeight}">
+            <Grid><Image x:Name="PagePreview" Stretch="Uniform"/><ac:EmptyState x:Name="PreviewEmpty" Text="选择页面查看预览"/></Grid>
           </Border>
-          <Grid Grid.Row="1" x:Name="AgeComparisonPanel" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8" IsVisible="False">
+          <Grid Grid.Row="1" x:Name="AgeComparisonPanel" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}" IsVisible="False">
             <Grid ColumnDefinitions="*,*">
               <TextBlock Text="原页" Classes="caption"/>
               <TextBlock Grid.Column="1" Text="做旧效果" Classes="caption" HorizontalAlignment="Right"/>
             </Grid>
             <Border Grid.Row="1" BorderBrush="{DynamicResource UiBorder}" BorderThickness="1" ClipToBounds="True">
-              <controls:ImageCompareView x:Name="AgeComparison" Split="{Binding #AgeCompareSlider.Value, Mode=TwoWay}" AutomationProperties.Name="原页与做旧效果对比"/>
+              <Grid><controls:ImageCompareView x:Name="AgeComparison" Split="{Binding #AgeCompareSlider.Value, Mode=TwoWay}" AutomationProperties.Name="原页与做旧效果对比"/><ac:EmptyState x:Name="AgePreviewEmpty" Text="选择页面查看预览"/></Grid>
             </Border>
             <Slider Classes="ac" Grid.Row="2" x:Name="AgeCompareSlider" Minimum="0" Maximum="1" Value="0.5" SmallChange="0.02" LargeChange="0.1" AutomationProperties.Name="前后对比位置"/>
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Grid.Row="3" ColumnSpacing="6">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Grid.Row="3" ColumnSpacing="{DynamicResource AcRowGap}">
               <CheckBox Classes="ac" x:Name="AgeSideBySide" Content="并排对比" IsCheckedChanged="CompareModeChanged"/>
-              <Button Grid.Column="1" Classes="ac step" Content="−" Click="ZoomOutClick" AutomationProperties.Name="缩小预览"/>
-              <Button Grid.Column="2" Classes="ac step" Content="+" Click="ZoomInClick" AutomationProperties.Name="放大预览"/>
+              <Button Grid.Column="1" Classes="ac step" Content="−" Click="ZoomOutClick" AutomationProperties.Name="缩小预览" ToolTip.Tip="缩小预览"/>
+              <Button Grid.Column="2" Classes="ac step" Content="+" Click="ZoomInClick" AutomationProperties.Name="放大预览" ToolTip.Tip="放大预览"/>
               <Button Classes="ac" Grid.Column="3" Content="1:1" Click="ActualSizeClick"/>
               <Button Classes="ac" Grid.Column="4" Content="适应窗口" Click="ResetViewClick"/>
             </Grid>
           </Grid>
         </Grid>
         <ScrollViewer Grid.Row="1" x:Name="SettingsScroll" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="12">
-          <StackPanel x:Name="LayoutPanel" Spacing="6" IsVisible="False">
-            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="6">
+        <ac:Card x:Name="SettingsCard"><StackPanel Spacing="{DynamicResource AcGap}">
+          <StackPanel x:Name="LayoutPanel" Spacing="{DynamicResource AcRowGap}" IsVisible="False">
+            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="页面排版" VerticalAlignment="Center"/>
               <ComboBox Classes="ac" Grid.Column="1" x:Name="PaperSizeSetting" SelectionChanged="LayoutChanged" HorizontalAlignment="Stretch"><ComboBoxItem Content="A4"/><ComboBoxItem Content="Letter"/><ComboBoxItem x:Name="SourceSizeItem" Content="原图尺寸"/></ComboBox>
               <CheckBox Classes="ac" Grid.Column="2" x:Name="LandscapeSetting" Content="横向页面" IsCheckedChanged="LayoutChanged" VerticalAlignment="Center"/>
             </Grid>
-            <Grid ColumnDefinitions="72,*,64" ColumnSpacing="6">
+            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="页边距" VerticalAlignment="Center" ToolTip.Tip="页边距（pt）"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="0" Maximum="144" Value="{Binding #PageMargin.Value, Mode=TwoWay}" AutomationProperties.Name="页边距（pt）" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="PageMargin" Minimum="0" Maximum="144" Value="20" FormatString="0" ValueChanged="LayoutChanged"/>
             </Grid>
-            <Grid x:Name="FontSizeRow" ColumnDefinitions="72,*,64" ColumnSpacing="6">
+            <Grid x:Name="FontSizeRow" ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="字号" VerticalAlignment="Center" ToolTip.Tip="字号（pt）"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="6" Maximum="48" Value="{Binding #TextFontSize.Value, Mode=TwoWay}" AutomationProperties.Name="字号（pt）" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="TextFontSize" Minimum="6" Maximum="48" Value="12" FormatString="0" ValueChanged="LayoutChanged"/>
             </Grid>
           </StackPanel>
-          <StackPanel x:Name="SplitPanel" Spacing="6" IsVisible="False">
-            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="6">
+          <StackPanel x:Name="SplitPanel" Spacing="{DynamicResource AcRowGap}" IsVisible="False">
+            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="拆分方式" VerticalAlignment="Center"/>
               <ComboBox Classes="ac" Grid.Column="1" x:Name="SplitMode" SelectionChanged="SplitModeChanged" HorizontalAlignment="Stretch" AutomationProperties.Name="拆分方式">
                 <ComboBoxItem Content="按拆分点"/>
@@ -89,7 +97,7 @@
                 <ComboBoxItem Content="所选页面合为一个文件"/>
               </ComboBox>
             </Grid>
-            <Grid x:Name="GroupSizeRow" ColumnDefinitions="72,*,64,Auto" ColumnSpacing="6">
+            <Grid x:Name="GroupSizeRow" ColumnDefinitions="72,*,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="每组页数" VerticalAlignment="Center"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="1" Maximum="100" Value="{Binding #GroupSize.Value, Mode=TwoWay}" AutomationProperties.Name="每组页数" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="GroupSize" Minimum="1" Maximum="10000" Value="5" FormatString="0"/>
@@ -100,34 +108,35 @@
           <StackPanel x:Name="ExtractionPanel" Spacing="8" IsVisible="False">
             <TextBlock Text="提取内容" FontWeight="SemiBold"/>
             <TextBlock Text="只提取文字；扫描页需要 OCR，不恢复原排版。" Classes="caption" TextWrapping="Wrap"/>
-            <TextBox Classes="ac" x:Name="ExtractedText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
+            <TextBox Classes="ac" x:Name="ExtractedText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" IsVisible="False"/>
+            <ac:EmptyState x:Name="ExtractionEmpty" Text="选择页面查看提取内容"/>
           </StackPanel>
-          <StackPanel x:Name="AgePanel" Spacing="6" IsVisible="False">
+          <StackPanel x:Name="AgePanel" Spacing="{DynamicResource AcRowGap}" IsVisible="False">
             <TextBlock Text="纸张风格" FontWeight="SemiBold"/>
-            <Grid x:Name="AgePresets" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="6"/>
-            <Grid ColumnDefinitions="56,*,64" ColumnSpacing="6">
+            <Grid x:Name="AgePresets" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="{DynamicResource AcRowGap}"/>
+            <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="做旧强度" VerticalAlignment="Center"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding #AgeAmount.Value, Mode=TwoWay}" SmallChange="1" LargeChange="10" AutomationProperties.Name="做旧强度" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="AgeAmount" Minimum="0" Maximum="100" Value="35" FormatString="0" ValueChanged="EffectChanged"/>
             </Grid>
-            <Grid ColumnDefinitions="56,*,64" ColumnSpacing="6">
+            <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="折痕" VerticalAlignment="Center"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding #FoldAmount.Value, Mode=TwoWay}" SmallChange="1" LargeChange="10" AutomationProperties.Name="折痕" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="FoldAmount" Minimum="0" Maximum="100" Value="55" FormatString="0" ValueChanged="EffectChanged"/>
             </Grid>
-            <Grid ColumnDefinitions="56,*,64" ColumnSpacing="6">
+            <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="污渍" VerticalAlignment="Center"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding #StainAmount.Value, Mode=TwoWay}" SmallChange="1" LargeChange="10" AutomationProperties.Name="污渍" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="StainAmount" Minimum="0" Maximum="100" Value="35" FormatString="0" ValueChanged="EffectChanged"/>
             </Grid>
             <Expander Header="颗粒与倾斜" HorizontalAlignment="Stretch">
-              <StackPanel Spacing="6" Margin="0,6,0,0">
-                <Grid ColumnDefinitions="56,*,64" ColumnSpacing="6">
+              <StackPanel Spacing="{DynamicResource AcRowGap}" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
                   <TextBlock Text="颗粒" VerticalAlignment="Center"/>
                   <Slider Classes="ac" Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding #GrainAmount.Value, Mode=TwoWay}" SmallChange="1" LargeChange="10" AutomationProperties.Name="颗粒" VerticalAlignment="Center"/>
                   <NumericUpDown Classes="ac" Grid.Column="2" x:Name="GrainAmount" Minimum="0" Maximum="100" Value="15" FormatString="0" ValueChanged="EffectChanged"/>
                 </Grid>
-                <Grid ColumnDefinitions="56,*,64" ColumnSpacing="6">
+                <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
                   <TextBlock Text="倾斜角度" VerticalAlignment="Center"/>
                   <Slider Classes="ac" Grid.Column="1" Minimum="-2" Maximum="2" Value="{Binding #SkewAmount.Value, Mode=TwoWay}" SmallChange="0.1" LargeChange="0.5" AutomationProperties.Name="倾斜角度" VerticalAlignment="Center"/>
                   <NumericUpDown Classes="ac" Grid.Column="2" x:Name="SkewAmount" Minimum="-2" Maximum="2" Increment="0.1" Value="0.2" FormatString="0.0" ValueChanged="EffectChanged"/>
@@ -135,35 +144,35 @@
               </StackPanel>
             </Expander>
           </StackPanel>
-          <StackPanel x:Name="CompressPanel" Spacing="6" IsVisible="False">
-            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="6">
+          <StackPanel x:Name="CompressPanel" Spacing="{DynamicResource AcRowGap}" IsVisible="False">
+            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="压缩档位" VerticalAlignment="Center"/>
               <ComboBox Classes="ac" Grid.Column="1" x:Name="CompressionPreset" SelectionChanged="CompressionPresetChanged" HorizontalAlignment="Stretch"><ComboBoxItem Content="清晰优先"/><ComboBoxItem Content="平衡"/><ComboBoxItem Content="体积优先"/><ComboBoxItem Content="自定义"/></ComboBox>
               <CheckBox Classes="ac" Grid.Column="2" x:Name="RasterizeSetting" Content="整页压缩" IsCheckedChanged="EffectChanged" VerticalAlignment="Center" ToolTip.Tip="默认保留文字并压缩图片；整页压缩会移除可搜索文字、表单和链接。"/>
             </Grid>
           </StackPanel>
-          <StackPanel x:Name="RasterSettings" Spacing="6" IsVisible="False">
-            <Grid ColumnDefinitions="72,*,64" ColumnSpacing="6">
+          <StackPanel x:Name="RasterSettings" Spacing="{DynamicResource AcRowGap}" IsVisible="False">
+            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="JPEG 质量" VerticalAlignment="Center"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="10" Maximum="100" Value="{Binding #JpegQuality.Value, Mode=TwoWay}" AutomationProperties.Name="JPEG 质量" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="JpegQuality" Minimum="10" Maximum="100" Value="75" FormatString="0" ValueChanged="EffectChanged"/>
             </Grid>
-            <Grid ColumnDefinitions="72,*,72" ColumnSpacing="6">
+            <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
               <TextBlock Text="最长边" VerticalAlignment="Center" ToolTip.Tip="最长边（像素）"/>
               <Slider Classes="ac" Grid.Column="1" Minimum="600" Maximum="4096" Value="{Binding #RasterEdge.Value, Mode=TwoWay}" TickFrequency="100" IsSnapToTickEnabled="True" AutomationProperties.Name="最长边（像素）" VerticalAlignment="Center"/>
               <NumericUpDown Classes="ac" Grid.Column="2" x:Name="RasterEdge" Minimum="600" Maximum="4096" Increment="100" Value="1800" FormatString="0" ValueChanged="EffectChanged"/>
             </Grid>
             <TextBlock x:Name="RasterNote" Text="做旧输出为图像页面，不保留可搜索文字、表单和链接。" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
-        </StackPanel>
+        </StackPanel></ac:Card>
         </ScrollViewer>
       </Grid>
     </Grid>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
       <TextBox Classes="ac" x:Name="OutputFolder" IsReadOnly="True" AutomationProperties.Name="保存位置"/>
       <Button Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
     </Grid>
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource AcGap}">
       <TextBlock x:Name="StatusText" i18n:StableLayout.StatusLines="2" TextWrapping="Wrap" Classes="caption" VerticalAlignment="Center"/>
       <Button Grid.Column="1" Content="取消" Classes="ac dialog-action" IsCancel="True" Click="CancelClick"/>
       <Button Grid.Column="2" x:Name="ConfirmButton" Content="加入队列" Classes="ac primary dialog-action" IsDefault="True" IsEnabled="False" Click="ConfirmClick"/>

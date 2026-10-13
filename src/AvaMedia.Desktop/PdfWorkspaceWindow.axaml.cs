@@ -7,6 +7,8 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using AvaMedia.Core;
+using AvaMedia.Controls;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using AvaMedia.Desktop.Controls;
 using SkiaSharp;
 
@@ -95,6 +97,7 @@ public partial class PdfWorkspaceWindow : Window
         RasterSettings.IsVisible = IsCompress || AgePanel.IsVisible;
         RasterNote.IsVisible = AgePanel.IsVisible;
         ExtractionPanel.IsVisible = IsExtraction;
+        SettingsCard.IsVisible=LayoutPanel.IsVisible||SplitPanel.IsVisible||AgePanel.IsVisible||CompressPanel.IsVisible||ExtractionPanel.IsVisible;
         SelectAllButton.IsVisible = InvertButton.IsVisible = UndoButton.IsVisible = CanArrange;
         SplitMode.SelectedIndex = 0; CompressionPreset.SelectedIndex = 1;
         if (IsAge)
@@ -205,7 +208,7 @@ public partial class PdfWorkspaceWindow : Window
                     if (temporary is not null) { _temporary.Add(temporary); temporary = null; }
                 }
                 catch (OperationCanceledException) { throw; }
-                catch (Exception ex) { errors.Add(Path.GetFileName(path) + ": " + ex.Message); }
+                catch (Exception ex){errors.Add(Path.GetFileName(path)+": "+PreviewError(ex));ToolTip.SetTip(EmptyText,ex.Message);}
                 finally { if (temporary is not null) TryDelete(temporary); }
             }
             if (_pages.Count > 0) _active ??= _pages[0];
@@ -218,7 +221,8 @@ public partial class PdfWorkspaceWindow : Window
             if (!_closed)
             {
                 ImportPanel.FilesButton.IsEnabled = ClearButton.IsEnabled = true; RebuildBoard();
-                StatusText.Text = errors.Count > 0 ? string.Join("\n", errors) : "";
+                StatusText.Text = errors.Count > 0 && _pages.Count>0 ? string.Join("\n", errors) : "";
+                if(_pages.Count==0&&errors.Count>0){EmptyText.IsError=true;EmptyText.Text=Localization.Text("无法读取文件");EmptyText.Detail=string.Join("\n",errors);}
                 UpdatePreview();
             }
         }
@@ -257,31 +261,33 @@ public partial class PdfWorkspaceWindow : Window
         _boardWork?.Cancel(); _boardWork = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         var token = _boardWork.Token;
         PageBoard.Children.Clear(); ClearBitmaps();
-        EmptyText.IsVisible = _pages.Count == 0;
+        EmptyText.IsVisible = _pages.Count == 0;EmptyText.IsError=false;EmptyText.Text=Localization.Text("尚未添加文件");EmptyText.Detail="";
         var visible = _pages.Skip(_boardStart).Take(BoardSize).ToArray();
-        var renderTargets = new List<(PdfWorkspacePage Page, Image Image)>();
+        var renderTargets = new List<(PdfWorkspacePage Page, Image Image, EmptyState State)>();
         foreach (var page in visible)
         {
-            var card = new Border { Width = IsAge ? 208 : 154, Margin = new(0, 0, 10, 10), Padding = new(8), Classes = { "pdf-card" } };
+            var card = new Card { Margin = new(0, 0, 10, 10), Classes = { "pdf-card" } };
+            card.Bind(WidthProperty,new DynamicResourceExtension(IsAge?"PdfAgePageCardWidth":"PdfPageCardWidth"));
             if (page == _active) card.Classes.Add("active");
             if (page.BreakAfter) card.Classes.Add("cut");
             var content = new StackPanel { Spacing = 6 }; card.Child = content;
             var select = new CheckBox { Classes = { "ac" }, Content = Localization.Format($"第 {page.Info.Number} 页"), IsChecked = page.Included, IsEnabled = CanArrange };
             select.IsCheckedChanged += (_, _) => { if (page.Included == (select.IsChecked == true)) return; Remember(); page.Included = select.IsChecked == true; RefreshSummary(); };
             content.Children.Add(select);
-            var image = new Image { Height = 156, Stretch = Stretch.Uniform };
-            var previewButton = new Button { Classes = { "ac" }, Content = image, HorizontalContentAlignment = HorizontalAlignment.Stretch, Background = Brushes.White };
+            var image = new Image { Stretch = Stretch.Uniform };
+            var thumbnail=new Grid();thumbnail.Bind(HeightProperty,new DynamicResourceExtension("PdfThumbnailHeight"));thumbnail.Children.Add(image);
+            var state=new EmptyState{Text=Localization.Text("正在读取页面…")};thumbnail.Children.Add(state);
+            var previewButton = new Button { Classes = { "ac","pdf-page-preview" }, Content = thumbnail };
+            Avalonia.Automation.AutomationProperties.SetName(previewButton,Localization.Format($"预览第 {page.Info.Number} 页"));ToolTip.SetTip(previewButton,Localization.Format($"预览第 {page.Info.Number} 页"));
             previewButton.Click += (_, _) => { _active = page; HighlightActive(); UpdatePreview(); };
-            content.Children.Add(previewButton); renderTargets.Add((page, image));
+            content.Children.Add(previewButton); renderTargets.Add((page, image,state));
             var name = new TextBlock { Text = Path.GetFileName(page.Path), TextTrimming = TextTrimming.CharacterEllipsis, Classes = { "caption" } };
             Localization.SetIsUserText(name, true); ToolTip.SetTip(name, page.Path); content.Children.Add(name);
             if (CanArrange)
             {
                 var actions = new Grid { ColumnDefinitions = new(IsExtraction ? "*,*" : "*,*,*"), ColumnSpacing = 4 };
-                var left = Ui.Button("←", () => Move(page, -1)); var right = Ui.Button("→", () => Move(page, 1));
-                left.Padding = right.Padding = new(2);
-                var rotate = Ui.Button("↻", () => { Remember(); page.Rotation = (page.Rotation + 90) % 360; RebuildBoard(); UpdatePreview(); });
-                rotate.Padding = new(2);
+                var left = PageAction("chevron-left","前移",()=>Move(page,-1));var right = PageAction("chevron-right","后移",()=>Move(page,1));
+                var rotate=PageAction("rotate-cw","旋转页面",()=>{Remember();page.Rotation=(page.Rotation+90)%360;RebuildBoard();UpdatePreview();});
                 left.IsEnabled = _pages.IndexOf(page) > 0; right.IsEnabled = _pages.IndexOf(page) < _pages.Count - 1;
                 ToolTip.SetTip(left, Localization.Text("前移")); ToolTip.SetTip(right, Localization.Text("后移")); ToolTip.SetTip(rotate, Localization.Text("旋转页面"));
                 Grid.SetColumn(right, 1); Grid.SetColumn(rotate, 2); actions.Children.Add(left); actions.Children.Add(right); if(!IsExtraction) actions.Children.Add(rotate); content.Children.Add(actions);
@@ -301,9 +307,15 @@ public partial class PdfWorkspaceWindow : Window
         RefreshSummary(); Track(RenderCards(renderTargets, token));
     }
 
-    private async Task RenderCards(List<(PdfWorkspacePage Page, Image Image)> cards, CancellationToken token)
+    private static Button PageAction(string icon,string title,Action action)
     {
-        foreach (var (page, image) in cards)
+        var button=Ui.Button("",action);button.Classes.Add("icon");button.Content=new LucideIcon{Kind=icon,Width=14,Height=14};
+        ToolTip.SetTip(button,Localization.Text(title));Avalonia.Automation.AutomationProperties.SetName(button,Localization.Text(title));return button;
+    }
+
+    private async Task RenderCards(List<(PdfWorkspacePage Page, Image Image, EmptyState State)> cards, CancellationToken token)
+    {
+        foreach (var (page, image,state) in cards)
         {
             Bitmap? bitmap = null;
             try
@@ -311,10 +323,10 @@ public partial class PdfWorkspaceWindow : Window
                 token.ThrowIfCancellationRequested(); var rotation = page.Rotation;
                 var bytes = await RenderPage(page, 240, rotation, token);
                 token.ThrowIfCancellationRequested(); using var stream = new MemoryStream(bytes); bitmap = new Bitmap(stream);
-                image.Source = bitmap; _thumbnails.Add(bitmap); bitmap = null;
+                image.Source = bitmap;state.IsVisible=false;_thumbnails.Add(bitmap);bitmap=null;
             }
             catch (OperationCanceledException) { return; }
-            catch (Exception ex) { if (!token.IsCancellationRequested && !_closed) StatusText.Text = ex.Message; }
+            catch (Exception ex) { if (!token.IsCancellationRequested && !_closed){state.IsError=true;state.Text=Localization.Text("无法预览此页");state.Detail=PreviewError(ex);ToolTip.SetTip(state,ex.Message);Localization.SetIsUserText(state,true);} }
             finally { bitmap?.Dispose(); }
         }
     }
@@ -358,6 +370,10 @@ public partial class PdfWorkspaceWindow : Window
         _previewWork?.Cancel(); var work = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _previewWork = work;
         var token = work.Token; var options = Options(); var rotation = page.Rotation;
         PreviewProgress.IsVisible = true;
+        PreviewTitle.Text=Localization.Format($"第 {page.Info.Number} 页");
+        SetPreviewState("正在读取页面…");
+        if(!IsAge){PagePreview.Source=null;_preview?.Dispose();_preview=null;}
+        if(IsExtraction){ExtractedText.Text="";ExtractedText.IsVisible=false;ExtractionEmpty.IsVisible=true;ExtractionEmpty.Text=Localization.Text("正在读取页面…");}
         try
         {
             await Task.Delay(180, token);
@@ -369,6 +385,7 @@ public partial class PdfWorkspaceWindow : Window
                 token.ThrowIfCancellationRequested(); var bitmap = ReadBitmap(bytes);
                 PagePreview.Source = bitmap; _preview?.Dispose(); _preview = bitmap;
             }
+            PreviewEmpty.IsVisible=AgePreviewEmpty.IsVisible=false;PagePreview.IsVisible=AgeComparison.IsVisible=true;
             var width=page.Info.Width;var height=page.Info.Height;
             if(rotation is 90 or 270)(width,height)=(height,width);
             if(_feature.Operation==Operation.ImagesPdf)(width,height)=PdfTools.PaperSize(width,height,options);
@@ -381,10 +398,11 @@ public partial class PdfWorkspaceWindow : Window
                     return UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor.ContentOrderTextExtractor.GetText(pdf.GetPage(page.Info.Number));
                 }, token);
                 token.ThrowIfCancellationRequested(); ExtractedText.Text = text; Localization.SetIsUserText(ExtractedText, true);
+                ExtractedText.IsVisible=!string.IsNullOrWhiteSpace(text);ExtractionEmpty.IsVisible=!ExtractedText.IsVisible;ExtractionEmpty.Text=Localization.Text("此页没有可提取文字");
             }
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!token.IsCancellationRequested && !_closed) StatusText.Text = ex.Message; }
+        catch (Exception ex) { if (!token.IsCancellationRequested && !_closed){ClearPreview();SetPreviewState("无法预览此页",PreviewError(ex),true);ToolTip.SetTip(IsAge?AgePreviewEmpty:PreviewEmpty,ex.Message);if(IsExtraction){ExtractionEmpty.Text=Localization.Text("无法读取提取内容");ExtractedText.IsVisible=false;ExtractionEmpty.IsVisible=true;}} }
         finally
         {
             if (ReferenceEquals(_previewWork,work)) { _previewWork = null; PreviewProgress.IsVisible = false; }
@@ -440,7 +458,7 @@ public partial class PdfWorkspaceWindow : Window
             if (images.Presets is not null)
             {
                 ClearAgePresetBitmaps();
-                for (var index = 0; index < presetsBitmaps.Count; index++) _agePresetCards[index].Image.Source = presetsBitmaps[index];
+                for (var index = 0; index < presetsBitmaps.Count; index++){_agePresetCards[index].Image.Source=presetsBitmaps[index];_agePresetCards[index].Image.IsVisible=true;}
                 _agePresetBitmaps.AddRange(presetsBitmaps); presetsBitmaps.Clear(); _agePresetKey = pageKey;
             }
         }
@@ -454,8 +472,8 @@ public partial class PdfWorkspaceWindow : Window
         for (var index = 0; index < PaperPresets.Length; index++)
         {
             var preset = PaperPresets[index];
-            var image = new Image { Stretch = Stretch.Uniform };
-            var content = new Grid { RowDefinitions = new("108,*"), RowSpacing = 6 };
+            var image = new Image { Stretch = Stretch.Uniform,IsVisible=false };
+            var content = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 6 };image.Bind(HeightProperty,new DynamicResourceExtension("PdfPresetPreviewHeight"));
             var label = new TextBlock { Text = Localization.Text(preset.Label), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetRow(label,1); content.Children.Add(image); content.Children.Add(label);
             var button = new Button { Content = content, Classes = { "ac", "pdf-effect" } };
@@ -490,13 +508,23 @@ public partial class PdfWorkspaceWindow : Window
 
     private void ClearAgePresetBitmaps()
     {
-        foreach (var card in _agePresetCards) card.Image.Source = null;
+        foreach (var card in _agePresetCards){card.Image.Source=null;card.Image.IsVisible=false;}
         foreach (var bitmap in _agePresetBitmaps) bitmap.Dispose();
         _agePresetBitmaps.Clear(); _agePresetKey = null;
     }
 
+    private static string PreviewError(Exception error)=>error is DllNotFoundException?Localization.Text("无法加载 PDF 预览组件。"):error.Message;
+
+    private void SetPreviewState(string text,string detail="",bool error=false)
+    {
+        PagePreview.IsVisible=AgeComparison.IsVisible=false;
+        foreach(var state in new[]{PreviewEmpty,AgePreviewEmpty})
+        {state.Text=Localization.Text(text);state.Detail=detail;state.IsError=error;state.IsVisible=true;}
+    }
+
     private void ClearPreview()
     {
+        SetPreviewState("选择页面查看预览");PreviewTitle.Text=Localization.Text("页面预览");
         PagePreview.Source = null; AgeComparison.Source = AgeComparison.Result = null;
         _preview?.Dispose(); _preview = null; _ageSource?.Dispose(); _ageSource = null;
         _ageSourceData = null; _ageSourceKey = null; ClearAgePresetBitmaps(); AgeComparison.ResetView();
@@ -579,7 +607,7 @@ public partial class PdfWorkspaceWindow : Window
     {
         if (_loading) return;
         _boardWork?.Cancel(); _previewWork?.Cancel(); _pages.Clear(); _files.Clear(); _undo.Clear(); _active = null; _boardStart = 0;
-        UndoButton.IsEnabled = false; ClearPreview(); ExtractedText.Text = "";
+        UndoButton.IsEnabled = false;ClearPreview();ExtractedText.Text="";ExtractedText.IsVisible=false;ExtractionEmpty.IsVisible=true;ExtractionEmpty.Text=Localization.Text("选择页面查看提取内容");
         _textLayoutWork?.Cancel(); _ = CleanupAsync(_work.ToArray(), _temporary.ToArray()); _temporary.Clear(); RebuildBoard(); StatusText.Text = "";
     }
     private void SelectAllClick(object? sender, RoutedEventArgs e) { Remember(); foreach (var page in _pages) page.Included = true; RebuildBoard(); }
