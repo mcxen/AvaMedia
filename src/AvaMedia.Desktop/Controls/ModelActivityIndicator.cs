@@ -10,7 +10,7 @@ using AvaMedia.Core;
 namespace AvaMedia.Desktop.Controls;
 
 /// <summary>Fixed footer slot; stage progress uses measured bytes, inference effects indicate activity only.</summary>
-public sealed class ModelActivityIndicator : Control
+public sealed partial class ModelActivityIndicator : Control
 {
     public static readonly StyledProperty<IBrush?> ForegroundProperty =
         AvaloniaProperty.Register<ModelActivityIndicator, IBrush?>(nameof(Foreground));
@@ -32,12 +32,9 @@ public sealed class ModelActivityIndicator : Control
     private ModelRuntimeStatus? _current, _paint;
     private Window? _window;
     private string _root = "";
-    private int _effect, _previousEffect;
     private bool _attached, _display;
     private int _refreshQueued;
-    private long _effectStarted = Stopwatch.GetTimestamp(), _fadeStarted;
-    private long _previousEffectStarted, _switchStarted;
-    private double _nextEffectSeconds = 6;
+    private long _fadeStarted;
     private double _fadeFrom;
 
     static ModelActivityIndicator() => AffectsRender<ModelActivityIndicator>(ForegroundProperty, ShadowBrushProperty, TrackBrushProperty, HighlightBrushProperty);
@@ -49,10 +46,12 @@ public sealed class ModelActivityIndicator : Control
         _retire.Tick += (_, _) => { _retire.Stop(); Refresh(false); };
         AttachedToVisualTree += (_, _) => Attach();
         DetachedFromVisualTree += (_, _) => Detach();
-        ActualThemeVariantChanged += (_, _) => InvalidateVisual();
+        ActualThemeVariantChanged += (_, _) => { UpdateActivityVisual(); InvalidateVisual(); };
         PropertyChanged += (_, change) =>
         {
             if (change.Property == IsVisibleProperty) PresentationChanged();
+            if (change.Property == BoundsProperty || change.Property == ForegroundProperty || change.Property == HighlightBrushProperty)
+                UpdateActivityVisual();
         };
     }
 
@@ -76,6 +75,7 @@ public sealed class ModelActivityIndicator : Control
     private void Detach()
     {
         _attached = false; _frames.Stop(); _retire.Stop();
+        DetachActivityVisual();
         MediaTagRuntime.Changed -= RuntimeChanged;
         Localization.Changed -= LanguageChanged;
         Motion.PreferencesChanged -= MotionChanged;
@@ -93,6 +93,7 @@ public sealed class ModelActivityIndicator : Control
         else
         {
             _frames.Stop(); _retire.Stop();
+            UpdateActivityVisual();
             _current = _paint = null; _display = false; Opacity = 0; IsHitTestVisible = false;
             UpdateDescription();
         }
@@ -135,11 +136,6 @@ public sealed class ModelActivityIndicator : Control
     }
     private void Present(ModelRuntimeStatus? value)
     {
-        if (_current?.Id != value?.Id || _current?.State != value?.State)
-        {
-            _effectStarted = Stopwatch.GetTimestamp(); _switchStarted = 0;
-            if (value?.State == ModelLoadState.InUse) { _effect = 0; _nextEffectSeconds = 4 + Random.Shared.NextDouble() * 3; }
-        }
         _current = value;
         if (value is not null) _paint = value;
         var display = value is not null;
@@ -178,10 +174,12 @@ public sealed class ModelActivityIndicator : Control
     }
     private void UpdateFrames()
     {
+        UpdateActivityVisual();
         if (!Visible || !Motion.CanAnimate(this))
         { _frames.Stop(); Opacity = _display ? 1 : 0; if (!_display) _paint = null; return; }
-        if (Math.Abs(Opacity - (_display ? 1 : 0)) > .001
-            || _current is { State: ModelLoadState.InUse } || _current is { Preparing: true } && _current.Preparation?.Fraction is null)
+        // The UI timer only finishes the short visibility fade. Continuous activity
+        // is rendered by the compositor and no longer invalidates the UI tree at 30 fps.
+        if (Math.Abs(Opacity - (_display ? 1 : 0)) > .001)
             _frames.Start();
         else { _frames.Stop(); Opacity = _display ? 1 : 0; if (!_display) _paint = null; }
     }
@@ -191,14 +189,6 @@ public sealed class ModelActivityIndicator : Control
         var target = _display ? 1d : 0d;
         var phase = Math.Clamp(Stopwatch.GetElapsedTime(_fadeStarted).TotalSeconds / .16, 0, 1);
         Opacity = _fadeFrom + (target - _fadeFrom) * (1 - Math.Pow(1 - phase, 3));
-        if (_current?.State == ModelLoadState.InUse && Stopwatch.GetElapsedTime(_effectStarted).TotalSeconds >= _nextEffectSeconds)
-        {
-            _previousEffect = _effect; _previousEffectStarted = _effectStarted;
-            var next = Random.Shared.Next(Effects.Length - 1);
-            _effect = next >= _effect ? next + 1 : next;
-            _effectStarted = _switchStarted = Stopwatch.GetTimestamp();
-            _nextEffectSeconds = 4 + Random.Shared.NextDouble() * 3;
-        }
         InvalidateVisual(); UpdateFrames();
     }
     public override void Render(DrawingContext context)
@@ -234,8 +224,6 @@ public sealed class ModelActivityIndicator : Control
             context.DrawEllipse(glyphBrush, null, new(5, top + 6), 1, 1);
             context.DrawEllipse(glyphBrush, null, new(9, top + 10), 1, 1);
         }
-        var time = Stopwatch.GetElapsedTime(_effectStarted).TotalSeconds;
-        var motion = Motion.CanAnimate(this);
         var fraction = value.Preparation?.Fraction;
         var radius = classic ? 1.5 : xp ? 2 : 2.5;
         var classicShadow = classic && ShadowBrush is { } shadow ? new Pen(shadow, 1, new DashStyle([1, 1], 0)) : null;
@@ -260,9 +248,9 @@ public sealed class ModelActivityIndicator : Control
                 context.DrawRectangle(brush, null, rect, radius, radius);
             }
             var light = value.State == ModelLoadState.InUse
-                ? motion ? ActivityLight(column, row, time) * (classic ? .45 : .55) : (column is 4 or 7 ? classic ? .35 : .4 : 0)
+                ? _activityRunning ? 0 : (column is 4 or 7 ? classic ? .35 : .4 : 0)
                 : value.Preparing && fraction is null
-                    ? motion ? Gaussian(column - (time * 4 % 16 - 2), 1.15) * .7 : (column is 5 or 6 ? .55 : 0) : 0;
+                    ? _activityRunning ? 0 : (column is 5 or 6 ? .55 : 0) : 0;
             if (light > .005)
             {
                 using var opacity = context.PushOpacity(light);
@@ -274,16 +262,6 @@ public sealed class ModelActivityIndicator : Control
                 context.DrawLine(bevelPen!, new(rect.X + 2, rect.Y + .8), new(rect.Right - 2, rect.Y + .8));
             }
         }
-    }
-    private double ActivityLight(int column, int row, double time)
-    {
-        var next = Brightness(Effects[_effect], column, row, time);
-        if (_switchStarted == 0) return next;
-        var blend = Math.Clamp(Stopwatch.GetElapsedTime(_switchStarted).TotalSeconds / .24, 0, 1);
-        if (blend >= 1) return next;
-        blend = blend * blend * (3 - 2 * blend);
-        return Brightness(Effects[_previousEffect], column, row, Stopwatch.GetElapsedTime(_previousEffectStarted).TotalSeconds)
-            * (1 - blend) + next * blend;
     }
     private static double Brightness(string effect, int column, int row, double time)
     {

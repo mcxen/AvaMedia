@@ -187,6 +187,7 @@ public sealed partial class ContactSheetWindow : Window
         _generate = new Button { Content = "生成截图", IsDefault = true, Classes = { "ac", "primary", "sheet-action" } };
         _generate.Click += async (_, _) => await Generate(); Grid.SetColumn(_generate, 4); bottom.Children.Add(_generate);
         Grid.SetRow(bottom, 1); root.Children.Add(bottom); Content = WindowChrome.WrapDialog(this, root);
+        InitializePreviewMotion();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _operation is null && !_importing ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
@@ -196,7 +197,7 @@ public sealed partial class ContactSheetWindow : Window
         Closing += (_, _) =>
         {
             _closed = true; _previewWork?.Cancel(); _filmWork?.Cancel(); _lifetime.Cancel(); _operation?.Cancel();
-            _pulse.Stop(); ClearPreview(); _previewSurface.Dispose(); ClearFilm();
+            StopPreviewMotion(); ClearPreview(); _previewSurface.Dispose(); ClearFilm();
             foreach (var entry in _entries) { entry.CancelMetadata(); entry.Thumbnail?.Dispose(); }
         };
         foreach (var number in new[] { _columns, _rows, _cellWidth, _cellHeight, _sheets })
@@ -329,7 +330,7 @@ public sealed partial class ContactSheetWindow : Window
             BatchVideoTools.ValidateContactSheet(options);new Storage().SaveToolOptions("contact-sheet",options with { StartSeconds=0,EndSeconds=0 }); if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择输出目录。"); folder = System.IO.Path.GetFullPath(_output.Text);
         }
         catch (Exception ex) { await Ui.Message(this, "截图参数错误", ex.Message); return; }
-        _previewWork?.Cancel(); _filmWork?.Cancel(); _pulse.Stop(); _operation = new(); var token = _operation.Token; SetBusy(true); _stop.IsEnabled = true; int success = 0, failed = 0;
+        _previewWork?.Cancel(); _filmWork?.Cancel(); StopPreviewMotion(); _operation = new(); var token = _operation.Token; SetBusy(true); _stop.IsEnabled = true; int success = 0, failed = 0;
         try
         {
             for (var i = 0; i < selected.Length; i++)

@@ -19,7 +19,7 @@
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock x:Name="ListSummary" Text="尚未添加图片" Margin="12,10" TextWrapping="Wrap"/>
           <ListBox Classes="ac surface" Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionChanged="FileSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="待压缩图片">
-            <ListBox.ItemTemplate><DataTemplate DataType="local:ImageCompressionEntry">
+            <ListBox.ItemTemplate><DataTemplate DataType="local:ImageCompressionEntry" x:DataType="local:ImageCompressionEntry" x:CompileBindings="True">
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}" Margin="0,6">
                 <CheckBox Classes="ac" IsChecked="{Binding Include, Mode=TwoWay}" IsEnabled="{Binding CanInclude}" AutomationProperties.Name="是否压缩这张图片"/>
                 <StackPanel Grid.Column="1" Spacing="4">

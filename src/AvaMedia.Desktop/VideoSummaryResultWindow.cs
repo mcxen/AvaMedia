@@ -166,7 +166,16 @@ public sealed partial class VideoSummaryResultWindow : Window
             if (!relative.StartsWith("frames/", StringComparison.Ordinal) || Path.GetExtension(relative) != ".png") return;
             var path = Path.GetFullPath(Path.Combine(_folder, relative));
             if (!path.StartsWith(_folder + Path.DirectorySeparatorChar, StringComparison.Ordinal) || !File.Exists(path) || new FileInfo(path).Length > 10 * 1024 * 1024) return;
-            var image = await Task.Run(() => new Bitmap(path), _lifetime.Token);
+            // These are fit-to-card previews. Decode at the card's physical width,
+            // rather than retaining a full video frame for a small cover or thumbnail.
+            var displayWidth = target == _cover ? 112 : target.Parent is Control { Bounds.Width: > 0 } parent
+                ? parent.Bounds.Width : 220;
+            var pixelWidth = Math.Max(1, (int)Math.Ceiling(displayWidth * RenderScaling));
+            var image = await Task.Run(() =>
+            {
+                using var stream = File.OpenRead(path);
+                return Bitmap.DecodeToWidth(stream, pixelWidth);
+            }, _lifetime.Token);
             if (_closed) { image.Dispose(); return; }
             _images.Add(image); target.Source = image;
         }

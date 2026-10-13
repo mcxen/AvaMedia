@@ -19,7 +19,7 @@
                    SelectionChanged="SourceSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style></ListBox.Styles>
             <ListBox.ItemTemplate>
-              <DataTemplate>
+              <DataTemplate x:DataType="i18n:VideoSlimmingEntry" x:CompileBindings="True">
                 <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="2" Margin="2,1">
                   <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Status}" VerticalAlignment="Center" ToolTip.Tip="{Binding DiagnosisTip}"/>

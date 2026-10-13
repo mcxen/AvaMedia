@@ -28,12 +28,10 @@ public sealed partial class ContactSheetWindow
     private readonly List<Bitmap> _filmFrames = [];
     private readonly SemaphoreSlim _metadataSlots = new(2);
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly DispatcherTimer _pulse = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private CancellationTokenSource? _previewWork;
     private CancellationTokenSource? _filmWork;
     private VideoEntry? _previewEntry;
     private bool _wholeVideo = true;
-    private int _pulseTick;
     internal Task PreviewReady { get; private set; } = Task.CompletedTask;
     internal Task FilmReady { get; private set; } = Task.CompletedTask;
 
@@ -80,12 +78,6 @@ public sealed partial class ContactSheetWindow
             _wholeVideo = _range.Start == 0 && Math.Abs(_range.End - _range.Duration) < .001;
             UpdateRangeLabels(); SchedulePreview();
         };
-        _pulse.Tick += (_, _) =>
-        {
-            _pulseTick++;
-            for (var i = 0; i < _cells.Count; i++)
-                if (_cells[i].Loading) _cells[i].Face.Opacity = .82 + .18 * Math.Sin(_pulseTick * .16 - i * .45);
-        };
         return Card(panel);
     }
 
@@ -130,9 +122,9 @@ public sealed partial class ContactSheetWindow
         BuildCells(options, options.CellWidth, options.CellHeight, entry is not null);
         if (entry is null)
         {
-            _pulse.Stop(); _previewWork = null; work.Dispose(); PreviewReady = Task.CompletedTask; return;
+            StopPreviewMotion(); _previewWork = null; work.Dispose(); PreviewReady = Task.CompletedTask; return;
         }
-        _pulse.Start();
+        StartPreviewMotion();
         PreviewReady = RenderPreview(entry, options, work);
     }
 
@@ -156,9 +148,13 @@ public sealed partial class ContactSheetWindow
             var content = new Grid(); content.Children.Add(number);
             var face = new Border { Child = content, Classes = { "sheet-cell" } };
             Grid.SetRow(face, i / options.Columns); Grid.SetColumn(face, i % options.Columns); grid.Children.Add(face);
-            _cells.Add(new(face, content, number) { Loading = loading });
+            var cell = new PreviewCell(face, content, number) { Loading = loading };
+            _cells.Add(cell);
+            face.AttachedToVisualTree += (_, _) => RefreshPreviewMotion();
+            face.DetachedFromVisualTree += (_, _) => StopCellMotion(cell);
         }
         _preview.Child = grid;
+        RefreshPreviewMotion();
         Localization.SetText(_previewSize, $"输出 {width * options.Columns} × {height * options.Rows}");
         Localization.SetText(_outputDimensions, $"输出尺寸 {width * options.Columns} × {height * options.Rows} 像素");
     }
@@ -214,7 +210,7 @@ public sealed partial class ContactSheetWindow
                 {
                     token.ThrowIfCancellationRequested(); failed++; cell.Number.Text = "无法读取"; cell.Number.FontSize = 11;
                 }
-                cell.Loading = false; cell.Face.Opacity = 1;
+                cell.Loading = false; StopCellMotion(cell);
                 Localization.SetText(_previewSize, $"正在抽帧 {i + 1} / {count} · {layout.Width * options.Columns} × {layout.Height * options.Rows}");
             }
             Localization.SetText(_previewSize, $"预览 · 第 1 / {options.SheetsPerVideo} 张 · {layout.Width * options.Columns} × {layout.Height * options.Rows}");
@@ -238,7 +234,7 @@ public sealed partial class ContactSheetWindow
         {
             if (_previewWork == work)
             {
-                _pulse.Stop(); foreach (var cell in _cells) { cell.Loading = false; cell.Face.Opacity = 1; }
+                StopPreviewMotion(); foreach (var cell in _cells) cell.Loading = false;
                 _previewWork = null;
             }
             work.Dispose();
@@ -325,6 +321,7 @@ public sealed partial class ContactSheetWindow
     }
     private void ClearPreview()
     {
+        foreach (var cell in _cells) StopCellMotion(cell);
         _previewSurface.ClearAmbient();
         _preview.Child = null;
         foreach (var cell in _cells) cell.Bitmap?.Dispose(); _cells.Clear();
@@ -333,7 +330,7 @@ public sealed partial class ContactSheetWindow
     {
         try
         {
-            _previewWork?.Cancel(); _pulse.Stop(); ClearPreview();
+            _previewWork?.Cancel(); StopPreviewMotion(); ClearPreview();
             _previewSize.IsVisible = true; _outputDimensions.IsVisible = false;
             using var stream = File.OpenRead(path); var bitmap = Bitmap.DecodeToWidth(stream, 900);
             _preview.Child = new Image { Source = bitmap, Width = bitmap.Size.Width, Height = bitmap.Size.Height, Stretch = Stretch.Uniform };
@@ -379,6 +376,7 @@ public sealed partial class ContactSheetWindow
         public TextBlock Number { get; } = number;
         public Bitmap? Bitmap { get; set; }
         public bool Loading { get; set; }
+        public Avalonia.Rendering.Composition.CompositionVisual? PulseVisual { get; set; }
     }
 
     /// <summary>Uses the shared range gestures; draws real full-video frames with theme brushes.</summary>
