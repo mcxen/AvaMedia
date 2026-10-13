@@ -1871,6 +1871,8 @@
   "合并间隔秒数": "Merge gap in seconds",
   "最短片段秒数": "Minimum clip length in seconds",
   "保留不确定片段": "Keep uncertain clips",
+  "保留手部特写": "Keep hand close-ups",
+  "用于仅出现手部的镜头，可能保留部分无人物画面": "For hand-only footage; may retain some frames without people",
   "使用 EmbeddingGemma 2 语义辅助": "Use EmbeddingGemma 2 semantic assistance",
   "分析视频": "Analyze videos",
   "停止分析": "Stop analysis",

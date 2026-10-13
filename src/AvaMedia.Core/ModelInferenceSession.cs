@@ -84,6 +84,15 @@ internal sealed class ModelInferenceSession : IDisposable
         IReadOnlyCollection<string> outputNames, CancellationToken ct)
         => RunWithFallback(run => _session.Run(run, inputs, outputNames), ct);
 
+    public void FallbackToCpu(string reason)
+    {
+        if (Backend == "CPU") return;
+        var replacement = CpuSession();
+        var previous = _session;
+        _session = replacement; Backend = "CPU"; FallbackReason = reason;
+        previous.Dispose();
+    }
+
     private T RunWithFallback<T>(Func<RunOptions, T> execute, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -93,8 +102,7 @@ internal sealed class ModelInferenceSession : IDisposable
         try { return execute(run); }
         catch (OnnxRuntimeException error) when (Backend != "CPU" && !ct.IsCancellationRequested)
         {
-            _session.Dispose(); Backend = "CPU"; FallbackReason = error.Message;
-            _session = CpuSession();
+            FallbackToCpu(error.Message);
             ct.ThrowIfCancellationRequested();
             try { return execute(run); }
             catch (OnnxRuntimeException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }

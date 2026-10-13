@@ -16,12 +16,24 @@ public sealed partial class PersonClipWindow
     private readonly AvaMedia.Controls.EmptyState _resultEmpty = new() { Text = Localization.Text("等待检测结果") };
     private readonly AiActivityView _activity = new() { Compact = true };
     private bool _busy;
+    private bool _handsChanged;
     private Entry? _retainedEntry;
 
     private PersonClipOptions ReadDetection() => new(Value(_fps), Value(_threshold), Value(_padding), Value(_gap), Value(_minimum),
         _uncertain.IsChecked == true, _embedding.IsChecked == true, _reuseFrames.IsChecked == true,
         SelectedDetectors, (PersonDetectionMode)_detectionMode.SelectedIndex, SkipDarkFrames: _dark.IsChecked == true,
-        SkipBlankFrames: _blank.IsChecked == true, DarkLumaThreshold: Value(_darkThreshold));
+        SkipBlankFrames: _blank.IsChecked == true, DarkLumaThreshold: Value(_darkThreshold), IncludeHands: _hands.IsChecked == true);
+
+    private void InvalidateHandsDetectionResults()
+    {
+        if (_busy || _closed) return;
+        _handsChanged |= _entries.Any(entry => entry.Result is not null || entry.Observed is not null);
+        foreach (var entry in _entries.Where(entry => entry.Task is null || !DetectionTaskActive(entry.Task)))
+        {
+            entry.Result = null; entry.Error = ""; entry.Status = "待分析";
+        }
+        RefreshFiles();
+    }
 
     private async Task OpenAdvancedAsync()
     {

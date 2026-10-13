@@ -7,9 +7,10 @@ public sealed record PersonClipOptions(double FramesPerSecond = 2, double Thresh
     double PaddingSeconds = .5, double MergeGapSeconds = 1, double MinimumSeconds = .5,
     bool KeepUncertain = false, bool UseEmbedding = false, bool ReuseSimilarFrames = true,
     string[]? DetectorIds = null, PersonDetectionMode DetectionMode = PersonDetectionMode.Balanced,
-    PersonClipRange[]? ExcludedRanges = null, bool SkipDarkFrames = true, bool SkipBlankFrames = true, double DarkLumaThreshold = 8)
+    PersonClipRange[]? ExcludedRanges = null, bool SkipDarkFrames = true, bool SkipBlankFrames = true, double DarkLumaThreshold = 8, bool IncludeHands = false)
 {
     public IReadOnlyList<string> SelectedDetectors => DetectorIds ?? [ModelCatalog.NanoDetId];
+    public IReadOnlyList<string> RequiredModels => IncludeHands ? SelectedDetectors.Append(ModelCatalog.MediaPipePalmId).ToArray() : SelectedDetectors;
     public void Validate()
     {
         if (!double.IsFinite(FramesPerSecond) || FramesPerSecond is < .25 or > 16 || !double.IsFinite(Threshold) || Threshold is < .1 or > .9
@@ -18,7 +19,9 @@ public sealed record PersonClipOptions(double FramesPerSecond = 2, double Thresh
         if (!Enum.IsDefined(DetectionMode) || SelectedDetectors.Count == 0 || SelectedDetectors.Count > PersonDetectorCatalog.All.Count
             || SelectedDetectors.Distinct().Count() != SelectedDetectors.Count)
             throw new ArgumentException("请至少选择一种人物检测，且不要重复选择。");
-        foreach (var id in SelectedDetectors) _ = PersonDetectorCatalog.Find(id);
+        foreach (var id in SelectedDetectors)
+            if (!PersonDetectorCatalog.All.Any(detector => detector.Id == id))
+                throw new ArgumentException("请选择有效的人物检测模型。");
         _ = PersonClipExclusions.Normalize(ExcludedRanges);
         if (!double.IsFinite(DarkLumaThreshold) || DarkLumaThreshold is < 1 or > 32)
             throw new ArgumentException("黑灯亮度阈值须在 1–32 之间。");
@@ -59,7 +62,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         var cache = new PersonClipCache(path, options);
         double observedSeconds = 0, duration = 0;
         IReadOnlyList<PersonDetectionEvidence> evidence = [];
-        var modelName = string.Join(" + ", options.SelectedDetectors.Select(id => PersonDetectorCatalog.Find(id).Name));
+        var modelName = string.Join(" + ", options.RequiredModels.Select(id => PersonDetectorCatalog.Find(id).Name));
         if (options.UseEmbedding) modelName += " + Gemma";
         var activity = new AiActivityReporter(value => progress?.Report(new(observedSeconds, duration, value.Stage)
             { Activity = value, Evidence = evidence }), modelName + " · 人物检测", "个片段",
@@ -96,6 +99,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         activity.Stage("加载人物检测模型");
         activity.Backend(detectors.Backend);
         var bounds = PersonFrameBounds.From(info, size);
+        detectors.SetFrameGeometry(info);
         activity.Node("人物检测");
         activity.Backend(detectors.Backend);
         await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, stage => activity.Stage(stage)) : null;
@@ -280,6 +284,13 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         if (skip != PersonFrameSkip.None) return new(seconds, false, false, []) { Skip = skip };
         var evidence = detectors.Detect(rgb, options.Threshold, ct);
         var decision = PersonDetectionPolicy.Decide(evidence, options.DetectionMode, options.KeepUncertain);
+        // Hand close-ups are visible human presence, but a palm is not a second body-detector vote.
+        // Run the small supplement only when the selected body detectors did not retain the frame.
+        if (!decision.Keep && options.IncludeHands)
+        {
+            evidence = [.. evidence, detectors.DetectHands(rgb, ct)];
+            decision = PersonDetectionPolicy.Decide(evidence, options.DetectionMode, options.KeepUncertain);
+        }
         var keep = decision.Keep; var uncertain = decision.Uncertain;
         // Semantics only resolves weak evidence; it cannot bypass an explicit cross-confirmation rule.
         if (embedding is not null && uncertain && options.DetectionMode != PersonDetectionMode.Consensus)

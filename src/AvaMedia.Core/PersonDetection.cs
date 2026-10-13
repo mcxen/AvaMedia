@@ -16,7 +16,8 @@ public static class PersonDetectorCatalog
         new(ModelCatalog.MediaPipePersonId, "MediaPipe", 224),
         new(ModelCatalog.PersonId, "YOLOX", 640)
     ]);
-    public static PersonDetectorDefinition Find(string id) => All.FirstOrDefault(model => model.Id == id)
+    public static PersonDetectorDefinition Hands { get; } = new(ModelCatalog.MediaPipePalmId, "手部特写", 192);
+    public static PersonDetectorDefinition Find(string id) => (id == Hands.Id ? Hands : All.FirstOrDefault(model => model.Id == id))
         ?? throw new ArgumentException("请选择有效的人物检测模型。");
 }
 
@@ -29,14 +30,16 @@ public static class PersonDetectionPolicy
             || evidence.Any(item => !double.IsFinite(item.Score) || item.Score is < 0 or > 1
                 || !double.IsFinite(item.Threshold) || item.Threshold is <= 0 or > 1))
             throw new ArgumentException("人物检测证据无效。");
-        var votes = evidence.Count(item => item.Score >= item.Threshold);
-        var required = evidence.Count == 1 ? 1 : Math.Max(2, (evidence.Count + 1) / 2);
+        var bodies = evidence.Where(item => item.Id != ModelCatalog.MediaPipePalmId).ToArray();
+        var votes = bodies.Count(item => item.Score >= item.Threshold);
+        var required = bodies.Length == 1 ? 1 : Math.Max(2, (bodies.Length + 1) / 2);
         var positive = mode switch
         {
             PersonDetectionMode.Recall => votes > 0,
             PersonDetectionMode.Consensus => votes >= required,
-            _ => votes >= required || evidence.Any(item => item.Score >= Math.Min(.98, item.Threshold + .2))
+            _ => votes >= required || bodies.Any(item => item.Score >= Math.Min(.98, item.Threshold + .2))
         };
+        positive |= evidence.Any(item => item.Id == ModelCatalog.MediaPipePalmId && item.Score >= item.Threshold);
         var uncertain = !positive && evidence.Any(item => item.Score >= item.Threshold * .5);
         return new(positive || keepUncertain && uncertain, uncertain, votes);
     }
@@ -50,10 +53,12 @@ internal sealed class PersonDetectorSet : IDisposable
         public PersonDetectorDefinition Definition { get; } = definition;
         public ModelLease Lease { get; } = lease;
         public ModelInferenceSession Session { get; } = session;
-        public DenseTensor<float> Input { get; } = new(new[] { 1, 3, definition.InputSize, definition.InputSize });
+        public DenseTensor<float> Input { get; } = new(definition.Id == ModelCatalog.MediaPipePalmId
+            ? new[] { 1, definition.InputSize, definition.InputSize, 3 } : new[] { 1, 3, definition.InputSize, definition.InputSize });
         public int Evaluations, PositiveFrames;
     }
     private readonly List<Detector> _detectors = [];
+    private (int Left, int Top, int Width, int Height) _content;
     public int FrameSize => _detectors.Max(detector => detector.Definition.InputSize);
     public string Name => string.Join(" + ", _detectors.Select(detector => detector.Definition.Name));
     public string Backend => string.Join(" · ", _detectors.Select(detector => detector.Definition.Name + ": " + detector.Session.Backend));
@@ -66,7 +71,7 @@ internal sealed class PersonDetectorSet : IDisposable
         var result = new PersonDetectorSet();
         try
         {
-            foreach (var id in options.SelectedDetectors.Order(StringComparer.Ordinal))
+            foreach (var id in options.RequiredModels.Order(StringComparer.Ordinal))
             {
                 ct.ThrowIfCancellationRequested();
                 var definition = PersonDetectorCatalog.Find(id);
@@ -86,59 +91,83 @@ internal sealed class PersonDetectorSet : IDisposable
         catch { result.Dispose(); throw; }
     }
 
-    public PersonDetectionEvidence[] Detect(byte[] rgb, double threshold, CancellationToken ct)
+    public void SetFrameGeometry(MediaInfo info)
     {
-        var evidence = new List<PersonDetectionEvidence>();
-        foreach (var detector in _detectors)
+        var scale = FrameSize / (double)Math.Max(info.Width, info.Height);
+        var width = Math.Clamp((int)Math.Round(info.Width * scale), 1, FrameSize);
+        var height = Math.Clamp((int)Math.Round(info.Height * scale), 1, FrameSize);
+        _content = ((FrameSize - width) / 2, (FrameSize - height) / 2, width, height);
+    }
+
+    public PersonDetectionEvidence[] Detect(byte[] rgb, double threshold, CancellationToken ct) =>
+        _detectors.Where(detector => detector.Definition.Id != ModelCatalog.MediaPipePalmId)
+            .Select(detector => Detect(detector, rgb, threshold, ct)).ToArray();
+
+    public PersonDetectionEvidence DetectHands(byte[] rgb, CancellationToken ct) =>
+        Detect(_detectors.Single(detector => detector.Definition.Id == ModelCatalog.MediaPipePalmId), rgb, .5, ct);
+
+    private PersonDetectionEvidence Detect(Detector detector, byte[] rgb, double threshold, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var definition = detector.Definition;
+        Preprocess(rgb, FrameSize, _content, definition, detector.Input);
+        double score;
+        try { score = Score(detector, ct); }
+        catch (InvalidDataException error) when (detector.Session.Backend != "CPU" && !ct.IsCancellationRequested)
         {
-            ct.ThrowIfCancellationRequested();
-            var definition = detector.Definition;
-            Preprocess(rgb, FrameSize, definition, detector.Input);
-            var input = NamedOnnxValue.CreateFromTensor(detector.Session.InputName, detector.Input);
-            using var output = detector.Session.Run(input, ct);
-            ct.ThrowIfCancellationRequested();
-            double score = 0;
-            if (definition.Id == ModelCatalog.MediaPipePersonId)
-            {
-                var scores = output.Select(value => value.AsTensor<float>()).SingleOrDefault(value => value.Rank == 3 && value.Dimensions[2] == 1)
-                    ?? throw new InvalidDataException("MediaPipe 人体检测模型输出格式无效。");
-                foreach (var logit in scores)
-                {
-                    if (!float.IsFinite(logit)) throw new InvalidDataException("人物检测返回了无效分数。");
-                    score = Math.Max(score, 1 / (1 + Math.Exp(-Math.Clamp((double)logit, -100, 100))));
-                }
-            }
-            else
-            {
-                var width = definition.Id == ModelCatalog.PersonId ? 85 : 80;
-                var scores = output.Select(value => value.AsTensor<float>()).Where(value => value.Rank == 3 && value.Dimensions[2] == width).ToArray();
-                if (scores.Length == 0) throw new InvalidDataException("人物检测模型输出格式无效。");
-                foreach (var predictions in scores)
-                {
-                    if (predictions is DenseTensor<float> dense)
-                    {
-                        score = Math.Max(score, PersonScore(dense.Buffer.Span, predictions.Dimensions[1], width));
-                        continue;
-                    }
-                    for (var index = 0; index < predictions.Dimensions[1]; index++)
-                    {
-                        var offset = width == 85 ? 5 : 0;
-                        var person = predictions[0, index, offset];
-                        var bestClass = true;
-                        for (var cls = offset + 1; cls < width; cls++)
-                            if (predictions[0, index, cls] > person) { bestClass = false; break; }
-                        if (bestClass) score = Math.Max(score, person * (width == 85 ? predictions[0, index, 4] : 1));
-                    }
-                }
-            }
-            if (!double.IsFinite(score) || score is < 0 or > 1) throw new InvalidDataException("人物检测返回了无效分数。");
-            // Use a conservative .6 baseline for MediaPipe; YOLOX and NanoDet use .35.
-            var cutoff = definition.Id == ModelCatalog.MediaPipePersonId ? Math.Min(.98, threshold * .6 / .35) : threshold;
-            detector.Evaluations++;
-            if (score >= cutoff) detector.PositiveFrames++;
-            evidence.Add(new(definition.Id, score, cutoff, detector.Session.Backend));
+            // A provider may complete successfully while returning NaN/Inf or invalid probabilities.
+            // Validate the output as well as runtime exceptions before trusting accelerated inference.
+            detector.Session.FallbackToCpu($"{definition.Name} 输出无效：{error.Message}");
+            score = Score(detector, ct);
         }
-        return evidence.ToArray();
+        var cutoff = definition.Id == ModelCatalog.MediaPipePersonId ? Math.Min(.98, threshold * .6 / .35) : threshold;
+        detector.Evaluations++;
+        if (score >= cutoff) detector.PositiveFrames++;
+        return new(definition.Id, score, cutoff, detector.Session.Backend);
+    }
+
+    private static double Score(Detector detector, CancellationToken ct)
+    {
+        var definition = detector.Definition;
+        var input = NamedOnnxValue.CreateFromTensor(detector.Session.InputName, detector.Input);
+        using var output = detector.Session.Run(input, ct);
+        ct.ThrowIfCancellationRequested();
+        double score = 0;
+        if (definition.Id is ModelCatalog.MediaPipePersonId or ModelCatalog.MediaPipePalmId)
+        {
+            var scores = output.Select(value => value.AsTensor<float>()).SingleOrDefault(value => value.Rank == 3 && value.Dimensions[2] == 1)
+                ?? throw new InvalidDataException("MediaPipe 检测模型输出格式无效。");
+            foreach (var logit in scores)
+            {
+                if (!float.IsFinite(logit)) throw new InvalidDataException("人物检测返回了无效分数。");
+                score = Math.Max(score, 1 / (1 + Math.Exp(-Math.Clamp((double)logit, -100, 100))));
+            }
+        }
+        else
+        {
+            var width = definition.Id == ModelCatalog.PersonId ? 85 : 80;
+            var scores = output.Select(value => value.AsTensor<float>()).Where(value => value.Rank == 3 && value.Dimensions[2] == width).ToArray();
+            if (scores.Length == 0) throw new InvalidDataException("人物检测模型输出格式无效。");
+            foreach (var predictions in scores)
+            {
+                if (predictions is DenseTensor<float> dense)
+                {
+                    score = Math.Max(score, PersonScore(dense.Buffer.Span, predictions.Dimensions[1], width));
+                    continue;
+                }
+                for (var index = 0; index < predictions.Dimensions[1]; index++)
+                {
+                    var offset = width == 85 ? 5 : 0;
+                    var person = predictions[0, index, offset];
+                    var bestClass = true;
+                    for (var cls = offset + 1; cls < width; cls++)
+                        if (predictions[0, index, cls] > person) { bestClass = false; break; }
+                    if (bestClass) score = Math.Max(score, person * (width == 85 ? predictions[0, index, 4] : 1));
+                }
+            }
+        }
+        if (!double.IsFinite(score) || score is < 0 or > 1) throw new InvalidDataException("人物检测返回了无效分数。");
+        return score;
     }
 
     private static double PersonScore(ReadOnlySpan<float> predictions, int count, int width)
@@ -159,60 +188,63 @@ internal sealed class PersonDetectorSet : IDisposable
         return score;
     }
 
-    private static void Preprocess(byte[] rgb, int sourceSize, PersonDetectorDefinition definition, DenseTensor<float> tensor)
+    private static void Preprocess(byte[] rgb, int sourceSize, (int Left, int Top, int Width, int Height) content,
+        PersonDetectorDefinition definition, DenseTensor<float> tensor)
     {
+        if (rgb.Length != sourceSize * sourceSize * 3 || content.Width < 1 || content.Height < 1)
+            throw new InvalidDataException("人物检测画面尺寸无效。");
         var size = definition.InputSize;
-        if (rgb.Length != sourceSize * sourceSize * 3) throw new InvalidDataException("人物检测画面尺寸无效。");
+        var scale = size / (double)Math.Max(content.Width, content.Height);
+        var width = Math.Clamp((int)Math.Round(content.Width * scale), 1, size);
+        var height = Math.Clamp((int)Math.Round(content.Height * scale), 1, size);
+        // Keep NanoDet's trained BGR normalization with black padding;
+        // MediaPipe RGB [-1,1] with zero padding, YOLOX RGB [0,255] placed at the top-left.
+        var left = definition.Id == ModelCatalog.PersonId ? 0 : (size - width) / 2;
+        var top = definition.Id == ModelCatalog.PersonId ? 0 : (size - height) / 2;
         ReadOnlySpan<float> mean = [103.53f, 116.28f, 123.675f], std = [57.375f, 57.12f, 58.395f];
         var plane = size * size;
         var pixels = tensor.Buffer.Span;
-        if (sourceSize == size)
+        for (var channel = 0; channel < 3; channel++)
+            pixels.Slice(channel * plane, plane).Fill(definition.Id switch
+            {
+                ModelCatalog.NanoDetId => -mean[channel] / std[channel],
+                ModelCatalog.MediaPipePersonId or ModelCatalog.MediaPipePalmId => 0,
+                _ => 114
+            });
+        var exactSize = width == content.Width && height == content.Height;
+        for (var y = 0; y < height; y++)
         {
-            // A single detector already receives its exact input size from FFmpeg; no interpolation is needed.
-            for (var index = 0; index < plane; index++)
+            var sy = Math.Clamp((y + .5) * content.Height / height - .5, 0, content.Height - 1);
+            var y0 = (int)sy; var y1 = Math.Min(y0 + 1, content.Height - 1); var dy = (float)(sy - y0);
+            for (var x = 0; x < width; x++)
             {
-                var source = index * 3;
-                if (definition.Id == ModelCatalog.NanoDetId)
-                {
-                    pixels[index] = (rgb[source + 2] - mean[0]) / std[0];
-                    pixels[plane + index] = (rgb[source + 1] - mean[1]) / std[1];
-                    pixels[2 * plane + index] = (rgb[source] - mean[2]) / std[2];
-                }
-                else if (definition.Id == ModelCatalog.MediaPipePersonId)
-                {
-                    pixels[index] = rgb[source] / 127.5f - 1;
-                    pixels[plane + index] = rgb[source + 1] / 127.5f - 1;
-                    pixels[2 * plane + index] = rgb[source + 2] / 127.5f - 1;
-                }
-                else
-                {
-                    pixels[index] = rgb[source]; pixels[plane + index] = rgb[source + 1]; pixels[2 * plane + index] = rgb[source + 2];
-                }
-            }
-            return;
-        }
-        for (var y = 0; y < size; y++)
-            for (var x = 0; x < size; x++)
-            {
-                var sx = Math.Clamp((x + .5) * sourceSize / size - .5, 0, sourceSize - 1);
-                var sy = Math.Clamp((y + .5) * sourceSize / size - .5, 0, sourceSize - 1);
-                var x0 = (int)sx; var y0 = (int)sy;
-                var x1 = Math.Min(x0 + 1, sourceSize - 1); var y1 = Math.Min(y0 + 1, sourceSize - 1);
-                var dx = (float)(sx - x0); var dy = (float)(sy - y0);
+                var sx = Math.Clamp((x + .5) * content.Width / width - .5, 0, content.Width - 1);
+                var x0 = (int)sx; var x1 = Math.Min(x0 + 1, content.Width - 1); var dx = (float)(sx - x0);
+                var destination = (top + y) * size + left + x;
                 for (var channel = 0; channel < 3; channel++)
                 {
-                    var c = definition.Id == ModelCatalog.NanoDetId ? 2 - channel : channel;
-                    var top = rgb[(y0 * sourceSize + x0) * 3 + c] * (1 - dx) + rgb[(y0 * sourceSize + x1) * 3 + c] * dx;
-                    var bottom = rgb[(y1 * sourceSize + x0) * 3 + c] * (1 - dx) + rgb[(y1 * sourceSize + x1) * 3 + c] * dx;
-                    var value = top * (1 - dy) + bottom * dy;
-                    pixels[channel * plane + y * size + x] = definition.Id switch
+                    float value;
+                    var sourceChannel = definition.Id == ModelCatalog.NanoDetId ? 2 - channel : channel;
+                    if (exactSize) value = rgb[((content.Top + y) * sourceSize + content.Left + x) * 3 + sourceChannel];
+                    else
+                    {
+                        var a = rgb[((content.Top + y0) * sourceSize + content.Left + x0) * 3 + sourceChannel];
+                        var b = rgb[((content.Top + y0) * sourceSize + content.Left + x1) * 3 + sourceChannel];
+                        var c = rgb[((content.Top + y1) * sourceSize + content.Left + x0) * 3 + sourceChannel];
+                        var d = rgb[((content.Top + y1) * sourceSize + content.Left + x1) * 3 + sourceChannel];
+                        value = (a * (1 - dx) + b * dx) * (1 - dy) + (c * (1 - dx) + d * dx) * dy;
+                    }
+                    var offset = definition.Id == ModelCatalog.MediaPipePalmId ? destination * 3 + channel : channel * plane + destination;
+                    pixels[offset] = definition.Id switch
                     {
                         ModelCatalog.NanoDetId => (value - mean[channel]) / std[channel],
                         ModelCatalog.MediaPipePersonId => value / 127.5f - 1,
+                        ModelCatalog.MediaPipePalmId => value / 255f,
                         _ => value
                     };
                 }
             }
+        }
     }
 
     public void Dispose()
