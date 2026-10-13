@@ -32,9 +32,8 @@ internal sealed record VideoSummaryOutline(VideoSummaryClaim[] KeywordClaims, Vi
         }
     });
 
-    internal static async Task<VideoSummaryOutline> ParseAsync(string json, VideoSummaryGrounding grounding, bool includeChapters, CancellationToken ct)
+    internal static async Task<VideoSummaryOutline> ParseAsync(JsonElement root, VideoSummaryGrounding grounding, bool includeChapters, CancellationToken ct)
     {
-        using var document = VideoSummaryGrounding.ParseResponse(json); var root = document.RootElement;
         var keywords = root.GetProperty("keywords").EnumerateArray()
             .Select(item => grounding.ReadClaim(item, 60)).OfType<VideoSummaryClaim>().Take(8).ToArray();
         var highlights = root.GetProperty("highlights").EnumerateArray().Select(item => grounding.ReadClaim(item)).OfType<VideoSummaryClaim>()
