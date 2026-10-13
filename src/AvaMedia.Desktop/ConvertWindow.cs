@@ -271,7 +271,7 @@ public sealed class ConvertWindow : Window
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)validation.Text=ex.Message;}
             finally{_preparing=false;if(IsVisible){foreach(var control in new Control[]{top,toolbar,inputArea,output})control.IsEnabled=true;RefreshActions();}}
-        };buttons.Children.Add(ok);var footer=new Grid { ColumnDefinitions=new("*,Auto"),ColumnSpacing=8 };footer.Children.Add(validation);Grid.SetColumn(buttons,1);footer.Children.Add(buttons);Grid.SetRow(footer,optionRow+3);panel.Children.Add(footer);Content=panel;if(feature.Category=="视频")ToolExecution.Configure(this,ok,"开始处理",editing);
+        };buttons.Children.Add(ok);var footer=new Grid { ColumnDefinitions=new("*,Auto"),ColumnSpacing=8 };footer.Children.Add(validation);Grid.SetColumn(buttons,1);footer.Children.Add(buttons);Grid.SetRow(footer,optionRow+3);panel.Children.Add(footer);Content=panel;ToolExecution.Configure(this,ok,"开始处理",editing);
         foreach(var entry in _entries)entry.PropertyChanged+=(_,_)=>RefreshActions();
         _entries.CollectionChanged+=(_,change)=>{foreach(var entry in change.NewItems?.OfType<ConversionEntry>()??[])entry.PropertyChanged+=(_,_)=>RefreshActions();RefreshActions();};list.SelectionChanged+=(_,_)=>RefreshActions();special.TextChanged+=(_,_)=>RefreshActions();if(discSource is not null)discSource.Changed+=RefreshActions;
         if(_imageCrop is not null)_imageCrop.Changed+=RefreshActions;
