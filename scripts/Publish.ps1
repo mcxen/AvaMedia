@@ -1,4 +1,4 @@
-param([ValidateSet('win-x64','osx-arm64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory)
+param([ValidateSet('win-x64','osx-arm64')][string]$Runtime = 'win-x64', [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5', [string]$OutputDirectory, [switch]$SkipBrowser, [string]$BrowserLicenseDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Branding.ps1')
@@ -17,37 +17,30 @@ if ($Runtime.StartsWith('osx-')) {
     $bundleRoot = $publishRoot + '-bundle'
     Assert-EmptyPublishDirectory $bundleRoot
 }
-& $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Browser/AvaMedia.Browser.csproj') -c Release "-p:Version=$Version" --verbosity minimal
-if ($LASTEXITCODE -ne 0) { throw 'Browser publish failed.' }
+$browserRoot = Join-Path $taskRoot 'src/AvaMedia.Browser/bin/Release/net8.0-browser/publish/wwwroot'
+if (!$SkipBrowser) {
+    & $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Browser/AvaMedia.Browser.csproj') -c Release "-p:Version=$Version" --verbosity minimal
+    if ($LASTEXITCODE -ne 0) { throw 'Browser publish failed.' }
+    $BrowserLicenseDirectory = Join-Path $publishRoot 'browser-licenses'
+    & (Join-Path $PSScriptRoot 'Collect-Licenses.ps1') -Project 'src/AvaMedia.Browser/AvaMedia.Browser.csproj' -Runtime browser-wasm -OutputDirectory $BrowserLicenseDirectory
+}
+if (!(Test-Path -LiteralPath (Join-Path $browserRoot 'index.html')) -or !$BrowserLicenseDirectory -or !(Test-Path -LiteralPath (Join-Path $BrowserLicenseDirectory 'manifest.json'))) {
+    throw 'Browser wwwroot and its generated licenses are required (download the shared browser artifact when using -SkipBrowser).'
+}
 [string[]]$startupOptions = if ($Runtime -eq 'win-x64') { @('-p:PublishReadyToRun=true') } else { @() }
 & $sdk publish (Join-Path $taskRoot 'src/AvaMedia.Desktop/AvaMedia.Desktop.csproj') -c Release -r $Runtime --self-contained false -o $publishRoot "-p:Version=$Version" -p:UseAppHost=false -p:DebugType=None -p:DebugSymbols=false @startupOptions --verbosity minimal
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 & (Join-Path $PSScriptRoot 'Build-Bootstrap.ps1') -Runtime $Runtime -Version $Version -OutputDirectory $publishRoot
 & (Join-Path $PSScriptRoot 'Prepare-Runtime.ps1') -Runtime $Runtime -PublishDirectory $publishRoot
-& (Join-Path $PSScriptRoot 'Collect-Licenses.ps1')
 & (Join-Path $PSScriptRoot 'Bundle-DownloadTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
 & (Join-Path $PSScriptRoot 'Bundle-MediaTools.ps1') -Runtime $Runtime -Destination (Join-Path $publishRoot 'tools')
 & (Join-Path $PSScriptRoot 'Prepare-SetupPreviews.ps1') -PublishDirectory $publishRoot -DotNet $sdk
-$runtimePackages = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget/packages' }
-$runtimePack = Join-Path $runtimePackages ('microsoft.netcore.app.runtime.' + $Runtime)
-if (Test-Path -LiteralPath $runtimePack) {
-    $runtimeNotices = Join-Path $taskRoot 'licenses/dotnet-runtime'
-    New-Item -ItemType Directory -Path $runtimeNotices -Force | Out-Null
-    Get-ChildItem -LiteralPath $runtimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $runtimeNotices -Force }
-}
-$aspnetRuntimePack = Join-Path $runtimePackages ('microsoft.aspnetcore.app.runtime.' + $Runtime)
-if (Test-Path -LiteralPath $aspnetRuntimePack) {
-    $aspnetNotices = Join-Path $taskRoot 'licenses/aspnetcore-runtime'
-    New-Item -ItemType Directory -Path $aspnetNotices -Force | Out-Null
-    Get-ChildItem -LiteralPath $aspnetRuntimePack -Recurse -File | Where-Object { $_.Name -match '(?i)license|notice' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $aspnetNotices -Force }
-}
-foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $taskRoot $name) -Destination $publishRoot -Force }
-Copy-Item -LiteralPath (Join-Path $taskRoot 'licenses') -Destination $publishRoot -Recurse -Force
-$publishDocs = Join-Path $publishRoot 'docs'
-New-Item -ItemType Directory -Path $publishDocs -Force | Out-Null
-Get-ChildItem -LiteralPath (Join-Path $taskRoot 'docs') -Filter '*.md' -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $publishDocs -Force }
-if (Test-Path -LiteralPath (Join-Path $taskRoot 'docs/assets')) { Copy-Item -LiteralPath (Join-Path $taskRoot 'docs/assets') -Destination $publishDocs -Recurse -Force }
-Copy-Item -LiteralPath (Join-Path $taskRoot 'scripts') -Destination $publishRoot -Recurse -Force
+& (Join-Path $PSScriptRoot 'Collect-Licenses.ps1') -Runtime $Runtime -OutputDirectory (Join-Path $publishRoot 'licenses-generated') -BrowserLicenseDirectory $BrowserLicenseDirectory
+# SDK content may already have supplied font notices. Replace it with the complete RID-specific bundle.
+if (Test-Path -LiteralPath (Join-Path $publishRoot 'licenses')) { Remove-Item -LiteralPath (Join-Path $publishRoot 'licenses') -Recurse -Force }
+Move-Item -LiteralPath (Join-Path $publishRoot 'licenses-generated') -Destination (Join-Path $publishRoot 'licenses')
+if (!$SkipBrowser) { Remove-Item -LiteralPath $BrowserLicenseDirectory -Recurse -Force }
+& (Join-Path $PSScriptRoot 'Bundle-UserDocuments.ps1') -Destination $publishRoot
 $zipSuffix = if ($Runtime -eq 'win-x64') { '-portable.zip' } else { '.zip' }
 $zip = Join-Path $taskRoot ('artifacts/AvaMedia-' + $Version + '-' + $Runtime + $zipSuffix)
 New-Item -ItemType Directory -Path (Split-Path -Parent $zip) -Force | Out-Null
@@ -57,10 +50,10 @@ if ($Runtime.StartsWith('osx-')) {
     $resources = Join-Path $bundle 'Contents/Resources'
     New-Item -ItemType Directory -Path $nativeRoot,$resources -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $taskRoot 'src/AvaMedia.Desktop/Assets/AppIcon/v2/app.icns') -Destination (Join-Path $resources 'AvaMedia.icns') -Force
-    Get-ChildItem -LiteralPath $publishRoot -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Force }
-    Get-ChildItem -LiteralPath $publishRoot -Directory | Where-Object { $_.Name -notin @('licenses','docs','scripts') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Recurse -Force }
-    foreach ($directory in @('licenses','docs','scripts')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
-    foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','UISPEC.MD','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
+    Get-ChildItem -LiteralPath $publishRoot -File | Where-Object { $_.Name -notin @('Branding.props','LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Force }
+    Get-ChildItem -LiteralPath $publishRoot -Directory | Where-Object { $_.Name -notin @('licenses','docs') } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $nativeRoot -Recurse -Force }
+    foreach ($directory in @('licenses','docs')) { Copy-Item -LiteralPath (Join-Path $publishRoot $directory) -Destination $resources -Recurse -Force }
+    foreach ($name in @('Branding.props','LICENSE','COPYRIGHT','README.md','THIRD-PARTY-NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $publishRoot $name) -Destination $resources -Force }
     $plist = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'macos/Info.plist') -Raw -Encoding UTF8).Replace('__VERSION__',$Version).Replace('__APPLICATION_NAME__',[Security.SecurityElement]::Escape($appBrand.EnglishName))
     [IO.File]::WriteAllText((Join-Path $bundle 'Contents/Info.plist'),$plist,[Text.UTF8Encoding]::new($false))
     & python3 (Join-Path $PSScriptRoot 'macos/Declare-MediaTypes.py') $bundle

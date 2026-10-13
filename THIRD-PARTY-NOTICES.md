@@ -2,7 +2,7 @@
 
 Copyright (c) 2026 AvaMedia contributors. The original AvaMedia application code and vector artwork are licensed under AGPL-3.0-only; see `LICENSE` and `COPYRIGHT`. Third-party components retain the licenses stated below. The original FormatFactory application, name and artwork remain the property of their respective rights holders. AvaMedia does not redistribute its proprietary DLLs or artwork.
 
-The distribution includes the following independently licensed components. Preserve this file and the entire `licenses` directory when redistributing it.
+AvaMedia uses the following independently licensed components. The components included in each platform distribution are listed in its generated `licenses/manifest.json`. Preserve this file and the entire `licenses` directory when redistributing it.
 
 | Component | Version | License / provenance |
 |---|---|---|
@@ -11,23 +11,23 @@ The distribution includes the following independently licensed components. Prese
 | NAudio and associated modules | 2.2.1 | MIT, Mark Heath and contributors |
 | QRCoder | 1.8.0 | MIT, Raffael Herrmann and contributors; local QR code generation |
 | PDFsharp | 6.2.4 | MIT, empira Software GmbH |
-| PDFium native binaries | 157.0.8086 / chromium 8086 | PDFium BSD and dependency notices; bblanchon packaging Apache-2.0 |
+| PDFium native binaries (Windows / macOS) | 157.0.8086 / chromium 8086 | PDFium BSD and dependency notices; bblanchon packaging Apache-2.0 |
 | PdfPig | 0.1.13 | Apache-2.0, UglyToad and contributors |
 | Magick.NET / ImageMagick | 14.17.2 | Apache-2.0 bindings; bundled codecs and their notices in `licenses/Magick.NET-Q8-AnyCPU-14.17.2/Notice.txt` |
 | LibArchive.Net / libarchive | 0.3.1 | BSD-2-Clause wrapper; libarchive BSD and accompanying dependency terms in `licenses/LibArchive.Net-0.3.1/` |
 | SkiaSharp | 2.88.9 | MIT; bundled Skia and dependencies have their own notices |
 | HarfBuzzSharp | 8.3.1.1 | MIT bindings; bundled HarfBuzz has its own notices |
-| ANGLE Windows native assets | 2.1.25547.20250602 | Package license and included third-party notices, including BSD terms |
+| ANGLE native assets (Windows) | 2.1.25547.20250602 | Package license and included third-party notices, including BSD terms |
 | .NET 8 and ASP.NET Core runtime / Microsoft libraries | versions recorded in package manifest | MIT and accompanying third-party notices |
 | Tmds.DBus.Protocol | 0.21.3 | MIT; only applicable on platforms that use it |
-| Microsoft.ML.OnnxRuntime and managed bindings | 1.23.2 | MIT and bundled third-party notices; offline CPU inference |
+| Microsoft.ML.OnnxRuntime and managed bindings | 1.23.2 (Linux / macOS); DirectML and managed 1.24.1 (Windows) | MIT and bundled third-party notices; offline inference |
 | YuNet face detector | face_detection_yunet_2026may.onnx | MIT, Shiqi Yu and contributors; embedded unmodified model, attribution and SHA256 in `licenses/yunet/` |
 | YOLOX, NanoDet and MediaPipe person detectors | Pinned OpenCV Zoo revision `d4938dfc9d4ec5d098bfa33e98b3f3345a236586` | Apache-2.0; downloaded separately, attribution and hashes in `licenses/person-detection/` |
 | LaMa image inpainting model | inpainting_lama_2025jan.onnx | Apache-2.0, LaMa authors, Samsung Research and OpenCV contributors; downloaded separately, attribution and SHA256 in `licenses/lama/` |
 | Qwen3 0.6B / SmolVLM2 256M | pinned GGUF revisions | Apache-2.0, Qwen team and Hugging Face Smol Models Research; local summary weights and vision projector downloaded separately from CDN, attribution in `licenses/local-summary/` |
 | llama.cpp local summary runtime | b11476 | MIT, Georgi Gerganov and contributors; platform archives downloaded separately from CDN, license in `licenses/local-summary/` |
 
-For the complete package list, versions, authors, repository links and license expressions, see `licenses/dependencies.json` and `licenses/manifest.json`. Each package folder contains its original NuGet metadata and bundled license/notice files, plus the applicable SPDX text. Native library third-party notices from the packages must also be retained; the wrapper's MIT license does not replace them.
+For the complete package list, versions, authors, repository links and license expressions, see `licenses/dependencies.json` and `licenses/manifest.json`. Package lists are generated from the restored dependencies for the published platform and the bundled browser app. Each package folder contains its original NuGet metadata and bundled license/notice files, plus the applicable SPDX text; identical declarations retain a reference at the original path to one complete copy in `licenses/common/`. Native library third-party notices from the packages must also be retained; the wrapper's MIT license does not replace them.
 
 PDF page previews use [PDFium](https://pdfium.googlesource.com/pdfium/) through the pinned [bblanchon NuGet packages](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8086). macOS ARM64 and Windows x64 native assets are resolved by the application RID. Full binary and component notices are retained in `licenses/pdfium/`; package metadata and Apache-2.0 terms accompany the bindings' native dependencies. AvaMedia's small C API adapter is original code.
 
@@ -44,7 +44,7 @@ NudeNet class candidates do not imply a bundled NudeNet detector or weights.
 
 ## External tools
 
-New builds bundle FFmpeg and FFprobe 9.0.2 in the application `tools` directory as independent, replaceable processes; the exact version is pinned in [the shared source lock](scripts/macos/ffmpeg-sources.lock.json) and recorded in each package. Both platform builds enable GPL and version3 for x264/x265 and are distributed under GPL-3.0-or-later; no nonfree component is enabled. Original component notices accompany the binaries in `licenses/media-tools/`. The original AvaMedia application remains AGPL-3.0-only. See [FFmpeg legal information](https://ffmpeg.org/legal.html). No FormatFactory FFmpeg binary is redistributed.
+Windows and macOS builds bundle FFmpeg and FFprobe 9.0.2 in the application `tools` directory as independent, replaceable processes; the exact version is pinned in [the shared source lock](scripts/macos/ffmpeg-sources.lock.json) and recorded in each package. Both platform builds enable GPL and version3 for x264/x265 and are distributed under GPL-3.0-or-later; no nonfree component is enabled. Original component notices accompany the binaries in `licenses/media-tools/`. The original AvaMedia application remains AGPL-3.0-only. See [FFmpeg legal information](https://ffmpeg.org/legal.html). No FormatFactory FFmpeg binary is redistributed.
 
 If you choose to distribute FFmpeg yourself, preserve its actual notices and license texts and provide the complete corresponding source for the precise binaries, build configuration, changes and external libraries, in accordance with their licenses. A link to a floating project homepage is not a substitute for corresponding source. A build with `--enable-nonfree` must not be included in the release.
 

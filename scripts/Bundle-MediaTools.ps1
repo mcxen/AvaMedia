@@ -22,7 +22,7 @@ try {
         $file=Join-Path $runtimeRoot ($name+$(if($Runtime -eq 'win-x64'){'.exe'}else{''}))
         if(!(Test-Path -LiteralPath $file)){throw "Bundled $name is missing."}
     }
-    Get-ChildItem -LiteralPath $runtimeRoot -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $toolRoot -Force }
+    Get-ChildItem -LiteralPath $runtimeRoot -File | Where-Object { $_.Name -ne 'NOTICE.txt' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $toolRoot -Force }
     if(Test-Path -LiteralPath (Join-Path $runtimeRoot 'lib')){Copy-Item -LiteralPath (Join-Path $runtimeRoot 'lib') -Destination $toolRoot -Recurse -Force}
     $notices=Join-Path $taskRoot "licenses/media-tools/$Runtime"
     New-Item -ItemType Directory -Path $notices -Force | Out-Null

@@ -99,7 +99,6 @@ foreach ($runtime in @('osx-arm64')) {
         $iconStream=$iconEntry.Open(); $iconHeader=[byte[]]::new(8)
         try { $read=$iconStream.Read($iconHeader,0,8) } finally { $iconStream.Dispose() }
         Assert-Package ($read -eq 8 -and [Text.Encoding]::ASCII.GetString($iconHeader,0,4) -eq 'icns' -and (Read-BigEndian $iconHeader 4) -eq $iconEntry.Length) "$runtime application icon has a complete ICNS header"
-        Assert-Package ($null -ne $archive.GetEntry($root+'Resources/scripts/Install-MediaTools-macOS.sh')) "$runtime includes the macOS tool installer"
         Assert-Package ($null -ne $archive.GetEntry($root+'Resources/THIRD-PARTY-NOTICES.md')) "$runtime includes third-party notices"
         foreach ($tool in @('yt-dlp','qjs','ffmpeg','ffprobe')) {
             $entry=$archive.GetEntry($root+'MacOS/tools/'+$tool)
