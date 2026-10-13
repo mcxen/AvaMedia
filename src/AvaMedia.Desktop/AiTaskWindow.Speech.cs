@@ -23,7 +23,8 @@ public sealed partial class AiTaskWindow
     private readonly TextBlock _speechTitle = SpeechUi.Text("", true, 12), _backend = SpeechUi.Text("", true, 11);
     private readonly TextBlock _percent = SpeechUi.Heading(""), _speechStep = SpeechUi.Heading(""), _segmentCaption = SpeechUi.Text("", true, 11);
     private readonly TextBlock _cueCount = SpeechUi.Text("", true, 11), _queueCaption = SpeechUi.Text("", true, 12);
-    private readonly TextBlock _transcriptEmpty = SpeechUi.Text("等待字幕", true), _waveEmpty = SpeechUi.Text("等待音轨", true);
+    private readonly AvaMedia.Controls.EmptyState _transcriptEmpty = new() { Text = "尚无字幕结果" };
+    private readonly TextBlock _waveEmpty = SpeechUi.Text("等待音轨", true);
     private readonly SpeechTimeline _segments = new() { SegmentsOnly = true, Height = 28 }, _wave = new();
     private readonly List<SpeechStageCard> _stageCards = [];
     private Button? _speechOutput;
@@ -39,7 +40,7 @@ public sealed partial class AiTaskWindow
     {
         SpeechUi.ApplyWindowStyle(this);
         Width = 1060; Height = 712; MinWidth = 1060; MinHeight = 712;
-        foreach (var control in new Control[] { _result, _pause, _stop, _run, _error, _log, _records }) SpeechUi.Detach(control);
+        foreach (var control in new Control[] { _result, _pause, _stop, _run, _error, _log, _records, _statePill }) SpeechUi.Detach(control);
         _result.Classes.Remove("primary"); _result.IsDefault = false;
         _stop.Classes.Add("danger");
         var root = new Grid { RowDefinitions = new("50,Auto,*,Auto"), Margin = new(18, 0, 18, 16) };
@@ -54,7 +55,7 @@ public sealed partial class AiTaskWindow
         _backend.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiSuccess"));
         _backend.TextWrapping = TextWrapping.NoWrap; _backend.MaxWidth = 220; _backend.TextTrimming = TextTrimming.CharacterEllipsis;
         _backend.PropertyChanged += (_, e) => { if (e.Property == TextBlock.TextProperty) backend.IsVisible = !string.IsNullOrEmpty(_backend.Text); };
-        actions.Children.Add(backend); _percent.FontSize = 22; _percent.VerticalAlignment = VerticalAlignment.Center; actions.Children.Add(_percent);
+        actions.Children.Add(backend); actions.Children.Add(_statePill); _percent.FontSize = 22; _percent.VerticalAlignment = VerticalAlignment.Center; actions.Children.Add(_percent);
         actions.Children.Add(_run); actions.Children.Add(_pause); actions.Children.Add(_stop); Grid.SetColumn(actions, 1); header.Children.Add(actions);
         var top = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center }; top.Children.Add(header);
         top.Children.Add(_error); root.Children.Add(top);
@@ -91,13 +92,23 @@ public sealed partial class AiTaskWindow
         var cues = new Grid(); cues.Children.Add(_transcript); _transcriptEmpty.HorizontalAlignment = HorizontalAlignment.Center; _transcriptEmpty.VerticalAlignment = VerticalAlignment.Center; cues.Children.Add(_transcriptEmpty); Grid.SetRow(cues, 4); main.Children.Add(cues);
         var mainCard = SpeechUi.Card(main);  body.Children.Add(mainCard);
         var aside = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 14 };
-        var records = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 }; records.Children.Add(SpeechUi.Heading("过程记录"));
+        var records = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
+        var recordSections = new AvaMedia.Controls.SegmentedControl { Name = "SpeechRecordSections", ItemsSource = new[] { "过程记录", "处理日志" }, SelectedIndex = 0 };
+        records.Children.Add(recordSections);
         var history = new ListBox { ItemsSource = _speechStages, BorderThickness = new(0), Background = Brushes.Transparent,
             ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel()),
             ItemTemplate = new FuncDataTemplate<string>((entry, _) => StageLogRow(entry ?? "")) };
         SpeechUi.CompactRows(history);
         ScrollViewer.SetHorizontalScrollBarVisibility(history, ScrollBarVisibility.Disabled); Grid.SetRow(history, 1); records.Children.Add(history);
-        _records.Header = "完整日志"; _records.Content = _log; _log.MaxHeight = 150; Grid.SetRow(_records, 2); records.Children.Add(_records);
+        _log.MaxHeight = double.PositiveInfinity;
+        var logPane = new Grid { IsVisible = false }; logPane.Children.Add(_log); logPane.Children.Add(_logEmpty);
+        Grid.SetRow(logPane, 1); records.Children.Add(logPane);
+        recordSections.SelectionChanged += (_, _) =>
+        {
+            var showLog = recordSections.SelectedIndex == 1;
+            history.IsVisible = !showLog; logPane.IsVisible = showLog; _showLog = showLog;
+            if (showLog) _ = ReadLogAsync();
+        };
         var recordCard = SpeechUi.Card(records);  aside.Children.Add(recordCard);
         var after = new StackPanel { Spacing = 8 }; after.Children.Add(SpeechUi.Heading("完成后"));
         after.Children.Add(SpeechUi.Text("保存字幕草稿与结构化字幕，可「校对字幕」修改文本和时间，再导出 SRT / ASS / MP4 / MKV", true, 12));
@@ -176,6 +187,7 @@ public sealed partial class AiTaskWindow
             { if (!_closed && _speechCues.Count > 0) _transcript?.ScrollIntoView(_speechCues[^1]); }, Avalonia.Threading.DispatcherPriority.Loaded);
         }
         _transcriptEmpty.IsVisible = _speechCues.Count == 0;
+        _transcriptEmpty.IsError = _job.State == JobState.Failed;
         _cueCount.Text = Localization.Format($"已生成 {speech?.CueCount ?? transcript?.Cues.Length ?? 0} 条字幕");
         var segment = speech?.Segments.FirstOrDefault(s => s.Index == speech.CurrentSegment);
         _segmentCaption.Text = segment is null ? "" : Localization.Format($"第 {segment.Index + 1} 段 · {SpeechTimeline.TimeLabel(segment.StartSeconds)} – {SpeechTimeline.TimeLabel(segment.EndSeconds)} · 检测到 {segment.VoiceIntervalCount} 个语音区间");
@@ -186,7 +198,7 @@ public sealed partial class AiTaskWindow
         var queue = _queueSummary?.Invoke();
         var waiting = queue?.SubtitleJobsWaiting ?? 0;
         if (_job.State == JobState.Waiting || _job.State == JobState.Running && activity?.Stage == "等待语音识别") waiting = Math.Max(0, waiting - 1);
-        _queueCaption.Text = _status.Text + (queue is null ? "" : Localization.Format($" · 另有 {waiting} 个字幕任务在等待语音识别"));
+        _queueCaption.Text = queue is null ? "" : Localization.Format($"另有 {waiting} 个字幕任务在等待语音识别");
         if (!_checkingOutput && (DateTime.UtcNow - _outputChecked).TotalSeconds >= 1) _ = CheckSpeechOutputAsync();
         _speechLanguageDirty = false;
     }

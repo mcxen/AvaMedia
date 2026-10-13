@@ -75,7 +75,7 @@ public sealed class ExclusiveRenamerWindow : Window
     public ExclusiveRenamerWindow(IMediaEngine engine, AppSettings settings, Func<Window, bool, Task>? configure = null,
         Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
-        if (!settings.ExclusiveToolUnlocked) throw new InvalidOperationException("请先在设置中激活专属工具。");
+        if (!settings.ExclusiveToolUnlocked) throw new InvalidOperationException("内部工具未激活。");
         ApplyToolStyles(this);
         _engine = engine; _settings = settings; _configure = configure; _reserveFiles = reserveFiles;
         Title = "专属工具 · VL 媒体智能重命名"; Width = 1160; Height = 700; MinWidth = 900; MinHeight = 520;

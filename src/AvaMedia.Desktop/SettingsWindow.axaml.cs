@@ -28,7 +28,7 @@ public sealed partial class SettingsWindow : Window
         Localization.Changed += LanguageChanged;
         InitializeMcpSettings();
         Populate(settings);
-        RefreshExclusiveTools();
+        InitializeExclusiveTools();
         foreach (var input in new[] { OutputInput, FfmpegInput, FfprobeInput, YtdlpInput })
         { _values.Add(()=>input.Text); input.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) MarkDirty(); }; }
         foreach (var input in new[] { AutoGpuInput, NotifyInput, ReducedMotionInput, AddSettingNameInput,
@@ -195,7 +195,7 @@ public sealed partial class SettingsWindow : Window
     private void ApplyClick(object? sender, RoutedEventArgs args) => ApplyDraft();
     private void OkClick(object? sender, RoutedEventArgs args) { if (ApplyDraft()) Close(true); }
     private void CancelClick(object? sender, RoutedEventArgs args) => Close(_applied);
-    private void ResetClick(object? sender, RoutedEventArgs args) { _resettingDefaults = true; Populate(SettingsPresentation.DefaultsForWindow(_settings, !MediaEngine.UsesBundledTools)); RefreshExclusiveTools(); MarkDirty(); }
+    private void ResetClick(object? sender, RoutedEventArgs args) { _resettingDefaults = true; Populate(SettingsPresentation.DefaultsForWindow(_settings, !MediaEngine.UsesBundledTools)); MarkDirty(); }
     private async void HardwareTestClick(object? sender, RoutedEventArgs args)
     {
         HardwareTestButton.IsEnabled = false;

@@ -746,38 +746,6 @@
                   </Border>
                 </StackPanel>
               </Border>
-              <TextBlock Classes="settingsHeading" Text="专属工具"/>
-              <Border Classes="ac-group">
-                <StackPanel>
-                  <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
-                      <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="激活密码" TextWrapping="Wrap"/>
-                      </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
-                        <StackPanel x:Name="ExclusiveActivationPanel" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}">
-                          <TextBox x:Name="ExclusivePasswordInput" Classes="ac" Width="{DynamicResource StMediumFieldWidth}" PasswordChar="●" Watermark="请输入专属激活密码" local:Localization.IsUserText="True" KeyDown="ExclusivePasswordKeyDown"/>
-                          <Button Content="激活" Classes="ac small" Click="ActivateExclusiveToolClick"/>
-                        </StackPanel>
-                      </StackPanel>
-                    </Grid>
-                  </Border>
-                  <Border Classes="ac-setting-row settingsRow">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
-                      <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="专属重命名工具" TextWrapping="Wrap"/>
-                        <TextBlock Classes="settingsDescription" Text="激活后可用" TextWrapping="Wrap"/>
-                      </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
-                        <StackPanel x:Name="ExclusiveToolsPanel" IsVisible="False">
-                          <Button Content="打开" Classes="ac small" Click="OpenExclusiveRenamerClick"/>
-                        </StackPanel>
-                      </StackPanel>
-                    </Grid>
-                  </Border>
-                </StackPanel>
-              </Border>
-              <TextBlock x:Name="ExclusiveActivationStatus" IsVisible="False" TextWrapping="Wrap" Classes="settingsDescription"/>
               <TextBlock Classes="settingsHeading" Text="运行信息"/>
               <Border Classes="ac-group">
                 <StackPanel>
@@ -794,7 +762,7 @@
             <StackPanel Spacing="{DynamicResource StNoGap}">
               <Border Classes="ac-group" Margin="{DynamicResource StSectionGap}">
                 <StackPanel HorizontalAlignment="Center" Spacing="{DynamicResource StDetailGap}" Margin="{DynamicResource StAboutMargin}">
-                  <Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="{DynamicResource StAboutIconSize}" Height="{DynamicResource StAboutIconSize}"/>
+                  <Image x:Name="AboutAppIcon" Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="{DynamicResource StAboutIconSize}" Height="{DynamicResource StAboutIconSize}"/>
                   <TextBlock Text="AvaMedia" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="VersionText" Classes="settingsDescription"/>
                 </StackPanel>

@@ -93,10 +93,10 @@ public partial class MainWindow
         RefreshOutputPath(); Multithread.IsChecked = _settings.MultiThread; Notify.IsChecked = _settings.NotifyComplete;
         Motion.SetReducedMotion(_settings.ReduceMotion);
         if (prior.CollapseCompletedTasks != _settings.CollapseCompletedTasks) RefreshTaskList();
-        if(prior.EnableBetaFeatures != _settings.EnableBetaFeatures)
+        if(prior.EnableBetaFeatures != _settings.EnableBetaFeatures || prior.ExclusiveToolUnlocked != _settings.ExclusiveToolUnlocked)
         {
             if(!_settings.EnableBetaFeatures && Catalog.IsBeta(_last))_last=Catalog.Find("clip");
-            ShowCategory(_category);
+            ShowCategory(!prior.ExclusiveToolUnlocked && _settings.ExclusiveToolUnlocked ? "视频" : _category);
         }
         if(prior.AutoDownloadRepairModel != _settings.AutoDownloadRepairModel)
         {

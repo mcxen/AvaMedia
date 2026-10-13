@@ -1,5 +1,6 @@
 <UserControl xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.Controls.JobRowView">
   <UserControl.Styles>
+    <Style Selector="Border.queue-selection"><Setter Property="IsVisible" Value="False"/></Style>
     <Style Selector="Button.queue-cover-button"><Setter Property="Padding" Value="2"/><Setter Property="Margin" Value="8,0,12,0"/></Style>
     <Style Selector="StackPanel.queue-details"><Setter Property="Margin" Value="8,2"/></Style>
     <Style Selector="TextBlock.queue-secondary"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
@@ -11,8 +12,8 @@
     <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
     <Style Selector="Window.windows-xp ListBoxItem:selected TextBlock.queue-secondary, Window.windows-xp ListBoxItem:selected TextBlock.queue-state"><Setter Property="Foreground" Value="White"/></Style>
   </UserControl.Styles>
-  <Grid Classes="queue-row" x:Name="RowRoot" MinHeight="{DynamicResource UiQueueRowHeight}">
-    <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/></Grid.ColumnDefinitions>
+  <Grid Classes="queue-row" x:Name="RowRoot" MinHeight="{DynamicResource ShellQueueRowHeight}">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/><ColumnDefinition Width="{DynamicResource ShellQueueActionsWidth}"/></Grid.ColumnDefinitions>
     <Button x:Name="CoverButton" Classes="media-action queue-cover-button" VerticalAlignment="Center" Height="{DynamicResource UiQueueCoverHeight}" Click="CoverClick">
       <Border Classes="queue-artwork" ClipToBounds="True"><Grid Width="{DynamicResource UiQueueArtworkWidth}" Height="{DynamicResource UiQueueArtworkHeight}" ClipToBounds="True">
         <Border Background="{DynamicResource UiSurfaceRaised}"/>
@@ -56,11 +57,18 @@
         <Border IsVisible="False" VerticalAlignment="Center"><local:LucideIcon x:Name="StateIcon" Classes="queue-state-icon" Kind="{Binding StateIcon}" IsVisible="{Binding HasStateIcon}" Width="12" Height="12"/></Border>
         <TextBlock x:Name="StateText" Grid.Column="1" Classes="queue-state classic-only" Text="{Binding StateText}" MaxLines="1" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <TextBlock x:Name="CompactStateText" Grid.Column="1" Classes="queue-state modern-only" Text="{Binding CompactState}" MaxLines="1" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-        <Button x:Name="ViewResultButton" Grid.Column="2" Content="查看任务详情" Classes="ac secondary" Click="ViewResultClick" IsVisible="False"/>
+
       </Grid>
       </Grid>
       </Grid>
       <Border Classes="classic-only"><TextBlock Classes="queue-secondary" Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" Height="18" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}"/></Border>
     </StackPanel>
+    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="{DynamicResource AcStatusGap}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0">
+      <Button x:Name="RunTaskButton" Classes="ac secondary small" Click="RunTaskClick" ToolTip.Tip="开始任务" AutomationProperties.Name="开始任务"><local:LucideIcon x:Name="RunTaskIcon" Kind="play" Width="14" Height="14"/></Button>
+      <Button x:Name="PauseTaskButton" Classes="ac secondary small" Click="PauseTaskClick" ToolTip.Tip="暂停" AutomationProperties.Name="暂停"><local:LucideIcon Kind="pause" Width="14" Height="14"/></Button>
+      <Button x:Name="StopTaskButton" Classes="ac secondary small" Click="StopTaskClick" ToolTip.Tip="停止" AutomationProperties.Name="停止"><local:LucideIcon Kind="square" Width="14" Height="14"/></Button>
+      <Button x:Name="ViewResultButton" Content="查看任务" Classes="ac secondary small" Click="ViewResultClick"/>
+    </StackPanel>
+    <Border Classes="queue-selection" Grid.ColumnSpan="4" Width="3" HorizontalAlignment="Left" Background="{DynamicResource UiAccent}" IsHitTestVisible="False"/>
   </Grid>
 </UserControl>

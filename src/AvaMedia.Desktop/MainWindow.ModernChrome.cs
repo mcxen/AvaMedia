@@ -17,6 +17,7 @@ public partial class MainWindow
     private Control? _statusBar;
     private Panel? _statusHome;
     private bool? _modernChrome;
+    private string? _queueCountText;
 
     internal bool ModernChrome => _modernChrome == true;
 
@@ -78,6 +79,15 @@ public partial class MainWindow
         var running = _jobs.Count(job => job.State is JobState.Running or JobState.Stopping);
         var waiting = _jobs.Count(job => job.State is JobState.Waiting or JobState.Paused);
         var failed = _jobs.Count(job => job.State == JobState.Failed);
-        Localization.SetText(TaskSummaryText, $"{running} 个进行中 · {waiting} 个等待 · {failed} 个失败");
+        TaskSummaryText.IsVisible = ModernChrome;
+        var summary = Localization.Format($"{running} 个进行中 · {waiting} 个等待 · {failed} 个失败");
+        // Keep real storage/options errors visible in the status bar; only remove its old counts.
+        if (ModernChrome)
+        {
+            if (SummaryText.Text == _queueCountText) SummaryText.Text = "";
+            TaskSummaryText.Text = summary;
+        }
+        else SummaryText.Text = summary;
+        _queueCountText = summary;
     }
 }

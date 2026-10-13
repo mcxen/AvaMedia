@@ -72,7 +72,7 @@ public sealed partial class SpeechToolsWindow : Window
         _sources.ItemTemplate = new FuncDataTemplate<string>((path, _) =>
         {
             var text = Ui.ComponentText(Path.GetFileName(path!)); text.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; text.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
-            Localization.SetIsUserText(text, true); ToolTip.SetTip(text, path); return text;
+            Localization.SetIsUserText(text, true); ToolTip.SetTip(text, path); return new AvaMedia.Controls.ListRow { Child = text };
         });
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
         var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); importPanel.FileList = fileArea;
@@ -81,7 +81,7 @@ public sealed partial class SpeechToolsWindow : Window
         _preview = new MediaPreviewPanel(engine) { Compact = _transcribe }; Grid.SetColumn(_preview,1); root.Children.Add(_preview);
         _sources.SelectionChanged += (_,_) => _preview.SetSource(_sources.SelectedItem as string);
         Closed += (_,_) => _preview.Dispose();
-        Grid.SetRow(fields, 2); source.Children.Add(fields);
+        var parameterCard = Ui.ComponentCard(fields); Grid.SetRow(parameterCard, 2); source.Children.Add(parameterCard);
         string[] outputs = _transcribe ? ["MP4", "MKV", "SRT", "ASS"]
             : feature.Category == "音频" ? ["原格式", "WAV", "M4A", "MP3", "FLAC"] : ["原格式", "MP4", "MKV", "MOV", "WAV", "M4A", "MP3"];
         _output = Ui.ComponentCombo(outputs, outputs[0]); _output.Name = "SpeechOutput";
@@ -155,7 +155,7 @@ public sealed partial class SpeechToolsWindow : Window
             finally { _busy = false; if (IsVisible) { fields.IsEnabled = source.IsEnabled = saving.IsEnabled = true; Refresh(); } }
         };
         actions.Children.Add(_confirm); Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 2); root.Children.Add(footer);
-        foreach (var child in root.Children.Where(child => child != _preview)) Grid.SetColumnSpan(child, 2);
+        foreach (var child in root.Children.Where(child => child != _preview && child != source)) Grid.SetColumnSpan(child, 2);
         Content = root;
         if (_transcribe) BuildSubtitleSubmission(imports.AddFilesAsync);
         else ToolExecution.Configure(this,_confirm,"后台增强",editing);
@@ -219,10 +219,11 @@ public sealed partial class SpeechToolsWindow : Window
     {
         var hasFolder = _sourceFolder.IsChecked == true || !string.IsNullOrWhiteSpace(_folder.Text);
         _confirm.IsEnabled = !_busy && _files.Count > 0 && hasFolder;
-        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : _transcribe ? "后台识别" : "加入队列");
+        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : _transcribe ? "后台识别" : ToolExecution.StartImmediately(this) ? "后台增强" : "仅加入队列");
         _remove.IsEnabled = !_busy && _sources.SelectedItems?.Count > 0;
         _empty.IsVisible = _files.Count == 0;
         _preview.IsVisible = _files.Count > 0;
+        if (_subtitleCover is not null) _subtitleCover.IsVisible = _files.Count > 0;
         if (_queueSpeech is not null) _queueSpeech.IsEnabled = _confirm.IsEnabled;
         if (_subtitleBody is not null) _subtitleBody.IsEnabled = !_busy;
         _count.Text = _files.Count > 0 ? Localization.Format($"{_files.Count} 个文件") : "";

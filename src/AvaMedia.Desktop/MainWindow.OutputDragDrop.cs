@@ -184,7 +184,8 @@ public partial class MainWindow
     private void ResetOutputDropSession()
     {
         StopDropNavigation();
-        foreach (var (id, tile) in _featureButtons) ClearFeatureDropFeedback(tile, Catalog.Find(id));
+        foreach (var (id, tile) in _featureButtons)
+            if (id != FeatureNavigation.ExclusiveRenamer.Id) ClearFeatureDropFeedback(tile, Catalog.Find(id));
         _dropTransfer = null; _dropSources = []; _featureDropFiles.Clear();
     }
 }

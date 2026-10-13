@@ -55,6 +55,7 @@ public sealed partial class App : Application
         StartupSettings = startupSettings;
         Localization.Apply(startupSettings.Language);
         AvaloniaXamlLoader.Load(this);
+        ContactSheetFonts.OpenAsset = uri => AssetLoader.Open(uri);
         Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude((Uri?)null)
         { Source = new Uri("avares://AvaMedia.Desktop/Styles/ButtonIcons.axaml") });
         if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activation)
