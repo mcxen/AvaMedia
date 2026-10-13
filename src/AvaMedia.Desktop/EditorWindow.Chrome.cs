@@ -9,8 +9,6 @@ namespace AvaMedia.Desktop;
 public partial class EditorWindow
 {
     private StackPanel? _editorCaption;
-    private Border[]? _editorGrips;
-    private bool _editorOwnDecorations;
 
     private bool ModernFrame => !Skin.UsesCustomChrome(ActualThemeVariant) && MainWindow.FrameKind != MainWindow.WindowFrameKind.System;
 
@@ -23,31 +21,14 @@ public partial class EditorWindow
 
     private void ApplyEditorFrame()
     {
-        var modern = ModernFrame;
-        if (!modern)
-        {
-            ExtendClientAreaToDecorationsHint = false;
-            if (_editorOwnDecorations) { SystemDecorations = SystemDecorations.Full; _editorOwnDecorations = false; }
-            SetEditorFrameParts(false, false);
-            return;
-        }
-        ExtendClientAreaToDecorationsHint = true;
-        ExtendClientAreaTitleBarHeightHint = 44;
-        if (MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac)
-        {
-            ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.PreferSystemChrome;
-            EditorTitleText.Margin = new Thickness(72, 0, 0, 0); // room for the native traffic lights
-            QuickTitleBar.Margin = new Thickness(70, 0, 70, 0);
-            SetEditorFrameParts(false, false);
-            return;
-        }
-        ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.NoChrome;
-        var ownFrame = !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS();
-        if (ownFrame) { SystemDecorations = SystemDecorations.None; _editorOwnDecorations = true; }
-        SetEditorFrameParts(true, ownFrame);
+        WindowChrome.ApplyPlatformFrame(this);
+        var mac = ModernFrame && MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
+        EditorTitleText.Margin = new Thickness(mac ? 72 : 0, 0, 0, 0);
+        QuickTitleBar.Margin = mac ? new Thickness(70, 0, 70, 0) : new Thickness(0);
+        SetEditorFrameParts(WindowChrome.UsesClientTitleBar(this) && !mac);
     }
 
-    private void SetEditorFrameParts(bool caption, bool grips)
+    private void SetEditorFrameParts(bool caption)
     {
         if (caption && _editorCaption is null)
         {
@@ -57,8 +38,6 @@ public partial class EditorWindow
             else { Grid.SetColumn(_editorCaption, 3); EditorTitleBar.Children.Add(_editorCaption); }
         }
         if (_editorCaption is not null) _editorCaption.IsVisible = caption;
-        if (grips && _editorGrips is null) _editorGrips = WindowChrome.AddResizeGrips(this, WindowRoot);
-        foreach (var grip in _editorGrips ?? []) grip.IsVisible = grips;
     }
 
     private void RefreshInspector()

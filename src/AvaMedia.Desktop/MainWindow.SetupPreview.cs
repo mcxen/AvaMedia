@@ -14,7 +14,6 @@ public partial class MainWindow
             CloseToTray = false, CheckForUpdates = false, AutoDownloadRepairModel = false, ReduceMotion = true
         });
         var window = new MainWindow(storage) { Width = 1440, Height = 860, ShowInTaskbar = false };
-        if (theme is "Light" or "Dark") window.SystemDecorations = SystemDecorations.None;
         foreach (var (name, feature, state, progress) in new[]
         {
             ("示例视频.mp4", "mp4", JobState.Running, 46d),

@@ -49,7 +49,6 @@ public sealed partial class Skin : AvaloniaObject
         private readonly Window _window;
         private PlatinumWindowFrame? _frame;
         private WindowsXPWindowFrame? _xpFrame;
-        private SystemDecorations _decorations;
         private readonly TextRenderingMode _textMode;
         private bool _changing;
         private bool _refreshQueued;
@@ -59,6 +58,7 @@ public sealed partial class Skin : AvaloniaObject
             _window = window;
             _textMode = RenderOptions.GetTextRenderingMode(window);
             WindowArtwork.Enable(window);
+            WindowChrome.RegisterPlatformFrame(window);
             window.ActualThemeVariantChanged += Changed;
             window.Opened += Changed;
             window.Closed += Closed;
@@ -108,7 +108,8 @@ public sealed partial class Skin : AvaloniaObject
                 {
                     _xpFrame.ReleaseContent(); _xpFrame = null;
                 }
-                if (decorated && (platinum && _frame is not null || xp && _xpFrame is not null)) return;
+                if (decorated && (platinum && _frame is not null || xp && _xpFrame is not null))
+                { WindowChrome.ApplyPlatformFrame(_window); return; }
 
                 var content = _window.Content;
                 if (_frame is not null)
@@ -122,21 +123,20 @@ public sealed partial class Skin : AvaloniaObject
                     _xpFrame = null;
                 }
 
-                // Transfer the existing body once. Custom skins keep native decorations disabled throughout.
+                // Classic frames decorate the client content; the native host keeps its shadow.
                 if (customChrome && content is not null)
                 {
-                    if (!hadFrame) _decorations = _window.SystemDecorations;
                     _window.Content = null;
                     if (platinum) _window.Content = _frame = new PlatinumWindowFrame(_window, content);
                     else _window.Content = _xpFrame = new WindowsXPWindowFrame(_window, content);
-                    _window.SystemDecorations = SystemDecorations.None;
                 }
                 else if (hadFrame)
                 {
                     _window.Content = null;
                     _window.Content = content;
-                    _window.SystemDecorations = _decorations;
                 }
+                WindowChrome.EnsureToolFrame(_window);
+                WindowChrome.ApplyPlatformFrame(_window);
             }
             finally { _changing = false; }
         }
@@ -155,9 +155,9 @@ public sealed partial class Skin : AvaloniaObject
             if (restoreContent && ownedFrame)
             {
                 _window.Content = null; _window.Content = content;
-                _window.SystemDecorations = _decorations;
                 _window.Classes.Remove("mac-os9"); _window.Classes.Remove("windows-xp");
                 RenderOptions.SetTextRenderingMode(_window, _textMode);
+                WindowChrome.ApplyPlatformFrame(_window);
             }
         }
     }

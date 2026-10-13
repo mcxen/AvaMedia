@@ -636,10 +636,13 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 
 - 统一通过 `MainWindow.WindowChrome`（`src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`）和 `Controls/WindowChrome.cs` 复用，不另写标题栏。
 - **macOS**：客户区延伸到标题栏下方（标题栏高 52），原生红绿灯位于**左上角、侧栏卡片内部**，工具树从红绿灯下方开始（工具树上边距 34）。非 macOS 上用 `AVAMEDIA_CHROME=mac` 预览时绘制占位红绿灯。
-- **Windows / Linux**：不显示系统标题栏，最小化 / 最大化 / 关闭按钮位于**右上角**标题行；按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Linux（X11）去掉 WM 装饰并自带缩放边。
+- **Windows**：保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`；最小化 / 最大化 / 关闭按钮位于**右上角**标题行，按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Win11 显式请求 DWM `DWMWA_WINDOW_CORNER_PREFERENCE=DWMWCP_ROUND`，阴影由系统提供；Win10 保留原生直角与阴影，不伪造 Win11 圆角。最大化、全屏、贴靠时形状由系统决定。
+- **Linux**：主窗口、编辑器及所有工具窗口统一保留 `SystemDecorations.Full`，由窗口管理器和合成器提供边框、缩放及阴影；不单独去掉某个工具窗口的装饰。圆角、阴影能力取决于桌面环境。`AVAMEDIA_CHROME=mac` 只预览客户区布局，仍保留 Linux 原生装饰。
+- **整窗表面**：所有 `Window` 子类及临时 `new Window` 通过 `Skin` 的统一注册接入 `Controls/WindowChrome.cs`；已有主窗口、编辑器标题布局也调用同一平台策略。Windows / macOS 整窗使用不透明主题背景及 `TransparencyLevelHint=None`；禁止用透明整窗 + 自绘圆角边框或阴影替换系统形状。macOS 保留原生框架、圆角和阴影；内部卡片圆角不代表窗体圆角。
+- **独立顶层窗口**：所有非模态工具、设置、帮助、播放器、看图及封面预览统一使用 `WindowChrome.ShowIndependent`（内部无 Owner 的 `Show()`）并设置 `ShowInTaskbar=true`，启动位置为 `CenterScreen` 或显式屏幕坐标；主窗口最小化或隐藏时工具窗口继续显示，可在任务栏 / Dock 的窗口列表独立切换。不得为层级感设置 Owner、置顶或用 `ShowDialog` 打开非模态工具；层级感只由系统原生阴影体现。确实需要返回确认 / 编辑结果的模态提示和编辑表单可保留 `ShowDialog(owner)`，同样复用整窗外观策略。业务上下文显式传递或从应用主窗口取得，不能依赖工具的 Owner 链。
 - 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉不触发拖动。
 - `AVAMEDIA_CHROME=mac|win|system` 可覆盖平台检测；`system` 及 Mac OS 9 / XP 皮肤使用各自框架。
-- Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。
+- Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。经典框架是客户区皮肤，外层同样保留系统装饰和不透明表面，不以 `SystemDecorations.None` 牺牲系统阴影。
 
 参考代码 `src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`：
 

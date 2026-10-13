@@ -5,22 +5,21 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Controls.Shapes;
-using Avalonia.Platform;
 using Avalonia.VisualTree;
 
 namespace AvaMedia.Desktop.Controls;
 
 /// <summary>
 /// Shared pieces of the modern platform frame (see MainWindow.WindowChrome / docs/WINDOW-CHROME.md):
-/// own min / max / close caption buttons, X11 resize grips and title-row dragging. Used by MainWindow
-/// and the quick-clip EditorWindow so both windows get the same frame on every platform.
+/// native platform policy, shared min / max / close caption buttons and title-row dragging.
+/// Skin connects every tool window; MainWindow and EditorWindow retain their specialized layouts.
 /// </summary>
-internal static class WindowChrome
+internal static partial class WindowChrome
 {
     /// <summary>Wrap a tool dialog with the same platform detection, drag and resize behavior as the shell.</summary>
     public static Grid WrapDialog(Window window, Control content, Control? titleContent = null)
     {
-        var root = new Grid { RowDefinitions = new("Auto,*") };
+        var root = new Grid { RowDefinitions = new("Auto,*"), Classes = { "window-chrome" } };
         var titleBar = new Grid { Height = 48, ColumnDefinitions = new("88,*,Auto") };
         if (titleContent is not null) titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         var title = new TextBlock { FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -37,32 +36,20 @@ internal static class WindowChrome
         titleBar.Children.Add(lights);
         var captions = CreateCaptionButtons(window, out _); Grid.SetColumn(captions, 2); titleBar.Children.Add(captions);
         root.Children.Add(titleBar); Grid.SetRow(content, 1); root.Children.Add(content);
-        var grips = AddResizeGrips(window, root);
-        var ownDecorations = false;
         void Apply()
         {
-            var modern = !Skin.UsesCustomChrome(window.ActualThemeVariant) && MainWindow.FrameKind != MainWindow.WindowFrameKind.System;
+            var modern = UsesClientTitleBar(window);
             var mac = MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
             var fullscreen = window.WindowState == WindowState.FullScreen;
-            titleBar.IsVisible = !fullscreen && (modern || titleContent is not null);
-            titleBar.ColumnDefinitions[0].Width = new GridLength(modern ? 88 : 0);
-            lights.IsVisible = modern && mac && !OperatingSystem.IsMacOS(); captions.IsVisible = modern && !mac;
-            title.Margin = new(0, 0, mac ? 88 : 0, 0);
-            window.ExtendClientAreaToDecorationsHint = modern;
-            window.ExtendClientAreaTitleBarHeightHint = fullscreen ? 0 : modern ? 48 : -1;
-            if (modern)
-            {
-                window.ExtendClientAreaChromeHints = mac && OperatingSystem.IsMacOS() ? ExtendClientAreaChromeHints.PreferSystemChrome : ExtendClientAreaChromeHints.NoChrome;
-                if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
-                { window.SystemDecorations = SystemDecorations.None; ownDecorations = true; }
-            }
-            else if (ownDecorations && !Skin.UsesCustomChrome(window.ActualThemeVariant))
-            { window.SystemDecorations = SystemDecorations.Full; ownDecorations = false; }
-            foreach (var grip in grips) grip.IsVisible = modern && ownDecorations && window.WindowState == WindowState.Normal;
+            var preview = IsMacPreview(window);
+            titleBar.IsVisible = !fullscreen && (modern || preview || titleContent is not null);
+            titleBar.ColumnDefinitions[0].Width = new GridLength(modern || preview ? 88 : 0);
+            lights.IsVisible = preview; captions.IsVisible = modern && !mac;
+            title.Margin = new(0, 0, modern && mac || preview ? 88 : 0, 0);
+            ApplyPlatformFrame(window);
         }
         HookDrag(window, titleBar, () => titleBar.IsVisible);
-        window.ActualThemeVariantChanged += (_, _) => Apply(); window.Opened += (_, _) => Apply();
-        window.PropertyChanged += (_, change) => { if (change.Property == Window.WindowStateProperty) Apply(); };
+        UpdateDialog(window, Apply);
         return root;
     }
 
@@ -78,8 +65,16 @@ internal static class WindowChrome
             button.Click += (_, _) => click();
             return button;
         }
-        panel.Children.Add(Caption("minus", "最小化窗口", () => window.WindowState = WindowState.Minimized));
+        var minimize = Caption("minus", "最小化窗口", () => window.WindowState = WindowState.Minimized);
+        minimize.Bind(Button.IsEnabledProperty, new Avalonia.Data.Binding(nameof(Window.CanMinimize)) { Source = window });
+        panel.Children.Add(minimize);
         panel.Children.Add(maximize = Caption("square", "最大化", () => ToggleMaximize(window)));
+        maximize.Bind(Button.IsEnabledProperty, new Avalonia.Data.MultiBinding
+        {
+            Converter = Avalonia.Data.Converters.BoolConverters.And,
+            Bindings = { new Avalonia.Data.Binding(nameof(Window.CanResize)) { Source = window },
+                new Avalonia.Data.Binding(nameof(Window.CanMaximize)) { Source = window } }
+        });
         panel.Children.Add(Caption("x", "关闭", window.Close, close: true));
         var max = maximize;
         void Glyph() { if (max.Content is LucideIcon icon) icon.Kind = window.WindowState == WindowState.Maximized ? "copy" : "square"; }
@@ -88,7 +83,11 @@ internal static class WindowChrome
         return panel;
     }
 
-    public static void ToggleMaximize(Window window) => window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    public static void ToggleMaximize(Window window)
+    {
+        if (window.CanResize && window.CanMaximize)
+            window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
 
     public static bool IsInteractive(Control control)
     {
@@ -106,28 +105,4 @@ internal static class WindowChrome
             if (e.ClickCount == 2) ToggleMaximize(window); else window.BeginMoveDrag(e);
         };
 
-    public static Border[] AddResizeGrips(Window window, Grid root)
-    {
-        Border Grip(WindowEdge edge, HorizontalAlignment h, VerticalAlignment v, StandardCursorType cursor)
-        {
-            var horizontal = h == HorizontalAlignment.Stretch; var vertical = v == VerticalAlignment.Stretch;
-            var grip = new Border { Background = Brushes.Transparent, HorizontalAlignment = h, VerticalAlignment = v,
-                Width = horizontal ? double.NaN : 6, Height = vertical ? double.NaN : 6, Cursor = new Cursor(cursor), ZIndex = 1000 };
-            Grid.SetRowSpan(grip, Math.Max(1, root.RowDefinitions.Count)); Grid.SetColumnSpan(grip, Math.Max(1, root.ColumnDefinitions.Count));
-            grip.PointerPressed += (_, e) => { if (e.GetCurrentPoint(window).Properties.IsLeftButtonPressed && window.WindowState == WindowState.Normal) window.BeginResizeDrag(edge, e); };
-            root.Children.Add(grip);
-            return grip;
-        }
-        return
-        [
-            Grip(WindowEdge.West, HorizontalAlignment.Left, VerticalAlignment.Stretch, StandardCursorType.LeftSide),
-            Grip(WindowEdge.East, HorizontalAlignment.Right, VerticalAlignment.Stretch, StandardCursorType.RightSide),
-            Grip(WindowEdge.North, HorizontalAlignment.Stretch, VerticalAlignment.Top, StandardCursorType.TopSide),
-            Grip(WindowEdge.South, HorizontalAlignment.Stretch, VerticalAlignment.Bottom, StandardCursorType.BottomSide),
-            Grip(WindowEdge.NorthWest, HorizontalAlignment.Left, VerticalAlignment.Top, StandardCursorType.TopLeftCorner),
-            Grip(WindowEdge.NorthEast, HorizontalAlignment.Right, VerticalAlignment.Top, StandardCursorType.TopRightCorner),
-            Grip(WindowEdge.SouthWest, HorizontalAlignment.Left, VerticalAlignment.Bottom, StandardCursorType.BottomLeftCorner),
-            Grip(WindowEdge.SouthEast, HorizontalAlignment.Right, VerticalAlignment.Bottom, StandardCursorType.BottomRightCorner),
-        ];
-    }
 }
