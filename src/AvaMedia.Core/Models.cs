@@ -150,6 +150,7 @@ public sealed partial class ConversionOptions
     public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
+public enum JobCompletionKind { Default, Unchanged }
 public sealed partial class Job : Observable
 {
     private string _downloadTitle="";
@@ -176,17 +177,25 @@ public sealed partial class Job : Observable
     public double Duration { get; set; }
     private JobState _state;
     public JobState State { get=>_state; set {if(Set(ref _state,value)) {if(value!=JobState.Running)Estimate=null;Raise(nameof(Status));Raise(nameof(RemainingTimeText));Raise(nameof(CanRetry));}} }
+    private JobCompletionKind _completionKind;
+    public JobCompletionKind CompletionKind
+    {
+        get => _completionKind;
+        set { if (Set(ref _completionKind, value)) { Raise(nameof(Status)); Raise(nameof(UserOutput)); Raise(nameof(Target)); } }
+    }
+    private string _completionMessage = "";
+    public string CompletionMessage { get => _completionMessage; set => Set(ref _completionMessage, value); }
     private double _progress;
     public double Progress { get=>_progress; set {if(Set(ref _progress,value)) Raise(nameof(Status));} }
     private string _error = "";
-    public string Error { get => _error; set => _error = JobLogStore.Summarize(value); }
+    public string Error { get => _error; set => Set(ref _error, JobLogStore.Summarize(value)); }
     public string Name => string.IsNullOrWhiteSpace(DownloadTitle)?string.Join(" + ", Inputs.Select(Path.GetFileName)):DownloadTitle;
     public string Source => string.Join(Environment.NewLine, Inputs);
     [JsonIgnore]
-    public string UserOutput => HasInternalOutput ? "" : Options.FolderOrganization?.OutputFolder ?? Options.FolderClassification?.OutputFolder ?? Output;
-    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {(HasInternalOutput ? "任务结果" : UserOutput)}";
+    public string UserOutput => HasInternalOutput || CompletionKind == JobCompletionKind.Unchanged ? "" : Options.FolderOrganization?.OutputFolder ?? Options.FolderClassification?.OutputFolder ?? Output;
+    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {(CompletionKind == JobCompletionKind.Unchanged ? "保留原文件" : HasInternalOutput ? "任务结果" : UserOutput)}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary"?"分析中":FeatureId=="auto-subtitle"?"识别中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed=>"完成"+((FeatureId is "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停",JobState.Stopping=>"正在终止",_=>"已停止"};
+    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary"?"分析中":FeatureId=="auto-subtitle"?"识别中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed when CompletionKind == JobCompletionKind.Unchanged=>FeatureId == "video-slim" ? "无需瘦身" : "保留原文件",JobState.Completed=>"完成"+((FeatureId is "video-slim" or "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停",JobState.Stopping=>"正在终止",_=>"已停止"};
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

@@ -56,7 +56,7 @@
         <Border IsVisible="False" VerticalAlignment="Center"><local:LucideIcon x:Name="StateIcon" Classes="queue-state-icon" Kind="{Binding StateIcon}" IsVisible="{Binding HasStateIcon}" Width="12" Height="12"/></Border>
         <TextBlock x:Name="StateText" Grid.Column="1" Classes="queue-state classic-only" Text="{Binding StateText}" MaxLines="1" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
         <TextBlock x:Name="CompactStateText" Grid.Column="1" Classes="queue-state modern-only" Text="{Binding CompactState}" MaxLines="1" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-        <Button x:Name="ViewResultButton" i18n:StableLayout.Samples="查看结果|查看任务" Grid.Column="2" Content="查看结果" Classes="ac secondary" Click="ViewResultClick" IsVisible="False"/>
+        <Button x:Name="ViewResultButton" Grid.Column="2" Content="查看任务详情" Classes="ac secondary" Click="ViewResultClick" IsVisible="False"/>
       </Grid>
       </Grid>
       </Grid>

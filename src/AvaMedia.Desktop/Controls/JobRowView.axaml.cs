@@ -86,15 +86,15 @@ public partial class JobRowView : UserControl
         OutputDragHandle.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
         CoverButton.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
         var tip = Localization.Text(canDrag
-            ? _owner.CanViewAiTask(job) ? "拖拽产出到工具或文件路由 · 单击查看任务" : "拖拽产出到工具或文件路由 · 单击编辑任务"
+            ? "拖拽产出到工具或文件路由 · 单击查看任务详情"
             : _details.PreviewTip);
         ToolTip.SetTip(CoverButton, tip);
         AutomationProperties.SetName(CoverButton, tip);
         ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖拽产出到工具或文件路由") : null);
 
-        ViewResultButton.IsVisible = _owner.CanViewAiTask(job);
-        ViewResultButton.Content = Localization.Text(_owner.CanViewAiTask(job) ? "查看任务" : "查看结果");
-        CoverButton.IsEnabled = canDrag || _owner.CanEditTask(job) || _owner.CanViewAiTask(job);
+        ViewResultButton.IsVisible = _owner.CanViewTaskDetails(job);
+        ViewResultButton.Content = Localization.Text("查看任务详情");
+        CoverButton.IsEnabled = _owner.CanViewTaskDetails(job);
         var outputPreview = _details.HasOutputPreview;
         var path = outputPreview ? job.Output : job.FeatureId == "download" ? "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
@@ -120,8 +120,8 @@ public partial class JobRowView : UserControl
     private void RefreshActivity()
     {
         var job = _details?.Job;
-        TaskStatePill.State = job?.State.ToString().ToLowerInvariant() ?? "waiting";
-        TaskStatePill.Text = Localization.Text(job?.State switch { JobState.Running => "进行中", JobState.Completed => "已完成", JobState.Paused => "已暂停", JobState.Failed => "失败", JobState.Cancelled => "已取消", JobState.Stopping => "正在停止", _ => "等待" });
+        TaskStatePill.State = job?.CompletionKind == JobCompletionKind.Unchanged ? "waiting" : job?.State.ToString().ToLowerInvariant() ?? "waiting";
+        TaskStatePill.Text = Localization.Text(job?.CompletionKind == JobCompletionKind.Unchanged ? "无需瘦身" : job?.State switch { JobState.Running => "进行中", JobState.Completed => "已完成", JobState.Paused => "已暂停", JobState.Failed => "失败", JobState.Cancelled => "已取消", JobState.Stopping => "正在停止", _ => "等待" });
         PipelineProgress.Classes.Set("paused", job?.State == JobState.Paused); PipelineProgress.Classes.Set("failed", job?.State == JobState.Failed);
         // The compact row keeps one thin progress line; the AI pipeline stays in 查看任务.
         var compact = _owner is { } owner && !owner.Classes.Contains("mac-os9") && !owner.Classes.Contains("windows-xp");
@@ -177,14 +177,17 @@ public partial class JobRowView : UserControl
         e.Handled = true;
         if (_draggingOutput || _suppressCoverClick) return;
         if (_owner is null || _details is null) return;
-        if (_owner.CanViewAiTask(_details.Job)) await _owner.ShowAiTaskAsync(_details.Job);
-        else await _owner.EditJob(_details.Job);
+        var job = _details.Job;
+        if (job.State is JobState.Completed or JobState.Failed or JobState.Cancelled) await _owner.ShowTaskDetailsAsync(job);
+        else if (_owner.CanViewAiTask(job)) await _owner.ShowAiTaskAsync(job);
+        else if (job.State is JobState.Waiting or JobState.Paused && _owner.CanEditTask(job)) await _owner.EditJob(job);
+        else await _owner.ShowTaskDetailsAsync(job);
     }
     private async void ViewResultClick(object? sender, RoutedEventArgs e)
     {
         e.Handled = true;
         if (_owner is null || _details is null) return;
-        await _owner.ShowAiTaskAsync(_details.Job);
+        await _owner.ShowTaskDetailsAsync(_details.Job);
     }
     private void OutputPointerPressed(object? sender, PointerPressedEventArgs e)
     {

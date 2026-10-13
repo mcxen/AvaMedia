@@ -198,13 +198,11 @@ public partial class MainWindow : Window
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
-    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed){try{if(CanViewClassificationTask(j))await ShowClassificationTaskAsync(j);else if(j.HasInternalOutput)await ShowAiTaskAsync(j);else if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
-    private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j]){try{var path=j.FeatureId=="folder-classification"?j.UserOutput:Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;if(Directory.Exists(path))Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void OpenSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.State==JobState.Completed && j.CompletionKind!=JobCompletionKind.Unchanged){try{if(CanViewClassificationTask(j))await ShowClassificationTaskAsync(j);else if(j.HasInternalOutput)await ShowAiTaskAsync(j);else if(File.Exists(j.Output)||Directory.Exists(j.Output))Open(j.Output);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
+    private async void RevealClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(SelectedJobs() is [var j] && j.CompletionKind!=JobCompletionKind.Unchanged){try{var path=j.FeatureId=="folder-classification"?j.UserOutput:Directory.Exists(j.Output)?j.Output:Path.GetDirectoryName(j.Output)!;if(Directory.Exists(path))Open(path);}catch(Exception ex){await Ui.Message(this,"打开失败",ex.Message);}}}
     private async void LogClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if(JobList.SelectedItem is not Job job)return;
-        try{var log=await job.ReadLogAsync();if(!_closing)await Ui.Message(this,"任务日志",job.Status+"\n\n"+job.Error+"\n\n"+log);}
-        catch(Exception ex){if(!_closing)await Ui.Message(this,"任务日志",ex.Message);}
+        if(SelectedJobs() is [var job]) await ShowTaskDetailsAsync(job, showLog: true);
     }
     private async void EditSelectedClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){if(JobList.SelectedItems?.Count==1 && JobList.SelectedItem is Job j)await EditJob(j);}
     private async void PreviewClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){e.Handled=true;if(sender is Control {DataContext:Job job})await EditJob(job);}
@@ -219,8 +217,10 @@ public partial class MainWindow : Window
         e.Handled=true;
         try
         {
-            if(CanViewAiTask(job))await ShowAiTaskAsync(job);
-            else await EditJob(job);
+            if(job.State is JobState.Completed or JobState.Failed or JobState.Cancelled) await ShowTaskDetailsAsync(job);
+            else if(CanViewAiTask(job))await ShowAiTaskAsync(job);
+            else if(job.State is JobState.Waiting or JobState.Paused && CanEditTask(job))await EditJob(job);
+            else await ShowTaskDetailsAsync(job);
         }
         catch(Exception error){if(!_closing)await Ui.Message(this,"打开任务失败",error.Message);}
     }

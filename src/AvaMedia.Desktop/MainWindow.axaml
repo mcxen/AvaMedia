@@ -107,6 +107,7 @@
                 <MenuItem x:Name="MoveTaskBottomMenu" Header="移到最后" Click="MoveTaskBottomClick"/>
               </MenuItem>
               <Separator x:Name="TaskFilesSeparator"/>
+              <MenuItem x:Name="ViewTaskDetailsMenu" Header="查看任务详情" Click="ViewTaskDetailsClick"/>
               <MenuItem x:Name="ViewAiTaskMenu" Header="打开任务界面…" Click="ViewAiTaskClick"/>
               <MenuItem x:Name="ViewSummaryResultMenu" Header="查看视频总结结果…" Click="ViewSummaryResultClick" IsEnabled="False"/>
               <MenuItem x:Name="ViewMediaTagResultMenu" Header="查看 AI 标签结果…" Click="ViewMediaTagResultClick" IsEnabled="False"/>

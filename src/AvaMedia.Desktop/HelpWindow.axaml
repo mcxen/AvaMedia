@@ -43,7 +43,7 @@
             <StackPanel x:Name="OtherFeatureList" Margin="-4,8,-4,0"/>
           </Expander>
         </StackPanel>
-        <TextBlock Text="双击任务可修改参数；右键可重试、查看日志或打开输出目录。"
+        <TextBlock Text="等待任务双击修改参数；已结束任务双击查看详情。右键可查看日志、重试或打开输出目录。"
                    Classes="caption" TextWrapping="Wrap"/>
       </StackPanel>
     </ScrollViewer>

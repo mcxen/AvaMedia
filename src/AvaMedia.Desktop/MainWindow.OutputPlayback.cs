@@ -10,7 +10,7 @@ public partial class MainWindow
     {
         var selected = JobList.SelectedItems?.OfType<Job>().ToHashSet() ?? [];
         return _jobs.Where(selected.Contains)
-            .Where(job => job.State == JobState.Completed && File.Exists(job.Output)
+            .Where(job => job.State == JobState.Completed && job.CompletionKind != JobCompletionKind.Unchanged && File.Exists(job.Output)
                 && VideoFolderScanner.IsVideoFile(job.Output))
             .Select(job => job.Output).Distinct(VideoFolderScanner.PathComparer).ToArray();
     }

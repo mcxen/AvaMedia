@@ -28,6 +28,8 @@ public sealed partial class Storage
         var jobs=Read<List<Job>>("queue.json") ?? [];
         foreach (var job in jobs) job.AttachLogs(_logs);
         foreach(var j in jobs.Where(j=>j.State is JobState.Running or JobState.Stopping)) {j.State=JobState.Cancelled;j.Error="应用在任务完成前退出，可重试。";}
+        foreach (var job in jobs.Where(job => job.State != JobState.Completed))
+        { job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = ""; }
         return jobs;
     }
     public void SaveSettings(AppSettings s)
@@ -134,6 +136,8 @@ public sealed partial class Storage
                 else if (job.HasInternalOutput) { job.Output = AiTaskResults.InternalOutputFor(job); job.State = JobState.Waiting; }
                 job.AttachLogs(_logs);
                 if (job.State is JobState.Running or JobState.Stopping) job.State = JobState.Cancelled;
+                if (job.State != JobState.Completed)
+                { job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = ""; }
                 jobs.Add(job);
                 if (entry.TryGetProperty(nameof(Job.Log), out var log))
                 {

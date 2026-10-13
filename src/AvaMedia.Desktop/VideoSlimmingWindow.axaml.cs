@@ -29,16 +29,20 @@ public sealed class VideoSlimmingEntry(string path) : Observable
     public string SourceSummary => Info is { } source ? Localization.Format(
         $"{MediaTime.Format(source.Duration)} · {source.Width} × {source.Height} · {source.VideoCodec.ToUpperInvariant()}") :
         Loading ? Localization.Text("正在读取媒体信息…") : "";
-    public string ListDetail => SourceSummary + (Bytes > 0 ? " · " + SourceSize : "") + (Analysis is not null ? Localization.Format($" → {EstimatedSize} · 节省 {Saving}") : "");
+    public string ListDetail => SourceSummary + (Bytes > 0 ? " · " + SourceSize : "") + (Analysis?.ActualBytes is { } actual
+        ? Localization.Format($" · 编码结果 {actual / 1000000d:0.##} MB · 实际节省 {Analysis.ActualSaving:0.#}%")
+        : Analysis?.EstimatedBytes is not null ? Localization.Format($" → {EstimatedSize} · 预估节省 {Saving}") : "");
     public string SourceSize => Bytes > 0 ? Localization.Format($"{Bytes / 1000000d:0.##} MB") : "—";
-    public string EstimatedSize => Analysis is { } analysis ? Localization.Format($"{analysis.EstimatedBytes / 1000000d:0.##} MB") : "—";
-    public string Saving => Analysis is { } analysis ? Localization.Format($"{analysis.EstimatedSaving:0.#}%") : "—";
+    public string EstimatedSize => Analysis?.EstimatedBytes is { } estimated ? Localization.Format($"{estimated / 1000000d:0.##} MB") : "—";
+    public string Saving => Analysis?.EstimatedSaving is { } saving ? Localization.Format($"{saving:0.#}%") : "—";
+    public string DiagnosisTip => HasError ? Error : Analysis?.Diagnosis ?? "";
     public bool Unavailable => HasError || Analysis?.Worthwhile == false;
     public string Status => Localization.Text(Loading ? "读取中" : Analyzing ? "分析中" : HasError ? "需要处理" :
-        Analysis is null ? "待分析" : Analysis.Worthwhile ? "可瘦身" : "节省不足 5%");
-    public string QualitySummary => Analysis is not { } analysis ? "" : Localization.Format(
-        $"SSIM {analysis.MeanSsim:0.####} · {analysis.Samples} 段采样 · {analysis.AudioTracks} 音轨 · {analysis.SubtitleTracks} 字幕轨") +
-        (analysis.SizeOptimized ? Localization.Format($" · {analysis.Width} × {analysis.Height} → {analysis.OutputWidth} × {analysis.OutputHeight}") : "");
+        Analysis is null ? "待分析" : Analysis.Worthwhile ? "可瘦身" : "无需瘦身");
+    public string QualitySummary => Analysis is not { } analysis ? "" :
+        (analysis.MeanSsim is { } ssim ? Localization.Format($"SSIM {ssim:0.####}") : Localization.Text("未找到满足画质要求的参数。")) +
+        Localization.Format($" · {analysis.Samples} 段采样 · {analysis.AudioTracks} 音轨 · {analysis.SubtitleTracks} 字幕轨") +
+        (analysis.Quality is not null && analysis.SizeOptimized ? Localization.Format($" · {analysis.Width} × {analysis.Height} → {analysis.OutputWidth} × {analysis.OutputHeight}") : "");
     public void Refresh() => Raise(string.Empty);
 }
 
@@ -147,14 +151,15 @@ public partial class VideoSlimmingWindow : Window
         var analyzed = _entries.Count(entry => entry.Analysis is not null);
         FileCountText.Text = _entries.Count > 0 ? Localization.Format($"{_entries.Count} 个视频") : "";
         EmptyText.IsVisible = _entries.Count == 0;
-        SummaryText.Text = _entries.Count == 0 ? "" : analyzed == _entries.Count
+        SummaryText.Text = _entries.Count == 0 ? "" : analyzed == _entries.Count && _entries.All(entry => entry.Analysis!.EstimatedBytes is not null)
             ? Localization.Format($"原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 预计 {_entries.Sum(entry => entry.Analysis!.EstimatedBytes) / 1000000d:0.##} MB（采样估算）")
             : Localization.Format($"原体积 {_entries.Sum(entry => entry.Bytes) / 1000000d:0.##} MB · 已分析 {analyzed}/{_entries.Count}");
         if (!_busy)
         {
-            var unavailable = _entries.Count(entry => entry.Unavailable);
-            StatusText.Text = _adding ? Localization.Text("正在读取媒体信息…") : unavailable > 0
-                ? Localization.Format($"处理 {available.Length} 个视频，跳过 {unavailable} 个不可处理文件") : !hasFolder && _entries.Count > 0
+            var unchanged = _entries.Count(entry => !entry.HasError && entry.Analysis?.Worthwhile == false);
+            var unavailable = _entries.Count(entry => entry.HasError);
+            StatusText.Text = _adding ? Localization.Text("正在读取媒体信息…") : unchanged > 0 || unavailable > 0
+                ? Localization.Format($"可瘦身 {available.Length} 个，无需瘦身 {unchanged} 个，需要处理 {unavailable} 个。") : !hasFolder && _entries.Count > 0
                 ? Localization.Text("请选择输出目录。") : _completionStatus.Length > 0 ? Localization.Text(_completionStatus)
                 : _entries.Count > 0 && analyzed < _entries.Count ? Localization.Text("未预估的视频将在执行时自动分析。") : "";
         }
@@ -176,9 +181,11 @@ public partial class VideoSlimmingWindow : Window
         SelectedFileText.Text = entry?.Name ?? "";
         QualityText.Text = entry?.QualitySummary ?? "";
         QualityText.IsVisible = QualityText.Text.Length > 0;
+        DiagnosisText.Text = Localization.Text(entry?.Analysis?.Diagnosis ?? "");
+        DiagnosisText.IsVisible = DiagnosisText.Text.Length > 0;
         ErrorText.Text = entry?.Error ?? "";
         ErrorText.IsVisible = ErrorText.Text.Length > 0;
-        if (entry?.HasError == true) AnalysisDetails.IsExpanded = true;
+        if (entry?.HasError == true || entry?.Analysis?.Worthwhile == false) AnalysisDetails.IsExpanded = true;
     }
 
     private async Task AddFilesAsync(IEnumerable<string> files)
@@ -229,11 +236,11 @@ public partial class VideoSlimmingWindow : Window
             {
                 var entry = entries[index]; var completed = index;
                 token.ThrowIfCancellationRequested();
-                entry.AnalysisError = ""; entry.Analysis = null; entry.Analyzing = true; entry.Refresh();
+                entry.AnalysisError = ""; entry.Analyzing = true; entry.Refresh();
                 StatusText.Text = Localization.Format($"分析 {index + 1}/{entries.Length} · {entry.Name}");
                 try
                 {
-                    entry.Analysis = await new VideoSlimming(engine).AnalyzeAsync(entry.Path, options, (value, detail) =>
+                    entry.Analysis = await new VideoSlimming(engine).AnalyzeAsync(entry.Path, options with { Analysis = entry.Analysis }, (value, detail) =>
                         Dispatcher.UIThread.Post(() =>
                         {
                             if (_closed || !_busy || !entry.Analyzing || token.IsCancellationRequested) return;

@@ -68,6 +68,8 @@ public partial class MainWindow
                 job.Error, job.Inputs.ToArray(), job.UserOutput, job.SubmittedBy, job.SubmissionId)
             {
                 OutputIsPartial = job.OutputIsPartial || job.State != JobState.Completed,
+                CompletionKind = job.CompletionKind.ToString(),
+                CompletionMessage = privateEnabled || !MediaPrivacy.IsSensitiveText(job.CompletionMessage) ? job.CompletionMessage : "",
                 Activity = activity is null ? null : new(activity.Stage, activity.Model, activity.Backend,
                     privateEnabled || !MediaPrivacy.IsSensitiveText(activity.Detail) ? activity.Detail : "",
                     activity.Current, activity.Total, activity.Unit, activity.UpdatedUtc)
@@ -338,6 +340,8 @@ public partial class MainWindow
                 result = await AiTaskResults.LoadAsync<System.Text.Json.JsonElement?>(job.Output, ct).ConfigureAwait(false);
             else if (job.FeatureId == "batch-rename")
                 result = new { Plan = job.Options.Rename?.Plan, Journal = job.Output, Applied = job.State == JobState.Completed };
+            else if (view.State == nameof(JobState.Completed) && view.CompletionKind == nameof(JobCompletionKind.Unchanged))
+                result = new { CompletionKind = view.CompletionKind, Message = view.CompletionMessage, PreservedInputs = view.Inputs };
             else if (job.State == JobState.Completed) result = new { Output = job.Output };
             return new(view, result, offset, next) { OutputIsDirectory = Directory.Exists(view.Output) };
         }
