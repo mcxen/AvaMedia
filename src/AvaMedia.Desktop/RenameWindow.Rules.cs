@@ -14,8 +14,9 @@ public sealed partial class RenameWindow
     private const int MaximumRules = 100;
     private static readonly JsonSerializerOptions RuleJson = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
     private readonly HashSet<Control> _invalidRuleInputs = [];
-    private void InitializeCatalog()
+    private void ShowRuleCatalog()
     {
+        var menu = new ContextMenu { Classes = { "ac" } };
         Category("名称与文本", [
             ("新名称模板", new(RenameAction.Template) { Text = "{name}" }),
             ("添加文本", new(RenameAction.Add) { Separator = "" }),
@@ -29,15 +30,18 @@ public sealed partial class RenameWindow
         Category("媒体信息", [("按媒体信息命名", new(RenameAction.Template) { Text = "{name}_{width}x{height}" })]);
         if (_settings.EnableBetaFeatures)
         {
-            var panel = new StackPanel { Spacing = 5 }; panel.Children.Add(Ui.ComponentText("智能命名 · Beta", "settingsHeading"));
-            panel.Children.Add(Ui.Button("关键词匹配", () => { _semantic.IsChecked = true; _semanticPanel.BringIntoView(); })); _catalog.Children.Add(panel);
+            var keyword = new MenuItem { Header = Localization.Text("关键词匹配") };
+            keyword.Click += (_, _) => { _semantic.IsChecked = true; _semanticPanel.BringIntoView(); };
+            menu.Items.Add(new Separator()); menu.Items.Add(keyword);
         }
+        _addRule.ContextMenu = menu; menu.Open(_addRule);
         void Category(string name, (string Label, RenameOperation Rule)[] tools)
         {
-            var items = new StackPanel { Spacing = 3 };
+            var heading = Ui.ComponentText(name); heading.Bind(MarginProperty, Classification.ClassifyUi.Resource("RenameMenuHeaderMargin"));
+            var group = new MenuItem { Header = heading };
             foreach (var (label, rule) in tools)
-            { var button = Ui.Button(label, () => AddRule(label, rule)); button.HorizontalAlignment = HorizontalAlignment.Stretch; items.Children.Add(button); }
-            _catalog.Children.Add(new Expander { Header = name, IsExpanded = true, Content = items, HorizontalAlignment = HorizontalAlignment.Stretch });
+            { var item = new MenuItem { Header = Localization.Text(label) }; item.Click += (_, _) => AddRule(label, rule); group.Items.Add(item); }
+            menu.Items.Add(group);
         }
     }
     private void AddRule(string label, RenameOperation operation)
@@ -53,7 +57,7 @@ public sealed partial class RenameWindow
         };
         _rules.Add(step); RenumberRules(); _ruleList.SelectedItem = step; InvalidatePlan();
     }
-    private void RenumberRules() { for (var index = 0; index < _rules.Count; index++) _rules[index].Number = index + 1; }
+    private void RenumberRules() { for (var index = 0; index < _rules.Count; index++) _rules[index].Number = index + 1; UpdateRuleActions(); }
     private void MoveRule(int offset)
     {
         if (_ruleList.SelectedItem is not RenameStep step) return;
@@ -77,17 +81,17 @@ public sealed partial class RenameWindow
     private void BuildRuleEditor()
     {
         _ruleEditor.Children.Clear(); _invalidRuleInputs.Clear();
-        if (_ruleList.SelectedItem is not RenameStep step) { _ruleEditor.Children.Add(Ui.ComponentText("从左侧添加命名规则。", "caption")); return; }
+        if (_ruleList.SelectedItem is not RenameStep step) { _ruleEditor.Children.Add(Ui.ComponentEmptyState("添加命名规则")); return; }
         var rule = step.Operation; _ruleEditor.Children.Add(Ui.ComponentText(step.Label, "settingsHeading"));
         switch (rule.Action)
         {
             case RenameAction.Template:
                 var template = Text("命名模板", rule.Text, text => step.Operation = step.Operation with { Text = text });
-                var tokens = new WrapPanel();
+                var tokens = new WrapPanel { Classes = { "rename-rule-options" } };
                 foreach (var (label, token) in new[] { ("原名称", "{name}"), ("序号", "{index}"), ("文件夹", "{parent}"), ("宽度", "{width}"), ("高度", "{height}"), ("时长", "{duration}"), ("修改日期", "{modified:yyyyMMdd}") })
                 {
                     var button = Ui.Button(label, () => { var position = template.CaretIndex; template.Text = (template.Text ?? "").Insert(position, token); template.CaretIndex = position + token.Length; template.Focus(); });
-                    button.Margin = new(0, 0, 4, 4); button.Classes.Add("field-action"); tokens.Children.Add(button);
+                    button.Classes.Add("field-action"); tokens.Children.Add(button);
                 }
                 _ruleEditor.Children.Add(tokens); _ruleEditor.Children.Add(Ui.ComponentText("扩展名自动保留", "caption")); Numbering(); break;
             case RenameAction.Add:
@@ -139,7 +143,7 @@ public sealed partial class RenameWindow
             else
             {
                 var separator=Text("分隔符",rule.Separator,text=>step.Operation=step.Operation with {Separator=text});
-                var choices=new WrapPanel();foreach(var value in new[]{""," ","_","-","."}){var button=Ui.Button(value.Length==0?"无":value==" "?"空格":value,()=>separator.Text=value);button.Margin=new(0,0,4,4);choices.Children.Add(button);}_ruleEditor.Children.Add(choices);
+                var choices=new WrapPanel { Classes = { "rename-rule-options" } };foreach(var value in new[]{""," ","_","-","."}){var button=Ui.Button(value.Length==0?"无":value==" "?"空格":value,()=>separator.Text=value);choices.Children.Add(button);}_ruleEditor.Children.Add(choices);
             }
         }
         TextBox Text(string label, string value, Action<string> change)
@@ -158,7 +162,7 @@ public sealed partial class RenameWindow
         void Toggle(string label, bool value, Action<bool> change)
         { var check = new CheckBox { Classes = { "ac" }, Content = label, IsChecked = value }; check.IsCheckedChanged += (_, _) => change(check.IsChecked == true); _ruleEditor.Children.Add(check); }
         void Choice(string label, string[] choices, int value, Action<int> change)
-        { var combo = new ComboBox { Classes = { "ac" }, ItemsSource = choices.Select(Localization.Text).ToArray(), SelectedIndex = value, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 120, MaxWidth = 240 }; AddRow(_ruleEditor, label, combo); combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) change(combo.SelectedIndex); }; }
+        { var combo = new ComboBox { Classes = { "ac" }, ItemsSource = choices.Select(Localization.Text).ToArray(), SelectedIndex = value, HorizontalAlignment = HorizontalAlignment.Stretch }; AddRow(_ruleEditor, label, combo); combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) change(combo.SelectedIndex); }; }
     }
     private async Task SaveRulesAsync()
     {

@@ -67,9 +67,11 @@ public sealed partial class RenameWindow
         if (_closed) return;
         _revision++; _renamePlan = null; if (_rename is not null) _rename.IsEnabled = false;
         _previewCancellation?.Cancel();
-        foreach (var entry in _entries) entry.NewName = "";
+        RefreshFileSelection(); RefreshRenameAction();
+        // The displayed names remain available for comparison; the invalidated plan cannot execute.
         Localization.SetText(_summary, $"{_entries.Count} 个文件 · 图片 {_entries.Count(entry => new MediaFileRouter().Classify(entry.Path) == MediaFileKind.Image)} · 视频 {_entries.Count(entry => VideoFormats.IsVideo(entry.Path))} · 勾选 {_entries.Count(entry => entry.Include)} 个");
         if (!preview || _entries.Count == 0 || _operation is not null || _renaming || _importing) return;
+        _progressText.Text = Localization.Text("正在更新预览…");
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _previewCancellation = cancellation;
         _ = PreviewAsync(_revision, cancellation, true);
@@ -78,6 +80,7 @@ public sealed partial class RenameWindow
     {
         if (_closed || _operation is not null || _renaming || _importing) return Task.CompletedTask;
         _revision++; _renamePlan = null; _rename.IsEnabled = false; _previewCancellation?.Cancel();
+        RefreshRenameAction();
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _previewCancellation = cancellation;
         return PreviewAsync(_revision, cancellation, false);
     }
@@ -89,7 +92,11 @@ public sealed partial class RenameWindow
             if (_closed || revision != _revision) return;
             if (_invalidRuleInputs.Count > 0) throw new ArgumentException("请输入范围内的整数。");
             var selected = _entries.Where(entry => entry.Include).ToArray();
-            if (selected.Length == 0) { _progressText.Text = Localization.Text("请勾选需要重命名的文件。"); return; }
+            if (selected.Length == 0)
+            {
+                foreach (var entry in _entries) { entry.NewName = ""; entry.Status = Localization.Text("未勾选"); }
+                _progressText.Text = Localization.Text("请勾选需要重命名的文件。"); return;
+            }
             var files = selected.Select(entry => entry.Path).ToArray(); var operations = _rules.Select(rule => rule.Operation).ToArray();
             ValidateSemanticSources(files);
             var keywords = selected.ToDictionary(entry => entry.Path, entry => entry.Keyword.Trim(), BatchRename.PathComparer);
@@ -137,6 +144,7 @@ public sealed partial class RenameWindow
             }
             _renamePlan = result.CanApply ? result.Plan : null;
             _rename.IsEnabled = result.CanApply;
+            RefreshRenameAction();
             Localization.SetText(_progressText, $"将修改 {result.Changes} 个 · 错误 {result.Errors} 个");
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -186,8 +194,9 @@ public sealed partial class RenameWindow
     private void SetBusy(bool busy)
     {
         if (busy) { _revision++; _previewCancellation?.Cancel(); _renamePlan = null; }
-        _importBar.IsEnabled = _catalog.IsEnabled = _ruleList.IsEnabled = _ruleActions.IsEnabled = _renamePanel.IsEnabled = _list.IsEnabled = !busy;
-        _previewButton.IsEnabled = !busy; _undo.IsEnabled = !busy && BatchRename.CanUndo(_journal); _rename.IsEnabled = !busy && _renamePlan is not null;
+        _importBar.IsEnabled = _ruleTools.IsEnabled = _ruleList.IsEnabled = _ruleActions.IsEnabled = _renamePanel.IsEnabled = _list.IsEnabled = !busy;
+        _undo.IsEnabled = !busy && BatchRename.CanUndo(_journal); _rename.IsEnabled = !busy && _renamePlan is not null;
+        RefreshFileSelection(); RefreshRenameAction();
         _stop.IsVisible = busy && _operation is not null; _stop.IsEnabled = true;
     }
 }

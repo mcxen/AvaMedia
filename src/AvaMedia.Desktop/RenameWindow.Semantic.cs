@@ -11,7 +11,7 @@ public sealed partial class RenameWindow
     private readonly AppSettings _settings;
     private readonly Func<Window, Task>? _manageModels;
     private readonly CheckBox _semantic = new() { Classes = { "ac" }, Content = "关键词匹配重命名 · Beta" };
-    private readonly TextBox _keywords = new() { Classes = { "ac" }, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+    private readonly TextBox _keywords = new() { Classes = { "ac", "multiline" }, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         Watermark = Localization.Text("做饭，骑车，海边") };
     private readonly NumericUpDown _semanticFrames = SemanticNumber(1, 32, 8, 1);
     private readonly CheckBox _semanticReuse = new() { Classes = { "ac" }, Content = "复用相似画面", IsChecked = true };
@@ -53,13 +53,13 @@ public sealed partial class RenameWindow
             Localization.SetIsUserText(_keywords, true);
             InitializeSemanticWordLibraries();
             _semanticParameters.Children.Add(_keywords);
-            var advanced=new StackPanel { Spacing=8 };
+            var advanced=new StackPanel { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
             AddRow(advanced, "每视频采样帧数", _semanticFrames);
             AddRow(advanced, "最低相似度", _semanticThreshold);
             AddRow(advanced, "关键词分差", _semanticMargin);
             advanced.Children.Add(_semanticReuse);
 
-            _semanticParameters.Children.Add(new Expander { Header="高级设置", Content=advanced, HorizontalAlignment=HorizontalAlignment.Stretch });
+            _semanticParameters.Children.Add(new Expander { Header="高级设置", Content=advanced, HorizontalAlignment=HorizontalAlignment.Stretch, Classes = { "ac" } });
             var models = Ui.Button("模型管理…", async () =>
             {
                 try
