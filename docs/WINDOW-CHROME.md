@@ -20,4 +20,8 @@ Mac OS 9 / Windows XP 皮肤通过 `Skin.Registration` 的 `PlatinumWindowFrame`
 
 标题行和队列栏留白支持 `BeginMoveDrag`，双击切换最大化；按钮、文本框、菜单、滑条、下拉及分隔条保留自身操作。固定大小 / 禁止最小化或最大化的工具窗口，其共享标题按钮也必须遵守对应能力。
 
+主窗口、编辑器和工具窗口通过 `WindowChrome.HookDrag` 在窗口的 `PointerPressed` 隧道路由处理标题输入，不依赖透明标题控件成为事件源。顶部标题带从客户区顶端延伸到实际标题行底部，覆盖页面上边距和红绿灯两侧留白；主窗口队列栏按实际行范围包含外边距，不扩展到任务列表或侧栏正文。视觉树命中排除交互控件及其模板子元素，禁用控件也保留原点击区域；全屏不启动拖动。标题拆卸时移除窗口监听，换皮或替换内容不会留下重复监听。
+
+拖动在左键按下事件中同步调用 Avalonia 的原生 `BeginMoveDrag`，先释放鼠标按下产生的隐式捕获，避免系统拖动循环接管释放事件后仍锁定原控件。依据当前依赖 Avalonia 11.3.22 的 [MouseDevice](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Base/Input/MouseDevice.cs)、[Window](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/Window.cs) 和 [macOS WindowBaseImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/WindowBaseImpl.mm)；macOS 的实际移动交给 `NSWindow.performWindowDragWithEvent`。
+
 `AVAMEDIA_CHROME=mac|win|system` 控制布局选择；`mac` 在非 macOS 绘制占位红绿灯，只用于预览间距，不能改变真实平台的系统框架策略。Linux 的 mac 预览仍保留 WM 装饰；`system` 保留系统标题栏。`MACOS` 编译常量仅选择布局，平台 API 仍按实际操作系统调用。

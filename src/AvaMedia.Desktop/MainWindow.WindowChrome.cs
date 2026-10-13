@@ -68,26 +68,19 @@ public partial class MainWindow
     {
         if (_frameHooked) return;
         _frameHooked = true;
-        // Listen on the window: transparent gaps do not hit the title grids, and the
-        // sidebar header sits outside them. Use the laid-out title height across both columns.
-        PointerPressed += (_, e) =>
+        WindowChrome.HookDrag(this, WorkspaceLayout,
+            () => ModernChrome && FrameKind != WindowFrameKind.System, e =>
         {
-            if (!ModernChrome || FrameKind == WindowFrameKind.System || e.Source is Control c && IsInteractive(c)) return;
-            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
             var titlePoint = e.GetPosition(ModernTitleBar);
-            var queuePoint = e.GetPosition(ModernQueueBar);
-            var inTitle = titlePoint.Y >= -ModernTitleBar.Margin.Top && titlePoint.Y < ModernTitleBar.Bounds.Height;
-            var inQueue = new Rect(ModernQueueBar.Bounds.Size).Contains(queuePoint);
-            if (!inTitle && !inQueue) return;
-            e.Handled = true;
-            if (e.ClickCount == 2) ToggleMaximize(); else BeginMoveDrag(e);
-        };
+            // The top row spans the sidebar as well as the task column. The queue
+            // header stays within its own row, including its surrounding margins.
+            return ModernTitleBar.IsEffectivelyVisible && ModernTitleBar.Bounds.Height > 0
+                && titlePoint.Y >= -ModernTitleBar.Margin.Top
+                && titlePoint.Y < ModernTitleBar.Bounds.Height + ModernTitleBar.Margin.Bottom
+                || WindowChrome.ContainsTitlePoint(ModernQueueBar, e);
+        });
         PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) UpdateMaximizeGlyph(); };
     }
-
-    private static bool IsInteractive(Control control) => WindowChrome.IsInteractive(control);
-
-    private void ToggleMaximize() => WindowChrome.ToggleMaximize(this);
 
     private void EnsureCaptionButtons()
     {

@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Markup.Xaml.MarkupExtensions;
@@ -57,7 +59,7 @@ internal static partial class WindowChrome
             if (modern && !fullscreen)
                 window.ExtendClientAreaTitleBarHeightHint = Metric(window, "UiToolTitleBarHeight", 48);
         }
-        HookDrag(window, titleBar, () => titleBar.IsVisible);
+        HookDrag(window, titleBar, () => !Skin.UsesCustomChrome(window.ActualThemeVariant));
         UpdateDialog(window, Apply);
         return root;
     }
@@ -189,20 +191,72 @@ internal static partial class WindowChrome
             window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
-    public static bool IsInteractive(Control control)
+    public static bool IsInteractive(Visual? visual)
     {
-        for (Visual? c = control; c is not null; c = c.GetVisualParent())
-            if (c is Button or TextBox or MenuItem or Slider or ComboBox or GridSplitter) return true;
+        for (var c = visual; c is not null && c is not Window; c = c.GetVisualParent())
+            if (c is Button or TextBox or Menu or MenuItem or RangeBase or SelectingItemsControl
+                or AutoCompleteBox or DatePicker or TimePicker or Calendar or GridSplitter or SelectableTextBlock) return true;
         return false;
     }
 
+    internal static bool ContainsTitlePoint(Control region, PointerEventArgs args) =>
+        region.IsEffectivelyVisible && region.Bounds.Width > 0 && region.Bounds.Height > 0
+        && new Rect(region.Bounds.Size).Inflate(region.Margin).Contains(args.GetPosition(region));
+
+    private static bool ContainsTopTitlePoint(Window window, Control region, PointerEventArgs args)
+    {
+        if (region.Bounds.Width <= 0 || region.Bounds.Height <= 0
+            || region.TranslatePoint(default, window) is not { } origin) return false;
+        var bottom = origin.Y + region.Bounds.Height + region.Margin.Bottom;
+        // Include editor page padding and macOS traffic-light gutters above/beside
+        // the title control. These belong to the top title band, not the body.
+        return bottom > 0 && new Rect(0, 0, window.Bounds.Width, bottom).Contains(args.GetPosition(window));
+    }
+
     /// <summary>Drag the window from a title region; double-click toggles maximize.</summary>
-    public static void HookDrag(Window window, Control region, Func<bool> enabled) =>
-        region.PointerPressed += (_, e) =>
+    public static void HookDrag(Window window, Control region, Func<bool> enabled,
+        Func<PointerPressedEventArgs, bool>? hitTest = null)
+    {
+        // PointerPressed normally bubbles. A title's transparent gaps can hit a sibling
+        // or its parent instead, and a ScrollViewer can handle the press before it bubbles.
+        // Listen at the window's tunnel stage and restrict input to the laid-out title.
+        void Pressed(object? sender, PointerPressedEventArgs args)
         {
-            if (!enabled() || e.Source is Control c && IsInteractive(c)) return;
-            if (!e.GetCurrentPoint(window).Properties.IsLeftButtonPressed) return;
-            if (e.ClickCount == 2) ToggleMaximize(window); else window.BeginMoveDrag(e);
+            if (args.Handled || !enabled() || !region.IsEffectivelyVisible
+                || window.WindowState == WindowState.FullScreen) return;
+            if (args.GetCurrentPoint(window).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed) return;
+            if (!(hitTest?.Invoke(args) ?? ContainsTopTitlePoint(window, region, args))) return;
+            if (IsInteractive(args.Source as Visual)) return;
+            // Input routing skips disabled controls. Hit-test the visuals too so a
+            // disabled caption/button is not mistaken for title-bar blank space.
+            var visual = window.GetVisualAt(args.GetPosition(window), v => v.IsVisible
+                && (v is not IInputElement input || input.IsHitTestVisible));
+            if (IsInteractive(visual)) return;
+            args.Handled = true;
+            if (args.ClickCount == 2) ToggleMaximize(window);
+            else
+            {
+                // MouseDevice implicitly captures the press target. Hand input to the
+                // native move loop, which may consume the release event (notably on macOS).
+                args.Pointer.Capture(null);
+                window.BeginMoveDrag(args);
+            }
+        }
+
+        var attached = false;
+        void Attach()
+        {
+            if (attached || region.GetVisualRoot() != window) return;
+            window.AddHandler(InputElement.PointerPressedEvent, Pressed, RoutingStrategies.Tunnel);
+            attached = true;
+        }
+        region.AttachedToVisualTree += (_, _) => Attach();
+        region.DetachedFromVisualTree += (_, _) =>
+        {
+            window.RemoveHandler(InputElement.PointerPressedEvent, Pressed);
+            attached = false;
         };
+        Attach();
+    }
 
 }
