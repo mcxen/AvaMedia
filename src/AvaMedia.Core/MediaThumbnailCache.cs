@@ -28,14 +28,14 @@ public sealed class MediaThumbnailCache
         if (width is < 2 or > 4096 || seconds is { } time && (!double.IsFinite(time) || time < 0))
             throw new ArgumentException("缩略图尺寸或时间无效。");
         path = Path.GetFullPath(path);
-        var key = Hash($"thumb-v1|{Identity(path)}|{width}|{seconds?.ToString("R", CultureInfo.InvariantCulture)}");
+        var key = Hash($"thumb-v2|{Identity(path)}|{width}|{seconds?.ToString("R", CultureInfo.InvariantCulture)}");
         return Cached(key, async temporary =>
         {
             List<string> args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-threads", "1"];
             if (VideoFormats.IsVideo(path)) args.AddRange(["-ss", MediaEngine.Number(seconds ?? 0)]);
             else if (Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg")
                 args.AddRange(["-lowres", "3"]); // Native JPEG decoder downsamples before allocating a full frame.
-            args.AddRange(["-i", path, "-frames:v", "1", "-an", "-vf", $"scale={width}:-2", "-filter_threads", "1",
+            args.AddRange(["-i", path, "-frames:v", "1", "-an", "-vf", $"scale=w='min({width},iw*sar)':h=-2:reset_sar=1", "-filter_threads", "1",
                 "-threads", "1", "-q:v", "5", "-f", "image2", "-y", temporary]);
             await Run(args, ct).ConfigureAwait(false);
         }, ct);

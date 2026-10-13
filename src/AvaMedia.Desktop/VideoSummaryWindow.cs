@@ -97,7 +97,7 @@ public sealed class VideoSummaryWindow : Window
         {
             var label = Ui.ComponentText(Path.GetFileName(path!)); Localization.SetIsUserText(label, true);
             label.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis; label.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
-            ToolTip.SetTip(label, path); return label;
+            ToolTip.SetTip(label, path); return new AvaMedia.Controls.ListRow { Child = label };
         });
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; _empty.IsHitTestVisible = false;
         var fileArea = new Grid(); fileArea.Children.Add(_sources); fileArea.Children.Add(_empty); imports.FileList = fileArea;
@@ -106,7 +106,7 @@ public sealed class VideoSummaryWindow : Window
         _preview = new MediaPreviewPanel(engine) { Compact = true }; Grid.SetRow(_preview,1); Grid.SetColumn(_preview,1); root.Children.Add(_preview);
         _sources.SelectionChanged += (_,_) => _preview.SetSource(_sources.SelectedItem as string);
         Closed += (_,_) => _preview.Dispose();
-        root.Children.Add(new ScrollViewer { Content = fields, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, [Grid.RowProperty] = 1 });
+        root.Children.Add(new ScrollViewer { Content = Ui.ComponentCard(fields), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, [Grid.RowProperty] = 1 });
         var outputs = new WrapPanel { Orientation = Orientation.Horizontal };
         _abstract.IsChecked = options.ExtractAbstract; _summary.IsChecked = options.SummarizeContent;
         _subtitles.IsChecked = options.ExtractSubtitles; _analysis.IsChecked = options.AnalyzeContent;
@@ -295,6 +295,7 @@ public sealed class VideoSummaryWindow : Window
     {
         if (_confirm is null) return;
         _empty.IsVisible = _files.Count == 0;
+        _preview.IsVisible = _files.Count > 0;
         var ai = _abstract.IsChecked == true || _summary.IsChecked == true || _analysis.IsChecked == true;
         var online = _provider.SelectedIndex == (int)VideoSummaryProvider.Online;
         _onlineProviderRow.IsVisible = ai && online;
@@ -308,7 +309,7 @@ public sealed class VideoSummaryWindow : Window
         _subtitleTrack.IsEnabled = _source.SelectedIndex is 0 or 1; _audioTrack.IsEnabled = _speechFields.IsVisible;
         _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _confirm.IsEnabled = !_busy && _files.Count > 0 && (ai || _subtitles.IsChecked == true);
-        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : "加入队列");
+        _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : ToolExecution.StartImmediately(this) ? "后台总结" : "仅加入队列");
         _modelWarmup?.Update(ai && !online ? (_frames.IsChecked == true
             ? new[] { (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryTextId }
             : [ModelCatalog.SummaryTextId]) : [], _files.FirstOrDefault());
@@ -348,7 +349,7 @@ public sealed class VideoSummaryWindow : Window
     private static void Add(Panel panel, string label, Control control, int column = 0)
     { control=Ui.ComponentParameter(control,label);
         AutomationProperties.SetName(control, label);
-        var row = new Grid { ColumnDefinitions = new("72,*"), ColumnSpacing = 6 };
+        var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 6 };
         row.Children.Add(Ui.ComponentText(label)); Grid.SetColumn(control, 1); row.Children.Add(control);
         if (column > 0) Grid.SetColumn(row, column);
         panel.Children.Add(row);

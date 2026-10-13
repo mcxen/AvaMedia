@@ -49,6 +49,7 @@ public sealed class SubtitleReviewWindow : Window
     private readonly Source[] _sources;
     private readonly ComboBox _files = new() { Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ListBox _cues = new();
+    private readonly AvaMedia.Controls.EmptyState _cueEmpty = new() { Text = "暂无字幕，请先识别或添加字幕" };
     private readonly TextBlock _cueCount = Ui.ComponentText("", "caption");
     private readonly TextBox _start = Ui.ComponentInput(), _end = Ui.ComponentInput(), _text = Ui.ComponentInput();
     private readonly TextBlock _notice = Ui.ComponentStatus();
@@ -106,7 +107,7 @@ public sealed class SubtitleReviewWindow : Window
             time.Bind(TextBlock.TextProperty, new Binding(nameof(CueDraft.Time))); row.Children.Add(time);
             var text = Ui.ComponentText(""); text.Bind(TextBlock.TextProperty, new Binding(nameof(CueDraft.Summary)));
             Localization.SetIsUserText(text, true); text.TextTrimming = TextTrimming.CharacterEllipsis; text.TextWrapping = TextWrapping.NoWrap;
-            Grid.SetColumn(text, 1); row.Children.Add(text); return row;
+            Grid.SetColumn(text, 1); row.Children.Add(text); return new AvaMedia.Controls.ListRow { Child = row };
         });
         var listHeader = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Margin = new(0, 0, 0, 4) };
         listHeader.Children.Add(Ui.ComponentText("字幕"));
@@ -119,7 +120,7 @@ public sealed class SubtitleReviewWindow : Window
         });
         addCue.Classes.Add("field-action"); Grid.SetColumn(addCue, 1); listHeader.Children.Add(addCue);
         var cueColumn = new Grid { RowDefinitions = new("Auto,*") }; cueColumn.Children.Add(listHeader);
-        Grid.SetRow(_cues, 1); cueColumn.Children.Add(_cues); content.Children.Add(cueColumn);
+        Grid.SetRow(_cues, 1); cueColumn.Children.Add(_cues); Grid.SetRow(_cueEmpty, 1); cueColumn.Children.Add(_cueEmpty); content.Children.Add(cueColumn);
         Avalonia.Automation.AutomationProperties.SetName(_files,"字幕源文件");Avalonia.Automation.AutomationProperties.SetName(_cues,"字幕列表");
         Avalonia.Automation.AutomationProperties.SetName(_start,"开始时间");Avalonia.Automation.AutomationProperties.SetName(_end,"结束时间");Avalonia.Automation.AutomationProperties.SetName(_text,"字幕文字");
         _text.AcceptsReturn = true; _text.MinHeight = 52; _text.MaxHeight = 88; _text.TextWrapping = Avalonia.Media.TextWrapping.Wrap; Localization.SetIsUserText(_text, true);
@@ -294,6 +295,7 @@ public sealed class SubtitleReviewWindow : Window
         _export.IsEnabled = !_busy && _sources.Any(source => source.Cues?.Count > 0); _editor.IsEnabled = !_busy && _cues.SelectedItem is CueDraft;
         _format.IsEnabled = !_busy;
         var count = Selected?.Cues?.Count ?? 0;
+        _cueEmpty.IsVisible = count == 0;
         _cueCount.Text = count > 0 ? Localization.Format($"{count} 条") : "";
     }
 }

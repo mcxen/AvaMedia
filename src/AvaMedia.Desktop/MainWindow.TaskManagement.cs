@@ -20,6 +20,21 @@ public partial class MainWindow
         || CanRequeueTask(job) && job.State == JobState.Cancelled;
     private bool CanMoveTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && !_queue.IsExecuting(job) && job.State is JobState.Waiting or JobState.Paused;
 
+    internal bool CanPauseRowTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_editingJobs.Contains(job)
+        && job.State is JobState.Waiting or JobState.Running;
+    internal bool CanStopRowTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_editingJobs.Contains(job)
+        && job.State is JobState.Waiting or JobState.Running or JobState.Paused;
+    internal bool CanRunRowTask(Job job) => _jobs.Contains(job) && (CanStartTask(job) || CanContinueTask(job)
+        || job.State == JobState.Failed && CanRequeueTask(job));
+    internal Task RunRowTaskAsync(Job job) => CanRunRowTask(job) ? RequestTaskRunAsync(job) : Task.CompletedTask;
+    internal void PauseRowTask(Job job) { if (CanPauseRowTask(job)) PauseTask(job); }
+    internal void StopRowTask(Job job) { if (CanStopRowTask(job)) { _queue.Stop(job); Save(); Refresh(); } }
+    internal Task ShowRowTaskAsync(Job job)
+    {
+        if (CanViewAiTask(job)) return ShowAiTaskAsync(job);
+        return ShowTaskDetailsAsync(job);
+    }
+
     private void InitializeTaskManagement()
     {
         JobList.ItemsSource = _visibleJobs;

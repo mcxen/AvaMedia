@@ -23,8 +23,8 @@ public sealed class AiActivityView : Border
     private readonly TextBlock _clock = Text();
     private readonly TextBlock _compactStage = Line();
     private readonly TextBlock _compactClock = Line();
-    private readonly ProgressBar _compactProgress = new() { Maximum = 100, Height = 5 };
-    private readonly Grid _compactTrack = new() { Height = 5 };
+    private readonly ProgressBar _compactProgress = new() { Maximum = 100, Height = 4, MinHeight = 4 };
+    private readonly Grid _compactTrack = new() { Height = 4 };
     private readonly AiActivityFlowView _flow = new();
     private readonly StackPanel _content = new() { Spacing = 10 };
     private readonly StackPanel _compactContent = new() { Spacing = 4 };
@@ -116,16 +116,21 @@ public sealed class AiActivityView : Border
     private static string Size(double bytes) => bytes >= 1073741824 ? $"{bytes / 1073741824:0.00} GiB" : $"{bytes / 1048576:0.0} MiB";
     public void Update(AiActivity? activity)
     {
+        var stageChanged = _activity is { } previous && activity is not null
+            && (previous.StartedUtc != activity.StartedUtc || previous.CurrentNode != activity.CurrentNode
+                || previous.Model != activity.Model || previous.State != activity.State || previous.Stage != activity.Stage);
         _activity = activity; IsVisible = activity is not null;
-        if (activity is null) { _timer.Stop(); _flyout.Hide(); _flow.Clear(); return; }
+        if (activity is null) { _timer.Stop(); _compactProgress.IsIndeterminate = false; _flyout.Hide(); _flow.Clear(); return; }
         _title.Text = Localization.Text("任务进度");
         _meta.Text = string.Join(" · ", new[] { Localization.Text(activity.Model), activity.Backend }.Where(text => text.Length > 0));
         ToolTip.SetTip(_meta, _meta.Text);
         _compactStage.Text = string.Join(" · ", new[] { Localization.Text(activity.Stage), Count(activity) }.Where(text => text.Length > 0));
         ToolTip.SetTip(_compactStage, _compactStage.Text);
         foreach (var state in Enum.GetValues<AiActivityState>()) _compactStage.Classes.Set(state.ToString().ToLowerInvariant(), state == activity.State);
-        _compactProgress.IsVisible = activity.State == AiActivityState.Running && Quantified(activity);
+        _compactProgress.IsVisible = activity.State == AiActivityState.Running;
+        _compactProgress.IsIndeterminate = activity.State == AiActivityState.Running && !Quantified(activity);
         _compactProgress.Value = Quantified(activity) ? Math.Clamp(activity.Current!.Value / activity.Total!.Value * 100, 0, 100) : 0;
+        if (Compact && stageChanged) Motion.Reveal(_compactStage);
         _detailsButton.Content = Localization.Text("详情");
         _flow.Update(activity); RefreshClock(); RefreshExpansion();
         if (_attached && activity.State == AiActivityState.Running) _timer.Start(); else _timer.Stop();

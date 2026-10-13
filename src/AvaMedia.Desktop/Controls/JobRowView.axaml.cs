@@ -92,9 +92,9 @@ public partial class JobRowView : UserControl
         AutomationProperties.SetName(CoverButton, tip);
         ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖拽产出到工具或文件路由") : null);
 
+        RefreshRowActions(job);
         ViewResultButton.IsVisible = _owner.CanViewTaskDetails(job);
-        ViewResultButton.Content = Localization.Text("查看任务详情");
-        CoverButton.IsEnabled = _owner.CanViewTaskDetails(job);
+        CoverButton.IsEnabled = canDrag || _owner.CanViewTaskDetails(job);
         var outputPreview = _details.HasOutputPreview;
         var path = outputPreview ? job.Output : job.FeatureId == "download" ? "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
@@ -120,6 +120,7 @@ public partial class JobRowView : UserControl
     private void RefreshActivity()
     {
         var job = _details?.Job;
+        if (job is not null) RefreshRowActions(job);
         TaskStatePill.State = job?.CompletionKind == JobCompletionKind.Unchanged ? "waiting" : job?.State.ToString().ToLowerInvariant() ?? "waiting";
         TaskStatePill.Text = Localization.Text(job?.CompletionKind == JobCompletionKind.Unchanged ? "无需瘦身" : job?.State switch { JobState.Running => "进行中", JobState.Completed => "已完成", JobState.Paused => "已暂停", JobState.Failed => "失败", JobState.Cancelled => "已取消", JobState.Stopping => "正在停止", _ => "等待" });
         PipelineProgress.Classes.Set("paused", job?.State == JobState.Paused); PipelineProgress.Classes.Set("failed", job?.State == JobState.Failed);
@@ -187,8 +188,27 @@ public partial class JobRowView : UserControl
     {
         e.Handled = true;
         if (_owner is null || _details is null) return;
-        await _owner.ShowTaskDetailsAsync(_details.Job);
+        await _owner.ShowRowTaskAsync(_details.Job);
     }
+    private void RefreshRowActions(Job job)
+    {
+        if (_owner is null) return;
+        RunTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Paused or JobState.Failed;
+        RunTaskButton.IsEnabled = _owner.CanRunRowTask(job);
+        RunTaskIcon.Kind = job.State == JobState.Failed ? "rotate-cw" : "play";
+        var label = Localization.Text(job.State == JobState.Failed ? "重试" : job.State == JobState.Paused ? "恢复" : "开始任务");
+        ToolTip.SetTip(RunTaskButton, label); AutomationProperties.SetName(RunTaskButton, label);
+        PauseTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Running;
+        PauseTaskButton.IsEnabled = _owner.CanPauseRowTask(job);
+        StopTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Paused or JobState.Running;
+        StopTaskButton.IsEnabled = _owner.CanStopRowTask(job);
+    }
+    private async void RunTaskClick(object? sender, RoutedEventArgs e)
+    { e.Handled = true; if (_owner is not null && _details is not null) await _owner.RunRowTaskAsync(_details.Job); }
+    private void PauseTaskClick(object? sender, RoutedEventArgs e)
+    { e.Handled = true; if (_details is not null) _owner?.PauseRowTask(_details.Job); }
+    private void StopTaskClick(object? sender, RoutedEventArgs e)
+    { e.Handled = true; if (_details is not null) _owner?.StopRowTask(_details.Job); }
     private void OutputPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         _suppressCoverClick = false;

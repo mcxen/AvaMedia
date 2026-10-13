@@ -25,7 +25,8 @@ internal static class Program
                 string[] categories = ["general", "appearance", "player", "convert", "models", "ai", "remote", "advanced", "about"];
                 int[] heights = [776, 640, 640, 640, 880, 820, 640, 640, 640];
                 var captures = new List<object>();
-                foreach (var theme in new[] { "Light", "Dark" })
+                var themeFilter = args.FirstOrDefault(arg => arg.StartsWith("--theme=", StringComparison.Ordinal))?[8..];
+                foreach (var theme in new[] { "Light", "Dark" }.Where(name => themeFilter is null || name == themeFilter))
                 {
                     Skin.Apply(theme);
                     var settings = new AppSettings { Theme = theme, Language = "zh-CN" };
@@ -40,7 +41,7 @@ internal static class Program
                             window.Height = heights[index]; tabs.SelectedIndex = index; window.Activate();
                             await Task.Delay(500);
                             await Dispatcher.UIThread.InvokeAsync(() => window.UpdateLayout(), DispatcherPriority.Background);
-                            var size = window.ClientSize; var position = window.Position;
+                            var size = window.ClientSize; var position = window.PointToScreen(new Point(0, 0));
                             var width = (int)Math.Ceiling(size.Width * window.RenderScaling);
                             var height = (int)Math.Ceiling(size.Height * window.RenderScaling);
                             var name = $"settings-v2-{categories[index]}-{theme.ToLowerInvariant()}.png";

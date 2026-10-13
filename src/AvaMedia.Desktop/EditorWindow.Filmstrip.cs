@@ -20,12 +20,14 @@ public partial class EditorWindow
         Filmstrip.NavigateRequested += (index, seconds) =>
         {
             if (index >= 0) _segmentReady = NavigateSegment(index, seconds);
-            else Seek(seconds);
+            else Scrub(seconds);
         };
+        Filmstrip.NavigateCompleted += seconds => Seek(seconds);
         Filmstrip.HandleMoved += (index, isStart, seconds, finished) =>
         {
-            if (!finished) { Seek(seconds); return; }
+            if (!finished) { Scrub(seconds); return; }
             if (isStart) ShiftStart(seconds - _options.Start); else ShiftEnd(seconds - _options.End);
+            Seek(seconds);
         };
         TimelineZoom.PropertyChanged += (_, e) => { if (e.Property == Avalonia.Controls.Primitives.RangeBase.ValueProperty) ApplyTimelineZoom(); };
         SegmentTrackScroll.SizeChanged += (_, _) => ApplyTimelineZoom();

@@ -52,8 +52,9 @@ internal static class ToolFilePicker
     private static async Task<IReadOnlyList<IStorageItem>> ShowAsync(Window owner, FileBrowserOptions options,
         Func<Window, Task<IReadOnlyList<IStorageItem>>> external, bool startRecent = false)
     {
+        if (startRecent) options = options with { StartFolder = new("最近使用", "avamedia:recent", true) };
         var source = new DesktopFileBrowserSource(owner.StorageProvider);
-        var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs(), Localization.Format);
+        var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs());
         var dialog = CreateDialog(view, options, startRecent);
         view.PickExternalAsync = async () => (await external(dialog)).Select(item => DesktopFileBrowserSource.Wrap(item)!).ToArray();
         var completion = new TaskCompletionSource<IReadOnlyList<IStorageItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -73,7 +74,9 @@ internal static class ToolFilePicker
                     items.Add(resolved);
                 }
                 await source.RecordSelectionAsync(selected, CancellationToken.None);
-                _lastFolder = view.CurrentFolder?.NativeItem as IStorageFolder ?? await items[0].GetParentAsync();
+                _lastFolder = view.CurrentFolder is { } current
+                    ? (current.NativeItem ?? (await source.ResolveAsync(current.Address, CancellationToken.None))?.NativeItem) as IStorageFolder : null;
+                _lastFolder ??= items[0] as IStorageFolder ?? await items[0].GetParentAsync();
                 completion.TrySetResult(items.ToArray());
                 dialog.Close();
             }
@@ -93,19 +96,18 @@ internal static class ToolFilePicker
         Localization.SetIsUserText(view, true);
         var dialog = new Window
         {
-            Title = Localization.Text(options.Title), Width = 1280, Height = 800, MinWidth = 760, MinHeight = 480,
+            Title = Localization.Text(options.Title), Width = 880, Height = 600, MinWidth = 680, MinHeight = 420,
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
         // Build the complete logical tree before attaching it to the window. Attaching view first
         // would leave it in both parents' child collections; replacing Content then clears its parent.
-        dialog.Content = WindowChrome.WrapDialog(dialog, view, view.ExtractNavigationBar());
+        dialog.Content = WindowChrome.WrapDialog(dialog, view);
         Skin.SetIsEnabled(dialog, true);
         Controls.WindowArtwork.SetKind(dialog, "document");
         view.Cancelled += () => dialog.Close();
         dialog.Opened += async (_, _) =>
         {
             await view.InitializeAsync();
-            if (startRecent) await view.ShowRecentAsync();
         };
         dialog.Closed += (_, _) => view.Dispose();
         return dialog;

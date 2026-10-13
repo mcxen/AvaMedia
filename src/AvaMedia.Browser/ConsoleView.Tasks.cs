@@ -523,7 +523,7 @@ public sealed partial class ConsoleView
         if (path is null || !Ui.FileIcon(path, false).StartsWith("video") && Ui.FileIcon(path, false) != "image-file") return;
         try
         {
-            var (image, _) = await RemotePreview.Read(path, 1, 640, 0, 0, CancellationToken.None);
+            var (image, _) = await RemotePreview.Read(path, 1, 320, 0, 0, CancellationToken.None);
             using var stream = new MemoryStream(image); _thumbnails[id] = new Bitmap(stream);
             if (_detailId == id && _taskData.TryGetValue(id, out var task)) UpdateDetailHeader(task);
         }

@@ -18,6 +18,8 @@
 
 创建返回 durable task ID。状态为 Waiting / Running / Paused / Stopping / Completed / Failed / Cancelled。`startImmediately=false` 只加入队列；`control_task(action=start)` 启动。运行中的暂停在安全检查点生效；停止后可能存在部分结果。移除会删除队列记录和任务元数据，保留媒体输出。下载模型也用队列 ID；查询结果含安装目录。
 
+已通过桌面内部流程解锁的工作区还会注册 `avamedia_preview_vl_rename` 和 `avamedia_undo_vl_rename`；以实时工具列表为准。前者使用与桌面相同的文件夹规则和本地 Qwen3.5 VL 引擎，`mode=local` 需要已安装视觉模型与推理工具，`mode=rules` 仅解析名称。预览会等待分析完成，不创建任务也不改名；保存返回的 `plan`，检查或编辑目标文件名后交给 `avamedia_apply_rename` 并等待队列完成。撤销传这次改名的 `taskId`，复用原事务日志；响应丢失后重用同一 ID，`alreadyUndone=true` 表示没有再次修改文件。未解锁工作区不提供这些内部接口，也不提供 MCP 激活流程。
+
 ## 相似服装
 
 先读取 `avamedia_capabilities.classificationPresets`，选取 ByOutfit / byOutfit 为 true 的实际对象，放入 rules 数组。其它规则不要一并传入。每次生成新的 UUID，不复制示例 UUID 用于多次任务。

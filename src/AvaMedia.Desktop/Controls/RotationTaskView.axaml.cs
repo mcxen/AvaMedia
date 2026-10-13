@@ -17,7 +17,8 @@ public sealed partial class RotationTaskView : UserControl, IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private readonly RotateTransform _rotation = new();
     private readonly (ToggleButton Button, int Angle)[] _directions;
-    private CancellationTokenSource? _previewCancellation;
+    private readonly LatestPreviewRequest _previewRequests = new();
+    private PreviewDrag? _previewDrag;
     private OrientationTaskResult? _result;
     private MediaInfo? _info;
     private Bitmap? _bitmap;
@@ -63,6 +64,7 @@ public sealed partial class RotationTaskView : UserControl, IDisposable
         ExportSettings.PropertyChanged += (_, args) =>
         { if (args.Property == Expander.IsExpandedProperty) ReviewChanged?.Invoke(this, EventArgs.Empty); };
         OutputInput.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) RefreshExport(); };
+        _previewDrag = new(PreviewSeek, () => { if (!_disposed) _ = LoadPreviewAsync(); }); _previewDrag.Attach();
         PreviewSeek.PropertyChanged += (_, args) =>
         {
             if (args.Property != Slider.ValueProperty || _syncing || _info is null) return;
@@ -205,18 +207,21 @@ public sealed partial class RotationTaskView : UserControl, IDisposable
             SourceOutputInput.IsChecked == true, SettingNameInput.IsChecked == true ? format.ToUpperInvariant() : "");
     }
 
-    private async Task LoadPreviewAsync(bool debounce = false)
+    private Task LoadPreviewAsync(bool debounce = false)
     {
-        _previewCancellation?.Cancel();
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _previewCancellation = cancellation; var token = cancellation.Token;
         var seconds = PreviewSeek.Value;
+        var size = _previewDrag?.IsDragging == true ? VideoPreviewSizes.Scrub : VideoPreviewSizes.Preview;
+        return _previewRequests.Request(token => RenderPreviewAsync(seconds, size, token), _lifetime.Token, immediate: !debounce);
+    }
+
+    private async Task RenderPreviewAsync(double seconds, VideoPreviewSize size, CancellationToken token)
+    {
         if (_bitmap is null) ShowNotice(Localization.Text("正在读取预览…"));
         try
         {
-            if (debounce) await Task.Delay(120, token);
             if (_info is null || _engine is null) return;
-            var bytes = await _engine.Thumbnail(Job.Inputs[0], seconds, 1280, 720, token, pad: false, videoStreamIndex: _info.VideoStreamIndex);
+            size = VideoPreviewSizes.Bound(_info, size);
+            var bytes = await _engine.Thumbnail(Job.Inputs[0], seconds, size.Width, size.Height, token, pad: false, videoStreamIndex: _info.VideoStreamIndex);
             token.ThrowIfCancellationRequested();
             using var stream = new MemoryStream(bytes); var bitmap = new Bitmap(stream);
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -231,7 +236,6 @@ public sealed partial class RotationTaskView : UserControl, IDisposable
         catch (OperationCanceledException) { }
         catch (Exception error)
         { if (!_disposed && !token.IsCancellationRequested) ShowNotice(Localization.Format($"预览失败：{error.Message}")); }
-        finally { if (ReferenceEquals(_previewCancellation, cancellation)) _previewCancellation = null; }
     }
 
     private void ShowNotice(string text)
@@ -249,7 +253,7 @@ public sealed partial class RotationTaskView : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true; Localization.Changed -= LanguageChanged;
-        _lifetime.Cancel(); _previewCancellation?.Cancel();
+        _lifetime.Cancel(); _previewRequests.Dispose();
         SourceImage.Source = ResultImage.Source = null; _bitmap?.Dispose(); _bitmap = null;
     }
 }

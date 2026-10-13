@@ -25,7 +25,9 @@ internal static partial class Ui
         var icon = new Bitmap(stream);
         var body = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 12, Margin = new(18) };
         var info = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Stretch };
-        info.Children.Add(new Image { Source = icon, Width = 80, Height = 80, HorizontalAlignment = HorizontalAlignment.Center });
+        var appIcon = new Image { Source = icon, Width = 80, Height = 80, HorizontalAlignment = HorizontalAlignment.Center };
+        HookExclusiveToolsActivation(appIcon, dialog, UnlockExclusiveTools);
+        info.Children.Add(appIcon);
         TextBlock Center(string value, string? role = null)
         {
             var text = ComponentText(value, role);

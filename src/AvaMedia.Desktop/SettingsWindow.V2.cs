@@ -31,12 +31,9 @@ public sealed partial class SettingsWindow
                 var glyph = new LucideIcon { Kind = icon, [!WidthProperty] = new DynamicResourceExtension("StNavigationIconSize"), [!HeightProperty] = new DynamicResourceExtension("StNavigationIconSize"), [!LucideIcon.ForegroundProperty] = new DynamicResourceExtension("StIconText"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 var tile = new Border { [!WidthProperty] = new DynamicResourceExtension("StNavigationTileSize"), [!HeightProperty] = new DynamicResourceExtension("StNavigationTileSize"), [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiSettingsIconRadius"), Child = glyph };
                 tile.Bind(Border.BackgroundProperty, new DynamicResourceExtension("St" + color));
-                var row = new Grid { [!Grid.ColumnSpacingProperty] = new DynamicResourceExtension("StNavigationIconGap") };
-                row.ColumnDefinitions.Add(new ColumnDefinition { [!ColumnDefinition.WidthProperty] = new DynamicResourceExtension("StNavigationIconColumn") });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+                var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, [!StackPanel.SpacingProperty] = new DynamicResourceExtension("StNavigationIconGap") };
                 row.Children.Add(tile);
-                var text = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(text, 1); row.Children.Add(text); return row;
+                row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center }); return row;
             });
         }
         _values.Add(() => _accentColor);
@@ -59,8 +56,13 @@ public sealed partial class SettingsWindow
     {
         foreach (var button in AccentPalette.Children.OfType<Button>()) button.Classes.Set("selected", button.Tag as string == _accentColor);
     }
-    private void RefreshLastUpdateCheck() => LastUpdateCheckText.Text = (ApplicationUpdater.Shared.CheckState.CheckedAt ?? _settings.LastUpdateCheck) is { } time
-        ? Localization.Text("上次检查：") + time.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : Localization.Text("尚未检查更新");
+    private void RefreshLastUpdateCheck()
+    {
+        LastUpdateCheckText.Text = (ApplicationUpdater.Shared.CheckState.CheckedAt ?? _settings.LastUpdateCheck) is { } time
+            ? Localization.Text("上次检查：") + time.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : Localization.Text("尚未检查更新");
+        // Do not repeat the status title (e.g. "尚未检查更新") on a second line.
+        LastUpdateCheckText.IsVisible = LastUpdateCheckText.Text != UpdateStatusTitle.Text;
+    }
     private void ModelLibraryClick(object? sender, RoutedEventArgs args)
     {
         ModelLibraryPanel.IsVisible = !ModelLibraryPanel.IsVisible;

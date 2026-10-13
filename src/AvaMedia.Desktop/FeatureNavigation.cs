@@ -12,6 +12,8 @@ internal sealed record FeatureSection(string Title, bool Formats, Feature[] Feat
 internal static class FeatureNavigation
 {
     public const string DiscCategory = "光驱设备\\DVD\\CD\\ISO";
+    // Private desktop action; intentionally absent from the public Core/MCP catalog.
+    public static readonly Feature ExclusiveRenamer = new("exclusive-vl-renamer", "VL 媒体智能重命名", "视频", "", "edit", Operation.BatchTools);
     public static string[] Categories { get; } = ["视频", "音频", "图片", "文档", "工具集"];
 
     public static string CategoryTitle(string category) => category == DiscCategory ? "光盘" : category;
@@ -43,14 +45,15 @@ internal static class FeatureNavigation
         "image-viewer" => "photo", "image-compress" => "shrink", "image-tools" or "crop" => "crop", "images-pdf" => "file-image",
         "pdf-merge" => "files", "pdf-split" => "split", "pdf-age" => "file-clock", "pdf-compress" => "file-archive",
         "pdf-text" => "file-text", "pdf-docx" => "file-type", "pdf-xlsx" => "file-spreadsheet", "text-pdf" => "file-output",
-        "rotate" => "rotate-right", "batch-rename" => "edit", "media-ai" => "tag", "folder-classification" => "folder",
+        "rotate" => "rotate-right", "batch-rename" or "exclusive-vl-renamer" => "edit", "media-ai" => "tag", "folder-classification" => "folder",
         "contact-sheet" => "layout-grid", "zip" => "file-archive", "unzip" => "archive", "dvd" or "iso" => "disc",
         _ => "file"
     };
 
-    public static IEnumerable<FeatureSection> Sections(string category, bool enableBeta)
+    public static IEnumerable<FeatureSection> Sections(string category, bool enableBeta, bool exclusiveUnlocked = false)
     {
-        var features = Catalog.All.Where(feature => TreeCategory(feature.Category) == category
+        var catalog = exclusiveUnlocked ? Catalog.All.Append(ExclusiveRenamer) : Catalog.All;
+        var features = catalog.Where(feature => TreeCategory(feature.Category) == category
                 && (enableBeta || !Catalog.IsBeta(feature)))
             .GroupBy(SectionTitle).ToDictionary(group => group.Key, group => group.ToArray());
         foreach (var (title, order) in SectionOrder(category))
@@ -59,7 +62,7 @@ internal static class FeatureNavigation
                     : items.OrderBy(item => Array.IndexOf(order, item.Id) is var index and >= 0 ? index : order.Length).ToArray());
     }
 
-    public static int Count(string category, bool enableBeta) => Sections(category, enableBeta).Sum(section => section.Features.Length);
+    public static int Count(string category, bool enableBeta, bool exclusiveUnlocked = false) => Sections(category, enableBeta, exclusiveUnlocked).Sum(section => section.Features.Length);
 
     private static (string Title, string[] Order)[] SectionOrder(string category) => category switch
     {
@@ -69,7 +72,8 @@ internal static class FeatureNavigation
             ("格式与体积", ["mp4", "video-compress", "video-slim", "repair"]),
             ("剪辑", ["clip", "person-clip", "delogo"]),
             ("音视频轨道", ["split", "extract-video", "join", "mux"]),
-            ("字幕与内容", ["auto-subtitle", "video-summary", "voice-enhance"])
+            ("字幕与内容", ["auto-subtitle", "video-summary", "voice-enhance"]),
+            ("内部工具", [ExclusiveRenamer.Id])
         ],
         "音频" => [("音频", []), ("转换为", [])],
         "图片" => [("图片", []), ("转换为", [])],
@@ -81,6 +85,7 @@ internal static class FeatureNavigation
     {
         "视频" => feature.Id switch
         {
+            "exclusive-vl-renamer" => "内部工具",
             "player" or "download" or "info" => "播放",
             "mp4" or "video-compress" or "video-slim" or "repair" => "格式与体积",
             "clip" or "person-clip" or "delogo" => "剪辑",

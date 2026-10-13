@@ -35,8 +35,9 @@ public sealed partial class NotificationPanel : UserControl
             preview.TextWrapping = TextWrapping.NoWrap; preview.TextTrimming = TextTrimming.CharacterEllipsis;
             preview.IsVisible = !string.IsNullOrWhiteSpace(body) && body != title.Text;
             Grid.SetRow(preview, 1); Grid.SetColumnSpan(preview, 2);
+            ToolTip.SetTip(title, title.Text); ToolTip.SetTip(preview, body);
             labels.Children.Add(title); labels.Children.Add(time); labels.Children.Add(preview); row.Children.Add(labels);
-            var remove = new Button { Content = "×", Classes = { "ac", "tool", "notification-action", "notification-icon", "icon", "borderless", "small" } };
+            var remove = new Button { Content = new Controls.LucideIcon { Kind = "x", Width = 14, Height = 14 }, Classes = { "ac", "tool", "notification-action", "notification-icon", "icon", "borderless", "small" } };
             AutomationProperties.SetName(remove, Localization.Text("移除通知"));
             ToolTip.SetTip(remove, Localization.Text("移除通知"));
             remove.Click += (_, args) => { args.Handled = true; _center.Remove(entry); };
@@ -104,14 +105,15 @@ public sealed partial class NotificationPanel : UserControl
             var selected = _center.Selected;
             if (_center.History)
             {
-                Heading.Classes.Remove("error"); NoticeFrame.Classes.Remove("warning"); Heading.Text = Localization.Text("通知中心"); Timestamp.Text = "";
+                Heading.Classes.Remove("error"); NoticeFrame.Classes.Remove("warning"); NoticeGlyph.State = "empty"; Heading.Text = Localization.Text("通知中心"); Timestamp.Text = "";
                 Timestamp.IsVisible = false;
                 HistoryList.ItemsSource = _center.Entries.ToArray(); HistoryList.SelectedItem = null;
                 Counter.Text = Localization.Format($"{_center.Entries.Count} 条通知"); ProgressPanel.IsVisible = false;
             }
             else if (selected is not null)
             {
-                var message = selected.Message; Heading.Text = NotificationCenter.Text(message.Title); Timestamp.Text = selected.Created.ToString("HH:mm");
+                var message = selected.Message; NoticeGlyph.State = message.Kind switch { NotificationKind.Error => "failed", NotificationKind.Success => "success", NotificationKind.Warning => "warning", NotificationKind.Progress => "running", _ => "info" };
+                Heading.Text = NotificationCenter.Text(message.Title); Timestamp.Text = selected.Created.ToString("HH:mm");
                 Timestamp.IsVisible = true;
                 var text = NotificationCenter.Text(message.Body); if (MessageText.Text != text) MessageText.Text = text;
                 MessageScroll.IsVisible = !string.IsNullOrWhiteSpace(text) && text != Heading.Text;
