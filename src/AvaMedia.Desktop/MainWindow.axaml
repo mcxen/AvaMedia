@@ -1,4 +1,4 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:notifications="using:AvaMedia.Desktop.Notifications" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Classes="main-window" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
+<Window xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:notifications="using:AvaMedia.Desktop.Notifications" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.MainWindow" Classes="main-window" Title="{x:Static core:AppIdentity.WindowTitle}" Width="1440" Height="860" MinWidth="1050" MinHeight="650" WindowStartupLocation="CenterScreen">
   <Window.Styles>
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ToolbarMenus.axaml"/>
     <Style Selector="Border.tool-drop-indicator"><Setter Property="IsVisible" Value="False"/></Style>
@@ -78,12 +78,13 @@
         </Border>
         <Border Grid.Row="1" Classes="platinum-list-heading queue-heading" Height="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" Background="{DynamicResource UiSurfaceRaised}">
           <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/><ColumnDefinition Width="{DynamicResource ShellQueueActionsWidth}"/></Grid.ColumnDefinitions>
             <TextBlock Text="封面 / 预览" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             <Border Grid.Column="1" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0">
               <TextBlock Text="文件 / 媒体信息" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             </Border>
             <TextBlock Grid.Column="2" Text="输出设置 / 任务状态" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Grid.Column="3" Text="操作" VerticalAlignment="Center"/>
           </Grid>
         </Border>
         <ListBox Classes="task-list" Grid.Row="2" x:Name="JobList" Padding="0" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="JobSelectionChanged">
@@ -129,6 +130,7 @@
             </ContextMenu>
           </ListBox.ContextMenu>
         </ListBox>
+        <ac:EmptyState x:Name="QueueEmpty" Grid.Row="2" Text="暂无任务，请从左侧选择工具" IsHitTestVisible="False"/>
         <local:DownloadSpeedMonitor x:Name="NetworkMonitor" Grid.Row="2" IsVisible="False" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,6,8,6"/>
       </Grid>
         </Border>

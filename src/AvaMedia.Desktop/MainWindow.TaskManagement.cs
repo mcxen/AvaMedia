@@ -20,6 +20,29 @@ public partial class MainWindow
         || CanRequeueTask(job) && job.State == JobState.Cancelled;
     private bool CanMoveTask(Job job) => CanManageTasks && !_editingJobs.Contains(job) && !_queue.IsExecuting(job) && job.State is JobState.Waiting or JobState.Paused;
 
+    internal bool CanPauseRowTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_editingJobs.Contains(job)
+        && job.State is JobState.Waiting or JobState.Running;
+    internal bool CanStopRowTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_editingJobs.Contains(job)
+        && job.State is JobState.Waiting or JobState.Running or JobState.Paused;
+    internal bool CanRunRowTask(Job job) => _jobs.Contains(job) && (CanStartTask(job) || CanContinueTask(job)
+        || job.State == JobState.Failed && CanRequeueTask(job));
+    internal Task RunRowTaskAsync(Job job) => CanRunRowTask(job) ? RequestTaskRunAsync(job) : Task.CompletedTask;
+    internal void PauseRowTask(Job job) { if (CanPauseRowTask(job)) PauseTask(job); }
+    internal void StopRowTask(Job job) { if (CanStopRowTask(job)) { _queue.Stop(job); Save(); Refresh(); } }
+    internal Task ShowRowTaskAsync(Job job)
+    {
+        if (CanViewAiTask(job)) return ShowAiTaskAsync(job);
+        if (_closing || !_jobs.Contains(job)) return Task.CompletedTask;
+        if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return Task.CompletedTask; }
+        var window = new AiTaskWindow(job, () => job.State == JobState.Completed && (File.Exists(job.Output) || Directory.Exists(job.Output)),
+            () => { Open(job.Output); return Task.CompletedTask; }, () => StopRowTask(job), () => RunRowTaskAsync(job),
+            () => CanRunRowTask(job), () => { _ = Configure(Catalog.Find(job.FeatureId)); }, pause: () => PauseRowTask(job));
+        _aiTaskWindows[job.Id] = window;
+        window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
+        Controls.WindowChrome.ShowIndependent(window);
+        return Task.CompletedTask;
+    }
+
     private void InitializeTaskManagement()
     {
         JobList.ItemsSource = _visibleJobs;

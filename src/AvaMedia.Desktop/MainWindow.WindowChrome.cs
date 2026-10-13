@@ -49,6 +49,7 @@ public partial class MainWindow
         if (kind == WindowFrameKind.Mac)
         {
             SetFrameParts(caption: false, lights: WindowChrome.IsMacPreview(this));
+            ApplyMacPreviewDecorations();
             FeatureTree.Margin = new Thickness(8, 34, 8, 10);
             return;
         }
@@ -82,7 +83,18 @@ public partial class MainWindow
             e.Handled = true;
             if (e.ClickCount == 2) ToggleMaximize(); else BeginMoveDrag(e);
         };
-        PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) UpdateMaximizeGlyph(); };
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == WindowStateProperty) UpdateMaximizeGlyph();
+            if (e.Property == SystemDecorationsProperty) Avalonia.Threading.Dispatcher.UIThread.Post(ApplyMacPreviewDecorations);
+        };
+    }
+
+    private void ApplyMacPreviewDecorations()
+    {
+        // Only the Linux mac preview lacks a native macOS title bar. Keep real Windows/macOS frame policy.
+        if (!OperatingSystem.IsWindows() && ModernChrome && WindowChrome.IsMacPreview(this)
+            && SystemDecorations != SystemDecorations.None) SystemDecorations = SystemDecorations.None;
     }
 
     private static bool IsInteractive(Control control) => WindowChrome.IsInteractive(control);

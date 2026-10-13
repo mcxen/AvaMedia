@@ -34,6 +34,8 @@ public partial class MainWindow
                 if (previous < 0) _visibleJobs.Insert(index, visible[index]);
                 else _visibleJobs.Move(previous, index);
             }
+            QueueEmpty.IsVisible = _visibleJobs.Count == 0;
+            QueueEmpty.Text = Localization.Text(_jobs.Count == 0 ? "暂无任务，请从左侧选择工具" : "已完成任务已折叠");
             var completed = _jobs.Count(job => job.State == JobState.Completed);
             CompletedTasksBar.IsVisible = completed > 0;
             CompletedTasksChevron.Data = _settings.CollapseCompletedTasks ? CollapsedTaskChevron : ExpandedTaskChevron;
@@ -42,6 +44,7 @@ public partial class MainWindow
 
             AutomationProperties.SetName(CompletedTasksToggle, action);
             CollapseCompletedTasksViewMenu.IsChecked = _settings.CollapseCompletedTasks;
+            RefreshTaskSummary();
         }
         finally { _refreshingTaskList = false; }
     }
