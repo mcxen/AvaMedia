@@ -3,35 +3,38 @@
         Title="视频压缩" Width="1200" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
   <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="8">
     <Border Classes="ac-card">
-      <ContentControl x:Name="PreviewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+      <Grid RowDefinitions="3*,Auto,Auto,2*" RowSpacing="8">
+        <ContentControl x:Name="PreviewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        <files:FileImportActions Grid.Row="1" x:Name="ImportPanel" FilesText="添加视频…" AllowFolders="True">
+          <files:FileImportActions.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></files:FileImportActions.Styles>
+          <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
+          <Button Classes="ac" x:Name="RemoveInvalidButton" Content="移除错误文件" Click="RemoveInvalidClick" IsEnabled="False"/>
+        </files:FileImportActions>
+        <TextBlock Grid.Row="2" Text="任务" FontWeight="SemiBold"/>
+        <Grid Grid.Row="3" MinHeight="112">
+          <ListBox x:Name="SourceList" MinHeight="112" SelectionMode="Multiple" AutomationProperties.Name="批量压缩视频" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Spacing="4" Margin="4,8">
+                  <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                  <TextBlock Classes="caption" Text="{Binding SourceSummary}" TextWrapping="Wrap"/>
+                  <TextBlock Classes="caption" Text="{Binding ColorSummary}" IsVisible="{Binding HasColorChange}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding PlanSummary}" TextWrapping="Wrap"/>
+                  <TextBlock Classes="caption" Text="{Binding Warning}" IsVisible="{Binding HasWarning}" TextWrapping="Wrap"/>
+                  <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False"/>
+        </Grid>
+      </Grid>
     </Border>
     <Border Classes="ac-card" Grid.Column="1">
       <Grid RowDefinitions="*,Auto" RowSpacing="8">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
           <StackPanel Spacing="8">
-            <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…" AllowFolders="True">
-              <files:FileImportActions.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></files:FileImportActions.Styles>
-              <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
-              <Button Classes="ac" x:Name="RemoveInvalidButton" Content="移除错误文件" Click="RemoveInvalidClick" IsEnabled="False"/>
-            </files:FileImportActions>
-            <Grid MinHeight="112">
-              <ListBox x:Name="SourceList" MinHeight="112" MaxHeight="240" SelectionMode="Multiple" AutomationProperties.Name="批量压缩视频" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
-                <ListBox.ItemTemplate>
-                  <DataTemplate>
-                    <StackPanel Spacing="4" Margin="4,8">
-                      <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
-                      <TextBlock Classes="caption" Text="{Binding SourceSummary}" TextWrapping="Wrap"/>
-                      <TextBlock Classes="caption" Text="{Binding ColorSummary}" IsVisible="{Binding HasColorChange}" TextWrapping="Wrap"/>
-                      <TextBlock Text="{Binding PlanSummary}" TextWrapping="Wrap"/>
-                      <TextBlock Classes="caption" Text="{Binding Warning}" IsVisible="{Binding HasWarning}" TextWrapping="Wrap"/>
-                      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap"/>
-                    </StackPanel>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-              <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False"/>
-            </Grid>
             <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
               <TextBlock Text="压缩方式" VerticalAlignment="Center"/>
               <ComboBox Classes="ac" Grid.Column="1" x:Name="ModeInput" AutomationProperties.Name="压缩模式" HorizontalAlignment="Stretch"/>
