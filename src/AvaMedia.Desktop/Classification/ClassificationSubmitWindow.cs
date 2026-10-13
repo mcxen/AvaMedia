@@ -24,10 +24,10 @@ public sealed class ClassificationSubmitWindow : Window
     private readonly List<Source> _sources = [];
     private readonly List<FolderClassificationRule> _selected = [];
     private readonly FolderClassificationWindow.Preferences _preferences;
-    private readonly StackPanel _sourceCards = new() { Orientation = Orientation.Horizontal, Spacing = 12 };
+    private readonly StackPanel _sourceCards = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcGap") };
     private readonly TextBlock _sourceSummary = T("", 12, brush: Muted, raw: true), _ruleSummary = T("", 12, brush: Muted, raw: true),
         _destName = T("分类结果", 13, FontWeight.SemiBold), _destPath = T("", 11, brush: Muted, raw: true);
-    private readonly Grid _ruleGrid = new() { ColumnDefinitions = new("*,*,*,*"), ColumnSpacing = 8, RowSpacing = 8 };
+    private readonly Grid _ruleGrid = new() { ColumnDefinitions = new("*,*,*,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
     private readonly CheckBox _recursive = new() { Content = L("包含子文件夹"), IsChecked = true }, _split = new() { Content = L("按视频 / 图片分目录") },
         _writeText = new() { Content = L("为每个文件保存标签 TXT") };
     private readonly Slider _similarity = new() { Minimum = .5, Maximum = .95, Value = .64, SmallChange = .01 },
@@ -61,7 +61,7 @@ public sealed class ClassificationSubmitWindow : Window
 
     private Control Build()
     {
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), Margin = new(22, 14, 22, 16), RowSpacing = 12 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto"), Margin = new(22, 14, 22, 16), [!Grid.RowSpacingProperty] = Resource("AcGap") };
         var header = new Grid { ColumnDefinitions = new("*,Auto") };
         var titles = new StackPanel { Spacing = 2 };
         titles.Children.Add(T("新建 AI 媒体整理", 15, FontWeight.Bold)); titles.Children.Add(T("选择来源与分类方式，任务会在后台运行", 12, brush: Muted));
@@ -70,10 +70,10 @@ public sealed class ClassificationSubmitWindow : Window
         root.Children.Add(header);
 
         var columns = new Grid { ColumnDefinitions = new("*,1.75*"), ColumnSpacing = 18 }; Grid.SetRow(columns, 1);
-        var left = new StackPanel { Spacing = 10 };
+        var left = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
         left.Children.Add(Heading("来源", _sourceSummary));
         left.Children.Add(new ScrollViewer { Content = _sourceCards, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
         buttons.Children.Add(Pill("添加文件夹…", click: () => _ = AddFoldersAsync()));
         buttons.Children.Add(Pill("添加文件…", click: () => _ = AddFilesAsync()));
         buttons.Children.Add(Pill("重新扫描", click: () => _ = RescanAsync()));
@@ -89,12 +89,12 @@ public sealed class ClassificationSubmitWindow : Window
         left.Children.Add(T("分析在后台进行；完成后先核对分组，再执行整理。", 11, brush: Muted));
         columns.Children.Add(left);
 
-        var right = new StackPanel { Spacing = 10 };
+        var right = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
         right.Children.Add(Heading("按什么分", _ruleSummary));
         right.Children.Add(new ScrollViewer { Content = _ruleGrid, MaxHeight = 154,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
-        var more = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var more = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
         more.Children.Add(Pill("添加分类组…", click: () => _ = OpenAdvancedAsync()));
         var saved = Pill("已保存分类", "chevron-down", iconAfter: true);
         var menu = new MenuFlyout();
@@ -115,7 +115,7 @@ public sealed class ClassificationSubmitWindow : Window
         Grid.SetColumn(right, 1); columns.Children.Add(right);
         root.Children.Add(columns);
 
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 }; Grid.SetRow(footer, 2);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") }; Grid.SetRow(footer, 2);
         footer.Children.Add(T("首次运行会下载 JoyTag、MediaPipe 与 DINOv2 模型", 11, brush: Muted));
         var cancel = Pill("取消", click: Close, height: 32); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
         Grid.SetColumn(_submit, 2); footer.Children.Add(_submit);
@@ -125,7 +125,7 @@ public sealed class ClassificationSubmitWindow : Window
 
     private static Control Heading(string title, TextBlock? detail)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         row.Children.Add(T(title, 13, FontWeight.Bold)); if (detail is not null) row.Children.Add(detail);
         return row;
     }

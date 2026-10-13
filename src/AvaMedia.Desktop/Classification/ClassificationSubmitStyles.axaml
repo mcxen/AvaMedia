@@ -1,4 +1,24 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <x:Double x:Key="CtBasketHeight">144</x:Double>
+    <Thickness x:Key="CtBasketPadding">8</Thickness>
+    <x:Double x:Key="CtPersonPreviewHeight">180</x:Double>
+    <Thickness x:Key="CtWindowMargin">12</Thickness>
+    <x:Double x:Key="CtDetailGap">6</x:Double>
+    <x:Double x:Key="CtGroupGap">10</x:Double>
+    <x:Double x:Key="CtScoreHeight">310</x:Double>
+    <x:Double x:Key="CtCurveHeight">230</x:Double>
+    <x:Double x:Key="CtTagSourceWidth">212</x:Double>
+    <x:Double x:Key="CtScoreModeWidth">132</x:Double>
+    <x:Double x:Key="CtTagScopeWidth">128</x:Double>
+    <x:Double x:Key="CtTagSortWidth">140</x:Double>
+    <x:Double x:Key="CtThresholdWidth">148</x:Double>
+    <x:Double x:Key="CtThresholdLabelWidth">110</x:Double>
+    <Thickness x:Key="CtTagPadding">9,5</Thickness>
+    <Thickness x:Key="CtTagMargin">0,0,6,6</Thickness>
+  </Styles.Resources>
+  <Style Selector="Window.ai-specialist ListBox.surface"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
+
   <!-- These templates are scoped to the submit window, independent of the app's button hover chrome. -->
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.classify-pill, Window:not(.mac-os9):not(.windows-xp) Button.classify-rule, Window:not(.mac-os9):not(.windows-xp) Button.classify-segment">
     <Setter Property="MinHeight" Value="0" />
@@ -94,4 +114,5 @@
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Slider.classify-tuner:pointerover /template/ Thumb /template/ Border#TunerThumb, Window:not(.mac-os9):not(.windows-xp) Slider.classify-tuner:focus-visible /template/ Thumb /template/ Border#TunerThumb">
     <Setter Property="Opacity" Value="1" />
   </Style>
+  <Style Selector="Window.ai-specialist Button.classification-basket.dragover"><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
 </Styles>

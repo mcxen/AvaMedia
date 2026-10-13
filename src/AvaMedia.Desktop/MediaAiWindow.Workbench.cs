@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -27,18 +28,18 @@ public sealed partial class MediaAiWindow
     private readonly CheckBox _generateCaptions = new() { Content = "画面分析与总结", Name = "MediaAiGenerateSummary" };
     private readonly Button _saveTxt = new() { Content = "生成同目录 TXT" };
     private readonly Button _playSample = new() { Content = "播放此时间" };
-    private readonly AiTagChart _scoreBars = new() { Height = 310 };
-    private readonly AiTagChart _peakCurve = new() { Timeline = true, Height = 230 };
-    private readonly Grid _charts = new() { ColumnDefinitions = new("*,1.25*"), ColumnSpacing = 12 };
+    private readonly AiTagChart _scoreBars = new() { [!HeightProperty] = Resource("CtScoreHeight") };
+    private readonly AiTagChart _peakCurve = new() { Timeline = true, [!HeightProperty] = Resource("CtCurveHeight") };
+    private readonly Grid _charts = new() { ColumnDefinitions = new("*,1.25*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
     private readonly Border _scorePanel = ChartPanel();
     private readonly Border _curvePanel = ChartPanel();
-    private readonly Grid _traceLegend = new() { ColumnSpacing = 8, RowSpacing = 4 };
+    private readonly Grid _traceLegend = new() { [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"), RowSpacing = 4 };
     private readonly TextBlock _barReadout = new() { Classes = { "caption" }, MinHeight = 32, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _thresholdCaption = Ui.Text("", "caption");
     private readonly TextBlock _sceneCaption = Ui.Text("", "caption");
     private readonly TextBlock _sampleSummary = Ui.Text("", "caption");
-    private readonly StackPanel _sceneThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    private readonly StackPanel _tagThresholdRow = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly StackPanel _sceneThresholdRow = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+    private readonly StackPanel _tagThresholdRow = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private bool _syncingThresholds, _writingTxt, _syncingChartSource;
     private int _sampleSelectionGeneration;
     private MediaTagResult? _indexedResult;
@@ -112,7 +113,7 @@ public sealed partial class MediaAiWindow
     };
     private Control BuildWorkbench()
     {
-        _chartSource.Width = 212; _scoreMode.Width = 132; _tagScope.Width = 128; _tagSort.Width = 140;
+        _chartSource.Bind(WidthProperty, Resource("CtTagSourceWidth")); _scoreMode.Bind(WidthProperty, Resource("CtScoreModeWidth")); _tagScope.Bind(WidthProperty, Resource("CtTagScopeWidth")); _tagSort.Bind(WidthProperty, Resource("CtTagSortWidth"));
         _tagSort.Name = "MediaAiTagSort";
         AutomationProperties.SetName(_tagScope, "标签类别");
         AutomationProperties.SetName(_tagSort, "标签排序"); AutomationProperties.SetName(_scoreMode, "分数来源");
@@ -120,9 +121,9 @@ public sealed partial class MediaAiWindow
         var panel = WorkbenchActions(_chartSource, _scoreMode, _tagScope, _sampleSummary, _playSample, _followLive);
         foreach (var slider in new[] { _tagThreshold, _sceneThreshold })
         {
-            slider.Width = 148; slider.Bind(Slider.HeightProperty, new DynamicResourceExtension("AcSliderHeight")); slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
+            slider.Bind(WidthProperty, Resource("CtThresholdWidth")); slider.Bind(Slider.HeightProperty, new DynamicResourceExtension("AcSliderHeight")); slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
         }
-        foreach (var caption in new[] { _thresholdCaption, _sceneCaption }) caption.MinWidth = 110;
+        foreach (var caption in new[] { _thresholdCaption, _sceneCaption }) caption.Bind(MinWidthProperty, Resource("CtThresholdLabelWidth"));
         AutomationProperties.SetName(_tagThreshold, "JoyTag 标签分数阈值"); AutomationProperties.SetName(_sceneThreshold, "语义相似度阈值");
         _tagThresholdRow.Children.Add(_thresholdCaption); _tagThresholdRow.Children.Add(_tagThreshold);
         _sceneThresholdRow.Children.Add(_sceneCaption); _sceneThresholdRow.Children.Add(_sceneThreshold);
@@ -162,9 +163,9 @@ public sealed partial class MediaAiWindow
     }
     private Control BuildCharts()
     {
-        var bars = new StackPanel { Spacing = 6 }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
+        var bars = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; bars.Children.Add(Ui.Text("标签排名", "heading")); bars.Children.Add(_scoreBars); bars.Children.Add(_barReadout);
         _scorePanel.Child = bars; _scorePanel.VerticalAlignment = VerticalAlignment.Stretch; _charts.Children.Add(_scorePanel);
-        var curve = new StackPanel { Spacing = 6 }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
+        var curve = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; curve.Children.Add(Ui.Text("采样峰值曲线", "heading")); curve.Children.Add(_peakCurve); curve.Children.Add(_traceLegend);
         _curvePanel.Child = curve; _curvePanel.VerticalAlignment = VerticalAlignment.Stretch; Grid.SetColumn(_curvePanel, 1); _charts.Children.Add(_curvePanel); return _charts;
     }
     private static Border ChartPanel(Control? content = null)

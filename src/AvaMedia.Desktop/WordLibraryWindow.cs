@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -22,6 +23,7 @@ public sealed class WordLibraryWindow : Window
     private readonly ComboBox _category = new() { Classes = { "ac" }, MinWidth = 140, MaxWidth = 220, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly CheckBox _selectedOnly = new() { Classes = { "ac" }, Content = "仅已选" };
     private readonly ListBox _list = new();
+    private readonly AvaMedia.Controls.EmptyState _empty = new() { Text = Localization.Text("当前筛选下没有词条"), IsVisible = false };
     private readonly TextBlock _count = Ui.ComponentText("", "caption");
     private readonly TextBlock _source = Ui.ComponentText("", "caption");
     private readonly HashSet<SelectedWord> _selected = [];
@@ -46,6 +48,7 @@ public sealed class WordLibraryWindow : Window
 
     public WordLibraryWindow(WordLibraryTarget? target = null, bool includeSemantic = false, AppSettings? settings = null)
     {
+        ApplyToolStyles(this);
         _settings = settings ?? new Storage().LoadSettings();
         _settings.NsfwContentChanged += PrivacyChanged;
         _target = target; _includeSemantic = includeSemantic;
@@ -53,14 +56,14 @@ public sealed class WordLibraryWindow : Window
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         Title = includeSemantic ? "选择标签组" : target is null ? "词库管理" : "选择候选词 · " + (target == WordLibraryTarget.JoyTag ? "JoyTag" : "语义匹配");
         Width = 930; Height = 710; MinWidth = 760; MinHeight = 580; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
-        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         tools.Children.Add(Ui.Button("新建词库…", async () => await EditAsync(null)));
         tools.Children.Add(Ui.Button("编辑 / 复制…", async () => await EditAsync(_libraries.SelectedItem as WordLibrary)));
         tools.Children.Add(Ui.Button("导入…", async () => await ImportAsync()));
         tools.Children.Add(Ui.Button("导出…", async () => await ExportAsync()));
         tools.Children.Add(Ui.Button("删除词库", async () => await DeleteAsync())); root.Children.Add(tools);
-        var filters = new Grid { ColumnDefinitions = new("230,180,*,Auto"), ColumnSpacing = 8 };
+        var filters = new Grid { ColumnDefinitions = new("230,180,*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         filters.Children.Add(_libraries); Grid.SetColumn(_category, 1); filters.Children.Add(_category);
         Grid.SetColumn(_selectedOnly, 3); filters.Children.Add(_selectedOnly);
         _selectedOnly.IsVisible = target is not null; Grid.SetRow(filters, 1); root.Children.Add(filters);
@@ -70,7 +73,7 @@ public sealed class WordLibraryWindow : Window
             information.Children.Add(Ui.ComponentText(includeSemantic ? "勾选标签，或全选当前列表；语义候选在下次分析时识别。" : target == WordLibraryTarget.JoyTag
                 ? "仅可选择 JoyTag 支持的标签；内容分级候选可用于视频语义匹配。"
                 : "自定义描述参与语义匹配；内容分级为候选结果，需人工确认。", "caption"));
-            var selection = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var selection = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
             selection.Children.Add(Ui.Button("全选当前列表", () => SelectVisible(true)));
             selection.Children.Add(Ui.Button("取消当前选择", () => SelectVisible(false)));
             selection.Children.Add(Ui.Button("清空全部", () => { _selected.Clear(); RefreshRows(); })); information.Children.Add(selection);
@@ -79,7 +82,7 @@ public sealed class WordLibraryWindow : Window
         _list.ItemTemplate = new FuncDataTemplate<WordRow>((row, _) =>
         {
             if (row is null) return new TextBlock();
-            var grid = new Grid { ColumnDefinitions = new("28,190,*"), ColumnSpacing = 8, Margin = new(2, 1) };
+            var grid = new Grid { ColumnDefinitions = new("28,190,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"), Margin = new(2, 1) };
             var check = new CheckBox { Classes = { "ac" }, IsEnabled = row.Supported, IsVisible = target is not null };
             Avalonia.Automation.AutomationProperties.SetName(check, WordLibraryCatalog.CandidateLabel(row.Entry));
             check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(WordRow.Selected)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);
@@ -93,7 +96,8 @@ public sealed class WordLibraryWindow : Window
             Grid.SetColumn(description, 2); grid.Children.Add(description); return grid;
         });
         Grid.SetRow(_list, 3); root.Children.Add(_list);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_count);
+        Grid.SetRow(_empty, 3); root.Children.Add(_empty);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") }; footer.Children.Add(_count);
         var close = Ui.DialogButton(target is null ? "关闭" : "应用选择", Close, isDefault: target is not null);
         Grid.SetColumn(close, 1); footer.Children.Add(close);
         Grid.SetRow(footer, 4); root.Children.Add(footer); Content = root;
@@ -179,7 +183,7 @@ public sealed class WordLibraryWindow : Window
             && (_selectedOnly.IsChecked != true || row.Selected)).ToArray();
     }
     private void Filter()
-    { if (!_updating) { _list.ItemsSource = VisibleRows(); UpdateCount(); } }
+    { if (!_updating) { var rows = VisibleRows(); _list.ItemsSource = rows; _empty.IsVisible = rows.Length == 0; UpdateCount(); } }
     private void UpdateCount() => _count.Text = _target is null ? Localization.Format($"当前显示 {VisibleRows().Length} 个词")
         : Localization.Format($"已选 {_catalog.Sum(library => library.Entries.Count(entry => _selected.Contains(new(library.Id, entry.Label))))} 个词 · 当前显示 {VisibleRows().Length} · 上限 {WordLibraryCatalog.MaximumCandidates}");
     private void SelectVisible(bool value)

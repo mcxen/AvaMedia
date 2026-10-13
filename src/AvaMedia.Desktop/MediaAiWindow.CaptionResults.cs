@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -16,8 +17,8 @@ public sealed partial class MediaAiWindow
         if (result is null) return;
         result = MediaPrivacy.Filter(result, _settings.EnableNsfwContent);
         if (string.IsNullOrWhiteSpace(result.Caption) && result.CaptionError is null && result.CaptionObservations.Count == 0) return;
-        var content = new StackPanel { Spacing = 8 };
-        var heading = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+        var content = new StackPanel { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+        var heading = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         heading.Children.Add(Ui.Text("内容总结", "heading"));
         if (!string.IsNullOrWhiteSpace(result.Caption))
         {
@@ -42,7 +43,7 @@ public sealed partial class MediaAiWindow
         }
         if (result.CaptionObservations.Count > 0)
         {
-            var observations = new StackPanel { Spacing = 6 };
+            var observations = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
             foreach (var observation in result.CaptionObservations)
             {
                 var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10 };

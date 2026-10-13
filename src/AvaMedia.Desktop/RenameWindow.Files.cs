@@ -131,6 +131,7 @@ public sealed partial class RenameWindow
                 if (!byPath.TryGetValue(entry.Path, out var row)) { entry.NewName = ""; entry.Status = "未勾选"; continue; }
                 entry.NewName = row.NewName;
                 entry.Status = Localization.Text(row.Error is not null ? "错误" : row.Changed ? "待重命名" : "不变");
+                entry.Details = row.Error is null ? entry.Path : entry.Path + Environment.NewLine + row.Error;
                 entry.Details = (_semanticDetails.GetValueOrDefault(entry.Path) ?? entry.Path)
                     + (row.Error is not null ? Environment.NewLine + Localization.Text(row.Error) : "");
             }

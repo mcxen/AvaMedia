@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -27,8 +28,8 @@ public sealed class ExclusiveRenamerWindow : Window
     private readonly TextBlock _status = Ui.ComponentStatus("拖入文件夹或浏览选择，生成新名称后可逐项编辑。");
     private readonly TextBlock _modelHint = Ui.ComponentText("", "caption");
     private readonly Button _generate, _rename, _undo, _stop, _manage;
-    private readonly StackPanel _toolbar = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    private readonly StackPanel _models = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly StackPanel _toolbar = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+    private readonly StackPanel _models = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private readonly CancellationTokenSource _lifetime = new();
     private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "exclusive-vl-rename.json");
     private CancellationTokenSource? _operation;
@@ -75,10 +76,11 @@ public sealed class ExclusiveRenamerWindow : Window
         Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
         if (!settings.ExclusiveToolUnlocked) throw new InvalidOperationException("请先在设置中激活专属工具。");
+        ApplyToolStyles(this);
         _engine = engine; _settings = settings; _configure = configure; _reserveFiles = reserveFiles;
         Title = "专属工具 · VL 媒体智能重命名"; Width = 1160; Height = 700; MinWidth = 900; MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; Controls.WindowArtwork.SetKind(this, "gear");
-        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,*,Auto"), RowSpacing = 10, Margin = new(12) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,*,Auto"), RowSpacing = 10, [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
         _toolbar.Children.Add(Ui.Button("浏览文件夹…", async () =>
         {
             try { if (await Ui.Folder(this, "选择媒体文件夹") is { } folder) await ImportAsync([folder]); }
@@ -100,7 +102,7 @@ public sealed class ExclusiveRenamerWindow : Window
         var contract = Ui.ComponentText("前缀_场景_视角_装扮_动作_评级_原标识 · 保留扩展名，无法确认的特征标为未知", "caption");
         Grid.SetRow(contract, 3); root.Children.Add(contract);
         var table = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 4 };
-        var header = new Grid { ColumnDefinitions = new("32,*,*,140"), ColumnSpacing = 8, Classes = { "table-header" } };
+        var header = new Grid { ColumnDefinitions = new("32,*,*,140"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"), Classes = { "table-header" } };
         foreach (var (column, title) in new[] { (1, "原文件名"), (2, "建议新文件名（可编辑）"), (3, "状态") })
         { var label = Ui.ComponentText(title, "caption"); Grid.SetColumn(label, column); header.Children.Add(label); }
         table.Children.Add(header); _list.ItemsSource = _entries;
@@ -108,7 +110,7 @@ public sealed class ExclusiveRenamerWindow : Window
             { new Setter(PaddingProperty, new Thickness(4, 5)), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _list.ItemTemplate = new FuncDataTemplate<Entry>((_, _) =>
         {
-            var row = new Grid { ColumnDefinitions = new("32,*,*,140"), ColumnSpacing = 8 };
+            var row = new Grid { ColumnDefinitions = new("32,*,*,140"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
             var check = new CheckBox(); check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(Entry.Include)) { Mode = BindingMode.TwoWay });
             check.Bind(Avalonia.Automation.AutomationProperties.NameProperty, new Binding(nameof(Entry.Name))); row.Children.Add(check);
             var name = Ui.ComponentText(""); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -123,7 +125,10 @@ public sealed class ExclusiveRenamerWindow : Window
             return row;
         });
         Grid.SetRow(_list, 1); table.Children.Add(_list); Grid.SetRow(table, 4); root.Children.Add(table);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto,Auto"), ColumnSpacing = 8 };
+        var empty = new AvaMedia.Controls.EmptyState { Text = Localization.Text("选择需要重命名的文件"), IsVisible = _entries.Count == 0 };
+        _entries.CollectionChanged += (_, _) => empty.IsVisible = _entries.Count == 0;
+        Grid.SetRow(empty, 1); table.Children.Add(empty);
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         footer.Children.Add(_status);
         _generate = Ui.Button("激活 VL 并生成预览", async () => await GenerateAsync());
         _rename = Ui.DialogButton("批量重命名", async () => await RenameAsync()); _rename.Classes.Add("primary");

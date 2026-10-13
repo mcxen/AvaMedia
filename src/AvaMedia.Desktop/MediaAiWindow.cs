@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using Avalonia;
@@ -53,6 +54,7 @@ public sealed partial class MediaAiWindow : Window
         _manageModels = manageModels; _canRename=canRename??(()=>true); _storage=storage??new Storage();
         _enqueue = enqueue; _showQueue = showQueue; _stopTask = stopTask; _newTask = newTask;
         _pauseTask = pauseTask; _resumeTask = resumeTask; _reserveFiles = reserveFiles;
+        ApplyToolStyles(this);
         _engine = engine; _settings = settings;
         _tagService = new(engine); MediaTagRuntime.Configure(settings);
         LoadPreferences();

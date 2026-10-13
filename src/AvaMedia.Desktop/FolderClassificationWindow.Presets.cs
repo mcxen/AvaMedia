@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using AvaMedia.Core;
@@ -73,7 +74,7 @@ public sealed partial class FolderClassificationWindow
             }
         }
         var error = Ui.Text("", "error"); error.IsVisible = false;
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
         buttons.Children.Add(Ui.DialogButton("应用选择", () =>
         {
@@ -84,7 +85,8 @@ public sealed partial class FolderClassificationWindow
             catch (ArgumentException exception) { error.Text = Localization.Text(exception.Message); error.IsVisible = true; }
         }, isDefault: true));
         var root = new Grid { RowDefinitions = new("*,Auto,Auto"), Margin = new(18), RowSpacing = 10 };
-        root.Children.Add(new ScrollViewer { Content = body }); Grid.SetRow(error, 1); root.Children.Add(error); Grid.SetRow(buttons, 2); root.Children.Add(buttons); dialog.Content = root;
+        root.Children.Add(new ScrollViewer { Content = body }); Grid.SetRow(error, 1); root.Children.Add(error); Grid.SetRow(buttons, 2); root.Children.Add(buttons); ApplyToolStyles(dialog);
+        dialog.Content = root;
         EventHandler privacy = (_, _) => dialog.Close(false);
         _settings.NsfwContentChanged += privacy;
         try { await dialog.ShowDialog<bool>(this); }

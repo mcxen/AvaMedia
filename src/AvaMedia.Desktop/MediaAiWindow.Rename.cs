@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -30,7 +31,7 @@ public sealed partial class MediaAiWindow
         if (rows.Length == 0) return;
         var window = new Window { Title = "标签重命名", Width = 980, Height = 610, MinWidth = 840, MinHeight = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
         var format = Ui.Combo(["原名 + 标签", "标签 + 序号", "自定义模板"], "原名 + 标签");
         var limit = new NumericUpDown { Minimum = 1, Maximum = 8, Value = 3, Text = "3", Increment = 1, Width = 90 };
         var pattern = Ui.Input("{name}_{keyword}"); Localization.SetIsUserText(pattern, true);
@@ -47,7 +48,7 @@ public sealed partial class MediaAiWindow
         list.ItemTemplate = new FuncDataTemplate<RenameDraft>((row, _) =>
         {
             if (row is null) return new TextBlock();
-            var grid = new Grid { ColumnDefinitions = new("28,*,230,*"), ColumnSpacing = 12, Margin = new(0, 7) };
+            var grid = new Grid { ColumnDefinitions = new("28,*,230,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap"), Margin = new(0, 7) };
             var check = new CheckBox(); check.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(RenameDraft.Include)) { Mode = BindingMode.TwoWay }); grid.Children.Add(check);
             var name = Ui.Text(row.Name); Localization.SetIsUserText(name, true); Grid.SetColumn(name, 1); grid.Children.Add(name);
             var labels = Ui.Input(); labels.Watermark = Localization.Text("命名标签"); Localization.SetIsUserText(labels, true);
@@ -57,16 +58,17 @@ public sealed partial class MediaAiWindow
             var error = Ui.Text("", "error"); error.Bind(TextBlock.TextProperty, new Binding(nameof(RenameDraft.Error))); output.Children.Add(error);
             Grid.SetColumn(output, 3); grid.Children.Add(output); return grid;
         });
-        var table = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 6 };
-        var headings = new Grid { ColumnDefinitions = new("28,*,230,*"), ColumnSpacing = 12, Margin = new(8, 0) };
+        var table = new Grid { RowDefinitions = new("Auto,*"), [!Grid.RowSpacingProperty] = Resource("CtDetailGap") };
+        var headings = new Grid { ColumnDefinitions = new("28,*,230,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap"), Margin = new(8, 0) };
         foreach (var (text, column) in new[] { ("原文件名", 1), ("命名标签", 2), ("新文件名", 3) })
         { var heading = Ui.Text(text, "caption"); Grid.SetColumn(heading, column); headings.Children.Add(heading); }
         table.Children.Add(headings); Grid.SetRow(list, 1); table.Children.Add(list); Grid.SetRow(table, 2); root.Children.Add(table);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         var status = Ui.Text("", "caption"); footer.Children.Add(status);
         var cancel = Ui.DialogButton("取消", window.Close); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
         var apply = new Button { Content = "确认重命名", Classes = { "primary", "dialog-action" } }; Grid.SetColumn(apply, 2); footer.Children.Add(apply);
-        Grid.SetRow(footer, 3); root.Children.Add(footer); window.Content = root;
+        Grid.SetRow(footer, 3); root.Children.Add(footer); ApplyToolStyles(window);
+        window.Content = root;
         RenamePreview? preview = null;
         var updating = false;
         void RefreshPreview()

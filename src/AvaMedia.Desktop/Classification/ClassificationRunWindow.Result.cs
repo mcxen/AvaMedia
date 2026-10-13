@@ -14,7 +14,8 @@ namespace AvaMedia.Desktop.Classification;
 public sealed partial class ClassificationRunWindow
 {
     private string? _resultRule, _resultKey;
-    private readonly StackPanel _before = new() { Spacing = 6 }, _after = new() { Spacing = 20 }, _pendingList = new();
+    private readonly AvaMedia.Controls.EmptyState _afterEmpty = new() { IsVisible = false };
+    private readonly StackPanel _before = new() { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }, _after = new() { Spacing = 20 }, _pendingList = new();
     private readonly TextBlock _afterTitle = T("", 12, brush: Muted, raw: true), _pendingTitle = T("", 12, brush: Muted, raw: true),
         _destination = T("", 12, brush: Muted, raw: true);
     private readonly Grid _histogram = new() { Height = 80, Margin = new(0, 4, 0, 0) };
@@ -22,32 +23,34 @@ public sealed partial class ClassificationRunWindow
     private readonly StackPanel _histCounts = new() { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new(0, 6, 0, 0) };
     private readonly Dictionary<(string Rule, string Category), int> _resultCategoryNumbers = [];
     private bool _moveMode;
-    private Button? _copyMove;
+    private Button? _copyMove, _resultOrganize, _resultPreview;
 
     private Control BuildResult()
     {
         _resultRule ??= (_job.Options.FolderClassification?.Rules.FirstOrDefault(r => r.ByOutfit) ?? _job.Options.FolderClassification?.Rules.FirstOrDefault())?.Id;
         _moveMode = _job.Options.FolderClassification?.Move == true;
-        var grid = new Grid { RowDefinitions = new("*,Auto"), ColumnDefinitions = new("1.05*,2.65*,1.25*"), ColumnSpacing = 14, RowSpacing = 12, Margin = new(22, 0, 22, 14) };
+        var grid = new Grid { RowDefinitions = new("*,Auto"), ColumnDefinitions = new("1.05*,2.65*,1.25*"), ColumnSpacing = 14, [!Grid.RowSpacingProperty] = Resource("AcGap"), Margin = new(22, 0, 22, 14) };
         grid.ColumnDefinitions[0].MinWidth = 236;
         grid.ColumnDefinitions[2].MinWidth = 300;
         ConfigureResultSegments(grid);
         grid.Children.Add(ResultCard(new ScrollViewer { Content = _before, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }));
-        var afterHead = new Grid { ColumnDefinitions = new("Auto,Auto,*"), ColumnSpacing = 8, Margin = new(0, 0, 0, 10) };
+        var afterHead = new Grid { ColumnDefinitions = new("Auto,Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"), Margin = new(0, 0, 0, 10) };
         afterHead.Children.Add(new LucideIcon { Kind = "arrow-right", Width = 14, Height = 14, [!LucideIcon.ForegroundProperty] = Resource(Blue) });
         var afterLabel = T("整理后", 15, FontWeight.Bold); Grid.SetColumn(afterLabel, 1); afterHead.Children.Add(afterLabel);
         Grid.SetColumn(_afterTitle, 2); afterHead.Children.Add(_afterTitle);
         var afterPanel = new DockPanel(); DockPanel.SetDock(afterHead, Dock.Top); afterPanel.Children.Add(afterHead);
-        afterPanel.Children.Add(new ScrollViewer { Content = _after, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        var afterArea = new Grid();
+        afterArea.Children.Add(new ScrollViewer { Content = _after, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        afterArea.Children.Add(_afterEmpty); afterPanel.Children.Add(afterArea);
         var afterCard = ResultCard(afterPanel); Grid.SetColumn(afterCard, 1); grid.Children.Add(afterCard);
 
-        var right = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 12 };
-        var hist = new StackPanel { Spacing = 6 };
-        var histHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var right = new Grid { RowDefinitions = new("Auto,*"), [!Grid.RowSpacingProperty] = Resource("AcGap") };
+        var hist = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
+        var histHead = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         histHead.Children.Add(T("归组把握", 15, FontWeight.Bold)); histHead.Children.Add(T("相似度分布", 12, brush: Muted));
         hist.Children.Add(histHead); hist.Children.Add(_histogram); hist.Children.Add(_histAxis); hist.Children.Add(_histCounts);
         right.Children.Add(ResultCard(hist));
-        var pendingHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new(0, 0, 0, 2) };
+        var pendingHead = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap"), Margin = new(0, 0, 0, 2) };
         pendingHead.Children.Add(T("待你确认", 15, FontWeight.Bold)); pendingHead.Children.Add(_pendingTitle);
         var pendingPanel = new DockPanel(); DockPanel.SetDock(pendingHead, Dock.Top); pendingPanel.Children.Add(pendingHead);
         pendingPanel.Children.Add(new ScrollViewer { Content = _pendingList, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
@@ -60,7 +63,7 @@ public sealed partial class ClassificationRunWindow
         Grid.SetColumn(_destination, 1);
         note.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 13, Height = 13, [!LucideIcon.ForegroundProperty] = Resource(Muted) }); note.Children.Add(_destination);
         bar.Children.Add(note);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         actions.Children.Add(Pill("撤销上次整理", "undo-2", click: () => _openAction(_job, "undo")));
         actions.Children.Add(Pill("导出分类结果…", click: () => _openAction(_job, "export")));
         _copyMove = Pill(_moveMode ? "移动到分类目录" : "复制到分类目录", "chevron-down", iconAfter: true);
@@ -68,8 +71,8 @@ public sealed partial class ClassificationRunWindow
             new MenuItem { Header = L("复制到分类目录"), Command = new RelayCommand(() => SetMove(false)) },
             new MenuItem { Header = L("移动到分类目录"), Command = new RelayCommand(() => SetMove(true)) } } };
         actions.Children.Add(_copyMove);
-        actions.Children.Add(Pill("预览分类目录", click: () => _openAction(_job, _moveMode ? "preview-move" : "preview")));
-        actions.Children.Add(Pill("执行整理", kind: "primary", click: () => _openAction(_job, _moveMode ? "organize-move" : "organize")));
+        _resultPreview = Pill("预览分类目录", click: () => _openAction(_job, _moveMode ? "preview-move" : "preview")); actions.Children.Add(_resultPreview);
+        _resultOrganize = Pill("执行整理", kind: "primary", click: () => _openAction(_job, _moveMode ? "organize-move" : "organize")); actions.Children.Add(_resultOrganize);
         Grid.SetColumn(actions, 1); bar.Children.Add(actions);
         Grid.SetRow(bar, 1); Grid.SetColumnSpan(bar, 3); grid.Children.Add(bar);
         return grid;
@@ -129,9 +132,19 @@ public sealed partial class ClassificationRunWindow
     private void RenderResult()
     {
         var snapshot = _job.ClassificationSnapshot; var spec = _job.Options.FolderClassification;
-        if (snapshot is null || spec is null) return;
-        var key = $"{_resultRule}|{_moveMode}|{snapshot.GetHashCode()}";
+        var key = $"{_resultRule}|{_moveMode}|{snapshot?.GetHashCode()}|{_job.State}|{_job.Error}";
         if (key == _resultKey) return; _resultKey = key;
+        _afterEmpty.IsVisible = false;
+        var hasResolvedFiles = spec is not null && snapshot?.Files.Any(file => file.Error is null && file.Result?.Decisions.Any(decision => !decision.NeedsReview) == true) == true;
+        if (_resultOrganize is not null) _resultOrganize.IsEnabled = hasResolvedFiles;
+        if (_resultPreview is not null) _resultPreview.IsEnabled = hasResolvedFiles;
+        if (snapshot is null || spec is null)
+        {
+            _after.Children.Clear(); _afterTitle.Text = "";
+            ShowResultEmpty();
+            _pendingList.Children.Clear(); _pendingList.Children.Add(new AvaMedia.Controls.EmptyState { Text = L("暂无待确认文件") });
+            return;
+        }
         var output = spec.OutputFolder;
         _destination.Text = $"{L(_moveMode ? "将移动到" : "将复制到")} {output} · {L(_moveMode ? "源文件移走" : "源文件保留")}";
         var files = snapshot.Files;
@@ -192,7 +205,7 @@ public sealed partial class ClassificationRunWindow
     private void RenderBefore(FolderBeforeAfter summary)
     {
         _before.Children.Clear();
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var head = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         head.Children.Add(T("整理前", 15, FontWeight.Bold)); head.Children.Add(T($"{summary.Sources.Length} {L("个源文件夹")}", 12, brush: Muted, raw: true));
         _before.Children.Add(head);
         _before.Children.Add(T($"{summary.Images + summary.Videos} {L("个文件混在一起")}", 12, brush: Muted, raw: true));
@@ -228,12 +241,13 @@ public sealed partial class ClassificationRunWindow
         _afterTitle.Text = rule.ByOutfit
             ? $"{L("分类结果")} · {shoots.Length} {L("个拍摄组")} · {groups.Length} {L("个服装分组")} · {L("另有")} {L("待确认")} {pending.Length}"
             : $"{L("分类结果")} · {groups.Length} {L("个分类")} · {L("另有")} {L("待确认")} {pending.Length}";
+        if (groups.Length == 0 && pending.Length == 0) { ShowResultEmpty(); return; }
         var columns = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 20, RowSpacing = 24 };
         var index = 0; var shootIndex = 0;
         foreach (var shoot in shoots)
         {
-            var block = new StackPanel { Spacing = 8 };
-            var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            var block = new StackPanel { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+            var head = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
             head.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 14, Height = 14, [!LucideIcon.ForegroundProperty] = Resource(Blue) });
             head.Children.Add(T(shoot.Key.Length > 0 ? shoot.Key : L(rule.Name), 13, FontWeight.Bold, raw: true));
             head.Children.Add(T(shoot.Sum(g => g.Items.Length).ToString(), 12, brush: Muted, raw: true));
@@ -267,6 +281,18 @@ public sealed partial class ClassificationRunWindow
             Grid.SetColumn(mosaic, 2); banner.Children.Add(mosaic);
             _after.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Banner), [!Border.CornerRadiusProperty] = Resource("AcPreviewRadius"), Padding = new(14, 12), Child = banner });
         }
+    }
+
+    private void ShowResultEmpty()
+    {
+        var failed = _job.State == JobState.Failed;
+        var empty = _afterEmpty;
+        empty.Text = L(failed ? "无法完成分类" : "暂无分类结果"); empty.IsError = failed; empty.Detail = _job.Error ?? ""; empty.IsVisible = true;
+        empty.Actions.Children.Clear();
+        // The real task error is user data; the status remains in the header pill.
+        Localization.SetIsUserText(empty, true);
+        empty.Actions.Children.Add(Pill("查看日志", click: async () => await Ui.MessageDialog(this, L("处理日志"), _job.Error ?? "", [await _job.ReadLogAsync()])));
+
     }
 
     private void RenderPending(FolderClassificationTaskFile[] files)

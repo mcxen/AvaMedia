@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -19,10 +20,10 @@ public sealed partial class MediaAiWindow
     private readonly Button _editTags = new() { Content = "编辑标签…", IsVisible = false };
     private readonly Button _restoreTags = new() { Content = "恢复识别标签", IsVisible = false };
     private readonly Border _tagPanel = ChartPanel();
-    private readonly StackPanel _tagGroups = new() { Spacing = 10 };
+    private readonly StackPanel _tagGroups = new() { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
     private readonly Image _preview = new() { Name = "MediaAiPreview", Width = 240, Height = 240, Stretch = Stretch.Uniform, IsVisible = false, VerticalAlignment = VerticalAlignment.Top };
     private readonly Border _resultSummary = ChartPanel();
-    private readonly StackPanel _resultContent = new() { Spacing = 10 };
+    private readonly StackPanel _resultContent = new() { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
     private bool? _videoContext;
     private readonly Expander _details = new() { Header = "识别详情", IsVisible = false };
     private Bitmap? _previewBitmap;
@@ -36,6 +37,8 @@ public sealed partial class MediaAiWindow
     private readonly StackPanel _nsfwEvidence = new() { Spacing = 5, Width = 340 };
     private readonly Expander _chartSection = new() { Header = "分数与曲线", IsExpanded = true, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
 
+    private readonly AvaMedia.Controls.EmptyState _resultEmpty = new() { Text = Localization.Text("选择文件以查看识别结果") };
+
     private Control BuildResultPane()
     {
         _preview.DoubleTapped += (_, _) =>
@@ -47,7 +50,7 @@ public sealed partial class MediaAiWindow
             viewer.ShowForViewing(this);
         };
         // Fixed summary: file, state, preview and the actions that act on the result.
-        var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
+        var heading = new Grid { ColumnDefinitions = new("Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
         heading.Children.Add(_preview);
         _detailTitle.MaxLines = 2; _detailTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         var titleRow = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 10 };
@@ -55,7 +58,7 @@ public sealed partial class MediaAiWindow
         _nsfwBadge.Content = _nsfwBadgeText;
         _nsfwBadge.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised"));
         _nsfwBadge.Click += (_, _) => { _details.IsExpanded = !_details.IsExpanded; _details.BringIntoView(); };
-        var title = new StackPanel { Spacing = 6 };
+        var title = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
         title.Children.Add(titleRow); title.Children.Add(_detailState);
         _sampleSummary.Classes.Add("time");
         _resultFilters.Child = BuildWorkbench(); title.Children.Add(_resultFilters);
@@ -63,10 +66,10 @@ public sealed partial class MediaAiWindow
         // The summary precedes tag charts; controls use the space beside the media preview.
         var content = _resultContent;
         _captionPanel.IsVisible = false; content.Children.Add(_captionPanel);
-        var analysis = new StackPanel { Spacing = 10, Margin = new(0, 8, 0, 0) };
+        var analysis = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap"), Margin = new(0, 8, 0, 0) };
         analysis.Children.Add(BuildCharts()); _chartSection.Content = analysis; content.Children.Add(_chartSection);
-        var tags = new StackPanel { Spacing = 10 };
-        var tagHeading = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
+        var tags = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
+        var tagHeading = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
         tagHeading.Children.Add(_tagCount); Grid.SetColumn(_copy, 1); tagHeading.Children.Add(_copy);
         tags.Children.Add(tagHeading); tags.Children.Add(_tagGroups); _tagPanel.Child = tags; content.Children.Add(_tagPanel);
         content.Children.Add(_details);
@@ -84,6 +87,7 @@ public sealed partial class MediaAiWindow
         _resultSummary.Child = heading; pane.Children.Add(_resultSummary);
         var scroll = new ScrollViewer { Content = content, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         Grid.SetRow(scroll, 1); pane.Children.Add(scroll);
+        Grid.SetRow(_resultEmpty, 1); pane.Children.Add(_resultEmpty);
         return pane;
     }
     private void UpdateNsfwBadge(NsfwAssessment? moderation, bool video = false)
@@ -109,7 +113,7 @@ public sealed partial class MediaAiWindow
         _nsfwEvidence.Children.Add(Ui.Text(Localization.Format($"判断阈值 {moderation.Threshold:0.00}"), "caption"));
         foreach (var item in moderation.Evidence)
         {
-            var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };
+            var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
             var kind = Ui.Text(item.Risk ? "风险" : "提示", item.Risk ? "error" : "caption"); row.Children.Add(kind);
             var label = Ui.Text(item.Label + " · " + Localization.Text(item.Category)); Localization.SetIsUserText(label, true);
             Grid.SetColumn(label, 1); row.Children.Add(label);
@@ -134,28 +138,33 @@ public sealed partial class MediaAiWindow
         AutomationProperties.SetName(_preview, Localization.Text(video ? "视频预览" : "图片预览"));
         _detailTitle.Text = entry?.Name ?? Localization.Text("识别结果"); Localization.SetIsUserText(_detailTitle, true);
         ToolTip.SetTip(_detailTitle, entry?.Path);
-        _tagPanel.IsVisible = entry is not null && TryDisplayedResult(entry.Path, out _) || entry?.Status == Localization.Text("失败") && entry.Details.Length > 0;
+        _tagPanel.IsVisible = true;
         _editTags.IsVisible = entry is not null && _results.ContainsKey(entry.Path);
         _restoreTags.IsVisible = _editTags.IsVisible && _editedTags.ContainsKey(entry!.Path);
         if (entry is null || !TryDisplayedResult(entry.Path, out var result))
         {
             _detailState.Text = ""; _detailState.IsVisible = false;
-            if (entry?.Status == Localization.Text("失败") && entry.Details.Length > 0) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
+            var failed = entry?.Status == Localization.Text("失败") && entry.Details.Length > 0;
+            _resultContent.IsVisible = false; _resultEmpty.IsVisible = true;
+            _resultEmpty.Text = Localization.Text(failed ? "识别失败" : entry is null ? "选择文件以查看识别结果" : "暂无识别结果");
+            _resultEmpty.Detail = failed ? entry!.Details : ""; _resultEmpty.IsError = failed;
             RenderCaption(null); RenderCharts(null); UpdateNsfwBadge(null); UpdateActions(); return;
         }
+        _resultContent.IsVisible = true; _resultEmpty.IsVisible = false;
         RenderCaption(result);
         RenderCharts(result);
         if (!_busy && _liveResults.ContainsKey(result.Path) && entry.Details.Length > 0 && entry.Status == Localization.Text("失败")) _tagGroups.Children.Add(Ui.Text(entry.Details, "error"));
         if (result.SceneError is not null) _tagGroups.Children.Add(result.SceneSkipped ? Ui.Text(Localization.Text(result.SceneError), "caption")
             : Ui.Text(Localization.Text("语义识别失败：") + result.SceneError, "error"));
         var tags = ResultTags(result, search: true).ToArray();
+        if (tags.Length == 0) _tagGroups.Children.Add(new AvaMedia.Controls.EmptyState { Text = Localization.Text("当前筛选下没有标签") });
         _tagCount.Text = tags.Length > 0 ? Localization.Format($"已识别 {tags.Length} 个标签") : Localization.Text("标签");
         _detailState.IsVisible = result.IsPartial || _liveResults.ContainsKey(result.Path);
         _detailState.Text = !_detailState.IsVisible ? "" : _busy ? Localization.Format($"正在识别 · 当前 {tags.Length} 个标签") : Localization.Format($"部分结果 · {tags.Length} 个标签");
         foreach (var group in tags.GroupBy(tag => tag.Category))
         {
-            var section = new StackPanel { Spacing = 6 };
-            var groupHeading = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+            var section = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
+            var groupHeading = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
             groupHeading.Children.Add(Ui.Text(Localization.Text(group.Key), "heading"));
             var count = Ui.Text(group.Count().ToString(), "caption"); Localization.SetIsUserText(count, true);
             Grid.SetColumn(count, 1); groupHeading.Children.Add(count); section.Children.Add(groupHeading);
@@ -164,7 +173,7 @@ public sealed partial class MediaAiWindow
             {
                 var label = Ui.Text(tag.Label + (_showScores.IsChecked == true ? " · " + Localization.Text(tag.ScoreKind switch
                     { "sample_peak" => "峰值", "cosine_similarity" => "相似度", _ => "分数" }) + $" {tag.Score:0.00}" : "")); Localization.SetIsUserText(label, true);
-                var chip = new Button { Content = label, Padding = new(9, 5), Margin = new(0, 0, 6, 6), BorderThickness = new(1) };
+                var chip = new Button { Content = label, [!Button.PaddingProperty] = Resource("CtTagPadding"), [!MarginProperty] = Resource("CtTagMargin"), BorderThickness = new(1) };
                 if (tag.Model == "manual") chip.Click += async (_, _) => await EditTagsAsync(result);
                 else
                 {

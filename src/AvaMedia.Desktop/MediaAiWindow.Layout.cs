@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -21,20 +22,19 @@ public sealed partial class MediaAiWindow
     private readonly CheckBox _selectAll = new() { Content = "全选" };
     private readonly CheckBox _showScores = new() { Content = "显示标签分数" };
     private readonly TextBlock _fileCount = Ui.Text("", "caption");
-    private readonly TextBlock _empty = Ui.Text("拖入图片或视频", "caption");
-    private readonly StackPanel _settingsPanel = new() { Spacing = 6 };
+    private readonly AvaMedia.Controls.EmptyState _empty = new() { Text = Localization.Text("选择图片或视频") };
+    private readonly StackPanel _settingsPanel = new() { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
     private readonly Expander _batchActions = new() { Header = "批量操作", IsExpanded = false, HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private bool _updatingSelection;
     private Window? _settingsOwner;
     private Control? _videoFramesSetting;
-    private readonly Grid _workspaceBody = new() { ColumnDefinitions = new("248,*"), ColumnSpacing = 12 };
-    private Control? _resultPane;
+    private readonly Grid _workspaceBody = new() { ColumnDefinitions = new("248,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
 
     private void BuildInterface()
     {
         StableLayout.Reserve(_pause, "临时停止", "继续任务");
         ConfigureWorkbenchScrollbars();
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
         _imports.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
             var files = await ToolFilePicker.OpenFilesAsync(this, new() { Title = Localization.Text("选择图片或视频"), AllowMultiple = true,
@@ -74,13 +74,15 @@ public sealed partial class MediaAiWindow
             var content = new StackPanel { Spacing = 1 };
             var name = Ui.Text(""); name.FontWeight = FontWeight.SemiBold; name.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(name, true); name.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Name))); content.Children.Add(name);
-            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status))); content.Children.Add(status);
+            var status = Ui.Text("", "caption"); status.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status)));
+            var state = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
+            state.Children.Add(FileStatus(entry)); state.Children.Add(status); content.Children.Add(state);
             var summary = Ui.Text("", "caption"); summary.MaxLines = 2; summary.TextWrapping = TextWrapping.Wrap; summary.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(summary, true); summary.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Details))); content.Children.Add(summary);
-            Grid.SetColumn(content, 1); row.Children.Add(content); return row;
+            Grid.SetColumn(content, 1); row.Children.Add(content); return new AvaMedia.Controls.ListRow { Child = row };
         });
-        var files = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 };
-        var selection = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
+        var files = new Grid { RowDefinitions = new("Auto,*,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
+        var selection = new Grid { ColumnDefinitions = new("Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
         selection.Children.Add(_selectAll); Grid.SetColumn(_fileCount, 1); _fileCount.HorizontalAlignment = HorizontalAlignment.Right; selection.Children.Add(_fileCount); files.Children.Add(selection);
         var fileBody = new Grid(); fileBody.Children.Add(_list);
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center; fileBody.Children.Add(_empty);
@@ -89,7 +91,7 @@ public sealed partial class MediaAiWindow
         Grid.SetRow(_batchActions, 2); files.Children.Add(_batchActions);
         var body = _workspaceBody;
         var filePanel = ChartPanel(files); filePanel.VerticalAlignment = VerticalAlignment.Stretch;
-        body.Children.Add(filePanel); var result = BuildResultPane(); _resultPane = result; Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
+        body.Children.Add(filePanel); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
         Grid.SetRow(_activity, 2); root.Children.Add(_activity);
         var state = new StackPanel { Spacing = 3 }; state.Children.Add(_status); state.Children.Add(_modelStatus);
         state.Children.Add(BuildModelPreparation());
@@ -190,9 +192,10 @@ public sealed partial class MediaAiWindow
         if (_busy) return;
         var window = new Window { Title = "AI 标签 · 高级设置", Width = 480, Height = 520, MinWidth = 420, MinHeight = 430,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var root = new Grid { RowDefinitions = new("*,Auto"), RowSpacing = 8, Margin = new(12) };
+        var root = new Grid { RowDefinitions = new("*,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
         var scroll = new ScrollViewer { Content = _settingsPanel }; root.Children.Add(scroll);
-        var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetRow(close, 1); root.Children.Add(close); window.Content = root;
+        var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetRow(close, 1); root.Children.Add(close); ApplyToolStyles(window);
+        window.Content = root;
         window.Closed += (_, _) =>
         {
             scroll.Content = null;
@@ -214,10 +217,6 @@ public sealed partial class MediaAiWindow
         if (_updatingSelection) return;
         var included = _entries.Count(entry => entry.Include);
         var hasFiles = _entries.Count > 0;
-        _workspaceBody.ColumnDefinitions[0].Width = hasFiles ? new GridLength(248) : new GridLength(1, GridUnitType.Star);
-        _workspaceBody.ColumnDefinitions[1].Width = hasFiles ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-        _workspaceBody.ColumnSpacing = hasFiles ? 12 : 0;
-        if (_resultPane is not null) _resultPane.IsVisible = hasFiles;
         _selectAll.IsVisible = _fileCount.IsVisible = hasFiles;
         var hasVideo = _entries.Any(entry => entry.Include && VideoFormats.IsVideo(entry.Path));
         if (_videoFramesSetting is not null) _videoFramesSetting.IsVisible = hasVideo;

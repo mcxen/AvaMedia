@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
@@ -42,7 +43,7 @@ public sealed partial class MediaAiWindow
         primary.Bind(WidthProperty, new Avalonia.Data.Binding(nameof(Button.Width)) { Source = _warmStart });
         var release = new Border { Child = _warmRelease };
         release.Bind(WidthProperty, new Avalonia.Data.Binding(nameof(Button.Width)) { Source = _warmRelease });
-        var actions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto,*"), ColumnSpacing = 8 };
+        var actions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         actions.Children.Add(primary); Grid.SetColumn(release, 1); actions.Children.Add(release);
         var management = Ui.Button("模型管理…", async () => await ManageModelsAsync());
         Grid.SetColumn(management, 2); actions.Children.Add(management);

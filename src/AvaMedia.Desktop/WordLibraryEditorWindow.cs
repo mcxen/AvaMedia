@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -19,15 +20,16 @@ internal sealed class WordLibraryEditorWindow : Window
 
     public WordLibraryEditorWindow(WordLibrary? library)
     {
+        ApplyToolStyles(this);
         Title = "编辑词库"; Width = 980; Height = 700; MinWidth = 850; MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        _entries = new(library?.Entries ?? [new("猫", "动物", "A photo of a cat.", ["cat"])]);
+        _entries = new(library?.Entries ?? []);
         _name = Ui.ComponentInput(library is null ? "我的词库" : library.BuiltIn ? library.Name + " 副本" : library.Name);
         Localization.SetIsUserText(_name,true);
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), RowSpacing = 8, Margin = new(12) };
-        var title = new StackPanel { Spacing = 6 }; title.Children.Add(Ui.ComponentText("词库名称")); title.Children.Add(_name); root.Children.Add(title);
-        var body = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
-        var left = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
+        var title = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; title.Children.Add(Ui.ComponentText("词库名称")); title.Children.Add(_name); root.Children.Add(title);
+        var body = new Grid { ColumnDefinitions = new("*,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
+        var left = new Grid { RowDefinitions = new("Auto,*,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
         left.Children.Add(Ui.ComponentText("词条")); _list.ItemsSource = _entries;
         _list.ItemTemplate = new FuncDataTemplate<WordCandidate>((entry, _) =>
         {
@@ -35,7 +37,10 @@ internal sealed class WordLibraryEditorWindow : Window
             var label=Ui.ComponentText(entry?.Label??"");var category=Ui.ComponentText(entry?.Category??"","caption");Localization.SetIsUserText(label,true);Localization.SetIsUserText(category,true);row.Children.Add(label);row.Children.Add(category);return row;
         });
         Grid.SetRow(_list, 1); left.Children.Add(_list);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var empty = new AvaMedia.Controls.EmptyState { Text = Localization.Text("暂无词条"), IsVisible = _entries.Count == 0 };
+        Grid.SetRow(empty, 1); left.Children.Add(empty);
+        _entries.CollectionChanged += (_, _) => empty.IsVisible = _entries.Count == 0;
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         actions.Children.Add(Ui.Button("添加词条", () =>
         {
             var suffix = 1; while (_entries.Any(entry => entry.Label == "新词条 " + suffix)) suffix++;
@@ -43,7 +48,7 @@ internal sealed class WordLibraryEditorWindow : Window
         }));
         actions.Children.Add(Ui.Button("删除词条", () => { _editingIndex = -1; if (_list.SelectedItem is WordCandidate entry) _entries.Remove(entry); if (_entries.Count > 0) _list.SelectedIndex = 0; else { _label.Text = _category.Text = _description.Text = ""; _selectedTags.Clear(); RefreshTags(); } }));
         Grid.SetRow(actions, 2); left.Children.Add(actions); body.Children.Add(left);
-        var fields = new StackPanel { Spacing = 8 };
+        var fields = new StackPanel { IsEnabled = _entries.Count > 0, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         foreach (var (caption, input) in new[] { ("中文名称", _label), ("类别", _category), ("语义描述", _description) })
         { Localization.SetIsUserText(input, true); fields.Children.Add(Ui.ComponentText(caption)); fields.Children.Add(input); }
         var categories = new WrapPanel();
@@ -62,7 +67,7 @@ internal sealed class WordLibraryEditorWindow : Window
         fields.Children.Add(Ui.Button("保存词条", () => SaveEntry()));
         Grid.SetColumn(fields,1); body.Children.Add(new ScrollViewer { Content = fields, [Grid.ColumnProperty] = 1 });
         Grid.SetRow(body,1); root.Children.Add(body); Grid.SetRow(_error,2); root.Children.Add(_error);
-        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         footer.Children.Add(Ui.DialogButton("取消", () => Close(null)));
         footer.Children.Add(Ui.DialogButton("保存词库", () =>
         {
@@ -76,6 +81,7 @@ internal sealed class WordLibraryEditorWindow : Window
         Grid.SetRow(footer,3); root.Children.Add(footer); Content = root;
         _list.SelectionChanged += (_, _) =>
         {
+            fields.IsEnabled = _list.SelectedItem is WordCandidate;
             if (_loading) return; var index = _list.SelectedIndex; SaveEntry(false); _editingIndex = index; LoadEntry();
         }; _list.SelectedIndex = 0;
     }

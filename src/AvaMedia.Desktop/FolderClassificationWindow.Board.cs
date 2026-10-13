@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -17,12 +18,12 @@ public sealed partial class FolderClassificationWindow
 {
     private const string AllBasket = "@all", PendingBasket = "@pending", ReviewBasket = "@review";
     private readonly ComboBox _boardRule = new() { MinWidth = 130 };
-    private readonly StackPanel _baskets = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly StackPanel _baskets = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private readonly Dictionary<string, BasketView> _basketViews = [];
     private readonly CheckBox _onlyIncluded = new() { Content = "仅看已选" };
     private readonly Button _allFilter = new();
     private readonly Button _pendingFilter = new();
-    private readonly TextBlock _boardEmpty = Ui.Text("添加文件夹后，在这里查看封面与分类", "caption");
+    private readonly AvaMedia.Controls.EmptyState _boardEmpty = new() { Text = Localization.Text("添加文件夹后查看分类结果") };
     private readonly DispatcherTimer _boardTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private string _basketId = AllBasket;
     private string? _boardRuleId;
@@ -35,8 +36,8 @@ public sealed partial class FolderClassificationWindow
 
     private Control BuildBoard()
     {
-        var board = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), RowSpacing = 8 };
-        var toolbar = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };
+        var board = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
+        var toolbar = new Grid { ColumnDefinitions = new("Auto,*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         _boardRule.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<FolderClassificationRule>((rule, _) => UserText(rule?.Name ?? ""));
         toolbar.Children.Add(_boardRule);
         Grid.SetColumn(_onlyIncluded, 2); toolbar.Children.Add(_onlyIncluded); board.Children.Add(toolbar);
@@ -83,14 +84,14 @@ public sealed partial class FolderClassificationWindow
         var name = UserText(""); name.FontWeight = FontWeight.SemiBold;
         name.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Name))); name.Bind(ToolTip.TipProperty, new Binding(nameof(MediaFileEntry.Path)));
         name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis; info.Children.Add(name);
-        var kindAndState = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var kindAndState = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         var kind = Ui.Text(entry.Kind, "caption"); var state = Ui.Text("", "caption"); state.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Status)));
-        kindAndState.Children.Add(kind); kindAndState.Children.Add(state); info.Children.Add(kindAndState);
+        kindAndState.Children.Add(kind); kindAndState.Children.Add(FileStatus(entry)); kindAndState.Children.Add(state); info.Children.Add(kindAndState);
         var destination = UserText(""); destination.TextWrapping = TextWrapping.NoWrap; destination.TextTrimming = TextTrimming.CharacterEllipsis;
         destination.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.Details))); destination.Bind(ToolTip.TipProperty, new Binding(nameof(MediaFileEntry.Details))); info.Children.Add(destination);
         var planned = UserText(""); planned.TextWrapping = TextWrapping.NoWrap; planned.TextTrimming = TextTrimming.CharacterEllipsis;
         planned.Bind(TextBlock.TextProperty, new Binding(nameof(MediaFileEntry.NewName))); planned.Bind(ToolTip.TipProperty, new Binding(nameof(MediaFileEntry.NewName))); info.Children.Add(planned);
-        Grid.SetColumn(info, 2); row.Children.Add(info); return row;
+        Grid.SetColumn(info, 2); row.Children.Add(info); return new AvaMedia.Controls.ListRow { Child = row };
     }
 
     private void QueueBoardRefresh()
@@ -209,7 +210,7 @@ public sealed partial class FolderClassificationWindow
         title.TextTrimming = TextTrimming.CharacterEllipsis; ToolTip.SetTip(title, name); content.Children.Add(title);
         var count = Ui.Text("", "caption"); count.TextWrapping = TextWrapping.NoWrap;
         content.Children.Add(count);
-        var button = new Button { Content = content, Padding = new(8), BorderThickness = new(2), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var button = new Button { Content = content, Height = double.NaN, [!MinHeightProperty] = Resource("CtBasketHeight"), [!Button.PaddingProperty] = Resource("CtBasketPadding"), [!Border.CornerRadiusProperty] = Resource("AcCardRadius"), BorderThickness = new(2), HorizontalContentAlignment = HorizontalAlignment.Stretch, Classes = { "classification-basket" } };
         var view = new BasketView(button, fan, count, name, rule, category);
         button.Click += (_, _) => { _basketId = id; RenderBoard(); };
         if (rule is null || id is AllBasket or PendingBasket) return view;
@@ -217,12 +218,12 @@ public sealed partial class FolderClassificationWindow
         button.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
             if (_busy || _dragEntry is null || e.DataTransfer.TryGetText() != _dragToken) return;
-            e.DragEffects = DragDropEffects.Move; e.Handled = true; button.Classes.Set("primary", true);
+            e.DragEffects = DragDropEffects.Move; e.Handled = true; button.Classes.Set("dragover", true);
         });
-        button.AddHandler(DragDrop.DragLeaveEvent, (_, _) => button.Classes.Set("primary", false));
+        button.AddHandler(DragDrop.DragLeaveEvent, (_, _) => button.Classes.Set("dragover", false));
         button.AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
-            button.Classes.Set("primary", false);
+            button.Classes.Set("dragover", false);
             if (_busy || _dragEntry is not { } entry || e.DataTransfer.TryGetText() != _dragToken) return;
             e.Handled = true; await GuardAsync(() => PlaceInBasketAsync(entry, rule, category));
         });

@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using AvaMedia.Core;
@@ -51,14 +52,15 @@ public sealed partial class MediaAiWindow
         root.Children.Add(body);
         EventHandler privacy = (_, _) => window.Close();
         _settings.NsfwContentChanged += privacy; window.Closed += (_, _) => _settings.NsfwContentChanged -= privacy;
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap"), HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(Ui.DialogButton("取消", window.Close));
         actions.Children.Add(Ui.DialogButton("保存", () =>
         {
             _editedTags[result.Path] = labels.Distinct(StringComparer.OrdinalIgnoreCase).Select(label => original.FirstOrDefault(tag => tag.Label.Equals(label, StringComparison.OrdinalIgnoreCase)) ?? new ResultTag(label, "手动标签", 1, "manual", "manual")).Concat(hidden).ToArray();
             window.Close(); RefreshDisplayedResults();
         }));
-        Grid.SetRow(actions, 1); root.Children.Add(actions); window.Content = root; await window.ShowDialog(this);
+        Grid.SetRow(actions, 1); root.Children.Add(actions); ApplyToolStyles(window);
+        window.Content = root; await window.ShowDialog(this);
     }
     private async Task ShowEvidenceAsync(MediaTagResult result, ResultTag tag)
     {
@@ -69,7 +71,7 @@ public sealed partial class MediaAiWindow
             : TagPoints(result, tag).Where(point => point.Score >= (double)(_threshold.Value ?? .4m)).Select(point => point.Seconds).Distinct().Order().ToArray();
         var window = new Window { Title = tag.Label, Width = 500, Height = 420, MinWidth = 380, MinHeight = 300, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Localization.SetIsUserText(window, true);
-        var content = new StackPanel { Spacing = 6, Margin = new(12) };
+        var content = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
         if(matches.Length == 0) content.Children.Add(Ui.Text(result.Frames.Count == 0 ? "此结果没有视频采样时间" : "没有达到当前阈值的采样画面", "caption"));
         foreach(var seconds in matches)
             content.Children.Add(Ui.Button(MediaTime.Format(seconds) + " · " + Localization.Text("播放画面"), async () =>
@@ -82,6 +84,7 @@ public sealed partial class MediaAiWindow
                 }
                 catch(Exception error) { await Ui.Message(window, "无法播放", error.Message); }
             }));
+        ApplyToolStyles(window);
         window.Content = new ScrollViewer { Content = content }; await window.ShowDialog(this);
     }
 }

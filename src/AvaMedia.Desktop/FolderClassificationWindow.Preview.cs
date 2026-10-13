@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using AvaMedia.Core;
@@ -9,7 +10,7 @@ public sealed partial class FolderClassificationWindow : IClassificationCoverSou
 {
     private readonly ClassificationCoverCache _coverCache = new();
     private readonly ClassificationCover _selectedCover = new() { Height = 180 };
-    private readonly StackPanel _coverPanel = new() { Spacing = 6 };
+    private readonly StackPanel _coverPanel = new() { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
     private readonly WrapPanel _coverActions = new();
     private readonly SemaphoreSlim _destinationGate = new(1, 1);
     private CancellationTokenSource? _destinationRequest;

@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -48,6 +49,7 @@ public sealed partial class FolderClassificationWindow : Window
         Action<Job> stopTask, Action newTask, Action showTasks, AppSettings? settings = null,
         Action<Job>? pauseTask = null, Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
+        ApplyToolStyles(this);
         _engine = engine; _canMove = canMove; _manageModels = manageModels;
         _pauseTask = pauseTask; _reserveFiles = reserveFiles;
         _enqueueTask = enqueueTask; _resumeTask = resumeTask; _stopTask = stopTask; _newTask = newTask; _showTasks = showTasks;

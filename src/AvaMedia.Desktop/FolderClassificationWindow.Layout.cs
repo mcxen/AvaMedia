@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -23,9 +24,9 @@ public sealed partial class FolderClassificationWindow
     private readonly Button _deleteSaved = new() { Content = "删除" };
     private readonly TextBlock _defaultSummary = Ui.Text("", "caption");
     private readonly WrapPanel _imports = new();
-    private readonly StackPanel _settingsPanel = new() { Spacing = 6 };
-    private readonly StackPanel _rulesPanel = new() { Spacing = 8 };
-    private readonly StackPanel _details = new() { Spacing = 8 };
+    private readonly StackPanel _settingsPanel = new() { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
+    private readonly StackPanel _rulesPanel = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+    private readonly StackPanel _details = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹" };
     private readonly CheckBox _splitTypes = new() { Content = "按视频 / 图片分目录" };
     private readonly CheckBox _writeText = new() { Content = "为每个文件保存标签 TXT" };
@@ -36,7 +37,7 @@ public sealed partial class FolderClassificationWindow
     private readonly TextBlock _status = Ui.Status("选择文件夹或拖入媒体");
     private readonly TextBlock _scanErrors = Ui.Text("", "caption");
     private readonly AiActivityView _activity = new() { Collapsible = true, DetailHeight = 170 };
-    private readonly StackPanel _videoSettings = new() { Spacing = 6, IsVisible = false };
+    private readonly StackPanel _videoSettings = new() { [!StackPanel.SpacingProperty] = Resource("CtDetailGap"), IsVisible = false };
     private readonly Button _analyze = new() { Content = "后台运行分类", Classes = { "primary" } };
     private readonly Button _retry = new() { Content = "重试未完成" };
     private readonly Button _preview = new() { Content = "预览分类目录" };
@@ -52,7 +53,7 @@ public sealed partial class FolderClassificationWindow
         StableLayout.Reserve(_allFilter, "全部 888888", "All 888888");
         StableLayout.Reserve(_pendingFilter, "待分析 888888", "Pending 888888");
         _mode.ItemsSource = new[] { "复制到分类目录", "移动到分类目录" }.Select(Localization.Text).ToArray(); _mode.SelectedIndex = 0;
-        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), Margin = new(12), RowSpacing = 8 };
+        var root = new Grid { RowDefinitions = new("Auto,*,Auto,Auto"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
         _imports.Children.Add(ToolFilePicker.ImportActions(this,
             async () => await GuardAsync(async () => await ImportPathsAsync(await Ui.Pick(this, "选择图片或视频"))), async () =>
         {
@@ -80,14 +81,15 @@ public sealed partial class FolderClassificationWindow
         foreach (var (label, action) in new (string, Action)[] { ("新建分类任务", _newTask), ("查看任务列表", _showTasks) })
         { var button = Ui.Button(label, action); button.Margin = new(6, 0, 0, 6); tasks.Children.Add(button); }
         Grid.SetColumn(tasks, 1); header.Children.Add(tasks); root.Children.Add(header);
-        var body = new Grid { ColumnDefinitions = new("228,*,260"), ColumnSpacing = 8 };
+        var body = new Grid { ColumnDefinitions = new("228,*,260"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         _settingsPanel.Children.Add(Ui.Text("分类规则", "settingsHeading"));
         _rulesPanel.Children.Add(Ui.Text("选择需要的分组，最多同时使用 8 组。", "caption"));
+        Avalonia.Controls.ScrollViewer.SetHorizontalScrollBarVisibility(_ruleList, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         _ruleList.ItemsSource = _rules;
         _ruleList.ItemTemplate = new FuncDataTemplate<FolderClassificationRule>((rule, _) =>
         {
             var text = UserText(rule is null ? "" : rule.ByOutfit ? rule.Name : rule.Name + " · " + string.Join(" / ", rule.Categories.Select(category => category.Name)));
-            text.TextTrimming = TextTrimming.CharacterEllipsis; return text;
+            text.TextTrimming = TextTrimming.CharacterEllipsis; ToolTip.SetTip(text, text.Text); return text;
         });
         _rulesPanel.Children.Add(_ruleList); _ruleList.SelectedItem = _rules.FirstOrDefault();
         var ruleActions = new WrapPanel();
@@ -108,9 +110,9 @@ public sealed partial class FolderClassificationWindow
         _savedSelector.ItemsSource = _savedRules;
         _savedSelector.ItemTemplate = new FuncDataTemplate<FolderClassificationRule>((rule, _) =>
         { var name = Ui.Text(rule?.Name ?? "", "caption"); Localization.SetIsUserText(name, true); return name; });
-        var savedRow = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 5 };
-        savedRow.Children.Add(_savedSelector); Grid.SetColumn(_useSaved, 1); savedRow.Children.Add(_useSaved);
-        Grid.SetColumn(_deleteSaved, 2); savedRow.Children.Add(_deleteSaved); _rulesPanel.Children.Add(savedRow);
+        var savedRow = new Grid { RowDefinitions = new("Auto,Auto"), ColumnDefinitions = new("*,*"), [!Grid.RowSpacingProperty] = Resource("CtDetailGap"), [!Grid.ColumnSpacingProperty] = Resource("CtDetailGap") };
+        _savedSelector.HorizontalAlignment = HorizontalAlignment.Stretch; Grid.SetColumnSpan(_savedSelector, 2); savedRow.Children.Add(_savedSelector); Grid.SetRow(_useSaved, 1); savedRow.Children.Add(_useSaved);
+        Grid.SetRow(_deleteSaved, 1); Grid.SetColumn(_deleteSaved, 1); savedRow.Children.Add(_deleteSaved); _rulesPanel.Children.Add(savedRow);
 
         _saveRule.Click += async (_, _) => await GuardAsync(SaveSelectedRuleAsync);
         _setDefault.Click += async (_, _) => await GuardAsync(SetDefaultRulesAsync);
@@ -119,7 +121,7 @@ public sealed partial class FolderClassificationWindow
         _deleteSaved.Click += async (_, _) => await GuardAsync(DeleteSavedRuleAsync);
         _ruleList.SelectionChanged += (_, _) => RefreshRuleActions();
         _savedSelector.SelectionChanged += (_, _) => RefreshRuleActions();
-        var analysisSettings = new StackPanel { Spacing = 8 };
+        var analysisSettings = new StackPanel { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         _videoSettings.Children.Add(Ui.Text("视频采样帧数", "caption")); _videoSettings.Children.Add(Ui.Adjust(_frames));
         analysisSettings.Children.Add(_videoSettings);
         analysisSettings.Children.Add(Ui.Text("标签阈值", "caption")); analysisSettings.Children.Add(Ui.Adjust(_tagThreshold));
@@ -138,7 +140,7 @@ public sealed partial class FolderClassificationWindow
         Grid.SetColumn(inspector, 2); body.Children.Add(inspector);
         Grid.SetRow(body, 1); root.Children.Add(body);
         Grid.SetRow(_activity, 2); root.Children.Add(_activity);
-        var footer = new StackPanel { Spacing = 6 };
+        var footer = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
         _scanErrors.IsVisible = false; _scanErrors.MaxHeight = 60; footer.Children.Add(new ScrollViewer { Content = _scanErrors, MaxHeight = 60 });
         footer.Children.Add(_status);
         var actions = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };

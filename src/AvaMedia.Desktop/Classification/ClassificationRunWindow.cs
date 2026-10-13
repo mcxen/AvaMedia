@@ -21,7 +21,7 @@ public sealed partial class ClassificationRunWindow : Window
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly Grid _body = new();
     private readonly TextBlock _title = T("", 13, FontWeight.Bold, raw: true), _subtitle = T("", 12, brush: Muted, raw: true);
-    private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
+    private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcGap"), VerticalAlignment = VerticalAlignment.Center };
     private int _dirty = 1, _computing;
     private long _lastApplied;
     private bool? _resultMode;
@@ -30,11 +30,12 @@ public sealed partial class ClassificationRunWindow : Window
 
     public ClassificationRunWindow(Job job, Action<Job>? pause, Action<Job>? stop, Action<Job, string> openAction)
     {
+        ApplyToolStyles(this);
         _job = job; _pause = pause; _stop = stop; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
         Bind(BackgroundProperty, Resource(Page)); WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
-        var header = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12, Height = 48, Margin = new(0, 0, 16, 0) };
-        var titles = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        var header = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcGap"), Height = 48, Margin = new(0, 0, 16, 0) };
+        var titles = new Grid { ColumnDefinitions = new("Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"), VerticalAlignment = VerticalAlignment.Center };
         _title.VerticalAlignment = VerticalAlignment.Center; _subtitle.VerticalAlignment = VerticalAlignment.Center;
         titles.Children.Add(_title); Grid.SetColumn(_subtitle, 1); titles.Children.Add(_subtitle);
         header.Children.Add(titles); Grid.SetColumn(_headerActions, 1); header.Children.Add(_headerActions);
@@ -115,8 +116,7 @@ public sealed partial class ClassificationRunWindow : Window
         _title.Text = L("AI 媒体整理") + " · " + _job.Name;
         if (result)
         {
-            var finished = _job.State == JobState.Completed ? L("已完成") : L(_job.Status);
-            _subtitle.Text = $"{finished} · {L("用时")} {Clock(Elapsed())} · {L("完成")} {_progress.Completed} {L("个")}，{L("待确认")} {_progress.Pending} {L("个")}，{L("失败")} {_progress.Failed} {L("个")}";
+            _subtitle.Text = $"{L("用时")} {Clock(Elapsed())} · {L("完成")} {_progress.Completed} {L("个")}，{L("待确认")} {_progress.Pending} {L("个")}，{L("失败")} {_progress.Failed} {L("个")}";
             RenderResult();
         }
         else

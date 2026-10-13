@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using AvaMedia.Core;
@@ -146,7 +147,7 @@ public sealed partial class FolderClassificationWindow
         }
         FolderNippleDetection? CurrentDetection() => existingDetection ?? FolderNippleClassification.Resolve(categories
             .Select(category => new FolderClassificationCategory(category.Id, category.Name.Text?.Trim() ?? "", "")).ToArray());
-        var rows = new StackPanel { Spacing = 10 };
+        var rows = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
         Action? updateSettings = null;
         var add = new Button { Content = "添加类别", HorizontalAlignment = HorizontalAlignment.Left };
         add.Click += (_, _) =>
@@ -162,7 +163,7 @@ public sealed partial class FolderClassificationWindow
             rows.Children.Clear();
             foreach (var category in categories)
             {
-                var row = new Avalonia.Controls.Grid { ColumnDefinitions = new("140,*,Auto"), ColumnSpacing = 8 };
+                var row = new Avalonia.Controls.Grid { ColumnDefinitions = new("140,*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
                 category.Name.Watermark = Localization.Text("类别名称"); category.Description.Watermark = Localization.Text("画面特征，如：床、枕头和被褥");
                 row.Children.Add(category.Name); Avalonia.Controls.Grid.SetColumn(category.Description, 1); row.Children.Add(category.Description);
                 var remove = Ui.Button("移除", () => { categories.Remove(category); RebuildCategories(); updateSettings?.Invoke(); });
@@ -171,24 +172,24 @@ public sealed partial class FolderClassificationWindow
             add.IsEnabled = categories.Count < 12 && CurrentDetection() is null;
         }
         RebuildCategories();
-        var body = new StackPanel { Spacing = 10 };
+        var body = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
         body.Children.Add(Ui.Text("分类名称", "caption")); body.Children.Add(name);
         body.Children.Add(Ui.Text("类别与画面描述", "settingsHeading")); body.Children.Add(rows); body.Children.Add(add);
         body.Children.Add(Ui.Text("类别名称用作文件夹名，不确定的文件放入待确认。", "caption"));
         var detectionHint = Ui.Text("按乳头是否裸露分类；视频采样中检出一次即归入露点。", "caption"); body.Children.Add(detectionHint);
-        var modeRow = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
+        var modeRow = new Grid { ColumnDefinitions = new("Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
         modeRow.Children.Add(Ui.Text("识别设置", "caption")); Grid.SetColumn(mode, 1); modeRow.Children.Add(mode); body.Children.Add(modeRow);
-        var limits = new Avalonia.Controls.Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 12 };
+        var limits = new Avalonia.Controls.Grid { ColumnDefinitions = new("*,*,*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
         var fields = new[] { ("最低匹配分数", threshold), ("与其他类别的最小差距", margin), ("视频画面一致率", agreement) };
         var fieldLabels = new List<TextBlock>(); var fieldPanels = new List<StackPanel>();
         for (var index = 0; index < fields.Length; index++)
         {
-            var field = new StackPanel { Spacing = 6 }; var label = Ui.Text(fields[index].Item1, "caption");
+            var field = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; var label = Ui.Text(fields[index].Item1, "caption");
             fieldLabels.Add(label); fieldPanels.Add(field); field.Children.Add(label);
             field.Children.Add(Ui.Parameter(fields[index].Item2,fields[index].Item1)); Grid.SetColumn(field, index); limits.Children.Add(field);
         }
 
-        var advancedBody = new StackPanel { Spacing = 10 };
+        var advancedBody = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
         var advancedHint = Ui.Text("数值越高，分类越谨慎。", "caption");
         advancedBody.Children.Add(limits); advancedBody.Children.Add(advancedHint);
         var makeDefault = new CheckBox { Content = "设为默认分类" }; advancedBody.Children.Add(makeDefault);
@@ -228,7 +229,7 @@ public sealed partial class FolderClassificationWindow
         if (existing?.Id == "age-appearance") body.Children.Add(Ui.Text("外观年龄段是粗略判断，无法确认真实年龄。多人或不清晰画面请人工核对。", "caption"));
         var errorText = Ui.Text("", "caption"); errorText.IsVisible = false; body.Children.Add(errorText);
         void ShowError(string message) { errorText.Text = message; errorText.IsVisible = true; }
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close()));
         buttons.Children.Add(Ui.DialogButton("保存", () =>
         {
@@ -267,8 +268,9 @@ public sealed partial class FolderClassificationWindow
             }
             catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException) { ShowError(error.Message); }
         }));
-        var root = new Avalonia.Controls.Grid { RowDefinitions = new("*,Auto"), Margin = new(18), RowSpacing = 12 };
-        root.Children.Add(new ScrollViewer { Content = body }); Avalonia.Controls.Grid.SetRow(buttons, 1); root.Children.Add(buttons); dialog.Content = root;
+        var root = new Avalonia.Controls.Grid { RowDefinitions = new("*,Auto"), Margin = new(18), [!Grid.RowSpacingProperty] = Resource("AcGap") };
+        root.Children.Add(new ScrollViewer { Content = body }); Avalonia.Controls.Grid.SetRow(buttons, 1); root.Children.Add(buttons); ApplyToolStyles(dialog);
+        dialog.Content = root;
         if (await dialog.ShowDialog<RuleEditResult?>(this) is not { } result) return;
         var active = ActiveWith(result.Rule); var saved = SavedWith(result.Rule);
         _defaultRules = result.MakeDefault ? active : DefaultsWith(result.Rule);

@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -12,6 +13,7 @@ public sealed partial class PersonClipWindow
     private Button _analyze = null!, _stop = null!, _review = null!;
     private readonly ListBox _retained = new() { MaxHeight=260, BorderThickness=new(0) };
     private readonly TextBlock _resultSummary = Ui.Text("尚未分析", "caption");
+    private readonly AvaMedia.Controls.EmptyState _resultEmpty = new() { Text = Localization.Text("等待检测结果") };
     private readonly AiActivityView _activity = new() { Compact = true };
     private bool _busy;
     private Entry? _retainedEntry;
@@ -27,9 +29,10 @@ public sealed partial class PersonClipWindow
         var window = new Window { Title = "人物剪辑 · 高级设置", Width = 520, Height = 620, MinWidth = 460, MinHeight = 420,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var content = new ScrollViewer { Content = _advancedParameters };
-        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(12), RowSpacing = 8 }; root.Children.Add(content);
+        var root = new Grid { RowDefinitions = new("*,Auto"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") }; root.Children.Add(content);
         var close = Ui.DialogButton("关闭", window.Close); close.HorizontalAlignment = HorizontalAlignment.Right;
-        Grid.SetRow(close, 1); root.Children.Add(close); window.Content = root;
+        Grid.SetRow(close, 1); root.Children.Add(close); ApplyToolStyles(window);
+        window.Content = root;
         window.Closed += (_, _) =>
         {
             content.Content = null;
@@ -45,10 +48,17 @@ public sealed partial class PersonClipWindow
         _rangePanel.IsEnabled = !_busy && !SelectedTaskActive && entry is not null;
         if (entry?.Result is not { } result)
         {
+            _resultEmpty.IsVisible = true;
+            _resultEmpty.IsError = entry?.Error.Length > 0;
+            _resultEmpty.Text = Localization.Text(_resultEmpty.IsError ? "无法完成检测" : "等待检测结果");
+            _resultEmpty.Detail = entry?.Error ?? "";
             _retained.ItemsSource = null; _retainedEntry = null;
             _resultSummary.Text = entry?.Error.Length > 0 ? entry.Error : Localization.Text(entry?.Status ?? "尚未分析");
             return;
         }
+        _resultEmpty.IsVisible = result.Segments.Count == 0;
+        _resultEmpty.IsError = false; _resultEmpty.Detail = "";
+        _resultEmpty.Text = Localization.Text("没有可保留片段");
         _resultSummary.Text = (entry.Observed?.Result.IsPartial == true ? Localization.Text("部分结果") + " · " : "") + Localization.Format($"保留 {result.Segments.Count} 个片段 · {MediaTime.Format(result.Segments.Sum(segment => segment.End - segment.Start))}");
         if (ReferenceEquals(_retainedEntry, entry) && ReferenceEquals(_retained.ItemsSource, result.Segments)) return;
         _retainedEntry = entry;
@@ -56,7 +66,7 @@ public sealed partial class PersonClipWindow
         {
             // Avalonia invokes the template with null when it clears a recycled row.
             if (segment is null) return null;
-            var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8,Margin=new(0,3) };
+            var row = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap"),Margin=new(0,3) };
             row.Children.Add(Ui.Text(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
             var remove=Ui.Button("移除",()=>
             {
@@ -64,7 +74,7 @@ public sealed partial class PersonClipWindow
                 entry.Result=current with { Segments=current.Segments.Where(item=>!ReferenceEquals(item,segment)).ToArray() };RefreshResults();UpdateDetectorSelection();
             });
             remove.Bind(Button.IsEnabledProperty, new Binding(nameof(Button.IsEnabled)) { Source = _review });
-            Grid.SetColumn(remove,1);row.Children.Add(remove);return row;
+            Grid.SetColumn(remove,1);row.Children.Add(remove);return new AvaMedia.Controls.ListRow { Child = row };
         });
         _retained.ItemsSource=result.Segments;
     }

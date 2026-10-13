@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -20,10 +21,10 @@ public sealed partial class RenameWindow : Window
     private readonly ObservableCollection<RenameStep> _rules = [];
     private readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple, Padding = new(0) };
     private readonly ListBox _ruleList = new() { MinHeight = 120, MaxHeight = 180, Padding = new(0) };
-    private readonly StackPanel _importBar = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    private readonly StackPanel _renamePanel = new() { Spacing = 10 };
-    private readonly StackPanel _ruleEditor = new() { Spacing = 8 };
-    private readonly StackPanel _catalog = new() { Spacing = 8 };
+    private readonly StackPanel _importBar = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+    private readonly StackPanel _renamePanel = new() { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
+    private readonly StackPanel _ruleEditor = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+    private readonly StackPanel _catalog = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private readonly WrapPanel _ruleActions = new() { Orientation = Orientation.Horizontal };
     private readonly ComboBox _sort = new() { Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 120, MaxWidth = 220 };
     private static readonly string[] SortLabels = ["导入顺序", "名称升序", "名称降序", "修改时间"];
@@ -56,13 +57,14 @@ public sealed partial class RenameWindow : Window
     public RenameWindow(IMediaEngine engine, AppSettings? settings = null, IEnumerable<string>? initial = null,
         string? journalPath = null, Func<Window, Task>? manageModels = null, Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
+        ApplyToolStyles(this);
         _engine = engine; _settings = settings ?? new(); _manageModels = manageModels;
         _reserveFiles = reserveFiles;
         _journal = journalPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "batch-rename.json");
         Title = "批量重命名"; Width = 1280; Height = 780; MinWidth = 1060; MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Controls.WindowArtwork.SetKind(this, "gear");
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), Margin = new(12), RowSpacing = 8 };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
         _importBar.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
             try
@@ -88,7 +90,7 @@ public sealed partial class RenameWindow : Window
         RefreshSortLabels();
         _sort.SelectionChanged += (_, _) => { if (!_updatingSortLabels && _sort.SelectedIndex >= 0) SortFiles(_sort.SelectedIndex); }; _importBar.Children.Add(_sort);
         root.Children.Add(_importBar); Grid.SetRow(_summary, 1); root.Children.Add(_summary);
-        var body = new Grid { ColumnDefinitions = new("160,*,320"), ColumnSpacing = 8 };
+        var body = new Grid { ColumnDefinitions = new("160,*,320"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         InitializeCatalog(); body.Children.Add(new ScrollViewer { Content = _catalog, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
         var filesArea = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 4 };
         var header = new Grid { ColumnDefinitions = new("28,55,*,*,80"), ColumnSpacing = 6, Classes = { "table-header" } };
@@ -96,6 +98,7 @@ public sealed partial class RenameWindow : Window
         { var text = Ui.ComponentText(label, "caption"); Grid.SetColumn(text, column); header.Children.Add(text); }
         filesArea.Children.Add(header);
         _list.ItemsSource = _entries;
+        _list.Classes.Add("surface");
         _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _list.ItemTemplate = new FuncDataTemplate<MediaFileEntry>((entry, _) =>
         {
@@ -105,7 +108,14 @@ public sealed partial class RenameWindow : Window
             {
                 var text = Ui.ComponentText("", "caption"); text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
                 if (column is 2 or 3) { Localization.SetIsUserText(text, true); text.Bind(ToolTip.TipProperty, new Binding(property)); }
-                text.Bind(TextBlock.TextProperty, new Binding(property)); Grid.SetColumn(text, column); row.Children.Add(text);
+                text.Bind(TextBlock.TextProperty, new Binding(property));
+                if (column == 4)
+                {
+                    text.Bind(ToolTip.TipProperty, new Binding(nameof(MediaFileEntry.Details)));
+                    var state = new StackPanel { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
+                    state.Children.Add(FileStatus(entry!)); state.Children.Add(text); Grid.SetColumn(state, column); row.Children.Add(state);
+                }
+                else { Grid.SetColumn(text, column); row.Children.Add(text); }
             }
             if (_settings.EnableBetaFeatures)
             {
@@ -117,7 +127,10 @@ public sealed partial class RenameWindow : Window
             return new AvaMedia.Controls.ListRow { Child = row };
         });
         Grid.SetRow(_list, 1); filesArea.Children.Add(_list); Grid.SetColumn(filesArea, 1); body.Children.Add(filesArea);
-        var side = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), RowSpacing = 8 };
+        var empty = new AvaMedia.Controls.EmptyState { Text = Localization.Text("选择需要重命名的文件"), IsVisible = _entries.Count == 0 };
+        _entries.CollectionChanged += (_, _) => empty.IsVisible = _entries.Count == 0;
+        Grid.SetRow(empty, 1); filesArea.Children.Add(empty);
+        var side = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
         side.Children.Add(Ui.ComponentText("规则顺序", "settingsHeading"));
         _ruleList.ItemsSource = _rules;
         _ruleList.ItemTemplate = new FuncDataTemplate<RenameStep>((step, _) =>
@@ -133,7 +146,7 @@ public sealed partial class RenameWindow : Window
         _renamePanel.Children.Add(_ruleEditor); InitializeSemanticRename();
         var scroll = new ScrollViewer { Content = _renamePanel, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }; Grid.SetRow(scroll, 3); side.Children.Add(scroll);
         Grid.SetColumn(side, 2); body.Children.Add(side); Grid.SetRow(body, 2); root.Children.Add(body);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto,Auto"), ColumnSpacing = 8 };
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         footer.Children.Add(_progressText);
         _stop = Ui.DialogButton("停止", () => { _operation?.Cancel(); _previewCancellation?.Cancel(); }); _stop.IsVisible = false;
         _undo = Ui.Button("撤销上一次重命名", async () => await UndoRename()); _undo.IsEnabled = BatchRename.CanUndo(_journal);
@@ -141,7 +154,7 @@ public sealed partial class RenameWindow : Window
         _rename = Ui.DialogButton("执行重命名", async () => await ApplyRename()); _rename.Classes.Add("primary"); _rename.IsEnabled = false;
         var close = Ui.DialogButton("关闭", Close);
         foreach (var (column, button) in new[] { (1, _stop), (2, _undo), (3, _previewButton), (4, close), (5, _rename) }) { Grid.SetColumn(button, column); footer.Children.Add(button); }
-        var feedback = new StackPanel { Spacing = 6 }; feedback.Children.Add(_semanticActivity); feedback.Children.Add(footer); Grid.SetRow(feedback, 3); root.Children.Add(feedback);
+        var feedback = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; feedback.Children.Add(_semanticActivity); feedback.Children.Add(footer); Grid.SetRow(feedback, 3); root.Children.Add(feedback);
         Content = root;
         _pattern.TextChanged += (_, _) => SyncSemanticTemplate();
         AddRule("新名称模板", new(RenameAction.Template) { Text = "{name}_{index}" });
@@ -172,5 +185,5 @@ public sealed partial class RenameWindow : Window
     private async Task ShowErrorAsync(string title, Exception error)
     { AppDiagnostics.Record(title, error); if (!_closed) { try { await Ui.Message(this, title, error.Message); } catch (Exception noticeError) { AppDiagnostics.Record("Rename error notice", noticeError); } } }
     private static Grid AddRow(Panel panel, string label, Control control)
-    { control=Ui.ComponentParameter(control,label); var row = new Grid { ColumnDefinitions = new("100,*"), ColumnSpacing = 8 }; row.Children.Add(Ui.ComponentText(label, "caption")); Grid.SetColumn(control, 1); row.Children.Add(control); panel.Children.Add(row); return row; }
+    { control=Ui.ComponentParameter(control,label); var row = new Grid { ColumnDefinitions = new("100,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") }; row.Children.Add(Ui.ComponentText(label, "caption")); Grid.SetColumn(control, 1); row.Children.Add(control); panel.Children.Add(row); return row; }
 }

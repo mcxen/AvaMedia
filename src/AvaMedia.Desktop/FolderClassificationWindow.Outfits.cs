@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using AvaMedia.Core;
@@ -20,12 +21,13 @@ public sealed partial class FolderClassificationWindow
         var dialog = new Window { Title = "相似服装", Width = 420, Height = 240, CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var similarity = new NumericUpDown { Minimum = .5m, Maximum = .95m, Increment = .02m, FormatString = "0.00", Value = (decimal)rule.OutfitSimilarity };
-        var body = new StackPanel { Margin = new(18), Spacing = 12 };
+        var body = new StackPanel { Margin = new(18), [!StackPanel.SpacingProperty] = Resource("AcGap") };
         body.Children.Add(Ui.Text("服装相似度", "settingsHeading")); body.Children.Add(Ui.Parameter(similarity, "服装相似度"));
         body.Children.Add(Ui.Text("结合拍摄背景分组；调高相似度可拆分更多款式。", "caption"));
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
         buttons.Children.Add(Ui.DialogButton("取消", () => dialog.Close(false)));
-        buttons.Children.Add(Ui.DialogButton("应用", () => dialog.Close(true), isDefault: true)); body.Children.Add(buttons); dialog.Content = body;
+        buttons.Children.Add(Ui.DialogButton("应用", () => dialog.Close(true), isDefault: true)); body.Children.Add(buttons); ApplyToolStyles(dialog);
+        dialog.Content = body;
         if (!await dialog.ShowDialog<bool>(this)) return;
         var updated = rule with { OutfitSimilarity = (double)(similarity.Value ?? .64m) };
         updated.Validate();

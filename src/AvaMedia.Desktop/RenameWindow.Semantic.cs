@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -16,9 +17,9 @@ public sealed partial class RenameWindow
     private readonly CheckBox _semanticReuse = new() { Classes = { "ac" }, Content = "复用相似画面", IsChecked = true };
     private readonly NumericUpDown _semanticThreshold = SemanticNumber(0, 1, .55m, .05m);
     private readonly NumericUpDown _semanticMargin = SemanticNumber(0, 1, .03m, .01m);
-    private readonly StackPanel _semanticPanel = new() { Spacing = 8, IsVisible = false };
+    private readonly StackPanel _semanticPanel = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap"), IsVisible = false };
     private readonly Controls.AiActivityView _semanticActivity = new();
-    private readonly StackPanel _semanticParameters = new() { Spacing = 8, IsVisible = false };
+    private readonly StackPanel _semanticParameters = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap"), IsVisible = false };
     private readonly Dictionary<string, MediaKeywordResult> _semanticResults = new(BatchRename.PathComparer);
     private readonly Dictionary<string, string> _semanticDetails = new(BatchRename.PathComparer);
     private readonly CancellationTokenSource _semanticLifetime = new();

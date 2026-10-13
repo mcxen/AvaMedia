@@ -19,7 +19,7 @@ public sealed partial class ClassificationRunWindow
     private readonly Image _livePreview = new() { Stretch = Stretch.UniformToFill };
     private readonly Canvas _tagLayer = new() { IsHitTestVisible = false };
     private readonly TextBlock _fileTitle = T("", 12, brush: Muted, raw: true), _activityTitle = T("", 12, brush: Muted, raw: true);
-    private readonly Grid _fileSteps = new() { ColumnSpacing = 8 };
+    private readonly Grid _fileSteps = new() { [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
     private readonly TextBlock _lookTitle = T("", 12, brush: Muted, raw: true), _framesTitle = T("", 12, brush: Muted, raw: true),
         _consistency = T("", 12, brush: Muted, raw: true), _colorsTitle = T("", 12, brush: Muted, raw: true);
     private readonly Grid _frames = new() { ColumnSpacing = 4 };
@@ -28,8 +28,8 @@ public sealed partial class ClassificationRunWindow
     private readonly WrapPanel _verdicts = new();
     private readonly TextBlock _reason = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, [!TextBlock.ForegroundProperty] = Resource(Ink) };
     private readonly Border _reasonCard = new() { [!Border.BackgroundProperty] = Resource("UiAccentSoft"), [!Border.CornerRadiusProperty] = Resource("AcFieldRadius"), Padding = new(10, 8) };
-    private readonly StackPanel _lookBody = new() { Spacing = 8 };
-    private readonly TextBlock _lookEmpty = T("等待文件分析", 12, brush: Muted);
+    private readonly StackPanel _lookBody = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
+    private readonly EmptyState _lookEmpty = new() { Text = L("等待文件分析") };
     private readonly FileFlow _wall = new();
     private readonly TextBlock _groupsTitle = T("", 12, brush: Muted, raw: true);
     private readonly EmptyState _groupsEmpty = new() { Text = L("等待分类结果") };
@@ -43,7 +43,7 @@ public sealed partial class ClassificationRunWindow
 
     private Control BuildRun()
     {
-        var grid = new Grid { RowDefinitions = new("Auto,*"), Margin = new(18, 0, 18, 16), RowSpacing = 12 };
+        var grid = new Grid { RowDefinitions = new("Auto,*"), Margin = new(18, 0, 18, 16), [!Grid.RowSpacingProperty] = Resource("AcGap") };
         var stageRow = new Grid { ColumnDefinitions = new("*,24,*,24,*,24,*") };
         for (var i = 0; i < 4; i++)
         {
@@ -54,15 +54,15 @@ public sealed partial class ClassificationRunWindow
             Grid.SetColumn(chevron, i * 2 + 1); stageRow.Children.Add(chevron);
         }
         grid.Children.Add(stageRow);
-        var main = new Grid { ColumnDefinitions = new("*,250"), ColumnSpacing = 12 };
-        var left = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 12 };
-        var current = new StackPanel { Spacing = 10 };
+        var main = new Grid { ColumnDefinitions = new("*,250"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
+        var left = new Grid { RowDefinitions = new("Auto,*"), [!Grid.RowSpacingProperty] = Resource("AcGap") };
+        var current = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtGroupGap") };
         var heading = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10 };
         heading.Children.Add(T("第 2 步 · 当前文件", 13, FontWeight.Bold));
         Grid.SetColumn(_fileTitle, 1); heading.Children.Add(_fileTitle); current.Children.Add(heading);
         current.Children.Add(_fileSteps); var currentCard = Card(current);  left.Children.Add(currentCard);
         var look = BuildLook(); Grid.SetRow(look, 1); left.Children.Add(look); main.Children.Add(left);
-        var groupsPanel = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
+        var groupsPanel = new Grid { RowDefinitions = new("Auto,*"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
         groupsPanel.Children.Add(T("第 3 步 · 分组正在形成", 13, FontWeight.Bold));
         ScrollViewer.SetHorizontalScrollBarVisibility(_groups, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         _groups.ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
@@ -81,21 +81,21 @@ public sealed partial class ClassificationRunWindow
 
     private Control BuildLook()
     {
-        var grid = new Grid { ColumnDefinitions = new("2*,3.5*"), ColumnSpacing = 12 };
+        var grid = new Grid { ColumnDefinitions = new("2*,3.5*"), [!Grid.ColumnSpacingProperty] = Resource("AcGap") };
         _preview.Children.Add(_previewThumb); _preview.Children.Add(_livePreview); _preview.Children.Add(_tagLayer);
         _preview.SizeChanged += (_, _) => PositionTags();
         _preview.Bind(BackgroundProperty, Resource("AcPreviewFill"));
         _previewThumb.Bind(Border.BackgroundProperty, Resource("AcPreviewFill"));
         _previewThumb.Bind(Border.CornerRadiusProperty, Resource("AcPreviewRadius"));
         grid.Children.Add(new MediaPreviewSurface { UseAmbientLighting = false, FitContent = false, PreviewContent = _preview });
-        var title = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 8 };
+        var title = new Grid { ColumnDefinitions = new("Auto,*"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         title.Children.Add(T("AI 正在看", 13, FontWeight.Bold)); Grid.SetColumn(_lookTitle, 1); title.Children.Add(_lookTitle);
         _lookBody.Children.Add(title);
         _lookBody.Children.Add(_frames);
         _lookBody.Children.Add(_consistency);
         _colors.Child = _colorBar; _lookBody.Children.Add(_colors); _lookBody.Children.Add(_colorsTitle);
         _lookBody.Children.Add(_verdicts); _reasonCard.Child = _reason; _lookBody.Children.Add(_reasonCard);
-        var detail = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), RowSpacing = 12 };
+        var detail = new Grid { RowDefinitions = new("Auto,Auto,Auto,*"), [!Grid.RowSpacingProperty] = Resource("AcGap") };
         var summary = new Panel(); summary.Children.Add(_lookBody); summary.Children.Add(_lookEmpty); detail.Children.Add(summary);
         var flowTitle = T("文件流 · 按处理顺序", 12, brush: Muted); Grid.SetRow(flowTitle, 1); detail.Children.Add(flowTitle);
         Grid.SetRow(_wall, 2); detail.Children.Add(_wall);
@@ -245,7 +245,7 @@ public sealed partial class ClassificationRunWindow
         private readonly TextBlock _name = T("", 13, FontWeight.SemiBold, raw: true), _shoot = T("", 12, brush: Muted, raw: true), _count = T("", 20, FontWeight.Bold, raw: true);
         public GroupRow()
         {
-            var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };
+            var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
             _mosaic.Bind(WidthProperty, Resource("AcThumbnailSize")); _mosaic.Bind(HeightProperty, Resource("AcThumbnailSize"));
             _name.FontSize = 13; _name.TextWrapping = TextWrapping.Wrap; _name.MaxLines = 2;
             _count.Bind(TextBlock.FontSizeProperty, Resource("AcCountFont")); _count.Bind(TextBlock.FontFamilyProperty, Resource("UiNumericFont"));

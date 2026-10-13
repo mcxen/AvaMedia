@@ -1,3 +1,4 @@
+using static AvaMedia.Desktop.Classification.ClassifyUi;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
@@ -34,13 +35,13 @@ public sealed partial class MediaAiWindow
         Localization.SetIsUserText(system, true); Localization.SetIsUserText(user, true);
         var tools = new CheckBox { Content = "视频按需补帧与局部放大", IsChecked = _captionUseFrameTools };
 
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,0.5*,Auto,Auto"), RowSpacing = 6, Margin = new(12) };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,0.5*,Auto,Auto"), [!Grid.RowSpacingProperty] = Resource("CtDetailGap"), [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
         root.Children.Add(modelRow);
         var systemLabel = Ui.Text("系统提示词"); Grid.SetRow(systemLabel, 1); root.Children.Add(systemLabel);
         Grid.SetRow(system, 2); root.Children.Add(system);
         var userLabel = Ui.Text("描述要求"); Grid.SetRow(userLabel, 3); root.Children.Add(userLabel);
         Grid.SetRow(user, 4); root.Children.Add(user); Grid.SetRow(tools, 5); root.Children.Add(tools);
-        var actions = new Grid { ColumnDefinitions = new("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
+        var actions = new Grid { ColumnDefinitions = new("Auto,*,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         actions.Children.Add(Ui.DialogButton("恢复默认", () =>
         { model.SelectedItem = choices[1]; system.Text = MediaCaptionService.DefaultSystemPrompt; user.Text = MediaCaptionService.DefaultUserPrompt; tools.IsChecked = true; }));
         var cancel = Ui.DialogButton("取消", window.Close); Grid.SetColumn(cancel, 2); actions.Children.Add(cancel);
@@ -60,6 +61,7 @@ public sealed partial class MediaAiWindow
             catch (Exception error) { await Ui.Message(window, "无法保存设置", error.Message); }
         });
         Grid.SetColumn(save, 3); actions.Children.Add(save); Grid.SetRow(actions, 6); root.Children.Add(actions);
+        ApplyToolStyles(window);
         window.Content = root; await window.ShowDialog(_settingsOwner ?? this);
     }
 }

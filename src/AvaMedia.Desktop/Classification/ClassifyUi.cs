@@ -18,7 +18,26 @@ internal static class ClassifyUi
         Orange = "UiWarning", Red = "UiDanger", Banner = "UiBanner", BannerText = "UiBannerText",
         Track = "UiTrack", Dark = "UiMediaOverlay", White = "UiMediaText", Transparent = "UiTransparent";
     public static DynamicResourceExtension Resource(string? key) => new(key ?? Transparent);
+    public static void ApplyToolStyles(Window window)
+    {
+        window.Classes.Add("ai-specialist");
+        window.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
+        { Source = new("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
+    }
     public static string L(string text) => Localization.Text(text);
+
+    public static StatusGlyph FileStatus(MediaFileEntry entry)
+    {
+        var glyph = new StatusGlyph();
+        glyph.Bind(StatusGlyph.StateProperty, new Avalonia.Data.Binding(nameof(MediaFileEntry.Status))
+        {
+            Source = entry,
+            Converter = new Avalonia.Data.Converters.FuncValueConverter<string?, string>(status =>
+                status?.StartsWith(L("失败"), StringComparison.Ordinal) == true || status == L("错误") ? "failed" : status == L("已完成") || status == L("已分类") || status == L("已重命名") || status == L("已还原") ? "done" : status?.StartsWith(L("分析中"), StringComparison.Ordinal) == true || status?.StartsWith(L("匹配中"), StringComparison.Ordinal) == true || status?.StartsWith(L("识别中"), StringComparison.Ordinal) == true ? "running" : "waiting")
+        });
+        glyph.Bind(ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(MediaFileEntry.Details)) { Source = entry });
+        return glyph;
+    }
 
     public static TextBlock T(string text, double size = 13, FontWeight weight = FontWeight.Normal, string? brush = null, bool raw = false)
     {

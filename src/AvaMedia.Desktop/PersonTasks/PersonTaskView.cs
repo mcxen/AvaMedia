@@ -32,7 +32,8 @@ internal sealed class PersonTaskView : Grid, ISegmentThumbnailSource, IDisposabl
     private readonly TextBlock _placeholder = Label("暂无预览", true), _metadata = Label("", true), _duration = Label("", true);
     private readonly TextBlock _count = Label("—"), _kept = Label("—"), _elapsed = Label("—"), _frames = Label("—");
     private readonly TextBlock _retention = Label("", true), _progressText = Label("", true), _recordSummary = Label("", true);
-    private readonly TextBlock _empty = Label("等待检测结果", true), _scanText = Label("", true);
+    private readonly EmptyState _empty = new() { Text = Localization.Text("等待检测结果") };
+    private readonly TextBlock _scanText = Label("", true);
     private readonly ProgressBar _progress = new() { Classes = { "ac" }, Maximum = 100 };
     private readonly StackPanel _progressPanel = new() { Spacing = 8 };
     private readonly PersonTaskTimeline _timeline = new();
