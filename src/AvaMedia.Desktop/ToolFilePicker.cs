@@ -52,6 +52,7 @@ internal static class ToolFilePicker
     private static async Task<IReadOnlyList<IStorageItem>> ShowAsync(Window owner, FileBrowserOptions options,
         Func<Window, Task<IReadOnlyList<IStorageItem>>> external, bool startRecent = false)
     {
+        options = options with { Simple = true };
         var source = new DesktopFileBrowserSource(owner.StorageProvider);
         var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs(), Localization.Format);
         var dialog = CreateDialog(view, options, startRecent);
@@ -73,7 +74,9 @@ internal static class ToolFilePicker
                     items.Add(resolved);
                 }
                 await source.RecordSelectionAsync(selected, CancellationToken.None);
-                _lastFolder = view.CurrentFolder?.NativeItem as IStorageFolder ?? await items[0].GetParentAsync();
+                _lastFolder = view.CurrentFolder is { } current
+                    ? (current.NativeItem ?? (await source.ResolveAsync(current.Address, CancellationToken.None))?.NativeItem) as IStorageFolder : null;
+                _lastFolder ??= items[0] as IStorageFolder ?? await items[0].GetParentAsync();
                 completion.TrySetResult(items.ToArray());
                 dialog.Close();
             }
@@ -93,7 +96,8 @@ internal static class ToolFilePicker
         Localization.SetIsUserText(view, true);
         var dialog = new Window
         {
-            Title = Localization.Text(options.Title), Width = 1280, Height = 800, MinWidth = 760, MinHeight = 480,
+            Title = Localization.Text(options.Title), Width = options.Simple ? 880 : 1280, Height = options.Simple ? 600 : 800,
+            MinWidth = options.Simple ? 680 : 760, MinHeight = options.Simple ? 420 : 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
         // Build the complete logical tree before attaching it to the window. Attaching view first

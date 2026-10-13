@@ -197,13 +197,14 @@ public sealed partial class FileBrowserView
         if (_navigationBar is null || _mediaRoot is null || !_mediaRoot.Children.Remove(_navigationBar)) return null;
         FileBrowserTheme.Install(_navigationBar);
         // Remove the navigation slot as well as its control: the host owns this row now.
-        _mediaRoot.RowDefinitions = new("Auto,*,Auto");
+        _mediaRoot.RowDefinitions = new(_options.Simple ? "*,Auto" : "Auto,*,Auto");
         foreach (var child in _mediaRoot.Children) Grid.SetRow(child, Grid.GetRow(child) - 1);
         _navigationBar.Margin = new(8, 0); return _navigationBar;
     }
     public bool GridMode => _gridMode;
     public async Task SetGridModeAsync(bool grid)
     {
+        if (_options.Simple) return;
         _mediaWork?.Update([]); _gridMode = grid; UpdateModeButtons(); RebuildRows();
         await _source.SetGridModeAsync(grid, _lifetime.Token);
     }
@@ -211,6 +212,13 @@ public sealed partial class FileBrowserView
     public void SelectAddresses(IEnumerable<string> addresses)
     {
         var wanted = addresses.ToHashSet(StringComparer.Ordinal);
+        if (_options.Simple)
+        {
+            _entries.SelectedItems?.Clear();
+            foreach (var entry in _visibleEntries.Where(entry => wanted.Contains(entry.Item.Address) && CanSelect(entry)))
+            { _entries.SelectedItems?.Add(entry); if (!_options.Multiple) break; }
+            return;
+        }
         _chosen.Clear(); _focusEntry = null; foreach (var entry in _visibleEntries.Where(entry => wanted.Contains(entry.Item.Address) && CanSelect(entry)))
         { _chosen.Add(entry); _focusEntry = entry; if (!_options.Multiple) break; }
         _anchor = _focusEntry is null ? 0 : _entryIndexes[_focusEntry];

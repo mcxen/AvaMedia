@@ -54,13 +54,17 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
         _types.ItemTemplate = new FuncDataTemplate<FilePickerFileType>((type, _) => Label(_text(type?.Name ?? "")));
         _types.SelectionChanged += (_, _) => FilterAsync();
         _hidden.Content = _text("显示隐藏文件"); _hidden.IsCheckedChanged += (_, _) => FilterAsync();
-        if (options.Compact) BuildCompact(glyphs); else BuildMediaPicker(glyphs);
+        if (options.Simple) BuildSimple(glyphs); else if (options.Compact) BuildCompact(glyphs); else BuildMediaPicker(glyphs);
         _address.KeyDown += async (_, args) => { if (args.Key == Key.Enter) { args.Handled = true; await OpenAddressAsync(); } };
         KeyDown += async (_, args) =>
         {
             if (args.Key == Key.Escape) { args.Handled = true; Cancelled?.Invoke(); }
             else if (args.Key == Key.L && (args.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0)
-            { args.Handled = true; _address.IsVisible = true; _address.Focus(); _address.SelectAll(); }
+            {
+                args.Handled = true;
+                if (_options.Simple) { _plainAddress.Focus(); _plainAddress.SelectAll(); }
+                else { _address.IsVisible = true; _address.Focus(); _address.SelectAll(); }
+            }
             else if (args.Key == Key.Up && args.KeyModifiers == KeyModifiers.Alt && !_recent && _directory?.Parent is { } parent)
             { args.Handled = true; await NavigateAsync(parent); }
         };
@@ -77,7 +81,18 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
             var locations = await locationsTask;
             if (_disposed) return;
             _locations = locations; if (_options.Compact) SetCompactLocations(locations);
-            if (!_options.Compact)
+            if (_options.Simple)
+            {
+                var history = await _source.GetHistoryAsync(_lifetime.Token);
+                if (_disposed) return;
+                _locations = locations.Concat(history.Favorites.Select(folder => new FileBrowserLocation(folder.Name, folder)))
+                    .DistinctBy(location => location.Folder.Address, StringComparer.Ordinal).ToArray();
+                RenderPlaces();
+                if (_directory is null && (history.Folders.FirstOrDefault()?.Item
+                    ?? locations.FirstOrDefault(location => location.Name == _text("下载"))?.Folder
+                    ?? locations.FirstOrDefault()?.Folder) is { } folder) await NavigateAsync(folder, false);
+            }
+            else if (!_options.Compact)
             {
                 _gridMode = await _source.GetGridModeAsync(_lifetime.Token); UpdateModeButtons();
                 await RefreshHistoryAsync();
@@ -141,7 +156,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private async Task OpenSelectionAsync()
     {
         if (_loading) return;
-        var item = _options.Compact ? (_entries.SelectedItem as FileBrowserEntry)?.Item : _focusEntry?.Item;
+        var item = _options.Compact || _options.Simple ? (_entries.SelectedItem as FileBrowserEntry)?.Item : _focusEntry?.Item;
         if (item is { IsFolder: true } folder) await NavigateAsync(folder);
         else Confirm();
     }
@@ -192,7 +207,13 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
             _chosen.IntersectWith(entries);
             if (_focusEntry is not null && !_entryIndexes.ContainsKey(_focusEntry)) { _focusEntry = null; UpdateInspector(null); }
             _anchor = Math.Clamp(_anchor, 0, Math.Max(0, entries.Length - 1));
-            if (_options.Compact) { _entries.ItemsSource = entries; _status.Text = ""; CompactDirectoryChanged(); }
+            if (_options.Compact || _options.Simple)
+            {
+                _entries.ItemsSource = entries;
+                _status.Text = "";
+                if (_options.Simple) { RenderPlaces(); _plainAddress.Text = _recent ? _text("最近使用") : _source.DisplayAddress(directory.Folder); }
+                else CompactDirectoryChanged();
+            }
             else
             {
                 RebuildRows(); UpdateTabs(); RenderSidebar(); RenderBreadcrumbs(); RenderRecentFolders();
@@ -213,7 +234,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private static bool Matches(string name, IReadOnlyList<string>? patterns) => patterns is not { Count: > 0 }
         || patterns.Any(pattern => pattern is "*" or "*.*" || FileSystemName.MatchesSimpleExpression(pattern, name, ignoreCase: true));
 
-    private FileBrowserItem[] Selection() => _options.Compact
+    private FileBrowserItem[] Selection() => _options.Compact || _options.Simple
         ? _entries.SelectedItems?.OfType<FileBrowserEntry>().Where(CanSelect).Select(entry => entry.Item).ToArray() ?? []
         : _chosen.Where(CanSelect).Select(entry => entry.Item).ToArray();
     private bool CanSelect(FileBrowserEntry entry) => _options.AllowFolders || entry.IsFolder == _options.Folders;
@@ -224,14 +245,14 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
         var selected = Selection(); var count = selected.Length;
         _select.IsEnabled = !_loading && (count > 0 || _options.Folders && CurrentFolder is not null);
         _selectionCount.Text = _options.Folders ? _format($"已选择 {count} 个文件夹") : _format($"已选择 {count} 个文件");
-        if (!_options.Compact)
+        if (!_options.Compact && !_options.Simple)
         {
             var bytes = _chosen.Where(CanSelect).Sum(entry => (double)(entry.Size ?? 0));
             if (bytes > 0) _selectionCount.Text += " · " + Size((ulong)bytes);
             _select.Content = _options.Embedded ? _text("添加所选项") : _options.Folders ? _text("选择文件夹") : _format($"打开 {count} 个文件");
             foreach (var cell in _cells) cell.UpdateSelection(_chosen.Contains(cell.Entry), Equals(cell.Entry, _focusEntry));
         }
-        else UpdateCompactSelection(count);
+        else if (_options.Compact) UpdateCompactSelection(count);
     }
     private void Confirm()
     {
