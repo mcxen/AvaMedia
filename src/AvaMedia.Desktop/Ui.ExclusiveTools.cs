@@ -46,7 +46,7 @@ internal static partial class Ui
         var body = new StackPanel();
         body.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("AcGap"));
         var password = Input();
-        password.PasswordChar = '●'; password.Watermark = Localization.Text("请输入内部口令");
+        password.Watermark = Localization.Text("请输入内部口令");
         Localization.SetIsUserText(password, true);
         Avalonia.Automation.AutomationProperties.SetName(password, Localization.Text("内部口令"));
         body.Children.Add(password);
