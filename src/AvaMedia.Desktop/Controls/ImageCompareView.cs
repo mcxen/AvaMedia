@@ -22,6 +22,8 @@ public sealed class ImageCompareView : Control
     public IBrush? Surface { get => GetValue(SurfaceProperty); set => SetValue(SurfaceProperty, value); }
     public IBrush? Checker { get => GetValue(CheckerProperty); set => SetValue(CheckerProperty, value); }
     public IBrush? Accent { get => GetValue(AccentProperty); set => SetValue(AccentProperty, value); }
+    public double SideBySideSplit => Source is { Size.Height: > 0 } source && Result is { Size.Height: > 0 } result
+        ? (source.Size.Width / source.Size.Height) / (source.Size.Width / source.Size.Height + result.Size.Width / result.Size.Height) : .5;
     private double _zoom = 1;
     private Vector _pan;
     private Point _last;
@@ -43,7 +45,7 @@ public sealed class ImageCompareView : Control
     public void ActualSize()
     {
         if (Source is null || Bounds.Width <= 0 || Bounds.Height <= 0) return;
-        var fit = Math.Min((SideBySide ? Bounds.Width / 2 : Bounds.Width) / Source.Size.Width, Bounds.Height / Source.Size.Height);
+        var fit = Math.Min((SideBySide ? Bounds.Width * SideBySideSplit : Bounds.Width) / Source.Size.Width, Bounds.Height / Source.Size.Height);
         _zoom = 1 / fit; _pan = default;
         InvalidateVisual();
     }
@@ -62,11 +64,12 @@ public sealed class ImageCompareView : Control
         if (Source is null) return;
         if (SideBySide)
         {
-            var left = new Rect(0, 0, area.Width / 2, area.Height);
-            var right = new Rect(area.Width / 2, 0, area.Width / 2, area.Height);
+            var divider = area.Width * SideBySideSplit;
+            var left = new Rect(0, 0, divider, area.Height);
+            var right = new Rect(divider, 0, area.Width - divider, area.Height);
             Draw(context, Source, left);
             if (Result is not null) Draw(context, Result, right);
-            context.DrawLine(new Pen(Accent, 1), new(area.Width / 2, 0), new(area.Width / 2, area.Height));
+            context.DrawLine(new Pen(Accent, 1), new(divider, 0), new(divider, area.Height));
         }
         else
         {
@@ -87,7 +90,7 @@ public sealed class ImageCompareView : Control
     private void Draw(DrawingContext context, IImage image, Rect viewport)
     {
         if (image.Size.Width <= 0 || image.Size.Height <= 0) return;
-        var basis = Source!.Size;
+        var basis = SideBySide ? image.Size : Source!.Size;
         var scale = Math.Min(viewport.Width / basis.Width, viewport.Height / basis.Height) * _zoom;
         // Match geometry even when the compressed output has fewer pixels.
         var width = basis.Width * scale; var height = basis.Height * scale;

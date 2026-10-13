@@ -14,7 +14,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
 {
     private readonly IMediaEngine _engine;
     private readonly ImageCompareView _view=new(){SideBySide=true};
-    private readonly MediaPreviewSurface _previewSurface=new(){UseAmbientLighting=false,FitContent=false};
+    private readonly MediaPreviewSurface _previewSurface=new(){UseAmbientLighting=false};
     private readonly TextBlock _status=new(){Text="选择文件以预览",Classes={"caption"},TextWrapping=TextWrapping.Wrap,MaxLines=2,TextTrimming=TextTrimming.WordEllipsis};
     private readonly TextBlock _position=Ui.Text("","caption");
     private readonly Slider _seek=new(){Minimum=0,Maximum=1,IsVisible=false};
@@ -45,6 +45,11 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         var previewFace=new Border{Child=_view};previewFace.Bind(Border.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
         _view.PropertyChanged+=(_,change)=>{if(change.Property==IsVisibleProperty)auxiliary.IsVisible=!_view.IsVisible;};
         _previewSurface.PreviewContent=previewFace;
+        _view.PropertyChanged+=(_,change)=>
+        {
+            if(change.Property==ImageCompareView.SourceProperty||change.Property==ImageCompareView.ResultProperty||change.Property==ImageCompareView.SideBySideProperty)
+                _previewSurface.ContentSize=_view.Source is {} image?new(image.Size.Width/(_view.SideBySide?_view.SideBySideSplit:1),image.Size.Height):default;
+        };
         _previewSurface.Bind(IsVisibleProperty,_view.GetObservable(IsVisibleProperty));
         surface.Children.Add(_previewSurface);Grid.SetRow(surface,1);_root.Children.Add(surface);
         Grid.SetRow(_seek,2);_root.Children.Add(_seek);
@@ -63,7 +68,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         {
             if(_sourceBitmap is null||TopLevel.GetTopLevel(this) is not Window owner)return;
             var x=args.GetPosition(_view).X;
-            var result=_resultBitmap is not null&&x>=_view.Bounds.Width*(_view.SideBySide ? .5 : _view.Split);
+            var result=_resultBitmap is not null&&x>=_view.Bounds.Width*(_view.SideBySide ? _view.SideBySideSplit : _view.Split);
             args.Handled=true;
             ImageViewerWindow.ShowPreview(owner,result?_resultBitmap:_sourceBitmap,Path.GetFileName(_path??""));
         };
@@ -90,6 +95,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     public void SetSource(string? path,ConversionOptions? options=null)
     {
         if(_closed)return;
+        _previewSurface.Title=path is null?null:Path.GetFileName(path);
         var stamp=path is not null&&File.Exists(path)?new FileInfo(path):null;
         var key=path+"|"+stamp?.Length+"|"+stamp?.LastWriteTimeUtc.Ticks+"|"+System.Text.Json.JsonSerializer.Serialize(options);
         if(key==_sourceKey)return;_sourceKey=key;ToolTip.SetTip(_status,null);

@@ -15,9 +15,16 @@ public sealed class MediaPreviewSurface : Panel
         AvaloniaProperty.Register<MediaPreviewSurface, bool>(nameof(UseAmbientLighting), true);
     public static readonly StyledProperty<bool> FitContentProperty =
         AvaloniaProperty.Register<MediaPreviewSurface, bool>(nameof(FitContent), true);
+    public static readonly StyledProperty<Size> ContentSizeProperty =
+        AvaloniaProperty.Register<MediaPreviewSurface, Size>(nameof(ContentSize));
+    public static readonly StyledProperty<string?> TitleProperty =
+        AvaloniaProperty.Register<MediaPreviewSurface, string?>(nameof(Title));
     private readonly Border _face = new() { ClipToBounds = true };
     private readonly Border _shadow = new() { IsHitTestVisible = false };
     private readonly AmbientHalo _halo = new() { IsHitTestVisible = false, IsVisible = false };
+    private readonly TextBlock _titleText = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1 };
+    private readonly Border _title = new() { IsHitTestVisible = false, Opacity = 0, Padding = new(8, 6), Margin = new(8), CornerRadius = new(6) };
+    private Size _naturalSize;
     private MediaPreviewColorSampler? _sampler;
     private CancellationTokenSource? _sampling;
     private MediaPreviewColors.Edges?[] _colors = [];
@@ -31,9 +38,12 @@ public sealed class MediaPreviewSurface : Panel
     public bool UseAmbientLighting { get => GetValue(UseAmbientLightingProperty); set => SetValue(UseAmbientLightingProperty, value); }
     /// <summary>Fit a Viewbox's measured image, or fill the existing crop/compare viewport without moving its overlays.</summary>
     public bool FitContent { get => GetValue(FitContentProperty); set => SetValue(FitContentProperty, value); }
+    /// <summary>Display dimensions for a custom viewport with overlays; empty uses the content's natural size.</summary>
+    public Size ContentSize { get => GetValue(ContentSizeProperty); set => SetValue(ContentSizeProperty, value); }
+    public string? Title { get => GetValue(TitleProperty); set => SetValue(TitleProperty, value); }
     public bool AmbientEnabled => !_disposed && UseAmbientLighting && !Skin.UsesCustomChrome(ActualThemeVariant);
 
-    static MediaPreviewSurface() => AffectsArrange<MediaPreviewSurface>(FitContentProperty);
+    static MediaPreviewSurface() => AffectsMeasure<MediaPreviewSurface>(FitContentProperty, ContentSizeProperty);
 
     public MediaPreviewSurface()
     {
@@ -47,9 +57,26 @@ public sealed class MediaPreviewSurface : Panel
         _halo.Bind(AmbientHalo.BlurProperty, new DynamicResourceExtension("UiMediaPreviewAmbientBlur"));
         _halo.Bind(AmbientHalo.SpreadProperty, new DynamicResourceExtension("UiMediaPreviewAmbientSpread"));
         _halo.Transitions = [new ColorTransition { Property = AmbientHalo.ColorProperty, Duration = TimeSpan.FromMilliseconds(400) }];
-        Children.Add(_halo); Children.Add(_shadow); Children.Add(_face);
+        _title.Child = _titleText;
+        _title.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiMediaOverlay"));
+        _titleText.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiMediaText"));
+        _titleText.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("UiFontCaption"));
+        Localization.SetIsUserText(_titleText, true);
+        _title.Transitions = [new DoubleTransition { Property = OpacityProperty, Duration = TimeSpan.FromMilliseconds(200) }];
+        Children.Add(_halo); Children.Add(_shadow); Children.Add(_face); Children.Add(_title);
+        PointerEntered += (_, _) => _title.Opacity = 1;
+        PointerExited += (_, _) => _title.Opacity = 0;
         ActualThemeVariantChanged += (_, _) => RefreshTheme();
-        PropertyChanged += (_, change) => { if (change.Property == UseAmbientLightingProperty) RefreshTheme(); };
+        PropertyChanged += (_, change) =>
+        {
+            if (change.Property == UseAmbientLightingProperty) RefreshTheme();
+            if (change.Property == TitleProperty)
+            {
+                _titleText.Text = Title; ToolTip.SetTip(this, Title);
+                _title.IsVisible = !string.IsNullOrEmpty(Title); InvalidateMeasure();
+            }
+        };
+        _title.IsVisible = false;
         AttachedToVisualTree += (_, _) => RestartSampling();
         DetachedFromVisualTree += (_, _) => CancelSampling();
     }
@@ -126,17 +153,36 @@ public sealed class MediaPreviewSurface : Panel
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        _face.Measure(availableSize);
-        return _face.DesiredSize;
+        if (!FitContent) { _face.Measure(availableSize); return _face.DesiredSize; }
+        _naturalSize = ContentSize;
+        if (_naturalSize.Width <= 0 || _naturalSize.Height <= 0)
+        {
+            // Measuring unconstrained preserves the source ratio, including layout rotation and sheet grids.
+            _face.Measure(Size.Infinity); _naturalSize = _face.DesiredSize;
+        }
+        var size = Contain(_naturalSize, availableSize);
+        _face.Measure(size); _title.Measure(size);
+        return size;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         // The shadow is outside the Viewbox, so its radius stays in display pixels at every zoom level.
-        var size = FitContent ? _face.DesiredSize : finalSize;
+        var size = FitContent ? Contain(_naturalSize, finalSize) : finalSize;
         var rect = new Rect((finalSize.Width - size.Width) / 2, (finalSize.Height - size.Height) / 2, size.Width, size.Height);
         _face.Arrange(rect); _shadow.Arrange(rect); _halo.Arrange(rect);
+        var titleHeight = Math.Min(size.Height, _title.DesiredSize.Height);
+        _title.Arrange(new Rect(rect.X, rect.Bottom - titleHeight, size.Width, titleHeight));
         return finalSize;
+    }
+
+    private static Size Contain(Size source, Size available)
+    {
+        if (source.Width <= 0 || source.Height <= 0 || !double.IsFinite(source.Width) || !double.IsFinite(source.Height))
+            return new Size(double.IsFinite(available.Width) ? available.Width : 0, double.IsFinite(available.Height) ? available.Height : 0);
+        var scale = Math.Min(available.Width / source.Width, available.Height / source.Height);
+        if (!double.IsFinite(scale)) scale = 1;
+        return source * Math.Max(0, scale);
     }
 
     private sealed record Frame(byte[] Encoded, string Key);
