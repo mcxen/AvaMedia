@@ -79,7 +79,7 @@ public partial class EditorWindow
         WindowChrome.HookDrag(this, QuickTitleBar, () => ModernFrame);
 
         // Preview card and transport.
-        Move(PreviewArea, QuickPreviewSlot); PreviewArea.Background = null; PreviewArea.Margin = new Thickness(40, 48);
+        Move(PreviewArea, QuickPreviewSlot); PreviewArea.Background = null; PreviewArea.Margin = new Thickness(0);
         Move(BackwardButton, QuickTransportSlot); Restyle(BackwardButton, "ib"); BackwardButton.Content = QuickIcon("chevron-left", 17);
         Move(PlayButton, QuickTransportSlot); Restyle(PlayButton, "ib", "play");
         Move(ForwardButton, QuickTransportSlot); Restyle(ForwardButton, "ib"); ForwardButton.Content = QuickIcon("chevron-right", 17);
@@ -145,7 +145,7 @@ public partial class EditorWindow
         ToolTip.SetTip(frame, Localization.Text(link));
         Avalonia.Automation.AutomationProperties.SetName(frame, Localization.Text(link));
         var panel = new Panel();
-        Move(image, panel); image.Stretch = Avalonia.Media.Stretch.UniformToFill;
+        Move(image, panel); image.Stretch = Avalonia.Media.Stretch.Uniform;
         panel.Children.Add(new Border { Classes = { "tag" }, Child = new TextBlock { Text = Localization.Text(tag) }, IsHitTestVisible = false });
         var frameContent = new Border { ClipToBounds = true, Child = panel };
         frameContent.Bind(Border.CornerRadiusProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcThumbRadius"));

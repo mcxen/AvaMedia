@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.Controls.RotationTaskView">
+             xmlns:i18n="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls" x:Class="AvaMedia.Desktop.Controls.RotationTaskView">
   <UserControl.Styles>
 
   </UserControl.Styles>
@@ -10,18 +10,18 @@
           <TextBlock Text="原画面" FontWeight="SemiBold" VerticalAlignment="Center"/>
           <TextBlock Grid.Column="1" x:Name="SourceSize" Classes="caption" VerticalAlignment="Center"/>
         </Grid>
-        <Border Grid.Row="1" Background="{DynamicResource UiMediaSurface}" CornerRadius="{DynamicResource UiControlRadius}" ClipToBounds="True">
-          <Image x:Name="SourceImage" Stretch="Uniform" Margin="8"/>
-        </Border>
+        <controls:MediaPreviewSurface Grid.Row="1" UseAmbientLighting="False" ContentSize="{Binding #SourceImage.Source.Size}">
+          <Image x:Name="SourceImage" Stretch="Uniform"/>
+        </controls:MediaPreviewSurface>
       </Grid>
       <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="8">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
           <TextBlock Text="旋转后" FontWeight="SemiBold" VerticalAlignment="Center"/>
           <TextBlock Grid.Column="1" x:Name="ResultSize" Classes="caption" VerticalAlignment="Center"/>
         </Grid>
-        <Border Grid.Row="1" Background="{DynamicResource UiMediaSurface}" CornerRadius="{DynamicResource UiControlRadius}" ClipToBounds="True">
+        <controls:MediaPreviewSurface Grid.Row="1" UseAmbientLighting="False">
           <Grid>
-            <Viewbox Stretch="Uniform" Margin="8">
+            <Viewbox Stretch="Uniform">
               <LayoutTransformControl x:Name="RotationTransform">
                 <Image x:Name="ResultImage" Stretch="Fill"/>
               </LayoutTransformControl>
@@ -30,7 +30,7 @@
                        Background="{DynamicResource UiMediaOverlay}" Padding="12,6" HorizontalAlignment="Center"
                        VerticalAlignment="Center" IsHitTestVisible="False" IsVisible="False"/>
           </Grid>
-        </Border>
+        </controls:MediaPreviewSurface>
       </Grid>
       <Border Grid.ColumnSpan="2" Background="{DynamicResource UiMediaOverlay}" CornerRadius="{DynamicResource UiControlRadius}"
               HorizontalAlignment="Center" VerticalAlignment="Center" Padding="14,8" Margin="24" IsHitTestVisible="False" x:Name="PreviewNotice">

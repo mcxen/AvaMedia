@@ -38,7 +38,7 @@
         </Grid>
       </Border>
       <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="8">
-        <controls:MediaPreviewSurface UseAmbientLighting="False" FitContent="False">
+        <controls:MediaPreviewSurface UseAmbientLighting="False" ContentSize="{Binding #PreviewImage.Source.Size}">
           <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}">
             <Image x:Name="PreviewImage" Stretch="Uniform"/>
             <media:CropOverlay x:Name="CropLayer"/>

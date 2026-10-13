@@ -27,8 +27,8 @@ internal sealed class PersonTaskView : Grid, ISegmentThumbnailSource, IDisposabl
     private readonly ObservableCollection<ClipSegmentEntry> _segments = [];
     private readonly ListBox _list = new(), _strip = new();
     private readonly StatusPill _status = new();
-    private readonly Image _preview = new() { Stretch = Stretch.UniformToFill };
-    private readonly MediaPreviewSurface _surface = new() { FitContent = false, UseAmbientLighting = false };
+    private readonly Image _preview = new() { Stretch = Stretch.Uniform };
+    private readonly MediaPreviewSurface _surface = new() { UseAmbientLighting = false };
     private readonly TextBlock _placeholder = Label("暂无预览", true), _metadata = Label("", true), _duration = Label("", true);
     private readonly TextBlock _count = Label("—"), _kept = Label("—"), _elapsed = Label("—"), _frames = Label("—");
     private readonly TextBlock _retention = Label("", true), _progressText = Label("", true), _recordSummary = Label("", true);
@@ -72,7 +72,7 @@ internal sealed class PersonTaskView : Grid, ISegmentThumbnailSource, IDisposabl
     private Control BuildSource()
     {
         var card = new Card { Classes = { "person-source" } };
-        var contents = new StackPanel { Spacing = 10 };
+        var contents = new Grid { RowDefinitions = new("*,Auto,Auto"), RowSpacing = 10 };
         var frame = new Grid { Classes = { "person-preview" } };
         Resource(frame, BackgroundProperty, "AcPreviewFill");
         frame.Children.Add(_preview);
@@ -80,14 +80,16 @@ internal sealed class PersonTaskView : Grid, ISegmentThumbnailSource, IDisposabl
         frame.Children.Add(_placeholder);
         var durationFace = new Border { Child = _duration, Classes = { "person-duration" }, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
         frame.Children.Add(durationFace); _surface.PreviewContent = frame;
+        _surface.Bind(MediaPreviewSurface.ContentSizeProperty, new Binding("Source.Size") { Source = _preview });
+        _surface.Bind(MaxHeightProperty, new DynamicResourceExtension("PtPreviewHeight"));
         contents.Children.Add(_surface);
         var name = Label(string.Join(" · ", _job.Inputs.Select(Path.GetFileName)));
         name.Classes.Add("person-name"); name.TextTrimming = TextTrimming.CharacterEllipsis;
-        Localization.SetIsUserText(name, true); ToolTip.SetTip(name, _job.Source); contents.Children.Add(name);
+        Localization.SetIsUserText(name, true); ToolTip.SetTip(name, _job.Source); Grid.SetRow(name, 1); contents.Children.Add(name);
         var meta = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         _metadata.TextWrapping = TextWrapping.Wrap; meta.Children.Add(_metadata);
         _status.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(_status, 1); meta.Children.Add(_status);
-        contents.Children.Add(meta); card.Child = contents; return card;
+        Grid.SetRow(meta, 2); contents.Children.Add(meta); card.Child = contents; return card;
     }
 
     private Control BuildStats()

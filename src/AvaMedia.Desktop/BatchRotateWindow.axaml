@@ -41,20 +41,18 @@
         <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
           <Grid RowDefinitions="Auto,*" RowSpacing="8">
             <TextBlock Text="原画面" FontWeight="SemiBold"/>
-            <controls:MediaPreviewSurface Grid.Row="1" x:Name="SourcePane" UseAmbientLighting="False" FitContent="False">
+            <controls:MediaPreviewSurface Grid.Row="1" x:Name="SourcePane" UseAmbientLighting="False" ContentSize="{Binding #SourceImage.Source.Size}">
               <Grid Background="{DynamicResource UiMediaSurface}"><Image x:Name="SourceImage" Stretch="Uniform"/></Grid>
             </controls:MediaPreviewSurface>
           </Grid>
           <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="8">
             <TextBlock x:Name="ResultDescription" Text="旋转后" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-            <controls:MediaPreviewSurface Grid.Row="1" x:Name="ResultPane" UseAmbientLighting="False" FitContent="False">
-              <Grid Background="{DynamicResource UiMediaSurface}">
+            <controls:MediaPreviewSurface Grid.Row="1" x:Name="ResultPane" UseAmbientLighting="False">
               <Viewbox Stretch="Uniform">
                 <LayoutTransformControl x:Name="RotationTransform">
                   <Image x:Name="ResultImage" Stretch="Fill"/>
                 </LayoutTransformControl>
               </Viewbox>
-              </Grid>
             </controls:MediaPreviewSurface>
           </Grid>
           <TextBlock x:Name="PreviewStatus" Grid.ColumnSpan="2" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"

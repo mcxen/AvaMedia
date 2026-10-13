@@ -44,7 +44,7 @@ public sealed partial class ContactSheetWindow
         _previewTitle.TextWrapping = TextWrapping.NoWrap; _previewTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         header.Children.Add(_previewTitle); Grid.SetColumn(_previewSize, 1); header.Children.Add(_previewSize); panel.Children.Add(header);
         _previewSurface.PreviewContent = _preview;
-        var stage = new Border { Child = _previewSurface, Padding = new(28), Classes = { "sheet-stage" } };
+        var stage = new Border { Child = _previewSurface, Classes = { "sheet-stage" } };
         Grid.SetRow(stage, 1); panel.Children.Add(stage);
         _outputDimensions.HorizontalAlignment = HorizontalAlignment.Center;
         Grid.SetRow(_outputDimensions, 2); panel.Children.Add(_outputDimensions);

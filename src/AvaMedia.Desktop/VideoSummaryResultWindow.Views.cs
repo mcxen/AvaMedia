@@ -11,6 +11,13 @@ namespace AvaMedia.Desktop;
 
 public sealed partial class VideoSummaryResultWindow
 {
+    private static MediaPreviewSurface FramePreview(Image image, double maximumHeight)
+    {
+        var preview = new MediaPreviewSurface { PreviewContent = image, UseAmbientLighting = false, MaxHeight = maximumHeight };
+        preview.Bind(MediaPreviewSurface.ContentSizeProperty, new Avalonia.Data.Binding("Source.Size") { Source = image });
+        return preview;
+    }
+
     private void BuildPages(VideoSummaryReport report)
     {
         var overview = report.Sections.FirstOrDefault(section => section.Title == "摘要")?.Text ?? "";
@@ -94,9 +101,9 @@ public sealed partial class VideoSummaryResultWindow
             var film = new WrapPanel();
             foreach (var frame in report.Frames)
             {
-                var image = new Image { Width = 148, Height = 84, Stretch = Stretch.UniformToFill };
+                var image = new Image { Stretch = Stretch.Uniform };
                 var tile = new StackPanel { Spacing = 2, Margin = new(0, 0, 6, 6), Width = 148 };
-                tile.Children.Add(new Border { Child = image, Classes = { "media-preview" }, ClipToBounds = true, Height = 84 });
+                tile.Children.Add(FramePreview(image, 84));
                 tile.Children.Add(TimeButton(frame.Seconds)); film.Children.Add(tile);
                 image.AttachedToVisualTree += async (_, _) => { if (image.Source is null) await LoadImageAsync(image, frame.Image); };
             }
@@ -165,9 +172,9 @@ public sealed partial class VideoSummaryResultWindow
         var film = new WrapPanel();
         foreach (var frame in report.Frames)
         {
-            var image = new Image { Width = 220, Height = 124, Stretch = Stretch.UniformToFill };
+            var image = new Image { Stretch = Stretch.Uniform };
             var tile = new StackPanel { Spacing = 2, Width = 220, Margin = new(0, 0, 8, 8) };
-            tile.Children.Add(new Border { Child = image, Classes = { "media-preview" }, ClipToBounds = true, Height = 124 });
+            tile.Children.Add(FramePreview(image, 124));
             var stamp = TimeButton(frame.Seconds); stamp.Content = frame.Id + " · " + EditorTime.Format(frame.Seconds); tile.Children.Add(stamp);
             tile.Children.Add(SummaryDocumentView.Prose(frame.Description)); film.Children.Add(tile);
             image.AttachedToVisualTree += async (_, _) => { if (image.Source is null) await LoadImageAsync(image, frame.Image); };
