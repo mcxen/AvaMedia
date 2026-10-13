@@ -13,9 +13,11 @@ namespace AvaMedia.Desktop.Controls;
 public sealed class MediaPreviewPanel : UserControl, IDisposable
 {
     private readonly IMediaEngine _engine;
-    private readonly ImageCompareView _view=new(){SideBySide=true};
+    private readonly ImageCompareView _view=new(){SideBySide=true,IsVisible=false};
+    private readonly AvaMedia.Controls.EmptyState _empty=new(){Text="选择文件以预览"};
+    private readonly Grid _auxiliary=new(){IsVisible=false};
     private readonly MediaPreviewSurface _previewSurface=new(){UseAmbientLighting=false};
-    private readonly TextBlock _status=new(){Text="选择文件以预览",Classes={"caption"},TextWrapping=TextWrapping.Wrap,MaxLines=2,TextTrimming=TextTrimming.WordEllipsis};
+    private readonly TextBlock _status=new(){Text="",Classes={"caption"},TextWrapping=TextWrapping.Wrap,MaxLines=2,TextTrimming=TextTrimming.WordEllipsis};
     private readonly TextBlock _position=Ui.Text("","caption");
     private readonly Slider _seek=new(){Minimum=0,Maximum=1,IsVisible=false};
     private readonly AudioWaveform _waveform=new(){IsVisible=false};
@@ -40,10 +42,9 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         _engine=engine;
         _root=new Grid{RowDefinitions=new("Auto,*,Auto,Auto"),RowSpacing=8};_root.Children.Add(_status);
         var surface=new Grid();
-        var auxiliary=new Grid{IsVisible=false};auxiliary.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
-        auxiliary.Children.Add(_waveform);auxiliary.Children.Add(_archive);surface.Children.Add(auxiliary);
+        _auxiliary.Bind(Panel.BackgroundProperty,new DynamicResourceExtension("UiSurface"));
+        _auxiliary.Children.Add(_waveform);_auxiliary.Children.Add(_archive);surface.Children.Add(_auxiliary);
         var previewFace=new Border{Child=_view};previewFace.Bind(Border.BackgroundProperty,new DynamicResourceExtension("UiMediaSurface"));
-        _view.PropertyChanged+=(_,change)=>{if(change.Property==IsVisibleProperty)auxiliary.IsVisible=!_view.IsVisible;};
         _previewSurface.PreviewContent=previewFace;
         _view.PropertyChanged+=(_,change)=>
         {
@@ -51,7 +52,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
                 _previewSurface.ContentSize=_view.Source is {} image?new(image.Size.Width/(_view.SideBySide?_view.SideBySideSplit:1),image.Size.Height):default;
         };
         _previewSurface.Bind(IsVisibleProperty,_view.GetObservable(IsVisibleProperty));
-        surface.Children.Add(_previewSurface);Grid.SetRow(surface,1);_root.Children.Add(surface);
+        surface.Children.Add(_previewSurface);surface.Children.Add(_empty);Grid.SetRow(surface,1);_root.Children.Add(surface);
         Grid.SetRow(_seek,2);_root.Children.Add(_seek);
         _actions=new Grid{RowDefinitions=new("Auto,Auto"),RowSpacing=4};_actions.Children.Add(_position);
         var buttons=new WrapPanel();Grid.SetRow(buttons,1);_actions.Children.Add(buttons);
@@ -100,8 +101,8 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         var key=path+"|"+stamp?.Length+"|"+stamp?.LastWriteTimeUtc.Ticks+"|"+System.Text.Json.JsonSerializer.Serialize(options);
         if(key==_sourceKey)return;_sourceKey=key;ToolTip.SetTip(_status,null);
         var changed=_path!=path||_options?.VideoStreamIndex!=options?.VideoStreamIndex||_options?.AudioStreamIndex!=options?.AudioStreamIndex;_path=path;_options=options?.Clone();
-        if(changed){_info=null;_requestedPosition=options?.Start??0;ClearBitmaps();_updating=true;_seek.Value=0;_updating=false;}
-        if(path is null){_work?.Cancel();_status.Text=Localization.Text("选择文件以预览");_seek.IsVisible=_archive.IsVisible=false;_open.IsEnabled=_listen.IsVisible=_waveform.IsVisible=false;return;}
+        if(changed){_view.ResetView();ShowEmpty(path is null?"选择文件以预览":"正在读取预览…");_info=null;_requestedPosition=options?.Start??0;ClearBitmaps();_updating=true;_seek.Value=0;_updating=false;}
+        if(path is null){_work?.Cancel();ShowEmpty("选择文件以预览");_seek.IsVisible=_archive.IsVisible=false;_open.IsEnabled=_listen.IsVisible=_waveform.IsVisible=false;return;}
         _=LoadAsync();
     }
 
@@ -114,6 +115,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
     private async Task LoadAsync()
     {
         _work?.Cancel();_work?.Dispose();_work=CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _empty.IsError=false;ToolTip.SetTip(_empty,null);
         var token=_work.Token;var path=_path!;var options=_options?.Clone();var seconds=_requestedPosition;
         try
         {
@@ -122,13 +124,15 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
             {
                 var items=await Task.Run(()=>ReadArchive(path,token),token);token.ThrowIfCancellationRequested();
                 _view.IsVisible=_waveform.IsVisible=_listen.IsVisible=false;_archive.IsVisible=true;_archive.ItemsSource=items;_seek.IsVisible=false;_open.IsEnabled=false;
+                _auxiliary.IsVisible=items.Length>0;_empty.IsVisible=items.Length==0;_empty.Text=Localization.Text("此文件夹或压缩包没有可预览内容");
                 Localization.SetText(_status,$"文件预览 · 显示 {items.Length} 项");return;
             }
             var info=_info??await _engine.Probe(path,token,options?.VideoStreamIndex??0,options?.AudioStreamIndex??0);token.ThrowIfCancellationRequested();_info=info;
-            _archive.IsVisible=false;_waveform.IsVisible=!info.HasVideo&&info.HasAudio;_view.IsVisible=info.HasVideo;_listen.IsVisible=info.HasAudio&&options is not null;_open.IsEnabled=info.HasVideo||info.HasAudio;
+            _archive.IsVisible=false;_waveform.IsVisible=!info.HasVideo&&info.HasAudio;_view.IsVisible=info.HasVideo&&_sourceBitmap is not null;_listen.IsVisible=info.HasAudio&&options is not null;_open.IsEnabled=info.HasVideo||info.HasAudio;
             _updating=true;_seek.Maximum=Math.Max(0,info.Duration-.04);seconds=Math.Clamp(seconds,0,_seek.Maximum);_requestedPosition=seconds;_seek.Value=seconds;_seek.IsVisible=info.Duration>0;_updating=false;
             if(!info.HasVideo)
             {
+                if(!info.HasAudio){ShowEmpty("此文件没有可预览的音视频内容");return;}
                 var scratch=Path.Combine(Path.GetTempPath(),"AvaMedia-waveform-"+Guid.NewGuid().ToString("N")+".pcm");
                 try
                 {
@@ -137,6 +141,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
                     var data=await File.ReadAllBytesAsync(scratch,token);token.ThrowIfCancellationRequested();_waveform.SetSamples(data);
                 }
                 finally{try{File.Delete(scratch);}catch(IOException){}catch(UnauthorizedAccessException){}}
+                _empty.IsVisible=false;_auxiliary.IsVisible=true;
                 _status.Text=Localization.Text("音频波形 · 15 秒片段");Localization.SetText(_position,$"{MediaTime.Format(seconds)} / {MediaTime.Format(info.Duration)}");return;
             }
             var source=await _engine.Thumbnail(path,seconds,1200,900,token,pad:false,videoStreamIndex:info.VideoStreamIndex);
@@ -144,11 +149,21 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
             token.ThrowIfCancellationRequested();if(_closed||path!=_path)return;
             ClearBitmaps();_sourceBitmap=Decode(source);_resultBitmap=Decode(result);
             _view.Source=_sourceBitmap;_view.Result=_resultBitmap;_view.SideBySide=options is not null;
+            _view.IsVisible=true;_empty.IsVisible=_auxiliary.IsVisible=false;
             _status.Text=Localization.Text(options is null?"原文件预览":"原画面 / 编辑后画面");
             Localization.SetText(_position,$"{info.Width} × {info.Height} · {MediaTime.Format(seconds)}");
         }
         catch(OperationCanceledException){}
-        catch(Exception error){if(!token.IsCancellationRequested&&!_closed){_status.Text=Localization.Text("预览读取失败，可打开原文件预览。");ToolTip.SetTip(_status,error.Message);}}
+        catch(Exception error){if(!token.IsCancellationRequested&&!_closed){ClearBitmaps();ShowEmpty("无法读取预览",error.Message);_open.IsEnabled=File.Exists(path);}}
+    }
+
+    private void ShowEmpty(string text,string? error=null)
+    {
+        _view.IsVisible=_auxiliary.IsVisible=_waveform.IsVisible=_archive.IsVisible=_seek.IsVisible=false;
+        _empty.Text=Localization.Text(text);_empty.IsVisible=true;_empty.IsError=error is not null;
+        ToolTip.SetTip(_empty,error);_status.Text="";_position.Text="";
+        _open.IsEnabled=_listen.IsVisible=false;
+        _previewSurface.ClearAmbient();
     }
 
     private static ArchiveItem[] ReadArchive(string path,CancellationToken token)
