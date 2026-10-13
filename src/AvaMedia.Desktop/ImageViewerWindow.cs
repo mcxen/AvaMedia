@@ -20,7 +20,10 @@ public sealed partial class ImageViewerWindow : Window
     private readonly ListBox _files = new();
     private readonly TextBlock _zoomNotice = new() { Classes = { "viewer-zoom" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly DispatcherTimer _zoomNoticeTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
-    private readonly TextBlock _empty = Ui.ComponentText("打开图片、文件夹或压缩包");
+    private readonly AvaMedia.Controls.EmptyState _empty = Ui.ComponentEmptyState("打开图片、文件夹或压缩包");
+    private readonly Grid _canvas = new() { ClipToBounds = true };
+    private readonly MediaPreviewSurface _previewSurface = new() { UseAmbientLighting = false };
+    private bool _updatingPreviewSurface;
     private readonly StackPanel _metadata = new() { Spacing = 1 };
     private readonly Border _info = new() { IsVisible = false };
     private readonly TextBlock _infoSummary = new() { Classes = { "viewer-summary" }, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -91,6 +94,7 @@ public sealed partial class ImageViewerWindow : Window
             }
             else if (change.OldValue is WindowState.FullScreen)
             { _body.ColumnDefinitions[0].Width = _beforeLibrary; _chrome.IsVisible = true; }
+            UpdatePreviewSurface();
         };
         Opened += async (_, _) =>
         {
@@ -105,7 +109,7 @@ public sealed partial class ImageViewerWindow : Window
         Closing += (_, _) =>
         {
             _closed = true; _lifetime.Cancel(); _loading?.Cancel(); _opening?.Cancel();
-            _animation.Stop(); _slideshow.Stop(); ReleaseImages();
+            _animation.Stop(); _slideshow.Stop(); ReleaseImages(); _previewSurface.Dispose();
             _files.ItemsSource = null;
         };
         Closed += (_, _) => { _lifetime.Dispose(); };
@@ -124,16 +128,36 @@ public sealed partial class ImageViewerWindow : Window
             entry is null ? null : new ImageLibraryItem(entry, ReadLibraryThumbnailAsync));
         var libraryPane = new Border { Child = library, Classes = { "viewer-library" } };
         _body.Children.Add(libraryPane);
-        var canvas = new Grid { ClipToBounds = true };
+        var canvas = _canvas;
         canvas.Bind(BackgroundProperty, new DynamicResourceExtension("UiMediaSurface"));
-        _empty.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiMediaText"));
-        canvas.Children.Add(_viewport);
+        canvas.Children.Add(_previewSurface); canvas.Children.Add(_viewport); _previewSurface.IsVisible = false;
         _empty.HorizontalAlignment = HorizontalAlignment.Center; _empty.VerticalAlignment = VerticalAlignment.Center;
         canvas.Children.Add(_empty);
         BuildChrome(); BuildInfo();
         canvas.Children.Add(_zoomNotice); canvas.Children.Add(_info); canvas.Children.Add(_chrome);
         _zoomNoticeTimer.Tick += (_, _) => { _zoomNoticeTimer.Stop(); _zoomNotice.IsVisible = false; };
         Grid.SetColumn(canvas, 1); _body.Children.Add(canvas); Content = _body;
+    }
+    private void UpdatePreviewSurface()
+    {
+        if (_updatingPreviewSurface) return;
+        _updatingPreviewSurface = true;
+        try
+        {
+            var projected = WindowState != WindowState.FullScreen && !_spread && _document?.Animated == false
+                && _bitmaps.Count > 0 && _viewport.FitMode == "fit";
+            if (projected)
+            {
+                var size = _bitmaps[_frame].Size;
+                _previewSurface.ContentSize = _viewport.Rotation % 180 == 0 ? size : new Size(size.Height, size.Width);
+                if (_previewSurface.PreviewContent != _viewport)
+                { _canvas.Children.Remove(_viewport); _previewSurface.PreviewContent = _viewport; }
+            }
+            else if (_previewSurface.PreviewContent == _viewport)
+            { _previewSurface.PreviewContent = null; _canvas.Children.Insert(1, _viewport); }
+            _previewSurface.IsVisible = projected;
+        }
+        finally { _updatingPreviewSurface = false; }
     }
     private void BuildChrome()
     {
@@ -207,6 +231,7 @@ public sealed partial class ImageViewerWindow : Window
         _recursive.IsCheckedChanged += async (_, _) => { _preferences.Recursive = _recursive.IsChecked == true; SavePreferences(); if (_sources.Length > 0) await GuardAsync(() => OpenAsync(_sources, CurrentEntry?.Member ?? CurrentEntry?.Container)); };
         _fit.SelectionChanged += (_, _) => _viewport.Fit(_fit.SelectedIndex switch { 1 => "down", 2 => "width", 3 => "actual", _ => "fit" });
         _viewport.ViewChanged += RefreshStatus;
+        _viewport.PointerReleased += (_, _) => UpdatePreviewSurface();
         _viewport.Zoomed += ShowZoom;
         _bookmarkButton.Click += (_, _) => ToggleBookmark();
         _animationButton.Click += (_, _) =>

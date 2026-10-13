@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
@@ -59,7 +60,7 @@ public sealed partial class ImageViewerWindow
         }
         else
         {
-            _empty.Text = Localization.Text("读取图片列表…"); _empty.IsVisible = _bitmaps.Count == 0;
+            _empty.IsError = false; _empty.Detail = ""; _empty.Text = Localization.Text("读取图片列表…"); _empty.IsVisible = _bitmaps.Count == 0;
             await ReadFileListAsync(sources, selected, generation, preserveImage: false);
         }
     }
@@ -106,7 +107,7 @@ public sealed partial class ImageViewerWindow
                 index = selected is null ? 0 : Array.FindIndex(entries,
                     entry => BatchRename.PathComparer.Equals(entry.Container, selected) || entry.Member == selected);
                 if (entries.Length > 0) await LoadAsync(Math.Max(0, index));
-                else { ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
+                else { ReleaseImages(); _empty.IsError = false; _empty.Detail = ""; _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
                 if (!_closed && generation == _openGeneration) RenderFiles();
             }
         }
@@ -115,7 +116,7 @@ public sealed partial class ImageViewerWindow
         {
             if (_closed || generation != _openGeneration || adjacentGeneration is not null && adjacentGeneration != _loadGeneration) return;
             if (!preserveImage) throw;
-            _empty.Text = (CurrentEntry?.Name ?? "") + " · " + error.Message; _empty.IsVisible = _bitmaps.Count == 0;
+            _empty.IsError = true; _empty.Text = "无法读取图片"; _empty.Detail = (CurrentEntry?.Name ?? "") + " · " + error.Message; _empty.IsVisible = _bitmaps.Count == 0;
         }
         finally
         {
@@ -131,7 +132,7 @@ public sealed partial class ImageViewerWindow
         _index = index; _animation.Stop(); _document = _secondDocument = null;
         _animationButton.IsVisible = false;
         // Keep the last frame on screen until the selected image is ready instead of flashing a blank canvas.
-        _empty.Text = Localization.Text("加载图片…"); _empty.IsVisible = _bitmaps.Count == 0;
+        _empty.IsError = false; _empty.Detail = ""; _empty.Text = Localization.Text("加载图片…"); _empty.IsVisible = _bitmaps.Count == 0;
         _bindingFiles = true; _files.SelectedItem = _entries[index]; _bindingFiles = false;
         var entry = _entries[index];
         var secondEntry = _spread && index + 1 < _entries.Length ? _entries[index + 1] : null;
@@ -167,7 +168,7 @@ public sealed partial class ImageViewerWindow
             if (_closed || generation != _loadGeneration) return;
             if (displayed) return;
             ReleaseImages(); StopSlideshow(); _empty.IsVisible = true;
-            _empty.Text = entry.Name + " · " + error.Message;
+            _empty.IsError = true; _empty.Text = "无法读取图片"; _empty.Detail = entry.Name + " · " + error.Message;
         }
         finally { if (ReferenceEquals(_loading, operation)) _loading = null; }
     }
@@ -192,7 +193,7 @@ public sealed partial class ImageViewerWindow
         _secondBitmap?.Dispose(); _secondBitmap = null; _document = _secondDocument = null;
         _metadata.Children.Clear(); _info.IsVisible = false; _mapButton.IsVisible = false; _infoSummary.Text = "";
         _zoomNoticeTimer.Stop(); _zoomNotice.IsVisible = false;
-        _animationButton.IsVisible = false;
+        _animationButton.IsVisible = false; UpdatePreviewSurface();
     }
     private void RenderFiles()
     {
@@ -253,6 +254,7 @@ public sealed partial class ImageViewerWindow
     private void SetSlideshowInterval() => _slideshow.Interval = TimeSpan.FromSeconds(_interval.SelectedIndex switch { 0 => 2, 2 => 10, 3 => 30, _ => 5 });
     private void RefreshStatus()
     {
+        UpdatePreviewSurface();
         if (_document is not { } document || _index < 0) return;
         var current = _entries[_index];
         _infoSummary.Text = $"{current.Name} · {document.Width} × {document.Height} · {document.Format} · {ImageCompression.Bytes(current.Bytes)}";
@@ -306,7 +308,11 @@ public sealed partial class ImageViewerWindow
             var label = new TextBlock { Text = path, TextTrimming = TextTrimming.CharacterEllipsis };
             Localization.SetIsUserText(label, true); ToolTip.SetTip(label, path); return label;
         });
-        var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(16), RowSpacing = 12 }; root.Children.Add(list);
+        var root = new Grid { RowDefinitions = new("*,Auto") };
+        root.Bind(MarginProperty, new DynamicResourceExtension("UiDialogPadding"));
+        root.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcGap"));
+        var content = new Grid(); content.Children.Add(list);
+        content.Children.Add(new AvaMedia.Controls.EmptyState { Text = "尚无最近打开的文件", IsVisible = list.ItemCount == 0 }); root.Children.Add(content);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         actions.Children.Add(Ui.DialogButton("取消", () => window.Close(null)));
         void OpenSelected() { if (list.SelectedItem is string path) window.Close(path); }

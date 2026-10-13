@@ -170,7 +170,7 @@ public partial class PlayerWindow : Window
                 else { PlayerStatus.Text = "音频播放"; }
                 RefreshCapture(); MarkFirstFrame();
             };
-            player.Error += message => { if (Current(revision)) { PlaybackError = message; Notice(message); } };
+            player.Error += message => { if (Current(revision)) { PlaybackError = message; Notice(message, "failed"); } };
             player.Finished += () => { if (Current(revision)) CommandReady = Ended(player); };
             _updating = true; PlayerSeek.Maximum = info.Duration; _updating = false;
             PlayerTotal.Text = EditorTime.Format(info.Duration); SetPosition(Math.Clamp(position, 0, Math.Max(0, info.Duration - .001)));
@@ -213,15 +213,16 @@ public partial class PlayerWindow : Window
         if (!immediate && !ControlsBar.IsVisible || !EditorTime.ShouldRefresh(ref _positionPublished, immediate)) return;
         _updating = true; PlayerSeek.Value = _position; _updating = false; PlayerTime.Text = EditorTime.Format(_position);
     }
-    private void Notice(string message) { PlayerNotice.Text = message; ShowNotice(); }
-    private void NoticeFormatted(FormattableString message) { Localization.SetText(PlayerNotice, message); ShowNotice(); }
+    private void Notice(string message, string state = "info") { PlayerOsd.Title = "播放提示"; PlayerOsd.Detail = message; PlayerOsd.State = state; ShowNotice(); }
+    private void NoticeFormatted(FormattableString message) => Notice(Localization.Format(message));
+    private void DismissNoticeClick(object? sender, RoutedEventArgs e) { _noticeTimer.Stop(); PlayerOsd.IsVisible = false; FocusPlayback(); }
     private void ShowNotice() { PlayerOsd.IsVisible = true; _noticeTimer.Stop(); _noticeTimer.Start(); }
     private void RefreshTransport()
     {
         var playing = _info is not null && _playIntent;
         PlayerPlayIcon.Kind = playing ? "pause" : "play";
-        Avalonia.Automation.AutomationProperties.SetName(PlayerPlayButton, playing ? "暂停" : "播放");
-        ToolTip.SetTip(PlayerPlayButton, playing ? "暂停" : "播放");
+        Avalonia.Automation.AutomationProperties.SetName(PlayerPlayButton, Localization.Text(playing ? "暂停" : "播放"));
+        ToolTip.SetTip(PlayerPlayButton, Localization.Text(playing ? "暂停" : "播放"));
         PlayerPlayButton.IsEnabled = !_deleting && !_nativeBusy && (_info is not null || !string.IsNullOrEmpty(CurrentPath) && DetectDisc(CurrentPath) is not null);
         PlayerStopButton.IsEnabled = PlayerSeek.IsEnabled = _info is not null && !_deleting && !_nativeBusy;
         PlayerMuteButton.IsEnabled = _info?.HasAudio == true;

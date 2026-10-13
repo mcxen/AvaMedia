@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using AvaMedia.Core;
 using AvaMedia.Desktop.Controls;
 
@@ -36,8 +37,11 @@ internal sealed class ImageViewerExportWindow : Window
         _start.Classes.Add("primary"); _start.Classes.Add("dialog-action"); _start.IsDefault = true;
         _cancel.Classes.Add("dialog-action"); _cancel.IsCancel = true;
         StableLayout.Reserve(_cancel, "取消", "停止");
-        var root = new Grid { RowDefinitions = new("*,Auto,Auto"), RowSpacing = 10, Margin = new(16) };
-        var body = new Grid { ColumnDefinitions = new("*,250"), ColumnSpacing = 12 };
+        var root = new Grid { RowDefinitions = new("*,Auto,Auto") };
+        root.Bind(MarginProperty, new DynamicResourceExtension("UiDialogPadding"));
+        root.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcGap"));
+        var body = new Grid { ColumnDefinitions = new("3*,2*") };
+        body.Bind(Grid.ColumnSpacingProperty, new DynamicResourceExtension("AcGap"));
         var selection = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 6 };
         var buttons = _selectionActions;
         foreach (var (label, predicate) in new (string, Func<int, bool>)[] { ("全部", _ => true), ("当前图片", index => index == current), ("取消全选", _ => false) })
@@ -48,7 +52,9 @@ internal sealed class ImageViewerExportWindow : Window
         selection.Children.Add(buttons); var list = new StackPanel { Spacing = 6 };
         for (var index = 0; index < entries.Length; index++)
         {
-            var check = new CheckBox { Classes = { "ac" }, Content = entries[index].Name, IsChecked = index == current };
+            var filename = new TextBlock { Text = entries[index].Name, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+            Localization.SetIsUserText(filename, true); ToolTip.SetTip(filename, entries[index].Identity);
+            var check = new CheckBox { Classes = { "ac" }, Content = filename, IsChecked = index == current };
             Localization.SetIsUserText(check, true); check.IsCheckedChanged += (_, _) => RefreshActions();
             _selected.Add(check); list.Children.Add(check);
         }

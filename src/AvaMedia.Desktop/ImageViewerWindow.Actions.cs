@@ -63,7 +63,7 @@ public sealed partial class ImageViewerWindow
         _preferences.Bookmarks = _preferences.Bookmarks.Where(item => item.Identity != entry.Identity).ToArray(); SavePreferences();
         _entries = _entries.Where(item => item.Identity != entry.Identity).ToArray(); RenderFiles();
         if (_entries.Length > 0) await LoadAsync(Math.Min(_index, _entries.Length - 1));
-        else { _index = -1; ReleaseImages(); _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
+        else { _index = -1; ReleaseImages(); _empty.IsError = false; _empty.Detail = ""; _empty.Text = Localization.Text("没有可显示的图片"); _empty.IsVisible = true; }
     }
     private async Task RevealAsync()
     {

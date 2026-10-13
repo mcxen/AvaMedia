@@ -1,6 +1,7 @@
-<Window xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:ac="using:AvaMedia.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop.Controls" xmlns:core="using:AvaMedia.Core" x:Class="AvaMedia.Desktop.PlayerWindow" Classes="player"
         Width="1120" Height="780" MinWidth="760" MinHeight="500" WindowStartupLocation="CenterScreen" Title="{x:Static core:AppIdentity.PlayerTitle}">
+  <Window.Resources><x:Double x:Key="PlayerNoticeWidth">340</x:Double></Window.Resources>
   <Grid RowDefinitions="*,Auto">
     <Grid ColumnDefinitions="*,Auto">
       <Grid x:Name="VideoArea" Background="{DynamicResource UiMediaSurface}" ClipToBounds="True" Focusable="True" AutomationProperties.Name="播放画面">
@@ -8,9 +9,11 @@
         <local:PanoramaView x:Name="PanoramaImage" IsVisible="False" AutomationProperties.Name="VR 播放画面"/>
         <TextBlock x:Name="PlayerStatus" Text="{x:Static core:AppIdentity.PlayerWelcome}" Foreground="{DynamicResource UiMediaText}" TextAlignment="Center" TextWrapping="Wrap"
                    Margin="{DynamicResource UiSectionPadding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        <Border x:Name="PlayerOsd" IsVisible="False" Background="{DynamicResource UiMediaOverlay}" Padding="{DynamicResource UiCompactButtonPadding}" Margin="{DynamicResource UiPagePadding}" HorizontalAlignment="Left" VerticalAlignment="Top">
-          <TextBlock x:Name="PlayerNotice" Foreground="{DynamicResource UiMediaText}" TextWrapping="Wrap"/>
-        </Border>
+        <ac:Notice x:Name="PlayerOsd" IsVisible="False" Margin="{DynamicResource UiPagePadding}" HorizontalAlignment="Left" VerticalAlignment="Top" MaxWidth="{DynamicResource PlayerNoticeWidth}">
+          <ac:Notice.ActionContent>
+            <Button Classes="ac borderless icon" Click="DismissNoticeClick" ToolTip.Tip="关闭提示" AutomationProperties.Name="关闭提示"><local:LucideIcon Kind="x" Width="{DynamicResource UiIconSmall}" Height="{DynamicResource UiIconSmall}" Foreground="{DynamicResource UiText}"/></Button>
+          </ac:Notice.ActionContent>
+        </ac:Notice>
       </Grid>
       <Border Grid.Column="1" x:Name="PlaylistPanel" IsVisible="False" Width="{DynamicResource UiPlayerPlaylistWidth}" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiDivider}" BorderThickness="1,0,0,0">
         <Grid RowDefinitions="Auto,*,Auto">
