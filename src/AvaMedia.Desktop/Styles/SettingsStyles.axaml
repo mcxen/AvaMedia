@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:auto="using:Avalonia.Automation" xmlns:local="using:AvaMedia.Desktop">
   <Styles.Resources><ResourceDictionary>
     <x:Double x:Key="StWindowWidth">900</x:Double>
+    <SolidColorBrush x:Key="StTitleBar" Color="Transparent"/>
     <x:Double x:Key="StWindowMinWidth">880</x:Double>
     <x:Double x:Key="StAboutIconSize">64</x:Double>
     <x:Double x:Key="StCompactFieldWidth">88</x:Double>
@@ -28,7 +29,7 @@
     <Thickness x:Key="StStatusMargin">10,4</Thickness>
     <Thickness x:Key="StHintMargin">10,5,10,0</Thickness>
     <Thickness x:Key="StToolsMargin">12,8</Thickness>
-    <Thickness x:Key="StFooterMargin">272,0,26,14</Thickness>
+    <Thickness x:Key="StFooterMargin">272,8,26,14</Thickness>
     <x:Double x:Key="StBodyFont">13</x:Double>
     <x:Double x:Key="StPageTitleFont">15</x:Double>
     <x:Double x:Key="StGroupTitleFont">12</x:Double>
@@ -42,11 +43,13 @@
     <Thickness x:Key="StRowPadding">12,7</Thickness>
     <Thickness x:Key="StIndentedRowPadding">30,7,12,7</Thickness>
     <Thickness x:Key="StHeadingMargin">10,18,0,6</Thickness>
-    <Thickness x:Key="StContentMargin">26,0,26,12</Thickness>
-    <Thickness x:Key="StTitleMargin">184,0,0,0</Thickness>
-    <Thickness x:Key="StSidebarMargin">8,0,8,8</Thickness>
-    <Thickness x:Key="StSidebarPadding">10,0,10,10</Thickness>
-    <Thickness x:Key="StBrandMargin">8,0,8,12</Thickness>
+    <Thickness x:Key="StContentMargin">26,40,26,52</Thickness>
+    <Thickness x:Key="StTitleMargin">184,12,0,0</Thickness>
+    <!-- Traffic lights sit inside the floating sidebar (sidebar margin 8 + padding 10 + 6). -->
+    <Thickness x:Key="UiToolTitleLightInset">24,12,0,0</Thickness>
+    <Thickness x:Key="StSidebarMargin">8</Thickness>
+    <Thickness x:Key="StSidebarPadding">10</Thickness>
+    <Thickness x:Key="StBrandMargin">8,38,8,12</Thickness>
     <x:Double x:Key="StBrandIconSize">32</x:Double>
     <x:Double x:Key="StBrandGap">10</x:Double>
     <CornerRadius x:Key="StSidebarRadius">13</CornerRadius>
@@ -115,13 +118,14 @@
   <Style Selector="TabControl.settingsNavigation > TabItem:selected"><Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/></Style>
   <Style Selector="TabControl.settingsNavigation > TabItem:focus-visible /template/ Border#NavigationFace"><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
   <Style Selector="TabItem#ConversionTab, TabItem#ProvidersTab"><Setter Property="Margin" Value="{DynamicResource StNavigationGap}"/></Style>
+  <Style Selector="Window.settings Border.settingsPage > ScrollViewer"><Setter Property="AllowAutoHide" Value="True"/></Style>
   <Style Selector="Window.settings Border.settingsPage"><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.settings Border.ac-group"><Setter Property="CornerRadius" Value="{DynamicResource UiSettingsGroupRadius}"/><Setter Property="BoxShadow" Value="none"/></Style>
   <Style Selector="Window.settings Border.settingsRow"><Setter Property="Padding" Value="{DynamicResource StRowPadding}"/><Setter Property="MinHeight" Value="{DynamicResource UiSettingRowHeight}"/></Style>
   <Style Selector="Window.settings Border.settingsRow.indented"><Setter Property="Padding" Value="{DynamicResource StIndentedRowPadding}"/></Style>
   <Style Selector="Window.settings Border.settingsRow"><Setter Property="BorderBrush" Value="{DynamicResource AcStageLineBrush}"/><Setter Property="BorderThickness" Value="0,0.5,0,0"/></Style>
   <Style Selector="Window.settings TextBlock.settingsHeading"><Setter Property="FontSize" Value="{DynamicResource StGroupTitleFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/><Setter Property="Margin" Value="{DynamicResource StHeadingMargin}"/></Style>
-  <Style Selector="Window.settings TextBlock.settingsDescription"><Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+  <Style Selector="Window.settings TextBlock.settingsDescription, Window.settings SelectableTextBlock.settingsDescription"><Setter Property="FontSize" Value="{DynamicResource UiFontCaption}"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
   <Style Selector="Window.settings ToggleSwitch"><Setter Property="MinHeight" Value="{DynamicResource StToggleHeight}"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
   <Style Selector="Window.settings Button.settingsFooter"><Setter Property="MinWidth" Value="{DynamicResource StFooterActionWidth}"/></Style>
   <Style Selector="Window.settings Border.modelRow"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="Padding" Value="{DynamicResource StModelPadding}"/><Setter Property="CornerRadius" Value="{DynamicResource UiSettingsGroupRadius}"/></Style>
