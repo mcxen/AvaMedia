@@ -132,7 +132,8 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
         JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
     {
-        var content = SummaryChatProtocol.Content(prompt, image, images, ModelCatalog.IsSummaryVision(_id),
+        var structuredVisual = _id == ModelCatalog.SummaryVisionId && schema is not null;
+        var content = SummaryChatProtocol.Content(structuredVisual ? system + "\n" + prompt : prompt, image, images, ModelCatalog.IsSummaryVision(_id),
             _id == ModelCatalog.SummaryVisionId ? 3 : 32);
         // SmolVLM's published template is a user/assistant conversation; keep its visual instruction in user content.
         object[] messages = _id == ModelCatalog.SummaryVisionId
@@ -142,13 +143,18 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         // push its very small decoder towards unrelated objects or invented events.
         var visual = _id == ModelCatalog.SummaryVisionId;
         var request = Request(messages, tokens);
-        if (schema is { } shape) request["response_format"] = new { type = "json_object", schema = shape };
+        if (schema is { } shape)
+        {
+            request["response_format"] = new { type = "json_object", schema = shape };
+            // JSON may contain newlines; the caption stop token must not truncate structured decisions.
+            if (visual) request.Remove("stop");
+        }
         using var json = await SendAsync(request, ct).ConfigureAwait(false);
         var (message, limited) = SummaryChatProtocol.ReadResponse(json.RootElement, "本地总结模型响应格式无效。");
         var text = SummaryChatProtocol.ReadText(message, "本地总结模型未返回有效文本。");
         text = Regex.Replace(text, @"<think>.*?</think>", "", RegexOptions.Singleline, TimeSpan.FromSeconds(1)).Trim();
         if (text.Length == 0) throw new InvalidDataException("本地总结模型返回了空内容。");
-        if (visual)
+        if (visual && schema is null)
         {
             // Small visual decoders can repeat after a complete caption. Keep whole sentences only;
             // an incomplete prefix is never turned into visual evidence or a partially parsed JSON answer.

@@ -11,8 +11,8 @@ public sealed class EvidenceStore(string folder)
     private readonly string _root = Path.GetFullPath(folder);
     public async Task WriteSegmentAsync(SegmentJob job, CancellationToken ct)
     {
-        var evidence = job.Transcript.Where(c => !c.ContextOnly).Select(c => new SummaryEvidence(c.Id, c.Start, c.End, c.Text, "transcript", c.Track, c.Language))
-            .Concat(job.Frames.Select(f => new SummaryEvidence(f.Id, f.T, f.T, f.Caption + (f.Ocr.Length > 0 ? "\nOCR: " + f.Ocr : ""), "frame"))).ToArray();
+        var evidence = job.Transcript.Where(c => !c.ContextOnly).Select(c => new SummaryEvidence(c.Id, c.Start, c.End, c.Text, c.Source is "Whisper" or "speech_transcript" ? "speech_transcript" : "transcript", c.Track, c.Language) { Source = c.Source })
+            .Concat(job.Frames.Select(f => new SummaryEvidence(f.Id, f.T, f.End ?? f.T, f.Caption + (f.Ocr.Length > 0 ? "\nOCR: " + f.Ocr : ""), f.Kind) { FrameIds = f.FrameIds, Source = "video_frames" })).ToArray();
         await _gate.WaitAsync(ct);
         try
         {

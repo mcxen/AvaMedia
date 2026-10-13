@@ -1,7 +1,10 @@
 namespace AvaMedia.Core;
 
 public sealed record SummarySignals(double Duration, IReadOnlyList<SummaryCue> Cues, IReadOnlyList<SummaryShot> Shots,
-    IReadOnlyList<VoiceInterval> VoiceIntervals, IReadOnlyList<SummaryFrame> Frames, bool OcrAvailable = false, bool HasAudio = true);
+    IReadOnlyList<VoiceInterval> VoiceIntervals, IReadOnlyList<SummaryFrame> Frames, bool OcrAvailable = false, bool HasAudio = true)
+{
+    public IReadOnlyList<SummaryCue>? RawCues { get; init; }
+}
 public sealed class SemanticSegmenter(PromptPacker? promptPacker = null)
 {
     private readonly PromptPacker _packer = promptPacker ?? new();

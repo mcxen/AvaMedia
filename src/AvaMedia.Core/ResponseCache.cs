@@ -10,7 +10,7 @@ public sealed class ResponseCache
     private readonly long _capacity;
     public ResponseCache(string? root = null, long capacity = 512L * 1024 * 1024)
     { _root = root ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AvaMedia", "ai-cache"); _capacity = capacity; }
-    public static string Key(string modelId, SegmentJob job, TokenBudget budget) => SummaryCheckpointStore.Hash(new { modelId, promptVersion = 1, schemaVersion = 2, job, budget });
+    public static string Key(string modelId, SegmentJob job, TokenBudget budget) => SummaryCheckpointStore.Hash(new { modelId, promptVersion = 2, schemaVersion = 2, job, budget });
     private string PathFor(string key)
     {
         if (key.Length != 64 || key.Any(c => !Uri.IsHexDigit(c))) throw new ArgumentException("缓存键无效。");

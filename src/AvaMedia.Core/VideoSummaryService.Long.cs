@@ -17,13 +17,13 @@ public sealed partial class VideoSummaryService
         var speech = options.Speech.Clone(); speech.Language = "auto";
         var external = options.TranscriptSource == VideoTranscriptSource.External ? new FileInfo(options.SubtitleFile) : null;
         var transcriptHash = SummaryCheckpointStore.Hash(new { sourceHash, options.TranscriptSource, options.SubtitleTrack, options.AudioTrack, options.AutoSelectAudioTrack,
-            options.AllAudioTracks, speech.Model, options.OutputLanguage, external = external is null ? null : new { external.FullName, external.Length, external.LastWriteTimeUtc } });
+            options.AllAudioTracks, speech.Model, options.OutputLanguage, transcriptPolicyVersion = 2, external = external is null ? null : new { external.FullName, external.Length, external.LastWriteTimeUtc } });
         var visionIdentity = online is null ? options.LocalVisionModelId : SummaryCheckpointStore.Hash(new { online.VisionProvider.Endpoint, online.VisionModel });
-        var signalHash = SummaryCheckpointStore.Hash(new { transcriptHash, options.AnalyzeFrames, visionIdentity, ocr = ocr.GetType().FullName });
+        var signalHash = SummaryCheckpointStore.Hash(new { transcriptHash, options.AnalyzeFrames, visionIdentity, ocr = ocr.GetType().FullName, ocrVersion = 1, options.FrameCount, budget.FrameLimit, agentVersion = VideoSummaryFrameAgent.Version });
         var activity = new AiActivityReporter(a => job.Activity = a, "视频信号", "段", ["提取信号"]);
         // Complete visual extraction before acquiring the summary lease, reusing both existing caches.
         var signals = await store.GetOrCreateAsync("signals.json", signalHash, Extract, ct);
-        var subtitleCues = signals.Cues.Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text)
+        var subtitleCues = (signals.RawCues ?? signals.Cues).Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text)
             { Language = c.Language, Track = c.Track, LanguageConfidence = c.LanguageConfidence }).ToArray();
         job.SubtitleResult = new(subtitleCues, file.Length, file.LastWriteTimeUtc);
         if (options.ExtractSubtitles) await File.WriteAllTextAsync(Path.Combine(folder, "subtitles.srt"), SpeechSubtitles.Srt(subtitleCues), ct);
@@ -48,15 +48,15 @@ public sealed partial class VideoSummaryService
                 var preferred = options.Speech.Language == "auto" ? options.OutputLanguage switch { "English" => "en", "日本語" => "ja", _ => "zh" } : options.Speech.Language;
                 if (longOptions.AutoSelectAudioTrack && tracks.Count > 0) longOptions.AudioTrack = LongSummaryMediaPolicy.SelectTrack(tracks, preferred);
                 var extractionJob = new Job { Id = job.Id, Inputs = job.Inputs, Output = job.Output, Options = job.Options.Clone() }; extractionJob.Options.VideoSummary = longOptions;
-                var (cues, _) = await ReadTranscriptAsync(extractionJob, info, folder, v => progress(v * .25), activity, token, store);
+                var (cues, transcriptSource) = await ReadTranscriptAsync(extractionJob, info, folder, v => progress(v * .25), activity, token, store);
                 var voices = (AiProgressStore.GetSpeech(job.Id.ToString())?.VoiceIntervals ?? []).ToList();
-                var all = cues.Select(c => new SummaryCue("source-" + c.Start.Ticks, c.Start.TotalSeconds, c.End.TotalSeconds, c.Text, Language: c.Language, Track: c.Track, LanguageConfidence: c.LanguageConfidence)).ToList();
+                var all = cues.Select(c => new SummaryCue("source-" + c.Start.Ticks, c.Start.TotalSeconds, c.End.TotalSeconds, c.Text, Language: c.Language, Track: c.Track, LanguageConfidence: c.LanguageConfidence) { Source = transcriptSource }).ToList();
                 if (options.AllAudioTracks && info.HasAudio && options.TranscriptSource is VideoTranscriptSource.Speech or VideoTranscriptSource.Automatic)
                     foreach (var track in tracks.Where(t => t.Index != longOptions.AudioTrack))
                     {
                         var extra = await new SpeechSubtitleService(engine).TranscribeAsync(job, longOptions.Speech, track.Index, _ => { }, token, activity.Observe, info, store);
                         voices.AddRange(AiProgressStore.GetSpeech(job.Id.ToString())?.VoiceIntervals ?? []);
-                        all.AddRange(extra.Select(c => new SummaryCue("source-" + c.Start.Ticks + "-" + track.Index, c.Start.TotalSeconds, c.End.TotalSeconds, c.Text, Language: c.Language, Track: track.Index, LanguageConfidence: c.LanguageConfidence)));
+                        all.AddRange(extra.Select(c => new SummaryCue("source-" + c.Start.Ticks + "-" + track.Index, c.Start.TotalSeconds, c.End.TotalSeconds, c.Text, Language: c.Language, Track: track.Index, LanguageConfidence: c.LanguageConfidence) { Source = "Whisper" }));
                     }
                 var mergedVoices = new List<VoiceInterval>();
                 foreach (var voice in voices.OrderBy(v => v.StartSeconds))
@@ -65,43 +65,68 @@ public sealed partial class VideoSummaryService
                         mergedVoices[^1] = previous with { EndSeconds = Math.Max(previous.EndSeconds, voice.EndSeconds) };
                     else mergedVoices.Add(voice);
                 }
-                return new TranscriptSignals(all.OrderBy(c => c.Start).ThenBy(c => c.Track).ToArray(), mergedVoices.ToArray());
+                return new TranscriptSignals(all.OrderBy(c => c.Start).ThenBy(c => c.Track).ToArray(), mergedVoices.ToArray(), transcriptSource);
             }, cancellation);
             var shots = options.AnalyzeFrames
                 ? await store.GetOrCreateAsync("shots.json", sourceHash, async token => new ShotSignals((await ShotDetector.ScanAsync(engine, job.Inputs[0], info.Duration, token)).ToArray()), cancellation)
                 : new ShotSignals(ShotDetector.FromBoundaries(info.Duration, []).ToArray());
+            var rawCues = transcript.Cues;
+            var eligible = new List<SummaryCue>();
+            foreach (var group in rawCues.GroupBy(c => c.Source.Length > 0 ? c.Source : transcript.Source))
+            {
+                var selection = VideoSummaryTranscriptPolicy.Evaluate(group.Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text)
+                    { Language = c.Language, Track = c.Track, LanguageConfidence = c.LanguageConfidence }).ToArray(), group.Key, info.Duration, transcript.Voices);
+                var keys = selection.Cues.Select(c => (c.Start.TotalSeconds, c.End.TotalSeconds, c.Text, c.Track)).ToHashSet();
+                eligible.AddRange(group.Where(c => keys.Contains((c.Start, c.End, c.Text, c.Track))));
+                foreach (var note in selection.Notes) job.AppendLog(note);
+            }
+            var selectedCues = eligible.OrderBy(c => c.Start).ThenBy(c => c.Track).ToArray();
             var frames = new List<SummaryFrame>();
-            var visualOnly = !info.HasAudio || transcript.Cues.Length == 0 || transcript.Voices.Length > 0 && transcript.Voices.Sum(v => v.EndSeconds - v.StartSeconds) / info.Duration < .03;
+            var visualOnly = !info.HasAudio || selectedCues.Length == 0 || transcript.Voices.Length > 0 && transcript.Voices.Sum(v => v.EndSeconds - v.StartSeconds) / info.Duration < .03;
             if (options.AnalyzeFrames)
             {
                 var visionId = online is null ? options.LocalVisionModelId : ModelCatalog.SummaryVisionId;
                 await using var vision = await OpenLongModelAsync(visionId, online, options, activity, cancellation);
-                var framePlan = new SemanticSegmenter().Plan(new(info.Duration, transcript.Cues, shots.Shots, transcript.Voices, []), budget, visualOnly: visualOnly);
+                var framePlan = new SemanticSegmenter().Plan(new(info.Duration, selectedCues, shots.Shots, transcript.Voices, []), budget, visualOnly: visualOnly);
                 foreach (var range in framePlan.Segments)
                 {
-                    int density = visualOnly ? 2 : 1;
-                    var candidates = shots.Shots.Where(s => s.End > range.Start && s.Start < range.End)
-                        .OrderByDescending(s => s.End - s.Start).Take(budget.FrameLimit).ToArray();
-                    if (candidates.Length == 0) continue;
-                    foreach (var shot in candidates)
-                    for (int i = 0; i < density; i++)
+                    var hash = SummaryCheckpointStore.Hash(new { sourceHash, visionIdentity, range.Start, range.End,
+                        transcript = SummaryCheckpointStore.Hash(selectedCues.Where(c => c.Start < range.End && c.End > range.Start)),
+                        options.FrameCount, budget.FrameLimit, ocr = ocr.GetType().FullName, ocrVersion = 1, agentVersion = VideoSummaryFrameAgent.Version });
+                    var investigation = await store.GetOrCreateAsync($"frames/{range.Id}-agent.json", hash, async token =>
                     {
-                        var begin = Math.Max(shot.Start, range.Start); var end = Math.Min(shot.End, range.End);
-                        var id = range.Id + "-" + shot.Id + "-" + i; var t = begin + (end - begin) * (i + .5) / density;
-                        var hash = SummaryCheckpointStore.Hash(new { sourceHash, visionIdentity, t, ocr = ocr.GetType().FullName, promptVersion = 1 });
-                        var frame = await store.GetOrCreateAsync($"frames/{id}.json", hash, async token =>
-                        {
-                            var png = await engine.Thumbnail(job.Inputs[0], t, 768, 768, token, pad: false);
-                            await SummaryCheckpointStore.AtomicWriteAsync(store.PathFor($"frames/{id}.png"), png, token);
-                            var captions = await VideoSummaryPipeline.DescribeFramesAsync([new(TimeSpan.FromSeconds(t), png)], new RetryingSummaryModel(vision), vision.ModelId, token);
-                            var caption = captions[0]; return new SummaryFrame(id, t, shot.Id, caption.Refused ? "" : caption.Description ?? "", visualOnly || ocr.Available ? await ocr.ReadAsync(png, token) : "");
-                        }, cancellation);
-                        if (frame.Caption.Length > 0 || frame.Ocr.Length > 0) frames.Add(frame);
+                        var seeds = new[] { range.Start + (range.End - range.Start) * .15, range.Start + (range.End - range.Start) * .5,
+                            range.Start + (range.End - range.Start) * .85 };
+                        var cues = selectedCues.Where(c => c.Start < range.End && c.End > range.Start)
+                            .Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text)
+                                { Language = c.Language, Track = c.Track, LanguageConfidence = c.LanguageConfidence }).ToArray();
+                        return await VideoSummaryFrameAgent.RunAsync(engine, job.Inputs[0], info.Duration, info.VideoStreamIndex,
+                            range.Start, range.End, range.Id + "-", Math.Min(options.FrameCount, budget.FrameLimit), seeds, cues,
+                            string.Join("、", selectedCues.Where(c => c.Start < range.End && c.End > range.Start).Select(c => c.Source).Distinct()), vision,
+                            async (id, png, frameToken) =>
+                            {
+                                var relative = "work/frames/" + id + ".png";
+                                await SummaryCheckpointStore.AtomicWriteAsync(Path.Combine(folder, relative), png, frameToken).ConfigureAwait(false);
+                                activity.Frame(png, id); return relative;
+                            }, detail => { job.ProgressDetail = detail; activity.Stage(detail); }, token,
+                            value => store.WriteAsync($"frames/{range.Id}-agent-partial.json", hash, value, CancellationToken.None)).ConfigureAwait(false);
+                    }, cancellation);
+                    foreach (var observation in investigation.Observations)
+                    {
+                        var cited = investigation.Frames.Where(f => observation.FrameIds.Contains(f.Id)).OrderBy(f => f.Seconds).ToArray();
+                        var frame = cited[0];
+                        var shot = shots.Shots.FirstOrDefault(s => s.Start <= frame.Seconds && s.End > frame.Seconds);
+                        var label = cited.Length == 1 ? "静态单帧观察" : observation.Sequence ? "近邻多帧观察" : "间隔采样的静态比较";
+                        var caption = $"{label} [{MediaTime.Format(cited[0].Seconds)}–{MediaTime.Format(cited[^1].Seconds)}; frameIds={string.Join(",", observation.FrameIds)}]：{observation.Text}";
+                        frames.Add(new(observation.Id, frame.Seconds, shot?.Id ?? "", caption,
+                            ocr.Available && cited.Length == 1 ? await ocr.ReadAsync(await File.ReadAllBytesAsync(Path.Combine(folder, frame.Path), cancellation), cancellation) : "")
+                            { Path = frame.Path, FrameIds = observation.FrameIds, End = cited[^1].Seconds, Kind = observation.Sequence ? "sequence" : cited.Length > 1 ? "comparison" : "frame" });
                     }
+                    foreach (var note in investigation.Uncertainties) job.AppendLog(note);
                 }
                 if (visualOnly && !ocr.Available) job.AppendLog("无语音模式：只描述可见内容。当前未配置 OCR 引擎，标题文字覆盖可能不完整。");
             }
-            return new(info.Duration, transcript.Cues, shots.Shots, transcript.Voices, frames, ocr.Available, info.HasAudio);
+            return new SummarySignals(info.Duration, selectedCues, shots.Shots, transcript.Voices, frames, ocr.Available, info.HasAudio) { RawCues = rawCues };
         }
     }
     private async Task<ISummaryModel> OpenLongModelAsync(string id, VideoSummaryOnlineModels? online, VideoSummaryOptions options,
@@ -111,7 +136,7 @@ public sealed partial class VideoSummaryService
         await Task.WhenAll(EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct), EnsureModelAsync(id, activity, ct));
         return await SharedSummaryModelLease.AcquireAsync(_models, id, ct, stage => activity.Stage(stage));
     }
-    private sealed record TranscriptSignals(SummaryCue[] Cues, VoiceInterval[] Voices);
+    private sealed record TranscriptSignals(SummaryCue[] Cues, VoiceInterval[] Voices, string Source);
     private sealed record ShotSignals(SummaryShot[] Shots);
     private static void CopyDirectory(string source, string target, CancellationToken ct)
     {

@@ -8,8 +8,17 @@ public static class LongSummaryJson
     public static string Write<T>(T value) => JsonSerializer.Serialize(value, Options);
 }
 public sealed record SummaryCue(string Id, double Start, double End, string Text, bool ContextOnly = false,
-    string Language = "auto", int Track = 0, double LanguageConfidence = 1);
-public sealed record SummaryFrame(string Id, double T, string Shot, string Caption, string Ocr = "");
+    string Language = "auto", int Track = 0, double LanguageConfidence = 1)
+{
+    public string Source { get; init; } = "";
+}
+public sealed record SummaryFrame(string Id, double T, string Shot, string Caption, string Ocr = "")
+{
+    public double? End { get; init; }
+    public string Kind { get; init; } = "frame";
+    public string Path { get; init; } = "";
+    public string[] FrameIds { get; init; } = [];
+}
 public sealed record SegmentRange(string Id, double Start, double End, double BoundaryScore = 0);
 public sealed record SegmentPlan(double Duration, IReadOnlyList<SegmentRange> Segments, string PlanHash);
 public sealed record RollingContext(string PrevSummary, IReadOnlyList<string> OpenThreads, IReadOnlyList<string> Entities)

@@ -10,15 +10,15 @@ public sealed class MediaCaptionFrameTool
     private readonly MediaTagResult _source;
     private readonly int _videoStreamIndex;
     private readonly Action<byte[], string>? _preview;
-    private int _remaining = 8;
+    private int _remaining;
     public SummaryModelTool Tool { get; }
 
     public MediaCaptionFrameTool(IMediaEngine engine, MediaTagResult source, int videoStreamIndex = 0,
-        Action<byte[], string>? preview = null)
+        Action<byte[], string>? preview = null, int maximumFrames = 8)
     {
-        if (!double.IsFinite(source.DurationSeconds) || source.DurationSeconds <= 0 || videoStreamIndex < 0)
+        if (!double.IsFinite(source.DurationSeconds) || source.DurationSeconds <= 0 || videoStreamIndex < 0 || maximumFrames is < 1 or > 48)
             throw new ArgumentException("视频描述采样时间无效。");
-        _engine = engine; _source = source; _videoStreamIndex = videoStreamIndex; _preview = preview;
+        _engine = engine; _source = source; _videoStreamIndex = videoStreamIndex; _preview = preview; _remaining = maximumFrames;
         var parameters = JsonSerializer.SerializeToElement(new
         {
             type = "object", additionalProperties = false,
@@ -26,7 +26,7 @@ public sealed class MediaCaptionFrameTool
             {
                 seconds = new { type = "array", minItems = 1, maxItems = 4,
                     items = new { type = "number", minimum = 0, maximum = source.DurationSeconds },
-                    description = "需查看的采样时间，单位秒。每次 1–4 个；最多补充 8 帧。" },
+                    description = $"需查看的采样时间，单位秒。每次 1–4 个；最多查看 {maximumFrames} 帧。" },
                 region = new { type = "object", additionalProperties = false,
                     description = "可选局部放大区域，相对完整画面的归一化坐标。省略时返回完整画面。",
                     properties = new { x = new { type = "number", minimum = 0, maximum = 1 },
