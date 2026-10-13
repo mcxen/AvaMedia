@@ -63,6 +63,11 @@ public partial class MainWindow : Window
 
     private async Task ConfigureCoreAsync(Feature feature,string[]? files=null)
     {
+        if (feature.Id == FeatureNavigation.ExclusiveRenamer.Id)
+        {
+            await OpenExclusiveRenamerAsync(this);
+            return;
+        }
         if(feature.Operation==Operation.ImageView)
         {
             var viewer = CreateImageViewerWindow(files); viewer.ShowForViewing(this); return;

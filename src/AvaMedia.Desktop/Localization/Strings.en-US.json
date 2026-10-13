@@ -3905,5 +3905,11 @@
   " → {0} · 预估节省 {1}": " → {0} · estimated savings {1}",
   " · 编码结果 {0} MB · 实际节省 {1}%": " · encoded size {0} MB · actual savings {1}%",
   "可瘦身 {0} 个，无需瘦身 {1} 个，需要处理 {2} 个。": "{0} can be slimmed, {1} need no slimming and {2} need attention.",
-  "成功 {0} 个，无需瘦身 {1} 个，失败 {2} 个，停止 / 未执行 {3} 个。": "{0} succeeded, {1} need no slimming, {2} failed and {3} stopped / not run."
+  "成功 {0} 个，无需瘦身 {1} 个，失败 {2} 个，停止 / 未执行 {3} 个。": "{0} succeeded, {1} need no slimming, {2} failed and {3} stopped / not run.",
+  "内部工具": "Internal tools",
+  "请输入内部口令": "Enter the internal passphrase",
+  "内部口令": "Internal passphrase",
+  "口令错误，请重试": "Incorrect passphrase. Try again.",
+  "内部工具未激活。": "Internal tools are not activated.",
+  "VL 媒体智能重命名": "VL media renamer"
 }

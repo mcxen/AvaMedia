@@ -21,18 +21,19 @@ public partial class MainWindow
     private readonly Dictionary<string, TreeCategory> _treeCategories = [];
     private readonly Dictionary<string, Button> _featureButtons = [];
     private readonly Dictionary<Button, LucideIcon> _featureIcons = [];
-    private bool _treeBeta, _treeBuilt;
+    private bool _treeBeta, _treeBuilt, _treeExclusiveUnlocked;
     private string? _selectedFeatureId;
 
     private void BuildFeatureTree()
     {
         _treeBeta = _settings.EnableBetaFeatures;
+        _treeExclusiveUnlocked = _settings.ExclusiveToolUnlocked;
         var focused = _featureButtons.FirstOrDefault(item => item.Value.IsKeyboardFocusWithin).Key;
         ResetOutputDropSession();
         FeatureTree.Children.Clear(); _treeCategories.Clear(); _featureButtons.Clear(); _featureIcons.Clear();
         foreach (var category in FeatureNavigation.Categories)
         {
-            var sections = FeatureNavigation.Sections(category, _treeBeta).ToArray();
+            var sections = FeatureNavigation.Sections(category, _treeBeta, _treeExclusiveUnlocked).ToArray();
             var header = new CategoryHeader(Localization.Text(FeatureNavigation.CategoryTitle(category)),
                 FeatureNavigation.CategoryIcon(category), sections.Sum(section => section.Features.Length))
             { Name = "Category_" + Array.IndexOf(FeatureNavigation.Categories, category) };
@@ -131,7 +132,13 @@ public partial class MainWindow
             await Configure(feature);
         };
         button.KeyDown += (_, args) => NavigateFeatureRows(feature.Id, args);
-        EnableFeatureDrop(button, content, feature);
+        if (feature.Id == FeatureNavigation.ExclusiveRenamer.Id)
+        {
+            DragDrop.SetAllowDrop(button, true);
+            button.AddHandler(DragDrop.DragOverEvent, (_, args) => { args.DragEffects = DragDropEffects.None; args.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
+            button.AddHandler(DragDrop.DropEvent, (_, args) => { args.DragEffects = DragDropEffects.None; args.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
+        }
+        else EnableFeatureDrop(button, content, feature);
         _featureButtons.Add(feature.Id, button);
         return button;
     }
@@ -160,7 +167,7 @@ public partial class MainWindow
         if (!FeatureNavigation.Categories.Contains(category)) return;
         _category = category;
         if (!_treeBuilt) InitializeCategories();
-        if (!_treeBuilt || _treeBeta != _settings.EnableBetaFeatures) BuildFeatureTree();
+        if (!_treeBuilt || _treeBeta != _settings.EnableBetaFeatures || _treeExclusiveUnlocked != _settings.ExclusiveToolUnlocked) BuildFeatureTree();
         else ApplyCategoryState();
     }
 

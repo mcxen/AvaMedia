@@ -4,6 +4,13 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
+    internal void UnlockExclusiveTools()
+    {
+        if (_settings.ExclusiveToolUnlocked) { ShowCategory("视频"); return; }
+        try { _settings.ExclusiveToolUnlocked = true; ApplyOptions(); }
+        catch { _settings.ExclusiveToolUnlocked = false; throw; }
+    }
+
     internal async Task OpenExclusiveRenamerAsync(Window owner)
     {
         if (!_settings.ExclusiveToolUnlocked) return;
