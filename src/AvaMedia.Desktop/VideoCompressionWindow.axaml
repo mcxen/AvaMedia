@@ -15,7 +15,7 @@
           <ListBox Classes="ac surface" x:Name="SourceList" MinHeight="112" SelectionMode="Multiple" AutomationProperties.Name="批量压缩视频" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
             <ListBox.ItemTemplate>
-              <DataTemplate>
+              <DataTemplate x:DataType="i18n:VideoCompressionEntry" x:CompileBindings="True">
                 <StackPanel Spacing="4" Margin="4,8">
                   <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
                   <TextBlock Classes="caption" Text="{Binding SourceSummary}" TextWrapping="Wrap"/>

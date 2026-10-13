@@ -23,6 +23,7 @@ public sealed partial class ConsoleView
     private int? _taskNext, _detailNext;
     private string? _detailId, _taskFilter;
     private bool _refreshing, _logs, _taskDetailOpen;
+    private bool _compactTaskRows = true;
     private SubtitleProgressPage? _subtitlePage;
     private IReadOnlyDictionary<string, int> _counts = new Dictionary<string, int>();
     private Button _tasksPrevious = null!, _tasksNext = null!;
@@ -63,6 +64,7 @@ public sealed partial class ConsoleView
         _tasksMobileHeader.Children.Add(large); Grid.SetRow(_taskSubtitle, 1); _tasksMobileHeader.Children.Add(_taskSubtitle);
         top.Children.Insert(0, _tasksMobileHeader);
         _taskScroll.Content = _tasks;
+        _taskScroll.SizeChanged += (_, e) => UpdateTaskRowLayout(e.NewSize.Width);
         var footer = Header(_taskPage, Ui.Row(8, _tasksPrevious, _tasksNext)); footer.Margin = new(14, 10);
         var list = new Grid { RowDefinitions = new("Auto,*,Auto") };
         list.Children.Add(top);
@@ -80,6 +82,7 @@ public sealed partial class ConsoleView
     private void LayoutTasks()
     {
         if (_tasksGrid is null) return;
+        LayoutTaskListHeader();
         _tasksMobileHeader.IsVisible = _mobile; _tasksListHeader.IsVisible = !_mobile && _subtitlePage is null;
         _subtitleListHeader.IsVisible = !_mobile && _subtitlePage is not null;
         _taskFilterScroll.IsVisible = _subtitlePage is null;
@@ -104,6 +107,32 @@ public sealed partial class ConsoleView
         foreach (var row in _taskRows.Values) row.CurrentState = "";
         _tasks.Children.Clear(); _taskRows.Clear();
         if (_connected) _ = Guard(RefreshTasks);
+    }
+    private void LayoutTaskListHeader()
+    {
+        var compact = _compactTaskRows;
+        _tasksListHeader.ColumnDefinitions = new(compact ? "*" : "*,Auto");
+        _tasksListHeader.RowDefinitions = new(compact ? "Auto,Auto" : "Auto");
+        _tasksListHeader.RowSpacing = compact ? 8 : 0;
+        var actions = _tasksListHeader.Children[1];
+        Grid.SetColumn(actions, compact ? 0 : 1); Grid.SetRow(actions, compact ? 1 : 0);
+    }
+    private void UpdateTaskRowLayout(double width)
+    {
+        if (width <= 0) return;
+        var compact = width < 640;
+        if (compact == _compactTaskRows) return;
+        _compactTaskRows = compact; LayoutTaskListHeader();
+        if (_subtitlePage is not null) return;
+        foreach (var (id, row) in _taskRows.ToArray())
+        {
+            if (row.Mobile == (_mobile || compact) || !_taskData.TryGetValue(id, out var task)) continue;
+            var replacement = _mobile || compact ? MobileRow(id) : DesktopRow(id);
+            UpdateRow(replacement, task);
+            var index = _tasks.Children.IndexOf(row.Container);
+            if (index >= 0) _tasks.Children[index] = replacement.Container;
+            _taskRows[id] = replacement;
+        }
     }
     private void RenderFilters()
     {
@@ -147,7 +176,7 @@ public sealed partial class ConsoleView
             for (var index = 0; index < items.Length; index++)
             {
                 var task = items[index]; var id = task.Text("id"); _taskData[id] = task;
-                if (!_taskRows.TryGetValue(id, out var row)) { row = _subtitlePage is not null && !_mobile ? SubtitleSidebarRow(id) : _mobile ? MobileRow(id) : DesktopRow(id); _taskRows[id] = row; }
+                if (!_taskRows.TryGetValue(id, out var row)) { row = _subtitlePage is not null && !_mobile ? SubtitleSidebarRow(id) : _mobile || _compactTaskRows ? MobileRow(id) : DesktopRow(id); _taskRows[id] = row; }
                 var position = _tasks.Children.IndexOf(row.Container);
                 if (position != index) { if (position >= 0) _tasks.Children.RemoveAt(position); _tasks.Children.Insert(Math.Min(index, _tasks.Children.Count), row.Container); }
                 UpdateRow(row, task);
@@ -172,7 +201,7 @@ public sealed partial class ConsoleView
         var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, Width = 160, Height = 4, MinHeight = 4, HorizontalAlignment = HorizontalAlignment.Left };
         var detail = Ui.Text("", "caption", raw: true, trim: true);
-        var middle = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, Width = 180 };
+        var middle = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
         middle.Children.Add(state); middle.Children.Add(progress); middle.Children.Add(detail);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
         var grid = new Grid { ColumnDefinitions = new("3,*,170,286"), ColumnSpacing = 12, MinHeight = 56 };
@@ -196,13 +225,15 @@ public sealed partial class ConsoleView
         var stack = new StackPanel { Spacing = 8, Margin = new(16, 14) };
         stack.Children.Add(head); stack.Children.Add(sub); stack.Children.Add(progress); stack.Children.Add(detail); stack.Children.Add(actions);
         var grid = new Grid(); grid.Children.Add(stack);
+        var accent = new Border { Width = 3, Background = Palette.Blue, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, IsHitTestVisible = false };
+        grid.Children.Add(accent);
         var container = new Border { Child = grid, BorderBrush = Palette.Hairline, BorderThickness = new(0, 0, 0, 1), Background = Brushes.White };
         container.PointerPressed += async (_, e) =>
         {
             if (e.Source is Control control && control.FindAncestorOfType<Button>() is null && control is not Button)
                 await Guard(() => OpenDetail(id));
         };
-        return new(container, grid, name, sub, state, progress, detail, actions, new Border()) { Mobile = true };
+        return new(container, grid, name, sub, state, progress, detail, actions, accent) { Mobile = true };
     }
     private string FeatureName(string id) => _features.FirstOrDefault(item => item.Text("id") == id).Text("name") is { Length: > 0 } name ? name : id;
     private static string Source(JsonNode task) => task.Text("submittedBy") is { Length: > 0 } by ? by : L.T("桌面");
@@ -239,7 +270,7 @@ public sealed partial class ConsoleView
         row.Detail.Text = error.Length > 0 ? error : Activity(task);
         row.Detail.Foreground = error.Length > 0 ? Palette.Red : Palette.Secondary;
         row.Detail.IsVisible = row.Detail.Text.Length > 0 && !(row.Mobile && error.Length == 0);
-        var selected = _detailId == id && !row.Mobile;
+        var selected = _detailId == id && !_mobile;
         row.Accent.IsVisible = selected; row.Container.Background = selected ? Palette.BlueSoft : row.Mobile ? Brushes.White : Brushes.Transparent;
         if (row.CurrentState == current) return;
         row.CurrentState = current; row.Actions.Children.Clear();

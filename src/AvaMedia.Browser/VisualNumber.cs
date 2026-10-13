@@ -26,8 +26,12 @@ internal sealed class VisualNumber : UserControl
     {
         var minus = Step("minus", -1); var plus = Step("plus", 1);
         _box = new Border { Child = _text, MinWidth = 64, Padding = new(8, 3), CornerRadius = new(7), Background = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.Parse("#E0E0E5")), BorderThickness = new(1), Cursor = new Cursor(StandardCursorType.SizeWestEast) };
-        _box.PointerPressed += (_, e) => { _drag = e.GetPosition(this); _dragStart = _value; e.Pointer.Capture(_box); e.Handled = true; };
+            BorderBrush = Palette.Hairline, BorderThickness = new(1), Cursor = new Cursor(StandardCursorType.SizeWestEast) };
+        _box.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(_box).Properties.IsLeftButtonPressed) return;
+            _drag = e.GetPosition(this); _dragStart = _value; e.Pointer.Capture(_box); e.Handled = true;
+        };
         _box.PointerMoved += (_, e) =>
         {
             if (_drag is not { } start) return;
@@ -36,6 +40,7 @@ internal sealed class VisualNumber : UserControl
             Set(_dragStart + steps * increment, true);
         };
         _box.PointerReleased += (_, e) => { _drag = null; e.Pointer.Capture(null); };
+        _box.PointerCaptureLost += (_, _) => _drag = null;
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
         row.Children.Add(minus); row.Children.Add(_box); row.Children.Add(plus); Content = row;
         Render();
@@ -44,6 +49,8 @@ internal sealed class VisualNumber : UserControl
     {
         var button = new Button { Content = Ui.Icon(icon, 12, Palette.Secondary), Width = 24, Height = 24, MinHeight = 0, Padding = new(0) };
         button.Classes.Add("plain");
+        var label = L.T(direction < 0 ? "减少数值" : "增加数值");
+        ToolTip.SetTip(button, label); Avalonia.Automation.AutomationProperties.SetName(button, label);
         button.Click += (_, _) => Set(_value + direction * _increment, true);
         return button;
     }

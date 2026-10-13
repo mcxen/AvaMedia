@@ -16,6 +16,7 @@ public static class ModelCatalog
     public const string PersonId = "yolox";
     public const string NanoDetId = "nanodet-person";
     public const string MediaPipePersonId = "mediapipe-person";
+    public const string MediaPipePalmId = "mediapipe-palm";
     public const string EmbeddingId = "embeddinggemma-2-onnx";
     public const string LamaId = "lama";
     public const string JoyTagId = "joytag";
@@ -86,6 +87,9 @@ public static class ModelCatalog
             new(MediaPipePersonId, "MediaPipe · 人体", "自动保留有人片段", "Apache-2.0", "https://github.com/opencv/opencv_zoo/tree/main/models/person_detection_mediapipe",
                 [new("person_detection_mediapipe_2023mar.onnx", 11990159, "47fd5599d6fa17608f03e0eb0ae230baa6e597d7e8a2c8199fe00abea55a701f",
                     ["https://huggingface.co/opencv/opencv_zoo/resolve/d4938dfc9d4ec5d098bfa33e98b3f3345a236586/models/person_detection_mediapipe/person_detection_mediapipe_2023mar.onnx"])]),
+            new(MediaPipePalmId, "MediaPipe · 手部", "保留手部特写", "Apache-2.0", "https://github.com/opencv/opencv_zoo/tree/main/models/palm_detection_mediapipe",
+                [new("palm_detection_mediapipe_2023feb.onnx", 3905734, "78ff51c38496b7fc8b8ebdb6cc8c1abb02fa6c38427c6848254cdaba57fcce7c",
+                    ["https://huggingface.co/opencv/opencv_zoo/resolve/d4938dfc9d4ec5d098bfa33e98b3f3345a236586/models/palm_detection_mediapipe/palm_detection_mediapipe_2023feb.onnx"])]),
             new(EmbeddingId, "EmbeddingGemma 2 · ONNX q4", "可选语义辅助 · 场景识别", "Apache-2.0",
                 "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX",
                 [

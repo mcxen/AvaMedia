@@ -36,7 +36,7 @@ DISPLAY=:11 AVAMEDIA_CHROME=mac XDG_DATA_HOME=/tmp/avademo/data   ~/.dotnet/dotn
 
 列表 `.ac.media` 使用 56px 行，普通列表为至少 36px；`.ac.surface` 可包装已有 ListRow，保留虚拟化。标签式 SegmentedControl 使用 `AcTabSegmentItem`。数值框最小宽通过 `AcNumericMinWidth`（91）和 `.compact` 的 `AcNumericCompactMinWidth`（64）动态调整。
 
-浮层 `MaterialSurface`：macOS 原生 PopupRoot 请求 `AcrylicBlur, None`，实际获得模糊后才显示每实例的 ExperimentalAcrylicMaterial。下拉、ToolTip 和 Popover 模板已接入；内嵌/覆盖浮层、不支持的平台和经典皮肤继续用 AcMenuFill 半透明画刷。AcMaterialEnabled 可关闭材质；AcMaterialTintColor/AcMaterialTintOpacity/AcMaterialOpacity 控制材质。
+浮层 `MaterialSurface`：macOS 原生 PopupRoot 请求 `AcrylicBlur, Transparent`，实际获得模糊后才显示每实例的 ExperimentalAcrylicMaterial。原生窗口背景清空，内容层与表面使用相同圆角裁切，避免模糊层在圆角外露出矩形背景；关闭时恢复原生状态。无法取得原生内容层或非均匀圆角时使用透明窗口与主题画刷回退。下拉、ToolTip 和 Popover 模板已接入；内嵌/覆盖浮层、不支持的平台和经典皮肤继续用 AcMenuFill 半透明画刷。AcMaterialEnabled 可关闭材质；AcMaterialTintColor/AcMaterialTintOpacity/AcMaterialOpacity 控制材质。
 
 ## 公共宿主契约（UISPEC 7.9.8）
 

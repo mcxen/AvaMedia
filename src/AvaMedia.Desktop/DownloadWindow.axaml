@@ -1,5 +1,18 @@
 <Window xmlns:ac="using:AvaMedia.Controls" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AvaMedia.Desktop.DownloadWindow" Title="视频下载" Width="1040" Height="740" MinWidth="860" MinHeight="620" WindowStartupLocation="CenterOwner">
+  <Window.Resources>
+    <ControlTheme x:Key="DownloadRowTheme" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalContentAlignment="Stretch"/>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+  </Window.Resources>
   <Grid Margin="{DynamicResource UiPagePadding}" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
     <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
@@ -27,10 +40,12 @@
             <CheckBox Classes="ac" Grid.Column="2" x:Name="SelectAllCheck" Content="全选" IsCheckedChanged="SelectAllChanged" IsVisible="False"/>
           </Grid>
           <Grid Grid.Row="1">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-              <ItemsControl x:Name="DownloadList">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate>
+              <ListBox x:Name="DownloadList" Classes="ac" Padding="0" BorderThickness="0" Focusable="False"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemContainerTheme="{StaticResource DownloadRowTheme}">
+                <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="Theme" Value="{StaticResource DownloadRowTheme}"/></Style></ListBox.Styles>
+                <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel CacheLength="0.5"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="i18n:DownloadEntry" x:CompileBindings="True">
                     <Border BorderBrush="{DynamicResource UiDivider}" BorderThickness="0,1,0,0" Padding="8,6">
                       <Grid ColumnDefinitions="Auto,96,*" ColumnSpacing="{DynamicResource AcRowGap}">
                         <CheckBox Classes="ac" IsChecked="{Binding IsChecked,Mode=TwoWay}" IsEnabled="{Binding IsReady}" AutomationProperties.Name="{Binding Title}" VerticalAlignment="Center"/>
@@ -43,9 +58,8 @@
                       </Grid>
                     </Border>
                   </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
+                </ListBox.ItemTemplate>
+              </ListBox>
             <ac:EmptyState x:Name="EmptyDownloads" Text="暂无解析结果" Detail="输入链接或分享文本后解析" IsHitTestVisible="False"/>
           </Grid>
         </Grid>

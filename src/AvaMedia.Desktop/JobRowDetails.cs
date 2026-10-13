@@ -24,14 +24,14 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool HasCover => Cover is not null;
     public bool NoCover => !HasCover;
     public bool IsRunning => Job.State == JobState.Running;
-    public bool CanPreview => MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) || !IsRunning;
-    public string PreviewTip => MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) ? "查看任务…" : IsRunning ? "任务正在运行" : "编辑任务";
+    public bool CanPreview => true;
+    public string PreviewTip => Job.State is JobState.Waiting or JobState.Paused && !MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) ? "编辑任务" : "查看任务详情";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
-    public bool HasOutputPreview => Job.State == JobState.Completed && !Job.HasInternalOutput && Job.FeatureId != "folder-classification";
+    public bool HasOutputPreview => Job.State == JobState.Completed && Job.CompletionKind != JobCompletionKind.Unchanged && !Job.HasInternalOutput && Job.FeatureId != "folder-classification";
     public string PreviewExtension => HasOutputPreview ? Path.GetExtension(Job.Output).TrimStart('.').ToUpperInvariant() : Extension;
     public string Name => Job.FeatureId is "download" or "folder-classification" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
-    public string OutputName => Job.HasInternalOutput ? Localization.Text("任务结果") : Path.GetFileName(Job.UserOutput.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    public string OutputName => Job.CompletionKind == JobCompletionKind.Unchanged ? Localization.Text("保留原视频") : Job.HasInternalOutput ? Localization.Text("任务结果") : Path.GetFileName(Job.UserOutput.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     public string FileSummary => _fileSummary;
     public string MediaSummary
     {
@@ -181,6 +181,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         JobState.Waiting => "等待开始",
         JobState.Running when Job.Activity is not null => Localization.Text("处理中"),
         JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
+        JobState.Completed when Job.CompletionKind == JobCompletionKind.Unchanged => Localization.Text("无需瘦身"),
         JobState.Completed => Localization.Join(" · ", new[] { "已完成", Job.HasInternalOutput ? "" : _outputSize, Job.Options.Orientation is not null || Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
         JobState.Failed => "失败",
         JobState.Paused => "已暂停排队",
@@ -191,7 +192,8 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     {
         JobState.Running when Job.Activity is not null => "",
         JobState.Running => Job.Status.IndexOf(" · ", StringComparison.Ordinal) is >= 0 and var separator ? Job.Status[(separator + 3)..] : "",
-        JobState.Failed => string.IsNullOrWhiteSpace(Job.Error) ? "右键查看日志" : Job.Error.Trim(),
+        JobState.Completed when Job.CompletionKind == JobCompletionKind.Unchanged => Job.CompletionMessage,
+        JobState.Failed => string.IsNullOrWhiteSpace(Job.Error) ? "查看任务详情" : Job.Error.Trim(),
         _ => ""
     };
     public bool HasStateDetail => StateDetail.Length > 0;
@@ -204,6 +206,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             $"{Job.Progress:0.0}%", Job.Activity?.Detail ?? "", Job.RemainingTimeText
         }.Where(text => !string.IsNullOrWhiteSpace(text))),
         JobState.Paused when Job.Progress > 0 => $"{Job.Progress:0.0}%",
+        JobState.Completed when Job.CompletionKind == JobCompletionKind.Unchanged => Localization.Text(Job.CompletionMessage),
         JobState.Completed => Job.HasInternalOutput ? "" : _outputSize,
         JobState.Failed => Job.Error.Trim(),
         _ => ""
@@ -218,7 +221,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public void Refresh()
     {
         if (_disposed) return;
-        var output = Job.State == JobState.Completed && Job.FeatureId != "folder-classification" ? Job.Output : "";
+        var output = HasOutputPreview ? Job.Output : "";
         if (!ReferenceEquals(_sizeInputs, Job.Inputs) || _sizeOutput != output)
         {
             _sizeInputs = Job.Inputs; _sizeOutput = output;

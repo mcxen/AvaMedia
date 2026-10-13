@@ -6,6 +6,8 @@ public sealed record McpTaskView(Guid Id, string FeatureId, string Name, string 
     string Detail, string Error, string[] Inputs, string Output, string SubmittedBy, string SubmissionId)
 {
     public bool OutputIsPartial { get; init; }
+    public string CompletionKind { get; init; } = nameof(JobCompletionKind.Default);
+    public string CompletionMessage { get; init; } = "";
     public McpActivityView? Activity { get; init; }
 }
 public sealed record McpActivityView(string Stage, string Model, string Backend, string Detail,

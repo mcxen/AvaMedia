@@ -209,6 +209,7 @@ public sealed partial class ContactSheetWindow : Window
         _generate = new Button { Content = "高清导出", IsDefault = true, Classes = { "ac", "primary", "sheet-action" } };
         _generate.Click += async (_, _) => await Generate(); Grid.SetColumn(_generate, 3); bottom.Children.Add(_generate);
         Grid.SetRow(bottom, 1); root.Children.Add(bottom); Content = WindowChrome.WrapDialog(this, root);
+        InitializePreviewMotion();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = !_importing ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
@@ -218,7 +219,7 @@ public sealed partial class ContactSheetWindow : Window
         Closing += (_, _) =>
         {
             _closed = true; _previewWork?.Cancel(); _filmWork?.Cancel(); _lifetime.Cancel();
-            _pulse.Stop(); ClearPreview(); _previewSurface.Dispose(); ClearFilm();
+            StopPreviewMotion(); ClearPreview(); _previewSurface.Dispose(); ClearFilm();
             foreach (var entry in _entries) { entry.CancelMetadata(); entry.Thumbnail?.Dispose(); }
         };
         foreach (var number in new[] { _columns, _rows, _cellWidth, _cellHeight, _sheets })

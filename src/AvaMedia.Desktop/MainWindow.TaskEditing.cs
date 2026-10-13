@@ -27,6 +27,7 @@ public partial class MainWindow
     private static void ResetTask(Job job)
     {
         job.Log = "";
+        job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
         job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.DownloadSpeed = null; job.Error = ""; job.Activity = null;
         job.MediaTagResult = null; job.PersonDetectionResult = null; job.SubtitleResult = null; job.OrientationResult = null;
         job.State = JobState.Waiting;

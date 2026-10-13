@@ -25,11 +25,22 @@ function Get-InstalledVersion {
     return [Reflection.AssemblyName]::GetAssemblyName((Join-Path $Target 'AvaMedia.Desktop.dll')).Version
 }
 function Complete-Installation {
+    $receipt = Join-Path $work 'installed-version'
+    [IO.File]::WriteAllText(($receipt + '.tmp'), $Version, $utf8)
+    Move-Item -LiteralPath ($receipt + '.tmp') -Destination $receipt -Force
     if (Test-Path -LiteralPath $ErrorFile) { Remove-Item -LiteralPath $ErrorFile -Force }
     foreach ($name in @($Package, (Join-Path $work 'pending.json'), (Join-Path $work 'helper.json'), (Join-Path $work 'ready'), (Join-Path $work 'armed'))) {
         if (Test-Path -LiteralPath $name) { Remove-Item -LiteralPath $name -Force }
     }
     Write-InstallLog "Update $Version complete."
+    $restart = Join-Path $work 'restart'
+    if (Test-Path -LiteralPath $restart) {
+        Remove-Item -LiteralPath $restart -Force
+        $script:installation.Dispose(); $script:installation = $null
+        $script:guardian.Dispose(); $script:guardian = $null
+        try { Start-Process -FilePath (Join-Path $Target 'AvaMedia.Desktop.exe') -WorkingDirectory $Target }
+        catch { Write-InstallLog ('Update installed, but application relaunch failed: ' + $_.Exception.Message) }
+    }
 }
 try {
     if ($Kind -notin @('installer', 'portable') -or !(Test-Path -LiteralPath $Package) -or !(Test-Path -LiteralPath $Stage)) { throw 'Prepared update is missing.' }

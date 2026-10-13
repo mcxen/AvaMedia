@@ -23,6 +23,7 @@ public sealed class MaterialSurface : ContentControl
     private TopLevel? _root;
     private IReadOnlyList<WindowTransparencyLevel>? _previousLevels;
     private IDisposable? _rootBackground;
+    private MacPopupMaterial? _nativePopup;
     public bool MaterialEnabled { get => GetValue(MaterialEnabledProperty); set => SetValue(MaterialEnabledProperty, value); }
     public Color MaterialTintColor { get => GetValue(MaterialTintColorProperty); set => SetValue(MaterialTintColorProperty, value); }
     public double MaterialTintOpacity { get => GetValue(MaterialTintOpacityProperty); set => SetValue(MaterialTintOpacityProperty, value); }
@@ -52,7 +53,8 @@ public sealed class MaterialSurface : ContentControl
     {
         base.OnPropertyChanged(change);
         if (change.Property == MaterialEnabledProperty || change.Property == MaterialTintColorProperty
-            || change.Property == MaterialTintOpacityProperty || change.Property == MaterialOpacityProperty || change.Property == BackgroundProperty) Refresh();
+            || change.Property == MaterialTintOpacityProperty || change.Property == MaterialOpacityProperty
+            || change.Property == BackgroundProperty || change.Property == CornerRadiusProperty) Refresh();
     }
     private void RootChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
@@ -66,20 +68,41 @@ public sealed class MaterialSurface : ContentControl
         Material.MaterialOpacity = MaterialOpacity;
         // Native popup hosts can blur what lies behind the popup. An inline popover or
         // overlay popup cannot blur its parent window using the Avalonia 11 native API.
-        if (OperatingSystem.IsMacOS() && _root is PopupRoot && MaterialEnabled && _previousLevels is null)
+        if (OperatingSystem.IsMacOS() && _root is PopupRoot popup && MaterialEnabled)
         {
-            _previousLevels = _root.TransparencyLevelHint;
-            _rootBackground = _root.SetValue(TopLevel.BackgroundProperty, Brushes.Transparent, Avalonia.Data.BindingPriority.Animation);
-            _root.TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.None];
+            if (_previousLevels is null)
+            {
+                _previousLevels = _root.TransparencyLevelHint;
+                _rootBackground = _root.SetValue(TopLevel.BackgroundProperty, Brushes.Transparent, Avalonia.Data.BindingPriority.Animation);
+                _nativePopup = MacPopupMaterial.TryCreate(popup);
+            }
+            // Native blur must be clipped too; otherwise its rectangular host shows
+            // through the transparent corners of the Avalonia surface.
+            WindowTransparencyLevel[] levels = _nativePopup is not null && HasUniformRadius
+                ? [WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Transparent]
+                : [WindowTransparencyLevel.Transparent];
+            // Reapplying the same hints makes the Avalonia 11 native backend advance
+            // to the next fallback, so tint/radius changes must not resend them.
+            if (!_root.TransparencyLevelHint.SequenceEqual(levels)) _root.TransparencyLevelHint = levels;
         }
         else if (!MaterialEnabled) RestoreRoot();
         UpdateActive();
     }
-    private void UpdateActive() => SetValue(IsAcrylicActiveProperty, MaterialEnabled && OperatingSystem.IsMacOS()
-        && _root is PopupRoot && (_root.ActualTransparencyLevel == WindowTransparencyLevel.AcrylicBlur
-            || _root.ActualTransparencyLevel == WindowTransparencyLevel.Blur));
+    private bool HasUniformRadius => CornerRadius.TopLeft == CornerRadius.TopRight
+        && CornerRadius.TopLeft == CornerRadius.BottomRight && CornerRadius.TopLeft == CornerRadius.BottomLeft;
+    private void UpdateActive()
+    {
+        var active = MaterialEnabled && HasUniformRadius && _nativePopup is not null
+            && _root is PopupRoot && (_root.ActualTransparencyLevel == WindowTransparencyLevel.AcrylicBlur
+                || _root.ActualTransparencyLevel == WindowTransparencyLevel.Blur);
+        if (active) _nativePopup!.Apply(CornerRadius.TopLeft);
+        else _nativePopup?.Restore();
+        SetValue(IsAcrylicActiveProperty, active);
+    }
     private void RestoreRoot()
     {
+        var nativePopup = _nativePopup; _nativePopup = null;
+        nativePopup?.Dispose();
         if (_previousLevels is not null && _root is not null) _root.TransparencyLevelHint = _previousLevels;
         _previousLevels = null; _rootBackground?.Dispose(); _rootBackground = null;
     }

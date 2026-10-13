@@ -40,15 +40,17 @@ Application and build scripts: [commit $Revision](https://github.com/$Repository
 "@ | Set-Content -LiteralPath $mediaNotes -Encoding utf8
 Publish-Assets $mediaTag "AvaMedia $tag · Media tools and corresponding sources" $mediaNotes $media.FullName $false
 $releaseNotes=Join-Path $artifacts 'app-release-notes.md'
+$downloads=@($names | ForEach-Object { "https://github.com/$Repository/releases/download/$tag/$_" })
+$mirrors=@($downloads | ForEach-Object { "https://tvv.tw/$_" })
 $hashes=($packages | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()+'  '+[IO.Path]::GetFileName($_) }) -join "`n"
 @"
 $notes
 
-| Platform | Download |
-| --- | --- |
-| macOS Apple Silicon | [DMG](https://github.com/$Repository/releases/download/$tag/$($names[0])) |
-| Windows x64 | [Portable ZIP](https://github.com/$Repository/releases/download/$tag/$($names[1])) · [Setup EXE](https://github.com/$Repository/releases/download/$tag/$($names[2])) |
-| Linux x64 | [tar.gz](https://github.com/$Repository/releases/download/$tag/$($names[3])) (self-contained; requires FFmpeg 9 on PATH) |
+| Platform | GitHub | TVV.TW mirror |
+| --- | --- | --- |
+| macOS Apple Silicon | [DMG]($($downloads[0])) | [DMG]($($mirrors[0])) |
+| Windows x64 | [Portable ZIP]($($downloads[1])) · [Setup EXE]($($downloads[2])) | [Portable ZIP]($($mirrors[1])) · [Setup EXE]($($mirrors[2])) |
+| Linux x64 | [tar.gz]($($downloads[3])) (self-contained; requires FFmpeg 9 on PATH) | [tar.gz]($($mirrors[3])) |
 
 [FFmpeg corresponding sources and media tools](https://github.com/$Repository/releases/tag/$mediaTag) · [AvaMedia source](https://github.com/$Repository/tree/$tag)
 

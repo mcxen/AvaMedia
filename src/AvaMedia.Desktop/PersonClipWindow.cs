@@ -53,6 +53,7 @@ public sealed partial class PersonClipWindow : Window
     private readonly CheckBox _reuseFrames = new() { Content = "复用相似画面", IsChecked = true };
     private readonly CheckBox _dark = new() { Content = "快速排除黑灯画面", IsChecked = true };
     private readonly CheckBox _blank = new() { Content = "快速排除无画面", IsChecked = true };
+    private readonly CheckBox _hands = new() { Name = "PersonClipIncludeHands", Content = "保留手部特写", IsChecked = false };
     private readonly CheckBox _sourceFolder = new() { Content = "输出至源文件目录" };
     private readonly TextBox _folder = new() { IsReadOnly = true, Name = "PersonClipOutputFolder" };
     private readonly TextBlock _modelStatus = Ui.Text("", "caption");
@@ -94,12 +95,14 @@ public sealed partial class PersonClipWindow : Window
         _minimum.Value = (decimal)defaults.MinimumSeconds; _darkThreshold.Value = (decimal)defaults.DarkLumaThreshold;
         _uncertain.IsChecked = defaults.KeepUncertain; _embedding.IsChecked = defaults.UseEmbedding;
         _reuseFrames.IsChecked = defaults.ReuseSimilarFrames; _dark.IsChecked = defaults.SkipDarkFrames; _blank.IsChecked = defaults.SkipBlankFrames;
+        _hands.IsChecked = defaults.IncludeHands;
+        ToolTip.SetTip(_hands, Localization.Text("用于仅出现手部的镜头，可能保留部分无人物画面"));
         _detectionMode.SelectedIndex = (int)defaults.DetectionMode;
         foreach (var input in new[] { _fps, _threshold, _padding, _gap, _minimum, _darkThreshold }) input.Text = input.Value?.ToString(input.NumberFormat);
         _folder.Text = outputFolder ?? settings.OutputFolder; _sourceFolder.IsChecked = outputToSource ?? settings.OutputToSource;
         _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _sourceFolder.IsCheckedChanged += (_, _) => _folder.IsEnabled = _sourceFolder.IsChecked != true;
-        _format.SelectedItem = initial?.ExportPreset ?? QuickClipBatch.DefaultPreset;
+        _format.SelectedItem = initial?.ExportPreset ?? PersonClipTaskOptions.DefaultExportPreset;
         _format.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => Ui.Text(QuickClipBatch.PresetLabel(value ?? "")));
 
         _submit = Ui.DialogButton(editing ? "保存修改" : "加入任务列表", Submit); _submit.Name = "QueuePersonClips"; _submit.IsEnabled = false;
@@ -130,7 +133,7 @@ public sealed partial class PersonClipWindow : Window
         parameters.Children.Add(_dark); AddField(parameters, "黑灯亮度阈值", _darkThreshold); parameters.Children.Add(_blank);
         _darkThreshold.IsEnabled = _dark.IsChecked == true;
         _dark.IsCheckedChanged += (_, _) => _darkThreshold.IsEnabled = _dark.IsChecked == true;
-        parameters.Children.Add(_uncertain); parameters.Children.Add(_embedding); parameters.Children.Add(_reuseFrames); parameters.Children.Add(_modelStatus);
+        parameters.Children.Add(_hands); parameters.Children.Add(_uncertain); parameters.Children.Add(_embedding); parameters.Children.Add(_reuseFrames); parameters.Children.Add(_modelStatus);
         _advancedParameters = parameters;
         parameters.Children.Add(Ui.Button("模型管理…", async () => await OpenModelsAsync(null)));
         var left = new Grid { RowDefinitions = new("Auto,*,Auto"), [!Grid.RowSpacingProperty] = Resource("AcRowGap") };
@@ -184,6 +187,7 @@ public sealed partial class PersonClipWindow : Window
         _ranges.SelectionChanged += (_, _) => { if (_ranges.SelectedItem is PersonClipRange range) { _start.Text = MediaTime.Format(range.Start); _end.Text = MediaTime.Format(range.End); } };
         if (paths is not null) AddPaths(paths);
         if (initial is not null && _entries.Count == 1) { _entries[0].Excluded = PersonClipExclusions.Normalize(defaults.ExcludedRanges); RefreshRanges(); }
+        _hands.IsCheckedChanged += (_, _) => InvalidateHandsDetectionResults();
         Opened += async (_, _) => { try { await RefreshModelsAsync(); } catch (Exception error) { if (!_closed) _status.Text = error.Message; } };
         Closed += (_, _) => { DetachDetectionTasks(); _closed = true; _lifetime.Cancel(); _lifetime.Dispose(); };
     }
@@ -265,7 +269,8 @@ public sealed partial class PersonClipWindow : Window
     {
         if (_closed) return;
         _modelStatus.IsVisible = false; _detectionMode.IsEnabled=!_busy;
-        if (_analyze is not null) { _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Task is null || !DetectionTaskActive(entry.Task)) && SelectedDetectors.Length > 0; _analyze.Content = Localization.Text(_entries.All(entry => entry.Result is not null) && _entries.Count > 0 ? "后台重新检测" : "后台检测"); }
+        _hands.IsEnabled = !_busy && !_entries.Any(entry => entry.Task is { } job && DetectionTaskActive(job));
+        if (_analyze is not null) { _analyze.IsEnabled = !_busy && _entries.Any(entry => entry.Task is null || !DetectionTaskActive(entry.Task)) && SelectedDetectors.Length > 0; _analyze.Content = Localization.Text((_handsChanged || _entries.All(entry => entry.Result is not null)) && _entries.Count > 0 ? "后台重新检测" : "后台检测"); }
         _submit.IsEnabled = !_busy && _entries.Any(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskUpdating(entry.Task)));
     }
     private static double Value(NumericUpDown input)
@@ -282,7 +287,7 @@ public sealed partial class PersonClipWindow : Window
             var edits = _entries.Where(entry => entry.Result?.Segments.Count > 0 && (entry.Task is null || !DetectionTaskUpdating(entry.Task))).ToArray();
             if (edits.Length == 0) throw new ArgumentException("请先分析并保留片段。");
             foreach (var entry in edits) CheckSource(entry);
-            var preset = _format.SelectedItem as string ?? QuickClipBatch.DefaultPreset;
+            var preset = _format.SelectedItem as string ?? PersonClipTaskOptions.DefaultExportPreset;
             QuickClipWorkflow.ValidateJoinedExports(edits.Select(entry => entry.Result!), preset);
             var folder = _sourceFolder.IsChecked == true ? Path.GetDirectoryName(edits[0].Path)! : _folder.Text?.Trim() ?? "";
             if (folder.Length == 0) throw new ArgumentException("请选择输出目录。");

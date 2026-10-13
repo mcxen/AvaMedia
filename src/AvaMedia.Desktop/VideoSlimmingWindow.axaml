@@ -19,10 +19,10 @@
                    SelectionChanged="SourceSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style></ListBox.Styles>
             <ListBox.ItemTemplate>
-              <DataTemplate>
+              <DataTemplate x:DataType="i18n:VideoSlimmingEntry" x:CompileBindings="True">
                 <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="2" Margin="2,1">
                   <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Status}" VerticalAlignment="Center" ToolTip.Tip="{Binding Error}"/>
+                  <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Status}" VerticalAlignment="Center" ToolTip.Tip="{Binding DiagnosisTip}"/>
                   <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="caption" Text="{Binding ListDetail}" TextTrimming="CharacterEllipsis"/>
                   <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}" IsVisible="{Binding HasError}"><ac:StatusGlyph State="failed"/><TextBlock Grid.Column="1" Classes="error" Text="{Binding Error}" TextWrapping="Wrap"/></Grid>
                 </Grid>
@@ -50,6 +50,7 @@
               <StackPanel Spacing="6" Margin="0,8,0,0">
                 <TextBlock x:Name="SelectedFileText" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="QualityText" Classes="caption" TextWrapping="Wrap"/>
+                <TextBlock x:Name="DiagnosisText" Classes="caption" TextWrapping="Wrap"/>
                 <TextBlock x:Name="ErrorText" Classes="error" TextWrapping="Wrap"/>
               </StackPanel>
             </Expander>

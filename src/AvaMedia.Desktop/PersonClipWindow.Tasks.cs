@@ -46,7 +46,7 @@ public sealed partial class PersonClipWindow
             var options = entries.Select(entry => new ConversionOptions
             {
                 Format = "json", PersonClip = new() { Detection = detection with { ExcludedRanges = entry.Excluded.ToArray() },
-                    AnalysisOnly = true, ExportPreset = _format.SelectedItem as string ?? QuickClipBatch.DefaultPreset }
+                    AnalysisOnly = true, ExportPreset = _format.SelectedItem as string ?? PersonClipTaskOptions.DefaultExportPreset }
             }).ToArray();
             var jobs = ConversionBatch.CreateJobs(Catalog.Find("person-clip"), entries.Select(entry => entry.Path).ToArray(),
                 Path.GetDirectoryName(entries[0].Path)!, options[0], options);

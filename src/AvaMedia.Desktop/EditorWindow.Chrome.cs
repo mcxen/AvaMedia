@@ -15,6 +15,9 @@ public partial class EditorWindow
     private void InitializeChrome()
     {
         WindowChrome.HookDrag(this, EditorTitleBar, () => ModernFrame);
+        WindowChrome.HookMacTrafficLights(this, () => QuickRoot.IsVisible ? QuickTitleBar : EditorTitleBar, () =>
+            this.TryFindResource("UiToolTitleLightInset", ActualThemeVariant, out var inset)
+                && inset is Thickness thickness ? thickness.Left : 16);
         ActualThemeVariantChanged += (_, _) => ApplyEditorFrame();
         Opened += (_, _) => ApplyEditorFrame();
     }
@@ -23,8 +26,9 @@ public partial class EditorWindow
     {
         WindowChrome.ApplyPlatformFrame(this);
         var mac = ModernFrame && MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
-        EditorTitleText.Margin = new Thickness(mac ? 72 : 0, 0, 0, 0);
-        QuickTitleBar.Margin = mac ? new Thickness(70, 0, 70, 0) : new Thickness(0);
+        var gutter = this.TryFindResource("UiToolTitleGutter", ActualThemeVariant, out var value) && value is double width ? width : 88;
+        EditorTitleText.Margin = new Thickness(mac ? Math.Max(0, gutter - EditorLayout.Margin.Left) : 0, 0, 0, 0);
+        QuickTitleBar.Margin = mac ? new Thickness(gutter, 0, gutter, 0) : new Thickness(0);
         SetEditorFrameParts(WindowChrome.UsesClientTitleBar(this) && !mac);
     }
 

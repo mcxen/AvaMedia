@@ -25,7 +25,9 @@ public sealed partial class ConsoleView
     private readonly TextBlock _mobileCount = Ui.Text("", "secondary");
     private Grid _createColumns = null!, _createPage = null!, _desktopBar = null!, _mobileBar = null!, _mobileTop = null!;
     private Border _filesCard = null!, _toolsCard = null!, _outputCard = null!;
-    private readonly StackPanel _stepper = new() { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly Grid _stepper = new() { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 6 };
+    private Grid _bannerGrid = null!;
+    private Panel _bannerActions = null!;
     private readonly Button _next;
     private int _createStep;
 
@@ -108,15 +110,16 @@ public sealed partial class ConsoleView
         // Restore banner
         var bannerIcon = Ui.Icon("circle-alert", 15, Palette.Orange); _bannerText.Foreground = Palette.BannerText; _bannerText.FontSize = 12.5;
         _bannerText.TextWrapping = TextWrapping.Wrap;
-        var bannerGrid = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10 };
+        var bannerGrid = _bannerGrid = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10, RowSpacing = 8 };
         bannerGrid.Children.Add(bannerIcon); Grid.SetColumn(_bannerText, 1); bannerGrid.Children.Add(_bannerText);
         _discard.Classes.Add("outline");
-        var bannerActions = Ui.Row(8, _discard, _recover); Grid.SetColumn(bannerActions, 2); bannerGrid.Children.Add(bannerActions);
+        var bannerActions = _bannerActions = Actions(_discard, _recover); Grid.SetColumn(bannerActions, 2); bannerGrid.Children.Add(bannerActions);
         _banner.Child = bannerGrid; _banner.Background = Palette.Banner; _banner.CornerRadius = new(12); _banner.Padding = new(14, 9);
         _banner.BorderBrush = new SolidColorBrush(Color.Parse("#F5DFAE")); _banner.BorderThickness = new(1);
         // Mobile top bar + stepper
         _mobileTop = new Grid { RowDefinitions = new("Auto,Auto"), RowSpacing = 10, Margin = new(0, 6, 0, 0) };
         var back = new Button { Content = Ui.Icon("chevron-left", 22, Palette.Blue), Classes = { "plain", "icon" } };
+        ToolTip.SetTip(back, L.T("返回")); AutomationProperties.SetName(back, L.T("返回"));
         back.Click += (_, _) => { if (_workspaceTabs.SelectedIndex != 0) _workspaceTabs.SelectedIndex = 0; else if (_createStep > 0) { _createStep--; LayoutCreate(); } else _tabs.SelectedIndex = 1; };
         var title = Ui.Text("新建任务", "strong"); title.FontSize = 17; title.HorizontalAlignment = HorizontalAlignment.Center;
         var topRow = new Grid { ColumnDefinitions = new("*,Auto,*") };
@@ -151,6 +154,12 @@ public sealed partial class ConsoleView
     /// <summary>Desktop: three columns. Mobile: one step at a time with a stepper and a full-width action.</summary>
     private void LayoutCreate()
     {
+        if (_bannerGrid is not null)
+        {
+            _bannerGrid.ColumnDefinitions = new(_mobile ? "Auto,*" : "Auto,*,Auto");
+            _bannerGrid.RowDefinitions = new(_mobile ? "Auto,Auto" : "Auto");
+            Grid.SetColumn(_bannerActions, _mobile ? 1 : 2); Grid.SetRow(_bannerActions, _mobile ? 1 : 0);
+        }
         if (_createColumns is null || _createPage is null || _desktopBar is null) return;
         _subtitleFormHost.Content = null; _subtitleStartHost.Content = null; _subtitleSubmitHost.Content = null; _formStartHost.Content = null;
         _mobileTop.IsVisible = _mobile; _desktopCardBar.IsVisible = !_mobile; _mobileBarBorder.IsVisible = _mobile;
@@ -226,11 +235,16 @@ public sealed partial class ConsoleView
         for (var index = 0; index < labels.Length; index++)
         {
             var step = index; var done = index < _createStep; var active = index == _createStep;
-            var content = done ? Ui.Content(L.T(labels[index]), "check", Palette.Blue, 13) : (Control)Ui.Text(L.T(labels[index]));
-            var button = new Button { Content = content, MinWidth = 104, Classes = { active ? "primary" : "outline" } };
-            if (done && content is StackPanel panel) foreach (var text in panel.Children.OfType<TextBlock>()) text.Foreground = Palette.Blue;
-            if (!done && !active && content is TextBlock muted) muted.Foreground = Palette.Secondary;
+            var label = Ui.Text(L.T(labels[index])); label.TextWrapping = TextWrapping.Wrap; label.TextAlignment = TextAlignment.Center;
+            var content = new Grid { ColumnDefinitions = new(done ? "Auto,*" : "*"), ColumnSpacing = 4 };
+            content.Children.Add(label);
+            if (done) { label.Foreground = Palette.Blue; Grid.SetColumn(label, 1); content.Children.Add(Ui.Icon("check", 13, Palette.Blue)); }
+            else if (!active) label.Foreground = Palette.Secondary;
+            var button = new Button { Content = content, Padding = new(6, 5), HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                HorizontalAlignment = HorizontalAlignment.Stretch, Classes = { active ? "primary" : "outline" } };
+            AutomationProperties.SetName(button, L.T(labels[index]));
             button.Click += (_, _) => { _createStep = step; LayoutCreate(); };
+            Grid.SetColumn(button, index);
             _stepper.Children.Add(button);
         }
     }

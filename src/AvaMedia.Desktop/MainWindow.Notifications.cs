@@ -8,6 +8,8 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     internal bool CanExitForUpdate => !_closing && !_queue.IsRunning && _editingJobs.Count == 0;
+    internal string? UpdateRestartBlockedReason => _closing ? "正在退出应用…" : _queue.IsRunning
+        ? "任务正在处理，完成后可重启并更新。" : _editingJobs.Count > 0 ? "请先完成任务编辑，再重启并更新。" : null;
     private void NotificationsClick(object? sender, RoutedEventArgs args) => NotificationCenter.Shared.OpenHistory(this);
     private void ToggleNotificationsClick(object? sender, RoutedEventArgs args)
     {
@@ -49,6 +51,11 @@ public partial class MainWindow
         RestoreFromTray(); SelectTaskRows(jobs);
         return Task.CompletedTask;
     }
+    private async Task OpenTaskDetailsNotificationAsync(Job job)
+    {
+        if (_closing || !_jobs.Contains(job)) return;
+        RestoreFromTray(); SelectTaskRows([job]); await ShowTaskDetailsAsync(job);
+    }
     private Task OpenNotificationOutputAsync(string[] folders)
     {
         foreach (var folder in folders.Where(Directory.Exists)) _optionServices.OpenFolder(folder);
@@ -57,6 +64,14 @@ public partial class MainWindow
     private void NotifyQueueResults(Job[] batch)
     {
         var completion = QueueCompletion.From(batch); var id = Guid.NewGuid().ToString("N");
+        var unchanged = batch.Where(job => job.State == JobState.Completed && job.CompletionKind == JobCompletionKind.Unchanged).ToArray();
+        foreach (var job in unchanged)
+        {
+            var item = job;
+            NotificationCenter.Shared.Publish(this, new("task-unchanged:" + id + ":" + item.Id, "无需瘦身",
+                (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}\n{item.CompletionMessage}", NotificationKind.Information,
+                [new("查看任务详情", () => OpenTaskDetailsNotificationAsync(item), Primary: true, Enabled: () => CanViewTaskDetails(item))]));
+        }
         foreach (var job in batch.Where(job => job.State == JobState.Completed && Catalog.Find(job.FeatureId).Operation == Operation.VideoSummary))
         {
             var item = job;
@@ -89,18 +104,22 @@ public partial class MainWindow
         {
             var item = job;
             var failureActions = new List<NotificationAction> {
-                    new("重试任务", () => RetryNotificationAsync([item]), Primary: true, Enabled: () => CanRetryNotification([item])),
-                    new("查看任务", () => FocusJobsAsync([item])) };
+                    new("查看任务详情", () => OpenTaskDetailsNotificationAsync(item), Primary: true, Enabled: () => CanViewTaskDetails(item)),
+                    new("重试任务", () => RetryNotificationAsync([item]), Enabled: () => CanRetryNotification([item])) };
             if (Catalog.Find(item.FeatureId).Operation is Operation.VideoSummary or Operation.Transcribe or Operation.MediaTag) failureActions.Add(new("模型管理", ModelNotifications.OpenManagementAsync));
             NotificationCenter.Shared.Publish(this, new("task-failure:" + id + ":" + item.Id, "任务执行失败",
                 (FormattableString)$"{Path.GetFileName(item.Inputs.FirstOrDefault())}\n{item.Error}", NotificationKind.Error, failureActions));
         }
+        if (unchanged.Length == batch.Length) return;
         if (batch.All(job => job.State == JobState.Completed && Catalog.Find(job.FeatureId).Operation is (Operation.VideoSummary or Operation.MediaTag))) return;
-        var actions = new List<NotificationAction> { new("查看任务", () => FocusJobsAsync(batch), Primary: true),
-            new("打开输出目录", () => OpenNotificationOutputAsync(completion.OutputFolders.ToArray())) };
+        var actions = new List<NotificationAction> { new(batch.Length == 1 ? "查看任务详情" : "查看任务",
+            () => batch.Length == 1 ? OpenTaskDetailsNotificationAsync(batch[0]) : FocusJobsAsync(batch), Primary: true) };
+        if (completion.OutputFolders.Count > 0) actions.Add(new("打开输出目录", () => OpenNotificationOutputAsync(completion.OutputFolders.ToArray())));
         if (failed.Length > 0) actions.Add(new("重试失败任务", () => RetryNotificationAsync(failed), Enabled: () => CanRetryNotification(failed)));
         NotificationCenter.Shared.Publish(this, new("queue:" + id, "任务执行完成",
-            (FormattableString)$"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。",
+            unchanged.Length > 0
+                ? (FormattableString)$"成功 {completion.Completed - unchanged.Length} 个，无需瘦身 {unchanged.Length} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。"
+                : (FormattableString)$"成功 {completion.Completed} 个，失败 {completion.Failed} 个，停止 / 未执行 {completion.Cancelled} 个。",
             failed.Length > 0 ? NotificationKind.Warning : NotificationKind.Success, actions));
     }
 }

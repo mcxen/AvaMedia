@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 namespace AvaMedia.Core;
 
 public enum VideoSlimmingPreset { Preserve, Balanced, Smaller }
+public enum VideoSlimmingDisposition { Ready, InsufficientSavings, QualityLimit }
 
 public sealed record VideoSlimmingOptions
 {
@@ -22,26 +23,42 @@ public sealed record VideoSlimmingOptions
 public sealed record VideoSlimmingQuality(double Ssim, double? Xpsnr);
 public sealed record VideoSlimmingAnalysis(string SourcePath, long SourceBytes, long ModifiedUtcTicks,
     VideoSlimmingPreset Preset, string Codec, string Format, string Encoder, string PixelFormat, int Threads,
-    int Quality, long EstimatedBytes, double MeanSsim, double WorstSsim, double? WorstXpsnr, int Samples,
+    int? Quality, long? EstimatedBytes, double? MeanSsim, double? WorstSsim, double? WorstXpsnr, int Samples,
     double SampleSeconds, double Duration, int Width, int Height, int OutputWidth, int OutputHeight,
     double PixelAspectRatio, double OutputPixelAspectRatio, double FrameRate, int AudioTracks,
     int SubtitleTracks, string Diagnosis)
 {
-    public double EstimatedSaving => (1 - EstimatedBytes / (double)SourceBytes) * 100;
-    public bool Worthwhile => EstimatedBytes < SourceBytes * .95;
+    public VideoSlimmingDisposition Disposition { get; init; } = VideoSlimmingDisposition.Ready;
+    public long? ActualBytes { get; init; }
+    public double? EstimatedSaving => EstimatedBytes is { } bytes ? (1 - bytes / (double)SourceBytes) * 100 : null;
+    public double? ActualSaving => ActualBytes is { } bytes ? (1 - bytes / (double)SourceBytes) * 100 : null;
+    public bool Worthwhile => Disposition == VideoSlimmingDisposition.Ready && (ActualBytes ?? EstimatedBytes) < SourceBytes * .95;
     public bool SizeOptimized => OutputWidth != Width || OutputHeight != Height;
     public bool Matches(string input, VideoSlimmingOptions options, int threads)
     {
         var file = new FileInfo(input);
         return file.Exists && SourcePath == Path.GetFullPath(input) && SourceBytes == file.Length &&
             ModifiedUtcTicks == file.LastWriteTimeUtc.Ticks && Preset == options.Preset && Codec == options.Codec &&
-            Format == options.Format && Threads == threads && Quality is >= 16 and <= 42 &&
-            EstimatedBytes > 0 && Samples > 0 && Width > 0 && Height > 0 && OutputWidth > 0 && OutputHeight > 0 &&
+            Format == options.Format && Threads == threads && SourceBytes > 0 &&
+            Samples > 0 && double.IsFinite(SampleSeconds) && SampleSeconds > 0 &&
+            double.IsFinite(Duration) && Duration > 0 && Width > 0 && Height > 0 && OutputWidth > 0 && OutputHeight > 0 &&
             double.IsFinite(PixelAspectRatio) && PixelAspectRatio > 0 &&
             double.IsFinite(OutputPixelAspectRatio) && OutputPixelAspectRatio > 0 &&
             Math.Abs(OutputWidth * OutputPixelAspectRatio / OutputHeight / (Width * PixelAspectRatio / Height) - 1) < .000001 &&
-            Encoder == (Codec == "hevc" ? "libx265" : "libx264") &&
-            VideoSlimming.MeetsQuality(Preset, MeanSsim, WorstSsim, WorstXpsnr);
+            Encoder == (Codec == "hevc" ? "libx265" : "libx264") && MatchesResult();
+    }
+
+    private bool MatchesResult()
+    {
+        if (Disposition == VideoSlimmingDisposition.QualityLimit)
+            return Quality is null && EstimatedBytes is null && ActualBytes is null && MeanSsim is null && WorstSsim is null &&
+                WorstXpsnr is null && !SizeOptimized && !string.IsNullOrWhiteSpace(Diagnosis);
+        var resultBytes = ActualBytes ?? EstimatedBytes;
+        return Quality is >= 16 and <= 42 && EstimatedBytes > 0 && (ActualBytes is null or > 0) &&
+            MeanSsim is { } mean && WorstSsim is { } worst &&
+            VideoSlimming.MeetsQuality(Preset, mean, worst, WorstXpsnr) &&
+            (Disposition == VideoSlimmingDisposition.Ready && resultBytes < SourceBytes * .95 ||
+             Disposition == VideoSlimmingDisposition.InsufficientSavings && resultBytes >= SourceBytes * .95);
     }
 }
 
@@ -77,7 +94,13 @@ public sealed partial class VideoSlimming(MediaEngine engine)
     public static bool MeetsQuality(VideoSlimmingPreset preset, double mean, double worst, double? xpsnr)
     {
         var threshold = Threshold(preset);
-        return double.IsFinite(mean) && double.IsFinite(worst) && mean >= threshold.Ssim && worst >= threshold.Ssim - .003 &&
+        return double.IsFinite(mean) && mean >= threshold.Ssim && MeetsWorstQuality(preset, worst, xpsnr);
+    }
+
+    private static bool MeetsWorstQuality(VideoSlimmingPreset preset, double worst, double? xpsnr)
+    {
+        var threshold = Threshold(preset);
+        return double.IsFinite(worst) && worst >= threshold.Ssim - .003 &&
             (xpsnr is null || !double.IsNaN(xpsnr.Value) && xpsnr >= threshold.Xpsnr);
     }
 
@@ -85,11 +108,17 @@ public sealed partial class VideoSlimming(MediaEngine engine)
         Action<double, string>? progress = null, CancellationToken ct = default)
     {
         options.Validate(); input = Path.GetFullPath(input);
+        ct.ThrowIfCancellationRequested();
+        var threads = Threads();
+        if (options.Analysis is { } cached && cached.Matches(input, options, threads))
+        {
+            progress?.Invoke(100, cached.Worthwhile ? "已复用分析结果" : cached.Diagnosis);
+            return cached;
+        }
         var file = new FileInfo(input);
         var sourceBytes = file.Length; var modified = file.LastWriteTimeUtc.Ticks;
         var source = await engine.Probe(input, ct).ConfigureAwait(false);
         ValidateSource(source, options);
-        var threads = Threads();
         var encoder = options.Codec == "hevc" ? "libx265" : "libx264";
         var encoders = await Checked(["-hide_banner", "-encoders"], ct).ConfigureAwait(false);
         if (!Regex.IsMatch(encoders.Output + encoders.Error, @"\b" + encoder + @"\b"))
@@ -123,6 +152,9 @@ public sealed partial class VideoSlimming(MediaEngine engine)
             var complexStart = await ComplexStart(input, source.Duration, ct).ConfigureAwait(false);
             complexStart = Math.Clamp(complexStart - seconds / 2, 0, Math.Max(0, source.Duration - seconds));
             if (starts.All(start => Math.Abs(start - complexStart) >= seconds)) starts.Add(complexStart);
+            // A complex sample can reject an unsuitable CRF before encoding the other strata.
+            // Every accepted candidate still measures every sample across the timeline.
+            starts = starts.OrderBy(start => Math.Abs(start - complexStart)).ToList();
             for (var i = 0; i < starts.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -142,19 +174,24 @@ public sealed partial class VideoSlimming(MediaEngine engine)
             }
             // The extra resampling must save at least 5% over preserving the pixel grid.
             if (original is not null && best is not null && best.EstimatedBytes >= original.EstimatedBytes * .95) best = original;
-            if (best is null) throw new InvalidOperationException("未找到满足画质要求的瘦身参数；请调整档位或保留原视频。");
             file.Refresh();
             if (file.Length != sourceBytes || file.LastWriteTimeUtc.Ticks != modified)
                 throw new IOException("分析期间源视频发生变化，请重新分析。");
             var result = new VideoSlimmingAnalysis(input, sourceBytes, modified, options.Preset, options.Codec, options.Format,
-                encoder, pixelFormat, threads, best.Quality, best.EstimatedBytes, best.MeanSsim, best.WorstSsim, best.WorstXpsnr,
+                encoder, pixelFormat, threads, best?.Quality, best?.EstimatedBytes, best?.MeanSsim, best?.WorstSsim, best?.WorstXpsnr,
                 samples.Count, samples.Sum(sample => sample.Duration), source.Duration, source.Width, source.Height,
-                best.Resolution.Width, best.Resolution.Height, MediaStreams.PixelAspectRatio(source),
-                best.Resolution.PixelAspectRatio, source.FrameRate,
+                best?.Resolution.Width ?? source.Width, best?.Resolution.Height ?? source.Height, MediaStreams.PixelAspectRatio(source),
+                best?.Resolution.PixelAspectRatio ?? MediaStreams.PixelAspectRatio(source), source.FrameRate,
                 streams.Count(stream => Text(stream, "codec_type") == "audio"),
-                streams.Count(stream => Text(stream, "codec_type") == "subtitle"), Diagnosis(source, sourceBytes, best.EstimatedBytes) +
-                (best.Resolution.Resampled ? $" 按显示比例优化尺寸：{source.Width} × {source.Height} → {best.Resolution.Width} × {best.Resolution.Height}。" : ""));
-            progress?.Invoke(100, result.Worthwhile ? "分析完成" : "不建议瘦身：预计节省不足 5%");
+                streams.Count(stream => Text(stream, "codec_type") == "subtitle"), best is null
+                    ? "当前档位与编码下，采样未找到满足画质要求的瘦身参数；保留原视频，可调整档位或编码后重试。"
+                    : Diagnosis(source, sourceBytes, best.EstimatedBytes) +
+                      (best.Resolution.Resampled ? $" 按显示比例优化尺寸：{source.Width} × {source.Height} → {best.Resolution.Width} × {best.Resolution.Height}。" : ""))
+            {
+                Disposition = best is null ? VideoSlimmingDisposition.QualityLimit : best.EstimatedBytes < sourceBytes * .95
+                    ? VideoSlimmingDisposition.Ready : VideoSlimmingDisposition.InsufficientSavings
+            };
+            progress?.Invoke(100, result.Worthwhile ? "分析完成" : result.Diagnosis);
             return result;
         }
         finally { Directory.Delete(workspace, recursive: true); }
@@ -199,56 +236,6 @@ public sealed partial class VideoSlimming(MediaEngine engine)
             if (File.Exists(path)) File.Delete(path);
         }
         throw new InvalidDataException($"无法在 {MediaEngine.Number(start)} 秒附近提取视频画面，源文件可能存在时长或时间戳异常。");
-    }
-
-    public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
-    {
-        ValidateJob(job);
-        var options = job.Options.VideoSlimming ?? new();
-        var analysis = options.Analysis;
-        if (analysis is null || !analysis.Matches(job.Inputs[0], options, Threads()))
-            analysis = await AnalyzeAsync(job.Inputs[0], options, (value, detail) =>
-            { job.ProgressDetail = detail; progress(value * .35); }, ct).ConfigureAwait(false);
-        job.Duration = analysis.Duration;
-        job.AppendLog($"视频瘦身：{analysis.SourceBytes} B；预计 {analysis.EstimatedBytes} B；{analysis.Diagnosis}");
-        job.AppendLog($"{analysis.Encoder} medium CRF {analysis.Quality}；{analysis.Samples} 段 / {analysis.SampleSeconds:0.##} 秒；SSIM 平均 {analysis.MeanSsim:0.######}，最低 {analysis.WorstSsim:0.######}；XPSNR {analysis.WorstXpsnr?.ToString("0.##", CultureInfo.InvariantCulture) ?? "不可用"}。");
-        if (!analysis.Worthwhile) throw new InvalidOperationException("不建议瘦身：预计节省不足 5%，保留原视频。");
-        var temporary = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,
-            ".AvaMedia-slim-" + Guid.NewGuid().ToString("N") + "." + options.Format);
-        try
-        {
-            job.ProgressDetail = "正在瘦身"; progress(35);
-            await Checked(EncodingArguments(job.Inputs[0], temporary, analysis.Encoder, analysis.PixelFormat,
-                analysis.Quality, analysis.Threads, options.Format, includeSubtitles: true,
-                new(analysis.OutputWidth, analysis.OutputHeight, analysis.SizeOptimized, analysis.OutputPixelAspectRatio)), ct, line =>
-            {
-                if (line.StartsWith("out_time_us=", StringComparison.Ordinal) &&
-                    double.TryParse(line[12..], NumberStyles.Float, CultureInfo.InvariantCulture, out var time))
-                    progress(35 + Math.Clamp(time / 1000000 / analysis.Duration, 0, 1) * 63);
-            }).ConfigureAwait(false);
-            var output = await engine.Probe(temporary, ct).ConfigureAwait(false);
-            using var document = JsonDocument.Parse(output.RawJson);
-            var streams = document.RootElement.GetProperty("streams").EnumerateArray().ToArray();
-            if (Math.Abs(output.Duration - analysis.Duration) > Math.Max(.25, 3 / Math.Max(1, analysis.FrameRate)) ||
-                output.Width != analysis.OutputWidth || output.Height != analysis.OutputHeight ||
-                Math.Abs(MediaStreams.PixelAspectRatio(output) / analysis.OutputPixelAspectRatio - 1) > .001 ||
-                streams.Count(stream => Text(stream, "codec_type") == "audio") != analysis.AudioTracks ||
-                streams.Count(stream => Text(stream, "codec_type") == "subtitle") != analysis.SubtitleTracks)
-                throw new InvalidDataException("瘦身输出的时长、尺寸或轨道不完整，已保留原视频。");
-            var bytes = new FileInfo(temporary).Length;
-            if (bytes <= 0 || bytes >= analysis.SourceBytes * .95)
-                throw new InvalidOperationException("实际节省不足 5%，已跳过输出并保留原视频。");
-            if (!analysis.Matches(job.Inputs[0], options, Threads())) throw new IOException("瘦身期间源视频发生变化，请重新分析。");
-            ct.ThrowIfCancellationRequested();
-            File.Move(temporary, job.Output);
-            var saving = (1 - bytes / (double)analysis.SourceBytes) * 100;
-            job.Options.VideoSlimming = options with { Analysis = analysis };
-            job.ProgressDetail = $"节省 {saving:0.##}%";
-            var dimensions = analysis.SizeOptimized ? $"尺寸 {analysis.Width} × {analysis.Height} → {analysis.OutputWidth} × {analysis.OutputHeight}；" : "保持分辨率；";
-            job.AppendLog($"实际输出 {bytes} B，节省 {saving:0.##}%；{dimensions}保持显示比例、帧率和全部音轨 / 字幕轨。画质评分来自采样，不等于无损。");
-            progress(100);
-        }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     public async Task<VideoSlimmingQuality> MeasureAsync(string reference, string distorted, bool xpsnr = true,
@@ -415,7 +402,8 @@ public sealed partial class VideoSlimming(MediaEngine engine)
     {
         var totalMbps = bytes * 8d / source.Duration / 1000000;
         return estimate < bytes * .5 ? $"总码率 {totalMbps:0.##} Mbps，采样显示有较大压缩空间。" :
-            estimate < bytes * .95 ? $"总码率 {totalMbps:0.##} Mbps，有一定压缩空间。" : "当前编码已较紧凑。";
+            estimate < bytes * .95 ? $"总码率 {totalMbps:0.##} Mbps，有一定压缩空间。" :
+            $"总码率 {totalMbps:0.##} Mbps，采样预计节省不足 5%，继续重编码的收益有限。";
     }
     private static string Text(JsonElement element, string name) => element.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
 }

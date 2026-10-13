@@ -82,6 +82,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
+            ApplicationUpdater.Shared.CancelRestart();
             _closing = false; _exitRequested = false; _exitTask = null;
             if (_mcpBackgroundMode)
             { AppDiagnostics.Record("Background MCP exit", ex); Console.Error.WriteLine(ex.Message); return; }
@@ -144,6 +145,7 @@ public partial class MainWindow
     }
     private void RefreshTaskState()
     {
+        ApplicationUpdater.Shared.RefreshRestartAvailability();
         if (!_trayEnabled || _optionServices is not IBackgroundTaskTray tray) return;
         var waiting = _jobs.Count(j => j.State == JobState.Waiting);
         var active = _jobs.Where(j => j.State is JobState.Running or JobState.Stopping).ToArray();

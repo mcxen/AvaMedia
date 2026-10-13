@@ -152,6 +152,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 if (!job.FileChangesCommitted && (execution.Stopping || token.IsCancellationRequested))
                 { if (state != JobState.Cancelled) error = "用户停止了任务。"; state = JobState.Cancelled; }
                 execution.Active = false; job.Error = error; job.Estimate = null; job.DownloadSpeed = null;
+                if (state != JobState.Completed) { job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = ""; }
                 if (state == JobState.Completed) job.Progress = 100;
                 job.State = state;
                 if (job.Activity is { } activity) job.Activity = activity with { UpdatedUtc = DateTime.UtcNow, State = state switch
@@ -170,6 +171,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 token.ThrowIfCancellationRequested();
                 if (execution.Stopping) throw new OperationCanceledException(token);
                 job.Activity = null; job.Progress = 0; job.Estimate = null; job.DownloadSpeed = null;
+                job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
                 job.FileChangesCommitted = false; job.CommittedFileChanges = null; job.OutputIsPartial = false;
                 job.State = execution.Control.IsPaused ? JobState.Paused : JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
             }
@@ -233,7 +235,8 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             if (!_active.TryGetValue(job, out execution))
             {
                 if (job.State is not (JobState.Waiting or JobState.Paused)) return false;
-                _pending.Remove(job); job.State = JobState.Cancelled; job.Error = "用户停止了任务。"; WakeLocked();
+                _pending.Remove(job); job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
+                job.State = JobState.Cancelled; job.Error = "用户停止了任务。"; WakeLocked();
             }
         }
         if (execution is not null) Cancel(execution);

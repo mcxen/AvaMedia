@@ -32,15 +32,7 @@ public partial class MainWindow
     internal Task ShowRowTaskAsync(Job job)
     {
         if (CanViewAiTask(job)) return ShowAiTaskAsync(job);
-        if (_closing || !_jobs.Contains(job)) return Task.CompletedTask;
-        if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return Task.CompletedTask; }
-        var window = new AiTaskWindow(job, () => job.State == JobState.Completed && (File.Exists(job.Output) || Directory.Exists(job.Output)),
-            () => { Open(job.Output); return Task.CompletedTask; }, () => StopRowTask(job), () => RunRowTaskAsync(job),
-            () => CanRunRowTask(job), () => { _ = Configure(Catalog.Find(job.FeatureId)); }, pause: () => PauseRowTask(job));
-        _aiTaskWindows[job.Id] = window;
-        window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
-        Controls.WindowChrome.ShowIndependent(window);
-        return Task.CompletedTask;
+        return ShowTaskDetailsAsync(job);
     }
 
     private void InitializeTaskManagement()
@@ -79,6 +71,8 @@ public partial class MainWindow
         MoveTaskTopMenu.IsEnabled = MoveTaskUpMenu.IsEnabled = moving.Any(job => _jobs.IndexOf(job) > 0 && !moving.Contains(_jobs[_jobs.IndexOf(job) - 1]));
         MoveTaskBottomMenu.IsEnabled = MoveTaskDownMenu.IsEnabled = moving.Any(job => _jobs.IndexOf(job) < _jobs.Count - 1 && !moving.Contains(_jobs[_jobs.IndexOf(job) + 1]));
         var one = selected.Length == 1 ? selected[0] : null;
+        ViewTaskDetailsMenu.IsVisible = selected.Length > 0;
+        ViewTaskDetailsMenu.IsEnabled = one is not null && CanViewTaskDetails(one);
         ViewAiTaskMenu.IsVisible = one is not null && CanViewAiTask(one);
         ViewAiTaskMenu.IsEnabled = ViewAiTaskMenu.IsVisible;
         ViewSummaryResultMenu.IsVisible = one is not null && CanViewSummaryResult(one);
@@ -89,8 +83,8 @@ public partial class MainWindow
             = RemoveTaskMenu.IsVisible = TaskRemovalSeparator.IsVisible = selected.Length > 0;
         OpenTaskSourceMenu.IsEnabled = one?.Inputs.Any(IsAccessibleSource) == true;
         OpenTaskSourceFolderMenu.IsEnabled = one?.Inputs.Any(path => File.Exists(path) || Directory.Exists(path)) == true;
-        OpenTaskOutputMenu.IsEnabled = one?.State == JobState.Completed && (File.Exists(one.Output) || Directory.Exists(one.Output));
-        OpenTaskOutputFolderMenu.IsEnabled = one is not null && !one.HasInternalOutput && Directory.Exists(one.FeatureId == "folder-classification" ? one.UserOutput : Path.GetDirectoryName(one.Output));
+        OpenTaskOutputMenu.IsEnabled = one?.State == JobState.Completed && one.CompletionKind != JobCompletionKind.Unchanged && (File.Exists(one.Output) || Directory.Exists(one.Output));
+        OpenTaskOutputFolderMenu.IsEnabled = one is not null && one.CompletionKind != JobCompletionKind.Unchanged && !one.HasInternalOutput && Directory.Exists(one.FeatureId == "folder-classification" ? one.UserOutput : Path.GetDirectoryName(one.Output));
         CopyTaskPathsMenu.IsEnabled = selected.Length > 0;
         TaskLogMenu.IsEnabled = one is not null;
         RemoveTaskMenu.IsEnabled = selected.Any(CanRemoveTask);
@@ -243,6 +237,7 @@ public partial class MainWindow
         {
             if (_classificationWindows.TryGetValue(job.Id, out var window)) window.Close();
             if (_aiTaskWindows.TryGetValue(job.Id, out var aiWindow)) aiWindow.Close();
+            if (_taskDetailsWindows.TryGetValue(job.Id, out var detailsWindow)) detailsWindow.Close();
             _jobs.Remove(job);
         }
         Save(); Refresh(); await _queueSave; await _storage.DeleteJobLogsAsync(removed);
@@ -278,7 +273,7 @@ public partial class MainWindow
         try
         {
             if (Clipboard is { } clipboard)
-                await clipboard.SetTextAsync(string.Join(Environment.NewLine, SelectedJobs().SelectMany(job => job.Inputs.Append(job.Output)).Distinct()));
+                await clipboard.SetTextAsync(string.Join(Environment.NewLine, SelectedJobs().SelectMany(job => job.Inputs.Append(job.UserOutput)).Where(path => !string.IsNullOrEmpty(path)).Distinct()));
         }
         catch (Exception error) { await Ui.Message(this, "复制文件路径", error.Message); }
     }

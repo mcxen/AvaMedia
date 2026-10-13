@@ -5,8 +5,9 @@ namespace AvaMedia.Core;
 
 public sealed record PersonClipTaskOptions
 {
+    public const string DefaultExportPreset = "MP4";
     public PersonClipOptions Detection { get; init; } = new();
-    public string ExportPreset { get; init; } = QuickClipBatch.DefaultPreset;
+    public string ExportPreset { get; init; } = DefaultExportPreset;
     public bool AnalysisOnly { get; init; }
     public PersonClipTaskOptions Copy() => this with
     {
@@ -61,7 +62,7 @@ public sealed class PersonClipService(MediaEngine engine)
         try
         {
             var models = new ModelStore();
-            foreach (var id in spec.Detection.SelectedDetectors.Concat(spec.Detection.UseEmbedding ? new[] { ModelCatalog.EmbeddingId } : []))
+            foreach (var id in spec.Detection.RequiredModels.Concat(spec.Detection.UseEmbedding ? new[] { ModelCatalog.EmbeddingId } : []))
             {
                 if (await models.IsInstalledAsync(id, ct: ct).ConfigureAwait(false)) continue;
                 job.ProgressDetail = "下载模型 · " + ModelCatalog.Find(id).Name;

@@ -390,6 +390,8 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 - 桌面 large 使用 `AcLargeHeight=36`（平台覆盖见 5.1）；shell 使用 `AcShellButtonHeight`，dialog-action 使用规范角色令牌。网页 / 手机 `Button.large` 的 40 是专项值。
 - `danger`：红字（网页为红字 + 浅红底 `#FFECEB`）；`link`：无底色蓝字。
 - **图标按钮**：只有图标时必须有 ToolTip 和无障碍名称。
+- 网页按钮的悬停与按下反馈只绘制在外层圆角表面；内部内容区保持透明，不叠加基础主题的矩形背景与边框。
+- 网页按钮内的文字跟随按钮角色前景色；主按钮及选中按钮为白字，链接与危险操作使用各自语义色。数字加减、返回和移除等纯图标操作保留本地化提示及无障碍名称。
 - 禁用：按钮 / 滑块 / 进度 `AcDisabledOpacity=0.4`；文本字段 `AcFieldDisabledOpacity=0.45`。主按钮禁用使用轨道底与次文字；不将同一个透明度强加到所有控件。
 - Mac OS 9 / XP 皮肤以原生默认按钮外观表达主按钮。
 
@@ -461,7 +463,9 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 - 每行包含名称（粗体）、“工具 · 来源”、状态列（状态图标 + 文字 + 进度条 + 当前活动）和右对齐的操作按钮。列宽固定，状态列和操作列逐行对齐。行高 ≥ 56。
 - 每种状态只显示该状态可用的操作：运行中“暂停 / 停止”，等待“开始 / 暂停 / 停止”，已暂停“恢复 / 停止”，失败“重试”，全部带“详情”。
 - 选中行浅蓝底并在左侧显示 3 px 蓝色强调条。
-- 独立任务详情窗口：缩略图、唯一状态、操作、“结果 / 处理日志”分段、键值列表和日志框。
+- 独立任务详情窗口：文件名、类型图标、唯一状态和操作，使用“结果 / 文件与参数 / 处理日志”三个分段。结果保留完整原因及真实体积、编码、画质等指标；文件与参数按键值列表显示来源、实际产出与所选参数；处理日志可滚动、选择、复制并显示读取状态。复用 Card、StatusPill、SegmentedControl、TextBox.ac 和公共窗口框架，颜色、间距与字号引用现有动态令牌。
+- 所有任务行及右键菜单均提供“查看任务详情”；已完成、失败、取消和进行中的普通任务双击进入详情，等待或暂停且可编辑的任务保留编辑路径。AI 专项任务界面保留原有入口。查看日志直接切到任务详情的日志区，通知只承载简短结果与进入详情的操作，清除通知不影响详情与日志。
+- 视频瘦身在无法安全减小体积时显示“无需瘦身”和真实原因，作为已完成的信息结果；明确显示“保留原视频，未生成新文件”。没有实际产出时不显示输出预览、播放、打开输出或拖拽产出操作；预估体积与实际体积分开标注，没有指标显示“—”，不伪造体积或画质评分。
 - 列表每 3 秒刷新一次，刷新时保持行顺序与选中项，不整表重建；底部分页“共 N 项 · 第 n 页”。
 - 任务区只放任务，不放工具入口。
 
@@ -678,7 +682,8 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 #### 7.9.7 原生浮层材质与回退
 
 - Avalonia 固定为 11.3.22：macOS Native 的 `AcrylicBlur` 映射到原生 Blur 模式，后端补偿级别为 0，可将 `ExperimentalAcrylicMaterial` 与原生背景模糊组合。这里不使用单独的 `Blur` 请求（该版本 Native 映射只接受 AcrylicBlur）。源码依据：[TopLevelImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Native/TopLevelImpl.cs)、[WindowBaseImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/WindowBaseImpl.mm)、[ExperimentalAcrylicBorder](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/ExperimentalAcrylicBorder.cs)。
-- `MaterialSurface` / `AcMaterialSurface` 用于组件下拉、ToolTip 和 Popover 的背景。只在 macOS 原生 `PopupRoot` 请求 `AcrylicBlur, None`；背景透明，并仅在 `ActualTransparencyLevel` 实际返回 AcrylicBlur/Blur 时启用材质。每个表面独占材质实例，避免不同浮层互相改写平台补偿。
+- `MaterialSurface` / `AcMaterialSurface` 用于组件下拉、ToolTip 和 Popover 的背景。只在 macOS 原生 `PopupRoot` 请求 `AcrylicBlur, Transparent`；背景透明，并仅在 `ActualTransparencyLevel` 实际返回 AcrylicBlur/Blur 时启用材质。每个表面独占材质实例，避免不同浮层互相改写平台补偿。
+- 原生弹出窗口必须清除 AppKit 窗口背景，并将内容层（含原生模糊）按表面的同一圆角裁切；仅设置 Avalonia 背景透明或内层 Border 圆角会露出矩形底。关闭浮层时恢复原生层状态；无法取得原生内容层或使用非均匀圆角时请求透明窗口并使用主题画刷回退。
 - `AcMaterialEnabled` 默认 true；`AcMaterialTintColor` 浅色 #F6F6F8、深色 #2C2C30，`AcMaterialTintOpacity` 0.8、`AcMaterialOpacity` 0.5。Mac OS 9 / XP 关闭材质；不支持的平台、内嵌和 overlay 浮层仍使用 `AcMenuFill` 半透明画刷。关闭或拆卸表面时恢复弹出宿主的原透明度请求与背景。
 - Avalonia 11 的此路径模糊原生浮层背后内容，不能直接模糊同一窗口内的兄弟控件。不把完整业务窗口设为模糊，也不把 Linux 的半透明截图描述为 macOS 原生材质验收。窗口内菜单栏和 NativeMenu 使用自己的主题，未在本轮接入范围内。
 ---
@@ -694,18 +699,18 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 | 空 / 错误态 | `AcEmptyIconSize=40`、`AcEmptyGap=6`、`AcEmptyDetailWidth=220`、`AcEmptyPadding=16`、`AcEmptyActionMargin=0,8,0,0` | 与列表同层；`IsError` 同时对应 `error` 类与失败符号，Actions 只放真实操作。 |
 | 工具标题 / 位置 | `UiToolTitleBarHeight=48`、`UiToolTitleGutter=88`、`UiToolTitleLightInset=16,0,0,0`、`UiToolWindowGap=12` | WrapDialog 只显示一处窗口标题；不改主窗口 52 / 编辑器 44 或原生 DWM 策略。Skin 注册独立窗口的位置记忆。 |
 
-- 原生浏览器等依赖能力必须在附着宿主前判断；不可用时用 EmptyState.error 替代，不以 `IsVisible=False` 掩盖仍会初始化的原生控件。Linux 浏览器嗅探不附着适配器，窗口保留真实不可用原因及关闭操作；运行时缺失 / 能力查询失败同样兜底。公共宿主先保底，业务列表 / 重试及完整接入在专项任务完成。
+- 原生浏览器等依赖能力必须在附着宿主前判断；不可用时用 EmptyState.error 替代，不以 `IsVisible=False` 掩盖仍会初始化的原生控件。Linux 下载窗口隐藏“网页视频识别”及“内嵌浏览器”登录态选项，解析失败不自动打开内嵌浏览器；链接解析、外部浏览器 CDP 识别及其登录态选项继续提供。Linux 不附着原生浏览器适配器，直接创建嗅探窗口时保留真实不可用原因及关闭操作；Windows 运行时缺失 / 能力查询失败同样兜底，保留入口以便安装运行时。公共宿主先保底，业务列表 / 重试及完整接入在专项任务完成。
 - 加载顺序：组件 Defaults / ControlThemes → UiStyles → PlatformTokenLayer → 宿主角色 / ComponentSkins → 窗口专项与经典皮肤。窗口局部资源覆盖同名 Ac 键仅影响该窗口；新专项样式先写入本规范。
 
 ## 8. 窗口与标题栏（按平台）
 
 - 统一通过 `MainWindow.WindowChrome`（`src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`）和 `Controls/WindowChrome.cs` 复用，不另写标题栏。
-- **macOS**：客户区延伸到标题栏下方（标题栏高 52），原生红绿灯位于**左上角、侧栏卡片内部**，工具树从红绿灯下方开始（工具树上边距 34）。非 macOS 上用 `AVAMEDIA_CHROME=mac` 预览时绘制占位红绿灯。
+- **macOS**：客户区延伸到标题栏下方（主窗口标题行高 52）。使用 `NSWindow.standardWindowButton` 提供的原生红绿灯，保留系统尺寸、按钮间距、悬停 / 失焦及全屏行为，不重绘或替换按钮。红绿灯与实际标题行 / 右侧工具按钮共用垂直中心；位置使用逻辑点，不乘 Retina 缩放。主窗口红绿灯在侧栏卡片左边缘内缩 `UiMainTitleLightInset=20`，当前窗口左边距为 28pt；工具树使用独立的固定标题留白，滚动时不进入按钮区。工具及编辑器窗口左边距使用 `UiToolTitleLightInset` 的 Left（16pt），编辑器标题内容保留 `UiToolTitleGutter=88` 的按钮区域。打开、布局 / 尺寸 / 缩放变化、激活及退出全屏后统一重新对齐；全屏和经典皮肤交给系统。非 macOS 的 `AVAMEDIA_CHROME=mac` 仅绘制同位置的预览占位。
 - **Windows**：保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`；最小化 / 最大化 / 关闭按钮位于**右上角**标题行，按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Win11 显式请求 DWM `DWMWA_WINDOW_CORNER_PREFERENCE=DWMWCP_ROUND`，阴影由系统提供；Win10 保留原生直角与阴影，不伪造 Win11 圆角。最大化、全屏、贴靠时形状由系统决定。
 - **Linux**：主窗口、编辑器及所有工具窗口统一保留 `SystemDecorations.Full`，由窗口管理器和合成器提供边框、缩放及阴影；不单独去掉某个工具窗口的装饰。圆角、阴影能力取决于桌面环境。`AVAMEDIA_CHROME=mac` 只预览客户区布局，仍保留 Linux 原生装饰。
 - **整窗表面**：所有 `Window` 子类及临时 `new Window` 通过 `Skin` 的统一注册接入 `Controls/WindowChrome.cs`；已有主窗口、编辑器标题布局也调用同一平台策略。Windows / macOS 整窗使用不透明主题背景及 `TransparencyLevelHint=None`；禁止用透明整窗 + 自绘圆角边框或阴影替换系统形状。macOS 保留原生框架、圆角和阴影；内部卡片圆角不代表窗体圆角。
 - **独立顶层窗口**：所有非模态工具、设置、帮助、播放器、看图及封面预览统一使用 `WindowChrome.ShowIndependent`（内部无 Owner 的 `Show()`）并设置 `ShowInTaskbar=true`，启动位置按 1.3 优先主窗口旁或恢复最近位置；显式 Manual 坐标保留；主窗口最小化或隐藏时工具窗口继续显示，可在任务栏 / Dock 的窗口列表独立切换。不得为层级感设置 Owner、置顶或用 `ShowDialog` 打开非模态工具；层级感只由系统原生阴影体现。确实需要返回确认 / 编辑结果的模态提示和编辑表单可保留 `ShowDialog(owner)`，同样复用整窗外观策略。业务上下文显式传递或从应用主窗口取得，不能依赖工具的 Owner 链。
-- 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉不触发拖动。
+- 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉、选择控件和分隔条不触发拖动，禁用控件的区域也不作为拖动留白。主窗口、编辑器和工具窗口统一通过 `WindowChrome.HookDrag` 在窗口隧道路由处理标题输入；顶部标题带覆盖客户区上边距和两侧留白，队列栏只覆盖自身行及外边距。全屏禁用标题拖动；标题拆卸时移除监听，原生拖动开始前释放隐式指针捕获。平台原生移动由 `BeginMoveDrag` 提供，不自行逐帧改写窗口位置。
 - `AVAMEDIA_CHROME=mac|win|system` 可覆盖平台检测；`system` 及 Mac OS 9 / XP 皮肤使用各自框架。
 - Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。经典框架是客户区皮肤，外层同样保留系统装饰和不透明表面，不以 `SystemDecorations.None` 牺牲系统阴影。
 
@@ -727,11 +732,7 @@ internal static WindowFrameKind FrameKind => Environment.GetEnvironmentVariable(
 
 当前平台实现见 `Controls/WindowChrome.Platform.cs`：保留 `SystemDecorations.Full` 和不透明背景，Windows / macOS 扩展客户区；Linux 保留 WM 装饰，mac 预览只改变客户区布局。不要复制去掉系统装饰的旧参考片段。
 
-```csharp
-var lights = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(14, 12, 0, 0),
-    VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false };
-foreach (var color in new[] { "#FF5F57", "#FEBC2E", "#28C840" })
-```
+macOS 原生按钮定位见 `Controls/WindowChrome.Mac.cs`：由共享入口读取实际标题行中心，必要时扩展原生标题宿主的点击范围，保留系统按钮视图层级。主窗口固定标题留白及非 macOS 占位见 `MainWindow.WindowChrome.cs`；占位只在预览模式显示，位置与原生布局使用同一基准。
 
 `src/AvaMedia.Desktop/Controls/WindowChrome.cs`（右上角按钮与拖动）：
 
@@ -742,15 +743,17 @@ panel.Children.Add(Caption("x", "关闭", window.Close, close: true));
 ```
 
 ```csharp
-public static bool IsInteractive(Control control)
+public static bool IsInteractive(Visual? visual)
 {
-    for (Control? c = control; c is not null; c = c.Parent as Control)
-        if (c is Button or TextBox or MenuItem or Slider or ComboBox) return true;
+    for (var c = visual; c is not null && c is not Window; c = c.GetVisualParent())
+        if (c is Button or TextBox or Menu or MenuItem or RangeBase or SelectingItemsControl
+            or AutoCompleteBox or DatePicker or TimePicker or Calendar or GridSplitter or SelectableTextBlock) return true;
     return false;
 }
 
 /// <summary>Drag the window from a title region; double-click toggles maximize.</summary>
-public static void HookDrag(Window window, Control region, Func<bool> enabled) =>
+public static void HookDrag(Window window, Control region, Func<bool> enabled,
+    Func<PointerPressedEventArgs, bool>? hitTest = null)
 ```
 
 `src/AvaMedia.Desktop/Styles/MainShell.axaml`：
@@ -771,6 +774,10 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 ---
 
 ## 9. 状态
+
+- 高频视觉效果优先使用 Avalonia 合成线程：模型活动指示只在运行或不确定准备阶段请求绘制帧，多宫格加载脉冲使用合成透明度动画。隐藏、最小化、关闭、拆卸和减少动态效果时停止动画；业务进度、节流和倒计时仍按原生命周期更新。
+- 下载结果使用受限视口中的虚拟列表，保留复选框选择与行内操作，不增加行选中底色；相邻视口预缓存仅在此列表设为 `CacheLength=0.5`。压缩、瘦身和下载的类型明确的数据模板使用编译绑定，不全局打开动态绑定的编译模式。
+- 视频总结封面与帧卡片按展示宽度乘屏幕缩放解码，保持实际画面比例；图片压缩原尺寸对比及媒体输出保留完整分辨率。
 
 ### 9.1 交互态
 
@@ -954,6 +961,14 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 - PDF 预览按真实纸页比例展示，不套视频至少铺满一轴的规则；纸张本身与主题 Card 表面分开，参数使用通用字段契约。
 - 图片按自身比例适配；双页看图、全屏、播放器 VR 由各自舞台控制几何。纯音频波形、小片段缩略图和连续播放画面不加静态预览氛围光 / 投影。普通图片大预览复用 10.3，视频交互叠层坐标按 10.4。
 
+### 10.13 软件更新
+
+- “关于 → 软件更新”使用现有设置分组表面，持续展示真实检查结果、目标版本、包大小、下载与准备进度、待安装状态及失败原因。更新方式、状态、操作分别成行；中文说明允许换行。间距引用 `StControlGap`，操作外边距引用 `StUpdateActionMargin`（4,2），说明滚动区最大高度引用 `StUpdateNotesHeight`（200），进度复用 `ProgressBar.ac`。更新说明默认折叠，按原文显示为可选择文本，不执行 Release 中的 HTML。
+- 帮助菜单及 macOS 应用菜单提供固定的软件更新入口，标题随检查、下载和待重启状态变化；关闭或清除通知不影响状态。所有入口复用同一个更新器和状态，不重复启动下载。
+- 每个状态卡只有一个主操作：下载更新、重试下载、重试安装或重启并更新；检查、停止下载、发布页和日志使用次级按钮。准备阶段使用不定进度，下载阶段只使用真实字节数计算百分比。
+- 队列运行或任务编辑时禁用重启，并显示等待原因；关闭到托盘不会触发安装。主动重启通过正常保存及退出流程，独立守护确认安装成功后才重新打开应用；普通退出安装不自动重新打开。
+- 静默更新只隐藏常规提醒，失败仍可见并可重试、打开日志；下一次启动根据安装记录及实际运行版本显示成功反馈。后台检查不抢焦点，长期驻留时每天检查一次。
+
 ## 11. 远程网页与手机
 
 参考 `docs/ui/remote-*.png`。断点 760 px。
@@ -967,6 +982,7 @@ var mobile = Bounds.Width < 760;
 ### 11.1 桌面（≥ 760 px）
 
 - 顶部为 logo、标题、连接状态胶囊、居中分段导航（所有任务 / 文件与任务下发 / 服务器）、“重新连接”。默认打开“所有任务”。
+- 较窄桌面窗口保留 logo、连接状态与导航，收起品牌长标题；长地址与服务器信息值可省略，悬停显示完整内容。任务列表可用宽度不足 640 px 时采用紧凑任务行并将标题与操作分行，右侧详情仍保留；响应列表自身宽度变化，不改变 760 px 的页面断点。
 - **新建任务**：三张编号卡片“1 选择文件 · 2 选择工具 · 3 输出与提交”，宽度约 1.35 : 1 : 1；底部操作栏放“包括子文件夹 / 立即执行”和主按钮；未确认的上次提交用顶部横幅提示“放弃 / 恢复”。
 - **文件浏览**：返回 / 上一级 / 面包屑 / 刷新；“常用位置”只列有意义的位置（不显示 /proc、/sys、/dev 等）；行首复选框，点文件夹进入。不提供拖放区。
 - **编辑器**：顶部为返回、文件胶囊、工具徽标；左侧舞台（预览、传输、时间线或工具专属底栏），右侧检查器。剪辑、裁剪、去水印、合并都调用真实接口（`/web/preview/frame|strip|boundaries|nudge`）。
@@ -979,6 +995,7 @@ var mobile = Bounds.Width < 760;
 
 - 大标题、底部标签栏（所有任务 / 任务下发 / 服务器）、卡片式任务、右下悬浮“创建任务”（大号主按钮，悬浮阴影 `0 6 16 #55007AFF`）。
 - 新建任务为分步导航，底部固定“下一步”主按钮；编辑器上下排列。
+- 步骤条按可用宽度三等分，文字可换行，不用固定最小宽度撑破窄屏。恢复横幅在手机上将操作移到正文下方，按钮按可用宽度换行。
 - 页面外边距 16。
 
 ### 11.3 网页主题资源
