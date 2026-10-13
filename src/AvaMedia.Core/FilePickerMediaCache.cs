@@ -44,7 +44,7 @@ public sealed class FilePickerMediaCache
     {
         var fullPath = Path.GetFullPath(path);
         if (OperatingSystem.IsWindows()) fullPath = fullPath.ToUpperInvariant();
-        var identity = $"picker-media-v2|{fullPath.Length}:{fullPath}|{size}|{modified?.UtcTicks}";
+        var identity = $"picker-media-v3|{fullPath.Length}:{fullPath}|{size}|{modified?.UtcTicks}";
         var key = _keys[(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity))[0]) % _keys.Length];
         await key.WaitAsync(token).ConfigureAwait(false);
         try

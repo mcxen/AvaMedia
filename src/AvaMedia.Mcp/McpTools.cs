@@ -51,7 +51,8 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
         if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentException("预览时间无效。");
         var info = await workspace.Engine.Probe(path, ct).ConfigureAwait(false);
         if (info.Duration > 0) seconds = Math.Min(seconds, Math.Max(0, info.Duration - .05));
-        var frame = await workspace.Engine.Thumbnail(path, seconds, VideoPreviewSizes.Preview.Width, VideoPreviewSizes.Preview.Height, ct, pad: false).ConfigureAwait(false);
+        var size = VideoPreviewSizes.Bound(info, VideoPreviewSizes.Preview);
+        var frame = await workspace.Engine.Thumbnail(path, seconds, size.Width, size.Height, ct, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
         return new(info, seconds, Convert.ToBase64String(frame));
     }
 

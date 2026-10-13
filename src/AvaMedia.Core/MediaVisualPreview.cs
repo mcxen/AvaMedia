@@ -12,7 +12,9 @@ public static class MediaVisualPreview
         else if(draft.Width>0){width=draft.Width;height=Math.Max(1,(int)Math.Round(width/ratio));}
         else if(draft.Height>0){height=draft.Height;width=Math.Max(1,(int)Math.Round(height*ratio));}
         var size=previewSize??VideoPreviewSizes.Preview;
-        var scale=Math.Min(1,Math.Min(size.Width/(double)Math.Max(1,width),size.Height/(double)Math.Max(1,height)));
+        var quarterTurn=draft.Rotation is 90 or 270;
+        var projectedWidth=quarterTurn?height:width;var projectedHeight=quarterTurn?width:height;
+        var scale=Math.Min(1,Math.Min(size.Width/(double)Math.Max(1,projectedWidth),size.Height/(double)Math.Max(1,projectedHeight)));
         draft.Width=Math.Max(1,(int)Math.Round(width*scale));draft.Height=Math.Max(1,(int)Math.Round(height*scale));
         draft.Format=MediaEngine.IsImage(options.Format)&&options.Format is "jpg" or "jpeg" or "webp"?options.Format:"png";
         draft.Start=info.Duration>0?Math.Clamp(seconds,0,Math.Max(0,info.Duration-.001)):0;draft.End=0;
