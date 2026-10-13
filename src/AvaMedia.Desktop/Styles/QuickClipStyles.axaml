@@ -51,7 +51,8 @@
   <!-- Buttons: flat icon buttons, white pills, the round play button and the blue primary. -->
 
   <Style Selector="Window.editor Grid#QuickRoot Button.frame"><Setter Property="Padding" Value="0"/><Setter Property="Height" Value="75"/><Setter Property="CornerRadius" Value="{DynamicResource AcListRadius}"/><Setter Property="ClipToBounds" Value="True"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="{DynamicResource QcPreview}"/><Setter Property="BorderThickness" Value="0"/></Style>
-  <Style Selector="Window.editor Grid#QuickRoot Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcPreview}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.frame:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource QcPreview}"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)"><Setter Property="Background" Value="{DynamicResource QcPreview}"/></Style>
 
   <!-- Title bar segmented control (ModeButtons are built by EditorWindow.Modes.cs). -->
 

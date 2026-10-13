@@ -320,15 +320,15 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <!-- SimpleTheme changes the presenter directly; state styles must target it too. -->
-  <Style Selector="Button:not(.ac):not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button:not(.ac):not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Background" Value="{DynamicResource UiHover}" />
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}" />
   </Style>
-  <Style Selector="Button:not(.ac):not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button:not(.ac):not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Background" Value="{DynamicResource UiPressed}" />
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccentBorder}" />
   </Style>
-  <Style Selector="Button:not(.ac):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button:not(.ac):focus-visible /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}" />
   </Style>
   <Style Selector="Button.tool">
@@ -402,6 +402,6 @@
   <Style Selector="NumericUpDown:not(:disabled) /template/ TextBox#PART_TextBox, NumericUpDown:disabled /template/ TextBox#PART_TextBox"><Setter Property="MinHeight" Value="0"/><Setter Property="Margin" Value="0"/></Style>
   <Style Selector="ListBox"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/></Style>
   <Style Selector="ListBox:not(.ac) ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
-  <Style Selector="ListBox:not(.ac) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
+  <Style Selector="ListBox:not(.ac) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)"><Setter Property="Background" Value="{DynamicResource UiSelection}"/><Setter Property="Foreground" Value="{DynamicResource UiSelectionText}"/></Style>
   <Style Selector="MenuItem /template/ TextBlock#PART_InputGestureText"><Setter Property="IsVisible" Value="False"/></Style>
 </Styles>

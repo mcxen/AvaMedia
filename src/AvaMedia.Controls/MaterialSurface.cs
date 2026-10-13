@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 
 namespace AvaMedia.Controls;
 
@@ -24,6 +25,7 @@ public sealed class MaterialSurface : ContentControl
     private IReadOnlyList<WindowTransparencyLevel>? _previousLevels;
     private IDisposable? _rootBackground;
     private MacPopupMaterial? _nativePopup;
+    private bool _nativeClipUnavailable;
     public bool MaterialEnabled { get => GetValue(MaterialEnabledProperty); set => SetValue(MaterialEnabledProperty, value); }
     public Color MaterialTintColor { get => GetValue(MaterialTintColorProperty); set => SetValue(MaterialTintColorProperty, value); }
     public double MaterialTintOpacity { get => GetValue(MaterialTintOpacityProperty); set => SetValue(MaterialTintOpacityProperty, value); }
@@ -40,11 +42,13 @@ public sealed class MaterialSurface : ContentControl
         base.OnAttachedToVisualTree(e);
         _root = TopLevel.GetTopLevel(this);
         if (_root is not null) _root.PropertyChanged += RootChanged;
+        LayoutUpdated += SurfaceLayout;
         Refresh();
     }
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         if (_root is not null) _root.PropertyChanged -= RootChanged;
+        LayoutUpdated -= SurfaceLayout;
         RestoreRoot(); _root = null;
         SetValue(IsAcrylicActiveProperty, false);
         base.OnDetachedFromVisualTree(e);
@@ -60,6 +64,7 @@ public sealed class MaterialSurface : ContentControl
     {
         if (e.Property == TopLevel.ActualTransparencyLevelProperty) UpdateActive();
     }
+    private void SurfaceLayout(object? sender, EventArgs e) => UpdateActive();
     private void Refresh()
     {
         if (Background is ISolidColorBrush fallback) Material.FallbackColor = fallback.Color;
@@ -78,7 +83,7 @@ public sealed class MaterialSurface : ContentControl
             }
             // Native blur must be clipped too; otherwise its rectangular host shows
             // through the transparent corners of the Avalonia surface.
-            WindowTransparencyLevel[] levels = _nativePopup is not null && HasUniformRadius
+            WindowTransparencyLevel[] levels = _nativePopup is not null && HasUniformRadius && !_nativeClipUnavailable
                 ? [WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Transparent]
                 : [WindowTransparencyLevel.Transparent];
             // Reapplying the same hints makes the Avalonia 11 native backend advance
@@ -92,10 +97,22 @@ public sealed class MaterialSurface : ContentControl
         && CornerRadius.TopLeft == CornerRadius.BottomRight && CornerRadius.TopLeft == CornerRadius.BottomLeft;
     private void UpdateActive()
     {
-        var active = MaterialEnabled && HasUniformRadius && _nativePopup is not null
+        var active = MaterialEnabled && HasUniformRadius && _nativePopup is not null && !_nativeClipUnavailable
             && _root is PopupRoot && (_root.ActualTransparencyLevel == WindowTransparencyLevel.AcrylicBlur
                 || _root.ActualTransparencyLevel == WindowTransparencyLevel.Blur);
-        if (active) _nativePopup!.Apply(CornerRadius.TopLeft);
+        if (active && Bounds.Width > 0 && Bounds.Height > 0)
+        {
+            var origin = this.TranslatePoint(default, _root!);
+            var end = this.TranslatePoint(new Point(Bounds.Width, Bounds.Height), _root!);
+            active = origin.HasValue && end.HasValue && _nativePopup!.Apply(new Rect(origin.Value, end.Value), CornerRadius.TopLeft);
+            if (!active)
+            {
+                _nativeClipUnavailable = true;
+                if (!_root!.TransparencyLevelHint.SequenceEqual(new[] { WindowTransparencyLevel.Transparent }))
+                    _root.TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
+            }
+        }
+        else if (active) active = false;
         else _nativePopup?.Restore();
         SetValue(IsAcrylicActiveProperty, active);
     }
@@ -103,6 +120,7 @@ public sealed class MaterialSurface : ContentControl
     {
         var nativePopup = _nativePopup; _nativePopup = null;
         nativePopup?.Dispose();
+        _nativeClipUnavailable = false;
         if (_previousLevels is not null && _root is not null) _root.TransparencyLevelHint = _previousLevels;
         _previousLevels = null; _rootBackground?.Dispose(); _rootBackground = null;
     }
