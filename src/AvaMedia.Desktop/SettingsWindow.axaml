@@ -3,7 +3,7 @@
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/SettingsStyles.axaml"/>
   </Window.Styles>
   <Grid x:Name="SettingsRoot" RowDefinitions="*,Auto">
-    <TabControl x:Name="SettingsTabs" Classes="settingsNavigation" TabStripPlacement="Left" SelectedIndex="0">
+    <TabControl x:Name="SettingsTabs" Grid.RowSpan="2" Classes="settingsNavigation" TabStripPlacement="Left" SelectedIndex="0">
       <TabItem x:Name="GeneralTab" Header="通用">
         <Border Classes="settingsPage">
           <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -426,6 +426,7 @@
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="模型下载源" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="ModelSourceHint" Classes="settingsDescription" TextWrapping="Wrap"/>
                       </StackPanel>
                       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ComboBox x:Name="ModelSourceInput" Width="{DynamicResource StChoiceWidth}" Classes="ac"/>
@@ -455,7 +456,6 @@
                   </Border>
                 </StackPanel>
               </Border>
-              <TextBlock x:Name="ModelSourceHint" Classes="settingsDescription" TextWrapping="Wrap" Margin="{DynamicResource StHintMargin}"/>
               <TextBlock Classes="settingsHeading" Text="标签与内容"/>
               <Border Classes="ac-group">
                 <StackPanel>
@@ -542,7 +542,7 @@
                 </StackPanel>
               </Border>
               <StackPanel x:Name="OnlineProviderSection">
-                <TextBlock Classes="settingsHeading" Text="连接信息"/>
+                <TextBlock Classes="settingsHeading" Text="{Binding #OnlineNameInput.Text}" local:Localization.IsUserText="True" TextTrimming="CharacterEllipsis"/>
                 <Border Classes="ac-group">
                   <StackPanel>
                     <Border Classes="ac-setting-row settingsRow">
@@ -749,7 +749,9 @@
               <TextBlock Classes="settingsHeading" Text="运行信息"/>
               <Border Classes="ac-group">
                 <StackPanel>
-                  <TextBox x:Name="RuntimeInfo" Classes="ac" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Margin="{DynamicResource StToolsMargin}"/>
+                  <Border Classes="ac-setting-row settingsRow">
+                    <SelectableTextBlock x:Name="RuntimeInfo" Classes="settingsDescription" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                  </Border>
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -774,6 +776,7 @@
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource StPropertyGap}">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="更新方式" TextWrapping="Wrap"/>
+                        <TextBlock Classes="settingsDescription" Text="可选：仅手动检查 / 启动时检查并提示 / 自动下载，退出时安装" TextWrapping="Wrap"/>
                       </StackPanel>
                       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{DynamicResource StControlGap}" VerticalAlignment="Center">
                         <ComboBox x:Name="UpdateModeInput" Width="{DynamicResource StLongFieldWidth}" Classes="ac">
