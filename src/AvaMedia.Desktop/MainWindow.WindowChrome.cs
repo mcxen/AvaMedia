@@ -82,13 +82,20 @@ public partial class MainWindow
     {
         if (_frameHooked) return;
         _frameHooked = true;
-        foreach (var region in new Control[] { ModernTitleBar, ModernQueueBar })
-            region.PointerPressed += (_, e) =>
-            {
-                if (!ModernChrome || FrameKind == WindowFrameKind.System || e.Source is Control c && IsInteractive(c)) return;
-                if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-                if (e.ClickCount == 2) ToggleMaximize(); else BeginMoveDrag(e);
-            };
+        // Listen on the window: transparent gaps do not hit the title grids, and the
+        // sidebar header sits outside them. Use the laid-out title height across both columns.
+        PointerPressed += (_, e) =>
+        {
+            if (!ModernChrome || FrameKind == WindowFrameKind.System || e.Source is Control c && IsInteractive(c)) return;
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+            var titlePoint = e.GetPosition(ModernTitleBar);
+            var queuePoint = e.GetPosition(ModernQueueBar);
+            var inTitle = titlePoint.Y >= -ModernTitleBar.Margin.Top && titlePoint.Y < ModernTitleBar.Bounds.Height;
+            var inQueue = new Rect(ModernQueueBar.Bounds.Size).Contains(queuePoint);
+            if (!inTitle && !inQueue) return;
+            e.Handled = true;
+            if (e.ClickCount == 2) ToggleMaximize(); else BeginMoveDrag(e);
+        };
         PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) UpdateMaximizeGlyph(); };
     }
 

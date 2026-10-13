@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Controls.Shapes;
 using Avalonia.Platform;
+using Avalonia.VisualTree;
 
 namespace AvaMedia.Desktop.Controls;
 
@@ -88,8 +89,8 @@ internal static class WindowChrome
 
     public static bool IsInteractive(Control control)
     {
-        for (Control? c = control; c is not null; c = c.Parent as Control)
-            if (c is Button or TextBox or MenuItem or Slider or ComboBox) return true;
+        for (Visual? c = control; c is not null; c = c.GetVisualParent())
+            if (c is Button or TextBox or MenuItem or Slider or ComboBox or GridSplitter) return true;
         return false;
     }
 
