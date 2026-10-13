@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -121,10 +122,40 @@ internal sealed class FileBrowserCell : AvaMedia.Controls.ListRow
         if (media.Thumbnail is not { Length: > 0 } bytes || _bitmap is not null) return;
         try
         {
-            using var stream = new MemoryStream(bytes); _bitmap = Bitmap.DecodeToWidth(stream, _grid ? 480 : 96);
+            using var stream = new MemoryStream(bytes); _bitmap = Bitmap.DecodeToWidth(stream, DecodeWidth(bytes, _grid ? 320 : 96));
             _image.Source = _bitmap; _placeholder.IsVisible = false;
         }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException) { }
+    }
+    private static int DecodeWidth(ReadOnlySpan<byte> bytes, int budget)
+    {
+        // Inspect encoded cover dimensions, which can be smaller than source metadata.
+        ReadOnlySpan<byte> pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+        if (bytes.Length >= 24 && bytes[..8].SequenceEqual(pngSignature))
+        {
+            var width = BinaryPrimitives.ReadInt32BigEndian(bytes.Slice(16, 4));
+            return width > 0 ? Math.Min(budget, width) : budget;
+        }
+        if (bytes.Length < 2 || bytes[0] != 0xff || bytes[1] != 0xd8) return budget;
+        var offset = 2;
+        while (offset + 4 <= bytes.Length)
+        {
+            if (bytes[offset++] != 0xff) continue;
+            while (offset < bytes.Length && bytes[offset] == 0xff) offset++;
+            if (offset + 3 > bytes.Length) break;
+            var marker = bytes[offset++];
+            if (marker is 0xd9 or 0xda) break;
+            if (marker is 0x01 or >= 0xd0 and <= 0xd8) continue;
+            var length = BinaryPrimitives.ReadUInt16BigEndian(bytes.Slice(offset, 2));
+            if (length < 2 || offset + length > bytes.Length) break;
+            if ((marker is 0xc0 or 0xc1 or 0xc2 or 0xc3 or 0xc5 or 0xc6 or 0xc7 or 0xc9 or 0xca or 0xcb or 0xcd or 0xce or 0xcf) && length >= 7)
+            {
+                var width = BinaryPrimitives.ReadUInt16BigEndian(bytes.Slice(offset + 5, 2));
+                return width > 0 ? Math.Min(budget, width) : budget;
+            }
+            offset += length;
+        }
+        return budget;
     }
     public void ReleaseImage() { _image.Source = null; _bitmap?.Dispose(); _bitmap = null; _applied = null; _placeholder.IsVisible = true; }
     internal static string Duration(double seconds) => !double.IsFinite(seconds) || seconds <= 0 ? "—" : seconds >= 3600

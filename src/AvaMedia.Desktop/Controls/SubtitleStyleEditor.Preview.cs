@@ -17,7 +17,9 @@ public sealed partial class SubtitleStyleEditor
     private readonly StackPanel _timeline = new() { Spacing = 6, IsVisible = false };
     private readonly TextBlock _previewNotice = Ui.ComponentText("", "caption");
     private readonly TextBlock _totalTime = Ui.ComponentText("", "caption");
-    private CancellationTokenSource? _videoSource, _seekFrame;
+    private CancellationTokenSource? _videoSource;
+    private readonly LatestPreviewRequest _previewRequests = new();
+    private PreviewDrag? _seekDrag;
     private IMediaEngine? _previewEngine;
     private string? _previewPath;
     private MediaInfo? _previewInfo;
@@ -56,6 +58,7 @@ public sealed partial class SubtitleStyleEditor
         _totalTime.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
         _timeline.Children.Add(row); _timeline.Children.Add(_totalTime); preview.Children.Add(_timeline);
         _previewNotice.IsVisible = false; preview.Children.Add(_previewNotice);
+        _seekDrag = new(_seek, () => PreviewReady = SeekAsync(_seek.Value, false)); _seekDrag.Attach();
         _seek.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty && !_changingTime) PreviewReady = SeekAsync(_seek.Value, true); };
         _time.KeyDown += (_, e) => { if (e.Key == Key.Enter) { ReadPreviewTime(); e.Handled = true; } };
         _time.LostFocus += (_, _) => ReadPreviewTime();
@@ -73,7 +76,7 @@ public sealed partial class SubtitleStyleEditor
 
     public Task SetVideoAsync(IMediaEngine engine, string? path, int videoStreamIndex = 0, CancellationToken ct = default)
     {
-        _videoSource?.Cancel(); _seekFrame?.Cancel(); _videoSource?.Dispose();
+        _videoSource?.Cancel(); _previewRequests.Cancel(); _videoSource?.Dispose();
         _videoSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var revision = ++_videoRevision;
         _previewEngine = engine; _previewPath = path; _videoStream = videoStreamIndex; _previewInfo = null;
@@ -110,22 +113,25 @@ public sealed partial class SubtitleStyleEditor
         PreviewReady = SeekAsync(seconds, false);
     }
 
-    private async Task SeekAsync(double seconds, bool debounce)
+    private Task SeekAsync(double seconds, bool debounce)
     {
-        if (_previewInfo is not {} info || _videoSource is null || _disposed) return;
-        _seekFrame?.Cancel(); _seekFrame?.Dispose(); _seekFrame = CancellationTokenSource.CreateLinkedTokenSource(_videoSource.Token);
-        var ct = _seekFrame.Token; var revision = ++_frameRevision; var videoRevision = _videoRevision;
-        var path = _previewPath!; var engine = _previewEngine!; var stream = _videoStream;
+        if (_previewInfo is not {} info || _videoSource is null || _disposed) return Task.CompletedTask;
+        var videoRevision = _videoRevision; var path = _previewPath!; var engine = _previewEngine!; var stream = _videoStream;
+        var size = _seekDrag?.IsDragging == true ? VideoPreviewSizes.Scrub : VideoPreviewSizes.Preview;
         _changingTime = true; _seek.Value = seconds; _time.Text = EditorTime.Format(seconds); _changingTime = false;
-        try
+        return _previewRequests.Request(async ct =>
         {
-            if (debounce) await Task.Delay(120, ct);
-            var frame = await engine.Thumbnail(path, seconds, 960, 540, ct, pad: false, videoStreamIndex: stream, endExclusive: info.Duration > 0 && seconds >= info.Duration);
-            if (ct.IsCancellationRequested || _disposed || revision != _frameRevision || videoRevision != _videoRevision) return;
-            SetFrame(frame, info.Width, info.Height, sourceResolution: _previewReferenceHeight != 288); _previewNotice.IsVisible = false;
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (Exception error) { if (!_disposed && revision == _frameRevision && videoRevision == _videoRevision) ShowPreviewError(error.Message); }
+            var revision = ++_frameRevision;
+            try
+            {
+                var bounded = VideoPreviewSizes.Bound(info, size);
+                var frame = await engine.Thumbnail(path, seconds, bounded.Width, bounded.Height, ct, pad: false, videoStreamIndex: stream, endExclusive: info.Duration > 0 && seconds >= info.Duration);
+                if (ct.IsCancellationRequested || _disposed || revision != _frameRevision || videoRevision != _videoRevision) return;
+                SetFrame(frame, info.Width, info.Height, sourceResolution: _previewReferenceHeight != 288); _previewNotice.IsVisible = false;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+            catch (Exception error) { if (!_disposed && !ct.IsCancellationRequested && revision == _frameRevision && videoRevision == _videoRevision) ShowPreviewError(error.Message); }
+        }, _videoSource.Token, immediate: !debounce);
     }
 
     private void ShowPreviewError(string message)

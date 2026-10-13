@@ -17,7 +17,13 @@ public partial class EditorWindow : Window
     private readonly Playback _player;
     private readonly MediaFrameView _previewView,_startView,_endView;
     private readonly CancellationTokenSource _lifetime=new();
-    private readonly PreviewRequest _seek=new(),_thumbs=new(),_frameStep=new();
+    private readonly PreviewRequest _seek=new(),_frameStep=new();
+    private readonly LatestPreviewRequest _boundaryPreviews = new();
+    private readonly Dictionary<MediaFrameView, (MediaInfo Info, int Stream, double Seconds, bool Exclusive)> _boundaryFrames = [];
+    private readonly LatestPreviewRequest _scrub = new();
+    private PreviewDrag? _seekDrag;
+    private Task _scrubStop = Task.CompletedTask;
+    private int _scrubRevision;
     private readonly TaskCompletionSource _ready=new();
     private bool _updating;
     private bool _closed;
@@ -68,7 +74,8 @@ public partial class EditorWindow : Window
         foreach(var box in new[]{StartTime,EndTime,CropX,CropY,CropWidth,CropHeight})box.PropertyChanged+=(_,e)=>{if(e.Property==TextBox.TextProperty && !_updating){if(ReferenceEquals(box,StartTime)||ReferenceEquals(box,EndTime))_frameStep.Cancel();ValidateInputs();}};
         SpeedCombo.SelectionChanged+=(_,_)=>{if(!_updating && SpeedCombo.SelectedIndex>=0 && SpeedCombo.SelectedIndex<_speedValues.Length){_options.Speed=_speedValues[SpeedCombo.SelectedIndex];UpdateTimes();}};
         TrimBar.Changed+=(s,e)=>{_frameStep.Cancel();_options.Start=s;_options.End=e;UpdateTimes();ScheduleThumbs();};
-        SeekBar.PropertyChanged+=(_,e)=>{if(e.Property==Slider.ValueProperty && !_updating && _info is not null)Seek(SeekBar.Value);};
+        _seekDrag = new(SeekBar, () => Seek(SeekBar.Value)); _seekDrag.Attach();
+        SeekBar.PropertyChanged+=(_,e)=>{if(e.Property==Slider.ValueProperty && !_updating && _info is not null){if(_seekDrag.IsDragging)Scrub(SeekBar.Value);else Seek(SeekBar.Value);}};
         _player.Updated+=p=>{var revision=_playRevision;if(_closed||revision!=_previewRevision)return;SetPosition(p,false);_previewView.Show(_player.Frame);if(_previewEnd is {} end && p>=end && !_stoppingSelection)_previewReady=FinishSelection(end,revision);};
         _player.Finished+=()=>{var revision=_playRevision;if(_closed||revision!=_previewRevision)return;if(_previewEnd is {} end){if(!_stoppingSelection)_previewReady=FinishSelection(end,revision);}else _previewReady=FinishPlayback(revision);};
         _player.Error+=message=>{if(!_closed){CancelSegmentSequence();_previewFailed=true;PreviewStatus.Text=message;PreviewStatus.IsVisible=true;}};
@@ -76,12 +83,13 @@ public partial class EditorWindow : Window
         Opened+=async(_,_)=>{await Load();if(mode is "crop" or "delogo"){EditTabs.SelectedIndex=1;if(mode=="delogo")DelogoMode.IsChecked=true;}};
         if (mode == "person-exclusion") ConfigureIntervalSelection();
         PropertyChanged+=(_,e)=>{if(e.Property==WindowStateProperty||e.Property==IsVisibleProperty)_player.PresentationVisible=IsVisible&&WindowState!=WindowState.Minimized;};
-        Closed+=(_,_)=>{_closed=true;_previewRevision++;_thumbnailRevision++;_playRevision=-1;_lifetime.Cancel();_seek.Dispose();_thumbs.Dispose();_frameStep.Dispose();_player.Dispose();_previewView.Dispose();_startView.Dispose();_endView.Dispose();_lifetime.Dispose();};
+        Closed+=(_,_)=>{_closed=true;_previewRevision++;_thumbnailRevision++;_playRevision=-1;_lifetime.Cancel();_scrub.Dispose();_boundaryPreviews.Dispose();_seek.Dispose();_frameStep.Dispose();_player.Dispose();_previewView.Dispose();_startView.Dispose();_endView.Dispose();_lifetime.Dispose();};
     }
     private async Task Load()
     {
         try
         {
+            _scrub.Cancel(); _boundaryPreviews.Cancel(); _seek.Cancel(); _frameStep.Cancel(); _previewRevision++; _thumbnailRevision++; _playRevision=-1;
             _info=await _engine.Probe(_path,_lifetime.Token,_options.VideoStreamIndex,_options.AudioStreamIndex);if(_closed)return;_options.VideoStreamIndex=_info.VideoStreamIndex;
             _previewView.Clear();_player.Configure(_info);
             var display=MediaStreams.DisplaySize(_info);PreviewImage.Width=Math.Max(1,display.Width);PreviewImage.Height=Math.Max(1,display.Height);
@@ -99,13 +107,33 @@ public partial class EditorWindow : Window
         catch(OperationCanceledException){_ready.TrySetResult();}
         catch(Exception e){PreviewStatus.Text=Localization.Format($"媒体读取失败：{e.Message}");_ready.TrySetResult();if(!_closed)await Ui.Message(this,"媒体读取失败",e.Message);}
     }
-    private async Task Frame(MediaFrameView target,double seconds,CancellationToken ct,bool endExclusive=false,int? revision=null,int? thumbnailRevision=null)
+    private async Task Frame(MediaFrameView target, double seconds, CancellationToken ct, bool endExclusive = false,
+        int? revision = null, int? thumbnailRevision = null, VideoPreviewSize? requestedSize = null)
     {
-        var info=_info;if(info?.HasVideo!=true)return;var expectedRevision=revision??_previewRevision;var expectedThumbnailRevision=thumbnailRevision??_thumbnailRevision;var streamIndex=_options.VideoStreamIndex;var time=info.Duration>0&&double.IsFinite(seconds)?Math.Clamp(seconds,0,info.Duration):0;var data=await _previewFrames.Thumbnail(_path,time,960,540,ct,pad:false,videoStreamIndex:streamIndex,endExclusive:endExclusive || info.Duration>0 && time>=info.Duration);ct.ThrowIfCancellationRequested();if(_closed||!ReferenceEquals(info,_info)||streamIndex!=_options.VideoStreamIndex||(ReferenceEquals(target,_previewView)?expectedRevision!=_previewRevision:expectedThumbnailRevision!=_thumbnailRevision))return;
-        if(ReferenceEquals(target,_previewView))PreviewStatus.IsVisible=false;target.Show(data);
+        var info = _info;
+        if (info?.HasVideo != true) return;
+        ct.ThrowIfCancellationRequested();
+        var preview = ReferenceEquals(target, _previewView);
+        var expectedRevision = revision ?? _previewRevision;
+        var expectedThumbnailRevision = thumbnailRevision ?? _thumbnailRevision;
+        var streamIndex = _options.VideoStreamIndex;
+        var time = info.Duration > 0 && double.IsFinite(seconds) ? Math.Clamp(seconds, 0, info.Duration) : 0;
+        var exclusive = endExclusive || info.Duration > 0 && time >= info.Duration;
+        if (!preview && _boundaryFrames.TryGetValue(target, out var shown) && ReferenceEquals(info, shown.Info)
+            && streamIndex == shown.Stream && time == shown.Seconds && exclusive == shown.Exclusive) return;
+        var size = VideoPreviewSizes.Bound(info, requestedSize ?? (preview ? VideoPreviewSizes.Preview : VideoPreviewSizes.Boundary));
+        var data = await _previewFrames.Thumbnail(_path, time, size.Width, size.Height, ct, pad: false,
+            videoStreamIndex: streamIndex, endExclusive: exclusive);
+        ct.ThrowIfCancellationRequested();
+        if (_closed || !ReferenceEquals(info, _info) || streamIndex != _options.VideoStreamIndex
+            || (preview ? expectedRevision != _previewRevision : expectedThumbnailRevision != _thumbnailRevision)) return;
+        if (preview) PreviewStatus.IsVisible = false;
+        target.Show(data);
+        if (!preview) _boundaryFrames[target] = (info, streamIndex, time, exclusive);
     }
     private (int Revision,CancellationToken Token) BeginPreview(bool keepSequence=false)
     {
+        _scrub.Cancel();
         if(!keepSequence)CancelSegmentSequence();_previewFailed=false;
         var token=_seek.Restart(_lifetime.Token);
         _frameStep.Cancel();_playRevision=-1;_previewEnd=null;_stoppingSelection=false;
@@ -119,14 +147,47 @@ public partial class EditorWindow : Window
         if(_closed||_info is null)return;var (revision,token)=BeginPreview(keepSequence);SetPosition(seconds);
         async Task Run()
         {
-            try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);await Task.Delay(120,token);await Frame(_previewView,seconds,token,revision:revision);}catch(OperationCanceledException){}catch(Exception e){if(CurrentPreview(revision)){PreviewStatus.Text=e.Message;PreviewStatus.IsVisible=true;}}
+            try{await _player.Stop();token.ThrowIfCancellationRequested();if(!CurrentPreview(revision))return;SetPlaybackButton(false);await Frame(_previewView,seconds,token,revision:revision);}catch(OperationCanceledException){}catch(Exception e){if(CurrentPreview(revision)){PreviewStatus.Text=e.Message;PreviewStatus.IsVisible=true;}}
         }
         _previewReady=Run();
     }
-    private Task Thumbnails(CancellationToken ct)=>Thumbnails(_options.Clone(),++_thumbnailRevision,ct);
+    private void Scrub(double seconds)
+    {
+        if (_closed || _info is null) return;
+        SetPosition(seconds);
+        if (!_scrub.IsRunning)
+        {
+            var request = BeginPreview(); _scrubRevision = request.Revision;
+            _scrubStop = _player.Stop();
+        }
+        var revision = _scrubRevision; var stopped = _scrubStop;
+        _previewReady = _scrub.Request(async token =>
+        {
+            try
+            {
+                await stopped.WaitAsync(token); token.ThrowIfCancellationRequested();
+                if (!CurrentPreview(revision)) return;
+                SetPlaybackButton(false);
+                await Frame(_previewView, seconds, token, revision: revision, requestedSize: VideoPreviewSizes.Scrub);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception error) { if (CurrentPreview(revision)) { PreviewStatus.Text = error.Message; PreviewStatus.IsVisible = true; } }
+        }, _seek.Token);
+    }
+    private Task Thumbnails(CancellationToken ct){_boundaryPreviews.Cancel();return Thumbnails(_options.Clone(),++_thumbnailRevision,ct);}
     private async Task Thumbnails(ConversionOptions options,int revision,CancellationToken ct)
-    {if(_info?.HasVideo==true){await Frame(_startView,options.Start,ct,thumbnailRevision:revision);await Frame(_endView,options.End,ct,endExclusive:options.End>0,thumbnailRevision:revision);}}
-    private void ScheduleThumbs(){var token=_thumbs.Restart(_lifetime.Token);var revision=++_thumbnailRevision;var options=_options.Clone();async Task Run(){try{await Task.Delay(180,token);await Thumbnails(options,revision,token);}catch(OperationCanceledException){}catch(Exception e){if(!_closed&&revision==_thumbnailRevision){PreviewStatus.Text=Localization.Format($"边界预览失败：{e.Message}");PreviewStatus.IsVisible=true;}}}_thumbnailsReady=Run();}
+    {if(_info?.HasVideo==true){await Task.WhenAll(Frame(_startView,options.Start,ct,thumbnailRevision:revision),Frame(_endView,options.End,ct,endExclusive:options.End>0,thumbnailRevision:revision));}}
+    private void ScheduleThumbs()
+    {
+        var options = _options.Clone();
+        _thumbnailsReady = _boundaryPreviews.Request(async token =>
+        {
+            var revision = ++_thumbnailRevision;
+            try { await Thumbnails(options, revision, token); }
+            catch (OperationCanceledException) { }
+            catch (Exception error) { if (!_closed && !token.IsCancellationRequested && revision == _thumbnailRevision) { PreviewStatus.Text = Localization.Format($"边界预览失败：{error.Message}"); PreviewStatus.IsVisible = true; } }
+        }, _lifetime.Token);
+    }
     private void UpdateTimes(){_updating=true;StartTime.Text=QuickWorkflow?EditorTime.FormatQuick(_options.Start):EditorTime.Format(_options.Start);EndTime.Text=QuickWorkflow?EditorTime.FormatQuick(_options.End):EditorTime.Format(_options.End);_updating=false;TrimBar.Start=double.IsFinite(_options.Start)?Math.Clamp(_options.Start,0,TrimBar.Duration):0;TrimBar.End=double.IsFinite(_options.End)?Math.Clamp(_options.End,TrimBar.Start,TrimBar.Duration):TrimBar.Duration;TrimBar.InvalidateVisual();ValidateInputs();}
     private void SetPlaybackButton(bool playing)
     {

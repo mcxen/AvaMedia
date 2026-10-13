@@ -683,7 +683,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 
 - Avalonia 固定为 11.3.22：macOS Native 的 `AcrylicBlur` 映射到原生 Blur 模式，后端补偿级别为 0，可将 `ExperimentalAcrylicMaterial` 与原生背景模糊组合。这里不使用单独的 `Blur` 请求（该版本 Native 映射只接受 AcrylicBlur）。源码依据：[TopLevelImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Native/TopLevelImpl.cs)、[WindowBaseImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/WindowBaseImpl.mm)、[ExperimentalAcrylicBorder](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/ExperimentalAcrylicBorder.cs)。
 - `MaterialSurface` / `AcMaterialSurface` 用于组件下拉、ToolTip 和 Popover 的背景。只在 macOS 原生 `PopupRoot` 请求 `AcrylicBlur, Transparent`；背景透明，并仅在 `ActualTransparencyLevel` 实际返回 AcrylicBlur/Blur 时启用材质。每个表面独占材质实例，避免不同浮层互相改写平台补偿。
-- 原生弹出窗口必须清除 AppKit 窗口背景，并将内容层（含原生模糊）按表面的同一圆角裁切；仅设置 Avalonia 背景透明或内层 Border 圆角会露出矩形底。关闭浮层时恢复原生层状态；无法取得原生内容层或使用非均匀圆角时请求透明窗口并使用主题画刷回退。
+- 原生弹出窗口必须清除 AppKit 窗口背景，并将原生模糊视图的位置、尺寸和圆角对齐到 MaterialSurface；仅设置 Avalonia 背景透明或内层 Border 圆角会露出矩形底。只裁切模糊视图，内容与投影独立绘制；关闭浮层时恢复原生状态。无法取得原生模糊视图或使用非均匀圆角时请求透明窗口并使用主题画刷回退。
 - `AcMaterialEnabled` 默认 true；`AcMaterialTintColor` 浅色 #F6F6F8、深色 #2C2C30，`AcMaterialTintOpacity` 0.8、`AcMaterialOpacity` 0.5。Mac OS 9 / XP 关闭材质；不支持的平台、内嵌和 overlay 浮层仍使用 `AcMenuFill` 半透明画刷。关闭或拆卸表面时恢复弹出宿主的原透明度请求与背景。
 - Avalonia 11 的此路径模糊原生浮层背后内容，不能直接模糊同一窗口内的兄弟控件。不把完整业务窗口设为模糊，也不把 Linux 的半透明截图描述为 macOS 原生材质验收。窗口内菜单栏和 NativeMenu 使用自己的主题，未在本轮接入范围内。
 ---
@@ -701,6 +701,12 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 
 - 原生浏览器等依赖能力必须在附着宿主前判断；不可用时用 EmptyState.error 替代，不以 `IsVisible=False` 掩盖仍会初始化的原生控件。Linux 下载窗口隐藏“网页视频识别”及“内嵌浏览器”登录态选项，解析失败不自动打开内嵌浏览器；链接解析、外部浏览器 CDP 识别及其登录态选项继续提供。Linux 不附着原生浏览器适配器，直接创建嗅探窗口时保留真实不可用原因及关闭操作；Windows 运行时缺失 / 能力查询失败同样兜底，保留入口以便安装运行时。公共宿主先保底，业务列表 / 重试及完整接入在专项任务完成。
 - 加载顺序：组件 Defaults / ControlThemes → UiStyles → PlatformTokenLayer → 宿主角色 / ComponentSkins → 窗口专项与经典皮肤。窗口局部资源覆盖同名 Ac 键仅影响该窗口；新专项样式先写入本规范。
+
+#### 7.9.9 圆角表面与内容绘制
+
+- 按钮、列表和分段的状态底色只绘制在外层表面；组件模板内容区标记 `ac-content` 并保持透明，宿主 SimpleTheme 专用状态样式排除该内容区。胶囊按钮与编辑器帧按钮的专项底色同样作用于外层表面。
+- 圆角表面通过 `SurfaceContentClip` 裁切子内容，保留已有内容裁切与外层投影；分组首尾行、通知色条和零内边距卡片不得越过圆角。更新圆角、布局或替换内容后同步裁切，拆卸时恢复子内容原状态。
+- MaterialSurface 的投影与内容裁切分层；气泡箭头放入真实布局空间，不能用负外边距画到原生弹窗边界外。
 
 ## 8. 窗口与标题栏（按平台）
 

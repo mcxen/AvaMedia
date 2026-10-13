@@ -8,15 +8,15 @@
     <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pressed /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):focus-visible /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="BorderBrush" Value="{DynamicResource UiAccentText}"/>
   </Style>
   <Style Selector="Button.field-action"><Setter Property="Height" Value="{DynamicResource UiFieldHeight}"/></Style>

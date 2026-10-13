@@ -11,7 +11,15 @@
       </Transitions>
     </Setter>
   </Style>
-  <Style Selector="Window.motion-enabled Button /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window.motion-enabled Button /template/ Border#face">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+        <BrushTransition Property="BorderBrush" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.motion-enabled Button /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Transitions">
       <Transitions>
         <BrushTransition Property="Background" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
@@ -20,7 +28,14 @@
     </Setter>
   </Style>
   <!-- Keyboard focus must be visible immediately; only the background may fade. -->
-  <Style Selector="Window.motion-enabled Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Window.motion-enabled Button:focus-visible /template/ Border#face">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.motion-enabled Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Transitions">
       <Transitions>
         <BrushTransition Property="Background" Duration="{StaticResource MotionFast}" Easing="CubicEaseOut" />
