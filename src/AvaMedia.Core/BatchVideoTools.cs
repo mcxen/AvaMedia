@@ -5,7 +5,7 @@ using SkiaSharp;
 namespace AvaMedia.Core;
 
 // CellWidth/CellHeight bound the long/short edges; each video's display ratio determines the actual cell size.
-public sealed record ContactSheetOptions(int Columns = 3, int Rows = 3, int CellWidth = 320, int CellHeight = 180, int SheetsPerVideo = 1, string Format = "jpg", bool Timestamps = true, double StartSeconds = 0, double EndSeconds = 0);
+public sealed record ContactSheetOptions(int Columns = 3, int Rows = 3, int CellWidth = 320, int CellHeight = 180, int SheetsPerVideo = 1, string Format = "jpg", bool Timestamps = true, double StartSeconds = 0, double EndSeconds = 0, string Font = "default", string InterfaceFont = "");
 public sealed record ContactSheetProgress(string Input, int Sheet, double Percent, string Message);
 
 /// <summary>Video collection and contact-sheet generation.</summary>
@@ -41,6 +41,7 @@ public static class BatchVideoTools
         if (o.Columns is < 1 or > 10 || o.Rows is < 1 or > 10 || o.SheetsPerVideo is < 1 or > 100) throw new ArgumentException("行列数须在 1–10，每个视频拼图数量须在 1–100。");
         if (Math.Min(o.CellWidth, o.CellHeight) < 64 || Math.Max(o.CellWidth, o.CellHeight) > 1920 || Math.Min(o.CellWidth, o.CellHeight) > 1080 || (long)o.CellWidth * o.CellHeight * o.Rows * o.Columns > 40000000)
             throw new ArgumentException("单格长边上限须在 64–1920，短边上限须在 64–1080；整张拼图不能超过 4000 万像素。");
+        if (o.Font is not ("default" or "inter" or "noto-sans-sc" or "fusion-pixel")) throw new ArgumentException("请选择内置文字字体或默认字体。");
         if (o.Format is not ("jpg" or "png")) throw new ArgumentException("截图格式须为 JPG 或 PNG。");
         if (!double.IsFinite(o.StartSeconds) || !double.IsFinite(o.EndSeconds) || o.StartSeconds < 0 || o.EndSeconds < 0 || o.EndSeconds > 0 && o.EndSeconds <= o.StartSeconds)
             throw new ArgumentException("结束时间必须晚于开始时间；结束为 0 表示视频末尾。");
@@ -107,6 +108,7 @@ public static class BatchVideoTools
         var end = options.EndSeconds > 0 ? Math.Min(options.EndSeconds, duration) : duration;
         var count = options.Columns * options.Rows;
         var total = count * options.SheetsPerVideo;
+        using var fonts = new ContactSheetFonts(options);
         var bitmap = new SKBitmap(width * options.Columns, height * options.Rows);
         try
         {
@@ -124,7 +126,7 @@ public static class BatchVideoTools
                 canvas.Save();
                 canvas.Translate(cell % options.Columns * width, cell / options.Columns * height);
                 canvas.DrawBitmap(frame, new SKRect(0, 0, width, height));
-                if (options.Timestamps) DrawContactSheetTimestamp(canvas, width, height, seconds);
+                if (options.Timestamps) DrawContactSheetTimestamp(canvas, width, height, seconds, fonts, 1);
                 canvas.Restore();
                 progress?.Report(new(input, sheet + 1, (sheet + (cell + 1) * .95 / count) * 100 / options.SheetsPerVideo, $"抽帧 {index + 1}/{total}"));
             }
@@ -184,14 +186,13 @@ public static class BatchVideoTools
         return (Math.Clamp((int)Math.Round(width * scale), 1, maxWidth), Math.Clamp((int)Math.Round(height * scale), 1, maxHeight));
     }
 
-    private static void DrawContactSheetTimestamp(SKCanvas canvas, int width, int height, double seconds)
+    private static void DrawContactSheetTimestamp(SKCanvas canvas, int width, int height, double seconds, ContactSheetFonts fonts, int textScale)
     {
-        using var typeface = SKTypeface.FromFamilyName("Arial");
-        using var textPaint = new SKPaint { Typeface = typeface, IsAntialias = true, Color = SKColors.White,
-            TextSize = Math.Min(Math.Max(12, width / 22), height / 4f) };
+        using var textPaint = new SKPaint { Typeface = fonts.Primary, IsAntialias = fonts.Antialias, Color = SKColors.White,
+            TextSize = Math.Min(Math.Max(12 * textScale, width / 22), height / 4f) };
         var text = TimeSpan.FromSeconds(seconds).ToString(width >= 140 ? @"hh\:mm\:ss\.fff" : @"hh\:mm\:ss");
-        var inset = Math.Min(8, Math.Min(width, height) / 8);
-        var border = Math.Min(4, inset / 2);
+        var inset = Math.Min(8 * textScale, Math.Min(width, height) / 8);
+        var border = Math.Min(4 * textScale, inset / 2);
         var bounds = new SKRect();
         textPaint.MeasureText(text, ref bounds);
         var availableWidth = width - 2 * (inset + border);
