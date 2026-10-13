@@ -301,7 +301,12 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             "结合连续字幕理解上下文，归纳完整视频的主题、主要过程和已说明的结果，不把零散台词或开头几句当作全片总结。" +
             "根据证据可靠性和与主题的相关性选择主要内容；画面明确而字幕零散或无关时优先概括可见场景、主体与主要活动，不能把背景语句写成主线。不能由采样图推断连续动作、活动目的、身份、地点用途、施工或拆除、标志文字及含义、镜头切换或移动。/no_think";
         system += "\n" + transcriptGuidance;
-        var grounding = new VideoSummaryGrounding(textModel, evidence, system);
+        void StructuredRepair(string operation)
+        {
+            notes.Add($"{operation}输出格式不符合要求，执行一次纠正。");
+            activity.Stage("纠正输出格式", detail: operation);
+        }
+        var grounding = new VideoSummaryGrounding(textModel, evidence, system, StructuredRepair);
         job.ProgressDetail = "提取有依据的内容"; activity.Stage("提取有依据的内容");
         var facts = await grounding.ReadFactsAsync(options.ChunkCharacters, notes,
             (done, total) => { updated(new([], [], []), grounding.RejectedClaims); activity.Stage("提取有依据的内容", done, total, "段"); progress(65 + 15d * done / total); }, ct).ConfigureAwait(false);
@@ -309,14 +314,14 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
         var balanced = await grounding.BalanceAsync(facts, options.ChunkCharacters, ct).ConfigureAwait(false);
         var context = grounding.SummaryContext(balanced);
         job.ProgressDetail = "整理要点与关键词"; activity.Stage("整理要点与关键词");
-        var structure = await textModel.CompleteAsync(system,
+        var structure = await SummaryStructuredResponse.CompleteAsync(textModel, system,
             "根据覆盖全片的段落笔记归纳具体内容并写成 JSON。keywords 为至多 8 个核心主题名词；highlights 为至多 5 条完整要点，概括主要过程、成果、观点或建议，每条不超过 60 字。" +
             (options.SummarizeContent ? "chapters 按时间推进和主要主题合并相邻笔记，覆盖开头、中段及结尾，至多 8 章；短视频通常只需 1–3 章。每章 title 为简短具体的主题，claims 用 1–2 条完整表述归纳该章发生了什么、如何推进及已说明的结果，合计不超过 100 字。" : "chapters 必须为空数组。") +
             "keywords、highlights、章节 title 和每条 claims 都是 {text,evidenceIds} 对象，携带 1–8 个支持表述各部分的当前资料 id。" +
             "必须综合改写，不能逐句摘录台词、重复开头几句话或将画面物体清单当作主要内容。保留否定、条件与建议语气，不补写资料没有说明的结局。" +
             "不要生成时间戳、‘分析视频结构’等空泛章节或未提及的内容。" +
             "不添加 JSON 之外的文字。\n分析重点：" + options.Focus + "\n\n资料：\n" + context,
-            ct, tokens: 3072, schema: VideoSummaryOutline.Schema()).ConfigureAwait(false);
+            VideoSummaryOutline.Schema(), ct, tokens: 3072, operation: "总结结构", onRepair: StructuredRepair).ConfigureAwait(false);
         var outline = await VideoSummaryOutline.ParseAsync(structure, grounding, options.SummarizeContent, ct).ConfigureAwait(false);
         if (options.SummarizeContent && outline.Chapters.Length == 0)
             throw new InvalidDataException("模型未能生成有依据的内容章节，请调整分析重点或更换总结模型后重试。");
