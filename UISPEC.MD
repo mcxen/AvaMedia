@@ -390,6 +390,7 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 - 桌面 large 使用 `AcLargeHeight=36`（平台覆盖见 5.1）；shell 使用 `AcShellButtonHeight`，dialog-action 使用规范角色令牌。网页 / 手机 `Button.large` 的 40 是专项值。
 - `danger`：红字（网页为红字 + 浅红底 `#FFECEB`）；`link`：无底色蓝字。
 - **图标按钮**：只有图标时必须有 ToolTip 和无障碍名称。
+- 网页按钮的悬停与按下反馈只绘制在外层圆角表面；内部内容区保持透明，不叠加基础主题的矩形背景与边框。
 - 禁用：按钮 / 滑块 / 进度 `AcDisabledOpacity=0.4`；文本字段 `AcFieldDisabledOpacity=0.45`。主按钮禁用使用轨道底与次文字；不将同一个透明度强加到所有控件。
 - Mac OS 9 / XP 皮肤以原生默认按钮外观表达主按钮。
 
