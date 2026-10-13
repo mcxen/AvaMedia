@@ -83,7 +83,7 @@
   <Style Selector="FlyoutPresenter.quick-info">
     <Setter Property="Background" Value="{DynamicResource QcCard}"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource QcPillLine}"/><Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="{DynamicResource UiCardRadius}"/><Setter Property="Padding" Value="14"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource AcPopupRadius}"/><Setter Property="Padding" Value="{DynamicResource AcPopoverPadding}"/>
   </Style>
   <Style Selector="FlyoutPresenter.quick-info TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcText}"/><Setter Property="FontSize" Value="{DynamicResource AcBodyFont}"/></Style>
   <Style Selector="FlyoutPresenter.quick-info TextBlock.sec"><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>

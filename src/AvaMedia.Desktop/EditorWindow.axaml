@@ -11,7 +11,7 @@
       <Border Grid.Column="1" x:Name="ModeBar"  HorizontalAlignment="Center" VerticalAlignment="Center"><ac:SegmentedControl x:Name="ModeButtons"/></Border>
     </Grid>
     <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto,Auto,Auto" MinWidth="620">
-    <Grid Grid.Row="1" x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}" MinHeight="160">
+    <Grid Grid.Row="1" x:Name="PreviewArea" Background="{DynamicResource UiTransparent}" MinHeight="160">
       <local:MediaPreviewSurface UseAmbientLighting="False">
         <Grid Background="{DynamicResource UiMediaSurface}">
           <Viewbox Stretch="Uniform"><LayoutTransformControl x:Name="PreviewTransform"><Image x:Name="PreviewImage" Stretch="Uniform"/></LayoutTransformControl></Viewbox>
@@ -205,8 +205,8 @@
       </StackPanel>
       <TextBlock Grid.Column="0" x:Name="ExportSummary" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}" Margin="0,0,8,0"/>
       <Button Classes="ac" Grid.Column="1" x:Name="FooterOptionsButton" Content="输出配置…" Click="OptionsClick" Height="{DynamicResource UiFieldHeight}" IsVisible="False"/>
-      <Button Grid.Column="2" x:Name="EditorCancelButton" Classes="ac dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="取消" Click="CancelClick" IsCancel="True"/>
-      <Button Grid.Column="3" x:Name="ConfirmButton" Classes="ac primary dialog-action" MinWidth="96" Height="{DynamicResource UiFieldHeight}" MinHeight="{DynamicResource UiFieldHeight}" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
+      <Button Grid.Column="2" x:Name="EditorCancelButton" Classes="ac dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
+      <Button Grid.Column="3" x:Name="ConfirmButton" Classes="ac primary dialog-action" Content="确定" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>
     </Grid>
   </Grid>
   <!-- Quick-clip layout (editor/clip-editor-demo). Built only in quick-workflow mode: EditorWindow.QuickLayout.cs moves the
@@ -215,8 +215,8 @@
     <Border Classes="qc-chrome" BorderThickness="0,0,0,0.5">
       <Grid x:Name="QuickTitleBar" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Background="Transparent">
         <Border Width="22" Height="22" CornerRadius="6" Margin="14,0,10,0" VerticalAlignment="Center">
-          <Border.Background><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#3B9BFF"/><GradientStop Offset="1" Color="#007AFF"/></LinearGradientBrush></Border.Background>
-          <local:LucideIcon Kind="film" Width="13" Height="13" Foreground="White"/>
+          <Border.Background><DynamicResource ResourceKey="QcAccent"/></Border.Background>
+          <local:LucideIcon Kind="film" Width="13" Height="13" Foreground="{DynamicResource UiAccentText}"/>
         </Border>
         <TextBlock Grid.Column="1" Text="快速剪辑" FontWeight="Bold" FontSize="{DynamicResource UiFontEmphasis}" VerticalAlignment="Center"/>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" Spacing="4" VerticalAlignment="Center">
@@ -241,11 +241,11 @@
     </Border>
     <Grid Grid.Row="1" ColumnDefinitions="*,330">
       <Grid Margin="14,14,14,0" RowDefinitions="*,Auto,Auto">
-        <Border x:Name="QuickPreviewCard" CornerRadius="14" Background="{DynamicResource QcPreview}" ClipToBounds="True" MinHeight="180">
+        <Border x:Name="QuickPreviewCard" CornerRadius="14" Background="{DynamicResource UiTransparent}" ClipToBounds="False" MinHeight="180">
           <Panel>
             <Panel x:Name="QuickPreviewSlot"/>
-            <Border x:Name="QuickSegmentBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12" Padding="9,3" CornerRadius="999" Background="#77000000" IsHitTestVisible="False">
-              <TextBlock x:Name="QuickSegmentBadgeText" Foreground="White" FontSize="{DynamicResource UiFontCaption}" FontWeight="SemiBold" FontFeatures="tnum"/>
+            <Border x:Name="QuickSegmentBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12" Padding="9,3" CornerRadius="999" Background="{DynamicResource UiMediaOverlay}" IsHitTestVisible="False">
+              <TextBlock x:Name="QuickSegmentBadgeText" Foreground="{DynamicResource UiMediaText}" FontSize="{DynamicResource UiFontCaption}" FontWeight="SemiBold" FontFeatures="tnum"/>
             </Border>
           </Panel>
         </Border>

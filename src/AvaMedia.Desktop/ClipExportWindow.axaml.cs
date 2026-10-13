@@ -27,6 +27,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
         Avalonia.Automation.AutomationProperties.SetName(ExportSegments,"待导出的剪辑片段");
         Localization.SetText(ExportSummary,$"{_edits.Length} 个视频 · {_edits.Sum(e=>e.OutputSegments.Count)} 个片段");
         ExportSegments.ItemsSource=_edits.SelectMany(edit=>edit.OutputSegments.Select((segment,i)=>new ClipSegmentEntry(segment,edit.Path){Number=i+1,SourceDuration=edit.Info.Duration})).ToArray();
+        ExportEmpty.IsVisible=!_edits.Any(edit=>edit.OutputSegments.Count>0);
         ExportFolder.Text=state?.Folder??folder;OutputToSource.IsChecked=state?.OutputToSource??false;
         AddSettingName.IsChecked=state?.AddSettingName??false;
         JoinSegments.IsVisible=allowJoin || _requiresJoin;JoinSegments.IsChecked=_requiresJoin || allowJoin && (state?.JoinSegments??true);
@@ -53,6 +54,7 @@ public partial class ClipExportWindow : Window, ISegmentThumbnailSource
     private void ValidateExport()
     {
         if(_edits is null || _options is null || JoinQueueButton is null)return;
+        if(ExportEmpty.IsVisible){ExportError.Text="";JoinQueueButton.IsEnabled=false;return;}
         try{_=CreateRequest();ExportError.Text="";JoinQueueButton.IsEnabled=true;}
         catch(Exception ex){ExportError.Text=ex.Message;JoinQueueButton.IsEnabled=false;}
     }

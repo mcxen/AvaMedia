@@ -4,6 +4,9 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Styling;
 using AvaMedia.Core;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using Avalonia.Media;
+using AvaMedia.Controls;
 
 namespace AvaMedia.Desktop;
 
@@ -17,7 +20,8 @@ internal sealed class QuickClipWorkspaceWindow : Window
     }
     private readonly IMediaEngine _engine;
     private readonly List<Source> _sources;
-    private readonly ListBox _files = new();
+    private readonly ListBox _files = new(){Classes={"ac","surface"}};
+    private readonly EmptyState _empty=new(){Text=Localization.Text("尚未添加视频")};
     private readonly StackPanel _segments = new() { Spacing = 6 };
     private readonly TextBlock _status = Ui.ComponentStatus();
     private readonly Button _export;
@@ -27,6 +31,7 @@ internal sealed class QuickClipWorkspaceWindow : Window
         _engine = engine; _sources = paths.Select(path => new Source(path, edits?.FirstOrDefault(edit => edit.Path == path))).ToList();
         Title = "快速剪辑"; Width = 920; Height = 640; MinWidth = 740; MinHeight = 480; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 8, Margin = new(12) };
+        root.Bind(MarginProperty,new DynamicResourceExtension("UiPagePadding"));root.Bind(Grid.RowSpacingProperty,new DynamicResourceExtension("AcGap"));
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         toolbar.Children.Add(ToolFilePicker.ImportActions(this, async () =>
         {
@@ -34,17 +39,18 @@ internal sealed class QuickClipWorkspaceWindow : Window
             catch(Exception error) { _status.Text = error.Message; }
         }, filesText: "添加视频…"));
         toolbar.Children.Add(Ui.Button("移除视频", () => { if(_files.SelectedItem is Source source) _sources.Remove(source); RefreshFiles(); })); root.Children.Add(toolbar);
-        _files.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(PaddingProperty, new Thickness(4, 2)), new Setter(MinHeightProperty, 0d), new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
+        _files.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
         _files.ItemTemplate = new FuncDataTemplate<Source>((source, _) =>
         {
             if(source is null)return new Border();
             var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
-            var include = new CheckBox { Classes = { "ac" }, Content = System.IO.Path.GetFileName(source!.Path), IsChecked = source.Include}; Localization.SetIsUserText(include, true);
+            var filename=Ui.ComponentText(System.IO.Path.GetFileName(source.Path));Localization.SetIsUserText(filename,true);filename.TextTrimming=TextTrimming.CharacterEllipsis;filename.TextWrapping=TextWrapping.NoWrap;ToolTip.SetTip(filename,source.Path);
+            var include = new CheckBox { Classes = { "ac" }, Content=filename,IsChecked = source.Include};Avalonia.Automation.AutomationProperties.SetName(include,System.IO.Path.GetFileName(source.Path));
             include.IsCheckedChanged += (_, _) => { source.Include = include.IsChecked == true; Refresh(); }; row.Children.Add(include);
-            var state = Ui.ComponentText(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption"); Grid.SetColumn(state, 1); row.Children.Add(state); return row;
+            var state = Ui.ComponentText(source.Edit is null ? "待剪辑" : Localization.Format($"{source.Edit.OutputSegments.Count} 个片段"), "caption"); Grid.SetColumn(state, 1); row.Children.Add(state); return new ListRow{Child=row};
         });
-        var body = new Grid { ColumnDefinitions = new("300,*"), ColumnSpacing = 8 }; body.Children.Add(_files);
-        body.Children.Add(new ScrollViewer { Content = _segments, [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
+        var body = new Grid { ColumnDefinitions = new("300,*"), ColumnSpacing = 8 };var fileArea=new Grid();fileArea.Children.Add(_files);fileArea.Children.Add(_empty);body.Children.Add(fileArea);
+        body.Children.Add(new ScrollViewer { Content = Ui.ComponentCard(_segments), [Grid.ColumnProperty] = 1 }); Grid.SetRow(body, 1); root.Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_status);
         var cancel = Ui.DialogButton("取消", () => Close(null)); Grid.SetColumn(cancel, 1); footer.Children.Add(cancel);
         _export = Ui.DialogButton("导出选项…", () => ToolExecution.Complete(this,_sources.Where(source => source.Include).Select(source => source.Edit!).ToArray())); _export.Classes.Add("primary");_export.IsDefault=true;
@@ -78,14 +84,18 @@ internal sealed class QuickClipWorkspaceWindow : Window
     private void RefreshFiles() { var selected = _files.SelectedItem; _files.ItemsSource = null; _files.ItemsSource = _sources.ToArray(); _files.SelectedItem = _sources.Contains(selected as Source ?? null!) ? selected : _sources.FirstOrDefault(); Refresh(); }
     private void Refresh()
     {
+        _empty.IsVisible=_sources.Count==0;
         _segments.Children.Clear();
         if(_files.SelectedItem is Source source)
         {
             var name = Ui.ComponentText(System.IO.Path.GetFileName(source.Path), "heading"); Localization.SetIsUserText(name, true); _segments.Children.Add(name);
             _segments.Children.Add(Ui.Button(source.Edit is null ? "剪辑此视频…" : "继续编辑…", async () => await EditAsync(source)));
-            foreach(var segment in source.Edit?.OutputSegments ?? []) _segments.Children.Add(Ui.ComponentText(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End)));
+            if(source.Edit is null)_segments.Children.Add(new EmptyState{Text=Localization.Text("此视频尚未剪辑")});
+            else if(source.Edit.OutputSegments.Count==0)_segments.Children.Add(new EmptyState{Text=Localization.Text("没有保留片段")});
+            foreach(var segment in source.Edit?.OutputSegments ?? []) _segments.Children.Add(new ListRow{Child=Ui.ComponentText(MediaTime.Format(segment.Start) + " – " + MediaTime.Format(segment.End))});
         }
+        else _segments.Children.Add(new EmptyState{Text=Localization.Text("选择视频查看剪辑片段")});
         var selected = _sources.Where(source => source.Include).ToArray(); var ready = selected.Count(source => source.Edit?.OutputSegments.Count > 0);
-        _status.Text = Localization.Format($"已剪辑 {ready} / {selected.Length} 个视频"); _export.IsEnabled = ready > 0 && ready == selected.Length;
+        _status.Text = selected.Length==0?"":Localization.Format($"已剪辑 {ready} / {selected.Length} 个视频"); _export.IsEnabled = ready > 0 && ready == selected.Length;
     }
 }

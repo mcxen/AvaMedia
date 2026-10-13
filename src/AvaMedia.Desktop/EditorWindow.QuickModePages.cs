@@ -1,6 +1,7 @@
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -18,9 +19,9 @@ public partial class EditorWindow
         foreach (var label in DirectionCombo.Items.OfType<string>())
         {
             var index = QuickDirectionChips.Children.Count;
-            var chip = new Button { Content = Localization.Text(label), Classes = { "ac", "direction-chip" }, Tag = index };
+            var chip = new ToggleButton { Content = Localization.Text(label), Classes = { "ac", "direction-chip" }, Tag = index };
             chip.Bind(IsEnabledProperty, DirectionCombo.GetObservable(IsEnabledProperty));
-            chip.Click += (_, _) => DirectionCombo.SelectedIndex = index;
+            chip.Click += (_, _) => { DirectionCombo.SelectedIndex = index; RefreshQuickDirectionChips(); };
             QuickDirectionChips.Children.Add(chip);
         }
         DirectionCombo.SelectionChanged += (_, _) => RefreshQuickDirectionChips();
@@ -102,8 +103,8 @@ public partial class EditorWindow
 
     private void RefreshQuickDirectionChips()
     {
-        foreach (var chip in QuickDirectionChips.Children.OfType<Button>())
-            chip.Classes.Set("primary", chip.Tag is int index && index == DirectionCombo.SelectedIndex);
+        foreach (var chip in QuickDirectionChips.Children.OfType<ToggleButton>())
+            chip.IsChecked = chip.Tag is int index && index == DirectionCombo.SelectedIndex;
     }
 
     private void RefreshQuickDirectionStatus()
