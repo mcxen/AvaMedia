@@ -39,6 +39,16 @@ public static class HardwareTranscoding
         _ => null
     };
 
+    internal static HardwareDecodePlan? PreviewDecoding(MediaInfo input)
+    {
+        if (!input.HasVideo || VideoFormat(input.VideoCodec) is null) return null;
+        // D3D11VA uses the Windows video decoder, including Intel Quick Sync, independently
+        // of the selected export encoder. Download frames for rotation, scaling and PNG output.
+        var method = OperatingSystem.IsWindows() ? "d3d11va" : OperatingSystem.IsMacOS() ? "videotoolbox" : null;
+        return method is null ? null : new(method,
+            HardwareTranscodingBackend.DecodeArguments(method, input, HardwareTranscodingBackend.TransferFormat(input)));
+    }
+
     public static bool Compatible(string container, HardwareVideoFormat format) => container.ToLowerInvariant() switch
     {
         "mp4" or "mov" or "m4v" => format is HardwareVideoFormat.H264 or HardwareVideoFormat.Hevc or HardwareVideoFormat.Av1,
@@ -104,7 +114,7 @@ internal abstract class HardwareTranscodingBackend : IHardwareTranscodingBackend
     public abstract IReadOnlyList<string> EncodingArguments(HardwareEncoder encoder, HardwareEncodingContext context);
     public abstract HardwareDecodePlan? Decoding(MediaInfo input, bool keepHardwareFrames);
     protected static string Qp(int quality, int maximum = 51) => Math.Clamp(quality, 1, maximum).ToString(System.Globalization.CultureInfo.InvariantCulture);
-    protected static string TransferFormat(MediaInfo input)
+    internal static string TransferFormat(MediaInfo input)
     {
         using var json = JsonDocument.Parse(input.RawJson);
         var video = json.RootElement.GetProperty("streams").EnumerateArray().Where(stream => stream.GetProperty("codec_type").GetString() == "video")
@@ -113,7 +123,7 @@ internal abstract class HardwareTranscodingBackend : IHardwareTranscodingBackend
         var format = video.ValueKind == JsonValueKind.Object && video.TryGetProperty("pix_fmt", out var pixels) ? pixels.GetString() ?? "" : "";
         return format.Contains("10", StringComparison.Ordinal) || format.StartsWith("p010", StringComparison.Ordinal) ? "p010le" : "nv12";
     }
-    protected static IReadOnlyList<string> DecodeArguments(string method, MediaInfo input, string pixels) =>
+    internal static IReadOnlyList<string> DecodeArguments(string method, MediaInfo input, string pixels) =>
         ["-hwaccel:v:" + input.VideoStreamIndex, method, "-hwaccel_output_format:v:" + input.VideoStreamIndex, pixels];
 }
 

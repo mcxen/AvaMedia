@@ -7,6 +7,7 @@ public sealed class MediaEngine : IMediaEngine
 {
     public AppSettings Settings { get; }
     private readonly MediaPreviewCache _previews = new();
+    private readonly HashSet<string> _softwareThumbnailSources = new(StringComparer.Ordinal);
     private readonly Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>> _hardwareTest;
     public MediaEngine(AppSettings settings,Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>>? hardwareTest=null)
     {Settings=settings;CpuResourcePolicy.Configure(settings);_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
@@ -105,25 +106,66 @@ public sealed class MediaEngine : IMediaEngine
                 var previous=await FindFrameTime(input,seconds,-1,ct,videoStreamIndex,requireFrame:true).ConfigureAwait(false);
                 videoStreamIndex=previous.Stream;seconds=Math.Max(0,previous.Time-.000001);
             }
-            var from=Math.Max(0,seconds);
-            var map="0:"+MediaStreams.VideoSpecifier(videoStreamIndex);
-            var prefix="";
-            List<string> args=["-v","error","-nostdin","-filter_complex_threads","1"];
-            if(HeifImage.Supports(input))
+            var tool=FFmpeg;
+            HardwareDecodePlan? decoding=null;
+            string? decoderIdentity=null;
+            if(Settings.AutoDetectGpu && !HeifImage.Supports(input) && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
             {
-                var primary=HeifImage.Parse((await Probe(input,ct).ConfigureAwait(false)).RawJson);map=primary.Map();
-                if(primary.PreFilter.Length>0){args.Add("-noautorotate");prefix=primary.PreFilter+",";}
+                var info=await Probe(input,ct,videoStreamIndex).ConfigureAwait(false);
+                videoStreamIndex=info.VideoStreamIndex;
+                decoding=HardwareTranscoding.PreviewDecoding(info);
+                if(decoding is not null)
+                {
+                    decoderIdentity=await _previews.IdentityAsync(input,new { Decoder=true, Stream=videoStreamIndex, Tool=tool },ct).ConfigureAwait(false);
+                    lock(_softwareThumbnailSources)
+                        if(decoderIdentity is not null && _softwareThumbnailSources.Contains(decoderIdentity))decoding=null;
+                }
             }
-            else args.AddRange(["-ss",Number(from)]);
-            args.AddRange(["-i",input]);
-            HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease:reset_sar=1"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
-            args.AddRange(["-frames:v","1","-f","image2pipe","-c:v","png","pipe:1"]);
-            using var p=await ProcessRunner.StartAsync(FFmpeg,args,ct).ConfigureAwait(false);
-            using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
-            var error=p.StandardError.ReadToEndAsync();using var output=new MemoryStream();
-            await p.StandardOutput.BaseStream.CopyToAsync(output,ct);await p.WaitForExitAsync(ct);
-            if(p.ExitCode!=0) throw new InvalidDataException(await error);
-            return output.ToArray();
+            if(decoding is not null)
+            {
+                try{return await Extract(decoding).ConfigureAwait(false);}
+                catch(InvalidDataException error)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if(decoderIdentity is not null)
+                        lock(_softwareThumbnailSources)
+                        {
+                            if(_softwareThumbnailSources.Count>=64)_softwareThumbnailSources.Clear();
+                            _softwareThumbnailSources.Add(decoderIdentity);
+                        }
+                    System.Diagnostics.Trace.TraceInformation("Thumbnail {0} decoding failed for {1}; using software: {2}",decoding.Method,input,error.Message);
+                }
+            }
+            return await Extract(null).ConfigureAwait(false);
+
+            async Task<byte[]> Extract(HardwareDecodePlan? plan)
+            {
+                ct.ThrowIfCancellationRequested();
+                var from=Math.Max(0,seconds);
+                var map="0:"+MediaStreams.VideoSpecifier(videoStreamIndex);
+                var prefix="";
+                // A single-frame seek needs no frame-thread lookahead or parallel PNG encoding.
+                // Keep this independent of the CPU reservation setting and other preview requests.
+                List<string> args=["-v","error","-nostdin","-filter_threads","1","-filter_complex_threads","1","-threads","1"];
+                if(HeifImage.Supports(input))
+                {
+                    var primary=HeifImage.Parse((await Probe(input,ct).ConfigureAwait(false)).RawJson);map=primary.Map();
+                    if(primary.PreFilter.Length>0){args.Add("-noautorotate");prefix=primary.PreFilter+",";}
+                }
+                else args.AddRange(["-ss",Number(from)]);
+                if(plan is not null)args.AddRange(plan.InputArguments);
+                args.AddRange(["-i",input]);
+                HeifImage.AppendVideo(args,map,prefix+$"scale={width}:{height}:force_original_aspect_ratio=decrease:reset_sar=1"+(pad?$",pad={width}:{height}:(ow-iw)/2:(oh-ih)/2":""));
+                args.AddRange(["-frames:v","1","-threads","1","-f","image2pipe","-c:v","png","pipe:1"]);
+                using var p=await ProcessRunner.StartAsync(tool,args,ct).ConfigureAwait(false);
+                using var reg=ct.Register(()=>{try{p.Kill(true);}catch(InvalidOperationException){}});
+                var error=p.StandardError.ReadToEndAsync();using var output=new MemoryStream();
+                await p.StandardOutput.BaseStream.CopyToAsync(output,ct);await p.WaitForExitAsync(ct);
+                var diagnostic=await error.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if(p.ExitCode!=0 || output.Length==0) throw new InvalidDataException(string.IsNullOrWhiteSpace(diagnostic)?"无法读取截图画面。":diagnostic);
+                return output.ToArray();
+            }
         }
     }
     public async Task<double> AdjacentFrameTime(string input,double seconds,int direction,CancellationToken ct=default,int videoStreamIndex=0)
