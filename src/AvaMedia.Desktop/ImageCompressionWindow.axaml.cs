@@ -17,7 +17,8 @@ public sealed class ImageCompressionEntry(string path) : Observable
     public string Name => System.IO.Path.GetFileName(Path);
     public bool Include { get => _include; set => Set(ref _include, value); }
     public bool CanInclude { get => _canInclude; internal set => Set(ref _canInclude, value); }
-    public string? Error { get => _error; internal set { if (Set(ref _error, value)) Raise(nameof(Status)); } }
+    public string? Error { get => _error; internal set { if (Set(ref _error, value)) { Raise(nameof(Status)); Raise(nameof(HasError)); } } }
+    public bool HasError => !string.IsNullOrEmpty(Error);
     public bool Encoding { get => _encoding; internal set { if (Set(ref _encoding, value)) Raise(nameof(Status)); } }
     public ImageCompressionSource? Source { get; private set; }
     public ImageCompressionResult? Result { get; private set; }
@@ -167,6 +168,7 @@ public sealed partial class ImageCompressionWindow : Window
     }
     private void RefreshControls()
     {
+        EmptyFiles.IsVisible = _entries.Count == 0;
         if (_initializing || _closed) return;
         var format = ((ComboBoxItem)FormatCombo.SelectedItem!).Tag!.ToString()!;
         LosslessInput.IsVisible = format == "webp";

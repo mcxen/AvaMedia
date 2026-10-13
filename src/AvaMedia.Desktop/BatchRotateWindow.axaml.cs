@@ -196,6 +196,8 @@ public sealed partial class BatchRotateWindow : Window
 
     private void RefreshValidation()
     {
+        EmptyFiles.IsVisible = FileList.ItemCount == 0;
+        EmptyFiles.Text = _entries.Count == 0 ? "尚未添加视频" : "没有待确认的视频";
         if (ListSummary is null || _closed) return;
         var activeRotation = _active is null ? (int?)_sharedRotation : EffectiveRotation(_active);
         _syncingDirection = true;
@@ -423,6 +425,7 @@ public sealed partial class BatchRotateWindow : Window
         var selected=FileList.SelectedItem;
         FileList.ItemsSource=UncertainOnly.IsChecked==true?_entries.Where(entry=>entry.Rotation is null).ToArray():_entries;
         if(selected is BatchRotateEntry entry && (UncertainOnly.IsChecked!=true||entry.Rotation is null))FileList.SelectedItem=entry;
+        RefreshValidation();
     }
     private async void DetectClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => await DetectDirectionsAsync();
     private void CancelDetectionClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args) => CancelDetection();

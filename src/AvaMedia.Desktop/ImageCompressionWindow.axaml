@@ -1,40 +1,41 @@
-<Window xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:ac="using:AvaMedia.Controls" xmlns:files="using:AvaMedia.FileUi" xmlns:i18n="using:AvaMedia.Desktop" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:AvaMedia.Desktop" xmlns:controls="using:AvaMedia.Desktop.Controls"
         x:Class="AvaMedia.Desktop.ImageCompressionWindow" Title="图片压缩" Width="1280" Height="820"
         MinWidth="1080" MinHeight="660" WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
     <Style Selector="TextBlock.compressionError"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
-    <Style Selector="Border.compressionPanel"><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource UiBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="12"/></Style>
+    
     <Style Selector="controls|ImageCompareView"><Setter Property="Surface" Value="{DynamicResource UiSurface}"/><Setter Property="Checker" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="Accent" Value="{DynamicResource UiAccent}"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="8">
-    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="{DynamicResource AcRowGap}">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcGap}">
       <files:FileImportActions x:Name="ImportPanel" FilesText="添加图片…" AllowFolders="True">
         <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
       </files:FileImportActions>
     </Grid>
-    <Grid Grid.Row="1" ColumnDefinitions="248,*,260" ColumnSpacing="8">
-      <Border Classes="compressionPanel" Padding="0">
+    <Grid Grid.Row="1" ColumnDefinitions="248,*,260" ColumnSpacing="{DynamicResource AcRowGap}">
+      <Border Classes="ac-card" Padding="0">
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock x:Name="ListSummary" Text="尚未添加图片" Margin="12,10" TextWrapping="Wrap"/>
-          <ListBox Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionChanged="FileSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="待压缩图片">
+          <ListBox Classes="ac surface" Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionChanged="FileSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="待压缩图片">
             <ListBox.ItemTemplate><DataTemplate DataType="local:ImageCompressionEntry">
-              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,6">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}" Margin="0,6">
                 <CheckBox Classes="ac" IsChecked="{Binding Include, Mode=TwoWay}" IsEnabled="{Binding CanInclude}" AutomationProperties.Name="是否压缩这张图片"/>
                 <StackPanel Grid.Column="1" Spacing="4">
                   <TextBlock local:Localization.IsUserText="True" Text="{Binding Name}" ToolTip.Tip="{Binding Path}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold"/>
                   <TextBlock Text="{Binding SourceDescription}" Classes="caption" TextWrapping="Wrap"/>
-                  <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}"><ac:StatusGlyph State="failed" IsVisible="{Binding HasError}"/><TextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/></Grid>
                 </StackPanel>
               </Grid>
             </DataTemplate></ListBox.ItemTemplate>
           </ListBox>
+          <ac:EmptyState Grid.Row="1" x:Name="EmptyFiles" Text="尚未添加图片" IsHitTestVisible="False"/>
           <Button Classes="ac" Grid.Row="2" x:Name="SelectAllButton" Content="勾选全部" Click="SelectAllClick" Margin="8"/>
         </Grid>
       </Border>
-      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="{DynamicResource AcRowGap}">
           <TextBlock x:Name="BeforeText" Text="压缩前" FontWeight="SemiBold" TextWrapping="Wrap"/>
           <TextBlock Grid.Column="1" x:Name="AfterText" Text="压缩后" FontWeight="SemiBold" TextWrapping="Wrap" HorizontalAlignment="Right"/>
         </Grid>
@@ -44,19 +45,19 @@
           </Border>
         </controls:MediaPreviewSurface>
         <Slider Classes="ac" Grid.Row="2" x:Name="CompareSlider" Minimum="0" Maximum="1" Value="0.5" SmallChange="0.02" LargeChange="0.1" AutomationProperties.Name="前后对比位置"/>
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
           <CheckBox Classes="ac" x:Name="SideBySideInput" Content="并排对比"/>
-          <Button Grid.Column="1" Classes="ac step" Content="−" Click="ZoomOutClick" AutomationProperties.Name="缩小预览"/>
-          <Button Grid.Column="2" Classes="ac step" Content="+" Click="ZoomInClick" AutomationProperties.Name="放大预览"/>
+          <Button Grid.Column="1" Classes="ac step" Content="−" Click="ZoomOutClick" ToolTip.Tip="缩小预览" AutomationProperties.Name="缩小预览"/>
+          <Button Grid.Column="2" Classes="ac step" Content="+" Click="ZoomInClick" ToolTip.Tip="放大预览" AutomationProperties.Name="放大预览"/>
           <Button Classes="ac" Grid.Column="3" Content="1:1" Click="ActualSizeClick" AutomationProperties.Name="按原图像素查看"/>
           <Button Classes="ac" Grid.Column="4" Content="适应窗口" Click="ResetViewClick"/>
         </Grid>
       </Grid>
-      <Border Grid.Column="2" Classes="compressionPanel">
+      <Border Grid.Column="2" Classes="ac-card">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Spacing="8">
+          <StackPanel Spacing="{DynamicResource AcRowGap}">
             <StackPanel x:Name="SettingsPanel" Spacing="6">
-              <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                 <TextBlock Text="快速方案" VerticalAlignment="Center"/>
                 <ComboBox Classes="ac" Grid.Column="1" x:Name="PresetCombo" SelectedIndex="0" SelectionChanged="PresetChanged" HorizontalAlignment="Stretch" ToolTip.Tip="平衡、更小体积、优先画质、无损 WebP 或自定义">
                   <ComboBoxItem><TextBlock Text="平衡"/></ComboBoxItem>
@@ -66,7 +67,7 @@
                   <ComboBoxItem><TextBlock Text="自定义"/></ComboBoxItem>
                 </ComboBox>
               </Grid>
-              <Grid ColumnDefinitions="72,*" ColumnSpacing="6">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                 <TextBlock Text="输出格式" VerticalAlignment="Center"/>
                 <ComboBox Classes="ac" Grid.Column="1" x:Name="FormatCombo" SelectedIndex="0" SelectionChanged="ParametersChanged" HorizontalAlignment="Stretch" ToolTip.Tip="WebP 支持透明；JPEG 透明区域填白；PNG 无损">
                   <ComboBoxItem Tag="webp"><TextBlock Text="WebP"/></ComboBoxItem>
@@ -75,10 +76,10 @@
                 </ComboBox>
               </Grid>
               <CheckBox Classes="ac" x:Name="LosslessInput" Content="WebP 无损编码"/>
-              <Grid x:Name="QualityRow" ColumnDefinitions="72,*,72" ColumnSpacing="6">
+              <Grid x:Name="QualityRow" RowDefinitions="Auto,Auto" RowSpacing="{DynamicResource AcRowGap}" ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}">
                 <TextBlock x:Name="QualityLabel" Text="质量（1–100）" VerticalAlignment="Center"/>
-                <Slider Classes="ac" Grid.Column="1" x:Name="QualitySlider" Minimum="1" Maximum="100" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="调整压缩质量" VerticalAlignment="Center"/>
-                <NumericUpDown Classes="ac" Grid.Column="2" x:Name="QualityInput" Minimum="1" Maximum="100" Increment="1" Value="82" FormatString="0" AutomationProperties.Name="图片压缩质量"/>
+                <Slider Classes="ac" Grid.Row="1" Grid.ColumnSpan="2" x:Name="QualitySlider" Minimum="1" Maximum="100" Value="{Binding #QualityInput.Value, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" AutomationProperties.Name="调整压缩质量" VerticalAlignment="Center"/>
+                <NumericUpDown Classes="ac" Grid.Column="1" HorizontalAlignment="Right" x:Name="QualityInput" Minimum="1" Maximum="100" Increment="1" Value="82" FormatString="0" AutomationProperties.Name="图片压缩质量"/>
               </Grid>
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                 <CheckBox Classes="ac" x:Name="ResizeInput" Content="缩小最长边"/>
@@ -91,13 +92,13 @@
         </ScrollViewer>
       </Border>
     </Grid>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
       <TextBox Classes="ac" x:Name="OutputInput" AutomationProperties.Name="压缩图片保存文件夹" IsReadOnly="True"/>
       <Button Grid.Column="1" x:Name="BrowseButton" Classes="ac field-action" Content="浏览…" Click="BrowseClick"/>
       <CheckBox Classes="ac" Grid.Column="2" x:Name="SourceFolderInput" Content="输出至源文件目录" VerticalAlignment="Center"/>
       <CheckBox Classes="ac" Grid.Column="3" x:Name="StartInput" Content="加入后开始" ToolTip.Tip="加入后开始等待任务" IsChecked="True" VerticalAlignment="Center"/>
     </Grid>
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource AcGap}">
       <TextBlock x:Name="StatusText" i18n:StableLayout.StatusLines="2" TextWrapping="Wrap"/>
       <Button Grid.Column="1" Classes="ac dialog-action" Content="取消" Click="CancelClick" IsCancel="True"/>
       <Button Grid.Column="2" x:Name="ConfirmButton" Classes="ac primary dialog-action" Content="加入队列" Click="ConfirmClick" IsDefault="True" IsEnabled="False"/>

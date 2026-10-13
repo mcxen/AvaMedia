@@ -1,42 +1,43 @@
-<Window xmlns:files="using:AvaMedia.FileUi" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<Window xmlns:ac="using:AvaMedia.Controls" xmlns:files="using:AvaMedia.FileUi" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i18n="using:AvaMedia.Desktop" x:Class="AvaMedia.Desktop.VideoSlimmingWindow"
         Title="视频瘦身" Width="1200" Height="800" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner">
-  <Grid ColumnDefinitions="*,440" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="8">
+  <Grid RowDefinitions="*,Auto" ColumnDefinitions="3*,2*" Margin="{DynamicResource UiPagePadding}" ColumnSpacing="{DynamicResource AcRowGap}">
     <Border Classes="ac-card">
-      <Grid RowDefinitions="3*,Auto,Auto,2*" RowSpacing="8">
+      <Grid RowDefinitions="3*,Auto,Auto,2*" RowSpacing="{DynamicResource AcRowGap}">
         <ContentControl x:Name="PreviewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
         <files:FileImportActions Grid.Row="1" x:Name="ImportPanel" FilesText="添加视频…" AllowFolders="True">
           <files:FileImportActions.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,8,4"/></Style></files:FileImportActions.Styles>
           <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick" IsEnabled="False"/>
           <Button Classes="ac" x:Name="RemoveUnavailableButton" Content="移除不可处理" Click="RemoveUnavailableClick" IsEnabled="False"/>
         </files:FileImportActions>
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBlock Text="任务"/>
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
+          <TextBlock Text="文件"/>
           <TextBlock x:Name="FileCountText" Grid.Column="1" Classes="caption" VerticalAlignment="Center"/>
         </Grid>
         <Grid Grid.Row="3" MinHeight="112">
-          <ListBox x:Name="SourceList" MinHeight="112" SelectionMode="Multiple" AutomationProperties.Name="瘦身视频"
+          <ListBox Classes="ac surface" x:Name="SourceList" MinHeight="112" SelectionMode="Multiple" AutomationProperties.Name="瘦身视频"
                    SelectionChanged="SourceSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style></ListBox.Styles>
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="8" RowSpacing="2" Margin="2,1">
+                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="2" Margin="2,1">
                   <TextBlock Text="{Binding Name}" i18n:Localization.IsUserText="True" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Status}" VerticalAlignment="Center" ToolTip.Tip="{Binding Error}"/>
                   <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="caption" Text="{Binding ListDetail}" TextTrimming="CharacterEllipsis"/>
+                  <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}" IsVisible="{Binding HasError}"><ac:StatusGlyph State="failed"/><TextBlock Grid.Column="1" Classes="error" Text="{Binding Error}" TextWrapping="Wrap"/></Grid>
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-          <TextBlock x:Name="EmptyText" Text="添加或拖入视频" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          <ac:EmptyState x:Name="EmptyText" Text="尚未添加视频" IsHitTestVisible="False"/>
         </Grid>
       </Grid>
     </Border>
     <Border Classes="ac-card" Grid.Column="1">
-      <Grid RowDefinitions="*,Auto" RowSpacing="8">
+      <Grid RowDefinitions="*" RowSpacing="{DynamicResource AcRowGap}">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Spacing="8">
-            <Grid x:Name="OptionsPanel" ColumnDefinitions="72,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="6">
+          <StackPanel Spacing="{DynamicResource AcRowGap}">
+            <Grid x:Name="OptionsPanel" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="6">
               <TextBlock Text="画质档位" VerticalAlignment="Center"/>
               <ComboBox Classes="ac" x:Name="PresetInput" Grid.Column="1" AutomationProperties.Name="瘦身档位" HorizontalAlignment="Stretch"/>
               <TextBlock Grid.Row="1" Text="视频编码" VerticalAlignment="Center"/>
@@ -55,8 +56,11 @@
             <TextBlock x:Name="SummaryText" Classes="caption" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
-        <StackPanel Grid.Row="1" Spacing="6">
-          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+
+      </Grid>
+    </Border>
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="6">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
             <TextBox Classes="ac" IsReadOnly="True" x:Name="OutputInput" AutomationProperties.Name="输出文件夹" i18n:Localization.IsUserText="True"/>
             <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
             <CheckBox Classes="ac" x:Name="SourceFolderInput" Grid.Column="2" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
@@ -64,12 +68,10 @@
           <Button Classes="ac" x:Name="AnalyzeButton" i18n:StableLayout.Samples="预估体积|停止分析|正在停止…" Content="预估体积" Click="AnalyzeClick"/>
           <ProgressBar Classes="ac" x:Name="AnalysisProgress" Minimum="0" Maximum="100" IsVisible="False"/>
           <TextBlock x:Name="StatusText" i18n:StableLayout.StatusLines="2" Classes="caption" TextWrapping="Wrap"/>
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{DynamicResource AcRowGap}">
             <Button Content="取消" Click="CancelClick" IsCancel="True" Classes="ac dialog-action"/>
             <Button x:Name="ConfirmButton" Grid.Column="1" HorizontalAlignment="Right" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="ac dialog-action primary"/>
           </Grid>
         </StackPanel>
-      </Grid>
-    </Border>
   </Grid>
 </Window>

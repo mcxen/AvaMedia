@@ -24,6 +24,7 @@ public sealed partial class ContactSheetWindow : Window
     private readonly IMediaEngine _engine;
     private readonly ObservableCollection<VideoEntry> _entries = [];
     private readonly ListBox _list;
+    private readonly EmptyState _emptyFiles = new() { Text = "尚未添加视频", IsHitTestVisible = false };
     private readonly StackPanel _importBar;
     private readonly StackPanel _sheetPanel;
     private readonly TextBlock _summary = Label("", secondary: true);
@@ -63,7 +64,7 @@ public sealed partial class ContactSheetWindow : Window
             _sheets.Value = saved.SheetsPerVideo; _format = saved.Format; _timestamps.IsChecked = saved.Timestamps;
         }
         var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(12, 8, 12, 0), RowSpacing = 8 };
-        var body = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 12 };
+        var body = new Grid { ColumnDefinitions = new("Auto,*,Auto") }; Resource(body, Grid.ColumnSpacingProperty, "AcGap");
         root.Children.Add(body);
 
         var filesArea = new Grid { RowDefinitions = new("Auto,*,Auto"), RowSpacing = 6 };
@@ -92,7 +93,8 @@ public sealed partial class ContactSheetWindow : Window
             Grid.SetColumn(text, 2); row.Children.Add(text); return row;
         });
         _list.SelectionChanged += (_, _) => SelectVideo();
-        Grid.SetRow(_list, 1); filesArea.Children.Add(_list);
+        var fileContent = new Grid(); fileContent.Children.Add(_list); fileContent.Children.Add(_emptyFiles);
+        Grid.SetRow(fileContent, 1); filesArea.Children.Add(fileContent);
         _importBar = new StackPanel { Spacing = 6, Margin = new(6, 0, 6, 2) };
         var imports = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         var import = new Button { Content = "添加视频…", Classes = { "ac", "sheet-action" } };
@@ -134,7 +136,7 @@ public sealed partial class ContactSheetWindow : Window
         body.Children.Add(videoCard);
 
         var previewCard = CreatePreview(); Grid.SetColumn(previewCard, 1); body.Children.Add(previewCard);
-        _sheetPanel = new StackPanel { Spacing = 12 };
+        _sheetPanel = new StackPanel(); Resource(_sheetPanel, StackPanel.SpacingProperty, "AcGap");
         _sheetPanel.Bind(WidthProperty, new DynamicResourceExtension("SheetSettingsWidth"));
         var gridSettings = new StackPanel();
         _presets = Segments(["2 × 2", "3 × 3", "4 × 4", "5 × 4", "自定义"], value =>
@@ -152,10 +154,9 @@ public sealed partial class ContactSheetWindow : Window
         _samplingDescription.Margin = new(12, 2, 12, 10); sampling.Children.Add(_samplingDescription);
         _sheetPanel.Children.Add(Group("取帧", sampling));
         var picture = new StackPanel();
-        var dimensions = new Grid { ColumnDefinitions = new("Auto,Auto,Auto"), ColumnSpacing = 6 };
-        dimensions.Children.Add(_cellWidth); var times = Label("×", secondary: true); Grid.SetColumn(times, 1); dimensions.Children.Add(times);
-        Grid.SetColumn(_cellHeight, 2); dimensions.Children.Add(_cellHeight);
-        AddRow(picture, "单格最大宽高", dimensions); AddRow(picture, "显示每帧时间戳", _timestamps);
+        AddRow(picture, "单格宽度（像素）", _cellWidth);
+        AddRow(picture, "单格高度（像素）", _cellHeight);
+        AddRow(picture, "显示每帧时间戳", _timestamps);
         _sheetPanel.Children.Add(Group("画面", picture));
         var outputSettings = new StackPanel();
         var formatButtons = Segments(["JPG", "PNG"], value => { _format = value.ToLowerInvariant(); InvalidatePlan(); });
@@ -282,6 +283,7 @@ public sealed partial class ContactSheetWindow : Window
         Integer(_sheets), _format, _timestamps.IsChecked == true, _range.Start, _wholeVideo ? 0 : _range.End);
     private void InvalidatePlan()
     {
+        _emptyFiles.IsVisible = _entries.Count == 0;
         var included = _entries.Count(entry => entry.Include);
         Localization.SetText(_summary, $"{_entries.Count} 个 · 勾选 {included} 个");
         if (_operation is null && !_importing)

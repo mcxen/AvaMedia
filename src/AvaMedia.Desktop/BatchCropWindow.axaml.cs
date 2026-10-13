@@ -211,6 +211,7 @@ public sealed partial class BatchCropWindow : Window
 
     private void RefreshValidation()
     {
+        EmptyFiles.IsVisible = FileList.ItemCount == 0;
         if (ListSummary is null || _closed) return;
         var included = _entries.Where(e => e.Include).ToArray(); var invalid = 0; var pending = 0;
         RemoveButton.IsEnabled=FileList.SelectedItems?.Count>0;SelectAllButton.IsVisible=_entries.Count>1;
