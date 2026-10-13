@@ -20,6 +20,7 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     private readonly IFileBrowserSource _source;
     private readonly FileBrowserOptions _options;
     private readonly Func<string, string> _text;
+    private readonly Func<FormattableString, string> _format;
     private readonly FileTreeView _places;
     private readonly ListBox _entries = new();
     private readonly PathInput _address = new();
@@ -38,9 +39,10 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     public Func<Task<IReadOnlyList<FileBrowserItem>>>? PickExternalAsync { get; set; }
     public FileBrowserItem? CurrentFolder => _recent ? null : _directory?.Folder;
 
-    public FileBrowserView(IFileBrowserSource source, FileBrowserOptions options, Func<string, string>? text = null, IFileBrowserGlyphs? glyphs = null)
+    public FileBrowserView(IFileBrowserSource source, FileBrowserOptions options, Func<string, string>? text = null, IFileBrowserGlyphs? glyphs = null, Func<FormattableString, string>? format = null)
     {
         _source = source; _options = options; _places = new(source); _text = text ?? (value => value);
+        _format = format ?? (value => value.ToString(System.Globalization.CultureInfo.CurrentCulture));
         FileBrowserTheme.Install(this);
         _entries.ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel());
         ScrollViewer.SetHorizontalScrollBarVisibility(_entries, ScrollBarVisibility.Disabled);
@@ -193,8 +195,8 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
             {
                 RebuildRows(); UpdateTabs(); RenderSidebar(); RenderBreadcrumbs(); RenderRecentFolders();
                 var hidden = directory.Entries.Count - entries.Length;
-                _status.Text = entries.Length == 0 ? _text("没有可显示的文件。") : $"{_text("显示")} {entries.Length} {_text("项")}";
-                if (hidden > 0) _status.Text += $" · {_text("已隐藏")} {hidden} {_text("个文件")}";
+                _status.Text = entries.Length == 0 ? _text("没有可显示的文件。") : _format($"显示 {entries.Length} 项");
+                if (hidden > 0) _status.Text += " · " + _format($"已隐藏 {hidden} 个文件");
             }
             UpdateSelection();
         }
@@ -214,12 +216,12 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
         _up.IsEnabled = !_loading && !_recent && _directory?.Parent is not null;
         var selected = Selection(); var count = selected.Length;
         _select.IsEnabled = !_loading && (count > 0 || _options.Folders && CurrentFolder is not null);
-        _selectionCount.Text = $"{_text("已选择")} {count} {_text(_options.Folders ? "个文件夹" : "个文件")}";
+        _selectionCount.Text = _options.Folders ? _format($"已选择 {count} 个文件夹") : _format($"已选择 {count} 个文件");
         if (!_options.Compact)
         {
             var bytes = _chosen.Where(CanSelect).Sum(entry => (double)(entry.Size ?? 0));
             if (bytes > 0) _selectionCount.Text += " · " + Size((ulong)bytes);
-            _select.Content = _options.Embedded ? _text("添加所选项") : _options.Folders ? _text("选择文件夹") : $"{_text("打开")} {count} {_text("个文件")}";
+            _select.Content = _options.Embedded ? _text("添加所选项") : _options.Folders ? _text("选择文件夹") : _format($"打开 {count} 个文件");
             foreach (var cell in _cells) cell.UpdateSelection(_chosen.Contains(cell.Entry), Equals(cell.Entry, _focusEntry));
         }
         else UpdateCompactSelection(count);

@@ -53,9 +53,11 @@ internal static class ToolFilePicker
         Func<Window, Task<IReadOnlyList<IStorageItem>>> external, bool startRecent = false)
     {
         var source = new DesktopFileBrowserSource(owner.StorageProvider);
-        var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs());
+        var view = new FileBrowserView(source, options, Localization.Text, new DesktopFileBrowserGlyphs(), Localization.Format);
         var dialog = CreateDialog(view, options, startRecent);
         view.PickExternalAsync = async () => (await external(dialog)).Select(item => DesktopFileBrowserSource.Wrap(item)!).ToArray();
+        var completion = new TaskCompletionSource<IReadOnlyList<IStorageItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        dialog.Closed += (_, _) => completion.TrySetResult([]);
         var selecting = false;
         view.Selected += async selected =>
         {
@@ -72,12 +74,18 @@ internal static class ToolFilePicker
                 }
                 await source.RecordSelectionAsync(selected, CancellationToken.None);
                 _lastFolder = view.CurrentFolder?.NativeItem as IStorageFolder ?? await items[0].GetParentAsync();
-                dialog.Close(items.ToArray());
+                completion.TrySetResult(items.ToArray());
+                dialog.Close();
             }
             catch (Exception error) { await Ui.Message(dialog, "打开失败", error.Message); }
             finally { selecting = false; view.IsEnabled = true; }
         };
-        return await dialog.ShowDialog<IReadOnlyList<IStorageItem>?>(owner) ?? [];
+        // A file picker must not disable the queue window while media is being chosen.
+        // Retain owner lifetime, but show an ordinary independent window rather than a modal sheet.
+        void OwnerClosed(object? sender, EventArgs args) => dialog.Close();
+        owner.Closed += OwnerClosed;
+        try { dialog.Show(owner); return await completion.Task; }
+        finally { owner.Closed -= OwnerClosed; }
     }
 
     internal static Window CreateDialog(FileBrowserView view, FileBrowserOptions options, bool startRecent = false)
@@ -239,7 +247,7 @@ internal sealed class DesktopFileBrowserGlyphs : IFileBrowserGlyphs
     public Control Glyph(string name, bool selected)
     {
         var icon = new LucideIcon { Kind = name.Replace("-muted", "").Replace("-white", ""), Width = 16, Height = 16 };
-        icon.Bind(LucideIcon.ForegroundProperty, new DynamicResourceExtension(name.EndsWith("-white", StringComparison.Ordinal) ? "FbCheckText" : selected ? "FbSelectedGlyph" : "FbAccent"));
+        icon.Bind(LucideIcon.ForegroundProperty, new DynamicResourceExtension(name.EndsWith("-white", StringComparison.Ordinal) ? "FbCheckText" : selected ? "FbSelectedGlyph" : name.EndsWith("-muted", StringComparison.Ordinal) ? "FbMuted" : "FbAccent"));
         return icon;
     }
     public Control Entry(FileBrowserItem item) => Glyph(FileBrowserKinds.Glyph(item));

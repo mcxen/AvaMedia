@@ -1,4 +1,9 @@
 {
+  "显示 {0} 项": "Showing {0} items",
+  "已隐藏 {0} 个文件": "{0} files hidden",
+  "已选择 {0} 个文件": "{0} files selected",
+  "已选择 {0} 个文件夹": "{0} folders selected",
+  "打开 {0} 个文件": "Open {0} files",
   "打开": "Open",
   "删除": "Delete",
   "复制": "Copy",
