@@ -12,13 +12,14 @@ using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using AvaMedia.Core;
 using AvaMedia.Controls;
 using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
-/// <summary>Dedicated batch panel; does not start or change the conversion queue.</summary>
+/// <summary>Fast sheet preview and submission of independent high-resolution export tasks.</summary>
 public sealed partial class ContactSheetWindow : Window
 {
     private readonly IMediaEngine _engine;
@@ -31,7 +32,15 @@ public sealed partial class ContactSheetWindow : Window
     private readonly TextBlock _progressText = Label("就绪", secondary: true);
     private readonly TextBox _output;
     private readonly Button _generate;
-    private readonly Button _stop;
+    private readonly Action<Job[]>? _enqueue;
+    private readonly Func<IEnumerable<string>>? _reservedOutputs;
+    private readonly ComboBox _font;
+    private readonly ComboBox _exportScale;
+    private readonly ToggleSwitch _avoidBlur = new() { Classes = { "ac" }, OnContent = "", OffContent = "" };
+    private readonly ToggleSwitch _sharpen = new() { Classes = { "ac" }, OnContent = "", OffContent = "" };
+    private readonly ToggleSwitch _videoInformation = new() { Classes = { "ac" }, IsChecked = true, OnContent = "", OffContent = "" };
+    private static readonly string[] FontLabels = ["默认（跟随界面字体）", "Inter", "Noto Sans SC", "Fusion Pixel"];
+    private static readonly string[] FontIds = ["default", "inter", "noto-sans-sc", "fusion-pixel"];
     private readonly CheckBox _recursive;
     private readonly NumericUpDown _columns = Ui.ComponentNumber(3, 1, 10);
     private readonly NumericUpDown _rows = Ui.ComponentNumber(3, 1, 10);
@@ -42,16 +51,16 @@ public sealed partial class ContactSheetWindow : Window
     private readonly SegmentedControl _presets;
     private readonly SegmentedControl _formats;
     private string _format = "jpg";
-    private CancellationTokenSource? _operation;
     private bool _importing;
     private bool _closed;
     private bool _updating;
 
-    public ContactSheetWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null)
+    public ContactSheetWindow(IMediaEngine engine, string outputFolder, IEnumerable<string>? initial = null,
+        Action<Job[]>? enqueue = null, Func<IEnumerable<string>>? reservedOutputs = null)
     {
-        _engine = engine;
+        _engine = engine; _enqueue = enqueue; _reservedOutputs = reservedOutputs;
         Title = "多宫格截图";
-        Width = 1252; Height = 772; MinWidth = 1080; MinHeight = 650;
+        Width = 1252; Height = 900; MinWidth = 1080; MinHeight = 650;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Classes.Add("contact-sheet");
         Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
@@ -63,6 +72,13 @@ public sealed partial class ContactSheetWindow : Window
             _cellWidth.Value = saved.CellWidth; _cellHeight.Value = saved.CellHeight;
             _sheets.Value = saved.SheetsPerVideo; _format = saved.Format; _timestamps.IsChecked = saved.Timestamps;
         }
+        _font = Ui.ComponentCombo(FontLabels, FontLabels[Math.Max(0, Array.IndexOf(FontIds, saved?.Font ?? "default"))]);
+        _font.Width = 190;
+        _exportScale = Ui.ComponentCombo(["1×", "2×", "3×", "4×"], $"{saved?.ExportScale ?? 3}×");
+        _exportScale.Width = 76;
+        _sharpen.IsChecked = saved?.Sharpen ?? false;
+        _avoidBlur.IsChecked = saved?.AvoidBlur ?? false;
+        _videoInformation.IsChecked = saved?.VideoInformation ?? true;
         var root = new Grid { RowDefinitions = new("*,Auto"), Margin = new(12, 8, 12, 0), RowSpacing = 8 };
         var body = new Grid { ColumnDefinitions = new("Auto,*,Auto") }; Resource(body, Grid.ColumnSpacingProperty, "AcGap");
         root.Children.Add(body);
@@ -86,10 +102,10 @@ public sealed partial class ContactSheetWindow : Window
             var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
             var name = Label(""); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
             Localization.SetIsUserText(name, true); name.Bind(TextBlock.TextProperty, new Binding(nameof(VideoEntry.Name)));
-            name.Bind(ToolTip.TipProperty, new Binding(nameof(VideoEntry.Path))); text.Children.Add(name);
+            name.Bind(ToolTip.TipProperty, new Binding(nameof(VideoEntry.Path))); text.Children.Add(name); SheetLabel(name);
             var details = Label("", secondary: true); details.TextWrapping = TextWrapping.NoWrap; details.TextTrimming = TextTrimming.CharacterEllipsis;
             details.Bind(TextBlock.TextProperty, new Binding(nameof(VideoEntry.Details)));
-            details.Bind(ToolTip.TipProperty, new Binding(nameof(VideoEntry.Details))); text.Children.Add(details);
+            details.Bind(ToolTip.TipProperty, new Binding(nameof(VideoEntry.Details))); text.Children.Add(details); SheetLabel(details);
             Grid.SetColumn(text, 2); row.Children.Add(text); return row;
         });
         _list.SelectionChanged += (_, _) => SelectVideo();
@@ -156,6 +172,8 @@ public sealed partial class ContactSheetWindow : Window
         var picture = new StackPanel();
         AddRow(picture, "单格宽度（像素）", _cellWidth);
         AddRow(picture, "单格高度（像素）", _cellHeight);
+        AddRow(picture, "文字字体", _font);
+        AddRow(picture, "显示视频信息", _videoInformation);
         AddRow(picture, "显示每帧时间戳", _timestamps);
         _sheetPanel.Children.Add(Group("画面", picture));
         var outputSettings = new StackPanel();
@@ -163,6 +181,12 @@ public sealed partial class ContactSheetWindow : Window
         formatButtons.Margin = new(0); formatButtons.Width = 110;
         _formats = formatButtons;
         AddRow(outputSettings, "图片格式", formatButtons);
+        AddRow(outputSettings, "导出倍率", _exportScale);
+        AddRow(outputSettings, "轻微锐化", _sharpen);
+        AddRow(outputSettings, "避开模糊帧", _avoidBlur);
+        ToolTip.SetTip(_avoidBlur, "仅在相邻帧明显更清晰时替换；时间码使用实际选择的时间，导出会稍慢。");
+        ToolTip.SetTip(_exportScale, "按倍率计算每格像素，使用原视频重新精确抽帧。");
+        ToolTip.SetTip(_sharpen, "高清抽帧后轻微锐化，适用于缩小后的画面。");
         var location = new StackPanel { Spacing = 6, Margin = new(12, 4, 12, 10) }; location.Children.Add(Label("保存位置", secondary: true));
         _output = Ui.ComponentInput(outputFolder); _output.IsReadOnly = true; Localization.SetIsUserText(_output, true);
         ToolTip.SetTip(_output, outputFolder);
@@ -177,32 +201,37 @@ public sealed partial class ContactSheetWindow : Window
         var settingsView = new ScrollViewer { Content = _sheetPanel, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         Grid.SetColumn(settingsView, 2); body.Children.Add(settingsView);
 
-        var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto"), ColumnSpacing = 10, MinHeight = 44, Margin = new(4, 0, 4, 8) };
+        var bottom = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), ColumnSpacing = 10, MinHeight = 44, Margin = new(4, 0, 4, 8) };
         _progressText.TextWrapping = TextWrapping.Wrap; bottom.Children.Add(_progressText);
         var open = Ui.Button("打开输出文件夹", () => _ = OpenOutputFolder());
         open.Classes.Add("sheet-action"); Grid.SetColumn(open, 1); bottom.Children.Add(open);
-        _stop = Ui.Button("停止", () => _operation?.Cancel()); _stop.Classes.Add("sheet-action"); _stop.IsEnabled = false; _stop.IsVisible = false;
-        Grid.SetColumn(_stop, 2); bottom.Children.Add(_stop);
-        var close = Ui.Button("关闭", Close); close.Classes.Add("sheet-action"); close.IsCancel = true; Grid.SetColumn(close, 3); bottom.Children.Add(close);
-        _generate = new Button { Content = "生成截图", IsDefault = true, Classes = { "ac", "primary", "sheet-action" } };
-        _generate.Click += async (_, _) => await Generate(); Grid.SetColumn(_generate, 4); bottom.Children.Add(_generate);
+        var close = Ui.Button("关闭", Close); close.Classes.Add("sheet-action"); close.IsCancel = true; Grid.SetColumn(close, 2); bottom.Children.Add(close);
+        _generate = new Button { Content = "高清导出", IsDefault = true, Classes = { "ac", "primary", "sheet-action" } };
+        _generate.Click += async (_, _) => await Generate(); Grid.SetColumn(_generate, 3); bottom.Children.Add(_generate);
         Grid.SetRow(bottom, 1); root.Children.Add(bottom); Content = WindowChrome.WrapDialog(this, root);
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = _operation is null && !_importing ? DragDropEffects.Copy : DragDropEffects.None);
+        AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = !_importing ? DragDropEffects.Copy : DragDropEffects.None);
         AddHandler(DragDrop.DropEvent, async (_, e) =>
         {
-            if (_operation is null && !_importing) await AddFolders(e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []);
+            if (!_importing) await AddFolders(e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []);
         });
         Closing += (_, _) =>
         {
-            _closed = true; _previewWork?.Cancel(); _filmWork?.Cancel(); _lifetime.Cancel(); _operation?.Cancel();
+            _closed = true; _previewWork?.Cancel(); _filmWork?.Cancel(); _lifetime.Cancel();
             _pulse.Stop(); ClearPreview(); _previewSurface.Dispose(); ClearFilm();
             foreach (var entry in _entries) { entry.CancelMetadata(); entry.Thumbnail?.Dispose(); }
         };
         foreach (var number in new[] { _columns, _rows, _cellWidth, _cellHeight, _sheets })
             number.ValueChanged += (_, _) => { if (!_updating) SchedulePreview(); };
         _timestamps.IsCheckedChanged += (_, _) => { if (!_updating) SchedulePreview(); };
+        _videoInformation.IsCheckedChanged += (_, _) => { if (!_updating) SchedulePreview(); };
+        _font.SelectionChanged += (_, _) => { ApplySheetFonts(); SaveOptions(); SchedulePreview(); };
+        _exportScale.SelectionChanged += (_, _) => { SaveOptions(); SchedulePreview(); };
+        _avoidBlur.IsCheckedChanged += (_, _) => { if (!_updating) SaveOptions(); };
+        _sharpen.IsCheckedChanged += (_, _) => { if (!_updating) SaveOptions(); };
+        ApplySheetFonts();
         _updating = true; UpdatePreset(); _formats.SelectedItem = _format.ToUpperInvariant(); _updating = false;
+        ActualThemeVariantChanged += (_, _) => { ApplySheetFonts(); if (_font.SelectedIndex == 0) SchedulePreview(); };
         if (initial is not null) AddPaths(initial);
         Opened += (_, _) => { if (_entries.Count > 0) _list.SelectedIndex = 0; else SchedulePreview(); };
         InvalidatePlan(); Controls.WindowArtwork.SetKind(this, "frames");
@@ -272,7 +301,7 @@ public sealed partial class ContactSheetWindow : Window
     }
     private async Task AddFolders(IEnumerable<string> paths)
     {
-        if (_importing || _operation is not null) return;
+        if (_importing) return;
         var snapshot = paths.ToArray(); var recursive = _recursive.IsChecked == true; _importing = true; SetBusy(true);
         _progressText.Text = "正在查找视频…";
         try { var files = await Task.Run(() => BatchVideoTools.CollectVideos(snapshot, recursive)); if (!_closed) AddPaths(files); }
@@ -280,22 +309,24 @@ public sealed partial class ContactSheetWindow : Window
         finally { _importing = false; if (!_closed) { SetBusy(false); InvalidatePlan(); } }
     }
     private ContactSheetOptions Options() => new(Integer(_columns), Integer(_rows), Integer(_cellWidth), Integer(_cellHeight),
-        Integer(_sheets), _format, _timestamps.IsChecked == true, _range.Start, _wholeVideo ? 0 : _range.End);
+        Integer(_sheets), _format, _timestamps.IsChecked == true, _range.Start, _wholeVideo ? 0 : _range.End,
+        FontIds[Math.Max(0, _font.SelectedIndex)], Math.Max(1, _exportScale.SelectedIndex + 1), _sharpen.IsChecked == true,
+        _videoInformation.IsChecked == true, SheetFontFamily("default").ToString(), _avoidBlur.IsChecked == true);
     private void InvalidatePlan()
     {
         _emptyFiles.IsVisible = _entries.Count == 0;
         var included = _entries.Count(entry => entry.Include);
         Localization.SetText(_summary, $"{_entries.Count} 个 · 勾选 {included} 个");
-        if (_operation is null && !_importing)
-            Localization.SetText(_progressText, $"将为 {included} 个视频各生成 {Integer(_sheets)} 张 {_format.ToUpperInvariant()}，共 {included * Integer(_sheets) * Integer(_columns) * Integer(_rows)} 帧");
-        if (_generate is not null) _generate.IsEnabled = _operation is null && !_importing && included > 0;
+        if (!_importing)
+            Localization.SetText(_progressText, $"将为 {included} 个视频后台导出 {Integer(_sheets)} 张 {_format.ToUpperInvariant()}，共 {included * Integer(_sheets) * Integer(_columns) * Integer(_rows)} 帧");
+        if (_generate is not null) _generate.IsEnabled = !_importing && included > 0 && _enqueue is not null;
     }
     private void SetBusy(bool busy)
     {
         _importBar.IsEnabled = _sheetPanel.IsEnabled = _list.IsEnabled = !busy;
         _range.IsEnabled = !busy && _range.Duration > 0 && _previewEntry is not null;
         _wholeLink.IsEnabled = !busy && _previewEntry is not null;
-        _generate.IsEnabled = !busy && _entries.Any(entry => entry.Include); _stop.IsVisible = busy && _operation is not null;
+        _generate.IsEnabled = !busy && _entries.Any(entry => entry.Include) && _enqueue is not null;
     }
     private static int Integer(NumericUpDown input) => (int)(input.Value ?? input.Minimum);
 
@@ -314,40 +345,65 @@ public sealed partial class ContactSheetWindow : Window
         public MediaInfo? Info { get => _info; set { _info = value; Raise(nameof(Details)); } }
         public Task<MediaInfo>? Probe { get; set; }
         public string Details => (Info is { } info ? TimeSpan.FromSeconds(info.Duration).ToString(info.Duration >= 3600 ? @"h\:mm\:ss" : @"mm\:ss") : "时长待读取") + " · " + Status;
-        public string? LastSheet { get; set; }
         public CancellationTokenSource MetadataWork { get; } = new();
         public void CancelMetadata() { if (!_metadataFinished) MetadataWork.Cancel(); }
         public void CompleteMetadata() { _metadataFinished = true; MetadataWork.Dispose(); }
     }
     private async Task Generate()
     {
-        var selected = _entries.Where(e => e.Include).ToArray(); ContactSheetOptions options; string folder;
         try
         {
+            var selected = _entries.Where(entry => entry.Include).ToArray();
             if (selected.Length == 0) throw new ArgumentException("请先勾选视频。");
-            options = Options();
-            BatchVideoTools.ValidateContactSheet(options);new Storage().SaveToolOptions("contact-sheet",options with { StartSeconds=0,EndSeconds=0 }); if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择输出目录。"); folder = System.IO.Path.GetFullPath(_output.Text);
-        }
-        catch (Exception ex) { await Ui.Message(this, "截图参数错误", ex.Message); return; }
-        _previewWork?.Cancel(); _filmWork?.Cancel(); _pulse.Stop(); _operation = new(); var token = _operation.Token; SetBusy(true); _stop.IsEnabled = true; int success = 0, failed = 0;
-        try
-        {
-            for (var i = 0; i < selected.Length; i++)
+            if (_enqueue is null) throw new InvalidOperationException("请从主窗口打开多宫格截图后导出。");
+            var options = Options(); BatchVideoTools.ValidateContactSheet(options);
+            if (string.IsNullOrWhiteSpace(_output.Text)) throw new ArgumentException("请选择输出目录。");
+            var folder = Path.GetFullPath(_output.Text);
+            var reserved = (_reservedOutputs?.Invoke() ?? []).ToList();
+            var jobs = new List<Job>();
+            foreach (var entry in selected)
             {
-                token.ThrowIfCancellationRequested(); var entry = selected[i]; _list.SelectedItem = entry; entry.Status = "正在抽帧…";
-                var progress = new Progress<ContactSheetProgress>(p => { if (!_closed) { entry.Status = Localization.Format($"生成中 {p.Percent:0}%"); _progressText.Text = $"{entry.Name} · {p.Message}"; } });
-                try
-                {
-                    var outputs = await BatchVideoTools.GenerateContactSheets(_engine, entry.Path, folder, options, progress, token);
-                    if (_closed) return; entry.LastSheet = outputs.LastOrDefault(); entry.Status = Localization.Format($"已生成 {outputs.Length} 张"); success++;
-                    if (entry.LastSheet is { } path) ShowPreview(entry, path, options);
-                }
-                catch (OperationCanceledException) { if (!_closed) entry.Status = "已停止"; throw; }
-                catch (Exception ex) { if (!_closed) { entry.Status = Localization.Format($"失败：{ex.Message}"); ToolTip.SetTip(_list, ex.Message); } failed++; }
+                if (entry.Info is { } info) BatchVideoTools.ContactSheetImageSize(info, options);
+                var name = Path.GetFileNameWithoutExtension(entry.Path) + $"-grid-{options.Columns}x{options.Rows}";
+                var target = MediaEngine.UniqueOutput(folder, name, options.Format, reserved, directory: options.SheetsPerVideo > 1);
+                reserved.Add(target);
+                jobs.Add(new Job { FeatureId = "contact-sheet", Inputs = [entry.Path], Output = target,
+                    Duration = entry.Info?.Duration ?? 0, Options = new() { ContactSheet = options } });
             }
-            if (!_closed) Localization.SetText(_progressText,$"批量截图完成：成功 {success} 个视频，失败 {failed} 个。");
+            SaveOptions(); _enqueue(jobs.ToArray());
+            Localization.SetText(_progressText, $"已加入任务列表：{jobs.Count} 个高清导出任务，可在主窗口查看进度。");
         }
-        catch (OperationCanceledException) { if (!_closed) Localization.SetText(_progressText,$"已停止。已完成 {success} 个视频，生成的图片已保留。"); }
-        finally { _operation.Dispose(); _operation = null; if (!_closed) { SetBusy(false); _stop.IsEnabled = false; if (_previewEntry is { } current) StartFilm(current); } }
+        catch (Exception ex) { await Ui.Message(this, "截图参数错误", ex.Message); }
+    }
+
+    private void SaveOptions()
+        => new Storage().SaveToolOptions("contact-sheet", Options() with { StartSeconds = 0, EndSeconds = 0 });
+
+    private FontFamily SheetFontFamily(string? id = null) => (id ?? FontIds[Math.Max(0, _font.SelectedIndex)]) switch
+    {
+        "inter" => new FontFamily(PlatformAppearance.Inter + ", " + PlatformAppearance.Noto),
+        "noto-sans-sc" => new FontFamily(PlatformAppearance.Noto),
+        "fusion-pixel" => new FontFamily("avares://AvaMedia.Desktop/Assets/Fonts/Platinum#Fusion Pixel 12px Prop zh-Hans, " + PlatformAppearance.Noto),
+        _ => this.TryFindResource("UiFont", out var value) && value is FontFamily family ? family : FontManager.Current.DefaultFontFamily
+    };
+
+    private void SheetLabel(TextBlock label)
+    {
+        label.FontFamily = SheetFontFamily();
+        RenderOptions.SetTextRenderingMode(label, label.FontFamily.ToString().Contains("Fusion Pixel", StringComparison.Ordinal)
+            ? TextRenderingMode.Alias : TextRenderingMode.Antialias);
+        label.Classes.Add("sheet-text");
+    }
+
+    private void ApplySheetFonts()
+    {
+        var family = SheetFontFamily();
+        var mode = family.ToString().Contains("Fusion Pixel", StringComparison.Ordinal) ? TextRenderingMode.Alias : TextRenderingMode.Antialias;
+        foreach (var label in this.GetVisualDescendants().OfType<TextBlock>().Where(label => label.Classes.Contains("sheet-text"))
+            .Append(_previewTitle).Append(_videoInformationLabel))
+        {
+            label.FontFamily = family;
+            RenderOptions.SetTextRenderingMode(label, mode);
+        }
     }
 }
