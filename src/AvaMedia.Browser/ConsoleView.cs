@@ -33,7 +33,7 @@ public sealed partial class ConsoleView : UserControl
     private readonly Button _submit, _recover, _discard;
     private JsonObject? _pending;
     private JsonNode? _runtime;
-    private bool _connected, _submitting, _mobile;
+    private bool _connected, _submitting, _mobile, _compactHeader;
     private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds(3) };
 
     // Shell
@@ -46,6 +46,7 @@ public sealed partial class ConsoleView : UserControl
     private readonly Button _fab;
     private Grid _header = null!;
     private Control _desktopHeaderTitle = null!, _reconnect = null!, _desktopNavigation = null!;
+    private TextBlock _brandTitle = null!;
 
     public ConsoleView()
     {
@@ -113,14 +114,14 @@ public sealed partial class ConsoleView : UserControl
     // ---------- Header / navigation ----------
     private Control BuildHeader()
     {
-        _header = new Grid { ColumnDefinitions = new("*,Auto,*"), Margin = new(18, 10, 18, 10), MinHeight = 40 };
+        _header = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 12, Margin = new(18, 10, 18, 10), MinHeight = 40 };
         var logo = new Border { Width = 28, Height = 28, CornerRadius = new(7), Child = Ui.Icon("video", 16, Brushes.White),
             Background = new LinearGradientBrush { StartPoint = new(0, 0, RelativeUnit.Relative), EndPoint = new(0, 1, RelativeUnit.Relative),
                 GradientStops = { new(Color.Parse("#5AC8FA"), 0), new(Color.Parse("#007AFF"), 1) } } };
-        var title = Ui.Text("AvaMedia 远程管理", "strong"); title.FontSize = 15;
+        var title = _brandTitle = Ui.Text("AvaMedia 远程管理", "strong"); title.FontSize = 15;
         _desktopHeaderTitle = Ui.Row(12, logo, title);
         var left = Ui.Row(12, _desktopHeaderTitle, _connection); _header.Children.Add(left);
-        var nav = new Border { Background = Brushes.White, CornerRadius = new(999), Padding = new(3), Child = _navigation,
+        var nav = new Border { Background = Brushes.White, CornerRadius = new(999), Padding = new(3), Child = _navigation, HorizontalAlignment = HorizontalAlignment.Center,
             BoxShadow = BoxShadows.Parse("0 1 2 0 #12000000, 0 0 0 1 #0F000000") };
         _desktopNavigation = nav; Grid.SetColumn(nav, 1); _header.Children.Add(nav);
         var reconnect = Action("重新连接", Connect, "rotate-ccw"); reconnect.Classes.Add("outline");
@@ -162,7 +163,8 @@ public sealed partial class ConsoleView : UserControl
     {
         _connection.Child = address is null
             ? Ui.Pill(Ui.Dot(Palette.Tertiary, L.T("正在连接…"), Palette.Secondary), Palette.Fill)
-            : Ui.Pill(Ui.Dot(Palette.Green, (_mobile ? L.T("已连接") : L.T("已连接") + " · " + address), Palette.GreenText), Palette.GreenSoft);
+            : Ui.Pill(Ui.Dot(Palette.Green, (_mobile || _compactHeader ? L.T("已连接") : L.T("已连接") + " · " + address), Palette.GreenText), Palette.GreenSoft);
+        ToolTip.SetTip(_connection, address);
     }
     private Control BuildToast()
     {
@@ -183,13 +185,16 @@ public sealed partial class ConsoleView : UserControl
     {
         if (Bounds.Width <= 0) return;
         var mobile = Bounds.Width < 760;
+        var compactHeader = Bounds.Width < 1100; var headerChanged = compactHeader != _compactHeader; _compactHeader = compactHeader;
         var changed = mobile != _mobile; _mobile = mobile;
         var subtitleDetail = mobile && _tabs.SelectedIndex == 1 && _subtitlePage is not null;
         _tabBar.IsVisible = mobile && !subtitleDetail; _fab.IsVisible = mobile && _tabs.SelectedIndex == 1 && !_taskDetailOpen;
         _desktopNavigation.IsVisible = !mobile; _desktopHeaderTitle.IsVisible = !mobile;
+        _brandTitle.IsVisible = !compactHeader;
         _header.Margin = mobile ? new(16, 12, 16, 4) : new(18, 10, 18, 10);
         _header.IsVisible = !(mobile && _tabs.SelectedIndex == 0) && !subtitleDetail;
-        if (changed) { SetConnection(_runtime is null ? null : Address()); LayoutCreate(); LayoutTasks(); LayoutEditor(); }
+        if (changed || headerChanged) SetConnection(_connected ? Address() : null);
+        if (changed) { LayoutCreate(); LayoutTasks(); LayoutEditor(); }
     }
     private static string Address() { var origin = BrowserHost.Origin(); return origin.Replace("http://", "").Replace("https://", ""); }
 
@@ -247,7 +252,8 @@ public sealed partial class ConsoleView : UserControl
             }
             Grid.SetColumn(title, 2); row.Children.Add(title);
             var remove = new Button { Content = Ui.Icon("x", 12, Palette.Secondary), Classes = { "plain", "icon" }, Width = 24, Height = 24 };
-            AutomationProperties.SetName(remove, "移除");
+            AutomationProperties.SetName(remove, L.T("移除"));
+            ToolTip.SetTip(remove, L.T("移除"));
             remove.Click += (_, _) => { _inputs.Remove(path); _excludedInputs.Remove(path); _rotationOverrides.Remove(path); RenderInputs(); };
             Grid.SetColumn(remove, 3); row.Children.Add(remove);
             ToolTip.SetTip(row, path);

@@ -53,6 +53,7 @@ internal static class Ui
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         panel.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 7, Height = 7, Fill = color, VerticalAlignment = VerticalAlignment.Center });
         var label = Text(text, raw: false); label.Foreground = textBrush; label.FontSize = 12; panel.Children.Add(label);
+        label.MaxWidth = 200; label.TextTrimming = TextTrimming.CharacterEllipsis; ToolTip.SetTip(label, text);
         return panel;
     }
 
@@ -66,9 +67,10 @@ internal static class Ui
     /// <summary>A label-value line in grouped option lists: label left, control right.</summary>
     public static Grid Line(string label, Control value, double minHeight = 34)
     {
-        var grid = new Grid { ColumnDefinitions = new("*,Auto"), MinHeight = minHeight };
+        var grid = new Grid { ColumnDefinitions = new(value is TextBlock ? "Auto,*" : "*,Auto"), ColumnSpacing = 8, MinHeight = minHeight };
         var text = Text(label); text.TextWrapping = TextWrapping.Wrap; text.FontSize = 13; grid.Children.Add(text);
         value.VerticalAlignment = VerticalAlignment.Center; value.HorizontalAlignment = HorizontalAlignment.Right;
+        Avalonia.Automation.AutomationProperties.SetName(value, L.T(label));
         Grid.SetColumn(value, 1); grid.Children.Add(value); return grid;
     }
 

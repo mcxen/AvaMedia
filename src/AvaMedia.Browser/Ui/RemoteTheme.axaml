@@ -76,6 +76,9 @@
   <Style Selector="Button:pressed /template/ Border#face"><Setter Property="Opacity" Value="0.8"/></Style>
   <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
   <Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.primary TextBlock, Button.selected TextBlock, Button.link TextBlock, Button.danger TextBlock">
+    <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/>
+  </Style>
   <Style Selector="Button.primary:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource BlueHover}"/></Style>
   <Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="14.5"/><Setter Property="MinHeight" Value="40"/></Style>
   <Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/></Style>
