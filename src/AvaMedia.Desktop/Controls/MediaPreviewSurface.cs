@@ -23,7 +23,7 @@ public sealed class MediaPreviewSurface : Panel
     private readonly Border _shadow = new() { IsHitTestVisible = false };
     private readonly AmbientHalo _halo = new() { IsHitTestVisible = false, IsVisible = false };
     private readonly TextBlock _titleText = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxLines = 1 };
-    private readonly Border _title = new() { IsHitTestVisible = false, Opacity = 0, Padding = new(8, 6), Margin = new(8), CornerRadius = new(6) };
+    private readonly Border _title = new() { IsHitTestVisible = false, Opacity = 0, Padding = new(8, 6), Margin = new(8), [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiSurfaceRadius") };
     private Size _naturalSize;
     private MediaPreviewColorSampler? _sampler;
     private CancellationTokenSource? _sampling;

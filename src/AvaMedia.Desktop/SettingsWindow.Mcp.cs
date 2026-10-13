@@ -1,3 +1,4 @@
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using System.Net.NetworkInformation;
 using System.Diagnostics;
 using System.Net.Sockets;
@@ -65,8 +66,8 @@ public sealed partial class SettingsWindow
         var portRow = Row("端口", "1024–65535", _mcpPort); portRow.Margin = new(18, 0, 0, 0);
         var lanRow = Row("允许局域网连接", "同一网络中的设备可管理本机文件与任务", _mcpLan); lanRow.Margin = new(18, 0, 0, 0);
         var warning = new Border { Classes = { "ac-notice", "warning" }, Margin = new(30, 2, 12, 6), Padding = new(10, 7),
-            Child = new TextBlock { Text = "服务不要求令牌，只在可信网络中开启。", FontSize = 11.5, TextWrapping = TextWrapping.Wrap } };
-        warning.Child.Bind(TextBlock.ForegroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcBannerText"));
+            Child = new TextBlock { Text = "服务不要求令牌，只在可信网络中开启。", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontCaption"), TextWrapping = TextWrapping.Wrap } };
+        warning.Child.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("AcBannerText"));
         void UpdateDependencies() { portRow.IsEnabled = lanRow.IsEnabled = _mcpEnabled.IsChecked == true; warning.IsVisible = _mcpLan.IsChecked == true; }
         _mcpEnabled.IsCheckedChanged += (_, _) => UpdateDependencies(); _mcpLan.IsCheckedChanged += (_, _) => UpdateDependencies(); UpdateDependencies();
         panel.Children.Add(GroupTitle("服务"));
@@ -115,7 +116,7 @@ public sealed partial class SettingsWindow
     private TextBlock Secondary(TextBlock text) { text.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("UiTextSecondary")); return text; }
     private Grid Row(string? label, string? caption, params Control[] trailing)
     {
-        var grid = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 16, MinHeight = 40 };
+        var grid = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 16, [!Grid.MinHeightProperty] = new DynamicResourceExtension("UiSettingRowHeight") };
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1, Margin = new(12, 7, 0, 7) };
         if (label is not null) text.Children.Add(new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap });
         if (caption is not null) text.Children.Add(Secondary(new TextBlock { Text = caption, FontSize = 11, TextWrapping = TextWrapping.Wrap }));
@@ -151,7 +152,7 @@ public sealed partial class SettingsWindow
             var row = Row(null, null);
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1 };
             text.Children.Add(new TextBlock { Text = (client.Kind == "MCP" ? "MCP" : Localization.Text("网页")) + " · " + Describe(client) });
-            text.Children.Add(Secondary(new TextBlock { Text = Localization.Format($"{client.Address} · {Relative(client.LastSeenUtc)} · {client.Requests} 次请求"), FontSize = 11.5 }));
+            text.Children.Add(Secondary(new TextBlock { Text = Localization.Format($"{client.Address} · {Relative(client.LastSeenUtc)} · {client.Requests} 次请求"), [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontCaption") }));
             row.Children.Clear();
             row.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { icon, text } });
             _mcpClients.Children.Add(row);

@@ -16,7 +16,7 @@ public sealed partial class ClassificationRunWindow
     private string? _resultRule, _resultKey;
     private readonly StackPanel _before = new() { Spacing = 6 }, _after = new() { Spacing = 20 }, _pendingList = new();
     private readonly TextBlock _afterTitle = T("", 12, brush: Muted, raw: true), _pendingTitle = T("", 12, brush: Muted, raw: true),
-        _destination = T("", 11.5, brush: Muted, raw: true);
+        _destination = T("", 12, brush: Muted, raw: true);
     private readonly Grid _histogram = new() { Height = 80, Margin = new(0, 4, 0, 0) };
     private readonly Grid _histAxis = new() { ColumnDefinitions = new("*,*,*") };
     private readonly StackPanel _histCounts = new() { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new(0, 6, 0, 0) };
@@ -90,7 +90,7 @@ public sealed partial class ClassificationRunWindow
             if (segments is null) return;
             foreach (var button in segments.Children.OfType<Button>())
             {
-                button.Height = 28; button.MinHeight = 0; button.Padding = new(12, 0);
+                button.Bind(Button.HeightProperty, Resource("AcButtonHeight")); button.MinHeight = 0; button.Padding = new(12, 0);
                 button.VerticalContentAlignment = VerticalAlignment.Center;
                 button.Bind(Border.BorderBrushProperty, Resource(Hairline)); button.BorderThickness = new(button.Classes.Contains("selected") ? 1 : 0);
                 if (button.Content is TextBlock label)
@@ -154,7 +154,7 @@ public sealed partial class ClassificationRunWindow
             }
             _histAxis.Children.Clear();
             var labels = new[] { ($"{histogram.Min:0.00}", HorizontalAlignment.Left), ($"{histogram.Threshold:0.00} {L("阈值")}", HorizontalAlignment.Center), ($"{histogram.Max:0.00}", HorizontalAlignment.Right) };
-            for (var i = 0; i < 3; i++) { var text = T(labels[i].Item1, 11.5, brush: Muted, raw: true); text.HorizontalAlignment = labels[i].Item2; Grid.SetColumn(text, i); _histAxis.Children.Add(text); }
+            for (var i = 0; i < 3; i++) { var text = T(labels[i].Item1, 12, brush: Muted, raw: true); text.HorizontalAlignment = labels[i].Item2; Grid.SetColumn(text, i); _histAxis.Children.Add(text); }
             _histCounts.Children.Clear();
             void Add(int value, string brush, string label)
             {
@@ -193,15 +193,15 @@ public sealed partial class ClassificationRunWindow
     {
         _before.Children.Clear();
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        head.Children.Add(T("整理前", 15, FontWeight.Bold)); head.Children.Add(T($"{summary.Sources.Length} {L("个源文件夹")}", 11.5, brush: Muted, raw: true));
+        head.Children.Add(T("整理前", 15, FontWeight.Bold)); head.Children.Add(T($"{summary.Sources.Length} {L("个源文件夹")}", 12, brush: Muted, raw: true));
         _before.Children.Add(head);
-        _before.Children.Add(T($"{summary.Images + summary.Videos} {L("个文件混在一起")}", 11.5, brush: Muted, raw: true));
+        _before.Children.Add(T($"{summary.Images + summary.Videos} {L("个文件混在一起")}", 12, brush: Muted, raw: true));
         var wrap = new UniformGrid { Columns = 5, Width = 200, HorizontalAlignment = HorizontalAlignment.Left, Margin = new(4, 12, 0, 16) };
         var samples = summary.Sources.SelectMany(s => s.SamplePaths).Take(50).ToArray();
         var random = new Random(7);
         foreach (var path in samples)
         {
-            var thumb = new ClassifyThumb(48) { Width = 36, Height = 36, Margin = new(2), CornerRadius = new(6),
+            var thumb = new ClassifyThumb(48) { Width = 36, Height = 36, Margin = new(2), [!Border.CornerRadiusProperty] = Resource("AcThumbRadius"),
                 RenderTransform = new RotateTransform(random.Next(-8, 9)), [!ClassifyThumb.BoxShadowProperty] = Resource("UiThumbnailShadow") };
             thumb.SetSource(path, VideoFormats.IsVideo(path) ? 1 : null); wrap.Children.Add(thumb);
         }
@@ -244,7 +244,7 @@ public sealed partial class ClassificationRunWindow
                 index++;
                 var card = new StackPanel { Width = 112, Spacing = 3, Margin = new(0, 0, 10, 6) };
                 card.Children.Add(new Mosaic(112, 128, group.Items.Take(3).Select(x => x.File.Path).ToArray()));
-                card.Children.Add(new TextBlock { Text = $"{index:00} {group.Key.CategoryName}", FontSize = 12.5, [!TextBlock.ForegroundProperty] = Resource(Ink), TextWrapping = TextWrapping.Wrap, MaxLines = 2, Margin = new(0, 4, 0, 0) });
+                card.Children.Add(new TextBlock { Text = $"{index:00} {group.Key.CategoryName}", [!TextBlock.FontSizeProperty] = Resource("UiFontBody"), [!TextBlock.ForegroundProperty] = Resource(Ink), TextWrapping = TextWrapping.Wrap, MaxLines = 2, Margin = new(0, 4, 0, 0) });
                 card.Children.Add(T($"{group.Items.Length} {L("个文件")}", 12, brush: Muted, raw: true));
                 row.Children.Add(card);
             }
@@ -265,7 +265,7 @@ public sealed partial class ClassificationRunWindow
             var mosaic = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
             foreach (var item in pending.Take(3)) { var t = new ClassifyThumb(40) { Width = 36, Height = 36 }; t.SetSource(item.File.Path, VideoFormats.IsVideo(item.File.Path) ? 1 : null); mosaic.Children.Add(t); }
             Grid.SetColumn(mosaic, 2); banner.Children.Add(mosaic);
-            _after.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Banner), CornerRadius = new(10), Padding = new(14, 12), Child = banner });
+            _after.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Banner), [!Border.CornerRadiusProperty] = Resource("AcPreviewRadius"), Padding = new(14, 12), Child = banner });
         }
     }
 
@@ -279,12 +279,12 @@ public sealed partial class ClassificationRunWindow
         {
             var decision = file.Result!.Decisions.First(d => d.NeedsReview);
             var row = new Grid { ColumnDefinitions = new("60,*"), ColumnSpacing = 10, Margin = new(0, 9) };
-            var thumb = new ClassifyThumb(64) { Width = 60, Height = 60, CornerRadius = new(9), VerticalAlignment = VerticalAlignment.Top };
+            var thumb = new ClassifyThumb(64) { Width = 60, Height = 60, [!Border.CornerRadiusProperty] = Resource("AcThumbRadius"), VerticalAlignment = VerticalAlignment.Top };
             thumb.SetSource(file.Path, VideoFormats.IsVideo(file.Path) ? 1 : null); row.Children.Add(thumb);
             var text = new StackPanel { Spacing = 4 };
             var name = T(System.IO.Path.GetFileName(file.Path), 13, FontWeight.SemiBold, raw: true);
             ToolTip.SetTip(name, name.Text); text.Children.Add(name);
-            var reason = new TextBlock { Text = decision.Evidence, FontSize = 11.5, [!TextBlock.ForegroundProperty] = Resource(Muted),
+            var reason = new TextBlock { Text = decision.Evidence, [!TextBlock.FontSizeProperty] = Resource("UiFontCaption"), [!TextBlock.ForegroundProperty] = Resource(Muted),
                 TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
             Localization.SetIsUserText(reason, true); ToolTip.SetTip(reason, decision.Evidence); text.Children.Add(reason);
             var choices = new Grid { ColumnSpacing = 4 };
@@ -314,7 +314,7 @@ public sealed partial class ClassificationRunWindow
     {
         var choice = Pill(label, height: 23);
         // A direct text child can trim in its grid cell; Pill's horizontal panel cannot.
-        choice.Content = T(label, 11.5, raw: raw);
+        choice.Content = T(label, 12, raw: raw);
         choice.Padding = new(7, 0); choice.MinWidth = 0; choice.MinHeight = 0;
         choice.HorizontalAlignment = HorizontalAlignment.Stretch;
         choice.HorizontalContentAlignment = HorizontalAlignment.Center;

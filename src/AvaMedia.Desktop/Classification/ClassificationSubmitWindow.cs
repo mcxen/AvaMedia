@@ -25,8 +25,8 @@ public sealed class ClassificationSubmitWindow : Window
     private readonly List<FolderClassificationRule> _selected = [];
     private readonly FolderClassificationWindow.Preferences _preferences;
     private readonly StackPanel _sourceCards = new() { Orientation = Orientation.Horizontal, Spacing = 12 };
-    private readonly TextBlock _sourceSummary = T("", 11.5, brush: Muted, raw: true), _ruleSummary = T("", 11.5, brush: Muted, raw: true),
-        _destName = T("分类结果", 12.5, FontWeight.SemiBold), _destPath = T("", 11, brush: Muted, raw: true);
+    private readonly TextBlock _sourceSummary = T("", 12, brush: Muted, raw: true), _ruleSummary = T("", 12, brush: Muted, raw: true),
+        _destName = T("分类结果", 13, FontWeight.SemiBold), _destPath = T("", 11, brush: Muted, raw: true);
     private readonly Grid _ruleGrid = new() { ColumnDefinitions = new("*,*,*,*"), ColumnSpacing = 8, RowSpacing = 8 };
     private readonly CheckBox _recursive = new() { Content = L("包含子文件夹"), IsChecked = true }, _split = new() { Content = L("按视频 / 图片分目录") },
         _writeText = new() { Content = L("为每个文件保存标签 TXT") };
@@ -64,7 +64,7 @@ public sealed class ClassificationSubmitWindow : Window
         var root = new Grid { RowDefinitions = new("Auto,*,Auto"), Margin = new(22, 14, 22, 16), RowSpacing = 12 };
         var header = new Grid { ColumnDefinitions = new("*,Auto") };
         var titles = new StackPanel { Spacing = 2 };
-        titles.Children.Add(T("新建 AI 媒体整理", 15, FontWeight.Bold)); titles.Children.Add(T("选择来源与分类方式，任务会在后台运行", 11.5, brush: Muted));
+        titles.Children.Add(T("新建 AI 媒体整理", 15, FontWeight.Bold)); titles.Children.Add(T("选择来源与分类方式，任务会在后台运行", 12, brush: Muted));
         header.Children.Add(titles);
         var tasks = Pill("查看任务列表", click: _showTasks); Grid.SetColumn(tasks, 1); header.Children.Add(tasks);
         root.Children.Add(header);
@@ -84,7 +84,7 @@ public sealed class ClassificationSubmitWindow : Window
         dest.Children.Add(new LucideIcon { Kind = "folder-closed", Width = 15, Height = 15, [!LucideIcon.ForegroundProperty] = Resource(Blue) });
         var destText = new StackPanel(); destText.Children.Add(_destName); destText.Children.Add(_destPath); Grid.SetColumn(destText, 1); dest.Children.Add(destText);
         var change = Pill("更改…", click: () => _ = ChangeOutputAsync()); Grid.SetColumn(change, 2); dest.Children.Add(change);
-        left.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Surface), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1), CornerRadius = new(10), Padding = new(12, 8), Child = dest, [!Border.BoxShadowProperty] = Resource("UiCardShadow") });
+        left.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Surface), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1), [!Border.CornerRadiusProperty] = Resource("AcGroupRadius"), Padding = new(12, 8), Child = dest, [!Border.BoxShadowProperty] = Resource("UiCardShadow") });
         left.Children.Add(Segmented(["复制到分类目录", "移动到分类目录"], _move ? 1 : 0, index => _move = index == 1));
         left.Children.Add(T("分析在后台进行；完成后先核对分组，再执行整理。", 11, brush: Muted));
         columns.Children.Add(left);
@@ -107,7 +107,7 @@ public sealed class ClassificationSubmitWindow : Window
         tuning.Children.Add(Tuner("服装相似度", _similarity, v => v.ToString("0.00")));
         var frames = Tuner("视频采样帧数", _frames, v => $"{v:0} {L("帧")}", segmented: true); Grid.SetColumn(frames, 1); tuning.Children.Add(frames);
         var thr = Tuner("标签阈值", _threshold, v => v.ToString("0.00")); Grid.SetColumn(thr, 2); tuning.Children.Add(thr);
-        right.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Surface), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1), CornerRadius = new(12), Padding = new(12, 10), Child = tuning, [!Border.BoxShadowProperty] = Resource("UiCardShadow") });
+        right.Children.Add(new Border { [!Border.BackgroundProperty] = Resource(Surface), [!Border.BorderBrushProperty] = Resource(Hairline), BorderThickness = new(1), [!Border.CornerRadiusProperty] = Resource("AcCardRadius"), Padding = new(12, 10), Child = tuning, [!Border.BoxShadowProperty] = Resource("UiCardShadow") });
         var options = new Grid { ColumnDefinitions = new("Auto,Auto,*,Auto"), ColumnSpacing = 14 };
         options.Children.Add(_split); Grid.SetColumn(_writeText, 1); options.Children.Add(_writeText);
         var models = Pill("模型管理…", kind: "link", click: () => _ = _manageModels(this)); models.Padding = new(0); Grid.SetColumn(models, 3); options.Children.Add(models);
@@ -177,14 +177,14 @@ public sealed class ClassificationSubmitWindow : Window
             var text = new StackPanel { Spacing = 2 };
             var title = new Grid { ColumnDefinitions = new(on ? "11,*" : "*"), ColumnSpacing = 5 };
             if (on) title.Children.Add(new LucideIcon { Kind = "check", Width = 11, Height = 11, [!LucideIcon.ForegroundProperty] = Resource("UiClassificationRuleText") });
-            var name = T(rule.Name, 12.5, FontWeight.SemiBold, on ? "UiClassificationRuleText" : Ink);
+            var name = T(rule.Name, 13, FontWeight.SemiBold, on ? "UiClassificationRuleText" : Ink);
             Grid.SetColumn(name, on ? 1 : 0); title.Children.Add(name);
             text.Children.Add(title);
             var description = rule.ByOutfit ? L("按拍摄背景和服装分组") : string.Join(" / ", rule.Categories.Take(3).Select(c => L(c.Name))) + (rule.Categories.Length > 3 ? " …" : "");
-            text.Children.Add(new TextBlock { Text = description, FontSize = 10.5, [!TextBlock.ForegroundProperty] = Resource(on ? "UiAccentDescription" : Muted), TextTrimming = TextTrimming.CharacterEllipsis });
+            text.Children.Add(new TextBlock { Text = description, [!TextBlock.FontSizeProperty] = Resource("UiFontTiny"), [!TextBlock.ForegroundProperty] = Resource(on ? "UiAccentDescription" : Muted), TextTrimming = TextTrimming.CharacterEllipsis });
             var button = new Button
             {
-                Content = text, [!Button.BackgroundProperty] = Resource(on ? "UiClassificationRuleFace" : Surface), [!Button.BorderBrushProperty] = Resource(on ? Blue : Hairline), BorderThickness = new(1), CornerRadius = new(10),
+                Content = text, [!Button.BackgroundProperty] = Resource(on ? "UiClassificationRuleFace" : Surface), [!Button.BorderBrushProperty] = Resource(on ? Blue : Hairline), BorderThickness = new(1), [!Border.CornerRadiusProperty] = Resource("AcGroupRadius"),
                 Padding = new(10, 5), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Height = 46, MinHeight = 46
             };
             button.Classes.Add("classify-rule");
@@ -252,8 +252,8 @@ public sealed class ClassificationSubmitWindow : Window
                 if (i < samples.Length) thumb.SetSource(samples[i], VideoFormats.IsVideo(samples[i]) ? 1 : null);
                 Grid.SetColumn(thumb, i % 2 * 2); Grid.SetRow(thumb, i / 2 * 2); mosaic.Children.Add(thumb);
             }
-            card.Children.Add(new Border { Width = 128, Height = 96, CornerRadius = new(10), ClipToBounds = true, Child = mosaic, Margin = new(0, 0, 0, 5) });
-            card.Children.Add(T(Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar)), 12.5, FontWeight.Bold, raw: true));
+            card.Children.Add(new Border { Width = 128, Height = 96, [!Border.CornerRadiusProperty] = Resource("AcGroupRadius"), ClipToBounds = true, Child = mosaic, Margin = new(0, 0, 0, 5) });
+            card.Children.Add(T(Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar)), 13, FontWeight.Bold, raw: true));
             var count = source.Videos > 0 && source.Images > 0 ? Localization.Format($"{source.Files.Length} 个图片 / 视频")
                 : source.Videos > 0 ? Localization.Format($"{source.Files.Length} 个视频") : Localization.Format($"{source.Files.Length} 个图片");
             card.Children.Add(T(count, 11, brush: Muted, raw: true));

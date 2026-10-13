@@ -165,7 +165,7 @@
                   <Border Width="26" Height="15" CornerRadius="3" ClipToBounds="True" Background="{DynamicResource QcPreview}"><local:SegmentThumbnail AtEnd="True" Stretch="UniformToFill"/></Border>
                 </StackPanel>
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                  <TextBlock Classes="name" Text="{Binding Title}" FontSize="12.5" FontWeight="Medium"/>
+                  <TextBlock Classes="name" Text="{Binding Title}" FontSize="{DynamicResource UiFontBody}" FontWeight="Medium"/>
                   <TextBlock Classes="sec mono" Text="{Binding ShortRange}" FontSize="11"/>
                 </StackPanel>
                 <TextBlock Grid.Column="3" Classes="value mono" Text="{Binding ShortDuration}" FontSize="12" VerticalAlignment="Center"/>
@@ -218,7 +218,7 @@
           <Border.Background><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#3B9BFF"/><GradientStop Offset="1" Color="#007AFF"/></LinearGradientBrush></Border.Background>
           <local:LucideIcon Kind="film" Width="13" Height="13" Foreground="White"/>
         </Border>
-        <TextBlock Grid.Column="1" Text="快速剪辑" FontWeight="Bold" FontSize="13.5" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="1" Text="快速剪辑" FontWeight="Bold" FontSize="{DynamicResource UiFontEmphasis}" VerticalAlignment="Center"/>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" Spacing="4" VerticalAlignment="Center">
           <TextBlock x:Name="QuickSubtitle" Classes="sec" MaxWidth="260" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
           <Button x:Name="QuickInfoButton" Classes="ac ib small icon borderless" ToolTip.Tip="媒体信息" AutomationProperties.Name="媒体信息" PointerEntered="QuickInfoPointerEntered" Click="QuickInfoClick">
@@ -245,7 +245,7 @@
           <Panel>
             <Panel x:Name="QuickPreviewSlot"/>
             <Border x:Name="QuickSegmentBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12" Padding="9,3" CornerRadius="999" Background="#77000000" IsHitTestVisible="False">
-              <TextBlock x:Name="QuickSegmentBadgeText" Foreground="White" FontSize="11.5" FontWeight="SemiBold" FontFeatures="tnum"/>
+              <TextBlock x:Name="QuickSegmentBadgeText" Foreground="White" FontSize="{DynamicResource UiFontCaption}" FontWeight="SemiBold" FontFeatures="tnum"/>
             </Border>
           </Panel>
         </Border>
@@ -259,7 +259,7 @@
           </StackPanel>
           <StackPanel Grid.Column="2" x:Name="QuickTransportRight" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
             <Border x:Name="QuickPrecisionPill" Height="28" CornerRadius="14" Background="{DynamicResource QcCard}" BorderBrush="{DynamicResource QcLine}" BorderThickness="0.5" Padding="12,0,4,0">
-              <StackPanel Orientation="Horizontal" x:Name="QuickPrecisionSlot"><TextBlock Text="精度" FontSize="12.5" VerticalAlignment="Center"/></StackPanel>
+              <StackPanel Orientation="Horizontal" x:Name="QuickPrecisionSlot"><TextBlock Text="精度" FontSize="{DynamicResource UiFontBody}" VerticalAlignment="Center"/></StackPanel>
             </Border>
             <ToggleButton x:Name="QuickLoopButton" Classes="ib" Margin="6,0,0,0" IsChecked="{Binding #LoopSegmentCheck.IsChecked, Mode=TwoWay}" ToolTip.Tip="循环播放片段" AutomationProperties.Name="循环播放片段"><local:LucideIcon Kind="repeat"/></ToggleButton>
           </StackPanel>
@@ -269,10 +269,10 @@
             <StackPanel Spacing="0">
               <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <Button Classes="ac pill" Click="AddSegmentClick" ToolTip.Tip="新增片段" AutomationProperties.Name="新增片段"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="plus" Width="13" Height="13"/><TextBlock Text="新增片段" FontSize="12.5"/></StackPanel></Button>
-                  <Button Classes="ac pill" Click="SplitAtPositionClick" IsEnabled="{Binding #SplitAtPositionButton.IsEnabled}" ToolTip.Tip="在此分割 (S)" AutomationProperties.Name="在此分割"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="scissors" Width="13" Height="13"/><TextBlock Text="在此分割" FontSize="12.5"/></StackPanel></Button>
-                  <Button Classes="ac pill" Click="SetStartClick" ToolTip.Tip="设为起点 (I)" AutomationProperties.Name="设为起点"><TextBlock Text="设为起点" FontSize="12.5"/></Button>
-                  <Button Classes="ac pill" Click="SetEndClick" ToolTip.Tip="设为终点 (O)" AutomationProperties.Name="设为终点"><TextBlock Text="设为终点" FontSize="12.5"/></Button>
+                  <Button Classes="ac pill" Click="AddSegmentClick" ToolTip.Tip="新增片段" AutomationProperties.Name="新增片段"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="plus" Width="13" Height="13"/><TextBlock Text="新增片段" FontSize="{DynamicResource UiFontBody}"/></StackPanel></Button>
+                  <Button Classes="ac pill" Click="SplitAtPositionClick" IsEnabled="{Binding #SplitAtPositionButton.IsEnabled}" ToolTip.Tip="在此分割 (S)" AutomationProperties.Name="在此分割"><StackPanel Orientation="Horizontal" Spacing="6"><local:LucideIcon Kind="scissors" Width="13" Height="13"/><TextBlock Text="在此分割" FontSize="{DynamicResource UiFontBody}"/></StackPanel></Button>
+                  <Button Classes="ac pill" Click="SetStartClick" ToolTip.Tip="设为起点 (I)" AutomationProperties.Name="设为起点"><TextBlock Text="设为起点" FontSize="{DynamicResource UiFontBody}"/></Button>
+                  <Button Classes="ac pill" Click="SetEndClick" ToolTip.Tip="设为终点 (O)" AutomationProperties.Name="设为终点"><TextBlock Text="设为终点" FontSize="{DynamicResource UiFontBody}"/></Button>
                 </StackPanel>
                 <StackPanel Grid.Column="2" x:Name="QuickZoomSlot" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                   <Button Classes="ac ib icon borderless" Click="ZoomOutClick" ToolTip.Tip="缩小时间线" AutomationProperties.Name="缩小时间线"><local:LucideIcon Kind="zoom-out"/></Button>
@@ -287,7 +287,7 @@
             <StackPanel>
               <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
                 <TextBlock Text="当前片段方向" FontWeight="SemiBold"/>
-                <TextBlock Grid.Column="1" x:Name="QuickDirectionScope" Classes="sec" FontSize="11.5" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" x:Name="QuickDirectionScope" Classes="sec" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
               </Grid>
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <WrapPanel x:Name="QuickDirectionChips" Orientation="Horizontal"/>
@@ -296,8 +296,8 @@
               <Border Height="0.5" Background="{DynamicResource QcLine}" Margin="0,12"/>
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <StackPanel x:Name="QuickDirectionStatusSlot" Spacing="4">
-                  <TextBlock x:Name="QuickDirectionSummary" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
-                  <TextBlock x:Name="QuickDirectionReason" Classes="sec" FontSize="11.5" LineHeight="17" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
+                  <TextBlock x:Name="QuickDirectionSummary" FontSize="{DynamicResource UiFontBody}" FontWeight="SemiBold" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
+                  <TextBlock x:Name="QuickDirectionReason" Classes="sec" FontSize="{DynamicResource UiFontCaption}" LineHeight="17" TextWrapping="Wrap" i18n:Localization.IsUserText="True"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" x:Name="QuickDirectionActions" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top"/>
               </Grid>
@@ -365,7 +365,7 @@
     </Grid>
     <Border Grid.Row="2" Classes="qc-chrome" BorderThickness="0,0.5,0,0" Padding="18,0">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock x:Name="QuickStatus" Classes="sec" FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="QuickStatus" Classes="sec" FontSize="{DynamicResource UiFontBody}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
         <StackPanel Grid.Column="1" x:Name="QuickActionSlot" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <Panel x:Name="QuickOutputSlot"/>
           <Button x:Name="QuickNextVideoButton" Classes="ac pill tall" Content="下一个视频 →" Click="NextVideoClick" IsVisible="False" IsEnabled="{Binding #ConfirmButton.IsEnabled}"/>

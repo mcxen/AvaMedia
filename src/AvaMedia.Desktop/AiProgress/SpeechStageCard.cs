@@ -9,7 +9,7 @@ namespace AvaMedia.Desktop.AiProgress;
 
 internal sealed class SpeechStageCard : AvaMedia.Controls.Card
 {
-    private readonly TextBlock _elapsed = SpeechUi.Text("", true, 10.5);
+    private readonly TextBlock _elapsed = SpeechUi.Text("", true, 11);
     private readonly Border _number;
     private readonly StackPanel _steps = new() { Spacing = 6 };
     private AiActivity? _shown;
@@ -24,9 +24,9 @@ internal sealed class SpeechStageCard : AvaMedia.Controls.Card
         this.Bind(BackgroundProperty, new DynamicResourceExtension("UiSurface"));
         var root = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
         var header = new Grid { ColumnDefinitions = new("18,*,Auto"), ColumnSpacing = 7 };
-        var number = SpeechUi.Text((index + 1).ToString(), size: 10.5); number.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiAccentText")); number.HorizontalAlignment = HorizontalAlignment.Center; number.VerticalAlignment = VerticalAlignment.Center;
+        var number = SpeechUi.Text((index + 1).ToString(), size: 11); number.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiAccentText")); number.HorizontalAlignment = HorizontalAlignment.Center; number.VerticalAlignment = VerticalAlignment.Center;
         _number = new Border { Child = number, Width = 18, Height = 18, CornerRadius = new(9) }; header.Children.Add(_number);
-        var title = SpeechUi.Heading(SpeechUi.Stages[index]); title.FontSize = 12.5; Grid.SetColumn(title, 1); header.Children.Add(title);
+        var title = SpeechUi.Heading(SpeechUi.Stages[index]); title.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("UiFontBody")); Grid.SetColumn(title, 1); header.Children.Add(title);
         Grid.SetColumn(_elapsed, 2); header.Children.Add(_elapsed); root.Children.Add(header);
         var scroll = new ScrollViewer { Content = _steps, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         Grid.SetRow(scroll, 1); root.Children.Add(scroll); Child = root;
@@ -46,7 +46,7 @@ internal sealed class SpeechStageCard : AvaMedia.Controls.Card
             var planned = new Grid { ColumnDefinitions = new("7,*"), ColumnSpacing = 7 };
             var dot = new Border { Width = 7, Height = 7, CornerRadius = new(4), VerticalAlignment = VerticalAlignment.Center };
             dot.Bind(BackgroundProperty, new DynamicResourceExtension("UiDivider")); planned.Children.Add(dot);
-            var text = SpeechUi.Text(_index == 3 ? "保存字幕 · 字幕草稿" : "等待中", true, 11.5);
+            var text = SpeechUi.Text(_index == 3 ? "保存字幕 · 字幕草稿" : "等待中", true, 12);
             Grid.SetColumn(text, 1); planned.Children.Add(text); _steps.Children.Add(planned); return;
         }
         var entries = snapshot.RecentStages.Select(entry =>
@@ -61,7 +61,7 @@ internal sealed class SpeechStageCard : AvaMedia.Controls.Card
             var row = new Grid { ColumnDefinitions = new("7,*"), ColumnSpacing = 7 };
             var dot = new Border { Width = 7, Height = 7, CornerRadius = new(4), VerticalAlignment = VerticalAlignment.Center };
             dot.Bind(BackgroundProperty, new DynamicResourceExtension(active ? color : "UiSuccess")); row.Children.Add(dot);
-            var text = SpeechUi.Text(SpeechUi.ActivityText(entry), size: 11.5); text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
+            var text = SpeechUi.Text(SpeechUi.ActivityText(entry), size: 12); text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
             text.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(active && current ? color : "UiText"));
             if (active && current) text.FontWeight = FontWeight.SemiBold;
             var segment = speech?.Segments.FirstOrDefault(s => s.Index == speech.CurrentSegment);

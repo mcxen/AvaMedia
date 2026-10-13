@@ -50,7 +50,7 @@
 
   <!-- Buttons: flat icon buttons, white pills, the round play button and the blue primary. -->
 
-  <Style Selector="Window.editor Grid#QuickRoot Button.frame"><Setter Property="Padding" Value="0"/><Setter Property="Height" Value="75"/><Setter Property="CornerRadius" Value="8"/><Setter Property="ClipToBounds" Value="True"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="{DynamicResource QcPreview}"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Button.frame"><Setter Property="Padding" Value="0"/><Setter Property="Height" Value="75"/><Setter Property="CornerRadius" Value="{DynamicResource AcListRadius}"/><Setter Property="ClipToBounds" Value="True"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/><Setter Property="Background" Value="{DynamicResource QcPreview}"/><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.editor Grid#QuickRoot Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource QcPreview}"/></Style>
 
   <!-- Title bar segmented control (ModeButtons are built by EditorWindow.Modes.cs). -->
@@ -69,7 +69,7 @@
   <Style Selector="Window.editor Grid#QuickRoot Border.qc-bar"><Setter Property="Background" Value="{DynamicResource QcBarIdle}"/></Style>
   <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected Border.qc-bar"><Setter Property="Background" Value="{DynamicResource QcAccent}"/></Style>
   <Style Selector="Window.editor Grid#QuickRoot ListBox#SegmentList ListBoxItem:selected TextBlock.name"><Setter Property="FontWeight" Value="Bold"/></Style>
-  <Style Selector="Window.editor Grid#QuickRoot Border.tag"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Padding" Value="6,1"/><Setter Property="Margin" Value="5"/><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="VerticalAlignment" Value="Top"/></Style>
+  <Style Selector="Window.editor Grid#QuickRoot Border.tag"><Setter Property="Background" Value="{DynamicResource QcAccent}"/><Setter Property="CornerRadius" Value="{DynamicResource UiControlRadius}"/><Setter Property="Padding" Value="6,1"/><Setter Property="Margin" Value="5"/><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="VerticalAlignment" Value="Top"/></Style>
   <Style Selector="Window.editor Grid#QuickRoot Border.tag TextBlock"><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/><Setter Property="FontSize" Value="10"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
 
   <!-- Template-level pill chrome: app-wide editor button styles would otherwise flatten the border. -->
@@ -83,7 +83,7 @@
   <Style Selector="FlyoutPresenter.quick-info">
     <Setter Property="Background" Value="{DynamicResource QcCard}"/><Setter Property="Foreground" Value="{DynamicResource QcText}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource QcPillLine}"/><Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="14"/><Setter Property="Padding" Value="14"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource UiCardRadius}"/><Setter Property="Padding" Value="14"/>
   </Style>
   <Style Selector="FlyoutPresenter.quick-info TextBlock"><Setter Property="Foreground" Value="{DynamicResource QcText}"/><Setter Property="FontSize" Value="{DynamicResource AcBodyFont}"/></Style>
   <Style Selector="FlyoutPresenter.quick-info TextBlock.sec"><Setter Property="Foreground" Value="{DynamicResource QcSecondary}"/></Style>

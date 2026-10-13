@@ -28,7 +28,7 @@ internal sealed class ClassifyThumb : Border
 
     public ClassifyThumb(int decodeWidth = 96)
     {
-        _width = decodeWidth; ClipToBounds = true; Bind(BackgroundProperty, Resource(Fill)); CornerRadius = new(6); Child = _image;
+        _width = decodeWidth; ClipToBounds = true; Bind(BackgroundProperty, Resource(Fill)); Bind(Border.CornerRadiusProperty, Resource("AcThumbRadius")); Child = _image;
         EffectiveViewportChanged += (_, args) =>
         {
             var visible = args.EffectiveViewport.Width > 0 && args.EffectiveViewport.Intersects(new Rect(Bounds.Size));

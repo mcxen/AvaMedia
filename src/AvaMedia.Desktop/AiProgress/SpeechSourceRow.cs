@@ -1,3 +1,4 @@
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -13,7 +14,7 @@ internal sealed class SpeechSourceRow : Grid
     private readonly IMediaEngine _engine;
     private readonly string _path;
     private readonly CancellationToken _lifetime;
-    private readonly TextBlock _metadata = SpeechUi.Text("", true, 11.5);
+    private readonly TextBlock _metadata = SpeechUi.Text("", true, 12);
     private readonly Image _image = new() { Stretch = Stretch.UniformToFill };
     private CancellationTokenSource? _work;
     private Bitmap? _bitmap;
@@ -22,7 +23,7 @@ internal sealed class SpeechSourceRow : Grid
     {
         _engine = engine; _path = path; _lifetime = lifetime;
         ColumnDefinitions = new("64,*"); ColumnSpacing = 10; MinHeight = 40;
-        var cover = SpeechUi.Card(_image, 0); cover.Width = 64; cover.Height = 40; cover.CornerRadius = new(6); cover.ClipToBounds = true; Children.Add(cover);
+        var cover = SpeechUi.Card(_image, 0); cover.Width = 64; cover.Height = 40; cover.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("AcThumbRadius")); cover.ClipToBounds = true; Children.Add(cover);
         var texts = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         var name = SpeechUi.Text(Path.GetFileName(path)); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
         Localization.SetIsUserText(name, true); ToolTip.SetTip(this, path); texts.Children.Add(name); texts.Children.Add(_metadata); Grid.SetColumn(texts, 1); Children.Add(texts);

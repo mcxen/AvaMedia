@@ -68,7 +68,7 @@ internal sealed class AiActivityFlowView : StackPanel
         private readonly int _number;
         private readonly TextBlock _markerText = AiActivityView.Text();
         private readonly Border _marker = new() { Width = 28, Height = 28, CornerRadius = new(14), BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top, Margin = new(0, 10, 0, 0) };
-        private readonly Border _card = new() { BorderThickness = new(1), CornerRadius = new(3), Padding = new(10, 8) };
+        private readonly Border _card = new() { BorderThickness = new(1), [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiCompactRadius"), Padding = new(10, 8) };
         private readonly FlowConnector _tail = new() { Height = double.NaN, TopOffset = 38, ShowArrow = false };
         private readonly Expander _expander = new() { HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         private readonly TextBlock _title = AiActivityView.Text();

@@ -30,7 +30,7 @@
   <Style Selector="Window.editor TabControl.mode-tabs"><Setter Property="Template"><ControlTemplate><DockPanel><ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" IsVisible="False"/><ContentPresenter Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/></DockPanel></ControlTemplate></Setter></Style>
 
   <Style Selector="Window.editor Border.frame-badge">
-    <Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="CornerRadius" Value="5"/><Setter Property="Padding" Value="6,1"/>
+    <Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="CornerRadius" Value="{DynamicResource UiArtworkRadius}"/><Setter Property="Padding" Value="6,1"/>
     <Setter Property="Margin" Value="5"/><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="VerticalAlignment" Value="Top"/>
   </Style>
   <Style Selector="Window.editor Border.frame-badge.end"><Setter Property="Background" Value="{DynamicResource UiWarning}"/></Style>

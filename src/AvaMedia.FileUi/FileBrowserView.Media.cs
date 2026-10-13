@@ -121,7 +121,7 @@ public sealed partial class FileBrowserView
         body.Children.Add(_placesColumn);
         var files = new Grid { RowDefinitions = new("Auto,Auto,Auto,*") };
         files.Children.Add(_recentFolders);
-        _status.FontSize = 12; _status.Margin = new(18, 12, 18, 6); FileBrowserTheme.Bind(_status, TextBlock.ForegroundProperty, "Muted");
+        FileBrowserTheme.Bind(_status, TextBlock.FontSizeProperty, "CaptionFont"); _status.Margin = new(18, 12, 18, 6); FileBrowserTheme.Bind(_status, TextBlock.ForegroundProperty, "Muted");
         Grid.SetRow(_status, 1); files.Children.Add(_status);
         _listHeader.Child = ListHeader(); _listHeader.IsVisible = false;
         Grid.SetRow(_listHeader, 2); files.Children.Add(_listHeader);
@@ -165,7 +165,7 @@ public sealed partial class FileBrowserView
         _inspectorHost.BorderThickness = new(1, 0, 0, 0); _inspectorHost.Child = new ScrollViewer { Content = _inspector, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Grid.SetColumn(_inspectorHost, 2); body.Children.Add(_inspectorHost); Grid.SetRow(body, 2); root.Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), ColumnSpacing = 10, Margin = new(18, 0) };
-        _selectionCount.FontSize = 12.5; _selectionCount.FontWeight = FontWeight.Medium; _selectionCount.TextWrapping = TextWrapping.Wrap; _selectionCount.VerticalAlignment = VerticalAlignment.Center; footer.Children.Add(_selectionCount);
+        FileBrowserTheme.Bind(_selectionCount, TextBlock.FontSizeProperty, "BodyFont"); _selectionCount.FontWeight = FontWeight.Medium; _selectionCount.TextWrapping = TextWrapping.Wrap; _selectionCount.VerticalAlignment = VerticalAlignment.Center; footer.Children.Add(_selectionCount);
         var external = Button("系统选择…", async () =>
         {
             if (PickExternalAsync is { } pick && await pick() is { Count: > 0 } selected && !_disposed) Selected?.Invoke(selected);
@@ -173,7 +173,7 @@ public sealed partial class FileBrowserView
         var cancel = Button("取消", () => { Cancelled?.Invoke(); return Task.CompletedTask; }); cancel.IsVisible = !_options.Embedded;
         Grid.SetColumn(cancel, 2); footer.Children.Add(cancel);
         _select = Button("打开 0 个文件", () => { Confirm(); return Task.CompletedTask; }); _select.Classes.Add("primary");
-        foreach (var button in new[] { external, cancel, _select }) { button.Classes.Add("ac"); button.Classes.Add("dialog-action"); if (button != _select) button.Classes.Add("secondary"); button.MinWidth = 72; button.Height = 30; button.Padding = new(18, 0); FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "ActionRadius"); }
+        foreach (var button in new[] { external, cancel, _select }) { button.Classes.Add("ac"); button.Classes.Add("dialog-action"); if (button != _select) button.Classes.Add("secondary"); button.MinWidth = 72; FileBrowserTheme.Bind(button, Avalonia.Controls.Button.HeightProperty, "ActionHeight"); button.Padding = new(18, 0); FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "ActionRadius"); }
         Grid.SetColumn(_select, 3); footer.Children.Add(_select);
         var footerHost = _footerHost = new Border { Height = 60, Child = footer, BorderThickness = new(0, 1, 0, 0) };
         FileBrowserTheme.Bind(footerHost, Border.BackgroundProperty, "Panel"); FileBrowserTheme.Bind(footerHost, Border.BorderBrushProperty, "Line");
@@ -306,11 +306,11 @@ public sealed partial class FileBrowserView
     private static string ListColumns => "26,50,*,72,106,78,128";
     private Control ListHeader()
     {
-        var grid = new Grid { ColumnDefinitions = new(ListColumns), ColumnSpacing = 8, Margin = new(18, 0), Height = 28 };
+        var grid = new Grid { ColumnDefinitions = new(ListColumns), ColumnSpacing = 8, Margin = new(18, 0), [!Grid.HeightProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FbHeaderHeight") };
         var captions = new[] { "", "", "名称", "时长", "分辨率", "大小", "修改时间" };
         for (var i = 2; i < captions.Length; i++)
         {
-            var label = Label(_text(captions[i])); label.FontSize = 11.5; FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, "Muted");
+            var label = Label(_text(captions[i])); FileBrowserTheme.Bind(label, TextBlock.FontSizeProperty, "CaptionFont"); FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, "Muted");
             Grid.SetColumn(label, i); grid.Children.Add(label);
         }
         return grid;
@@ -353,12 +353,12 @@ public sealed partial class FileBrowserView
             var active = folder is null ? _recent && name == _text(_directory?.Folder.Name ?? "") : !_recent && CurrentFolder?.Address == folder.Address;
             var row = new Grid { ColumnDefinitions = new("20,*,Auto"), ColumnSpacing = 7 };
             if (_glyphs is not null) row.Children.Add(_glyphs.Glyph(glyph, active));
-            var label = Label(name); label.FontSize = 13; label.TextTrimming = TextTrimming.CharacterEllipsis; label.FontWeight = active ? FontWeight.SemiBold : FontWeight.Normal; ToolTip.SetTip(label, name);
+            var label = Label(name); FileBrowserTheme.Bind(label, TextBlock.FontSizeProperty, "BodyFont"); label.TextTrimming = TextTrimming.CharacterEllipsis; label.FontWeight = active ? FontWeight.SemiBold : FontWeight.Normal; ToolTip.SetTip(label, name);
             Grid.SetColumn(label, 1); row.Children.Add(label);
             if (count is not null) { var number = Label(count); number.FontSize = 11; FileBrowserTheme.Bind(number, TextBlock.ForegroundProperty, "Muted"); Grid.SetColumn(number, 2); row.Children.Add(number); }
             var button = Button(name, action ?? (async () => { if (folder is not null) await NavigateAsync(folder); }));
             button.Content = row; button.HorizontalAlignment = HorizontalAlignment.Stretch; button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            button.Classes.Add("ac"); button.Classes.Add("borderless"); button.Height = 28; button.MinHeight = 0; button.Padding = new(8, 0); button.BorderThickness = new(0);
+            button.Classes.Add("ac"); button.Classes.Add("borderless"); FileBrowserTheme.Bind(button, Avalonia.Controls.Button.HeightProperty, "NavigationHeight"); button.MinHeight = 0; button.Padding = new(8, 0); button.BorderThickness = new(0);
             FileBrowserTheme.Bind(button, Avalonia.Controls.Button.CornerRadiusProperty, "NavigationRadius");
             FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, active ? "Selected" : "Sidebar");
             button.PointerEntered += (_, _) => FileBrowserTheme.Bind(button, Avalonia.Controls.Button.BackgroundProperty, active ? "Selected" : "Hover");
@@ -386,7 +386,7 @@ public sealed partial class FileBrowserView
             await RefreshHistoryAsync();
         });
         favorite.Classes.Add("ac"); favorite.Classes.Add("borderless"); favorite.Classes.Add("small"); favorite.HorizontalAlignment = HorizontalAlignment.Left;
-        favorite.IsEnabled = CurrentFolder is not null; favorite.FontSize = 11.5; favorite.Margin = new(8, 4); _sidebar.Children.Add(favorite);
+        favorite.IsEnabled = CurrentFolder is not null; FileBrowserTheme.Bind(favorite, TextBlock.FontSizeProperty, "CaptionFont"); favorite.Margin = new(8, 4); _sidebar.Children.Add(favorite);
         Heading("位置"); foreach (var location in _locations.Where(item => !item.Device)) Place(location.Name, LocationGlyph(location.Name), location.Folder);
         Heading("设备"); foreach (var location in _locations.Where(item => item.Device)) Place(location.Name, "hard-drive", location.Folder);
     }
@@ -400,7 +400,7 @@ public sealed partial class FileBrowserView
     {
         _recentFolders.Children.Clear(); _recentFolders.IsVisible = _recent && _recentHistory.Folders.Count > 0;
         if (!_recentFolders.IsVisible) return;
-        var label = Label(_text("最近文件夹")); label.FontSize = 11.5; FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, "Muted"); _recentFolders.Children.Add(label);
+        var label = Label(_text("最近文件夹")); FileBrowserTheme.Bind(label, TextBlock.FontSizeProperty, "CaptionFont"); FileBrowserTheme.Bind(label, TextBlock.ForegroundProperty, "Muted"); _recentFolders.Children.Add(label);
         var row = new Grid { ColumnDefinitions = new("*,*,*"), ColumnSpacing = 10 };
         var index = 0;
         foreach (var visit in _recentHistory.Folders.Take(3))
@@ -433,13 +433,13 @@ public sealed partial class FileBrowserView
         void Info(string name, string value)
         {
             var row = new Grid { ColumnDefinitions = new("70,*"), ColumnSpacing = 8, MinHeight = 31 };
-            var key = Label(_text(name)); key.FontSize = 12; FileBrowserTheme.Bind(key, TextBlock.ForegroundProperty, "Muted"); row.Children.Add(key);
-            var content = Label(value); content.FontSize = 12; content.HorizontalAlignment = HorizontalAlignment.Right; content.TextWrapping = TextWrapping.Wrap;
+            var key = Label(_text(name)); FileBrowserTheme.Bind(key, TextBlock.FontSizeProperty, "CaptionFont"); FileBrowserTheme.Bind(key, TextBlock.ForegroundProperty, "Muted"); row.Children.Add(key);
+            var content = Label(value); FileBrowserTheme.Bind(content, TextBlock.FontSizeProperty, "CaptionFont"); content.HorizontalAlignment = HorizontalAlignment.Right; content.TextWrapping = TextWrapping.Wrap;
             Grid.SetColumn(content, 1); row.Children.Add(content); _infoValues[name] = content;
             var border = new Border { Child = row, BorderThickness = new(0, 0, 0, 1) }; FileBrowserTheme.Bind(border, Border.BorderBrushProperty, "Line"); _inspector.Children.Add(border);
         }
         var type = Label(_text(entry.IsFolder ? "文件夹" : FileBrowserKinds.Name(FileBrowserKinds.FromName(entry.Name))));
-        type.FontSize = 11.5; type.Margin = new(0, 0, 0, 10); FileBrowserTheme.Bind(type, TextBlock.ForegroundProperty, "Muted"); _inspector.Children.Add(type);
+        FileBrowserTheme.Bind(type, TextBlock.FontSizeProperty, "CaptionFont"); type.Margin = new(0, 0, 0, 10); FileBrowserTheme.Bind(type, TextBlock.ForegroundProperty, "Muted"); _inspector.Children.Add(type);
         if (!entry.IsFolder) { Info("时长", "—"); Info("分辨率", "—"); Info("帧率", "—"); Info("编码", "—"); Info("大小", Size(entry.Size)); }
         Info("修改时间", entry.Modified?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—");
         Info("位置", entry.Item.Address);

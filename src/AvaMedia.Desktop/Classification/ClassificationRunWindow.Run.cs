@@ -15,13 +15,13 @@ public sealed partial class ClassificationRunWindow
     private readonly TextBlock _percent = T("", 26, FontWeight.Bold, raw: true);
     private readonly StageIndicator[] _stages = new StageIndicator[4];
     private readonly Grid _preview = new() { ClipToBounds = true };
-    private readonly ClassifyThumb _previewThumb = new(420) { CornerRadius = new(10) };
+    private readonly ClassifyThumb _previewThumb = new(420) { [!Border.CornerRadiusProperty] = Resource("AcPreviewRadius") };
     private readonly Image _livePreview = new() { Stretch = Stretch.UniformToFill };
     private readonly Canvas _tagLayer = new() { IsHitTestVisible = false };
-    private readonly TextBlock _fileTitle = T("", 12, brush: Muted, raw: true), _activityTitle = T("", 11.5, brush: Muted, raw: true);
+    private readonly TextBlock _fileTitle = T("", 12, brush: Muted, raw: true), _activityTitle = T("", 12, brush: Muted, raw: true);
     private readonly Grid _fileSteps = new() { ColumnSpacing = 8 };
-    private readonly TextBlock _lookTitle = T("", 12, brush: Muted, raw: true), _framesTitle = T("", 11.5, brush: Muted, raw: true),
-        _consistency = T("", 11.5, brush: Muted, raw: true), _colorsTitle = T("", 11.5, brush: Muted, raw: true);
+    private readonly TextBlock _lookTitle = T("", 12, brush: Muted, raw: true), _framesTitle = T("", 12, brush: Muted, raw: true),
+        _consistency = T("", 12, brush: Muted, raw: true), _colorsTitle = T("", 12, brush: Muted, raw: true);
     private readonly Grid _frames = new() { ColumnSpacing = 4 };
     private readonly Grid _colorBar = new() { [!HeightProperty] = Resource("AcColorBarHeight"), ClipToBounds = true };
     private readonly Border _colors = new() { [!Border.CornerRadiusProperty] = Resource("AcColorBarRadius"), ClipToBounds = true };
@@ -31,7 +31,7 @@ public sealed partial class ClassificationRunWindow
     private readonly StackPanel _lookBody = new() { Spacing = 8 };
     private readonly TextBlock _lookEmpty = T("等待文件分析", 12, brush: Muted);
     private readonly FileFlow _wall = new();
-    private readonly TextBlock _groupsTitle = T("", 11.5, brush: Muted, raw: true);
+    private readonly TextBlock _groupsTitle = T("", 12, brush: Muted, raw: true);
     private readonly EmptyState _groupsEmpty = new() { Text = L("等待分类结果") };
     private readonly ListBox _groups = new() { Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(0) };
     private readonly Dictionary<int, SubStepRow> _stepControls = [];
@@ -175,7 +175,7 @@ public sealed partial class ClassificationRunWindow
                 chip.Bind(Border.BackgroundProperty, Resource(Dark)); chip.Bind(Border.PaddingProperty, Resource("AcChipPadding"));
                 if (chip.Child is TextBlock label)
                 {
-                    label.FontSize = 11.5;
+                    label.Bind(TextBlock.FontSizeProperty, Resource("UiFontCaption"));
                     foreach (var inline in label.Inlines!.OfType<Avalonia.Controls.Documents.Run>())
                         inline.Bind(Avalonia.Controls.Documents.Run.ForegroundProperty, Resource(White));
                 }
@@ -242,7 +242,7 @@ public sealed partial class ClassificationRunWindow
     {
         private readonly Mosaic _mosaic = new(40, 40, [], stacked: true);
         private readonly Border _badge = Badge("", Blue);
-        private readonly TextBlock _name = T("", 13, FontWeight.SemiBold, raw: true), _shoot = T("", 11.5, brush: Muted, raw: true), _count = T("", 20, FontWeight.Bold, raw: true);
+        private readonly TextBlock _name = T("", 13, FontWeight.SemiBold, raw: true), _shoot = T("", 12, brush: Muted, raw: true), _count = T("", 20, FontWeight.Bold, raw: true);
         public GroupRow()
         {
             var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 8 };

@@ -42,7 +42,7 @@ internal sealed class FileBrowserCell : AvaMedia.Controls.ListRow
         _placeholder.Width = grid ? 32 : 20; _placeholder.Height = grid ? 32 : 20;
         _placeholder.HorizontalAlignment = HorizontalAlignment.Center; _placeholder.VerticalAlignment = VerticalAlignment.Center;
         cover.Children.Add(_placeholder);
-        _duration.FontSize = grid ? 10.5 : 11.5; _duration.Text = ""; _duration.Margin = new(3); _duration.VerticalAlignment = VerticalAlignment.Bottom; _duration.HorizontalAlignment = HorizontalAlignment.Right;
+        _duration.FontSize = grid ? 11 : 12; _duration.Text = ""; _duration.Margin = new(3); _duration.VerticalAlignment = VerticalAlignment.Bottom; _duration.HorizontalAlignment = HorizontalAlignment.Right;
         _duration.FontFeatures = new() { FontFeature.Parse("tnum") };
         if (grid)
         {
@@ -55,7 +55,7 @@ internal sealed class FileBrowserCell : AvaMedia.Controls.ListRow
         }
         var coverHost = new Border { Child = cover, ClipToBounds = true };
         FileBrowserTheme.Bind(coverHost, BackgroundProperty, "Fill"); FileBrowserTheme.Bind(coverHost, CornerRadiusProperty, "Radius");
-        var name = _name = new TextBlock { Text = entry.Name, FontSize = preview ? 15 : 12.5, FontWeight = FontWeight.Normal, VerticalAlignment = VerticalAlignment.Center };
+        var name = _name = new TextBlock { Text = entry.Name, FontSize = preview ? 15 : 13, FontWeight = FontWeight.Normal, VerticalAlignment = VerticalAlignment.Center };
         name.Classes.Add("raw"); ToolTip.SetTip(name, entry.Item.Address);
         if (preview) { name.TextWrapping = TextWrapping.Wrap; name.FontWeight = FontWeight.SemiBold; }
         else name.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -84,9 +84,9 @@ internal sealed class FileBrowserCell : AvaMedia.Controls.ListRow
             Grid.SetColumn(names, 2); content.Children.Add(names);
             _duration.Text = "—"; _duration.VerticalAlignment = VerticalAlignment.Center; _duration.HorizontalAlignment = HorizontalAlignment.Left; _duration.Margin = new(0);
             FileBrowserTheme.Bind(_duration, TextBlock.BackgroundProperty, "Surface");
-            _resolution.Text = "—"; _resolution.FontSize = 11.5; _resolution.VerticalAlignment = VerticalAlignment.Center;
+            _resolution.Text = "—"; FileBrowserTheme.Bind(_resolution, TextBlock.FontSizeProperty, "CaptionFont"); _resolution.VerticalAlignment = VerticalAlignment.Center;
             _metadata.VerticalAlignment = VerticalAlignment.Center;
-            var modified = _modified = new TextBlock { Text = entry.Modified?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—", FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center };
+            var modified = _modified = new TextBlock { Text = entry.Modified?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—", [!TextBlock.FontSizeProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FbCaptionFont"), VerticalAlignment = VerticalAlignment.Center };
             FileBrowserTheme.Bind(modified, TextBlock.ForegroundProperty, "Muted");
             Grid.SetColumn(_duration, 3); content.Children.Add(_duration); Grid.SetColumn(_resolution, 4); content.Children.Add(_resolution);
             Grid.SetColumn(_metadata, 5); content.Children.Add(_metadata); Grid.SetColumn(modified, 6); content.Children.Add(modified); Child = content;

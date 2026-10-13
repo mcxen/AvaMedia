@@ -88,7 +88,7 @@ public partial class MainWindow
         if (Catalog.IsBeta(feature))
         {
             var badge = new Border { Padding = new Thickness(4, 0), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0),
-                Classes = { "beta-badge" }, Child = new TextBlock { Text = "BETA", FontSize = 9.5, FontWeight = FontWeight.Bold } };
+                Classes = { "beta-badge" }, Child = new TextBlock { Text = "BETA", [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontTiny"), FontWeight = FontWeight.Bold } };
             name.Children.Add(badge);
         }
         var button = TreeButton(feature, content, "UiTreeRowTheme");

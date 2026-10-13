@@ -28,7 +28,7 @@
 
   <Style Selector="Window.contact-sheet Button.caption"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="48"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
 
-  <Style Selector="Window.contact-sheet Border.sheet-timestamp"><Setter Property="Background" Value="{DynamicResource UiMediaOverlay}"/><Setter Property="CornerRadius" Value="3"/><Setter Property="Padding" Value="4,1"/></Style>
+  <Style Selector="Window.contact-sheet Border.sheet-timestamp"><Setter Property="Background" Value="{DynamicResource UiMediaOverlay}"/><Setter Property="CornerRadius" Value="{DynamicResource UiCompactRadius}"/><Setter Property="Padding" Value="4,1"/></Style>
   <Style Selector="Window.contact-sheet Border.sheet-timestamp TextBlock"><Setter Property="Foreground" Value="{DynamicResource UiMediaText}"/></Style>
   <Style Selector="Window.contact-sheet ListBox.sheet-segments ListBoxItem"><Setter Property="Padding" Value="{DynamicResource AcSmallPadding}"/><Setter Property="FontSize" Value="{DynamicResource AcSmallFont}"/></Style>
 </Styles>

@@ -1,3 +1,4 @@
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -35,7 +36,7 @@ public partial class EditorWindow
         DetectDirectionButton.Content = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 6,
-            Children = { QuickIcon("rotate-cw", 13), new TextBlock { Text = Localization.Text("检测方向"), FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center } }
+            Children = { QuickIcon("rotate-cw", 13), new TextBlock { Text = Localization.Text("检测方向"), [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontBody"), VerticalAlignment = VerticalAlignment.Center } }
         };
 
         // Keep the complete status on the original named control; only its presentation is split.
@@ -48,21 +49,21 @@ public partial class EditorWindow
         {
             var value = new TextBlock
             {
-                Classes = { "mono" }, FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") }, FontSize = 12.5, TextAlignment = TextAlignment.Right,
+                Classes = { "mono" }, FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") }, [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontBody"), TextAlignment = TextAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
             };
             Localization.SetIsUserText(value, true);
             var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12 };
             row.Children.Add(new TextBlock { Text = Localization.Text(label), Classes = { "sec" }, VerticalAlignment = VerticalAlignment.Center });
             Grid.SetColumn(value, 1); row.Children.Add(value);
-            var border = new Border { Classes = { "ac-setting-row", "divider" }, Height = 32, Child = row };
+            var border = new Border { Classes = { "ac-setting-row", "divider" }, [!Border.HeightProperty] = new DynamicResourceExtension("UiPropertyRowHeight"), Child = row };
             if (label == "音频") border.Classes.Add("last");
             QuickMediaRows.Children.Add(border); _quickMediaValues.Add(value);
         }
         Move(PreviewNote, QuickPreviewNoteSlot);
-        Restyle(PreviewNote, "sec"); PreviewNote.Bind(TextBlock.FontSizeProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcCaptionFont"));
+        Restyle(PreviewNote, "sec"); PreviewNote.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("AcCaptionFont"));
         Move(AudioStatus, QuickAudioStatusSlot);
-        Restyle(AudioStatus); AudioStatus.Bind(TextBlock.FontSizeProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcBodyFont")); AudioStatus.TextWrapping = TextWrapping.Wrap;
+        Restyle(AudioStatus); AudioStatus.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("AcBodyFont")); AudioStatus.TextWrapping = TextWrapping.Wrap;
         Move(EditOptionsButton, QuickOutputSlot);
         Restyle(EditOptionsButton, "pill", "tall");
         Localization.SetContent(EditOptionsButton, $"输出配置…");

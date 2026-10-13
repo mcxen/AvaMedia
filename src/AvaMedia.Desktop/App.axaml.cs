@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
@@ -169,6 +170,18 @@ public sealed partial class App : Application
                         desktop.Shutdown(); return;
                     }
                     await Capture(window, Path.Combine(root, "main.png"));
+                    if (desktop.Args.Contains("--capture-settings"))
+                    {
+                        var preferences = new SettingsWindow(new AppSettings { Language = "zh-CN", Theme = "Dark" });
+                        preferences.Show();
+                        await Task.Delay(300);
+                        await Capture(preferences, Path.Combine(root, "settings.png"));
+                        preferences.FindControl<Avalonia.Controls.TabControl>("SettingsTabs")!.SelectedItem =
+                            preferences.FindControl<Avalonia.Controls.TabItem>("AppearanceTab");
+                        await Task.Delay(300);
+                        await Capture(preferences, Path.Combine(root, "settings-appearance.png"));
+                        preferences.Close();
+                    }
                     if(desktop.Args.Contains("--download"))await CaptureDownloadAsync(window,root);
                     var clipIndex = Array.IndexOf(desktop.Args, "--quick-clip");
                     if (clipIndex >= 0 && desktop.Args.Length > clipIndex + 1)

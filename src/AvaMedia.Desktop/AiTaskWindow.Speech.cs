@@ -20,9 +20,9 @@ public sealed partial class AiTaskWindow
     private readonly CancellationTokenSource _speechLifetime = new();
     private readonly ObservableCollection<SubtitleCue> _speechCues = [];
     private readonly ObservableCollection<string> _speechStages = [];
-    private readonly TextBlock _speechTitle = SpeechUi.Text("", true, 11.5), _backend = SpeechUi.Text("", true, 11);
+    private readonly TextBlock _speechTitle = SpeechUi.Text("", true, 12), _backend = SpeechUi.Text("", true, 11);
     private readonly TextBlock _percent = SpeechUi.Heading(""), _speechStep = SpeechUi.Heading(""), _segmentCaption = SpeechUi.Text("", true, 11);
-    private readonly TextBlock _cueCount = SpeechUi.Text("", true, 11), _queueCaption = SpeechUi.Text("", true, 11.5);
+    private readonly TextBlock _cueCount = SpeechUi.Text("", true, 11), _queueCaption = SpeechUi.Text("", true, 12);
     private readonly TextBlock _transcriptEmpty = SpeechUi.Text("等待字幕", true), _waveEmpty = SpeechUi.Text("等待音轨", true);
     private readonly SpeechTimeline _segments = new() { SegmentsOnly = true, Height = 28 }, _wave = new();
     private readonly List<SpeechStageCard> _stageCards = [];
@@ -49,7 +49,7 @@ public sealed partial class AiTaskWindow
         _speechTitle.TextWrapping = TextWrapping.NoWrap; _speechTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         Localization.SetIsUserText(_speechTitle, true); Grid.SetColumn(_speechTitle, 1); identity.Children.Add(_speechTitle); header.Children.Add(identity);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-        var backend = SpeechUi.Card(_backend, 6); backend.CornerRadius = new(16); backend.BorderThickness = new(0); backend.IsVisible = false;
+        var backend = SpeechUi.Card(_backend, 6); backend.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("AcSheetRadius")); backend.BorderThickness = new(0); backend.IsVisible = false;
         backend.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSpeechBackendSurface"));
         _backend.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("UiSuccess"));
         _backend.TextWrapping = TextWrapping.NoWrap; _backend.MaxWidth = 220; _backend.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -70,7 +70,7 @@ public sealed partial class AiTaskWindow
         var body = new Grid { ColumnDefinitions = new("*,270"), ColumnSpacing = 14, Margin = new(0, 9, 0, 12) };
         var main = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,*"), RowSpacing = 8 };
         var timelineTitle = new WrapPanel { Orientation = Orientation.Horizontal }; _speechStep.Margin = new(0, 0, 8, 0); timelineTitle.Children.Add(_speechStep);
-        timelineTitle.Children.Add(SpeechUi.Text("每 5 分钟一段，逐段 提取音轨 → 检测语音 → 识别字幕", true, 11.5)); main.Children.Add(timelineTitle);
+        timelineTitle.Children.Add(SpeechUi.Text("每 5 分钟一段，逐段 提取音轨 → 检测语音 → 识别字幕", true, 12)); main.Children.Add(timelineTitle);
         Grid.SetRow(_segments, 1); main.Children.Add(_segments);
         var waveform = new Grid(); waveform.Children.Add(_wave); _waveEmpty.HorizontalAlignment = HorizontalAlignment.Center; _waveEmpty.VerticalAlignment = VerticalAlignment.Center; waveform.Children.Add(_waveEmpty); Grid.SetRow(waveform, 2); main.Children.Add(waveform);
         var caption = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; caption.Children.Add(_segmentCaption); Grid.SetColumn(_cueCount, 1); caption.Children.Add(_cueCount); Grid.SetRow(caption, 3); main.Children.Add(caption);
@@ -100,7 +100,7 @@ public sealed partial class AiTaskWindow
         _records.Header = "完整日志"; _records.Content = _log; _log.MaxHeight = 150; Grid.SetRow(_records, 2); records.Children.Add(_records);
         var recordCard = SpeechUi.Card(records);  aside.Children.Add(recordCard);
         var after = new StackPanel { Spacing = 8 }; after.Children.Add(SpeechUi.Heading("完成后"));
-        after.Children.Add(SpeechUi.Text("保存字幕草稿与结构化字幕，可「校对字幕」修改文本和时间，再导出 SRT / ASS / MP4 / MKV", true, 11.5));
+        after.Children.Add(SpeechUi.Text("保存字幕草稿与结构化字幕，可「校对字幕」修改文本和时间，再导出 SRT / ASS / MP4 / MKV", true, 12));
         var finish = new WrapPanel(); _result.Margin = new(0, 0, 6, 0); finish.Children.Add(_result);
         _speechOutput = Ui.Button("查看结果", async () => await RunActionAsync(() =>
         {
@@ -123,8 +123,8 @@ public sealed partial class AiTaskWindow
     {
         var split = entry.IndexOf(" · ", StringComparison.Ordinal);
         var row = new Grid { ColumnDefinitions = new("58,*"), ColumnSpacing = 7, Margin = new(0, 3) };
-        var timestamp = SpeechUi.Text(split >= 0 ? entry[..split] : "", true, 10.5); Localization.SetIsUserText(timestamp, true); row.Children.Add(timestamp);
-        var text = SpeechUi.Text(SpeechUi.ActivityText(split >= 0 ? entry[(split + 3)..] : entry), size: 11.5); Grid.SetColumn(text, 1); row.Children.Add(text); return row;
+        var timestamp = SpeechUi.Text(split >= 0 ? entry[..split] : "", true, 11); Localization.SetIsUserText(timestamp, true); row.Children.Add(timestamp);
+        var text = SpeechUi.Text(SpeechUi.ActivityText(split >= 0 ? entry[(split + 3)..] : entry), size: 12); Grid.SetColumn(text, 1); row.Children.Add(text); return row;
     }
     private void SpeechChanged(string jobId)
     { if (jobId == _job.Id.ToString() || jobId == _job.Id.ToString("N")) { if (!_closed) Interlocked.Exchange(ref _refreshPosted, 1); } }

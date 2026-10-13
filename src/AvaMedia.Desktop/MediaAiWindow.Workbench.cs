@@ -120,7 +120,7 @@ public sealed partial class MediaAiWindow
         var panel = WorkbenchActions(_chartSource, _scoreMode, _tagScope, _sampleSummary, _playSample, _followLive);
         foreach (var slider in new[] { _tagThreshold, _sceneThreshold })
         {
-            slider.Width = 148; slider.Height = 24; slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
+            slider.Width = 148; slider.Bind(Slider.HeightProperty, new DynamicResourceExtension("AcSliderHeight")); slider.HorizontalAlignment = HorizontalAlignment.Left; slider.VerticalAlignment = VerticalAlignment.Center;
         }
         foreach (var caption in new[] { _thresholdCaption, _sceneCaption }) caption.MinWidth = 110;
         AutomationProperties.SetName(_tagThreshold, "JoyTag 标签分数阈值"); AutomationProperties.SetName(_sceneThreshold, "语义相似度阈值");
@@ -169,7 +169,7 @@ public sealed partial class MediaAiWindow
     }
     private static Border ChartPanel(Control? content = null)
     {
-        var panel = new Border { Child = content, Padding = new(12), CornerRadius = new(6), BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
+        var panel = new Border { Child = content, Padding = new(12), [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiSurfaceRadius"), BorderThickness = new(1), VerticalAlignment = VerticalAlignment.Top };
         panel.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("UiControlRadius"));
         panel.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiSurfaceRaised")); panel.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("UiBorder")); return panel;
     }

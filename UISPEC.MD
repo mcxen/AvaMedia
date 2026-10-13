@@ -269,14 +269,52 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ## 5. 字体与文字
 
-- 桌面跟随系统（macOS 为 SF Pro / 苹方）；网页使用内置 Noto Sans SC 子集，像素字体只作回退。
-- 字号：大标题 26 粗（手机网页大标题 28）；页面标题 17 粗；卡片标题 15 粗；正文 13；说明 11.5–12；等宽时间码 12。
+### 5.1 平台字体、渲染与尺寸令牌
+
+桌面保持一套布局和控件模板。启动按真实操作系统加载 `Styles/Platform/Platform.macOS.axaml`、`Platform.Windows.axaml` 或 `Platform.Linux.axaml`；平台层位于 UiStyles 之后、ComponentSkins 和经典皮肤之前，经典皮肤可覆盖同名资源。`AVAMEDIA_CHROME=mac` 不影响字体与平台令牌。
+
+| 令牌 / 规则 | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| `UiFont` / 默认字体 | 系统 SF（`.AppleSystemUIFont` → `.SF NS` → SF Pro Text）；中文 PingFang SC | Segoe UI Variable Text → Segoe UI；中文 Microsoft YaHei UI | 内置 Inter；中文内置 Noto Sans SC |
+| 最末字体回退 | 内置 Noto Sans SC | 内置 Inter → Noto Sans SC | 内置 Noto Sans SC；子集外按系统字体回退 |
+| `UiNumericFont` | SF Mono → Menlo | Cascadia Mono → Consolas | DejaVu Sans Mono → Noto Sans Mono |
+| `UiFontBody` / `UiFontCaption` / `UiFontTitle` | 13 / 12 / 17 | 13 / 12 / 17 | 13 / 12 / 17 |
+| `AcBodyFont` / `AcCaptionFont` / `AcSmallFont` | 13 / 12 / 12 | 13 / 12 / 12 | 13 / 12 / 12 |
+| `AcButtonHeight` / `AcShellButtonHeight` / `AcFieldHeight`（含 UiFieldHeight） | 28 / 30 / 24 | 30 / 30 / 28 | 32 / 32 / 28 |
+| `UiPropertyRowHeight` | 32 | 34 | 34 |
+| `AcSmallHeight` / `AcLargeHeight` | 24 / 36 | 24 / 36 | 26 / 38 |
+| `AcListHeight` / `AcTextRowHeight` / `UiSettingRowHeight` | 56 / 36 / 40 | 58 / 38 / 42 | 58 / 38 / 42 |
+| `AcButtonRadius` / `AcShellButtonRadius` | 14 / 15 | 15 / 15 | 16 / 16 |
+| `AcFieldRadius` / `UiInputRadius` / `UiControlRadius` | 6 / 7 / 4 | 4 / 4 / 4 | 6 / 6 / 6 |
+| `AcCardRadius` / `AcListRadius` / `AcGroupRadius` | 12 / 8 / 10 | 8 / 4 / 6 | 10 / 6 / 8 |
+| `UiCardRadius` / `UiSidebarRadius` / `UiSettingsGroupRadius` | 14 / 18 / 11 | 8 / 8 / 6 | 12 / 12 / 8 |
+| 默认文字渲染 | Antialias（灰度） | SubpixelAntialias | SubpixelAntialias |
+
+- FileUi 独立宿主保留 Fb 令牌；在桌面宿主中，现代 FbActionHeight / FbNavigationHeight / FbTextRowHeight 与 AcShellButtonHeight / AcButtonHeight / AcTextRowHeight 对齐，FbCardRadius / FbNavigationRadius 与 UiCardRadius / UiInputRadius 对齐，经典皮肤保留本地值。
+- 不复制平台专属页面；正文、说明、常规按钮、输入框、列表与内部卡片引用动态令牌。窗口尺寸、媒体视口尺寸、图标大小和按内容计算的几何不套用控件高度令牌。窗口框架仍遵循第 8 节，不由本平台层设置标题栏高度或系统装饰。
+- FontManagerOptions 与 UiFont 使用同一策略；macOS 默认字体和 UiFont 均显式优先系统 SF 字体族，依次回退苹方和内置 Noto；不只使用 `$Default`，因为 Skia 的默认面可能是 Helvetica。Windows 保留 Segoe UI 和雅黑，缺少系统字体时由内置字体承接。Linux 不依赖安装 CJK 字体；子集外字符继续使用系统字体匹配。
+- 内置 Inter（Regular / Medium / SemiBold / Bold，文本光学尺寸 14）及 Noto Sans SC（Regular / Medium / Bold）为静态 TTF 子集，避免依赖可变字体字重实例支持。两者均为 SIL OFL 1.1；版权及全文分别在 `licenses/fonts/inter/OFL.txt` 和 `licenses/fonts/noto-sans-sc/OFL.txt`。子集覆盖 GB2312、拉丁/拼音、常用标点、全角字符和仓库界面用汉字；确切覆盖数量、体积、哈希见 `Assets/Fonts/subsets.json`，更新脚本为 `scripts/Subset-DesktopFonts.py`。
+- 字号使用整数 DIP，说明 12、正文 13、强调 14、卡片标题 15、页面标题 17；不使用 11.5 / 12.5 等小数字号。布局保持 UseLayoutRounding；细描边、圆形几何与实际媒体坐标可用小数，不强制取整。计数和时间码保留 `tnum`。
+- Windows/Linux 申请 SubpixelAntialias；透明或离屏渲染可能由 Skia 降为灰度，不能以 RenderTargetBitmap 截图证明 LCD 子像素效果。macOS 使用灰度抗锯齿；Platinum 自有像素渲染规则优先。不要用 Skia GPU 缓存参数冒充文字 hinting 设置。
+
+### 5.2 Linux 缩放
+
+- 外观设置提供“跟随系统、100%、125%、150%、200%”，仅 Linux 显示，保存后重启生效；窗口、菜单及弹出层共用同一后端缩放，不只放大文字，不改变标题栏策略。
+- 明确的用户百分比优先于环境变量，按绝对比例应用；内部设置 `AVALONIA_SCREEN_SCALE_FACTORS=1` 与所选 `AVALONIA_GLOBAL_SCALE_FACTOR`，防止与 Xft.dpi 再相乘。
+- “跟随系统”保留 `AVALONIA_GLOBAL_SCALE_FACTOR` / `AVALONIA_SCREEN_SCALE_FACTORS` 的显式配置；其次保留 Avalonia 原生 Qt 配置与 Xft.dpi。仅上述来源均未提供时，读取有效 GDK_SCALE（并乘 GDK_DPI_SCALE）作为绝对比例。无有效来源则由 Avalonia 按 1.0 处理。GDK 和 Qt / Xft 不叠加。
+- Avalonia 11.3.22 在 Linux 使用 X11 / XWayland；Wayland 合成器分数缩放、多屏不同 DPI 和实机 LCD 渲染需要设备验收。环境变量在 AppBuilder 初始化平台之前设置；不修改系统 Xresources。
+
+
+### 5.3 字体角色参考
+
+- 桌面字体按 5.1 的平台策略；网页使用内置 Noto Sans SC 子集，像素字体只作回退。
+- 字号：大标题 26 粗（手机网页大标题 28）；页面标题 17 粗；卡片标题 15 粗；正文 13；说明 12；等宽时间码 12。
 - 时间码：编辑器为 `mm:ss.mmm / 总时长`；快速剪辑字段为 `mm:ss.fff`，超过一小时为 `h:mm:ss.fff`；数字等宽。
 
 参考代码 `src/AvaMedia.Desktop/Styles/UiStyles.axaml`：
 
 ```xml
-<FontFamily x:Key="UiFont">Inter, Segoe UI, PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC</FontFamily>
+<FontFamily x:Key="UiFont">avares://AvaMedia.Desktop/Assets/Fonts/Inter#Inter, avares://AvaMedia.Desktop/Assets/Fonts/NotoSansSC#Noto Sans SC</FontFamily>
 ```
 
 `src/AvaMedia.Browser/Ui/RemoteTheme.axaml`（网页文字角色）：
@@ -369,7 +407,7 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 ```xml
 <Setter Property="CornerRadius" Value="999"/>
 <Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
-<Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="14.5"/><Setter Property="MinHeight" Value="40"/></Style>
+<Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="15"/><Setter Property="MinHeight" Value="40"/></Style>
 <Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/></Style>
 <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
 <Style Selector="Button.icon"><Setter Property="Padding" Value="0"/><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="0"/></Style>
@@ -388,7 +426,7 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 <Style Selector="Button.segmentLight"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="12,5"/><Setter Property="CornerRadius" Value="7"/></Style>
 <Style Selector="Button.segmentLight.active"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
 <Style Selector="Button.segmentLight.active /template/ Border#face"><Setter Property="BoxShadow" Value="{DynamicResource SegmentShadow}"/></Style>
-<Style Selector="Button.chip"><Setter Property="Padding" Value="10,4"/><Setter Property="MinHeight" Value="26"/><Setter Property="FontSize" Value="12.5"/></Style>
+<Style Selector="Button.chip"><Setter Property="Padding" Value="10,4"/><Setter Property="MinHeight" Value="26"/><Setter Property="FontSize" Value="13"/></Style>
 <Style Selector="Button.selected"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
 ```
 
@@ -433,7 +471,7 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ```xml
 <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ProgressBar"><Setter Property="Height" Value="4"/><Setter Property="MinHeight" Value="4"/><Setter Property="MaxHeight" Value="4"/><Setter Property="CornerRadius" Value="2"/><Setter Property="Background" Value="{DynamicResource ShellTrack}"/><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
-<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state"><Setter Property="FontSize" Value="11.5"/><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
+<Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
 <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.running"><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
 <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreenText}"/></Style>
 <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-state.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
@@ -557,18 +595,18 @@ var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, H
 
 | demo 类别 | 主题键 / 类名 / 类型 | 尺寸与状态规格 | 主题资源 |
 | --- | --- | --- | --- |
-| 01 按钮 | `AcButton`；`Button.ac.primary/secondary/borderless/danger/destructive/icon/ghost`；`SplitButton` | 常规高 28、圆角 14、内边距 0,14、字 13 Medium；主窗口 30；small 高 22、0,10、字 11.5；large 高 36、0,20、字 14；图标 28×28；拆分箭头区 0,8、分隔 0.5 | `UiAccent/UiAccentText/UiPrimaryHover/UiPrimaryPressed`；`UiFill/AcFillHover/AcFillPressed`；危险 `AcDangerSoft/AcDangerHover/AcDangerPressed/UiDanger`；无边框 `AcSelection/AcSelectionPressed`；焦点 `AcFocusShadow` 外环 3；禁用 `AcDisabledOpacity` 0.4 |
+| 01 按钮 | `AcButton`；`Button.ac.primary/secondary/borderless/danger/destructive/icon/ghost`；`SplitButton` | 常规高 28、圆角 14、内边距 0,14、字 13 Medium；主窗口 30；small 高 22、0,10、字 12；large 高 36、0,20、字 14；图标 28×28；拆分箭头区 0,8、分隔 0.5 | `UiAccent/UiAccentText/UiPrimaryHover/UiPrimaryPressed`；`UiFill/AcFillHover/AcFillPressed`；危险 `AcDangerSoft/AcDangerHover/AcDangerPressed/UiDanger`；无边框 `AcSelection/AcSelectionPressed`；焦点 `AcFocusShadow` 外环 3；禁用 `AcDisabledOpacity` 0.4 |
 | 02 下拉与可编辑组合框 | `AcComboBox`、`AcComboBoxItem`；`ComboBox.ac`，`.pulldown`；`AcMenuItem`、`ContextMenu.ac` | 高 24、圆角 6、内边距 0,4,0,10；双箭头蓝块 16×16、圆角 4；编辑箭头区宽 20；菜单圆角 10、内边距 5；行高 24、圆角 5、勾选列 14、分隔 0.5（缩进 10） | `AcField/AcPopupFace/AcHairline/AcMenuFill/AcPopupShadow`；高亮 `UiAccent/UiAccentText`；禁用 `AcTextTertiary`；聚焦外环，编辑输入保留 |
 | 03 复选、单选、开关 | `AcCheckBox/AcRadioButton/AcToggleSwitch`；`.ac`、`.error`、开关 `.small` | 选择框 14×14、圆角 3.5（单选圆形）、标签间距 7；单选中心点 6；开关 38×22、圆角 11、白旋钮 18、按下加宽 4；small 26×15、旋钮 13；支持混合、选中悬停/按下、焦点、错误、禁用 | `AcField/AcChoiceBorder/UiAccent/UiAccentText`；开 `UiSuccessFill`、关 `UiTrack`；旋钮 `AcKnob/AcKnobShadow`；焦点 `AcFocusShadow` |
 | 04 数值步进器 | `AcNumericUpDown/AcButtonSpinner`；`NumericUpDown.ac` | 字段高 24、默认宽 72、圆角 6、右对齐数字 13；独立步进区 15×22、圆角 5、两段各 11；间距 4；单位字 12；错误 1px 红边与 3px 外晕、消息字 11 | `AcField/AcHairline/AcPopupFace/AcFillPressed`；`UiNumericFont` 数字；`AcErrorShadow/UiDanger` |
 | 05 文本框 | `AcTextBox`；`TextBox.ac`、`.multiline`、`.error` | 单行高 24、圆角 6、内边距 0,8、字 13；多行最小高 76、内边距 6,8、行高 1.45；描边 0.5；错误消息间距 6；禁用不透明度 0.45 | `AcField/AcHairline/AcFieldHoverBorder/AcTextTertiary`；聚焦 `UiAccent/AcFocusShadow`；错误 `UiDanger/AcErrorShadow` |
 | 06 滑块 | `AcSlider`；`Slider.ac`、`.ticks`；`RangeSlider` | 横向控件高 22，垂直方向交换轨道与刻度的尺寸；轨道 3、圆角 1.5、白圆旋钮 18；刻度 1.5×5、刻度旋钮宽 14 尖底；范围双旋钮；按下放大 1.08、焦点环、禁用 0.4 | `UiTrack/UiAccent/AcKnob/AcKnobShadow/AcFocusShadow/AcTextTertiary` |
-| 07 进度与阶段 | `AcProgressBar`；`ProgressBar.ac.paused/failed`；`ProgressRing/LoadingSpinner/StageIndicator/SubStepRow/StatusGlyph` | 条高 4、圆角 2；不确定滑块 30%、1.2s 往返；旋转器 14/22；进度环 44、线宽 3.5；阶段高 64、圆角 10、内边距 10,12、序号 18、字 10.5 半粗、箭头区 24；当前边 1.5；计时字 11；子步骤图标 14、间距 9、上下 7、标题 13、说明 11 | `UiTrack/UiAccent/UiSuccessFill/UiWarning/UiDanger/UiAccentSoft`；`AcStageRadius/AcStagePadding/AcFocusThickness/AcStageLine/AcStageLineBrush`；计数等宽；分类进度专用非当前阶段无边框 |
-| 08 分段与标签栏 | `SegmentedControl`、`.tabs`；`AcSegmentItem` | 高 28、外圆角 8、内边距 2、段圆角 6、内边距 0,14、字 12.5 Medium；段间 0.5 分隔（选中相邻隐藏）；标签字 13、间距 22、底间距 9、指示条高 2 | `UiFill/AcSegmentFace/AcSegmentShadow/AcHairline/UiAccent`；深色选中 #636366；悬停、焦点、禁用 |
-| 09 状态胶囊与徽标 | `StatusPill/CountBadge`；`.ac-status`、`.ac-badge`、`.dot` | 胶囊高 20、圆角 10、内边距 0,8、字 11.5 Medium、状态点 6；徽标高/最小宽 18、圆角 9、内边距 0,5、字 11 半粗等宽；通知点 8；叠放外边 1.5 | `AcRunningFill/AcSuccessFill/AcWarningFill/AcDangerFill/AcWaitingFill`，对应色 12–14%；文字 `UiAccent/UiSuccess/AcWarningText/UiDanger/UiTextSecondary` |
-| 10 卡片、设置分组、列表 | `Card/ListRow/SectionHeader`；`.ac-card/.ac-group/.ac-setting-row/.ac-list-row/.ac-section` | 卡片圆角 12、内边距 16、内部/卡片间距 12；标题 13 半粗、描述 11.5、下间距 8；设置分组圆角 10、行最小高 40、内边距 0,12、分隔 0.5 左缩 12；列表高 56/36、圆角 8、内边距 0,10、间距 8、缩略图 40/圆角 6、角标高 16、数值 20 Bold 右对齐 | `UiSurface/AcCardFace/AcCardShadow/AcHairline/UiFill/AcSelection`；活动选择 `UiAccent/UiAccentText`；常态、悬停、非活动选择、活动选择、禁用 |
-| 11 浮层、表单与通知 | `AcToolTip/AcMenuItem/AcPopover`；`.ac-tooltip/.ac-popover/.ac-sheet/.ac-notice`；`Notice/Popover` | 提示字 11.5、内边距 4,8、圆角 6、延迟 0.6s；气泡圆角 12、内边距 14、默认宽 240、箭头 12；确认表单宽 300、圆角 16、内边距 20,18,16、图标 44、标题 13 Bold、按钮间距 8；通知宽 340、圆角 10、内边距 10,12、色条宽 3、图标 16 | `AcMenuFill/AcPopupShadow/UiText/UiTextSecondary`；通知 `AcNoticeFace/UiAccent/UiSuccessFill/UiDanger`；警告 `AcBanner/AcBannerText/UiWarning` |
-| 12 空/错误状态与滚动条 | `EmptyState`、`.error`；`AcScrollBar`、`ScrollBar.ac` | 空/错状态居中图标 40、线宽 1.4、标题 13 半粗、说明 11.5、间距 6、小按钮；滚动条常规滑块宽 7、圆角 3.5、距边 2；悬停宽 11、轨道宽 15、描边 0.5；静止 1s 后淡出 | `UiCanvas/AcTextTertiary/UiDanger/AcScrollBrush/AcScrollHover/AcScrollTrack/AcHairline`；深色滚动条 40% 白，悬停 50% 白 |
+| 07 进度与阶段 | `AcProgressBar`；`ProgressBar.ac.paused/failed`；`ProgressRing/LoadingSpinner/StageIndicator/SubStepRow/StatusGlyph` | 条高 4、圆角 2；不确定滑块 30%、1.2s 往返；旋转器 14/22；进度环 44、线宽 3.5；阶段高 64、圆角 10、内边距 10,12、序号 18、字 11 半粗、箭头区 24；当前边 1.5；计时字 11；子步骤图标 14、间距 9、上下 7、标题 13、说明 11 | `UiTrack/UiAccent/UiSuccessFill/UiWarning/UiDanger/UiAccentSoft`；`AcStageRadius/AcStagePadding/AcFocusThickness/AcStageLine/AcStageLineBrush`；计数等宽；分类进度专用非当前阶段无边框 |
+| 08 分段与标签栏 | `SegmentedControl`、`.tabs`；`AcSegmentItem` | 高 28、外圆角 8、内边距 2、段圆角 6、内边距 0,14、字 13 Medium；段间 0.5 分隔（选中相邻隐藏）；标签字 13、间距 22、底间距 9、指示条高 2 | `UiFill/AcSegmentFace/AcSegmentShadow/AcHairline/UiAccent`；深色选中 #636366；悬停、焦点、禁用 |
+| 09 状态胶囊与徽标 | `StatusPill/CountBadge`；`.ac-status`、`.ac-badge`、`.dot` | 胶囊高 20、圆角 10、内边距 0,8、字 12 Medium、状态点 6；徽标高/最小宽 18、圆角 9、内边距 0,5、字 11 半粗等宽；通知点 8；叠放外边 1.5 | `AcRunningFill/AcSuccessFill/AcWarningFill/AcDangerFill/AcWaitingFill`，对应色 12–14%；文字 `UiAccent/UiSuccess/AcWarningText/UiDanger/UiTextSecondary` |
+| 10 卡片、设置分组、列表 | `Card/ListRow/SectionHeader`；`.ac-card/.ac-group/.ac-setting-row/.ac-list-row/.ac-section` | 卡片圆角 12、内边距 16、内部/卡片间距 12；标题 13 半粗、描述 12、下间距 8；设置分组圆角 10、行最小高 40、内边距 0,12、分隔 0.5 左缩 12；列表高 56/36、圆角 8、内边距 0,10、间距 8、缩略图 40/圆角 6、角标高 16、数值 20 Bold 右对齐 | `UiSurface/AcCardFace/AcCardShadow/AcHairline/UiFill/AcSelection`；活动选择 `UiAccent/UiAccentText`；常态、悬停、非活动选择、活动选择、禁用 |
+| 11 浮层、表单与通知 | `AcToolTip/AcMenuItem/AcPopover`；`.ac-tooltip/.ac-popover/.ac-sheet/.ac-notice`；`Notice/Popover` | 提示字 12、内边距 4,8、圆角 6、延迟 0.6s；气泡圆角 12、内边距 14、默认宽 240、箭头 12；确认表单宽 300、圆角 16、内边距 20,18,16、图标 44、标题 13 Bold、按钮间距 8；通知宽 340、圆角 10、内边距 10,12、色条宽 3、图标 16 | `AcMenuFill/AcPopupShadow/UiText/UiTextSecondary`；通知 `AcNoticeFace/UiAccent/UiSuccessFill/UiDanger`；警告 `AcBanner/AcBannerText/UiWarning` |
+| 12 空/错误状态与滚动条 | `EmptyState`、`.error`；`AcScrollBar`、`ScrollBar.ac` | 空/错状态居中图标 40、线宽 1.4、标题 13 半粗、说明 12、间距 6、小按钮；滚动条常规滑块宽 7、圆角 3.5、距边 2；悬停宽 11、轨道宽 15、描边 0.5；静止 1s 后淡出 | `UiCanvas/AcTextTertiary/UiDanger/AcScrollBrush/AcScrollHover/AcScrollTrack/AcHairline`；深色滚动条 40% 白，悬停 50% 白 |
 
 标准控件通过 `.ac` 接入，亦可直接指定具名 Theme；独立项目只依赖 Avalonia 与 Themes.Simple。类名 `ac-hover/ac-pressed/ac-focus` 为预览提供确定的状态快照，和真实伪类共享同一资源与样式。皮肤资源覆盖见 `src/AvaMedia.Desktop/Styles/ComponentSkins.axaml`；Mac OS 9 / XP 的标准输入继续使用经典模板，组合组件使用同名资源覆盖圆角、颜色和阴影。预览页允许明确标注的示例数据，实际窗口仍只显示真实数据。浮层材质以主题半透明画刷实现跨平台回退。
 
@@ -763,7 +801,7 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 - 右侧检查器：片段列表（小缩略图、区间、时长）、选中片段的“起点 / 终点”首尾帧卡片（时间码、前后一帧微调、跳转），以及按卡片分组的参数。
 - 底部导出栏：左侧摘要，右侧主按钮。
 - 所有已有功能和快捷键必须保留；快捷键只在 tooltip 中。
-- **快速剪辑尺寸**：侧栏宽 330，片段行高 40，首尾帧高 75；时间字段为居中的 11.5 半粗 `mm:ss.fff`（超过一小时为 `h:mm:ss.fff`）。属性行高 34，值用 `#6E6E73`（`QcValue`），无框下拉加细灰箭头。时间线工具按钮高 30，标尺高 14，胶片条高 52，底部仅显示 11 px 次文字摘要；缩放轨宽 70、蓝色填充、白色阴影滑块。
+- **快速剪辑尺寸**：侧栏宽 330，片段行高 40，首尾帧高 75；时间字段为居中的 12 半粗 `mm:ss.fff`（超过一小时为 `h:mm:ss.fff`）。属性行高 34，值用 `#6E6E73`（`QcValue`），无框下拉加细灰箭头。时间线工具按钮高 30，标尺高 14，胶片条高 52，底部仅显示 11 px 次文字摘要；缩放轨宽 70、蓝色填充、白色阴影滑块。
 - **快速剪辑结构**：三种模式始终显示公共标题栏、预览、传输控制、胶片条时间线与底栏。画面裁剪使用右侧检查器放置比例、精确坐标、重置与去水印选区；自动转正卡片追加在时间线下方，预览可适度缩小，卡片圆角 14、内边距上 12 / 左右与下 14，高约 148，保留方向胶囊、镜像、识别状态与操作。1280 × 800 下时间线不得被模式卡片替代。
 - **底栏**：提供输出配置、下一个视频和进入导出选项。进入导出选项前，其他勾选的视频必须已有剪辑，否则保留编辑器与草稿，弹出“还有视频未剪辑”模态提示，逐行列出文件名，说明需先剪辑或取消勾选（对话框规则见 7.6）。
 - **媒体信息**：标题栏文件名 / 副标题之后放置带提示与无障碍名称的小型媒体信息图标；悬停和点击均打开卡片式浮层，显示文件名、时长、分辨率、视频与音频编码。信息行高 32，标签灰色、值右对齐且数字等宽；长文件名省略并提供完整悬停提示。
@@ -792,7 +830,7 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 ### 10.2 AI 媒体整理提交窗口
 
 - 紧凑窗口约 900 × 520，底色 `#FAFAFC`；两栏宽度比 1 : 1.75，栏间距 18；标题 15 粗，底部次级按钮和主按钮高 32。
-- 分类规则为四列等宽卡片，高 46、圆角 10、间距 8；标题 12.5 半粗。选中为系统蓝底、白色勾选及标题、浅蓝说明；未选中为白底与 1 px 分隔线色边框。悬停、按下保持卡片色彩；更多规则在卡片区域滚动。
+- 分类规则为四列等宽卡片，高 46、圆角 10、间距 8；标题 13 半粗。选中为系统蓝底、白色勾选及标题、浅蓝说明；未选中为白底与 1 px 分隔线色边框。悬停、按下保持卡片色彩；更多规则在卡片区域滚动。
 - 来源使用真实媒体组成 128 × 96 的 2 × 2 拼图，外圆角 10；下方为粗体名称与次色数量。输出目录卡片白底、圆角 10，蓝色文件夹图标及更改胶囊。
 - 参数卡片标签 11 次色、数值 15 粗；轨道高 4，系统蓝填充。帧数用与当前帧数相同数量的短划线表示；保留滑条点击、拖动和键盘调整，悬停或键盘聚焦时显示小滑块。
 - 复选框为 14 px 蓝色圆角方块；复制 / 移动分段使用灰底、白色选中段与轻阴影。

@@ -22,9 +22,12 @@ internal static class ClassifyUi
 
     public static TextBlock T(string text, double size = 13, FontWeight weight = FontWeight.Normal, string? brush = null, bool raw = false)
     {
-        var block = new TextBlock { Text = raw ? text : L(text), FontSize = size, FontWeight = weight, [!TextBlock.ForegroundProperty] = Resource(brush ?? Ink),
+        var block = new TextBlock { Text = raw ? text : L(text), FontSize = Math.Ceiling(size), FontWeight = weight, [!TextBlock.ForegroundProperty] = Resource(brush ?? Ink),
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
         if (raw) Localization.SetIsUserText(block, true);
+        var font = Math.Ceiling(size) switch
+        { 11 => "UiFontTiny", 12 => "UiFontCaption", 13 => "UiFontBody", 14 => "UiFontEmphasis", 15 => "UiFontCardTitle", 17 => "UiFontTitle", _ => null };
+        if (font is not null) block.Bind(TextBlock.FontSizeProperty, Resource(font));
         return block;
     }
 
@@ -70,8 +73,8 @@ internal static class ClassifyUi
 
     public static Border Badge(string text, string background, string? foreground = null) => new()
     {
-        [!Border.BackgroundProperty] = Resource(background), CornerRadius = new(8), Padding = new(5, 1), MinWidth = 18,
-        Child = new TextBlock { Text = text, FontSize = 10.5, FontWeight = FontWeight.Bold, [!TextBlock.ForegroundProperty] = Resource(foreground ?? White), HorizontalAlignment = HorizontalAlignment.Center }
+        [!Border.BackgroundProperty] = Resource(background), [!Border.CornerRadiusProperty] = Resource("AcListRadius"), Padding = new(5, 1), MinWidth = 18,
+        Child = new TextBlock { Text = text, [!TextBlock.FontSizeProperty] = Resource("UiFontTiny"), FontWeight = FontWeight.Bold, [!TextBlock.ForegroundProperty] = Resource(foreground ?? White), HorizontalAlignment = HorizontalAlignment.Center }
     };
 
     public static Control Dot(string brush, double size = 7) => new Border { Width = size, Height = size, CornerRadius = new(size / 2), [!Border.BackgroundProperty] = Resource(brush), VerticalAlignment = VerticalAlignment.Center };

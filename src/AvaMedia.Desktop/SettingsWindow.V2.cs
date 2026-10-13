@@ -29,7 +29,7 @@ public sealed partial class SettingsWindow
             pages[index].HeaderTemplate = new FuncDataTemplate<string>((label, _) =>
             {
                 var glyph = new LucideIcon { Kind = icon, Width = 13, Height = 13, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                var tile = new Border { Width = 20, Height = 20, CornerRadius = new(5.5), Child = glyph };
+                var tile = new Border { Width = 20, Height = 20, [!Border.CornerRadiusProperty] = new DynamicResourceExtension("UiSettingsIconRadius"), Child = glyph };
                 tile.Bind(Border.BackgroundProperty, new DynamicResourceExtension("St" + color));
                 var row = new Grid { ColumnDefinitions = new("20,*"), ColumnSpacing = 9 };
                 row.Children.Add(tile);

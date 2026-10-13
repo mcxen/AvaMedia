@@ -93,7 +93,7 @@ public sealed class StageIndicator : Border
         BindResource(_detail, TextBlock.FontSizeProperty, "AcSubStepFont"); BindResource(_detail, TextBlock.ForegroundProperty, "UiTextSecondary");
         BindResource(_count, TextBlock.FontFamilyProperty, "UiNumericFont"); _count.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") };
         _count.FontSize = 11; BindResource(_count, TextBlock.ForegroundProperty, "UiTextSecondary"); _count.VerticalAlignment = VerticalAlignment.Center;
-        _number.FontSize = 10.5; _number.FontWeight = FontWeight.SemiBold;
+        _number.FontSize = 11; _number.FontWeight = FontWeight.SemiBold;
         var grid = new Grid { ColumnDefinitions = new("Auto,*,Auto"), RowDefinitions = new("18,26"), ColumnSpacing = 9, RowSpacing = 1 };
         grid.Children.Add(_dot); Grid.SetColumn(_name, 1); grid.Children.Add(_name); Grid.SetColumn(_count, 2); grid.Children.Add(_count);
         Grid.SetRow(_detail, 1); Grid.SetColumn(_detail, 1); Grid.SetColumnSpan(_detail, 2); grid.Children.Add(_detail); Child = grid;

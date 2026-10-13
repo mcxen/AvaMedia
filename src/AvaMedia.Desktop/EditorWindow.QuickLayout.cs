@@ -1,3 +1,4 @@
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -46,7 +47,7 @@ public partial class EditorWindow
         {
             foreach (var role in new[] { "icon", "borderless", "large", "shell", "primary" }) control.Classes.Remove(role);
             if (classes.Any(role => role is "ib" or "nudge")) { control.Classes.Add("icon"); control.Classes.Add("borderless"); }
-            if (classes.Contains("nudge")) { control.Classes.Add("small"); control.Bind(WidthProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcSmallHeight")); }
+            if (classes.Contains("nudge")) { control.Classes.Add("small"); control.Bind(WidthProperty, new DynamicResourceExtension("AcSmallHeight")); }
             if (classes.Contains("pill")) control.Classes.Add("shell");
             if (classes.Contains("primary-pill")) { control.Classes.Add("primary"); control.Classes.Add("large"); }
             if (classes.Contains("link")) control.Classes.Add("borderless");
@@ -69,7 +70,7 @@ public partial class EditorWindow
             if (button.Tag is TabItem { Header: string header })
             {
                 button.ClearValue(ContentControl.ContentProperty);
-                button.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { QuickIcon(icons.GetValueOrDefault(header, "scissors"), 13), new TextBlock { Text = Localization.Text(header), FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center } } };
+                button.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { QuickIcon(icons.GetValueOrDefault(header, "scissors"), 13), new TextBlock { Text = Localization.Text(header), [!TextBlock.FontSizeProperty] = new DynamicResourceExtension("UiFontBody"), VerticalAlignment = VerticalAlignment.Center } } };
             }
         Move(UndoSegmentButton, QuickHistorySlot); Move(RedoSegmentButton, QuickHistorySlot);
         Restyle(UndoSegmentButton, "ib"); UndoSegmentButton.Content = QuickIcon("undo-2");
@@ -148,15 +149,15 @@ public partial class EditorWindow
         Move(image, panel); image.Stretch = Avalonia.Media.Stretch.Uniform;
         panel.Children.Add(new Border { Classes = { "tag" }, Child = new TextBlock { Text = Localization.Text(tag) }, IsHitTestVisible = false });
         var frameContent = new Border { ClipToBounds = true, Child = panel };
-        frameContent.Bind(Border.CornerRadiusProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcThumbRadius"));
+        frameContent.Bind(Border.CornerRadiusProperty, new DynamicResourceExtension("AcThumbRadius"));
         frame.Content = frameContent;
         card.Children.Add(frame);
         var row = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 3, Margin = new Thickness(0, 5, 0, 0) };
         Move(minus, row); Restyle(minus, "nudge"); minus.Content = QuickIcon("chevron-left", 12);
         Move(time, row); Restyle(time, "qc-time");
-        time.Bind(TextBox.FontSizeProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcSmallFont"));
-        time.Bind(TextBox.FontFamilyProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("UiNumericFont"));
-        time.Bind(TextBox.PaddingProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("AcNoBorder"));
+        time.Bind(TextBox.FontSizeProperty, new DynamicResourceExtension("AcSmallFont"));
+        time.Bind(TextBox.FontFamilyProperty, new DynamicResourceExtension("UiNumericFont"));
+        time.Bind(TextBox.PaddingProperty, new DynamicResourceExtension("AcNoBorder"));
         Grid.SetColumn(time, 1);
         Move(plus, row); Restyle(plus, "nudge"); plus.Content = QuickIcon("chevron-right", 12); Grid.SetColumn(plus, 2);
         card.Children.Add(row);

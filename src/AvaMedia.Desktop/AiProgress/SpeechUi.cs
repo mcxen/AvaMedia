@@ -60,7 +60,9 @@ internal static class SpeechUi
     }
     public static TextBlock Text(string value, bool secondary = false, double size = 13)
     {
-        var text = Ui.Text(value, secondary ? "caption" : null); text.FontSize = size;
+        var text = Ui.Text(value, secondary ? "caption" : null); text.FontSize = Math.Ceiling(size);
+        var font = Math.Ceiling(size) switch { 11 => "UiFontTiny", 12 => "UiFontCaption", 13 => "UiFontBody", _ => null };
+        if (font is not null) text.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension(font));
         return text;
     }
     public static TextBlock Heading(string value)

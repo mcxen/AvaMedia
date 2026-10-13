@@ -142,7 +142,7 @@ public sealed partial class ImageViewerWindow : Window
         _toolbar.Children.Add(ImageViewerToolbar.Divider());
         AddTool("zoom-out", "缩小", () => _viewport.ZoomBy(1 / 1.2));
         AddTool("zoom-in", "放大", () => _viewport.ZoomBy(1.2));
-        _fit.Width = 86; _fit.Height = _fit.MinHeight = 30; _fit.Margin = new(2, 0, 2, 0);
+        _fit.Width = 86; _fit.Bind(Button.HeightProperty, new DynamicResourceExtension("AcShellButtonHeight")); _fit.Bind(Button.MinHeightProperty, new DynamicResourceExtension("AcShellButtonHeight")); _fit.Margin = new(2, 0, 2, 0);
         _fit.Classes.Add("viewer-fit");
         _toolbar.Children.Add(_fit);
         AddTool("rotate-left", "左转", () => _viewport.Rotate(-90));

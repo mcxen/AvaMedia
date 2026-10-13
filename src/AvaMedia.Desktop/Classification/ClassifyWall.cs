@@ -21,7 +21,7 @@ internal sealed class Mosaic : Grid
             _thumbs = Enumerable.Range(0, 3).Select(i => new ClassifyThumb(48)
             {
                 Width = height * .85, Height = height * .85, Margin = new(i * 6, 3 - i * 1.5, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top, [!ClassifyThumb.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5), CornerRadius = new(5)
+                VerticalAlignment = VerticalAlignment.Top, [!ClassifyThumb.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5), [!Border.CornerRadiusProperty] = Resource("AcThumbRadius")
             }).ToArray();
             foreach (var thumb in _thumbs) Children.Add(thumb);
         }
@@ -104,7 +104,7 @@ internal sealed class FileWall : ListBox
     internal sealed class WallTile : Panel
     {
         private readonly ClassifyThumb _thumb = new(48) { Width = Tile, Height = Tile };
-        private readonly Border _ring = new() { CornerRadius = new(8), [!Border.BorderBrushProperty] = Resource(Blue), BorderThickness = new(2), Margin = new(-2) };
+        private readonly Border _ring = new() { [!Border.CornerRadiusProperty] = Resource("AcListRadius"), [!Border.BorderBrushProperty] = Resource(Blue), BorderThickness = new(2), Margin = new(-2) };
         private readonly Border _badge = new() { Width = 14, Height = 14, CornerRadius = new(7), HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom, Margin = new(0, 0, 2, 2), [!Border.BorderBrushProperty] = Resource(White), BorderThickness = new(1.5) };
         private string? _key;
