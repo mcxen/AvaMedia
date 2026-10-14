@@ -89,7 +89,7 @@ if (mode == "mock")
         return JsonSerializer.Serialize(new { claims = new[] { claim } });
     });
     var okService = new VideoSummaryService(engine,
-        modelFactory: (id, _) => Task.FromResult<ISummaryModel>(id == ModelCatalog.SummaryVisionId ? jobVision : jobText));
+        modelFactory: (_, visionStage, _) => Task.FromResult<ISummaryModel>(visionStage ? jobVision : jobText));
     var result = await okService.ExecuteAsync(SummaryJob(video, output, Options()), _ => { }, CancellationToken.None);
     Check(result.Frames.Count >= 2 && result.Frames.Count(frame => frame.Refused) == 1 && result.Summary is { Length: > 0 }, "job result has refused frame and summary");
     var report = VideoSummaryService.LoadResult(output)!;

@@ -201,7 +201,7 @@ public static class SummaryAgentHarness
             this.getState = getState; this.finishIssue = finishIssue;
             decisionSchema = CreateDecisionSchema(tools);
             imageLimit = 3;
-            contextLimit = model.ModelId == ModelCatalog.SummaryVisionId ? 6000 : 48000;
+            contextLimit = 48000;
             ValidateImages(images); attachedImages = images.ToArray(); totalImages = images.Count;
             definitions = JsonSerializer.Serialize(tools.Select(t => new
             { name = t.Name, description = t.Description, arguments = CompactContract(t.Parameters) }), ModelJson);

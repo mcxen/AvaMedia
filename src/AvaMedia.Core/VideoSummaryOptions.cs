@@ -8,7 +8,7 @@ public sealed class VideoSummaryOptions
     public VideoSummaryProvider Provider { get; set; }
     public string LocalVisionModelId { get; set; } = ModelCatalog.SummaryQwen35Id;
     /// <summary>Local model for summary generation and review; Qwen3.5 4B also handles text-only requests.</summary>
-    public string LocalSummaryModelId { get; set; } = ModelCatalog.SummaryTextId;
+    public string LocalSummaryModelId { get; set; } = ModelCatalog.SummaryQwen35Id;
     public string OnlineProviderId { get; set; } = "";
     /// <summary>Online provider for per-frame descriptions; empty uses OnlineProviderId.</summary>
     public string VisionProviderId { get; set; } = "";
@@ -52,7 +52,7 @@ public sealed class VideoSummaryOptions
         if (!Enum.IsDefined(Provider) || !Enum.IsDefined(TranscriptSource) || SubtitleTrack < -1 || AudioTrack < 0)
             throw new ArgumentException("字幕来源或轨道索引无效。");
         if (!ModelCatalog.IsSummaryVision(LocalVisionModelId)) throw new ArgumentException("所选本地画面描述模型无效。");
-        if (LocalSummaryModelId is not (ModelCatalog.SummaryQwen35Id or ModelCatalog.SummaryTextId))
+        if (LocalSummaryModelId is not ModelCatalog.SummaryQwen35Id)
             throw new ArgumentException("所选本地内容总结模型无效。");
         if (new[] { OnlineProviderId, VisionProviderId, SummaryProviderId }.Any(id => id.Length != 0 && !Guid.TryParseExact(id, "N", out _)))
             throw new ArgumentException("所选 AI 供应商无效。");

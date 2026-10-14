@@ -14,7 +14,7 @@ public sealed partial class VideoSummaryService
         await store.WriteAsync("probe.json", sourceHash, info, ct);
         var online = options.Provider == VideoSummaryProvider.Online ? ResolveOnlineModels(engine.Settings.OnlineAi, options) : null;
         var budget = online is null
-            ? options.LocalSummaryModelId == ModelCatalog.SummaryQwen35Id ? TokenBudget.For(new(options.LocalSummaryModelId, 16384, 4096)) : TokenBudget.Local8K
+            ? TokenBudget.For(new(options.LocalSummaryModelId, 16384, 4096))
             : TokenBudget.For(online.SummaryProvider.ModelInfo.FirstOrDefault(m => m.Id == online.SummaryModel) ?? new(online.SummaryModel));
         var speech = options.Speech.Clone(); speech.Language = "auto";
         var external = options.TranscriptSource == VideoTranscriptSource.External ? new FileInfo(options.SubtitleFile) : null;
@@ -31,7 +31,7 @@ public sealed partial class VideoSummaryService
         if (options.ExtractSubtitles) await File.WriteAllTextAsync(Path.Combine(folder, "subtitles.srt"), SpeechSubtitles.Srt(subtitleCues), ct);
         await using var text = online is not null && modelFactory is null
             ? new OnlineSummaryModel(online.SummaryProvider, model: online.SummaryModel, boundedOutput: true)
-            : await OpenLongModelAsync(online is null ? options.LocalSummaryModelId : ModelCatalog.SummaryTextId, online, options, activity, ct);
+            : await OpenLongModelAsync(online?.SummaryModel ?? options.LocalSummaryModelId, online, false, activity, ct);
         var identity = online is null ? text.ModelId : SummaryCheckpointStore.Hash(new { online.SummaryProvider.Endpoint, online.SummaryModel });
         var model = new RetryingSummaryModel(new LongSummaryModel(text, identity));
         var gate = new ConcurrencyGate(identity, options.Provider == VideoSummaryProvider.Local, options.LongSummaryConcurrency, options.LongSummaryRequestsPerMinute, options.LongSummaryTokensPerMinute);
@@ -88,8 +88,8 @@ public sealed partial class VideoSummaryService
             var visualOnly = !info.HasAudio || selectedCues.Length == 0 || transcript.Voices.Length > 0 && transcript.Voices.Sum(v => v.EndSeconds - v.StartSeconds) / info.Duration < .03;
             if (options.AnalyzeFrames)
             {
-                var visionId = online is null ? options.LocalVisionModelId : ModelCatalog.SummaryVisionId;
-                await using var vision = await OpenLongModelAsync(visionId, online, options, activity, cancellation);
+                var visionId = online?.VisionModel ?? options.LocalVisionModelId;
+                await using var vision = await OpenLongModelAsync(visionId, online, true, activity, cancellation);
                 var framePlan = new SemanticSegmenter().Plan(new(info.Duration, selectedCues, shots.Shots, transcript.Voices, []), budget, visualOnly: visualOnly);
                 foreach (var range in framePlan.Segments)
                 {
@@ -131,10 +131,10 @@ public sealed partial class VideoSummaryService
             return new SummarySignals(info.Duration, selectedCues, shots.Shots, transcript.Voices, frames, ocr.Available, info.HasAudio) { RawCues = rawCues };
         }
     }
-    private async Task<ISummaryModel> OpenLongModelAsync(string id, VideoSummaryOnlineModels? online, VideoSummaryOptions options,
+    private async Task<ISummaryModel> OpenLongModelAsync(string id, VideoSummaryOnlineModels? online, bool vision,
         AiActivityReporter activity, CancellationToken ct)
     {
-        if (online is not null || modelFactory is not null) return await OpenModelAsync(id, online, options, activity, ct);
+        if (online is not null || modelFactory is not null) return await OpenModelAsync(id, online, vision, activity, ct);
         await Task.WhenAll(EnsureModelAsync(ModelCatalog.SummaryRuntimeId, activity, ct), EnsureModelAsync(id, activity, ct));
         return await SharedSummaryModelLease.AcquireAsync(_models, id, ct, stage => activity.Stage(stage));
     }

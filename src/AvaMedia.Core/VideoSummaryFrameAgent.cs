@@ -61,7 +61,6 @@ internal static class VideoSummaryFrameAgent
         var completedSeeds = new HashSet<string>(StringComparer.Ordinal);
         var remainingFrames = maximumFrames; var perceptionRequests = 0;
         var maximumPerceptionRequests = maximumFrames * 2 + 8;
-        var smallModel = vision.ModelId == ModelCatalog.SummaryVisionId;
         var fallback = false;
         // Focus is a question, never an evidence field. Keep it bounded for the local model.
         var userFocus = focus.Trim();
@@ -239,11 +238,11 @@ internal static class VideoSummaryFrameAgent
             frameColumns = new[] { "id", "seconds", "view" },
             frames = frames.Select(frame => new object[] { frame.Id, Math.Round(frame.Seconds, 6), frame.Cropped ? "crop" : "full" }),
             observationColumns = new[] { "id", "frameIds", "kind", "text" },
-            observations = observations.TakeLast(smallModel ? 8 : 16).Select(observation => new object[] { observation.Id, observation.FrameIds,
+            observations = observations.TakeLast(16).Select(observation => new object[] { observation.Id, observation.FrameIds,
                 observation.Sequence ? "sequence" : observation.FrameIds.Length > 1 ? "comparison" : "frame",
-                smallModel && observation.Text.Length > 160 ? observation.Text[..160] : observation.Text }),
+                observation.Text }),
             uncertaintyCount = uncertainties.Count,
-            uncertainties = uncertainties.TakeLast(smallModel ? 8 : 12).Select(note => note.Length > 160 ? note[..160] : note)
+            uncertainties = uncertainties.TakeLast(12).Select(note => note.Length > 160 ? note[..160] : note)
         }, ToolJson);
         var system = "你是视频视觉调查规划器。实际覆盖观察已由程序逐帧隔离感知并绑定编号，不需要你记录事实。" +
             "执行状态含实际时间、像素观察、不确定性和预算。仅在主要内容有具体疑点时用inspect_clip回看近邻片段，或inspect_frame查看单帧/局部。" +
@@ -260,7 +259,7 @@ internal static class VideoSummaryFrameAgent
             var investigation = await SummaryAgentHarness.RunAsync(vision, system, prompt, [],
                 [clipTool, frameTool, transcriptTool], ct, step => { Trace(step); progress?.Invoke(step.Tool switch
                     { "inspect_clip" => "回看片段", "inspect_frame" => "核对画面", "read_transcript" => "读取字幕", _ => "视觉调查" }); },
-                maximumTurns: smallModel ? 4 : 8,
+                maximumTurns: 8,
                 canFinish: () => observations.Count > 0, getState: State,
                 finishIssue: () => observations.Count == 0 ? "没有可确认的像素观察；请核对实际画面或abstain。" : null).ConfigureAwait(false);
             if (investigation.Abstained) { fallback = true; AddUncertainty("Agent 未能完成增补：" + investigation.Text); }

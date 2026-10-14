@@ -83,7 +83,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             { BaseAddress = new Uri($"http://127.0.0.1:{port}/"), Timeout = TimeSpan.FromMinutes(10) };
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
             var arguments = new List<string> { "-m", Path.Combine(model.Directory, definition.Files[0].Path), "--alias", id,
-                "--ctx-size", id == ModelCatalog.SummaryVisionId ? "4096" : id == ModelCatalog.SummaryQwen35Id ? "16384" : "8192",
+                "--ctx-size", "16384",
                 "--parallel", "1", "--batch-size", "512", "--ubatch-size", "128",
                 "--threads", CpuResourcePolicy.Threads(Math.Clamp(Environment.ProcessorCount / 2, 1, 8)).ToString(),
                 "--threads-batch", CpuResourcePolicy.Threads(Math.Clamp(Environment.ProcessorCount / 2, 1, 8)).ToString(),
@@ -93,8 +93,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             if (!gpu) arguments.AddRange(["--device", "none"]);
             if (ModelCatalog.IsSummaryVision(id))
                 arguments.AddRange(["--mmproj", Path.Combine(model.Directory, definition.Files[1].Path), gpu ? "--mmproj-offload" : "--no-mmproj-offload"]);
-            if (id != ModelCatalog.SummaryVisionId)
-                arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
+            arguments.AddRange(["--jinja", "--chat-template-kwargs", "{\"enable_thinking\":false}"]);
             status?.Invoke("加载本地模型");
             preparation?.Invoke(new("加载本地模型"));
             owner = await OwnedModelProcess.StartAsync(executable, arguments, ct).ConfigureAwait(false);
@@ -132,38 +131,17 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     public async Task<string> CompleteAsync(string system, string prompt, CancellationToken ct, byte[]? image = null, int tokens = 1024,
         JsonElement? schema = null, IReadOnlyList<SummaryModelImage>? images = null)
     {
-        var structuredVisual = _id == ModelCatalog.SummaryVisionId && schema is not null;
-        var content = SummaryChatProtocol.Content(structuredVisual ? system + "\n" + prompt : prompt, image, images, ModelCatalog.IsSummaryVision(_id),
-            _id == ModelCatalog.SummaryVisionId ? 3 : 32);
-        // SmolVLM's published template is a user/assistant conversation; keep its visual instruction in user content.
-        object[] messages = _id == ModelCatalog.SummaryVisionId
-            ? [new { role = "user", content }]
-            : [new { role = "system", content = (object)system }, new { role = "user", content }];
-        // SmolVLM publishes greedy visual decoding. Text-model penalties must not
-        // push its very small decoder towards unrelated objects or invented events.
-        var visual = _id == ModelCatalog.SummaryVisionId;
+        var content = SummaryChatProtocol.Content(prompt, image, images, ModelCatalog.IsSummaryVision(_id), 32);
+        object[] messages = [new { role = "system", content = (object)system }, new { role = "user", content }];
         var request = Request(messages, tokens);
         if (schema is { } shape)
-        {
             request["response_format"] = new { type = "json_object", schema = shape };
-            // JSON may contain newlines; the caption stop token must not truncate structured decisions.
-            if (visual) request.Remove("stop");
-        }
         using var json = await SendAsync(request, ct).ConfigureAwait(false);
         var (message, limited) = SummaryChatProtocol.ReadResponse(json.RootElement, "本地总结模型响应格式无效。");
         var text = SummaryChatProtocol.ReadText(message, "本地总结模型未返回有效文本。");
         text = Regex.Replace(text, @"<think>.*?</think>", "", RegexOptions.Singleline, TimeSpan.FromSeconds(1)).Trim();
         if (text.Length == 0) throw new InvalidDataException("本地总结模型返回了空内容。");
-        if (visual && schema is null)
-        {
-            // Small visual decoders can repeat after a complete caption. Keep whole sentences only;
-            // an incomplete prefix is never turned into visual evidence or a partially parsed JSON answer.
-            var sentences = Regex.Matches(text, """\G\s*.*?[.!?](?:["”’])?(?=\s|$)""", RegexOptions.Singleline, TimeSpan.FromSeconds(1))
-                .Cast<Match>().Take(images is null ? 1 : 2).ToArray();
-            if (sentences.Length > 0) text = string.Join(" ", sentences.Select(sentence => sentence.Value.Trim()));
-            else if (limited) throw new InvalidDataException("画面模型未返回完整观察，请减小采样画面数后重试。");
-        }
-        else if (limited) throw new InvalidDataException("总结超过输出长度，请缩小分段字符数或分析重点后重试。");
+        if (limited) throw new InvalidDataException("总结超过输出长度，请缩小分段字符数或分析重点后重试。");
         return text;
     }
 
@@ -177,13 +155,10 @@ public sealed class LocalSummaryModel : ISummaryToolModel
 
     private Dictionary<string, object> Request(IReadOnlyList<object> messages, int tokens)
     {
-        var smol = _id == ModelCatalog.SummaryVisionId;
-        var request = new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
-            ["max_tokens"] = tokens, ["temperature"] = smol ? 0 : .2, ["top_p"] = .8,
-            ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 0 };
-        if (smol) { request["repeat_penalty"] = 1.1; request["stop"] = new[] { "\n" }; }
-        else request["chat_template_kwargs"] = new { enable_thinking = false };
-        return request;
+        return new Dictionary<string, object> { ["model"] = _id, ["messages"] = messages, ["stream"] = false,
+            ["max_tokens"] = tokens, ["temperature"] = .2, ["top_p"] = .8,
+            ["top_k"] = 20, ["min_p"] = 0, ["presence_penalty"] = 0,
+            ["chat_template_kwargs"] = new { enable_thinking = false } };
     }
 
     private async Task<JsonDocument> SendAsync(Dictionary<string, object> request, CancellationToken ct)

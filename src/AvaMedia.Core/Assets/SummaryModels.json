@@ -1,45 +1,9 @@
 {
   "models": [
     {
-      "id": "summary-qwen35-text-abliterated",
-      "name": "Qwen3.5 · 0.8B · abliterated · Q8",
-      "purpose": "本地视频摘要与中文总结",
-      "license": "Apache-2.0",
-      "page": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-0.8B-abliterated",
-      "files": [
-        {
-          "path": "Huihui-Qwen3.5-0.8B-abliterated.Q8_0.gguf",
-          "size": 811844064,
-          "sha256": "54e2a3903cbd0ff264b770f29ac59c1fc547d2865db2b42e4e3ef36700767946",
-          "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-0.8B-abliterated-GGUF/resolve/2fabc82874616f44cdc494ec8ddc0e8ee10654b3/Huihui-Qwen3.5-0.8B-abliterated.Q8_0.gguf"
-        }
-      ]
-    },
-    {
-      "id": "summary-smolvlm",
-      "name": "SmolVLM2 · 500M · Q8",
-      "purpose": "本地视频画面分析",
-      "license": "Apache-2.0",
-      "page": "https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct",
-      "files": [
-        {
-          "path": "SmolVLM2-500M-Video-Instruct-Q8_0.gguf",
-          "size": 436808704,
-          "sha256": "6f67b8036b2469fcd71728702720c6b51aebd759b78137a8120733b4d66438bc",
-          "url": "https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF/resolve/ccd7aae53bcb1997355c2f094959e72b3642ce17/SmolVLM2-500M-Video-Instruct-Q8_0.gguf"
-        },
-        {
-          "path": "mmproj-SmolVLM2-500M-Video-Instruct-Q8_0.gguf",
-          "size": 108785184,
-          "sha256": "921dc7e259f308e5b027111fa185efcbf33db13f6e35749ddf7f5cdb60ef520b",
-          "url": "https://huggingface.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF/resolve/ccd7aae53bcb1997355c2f094959e72b3642ce17/mmproj-SmolVLM2-500M-Video-Instruct-Q8_0.gguf"
-        }
-      ]
-    },
-    {
       "id": "summary-qwen35-abliterated",
       "name": "Qwen3.5 · 4B · abliterated · Q4",
-      "purpose": "本地图片与视频描述 · Metal / Vulkan",
+      "purpose": "本地图片与视频描述、文本总结 · Metal / Vulkan",
       "license": "Apache-2.0",
       "page": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-4B-abliterated",
       "files": [

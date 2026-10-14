@@ -36,9 +36,9 @@ public sealed record VideoSummaryReport(string Source, double Duration, string T
 
 public sealed record VideoSummaryOnlineModels(OnlineAiOptions VisionProvider, string VisionModel, OnlineAiOptions SummaryProvider, string SummaryModel);
 
-/// <param name="modelFactory">Model override (tests) keyed by the selected local model ID; online stages use SummaryVisionId / SummaryTextId.</param>
+/// <param name="modelFactory">Model override (tests) receiving the selected model ID and whether the stage uses vision.</param>
 public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore? models = null,
-    Func<string, CancellationToken, Task<ISummaryModel>>? modelFactory = null, IOcrEngine? ocrEngine = null)
+    Func<string, bool, CancellationToken, Task<ISummaryModel>>? modelFactory = null, IOcrEngine? ocrEngine = null)
 {
     private readonly ModelStore _models = models ?? new();
     private const string RefusedFrameText = "〔视觉模型拒绝描述此帧〕";
@@ -150,8 +150,8 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                     var samples = await VideoSummarySampling.SelectAsync(engine, job.Inputs[0], info, options.FrameCount,
                         (fraction, stage) => { job.ProgressDetail = stage; activity.Stage(stage); }, ct).ConfigureAwait(false);
                     sampling = samples.Info;
-                    var visionId = online ? ModelCatalog.SummaryVisionId : options.LocalVisionModelId;
-                    await using var vision = await OpenModelAsync(visionId, onlineModels, options, activity, ct).ConfigureAwait(false);
+                    var visionId = online ? onlineModels!.VisionModel : options.LocalVisionModelId;
+                    await using var vision = await OpenModelAsync(visionId, onlineModels, true, activity, ct).ConfigureAwait(false);
                     var visionName = online ? onlineModels!.VisionProvider.Name + " · " + onlineModels.VisionModel : ModelCatalog.Find(visionId).Name;
                     var visionProviderId = online ? onlineModels!.VisionProvider.Id : null;
                     var visionModelId = online ? onlineModels!.VisionModel : visionId;
@@ -213,8 +213,8 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             if (options.NeedsAi && evidence.Count > 0)
             {
                 activity.Node("内容总结");
-                var summaryId = online ? ModelCatalog.SummaryTextId : options.LocalSummaryModelId;
-                await using var textModel = await OpenModelAsync(summaryId, onlineModels, options, activity, ct).ConfigureAwait(false);
+                var summaryId = online ? onlineModels!.SummaryModel : options.LocalSummaryModelId;
+                await using var textModel = await OpenModelAsync(summaryId, onlineModels, false, activity, ct).ConfigureAwait(false);
                 summaryModel = online ? onlineModels!.SummaryProvider.Name + " · " + onlineModels.SummaryModel : ModelCatalog.Find(summaryId).Name;
                 summaryProviderId = online ? onlineModels!.SummaryProvider.Id : null;
                 summaryModelId = online ? onlineModels!.SummaryModel : summaryId;
@@ -367,13 +367,12 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
         return (outline, grounding.RejectedClaims);
     }
 
-    private async Task<ISummaryModel> OpenModelAsync(string id, VideoSummaryOnlineModels? online, VideoSummaryOptions options,
+    private async Task<ISummaryModel> OpenModelAsync(string id, VideoSummaryOnlineModels? online, bool vision,
         AiActivityReporter activity, CancellationToken ct)
     {
-        if (modelFactory is not null) return await modelFactory(id, ct).ConfigureAwait(false);
+        if (modelFactory is not null) return await modelFactory(id, vision, ct).ConfigureAwait(false);
         if (online is not null)
         {
-            var vision = id == ModelCatalog.SummaryVisionId;
             activity.Stage("连接线上 AI", detail: vision ? online.VisionModel : online.SummaryModel);
             return vision ? new OnlineSummaryModel(online.VisionProvider, vision: true, online.VisionModel)
                 : new OnlineSummaryModel(online.SummaryProvider, vision: false, online.SummaryModel);

@@ -57,7 +57,7 @@ public sealed class VideoSummaryWindow : Window
         string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null, bool allowResume = false)
     {
         _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new Storage().LoadToolOptions<VideoSummaryOptions>("video-summary") ?? new() { ExtractSubtitles=false, AnalyzeContent=false,Speech=new(){Model=SpeechModel.Base} };
-        _localSummaryModelId = options.LocalSummaryModelId;
+        _localSummaryModelId = ModelCatalog.SummaryQwen35Id;
         _modelWarmup = new(this, engine, engine.Settings);
         Title = _editing ? "编辑任务 · 视频总结" : "视频总结";
         Width = 920; Height = 640; MinWidth = 760; MinHeight = 520;
@@ -121,7 +121,7 @@ public sealed class VideoSummaryWindow : Window
         _language = Ui.ComponentCombo(["简体中文", "English", "日本語"], options.OutputLanguage);
         var choiceRow = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
         Add(choiceRow, "总结模型", _provider); Add(choiceRow, "输出语言", _language, 1); fields.Children.Add(choiceRow);
-        var localChoices = new[] { ModelCatalog.SummaryQwen35Id, ModelCatalog.SummaryVisionId }
+        var localChoices = new[] { ModelCatalog.SummaryQwen35Id }
             .Select(id => new LocalVisionChoice(id, ModelCatalog.Find(id).Name)).ToArray();
         _localVision.ItemsSource = localChoices;
         _localVision.ItemTemplate = new FuncDataTemplate<LocalVisionChoice>((item, _) =>
