@@ -16,7 +16,7 @@ public sealed class VideoSummaryWindow : Window
 {
     private readonly LocalModelWarmupController _modelWarmup;
     private readonly IMediaEngine _engine;
-    private readonly string _localSummaryModelId;
+    private string LocalModelId => (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.DefaultSummaryModelId;
     private readonly ObservableCollection<string> _files = [];
     private readonly MediaPreviewPanel _preview;
     private readonly ListBox _sources = new() { Name = "SummaryFiles", MinHeight = 96, MaxHeight = 180, SelectionMode = SelectionMode.Multiple };
@@ -57,7 +57,6 @@ public sealed class VideoSummaryWindow : Window
         string? resultFolder = null, Func<Window, Task>? manageModels = null, Func<Window, Task>? configureOnlineAi = null, bool allowResume = false)
     {
         _engine = engine; _editing = initial is not null; var options = initial?.Clone() ?? new Storage().LoadToolOptions<VideoSummaryOptions>("video-summary") ?? new() { ExtractSubtitles=false, AnalyzeContent=false,Speech=new(){Model=SpeechModel.Base} };
-        _localSummaryModelId = ModelCatalog.SummaryQwen35Id;
         _modelWarmup = new(this, engine, engine.Settings);
         Title = _editing ? "编辑任务 · 视频总结" : "视频总结";
         Width = 920; Height = 640; MinWidth = 760; MinHeight = 520;
@@ -121,13 +120,13 @@ public sealed class VideoSummaryWindow : Window
         _language = Ui.ComponentCombo(["简体中文", "English", "日本語"], options.OutputLanguage);
         var choiceRow = new Grid { ColumnDefinitions = new("*,*"), ColumnSpacing = 8 };
         Add(choiceRow, "总结模型", _provider); Add(choiceRow, "输出语言", _language, 1); fields.Children.Add(choiceRow);
-        var localChoices = new[] { ModelCatalog.SummaryQwen35Id }
+        var localChoices = new[] { ModelCatalog.SummaryQwen359BId, ModelCatalog.SummaryQwen35Id }
             .Select(id => new LocalVisionChoice(id, ModelCatalog.Find(id).Name)).ToArray();
         _localVision.ItemsSource = localChoices;
         _localVision.ItemTemplate = new FuncDataTemplate<LocalVisionChoice>((item, _) =>
         { var label = Ui.ComponentText(item?.Name ?? ""); Localization.SetIsUserText(label, true); return label; });
         _localVision.SelectedItem = localChoices.FirstOrDefault(choice => choice.Id == options.LocalVisionModelId) ?? localChoices[0];
-        Add(_localVisionRow, "本地画面模型", _localVision); fields.Children.Add(_localVisionRow);
+        Add(_localVisionRow, "本地模型", _localVision); fields.Children.Add(_localVisionRow);
         _onlineProvider.ItemTemplate = new FuncDataTemplate<OnlineProviderChoice>((item, _) =>
         { var label = Ui.ComponentText(item?.Name ?? ""); Localization.SetIsUserText(label, item?.UserText == true); return label; });
         RefreshOnlineProviders(options.OnlineProviderId);
@@ -268,8 +267,8 @@ public sealed class VideoSummaryWindow : Window
         if (_files.Count == 0) throw new ArgumentException("请添加视频。");
         var options = new VideoSummaryOptions {
             Provider = (VideoSummaryProvider)_provider.SelectedIndex,
-            LocalVisionModelId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id,
-            LocalSummaryModelId = _localSummaryModelId,
+            LocalVisionModelId = LocalModelId,
+            LocalSummaryModelId = LocalModelId,
             OnlineProviderId = (_onlineProvider.SelectedItem as OnlineProviderChoice)?.Id ?? "",
             ExtractAbstract = _abstract.IsChecked == true, SummarizeContent = _summary.IsChecked == true,
             ExtractSubtitles = _subtitles.IsChecked == true, AnalyzeContent = _analysis.IsChecked == true,
@@ -302,7 +301,7 @@ public sealed class VideoSummaryWindow : Window
         var ai = _abstract.IsChecked == true || _summary.IsChecked == true || _analysis.IsChecked == true;
         var online = _provider.SelectedIndex == (int)VideoSummaryProvider.Online;
         _onlineProviderRow.IsVisible = ai && online;
-        _localVisionRow.IsVisible = ai && !online && _frames.IsChecked == true;
+        _localVisionRow.IsVisible = ai && !online;
         _provider.IsEnabled = ai;
         _modelNotice.IsVisible = ai;
         _modelNotice.Text = Localization.Text(online ? "发送采样画面和转录内容到线上 AI" : "本地模型 · 首次使用自动下载");
@@ -313,17 +312,15 @@ public sealed class VideoSummaryWindow : Window
         _folder.IsEnabled = _sourceFolder.IsChecked != true;
         _confirm.IsEnabled = !_busy && _files.Count > 0 && (ai || _subtitles.IsChecked == true);
         _confirm.Content = Localization.Text(_busy ? "检查文件…" : _editing ? "保存修改" : ToolExecution.StartImmediately(this) ? "后台总结" : "仅加入队列");
-        _modelWarmup?.Update(ai && !online ? (_frames.IsChecked == true
-            ? new[] { (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id, _localSummaryModelId }.Distinct().ToArray()
-            : [_localSummaryModelId]) : [], _files.FirstOrDefault());
+        _modelWarmup?.Update(ai && !online ? [LocalModelId] : [], _files.FirstOrDefault());
         _localRuntime.IsVisible = ai && !online;
-        var visionId = (_localVision.SelectedItem as LocalVisionChoice)?.Id ?? ModelCatalog.SummaryQwen35Id;
+        var visionId = LocalModelId;
         if (_runtimeVisionId != visionId)
         {
             _runtimeVisionId = visionId; _localRuntime.Children.Clear();
             var store = new ModelStore();
             _localRuntime.Children.Add(new ModelRuntimeView(store.Root, visionId, "画面"));
-            var text = new ModelRuntimeView(store.Root, _localSummaryModelId, "文本"); Grid.SetColumn(text, 1); _localRuntime.Children.Add(text);
+            var text = new ModelRuntimeView(store.Root, LocalModelId, "文本"); Grid.SetColumn(text, 1); _localRuntime.Children.Add(text);
             Grid.SetColumn(_warmAction, 2); _localRuntime.Children.Add(_warmAction);
         }
         _localRuntime.Children[0].IsVisible = _frames.IsChecked == true;

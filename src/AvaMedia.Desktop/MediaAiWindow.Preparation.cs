@@ -16,11 +16,12 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, Control> _runtimeModels = [];
     private readonly ModelStore _runtimeStore = new();
     private bool _releasingWarmModels;
-    private readonly Controls.ModelRuntimeView _captionRuntime = new(new ModelStore().Root, ModelCatalog.SummaryQwen35Id, "内容总结");
+    private readonly Controls.ModelRuntimeView _captionRuntime = new(new ModelStore().Root, ModelCatalog.DefaultSummaryModelId, "内容总结");
 
     private void UpdateCaptionWarmup()
     {
         var local = _generateCaptions.IsChecked == true && _captionLocalModelId is not null;
+        _captionRuntime.SetModel(_captionLocalModelId ?? ModelCatalog.DefaultSummaryModelId);
         _captionRuntime.IsVisible = local;
         _captionWarmup?.Update(local ? [_captionLocalModelId!] : [],
             _entries.FirstOrDefault(entry => entry.Include)?.Path);
@@ -85,10 +86,11 @@ public sealed partial class MediaAiWindow
         _runtimeModels[ModelCatalog.NsfwId].IsVisible = _settings.EnableNsfwContent && _realPeople.IsChecked == true;
         _runtimeModels[ModelCatalog.EmbeddingId].IsVisible = NeedsSemanticModel;
         var states = _runtimeModels.Select(item => MediaTagRuntime.Status(_runtimeStore.Root, item.Key))
-            .Append(MediaTagRuntime.Status(_runtimeStore.Root, ModelCatalog.SummaryQwen35Id)).ToArray();
+            .Concat(ModelCatalog.All.Where(model => ModelCatalog.IsSummaryVision(model.Id))
+                .Select(model => MediaTagRuntime.Status(_runtimeStore.Root, model.Id))).ToArray();
         var loading = _captionWarmup?.Running == true;
         var local = _generateCaptions.IsChecked == true && _captionLocalModelId is not null;
-        var caption = MediaTagRuntime.Status(_runtimeStore.Root, ModelCatalog.SummaryQwen35Id);
+        var caption = MediaTagRuntime.Status(_runtimeStore.Root, _captionLocalModelId ?? ModelCatalog.DefaultSummaryModelId);
         _warmStart.Content = Localization.Text(_captionWarmup?.Error is not null ? "重试预热" : "预热模型");
         _warmStart.IsVisible = local && !loading && !caption.Loaded;
         _warmStart.IsEnabled = !_releasingWarmModels && caption.State != ModelLoadState.InUse;

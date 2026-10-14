@@ -10,7 +10,7 @@ public sealed partial class MediaAiWindow
     private readonly Dictionary<string, ResultTag[]> _editedTags = new(BatchRename.PathComparer);
     private sealed record Preferences(decimal Threshold, decimal Frames, bool Reuse, bool Recursive, bool Scores, bool OnlyLibrary, bool RecognizeScenes = false, double SceneThreshold = .55, decimal SceneMargin = .03m, int ScoreMode = 0, bool AutoTxt = false, bool GenerateCaptions = false, bool RealPeople = true,
         string? CaptionSystemPrompt = null, string? CaptionPrompt = null, bool CaptionUseFrameTools = true,
-        string? CaptionLocalModelId = ModelCatalog.SummaryQwen35Id);
+        string? CaptionLocalModelId = ModelCatalog.DefaultSummaryModelId);
     private void LoadPreferences()
     {
         if(_storage.LoadToolOptions<Preferences>("media-ai") is not {} saved) return;

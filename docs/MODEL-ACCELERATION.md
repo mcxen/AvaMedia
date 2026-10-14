@@ -22,7 +22,7 @@ Core ML 的 MLProgram 初始化失败时，先尝试同一后端的 NeuralNetwor
 | Whisper Tiny q5_1 | `SpeechInferenceSession` | x64 Vulkan | Metal | 原生后端选择可用设备；加载或推理失败时重建 CPU 上下文 |
 | Whisper Base q5_1 | `SpeechInferenceSession` | x64 Vulkan | Metal | 同上 |
 | Whisper Small q5_1 | `SpeechInferenceSession` | x64 Vulkan | Metal | 同上 |
-| Qwen3.5 4B abliterated Q4_K_M + mmproj f16（画面与文本总结） | `LocalSummaryModelCache` → `LocalSummaryModel` | Vulkan | Metal | 启动或首次有效输入执行失败时 CPU 重试；视觉投影也启用 GPU offload |
+| Huihui Qwen3.5 4B / 9B abliterated Q4_K_M + mmproj f16（画面与文本总结） | `LocalSummaryModelCache` → `LocalSummaryModel` | Vulkan | Metal | 启动或首次有效输入执行失败时 CPU 重试；视觉投影也启用 GPU offload |
 | YuNet（内置） | `VideoOrientationDetector` → `ModelInferenceSession` | DirectML | Core ML | 为 320 / 640 采样分别固定动态尺寸，缓存按尺寸隔离；保持 CPU 回退和取消支持 |
 | Silero VAD v6.2（内置） | `SpeechInferenceSession` | x64 Vulkan | Metal | GPU 优先；加载或语音检测失败时 CPU 重试 |
 | RNNoise `sh.rnnn`（内置） | FFmpeg `arnndn` | CPU | CPU | 当前滤镜没有 GPU 执行入口 |

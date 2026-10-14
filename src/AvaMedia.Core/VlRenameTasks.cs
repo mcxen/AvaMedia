@@ -50,7 +50,7 @@ public sealed class VlRenameTasks(IMediaEngine engine)
             if (!file.Exists) throw new FileNotFoundException("源文件不存在。", input.Path);
             return new VlRenameSource(file.FullName, input.FolderContext, file.Length, file.LastWriteTimeUtc);
         }).ToArray();
-        var spec = new VlRenameTaskOptions { Sources = sources, Mode = mode, Model = mode == "rules" ? "rules" : ModelCatalog.SummaryQwen35Id };
+        var spec = new VlRenameTaskOptions { Sources = sources, Mode = mode, Model = mode == "rules" ? "rules" : ModelCatalog.DefaultSummaryModelId };
         if (mode == "online")
         {
             var provider = settings.OnlineAi.Resolve(providerId);
@@ -85,7 +85,7 @@ public sealed class VlRenameTasks(IMediaEngine engine)
         if (spec.Mode == "online" && (!Guid.TryParseExact(spec.ProviderId, "N", out _)
             || string.IsNullOrWhiteSpace(spec.Model) || spec.Model.Length > 128 || spec.Model.Any(char.IsControl)))
             throw new ArgumentException("线上 VL 供应商或模型无效。");
-        if (spec.Mode == "local" && spec.Model != ModelCatalog.SummaryQwen35Id || spec.Mode == "rules" && spec.Model != "rules")
+        if (spec.Mode == "local" && !ModelCatalog.IsSummaryVision(spec.Model) || spec.Mode == "rules" && spec.Model != "rules")
             throw new ArgumentException("VL 分析模型与所选模式不一致。");
         if (!BatchRename.PathComparer.Equals(job.Output, AiTaskResults.InternalOutputFor(job)))
             throw new ArgumentException("VL 预览结果路径无效。");
@@ -112,14 +112,14 @@ public sealed class VlRenameTasks(IMediaEngine engine)
             if (files.Any(file => file.Pending) && spec.Mode == "local")
             {
                 var store = new ModelStore();
-                foreach (var id in new[] { ModelCatalog.SummaryRuntimeId, ModelCatalog.SummaryQwen35Id })
+                foreach (var id in new[] { ModelCatalog.SummaryRuntimeId, spec.Model })
                     if (!await store.IsInstalledAsync(id, ct: ct).ConfigureAwait(false))
                         await store.DownloadAsync(id, new DownloadProgress(value =>
                         {
                             job.ProgressDetail = ModelCatalog.Find(id).Name + " · " + value.Stage;
                             activity.Stage(job.ProgressDetail, value.Received, value.Total, "字节");
                         }), ct).ConfigureAwait(false);
-                model = await SharedSummaryModelLease.AcquireAsync(store, ModelCatalog.SummaryQwen35Id, ct,
+                model = await SharedSummaryModelLease.AcquireAsync(store, spec.Model, ct,
                     stage => { job.ProgressDetail = stage; activity.Stage(stage); }).ConfigureAwait(false);
             }
             else if (files.Any(file => file.Pending) && spec.Mode == "online")

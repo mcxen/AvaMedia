@@ -148,7 +148,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     public Task<string> CompleteWithToolsAsync(string system, string prompt, IReadOnlyList<SummaryModelImage> images,
         IReadOnlyList<SummaryModelTool> tools, CancellationToken ct, int tokens = 2048)
     {
-        if (_id != ModelCatalog.SummaryQwen35Id) throw new ArgumentException("所选本地模型不支持画面工具。");
+        if (!ModelCatalog.IsSummaryVision(_id)) throw new ArgumentException("所选本地模型不支持画面工具。");
         return SummaryToolConversation.RunAsync(system, prompt, images, tools, ct, 600,
             (messages, _, _) => Request(messages, tokens), SendAsync);
     }

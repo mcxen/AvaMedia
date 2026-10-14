@@ -1,9 +1,30 @@
 {
   "models": [
     {
+      "id": "summary-qwen35-9b-abliterated",
+      "name": "Huihui Qwen3.5 · 9B · abliterated · Q4",
+      "purpose": "增强档 · 本地图片与视频描述、文本总结 · Metal / Vulkan",
+      "license": "Apache-2.0",
+      "page": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-9B-abliterated",
+      "files": [
+        {
+          "path": "Huihui-Qwen3.5-9B-abliterated.Q4_K_M.gguf",
+          "size": 5627045248,
+          "sha256": "ea1858ef4dc4b648b8dbb44612962a0333e945060dd0545ac0f28d7c4416e4b3",
+          "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-9B-abliterated-GGUF/resolve/9f646d7eda193ddf2348134f3bff3d49eed7a2c6/Huihui-Qwen3.5-9B-abliterated.Q4_K_M.gguf"
+        },
+        {
+          "path": "Huihui-Qwen3.5-9B-abliterated.mmproj-f16.gguf",
+          "size": 918166016,
+          "sha256": "56f07ff42fc9ab24fc06a93dce5a48fb2dbe08bff1a1c6e519d50af450820148",
+          "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-9B-abliterated-GGUF/resolve/9f646d7eda193ddf2348134f3bff3d49eed7a2c6/Huihui-Qwen3.5-9B-abliterated.mmproj-f16.gguf"
+        }
+      ]
+    },
+    {
       "id": "summary-qwen35-abliterated",
       "name": "Qwen3.5 · 4B · abliterated · Q4",
-      "purpose": "本地图片与视频描述、文本总结 · Metal / Vulkan",
+      "purpose": "基础档 · 本地图片与视频描述、文本总结 · Metal / Vulkan",
       "license": "Apache-2.0",
       "page": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-4B-abliterated",
       "files": [

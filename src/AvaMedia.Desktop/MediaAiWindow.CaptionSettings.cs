@@ -10,7 +10,7 @@ public sealed partial class MediaAiWindow
 {
     private string? _captionSystemPrompt, _captionPrompt;
     private bool _captionUseFrameTools = true;
-    private string? _captionLocalModelId = ModelCatalog.SummaryQwen35Id;
+    private string? _captionLocalModelId = ModelCatalog.DefaultSummaryModelId;
     private sealed record CaptionModelChoice(string? Id, string Name, bool UserText = false);
 
     private async Task OpenCaptionSettingsAsync()
@@ -19,6 +19,7 @@ public sealed partial class MediaAiWindow
         var window = new Window { Title = "画面分析与总结", Width = 700, Height = 720, MinWidth = 540, MinHeight = 560,
             WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var choices = new[] { new CaptionModelChoice(null, "AI 供应商"),
+            new CaptionModelChoice(ModelCatalog.SummaryQwen359BId, ModelCatalog.Find(ModelCatalog.SummaryQwen359BId).Name, true),
             new CaptionModelChoice(ModelCatalog.SummaryQwen35Id, ModelCatalog.Find(ModelCatalog.SummaryQwen35Id).Name, true) };
         var model = new ComboBox { ItemsSource = choices, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 160, MaxWidth = 280,
             SelectedItem = choices.FirstOrDefault(choice => choice.Id == _captionLocalModelId) ?? choices[1] };

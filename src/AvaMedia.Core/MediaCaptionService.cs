@@ -36,7 +36,7 @@ public static class MediaCaptionService
         if (options.CaptionMaxTokens is < 64 or > 4096) throw new ArgumentException("画面描述最大输出须为 64–4096。");
         if (options.CaptionPrompt is { Length: > 4000 }) throw new ArgumentException("画面描述提示过长。");
         if (options.CaptionSystemPrompt is { Length: > 8000 }) throw new ArgumentException("画面描述系统提示过长。");
-        if (options.CaptionLocalModelId is not null and not ModelCatalog.SummaryQwen35Id)
+        if (options.CaptionLocalModelId is { } id && !ModelCatalog.IsSummaryVision(id))
             throw new ArgumentException("所选本地画面描述模型无效。");
         if (options.CaptionProviderId is { Length: > 0 } && !Guid.TryParseExact(options.CaptionProviderId, "N", out _))
             throw new ArgumentException("画面描述供应商标识无效。");

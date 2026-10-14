@@ -11,7 +11,13 @@ namespace AvaMedia.Desktop.Controls;
 /// <summary>Small, live status badge. Unknown native load duration is shown as elapsed time, never a fake percentage.</summary>
 internal sealed class ModelRuntimeView : Grid
 {
-    private readonly string _root, _id;
+    private readonly string _root;
+    private string _id;
+    public void SetModel(string id)
+    {
+        if (_id == id) return;
+        _id = id; _lastState = null; Refresh();
+    }
     private readonly ModelStateIndicator _light = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _state = Ui.Text("", "caption");
     private readonly TextBlock _detail = Ui.Text("", "caption");

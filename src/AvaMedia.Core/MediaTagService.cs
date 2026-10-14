@@ -12,7 +12,7 @@ public sealed record MediaTagOptions(int VideoFrames = 8, bool ReuseSimilarFrame
     public bool RecognizeNsfw { get; init; }
     public string? CaptionSystemPrompt { get; init; }
     public bool CaptionUseFrameTools { get; init; } = true;
-    public string? CaptionLocalModelId { get; init; } = ModelCatalog.SummaryQwen35Id;
+    public string? CaptionLocalModelId { get; init; } = ModelCatalog.DefaultSummaryModelId;
     public bool NeedsSemanticModel => RecognizeScenes || SemanticCandidates.Length > 0;
     public void Validate()
     {

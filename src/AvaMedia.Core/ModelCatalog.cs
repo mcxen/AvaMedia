@@ -26,10 +26,12 @@ public static class ModelCatalog
     public const string NsfwId = "marqo-nsfw";
     public const string NsfwFile = "marqo-nsfw-384.onnx";
     public const string SummaryQwen35Id = "summary-qwen35-abliterated";
+    public const string SummaryQwen359BId = "summary-qwen35-9b-abliterated";
+    public const string DefaultSummaryModelId = SummaryQwen359BId;
     public const string SummaryRuntimeId = "summary-runtime";
     public static bool IncludesRuntime(string id) => id is SummaryRuntimeId;
-    public static bool IsSummaryVision(string id) => id is SummaryQwen35Id;
-    public static bool RequiresSummaryRuntime(string id) => id is SummaryQwen35Id;
+    public static bool IsSummaryVision(string id) => id is SummaryQwen35Id or SummaryQwen359BId;
+    public static bool RequiresSummaryRuntime(string id) => id is SummaryQwen35Id or SummaryQwen359BId;
     public const string JoyTagFile = "model.onnx";
     public const string JoyTagLabels = "top_tags.txt";
     private const string JoyTagRevision = "6b7f16331a6ccf0fdce37d5a9564715f6e772b22";
