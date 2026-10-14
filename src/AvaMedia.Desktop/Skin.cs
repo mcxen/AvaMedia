@@ -15,13 +15,31 @@ public sealed partial class Skin : AvaloniaObject
     public static ThemeVariant WindowsXP { get; } = new("WindowsXP", ThemeVariant.Light);
     public static bool UsesCustomChrome(ThemeVariant variant) => variant == MacOS9 || variant == WindowsXP;
     public static readonly AttachedProperty<bool> IsEnabledProperty = AvaloniaProperty.RegisterAttached<Skin, Window, bool>("IsEnabled");
+    public static readonly AttachedProperty<bool> PixelTextProperty = AvaloniaProperty.RegisterAttached<Skin, Control, bool>("PixelText");
     private static readonly ConditionalWeakTable<Window, Registration> Windows = new();
+    private static readonly ConditionalWeakTable<Control, PixelTextState> PixelTextStates = new();
 
-    static Skin() => IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
+    static Skin()
     {
-        if (change.NewValue is true) Windows.GetValue(window, w => new Registration(w)).RequestRefresh();
-        else if (Windows.TryGetValue(window, out var registration)) { Windows.Remove(window); registration.Dispose(); }
-    });
+        IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
+        {
+            if (change.NewValue is true) Windows.GetValue(window, w => new Registration(w)).RequestRefresh();
+            else if (Windows.TryGetValue(window, out var registration)) { Windows.Remove(window); registration.Dispose(); }
+        });
+        PixelTextProperty.Changed.AddClassHandler<Control>((control, change) =>
+        {
+            if (change.NewValue is true)
+            {
+                PixelTextStates.GetValue(control, item => new(RenderOptions.GetTextRenderingMode(item)));
+                RenderOptions.SetTextRenderingMode(control, TextRenderingMode.Alias);
+            }
+            else if (PixelTextStates.TryGetValue(control, out var state))
+            { RenderOptions.SetTextRenderingMode(control, state.Previous); PixelTextStates.Remove(control); }
+        });
+    }
+    private sealed record PixelTextState(TextRenderingMode Previous);
+    public static bool GetPixelText(Control control) => control.GetValue(PixelTextProperty);
+    public static void SetPixelText(Control control, bool value) => control.SetValue(PixelTextProperty, value);
 
     public static bool GetIsEnabled(Window window) => window.GetValue(IsEnabledProperty);
     public static void SetIsEnabled(Window window, bool value) => window.SetValue(IsEnabledProperty, value);

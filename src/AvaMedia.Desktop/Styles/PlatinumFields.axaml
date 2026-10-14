@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:local="using:AvaMedia.Desktop">
   <!-- Editable/selectable parts preserve Avalonia SimpleTheme's MIT behavior. -->
   <ControlTheme x:Key="PlatinumDropArrowTheme" TargetType="ToggleButton">
     <Setter Property="Focusable" Value="False"/>
@@ -9,6 +9,7 @@
     <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.5"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumComboBoxItemTheme" TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+    <Setter Property="local:Skin.PixelText" Value="True"/>
     <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="6,1"/><Setter Property="MinHeight" Value="18"/>
     <Setter Property="Foreground" Value="Black"/><Setter Property="Background" Value="Transparent"/>
     <Setter Property="Template"><ControlTemplate><ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" VerticalContentAlignment="Center"/></ControlTemplate></Setter>
@@ -16,6 +17,7 @@
     <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter, ^:selected /template/ ContentPresenter#PART_ContentPresenter, ^:selected:focus /template/ ContentPresenter#PART_ContentPresenter, ^:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ^:selected:focus:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiMenuSelection}"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumComboBoxTheme" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Setter Property="ItemContainerTheme" Value="{StaticResource PlatinumComboBoxItemTheme}"/>
     <Setter Property="Template">
       <ControlTemplate>
@@ -40,6 +42,7 @@
     </Setter>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumCheckBoxTheme" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Setter Property="MinHeight" Value="18"/><Setter Property="Padding" Value="0"/>
     <Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="14,*" ColumnSpacing="6" Background="Transparent">
       <controls:PlatinumGlyph Name="ChoiceMark" Kind="check" Width="14" Height="14" VerticalAlignment="Center" IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}"/>
@@ -49,6 +52,7 @@
     <Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumRadioButtonTheme" TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Setter Property="MinHeight" Value="18"/><Setter Property="Padding" Value="0"/>
     <Setter Property="Template"><ControlTemplate><Grid ColumnDefinitions="14,*" ColumnSpacing="6" Background="Transparent">
       <controls:PlatinumGlyph Name="ChoiceMark" Kind="radio" Width="14" Height="14" VerticalAlignment="Center" IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}"/>
@@ -57,12 +61,36 @@
     <Style Selector="^:disabled /template/ controls|PlatinumGlyph#ChoiceMark"><Setter Property="IsActive" Value="False"/></Style>
     <Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
   </ControlTheme>
+  <ControlTheme x:Key="PlatinumToggleSwitchTheme" TargetType="ToggleSwitch" BasedOn="{StaticResource {x:Type ToggleSwitch}}">
+    <Setter Property="KnobTransitions" Value="{x:Null}"/><Setter Property="MinHeight" Value="{DynamicResource AcFieldHeight}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
+    <Setter Property="Template"><ControlTemplate>
+      <Grid ColumnDefinitions="14,*" ColumnSpacing="6" Background="Transparent">
+        <Grid Name="PART_SwitchKnob" Width="14" Height="14" VerticalAlignment="Center">
+          <controls:PlatinumGlyph Name="SwitchMark" Kind="check" Width="14" Height="14" IsHitTestVisible="False"
+                                  IsChecked="{TemplateBinding IsChecked}" IsPressed="{TemplateBinding IsPressed}"/>
+          <!-- ToggleSwitch requires this panel even when represented by a classic checkbox. -->
+          <Canvas Name="PART_MovingKnobs" IsVisible="False"/>
+        </Grid>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" RecognizesAccessKey="True"/>
+          <ContentPresenter Name="Part_OnContentPresenter" Content="{TemplateBinding OnContent}" ContentTemplate="{TemplateBinding OnContentTemplate}" IsVisible="False"/>
+          <ContentPresenter Name="PART_OffContentPresenter" Content="{TemplateBinding OffContent}" ContentTemplate="{TemplateBinding OffContentTemplate}"/>
+        </StackPanel>
+      </Grid>
+    </ControlTemplate></Setter>
+    <Style Selector="^:checked /template/ ContentPresenter#Part_OnContentPresenter"><Setter Property="IsVisible" Value="True"/></Style>
+    <Style Selector="^:checked /template/ ContentPresenter#PART_OffContentPresenter"><Setter Property="IsVisible" Value="False"/></Style>
+    <Style Selector="^:disabled /template/ controls|PlatinumGlyph#SwitchMark"><Setter Property="IsActive" Value="False"/></Style>
+    <Style Selector="^:focus-visible /template/ Grid#PART_SwitchKnob"><Setter Property="Background" Value="{DynamicResource UiSelection}"/></Style>
+  </ControlTheme>
   <ControlTheme x:Key="PlatinumButtonSpinnerTheme" TargetType="ButtonSpinner" BasedOn="{StaticResource {x:Type ButtonSpinner}}">
     <Setter Property="CornerRadius" Value="0"/>
     <Style Selector="^ /template/ Border"><Setter Property="CornerRadius" Value="0"/><Setter Property="BoxShadow" Value="{DynamicResource UiInsetShadow}"/></Style>
     <Style Selector="^ /template/ RepeatButton"><Setter Property="Template"><ControlTemplate><controls:PlatinumBevel Background="{DynamicResource UiSurfaceRaised}" BorderThickness="2"><ContentPresenter Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/></controls:PlatinumBevel></ControlTemplate></Setter><Setter Property="Foreground" Value="Black"/><Setter Property="Width" Value="16"/><Setter Property="Padding" Value="0"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumNumericUpDownTheme" TargetType="NumericUpDown" BasedOn="{StaticResource {x:Type NumericUpDown}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiNumericFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Setter Property="Padding" Value="3,0"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="Black"/><Setter Property="Background" Value="White"/>
     <Style Selector="^ /template/ ButtonSpinner#PART_Spinner"><Setter Property="Theme" Value="{StaticResource PlatinumButtonSpinnerTheme}"/></Style>
     <Style Selector="^ /template/ TextBox#PART_TextBox"><Setter Property="Theme" Value="{StaticResource {x:Type TextBox}}"/><Setter Property="Margin" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="3,0"/><Setter Property="BorderThickness" Value="0"/></Style>

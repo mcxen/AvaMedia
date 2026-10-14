@@ -50,7 +50,11 @@ internal static partial class WindowChrome
             var mac = MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
             var fullscreen = window.WindowState == WindowState.FullScreen;
             var preview = IsMacPreview(window);
-            titleBar.IsVisible = !fullscreen && (modern || preview || titleContent is not null);
+            var classic = Skin.UsesCustomChrome(window.ActualThemeVariant);
+            // Page-title labels duplicate the classic frame. Navigation/action rows remain available.
+            var functionalHeader = titleContent is not null && titleContent is not TextBlock;
+            titleBar.IsVisible = !fullscreen && (modern || preview || titleContent is not null && (!classic || functionalHeader));
+            titleBar.Bind(Control.HeightProperty, new DynamicResourceExtension(classic && functionalHeader ? "UiClassicToolbarHeight" : "UiToolTitleBarHeight"));
             var gutter = Metric(window, "UiToolTitleGutter", 88);
             titleBar.ColumnDefinitions[0].Width = new GridLength(modern || preview ? gutter : 0);
             lights.IsVisible = preview; captions.IsVisible = modern && !mac;

@@ -50,7 +50,7 @@ public partial class MainWindow
     }
     private void SetTray(bool enabled)
     {
-        enabled = enabled && !IsCaptureSession;
+        enabled = enabled && !IsCaptureSession && _optionServices.CanUseTray;
         _optionServices.SetTray(enabled, RestoreFromTray, RequestExit); _trayEnabled = enabled;
         if (enabled) ConfigureTaskTray();
         if (!enabled && !IsVisible) RestoreFromTray();

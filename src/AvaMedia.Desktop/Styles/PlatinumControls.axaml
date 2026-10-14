@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:local="using:AvaMedia.Desktop">
   <!-- Platinum bevel tones adapted from npjg/classic.css (MIT, Nathanael Gentry).
        Control behavior and named parts inherit Avalonia SimpleTheme (MIT). -->
   <ResourceDictionary.MergedDictionaries>
@@ -6,6 +6,7 @@
     <ResourceInclude Source="avares://AvaMedia.Desktop/Styles/PlatinumFields.axaml"/>
   </ResourceDictionary.MergedDictionaries>
   <ControlTheme x:Key="PlatinumButtonTheme" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Setter Property="Template">
       <ControlTemplate>
         <controls:PlatinumBevel Name="PlatinumFace" Background="{TemplateBinding Background}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="3" IsDefaultFace="{TemplateBinding IsDefault}">
@@ -20,6 +21,30 @@
   <ControlTheme x:Key="PlatinumToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource PlatinumButtonTheme}">
     <Style Selector="^:checked /template/ controls|PlatinumBevel#PlatinumFace"><Setter Property="IsPressed" Value="True"/></Style>
   </ControlTheme>
+  <ControlTheme x:Key="PlatinumSegmentItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource AcBodyFont}"/>
+    <Setter Property="Height" Value="{DynamicResource AcFieldHeight}"/><Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Margin" Value="0"/><Setter Property="Padding" Value="{DynamicResource AcSegmentItemPadding}"/>
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/>
+    <Setter Property="BorderThickness" Value="2"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="Template"><ControlTemplate>
+      <controls:PlatinumBevel Name="SegmentFace" Background="{TemplateBinding Background}" BorderThickness="{TemplateBinding BorderThickness}"
+                             Padding="{TemplateBinding Padding}" IsPressed="{TemplateBinding IsSelected}">
+        <ContentPresenter Classes="ac-content" Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                          Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center"/>
+      </controls:PlatinumBevel>
+    </ControlTemplate></Setter>
+    <Style Selector="^:focus-visible /template/ controls|PlatinumBevel#SegmentFace"><Setter Property="IsFocusedFace" Value="True"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="PlatinumTabSegmentItemTheme" TargetType="ListBoxItem" BasedOn="{StaticResource PlatinumSegmentItemTheme}">
+    <Setter Property="Height" Value="NaN"/><Setter Property="Padding" Value="9,5,9,3"/>
+    <Setter Property="Template"><ControlTemplate>
+      <controls:PlatinumTabFace Padding="{TemplateBinding Padding}" IsSelected="{TemplateBinding IsSelected}">
+        <ContentPresenter Classes="ac-content" Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                          Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+      </controls:PlatinumTabFace>
+    </ControlTemplate></Setter>
+  </ControlTheme>
   <ControlTheme x:Key="PlatinumBevelButtonTheme" TargetType="Button" BasedOn="{StaticResource PlatinumButtonTheme}">
     <Style Selector="^ /template/ controls|PlatinumBevel#PlatinumFace"><Setter Property="CornerRadius" Value="0"/></Style>
   </ControlTheme>
@@ -27,6 +52,7 @@
     <Setter Property="Template"><ControlTemplate><ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/></ControlTemplate></Setter>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumTextBoxTheme" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Style Selector="^ /template/ Border#border, ^:pointerover /template/ Border#border, ^:focus /template/ Border#border"><Setter Property="BoxShadow" Value="{DynamicResource UiInsetShadow}"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderBrush" Value="Black"/><Setter Property="BorderThickness" Value="1"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="PlatinumTabItemTheme" TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">

@@ -88,7 +88,12 @@
       <SolidColorBrush x:Key="StPage" Color="#1C1C1E"/><SolidColorBrush x:Key="StSidebar" Color="#29292B"/>
       <SolidColorBrush x:Key="StBlue" Color="#0A84FF"/><SolidColorBrush x:Key="StPurple" Color="#BF5AF2"/><SolidColorBrush x:Key="StPink" Color="#FF375F"/><SolidColorBrush x:Key="StRed" Color="#FF453A"/><SolidColorBrush x:Key="StOrange" Color="#FF9F0A"/><SolidColorBrush x:Key="StYellow" Color="#FFD60A"/><SolidColorBrush x:Key="StGreen" Color="#30D158"/><SolidColorBrush x:Key="StGray" Color="#98989D"/><SolidColorBrush x:Key="StCyan" Color="#64D2FF"/>
     </ResourceDictionary>
-    <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}"><SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#CCCCCC"/><SolidColorBrush x:Key="StSidebar" Color="#DDDDDD"/></ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+      <SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#CCCCCC"/><SolidColorBrush x:Key="StSidebar" Color="#DDDDDD"/>
+      <x:Double x:Key="StBodyFont">12</x:Double><x:Double x:Key="StPageTitleFont">12</x:Double>
+      <x:Double x:Key="StGroupTitleFont">12</x:Double><x:Double x:Key="StDescriptionFont">12</x:Double>
+      <CornerRadius x:Key="StSidebarRadius">0</CornerRadius>
+    </ResourceDictionary>
     <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#ECE9D8"/><SolidColorBrush x:Key="StSidebar" Color="#F4F3EC"/></ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources>
   <Style Selector="Window.settings"><Setter Property="Background" Value="{DynamicResource StPage}"/><Setter Property="FontSize" Value="{DynamicResource StBodyFont}"/></Style>

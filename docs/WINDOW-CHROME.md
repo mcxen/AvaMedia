@@ -14,7 +14,9 @@ macOS 红绿灯统一由 `Controls/WindowChrome.Mac.cs` 从实际标题行计算
 
 Avalonia 11.3.22 的 [Win32 后端](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Windows/Avalonia.Win32/WindowImpl.cs)已经在扩展客户区时请求 DWM 圆角；不能把问题简单归结为框架没有圆角调用。它的 WinUI composition 路径可使用 0px DWM 边缘，应用统一入口显式保留 1px 边缘，并在 Avalonia 完成窗口设置后重申圆角请求。Windows / macOS 真实外观仍须在对应系统验收。
 
-Mac OS 9 / Windows XP 皮肤通过 `Skin.Registration` 的 `PlatinumWindowFrame` / `WindowsXPWindowFrame` 绘制客户区经典框架，整窗仍使用统一原生宿主。Windows 扩展客户区 + `NoChrome`（标题高度提示 0）；macOS / Linux 保留原生标题栏。不得用 `SystemDecorations.None` 禁用外层系统阴影。
+Mac OS 9 / Windows XP 皮肤通过 `Skin.Registration` 的 `PlatinumWindowFrame` / `WindowsXPWindowFrame` 绘制客户区经典框架，整窗仍使用统一原生宿主。Windows 与 macOS 扩展客户区 + `NoChrome`（标题高度提示 0），保留 `SystemDecorations.Full` 与原生阴影，只显示一套经典标题控件；Linux 保留 WM 标题栏。设置和工具中的重复纯标题行隐藏，文件选择器等功能导航行保留，编辑器只保留模式工具栏。Avalonia 的 [macOS 原生实现](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/WindowImpl.mm)在扩展客户区时根据 ChromeHints 隐藏系统标题栏，同时保持 NSWindow 的阴影。不得用 `SystemDecorations.None` 禁用外层系统阴影。
+
+Platinum 字体及组件度量集中在 `Styles/PlatinumTokens.axaml`：12 DIP 像素文字与 24 DIP 计数、经典字段和直角表面。显式引用 Ac 主题的组合控件同样映射到 Platinum。`Skin.PixelText` 为弹出菜单、提示和下拉项保留原渲染模式并临时使用 Alias，换回其他皮肤时还原；设置与文件选择器使用对应字号令牌，不以局部固定字号缩放像素字。
 
 所有非模态工具（包括设置、帮助、词库、硬件测试、试听、结果窗口、播放器、看图和封面预览）使用 `WindowChrome.ShowIndependent(window)`：`ShowInTaskbar=true`，`CenterOwner` 改为 `CenterScreen`，无 Owner 的 `Show()`。媒体窗口可根据来源窗口的屏幕显式定位，但不设置所属关系。主窗口最小化或隐藏时，工具继续显示；用户可通过任务栏 / Dock 的窗口列表独立切换。同一应用在 Dock 是否合并为一个图标由系统决定。不要为层级感设置 Owner 或 Topmost；层级感由系统原生阴影体现。
 

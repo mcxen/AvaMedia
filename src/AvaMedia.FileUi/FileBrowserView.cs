@@ -39,6 +39,8 @@ public sealed partial class FileBrowserView : UserControl, IDisposable
     public FileBrowserView(IFileBrowserSource source, FileBrowserOptions options, Func<string, string>? text = null, IFileBrowserGlyphs? glyphs = null)
     {
         _source = source; _options = options; _places = new(source) { Width = 210 }; _text = text ?? (value => value);
+        FileBrowserTheme.Install(this);
+        FileBrowserTheme.Bind(this, FontSizeProperty, "BodyFont");
         _entries.SelectionMode = options.Multiple ? SelectionMode.Multiple : SelectionMode.Single;
         _entries.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
         { Setters = { new Setter(ListBoxItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });

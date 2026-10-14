@@ -26,9 +26,10 @@ internal static class FileBrowserTheme
             resources["FbNavigationHeight"] = HostNumber("AcButtonHeight", 28);
             resources["FbTextRowHeight"] = HostNumber("AcTextRowHeight", 36);
             resources["FbHeaderHeight"] = 28d;
-            resources["FbBodyFont"] = 13d;
+            resources["FbBodyFont"] = radius == 0 ? 12d : 13d;
             resources["FbCaptionFont"] = 12d;
-            resources["FbCrumbRadius"] = HostRadius("AcListRadius", 8);
+            resources["FbTitleFont"] = radius == 0 ? 12d : 15d;
+            resources["FbCrumbRadius"] = HostRadius("AcListRadius", radius <= 3 ? radius : 8);
             foreach (var (key, color) in new[] { ("Surface", surface), ("Sidebar", sidebar), ("Panel", panel), ("Text", text),
                 ("Muted", muted), ("Line", line), ("Fill", fill), ("Hover", hover), ("Selected", selected),
                 ("SelectionText", selectionText), ("Accent", accent) })
@@ -62,4 +63,16 @@ internal static class FileBrowserTheme
     }
     public static void Bind(AvaloniaObject target, AvaloniaProperty property, string key)
         => target.Bind(property, new DynamicResourceExtension("Fb" + key));
+    public static TextBlock Text(string value, string font = "BodyFont", string? color = null)
+    {
+        var text = new TextBlock { Text = value, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        Bind(text, TextBlock.FontSizeProperty, font);
+        if (color is not null) Bind(text, TextBlock.ForegroundProperty, color);
+        return text;
+    }
+    public static Border Boundary(Control? child, Thickness thickness)
+    {
+        var border = new Border { Child = child, BorderThickness = thickness };
+        Bind(border, Border.BorderBrushProperty, "Line"); return border;
+    }
 }

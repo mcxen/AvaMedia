@@ -1,0 +1,65 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Fusion Pixel has a 12px design grid. UI text uses that size; large counts use 2x. -->
+  <FontFamily x:Key="UiFont">avares://AvaMedia.Desktop/Assets/Fonts/Platinum#Fusion Pixel 12px Prop zh-Hans, avares://AvaMedia.Desktop/Assets/Fonts/NotoSansSC#Noto Sans SC</FontFamily>
+  <FontFamily x:Key="UiNumericFont">avares://AvaMedia.Desktop/Assets/Fonts/Platinum#Fusion Pixel 12px Prop zh-Hans, avares://AvaMedia.Desktop/Assets/Fonts/NotoSansSC#Noto Sans SC</FontFamily>
+  <x:Double x:Key="UiFontBody">12</x:Double>
+  <x:Double x:Key="UiFontCaption">12</x:Double>
+  <x:Double x:Key="UiFontTitle">12</x:Double>
+  <x:Double x:Key="UiFontHeading">12</x:Double>
+  <x:Double x:Key="UiFontBrand">12</x:Double>
+  <x:Double x:Key="UiFontTiny">12</x:Double>
+  <x:Double x:Key="UiFontEmphasis">12</x:Double>
+  <x:Double x:Key="UiFontCardTitle">12</x:Double>
+  <x:Double x:Key="AcBodyFont">12</x:Double>
+  <x:Double x:Key="AcCaptionFont">12</x:Double>
+  <x:Double x:Key="AcButtonFont">12</x:Double>
+  <x:Double x:Key="AcSectionFont">12</x:Double>
+  <x:Double x:Key="AcSmallFont">12</x:Double>
+  <x:Double x:Key="AcLargeFont">12</x:Double>
+  <x:Double x:Key="AcSegmentFont">12</x:Double>
+  <x:Double x:Key="AcStatusFont">12</x:Double>
+  <x:Double x:Key="AcTooltipFont">12</x:Double>
+  <x:Double x:Key="AcSubStepFont">12</x:Double>
+  <x:Double x:Key="AcStageNumberFont">12</x:Double>
+  <x:Double x:Key="AcCountFont">24</x:Double>
+  <x:Double x:Key="AcButtonHeight">22</x:Double>
+  <x:Double x:Key="AcShellButtonHeight">26</x:Double>
+  <x:Double x:Key="AcFieldHeight">22</x:Double>
+  <x:Double x:Key="AcSmallHeight">20</x:Double>
+  <x:Double x:Key="AcLargeHeight">26</x:Double>
+  <x:Double x:Key="AcTextRowHeight">24</x:Double>
+  <x:Double x:Key="AcDisclosureHeight">22</x:Double>
+  <x:Double x:Key="AcTreeRowHeight">22</x:Double>
+  <x:Double x:Key="UiClassicToolbarHeight">28</x:Double>
+  <CornerRadius x:Key="AcButtonRadius">3</CornerRadius>
+  <CornerRadius x:Key="AcShellButtonRadius">3</CornerRadius>
+  <CornerRadius x:Key="AcFieldRadius">0</CornerRadius>
+  <CornerRadius x:Key="AcPopupRadius">0</CornerRadius>
+  <CornerRadius x:Key="AcScrollRadius">0</CornerRadius>
+  <CornerRadius x:Key="AcProgressRadius">0</CornerRadius>
+  <CornerRadius x:Key="AcSwitchRadius">0</CornerRadius>
+  <CornerRadius x:Key="UiCardRadius">0</CornerRadius>
+  <CornerRadius x:Key="UiInputRadius">0</CornerRadius>
+  <CornerRadius x:Key="UiSidebarRadius">0</CornerRadius>
+  <CornerRadius x:Key="UiSettingsGroupRadius">0</CornerRadius>
+  <x:Double x:Key="AcPreviewRadiusValue">0</x:Double>
+  <Thickness x:Key="AcButtonPadding">8,1</Thickness>
+  <Thickness x:Key="AcFieldPadding">4,1</Thickness>
+  <Thickness x:Key="AcSegmentItemPadding">8,0</Thickness>
+  <Thickness x:Key="AcMenuPadding">1</Thickness>
+  <SolidColorBrush x:Key="AcField" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="AcHairline" Color="#888888"/>
+  <SolidColorBrush x:Key="AcPopupFace" Color="#EEEEEE"/>
+  <SolidColorBrush x:Key="AcMenuFill" Color="#EEEEEE"/>
+  <SolidColorBrush x:Key="AcTextTertiary" Color="#777777"/>
+  <SolidColorBrush x:Key="AcFillHover" Color="#EEEEEE"/>
+  <SolidColorBrush x:Key="AcFillPressed" Color="#BBBBBB"/>
+  <SolidColorBrush x:Key="AcSelection" Color="#CCCCFF"/>
+  <SolidColorBrush x:Key="AcSelectionPressed" Color="#B5BED7"/>
+  <BoxShadows x:Key="AcButtonShadow">none</BoxShadows>
+  <BoxShadows x:Key="AcFocusShadow">none</BoxShadows>
+  <BoxShadows x:Key="AcErrorShadow">none</BoxShadows>
+  <Color x:Key="ThemeAccentColor">#3D4E80</Color>
+  <Color x:Key="ThemeForegroundColor">#111111</Color>
+  <Color x:Key="ThemeBackgroundColor">#CCCCCC</Color>
+</ResourceDictionary>

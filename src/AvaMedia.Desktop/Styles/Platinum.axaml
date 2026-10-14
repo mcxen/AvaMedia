@@ -22,7 +22,10 @@
           <BoxShadows x:Key="UiCardShadow">0 0 0 0 #00000000</BoxShadows>
           <BoxShadows x:Key="UiSegmentShadow">0 0 0 0 #00000000</BoxShadows>
           <BoxShadows x:Key="UiFocusShadow">0 0 0 0 #00000000</BoxShadows>
-          <ResourceDictionary.MergedDictionaries><ResourceInclude Source="avares://AvaMedia.Desktop/Styles/PlatinumControls.axaml"/></ResourceDictionary.MergedDictionaries>
+          <ResourceDictionary.MergedDictionaries>
+            <ResourceInclude Source="avares://AvaMedia.Desktop/Styles/PlatinumTokens.axaml"/>
+            <ResourceInclude Source="avares://AvaMedia.Desktop/Styles/PlatinumControls.axaml"/>
+          </ResourceDictionary.MergedDictionaries>
           <SolidColorBrush x:Key="UiCanvas" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="UiFeaturePanel" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="UiSurface" Color="#FFFFFF"/>
@@ -67,13 +70,6 @@
           <BoxShadows x:Key="UiMenuShadow">2 2 0 0 #000000</BoxShadows>
           <BoxShadows x:Key="UiInsetShadow">inset 1 1 0 0 #777777, inset -1 -1 0 0 #FFFFFF</BoxShadows>
           <BoxShadows x:Key="UiRaisedShadow">inset 1 1 0 0 #FFFFFF, inset -1 -1 0 0 #777777</BoxShadows>
-          <FontFamily x:Key="UiFont">avares://AvaMedia.Desktop/Assets/Fonts/Platinum#Fusion Pixel 12px Prop zh-Hans</FontFamily>
-          <FontFamily x:Key="UiNumericFont">avares://AvaMedia.Desktop/Assets/Fonts/Platinum#Fusion Pixel 12px Prop zh-Hans</FontFamily>
-          <x:Double x:Key="UiFontBody">12</x:Double>
-          <x:Double x:Key="UiFontCaption">12</x:Double>
-          <x:Double x:Key="UiFontTitle">12</x:Double>
-          <x:Double x:Key="UiFontHeading">12</x:Double>
-          <x:Double x:Key="UiFontBrand">12</x:Double>
           <CornerRadius x:Key="UiControlRadius">0</CornerRadius>
           <x:Double x:Key="UiFieldHeight">22</x:Double>
           <Thickness x:Key="UiButtonPadding">8,1</Thickness>
@@ -137,6 +133,21 @@
           <ControlTheme x:Key="UiContextMenuTheme" TargetType="ContextMenu" BasedOn="{StaticResource PlatinumContextMenuTheme}"/>
           <ControlTheme x:Key="UiToolTipTheme" TargetType="ToolTip" BasedOn="{StaticResource PlatinumToolTipTheme}"/>
           <ControlTheme x:Key="UiToggleButtonTheme" TargetType="ToggleButton" BasedOn="{StaticResource PlatinumToggleButtonTheme}"/>
+          <ControlTheme x:Key="AcButton" TargetType="Button" BasedOn="{StaticResource PlatinumButtonTheme}"/>
+          <ControlTheme x:Key="AcToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource PlatinumToggleButtonTheme}"/>
+          <ControlTheme x:Key="AcTextBox" TargetType="TextBox" BasedOn="{StaticResource PlatinumTextBoxTheme}"/>
+          <ControlTheme x:Key="AcComboBox" TargetType="ComboBox" BasedOn="{StaticResource PlatinumComboBoxTheme}"/>
+          <ControlTheme x:Key="AcCheckBox" TargetType="CheckBox" BasedOn="{StaticResource PlatinumCheckBoxTheme}"/>
+          <ControlTheme x:Key="AcRadioButton" TargetType="RadioButton" BasedOn="{StaticResource PlatinumRadioButtonTheme}"/>
+          <ControlTheme x:Key="AcToggleSwitch" TargetType="ToggleSwitch" BasedOn="{StaticResource PlatinumToggleSwitchTheme}"/>
+          <ControlTheme x:Key="AcNumericUpDown" TargetType="NumericUpDown" BasedOn="{StaticResource PlatinumNumericUpDownTheme}"/>
+          <ControlTheme x:Key="AcSlider" TargetType="Slider" BasedOn="{StaticResource PlatinumSliderTheme}"/>
+          <ControlTheme x:Key="AcProgressBar" TargetType="ProgressBar" BasedOn="{StaticResource PlatinumProgressBarTheme}"/>
+          <ControlTheme x:Key="AcContextMenu" TargetType="ContextMenu" BasedOn="{StaticResource PlatinumContextMenuTheme}"/>
+          <ControlTheme x:Key="AcMenuItem" TargetType="MenuItem" BasedOn="{StaticResource PlatinumMenuItemTheme}"/>
+          <ControlTheme x:Key="AcToolTip" TargetType="ToolTip" BasedOn="{StaticResource PlatinumToolTipTheme}"/>
+          <ControlTheme x:Key="AcSegmentItem" TargetType="ListBoxItem" BasedOn="{StaticResource PlatinumSegmentItemTheme}"/>
+          <ControlTheme x:Key="AcTabSegmentItem" TargetType="ListBoxItem" BasedOn="{StaticResource PlatinumTabSegmentItemTheme}"/>
           <SolidColorBrush x:Key="ThemeForegroundBrush" Color="#111111"/>
           <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="#CCCCCC"/>
           <SolidColorBrush x:Key="ThemeControlLowBrush" Color="#DDDDDD"/>
@@ -174,6 +185,7 @@
   <Style Selector="Window.mac-os9 ComboBox"><Setter Property="Background" Value="{DynamicResource UiSurfaceRaised}"/><Setter Property="BorderThickness" Value="2"/><Setter Property="Padding" Value="4,1"/><Setter Property="Theme" Value="{DynamicResource PlatinumComboBoxTheme}"/></Style>
   <Style Selector="Window.mac-os9 CheckBox"><Setter Property="Theme" Value="{DynamicResource PlatinumCheckBoxTheme}"/></Style>
   <Style Selector="Window.mac-os9 RadioButton"><Setter Property="Theme" Value="{DynamicResource PlatinumRadioButtonTheme}"/></Style>
+  <Style Selector="Window.mac-os9 ToggleSwitch"><Setter Property="Theme" Value="{DynamicResource PlatinumToggleSwitchTheme}"/></Style>
   <Style Selector="Window.mac-os9 NumericUpDown"><Setter Property="Theme" Value="{DynamicResource PlatinumNumericUpDownTheme}"/></Style>
   <Style Selector="Window.mac-os9 TabItem"><Setter Property="Theme" Value="{DynamicResource PlatinumTabItemTheme}"/><Setter Property="Padding" Value="9,5,9,3"/></Style>
   <Style Selector="Window.mac-os9 ScrollBar"><Setter Property="Theme" Value="{DynamicResource PlatinumScrollBarTheme}"/></Style>
@@ -193,7 +205,7 @@
   <Style Selector="Grid.platinum-titlebar"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
   <Style Selector="Border.platinum-caption-surface"><Setter Property="Background" Value="{DynamicResource UiCanvas}"/></Style>
   <Style Selector="Border.platinum-caption-surface"><Setter Property="Padding" Value="5,0"/></Style>
-  <Style Selector="TextBlock.platinum-title"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="Padding" Value="5,0"/></Style>
+  <Style Selector="TextBlock.platinum-title"><Setter Property="FontSize" Value="{DynamicResource UiFontTitle}"/><Setter Property="FontWeight" Value="Normal"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/><Setter Property="Background" Value="{DynamicResource UiCanvas}"/><Setter Property="Padding" Value="5,0"/></Style>
   <Style Selector="controls|PlatinumWindowFrame.inactive TextBlock.platinum-title"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
   <Style Selector="Window.mac-os9 Button.platinum-caption"><Setter Property="Theme" Value="{DynamicResource PlatinumCaptionButtonTheme}"/><Setter Property="Width" Value="14"/><Setter Property="Height" Value="14"/><Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
   <Style Selector="controls|PlatinumTitleLines"><Setter Property="DarkBrush" Value="{DynamicResource UiDivider}"/><Setter Property="LightBrush" Value="{DynamicResource UiBevelLight}"/></Style>

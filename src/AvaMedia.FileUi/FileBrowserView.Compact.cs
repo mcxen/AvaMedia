@@ -16,7 +16,7 @@ public sealed partial class FileBrowserView
 {
     private readonly StackPanel _compactPlaces = new() { Spacing = 2 };
     private readonly StackPanel _crumbs = new() { Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock _compactCount = new() { VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
+    private readonly TextBlock _compactCount = FileBrowserTheme.Text("", "CaptionFont", "Muted");
     private readonly Border _placesColumn = new() { Width = 132, Padding = new(8, 8, 6, 8) };
     private IReadOnlyList<FileBrowserLocation> _locations = [];
     private IFileBrowserGlyphs? _glyphs;
@@ -38,28 +38,30 @@ public sealed partial class FileBrowserView
         _back = IconButton("chevron-left", "后退", async () => { if (_history.TryPop(out var folder)) await NavigateAsync(folder, false); });
         _up = IconButton("chevron-up", "上一级", async () => { if (_directory?.Parent is { } parent) await NavigateAsync(parent); });
         navigation.Children.Add(_back); Grid.SetColumn(_up, 1); navigation.Children.Add(_up);
-        var crumbHost = new Border { Background = new SolidColorBrush(Color.Parse("#F0F0F3")), CornerRadius = new(8), Padding = new(10, 5), Child = new ScrollViewer
+        var crumbHost = new Border { Padding = new(10, 5), Child = new ScrollViewer
         { Content = _crumbs, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled } };
+        FileBrowserTheme.Bind(crumbHost, Border.BackgroundProperty, "Fill"); FileBrowserTheme.Bind(crumbHost, Border.CornerRadiusProperty, "CrumbRadius");
         Grid.SetColumn(crumbHost, 2); navigation.Children.Add(crumbHost);
         var refresh = IconButton("refresh-cw", "刷新", async () => { if (CurrentFolder is { } folder) await NavigateAsync(folder, false); });
         Grid.SetColumn(refresh, 3); navigation.Children.Add(refresh);
         root.Children.Add(navigation);
 
         var body = new Grid { ColumnDefinitions = new("Auto,*") };
-        body.Children.Add(new Border { BorderBrush = Hair, BorderThickness = new(0, 1, 0, 0) });
+        body.Children.Add(FileBrowserTheme.Boundary(null, new(0, 1, 0, 0)));
         var placesStack = new StackPanel { Spacing = 4 };
-        placesStack.Children.Add(new TextBlock { Text = _text("常用位置"), FontSize = 11, FontWeight = FontWeight.Bold, Foreground = Muted, Margin = new(6, 2, 0, 4) });
+        var placesHeading = FileBrowserTheme.Text(_text("常用位置"), "CaptionFont", "Muted"); placesHeading.FontWeight = FontWeight.Normal; placesHeading.Margin = new(6, 2, 0, 4);
+        placesStack.Children.Add(placesHeading);
         placesStack.Children.Add(_compactPlaces);
         _placesColumn.Child = new ScrollViewer { Content = placesStack };
-        _placesColumn.BorderBrush = Hair; _placesColumn.BorderThickness = new(0, 1, 1, 0); _placesColumn.Background = new SolidColorBrush(Color.Parse("#FAFAFC"));
+        _placesColumn.BorderThickness = new(0, 1, 1, 0); FileBrowserTheme.Bind(_placesColumn, Border.BorderBrushProperty, "Line"); FileBrowserTheme.Bind(_placesColumn, Border.BackgroundProperty, "Sidebar");
         body.Children.Add(_placesColumn);
         var files = new Grid { RowDefinitions = new("Auto,*") };
         var header = new Grid { ColumnDefinitions = new("34,*,Auto"), Margin = new(0, 0, 14, 0), Height = 28 };
-        var nameHeader = new TextBlock { Text = _text("名称"), FontSize = 11.5, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new(22, 0, 0, 0) };
+        var nameHeader = FileBrowserTheme.Text(_text("名称"), "CaptionFont", "Muted"); nameHeader.Margin = new(22, 0, 0, 0);
         Grid.SetColumn(nameHeader, 1); header.Children.Add(nameHeader);
-        var sizeHeader = new TextBlock { Text = _text("大小"), FontSize = 11.5, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center };
+        var sizeHeader = FileBrowserTheme.Text(_text("大小"), "CaptionFont", "Muted");
         Grid.SetColumn(sizeHeader, 2); header.Children.Add(sizeHeader);
-        files.Children.Add(new Border { Child = header, BorderBrush = Hair, BorderThickness = new(0, 1, 0, 1) });
+        files.Children.Add(FileBrowserTheme.Boundary(header, new(0, 1, 0, 1)));
         _entries.SelectionMode = _options.Multiple ? SelectionMode.Multiple | SelectionMode.Toggle : SelectionMode.Single;
         _entries.ItemTemplate = new FuncDataTemplate<FileBrowserEntry>((entry, _) => entry is null ? new Border() : CompactRow(entry));
         _entries.SelectionChanged += async (_, args) =>
@@ -84,19 +86,16 @@ public sealed partial class FileBrowserView
         var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 }; left.Children.Add(_select); left.Children.Add(FooterActions);
         footer.Children.Add(left);
         var status = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
-        _status.FontSize = 12; _status.Foreground = Muted; _status.TextWrapping = TextWrapping.NoWrap; _status.TextTrimming = TextTrimming.CharacterEllipsis;
-        _compactCount.Foreground = Muted; status.Children.Add(_status); status.Children.Add(_compactCount);
+        FileBrowserTheme.Bind(_status, TextBlock.FontSizeProperty, "CaptionFont"); FileBrowserTheme.Bind(_status, TextBlock.ForegroundProperty, "Muted"); _status.TextWrapping = TextWrapping.NoWrap; _status.TextTrimming = TextTrimming.CharacterEllipsis;
+        status.Children.Add(_status); status.Children.Add(_compactCount);
         Grid.SetColumn(status, 2); footer.Children.Add(status);
-        var footerBorder = new Border { Child = footer, BorderBrush = Hair, BorderThickness = new(0, 1, 0, 0) };
+        var footerBorder = FileBrowserTheme.Boundary(footer, new(0, 1, 0, 0));
         Grid.SetRow(footerBorder, 2); root.Children.Add(footerBorder);
         Content = root;
         PropertyChanged += (_, args) => { if (args.Property == BoundsProperty) _placesColumn.IsVisible = Bounds.Width >= 380; };
         AutomationProperties.SetName(_entries, _text("文件列表"));
         UpdateSelection();
     }
-
-    private static readonly IBrush Hair = new SolidColorBrush(Color.Parse("#ECECF0"));
-    private static readonly IBrush Muted = new SolidColorBrush(Color.Parse("#86868B"));
 
     private Button IconButton(string glyph, string label, Func<Task> action)
     {
@@ -123,11 +122,11 @@ public sealed partial class FileBrowserView
             row.Children.Add(check);
         }
         if (_glyphs is not null) { var glyph = _glyphs.Entry(entry.Item); Grid.SetColumn(glyph, 1); row.Children.Add(glyph); }
-        var name = new TextBlock { Text = entry.Name, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new(6, 0, 8, 0), FontSize = 13 };
+        var name = FileBrowserTheme.Text(entry.Name); name.TextTrimming = TextTrimming.CharacterEllipsis; name.Margin = new(6, 0, 8, 0);
         name.Classes.Add("raw"); ToolTip.SetTip(name, entry.Name); Grid.SetColumn(name, 2); row.Children.Add(name);
         Control trailing = entry.IsFolder
-            ? (Control?)_glyphs?.Glyph("chevron-right-muted") ?? new TextBlock { Text = _text("文件夹"), FontSize = 11.5, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center }
-            : new TextBlock { Text = Size(entry.Size), FontSize = 11.5, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center };
+            ? (Control?)_glyphs?.Glyph("chevron-right-muted") ?? FileBrowserTheme.Text(_text("文件夹"), "CaptionFont", "Muted")
+            : FileBrowserTheme.Text(Size(entry.Size), "CaptionFont", "Muted");
         Grid.SetColumn(trailing, 3); row.Children.Add(trailing);
         return row;
     }
@@ -150,7 +149,7 @@ public sealed partial class FileBrowserView
         {
             var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
             if (_glyphs is not null) content.Children.Add(_glyphs.Place(location));
-            var label = new TextBlock { Text = location.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = 12.5, TextTrimming = TextTrimming.CharacterEllipsis };
+            var label = FileBrowserTheme.Text(location.Name); label.TextTrimming = TextTrimming.CharacterEllipsis;
             label.Classes.Add("raw"); content.Children.Add(label);
             var button = new Button { Content = content, Classes = { "nav" } };
             if (ReferenceEquals(location, active)) button.Classes.Add("active");
@@ -187,8 +186,8 @@ public sealed partial class FileBrowserView
         for (var index = 0; index < crumbs.Count; index++)
         {
             var (name, target) = crumbs[index]; var last = index == crumbs.Count - 1;
-            if (index > 0) _crumbs.Children.Add(new TextBlock { Text = "›", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center });
-            var text = new TextBlock { Text = name, FontSize = 12.5, FontWeight = last ? FontWeight.Bold : FontWeight.Normal, VerticalAlignment = VerticalAlignment.Center };
+            if (index > 0) _crumbs.Children.Add(FileBrowserTheme.Text("›", "BodyFont", "Muted"));
+            var text = FileBrowserTheme.Text(name);
             text.Classes.Add("raw");
             if (last) { _crumbs.Children.Add(text); continue; }
             var crumb = new Button { Content = text, Padding = new(2, 0), MinHeight = 0, Background = Brushes.Transparent };

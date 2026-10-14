@@ -26,6 +26,10 @@ public partial class EditorWindow
     {
         WindowChrome.ApplyPlatformFrame(this);
         var mac = ModernFrame && MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
+        var classic = Skin.UsesCustomChrome(ActualThemeVariant);
+        EditorTitleText.IsVisible = !classic;
+        // The remaining row contains editing modes rather than a second window caption.
+        EditorTitleBar.Bind(MinHeightProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(classic ? "UiClassicToolbarHeight" : "UiEditorTitleBarHeight"));
         var gutter = this.TryFindResource("UiToolTitleGutter", ActualThemeVariant, out var value) && value is double width ? width : 88;
         EditorTitleText.Margin = new Thickness(mac ? Math.Max(0, gutter - EditorLayout.Margin.Left) : 0, 0, 0, 0);
         QuickTitleBar.Margin = mac ? new Thickness(gutter, 0, gutter, 0) : new Thickness(0);

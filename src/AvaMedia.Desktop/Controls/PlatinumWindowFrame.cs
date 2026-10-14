@@ -31,7 +31,7 @@ public sealed class PlatinumWindowFrame : Border
         var titleBar = new Grid { ColumnDefinitions = new("20,*,36"), Classes = { "platinum-titlebar" }, Name = "PlatinumTitleBar" };
         var lines = new PlatinumTitleLines(window); Grid.SetColumnSpan(lines, 3); titleBar.Children.Add(lines);
         var close = CaptionButton("close", "关闭窗口", "PlatinumClose", () => window.Close()); titleBar.Children.Add(close);
-        var title = new TextBlock { Classes = { "platinum-title" }, FontWeight = FontWeight.Bold, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var title = new TextBlock { Classes = { "platinum-title" }, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         title.Bind(TextBlock.TextProperty, new Binding(nameof(Window.Title)) { Source = window });
         var appImage = new Image { Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
         appImage.Bind(Image.SourceProperty, window.GetObservable(WindowArtwork.ImageProperty));

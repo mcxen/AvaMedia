@@ -100,7 +100,7 @@ internal static partial class WindowChrome
     internal static void ApplyPlatformFrame(Window window)
     {
         var classic = Skin.UsesCustomChrome(window.ActualThemeVariant);
-        var extended = (UsesClientTitleBar(window) || classic && OperatingSystem.IsWindows())
+        var extended = (UsesClientTitleBar(window) || classic && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
             && window.WindowState != WindowState.FullScreen;
         // Keep WS_CAPTION/WS_THICKFRAME on Windows, NSWindow on macOS and WM decorations on Linux.
         // A transparent, region-shaped window cannot receive native DWM corners and shadows.
@@ -112,7 +112,8 @@ internal static partial class WindowChrome
         window.ExtendClientAreaToDecorationsHint = extended;
         window.ExtendClientAreaTitleBarHeightHint = extended ? classic ? 0 : window is MainWindow ? 52 : window is EditorWindow ? 44 : 48 : -1;
         window.ExtendClientAreaChromeHints = extended
-            ? OperatingSystem.IsMacOS() ? ExtendClientAreaChromeHints.PreferSystemChrome | ExtendClientAreaChromeHints.OSXThickTitleBar
+            ? classic ? ExtendClientAreaChromeHints.NoChrome
+                : OperatingSystem.IsMacOS() ? ExtendClientAreaChromeHints.PreferSystemChrome | ExtendClientAreaChromeHints.OSXThickTitleBar
                 : ExtendClientAreaChromeHints.NoChrome
             : ExtendClientAreaChromeHints.Default;
         ApplyWindowsFrame(window, extended);

@@ -229,7 +229,7 @@ public AudioWaveform() { MinHeight = 100; Bind(AccentProperty, new DynamicResour
 | Windows XP | Windows XP · Luna | `Skin.WindowsXP` | `#215DC6`（树选中 `#316AC5`） | `WindowsXPWindowFrame` |
 
 - Mac OS 9 / XP 为自定义框架皮肤，样式表按需加载；窗口类名分别为 `mac-os9` / `windows-xp`，现代样式选择器一律排除它们（`:not(.mac-os9):not(.windows-xp)`）。
-- Platinum 保留原生浮雕按钮及清晰文字（关闭抗锯齿）；无圆角、无 Lucide 分类图标、灰色渐变分类条。
+- Platinum 使用内置 Fusion Pixel 12px 字体：正文、说明、标题及菜单统一 12 DIP，计数允许 24 DIP；Ui / Ac / 设置 / 文件选择器字号均按皮肤令牌覆盖，不把像素字缩放到 11、13、15 等字号。保留缺字回退；窗口与弹出菜单、下拉项、提示均关闭抗锯齿，切回现代皮肤时恢复原渲染模式。浮雕按钮保留经典 3px 转角，卡片、字段与弹出表面直角；无 Lucide 分类图标，使用灰色渐变分类条。共享 Ac 控件主题映射到 Platinum，包括分段、标签页和复选式开关，不混入现代胶囊模板。令牌集中在 `Styles/PlatinumTokens.axaml`。
 - 深色使用对应 `Dark` 分支令牌；编辑器深色使用 Qc 令牌。
 - 命令行 `--macos9` / `--winxp` 可直接以对应皮肤启动，用于截图和验证。
 
@@ -725,7 +725,8 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - 窗口定位统一使用桌面坐标：现有窗口的边界尺寸乘 `DesktopScaling`，目标屏幕上的尺寸和间距乘该屏幕的 `Scaling`；不得将用于绘制的 `RenderScaling` 混入坐标计算。macOS Retina 的桌面坐标仍为逻辑点。未显式设置启动位置的窗口也接入公共定位，不能将默认枚举值 Manual 当成手动定位请求。
 - 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉、选择控件和分隔条不触发拖动，禁用控件的区域也不作为拖动留白。主窗口、编辑器和工具窗口统一通过 `WindowChrome.HookDrag` 在窗口隧道路由处理标题输入；顶部标题带覆盖客户区上边距和两侧留白，队列栏只覆盖自身行及外边距。全屏禁用标题拖动；标题拆卸时移除监听，原生拖动开始前释放隐式指针捕获。平台原生移动由 `BeginMoveDrag` 提供，不自行逐帧改写窗口位置。
 - `AVAMEDIA_CHROME=mac|win|system` 可覆盖平台检测；`system` 及 Mac OS 9 / XP 皮肤使用各自框架。
-- Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。经典框架是客户区皮肤，外层同样保留系统装饰和不透明表面，不以 `SystemDecorations.None` 牺牲系统阴影。
+- Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。Windows / macOS 经典皮肤保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`、原生标题高度提示 0，只显示一套经典标题和控制按钮；Linux 保留 WM 装饰。设置及普通工具隐藏重复的纯标题行，带导航操作的标题区仍保留，编辑器保留模式切换而隐藏重复窗口标题。切换皮肤与退出全屏重新应用公共策略，不以 `SystemDecorations.None` 牺牲系统阴影。
+- 主窗口关闭行为按后台运行设置执行：选择“继续在托盘运行”时先保证托盘已建立，再隐藏窗口，任务继续运行；启动尚未完成或托盘创建失败不得把关闭误当退出。托盘不可用时保留 Dock / 任务栏入口并正常最小化，显示真实失败原因；托盘“显示窗口”恢复原窗口与最大化状态并展开经典收起状态。显式退出、系统关闭及 MCP / 截图生命周期继续走真正退出流程。
 
 参考代码 `src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`：
 

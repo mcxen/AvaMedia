@@ -55,10 +55,22 @@ public partial class MainWindow
         if (_exitFinished) return;
         e.Cancel = true;
         if (_closing) return;
-        if (!_exitRequested && !IsCaptureSession && _settings.CloseToTray && _trayEnabled &&
+        if (!_exitRequested && !_mcpBackgroundMode && !IsCaptureSession && _settings.CloseToTray &&
             e.CloseReason is WindowCloseReason.WindowClosing or WindowCloseReason.Undefined)
-        { MoveToBackground(); return; }
+        { CloseToBackground(); return; }
         RequestExit();
+    }
+    private void CloseToBackground()
+    {
+        // Closing can arrive before startup tray initialization, or after a transient native failure.
+        if (!_trayEnabled && _optionServices.CanUseTray)
+            try { SetTray(true); }
+            catch (Exception error)
+            { AppDiagnostics.Record("Close to tray", error); SummaryText.Text = Localization.Format($"托盘未能启用：{error.Message}"); }
+        if (_trayEnabled) { MoveToBackground(); return; }
+        // Keep a reachable window and the queue alive when the host has no usable tray.
+        if (WindowState != WindowState.Minimized) _restoreState = WindowState;
+        ShowInTaskbar = true; WindowState = WindowState.Minimized; Save();
     }
     internal void RequestExit()
     {
