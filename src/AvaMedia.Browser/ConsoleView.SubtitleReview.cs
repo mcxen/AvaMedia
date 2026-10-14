@@ -54,7 +54,7 @@ internal sealed class SubtitleReviewPanel : UserControl, IDisposable
     private readonly ComboBox _alignment = new() { ItemsSource = new[] { "左下", "底部居中", "右下", "左中", "画面中心", "右中", "左上", "顶部居中", "右上" }, SelectedIndex = 1 };
     private readonly ComboBox _font = new();
     private readonly VisualNumber _size = new() { Minimum = 0, Maximum = 200, Increment = 1, Value = 48 },
-        _margin = new() { Minimum = 0, Maximum = 300, Increment = 1, Value = 36 };
+        _margin = new() { Minimum = 0, Maximum = 2000, Increment = 1, Value = 36 };
     private readonly FilePathChoice _folder = new();
     private readonly CheckBox _partial = new() { Content = "确认只导出本次部分识别结果" }, _start = new() { Content = "立即执行", IsChecked = true };
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(300) };
@@ -102,7 +102,7 @@ internal sealed class SubtitleReviewPanel : UserControl, IDisposable
         { var index = _list.SelectedIndex; if (index >= 0) { _cues.RemoveAt(index); _list.SelectedIndex = Math.Min(index, _cues.Count - 1); Save(); } return Task.CompletedTask; }));
         actions.Children.Add(Button("按时间排序", () =>
         { var selected = _list.SelectedItem; var sorted = _cues.OrderBy(cue => cue.Start).ToArray(); _cues.Clear(); foreach (var cue in sorted) _cues.Add(cue); _list.SelectedItem = selected; Save(); return Task.CompletedTask; }));
-        actions.Children.Add(Button("保存本机草稿", () => { Save(); _notice.Text = "草稿已保存在此浏览器，刷新后可继续校对。"; return Task.CompletedTask; }));
+        actions.Children.Add(Button("保存本机草稿", () => { if (Save()) _notice.Text = "草稿已保存在此浏览器，刷新后可继续校对。"; return Task.CompletedTask; }));
         actions.Children.Add(Button("播放此处", () =>
         {
             if (_list.SelectedItem is Cue cue) BrowserHost.Open("/web/media?path=" + Uri.EscapeDataString(source.Text("path")) + "#t=" + SourceSeconds(cue).ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -169,10 +169,14 @@ internal sealed class SubtitleReviewPanel : UserControl, IDisposable
         _timing.Text = $"{index + 1} / {_cues.Count} · {_range.Start:0.###} – {_range.End:0.###} 秒"; Changed();
     }
     private void Changed() { if (_sync) return; _saveTimer.Stop(); _saveTimer.Start(); Cancel(); if (_active && _previewRequested) _timer.Start(); }
-    private void Save()
+    private bool Save()
     {
-        try { BrowserHost.WriteDraft(DraftKey, new JsonObject { ["sourceVersion"] = _source.Text("sourceVersion"), ["revision"] = _source.Text("revision"), ["cues"] = Cues(), ["style"] = Style() }.ToJsonString()); }
-        catch (Exception error) { _notice.Text = "草稿未保存：" + error.Message; }
+        try
+        {
+            BrowserHost.WriteDraft(DraftKey, new JsonObject { ["sourceVersion"] = _source.Text("sourceVersion"), ["revision"] = _source.Text("revision"), ["cues"] = Cues(), ["style"] = Style() }.ToJsonString());
+            return true;
+        }
+        catch (Exception error) { _notice.Text = "草稿未保存：" + error.Message; return false; }
     }
     private JsonArray Cues() => new(_cues.Select(cue => (JsonNode)new JsonObject { ["start"] = cue.Start, ["end"] = cue.End, ["text"] = cue.Text }).ToArray());
     private JsonObject Style() => new() { ["fontSize"] = (int)(_size.Value ?? 48), ["color"] = _color.SelectedIndex is >= 0 and < 4 ? Colors[_color.SelectedIndex] : _color.SelectedItem?.ToString() ?? "#FFFFFF",
