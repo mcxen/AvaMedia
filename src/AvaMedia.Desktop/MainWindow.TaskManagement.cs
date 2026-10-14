@@ -31,6 +31,7 @@ public partial class MainWindow
     internal void StopRowTask(Job job) { if (CanStopRowTask(job)) { _queue.Stop(job); Save(); Refresh(); } }
     internal Task ShowRowTaskAsync(Job job)
     {
+        if (job.Options.VlRename is not null) return OpenExclusiveRenamerAsync(this, job);
         if (CanViewAiTask(job)) return ShowAiTaskAsync(job);
         return ShowTaskDetailsAsync(job);
     }
@@ -159,6 +160,13 @@ public partial class MainWindow
         if (restarting.Length == 0) return;
         foreach (var job in restarting)
         {
+            if (job.Options.VlRename is not null)
+            {
+                if (job.State == JobState.Completed)
+                { AiTaskResults.ClearForRetry(job); job.Options.VlRename.Review = []; }
+                job.Options.VlRename.RenameTaskId = null;
+                ResetTask(job); job.Output = AiTaskResults.InternalOutputFor(job); continue;
+            }
             // Keep the job ID for download staging and allocate a fresh destination if a prior output exists.
             if (job.FeatureId == "folder-classification")
             {

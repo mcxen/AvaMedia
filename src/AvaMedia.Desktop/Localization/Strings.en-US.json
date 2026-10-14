@@ -3923,5 +3923,17 @@
   "内部口令": "Internal passphrase",
   "口令错误，请重试": "Incorrect passphrase. Try again.",
   "内部工具未激活。": "Internal tools are not activated.",
-  "VL 媒体智能重命名": "VL media renamer"
+  "VL 媒体智能重命名": "VL media renamer",
+  "VL 命名分析": "VL naming analysis",
+  "后台 VL 分析": "Analyze VL in background",
+  "后台规则分析": "Analyze rules in background",
+  "查看后台任务": "View background task",
+  "未完成": "Unfinished",
+  "已停用": "Disabled",
+  "处理进度": "Progress",
+  "推理后端": "Inference backend",
+  "关闭窗口后任务仍继续，可在任务列表查看进度。": "The task continues after closing this window. Check progress in the task list.",
+  "重命名已加入后台任务列表。": "Rename added to the background task list.",
+  "原文件名已恢复。": "Original filenames restored.",
+  "成功 {0} 个，失败 {1} 个，共 {2} 个。": "{0} succeeded, {1} failed, {2} total."
 }

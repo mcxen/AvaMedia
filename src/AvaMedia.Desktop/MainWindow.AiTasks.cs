@@ -11,7 +11,8 @@ public partial class MainWindow
     private readonly HashSet<SubtitleReviewWindow> _subtitleReviewWindows = [];
     internal static bool IsAiFeature(Feature feature) => feature.Operation is Operation.MediaTag or Operation.FolderClassify
         or Operation.PersonClip or Operation.VideoSummary or Operation.Transcribe || feature.Id is "voice-enhance" or "audio-enhance" or "delogo" or "rotate";
-    internal bool CanViewAiTask(Job job) => !_closing && _jobs.Contains(job) && IsAiFeature(Catalog.Find(job.FeatureId));
+    internal bool CanViewAiTask(Job job) => !_closing && _jobs.Contains(job)
+        && (job.Options.VlRename is not null && _settings.ExclusiveToolUnlocked || IsAiFeature(Catalog.Find(job.FeatureId)));
     private Task StartToolWorkflow(Func<Task> workflow)
     {
         if (_closing) return Task.CompletedTask;
@@ -92,6 +93,7 @@ public partial class MainWindow
     internal Task ShowAiTaskAsync(Job job)
     {
         if (!CanViewAiTask(job)) return Task.CompletedTask;
+        if (job.Options.VlRename is not null) return OpenExclusiveRenamerAsync(this, job);
         if (CanViewClassificationTask(job)) return ShowClassificationTaskAsync(job);
         if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return Task.CompletedTask; }
         var rotation = job.FeatureId == "rotate" && job.Inputs.Length == 1 ? new RotationTaskView(Engine, job) : null;

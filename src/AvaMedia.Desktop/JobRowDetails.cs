@@ -25,7 +25,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public bool NoCover => !HasCover;
     public bool IsRunning => Job.State == JobState.Running;
     public bool CanPreview => true;
-    public string PreviewTip => Job.State is JobState.Waiting or JobState.Paused && !MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) ? "编辑任务" : "查看任务详情";
+    public string PreviewTip => Job.State is JobState.Waiting or JobState.Paused && Job.Options.VlRename is null && !MainWindow.IsAiFeature(Catalog.Find(Job.FeatureId)) ? "编辑任务" : "查看任务详情";
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
     public bool HasOutputPreview => Job.State == JobState.Completed && Job.CompletionKind != JobCompletionKind.Unchanged && !Job.HasInternalOutput && Job.FeatureId != "folder-classification";
@@ -72,6 +72,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         {
             var feature = Catalog.Find(Job.FeatureId);
             var o = Job.Options;
+            if (o.VlRename is { } vl) return Localization.Join(" · ", new[] { "VL 命名分析", vl.Model });
             if (o.Orientation is not null) return Localization.Text("AI 自动转正 · 检测方向");
             var label = feature.Label.StartsWith('→') ? o.Format.ToUpperInvariant() : feature.Label.Replace("\n", " ");
             var parts = new List<string> { label };
@@ -198,7 +199,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     };
     public bool HasStateDetail => StateDetail.Length > 0;
     // Compact (light / dark skin) row: "tool → output", one meta line and a short state.
-    public string TargetLine => $"{Localization.Text(FeatureNavigation.Label(Catalog.Find(Job.FeatureId)))}  →  {OutputName}";
+    public string TargetLine => $"{Localization.Text(Job.Options.VlRename is not null ? "VL 命名分析" : FeatureNavigation.Label(Catalog.Find(Job.FeatureId)))}  →  {OutputName}";
     public string MetaLine => Localization.Join(" · ", new[] { MediaSummary, CodecSummary }.Where(s => s.Length > 0));
     public string CompactState => Job.State switch
     {

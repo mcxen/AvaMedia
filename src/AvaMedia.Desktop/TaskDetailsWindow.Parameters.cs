@@ -83,9 +83,17 @@ public sealed partial class TaskDetailsWindow
         var options = _job.Options;
         _parameters.Children.Add(Ui.ComponentText("任务参数", "heading"));
         using var summary = new JobRowDetails(_job);
-        Row(_parameters, "工具", Localization.Text(FeatureNavigation.Label(Catalog.Find(_job.FeatureId))));
+        Row(_parameters, "工具", Localization.Text(options.VlRename is not null ? "VL 命名分析" : FeatureNavigation.Label(Catalog.Find(_job.FeatureId))));
         Row(_parameters, "处理设置", summary.SettingsSummary);
         Row(_parameters, "输出格式", options.Format.ToUpperInvariant());
+        if (options.VlRename is { } vl)
+        {
+            Row(_parameters, "分析方式", Localization.Text(vl.Mode == "online" ? "线上 VL" : vl.Mode == "local" ? "本地 VL · Qwen3.5" : "文件夹与文件名规则"));
+            Row(_parameters, "视觉模型", vl.Model);
+            if (vl.Mode == "online")
+            { Row(_parameters, "供应商", vl.ProviderName); Row(_parameters, "接口地址", vl.ProviderEndpoint); }
+            return;
+        }
         if (options.VideoSlimming is { } slim)
         {
             Row(_parameters, "画质档位", Localization.Text(slim.Preset switch

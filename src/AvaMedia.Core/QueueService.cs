@@ -90,7 +90,8 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             || b.StartsWith(a + Path.DirectorySeparatorChar, comparison);
     }));
     private bool FilesReserved(Job job) => _fileChanges.Values.Any(paths => Overlap(paths, JobFiles(job)));
-    private bool MutationConflict(Job job) => _active.Keys.Any(active => (job.FeatureId is "batch-rename" or "folder-organize" || active.FeatureId is "batch-rename" or "folder-organize")
+    private static bool MutatesFiles(Job job) => job.Options.Rename is not null || job.FeatureId == "folder-organize";
+    private bool MutationConflict(Job job) => _active.Keys.Any(active => (MutatesFiles(job) || MutatesFiles(active))
         && Overlap(JobFiles(job), JobFiles(active)));
 
     public void ApplyFileChanges(IEnumerable<Job> jobs, IReadOnlyList<RenameItem> mappings)
@@ -100,8 +101,8 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         {
             foreach (var job in jobs.Concat(_pending).Concat(_active.Keys).Distinct())
             {
-                // Keep the committed rename plan as the historical operation it describes.
-                if (job.CommittedFileChanges is not null) continue;
+                // Keep committed rename plans and VL source fingerprints as their original snapshots.
+                if (job.CommittedFileChanges is not null || job.Options.VlRename is not null) continue;
                 job.Inputs = job.Inputs.Select(path => map.GetValueOrDefault(path) ?? path).ToArray();
                 if (job.Options.Rename is { } rename && job.State is JobState.Waiting or JobState.Paused)
                     job.Options.Rename = rename with { Plan = rename.Plan.Select(item => item with

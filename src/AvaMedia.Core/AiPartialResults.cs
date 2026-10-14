@@ -10,6 +10,8 @@ public static class AiPartialResults
     public static async Task SaveAvailableAsync(Job job)
     {
         // Cancellation stops inference, not the atomic save of results already produced.
+        if (job.VlRenameResult is { } rename)
+            await AiTaskResults.SaveAsync(job.Output, rename, CancellationToken.None).ConfigureAwait(false);
         if (job.ClassificationSnapshot is { } classification)
             foreach (var file in classification.Files.Where(file => file.Pending && file.Result is not null))
                 await FolderClassificationTaskStore.SaveFileAsync(job, file, CancellationToken.None).ConfigureAwait(false);

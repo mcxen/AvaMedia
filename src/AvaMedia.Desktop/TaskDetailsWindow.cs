@@ -112,7 +112,17 @@ public sealed partial class TaskDetailsWindow : Window
         Localization.Changed += LanguageChanged;
         _logTimer.Tick += async (_, _) =>
         { if (IsVisible && _sections.SelectedIndex == 2 && _job.State is JobState.Running or JobState.Stopping) await RefreshLogAsync(); };
-        Opened += async (_, _) => { _logTimer.Start(); await RefreshLogAsync(); };
+        Opened += async (_, _) =>
+        {
+            _logTimer.Start();
+            if (job.Options.VlRename is not null && job.VlRenameResult is null)
+            {
+                try { job.VlRenameResult = await AiTaskResults.LoadAsync<VlRenameTaskResult>(job.Output, _lifetime.Token); }
+                catch (OperationCanceledException) { }
+                catch (Exception error) { AppDiagnostics.Record("Read VL task result", error); }
+            }
+            if (!_closed) await RefreshLogAsync();
+        };
         Closed += (_, _) =>
         {
             _closed = true; _logTimer.Stop(); _lifetime.Cancel();
@@ -159,7 +169,7 @@ public sealed partial class TaskDetailsWindow : Window
             JobState.Paused => "已暂停", JobState.Running => "进行中", JobState.Stopping => "正在停止", _ => "等待"
         });
         _activity.Text = _job.State is JobState.Running or JobState.Stopping
-            ? Localization.Text(_job.Status) : Localization.Text(FeatureNavigation.Label(Catalog.Find(_job.FeatureId)));
+            ? Localization.Text(_job.Status) : Localization.Text(_job.Options.VlRename is not null ? "VL 命名分析" : FeatureNavigation.Label(Catalog.Find(_job.FeatureId)));
         _progress.IsVisible = _job.State is JobState.Running or JobState.Stopping;
         _progress.Value = Math.Clamp(_job.Progress, 0, 100);
         _runButton.IsVisible = !_acting && _canRun();
@@ -190,7 +200,16 @@ public sealed partial class TaskDetailsWindow : Window
             _result.Children.Add(Ui.ComponentText("输出文件缺失或不可访问。", "caption"));
         Row(_result, "任务 ID", _job.Id.ToString());
         if (_job.Duration > 0) Row(_result, "时长", MediaTime.Format(_job.Duration));
-        AddSlimmingResult();
+        if (_job.Options.VlRename is not null)
+        {
+            if (_job.VlRenameResult is { } preview)
+            {
+                Row(_result, "处理进度", Localization.Format($"成功 {preview.Completed} 个，失败 {preview.Failed} 个，共 {preview.Files.Length} 个。"));
+                Row(_result, "视觉模型", preview.Model);
+                Row(_result, "推理后端", preview.Backend);
+            }
+        }
+        else AddSlimmingResult();
         _files.Children.Add(Ui.ComponentText("文件", "heading"));
         foreach (var path in _job.Inputs) Row(_files, "来源", path);
         if (_job.Inputs.Length == 0) _files.Children.Add(Ui.ComponentText("未指定源文件", "caption"));

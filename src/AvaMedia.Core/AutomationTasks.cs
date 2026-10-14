@@ -23,7 +23,8 @@ public static class AutomationTasks
     public static bool Supports(Job job) => job.FeatureId is "batch-rename" or "contact-sheet" or "folder-organize" or "model-download";
     public static void Validate(Job job)
     {
-        if (job.FeatureId == "folder-organize")
+        if (job.Options.VlRename is not null) VlRenameTasks.Validate(job);
+        else if (job.FeatureId == "folder-organize")
         {
             var spec = job.Options.FolderOrganization ?? throw new ArgumentException("缺少分类整理计划。");
             if (!Path.IsPathFullyQualified(spec.OutputFolder) || spec.Plan.Length == 0
@@ -65,7 +66,9 @@ public static class AutomationTasks
     public static async Task ExecuteAsync(IMediaEngine engine, Job job, Action<double> progress, CancellationToken ct)
     {
         Validate(job); ct.ThrowIfCancellationRequested(); progress(0);
-        if (job.FeatureId == "folder-organize")
+        if (job.Options.VlRename is not null)
+            await new VlRenameTasks(engine).ExecuteAsync(job, progress, ct).ConfigureAwait(false);
+        else if (job.FeatureId == "folder-organize")
         {
             var result = await FolderOrganization.ExecuteAsync(job.Options.FolderOrganization!.Plan, false, job.Output,
                 new OrganizationProgress(value =>

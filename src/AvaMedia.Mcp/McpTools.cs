@@ -66,6 +66,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
         if (!CanCreate(feature)) throw new ArgumentException("该服务请使用专用接口或桌面窗口。");
         if (Catalog.IsBeta(feature) && !workspace.Engine.Settings.EnableBetaFeatures) throw new InvalidOperationException("Beta 功能已关闭。");
         var spec = options?.Clone() ?? Defaults(feature);
+        if (spec.VlRename is not null) throw new ArgumentException("内部 VL 分析请使用 avamedia_preview_vl_rename。");
         // Deserializing a partial ConversionOptions otherwise supplies its generic MP4 default.
         // Inspect the wire object to preserve an explicitly chosen format, including MP4.
         if (context?.Params?.Arguments?.TryGetValue("options", out var raw) == true && raw.ValueKind == JsonValueKind.Object
@@ -195,10 +196,10 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     { Page(offset, limit); return workspace.GetAsync(taskId, includeResult, offset, limit, ct); }
 
     [McpServerTool(Name = "avamedia_control_task", Title = "控制任务", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Control a shared task. start: Waiting; pause: Waiting/Running at a safe checkpoint; resume: Paused; stop: Waiting/Paused/Running; retry: Failed/Cancelled; remove: inactive tasks only, removes queue record and task metadata, keeps media outputs. Rename/organization retry requires preview/apply with a fresh plan. Returns current task state immediately.")]
+    [Description("Control a shared task. start: Waiting; pause: Waiting/Running at a safe checkpoint; resume: Paused; stop: Waiting/Paused/Running; retry: Failed/Cancelled; remove: inactive tasks only, removes queue record and task metadata, keeps media outputs. Applying a rename/organization plan again requires a fresh preview/plan; VL analysis retry preserves successful files and processes remaining files. Returns current task state immediately.")]
     public Task<McpTaskView> ControlTask(Guid taskId, string action, CancellationToken ct = default) => workspace.ControlAsync(taskId, action, ct);
 
-    private async Task<McpSubmission> Submit(string requestId, object arguments, Func<string[], Job[]> create, bool start, CancellationToken ct, Func<Task>? prepare = null)
+    internal async Task<McpSubmission> Submit(string requestId, object arguments, Func<string[], Job[]> create, bool start, CancellationToken ct, Func<Task>? prepare = null)
     {
         if (!Guid.TryParse(requestId, out var id)) throw new ArgumentException("requestId 须为 UUID。");
         var hash = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(arguments)));

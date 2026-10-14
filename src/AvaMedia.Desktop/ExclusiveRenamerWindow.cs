@@ -14,9 +14,8 @@ using AvaMedia.Core;
 
 namespace AvaMedia.Desktop;
 
-public sealed class ExclusiveRenamerWindow : Window
+public sealed partial class ExclusiveRenamerWindow : Window
 {
-    private readonly IMediaEngine _engine;
     private readonly AppSettings _settings;
     private readonly Func<Window, bool, Task>? _configure;
     private readonly Func<IEnumerable<string>, IDisposable>? _reserveFiles;
@@ -31,7 +30,7 @@ public sealed class ExclusiveRenamerWindow : Window
     private readonly StackPanel _toolbar = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private readonly StackPanel _models = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcRowGap") };
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly string _journal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "exclusive-vl-rename.json");
+    private string _journal = "";
     private CancellationTokenSource? _operation;
     private bool _busy, _renaming, _closed, _canUndo;
     public event Action<IReadOnlyList<RenameItem>>? Renamed;
@@ -72,12 +71,15 @@ public sealed class ExclusiveRenamerWindow : Window
     private sealed record ProviderChoice(string Id, string Name)
     { public override string ToString() => Name; }
 
-    public ExclusiveRenamerWindow(IMediaEngine engine, AppSettings settings, Func<Window, bool, Task>? configure = null,
+    public ExclusiveRenamerWindow(AppSettings settings, Func<Job, Task> submit,
+        Func<Job, RenameItem[], Task<Job>> commit, Action<Job> stopTask, Func<Job, Task> viewTask, Action persist,
+        Func<Window, bool, Task>? configure = null,
         Func<IEnumerable<string>, IDisposable>? reserveFiles = null)
     {
         if (!settings.ExclusiveToolUnlocked) throw new InvalidOperationException("内部工具未激活。");
         ApplyToolStyles(this);
-        _engine = engine; _settings = settings; _configure = configure; _reserveFiles = reserveFiles;
+        _settings = settings; _configure = configure; _reserveFiles = reserveFiles;
+        _submit = submit; _commit = commit; _stopTask = stopTask; _viewTask = viewTask; _persist = persist;
         Title = "专属工具 · VL 媒体智能重命名"; Width = 1160; Height = 700; MinWidth = 900; MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; Controls.WindowArtwork.SetKind(this, "gear");
         var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,Auto,*,Auto"), RowSpacing = 10, [!Avalonia.Controls.Control.MarginProperty] = Resource("CtWindowMargin") };
@@ -88,7 +90,11 @@ public sealed class ExclusiveRenamerWindow : Window
         }));
         _toolbar.Children.Add(_recursive);
         _toolbar.Children.Add(Ui.Button("移除选中", () =>
-        { foreach (var row in _list.SelectedItems?.OfType<Entry>().ToArray() ?? []) _entries.Remove(row); UpdateActions(); }));
+        {
+            foreach (var row in _list.SelectedItems?.OfType<Entry>().ToArray() ?? [])
+            { if (_analysisJob is not null) row.Include = false; _entries.Remove(row); }
+            UpdateActions();
+        }));
         _toolbar.Children.Add(Ui.Button("全选", () => { foreach (var row in _entries) row.Include = true; }));
         _toolbar.Children.Add(Ui.Button("反选", () => { foreach (var row in _entries) row.Include = !row.Include; }));
         root.Children.Add(_toolbar);
@@ -128,28 +134,35 @@ public sealed class ExclusiveRenamerWindow : Window
         var empty = new AvaMedia.Controls.EmptyState { Text = Localization.Text("选择需要重命名的文件"), IsVisible = _entries.Count == 0 };
         _entries.CollectionChanged += (_, _) => empty.IsVisible = _entries.Count == 0;
         Grid.SetRow(empty, 1); table.Children.Add(empty);
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto,Auto,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };
         footer.Children.Add(_status);
-        _generate = Ui.Button("激活 VL 并生成预览", async () => await GenerateAsync());
+        _generate = Ui.Button("后台 VL 分析", async () => await GenerateAsync());
         _rename = Ui.DialogButton("批量重命名", async () => await RenameAsync()); _rename.Classes.Add("primary");
         _undo = Ui.Button("撤销上次重命名", async () => await UndoAsync());
-        _stop = Ui.Button("停止", () => _operation?.Cancel());
-        foreach (var (column, button) in new[] { (1, _stop), (2, _undo), (3, _generate), (4, Ui.DialogButton("关闭", Close)), (5, _rename) })
+        _stop = Ui.Button("停止", StopCurrentTask);
+        _background = Ui.Button("查看后台任务", async () =>
+        { if ((_renameJob ?? _analysisJob) is { } job) await _viewTask(job); });
+        foreach (var (column, button) in new[] { (1, _stop), (2, _undo), (3, _background), (4, _generate), (5, Ui.DialogButton("关闭", Close)), (6, _rename) })
         { Grid.SetColumn(button, column); footer.Children.Add(button); }
         Grid.SetRow(footer, 5); root.Children.Add(footer); Content = root;
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, (_, args) =>
-        { args.DragEffects = !_busy && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; args.Handled = true; });
+        { args.DragEffects = !_busy && !TaskActive(_analysisJob) && !TaskActive(_renameJob) && args.DataTransfer.TryGetFiles() is not null ? DragDropEffects.Copy : DragDropEffects.None; args.Handled = true; });
         AddHandler(DragDrop.DropEvent, async (_, args) =>
         { args.Handled = true; if (!_busy) await ImportAsync(args.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>() ?? []); });
         Closing += (_, args) => { if (_renaming) { args.Cancel = true; return; } _closed = true; _operation?.Cancel(); _lifetime.Cancel(); };
-        Closed += (_, _) => _lifetime.Dispose(); _canUndo = BatchRename.CanUndo(_journal); RefreshMode(); UpdateActions();
+        Opened += (_, _) => _taskTimer.Start();
+        Closed += (_, _) => { _taskTimer.Stop(); _reviewTimer.Stop(); if (_reviewDirty) _persist(); _lifetime.Dispose(); };
+        _reviewTimer.Tick += (_, _) => { _reviewTimer.Stop(); if (_reviewDirty) { _reviewDirty = false; _persist(); } };
+        _taskTimer.Tick += (_, _) => RefreshTask(); RefreshMode(); UpdateActions();
     }
 
     private void RefreshProviders()
     {
         var selected = (_providers.SelectedItem as ProviderChoice)?.Id ?? _settings.OnlineAi.DefaultProviderId;
         var providers = _settings.OnlineAi.Providers.Where(provider => provider.Enabled).Select(provider => new ProviderChoice(provider.Id, provider.Name)).ToArray();
+        if (_analysisJob?.Options.VlRename is { Mode: "online" } spec && providers.All(provider => provider.Id != spec.ProviderId))
+            providers = [.. providers, new ProviderChoice(spec.ProviderId, spec.ProviderName + " · " + Localization.Text("已停用"))];
         _providers.ItemsSource = providers; _providers.SelectedItem = providers.FirstOrDefault(provider => provider.Id == selected) ?? providers.FirstOrDefault();
     }
     private void RefreshMode()
@@ -161,12 +174,12 @@ public sealed class ExclusiveRenamerWindow : Window
             0 => "本地 VL：首次生成会下载 Qwen3.5 视觉模型及推理工具，处理过程可停止。",
             1 => "使用所选供应商的视觉模型；生成时将发送文件夹名、文件名及采样画面。",
             _ => "按文件夹与文件名解析六个命名字段，不调用模型。"
-        });
-        if (_generate is not null) _generate.Content = Localization.Text(_mode.SelectedIndex == 2 ? "按规则生成预览" : "激活 VL 并生成预览");
+        }) + " " + Localization.Text("关闭窗口后任务仍继续，可在任务列表查看进度。");
+        if (_generate is not null) _generate.Content = Localization.Text(_mode.SelectedIndex == 2 ? "后台规则分析" : "后台 VL 分析");
     }
     private async Task ConfigureAsync()
     {
-        if (_busy || _configure is null) return;
+        if (_busy || _configure is null || TaskActive(_analysisJob) || TaskActive(_renameJob)) return;
         SetBusy(true);
         try { await _configure(this, _mode.SelectedIndex == 1); if (!_closed) RefreshProviders(); }
         catch (Exception error) { Report(error); }
@@ -174,7 +187,7 @@ public sealed class ExclusiveRenamerWindow : Window
     }
     private async Task ImportAsync(IEnumerable<string> paths)
     {
-        if (_busy || _closed) return;
+        if (_busy || _closed || TaskActive(_analysisJob) || TaskActive(_renameJob)) return;
         var folders = paths.Where(Directory.Exists).Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))
             .Distinct(BatchRename.PathComparer).ToArray();
         if (folders.Length == 0) { _status.Text = Localization.Text("请拖入或选择文件夹。"); return; }
@@ -190,93 +203,13 @@ public sealed class ExclusiveRenamerWindow : Window
             {
                 var path = input.Path;
                 if (!existing.Add(path)) continue;
-                var entry = new Entry(path, input.FolderContext);
-                entry.PropertyChanged += (_, args) => { if (args.PropertyName is nameof(Entry.Include) or nameof(Entry.Ready)) UpdateActions(); };
-                _entries.Add(entry); added++;
+                AddEntry(path, input.FolderContext); added++;
             }
             Localization.SetText(_status, $"已添加 {added} 个图片或视频，共 {_entries.Count} 个。");
         }
         catch (OperationCanceledException) { if (!_closed) _status.Text = Localization.Text("扫描已停止。"); }
         catch (Exception error) { Report(error); }
         finally { _operation = null; if (!_closed) SetBusy(false); }
-    }
-
-    private async Task GenerateAsync()
-    {
-        if (_busy || _closed) return;
-        var selected = _entries.Where(entry => entry.Include).ToArray(); if (selected.Length == 0) return;
-        var mode = _mode.SelectedIndex; var providerId = (_providers.SelectedItem as ProviderChoice)?.Id;
-        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token); _operation = operation; SetBusy(true);
-        foreach (var row in selected) row.Clear();
-        ISummaryModel? model = null; var completed = 0; var failed = 0;
-        try
-        {
-            if (mode == 0)
-            {
-                var store = new ModelStore();
-                foreach (var id in new[] { ModelCatalog.SummaryRuntimeId, ModelCatalog.SummaryQwen35Id })
-                    if (!await store.IsInstalledAsync(id, ct: operation.Token))
-                        await store.DownloadAsync(id, new Progress<ModelDownloadProgress>(progress =>
-                        { if (!_closed && _operation == operation) _status.Text = ModelCatalog.Find(id).Name + $" · {Localization.Text(progress.Stage)} {progress.Percent:0}%"; }), operation.Token);
-                model = await LocalSummaryModelCache.AcquireAsync(store, ModelCatalog.SummaryQwen35Id, operation.Token,
-                    stage => Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (!_closed && _operation == operation) _status.Text = Localization.Text(stage); }));
-            }
-            else if (mode == 1)
-            {
-                if (providerId is null) throw new ArgumentException("请先配置线上 VL 供应商。");
-                var provider = _settings.OnlineAi.Resolve(providerId);
-                if (string.IsNullOrWhiteSpace(provider.EffectiveVisionModel)) throw new ArgumentException("请在 AI 供应商中配置视觉模型。");
-                model = new OnlineSummaryModel(provider, vision: true);
-            }
-            var renamer = new VlMediaRenamer(_engine);
-            foreach (var row in selected)
-            {
-                operation.Token.ThrowIfCancellationRequested();
-                row.Status = "分析中"; Localization.SetText(_status, $"{completed + failed + 1}/{selected.Length} · {row.Name}");
-                try
-                {
-                    var suggestion = await renamer.SuggestAsync(row.Path, model, operation.Token, row.FolderContext);
-                    if (_closed) return;
-                    row.Suggestion = suggestion; row.NewName = Path.GetFileName(suggestion.Item.Target);
-                    row.Details = row.Path + "\n" + suggestion.Details; row.Status = mode == 2 ? "规则预览" : "VL 已分析"; completed++;
-                }
-                catch (OperationCanceledException) { row.Status = "已停止"; throw; }
-                catch (Exception error) { row.Status = "分析失败"; row.Details = error.Message; failed++; }
-            }
-            AvoidConflicts(selected);
-            Localization.SetText(_status, $"预览完成：成功 {completed} 个，失败 {failed} 个。确认建议名称后执行重命名。");
-        }
-        catch (OperationCanceledException)
-        {
-            if (!_closed)
-            {
-                try { AvoidConflicts(selected); _status.Text = Localization.Text("已停止，已完成的预览已保留。未完成项可取消勾选。"); }
-                catch (Exception error) { Report(error); }
-            }
-        }
-        catch (Exception error) { Report(error); }
-        finally
-        {
-            try { if (model is not null) await model.DisposeAsync(); }
-            finally { _operation = null; if (!_closed) SetBusy(false); }
-        }
-    }
-
-    private static void AvoidConflicts(IEnumerable<Entry> rows)
-    {
-        foreach (var group in rows.Where(row => row.Suggestion is not null).GroupBy(row => Path.GetDirectoryName(row.Path)!, BatchRename.PathComparer))
-        {
-            // Conservative casing also prevents collisions on the usual case-insensitive macOS volumes.
-            var reserved = Directory.EnumerateFileSystemEntries(group.Key).Select(Path.GetFileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var row in group)
-            {
-                var initial = row.NewName; var next = 2;
-                if (StringComparer.OrdinalIgnoreCase.Equals(initial, row.Name)) continue;
-                while (reserved.Contains(row.NewName))
-                    row.NewName = VlMediaNaming.WithConflictNumber(initial, row.Suggestion!.Identifier, next++);
-                reserved.Add(row.NewName);
-            }
-        }
     }
 
     private RenameItem[] BuildPlan()
@@ -293,22 +226,22 @@ public sealed class ExclusiveRenamerWindow : Window
     }
     private async Task RenameAsync()
     {
-        if (_busy || _closed) return;
-        SetBusy(true); _renaming = true; UpdateActions();
+        if (_busy || _closed || TaskActive(_analysisJob) || TaskActive(_renameJob)) return;
+        if (_analysisJob is null) return;
+        SetBusy(true);
         try
         {
             var plan = BuildPlan();
-            using var reservation = _reserveFiles?.Invoke(plan.SelectMany(item => new[] { item.Source, item.Target }));
-            var changed = await Task.Run(() => BatchRename.ApplyRename(plan, _journal));
-            ApplyChanges(changed); Renamed?.Invoke(changed);
-            Localization.SetText(_status, $"已重命名 {changed.Length} 个文件，可撤销上次操作。");
+            _renameJob = await _commit(_analysisJob, plan);
+            _journal = _renameJob.Output; _seenRename = false;
+            _status.Text = Localization.Text("重命名已加入后台任务列表。");
         }
         catch (Exception error) { Report(error); }
-        finally { _renaming = false; SetBusy(false); }
+        finally { if (!_closed) SetBusy(false); }
     }
     private async Task UndoAsync()
     {
-        if (_busy || _closed) return;
+        if (_busy || _closed || TaskActive(_analysisJob) || TaskActive(_renameJob)) return;
         SetBusy(true); _renaming = true; UpdateActions();
         try
         {
@@ -316,6 +249,7 @@ public sealed class ExclusiveRenamerWindow : Window
                 ?? throw new InvalidDataException("恢复记录无效。");
             using var reservation = _reserveFiles?.Invoke(journal.Stages.SelectMany(stage => new[] { stage.Item.Source, stage.Item.Target }));
             var changed = await Task.Run(() => BatchRename.UndoRename(_journal)); ApplyChanges(changed); Renamed?.Invoke(changed);
+            _renameUndone = true;
             Localization.SetText(_status, $"已恢复 {changed.Length} 个原文件名。");
         }
         catch (Exception error) { Report(error); }
@@ -327,15 +261,19 @@ public sealed class ExclusiveRenamerWindow : Window
             if (changes.FirstOrDefault(change => BatchRename.PathComparer.Equals(change.Source, row.Path)) is { } change) row.MoveTo(change.Target);
     }
     private void SetBusy(bool busy)
-    { _busy = busy; _toolbar.IsEnabled = _models.IsEnabled = _list.IsEnabled = !busy; if (!busy) _canUndo = BatchRename.CanUndo(_journal); UpdateActions(); }
+    { _busy = busy; if (!busy) _canUndo = _journal.Length > 0 && BatchRename.CanUndo(_journal); UpdateActions(); }
     private void UpdateActions()
     {
         if (_closed || _generate is null) return;
-        _generate.IsEnabled = !_busy && _entries.Any(row => row.Include);
+        var active = TaskActive(_analysisJob) || TaskActive(_renameJob);
+        _toolbar.IsEnabled = _models.IsEnabled = _list.IsEnabled = !_busy && !active;
+        _generate.IsEnabled = !_busy && !active && _entries.Any(row => row.Include);
         var included = _entries.Where(row => row.Include).ToArray();
-        _rename.IsEnabled = !_busy && included.Length > 0 && included.All(row => row.Ready)
+        _rename.IsEnabled = !_busy && !active && included.Length > 0 && included.All(row => row.Ready)
             && included.Any(row => !StringComparer.Ordinal.Equals(row.Name, row.NewName));
-        _undo.IsEnabled = !_busy && _canUndo; _stop.IsEnabled = _busy && !_renaming && _operation is not null;
+        _undo.IsEnabled = !_busy && !active && _canUndo;
+        _stop.IsEnabled = !_renaming && (_operation is not null || active);
+        _background.IsEnabled = _analysisJob is not null;
     }
     private void Report(Exception error)
     { if (!_closed) _status.Text = error.Message; AppDiagnostics.Record("Exclusive VL renamer", error); }

@@ -288,7 +288,20 @@ public partial class MainWindow
             if (!includeResult) return new(view, null);
             var privateEnabled = Engine.Settings.EnableNsfwContent;
             object? result = null; int? next = null;
-            if (job.FeatureId == "media-ai")
+            if (job.Options.VlRename is not null)
+            {
+                if (!Engine.Settings.ExclusiveToolUnlocked) throw new InvalidOperationException("内部工具未激活。");
+                var snapshot = job.VlRenameResult ?? await AiTaskResults.LoadAsync<VlRenameTaskResult>(job.Output, ct).ConfigureAwait(false);
+                if (snapshot is not null)
+                {
+                    var page = snapshot.Files.Skip(offset).Take(limit).ToArray();
+                    result = new { job.Options.VlRename.ProviderId, job.Options.VlRename.ProviderName, snapshot.Model, snapshot.Backend, snapshot.Completed, snapshot.Failed, Total = snapshot.Files.Length,
+                        snapshot.IsPartial, Files = page, Review = job.Options.VlRename.Review.Where(item => page.Any(file => BatchRename.PathComparer.Equals(item.Source, file.Source.Path))).ToArray(),
+                        Plan = page.Select(file => file.Suggestion?.Item).OfType<RenameItem>().ToArray() };
+                    next = offset + limit < snapshot.Files.Length ? offset + limit : null;
+                }
+            }
+            else if (job.FeatureId == "media-ai")
             {
                 var media = job.MediaTagResult ?? await AiTaskResults.LoadAsync<MediaTagResult>(AiTaskResults.PathFor(job, "tags"), ct).ConfigureAwait(false);
                 if (media is not null)
@@ -370,7 +383,7 @@ public partial class MainWindow
                         break;
                     case "stop" when owner._queue.Stop(job): break;
                     case "retry" when job.State is JobState.Failed or JobState.Cancelled && owner.CanRequeueTask(job):
-                        if (job.FeatureId is "batch-rename" or "folder-organize") throw new ArgumentException("请重新预览并提交新的文件操作计划。");
+                        if (job.Options.VlRename is null && job.FeatureId is "batch-rename" or "folder-organize") throw new ArgumentException("请重新预览并提交新的文件操作计划。");
                         McpTools.ValidatePaths(job, new()); _ = owner.RestartTasksAsync([job]); break;
                     case "remove" when owner.CanRemoveTask(job): operation = owner.RemoveTasksAsync([job]); break;
                     default: throw new ArgumentException("当前任务状态不支持此操作：" + action);

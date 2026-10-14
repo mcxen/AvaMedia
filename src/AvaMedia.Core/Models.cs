@@ -147,7 +147,7 @@ public sealed partial class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.VlRename=VlRename?.Clone();copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public enum JobCompletionKind { Default, Unchanged }
@@ -193,9 +193,17 @@ public sealed partial class Job : Observable
     public string Source => string.Join(Environment.NewLine, Inputs);
     [JsonIgnore]
     public string UserOutput => HasInternalOutput || CompletionKind == JobCompletionKind.Unchanged ? "" : Options.FolderOrganization?.OutputFolder ?? Options.FolderClassification?.OutputFolder ?? Output;
-    public string Target => $"{Catalog.Find(FeatureId).Label.Replace("\n"," ")}  →  {(CompletionKind == JobCompletionKind.Unchanged ? "保留原文件" : HasInternalOutput ? "任务结果" : UserOutput)}";
+    public string Target => $"{(Options.VlRename is not null ? "VL 命名分析" : Catalog.Find(FeatureId).Label.Replace("\n"," "))}  →  {(CompletionKind == JobCompletionKind.Unchanged ? "保留原文件" : HasInternalOutput ? "任务结果" : UserOutput)}";
     [JsonIgnore]
-    public string Status => State switch {JobState.Waiting=>"等待中",JobState.Running=>$"{(FeatureId=="download"?"下载中":FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary"?"分析中":FeatureId=="auto-subtitle"?"识别中":"转换中")}  {Progress:0.0}%"+(ProgressDetail.Length>0?" · "+ProgressDetail:"")+(RemainingTimeText.Length>0?" · "+RemainingTimeText:""),JobState.Completed when CompletionKind == JobCompletionKind.Unchanged=>FeatureId == "video-slim" ? "无需瘦身" : "保留原文件",JobState.Completed=>"完成"+((FeatureId is "video-slim" or "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle") && ProgressDetail.Length>0?" · "+ProgressDetail:""),JobState.Failed=>"失败",JobState.Paused=>"已暂停",JobState.Stopping=>"正在终止",_=>"已停止"};
+    public string Status => State switch
+    {
+        JobState.Waiting => "等待中",
+        JobState.Running => $"{(Options.VlRename is not null ? "分析中" : FeatureId == "download" ? "下载中" : FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary" ? "分析中" : FeatureId == "auto-subtitle" ? "识别中" : "转换中")}  {Progress:0.0}%"
+            + (ProgressDetail.Length > 0 ? " · " + ProgressDetail : "") + (RemainingTimeText.Length > 0 ? " · " + RemainingTimeText : ""),
+        JobState.Completed when CompletionKind == JobCompletionKind.Unchanged => FeatureId == "video-slim" ? "无需瘦身" : "保留原文件",
+        JobState.Completed => "完成" + ((Options.VlRename is not null || FeatureId is "video-slim" or "person-clip" or "media-ai" or "folder-classification" or "auto-subtitle") && ProgressDetail.Length > 0 ? " · " + ProgressDetail : ""),
+        JobState.Failed => "失败", JobState.Paused => "已暂停", JobState.Stopping => "正在终止", _ => "已停止"
+    };
     public bool CanRetry => State is JobState.Failed or JobState.Cancelled;
 }
 public enum SubtitleMode { Auto, None, BurnIn, Preserve, ExternalTrack }

@@ -11,7 +11,8 @@ public static class AiTaskResults
 {
     public static string PathFor(Job job, string kind, string extension = "json") =>
         Path.Combine(Storage.DefaultRoot, "ai-task-results", job.Id.ToString("N"), kind + "." + extension);
-    public static string InternalOutputFor(Job job) => job.Options.Orientation is not null ? PathFor(job, "orientation")
+    public static string InternalOutputFor(Job job) => job.Options.VlRename is not null ? PathFor(job, "vl-rename-preview")
+        : job.Options.Orientation is not null ? PathFor(job, "orientation")
         : job.Options.PersonClip?.AnalysisOnly == true ? PathFor(job, "people")
         : job.Options.Transcription?.RecognitionOnly == true ? PathFor(job, "draft", "srt") : PathFor(job, "tags");
 
@@ -59,5 +60,5 @@ public partial class Job
     [JsonIgnore] public MediaTagResult? MediaTagResult { get => Volatile.Read(ref _mediaTagResult); set { Volatile.Write(ref _mediaTagResult, value); Raise(); } }
     [JsonIgnore] public PersonDetectionTaskResult? PersonDetectionResult { get => Volatile.Read(ref _personDetectionResult); set { Volatile.Write(ref _personDetectionResult, value); Raise(); } }
     [JsonIgnore] public SubtitleTaskResult? SubtitleResult { get => Volatile.Read(ref _subtitleResult); set { Volatile.Write(ref _subtitleResult, value); Raise(); } }
-    [JsonIgnore] public bool HasInternalOutput => Options.Orientation is not null || Options.PersonClip?.AnalysisOnly == true || Options.Transcription?.RecognitionOnly == true || Options.MediaTag?.WriteTextReport == false;
+    [JsonIgnore] public bool HasInternalOutput => Options.VlRename is not null || Options.Orientation is not null || Options.PersonClip?.AnalysisOnly == true || Options.Transcription?.RecognitionOnly == true || Options.MediaTag?.WriteTextReport == false;
 }
