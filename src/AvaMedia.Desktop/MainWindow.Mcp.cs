@@ -77,23 +77,20 @@ public partial class MainWindow
             };
         }
 
-        public Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct) => Ui(() =>
+        public async Task<McpRuntimeView> RuntimeAsync(McpResourceUpdate? update, CancellationToken ct)
         {
             if (update is not null)
-            {
-                if (update.CpuReservePercent is < 0 or > 80 || update.CpuThreads is < 1 or > 16)
-                    throw new ArgumentException("CPU 预留须为 0–80%，线程数为 1–16。");
-                var settings = owner._settings;
-                settings.CpuReservePercent = update.CpuReservePercent ?? settings.CpuReservePercent;
-                settings.CpuThreads = update.CpuThreads ?? settings.CpuThreads;
-                settings.MultiThread = update.MultiThread ?? settings.MultiThread;
-                owner._storage.SaveSettings(settings); owner._appliedSettings = settings.Clone();
-                owner.Multithread.IsChecked = settings.MultiThread;
-            }
-            return new McpRuntimeView(typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "", Environment.OSVersion.ToString(),
+                await SettingsAsync(settings =>
+                {
+                    settings.CpuReservePercent = update.CpuReservePercent ?? settings.CpuReservePercent;
+                    settings.CpuThreads = update.CpuThreads ?? settings.CpuThreads;
+                    settings.AutomaticThreads = update.AutomaticThreads ?? (update.CpuThreads is null && settings.AutomaticThreads);
+                    settings.MultiThread = update.MultiThread ?? settings.MultiThread;
+                }, null, ct).ConfigureAwait(false);
+            return await Ui(() => new McpRuntimeView(typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "", Environment.OSVersion.ToString(),
                 owner._mcpBackgroundMode, owner._settings.OutputFolder, AiResourceSettings.From(owner._settings),
-                owner._settings.EnableNsfwContent, owner._settings.EnableBetaFeatures);
-        }, ct);
+                owner._settings.EnableNsfwContent, owner._settings.EnableBetaFeatures), ct).ConfigureAwait(false);
+        }
 
         public async Task<string> LogAsync(Guid id, CancellationToken ct)
         {
@@ -384,6 +381,9 @@ public partial class MainWindow
                     case "stop" when owner._queue.Stop(job): break;
                     case "retry" when job.State is JobState.Failed or JobState.Cancelled && owner.CanRequeueTask(job):
                         if (job.Options.VlRename is null && job.FeatureId is "batch-rename" or "folder-organize") throw new ArgumentException("请重新预览并提交新的文件操作计划。");
+                        McpTools.ValidatePaths(job, new()); _ = owner.RestartTasksAsync([job]); break;
+                    case "rerun" when job.State == JobState.Completed && owner.CanRequeueTask(job):
+                        if (job.FeatureId is "batch-rename" or "folder-organize") throw new ArgumentException("请重新分析或预览并提交新的文件操作计划。");
                         McpTools.ValidatePaths(job, new()); _ = owner.RestartTasksAsync([job]); break;
                     case "remove" when owner.CanRemoveTask(job): operation = owner.RemoveTasksAsync([job]); break;
                     default: throw new ArgumentException("当前任务状态不支持此操作：" + action);

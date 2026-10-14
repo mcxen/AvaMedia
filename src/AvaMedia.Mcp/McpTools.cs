@@ -9,7 +9,13 @@ namespace AvaMedia.Mcp;
 
 public sealed record McpFeature(string Id, string Name, string Category, string Format, bool CanCreateTask, McpTaskForm? Form);
 public sealed record McpCapabilities(string Protocol, string Transport, McpFeature[] Features,
-    string[] TaskActions, FolderClassificationRule[] ClassificationPresets);
+    string[] TaskActions, FolderClassificationRule[] ClassificationPresets)
+{
+    public string FeatureOptionsTool => "avamedia_describe_feature";
+    public string SettingsTool => "avamedia_get_settings";
+    public string[] ModelTools => ["avamedia_list_models", "avamedia_inspect_model", "avamedia_download_model", "avamedia_import_model",
+        "avamedia_release_models", "avamedia_delete_model", "avamedia_provider_presets", "avamedia_provider_models", "avamedia_check_provider"];
+}
 public sealed record McpFilePage(string[] Files, int Total, int Offset, int? NextOffset);
 public sealed record McpRenamePreview(RenameItem[] Plan);
 
@@ -27,7 +33,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     public McpCapabilities Capabilities() => new(ProtocolVersion, "Streamable HTTP",
         Catalog.All.Where(feature => workspace.Engine.Settings.EnableBetaFeatures || !Catalog.IsBeta(feature))
             .Select(feature => new McpFeature(feature.Id, feature.Label, feature.Category, feature.Format, CanCreate(feature), McpVideoForms.For(feature, workspace.Engine.Settings))).ToArray(),
-        ["start", "pause", "resume", "stop", "retry", "remove"],
+        ["start", "pause", "resume", "stop", "retry", "rerun", "remove"],
         FolderClassificationRule.Presets.Where(rule => PrivateEnabled || !MediaPrivacy.IsSensitiveRule(rule)).ToArray());
 
     [McpServerTool(Name = "avamedia_list_files", Title = "目录文件", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
@@ -57,24 +63,31 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     }
 
     [McpServerTool(Name = "avamedia_create_task", Title = "创建任务", Destructive = true, UseStructuredContent = true)]
-    [Description("Create shared desktop queue tasks for any capability with canCreateTask=true. Provide a fresh UUID requestId; reuse it with identical arguments to recover tasks after a lost response. Returns immediately; poll avamedia_get_task. paths may include folders for media-ai/folder-classification. batch-rename must use preview/apply tools. ConversionOptions uses AvaMedia's service parameters; omitted options.format defaults to the feature's format.")]
+    [Description("Create shared desktop queue tasks for any capability with canCreateTask=true. Fresh UUID requestId; reuse with identical arguments for response recovery. Returns immediately; poll get_task. Folder paths support recursive expansion; private file operations use dedicated tools. Partial options recursively merge onto native feature defaults; describe_feature provides the full schema/defaults across all categories. inputOptions optionally supplies independent options in explicit file order for Join/Mux/AudioMix only; do not mix with folder inputs. PDF tasks require explicit pdf.pages from document_pages.")]
     public Task<McpSubmission> CreateTask(string requestId, string featureId, string[] paths, string? outputFolder = null,
-        ConversionOptions? options = null, bool recursive = false, bool startImmediately = true, CancellationToken ct = default,
+        ConversionOptions? options = null, bool recursive = false, bool startImmediately = true,
+        ConversionOptions[]? inputOptions = null, CancellationToken ct = default,
         RequestContext<CallToolRequestParams>? context = null)
     {
         var feature = Catalog.All.FirstOrDefault(feature => feature.Id == featureId) ?? throw new ArgumentException("未知服务：" + featureId);
         if (!CanCreate(feature)) throw new ArgumentException("该服务请使用专用接口或桌面窗口。");
         if (Catalog.IsBeta(feature) && !workspace.Engine.Settings.EnableBetaFeatures) throw new InvalidOperationException("Beta 功能已关闭。");
         var spec = options?.Clone() ?? Defaults(feature);
+        if (context?.Params?.Arguments?.TryGetValue("options", out var rawOptions) == true && rawOptions.ValueKind == JsonValueKind.Object)
+            spec = McpOptionMerge.Apply(Defaults(feature), rawOptions);
         if (spec.VlRename is not null) throw new ArgumentException("内部 VL 分析请使用 avamedia_preview_vl_rename。");
-        // Deserializing a partial ConversionOptions otherwise supplies its generic MP4 default.
-        // Inspect the wire object to preserve an explicitly chosen format, including MP4.
-        if (context?.Params?.Arguments?.TryGetValue("options", out var raw) == true && raw.ValueKind == JsonValueKind.Object
-            && !raw.EnumerateObject().Any(property => property.Name.Equals("format", StringComparison.OrdinalIgnoreCase)))
-            spec.Format = Defaults(feature).Format;
+        if (spec.Rename is not null || spec.FolderOrganization is not null || spec.DownloadModelId is not null
+            || spec.DownloadModelSource is not null || spec.ImportModelPaths is not null)
+            throw new ArgumentException("文件操作和模型安装须使用专用接口。");
+        if (inputOptions is not null && (feature.Operation is not (Operation.Join or Operation.Mux or Operation.AudioMix)
+            || paths.Any(Directory.Exists) || inputOptions.Length != paths.Length))
+            throw new ArgumentException("独立输入参数仅用于合并/混流/混音，须按显式文件路径顺序一一提供。");
+        var perInput = inputOptions?.Select(o => o.Clone()).ToArray();
+        if (context?.Params?.Arguments?.TryGetValue("inputOptions", out var rawInputs) == true && rawInputs.ValueKind == JsonValueKind.Array)
+            perInput = rawInputs.EnumerateArray().Select(raw => McpOptionMerge.Apply(Defaults(feature), raw)).ToArray();
         var folder = outputFolder ?? workspace.Engine.Settings.OutputFolder;
         string[] inputs = [];
-        return Submit(requestId, new { featureId, paths, outputFolder, options = spec, recursive, startImmediately }, reserved =>
+        return Submit(requestId, new { featureId, paths, outputFolder, options = spec, inputOptions = perInput, recursive, startImmediately }, reserved =>
         {
             var local = new McpFiles();
             Job[] jobs;
@@ -82,6 +95,8 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
             {
                 var job = new Job { FeatureId = feature.Id, Inputs = inputs, Options = spec.Clone() };
                 job.Options.FolderClassification ??= new() { Rules = FolderClassificationRule.DefaultRules().Where(rule => PrivateEnabled || !MediaPrivacy.IsSensitiveRule(rule)).ToArray() };
+                if (job.Options.FolderClassification.Rules.Length == 0)
+                    job.Options.FolderClassification.Rules = FolderClassificationRule.DefaultRules().Where(rule => PrivateEnabled || !MediaPrivacy.IsSensitiveRule(rule)).ToArray();
                 job.Options.FolderClassification.OutputFolder = local.Check(folder);
                 job.Output = FolderClassificationTaskStore.Folder(job); jobs = [job];
             }
@@ -126,7 +141,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
             }
             else
             {
-                jobs = ConversionBatch.CreateJobs(feature, inputs, local.Check(folder), spec, reserved: reserved).ToArray();
+                jobs = ConversionBatch.CreateJobs(feature, inputs, local.Check(folder), spec, inputOptions: perInput, reserved: reserved).ToArray();
                 foreach (var job in jobs)
                     if (job.Options.PersonClip?.AnalysisOnly == true || job.Options.Transcription?.RecognitionOnly == true)
                         job.Output = AiTaskResults.InternalOutputFor(job);
@@ -196,7 +211,7 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
     { Page(offset, limit); return workspace.GetAsync(taskId, includeResult, offset, limit, ct); }
 
     [McpServerTool(Name = "avamedia_control_task", Title = "控制任务", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Control a shared task. start: Waiting; pause: Waiting/Running at a safe checkpoint; resume: Paused; stop: Waiting/Paused/Running; retry: Failed/Cancelled; remove: inactive tasks only, removes queue record and task metadata, keeps media outputs. Applying a rename/organization plan again requires a fresh preview/plan; VL analysis retry preserves successful files and processes remaining files. Returns current task state immediately.")]
+    [Description("Control a shared task. start: Waiting; pause: Waiting/Running at a safe checkpoint; resume: Paused; stop: Waiting/Paused/Running; retry: Failed/Cancelled; rerun: Completed ordinary task; remove: inactive queue record/metadata, keeps media outputs. Applying rename/organization again requires a fresh plan; VL analysis retry preserves successful files, but a completed VL analysis requires a new analysis submission. Returns current task state immediately.")]
     public Task<McpTaskView> ControlTask(Guid taskId, string action, CancellationToken ct = default) => workspace.ControlAsync(taskId, action, ct);
 
     internal async Task<McpSubmission> Submit(string requestId, object arguments, Func<string[], Job[]> create, bool start, CancellationToken ct, Func<Task>? prepare = null)
@@ -226,6 +241,8 @@ public sealed partial class McpTools(IMcpWorkspace workspace, McpFiles files)
         if (o.Format.Length > 12 || o.Format.Length == 0 || o.Format.Any(c => !char.IsAsciiLetterOrDigit(c)))
             throw new ArgumentException("输出格式须为扩展名。");
         if (o.Subtitle.Length > 0) policy.Check(o.Subtitle, true);
+        foreach (var input in job.InputOptions ?? [])
+            if (input.Subtitle.Length > 0) policy.Check(input.Subtitle, true);
         if (o.VideoSummary?.SubtitleFile is { Length: > 0 } subtitles) policy.Check(subtitles, true);
         if (o.Transcription?.ReviewOutputFolder is { Length: > 0 } review) policy.Check(review);
         if (o.VideoSummary?.Speech.ReviewOutputFolder is { Length: > 0 } summaryReview) policy.Check(summaryReview);

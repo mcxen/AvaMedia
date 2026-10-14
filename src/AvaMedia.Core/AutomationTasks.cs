@@ -9,6 +9,8 @@ public sealed partial class ConversionOptions
     public ContactSheetOptions? ContactSheet { get; set; }
     public FolderOrganizationTaskOptions? FolderOrganization { get; set; }
     public string? DownloadModelId { get; set; }
+    public ModelSourcePreference? DownloadModelSource { get; set; }
+    public string[]? ImportModelPaths { get; set; }
 }
 
 public partial class Job
@@ -44,6 +46,10 @@ public static class AutomationTasks
         {
             var model = ModelCatalog.Find(job.Options.DownloadModelId ?? throw new ArgumentException("缺少模型 ID。"));
             if (!model.Supported) throw new ArgumentException("当前平台不支持此模型。");
+            job.Options.DownloadModelSource?.Validate();
+            if (job.Options.ImportModelPaths is { } paths && (paths.Length == 0 || !paths.SequenceEqual(job.Inputs, BatchRename.PathComparer)
+                || paths.Any(path => !Path.IsPathFullyQualified(path) || !File.Exists(path) && !Directory.Exists(path))))
+                throw new ArgumentException("模型导入路径无效。");
             if (!BatchRename.PathComparer.Equals(job.Output, AiTaskResults.PathFor(job, "model-download")))
                 throw new ArgumentException("模型下载结果路径无效。");
         }
@@ -86,14 +92,17 @@ public static class AutomationTasks
         {
             var id = job.Options.DownloadModelId!;
             var store = new ModelStore();
-            if (!await store.IsInstalledAsync(id, ct: ct).ConfigureAwait(false))
-                await store.DownloadAsync(id, new DownloadProgress(value =>
+            var reporter = new DownloadProgress(value =>
                 {
                     job.ProgressDetail = value.Stage;
                     job.Activity = new(value.Stage, ModelCatalog.Find(id).Name, DateTime.UtcNow, DateTime.UtcNow)
                     { Current = value.Received, Total = value.Total, Unit = "字节", Detail = value.SourceName };
                     progress(value.Percent);
-                }), ct).ConfigureAwait(false);
+                });
+            if (job.Options.ImportModelPaths is { } paths)
+                await store.ImportAsync(id, paths, reporter, ct).ConfigureAwait(false);
+            else if (!await store.IsInstalledAsync(id, ct: ct).ConfigureAwait(false))
+                await store.DownloadAsync(id, reporter, ct, job.Options.DownloadModelSource).ConfigureAwait(false);
             await AiTaskResults.SaveAsync(job.Output, new { ModelId = id, Directory = store.DirectoryFor(id), Installed = true }, ct).ConfigureAwait(false);
             job.ProgressDetail = "模型已安装";
         }

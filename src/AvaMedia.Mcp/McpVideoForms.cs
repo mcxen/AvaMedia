@@ -19,7 +19,7 @@ internal static class McpVideoForms
     {
         Format = feature.Operation == Operation.Transcribe ? "srt" : feature.Id is "crop" or "rotate" ? SourceVideoExport.Original : feature.Format.Length > 0 ? feature.Format : "mp4",
         CopyStreams = feature.Id is "repair" or "extract-video",
-        VoiceEnhancement = feature.Id == "voice-enhance",
+        VoiceEnhancement = feature.Id is "voice-enhance" or "audio-enhance",
         Rotation = feature.Id == "rotate" ? 90 : 0,
         Transcription = feature.Operation == Operation.Transcribe ? new() { RecognitionOnly = true } : null,
         VideoSummary = feature.Operation == Operation.VideoSummary ? new() : null,
@@ -27,7 +27,11 @@ internal static class McpVideoForms
         VideoCompression = feature.Operation == Operation.VideoCompress ? new() : null,
         VideoSlimming = feature.Operation == Operation.VideoSlim ? new() : null,
         ContactSheet = feature.Id == "contact-sheet" ? new() : null,
-        Download = feature.Operation == Operation.Download ? new() : null
+        Download = feature.Operation == Operation.Download ? new() : null,
+        ImageCompression = feature.Operation == Operation.ImageCompress ? new() : null,
+        Pdf = PdfTools.Supports(feature.Operation) ? new() { SplitEveryPage = feature.Operation == Operation.PdfSplit } : null,
+        MediaTag = feature.Operation == Operation.MediaTag ? new() { WriteTextReport = false } : null,
+        FolderClassification = feature.Operation == Operation.FolderClassify ? new() : null
     };
 
     public static McpTaskForm? For(Feature feature, AppSettings settings)

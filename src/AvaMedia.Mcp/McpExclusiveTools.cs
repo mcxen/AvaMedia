@@ -16,11 +16,11 @@ public sealed class McpExclusiveTools(IMcpWorkspace workspace, McpFiles files)
     [McpServerTool(Name = "avamedia_preview_vl_rename", Title = "内部 VL 后台命名分析", OpenWorld = false, UseStructuredContent = true)]
     [Description("Queue internal VL naming analysis and return a durable task ID after scanning, without waiting for inference. Requires an unlocked workspace and a fresh UUID requestId; reuse the same ID and arguments after a lost response. mode: local (Qwen3.5), online (sends filenames/folder names and sampled frames to a configured vision provider), or rules. providerId optionally selects the online provider; omitted uses the default. The selected model is saved in the task; credentials stay in user settings. Poll/wait with get_task or wait_task, includeResult=true, and read every nextOffset page for partial/final Files and Plan. pause/resume/stop/retry use control_task; retry retains successful files. Review/edit the plan before apply_rename. Desktop: Video sidebar > VL media renamer > analysis method and provider > background analysis. Closing the tool or disconnecting MCP does not cancel accepted work. Analysis never renames source files.")]
     public Task<McpSubmission> Preview(string requestId, string[] paths, bool recursive = true, string mode = "local",
-        string? providerId = null, bool startImmediately = true, CancellationToken ct = default)
+        string? providerId = null, bool startImmediately = true, string? model = null, CancellationToken ct = default)
     {
         RequireUnlocked();
         Job? job = null;
-        return new McpTools(workspace, files).Submit(requestId, new { paths, recursive, mode, providerId, startImmediately }, _ =>
+        return new McpTools(workspace, files).Submit(requestId, new { paths, recursive, mode, providerId, model, startImmediately }, _ =>
         {
             RequireUnlocked();
             var prepared = job ?? throw new InvalidOperationException("VL 任务尚未准备完成。");
@@ -28,7 +28,7 @@ public sealed class McpExclusiveTools(IMcpWorkspace workspace, McpFiles files)
         }, startImmediately, ct, async () =>
         {
             job = await Task.Run(() => VlRenameTasks.CreateAnalysis(workspace.Engine.Settings,
-                VlMediaRenamer.CollectInputs(paths.Select(path => files.Check(path, true)), recursive, ct), mode, providerId), ct).ConfigureAwait(false);
+                VlMediaRenamer.CollectInputs(paths.Select(path => files.Check(path, true)), recursive, ct), mode, providerId, model), ct).ConfigureAwait(false);
         });
     }
 

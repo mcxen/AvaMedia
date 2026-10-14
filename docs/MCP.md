@@ -100,6 +100,66 @@ Codex 可执行 `codex mcp add avamedia --url http://127.0.0.1:18920/mcp`。安�
 
 分类接口生成分类结果及待确认项，源文件保持原位。`analysis` 可指定视频采样数、批次、场景识别和画面描述，`tagThreshold` 设置标签阈值。相似服装必须从预设选择 `byOutfit=true` 的规则；规则缺省仍使用默认分组。`preview_organization` / `apply_organization` 完成后台文件夹整理，默认排除待确认项并保留原文件。标签结果包含命中标签、分数、画面描述及模型错误；所需模型由现有服务管理。自定义语义分类需要语义模型，可通过 `allowSemanticDownload=true` 下载。未开启 NSFW 时，接口沿用应用的隐私过滤。
 
+## 原生接口覆盖与精细配置
+
+MCP 工具直接调用 Core、桌面设置应用流程和共享队列，不模拟点击、不另存一套模型配置。`capabilities` 是功能目录；`describe_feature(featureId)` 返回每个目录功能的完整原生参数 Schema、默认值、合并输入行为及专用路由。视频 `form` 是简化表单，不能把它当成全部参数清单。
+
+| 场景 | 原生接口与控制范围 |
+| --- | --- |
+| 全部处理功能 | `describe_feature` + `create_task`；视频、音频、图片、PDF、ZIP/解压、ISO、下载及 AI 的嵌套 Core 参数 |
+| PDF 页面选择 | `document_pages` 返回页码/尺寸；`options.pdf.pages` 控制输入顺序、页码、旋转、拆分边界 |
+| 合并、混流、混音 | `create_task.inputOptions` 按显式文件路径一一提供独立参数；文件夹输入不可与独立参数混用 |
+| 剪辑/裁剪/旋转/字幕校对 | 原有 preview/export 专用工具，共用桌面规划器和源版本检查 |
+| 下载解析和选择 | `inspect_download` 解析链接/播放列表，`download_videos` 按选中视频和标题提交；支持清晰度、代理、cookies、字幕和已有浏览器上下文 |
+| 任务参数/排序 | `get_task_options`、`update_task_options`、`move_task`；仅编辑未启动且未调度的等待任务，独立文件草稿和事务计划使用专用工具 |
+| 任务执行 | `control_task` 支持 start/pause/resume/stop/retry/rerun/remove；`rerun` 仅对已完成的普通任务生效，文件操作须重新预览 |
+| 设置选项 | `get_settings`、`update_settings`；输出、隐私/Beta、资源、模型加载释放、下载源、图片质量、工具路径及应用偏好 |
+| 线上供应商 | `provider_presets`、`create_provider`、`update_provider`、`delete_provider`；名称、启停、地址、默认供应商、文本/视觉模型、token 字段、响应格式、超时、模型列表/限制元数据及密钥 |
+| 线上模型诊断 | `provider_models(refresh=true)` 使用原生 `/models`；`check_provider` 明确区分配置校验、文本请求和单帧视觉请求 |
+| 本地模型 | `list_models` 返回安装目录、残留数据及真实驻留状态；`inspect_model` 返回文件清单并可显式校验哈希；`download_model` 支持本次下载源；`import_model` 走持久队列；`release_models` 释放空闲会话；`delete_model` 卸载模型文件 |
+| AI 进度与分类确认 | `ai_progress`、`classification_live`、`resolve_classification`、`summary_evidence`；复用桌面阶段、分类覆盖和证据存储 |
+| 标签词库 | `list_word_libraries`、`read_word_library`、`save_word_library`、`delete_word_library`；原生词库分页、自定义词库管理，候选词可直接传给任务参数 |
+| 内部工具 | 仅在已激活工作区注册内部工具；VL 支持 local/online/rules、providerId 和本次 model 覆盖，分析仍走共享后台队列 |
+
+交互式播放/看图、交互登录、内部工具激活动作保留桌面入口；MCP 提供媒体信息、采样帧和已有登录上下文的后台能力。监听开关/端口/局域网范围在 `get_settings.remoteManagement` 中只读，通过宿主设置或启动参数修改，避免当前调用切断自己的监听连接。MCP 不提供操作系统关机、安装更新或自动取得登录态的替代接口。设置中的完成后行为沿用桌面生命周期，后台宿主继续抑制完成后界面、打开目录、音效及关机。
+
+### 设置与供应商
+
+先读 `get_settings`。响应只包含 `hasApiKey`，不返回密钥；`revision` 可传给后续配置接口的 `expectedRevision`，设置已改变时拒绝覆盖。`update_settings.patch` 的省略/null 字段保持原值，明确的 false、0 和空字符串仍按原生设置约束校验。整个草稿通过 `SettingsPolicy` 校验后，在桌面线程执行应用和保存；使用内置工具的版本不允许修改外部工具路径。
+
+例如关闭预加载、缩短空闲释放并指定手动线程：
+
+```json
+{
+  "patch": {
+    "prewarmLocalModels": false,
+    "tagModelIdleMinutes": 1,
+    "automaticThreads": false,
+    "cpuThreads": 4,
+    "cpuReservePercent": 35
+  },
+  "expectedRevision": "上一次 get_settings 返回的 revision"
+}
+```
+
+现有会话的线程预算可能在下次加载时生效。`release_models` 不删除文件，也不强制中断使用中的会话；返回 `allIdleReleased=false` 时检查 `runtime`。`set_resources` 仍可用于快捷控制；显式设置 `cpuThreads` 默认进入手动线程模式，也可用 `automaticThreads` 明确选择自动模式。`update_settings` 则逐字段保留未指定的偏好。
+
+新增供应商时调用 `create_provider`，`providerId` 使用调用方生成的 N 格式 UUID，`presetId` 来自 `provider_presets`；`patch` 覆盖预设，`apiKey` 是单独的只写参数。`makeDefault=true` 选择默认供应商。相同 ID 和当前完全相同的配置可恢复响应，不会重复创建供应商；不同配置需走更新接口。
+
+`update_provider` 支持独立设置 `textModel` / `visionModel`，空视觉模型回退到文本模型。省略 `apiKey` 保留，传空字符串删除；修改地址会清掉旧地址的密钥和模型缓存，需为新地址重新提供密钥。密钥沿用原生独立凭据文件，不进入 settings JSON、任务或结果。禁用默认供应商会清空默认选择；默认 ID 为空时按原生规则取第一个启用供应商。删除仍被未结束任务引用的供应商会被拒绝。
+
+`provider_models` 默认只读缓存；`refresh=true` 才访问线上并更新模型列表。供应商不支持 `/models` 时，可直接填写模型 ID 和 `modelInfo` 中的上下文/输出限制，无需先刷新。刷新成功不代表模型支持图像或特定内容。`check_provider(mode=configuration)` 仅做本地校验；`mode=text` 发送固定短提示；`mode=vision` 必须提供服务器 `mediaPath`，可用 `seconds` 定位视频帧，发送一张有尺寸上限的图片。`model` 可覆盖本次诊断模型。实际收到响应与语义质量分别判断；不要读取设置时自动触发线上推理。
+
+### 参数合并与结果
+
+通过 MCP 传入部分 `options` 时，显式字段递归覆盖功能默认值；未提供的字段保留。数组整体替换，未知字段/重复字段会被拒绝。完整可用字段由 `describe_feature.schema` 和 `tools/list` 的类型 Schema 提供；最终合法性由现有 Core 校验器决定。比如对重新封装只指定格式，不会丢失 `copyStreams=true`；对转录只指定语言，不会丢失功能默认的仅识别行为。调用方使用非默认行为时仍需显式指定。
+
+`get_task_options` 返回保存的完整参数、独立输入参数和输出路径。`update_task_options` 不会启动任务；改变输出格式/目录时重新预留名称，分析结果继续使用内部存储。对已经运行、有检查点或包含事务计划的任务，通过读取结果、专用校对/预览工具或新任务执行，避免把旧结果误用到新参数。任务提交、参数编辑和排序均等待队列持久化；连接断开不撤销已接受的操作。
+
+词库接口沿用隐私过滤，内置词库只读，自定义词库使用稳定 ID 保存/替换。`read_word_library` 可按 JoyTag/Semantic 和关键词筛选；返回候选可传入 `options.mediaTag.libraryCandidates` 或 `analysis.semanticCandidates`，与每次任务的阈值、采样、模型选择分别控制。现有任务保留候选快照。
+
+本节为源码接口覆盖说明。编译/静态检查不代表已对每个模型、媒体类型、线上供应商或安装包完成运行验收。
+
 ## 任务流程
 
 远程文件选择先调用 `avamedia_file_locations`，再用返回路径调用 `avamedia_browse_directory`。浏览接口支持 `search`、扩展名数组 `extensions`、`foldersOnly`、`showHidden` 和 `offset/limit`；文件夹始终不受扩展名筛选影响。每页为当前目录的新视图，目录内容变化时应重新读取，而非把分页当作固定快照。列表中的路径属于当前服务器，切换服务器时清除先前选中文件。后续 `avamedia_create_task` 直接接收这些路径和服务器输出目录，媒体无需通过客户端中转。网页和桌面选择器的接入边界见[共享文件选择](FILE-SELECTION.md)。

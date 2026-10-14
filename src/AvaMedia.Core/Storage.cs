@@ -37,6 +37,7 @@ public sealed partial class Storage
     public void SaveSettings(AppSettings s)
     {
         Write("settings.json", s); SaveOnlineAiKey(s.OnlineAi);
+        ModelDownloadSources.Preference = ModelSourcePreference.From(s);
         MediaTagRuntime.Configure(s);
     }
     public void SaveJobs(IEnumerable<Job> jobs) => WriteJobs(PrepareJobs(jobs), Interlocked.Increment(ref _queueVersion));

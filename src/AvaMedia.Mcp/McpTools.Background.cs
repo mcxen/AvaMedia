@@ -7,7 +7,12 @@ using ModelContextProtocol.Server;
 namespace AvaMedia.Mcp;
 
 public sealed record McpModelView(string Id, string Name, string Purpose, string License, string SourcePage,
-    long DownloadSize, bool Supported, bool Installed, bool Busy, long DownloadedBytes);
+    long DownloadSize, bool Supported, bool Installed, bool Busy, long DownloadedBytes)
+{
+    public ModelRuntimeStatus? Runtime { get; init; }
+    public bool HasLocalData { get; init; }
+    public string Directory { get; init; } = "";
+}
 public sealed record McpLogPage(Guid TaskId, string Text, int TotalCharacters, int Offset, int? NextOffset);
 public sealed record McpExportResult(Guid TaskId, string Path, string State, bool Partial, int Pages);
 public sealed record McpOrganizationItem(string Source, string Target, string? ReportPath, long Length, DateTime LastWriteUtc);
@@ -21,7 +26,7 @@ public sealed partial class McpTools
     public Task<McpRuntimeView> GetRuntime(CancellationToken ct = default) => workspace.RuntimeAsync(null, ct);
 
     [McpServerTool(Name = "avamedia_set_resources", Title = "设置后台资源", Destructive = false, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Update only CPU headroom/thread settings and persist them in the active workspace. cpuReservePercent: 0–80; cpuThreads: 1–16; multiThread controls threads within each task, not the number of tasks. Unspecified settings stay unchanged. Existing native inference sessions can retain their thread budgets until the next session. Does not change privacy or model settings.")]
+    [Description("Update CPU headroom/thread policy through the native settings pipeline. cpuReservePercent: 0–80; cpuThreads: 1–16; an explicit cpuThreads selects manual threads unless automaticThreads is also specified. Other unspecified settings stay unchanged. multiThread controls within-task threads, not task concurrency. Existing sessions can retain budgets until reload. Does not change privacy/model settings.")]
     public Task<McpRuntimeView> SetResources(McpResourceUpdate settings, CancellationToken ct = default) => workspace.RuntimeAsync(settings, ct);
 
     [McpServerTool(Name = "avamedia_list_models", Title = "AI 模型状态", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
@@ -31,19 +36,25 @@ public sealed partial class McpTools
         var store = new ModelStore(); var result = new List<McpModelView>();
         foreach (var model in ModelCatalog.All)
             result.Add(new(model.Id, model.Name, model.Purpose, model.License, model.SourcePage, model.DownloadSize,
-                model.Supported, await store.IsInstalledAsync(model.Id, ct: ct).ConfigureAwait(false), store.IsBusy(model.Id), store.DownloadedBytes(model.Id)));
+                model.Supported, await store.IsInstalledAsync(model.Id, ct: ct).ConfigureAwait(false), store.IsBusy(model.Id), store.DownloadedBytes(model.Id))
+            {
+                Runtime = MediaTagRuntime.Supports(model.Id) ? MediaTagRuntime.Status(store.Root, model.Id) : null,
+                HasLocalData = store.HasLocalData(model.Id), Directory = store.DirectoryFor(model.Id)
+            });
         return result.ToArray();
     }
 
     [McpServerTool(Name = "avamedia_download_model", Title = "后台下载模型", Destructive = false, UseStructuredContent = true)]
-    [Description("Queue a model download by an ID returned by avamedia_list_models. Reuses resumable download, source failover, hashes and atomic installation. Already installed models are reused. Returns a durable task ID immediately; poll/wait for completion. No inference or source media processing is performed.")]
-    public Task<McpSubmission> DownloadModel(string requestId, string modelId, bool startImmediately = true, CancellationToken ct = default)
+    [Description("Queue a model download by an ID from list_models. source optionally overrides download source kind/customUrl for this job; omitted follows active settings. Reuses resumable download, failover, hashes and atomic installation. Already installed models are reused. Returns a durable task ID immediately; poll/wait. No inference/media processing.")]
+    public Task<McpSubmission> DownloadModel(string requestId, string modelId, bool startImmediately = true,
+        ModelSourcePreference? source = null, CancellationToken ct = default)
     {
         if (!ModelCatalog.All.Any(model => model.Id == modelId)) throw new ArgumentException("未知模型：" + modelId);
-        return Submit(requestId, new { modelId, startImmediately }, _ =>
+        source?.Validate();
+        return Submit(requestId, new { modelId, startImmediately, source }, _ =>
         {
             var job = new Job { FeatureId = "model-download", DownloadTitle = ModelCatalog.Find(modelId).Name,
-                Options = new() { Format = "json", DownloadModelId = modelId } };
+                Options = new() { Format = "json", DownloadModelId = modelId, DownloadModelSource = source } };
             job.Output = AiTaskResults.PathFor(job, "model-download"); MediaEngine.Validate(job); return [job];
         }, startImmediately, ct);
     }

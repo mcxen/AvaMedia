@@ -41,7 +41,7 @@ public partial class Job
 /// <summary>Persistent analysis only. Applying a reviewed plan remains a separate transactional queue task.</summary>
 public sealed class VlRenameTasks(IMediaEngine engine)
 {
-    public static Job CreateAnalysis(AppSettings settings, IEnumerable<VlMediaRenameInput> inputs, string mode, string? providerId = null)
+    public static Job CreateAnalysis(AppSettings settings, IEnumerable<VlMediaRenameInput> inputs, string mode, string? providerId = null, string? model = null)
     {
         if (!settings.ExclusiveToolUnlocked) throw new InvalidOperationException("内部工具未激活。");
         var sources = inputs.Select(input =>
@@ -54,10 +54,11 @@ public sealed class VlRenameTasks(IMediaEngine engine)
         if (mode == "online")
         {
             var provider = settings.OnlineAi.Resolve(providerId);
-            if (string.IsNullOrWhiteSpace(provider.EffectiveVisionModel)) throw new ArgumentException("请在设置 → 在线 AI 中配置视觉模型。");
+            if (string.IsNullOrWhiteSpace(model ?? provider.EffectiveVisionModel)) throw new ArgumentException("请在设置 → 在线 AI 中配置视觉模型。");
             provider.ValidateConnection();
             spec.ProviderId = provider.Id; spec.ProviderName = provider.Name; spec.ProviderEndpoint = provider.Endpoint; spec.Model = provider.EffectiveVisionModel;
         }
+        if (model is not null) spec.Model = model;
         var job = new Job { FeatureId = "batch-rename", Inputs = sources.Select(source => source.Path).ToArray(),
             Options = new() { Format = "json", VlRename = spec } };
         job.Output = AiTaskResults.InternalOutputFor(job); Validate(job); return job;

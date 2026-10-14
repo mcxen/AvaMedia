@@ -15,7 +15,7 @@ public sealed record McpActivityView(string Stage, string Model, string Backend,
 public sealed record McpRuntimeView(string Version, string Platform, bool Background, string OutputFolder,
     AiResourceSettings Resources, bool NsfwEnabled, bool BetaEnabled);
 public sealed record McpResourceUpdate(int? CpuReservePercent = null, int? CpuThreads = null,
-    bool? MultiThread = null);
+    bool? MultiThread = null, bool? AutomaticThreads = null);
 public sealed record McpSubmission(string RequestId, McpTaskView[] Tasks);
 public sealed record McpRenameUndo(Guid TaskId, RenameItem[] Changes, bool AlreadyUndone);
 public sealed record McpTaskPage(McpTaskView[] Tasks, int Total, int Offset, int? NextOffset)
@@ -34,6 +34,10 @@ public interface IMcpWorkspace
     Task<McpTaskPage> ListAsync(int offset, int limit, string? state, CancellationToken ct);
     Task<McpTaskResult> GetAsync(Guid id, bool includeResult, int offset, int limit, CancellationToken ct);
     Task<ConversionOptions> OptionsAsync(Guid id, CancellationToken ct);
+    Task<AppSettings> SettingsAsync(Action<AppSettings>? change, string? expectedRevision, CancellationToken ct) => throw new NotSupportedException();
+    Task<McpTaskOptions> TaskOptionsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+    Task<McpTaskOptions> UpdateTaskOptionsAsync(Guid id, System.Text.Json.JsonElement patch, string? outputFolder, CancellationToken ct) => throw new NotSupportedException();
+    Task<McpTaskView> MoveTaskAsync(Guid id, string position, CancellationToken ct) => throw new NotSupportedException();
     Task<McpSubmission?> FindSubmissionAsync(string requestId, string hash, CancellationToken ct);
     Task<McpSubmission> SubmitAsync(string requestId, string hash, Func<string[], Job[]> create, bool start, CancellationToken ct);
     Task<McpTaskView> ControlAsync(Guid id, string action, CancellationToken ct);

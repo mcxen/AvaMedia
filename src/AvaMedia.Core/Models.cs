@@ -147,7 +147,7 @@ public sealed partial class ConversionOptions
     public int SubtitleMargin { get; set; } = 20;
     public double? SubtitlePositionX { get; set; }
     public double? SubtitlePositionY { get; set; }
-    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.VlRename=VlRename?.Clone();copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
+    public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.VlRename=VlRename?.Clone();copy.ImportModelPaths=ImportModelPaths?.ToArray();copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
 }
 public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
 public enum JobCompletionKind { Default, Unchanged }

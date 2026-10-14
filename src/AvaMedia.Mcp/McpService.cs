@@ -58,6 +58,9 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
                 options.ServerInfo = new Implementation { Name = "AvaMedia", Version = typeof(McpService).Assembly.GetName().Version?.ToString() ?? "1.0" };
                 options.ServerInstructions = "AvaMedia exposes the desktop's shared task queue and local media services. Call avamedia_capabilities first. "
                     + "Use avamedia_get_runtime and avamedia_list_models to inspect resource policy and model availability. No task tool opens a classification window. "
+                    + "Read avamedia_get_settings for native preferences and credential-redacted online providers; use update_settings and provider tools for granular configuration. "
+                    + "Use describe_feature for complete native defaults/schema across every Catalog category, and get_task_options/update_task_options to inspect/edit an unstarted job. "
+                    + "Provider model-list refresh and text/vision diagnostics are explicit network calls; do not infer model support from configuration alone. "
                     + "Create tasks with a fresh UUID requestId and poll their durable queue IDs. File paths are absolute paths on this server's machine. "
                     + "For remote file selection use avamedia_file_locations then avamedia_browse_directory; send returned paths unchanged to avamedia_create_task without uploading the media. "
                     + "Use avamedia_wait_task for bounded waits, get_task_log for diagnostics, and export_task_result to save a complete paginated JSON report. "

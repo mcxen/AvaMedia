@@ -8,6 +8,7 @@ public sealed record ModelSourcePreference(ModelSourceKind Kind = ModelSourceKin
         => new(Enum.TryParse<ModelSourceKind>(settings.ModelSource, true, out var kind) ? kind : ModelSourceKind.Auto, settings.ModelSourceUrl ?? "");
     public void Validate()
     {
+        if (!Enum.IsDefined(Kind)) throw new ArgumentException("模型下载源无效。");
         if (Kind != ModelSourceKind.Custom) return;
         if (string.IsNullOrWhiteSpace(CustomUrl)) throw new ArgumentException("请填写自定义模型下载源地址。");
         _ = ModelDownloadSources.ParseEndpoint(CustomUrl.Trim());
