@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AvaMedia 视频工具 · 经典浅色内容边界方案</title>
+<style>
+  :root { color-scheme: light; --canvas:#f5f5f7; --surface:#fff; --text:#1d1d1f; --secondary:#626268; --line:#e5e5ea; --accent:#007aff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--canvas); color:var(--text); font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; }
+  main { max-width:1120px; padding:40px 24px 64px; margin:auto; }
+  h1 { font-size:25px; line-height:1.4; margin:0 0 12px; }
+  h2 { font-size:18px; margin:32px 0 12px; }
+  h3 { font-size:14px; margin:0 0 12px; }
+  p { margin:10px 0; }
+  .meta { color:var(--secondary); font-size:13px; }
+  .lead { font-size:17px; max-width:850px; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  code { font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
+  .table-scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; background:var(--surface); text-align:left; }
+  th,td { padding:12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:600; background:#f0f0f3; }
+  td:first-child { min-width:115px; }
+  .audit-table td:nth-child(2) { min-width:220px; }
+  .audit-table td:nth-child(3) { min-width:260px; }
+  .diagram { background:var(--surface); border-radius:12px; padding:20px; }
+  .diagram svg { width:100%; height:auto; display:block; }
+  .note { border-left:3px solid var(--accent); padding:4px 14px; }
+  .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .step { background:var(--surface); border-radius:12px; padding:16px; }
+  ul,ol { padding-left:22px; }
+  li { margin:7px 0; }
+  @media(max-width:720px) { main { padding:24px 16px; } .steps { grid-template-columns:1fr; } h1 { font-size:22px; } }
+  @media print { body { background:white; } main { padding:0; max-width:none; } .table-scroll { overflow:visible; } .diagram,.step,tr { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<main>
+<p class="meta">2026-10-13 · macOS · 经典浅色 · 内容容器审查与方案，尚未实施</p>
+<h1>让圆角表达独立模块，让直角表达连续内容</h1>
+<p class="lead">现有组件已经定义圆角数值，但业务窗口没有一致地选择内容角色。同一种文件区，有时是独立圆角卡片，有时是白色直角块，有时直接放在页面上；同一个卡片角色也出现 12 与局部 14。建议统一模块的归属、层级和边框，再统一数值。</p>
+<p>范围按当前 <a href="../../src/AvaMedia.Core/Models.cs">Catalog</a> 的视频分类 17 个入口逐项核对。实界面观察为 AvaMedia 1.1.85 的经典浅色；源码观察为当前共享工作树。两者分别记录，未把未提交源码视为已经安装生效。读取了 <a href="../../UISPEC.MD">UISPEC.MD</a> 和桌面视频、快速剪辑、裁剪参考图。</p>
+<p class="meta">现有规范允许平台和窗口专项圆角，12／14 的并存本身不构成违规。本文建议收敛视频工具的内容角色；这是需要先写入规范的新方案。</p>
+<p class="meta">16 个工具入口已查看实界面，主要观察初始内容布局；媒体信息、播放器与快速剪辑使用已有视频查看布局。快速剪辑另查看剪辑、画面裁剪、自动转正和导出选项；共享输出配置也已查看。视频压缩入口弹出“视频压缩支持 MP4 / MOV / M4V / MKV / TS 和 H.264 / HEVC”提示，未能打开其窗口，该项仅核对源码。进度与结果、字幕校对等依赖实际任务的后续页面仅核对源码，未执行识别、分析、转码或导出。</p>
+
+<h2>统一后的边界</h2>
+<div class="diagram">
+<svg viewBox="0 0 1010 390" role="img" aria-labelledby="boundary-title boundary-desc">
+  <title id="boundary-title">内容边界方案示意</title>
+  <desc id="boundary-desc">页面、贴边侧栏与底栏使用直角。独立模块卡片圆角12，媒体预览10，紧凑属性分组10，普通缩略图6；模块内连续列表行与裁剪选区使用直角。该图是方案示意，不是应用截图。</desc>
+  <rect x="0" y="0" width="1010" height="390" fill="#f5f5f7"/>
+  <text x="20" y="28" font-size="14" fill="#626268">方案示意 · 外部布局不加圆角容器</text>
+  <rect x="20" y="48" width="570" height="296" rx="12" fill="white" stroke="#e5e5ea"/>
+  <text x="38" y="75" font-size="14" fill="#1d1d1f">独立内容模块 · 12</text>
+  <rect x="38" y="90" width="238" height="134" rx="10" fill="#e6e8ed"/>
+  <text x="60" y="130" font-size="14" fill="#1d1d1f">媒体预览容器 · 10</text>
+  <rect x="62" y="149" width="139" height="51" fill="none" stroke="#007aff" stroke-width="1.5"/>
+  <text x="77" y="179" font-size="13" fill="#1d1d1f">裁剪选区 · 0</text>
+  <text x="300" y="115" font-size="14" fill="#1d1d1f">模块内连续列表 · 行 0</text>
+  <path d="M300 127H570 M300 190H570 M300 249H570" stroke="#e5e5ea"/>
+  <rect x="300" y="128" width="270" height="61" fill="#eaf3ff"/>
+  <rect x="312" y="140" width="50" height="35" rx="6" fill="#d4dae4"/>
+  <text x="375" y="163" font-size="13" fill="#1d1d1f">普通缩略图 · 6</text>
+  <text x="312" y="222" font-size="13" fill="#626268">行与行之间只用分隔线</text>
+  <text x="38" y="316" font-size="13" fill="#626268">一块内容只保留一个外边界，不叠加第二层白卡片</text>
+  <rect x="615" y="48" width="375" height="296" fill="#fafafa"/>
+  <path d="M615 48V344" stroke="#e5e5ea"/>
+  <text x="633" y="75" font-size="14" fill="#1d1d1f">贴边检查器 · 0</text>
+  <rect x="633" y="90" width="339" height="176" rx="10" fill="white" stroke="#e5e5ea"/>
+  <text x="649" y="119" font-size="14" fill="#1d1d1f">紧凑属性分组 · 10</text>
+  <path d="M649 138H956 M649 188H956" stroke="#e5e5ea"/>
+  <text x="649" y="169" font-size="13" fill="#626268">属性行 · 0</text>
+  <text x="649" y="220" font-size="13" fill="#626268">属性行 · 0</text>
+  <path d="M20 359H990" stroke="#e5e5ea"/>
+  <text x="38" y="382" font-size="13" fill="#626268">贴边底栏 · 0 · 使用一条上分隔线</text>
+</svg>
+</div>
+<div class="table-scroll">
+<table>
+<thead><tr><th>内容角色</th><th>建议规则（DIP）</th><th>圆角／直角的边界</th></tr></thead>
+<tbody>
+<tr><td>页面与固定栏</td><td>0；无整圈边框</td><td>页面根布局、贴边检查器、标题栏、底栏。使用留白与单边分隔线组织内容；系统窗体形状继续由平台负责。</td></tr>
+<tr><td>独立内容模块</td><td>12；沿用 <code>AcCardRadius</code></td><td>来源文件、保留片段、分析结果、输出参数等具有独立标题与任务职责的区域。与相邻模块有间距，才拥有完整外边界。</td></tr>
+<tr><td>紧凑属性分组</td><td>10；沿用 <code>AcGroupRadius</code></td><td>一组连续属性行的共同外壳。与大卡片是不同的内容角色；放进已有白卡片时，优先取消第二层底色、阴影和外框。</td></tr>
+<tr><td>媒体大预览</td><td>10；沿用 <code>UiMediaPreviewRadius</code></td><td>统一由 <code>MediaPreviewSurface</code> 绘制。跟随实际预览比例，圆角、背景与投影属于同一个可见表面；预览内容不是再次嵌套的白色卡片。</td></tr>
+<tr><td>普通缩略图</td><td>6；沿用 <code>AcThumbRadius</code></td><td>文件行、导出片段、起止帧使用同一个缩略图角色。26×15 等微型胶片缩略图保留 3，统一引用 <code>UiCompactRadius</code>，避免圆角占满小图。</td></tr>
+<tr><td>连续列表与属性行</td><td>行 0；分隔线沿用发丝线令牌</td><td>圆角属于列表或分组外壳，内部行不逐条变成圆角卡片。首尾行的底色由外壳裁切；稀疏、互相分离的独立列表项可继续用现有 <code>AcListRadius=8</code>。</td></tr>
+<tr><td>几何编辑与连续播放</td><td>0</td><td>裁剪／水印选区、坐标辅助线、时间线内部连续帧、连续播放舞台使用直角。时间线模块的外卡片仍可为 12；显示圆角不改变源文件或导出几何。</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>17 个入口逐项走查</h2>
+<p class="meta">实界面记录描述可见形态；具体令牌和局部常量以右列源码为依据。空状态布局不代表加载、进度、错误和结果状态均已截图验收。</p>
+<div class="table-scroll">
+<table class="audit-table">
+<thead><tr><th>工具／证据</th><th>Before · 现状</th><th>After · 建议</th><th>Why · 原因与位置</th></tr></thead>
+<tbody>
+<tr><td>天池播放器<br><span class="meta">实界面＋源码</span></td><td>连续播放舞台直角，播放列表和 VR 面板贴边、单侧分隔线。</td><td>保留 0；明确属于连续播放例外。内部播放列表按连续行处理。</td><td>贴边舞台无需独立卡片。<br><code>PlayerWindow.axaml</code></td></tr>
+<tr><td>视频下载<br><span class="meta">实界面＋源码</span></td><td>解析结果与参数为 12 的两张卡片；链接输入是字段。结果行直角分隔，整体边界较清楚。</td><td>作为普通工具的模块参考。结果行保持 0；缩略图统一为 6；登录与网络展开后不再套白卡片。</td><td>现有外卡片和内列表职责已经分开。<br><code>DownloadWindow.axaml</code></td></tr>
+<tr><td>媒体信息<br><span class="meta">实界面＋源码</span></td><td>左侧选中文件为圆角行，中间信息为 12 卡片，右侧预览为 10；文件区没有对应模块外壳。</td><td>文件区与信息区明确为独立模块；文件列表外壳 12、内部行 0。媒体预览仍用 10。</td><td>同层内容应有一致的模块边界。<br><code>MediaInfoWindow.cs</code></td></tr>
+<tr><td>格式转换<br><span class="meta">实界面＋源码</span></td><td>来源文件区直接放在页面上；右侧大预览为 10。文件行用 ListRow，顶部参数另占一行。</td><td>来源与文件操作合成一张 12 卡片；列表行用连续行角色。预览保持独立 10，不给整页再加一张大卡。</td><td>来源区域需要明确职责边界。<br><code>ConvertWindow.cs</code></td></tr>
+<tr><td>视频压缩<br><span class="meta">仅源码；实窗未打开</span></td><td>左右内容已经是 <code>ac-card</code>，默认 12；来源列表独立样式，预览复用公共表面。</td><td>保留 12／10；列表内部统一为 0。只对齐模块规则与共用角色。</td><td>结构接近目标，避免再次改造。<br><code>VideoCompressionWindow.axaml</code></td></tr>
+<tr><td>视频瘦身<br><span class="meta">实界面＋源码</span></td><td>左右 12 卡片，大预览 10；列表位于左卡内部，空状态与有文件区域同一位置。</td><td>保留双卡结构；来源列表用连续行角色；空状态继承外卡片形状。</td><td>可与视频压缩共用模块模板。<br><code>VideoSlimmingWindow.axaml</code></td></tr>
+<tr><td>修复／重新封装<br><span class="meta">实界面＋源码</span></td><td>来源、预览、输出配置采用通用转换布局，来源区没有卡片外壳。</td><td>与格式转换共用来源卡 12、预览 10、内部列表行 0。</td><td>共用窗口应一次修复。<br><code>ConvertWindow.cs</code></td></tr>
+<tr><td>快速剪辑<br><span class="meta">三模式与导出实界面＋源码</span></td><td>时间线、转正卡片局部 14，右侧公共卡片 12；起止帧外按钮引用 8，内表面 6；微型缩略图局部 3。裁剪检查器是贴边区域。</td><td>时间线与转正模块统一为 12；检查器保持 0；属性分组 10。起止帧由一个缩略图表面负责 6，微型缩略图引用统一的 3 令牌。裁剪选区保持 0。</td><td>同角色不应因左右位置而改变圆角；避免两层缩略图遮罩。<br><code>EditorWindow.axaml</code>、<code>EditorWindow.QuickLayout.cs</code>、<code>QuickClipStyles.axaml</code></td></tr>
+<tr><td>保留有人片段<br><span class="meta">实界面＋源码</span></td><td>文件区直接铺在页面上，右侧“等待检测结果”为白色直角块；预览按选择显示。</td><td>来源与保留片段成为两张 12 模块卡；结果为空、处理中和有结果时共用外壳。排除区间作为内部展开分组。</td><td>这是最明显的同层模块形状不一致之一。<br><code>PersonClipWindow.cs</code></td></tr>
+<tr><td>去除水印<br><span class="meta">提交页实界面；编辑页源码</span></td><td>提交页采用通用转换布局；框选进入编辑器，内容边界分属两套布局。</td><td>提交页对齐来源卡 12；编辑器统一预览表面 10、参数分组 10；水印矩形选区和坐标边界为 0。</td><td>模块装饰不能混进实际几何编辑。<br><code>ConvertWindow.cs</code>、<code>EditorWindow.axaml</code></td></tr>
+<tr><td>提取音频<br><span class="meta">实界面＋源码</span></td><td>通用转换布局：文件区无卡片外壳，视频来源预览 10。</td><td>来源卡 12、连续行 0；保留视频来源预览 10。音频波形作为独立舞台，不加静态视频投影。</td><td>与同窗工具采用相同边界规则。<br><code>ConvertWindow.cs</code>、<code>MediaPreviewPanel.cs</code></td></tr>
+<tr><td>提取视频流<br><span class="meta">实界面＋源码</span></td><td>来源与预览采用通用转换布局。</td><td>来源卡 12、预览 10、内部连续行 0。</td><td>复用同一个来源容器。<br><code>ConvertWindow.cs</code></td></tr>
+<tr><td>视频合并<br><span class="meta">实界面＋源码</span></td><td>排序操作位于来源列表上方，列表无模块外壳；预览 10。</td><td>来源、排序操作与列表共同归入 12 卡片；排序后的各行保持连续直角。</td><td>合并来源是一个整体模块。<br><code>ConvertWindow.cs</code></td></tr>
+<tr><td>视频／音频混流<br><span class="meta">实界面＋源码</span></td><td>视频、音频来源通过同一列表与标签区分，页面未明确包围来源模块。</td><td>来源模块外壳 12；视频与音频为内部连续行。无需把每个来源再变成一张独立卡片。</td><td>表达同一混流任务的两个输入。<br><code>ConvertWindow.cs</code></td></tr>
+<tr><td>自动字幕<br><span class="meta">提交页实界面＋源码</span></td><td>专用提交页已使用来源卡、参数卡和流程卡 12；内部阶段卡为 10。大封面另外包了一层缩略图 6 表面。</td><td>保留现有模块布局。流程阶段属于明确专项角色 10；大封面交给媒体预览表面负责 10，移除额外 6 外遮罩；文件行按连续列表处理。</td><td>嵌套的 6 与 10 会产生两个相近但不同的媒体轮廓。<br><code>SpeechToolsWindow.Submission.cs</code></td></tr>
+<tr><td>视频总结<br><span class="meta">提交页实界面＋源码</span></td><td>来源文件为白色直角块；参数直接放在页面上；预览为圆角 10。</td><td>来源模块与总结配置按职责归为 12 卡片；识别设置展开后用内部属性行，保留 10 预览。</td><td>与字幕窗口的同类输入内容存在明显差异。<br><code>VideoSummaryWindow.cs</code></td></tr>
+<tr><td>视频人声增强<br><span class="meta">实界面＋源码</span></td><td>白色直角文件块，输出和降噪参数散置在页面；复用 SpeechToolsWindow 的非字幕布局。</td><td>来源模块与增强参数模块统一为 12；文件行 0。试听窗口的音频舞台遵循音频专项边界。</td><td>与字幕、瘦身、下载的来源区应保持一致。<br><code>SpeechToolsWindow.cs</code>、<code>VoicePreviewWindow.cs</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>共享页面与深层原因</h2>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Before · 现状</th><th>After · 建议</th><th>Why · 原因</th></tr></thead>
+<tbody>
+<tr><td>输出配置的 <code>Page()</code> 套 Card，<code>Advanced()</code> 展开内容再次套 Card。闭合时不明显，展开后仍存在两层卡片结构。</td><td>保留页面主表面，内部展开区域用标题、连续属性行和分隔线；若拆成多个独立分组，则直接作为页面的同级分组。</td><td>一个职责只有一个外轮廓。<br><code>OptionsWindow.cs:267–271</code>；主配置页已查看实界面，展开结构核对源码。</td></tr>
+<tr><td>剪辑导出选项的输出模块为 12 卡片，片段列表直接位于页面上；72×40 缩略图的 Border 未设置圆角。</td><td>片段列表明确归入来源／待导出内容模块 12；内部行 0；小预览统一为 6。输出模块继续 12。</td><td>同一视频的起止帧与导出缩略图应采用同一角色。<br><code>ClipExportWindow.axaml</code>；已查看实界面。</td></tr>
+<tr><td>通用 <code>ListBox.ac.surface</code> 清掉了行间距和 Padding，却沿用 <code>AcListBoxItem</code> 的 8 圆角；ItemTemplate 中还可能套 8 的 ListRow。下载又使用自己的直角行。</td><td>显式区分“连续列表”和“独立列表项”。连续列表同时统一行容器、选中底色与内容行的 0；独立项保留 8。</td><td>只改 ItemTemplate 无法统一选中／悬停时的实际轮廓。<br><code>Components.axaml</code>、<code>ControlThemes.axaml:729–742</code></td></tr>
+<tr><td>组件的 <code>ac-group</code> 样式先声明裁切，后面的公共样式又给 Card／Group 设置 <code>ClipToBounds=False</code>。业务中的局部 True 仍有更高优先级，不能仅看到 CornerRadius 就假定内容已经裁切。</td><td>卡片外层负责底色和阴影；内部承载列表的表面负责与外壳一致的裁切。逐项确认实际生效，不全局给 Card 开启裁切。</td><td>保留投影和编辑拖动柄，避免直角选中底色越过圆角。<br><code>Components.axaml:28,87</code>、<code>MediaPreviewSurface.cs</code></td></tr>
+<tr><td>字幕校对列表与编辑区域、AI 任务进度和总结结果页面采用各自布局，部分有 Card、部分为直接铺开的列表。</td><td>按来源列表／编辑内容／结果／日志分配角色；模块 12、内部连续行 0、大预览 10。字幕阶段的专项高度与 10 圆角继续保留。</td><td>这些后续页面需要随入口一起落地；本次仅源码审查，未运行任务生成结果。<br><code>SubtitleReviewWindow.cs</code>、<code>AiTaskWindow.Speech.cs</code>、<code>VideoSummaryResultWindow.Layout.cs</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>实施顺序</h2>
+<div class="steps">
+<div class="step"><h3>1 · 先确定内容角色</h3><p>在 UISPEC 第 6、7.3、10 节补充本文的边界表；明确 12 的模块卡、10 的紧凑分组、连续行 0 与独立项 8。把剪辑局部 14 作为本次待收敛规则，修改规范后再修改实现。</p></div>
+<div class="step"><h3>2 · 先修可见的混用</h3><p>人物片段、视频总结、人声增强的白色直角内容块；通用 ConvertWindow 的来源模块，覆盖转换、修复、去水印和四个轨道工具；同步处理媒体信息的来源区。</p></div>
+<div class="step"><h3>3 · 收敛嵌套与局部值</h3><p>输出配置去掉第二层 Card；剪辑时间线／转正卡统一 12；起止帧和导出缩略图统一遮罩归属；字幕封面去掉第二层 6 遮罩。进度、校对和结果页使用相同角色。</p></div>
+</div>
+<p>实现应优先复用 <code>Card</code>、<code>ac-group</code> 与已有动态令牌，在宿主增加视频工具的连续列表角色。共享转换窗口需要按视频用途选择角色，避免改变同窗的图片、音频、压缩包等窗口。保留通用组件默认值，不使用全局 Border 圆角替换；按钮、输入、分段等现有控件样式保持当前规范。</p>
+
+<h2>落地时的判定标准</h2>
+<ul>
+<li>同一层、同一职责的模块拥有相同外轮廓；来源模块不会在一处是 12 卡片、另一处是白色直角块。</li>
+<li>圆角对应一个完整的底色与边界；顶部、底部、滚动内容、选中／悬停底色都服从这个边界。</li>
+<li>一块内容不叠两层白色外壳和两层阴影；卡片间距沿用 <code>AcGap</code>，内边距沿用 <code>AcCardPadding</code>，内部行不再次累计卡片 Padding。</li>
+<li>外卡片引用同一套表面与投影资源；连续行使用统一发丝线，不用深色整圈边框补救层级不清。</li>
+<li>媒体预览的圆角只归可见预览表面所有；裁剪、水印和时间坐标不因装饰圆角发生几何变化。</li>
+<li>系统窗体、播放器舞台、贴边检查器与底栏是明确的直角边界；不按卡片规则强制改圆。</li>
+</ul>
+<p class="note">本次交付为走查结果与统一方案，未修改产品源码或现有 UISPEC，未执行构建、功能回归和媒体输出验证。</p>
+</main>
+</body>
+</html>
