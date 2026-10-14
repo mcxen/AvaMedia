@@ -48,6 +48,10 @@ public sealed partial class AiTaskWindow : Window
         Title = Localization.Format($"任务 · {Localization.Key(Catalog.Find(job.FeatureId).Label)}");
         Width = rotation is null ? 800 : 1060; Height = rotation is null ? 520 : 720;
         MinWidth = rotation is null ? 650 : 800; MinHeight = rotation is null ? 400 : 580;
+        if (job.FeatureId == "video-summary")
+        {
+            Width = 960; Height = 700; MinWidth = 760; MinHeight = 520;
+        }
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto"), RowSpacing = 8 };
         root.Bind(MarginProperty, new DynamicResourceExtension("UiPagePadding"));
@@ -73,11 +77,22 @@ public sealed partial class AiTaskWindow : Window
             body.Children.Add(rotation);
             rotation.ReviewChanged += ReviewChanged;
         }
+        else if (job.FeatureId == "video-summary")
+        {
+            var outcome = new Grid { RowDefinitions = new("Auto,2*,0,Auto,Auto") };
+            outcome.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcRowGap"));
+            outcome.Children.Add(_summary);
+            _details.DetailHeight = double.NaN;
+            Grid.SetRow(_details, 1); outcome.Children.Add(_details);
+            BuildLongSummaryProgress(outcome);
+            Grid.SetRow(_resultPath, 3); outcome.Children.Add(_resultPath);
+            Grid.SetRow(_resultEmpty, 4); outcome.Children.Add(_resultEmpty);
+            body.Children.Add(outcome);
+        }
         else
         {
             var outcome = new StackPanel { Spacing = 6 };
             outcome.Children.Add(_summary); outcome.Children.Add(_details); outcome.Children.Add(_resultPath); outcome.Children.Add(_resultEmpty);
-            if (job.FeatureId == "video-summary") BuildLongSummaryProgress(outcome);
             body.Children.Add(new ScrollViewer { Content = outcome, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
         }
         var records = new StackPanel { Spacing = 8 };

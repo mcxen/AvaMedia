@@ -10,7 +10,7 @@ public sealed partial class AiTaskWindow
 {
     private ListBox? _longSegmentList;
     private SummarySegmentProgress[]? _shownLongProgress;
-    private void BuildLongSummaryProgress(StackPanel outcome)
+    private void BuildLongSummaryProgress(Grid outcome)
     {
         _longSegmentList = new ListBox { Name = "SummarySegmentProgress", MaxHeight = 320, IsVisible = false,
             ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel()),
@@ -23,7 +23,8 @@ public sealed partial class AiTaskWindow
                 if (segment.Summary.Length > 0) { var text = Ui.Text(segment.Summary); Localization.SetIsUserText(text, true); row.Children.Add(text); }
                 return row;
             }) };
-        ScrollViewer.SetHorizontalScrollBarVisibility(_longSegmentList, ScrollBarVisibility.Disabled); outcome.Children.Add(_longSegmentList);
+        ScrollViewer.SetHorizontalScrollBarVisibility(_longSegmentList, ScrollBarVisibility.Disabled);
+        Grid.SetRow(_longSegmentList, 2); outcome.Children.Add(_longSegmentList);
     }
     private void RefreshLongSummaryProgress()
     {
@@ -31,5 +32,7 @@ public sealed partial class AiTaskWindow
         var snapshot = SummaryProgressStore.Get(_job.Id.ToString());
         if (snapshot is null || snapshot.SequenceEqual(_shownLongProgress ?? [])) return;
         _shownLongProgress = snapshot; _longSegmentList.ItemsSource = snapshot; _longSegmentList.IsVisible = snapshot.Length > 0;
+        if (_longSegmentList.Parent is Grid outcome)
+            outcome.RowDefinitions[2].Height = snapshot.Length > 0 ? new(1, GridUnitType.Star) : new(0);
     }
 }

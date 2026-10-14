@@ -633,6 +633,7 @@ var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, H
 - 确定和不确定进度均为 4px 条形。不确定条为 1.2s 往返滑块，行内禁止用环形替代条形；百分比放在标题或进度右侧，使用等宽数字，不叠在进度条上。旋转器为 0.8s 周期；减少动态效果由继承属性 `ComponentMotion.Reduced` 停止旋转与往返，保留静态进度。
 - 步骤横向等宽，均高 64，说明最多两行省略并提供完整 tooltip；步骤间 12px 灰色箭头居中。右上计时、计数使用 `UiNumericFont` 和 `tnum`。
 - 分类进度窗口只在标题显示百分比，阶段卡片下不添加独立进度条。子步骤的进行中弧形仅表示该子步骤活动。
+- 视频总结任务窗口默认 960×700、最小 760×520；阶段进度占满摘要与底部操作之间的剩余高度，随窗口拉伸，超出内容在进度区内滚动，不使用固定高度的小视口或外层嵌套滚动。长视频分段进度保留独立的受限列表。
 
 参考代码：[StageIndicator.cs](src/AvaMedia.Controls/StageIndicator.cs)、[Surfaces.cs](src/AvaMedia.Controls/Surfaces.cs)、[SegmentedControl.cs](src/AvaMedia.Controls/SegmentedControl.cs)。
 

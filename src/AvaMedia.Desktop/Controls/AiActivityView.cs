@@ -15,7 +15,15 @@ public sealed class AiActivityView : Border
     public bool Compact { get => GetValue(CompactProperty); set => SetValue(CompactProperty, value); }
     public bool Collapsible { get; set; }
     public bool DetailsExpanded { get => _expanded; set { _expanded = value; RefreshExpansion(); } }
-    public double DetailHeight { get => _detailScroll.MaxHeight; set => _detailScroll.Height = _detailScroll.MaxHeight = value; }
+    public double DetailHeight
+    {
+        get => _detailScroll.Height;
+        set
+        {
+            _detailScroll.Height = value;
+            _detailScroll.MaxHeight = double.IsNaN(value) ? double.PositiveInfinity : value;
+        }
+    }
     private bool _expanded = true;
     private readonly Button _collapse = new() { Classes = { "tool" }, Padding = new(6, 2), IsVisible = false };
     private readonly TextBlock _title = Text();
@@ -26,7 +34,7 @@ public sealed class AiActivityView : Border
     private readonly ProgressBar _compactProgress = new() { Maximum = 100, Height = 4, MinHeight = 4 };
     private readonly Grid _compactTrack = new() { Height = 4 };
     private readonly AiActivityFlowView _flow = new();
-    private readonly StackPanel _content = new() { Spacing = 10 };
+    private readonly Grid _content = new() { RowDefinitions = new("Auto,*"), RowSpacing = 10 };
     private readonly StackPanel _compactContent = new() { Spacing = 4 };
     private readonly ScrollViewer _detailScroll = new()
     {
@@ -57,7 +65,7 @@ public sealed class AiActivityView : Border
         Grid.SetColumn(_clock, 2); heading.Children.Add(_clock); Grid.SetColumn(_collapse, 3); heading.Children.Add(_collapse);
         _collapse.Click += (_, _) => { _expanded = !_expanded; RefreshExpansion(); };
         _content.Children.Add(heading);
-        _detailScroll.Content = _flow; _content.Children.Add(_detailScroll); Child = _content;
+        _detailScroll.Content = _flow; Grid.SetRow(_detailScroll, 1); _content.Children.Add(_detailScroll); Child = _content;
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         _compactClock.VerticalAlignment = VerticalAlignment.Center;
         _compactStage.Classes.Add("queue-state");
