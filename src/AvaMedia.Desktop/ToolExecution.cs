@@ -2,12 +2,13 @@ using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Layout;
+using AvaMedia.Controls;
 
 namespace AvaMedia.Desktop;
 
 internal static class ToolExecution
 {
-    private static readonly ConditionalWeakTable<Window, CheckBox> Choices = new();
+    private static readonly ConditionalWeakTable<Window, Func<bool>> Choices = new();
     private sealed record Completion(Action<object?> Resolve);
     private static readonly ConditionalWeakTable<Window, Completion> Completions = new();
     private sealed class Draft(Func<Task> save)
@@ -63,14 +64,28 @@ internal static class ToolExecution
         if (Completions.TryGetValue(window, out var completion)) completion.Resolve(result);
         window.Close(result);
     }
-    public static bool StartImmediately(Window owner) => Choices.TryGetValue(owner, out var choice) && choice.IsChecked != true;
+    public static bool StartImmediately(Window owner) => Choices.TryGetValue(owner, out var choice) && choice();
+
+    public static void Configure(Window owner, TaskSubmissionShell shell, Button button, bool editing = false)
+    {
+        shell.IsEditing = editing;
+        if (editing) shell.StartImmediately = false;
+        Choices.Add(owner, () => shell.StartImmediately);
+        StableLayout.Reserve(button, "开始任务", "加入队列", "保存修改", "检查文件…");
+        void Refresh() => button.Content = Localization.Text(editing ? "保存修改" : shell.StartImmediately ? "开始任务" : "加入队列");
+        shell.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TaskSubmissionShell.StartImmediatelyProperty) Refresh();
+        };
+        Refresh();
+    }
 
     public static void Configure(Window owner, Button button, string action, bool editing = false)
     {
         StableLayout.Reserve(button, action, "加入队列", "保存修改", "检查文件…");
         if (editing) return;
         var choice = new CheckBox { Content = "仅加入队列", VerticalAlignment = VerticalAlignment.Center };
-        Choices.Add(owner, choice);
+        Choices.Add(owner, () => choice.IsChecked != true);
         void Refresh() => button.Content = Localization.Text(choice.IsChecked == true ? "加入队列" : action);
         choice.IsCheckedChanged += (_, _) => Refresh();
         button.PropertyChanged += (_, change) =>

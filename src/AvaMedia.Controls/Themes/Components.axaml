@@ -2,6 +2,7 @@
   <Styles.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
     <ResourceInclude Source="avares://AvaMedia.Controls/Themes/Defaults.axaml"/>
     <ResourceInclude Source="avares://AvaMedia.Controls/Themes/ControlThemes.axaml"/>
+    <ResourceInclude Source="avares://AvaMedia.Controls/Themes/TaskSubmissionShell.axaml"/>
   </ResourceDictionary.MergedDictionaries></ResourceDictionary></Styles.Resources>
 <Style Selector="ac|EmptyState.error"><Setter Property="IsError" Value="True"/></Style>
 <Style Selector="Border.ac-card"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/><Setter Property="Padding" Value="{DynamicResource AcCardPadding}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/><Setter Property="BorderThickness" Value="0"/></Style>

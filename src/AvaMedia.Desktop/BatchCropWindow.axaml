@@ -8,84 +8,93 @@
     <Style Selector="TextBlock.cropValidation"><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
     <Style Selector="TextBlock.cropValidation.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="{DynamicResource AcRowGap}">
-    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-      <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…">
-        <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
-        <Button Classes="ac" x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
-      </files:FileImportActions>
-    </Grid>
-    <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="{DynamicResource AcGap}">
-      <Border Classes="ac-card">
-        <Grid RowDefinitions="Auto,*">
-          <TextBlock x:Name="ListSummary" Text="尚未添加视频" Margin="12,8"/>
-          <ListBox Classes="ac surface" Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionMode="Multiple"
-                   SelectionChanged="FileSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                   AutomationProperties.Name="批量裁剪视频列表">
-            <ListBox.ItemTemplate>
-              <DataTemplate DataType="local:BatchCropEntry">
-                <Grid ColumnDefinitions="28,*" ColumnSpacing="6" Margin="0,6">
-                  <CheckBox Classes="ac" IsChecked="{Binding Include, Mode=TwoWay}" AutomationProperties.Name="是否裁剪此视频"/>
-                  <StackPanel Grid.Column="1" Spacing="4">
-                    <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
-                    <TextBlock Text="{Binding Dimensions}" Classes="caption"/>
-                    <TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Grid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-          <ac:EmptyState Grid.Row="1" x:Name="EmptyFiles" Text="尚未添加视频" IsHitTestVisible="False"/>
-        </Grid>
-      </Border>
-      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
-        <controls:MediaPreviewSurface UseAmbientLighting="False" ContentSize="{Binding #PreviewImage.Source.Size}">
-          <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}">
-            <Image x:Name="PreviewImage" Stretch="Uniform"/>
-            <media:CropOverlay x:Name="CropLayer"/>
-            <TextBlock x:Name="PreviewStatus" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"
-                       TextWrapping="Wrap" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+  <ac:TaskSubmissionShell x:Name="SubmissionShell">
+    <ac:TaskSubmissionShell.OutputContent>
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="140,*,Auto,Auto,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="6">
+        <ComboBox Classes="ac" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="裁剪输出格式" HorizontalAlignment="Stretch"/>
+        <TextBox Classes="ac" IsReadOnly="True" Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="批量裁剪输出文件夹"/>
+        <Button Grid.Column="2" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
+        <Button Classes="ac" Grid.Column="3" x:Name="OutputOptionsButton" Content="输出配置…" Click="OptionsClick"/>
+        <CheckBox Classes="ac" Grid.Column="4" x:Name="SourceOutputInput" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
+        <CheckBox Classes="ac" Grid.Column="5" x:Name="SettingNameInput" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
+      </Grid>
+    </ac:TaskSubmissionShell.OutputContent>
+    <ac:TaskSubmissionShell.StatusContent>
+      <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="cropValidation" TextWrapping="Wrap" VerticalAlignment="Center"/>
+    </ac:TaskSubmissionShell.StatusContent>
+    <ac:TaskSubmissionShell.CancelAction>
+      <Button Content="取消" Click="CancelClick" IsCancel="True" Classes="ac dialog-action"/>
+    </ac:TaskSubmissionShell.CancelAction>
+    <ac:TaskSubmissionShell.PrimaryAction>
+      <Button x:Name="OkButton" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="ac primary dialog-action" IsEnabled="False"/>
+    </ac:TaskSubmissionShell.PrimaryAction>
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{DynamicResource AcRowGap}">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…">
+          <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
+          <Button Classes="ac" x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
+        </files:FileImportActions>
+      </Grid>
+      <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="{DynamicResource AcGap}">
+        <Border Classes="ac-card">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock x:Name="ListSummary" Text="尚未添加视频" Margin="12,8"/>
+            <ListBox Classes="ac surface" Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionMode="Multiple"
+                     SelectionChanged="FileSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     AutomationProperties.Name="批量裁剪视频列表">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="local:BatchCropEntry">
+                  <Grid ColumnDefinitions="28,*" ColumnSpacing="6" Margin="0,6">
+                    <CheckBox Classes="ac" IsChecked="{Binding Include, Mode=TwoWay}" AutomationProperties.Name="是否裁剪此视频"/>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                      <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock Text="{Binding Dimensions}" Classes="caption"/>
+                      <TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <ac:EmptyState Grid.Row="1" x:Name="EmptyFiles" Text="尚未添加视频" IsHitTestVisible="False"/>
           </Grid>
-        </controls:MediaPreviewSurface>
-        <Slider Classes="ac" Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="裁剪预览时间"/>
-        <Grid Grid.Row="2" ColumnDefinitions="*,140,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
-          <TextBlock x:Name="PreviewName" Classes="caption" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-          <ComboBox Classes="ac" Grid.Column="1" x:Name="CropRatio" SelectionChanged="RatioChanged" AutomationProperties.Name="批量裁剪选区比例"/>
-          <Button Classes="ac" Grid.Column="2" Content="重置为当前全画面" Click="ResetClick"/>
+        </Border>
+        <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
+          <controls:MediaPreviewSurface UseAmbientLighting="False" ContentSize="{Binding #PreviewImage.Source.Size}">
+            <Grid x:Name="PreviewArea" Background="{DynamicResource UiMediaSurface}">
+              <Image x:Name="PreviewImage" Stretch="Uniform"/>
+              <media:CropOverlay x:Name="CropLayer"/>
+              <TextBlock x:Name="PreviewStatus" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"
+                         TextWrapping="Wrap" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+            </Grid>
+          </controls:MediaPreviewSurface>
+          <Slider Classes="ac" Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="裁剪预览时间"/>
+          <Grid Grid.Row="2" ColumnDefinitions="*,140,Auto" ColumnSpacing="{DynamicResource AcRowGap}">
+            <TextBlock x:Name="PreviewName" Classes="caption" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            <ComboBox Classes="ac" Grid.Column="1" x:Name="CropRatio" SelectionChanged="RatioChanged" AutomationProperties.Name="批量裁剪选区比例"/>
+            <Button Classes="ac" Grid.Column="2" Content="重置为当前全画面" Click="ResetClick"/>
+          </Grid>
         </Grid>
       </Grid>
+      <Border Classes="ac-card" Grid.Row="2">
+        <StackPanel Spacing="{DynamicResource AcRowGap}">
+          <TextBlock x:Name="ReferenceText" Text="选区参考：尚未选择视频" Classes="caption"/>
+          <StackPanel Orientation="Horizontal" Spacing="12"><TextBlock Text="应用到勾选视频" VerticalAlignment="Center"/><ComboBox Classes="ac" x:Name="ModeCombo" SelectionChanged="ModeChanged" AutomationProperties.Name="裁剪区域应用方式" MinWidth="220"/></StackPanel>
+          <Expander Header="精确坐标" HorizontalAlignment="Stretch">
+          <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*" ColumnSpacing="{DynamicResource AcRowGap}">
+            <TextBlock Text="X" VerticalAlignment="Center"/>
+            <NumericUpDown Classes="ac" Grid.Column="1" x:Name="CropXInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域 X"/>
+            <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center"/>
+            <NumericUpDown Classes="ac" Grid.Column="3" x:Name="CropYInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域 Y"/>
+            <TextBlock Grid.Column="4" Text="宽度" VerticalAlignment="Center"/>
+            <NumericUpDown Classes="ac" Grid.Column="5" x:Name="CropWidthInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域宽度"/>
+            <TextBlock Grid.Column="6" Text="高度" VerticalAlignment="Center"/>
+            <NumericUpDown Classes="ac" Grid.Column="7" x:Name="CropHeightInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域高度"/>
+          </Grid>
+          </Expander>
+        </StackPanel>
+      </Border>
+
     </Grid>
-    <Border Classes="ac-card" Grid.Row="2">
-      <StackPanel Spacing="{DynamicResource AcRowGap}">
-        <TextBlock x:Name="ReferenceText" Text="选区参考：尚未选择视频" Classes="caption"/>
-        <StackPanel Orientation="Horizontal" Spacing="12"><TextBlock Text="应用到勾选视频" VerticalAlignment="Center"/><ComboBox Classes="ac" x:Name="ModeCombo" SelectionChanged="ModeChanged" AutomationProperties.Name="裁剪区域应用方式" MinWidth="220"/></StackPanel>
-        <Expander Header="精确坐标" HorizontalAlignment="Stretch">
-        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*" ColumnSpacing="{DynamicResource AcRowGap}">
-          <TextBlock Text="X" VerticalAlignment="Center"/>
-          <NumericUpDown Classes="ac" Grid.Column="1" x:Name="CropXInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域 X"/>
-          <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center"/>
-          <NumericUpDown Classes="ac" Grid.Column="3" x:Name="CropYInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域 Y"/>
-          <TextBlock Grid.Column="4" Text="宽度" VerticalAlignment="Center"/>
-          <NumericUpDown Classes="ac" Grid.Column="5" x:Name="CropWidthInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域宽度"/>
-          <TextBlock Grid.Column="6" Text="高度" VerticalAlignment="Center"/>
-          <NumericUpDown Classes="ac" Grid.Column="7" x:Name="CropHeightInput" Minimum="0" Maximum="2147483647" Increment="2" Value="0" FormatString="0" AutomationProperties.Name="裁剪区域高度"/>
-        </Grid>
-        </Expander>
-      </StackPanel>
-    </Border>
-    <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="140,*,Auto,Auto,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="6">
-      <ComboBox Classes="ac" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="裁剪输出格式" HorizontalAlignment="Stretch"/>
-      <TextBox Classes="ac" IsReadOnly="True" Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="批量裁剪输出文件夹"/>
-      <Button Grid.Column="2" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
-      <Button Classes="ac" Grid.Column="3" x:Name="OutputOptionsButton" Content="输出配置…" Click="OptionsClick"/>
-      <CheckBox Classes="ac" Grid.Column="4" x:Name="SourceOutputInput" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
-      <CheckBox Classes="ac" Grid.Column="5" x:Name="SettingNameInput" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
-      <TextBlock Grid.Row="1" Grid.ColumnSpan="6" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
-    </Grid>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource AcGap}">
-      <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="cropValidation" TextWrapping="Wrap" VerticalAlignment="Center"/>
-      <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="ac dialog-action"/>
-      <Button Grid.Column="2" x:Name="OkButton" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="ac primary dialog-action" IsEnabled="False"/>
-    </Grid>
-  </Grid>
+  </ac:TaskSubmissionShell>
 </Window>

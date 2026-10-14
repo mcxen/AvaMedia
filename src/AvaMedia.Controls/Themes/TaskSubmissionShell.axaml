@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ac="using:AvaMedia.Controls">
+  <ControlTheme x:Key="AcTaskSubmissionShell" TargetType="ac:TaskSubmissionShell">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid RowDefinitions="*,Auto,Auto">
+          <ContentPresenter Name="PART_ContentPresenter" Classes="ac-content" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Margin="{DynamicResource AcTaskBodyPadding}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+          <ContentPresenter Name="PART_OutputPresenter" Grid.Row="1" Classes="ac-content" Content="{TemplateBinding OutputContent}"
+                            Margin="{DynamicResource AcTaskOutputPadding}" HorizontalContentAlignment="Stretch"/>
+          <Border Grid.Row="2" Padding="{DynamicResource AcTaskFooterPadding}" BorderBrush="{DynamicResource AcHairline}" BorderThickness="{DynamicResource AcTaskFooterLine}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{DynamicResource AcGap}">
+              <ContentPresenter Classes="ac-content" Content="{TemplateBinding StatusContent}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"/>
+              <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <ContentPresenter Classes="ac-content" Content="{TemplateBinding CancelAction}" VerticalContentAlignment="Center"/>
+                <ComboBox Name="PART_ExecutionMode" Classes="ac" MinWidth="{DynamicResource AcTaskModeWidth}" Margin="{DynamicResource AcTaskActionMargin}" VerticalAlignment="Center"/>
+                <ContentPresenter Classes="ac-content" Content="{TemplateBinding PrimaryAction}" Margin="{DynamicResource AcTaskActionMargin}" VerticalContentAlignment="Center"/>
+              </WrapPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </ControlTheme>
+</ResourceDictionary>

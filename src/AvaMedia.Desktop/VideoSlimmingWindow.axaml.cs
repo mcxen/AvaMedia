@@ -66,7 +66,7 @@ public partial class VideoSlimmingWindow : Window
         InitializeComponent();
         ImportPanel.AddFilesAsync = PickFilesAsync;
         ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
-        ImportPanel.AddFoldersAsync = PickFolderAsync; ToolExecution.Configure(this,ConfirmButton,"开始瘦身",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        ImportPanel.AddFoldersAsync = PickFolderAsync; ToolExecution.Configure(this,SubmissionShell,ConfirmButton,editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
         var options = initial ?? new Storage().LoadToolOptions<VideoSlimmingOptions>("video-slim") ?? new();
         PresetInput.ItemsSource = new[] { "保真", "均衡", "更小" };
         CodecInput.ItemsSource = new[] { "HEVC（H.265）", "H.264（兼容性优先）" };

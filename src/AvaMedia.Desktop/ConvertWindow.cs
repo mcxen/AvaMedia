@@ -71,8 +71,7 @@ public sealed class ConvertWindow : Window
                     _entries.Add(new(path));
             },RoutingStrategies.Bubble,handledEventsToo:true);
         }
-        var panel=new Grid{RowDefinitions=new("Auto,Auto,*,Auto,Auto")};
-        panel.Bind(MarginProperty,new DynamicResourceExtension("UiPagePadding"));
+        var panel=new Grid{RowDefinitions=new("Auto,Auto,*")};
         panel.Bind(Grid.RowSpacingProperty,new DynamicResourceExtension("AcGap"));
         const int optionRow=1;
         var sourceOutput=feature.Id is "crop" or "rotate";
@@ -230,10 +229,9 @@ public sealed class ConvertWindow : Window
         var sourceFolder=new CheckBox{ Classes = { "ac" },Name="ConversionOutputToSource",Content="源目录",IsChecked=initialOptions is null&&engine.Settings.OutputToSource,IsEnabled=feature.Operation is not (Operation.Download or Operation.IsoCopy),VerticalAlignment=VerticalAlignment.Center};ToolTip.SetTip(sourceFolder,"输出至源文件目录");
         var addName=new CheckBox{ Classes = { "ac" },Name="ConversionAddSettingName",Content="设置名称",IsChecked=initialOptions is null&&engine.Settings.AddSettingName,VerticalAlignment=VerticalAlignment.Center};ToolTip.SetTip(addName,"添加设置名称");
         sourceFolder.IsCheckedChanged+=(_,_)=>outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;
-        outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;Grid.SetColumn(sourceFolder,2);output.Children.Add(sourceFolder);Grid.SetColumn(addName,3);output.Children.Add(addName);Grid.SetRow(output,optionRow+2);panel.Children.Add(output);
+        outputBox.IsEnabled=browse.IsEnabled=sourceFolder.IsChecked!=true;Grid.SetColumn(sourceFolder,2);output.Children.Add(sourceFolder);Grid.SetColumn(addName,3);output.Children.Add(addName);
         var validation=Ui.ComponentText("","error");validation.TextWrapping=TextWrapping.Wrap;
-        var buttons=new StackPanel{Orientation=Orientation.Horizontal,Spacing=8,HorizontalAlignment=HorizontalAlignment.Right};
-        buttons.Children.Add(Ui.DialogButton("取消",()=>Close(null)));var ok=new Button{Content=editing?"保存修改":"加入队列",IsDefault=true,Classes={ "ac","primary","dialog-action"}};ok.Click+=async(_,_)=>
+        var ok=new Button{Content=editing?"保存修改":"加入队列",IsDefault=true,Classes={ "ac","primary","dialog-action"}};ok.Click+=async(_,_)=>
         {
             if(_preparing)return;validation.Text="";_preparing=true;ok.IsEnabled=false;foreach(var control in new Control[]{top,toolbar,inputArea,output})control.IsEnabled=false;
             try
@@ -272,7 +270,13 @@ public sealed class ConvertWindow : Window
             catch(OperationCanceledException){}
             catch(Exception ex){if(IsVisible)validation.Text=ex.Message;}
             finally{_preparing=false;if(IsVisible){foreach(var control in new Control[]{top,toolbar,inputArea,output})control.IsEnabled=true;RefreshActions();}}
-        };buttons.Children.Add(ok);var footer=new Grid { ColumnDefinitions=new("*,Auto"),ColumnSpacing=8 };footer.Children.Add(validation);Grid.SetColumn(buttons,1);footer.Children.Add(buttons);Grid.SetRow(footer,optionRow+3);panel.Children.Add(footer);Content=panel;ToolExecution.Configure(this,ok,"开始处理",editing);
+        };
+        var shell = new TaskSubmissionShell
+        {
+            Content = panel, OutputContent = output, StatusContent = validation,
+            CancelAction = Ui.DialogButton("取消", () => Close(null)), PrimaryAction = ok
+        };
+        Content = shell; ToolExecution.Configure(this, shell, ok, editing);
         foreach(var entry in _entries)entry.PropertyChanged+=(_,_)=>RefreshActions();
         _entries.CollectionChanged+=(_,change)=>{foreach(var entry in change.NewItems?.OfType<ConversionEntry>()??[])entry.PropertyChanged+=(_,_)=>RefreshActions();RefreshActions();};list.SelectionChanged+=(_,_)=>RefreshActions();special.TextChanged+=(_,_)=>RefreshActions();if(discSource is not null)discSource.Changed+=RefreshActions;
         if(_imageCrop is not null)_imageCrop.Changed+=RefreshActions;

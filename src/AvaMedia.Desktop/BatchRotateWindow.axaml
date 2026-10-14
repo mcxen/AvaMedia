@@ -7,89 +7,98 @@
     <Style Selector="TextBlock.rotateValidation"><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
     <Style Selector="TextBlock.rotateValidation.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="{DynamicResource UiPagePadding}" RowSpacing="{DynamicResource AcRowGap}">
-    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-      <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…">
-        <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
-        <Button Classes="ac" x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
-        <CheckBox Classes="ac" x:Name="UncertainOnly" Content="只看待确认" IsCheckedChanged="UncertainFilterChanged"/>
-      </files:FileImportActions>
-    </Grid>
-    <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="{DynamicResource AcGap}">
-      <Border Classes="ac-card">
-        <Grid RowDefinitions="Auto,*">
-          <TextBlock x:Name="ListSummary" Text="尚未添加视频" Margin="12,8"/>
-          <ListBox Classes="ac surface" Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionMode="Multiple"
-                   SelectionChanged="FileSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                   AutomationProperties.Name="批量旋转视频列表">
-            <ListBox.ItemTemplate>
-              <DataTemplate DataType="local:BatchRotateEntry">
-                <Grid ColumnDefinitions="28,*" ColumnSpacing="6" Margin="0,6">
-                  <CheckBox Classes="ac" IsChecked="{Binding Include, Mode=TwoWay}" AutomationProperties.Name="是否旋转此视频"/>
-                  <StackPanel Grid.Column="1" Spacing="4">
-                    <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
-                    <TextBlock Text="{Binding Dimensions}" Classes="caption"/>
-                    <TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Grid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-          <ac:EmptyState Grid.Row="1" x:Name="EmptyFiles" Text="尚未添加视频" IsHitTestVisible="False"/>
-        </Grid>
-      </Border>
-      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="{DynamicResource AcGap}">
-          <Grid RowDefinitions="Auto,*" RowSpacing="{DynamicResource AcRowGap}">
-            <TextBlock Text="原画面" FontWeight="SemiBold"/>
-            <controls:MediaPreviewSurface Grid.Row="1" x:Name="SourcePane" UseAmbientLighting="False" ContentSize="{Binding #SourceImage.Source.Size}">
-              <Grid Background="{DynamicResource UiMediaSurface}"><Image x:Name="SourceImage" Stretch="Uniform"/></Grid>
-            </controls:MediaPreviewSurface>
-          </Grid>
-          <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="{DynamicResource AcRowGap}">
-            <TextBlock x:Name="ResultDescription" Text="旋转后" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-            <controls:MediaPreviewSurface Grid.Row="1" x:Name="ResultPane" UseAmbientLighting="False">
-              <Viewbox Stretch="Uniform">
-                <LayoutTransformControl x:Name="RotationTransform">
-                  <Image x:Name="ResultImage" Stretch="Fill"/>
-                </LayoutTransformControl>
-              </Viewbox>
-            </controls:MediaPreviewSurface>
-          </Grid>
-          <TextBlock x:Name="PreviewStatus" Grid.ColumnSpan="2" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"
-                     Background="{DynamicResource UiMediaOverlay}" TextWrapping="Wrap" Padding="16" Margin="16,38,16,16"
-                     HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
-        </Grid>
-        <Slider Classes="ac" Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="旋转预览时间"/>
-        <TextBlock Grid.Row="2" x:Name="PreviewName" Classes="caption"  TextTrimming="CharacterEllipsis"/>
+  <ac:TaskSubmissionShell x:Name="SubmissionShell">
+    <ac:TaskSubmissionShell.OutputContent>
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="160,*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="6">
+        <ComboBox Classes="ac" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="旋转输出格式" HorizontalAlignment="Stretch"/>
+        <TextBox Classes="ac" IsReadOnly="True" Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="批量旋转输出文件夹"/>
+        <Button Grid.Column="2" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
+        <CheckBox Classes="ac" Grid.Column="3" x:Name="SourceOutputInput" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
+        <CheckBox Classes="ac" Grid.Column="4" x:Name="SettingNameInput" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="5" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
       </Grid>
-    </Grid>
-    <Border Classes="ac-card" Grid.Row="2">
-      <StackPanel Spacing="{DynamicResource AcRowGap}">
-        <WrapPanel Orientation="Horizontal">
-          <TextBlock Text="处理方式" VerticalAlignment="Center" Margin="0,0,8,0"/>
-          <ComboBox Classes="ac" x:Name="ModeCombo" Width="140" SelectionChanged="ModeChanged" Margin="0,0,16,0" AutomationProperties.Name="旋转处理方式"/>
-          <TextBlock x:Name="DirectionLabel" Text="旋转方向" VerticalAlignment="Center" Margin="0,0,8,0"/>
-          <ComboBox Classes="ac" x:Name="DirectionCombo" Width="170" PlaceholderText="请选择方向" SelectionChanged="DirectionChanged" Margin="0,0,16,0" AutomationProperties.Name="批量旋转方向"/>
-          <Button Classes="ac" x:Name="DetectButton" Content="自动转正" Click="DetectClick" Margin="0,0,8,0" AutomationProperties.Name="自动检测勾选视频的方向"/>
-          <Button Classes="ac" x:Name="PauseDetectButton" Content="暂停任务" Click="PauseDetectionClick" IsVisible="False" Margin="0,0,8,0"/>
-          <Button Classes="ac" x:Name="CancelDetectionButton" Content="停止检测" Click="CancelDetectionClick" IsVisible="False"/>
-        </WrapPanel>
-        <TextBlock x:Name="DetectionStatus" Classes="caption" Text="尚未检测方向" TextWrapping="Wrap"/>
-      </StackPanel>
-    </Border>
-    <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="160,*,Auto,Auto,Auto" ColumnSpacing="{DynamicResource AcRowGap}" RowSpacing="6">
-      <ComboBox Classes="ac" x:Name="FormatCombo" SelectionChanged="FormatChanged" AutomationProperties.Name="旋转输出格式" HorizontalAlignment="Stretch"/>
-      <TextBox Classes="ac" IsReadOnly="True" Grid.Column="1" x:Name="OutputInput" AutomationProperties.Name="批量旋转输出文件夹"/>
-      <Button Grid.Column="2" x:Name="BrowseOutputButton" Content="浏览…" Click="BrowseClick" Classes="ac field-action"/>
-      <CheckBox Classes="ac" Grid.Column="3" x:Name="SourceOutputInput" Content="源目录" ToolTip.Tip="输出至源文件目录" VerticalAlignment="Center"/>
-      <CheckBox Classes="ac" Grid.Column="4" x:Name="SettingNameInput" Content="设置名称" ToolTip.Tip="添加设置名称" VerticalAlignment="Center"/>
-      <TextBlock Grid.Row="1" Grid.ColumnSpan="5" x:Name="ExportHint" Classes="caption" TextWrapping="Wrap"/>
-    </Grid>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="{DynamicResource AcGap}">
+    </ac:TaskSubmissionShell.OutputContent>
+    <ac:TaskSubmissionShell.StatusContent>
       <TextBlock x:Name="ValidationText" i18n:StableLayout.StatusLines="2" Classes="rotateValidation" TextWrapping="Wrap" VerticalAlignment="Center"/>
-      <Button Grid.Column="1" Content="取消" Click="CancelClick" IsCancel="True" Classes="ac dialog-action"/>
-      <Button Grid.Column="2" x:Name="OkButton" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="ac primary dialog-action" IsEnabled="False"/>
+    </ac:TaskSubmissionShell.StatusContent>
+    <ac:TaskSubmissionShell.CancelAction>
+      <Button Content="取消" Click="CancelClick" IsCancel="True" Classes="ac dialog-action"/>
+    </ac:TaskSubmissionShell.CancelAction>
+    <ac:TaskSubmissionShell.PrimaryAction>
+      <Button x:Name="OkButton" Content="加入队列" Click="ConfirmClick" IsDefault="True" Classes="ac primary dialog-action" IsEnabled="False"/>
+    </ac:TaskSubmissionShell.PrimaryAction>
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="{DynamicResource AcRowGap}">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <files:FileImportActions x:Name="ImportPanel" FilesText="添加视频…">
+          <Button Classes="ac" x:Name="RemoveButton" Content="移除选中" Click="RemoveClick"/>
+          <Button Classes="ac" x:Name="SelectAllButton" Content="全选" Click="SelectAllClick"/>
+          <CheckBox Classes="ac" x:Name="UncertainOnly" Content="只看待确认" IsCheckedChanged="UncertainFilterChanged"/>
+        </files:FileImportActions>
+      </Grid>
+      <Grid Grid.Row="1" ColumnDefinitions="300,*" ColumnSpacing="{DynamicResource AcGap}">
+        <Border Classes="ac-card">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock x:Name="ListSummary" Text="尚未添加视频" Margin="12,8"/>
+            <ListBox Classes="ac surface" Grid.Row="1" x:Name="FileList" Background="Transparent" BorderThickness="0" SelectionMode="Multiple"
+                     SelectionChanged="FileSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     AutomationProperties.Name="批量旋转视频列表">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="local:BatchRotateEntry">
+                  <Grid ColumnDefinitions="28,*" ColumnSpacing="6" Margin="0,6">
+                    <CheckBox Classes="ac" IsChecked="{Binding Include, Mode=TwoWay}" AutomationProperties.Name="是否旋转此视频"/>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                      <TextBlock i18n:Localization.IsUserText="True" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                      <TextBlock Text="{Binding Dimensions}" Classes="caption"/>
+                      <TextBlock Text="{Binding Status}" FontSize="{DynamicResource UiFontCaption}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <ac:EmptyState Grid.Row="1" x:Name="EmptyFiles" Text="尚未添加视频" IsHitTestVisible="False"/>
+          </Grid>
+        </Border>
+        <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="{DynamicResource AcRowGap}">
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="{DynamicResource AcGap}">
+            <Grid RowDefinitions="Auto,*" RowSpacing="{DynamicResource AcRowGap}">
+              <TextBlock Text="原画面" FontWeight="SemiBold"/>
+              <controls:MediaPreviewSurface Grid.Row="1" x:Name="SourcePane" UseAmbientLighting="False" ContentSize="{Binding #SourceImage.Source.Size}">
+                <Grid Background="{DynamicResource UiMediaSurface}"><Image x:Name="SourceImage" Stretch="Uniform"/></Grid>
+              </controls:MediaPreviewSurface>
+            </Grid>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="{DynamicResource AcRowGap}">
+              <TextBlock x:Name="ResultDescription" Text="旋转后" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+              <controls:MediaPreviewSurface Grid.Row="1" x:Name="ResultPane" UseAmbientLighting="False">
+                <Viewbox Stretch="Uniform">
+                  <LayoutTransformControl x:Name="RotationTransform">
+                    <Image x:Name="ResultImage" Stretch="Fill"/>
+                  </LayoutTransformControl>
+                </Viewbox>
+              </controls:MediaPreviewSurface>
+            </Grid>
+            <TextBlock x:Name="PreviewStatus" Grid.ColumnSpan="2" Text="尚未选择视频" Foreground="{DynamicResource UiMediaText}"
+                       Background="{DynamicResource UiMediaOverlay}" TextWrapping="Wrap" Padding="16" Margin="16,38,16,16"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          </Grid>
+          <Slider Classes="ac" Grid.Row="1" x:Name="PreviewSeek" Minimum="0" Maximum="1" Value="0" IsEnabled="False" AutomationProperties.Name="旋转预览时间"/>
+          <TextBlock Grid.Row="2" x:Name="PreviewName" Classes="caption"  TextTrimming="CharacterEllipsis"/>
+        </Grid>
+      </Grid>
+      <Border Classes="ac-card" Grid.Row="2">
+        <StackPanel Spacing="{DynamicResource AcRowGap}">
+          <WrapPanel Orientation="Horizontal">
+            <TextBlock Text="处理方式" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox Classes="ac" x:Name="ModeCombo" Width="140" SelectionChanged="ModeChanged" Margin="0,0,16,0" AutomationProperties.Name="旋转处理方式"/>
+            <TextBlock x:Name="DirectionLabel" Text="旋转方向" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox Classes="ac" x:Name="DirectionCombo" Width="170" PlaceholderText="请选择方向" SelectionChanged="DirectionChanged" Margin="0,0,16,0" AutomationProperties.Name="批量旋转方向"/>
+            <Button Classes="ac" x:Name="DetectButton" Content="自动转正" Click="DetectClick" Margin="0,0,8,0" AutomationProperties.Name="自动检测勾选视频的方向"/>
+            <Button Classes="ac" x:Name="PauseDetectButton" Content="暂停任务" Click="PauseDetectionClick" IsVisible="False" Margin="0,0,8,0"/>
+            <Button Classes="ac" x:Name="CancelDetectionButton" Content="停止检测" Click="CancelDetectionClick" IsVisible="False"/>
+          </WrapPanel>
+          <TextBlock x:Name="DetectionStatus" Classes="caption" Text="尚未检测方向" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
     </Grid>
-  </Grid>
+  </ac:TaskSubmissionShell>
 </Window>

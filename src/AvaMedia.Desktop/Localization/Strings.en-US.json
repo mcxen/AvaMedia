@@ -2581,6 +2581,8 @@
   "此 Dolby Vision 视频需要使用原生 GPU / HDR 播放。": "This Dolby Vision video requires native GPU / HDR playback.",
   "原生播放进程退出，代码 {0}。": "Native player exited with code {0}.",
   "开始任务": "Start task",
+  "立即开始": "Start now",
+  "任务执行方式": "Task execution mode",
   "继续任务": "Resume task",
   "继续任务（重新执行）": "Resume task (restart processing)",
   "暂停排队": "Pause queueing",

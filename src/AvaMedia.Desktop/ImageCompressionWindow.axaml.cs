@@ -61,8 +61,8 @@ public sealed partial class ImageCompressionWindow : Window
         FileList.ItemsSource = _entries;
         OutputInput.Text = outputFolder;
         SourceFolderInput.IsChecked = !editing && engine.Settings.OutputToSource;
-        StartInput.IsChecked = !editing;
-        if (editing) { Title = "编辑图片压缩任务"; ConfirmButton.Content = "保存修改"; StartInput.IsVisible = false; }
+        ToolExecution.Configure(this, SubmissionShell, ConfirmButton, editing);
+        if (editing) { Title = "编辑图片压缩任务"; ConfirmButton.Content = "保存修改"; }
         if (initialOptions is { } options) SetOptions(options);
         foreach (var check in new[] { LosslessInput, ResizeInput }) check.IsCheckedChanged += (_, _) => ParametersChanged(null, null!);
         SourceFolderInput.IsCheckedChanged += (_, _) => RefreshControls();
@@ -333,7 +333,7 @@ public sealed partial class ImageCompressionWindow : Window
         if (!await task || _closed) return;
         var inputs = _entries.Where(entry => entry.Include && entry.Result?.IsSmaller == true && entry.Error is null).Select(entry => entry.Path).ToArray();
         if (inputs.Length == 0) { StatusText.Text = Localization.Text("没有体积减小的图片"); return; }
-        try { ToolExecution.Complete(this, new ImageCompressionRequest(inputs, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true, StartInput.IsChecked == true)); }
+        try { ToolExecution.Complete(this, new ImageCompressionRequest(inputs, ReadOptions(), OutputInput.Text?.Trim() ?? "", SourceFolderInput.IsChecked == true, ToolExecution.StartImmediately(this))); }
         catch (Exception ex) { StatusText.Text = ex.Message; }
     }
     private async Task PickFilesAsync()

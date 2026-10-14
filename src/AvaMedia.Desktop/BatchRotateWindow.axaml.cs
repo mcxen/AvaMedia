@@ -66,7 +66,7 @@ public sealed partial class BatchRotateWindow : Window
     {
         InitializeComponent();
         ImportPanel.AddFilesAsync = PickFilesAsync;
-        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message); ToolExecution.Configure(this,OkButton,"开始旋转"); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message); ToolExecution.Configure(this,SubmissionShell,OkButton); _engine = engine; _detector = detector ?? new VideoOrientationDetector(engine);
         _localQueue = new(new OrientationTaskService(engine, _detector));
         _submitDetection = submitDetection ?? ((jobs, startImmediately) => { if (_localQueue.IsRunning) _localQueue.Enqueue(jobs); else _ = _localQueue.Run(jobs); });
         _stopDetection = stopDetection ?? (job => _localQueue.Stop(job));

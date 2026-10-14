@@ -55,7 +55,7 @@ public partial class VideoCompressionWindow : Window
         InitializeComponent();
         ImportPanel.AddFilesAsync = PickFilesAsync;
         ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
-        ImportPanel.AddFoldersAsync = PickFolderAsync; ToolExecution.Configure(this,ConfirmButton,"开始压缩",editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
+        ImportPanel.AddFoldersAsync = PickFolderAsync; ToolExecution.Configure(this,SubmissionShell,ConfirmButton,editing); _engine = engine; WindowArtwork.SetKind(this, "gear");
         if (editing) { Title = "编辑视频压缩任务"; ConfirmButton.Content = "保存修改"; }
         _preview = new MediaPreviewPanel(engine); PreviewHost.Content = _preview;
         SourceList.ItemsSource = _entries;

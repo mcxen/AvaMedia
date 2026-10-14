@@ -42,6 +42,8 @@ DISPLAY=:11 AVAMEDIA_CHROME=mac XDG_DATA_HOME=/tmp/avademo/data   ~/.dotnet/dotn
 
 ## 公共宿主契约（UISPEC 7.9.8）
 
+- TaskSubmissionShell 复用普通任务表单的正文、输出和固定底栏。Content / OutputContent / StatusContent / CancelAction / PrimaryAction 由宿主提供；StartImmediately 为执行方式，IsEditing 隐藏执行方式。主操作不可用时选择同步禁用。容器不创建任务、不关闭窗口、不另绘标题栏。主题为 AcTaskSubmissionShell，边距与操作度量使用 AcTaskBodyPadding / AcTaskOutputPadding / AcTaskFooterPadding / AcTaskFooterLine / AcTaskActionMargin / AcTaskModeWidth，控件继续使用 AcButton / AcComboBox 及皮肤覆盖。
+
 - Card 默认 `AcCardRadius=12`、`AcCardPadding=16`；平台或窗口用资源覆盖，组件不带外边距。SectionHeader 通过 AcSectionFont / AcSectionMargin 提供标题层级。
 - Sheet 默认 `AcSheetFace`、`AcSheetRadius=16`、`AcSheetPadding=18,20,18,16`（左、上、右、下）。用于顶层窗口正文时加 `window` 类，去掉额外圆角 / 弹出阴影，只保留一层内边距；不要再包带 padding 的 Card。
 - 文本框禁用 `AcFieldDisabledOpacity=0.45`，按钮等仍用 `AcDisabledOpacity=0.4`；多行最小高度 AcMultilineHeight，错误说明间距 AcFieldErrorMargin。

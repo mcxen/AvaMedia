@@ -51,7 +51,7 @@ public sealed partial class BatchCropWindow : Window
     {
         InitializeComponent();
         ImportPanel.AddFilesAsync = PickFilesAsync;
-        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message); ToolExecution.Configure(this,OkButton,"开始裁剪"); _engine = engine;
+        ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message); ToolExecution.Configure(this,SubmissionShell,OkButton); _engine = engine;
         FileList.ItemsSource = _entries;
         ModeCombo.ItemsSource = new[] { PixelMode, RelativeMode }; ModeCombo.SelectedIndex = 0;
         CropRatio.ItemsSource = new[] { "自由选区", "原画面比例", "16:9", "4:3", "1:1", "9:16" }; CropRatio.SelectedIndex = 0;

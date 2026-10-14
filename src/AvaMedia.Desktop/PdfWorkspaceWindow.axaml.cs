@@ -83,7 +83,7 @@ public partial class PdfWorkspaceWindow : Window
         _feature = feature; _engine = engine ?? new MediaEngine(new()); InitializeComponent();
         ImportPanel.AddFilesAsync = PickFilesAsync;
         ImportPanel.ReportErrorAsync = error => Ui.Message(this, "导入失败", error.Message);
-        ToolExecution.Configure(this, ConfirmButton, "开始处理", editing);
+        ToolExecution.Configure(this, SubmissionShell, ConfirmButton, editing);
         Title = feature.Label; OutputFolder.Text = outputFolder;
         if (editing) { Title = Localization.Format($"编辑任务 · {Localization.Key(feature.Label)}"); ConfirmButton.Content = "保存修改"; }
         WindowArtwork.SetKind(this, feature.Icon);
