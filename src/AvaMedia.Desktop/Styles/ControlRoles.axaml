@@ -6,7 +6,8 @@
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac)">
     <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
     <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/>
   </Style>
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac):not(:disabled):pointerover /template/ ContentPresenter#PART_ContentPresenter:not(.ac-content)">
     <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/>

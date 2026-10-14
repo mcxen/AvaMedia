@@ -25,6 +25,8 @@
     <SolidColorBrush x:Key="RowHover" Color="#F7F8FA"/>
     <SolidColorBrush x:Key="NavigationSelected" Color="#E8E8ED"/>
     <SolidColorBrush x:Key="FieldBorder" Color="#C7C7CC"/>
+    <SolidColorBrush x:Key="ButtonBorder" Color="#C7C7CC"/>
+    <SolidColorBrush x:Key="PrimaryBorder" Color="#005FCC"/>
     <SolidColorBrush x:Key="Green" Color="#34C759"/>
     <SolidColorBrush x:Key="Orange" Color="#FF9500"/>
     <SolidColorBrush x:Key="BlueSoft" Color="#EEF5FF"/>
@@ -48,7 +50,8 @@
   <Style Selector="Button">
     <Setter Property="Background" Value="{DynamicResource Fill}"/>
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="999"/>
     <Setter Property="Padding" Value="12,5"/>
     <Setter Property="MinHeight" Value="28"/>
@@ -75,38 +78,38 @@
   <Style Selector="Button:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource FillHover}"/></Style>
   <Style Selector="Button:pressed /template/ Border#face"><Setter Property="Opacity" Value="0.8"/></Style>
   <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
-  <Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="Button.primary TextBlock, Button.selected TextBlock, Button.link TextBlock, Button.danger TextBlock">
     <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/>
   </Style>
   <Style Selector="Button.primary:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource BlueHover}"/></Style>
   <Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="14.5"/><Setter Property="MinHeight" Value="40"/></Style>
-  <Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/></Style>
+  <Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/><Setter Property="BorderBrush" Value="{DynamicResource Red}"/><Setter Property="BorderThickness" Value="1"/></Style>
   <Style Selector="Button.danger:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource RedSoftHover}"/></Style>
-  <Style Selector="Button.outline"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/><Setter Property="BorderThickness" Value="1"/></Style>
+  <Style Selector="Button.outline"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource ButtonBorder}"/><Setter Property="BorderThickness" Value="1"/></Style>
   <Style Selector="Button.outline:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource SurfaceHover}"/></Style>
-  <Style Selector="Button.plain"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="6,4"/></Style>
+  <Style Selector="Button.plain"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="6,4"/></Style>
   <Style Selector="Button.plain:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource Fill}"/></Style>
-  <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="Button.link:pointerover /template/ Border#face"><Setter Property="Background" Value="Transparent"/></Style>
   <Style Selector="Button.icon"><Setter Property="Padding" Value="0"/><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="0"/></Style>
   <Style Selector="Button.chip"><Setter Property="Padding" Value="10,4"/><Setter Property="MinHeight" Value="26"/><Setter Property="FontSize" Value="12.5"/></Style>
-  <Style Selector="Button.selected"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+  <Style Selector="Button.selected"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryBorder}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="Button.selected:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource BlueHover}"/></Style>
-  <Style Selector="Button.segment"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="12,6"/><Setter Property="FontSize" Value="13"/></Style>
+  <Style Selector="Button.segment"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="12,6"/><Setter Property="FontSize" Value="13"/></Style>
   <Style Selector="Button.segment.active"><Setter Property="Background" Value="{DynamicResource SegmentFill}"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="Button.segment.active:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource SegmentHover}"/></Style>
-  <Style Selector="Button.segmentLight"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="12,5"/><Setter Property="CornerRadius" Value="7"/></Style>
+  <Style Selector="Button.segmentLight"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="12,5"/><Setter Property="CornerRadius" Value="7"/></Style>
   <Style Selector="Button.segmentLight.active"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
   <Style Selector="Button.segmentLight.active /template/ Border#face"><Setter Property="BoxShadow" Value="{DynamicResource SegmentShadow}"/></Style>
   <Style Selector="Button.segmentLight.active:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource Surface}"/></Style>
-  <Style Selector="Button.row"><Setter Property="Background" Value="Transparent"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/>
+  <Style Selector="Button.row"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
   <Style Selector="Button.row:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource RowHover}"/></Style>
   <Style Selector="Button.row.selected"><Setter Property="Background" Value="{DynamicResource Surface}"/><Setter Property="CornerRadius" Value="8"/></Style>
   <Style Selector="Button.row.selected /template/ Border#face"><Setter Property="BoxShadow" Value="{DynamicResource RowShadow}"/></Style>
   <Style Selector="Button.row.selected:pointerover /template/ Border#face"><Setter Property="Background" Value="{DynamicResource Surface}"/></Style>
-  <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="8,5"/>
+  <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="8,5"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
   <Style Selector="Button.nav.active"><Setter Property="Background" Value="{DynamicResource NavigationSelected}"/></Style>
 

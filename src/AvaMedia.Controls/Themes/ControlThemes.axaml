@@ -4,8 +4,8 @@
     <Setter Property="UseLayoutRounding" Value="False"/>
     <Setter Property="Background" Value="{DynamicResource UiFill}"/>
     <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/>
-    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcButtonBorder}"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource AcButtonRadius}"/>
     <Setter Property="Height" Value="{DynamicResource AcButtonHeight}"/>
     <Setter Property="MinHeight" Value="0"/>
@@ -16,84 +16,113 @@
     <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Template"><ControlTemplate><Border ac:SurfaceContentClip.IsEnabled="True" Name="face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"><ContentPresenter Classes="ac-content" Name="PART_ContentPresenter" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/></Border></ControlTemplate></Setter>
     <Style Selector="^:pointerover">
-    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.ac-hover">
-    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^:pressed">
-    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.ac-pressed">
-    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.primary">
     <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
 
     <Style Selector="^.primary:pointerover">
-    <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
 
     <Style Selector="^.primary.ac-hover">
-    <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
 
     <Style Selector="^.primary:pressed">
-    <Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
 
     <Style Selector="^.primary.ac-pressed">
-    <Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
 
     <Style Selector="^.secondary">
     <Setter Property="Background" Value="{DynamicResource UiFill}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcButtonBorder}"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/></Style>
 
     <Style Selector="^.secondary:pointerover">
-    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.secondary.ac-hover">
-    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.secondary:pressed">
-    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.secondary.ac-pressed">
-    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcFillPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AcFieldHoverBorder}"/></Style>
 
     <Style Selector="^.danger">
     <Setter Property="Background" Value="{DynamicResource AcDangerSoft}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiDanger}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/></Style>
 
     <Style Selector="^.danger:pointerover">
-    <Setter Property="Background" Value="{DynamicResource AcDangerHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDangerHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
 
     <Style Selector="^.danger.ac-hover">
-    <Setter Property="Background" Value="{DynamicResource AcDangerHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDangerHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
 
     <Style Selector="^.danger:pressed">
-    <Setter Property="Background" Value="{DynamicResource AcDangerPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDangerPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
 
     <Style Selector="^.danger.ac-pressed">
-    <Setter Property="Background" Value="{DynamicResource AcDangerPressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDangerPressed}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
 
     <Style Selector="^.destructive">
     <Setter Property="Background" Value="{DynamicResource AcDangerSoft}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiDanger}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.destructive:pointerover">
-    <Setter Property="Background" Value="{DynamicResource AcDestructiveHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDestructiveHover}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.destructive.ac-hover">
-    <Setter Property="Background" Value="{DynamicResource AcDestructiveHover}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDestructiveHover}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.destructive:pressed">
-    <Setter Property="Background" Value="{DynamicResource AcDestructivePressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDestructivePressed}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.destructive.ac-pressed">
-    <Setter Property="Background" Value="{DynamicResource AcDestructivePressed}"/></Style>
+    <Setter Property="Background" Value="{DynamicResource AcDestructivePressed}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.borderless">
     <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.borderless:pointerover">
     <Setter Property="Background" Value="{DynamicResource AcSelection}"/></Style>
@@ -109,7 +138,9 @@
 
     <Style Selector="^.link">
     <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.link:pointerover">
     <Setter Property="Background" Value="{DynamicResource AcSelection}"/></Style>
@@ -125,7 +156,9 @@
 
     <Style Selector="^.ghost">
     <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>
-    <Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+    <Setter Property="Foreground" Value="{DynamicResource UiText}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/>
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.ghost:pointerover">
     <Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
@@ -139,9 +172,8 @@
     <Style Selector="^.ghost.ac-pressed">
     <Setter Property="Background" Value="{DynamicResource AcFillHover}"/></Style>
 
-    <Style Selector="^.danger">
-    <Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/>
-    <Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/></Style>
+    <Style Selector="^.ghost:pointerover, ^.ghost.ac-hover, ^.ghost:pressed, ^.ghost.ac-pressed, ^.borderless:pointerover, ^.borderless.ac-hover, ^.borderless:pressed, ^.borderless.ac-pressed, ^.link:pointerover, ^.link.ac-hover, ^.link:pressed, ^.link.ac-pressed">
+    <Setter Property="BorderThickness" Value="0"/></Style>
 
     <Style Selector="^.primary /template/ Border#face">
     <Setter Property="BoxShadow" Value="{DynamicResource AcButtonShadow}"/></Style>
@@ -697,9 +729,10 @@
   <converters:MarginMultiplierConverter x:Key="AcTreeIndentConverter" Indent="16" Left="True"/>
   <!-- Public themes extend the host's Simple behaviors without replacing type keys. -->
   <ControlTheme x:Key="AcToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource AcButton}">
-    <Style Selector="^:checked, ^:indeterminate"><Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/></Style>
-    <Style Selector="^:checked:pointerover, ^:indeterminate:pointerover, ^:checked.ac-hover, ^:indeterminate.ac-hover"><Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/></Style>
-    <Style Selector="^:checked:pressed, ^:indeterminate:pressed, ^:checked.ac-pressed, ^:indeterminate.ac-pressed"><Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/></Style>
+    <Style Selector="^:checked, ^:indeterminate"><Setter Property="Background" Value="{DynamicResource UiAccent}"/><Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/><Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/><Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/></Style>
+    <Style Selector="^:checked:pointerover, ^:indeterminate:pointerover, ^:checked.ac-hover, ^:indeterminate.ac-hover"><Setter Property="Background" Value="{DynamicResource UiPrimaryHover}"/><Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
+    <Style Selector="^:checked:pressed, ^:indeterminate:pressed, ^:checked.ac-pressed, ^:indeterminate.ac-pressed"><Setter Property="Background" Value="{DynamicResource UiPrimaryPressed}"/><Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/></Style>
+    <Style Selector="^.borderless, ^.ghost, ^.link, ^.destructive"><Setter Property="BorderThickness" Value="0"/><Setter Property="BorderBrush" Value="{DynamicResource UiTransparent}"/></Style>
   </ControlTheme>
   <ControlTheme x:Key="AcDisclosureToggle" TargetType="ToggleButton">
     <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>

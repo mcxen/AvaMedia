@@ -214,7 +214,9 @@ internal sealed class ClassificationPage : UserControl
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         if (icon is not null) content.Children.Add(Ui.Icon(icon, 14, fg));
         var label = Ui.Text(L.T(text)); label.Foreground = fg; label.FontSize = 12.5; content.Children.Add(label);
-        var button = new Button { Content = content, Background = primary ? Palette.Blue : Palette.Fill, CornerRadius = new(15), Padding = new(14, 6), BorderThickness = new(0) };
+        var button = new Button { Content = content, CornerRadius = new(15), Padding = new(14, 6) };
+        if (primary) button.Classes.Add("primary");
+        else if (danger) button.Classes.Add("danger");
         button.Click += async (_, _) => { try { await click(); } catch (Exception) { } };
         return button;
     }

@@ -24,7 +24,7 @@
 
 规格源为评审目录的 `components.html` / `components-dark.html`，12 类包括按钮、下拉、选择与开关、数值、文本、滑块、进度、分段、状态、表面与列表、浮层与通知、空状态与滚动条。新增 `LoadingSpinner`、`ProgressRing`、`RangeSlider`、`SplitButton`、`CountBadge`、`Notice`；菜单具名主题为 `AcMenuItem` / `AcContextMenu`。按钮还支持 `destructive`（浅红无描边）、`icon`、`ghost`、`small`、`large`、`shell`。字段支持 `error` 和原生验证错误，TextBox 的 `AcceptsReturn` 自动启用多行规格。
 
-`ac-hover`、`ac-pressed`、`ac-focus` 为预览确定状态，与真实伪类使用相同资源。阶段卡片默认有 0.5px 细边；分类专用布局用 `ShowIdleBorder=false`。范围滑块两个端点可拖动，也可用方向键、Home/End 调整。
+`ac-hover`、`ac-pressed`、`ac-focus` 为预览确定状态，与真实伪类使用相同资源。默认、`secondary`、`icon` 与 `primary` 使用 1px 描边（`AcButtonBorder`，主按钮为 `UiPrimaryPressed`）；`destructive` 为浅红无描边，`ghost` / `borderless` / `link` 也不描边。阶段卡片默认有 0.5px 细边；分类专用布局用 `ShowIdleBorder=false`。范围滑块两个端点可拖动，也可用方向键、Home/End 调整。
 
 仓库中的交互预览（可切换浅色/深色）：
 

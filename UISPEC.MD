@@ -386,8 +386,9 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ### 7.1 按钮
 
-- **胶囊按钮**：默认浅灰填充、深色文字，可带 14 px Lucide 图标。
-- `primary`：系统蓝底白字，每个区域最多一个；放在底部操作栏右侧（如“创建任务”）。
+- **胶囊按钮**：默认浅灰填充、深色文字、1 px 描边，可带 14 px Lucide 图标。
+- `primary`：系统蓝底白字，边框用更深的 `UiPrimaryPressed`，每个区域最多一个；放在底部操作栏右侧（如“创建任务”）。
+- 描边：默认、`secondary`、`icon`、`shell` 和窗口里的 `tool` 使用 `AcButtonBorder`（浅色 `#C7C7CC`，深色 `#8E8E93`），厚度 `AcOutlineThickness`（1）。`danger` 使用 `UiDanger`。`destructive`、`ghost`、`borderless`、`link` 不描边。主窗口胶囊组用 1 px `ShellDash`，组内 `Button.cap` 不再单独描边。窗口标题、传输、工具树、列表行、封面和色板保持无边框。网页默认、主按钮、危险和轮廓按钮同样使用 1 px 描边；`plain`、`link`、分段、行和导航不描边。
 - 桌面 large 使用 `AcLargeHeight=36`（平台覆盖见 5.1）；shell 使用 `AcShellButtonHeight`，dialog-action 使用规范角色令牌。网页 / 手机 `Button.large` 的 40 是专项值。
 - `danger`：红字（网页为红字 + 浅红底 `#FFECEB`）；`link`：无底色蓝字。
 - **图标按钮**：只有图标时必须有 ToolTip 和无障碍名称。
@@ -400,10 +401,11 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ```xml
 <!-- Classic skins express the primary action through their native default face. -->
-<Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary">
+<Style Selector="Window:not(.mac-os9):not(.windows-xp) Button.primary:not(.ac)">
   <Setter Property="Background" Value="{DynamicResource UiAccent}"/>
   <Setter Property="Foreground" Value="{DynamicResource UiAccentText}"/>
-  <Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource UiPrimaryPressed}"/>
+  <Setter Property="BorderThickness" Value="{DynamicResource AcOutlineThickness}"/>
 </Style>
 ```
 
@@ -420,10 +422,12 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ```xml
 <Setter Property="CornerRadius" Value="999"/>
-<Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Setter Property="BorderBrush" Value="{DynamicResource ButtonBorder}"/>
+<Setter Property="BorderThickness" Value="1"/>
+<Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Blue}"/><Setter Property="Foreground" Value="{DynamicResource Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryBorder}"/><Setter Property="FontWeight" Value="Bold"/></Style>
 <Style Selector="Button.large"><Setter Property="Padding" Value="20,9"/><Setter Property="FontSize" Value="15"/><Setter Property="MinHeight" Value="40"/></Style>
-<Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/></Style>
-<Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
+<Style Selector="Button.danger"><Setter Property="Foreground" Value="{DynamicResource Red}"/><Setter Property="Background" Value="{DynamicResource RedSoft}"/><Setter Property="BorderBrush" Value="{DynamicResource Red}"/><Setter Property="BorderThickness" Value="1"/></Style>
+<Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Blue}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="4,2"/><Setter Property="FontWeight" Value="Bold"/></Style>
 <Style Selector="Button.icon"><Setter Property="Padding" Value="0"/><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="0"/></Style>
 ```
 
@@ -613,7 +617,7 @@ var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, H
 
 | demo 类别 | 主题键 / 类名 / 类型 | 尺寸与状态规格 | 主题资源 |
 | --- | --- | --- | --- |
-| 01 按钮 | `AcButton`；`Button.ac.primary/secondary/borderless/danger/destructive/icon/ghost`；`SplitButton` | 常规高 28、圆角 14、内边距 14,0、字 13 Medium；主窗口 30；small 高 22、10,0、字 12；large 高 36、20,0、字 14；图标 28×28；拆分箭头区 8,0、分隔 0.5 | `UiAccent/UiAccentText/UiPrimaryHover/UiPrimaryPressed`；`UiFill/AcFillHover/AcFillPressed`；危险 `AcDangerSoft/AcDangerHover/AcDangerPressed/UiDanger`；无边框 `AcSelection/AcSelectionPressed`；焦点 `AcFocusShadow` 外环 3；禁用 `AcDisabledOpacity` 0.4 |
+| 01 按钮 | `AcButton`；`Button.ac.primary/secondary/borderless/danger/destructive/icon/ghost`；`SplitButton` | 常规高 28、圆角 14、内边距 14,0、字 13 Medium、描边 1；主窗口 30；small 高 22、10,0、字 12；large 高 36、20,0、字 14；图标 28×28；拆分箭头区 8,0、分隔 0.5 | `UiAccent/UiAccentText/UiPrimaryHover/UiPrimaryPressed`；`UiFill/AcFillHover/AcFillPressed`；描边 `AcButtonBorder`，主按钮 `UiPrimaryPressed`；危险 `AcDangerSoft/AcDangerHover/AcDangerPressed/UiDanger`；`destructive/ghost/borderless/link` 无描边，反馈 `AcSelection/AcSelectionPressed`；焦点 `AcFocusShadow` 外环 3；禁用 `AcDisabledOpacity` 0.4 |
 | 02 下拉与可编辑组合框 | `AcComboBox`、`AcComboBoxItem`；`ComboBox.ac`，`.pulldown`；`AcMenuItem`、`ContextMenu.ac` | 高 24、圆角 6、内边距 10,0,4,0；双箭头蓝块 16×16、圆角 4；编辑箭头区宽 20；菜单圆角 10、内边距 5；行高 24、圆角 5、勾选列 14、分隔 0.5（缩进 10） | `AcField/AcPopupFace/AcHairline/AcMenuFill/AcPopupShadow`；高亮 `UiAccent/UiAccentText`；禁用 `AcTextTertiary`；聚焦外环，编辑输入保留 |
 | 03 复选、单选、开关 | `AcCheckBox/AcRadioButton/AcToggleSwitch`；`.ac`、`.error`、开关 `.small` | 选择框 14×14、圆角 3.5（单选圆形）、标签间距 7；单选中心点 6；开关 38×22、圆角 11、白旋钮 18、按下加宽 4；small 26×15、旋钮 13；支持混合、选中悬停/按下、焦点、错误、禁用 | `AcField/AcChoiceBorder/UiAccent/UiAccentText`；开 `UiSuccessFill`、关 `UiTrack`；旋钮 `AcKnob/AcKnobShadow`；焦点 `AcFocusShadow` |
 | 04 数值步进器 | `AcNumericUpDown/AcButtonSpinner`；`NumericUpDown.ac` | 字段高 24、默认宽 72、圆角 6、右对齐数字 13；独立步进区 15×22、圆角 5、两段各 11；间距 4；单位字 12；错误 1px 红边与 3px 外晕、消息字 11 | `AcField/AcHairline/AcPopupFace/AcFillPressed`；`UiNumericFont` 数字；`AcErrorShadow/UiDanger` |

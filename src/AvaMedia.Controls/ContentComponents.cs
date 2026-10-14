@@ -36,7 +36,7 @@ public sealed class SplitButton : Border
     }
     public void SetPrimary(bool primary)
     {
-        ActionButton.Classes.Set("primary", primary); MenuButton.Classes.Set("primary", primary);
+        ActionButton.Classes.Set("primary", primary); MenuButton.Classes.Set("primary", primary); Classes.Set("primary", primary);
     }
 }
 

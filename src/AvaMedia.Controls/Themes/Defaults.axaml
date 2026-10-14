@@ -121,6 +121,7 @@
       <SolidColorBrush x:Key="UiCanvas" Color="#F2F3F7"/>
       <SolidColorBrush x:Key="UiTrack" Color="#E5E5EA"/>
       <SolidColorBrush x:Key="UiBorder" Color="#C7C7CC"/>
+      <SolidColorBrush x:Key="AcButtonBorder" Color="#C7C7CC"/>
       <SolidColorBrush x:Key="UiAccent" Color="#007AFF"/>
       <SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="UiAccentSoft" Color="#EAF3FF"/>
@@ -188,6 +189,7 @@
       <SolidColorBrush x:Key="UiCanvas" Color="#1C1C1E"/>
       <SolidColorBrush x:Key="UiTrack" Color="#24FFFFFF"/>
       <SolidColorBrush x:Key="UiBorder" Color="#636366"/>
+      <SolidColorBrush x:Key="AcButtonBorder" Color="#8E8E93"/>
       <SolidColorBrush x:Key="UiAccent" Color="#0A84FF"/>
       <SolidColorBrush x:Key="UiAccentText" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="UiAccentSoft" Color="#2E0A84FF"/>
