@@ -18,9 +18,11 @@
 
 创建返回 durable task ID。状态为 Waiting / Running / Paused / Stopping / Completed / Failed / Cancelled。`startImmediately=false` 只加入队列；`control_task(action=start)` 启动。运行中的暂停在安全检查点生效；停止后可能存在部分结果。移除会删除队列记录和任务元数据，保留媒体输出。下载模型也用队列 ID；查询结果含安装目录。
 
-已通过桌面内部流程解锁的工作区还会注册 `avamedia_preview_vl_rename` 和 `avamedia_undo_vl_rename`；以实时工具列表为准。前者提交后台分析并立即返回持久任务 ID，使用 get/wait_task 读取全部结果分页；local 使用本地 VL，online 使用配置供应商，rules 仅解析名称。可用 providerId/model 显式选择本次供应商和模型，不改全局默认。分析不改名，关闭界面或断开连接不取消；检查或编辑返回的 Plan 后交给 `avamedia_apply_rename` 并等待队列完成。撤销传这次改名的 `taskId`，复用原事务日志；响应丢失后重用同一 ID，`alreadyUndone=true` 表示没有再次修改文件。未解锁工作区不提供这些内部接口，也不提供 MCP 激活流程。
+已激活的工作区还会注册 `avamedia_preview_vl_rename` 和 `avamedia_undo_vl_rename`；以实时工具列表为准。前者提交后台分析并立即返回持久任务 ID，使用 get/wait_task 读取全部结果分页；local 使用本地 VL，online 使用配置供应商，rules 仅解析名称。可用 providerId/model 显式选择本次供应商和模型，不改全局默认。分析不改名，关闭界面或断开连接不取消；检查或编辑返回的 Plan 后交给 `avamedia_apply_rename` 并等待队列完成。撤销传这次改名的 `taskId`，复用原事务日志；响应丢失后重用同一 ID，`alreadyUndone=true` 表示没有再次修改文件。未激活工作区不提供这些内部工具；用户明确要求激活且提供口令时，可用 update_settings 的 exclusiveToolUnlocked 和只写 activationKey，校验与桌面相同，随后重新发现工具。不要猜测口令或自动改变激活状态。
 
 ## 原生选项与模型配置
+
+用 `settings_catalog` 遍历全部实际设置字段和读写路由；unsupported 非空代表尚有接口缺口。get_settings 返回原始及合并选项，更新只传变更字段；threadSelection/updateMode 不与其原始字段同时传。远程管理使用 patch.mcp.enabled/port/allowLan，切换等当前响应结束后生效；按返回的新配置重连后用 get_mcp_status 核对实际监听。不要在用户未要求时关闭端点。settings_defaults 预览原生默认，reset_settings 会清除供应商凭据并关闭服务，仅按明确重置要求调用。词库选择/类别视图用 get_word_preferences / set_word_preferences，空选择数组清空，省略保留。
 
 先用 `get_settings` 读取配置、供应商 ID 和 revision，密钥仅返回 hasApiKey。`update_settings(patch, expectedRevision)` 按字段保留未指定项，支持隐私/Beta、输出、手动/自动线程、模型预加载/空闲释放和下载源等；只改用户授权的项。线上供应商通过 provider_presets/create_provider/update_provider/delete_provider 配置，apiKey 单独只写；修改地址需重新提供密钥。provider_models 默认缓存，refresh=true 明确访问线上。check_provider 默认仅本地校验；text/vision 是显式线上调用，vision 要求 mediaPath 并发送一帧，不在读配置时自动调用。
 

@@ -6,10 +6,43 @@ namespace AvaMedia.Mcp;
 
 public sealed record McpWordLibraryInfo(string Id, string Name, string Source, bool BuiltIn, int Entries);
 public sealed record McpWordPage(WordCandidate[] Entries, int Total, int Offset, int? NextOffset);
+public sealed record McpWordPreferences(WordLibraryTarget? Target, SelectedWord[] Selection, WordLibraryView? View);
 
 public sealed partial class McpTools
 {
     private bool VisibleWord(WordCandidate entry) => PrivateEnabled || !MediaPrivacy.IsSensitiveLabel(entry.Label, entry.Category, entry.Tags);
+
+    [McpServerTool(Name = "avamedia_get_word_preferences", Title = "读取词库选择设置", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
+    [Description("Read native JoyTag/Semantic word selections and remembered library/category view. target omitted reads the management view. Privacy filters selected labels; does not load models.")]
+    public McpWordPreferences GetWordPreferences(WordLibraryTarget? target = null)
+    {
+        if (target is { } kind && !Enum.IsDefined(kind)) throw new ArgumentException("词库目标无效。");
+        var store = new WordLibraryStore();
+        var visible = store.Libraries().SelectMany(library => library.Entries.Where(VisibleWord).Select(entry => new SelectedWord(library.Id, entry.Label))).ToHashSet();
+        return new(target, target is null ? [] : store.Selection(target.Value).Where(visible.Contains).ToArray(), store.View(target));
+    }
+
+    [McpServerTool(Name = "avamedia_set_word_preferences", Title = "更新词库选择设置", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
+    [Description("Update native word-library selections/view without UI. selection omitted preserves it, [] clears it; a target JoyTag/Semantic is required for selections. view selects a library/category; clearView explicitly clears remembered view. target omitted addresses management view. Rejects unavailable/private/incompatible words and unknown library/category IDs. Existing task snapshots stay unchanged.")]
+    public McpWordPreferences SetWordPreferences(WordLibraryTarget? target = null, SelectedWord[]? selection = null, WordLibraryView? view = null, bool clearView = false)
+    {
+        if (target is { } kind && !Enum.IsDefined(kind) || selection is not null && target is null || clearView && view is not null)
+            throw new ArgumentException("词库目标或视图参数冲突。");
+        var store = new WordLibraryStore(); var libraries = store.Libraries();
+        if (view is not null && !libraries.Any(library => library.Id == view.LibraryId
+            && (view.Category.Length == 0 || library.Entries.Any(entry => VisibleWord(entry) && entry.Category == view.Category))))
+            throw new ArgumentException("词库或类别不可用。");
+        if (selection is not null)
+        {
+            var allowed = libraries.SelectMany(library => library.Entries.Where(entry => VisibleWord(entry) && entry.Supports(target!.Value))
+                .Select(entry => new SelectedWord(library.Id, entry.Label))).ToHashSet();
+            if (selection.Any(word => !allowed.Contains(word))) throw new ArgumentException("候选词不存在、不可用或与目标模型不兼容。");
+            store.SaveSelection(target!.Value, selection, view);
+        }
+        else if (view is not null) store.SaveView(target, view);
+        if (clearView) store.ClearView(target);
+        return GetWordPreferences(target);
+    }
 
     [McpServerTool(Name = "avamedia_list_word_libraries", Title = "标签词库目录", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
     [Description("List native built-in/custom label libraries and visible entry counts. Uses the same WordLibraryStore as desktop; privacy filtering applies. read_word_library pages actual candidates for mediaTag.libraryCandidates or analysis.semanticCandidates.")]

@@ -227,6 +227,7 @@ public sealed class WordLibraryStore(string? path = null)
     public WordLibraryView? View(WordLibraryTarget? target)
     { lock (Gate) return Read().Views.GetValueOrDefault(ViewKey(target)); }
     public void SaveView(WordLibraryTarget? target, WordLibraryView view) => Update(state => state.Views[ViewKey(target)] = view);
+    public void ClearView(WordLibraryTarget? target) => Update(state => state.Views.Remove(ViewKey(target)));
     private static string ViewKey(WordLibraryTarget? target) => target?.ToString() ?? "Management";
     public WordCandidate[] Resolve(WordLibraryTarget target, bool includeSemantic = false)
     {

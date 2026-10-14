@@ -7,13 +7,16 @@ public partial class MainWindow
 {
     private sealed partial class DesktopMcpWorkspace
     {
-        public Task<AppSettings> SettingsAsync(Action<AppSettings>? change, string? expectedRevision, CancellationToken ct) => Ui(() =>
+        public Task<AppSettings> SettingsAsync(Action<AppSettings>? change, string? expectedRevision, CancellationToken ct, string? activationKey = null) => Ui(() =>
         {
             if (change is null) return owner._settings.Clone();
             if (expectedRevision is not null && expectedRevision != McpConfiguration.Revision(owner._settings))
                 throw new InvalidOperationException("设置已改变，请重新读取设置后再提交。");
             var prior = owner._settings.Clone(); var draft = prior.Clone(); change(draft);
+            if (!prior.ExclusiveToolUnlocked && draft.ExclusiveToolUnlocked && !ExclusiveToolAccess.Accepts(activationKey ?? ""))
+                throw new ArgumentException("内部口令错误。");
             SettingsPolicy.Validate(draft);
+            draft.Mcp.Validate();
             if (draft.Theme is not ("System" or "Light" or "Dark" or "MacOS9" or "WindowsXP")
                 || draft.Language is not ("system" or "zh-CN" or "en-US")
                 || draft.AccentColor is not ("Blue" or "Purple" or "Pink" or "Red" or "Orange" or "Yellow" or "Green" or "Gray"))
@@ -44,5 +47,9 @@ public partial class MainWindow
             catch { owner._settings.CopyFrom(prior); throw; }
             return owner._settings.Clone();
         }, ct);
+
+        public Task<McpListenerStatus> ListenerAsync(CancellationToken ct) => Ui(() => new McpListenerStatus(
+            owner._mcp?.Status ?? "已关闭", owner._settings.Mcp.Clone(), owner._mcp?.ActiveSettings,
+            owner._mcp?.Endpoint, owner._mcp?.RecentClients ?? []), ct);
     }
 }

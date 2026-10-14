@@ -59,25 +59,53 @@ public sealed class McpSettingsPatch
     public bool? AutoDetectGpu { get; set; }
     public int? JpegQuality { get; set; }
     public int? WebpQuality { get; set; }
+    public bool? ExclusiveToolUnlocked { get; set; }
+    [Description("Same merged thread choice as desktop: 0 automatic, 1 single thread, 2-16 manual. Do not combine with raw thread fields.")]
+    public int? ThreadSelection { get; set; }
+    [Description("Same merged update choice as desktop: 0 disabled, 1 check only, 2 automatic. Do not combine with raw update flags.")]
+    public int? UpdateMode { get; set; }
+    public McpListenerPatch? Mcp { get; set; }
 
     private static readonly (PropertyInfo Patch, PropertyInfo Setting)[] Properties = typeof(McpSettingsPatch).GetProperties()
+        .Where(property => property.Name != nameof(Mcp))
         .Select(property => (property, typeof(AppSettings).GetProperty(property.Name)!)).ToArray();
     public void Apply(AppSettings settings)
     {
-        foreach (var (patch, setting) in Properties)
+        if (ThreadSelection is not null && (AutomaticThreads is not null || MultiThread is not null || CpuThreads is not null)
+            || UpdateMode is not null && (CheckForUpdates is not null || AutoUpdate is not null || SilentUpdate is not null))
+            throw new ArgumentException("合并选项与其原始字段不能同时指定。");
+        foreach (var (patch, setting) in Properties.Where(pair => pair.Setting.SetMethod is not null))
             if (patch.GetValue(this) is { } value) setting.SetValue(settings, value);
+        if (ThreadSelection is { } threads) settings.SetThreadSelection(threads);
+        if (UpdateMode is { } mode) settings.SetUpdateMode(mode);
+        Mcp?.Apply(settings.Mcp);
     }
     public static McpSettingsPatch From(AppSettings settings)
     {
         var result = new McpSettingsPatch();
         foreach (var (patch, setting) in Properties) patch.SetValue(result, setting.GetValue(settings));
+        result.Mcp = new() { Enabled = settings.Mcp.Enabled, Port = settings.Mcp.Port, AllowLan = settings.Mcp.AllowLan };
         return result;
+    }
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed class McpListenerPatch
+{
+    public bool? Enabled { get; set; }
+    public int? Port { get; set; }
+    public bool? AllowLan { get; set; }
+    public void Apply(McpSettings settings)
+    {
+        settings.Enabled = Enabled ?? settings.Enabled; settings.Port = Port ?? settings.Port;
+        settings.AllowLan = AllowLan ?? settings.AllowLan; settings.Validate();
     }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class McpProviderPatch
 {
+    public string? Preset { get; set; }
     public string? Name { get; set; }
     public bool? Enabled { get; set; }
     public string? Endpoint { get; set; }
@@ -91,6 +119,13 @@ public sealed class McpProviderPatch
 
     public void Apply(OnlineAiOptions provider)
     {
+        if (Preset is not null && !OnlineAiPresets.All.Any(p => p.Id == Preset)) throw new ArgumentException("未知供应商预设。");
+        if (Preset is not null && Preset != provider.Preset)
+        {
+            var preset = OnlineAiPresets.Create(Preset);
+            provider.Preset = Preset; provider.TokenLimit = preset.TokenLimit; provider.ResponseFormat = preset.ResponseFormat;
+            provider.ApiKey = ""; provider.ModelIds = []; provider.ModelInfo = [];
+        }
         if (Endpoint is not null && Endpoint != provider.Endpoint)
         {
             // A key for the old endpoint must never silently be sent to a new host.
@@ -114,7 +149,13 @@ public sealed record McpProviderView(string Id, string Name, string Preset, bool
         p.TimeoutSeconds, p.ModelIds.ToArray(), p.ModelInfo.ToArray());
 }
 public sealed record McpSettingsView(string Revision, McpSettingsPatch Preferences, string DefaultProviderId,
-    McpProviderView[] Providers, McpSettings RemoteManagement, bool BundledTools);
+    McpProviderView[] Providers, McpSettings RemoteManagement, bool BundledTools)
+{
+    public DateTimeOffset? LastUpdateCheck { get; init; }
+    public int EffectiveCpuThreads { get; init; }
+}
+public sealed record McpListenerStatus(string Status, McpSettings Requested, McpSettings? Active,
+    string? Endpoint, McpClientView[] Clients);
 
 public static class McpConfiguration
 {
@@ -125,7 +166,8 @@ public static class McpConfiguration
         Keys = settings.OnlineAi.Providers.Select(p => new { p.Id, Hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(p.ApiKey))) })
     })));
     public static McpSettingsView View(AppSettings settings) => new(Revision(settings), McpSettingsPatch.From(settings),
-        settings.OnlineAi.DefaultProviderId, settings.OnlineAi.Providers.Select(McpProviderView.From).ToArray(), settings.Mcp.Clone(), MediaEngine.UsesBundledTools);
+        settings.OnlineAi.DefaultProviderId, settings.OnlineAi.Providers.Select(McpProviderView.From).ToArray(), settings.Mcp.Clone(), MediaEngine.UsesBundledTools)
+    { LastUpdateCheck = settings.LastUpdateCheck, EffectiveCpuThreads = settings.EffectiveCpuThreads };
     public static OnlineAiOptions Find(AppSettings settings, string id) => settings.OnlineAi.Providers.Find(p => p.Id == id)
         ?? throw new ArgumentException("供应商不存在：" + id);
 }

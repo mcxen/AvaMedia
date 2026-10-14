@@ -19,6 +19,9 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
     private McpSettings? _running;
     private bool _exclusiveUnlocked;
     private int _activeRequests;
+    private long _configurationRevision;
+    private (McpSettings Settings, long Revision)? _pendingConfiguration;
+    private bool _disposed;
     private long _quietSince = System.Diagnostics.Stopwatch.GetTimestamp();
     public string Status { get; private set; } = "已关闭";
     public string? Endpoint { get; private set; }
@@ -29,16 +32,39 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
     public event Action? ClientsChanged { add => _clients.Changed += value; remove => _clients.Changed -= value; }
     public bool HasActiveRequests { get { lock (_activity) return _activeRequests > 0; } }
     public TimeSpan QuietFor => HasActiveRequests ? TimeSpan.Zero : System.Diagnostics.Stopwatch.GetElapsedTime(_quietSince);
+    public McpSettings? ActiveSettings => Volatile.Read(ref _running)?.Clone();
 
-    public async Task ConfigureAsync(McpSettings settings, CancellationToken ct = default)
+    public Task ConfigureAsync(McpSettings settings, CancellationToken ct = default)
     {
         settings = settings.Clone(); settings.Validate();
+        long revision;
+        lock (_activity) revision = ++_configurationRevision;
+        return ConfigureRevisionAsync(settings, revision, ct);
+    }
+
+    private async Task ConfigureRevisionAsync(McpSettings settings, long revision, CancellationToken ct)
+    {
         await _lifecycle.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            var defer = false;
+            lock (_activity)
+            {
+                if (_disposed || revision != _configurationRevision) return;
+                if (_app is not null && _activeRequests > 0)
+                { _pendingConfiguration = (settings, revision); defer = true; }
+                else _pendingConfiguration = null;
+            }
             var exclusiveUnlocked = workspace.Engine.Settings.ExclusiveToolUnlocked;
             if (_app is not null && _running is { } active && settings.Enabled && active.Port == settings.Port && active.AllowLan == settings.AllowLan
-                && _exclusiveUnlocked == exclusiveUnlocked) return;
+                && _exclusiveUnlocked == exclusiveUnlocked)
+            {
+                lock (_activity) _pendingConfiguration = null;
+                var status = settings.AllowLan ? "运行中 · 局域网" : "运行中 · 本机";
+                if (Status != status) { Status = status; Changed?.Invoke(); }
+                return;
+            }
+            if (defer) { Status = "已保存，当前响应结束后应用"; Changed?.Invoke(); return; }
             await StopCoreAsync().ConfigureAwait(false);
             if (!settings.Enabled) return;
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
@@ -70,7 +96,6 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
               .WithTools<McpTools>()
               .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, token) =>
               {
-                  NoteActivity(1);
                   try { return await next(request, token).ConfigureAwait(false); }
                   catch (Exception error) when (error is ArgumentException or InvalidOperationException or IOException
                       or UnauthorizedAccessException or System.Text.Json.JsonException)
@@ -78,7 +103,6 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
                       // Return actionable service/validation errors without exposing stack traces.
                       throw new McpException(error.Message, error);
                   }
-                  finally { NoteActivity(-1); }
               }));
             if (exclusiveUnlocked) mcp.WithTools<McpExclusiveTools>();
             var app = builder.Build();
@@ -87,8 +111,18 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
             {
                 var path = context.Request.Path;
                 if (path.StartsWithSegments("/mcp") || path.StartsWithSegments("/web"))
+                {
                     _clients.Note(context.Connection.RemoteIpAddress, context.Request.Headers.UserAgent.ToString(), path.StartsWithSegments("/mcp"));
-                await next(context);
+                    NoteActivity(1);
+                    var completed = 0;
+                    void Complete() { if (Interlocked.Exchange(ref completed, 1) == 0) NoteActivity(-1); }
+                    var abort = context.RequestAborted.Register(Complete);
+                    context.Response.OnCompleted(() => { abort.Dispose(); Complete(); return Task.CompletedTask; });
+                    try { await next(context); }
+                    catch { abort.Dispose(); Complete(); throw; }
+                    finally { if (context.RequestAborted.IsCancellationRequested) Complete(); }
+                }
+                else await next(context);
             });
             WebConsole.Map(app);
             app.MapMcp("/mcp");
@@ -106,11 +140,23 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
 
     private void NoteActivity(int delta)
     {
+        (McpSettings Settings, long Revision)? pending = null;
         lock (_activity)
         {
             _activeRequests = Math.Max(0, _activeRequests + delta);
-            if (_activeRequests == 0) _quietSince = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (_activeRequests == 0)
+            {
+                _quietSince = System.Diagnostics.Stopwatch.GetTimestamp();
+                pending = _pendingConfiguration; _pendingConfiguration = null;
+            }
         }
+        if (pending is { } configuration) _ = ApplyPendingAsync(configuration.Settings, configuration.Revision);
+    }
+
+    private async Task ApplyPendingAsync(McpSettings settings, long revision)
+    {
+        try { await ConfigureRevisionAsync(settings, revision, CancellationToken.None).ConfigureAwait(false); }
+        catch (Exception error) { System.Diagnostics.Trace.TraceError("MCP configuration: {0}", error.Message); }
     }
 
     private async Task StopCoreAsync()
@@ -126,6 +172,7 @@ public sealed class McpService(IMcpWorkspace workspace) : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
+        lock (_activity) { _disposed = true; _configurationRevision++; _pendingConfiguration = null; }
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try { await StopCoreAsync().ConfigureAwait(false); }
         finally { _lifecycle.Release(); }

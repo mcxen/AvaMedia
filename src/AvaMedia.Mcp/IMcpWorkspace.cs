@@ -34,7 +34,8 @@ public interface IMcpWorkspace
     Task<McpTaskPage> ListAsync(int offset, int limit, string? state, CancellationToken ct);
     Task<McpTaskResult> GetAsync(Guid id, bool includeResult, int offset, int limit, CancellationToken ct);
     Task<ConversionOptions> OptionsAsync(Guid id, CancellationToken ct);
-    Task<AppSettings> SettingsAsync(Action<AppSettings>? change, string? expectedRevision, CancellationToken ct) => throw new NotSupportedException();
+    Task<AppSettings> SettingsAsync(Action<AppSettings>? change, string? expectedRevision, CancellationToken ct, string? activationKey = null) => throw new NotSupportedException();
+    Task<McpListenerStatus> ListenerAsync(CancellationToken ct) => throw new NotSupportedException();
     Task<McpTaskOptions> TaskOptionsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     Task<McpTaskOptions> UpdateTaskOptionsAsync(Guid id, System.Text.Json.JsonElement patch, string? outputFolder, CancellationToken ct) => throw new NotSupportedException();
     Task<McpTaskView> MoveTaskAsync(Guid id, string position, CancellationToken ct) => throw new NotSupportedException();

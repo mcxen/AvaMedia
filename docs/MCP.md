@@ -114,18 +114,29 @@ MCP 工具直接调用 Core、桌面设置应用流程和共享队列，不模�
 | 任务参数/排序 | `get_task_options`、`update_task_options`、`move_task`；仅编辑未启动且未调度的等待任务，独立文件草稿和事务计划使用专用工具 |
 | 任务执行 | `control_task` 支持 start/pause/resume/stop/retry/rerun/remove；`rerun` 仅对已完成的普通任务生效，文件操作须重新预览 |
 | 设置选项 | `get_settings`、`update_settings`；输出、隐私/Beta、资源、模型加载释放、下载源、图片质量、工具路径及应用偏好 |
+| 设置逐项清单与默认值 | `settings_catalog` 按实际类型枚举字段、读写方式、参数路由与遗漏项；`settings_defaults` 预览原生默认值，`reset_settings` 按桌面规则恢复默认 |
+| 远程管理设置 | `update_settings.patch.mcp` 支持 enabled/port/allowLan；`get_mcp_status` 返回请求配置、实际绑定、端点和已观察客户端 |
 | 线上供应商 | `provider_presets`、`create_provider`、`update_provider`、`delete_provider`；名称、启停、地址、默认供应商、文本/视觉模型、token 字段、响应格式、超时、模型列表/限制元数据及密钥 |
 | 线上模型诊断 | `provider_models(refresh=true)` 使用原生 `/models`；`check_provider` 明确区分配置校验、文本请求和单帧视觉请求 |
 | 本地模型 | `list_models` 返回安装目录、残留数据及真实驻留状态；`inspect_model` 返回文件清单并可显式校验哈希；`download_model` 支持本次下载源；`import_model` 走持久队列；`release_models` 释放空闲会话；`delete_model` 卸载模型文件 |
 | AI 进度与分类确认 | `ai_progress`、`classification_live`、`resolve_classification`、`summary_evidence`；复用桌面阶段、分类覆盖和证据存储 |
 | 标签词库 | `list_word_libraries`、`read_word_library`、`save_word_library`、`delete_word_library`；原生词库分页、自定义词库管理，候选词可直接传给任务参数 |
+| 词库选择与视图 | `get_word_preferences`、`set_word_preferences`；JoyTag/Semantic 选择和词库/类别视图，target 为空表示管理视图 |
 | 内部工具 | 仅在已激活工作区注册内部工具；VL 支持 local/online/rules、providerId 和本次 model 覆盖，分析仍走共享后台队列 |
 
-交互式播放/看图、交互登录、内部工具激活动作保留桌面入口；MCP 提供媒体信息、采样帧和已有登录上下文的后台能力。监听开关/端口/局域网范围在 `get_settings.remoteManagement` 中只读，通过宿主设置或启动参数修改，避免当前调用切断自己的监听连接。MCP 不提供操作系统关机、安装更新或自动取得登录态的替代接口。设置中的完成后行为沿用桌面生命周期，后台宿主继续抑制完成后界面、打开目录、音效及关机。
+交互式播放/看图、交互登录保留桌面入口；MCP 提供媒体信息、采样帧和已有登录上下文的后台能力。远程管理配置和内部激活状态均可通过 MCP 修改，激活须提供原生口令。监听切换和内部工具注册变化在当前 HTTP 响应发送结束后应用；同时存在其他请求时等待它们结束，新的配置覆盖尚未应用的旧请求。关闭服务后需通过宿主或启动参数重新开启。MCP 不提供操作系统关机、安装更新或自动取得登录态的替代接口；完成后行为沿用桌面生命周期，后台宿主继续抑制完成后界面、打开目录、音效及关机。
 
 ### 设置与供应商
 
 先读 `get_settings`。响应只包含 `hasApiKey`，不返回密钥；`revision` 可传给后续配置接口的 `expectedRevision`，设置已改变时拒绝覆盖。`update_settings.patch` 的省略/null 字段保持原值，明确的 false、0 和空字符串仍按原生设置约束校验。整个草稿通过 `SettingsPolicy` 校验后，在桌面线程执行应用和保存；使用内置工具的版本不允许修改外部工具路径。
+
+`settings_catalog` 动态遍历 `AppSettings`、`McpSettings` 和 `OnlineAiOptions`，逐项返回访问方式、工具名、参数路径、平台限制及完整 patch Schema；`unsupported` 列出未建立映射的新字段。当前源字段审查覆盖 53 个 AppSettings 字段/合并选项，MCP 与供应商嵌套字段均有映射。`lastUpdateCheck` 是原生检查时间元数据，`effectiveCpuThreads` 是计算结果，两者只读；密钥只写。其余偏好通过字段 patch 或供应商/词库接口操作。
+
+`get_settings.preferences` 同时返回原始字段及界面合并选项，提交时只传要修改的字段，不把整个读取对象原样回传。`threadSelection` 为 0 自动、1 单线程、2–16 手动，与 automaticThreads/multiThread/cpuThreads 不可同时指定；`updateMode` 为 0 关闭、1 仅检查、2 自动，与三个原始更新开关不可同时指定。`patch.mcp` 按字段保留未指定项；响应返回请求配置，使用新端口重新连接并读取 `get_mcp_status` 核对实际状态。
+
+`exclusiveToolUnlocked=true` 从未激活状态启用时，另传只写 `activationKey`，与桌面共享同一口令校验；口令不进入设置、日志或响应。设置 false 可重新隐藏内部工具。内部工具仅在激活后注册，切换完成后客户端需重新发现工具列表。`settings_defaults` 只预览；`reset_settings` 使用与桌面相同的原生默认规则，重置供应商与凭据并关闭远程管理，保留激活状态、上次更新时间及内置版本的外部工具路径。仍被未结束任务引用的供应商不可通过重置移除。
+
+供应商 `patch.preset` 也可修改，须为已有预设 ID；修改预设会采用该预设的 token/响应默认值，并清掉原凭据和模型缓存，显式 patch 字段随后覆盖。修改地址同样清掉原凭据，需另传新地址/协议的密钥。
 
 例如关闭预加载、缩短空闲释放并指定手动线程：
 
@@ -157,6 +168,8 @@ MCP 工具直接调用 Core、桌面设置应用流程和共享队列，不模�
 `get_task_options` 返回保存的完整参数、独立输入参数和输出路径。`update_task_options` 不会启动任务；改变输出格式/目录时重新预留名称，分析结果继续使用内部存储。对已经运行、有检查点或包含事务计划的任务，通过读取结果、专用校对/预览工具或新任务执行，避免把旧结果误用到新参数。任务提交、参数编辑和排序均等待队列持久化；连接断开不撤销已接受的操作。
 
 词库接口沿用隐私过滤，内置词库只读，自定义词库使用稳定 ID 保存/替换。`read_word_library` 可按 JoyTag/Semantic 和关键词筛选；返回候选可传入 `options.mediaTag.libraryCandidates` 或 `analysis.semanticCandidates`，与每次任务的阈值、采样、模型选择分别控制。现有任务保留候选快照。
+
+`set_word_preferences` 的 selection 省略保留、空数组清空；传选择时须给 target。view 保存词库/类别位置，clearView=true 清除位置记忆，两者不可同时提供。验证目标模型支持的可见标签后，直接写入桌面共享的 WordLibraryStore，不影响已有任务快照。
 
 本节为源码接口覆盖说明。编译/静态检查不代表已对每个模型、媒体类型、线上供应商或安装包完成运行验收。
 

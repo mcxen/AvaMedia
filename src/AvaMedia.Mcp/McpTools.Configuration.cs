@@ -10,13 +10,27 @@ public sealed record McpProviderCheck(string ProviderId, string Mode, string End
 public sealed partial class McpTools
 {
     [McpServerTool(Name = "avamedia_get_settings", Title = "读取完整设置", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Read active preferences, online providers, default provider ID and listener configuration. Credentials are represented only by hasApiKey, never returned. revision supports compare-and-set updates. Private activation is excluded; listener settings are read-only here to keep the current connection usable. Read before editing; no GUI is opened.")]
+    [Description("Read all desktop preferences, merged thread/update choices, online providers, activation state, listener configuration and update metadata. Keys are never returned. revision supports compare-and-set edits. Inspect get_mcp_status for effective versus requested listener state. Read before editing; send only changed fields to update_settings.")]
     public async Task<McpSettingsView> GetSettings(CancellationToken ct = default) => McpConfiguration.View(await workspace.SettingsAsync(null, null, ct).ConfigureAwait(false));
 
     [McpServerTool(Name = "avamedia_update_settings", Title = "更新设置选项", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
-    [Description("Patch the active desktop settings and persist through the desktop Apply pipeline. Omitted/null fields are preserved. Covers output, privacy/Beta, resources, local model lifecycle/download source, image quality, tool paths and application preferences. Existing sessions may adopt resource settings only after reload. Linux scale applies at next launch; background mode suppresses completion UI/actions. expectedRevision from get_settings rejects concurrent changes. Does not unlock private tools or change the listener. Bundled tool paths cannot be edited.")]
-    public async Task<McpSettingsView> UpdateSettings(McpSettingsPatch patch, string? expectedRevision = null, CancellationToken ct = default) =>
-        McpConfiguration.View(await workspace.SettingsAsync(patch.Apply, expectedRevision, ct).ConfigureAwait(false));
+    [Description("Patch every writable desktop preference through native Apply/save. Null/omitted preserves values. Includes nested mcp.enabled/port/allowLan; listener/activation registration changes apply after current HTTP responses finish, and disabling the listener prevents further calls until the host enables it. Use get_mcp_status to inspect effective state. threadSelection/updateMode are merged choices; do not combine with their raw fields. Unlocking exclusiveToolUnlocked requires the same activationKey as desktop, write-only and never persisted; false locks it. Bundled external tool paths are platform-inactive and cannot be changed. Linux scale applies next launch. expectedRevision rejects concurrent edits; send only changed fields.")]
+    public async Task<McpSettingsView> UpdateSettings(McpSettingsPatch patch, string? expectedRevision = null, string? activationKey = null, CancellationToken ct = default) =>
+        McpConfiguration.View(await workspace.SettingsAsync(patch.Apply, expectedRevision, ct, activationKey).ConfigureAwait(false));
+
+    [McpServerTool(Name = "avamedia_get_mcp_status", Title = "远程管理实际状态", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
+    [Description("Read requested and actually bound listener configuration, endpoint, status and observed clients. A requested port or activation change can remain pending until current HTTP responses complete. No restart or network request is performed.")]
+    public Task<McpListenerStatus> GetMcpStatus(CancellationToken ct = default) => workspace.ListenerAsync(ct);
+
+    [McpServerTool(Name = "avamedia_reset_settings", Title = "恢复原生默认设置", Destructive = true, OpenWorld = false, UseStructuredContent = true)]
+    [Description("Restore the same defaults as desktop Restore Defaults and persist/apply them. Resets online providers and credentials and disables remote management after current responses complete. Preserves activation, update-check metadata and bundled external-tool paths exactly as desktop. Refuses removing providers used by unfinished tasks. expectedRevision supports conflict detection. inspect settings_defaults first to review the concrete defaults.")]
+    public async Task<McpSettingsView> ResetSettings(string? expectedRevision = null, CancellationToken ct = default) =>
+        McpConfiguration.View(await workspace.SettingsAsync(settings => settings.CopyFrom(SettingsPresentation.DefaultsForWindow(settings, !MediaEngine.UsesBundledTools)), expectedRevision, ct).ConfigureAwait(false));
+
+    [McpServerTool(Name = "avamedia_settings_defaults", Title = "读取原生默认设置", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
+    [Description("Preview the exact native Restore Defaults values for this workspace without modifying anything. Preserves desktop activation/update metadata and bundled tool paths. Default providers contain no credentials.")]
+    public async Task<McpSettingsView> SettingsDefaults(CancellationToken ct = default) => McpConfiguration.View(
+        SettingsPresentation.DefaultsForWindow(await workspace.SettingsAsync(null, null, ct).ConfigureAwait(false), !MediaEngine.UsesBundledTools));
 
     [McpServerTool(Name = "avamedia_provider_presets", Title = "线上供应商预设", ReadOnly = true, OpenWorld = false, UseStructuredContent = true)]
     [Description("List native online provider presets and their endpoint/token/response defaults. Create a provider from a preset, then set text/vision models explicitly if the preset has none. No network request.")]

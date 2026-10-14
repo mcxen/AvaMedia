@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -12,8 +10,6 @@ namespace AvaMedia.Desktop;
 
 internal static partial class Ui
 {
-    private const string ExclusiveKeyDigest = "7a2ec40ff8a1247c532309355f798a779e00acff579c63eec3636ffb2902c1ac";
-
     internal static void HookExclusiveToolsActivation(Control icon, Window owner, Action unlock)
     {
         var doubleClicks = 0;
@@ -56,8 +52,7 @@ internal static partial class Ui
         body.Children.Add(errorText);
         void Submit()
         {
-            var digest = SHA256.HashData(Encoding.UTF8.GetBytes(password.Text ?? ""));
-            if (!CryptographicOperations.FixedTimeEquals(digest, Convert.FromHexString(ExclusiveKeyDigest)))
+            if (!ExclusiveToolAccess.Accepts(password.Text ?? ""))
             {
                 errorText.Text = Localization.Text("口令错误，请重试");
                 errorText.IsVisible = true; password.Classes.Add("error"); password.SelectAll(); password.Focus(); return;
