@@ -14,7 +14,21 @@ public sealed class HardwareTestWindow : Window
     private readonly TextBox _log;
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _closed;
+    private static HardwareTestWindow? _open;
     public Task Ready => _ready.Task;
+
+    internal static Task ShowSingleAsync(string configured)
+    {
+        if (_open is { } existing)
+        {
+            Controls.WindowChrome.Present(existing);
+            return Controls.WindowChrome.WhenClosed(existing);
+        }
+        var window = new HardwareTestWindow(configured);
+        _open = window;
+        window.Closed += (_, _) => { if (ReferenceEquals(_open, window)) _open = null; };
+        return Controls.WindowChrome.ShowIndependentAsync(window);
+    }
     public IReadOnlyList<HardwareEncoderResult> Report { get; private set; } = [];
     public HardwareTestWindow(string configured)
     {

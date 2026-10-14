@@ -95,7 +95,7 @@ public partial class MainWindow
         if (!CanViewAiTask(job)) return Task.CompletedTask;
         if (job.Options.VlRename is not null) return OpenExclusiveRenamerAsync(this, job);
         if (CanViewClassificationTask(job)) return ShowClassificationTaskAsync(job);
-        if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return Task.CompletedTask; }
+        if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { Controls.WindowChrome.Present(existing); return Task.CompletedTask; }
         var rotation = job.FeatureId == "rotate" && job.Inputs.Length == 1 ? new RotationTaskView(Engine, job) : null;
         var window = new AiTaskWindow(job, () => rotation?.IsReview == true ? rotation.CanExport : HasAiResult(job),
             rotation?.IsReview == true ? () => SubmitReviewedRotationAsync(rotation) : () => ShowAiResultAsync(job),

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -24,7 +25,7 @@ public partial class MainWindow : Window
     private Feature _last=Catalog.Find("mp4");
     private DateTime _lastSave;
     private bool _closing;
-    private HelpWindow? _helpWindow;
+    private SettingsWindow? _settingsWindow;
     private Task _running=Task.CompletedTask;
     private Task _queueSave=Task.CompletedTask;
     public Task PersistenceReady => _queueSave;
@@ -192,13 +193,31 @@ public partial class MainWindow : Window
     }
     private async void SettingsClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
         => await ShowSettingsAsync(this);
-    internal async Task ShowSettingsAsync(Window owner)
+    internal Task ShowSettingsAsync(Window owner, Action<SettingsWindow>? focus = null)
     {
-        _appliedSettings=_settings.Clone();
-        var w=new SettingsWindow(_settings,_optionServices);
-        w.SetMcpStatus(() => _mcp?.Status ?? "已关闭"); w.SetMcpClients(() => _mcp?.RecentClients ?? []);
-        w.Applied+=(_,_)=>ApplyOptions();
-        await Controls.WindowChrome.ShowIndependentAsync(w);
+        if (_closing) return Task.CompletedTask;
+        var existing = _settingsWindow ?? (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?
+            .Windows.OfType<SettingsWindow>().FirstOrDefault();
+        if (existing is not null)
+        {
+            if (!ReferenceEquals(_settingsWindow, existing))
+            {
+                _settingsWindow = existing;
+                existing.Closed += (_, _) => { if (ReferenceEquals(_settingsWindow, existing)) _settingsWindow = null; };
+            }
+            focus?.Invoke(existing);
+            Controls.WindowChrome.Present(existing);
+            return Task.CompletedTask;
+        }
+        _appliedSettings = _settings.Clone();
+        var window = new SettingsWindow(_settings, _optionServices);
+        window.SetMcpStatus(() => _mcp?.Status ?? "已关闭");
+        window.SetMcpClients(() => _mcp?.RecentClients ?? []);
+        window.Applied += (_, _) => ApplyOptions();
+        _settingsWindow = window;
+        window.Closed += (_, _) => { if (ReferenceEquals(_settingsWindow, window)) _settingsWindow = null; };
+        focus?.Invoke(window);
+        return Controls.WindowChrome.ShowIndependentAsync(window);
     }
     private async void OutputClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e){try{Directory.CreateDirectory(_settings.OutputFolder);Open(_settings.OutputFolder);}catch(Exception ex){await Ui.Message(this,"打开目录失败",ex.Message);}}
     private static void Open(string path){if(Directory.Exists(path))PlatformServices.OpenFolder(path);else Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}
@@ -269,13 +288,7 @@ public partial class MainWindow : Window
         Title=AppIdentity.WindowTitle;ChineseLanguageItem.IsChecked=_settings.Language=="zh-CN";
         EnglishLanguageItem.IsChecked=_settings.Language=="en-US";SystemLanguageItem.IsChecked=_settings.Language=="system";
     }
-    private void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if(_helpWindow is { } existing){existing.Activate();return;}
-        _helpWindow=new HelpWindow();
-        _helpWindow.Closed+=(_,_)=>_helpWindow=null;
-        Controls.WindowChrome.ShowIndependent(_helpWindow);
-    }
+    private void HelpClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e) => HelpWindow.ShowSingle();
     private async void AboutClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (OperatingSystem.IsMacOS()) { await Ui.AboutAsync(this); return; }

@@ -38,6 +38,20 @@ public sealed partial class VideoSummaryResultWindow : Window
     private readonly VideoSummaryReport? _initialReport;
     private VideoSummaryReport? _report;
     private PlayerWindow? _player;
+    private static readonly Dictionary<string, VideoSummaryResultWindow> OpenByFolder = new(StringComparer.Ordinal);
+
+    internal static void ShowSingle(string folder, IMediaEngine? engine, string? source, VideoSummaryReport? report = null, Job? summaryJob = null)
+    {
+        var key = Path.GetFullPath(folder);
+        if (OpenByFolder.TryGetValue(key, out var existing)) { WindowChrome.Present(existing); return; }
+        var window = new VideoSummaryResultWindow(folder, engine, source, report, summaryJob);
+        OpenByFolder[key] = window;
+        window.Closed += (_, _) =>
+        {
+            if (OpenByFolder.TryGetValue(key, out var current) && ReferenceEquals(current, window)) OpenByFolder.Remove(key);
+        };
+        WindowChrome.ShowIndependent(window);
+    }
     private bool _closed;
     private int _transcriptPage = -1;
 

@@ -16,9 +16,7 @@ public partial class MainWindow
             AddToolJobs([job], startImmediately: true); OpenClassificationRun(job);
         }, async owner =>
         {
-            var settings = new SettingsWindow(_settings, _optionServices);
-            settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-            await Controls.WindowChrome.ShowIndependentAsync(settings);
+            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
         }, ShowClassificationTasks);
         Controls.WindowChrome.ShowIndependent(submit); return Task.CompletedTask;
     }
@@ -29,7 +27,7 @@ public partial class MainWindow
     private void OpenClassificationRun(Job job)
     {
         if (_closing) return;
-        if (_classificationRuns.TryGetValue(job.Id, out var existing)) { existing.Show(); existing.Activate(); return; }
+        if (_classificationRuns.TryGetValue(job.Id, out var existing)) { Controls.WindowChrome.Present(existing); return; }
         var run = new Classification.ClassificationRunWindow(job, PauseTask, task => { _queue.Stop(task); Save(); Refresh(); },
             (task, action) => OpenClassificationWindow(task: task, action: action));
         _classificationRuns[job.Id] = run;
@@ -42,16 +40,14 @@ public partial class MainWindow
         if (_closing) return;
         if (task is not null && _classificationWindows.TryGetValue(task.Id, out var existing))
         {
-            existing.Show(); existing.Activate();
+            Controls.WindowChrome.Present(existing);
             if (action is not null) _ = existing.RunTaskActionAsync(action);
             return;
         }
         FolderClassificationWindow? window = null;
         window = new FolderClassificationWindow(Engine, files, () => !_closing, async owner =>
         {
-            var settings = new SettingsWindow(_settings, _optionServices);
-            settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-            await Controls.WindowChrome.ShowIndependentAsync(settings);
+            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
         }, job =>
         {
             foreach (var id in _classificationWindows.Where(pair => ReferenceEquals(pair.Value, window)).Select(pair => pair.Key).ToArray())

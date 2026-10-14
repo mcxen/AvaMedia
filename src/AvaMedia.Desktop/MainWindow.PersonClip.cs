@@ -9,9 +9,7 @@ public partial class MainWindow
     {
         async Task ManageModels(Window owner, string? modelId)
         {
-            var settings = new SettingsWindow(_settings, _optionServices);
-            settings.OpenModelManagement(modelId); settings.Applied += (_, _) => ApplyOptions();
-            await Controls.WindowChrome.ShowIndependentAsync(settings);
+            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement(modelId));
         }
         var folder = editing is null || editing.HasInternalOutput ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!;
         var window = new PersonClipWindow(Engine, _settings, files, ManageModels, folder,

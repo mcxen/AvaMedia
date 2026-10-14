@@ -36,7 +36,7 @@ public sealed partial class MediaAiWindow
     }
     private async Task OpenTagGroupsAsync()
     {
-        await Controls.WindowChrome.ShowIndependentAsync(new WordLibraryWindow(WordLibraryTarget.JoyTag, includeSemantic: ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported, settings: _settings));
+        await WordLibraryWindow.ShowSingleAsync(WordLibraryTarget.JoyTag, includeSemantic: ModelCatalog.Find(ModelCatalog.EmbeddingId).Supported, settings: _settings);
         if (_closed) return;
         ReloadWordCandidates(); RefreshDisplayedResults();
         if (_results.Values.Any(result => SemanticLibraryCandidates.Any(entry =>

@@ -101,7 +101,7 @@ public sealed partial class App
                 new("功能介绍", () =>
                 {
                     if (window is MainWindow main) main.ShowNativeHelp();
-                    else Controls.WindowChrome.ShowIndependent(new HelpWindow());
+                    else HelpWindow.ShowSingle();
                 }, () => window.IsEnabled),
                 new("软件更新…", () => _ = RunNativeCommandAsync(() => NativeTaskWindow?.OpenSoftwareUpdatesAsync() ?? Task.CompletedTask),
                     () => NativeTaskWindow is { CanUseNativeMenu: true }, HeaderText: () => ApplicationUpdater.Shared.MenuTitle)

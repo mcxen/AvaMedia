@@ -13,7 +13,7 @@ public partial class MainWindow
         try
         {
             var folder = job.State == JobState.Completed ? job.Output : AiPartialResults.SummaryFolder(job);
-            Controls.WindowChrome.ShowIndependent(new VideoSummaryResultWindow(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport, summaryJob: job));
+            VideoSummaryResultWindow.ShowSingle(folder, Engine, job.Inputs.FirstOrDefault(), job.SummaryReport, job);
         }
         catch (Exception error) { await Ui.Message(this, "视频总结结果", error.Message); }
     }
@@ -29,14 +29,10 @@ public partial class MainWindow
         var window = new VideoSummaryWindow(Engine, editing is null ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!,
             files, editing?.Options.VideoSummary, editing is null ? null : File.Exists(Path.Combine(AiPartialResults.SummaryFolder(editing), "work", "manifest.json")) ? AiPartialResults.SummaryFolder(editing) : editing.Output, async owner =>
             {
-                var settings = new SettingsWindow(_settings, _optionServices);
-                settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-                await Controls.WindowChrome.ShowIndependentAsync(settings);
+                await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
             }, async owner =>
             {
-                var settings = new SettingsWindow(_settings, _optionServices);
-                settings.OpenOnlineAiSettings(); settings.Applied += (_, _) => ApplyOptions();
-                await Controls.WindowChrome.ShowIndependentAsync(settings);
+                await ShowSettingsAsync(owner, settings => settings.OpenOnlineAiSettings());
             }, allowResume: editing is not null && editing.State is not (JobState.Completed or JobState.Running or JobState.Stopping));
         var request = await ToolExecution.ShowAsync<ConversionRequest>(this, window);
         if (request is null)

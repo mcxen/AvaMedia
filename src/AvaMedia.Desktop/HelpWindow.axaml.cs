@@ -10,6 +10,17 @@ namespace AvaMedia.Desktop;
 
 public partial class HelpWindow : Window
 {
+    private static HelpWindow? _open;
+
+    internal static void ShowSingle()
+    {
+        if (_open is { } existing) { WindowChrome.Present(existing); return; }
+        var window = new HelpWindow();
+        _open = window;
+        window.Closed += (_, _) => { if (ReferenceEquals(_open, window)) _open = null; };
+        WindowChrome.ShowIndependent(window);
+    }
+
     public HelpWindow()
     {
         InitializeComponent();

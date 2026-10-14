@@ -31,6 +31,24 @@ public sealed class WordLibraryWindow : Window
     private WordRow[] _rows = [];
     private bool _updating, _loaded;
     private string _categoryValue = "";
+    private static readonly Dictionary<(WordLibraryTarget? Target, bool IncludeSemantic), WordLibraryWindow> OpenWindows = [];
+
+    internal static Task ShowSingleAsync(WordLibraryTarget? target = null, bool includeSemantic = false, AppSettings? settings = null)
+    {
+        var key = (target, includeSemantic);
+        if (OpenWindows.TryGetValue(key, out var existing))
+        {
+            Controls.WindowChrome.Present(existing);
+            return Controls.WindowChrome.WhenClosed(existing);
+        }
+        var window = new WordLibraryWindow(target, includeSemantic, settings);
+        OpenWindows[key] = window;
+        window.Closed += (_, _) =>
+        {
+            if (OpenWindows.TryGetValue(key, out var current) && ReferenceEquals(current, window)) OpenWindows.Remove(key);
+        };
+        return Controls.WindowChrome.ShowIndependentAsync(window);
+    }
 
     private sealed record CategoryChoice(string Value, int Count)
     {

@@ -18,18 +18,18 @@ public partial class MainWindow
         if (!_settings.ExclusiveToolUnlocked) return;
         if (analysis is not null && _vlRenameWindows.TryGetValue(analysis.Id, out var existing))
         {
-            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
-            existing.Show(); existing.Activate(); return;
+            Controls.WindowChrome.Present(existing); return;
         }
         if (analysis is not null)
             analysis.VlRenameResult ??= await AiTaskResults.LoadAsync<VlRenameTaskResult>(analysis.Output);
         if (_closing) return;
         async Task Configure(Window tool, bool online)
         {
-            var settings = new SettingsWindow(_settings, _optionServices);
-            if (online) settings.OpenOnlineAiSettings(); else settings.OpenModelManagement();
-            settings.Applied += (_, _) => ApplyOptions();
-            await Controls.WindowChrome.ShowIndependentAsync(settings);
+            await ShowSettingsAsync(tool, settings =>
+            {
+                if (online) settings.OpenOnlineAiSettings();
+                else settings.OpenModelManagement();
+            });
         }
         async Task Submit(Job job)
         {

@@ -82,7 +82,7 @@ public sealed class VideoSummaryWindow : Window
             var results = new Button { Content = "查看结果", Classes = { "ac", "field-action" } };
             results.Click += (_, _) =>
             {
-                try { Controls.WindowChrome.ShowIndependent(new VideoSummaryResultWindow(resultFolder, engine, _files.FirstOrDefault())); }
+                try { VideoSummaryResultWindow.ShowSingle(resultFolder, engine, _files.FirstOrDefault()); }
                 catch (Exception error) { ShowError(error); }
             };
             toolbar.Children.Add(results);

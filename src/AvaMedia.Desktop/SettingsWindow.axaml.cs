@@ -205,7 +205,7 @@ public sealed partial class SettingsWindow : Window
     private async void HardwareTestClick(object? sender, RoutedEventArgs args)
     {
         HardwareTestButton.IsEnabled = false;
-        try { await Controls.WindowChrome.ShowIndependentAsync(new HardwareTestWindow(FfmpegInput.Text?.Trim() ?? "")); }
+        try { await HardwareTestWindow.ShowSingleAsync(FfmpegInput.Text?.Trim() ?? ""); }
         finally { HardwareTestButton.IsEnabled = true; }
     }
     private async void OutputBrowseClick(object? sender, RoutedEventArgs args) { if (await Ui.Folder(this, "选择输出文件夹") is { } path) OutputInput.Text = path; }

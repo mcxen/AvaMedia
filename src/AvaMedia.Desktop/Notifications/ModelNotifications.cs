@@ -48,7 +48,7 @@ internal static class ModelNotifications
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
         if (desktop.Windows.OfType<SettingsWindow>().FirstOrDefault() is { } settings)
-        { settings.OpenModelManagement(); settings.Activate(); return; }
+        { settings.OpenModelManagement(); Controls.WindowChrome.Present(settings); return; }
         if (desktop.MainWindow is MainWindow main) await main.OpenModelManagementAsync();
         else if (desktop.MainWindow is { } owner)
         {

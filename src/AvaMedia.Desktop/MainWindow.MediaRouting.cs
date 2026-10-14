@@ -42,7 +42,7 @@ public partial class MainWindow
     }
     private async Task ShowFileRouterAsync(string[] files)
     {
-        if (_mediaRouteWindow is { } existing) { existing.AddFiles(files); existing.Activate(); return; }
+        if (_mediaRouteWindow is { } existing) { existing.AddFiles(files); Controls.WindowChrome.Present(existing); return; }
         var window = new MediaRouteWindow(Engine, files, new MediaFileRouter(_settings.EnableBetaFeatures));
         _mediaRouteWindow = window;
         MediaRouteRequest? request;

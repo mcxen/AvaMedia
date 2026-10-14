@@ -1,4 +1,3 @@
-using Avalonia.Controls;
 using Avalonia.Interactivity;
 using AvaMedia.Core;
 
@@ -15,8 +14,7 @@ public partial class MainWindow
         if (!CanViewTaskDetails(job)) return Task.CompletedTask;
         if (_taskDetailsWindows.TryGetValue(job.Id, out var existing))
         {
-            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
-            existing.Show(); existing.Activate();
+            Controls.WindowChrome.Present(existing);
             if (showLog) existing.ShowLog();
             return Task.CompletedTask;
         }

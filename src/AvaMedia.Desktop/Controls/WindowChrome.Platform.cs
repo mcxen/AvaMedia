@@ -23,10 +23,24 @@ internal static partial class WindowChrome
 
     internal static Task ShowIndependentAsync(Window window)
     {
+        var closed = WhenClosed(window);
+        ShowIndependent(window);
+        return closed;
+    }
+
+    internal static Task WhenClosed(Window window)
+    {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         window.Closed += (_, _) => completion.TrySetResult();
-        ShowIndependent(window);
         return completion.Task;
+    }
+
+    internal static void Present(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized)
+            window.WindowState = WindowState.Normal;
+        window.Show();
+        window.Activate();
     }
 
     internal static void RegisterPlatformFrame(Window window)

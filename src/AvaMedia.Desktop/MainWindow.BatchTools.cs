@@ -7,10 +7,7 @@ public partial class MainWindow
     {
         async Task ManageModels(Avalonia.Controls.Window owner)
         {
-            var settings = new SettingsWindow(_settings, _optionServices);
-            settings.OpenModelManagement();
-            settings.Applied += (_, _) => ApplyOptions();
-            await Controls.WindowChrome.ShowIndependentAsync(settings);
+            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
         }
         if (screenshots)
         {

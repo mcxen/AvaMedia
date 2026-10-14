@@ -12,9 +12,7 @@ public partial class MainWindow
         if (_closing) return;
         if (_wifiTransferWindow is { } existing)
         {
-            if (existing.WindowState == Avalonia.Controls.WindowState.Minimized)
-                existing.WindowState = Avalonia.Controls.WindowState.Normal;
-            existing.Show(); existing.Activate(); return;
+            Controls.WindowChrome.Present(existing); return;
         }
         try
         {

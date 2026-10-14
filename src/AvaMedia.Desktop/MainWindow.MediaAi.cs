@@ -13,9 +13,7 @@ public partial class MainWindow
     {
         var window = new MediaAiWindow(Engine, _settings, files, async owner =>
         {
-            var settings = new SettingsWindow(_settings, _optionServices);
-            settings.OpenModelManagement(); settings.Applied += (_, _) => ApplyOptions();
-            await Controls.WindowChrome.ShowIndependentAsync(settings);
+            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
         }, () => !_closing,
             enqueue: EnqueueMediaTagJobs, showQueue: ShowMediaTagQueue,
             stopTask: job => { _queue.Stop(job); Save(); Refresh(); }, newTask: () => { _ = ConfigureMediaAiAsync(null); },
