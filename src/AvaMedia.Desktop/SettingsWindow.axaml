@@ -801,9 +801,9 @@
                         <Button x:Name="UpdateLogButton" Content="查看日志" Click="UpdateLogClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
                         <Button x:Name="UpdatePrimaryButton" Click="UpdatePrimaryClick" Classes="ac small primary" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
                       </WrapPanel>
-                      <Expander x:Name="UpdateReleaseNotes" Header="更新说明" IsVisible="False">
+                      <Expander x:Name="UpdateReleaseNotes" Header="更新说明" Classes="ac" IsExpanded="True" IsVisible="False">
                         <ScrollViewer MaxHeight="{DynamicResource StUpdateNotesHeight}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                          <SelectableTextBlock x:Name="UpdateReleaseNotesText" Classes="raw" TextWrapping="Wrap" FontSize="{DynamicResource UiFontCaption}"/>
+                          <ContentControl x:Name="UpdateReleaseNotesContent" Classes="release-notes" Padding="{DynamicResource StUpdateNotesPadding}" HorizontalContentAlignment="Stretch"/>
                         </ScrollViewer>
                       </Expander>
                     </StackPanel>

@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Threading;
 using AvaMedia.Core;
 
@@ -10,6 +12,7 @@ public sealed partial class SettingsWindow
     private readonly DispatcherTimer _updateStatusTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _updatesClosed, _updateActionBusy;
     private int _updateRefreshPosted;
+    private string? _renderedReleaseNotes;
 
     private void InitializeUpdateStatus()
     {
@@ -66,7 +69,17 @@ public sealed partial class SettingsWindow
         var notes = updater.LatestResult?.ReleaseNotes;
         if (updater.IsPrepared && updater.LatestResult?.LatestVersion?.ToString(3) != updater.PreparedVersion) notes = null;
         UpdateReleaseNotes.IsVisible = !string.IsNullOrWhiteSpace(notes);
-        if (UpdateReleaseNotesText.Text != notes) UpdateReleaseNotesText.Text = notes;
+        if (_renderedReleaseNotes != notes)
+        {
+            _renderedReleaseNotes = notes;
+            if (string.IsNullOrWhiteSpace(notes)) UpdateReleaseNotesContent.Content = null;
+            else
+            {
+                var document = new Controls.SummaryDocumentView(notes);
+                document.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("StControlGap"));
+                UpdateReleaseNotesContent.Content = document;
+            }
+        }
         RefreshLastUpdateCheck();
     }
 

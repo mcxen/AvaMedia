@@ -86,8 +86,27 @@ public sealed class ReleaseUpdateClient(HttpClient client)
             }
         }
         return new(true, $"新版本 {normalizedLatest} 可用，当前版本 {normalizedCurrent}。", page,
-            LatestVersion: normalizedLatest, Asset: asset, ReleaseNotes: release.TryGetProperty("body", out var notes) ? notes.GetString() : null);
+            LatestVersion: normalizedLatest, Asset: asset,
+            ReleaseNotes: release.TryGetProperty("body", out var notes) ? DisplayNotes(notes.GetString()) : null);
     }
+
+    private static string? DisplayNotes(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        // Publish-Release.ps1 appends downloads, source archives and checksums after this table.
+        // Keep the complete body above for package verification; only the reading view is shortened.
+        var downloads = Regex.Match(body, @"(?m)^[ \t]*\|[ \t]*Platform[ \t]*\|[ \t]*GitHub[ \t]*\|",
+            RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        var notes = downloads.Success ? body[..downloads.Index] : body;
+        notes = Regex.Replace(notes, @"<details\b[^>]*>.*?(?:</details\s*>|\z)", "",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        notes = Regex.Replace(notes, @"<!--.*?(?:-->|\z)", "",
+            RegexOptions.Singleline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        notes = Regex.Replace(notes, @"</?[a-z][^>]*>", "",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)).Trim();
+        return notes.Length > 0 ? notes : null;
+    }
+
     private static UpdateResult Unavailable() => new(false, "网络暂时不可用，正在后台重试更新检查。",
         CheckSucceeded: false, RetryAt: DateTimeOffset.UtcNow.AddMinutes(1));
 }
