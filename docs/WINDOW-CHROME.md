@@ -18,6 +18,10 @@ Mac OS 9 / Windows XP 皮肤通过 `Skin.Registration` 的 `PlatinumWindowFrame`
 
 所有非模态工具（包括设置、帮助、词库、硬件测试、试听、结果窗口、播放器、看图和封面预览）使用 `WindowChrome.ShowIndependent(window)`：`ShowInTaskbar=true`，`CenterOwner` 改为 `CenterScreen`，无 Owner 的 `Show()`。媒体窗口可根据来源窗口的屏幕显式定位，但不设置所属关系。主窗口最小化或隐藏时，工具继续显示；用户可通过任务栏 / Dock 的窗口列表独立切换。同一应用在 Dock 是否合并为一个图标由系统决定。不要为层级感设置 Owner 或 Topmost；层级感由系统原生阴影体现。
 
+普通工具优先恢复仍在有效屏幕内的已保存位置；首次打开优先主窗口所在屏幕的右侧、其次左侧，放不下时在该屏幕工作区居中并裁限。不得回退到屏幕左上角或自动投放到其他屏幕。未显式设置 `WindowStartupLocation` 的独立窗口同样接入该策略；显式 Manual 位置及模态表单保留调用方策略。
+
+定位使用 `DesktopScaling` 计算来源窗口的桌面边界，目标尺寸与间距按目标 `Screen.Scaling` 换算，不使用 `RenderScaling`。Avalonia 11.3.22 的 macOS 后端以逻辑点表示屏幕坐标，桌面缩放为 1，而 Retina 绘制倍率通常为 2；混用会将主窗口占地翻倍，错误地判断没有相邻空间。依据 [Window 的定位实现](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/Window.cs)、[TopLevelImpl](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Native/TopLevelImpl.cs) 与 [Screens.mm](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/native/Avalonia.Native/src/OSX/Screens.mm)。
+
 若调用方需要等到工具关闭（例如释放设置服务或重新载入词库），使用 `ShowIndependentAsync`，通过 `Closed` 完成 Task，仍不禁用来源窗口。提交任务的非模态工具继续由 `ToolExecution.ShowAsync` 返回结果，它内部也使用独立 `Show()`。只有确实需要用户返回确认 / 编辑结果的提示、选项、编辑表单保留 `ShowDialog(owner)`；外观策略相同。业务队列、回调等上下文通过参数或应用的 `MainWindow` 获得，不通过工具窗口的 Owner 链查找。
 
 标题行和队列栏留白支持 `BeginMoveDrag`，双击切换最大化；按钮、文本框、菜单、滑条、下拉及分隔条保留自身操作。固定大小 / 禁止最小化或最大化的工具窗口，其共享标题按钮也必须遵守对应能力。

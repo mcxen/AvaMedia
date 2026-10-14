@@ -89,7 +89,8 @@ internal static partial class WindowChrome
         window.Opened += (_, _) =>
         {
             // Modal forms and explicit source-screen/manual coordinates keep their policy.
-            if (window.Owner is not null || window.WindowStartupLocation == WindowStartupLocation.Manual) return;
+            if (window.Owner is not null || window.WindowStartupLocation == WindowStartupLocation.Manual
+                && window.IsSet(Window.WindowStartupLocationProperty)) return;
             var source = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
             if (source is null || ReferenceEquals(source, window)) return;
             ToolPosition? saved = null;
@@ -137,25 +138,22 @@ internal static partial class WindowChrome
 
     private static PixelPoint? BesideSource(Window window, Window source)
     {
-        var preferred = source.Screens.ScreenFromWindow(source);
-        var sourceSize = FramePixels(source, source.RenderScaling);
-        var sourceBounds = new PixelRect(source.Position, sourceSize);
-        foreach (var screen in window.Screens.All.OrderBy(s => s != preferred))
-        {
-            var area = screen.WorkingArea; var size = FramePixels(window, screen.Scaling);
-            var gap = (int)Math.Ceiling(Metric(window, "UiToolWindowGap", 12) * screen.Scaling);
-            foreach (var x in new[] { sourceBounds.Right + gap, sourceBounds.X - gap - size.Width, area.X, area.Right - size.Width })
-            {
-                var candidate = ClampPosition(window, screen, new(x, source.Position.Y));
-                var bounds = new PixelRect(candidate, size);
-                if (area.Contains(bounds) && !bounds.Intersects(sourceBounds)) return candidate;
-            }
-        }
-        // Limited screen space permits overlap. Prefer the left edge so the shell's
-        // task area on the right retains as much exposed space as possible.
+        var preferred = source.Screens.ScreenFromWindow(source) ?? source.Screens.ScreenFromPoint(source.Position)
+            ?? window.Screens.Primary;
         if (preferred is null) return null;
-        var fallbackArea = preferred.WorkingArea;
-        return ClampPosition(window, preferred, new(fallbackArea.X, source.Position.Y));
+        // Desktop coordinates differ from rendering pixels on macOS Retina displays.
+        var sourceSize = FramePixels(source, source.DesktopScaling);
+        var sourceBounds = new PixelRect(source.Position, sourceSize);
+        var area = preferred.WorkingArea; var size = FramePixels(window, preferred.Scaling);
+        var gap = (int)Math.Ceiling(Metric(window, "UiToolWindowGap", 12) * preferred.Scaling);
+        foreach (var x in new[] { sourceBounds.Right + gap, sourceBounds.X - gap - size.Width })
+        {
+            var candidate = ClampPosition(window, preferred, new(x, source.Position.Y));
+            var bounds = new PixelRect(candidate, size);
+            if (area.Contains(bounds) && !bounds.Intersects(sourceBounds)) return candidate;
+        }
+        // Limited screen space permits overlap; keep the tool centered on the source display.
+        return ClampPosition(window, preferred, area.CenterRect(new PixelRect(size)).Position);
     }
 
     public static StackPanel CreateCaptionButtons(Window window, out Button maximize)

@@ -14,7 +14,8 @@ internal static partial class WindowChrome
     internal static void ShowIndependent(Window window)
     {
         window.ShowInTaskbar = true;
-        if (window.WindowStartupLocation == WindowStartupLocation.CenterOwner)
+        if (window.WindowStartupLocation == WindowStartupLocation.CenterOwner
+            || !window.IsSet(Window.WindowStartupLocationProperty))
             window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ApplyPlatformFrame(window);
         window.Show();
