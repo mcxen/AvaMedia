@@ -32,7 +32,8 @@ internal static class QueueListChecks
         store.SaveSettings(new() { NotifyComplete = false, ReduceMotion = true }); store.SaveJobs(jobs);
         var main = new MainWindow(store, engine); main.Show(); pump(30);
         var list = main.FindControl<ListBox>("JobList")!;
-        var actual = list.Items.Cast<Job>().ToArray();
+        // The list groups jobs into sections, so match fixtures by output instead of position.
+        var actual = jobs.Select(f => list.Items.OfType<Job>().Single(j => j.Output == f.Output)).ToArray();
         // Storage recovers interrupted jobs; exercise a live state after opening.
         actual[1].State = JobState.Running;
         WaitRows();
