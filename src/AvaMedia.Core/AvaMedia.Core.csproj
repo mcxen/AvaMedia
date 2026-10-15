@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="AvaMedia.PersonClipTests" />
     <EmbeddedResource Include="Assets/SummaryModels.json" LogicalName="AvaMedia.Core.SummaryModels.json" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.10.0" />
     <PackageReference Include="Whisper.net" Version="1.9.1" />

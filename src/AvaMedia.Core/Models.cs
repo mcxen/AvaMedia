@@ -176,7 +176,7 @@ public sealed partial class Job : Observable
     public List<ConversionOptions>? InputOptions { get; set; }
     public double Duration { get; set; }
     private JobState _state;
-    public JobState State { get=>_state; set {if(Set(ref _state,value)) {if(value!=JobState.Running)Estimate=null;Raise(nameof(Status));Raise(nameof(RemainingTimeText));Raise(nameof(CanRetry));}} }
+    public JobState State { get=>_state; set {if(Set(ref _state,value)) {PersonClipStages?.Pause(value==JobState.Paused);if(value!=JobState.Running)Estimate=null;Raise(nameof(Status));Raise(nameof(RemainingTimeText));Raise(nameof(CanRetry));}} }
     private JobCompletionKind _completionKind;
     public JobCompletionKind CompletionKind
     {

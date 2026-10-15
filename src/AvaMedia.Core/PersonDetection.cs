@@ -5,7 +5,10 @@ namespace AvaMedia.Core;
 
 public enum PersonDetectionMode { Balanced, Recall, Consensus }
 public sealed record PersonDetectorDefinition(string Id, string Name, int InputSize);
-public sealed record PersonDetectionEvidence(string Id, double Score, double Threshold, string Backend);
+public sealed record PersonDetectionEvidence(string Id, double Score, double Threshold, string Backend)
+{
+    public IReadOnlyList<PersonClipDetectionBox> Boxes { get; init; } = [];
+}
 public sealed record PersonDetectorStatistics(string Id, string Name, int Evaluations, int PositiveFrames, string Backend, string? FallbackReason);
 public sealed record PersonDetectionDecision(bool Keep, bool Uncertain, int Votes);
 
@@ -56,6 +59,7 @@ internal sealed class PersonDetectorSet : IDisposable
         public DenseTensor<float> Input { get; } = new(definition.Id == ModelCatalog.MediaPipePalmId
             ? new[] { 1, definition.InputSize, definition.InputSize, 3 } : new[] { 1, 3, definition.InputSize, definition.InputSize });
         public int Evaluations, PositiveFrames;
+        public IReadOnlyList<PersonClipDetectionBox> Boxes = [];
     }
     private readonly List<Detector> _detectors = [];
     private (int Left, int Top, int Width, int Height) _content;
@@ -110,23 +114,24 @@ internal sealed class PersonDetectorSet : IDisposable
     {
         ct.ThrowIfCancellationRequested();
         var definition = detector.Definition;
+        var cutoff = definition.Id == ModelCatalog.MediaPipePersonId ? Math.Min(.98, threshold * .6 / .35) : threshold;
         Preprocess(rgb, FrameSize, _content, definition, detector.Input);
         double score;
-        try { score = Score(detector, ct); }
+        try { score = Score(detector, cutoff, ct); }
         catch (InvalidDataException error) when (detector.Session.Backend != "CPU" && !ct.IsCancellationRequested)
         {
             // A provider may complete successfully while returning NaN/Inf or invalid probabilities.
             // Validate the output as well as runtime exceptions before trusting accelerated inference.
             detector.Session.FallbackToCpu($"{definition.Name} 输出无效：{error.Message}");
-            score = Score(detector, ct);
+            score = Score(detector, cutoff, ct);
         }
-        var cutoff = definition.Id == ModelCatalog.MediaPipePersonId ? Math.Min(.98, threshold * .6 / .35) : threshold;
         detector.Evaluations++;
         if (score >= cutoff) detector.PositiveFrames++;
-        return new(definition.Id, score, cutoff, detector.Session.Backend);
+        return new(definition.Id, score, cutoff, detector.Session.Backend)
+        { Boxes = PersonDetectionGeometry.ToPreview(detector.Boxes, definition, FrameSize, _content) };
     }
 
-    private static double Score(Detector detector, CancellationToken ct)
+    private static double Score(Detector detector, double threshold, CancellationToken ct)
     {
         var definition = detector.Definition;
         var input = NamedOnnxValue.CreateFromTensor(detector.Session.InputName, detector.Input);
@@ -167,6 +172,7 @@ internal sealed class PersonDetectorSet : IDisposable
             }
         }
         if (!double.IsFinite(score) || score is < 0 or > 1) throw new InvalidDataException("人物检测返回了无效分数。");
+        detector.Boxes = PersonDetectionGeometry.Read(definition, output.Select(value => value.AsTensor<float>()).ToArray(), threshold);
         return score;
     }
 

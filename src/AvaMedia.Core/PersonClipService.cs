@@ -1,5 +1,4 @@
 using System.Text;
-using System.Diagnostics;
 
 namespace AvaMedia.Core;
 
@@ -25,6 +24,16 @@ public sealed class PersonClipService(MediaEngine engine)
 {
     private static readonly SemaphoreSlim DetectionGate = new(1, 1);
 
+    internal static async Task<IDisposable> EnterDetectionAsync(CancellationToken ct)
+    {
+        await DetectionGate.WaitAsync(ct).ConfigureAwait(false);
+        return new DetectionPermit();
+    }
+    private sealed class DetectionPermit : IDisposable
+    {
+        public void Dispose() => DetectionGate.Release();
+    }
+
     public static void Validate(Job job)
     {
         if (job.Inputs.Length != 1 || !VideoFormats.IsVideo(job.Inputs[0]) || job.InputOptions is not null)
@@ -47,68 +56,93 @@ public sealed class PersonClipService(MediaEngine engine)
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
+        var store = new ModelStore();
+        var stages = new PersonClipTaskState(job); job.PersonClipStages = stages;
+        try
+        {
+            var retry = await PersonClipRetry.ResolveAsync(job, job.PersonClipStartStageId, store, ct).ConfigureAwait(false);
+            if (retry.FallbackReason.Length > 0) stages.Log("", retry.FallbackReason, TaskLogLevel.Warning);
+            await ExecuteStagesAsync(job, progress, ct, stages, retry).ConfigureAwait(false);
+            stages.Finish(JobState.Completed);
+        }
+        catch (OperationCanceledException) { stages.Finish(JobState.Cancelled); throw; }
+        catch (Exception error) when (ct.IsCancellationRequested)
+        { stages.Finish(JobState.Cancelled); throw new OperationCanceledException("用户停止了任务。", error, ct); }
+        catch (Exception error) { stages.Finish(JobState.Failed, error.Message); throw; }
+        finally { job.PersonClipStartStageId = null; }
+    }
+
+    private async Task ExecuteStagesAsync(Job job, Action<double> progress, CancellationToken ct,
+        PersonClipTaskState stages, PersonClipRetryPlan retry)
+    {
+        if (retry.StageId is null) stages.Start(PersonClipStageIds.ReadVideo);
         Validate(job);
         var spec = job.Options.PersonClip!;
-        job.PersonDetectionResult = null;
-        AiTaskResults.DeleteResult(job, "people");
+        if (retry.StageId is null)
+        {
+            job.PersonDetectionResult = null;
+            AiTaskResults.DeleteResult(job, "people");
+            AiTaskResults.DeleteResult(job, "people-detection");
+        }
         var source = new FileInfo(job.Inputs[0]); var bytes = source.Length; var modified = source.LastWriteTimeUtc;
         var activity = new AiActivityReporter(value => job.Activity = value, "保留有人片段", "个片段", ["人物检测", "导出片段"]);
         activity.Stage("等待人物检测"); job.ProgressDetail = "等待人物检测"; progress(0);
         PersonClipResult result;
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
-        using var pauseBoundary = JobExecutionControl.DeferPause();
-        await DetectionGate.WaitAsync(ct).ConfigureAwait(false);
-        var analysisClock = Stopwatch.StartNew();
-        try
+        if (retry.Result is { } retained)
         {
-            var models = new ModelStore();
-            foreach (var id in spec.Detection.RequiredModels.Concat(spec.Detection.UseEmbedding ? new[] { ModelCatalog.EmbeddingId } : []))
-            {
-                if (await models.IsInstalledAsync(id, ct: ct).ConfigureAwait(false)) continue;
-                job.ProgressDetail = "下载模型 · " + ModelCatalog.Find(id).Name;
-                await models.DownloadAsync(id, new DownloadProgress(value => activity.Stage(job.ProgressDetail, value.Received, value.Total, "字节")), ct).ConfigureAwait(false);
-            }
+            foreach (var id in PersonClipStageIds.All.Take(4).Select(stage => stage.Id)) stages.Reuse(id, retry.Summary!);
+            result = retained.Result;
+        }
+        else
+        {
             var latest = 0d;
-            result = await new PersonClipAnalysis(engine).AnalyzeAsync(job.Inputs[0], spec.Detection,
+            result = await new PersonClipAnalysis(engine).AnalyzeStagesAsync(job.Inputs[0], spec.Detection,
                 new InlineProgress(value =>
                 {
                     if (value.PreviewResult is { } preview)
+                    {
+                        stages.Open(value.OpenSegment);
                         job.PersonDetectionResult = new(preview, bytes, modified);
+                    }
+                    if (value.LiveFrame is { } frame) stages.Frame(frame);
                     if (value.Activity is { } observed) activity.Observe(observed);
                     job.ProgressDetail = value.Stage;
                     var fraction = value.Duration > 0 ? Math.Clamp(value.Seconds / value.Duration, 0, 1) * 80 : 0;
                     if (value.Stage == "细化片段边界" && value.Activity is { Current: { } current, Total: > 0 } detail)
                         fraction = 80 + 9 * Math.Clamp(current / detail.Total!.Value, 0, 1);
                     latest = Math.Max(latest, fraction); progress(latest);
-                }), ct).ConfigureAwait(false);
+                }), ct, stages, job, retry).ConfigureAwait(false);
         }
-        finally { DetectionGate.Release(); pauseBoundary.Dispose(); }
         job.PersonDetectionResult = new(result, bytes, modified);
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
-        analysisClock.Stop();
         ct.ThrowIfCancellationRequested(); CheckSource();
         job.Duration = result.Info.Duration;
         job.AppendLog(result.FromCache ? $"复用检测缓存：{result.Segments.Count} 个片段，本次无需模型计算。"
             : $"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {MediaTime.Format(result.ExcludedSeconds)}；{result.Backend}");
-        job.AppendLog($"人物检测耗时：{MediaEngine.Number(analysisClock.Elapsed.TotalSeconds)} 秒");
+        job.AppendLog($"人物检测耗时：{MediaEngine.Number(stages.Capture().Summary.Stages.Take(4).Sum(s => s.Status.Elapsed?.TotalSeconds ?? 0))} 秒");
         foreach (var detector in result.FromCache ? [] : result.Detectors)
             if (detector.FallbackReason is { } reason) job.AppendLog($"{detector.Name} GPU 回退 CPU：{reason}");
         foreach (var segment in result.Segments) job.AppendLog($"保留 {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}");
         var detected = new PersonDetectionTaskResult(result, bytes, modified);
         await AiTaskResults.SaveAsync(spec.AnalysisOnly ? job.Output : AiTaskResults.PathFor(job, "people"), detected, ct).ConfigureAwait(false);
         job.PersonDetectionResult = detected;
+        if (stages.Capture().Summary.Stages[3].Status.State is StageState.Active or StageState.Paused)
+            stages.Complete(PersonClipStageIds.Refine, $"{stages.Capture().Summary.Stages[3].Status.Current ?? 0} 处边界 · 边界计算 {result.BoundaryFrames} 帧 · {result.Segments.Count} 段 · {MediaTime.Format(result.Segments.Sum(s => s.End - s.Start))}");
         if (spec.AnalysisOnly)
         {
             job.ProgressDetail = result.Segments.Count > 0 ? $"保留 {result.Segments.Count} 个片段 · 可调整后导出" : "没有可保留片段";
+            stages.Complete(PersonClipStageIds.Export, "已跳过 · 仅检测，不导出", StageState.Skipped);
             activity.Finish("人物检测完成"); progress(100); return;
         }
         if (result.Segments.Count == 0)
         {
             job.ProgressDetail = "没有可保留片段，已跳过输出";
+            stages.Complete(PersonClipStageIds.Export, "已跳过 · 没有可保留片段", StageState.Skipped);
             activity.Finish(job.ProgressDetail); job.AppendLog(job.ProgressDetail); progress(100); return;
         }
+        stages.Start(PersonClipStageIds.Export);
         activity.Node("导出片段"); activity.Stage("导出片段", 0, 100, "%"); progress(90);
-        var exportClock = Stopwatch.StartNew();
         var folder = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!, ".AvaMedia-people-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         try
@@ -145,7 +179,7 @@ public sealed class PersonClipService(MediaEngine engine)
             CheckSource(); ct.ThrowIfCancellationRequested();
             if (!File.Exists(output) || new FileInfo(output).Length == 0) throw new InvalidDataException("保留片段未生成有效输出。");
             File.Move(output, job.Output);
-            job.AppendLog($"导出片段耗时：{MediaEngine.Number(exportClock.Elapsed.TotalSeconds)} 秒");
+            job.AppendLog($"导出片段耗时：{MediaEngine.Number(stages.Capture().Summary.Stages[4].Status.Elapsed?.TotalSeconds ?? 0)} 秒");
             job.ProgressDetail = $"保留 {result.Segments.Count} 个片段";
             activity.Result(job.ProgressDetail, result.Segments.Count); activity.Finish("导出完成"); progress(100);
 
@@ -175,9 +209,11 @@ public sealed class PersonClipService(MediaEngine engine)
                     draft.Log = "";
                 }
             }
-            void Advance(double value) { activity.Advance(value, 100, "%"); progress(90 + Math.Clamp(value, 0, 100) * .099); }
+            void Advance(double value) { stages.Update(value, 100, "%", $"{MediaEngine.Number(value)}%"); activity.Advance(value, 100, "%"); progress(90 + Math.Clamp(value, 0, 100) * .099); }
         }
         finally { Directory.Delete(folder, true); }
+        stages.Complete(PersonClipStageIds.Export,
+            $"{MediaTime.Format(result.Segments.Sum(s => s.End - s.Start))} · {new FileInfo(job.Output).Length} 字节");
 
         void CheckSource()
         {
@@ -189,6 +225,4 @@ public sealed class PersonClipService(MediaEngine engine)
 
     private sealed class InlineProgress(Action<PersonClipProgress> report) : IProgress<PersonClipProgress>
     { public void Report(PersonClipProgress value) => report(value); }
-    private sealed class DownloadProgress(Action<ModelDownloadProgress> report) : IProgress<ModelDownloadProgress>
-    { public void Report(ModelDownloadProgress value) => report(value); }
 }

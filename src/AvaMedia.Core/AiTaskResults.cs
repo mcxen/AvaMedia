@@ -33,7 +33,7 @@ public static class AiTaskResults
     public static async Task<T?> LoadAsync<T>(string path, CancellationToken ct = default)
     {
         if (!File.Exists(path)) return default;
-        await using var stream = File.OpenRead(path);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         return await JsonSerializer.DeserializeAsync<T>(stream, cancellationToken: ct).ConfigureAwait(false);
     }
 

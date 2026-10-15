@@ -154,12 +154,21 @@ public partial class MainWindow
         return MediaEngine.UniqueOutput(Path.GetDirectoryName(job.Output)!, name, job.Options.Format, reserved, directory);
     }
 
-    private async Task RestartTasksAsync(Job[] jobs)
+    private async Task RestartTasksAsync(Job[] jobs, string? fromStageId = null)
     {
         var restarting = jobs.Where(job => _jobs.Contains(job) && CanRequeueTask(job)).ToArray();
         if (restarting.Length == 0) return;
         foreach (var job in restarting)
         {
+            if (job.FeatureId == "person-clip")
+            {
+                // A stage retry retains durable detection/summary files; an ordinary rerun starts afresh.
+                var startStage = fromStageId ?? (job.State == JobState.Paused ? job.PersonClipStartStageId : null);
+                var destination = job.HasInternalOutput ? AiTaskResults.InternalOutputFor(job) : NextTaskOutput(job);
+                if (startStage is null) AiTaskResults.ClearForRetry(job);
+                ResetTask(job); job.Output = destination; job.PersonClipStartStageId = startStage;
+                continue;
+            }
             if (job.Options.VlRename is not null)
             {
                 if (job.State == JobState.Completed)

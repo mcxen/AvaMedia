@@ -26,6 +26,7 @@ public partial class MainWindow
 
     private static void ResetTask(Job job)
     {
+        job.PersonClipStagesReset();
         job.Log = "";
         job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
         job.Progress = 0; job.ProgressDetail = ""; job.Estimate = null; job.DownloadSpeed = null; job.Error = ""; job.Activity = null;

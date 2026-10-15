@@ -1,4 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" /></ItemGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><IsTestProject>true</IsTestProject><GenerateProgramFile>false</GenerateProgramFile><IsPackable>false</IsPackable></PropertyGroup>
+  <PropertyGroup Condition="'$(PersonClipCoreOnly)' == 'true'"><OutputType>Library</OutputType></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
+    <ProjectReference Include="../../src/AvaMedia.Core/AvaMedia.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PersonClipCoreOnly)' == 'true'"><Compile Remove="Program.cs" /></ItemGroup>
+  <ItemGroup Condition="'$(PersonClipCoreOnly)' != 'true'"><ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" /></ItemGroup>
 </Project>

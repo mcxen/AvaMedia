@@ -155,6 +155,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 execution.Active = false; job.Error = error; job.Estimate = null; job.DownloadSpeed = null;
                 if (state != JobState.Completed) { job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = ""; }
                 if (state == JobState.Completed) job.Progress = 100;
+                job.PersonClipStages?.Finish(state, error);
                 job.State = state;
                 if (job.Activity is { } activity) job.Activity = activity with { UpdatedUtc = DateTime.UtcNow, State = state switch
                 { JobState.Completed => AiActivityState.Completed, JobState.Cancelled => AiActivityState.Cancelled, _ => AiActivityState.Failed } };
@@ -237,6 +238,11 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             {
                 if (job.State is not (JobState.Waiting or JobState.Paused)) return false;
                 _pending.Remove(job); job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
+                if (job.FeatureId == "person-clip" && job.Options.PersonClip is not null)
+                {
+                    job.PersonClipStages ??= new PersonClipTaskState(job);
+                    job.PersonClipStages.Finish(JobState.Cancelled);
+                }
                 job.State = JobState.Cancelled; job.Error = "用户停止了任务。"; WakeLocked();
             }
         }
