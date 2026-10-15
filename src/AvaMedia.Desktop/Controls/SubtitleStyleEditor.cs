@@ -69,7 +69,7 @@ public sealed partial class SubtitleStyleEditor : UserControl, IDisposable
         string[] channelNames = ["红", "绿", "蓝"];
         for (var index=0; index<channels.Length; index++)
         {
-            var channel=channels[index]; AutomationProperties.SetName(channel, channelNames[index]); ToolTip.SetTip(channel, channelNames[index]);
+            var channel=channels[index]; channel.Classes.Add("compact"); AutomationProperties.SetName(channel, channelNames[index]); ToolTip.SetTip(channel, channelNames[index]);
             Grid.SetColumn(channel, index + 1); colorRow.Children.Add(channel);
             channel.ValueChanged+=(_,_)=>
             {
