@@ -177,12 +177,16 @@ public partial class MainWindow
         if (restarting.Length == 0) return;
         foreach (var job in restarting)
         {
-            if (job.Lifecycle?.Current.Page.Id == "merge" && fromStageId is not null)
+            if (job.Lifecycle?.Current.Page.Id is "merge" or "generate" && (fromStageId is not null || job.State is JobState.Failed or JobState.Cancelled))
             {
                 if (File.Exists(job.Output)) job.Output = NextTaskOutput(job);
                 job.Error = ""; job.State = JobState.Waiting; continue;
             }
             if (job.Lifecycle is not null) using (var lifecycle = new TaskLifecycle(job, job.Lifecycle.Pages.Select(p => p.Page))) lifecycle.Reset();
+            if (job.Lifecycle is not null && job.FeatureId == "auto-subtitle")
+            {
+                ResetTask(job); SubtitleLifecycle.PrepareRecognition(job); continue;
+            }
             if (job.FeatureId == "person-clip")
             {
                 // A stage retry retains durable detection/summary files; an ordinary rerun starts afresh.

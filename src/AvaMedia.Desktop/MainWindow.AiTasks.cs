@@ -138,6 +138,7 @@ public partial class MainWindow
 
     private async Task ShowSubtitleTaskResultAsync(Job job)
     {
+        if (job.Lifecycle is not null) { await ShowAiTaskAsync(job); return; }
         var transcript = job.SubtitleResult ?? await AiTaskResults.LoadAsync<SubtitleTaskResult>(AiTaskResults.PathFor(job, "subtitles"));
         if (transcript is null) throw new IOException("字幕识别结果缺失，请重新运行任务。");
         job.SubtitleResult = transcript;

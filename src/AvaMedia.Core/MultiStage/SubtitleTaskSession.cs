@@ -125,7 +125,7 @@ public sealed class SubtitleTaskSession : ISubtitleTask
                     {
                         JobState.Waiting => MultiStageTaskState.Configuring, JobState.Running => MultiStageTaskState.Running,
                         JobState.Paused => MultiStageTaskState.Paused, JobState.Stopping => MultiStageTaskState.Stopping,
-                        JobState.Failed => MultiStageTaskState.Failed, JobState.Completed => MultiStageTaskState.Completed,
+                        JobState.AwaitingUser => MultiStageTaskState.AwaitingUser, JobState.Failed => MultiStageTaskState.Failed, JobState.Completed => MultiStageTaskState.Completed,
                         _ => MultiStageTaskState.Cancelled
                     },
                     Stages = Array.AsReadOnly(stages), CurrentStageIndex = current,

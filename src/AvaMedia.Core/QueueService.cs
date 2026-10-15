@@ -158,7 +158,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 job.PersonClipStages?.Finish(state, error);
                 job.State = state;
                 if (job.Activity is { } activity) job.Activity = activity with { UpdatedUtc = DateTime.UtcNow, State = state switch
-                { JobState.Completed => AiActivityState.Completed, JobState.Cancelled => AiActivityState.Cancelled, _ => AiActivityState.Failed } };
+                { JobState.Completed or JobState.AwaitingUser => AiActivityState.Completed, JobState.Cancelled => AiActivityState.Cancelled, _ => AiActivityState.Failed } };
             }
         }
         async Task<string> PreserveResultsAsync()

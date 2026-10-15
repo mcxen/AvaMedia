@@ -11,6 +11,11 @@ public partial class MainWindow
         {
             if (!_mcpBackgroundMode && job.FeatureId == "person-clip" && job.Options.PersonClip is not null)
                 using (new TaskLifecycle(job, PersonClipLifecycle.Pages)) { }
+            if (!_mcpBackgroundMode && job.FeatureId == "auto-subtitle")
+            {
+                SubtitleLifecycle.PrepareRecognition(job);
+                using (new TaskLifecycle(job, SubtitleLifecycle.Pages)) { }
+            }
             _jobs.Add(job);
         }
         Save(); Refresh();

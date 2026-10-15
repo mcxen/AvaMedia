@@ -24,7 +24,12 @@ public partial class MainWindow
             ? new PersonClipLifecycleWindow(job, session, content, Engine, job.HasInternalOutput ? _settings.OutputFolder : Path.GetDirectoryName(job.Output)!,
                 () => { Save(); Refresh(); return Task.CompletedTask; },
                 async () => { job.State = JobState.Waiting; Save(); Refresh(); await RequestTaskRunAsync(job); })
-            : new MultiStageTaskWindow(session, content, label, Engine);
+            : job.Lifecycle is not null && session is ISubtitleTask subtitle
+                ? new SubtitleLifecycleWindow(job, subtitle, content, Engine,
+                    job.Options.Transcription?.ReviewOutputToSource == true ? Path.GetDirectoryName(job.Inputs[0])! : job.Options.Transcription?.ReviewOutputFolder ?? _settings.OutputFolder,
+                    () => { Save(); Refresh(); return Task.CompletedTask; },
+                    async () => { job.State = JobState.Waiting; Save(); Refresh(); await RequestTaskRunAsync(job); })
+                : new MultiStageTaskWindow(session, content, label, Engine);
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);

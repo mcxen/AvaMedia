@@ -59,6 +59,13 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct, bool allowEmpty = false, bool saveTaskResult = true,
         MediaInfo? sourceInfo = null, SummaryCheckpointStore? checkpoints = null)
     {
+        using var lifecycle = job.Lifecycle is null ? null : new TaskLifecycle(job, SubtitleLifecycle.Pages);
+        if (lifecycle?.CurrentPage.Page.Id == "generate")
+        {
+            await SubtitleLifecycle.GenerateAsync(engine, job, lifecycle, progress, ct).ConfigureAwait(false);
+            return;
+        }
+        lifecycle?.StartProcessing("process");
         using var stages = new SubtitleTaskState(job, persist: saveTaskResult);
         try
         {
@@ -67,15 +74,16 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             var cueCount = await ExecuteCoreAsync(job, progress, ct, allowEmpty, saveTaskResult, sourceInfo, checkpoints, stages).ConfigureAwait(false);
             stages.Complete(SubtitleStageIds.WriteSubtitles, $"{cueCount} 条字幕 · {job.Output}");
             stages.Finish(JobState.Completed);
+            lifecycle?.CompleteProcessing("process", $"识别到 {cueCount} 条字幕");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            stages.Finish(JobState.Cancelled);
+            lifecycle?.Fail("用户停止了任务。"); stages.Finish(JobState.Cancelled);
             throw;
         }
         catch (Exception error)
         {
-            stages.Finish(JobState.Failed, error.Message);
+            lifecycle?.Fail(error.Message); stages.Finish(JobState.Failed, error.Message);
             throw;
         }
     }
