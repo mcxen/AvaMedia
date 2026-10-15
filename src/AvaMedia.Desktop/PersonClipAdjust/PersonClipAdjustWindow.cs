@@ -103,7 +103,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         Closed += (_, _) =>
         {
             _closed = true; _session.Changed -= SessionChanged; _saveTimer.Stop(); _noticeTimer.Stop();
-            _lifetime.Cancel(); DisposeMedia(); DisposeThumbnails(); DisposeTimeline(); _lifetime.Dispose();
+            _lifetime.Cancel(); DisposeMedia(); DisposeThumbnails(); DisposeTimeline(); DisposeInspector(); _lifetime.Dispose();
         };
         _selected = _session.Segments.FirstOrDefault(s => s.Keep)?.Id ?? _session.Segments.FirstOrDefault()?.Id;
         RefreshAll();
@@ -328,6 +328,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
     partial void DisposeMedia();
     partial void DisposeThumbnails();
     partial void DisposeTimeline();
+    partial void DisposeInspector();
     partial void HandleEditorKey(KeyEventArgs e);
     partial void OpenSegmentMenu(Control anchor, int id);
     partial void PlaySelected();

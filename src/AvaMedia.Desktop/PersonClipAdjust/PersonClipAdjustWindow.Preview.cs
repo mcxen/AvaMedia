@@ -20,6 +20,8 @@ internal sealed partial class PersonClipAdjustWindow
     private Playback? _player;
     private readonly Image _frame = new() { Stretch = Stretch.Uniform };
     private MediaFrameView? _frameView;
+    private readonly LayoutTransformControl _frameTransform = new();
+    private bool _delogoMode;
     private readonly MediaPreviewSurface _surface = new() { UseAmbientLighting = false };
     private readonly PreviewChip _chip = new(HorizontalAlignment.Left);
     private readonly TextBlock _previewStatus = new() { Classes = { "ms-caption" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -53,7 +55,7 @@ internal sealed partial class PersonClipAdjustWindow
         grid.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcMsGap"));
         var frame = new Grid();
         frame.Bind(BackgroundProperty, new DynamicResourceExtension("AcPreviewFill"));
-        frame.Children.Add(_frame); frame.Children.Add(_previewStatus);
+        _frameTransform.Child = _frame; frame.Children.Add(_frameTransform); frame.Children.Add(_previewStatus);
         MsUi.Brush(_crop, AvaMedia.MediaUi.CropOverlay.ShadeBrushProperty, "UiCropShade");
         MsUi.Brush(_crop, AvaMedia.MediaUi.CropOverlay.SelectionBrushProperty, "UiCropSelection");
         MsUi.Brush(_crop, AvaMedia.MediaUi.CropOverlay.BorderBrushProperty, "UiCropBorder");
@@ -61,7 +63,8 @@ internal sealed partial class PersonClipAdjustWindow
         _crop.ShowGrid = true;
         frame.Children.Add(_crop); frame.Children.Add(_chip);
         _surface.PreviewContent = frame;
-        _surface.Bind(MediaPreviewSurface.ContentSizeProperty, new Binding("Source.Size") { Source = _frame });
+        _frame.PropertyChanged += (_, e) => { if (e.Property == Image.SourceProperty) RefreshPreviewEffects(); };
+        RefreshPreviewEffects();
         _surface.Title = Path.GetFileName(_session.SourcePath);
         _previewStatus.Text = Localization.Text("正在读取视频…");
         _frameView = new(_frame);
@@ -157,6 +160,8 @@ internal sealed partial class PersonClipAdjustWindow
         _time.Text = AdjustTime.Clock(_position, 1);
         _total.Text = "/ " + AdjustTime.Clock(_session.Duration, 1);
         TrackPosition(_position);
+        if (!_timeline.Dragging && !_cropping && _session.Segments.FirstOrDefault(s => _position >= s.Start && _position < s.End) is { } active && active.Id != _selected)
+            Select(active.Id, seek: false, reveal: false);
         var frameRate = _info?.FrameRate is > 0 ? _info.FrameRate : 25;
         _chip.Text = AdjustTime.Clock(_position, 1) + " · " + Localization.Format($"第 {(int)Math.Round(_position * frameRate)} 帧");
     }
@@ -256,7 +261,7 @@ internal sealed partial class PersonClipAdjustWindow
     {
         if (_closed || !_playing) return;
         SetPosition(position);
-        if (_player is not null) { _frameView?.Show(_player.Frame); _previewStatus.IsVisible = false; }
+        if (_player is not null) { _frameView?.Show(_player.Frame); RefreshPreviewEffects(); _previewStatus.IsVisible = false; }
     }
 
     private void PlayerFinished()
@@ -317,13 +322,28 @@ internal sealed partial class PersonClipAdjustWindow
     }
     partial void HandleSegmentKey(KeyEventArgs e);
 
+    private void RefreshPreviewEffects()
+    {
+        var options = Selected?.Options;
+        var rotation = _cropping ? 0 : options?.Rotation ?? 0;
+        var transform = new TransformGroup(); transform.Children.Add(new RotateTransform(rotation));
+        if (!_cropping && options?.Flip == true) transform.Children.Add(new ScaleTransform(-1, 1));
+        _frameTransform.LayoutTransform = transform;
+        var display = MediaStreams.DisplaySize(_session.Info);
+        var size = _frame.Source?.Size ?? new Size(display.Width, display.Height);
+        _surface.ContentSize = rotation is 90 or 270 ? new Size(size.Height, size.Width) : size;
+    }
+
     // ------------------------------------------------------------------ crop on the preview
-    private void BeginCrop()
+    private void BeginCrop(bool delogo = false)
     {
         if (Selected is not { } segment || _info?.HasVideo != true) return;
-        _cropping = true; _cropSegment = segment.Id;
+        _cropping = true; _delogoMode = delogo; _cropSegment = segment.Id;
+        _crop.Shade = !delogo;
         var o = segment.Options;
-        _crop.Selection = o.CropWidth > 0 ? new Rect(o.CropX, o.CropY, o.CropWidth, o.CropHeight) : new Rect(0, 0, _info.Width, _info.Height);
+        _crop.Selection = delogo
+            ? o.DelogoWidth > 0 ? new Rect(o.DelogoX, o.DelogoY, o.DelogoWidth, o.DelogoHeight) : new Rect(_info.Width / 4, _info.Height / 4, _info.Width / 2, _info.Height / 2)
+            : o.CropWidth > 0 ? new Rect(o.CropX, o.CropY, o.CropWidth, o.CropHeight) : new Rect(0, 0, _info.Width, _info.Height);
         _crop.Enabled = true; _crop.IsVisible = true; _crop.InvalidateVisual();
         Notify(Localization.Text("在预览上拖动裁剪框，完成后再次点击「裁剪」"), error: false);
         RefreshInspector();
@@ -342,6 +362,13 @@ internal sealed partial class PersonClipAdjustWindow
         if (!_cropping || _cropSegment is not { } id || _info is null || _session.Segments.FirstOrDefault(s => s.Id == id) is not { } segment) return;
         var rect = _crop.Selection;
         var options = segment.Options.Clone();
+        if (_delogoMode)
+        {
+            options.DelogoX = (int)rect.X; options.DelogoY = (int)rect.Y; options.DelogoWidth = (int)rect.Width; options.DelogoHeight = (int)rect.Height;
+            if (options.DelogoX != segment.Options.DelogoX || options.DelogoY != segment.Options.DelogoY || options.DelogoWidth != segment.Options.DelogoWidth || options.DelogoHeight != segment.Options.DelogoHeight)
+                Do(() => _session.SetEffects(id, options));
+            return;
+        }
         var full = rect.Width >= _info.Width - 1 && rect.Height >= _info.Height - 1;
         options.CropX = full ? 0 : (int)rect.X; options.CropY = full ? 0 : (int)rect.Y;
         options.CropWidth = full ? 0 : (int)rect.Width; options.CropHeight = full ? 0 : (int)rect.Height;

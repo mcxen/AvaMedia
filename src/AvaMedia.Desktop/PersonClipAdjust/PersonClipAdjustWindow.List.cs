@@ -220,7 +220,7 @@ internal sealed partial class PersonClipAdjustWindow
     }
 
     /// <summary>Decode one frame off the UI thread; null when cancelled or unreadable.</summary>
-    private async Task<Bitmap?> DecodeAsync(double seconds, int width, int height, CancellationToken token = default)
+    private async Task<Bitmap?> DecodeAsync(double seconds, int width, int height, CancellationToken token = default, bool endExclusive = false)
     {
         if (_info?.HasVideo != true) return null;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, token);
@@ -232,7 +232,7 @@ internal sealed partial class PersonClipAdjustWindow
                 var info = _info; var time = Math.Clamp(seconds, 0, Math.Max(0, info.Duration - .001));
                 return await Task.Run(async () =>
                 {
-                    var data = await _engine.Thumbnail(_session.SourcePath, time, width, height, linked.Token, pad: false, videoStreamIndex: info.VideoStreamIndex).ConfigureAwait(false);
+                    var data = await _engine.Thumbnail(_session.SourcePath, time, width, height, linked.Token, pad: false, videoStreamIndex: info.VideoStreamIndex, endExclusive: endExclusive).ConfigureAwait(false);
                     using var memory = new MemoryStream(data); return new Bitmap(memory);
                 }, linked.Token);
             }
