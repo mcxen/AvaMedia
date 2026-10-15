@@ -19,6 +19,8 @@
       <Style Selector="^:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
     </ControlTheme>
   </Styles.Resources>
+  <!-- An empty log section is disabled before the task starts; dim it like the demo instead of looking selectable. -->
+  <Style Selector="ms|MultiStageTaskWindow ListBoxItem:disabled"><Setter Property="Foreground" Value="{DynamicResource AcTextTertiary}"/><Setter Property="Opacity" Value="0.55"/></Style>
   <Style Selector="ListBox.ms-log"><Setter Property="ItemContainerTheme" Value="{StaticResource MsLogItem}"/></Style>
   <Style Selector="ListBox.ms-segments"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="ItemContainerTheme" Value="{StaticResource MsListItem}"/></Style>
   <Style Selector="Border.ms-card"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcMsCardRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/></Style>

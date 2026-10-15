@@ -185,7 +185,7 @@ public sealed class StageList : Border
         private readonly StageGlyph _glyph = new();
         private readonly TextBlock _title = new() { FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, LineHeight = 18, VerticalAlignment = VerticalAlignment.Center };
         private readonly TextBlock _time = new() { LineHeight = 18, VerticalAlignment = VerticalAlignment.Center };
-        private readonly TextBlock _detail = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis, LineHeight = 15, Margin = new(0, 1, 0, 0) };
+        private readonly TextBlock _detail = new() { TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, LineHeight = 15, Margin = new(0, 1, 0, 0) };
         private readonly ProgressBar _bar = new() { Classes = { "ac" }, Minimum = 0, Maximum = 1, Margin = new(0, 7, 0, 0) };
         private string _state = "";
 
@@ -215,7 +215,7 @@ public sealed class StageList : Border
         {
             _glyph.State = item.State; _glyph.Number = number;
             _title.Text = item.Title; _time.Text = item.Time; _time.IsVisible = item.Time.Length > 0;
-            _detail.Text = item.Detail; _detail.IsVisible = item.Detail.Length > 0;
+            _detail.Text = item.Detail; _detail.IsVisible = item.Detail.Length > 0; ToolTip.SetTip(_detail, item.Detail.Length > 0 ? item.Detail : null);
             ToolTip.SetTip(this, item.Detail.Length > 0 ? item.Title + "\n" + item.Detail : item.Title);
             _bar.IsVisible = item.Progress is not null || item.IsIndeterminate;
             _bar.IsIndeterminate = item.IsIndeterminate && item.Progress is null;

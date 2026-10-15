@@ -70,28 +70,38 @@ internal static class Program
     {
         var engine = new MediaEngine(new AppSettings { Language = "zh-CN", CheckForUpdates = false, AutoUpdate = false, FFmpegPath = Environment.GetEnvironmentVariable("AVAMEDIA_CAPTURE_FFMPEG") ?? "" });
         var results = Path.Combine(output, "real-output"); Directory.CreateDirectory(results);
-        Job NewJob(string source, string name) => new()
+        // Each run detects a fresh copy so the person-clip detection cache cannot skip the stages being captured.
+        Job NewJob(string original, string name)
+        {
+            var source = Path.Combine(results, name + "-source" + Path.GetExtension(original));
+            File.Copy(original, source, true); File.SetLastWriteTimeUtc(source, DateTime.UtcNow);
+            return NewJobFor(source, name);
+        }
+        Job NewJobFor(string source, string name) => new()
         {
             FeatureId = "person-clip", Inputs = [source], Output = Path.Combine(results, name + ".mp4"),
             Options = new() { Format = "mp4", PersonClip = new() { Detection = new(FramesPerSecond: 1.5, DetectorIds: [ModelCatalog.NanoDetId]) } }
         };
-        // 1. configuring → running → paused → completed on one job.
+        // 1. configuring → paused → running → completed on one job.
         var (window, session, host) = Open(NewJob(video, "real-full"), engine);
         await Task.Delay(3000); await Grab(window, Path.Combine(output, "real-configuring-dark.png"));
         await session.StartAsync();
-        await Until(() => session.View.AnalyzedSeconds > (session.View.Info?.Duration ?? 60) * .45 && session.Snapshot.State == MultiStageTaskState.Running, 600);
-        await Task.Delay(600); await Grab(window, Path.Combine(output, "real-running-dark.png"));
+        await Until(() => session.Snapshot.CurrentStageIndex == 2 && session.View.AnalyzedSeconds > (session.View.Info?.Duration ?? 60) * .45 && session.Snapshot.State == MultiStageTaskState.Running, 600);
+        // Detection on a short clip takes seconds: pause as soon as it is midway, capture paused, then resume and
+        // capture running immediately while the detect stage is still active.
         await session.PauseAsync();
         await Until(() => session.Snapshot.State == MultiStageTaskState.Paused, 30);
         await Task.Delay(1200); await Grab(window, Path.Combine(output, "real-paused-dark.png"));
         await session.ResumeAsync();
+        await Until(() => session.Snapshot.State == MultiStageTaskState.Running, 30);
+        await Task.Delay(250); await Grab(window, Path.Combine(output, "real-running-dark.png"));
         await Until(() => session.Snapshot.State is MultiStageTaskState.Completed or MultiStageTaskState.Failed or MultiStageTaskState.Cancelled, 900);
         await Task.Delay(4000); await Grab(window, Path.Combine(output, "real-completed-dark.png"));
         window.Close(); await host.Finished;
         // 2. cancelled mid-detection.
         (window, session, host) = Open(NewJob(video, "real-cancel"), engine);
         await session.StartAsync();
-        await Until(() => session.View.AnalyzedSeconds > (session.View.Info?.Duration ?? 60) * .4, 600);
+        await Until(() => session.Snapshot.CurrentStageIndex == 2 && session.View.AnalyzedSeconds > (session.View.Info?.Duration ?? 60) * .4, 600);
         await session.StopAsync();
         await Until(() => session.Snapshot.State is MultiStageTaskState.Cancelled or MultiStageTaskState.Failed or MultiStageTaskState.Completed, 120);
         await Task.Delay(3000); await Grab(window, Path.Combine(output, "real-cancelled-dark.png"));
