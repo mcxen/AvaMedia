@@ -26,6 +26,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     private bool _retriedGpu;
     private int _released;
     private string _backend = "CPU";
+    private ComputeOutcome? _computeOutcome;
     private bool _visualWarmed;
     public string ModelId => _id;
     public string? FallbackReason { get; private set; }
@@ -48,14 +49,20 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, OwnedModelProcess.Lifetime);
         ct = lifetime.Token;
+        var preferGpu = ComputeSettings.CurrentPreference != ComputePreference.ForceCpu;
         try
         {
-            try { return await StartCoreAsync(store, id, ComputeSettings.CurrentPreference!=ComputePreference.ForceCpu, ct, status, preparation).ConfigureAwait(false); }
-            catch (Exception error) when (!ct.IsCancellationRequested
+            try { return await StartCoreAsync(store, id, preferGpu, ct, status, preparation).ConfigureAwait(false); }
+            catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
                 && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
             {
-                status?.Invoke("GPU 启动未成功，切换 CPU：" + error.Message);
-                return await StartCoreAsync(store, id, false, ct, status, preparation).ConfigureAwait(false);
+                ComputeRuntimeFormatter.Log("回退 CPU：llama.cpp GPU 启动失败：" + error.Message, status);
+                var cpu = await StartCoreAsync(store, id, false, ct, status, preparation).ConfigureAwait(false);
+                cpu.FallbackReason = error.Message;
+                if (cpu._computeOutcome is { } outcome)
+                    cpu._computeOutcome = outcome with { FallbackChain = [new(OperatingSystem.IsMacOS() ? ComputeBackend.Metal : ComputeBackend.Vulkan, error.Message)] };
+                if (cpu._computeOutcome is { } updated) ComputeJobContext.Report(updated);
+                return cpu;
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -68,6 +75,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
         ModelLease? model = null, runtime = null; HttpClient? client = null; LocalSummaryModel? backend = null;
         OwnedModelProcess? owner = null;
+        ComputeRoute? computeRoute = null;
         try
         {
             preparation?.Invoke(new("校验推理工具"));
@@ -78,7 +86,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 : (completed, total) => preparation(new("校验模型文件", completed, total))).ConfigureAwait(false);
             var executable = ModelStore.FindRuntime(runtime.Directory) ?? throw new InvalidDataException("缺少本地总结推理工具。");
             var fingerprint = ComputeEnvironment.Fingerprint(executable);
-            var route = new ComputeRouter(ComputeEnvironment.Platform, ComputeEnvironment.Capabilities, fingerprint)
+            var route = computeRoute = new ComputeRouter(ComputeEnvironment.Platform, ComputeEnvironment.Capabilities, fingerprint)
                 .Plan(new("本地总结", ComputeCapability.LlamaBackend, id, gpu ? ComputeSettings.CurrentPreference : ComputePreference.ForceCpu), status);
             string? fallbackReason = gpu ? null : "设置或 GPU 失败重试要求使用 CPU。";
             if (gpu && route.Chosen != ComputeBackend.Cpu)
@@ -129,9 +137,12 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                         if (gpu && backend.Backend == "CPU")
                         {
                             backend.FallbackReason = "已发现 GPU，但启动日志未确认任何层卸载到 GPU；实际按 CPU 报告。";
+                            if (route.Chosen != ComputeBackend.Cpu) route.ReportFailure(route.Chosen, backend.FallbackReason);
                             ComputeRuntimeFormatter.Log("回退 CPU：" + backend.FallbackReason, status);
                         }
                         else route.ReportSuccess(backend.Backend);
+                        backend._computeOutcome = route.Outcome(backend.Backend) with { ActualBackend = backend.Backend == "CPU" ? ComputeBackend.Cpu : route.Chosen };
+                        ComputeJobContext.Report(backend._computeOutcome);
                         return backend;
                     }
                 }
@@ -140,8 +151,10 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 await Task.Delay(250, deadline.Token).ConfigureAwait(false);
             }
         }
-        catch
+        catch (Exception error)
         {
+            if (gpu && !ct.IsCancellationRequested && computeRoute is { Chosen: not ComputeBackend.Cpu })
+                computeRoute.ReportFailure(computeRoute.Chosen, "llama.cpp 启动失败：" + error.Message);
             if (backend is not null) await backend.DisposeAsync().ConfigureAwait(false);
             else
             {
@@ -194,9 +207,11 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         {
             // With empty warm-up disabled, validate the GPU on useful input and retry that input once on CPU.
             _retriedGpu = true;
-            _status?.Invoke("GPU 推理未成功，切换 CPU：" + error.Message);
+            ComputeRuntimeFormatter.Log("回退 CPU：llama.cpp GPU 推理失败：" + error.Message, _status);
             await ReleaseProcessAsync().ConfigureAwait(false);
             _cpuFallback = await StartCoreAsync(_store, _id, false, ct, _status).ConfigureAwait(false);
+            _cpuFallback.FallbackReason = error.Message;
+            if (_computeOutcome is { } outcome) _cpuFallback._computeOutcome = outcome with { ActualBackend = ComputeBackend.Cpu, FallbackChain = [..outcome.FallbackChain, new(outcome.ActualBackend, error.Message)] };
             return await _cpuFallback.SendAsync(request, ct).ConfigureAwait(false);
         }
     }
@@ -223,6 +238,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     private async Task<JsonDocument> SendCoreAsync(Dictionary<string, object> request, CancellationToken ct)
     {
         await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+        if (_computeOutcome is { } outcome) ComputeJobContext.Report(outcome);
         if (_process.HasExited) throw new LocalBackendException("本地总结模型已退出。");
         HttpResponseMessage response;
         try { response = await _client.PostAsJsonAsync("v1/chat/completions", request, ct).ConfigureAwait(false); }

@@ -39,7 +39,7 @@ public static class FrameDecodeArguments
     }
     /// <summary>Discard the entire failed attempt before retrying; callers never observe partial GPU output.</summary>
     public static async Task<ProcessResult> ExecuteAsync(string executable, IReadOnlyList<string> args, Stream output,
-        ComputeRoute route, CancellationToken ct, IComputeProcessRunner? runner = null, int stream = 0, string pixels = "nv12")
+        ComputeRoute route, CancellationToken ct, IComputeProcessRunner? runner = null, int stream = 0, string pixels = "nv12", int frameBytes = 0, int minimumFrames = 1)
     {
         runner ??= ComputeEnvironment.Processes;
         var backend = route.Chosen;
@@ -47,6 +47,8 @@ public static class FrameDecodeArguments
         try { result = await runner.RunToStreamAsync(executable, Apply(args, backend, stream, pixels), output, ct).ConfigureAwait(false); }
         catch (Exception e) when (backend != ComputeBackend.Cpu && !ct.IsCancellationRequested && e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         { result = new(-1, "", e.Message); }
+        if (result.ExitCode == 0 && (output.Length == 0 || frameBytes > 0 && (output.Length % frameBytes != 0 || output.Length < (long)frameBytes * minimumFrames)))
+            result = new(-1, "", "硬件解码输出为空或帧数据不完整。");
         if (result.ExitCode != 0 && backend != ComputeBackend.Cpu)
         {
             route.ReportFailure(backend, "硬件解码失败，整段使用软件重跑：" + result.Error);
@@ -60,11 +62,11 @@ public static class FrameDecodeArguments
     }
     public static Stream CreateSpool() => new FileStream(Path.Combine(Path.GetTempPath(), "avamedia-frames-" + Guid.NewGuid().ToString("N")),
         FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.DeleteOnClose);
-    public static async Task<ProcessResult> RunAsync(IMediaEngine engine, MediaInfo? info, IReadOnlyList<string> args, Stream output, CancellationToken ct)
+    public static async Task<ProcessResult> RunAsync(IMediaEngine engine, MediaInfo? info, IReadOnlyList<string> args, Stream output, CancellationToken ct, int frameBytes = 0, int minimumFrames = 1)
     {
         var preference = ComputeSettings.Load(engine.Settings.AutoDetectGpu).Preference;
         var route = await ForAsync(engine.FFmpeg, info, preference, ct).ConfigureAwait(false);
         var pixels = info is null ? "nv12" : HardwareTranscodingBackend.TransferFormat(info);
-        return await ExecuteAsync(engine.FFmpeg, args, output, route, ct, stream: info?.VideoStreamIndex ?? 0, pixels: pixels).ConfigureAwait(false);
+        return await ExecuteAsync(engine.FFmpeg, args, output, route, ct, stream: info?.VideoStreamIndex ?? 0, pixels: pixels, frameBytes: frameBytes, minimumFrames: minimumFrames).ConfigureAwait(false);
     }
 }

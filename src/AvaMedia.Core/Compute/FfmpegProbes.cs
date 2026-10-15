@@ -43,6 +43,11 @@ public sealed class FfmpegDecoderProbe(string executable, IComputeProcessRunner?
 
 public static class FfmpegBackend
 {
+    public static string SoftwareEncoder(string codec) => (HardwareTranscoding.VideoFormat(codec) ?? HardwareTranscoding.Encoder(codec)?.Format) switch
+    {
+        HardwareVideoFormat.H264 => "libx264", HardwareVideoFormat.Hevc => "libx265", HardwareVideoFormat.Av1 => "libaom-av1",
+        HardwareVideoFormat.Vp9 => "libvpx-vp9", _ => codec
+    };
     public static ComputeBackend ForEncoder(string codec) => HardwareTranscoding.Backend(codec)?.Kind switch
     {
         HardwareBackendKind.Nvenc => ComputeBackend.Nvenc, HardwareBackendKind.QuickSync => ComputeBackend.Qsv,

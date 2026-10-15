@@ -42,11 +42,14 @@ internal sealed class ModelInferenceSession : IDisposable
         var previous = _session;
         _session = replacement; Backend = "CPU"; FallbackReason = reason;
         previous.Dispose();
+        _outcome = _outcome with { ActualBackend = ComputeBackend.Cpu, FallbackChain = [.._outcome.FallbackChain, new(_outcome.ActualBackend, reason)] };
+        ComputeJobContext.Report(_outcome);
     }
 
     private T RunWithFallback<T>(Func<RunOptions, T> execute, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        ComputeJobContext.Report(_outcome);
         if (Backend == "CPU") CpuResourcePolicy.Yield(ct);
         using var run = new RunOptions();
         using var cancellation = ct.Register(() => run.Terminate = true);

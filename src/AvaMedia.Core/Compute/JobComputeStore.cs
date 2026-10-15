@@ -11,17 +11,22 @@ public static class JobComputeStore
     public static void SetComputeOutcome(this Job job, ComputeOutcome outcome)
     {
         Values.GetOrCreateValue(job).Outcome = outcome;
+        // Keep the last human-readable line as LogSummary, rather than exposing the machine marker there.
+        job.AppendLog(SerializeMarker(outcome));
         job.AppendLog(ComputeRuntimeFormatter.Backend(outcome) + "；" + ComputeRuntimeFormatter.Note(outcome));
-        // Job.Log is already serialized by the job store. This line restores the attachment after a restart.
-        job.AppendLog(Marker + JsonSerializer.Serialize(outcome, ComputeJson.Options).Replace("\n", "").Replace("\r", ""));
+    }
+    public static string SerializeMarker(ComputeOutcome outcome) => Marker + JsonSerializer.Serialize(outcome, ComputeJson.Options).Replace("\n", "").Replace("\r", "");
+    public static ComputeOutcome? ParseLog(string log)
+    {
+        var line = log.Split('\n').LastOrDefault(line => line.StartsWith(Marker, StringComparison.Ordinal));
+        if (line is null) return null;
+        try { return JsonSerializer.Deserialize<ComputeOutcome>(line[Marker.Length..], ComputeJson.Options); }
+        catch (JsonException) { return null; }
     }
     public static ComputeOutcome? GetComputeOutcome(this Job job)
     {
-        if (Values.GetOrCreateValue(job).Outcome is { } value) return value;
-        var line = job.Log.Split('\n').LastOrDefault(line => line.StartsWith(Marker, StringComparison.Ordinal));
-        if (line is null) return null;
-        try { return Values.GetOrCreateValue(job).Outcome = JsonSerializer.Deserialize<ComputeOutcome>(line[Marker.Length..], ComputeJson.Options); }
-        catch (JsonException) { return null; }
+        var state = Values.GetOrCreateValue(job);
+        return state.Outcome ??= ParseLog(job.Log);
     }
     public static ProgressEstimate? GetComputeEstimate(this Job job) => Values.GetOrCreateValue(job).Estimate;
     public static void SetComputeEstimate(this Job job, ProgressEstimate estimate) => Values.GetOrCreateValue(job).Estimate = estimate;

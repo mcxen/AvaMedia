@@ -70,7 +70,7 @@ internal static class PersonClipFrameSource
                 "-an", "-sn", "-vf", $"setpts=PTS-STARTPTS,fps={MediaEngine.Number(options.FramesPerSecond)}:start_time=0:eof_action=pass,{Filter(size)}",
                 "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]);
             using var output = FrameDecodeArguments.CreateSpool();
-            var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+            var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct, frameBytes: size * size * 3, minimumFrames: 1).ConfigureAwait(false);
             if (decoded.ExitCode != 0) throw new InvalidDataException("视频分析解码失败：" + decoded.Error);
             output.Position = 0;
             var frame = new byte[size * size * 3];

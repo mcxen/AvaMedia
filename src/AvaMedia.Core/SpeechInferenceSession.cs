@@ -56,8 +56,11 @@ internal sealed class SpeechInferenceSession : IDisposable
         _loading?.Invoke("Whisper");
         _processor?.Dispose(); _processor = null;
         _factory?.Dispose(); _factory = null;
-        _factory = WhisperFactory.FromPath(_model, new() { UseGpu = _speechGpu });
-        _processor = _configure(_factory);
+        _processor = WhisperCompute.WithRuntimeOrder(_route, () =>
+        {
+            _factory = WhisperFactory.FromPath(_model, new() { UseGpu = _speechGpu });
+            return _configure(_factory);
+        });
     }
 
     private void LoadVad()
@@ -76,6 +79,10 @@ internal sealed class SpeechInferenceSession : IDisposable
     private void Report(string? reason = null)
     {
         _fallbackReason = reason ?? _fallbackReason ?? WhisperCompute.MissingGpuReason(_route, RuntimeOptions.LoadedLibrary, _speechGpu, _metalObserved);
+        var actual = WhisperCompute.ActualBackend(RuntimeOptions.LoadedLibrary, _speechGpu, ComputeEnvironment.Platform, _metalObserved);
+        while (_route.Chosen != actual && _route.Chosen != ComputeBackend.Cpu)
+            _route.ReportFailure(_route.Chosen, _fallbackReason ?? "此运行库未实际加载。");
+        ComputeJobContext.Report(_route.Outcome(RuntimeOptions.LoadedLibrary?.ToString() ?? "未知运行库") with { ActualBackend = actual });
         var note = _fallbackReason;
         if (OperatingSystem.IsMacOS()) note = (note is null ? "" : note + "；") + "当前原生运行时的 Silero Metal VAD 会中止进程，使用 CPU 检测语音。";
         ComputeRuntimeFormatter.Log("计算后端：" + Backend + (note is null ? "" : "；" + note));
@@ -96,6 +103,7 @@ internal sealed class SpeechInferenceSession : IDisposable
     public async Task<IReadOnlyList<VadSegmentData>> DetectSpeechAsync(Stream audio, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        Report();
         await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
         var start = audio.Position;
         try { return await _vad!.DetectSpeechAsync(audio, ct).ConfigureAwait(false); }
@@ -131,6 +139,7 @@ internal sealed class SpeechInferenceSession : IDisposable
     public async IAsyncEnumerable<SegmentData> ProcessAsync(Stream audio, [EnumeratorCancellation] CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        Report();
         await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
         var start = audio.Position;
         var emittedUntil = TimeSpan.Zero;

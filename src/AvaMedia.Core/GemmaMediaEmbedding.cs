@@ -200,6 +200,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_outcome is { } currentOutcome) ComputeJobContext.Report(currentOutcome);
             ct.ThrowIfCancellationRequested();
             if (Backend == "CPU") await CpuResourcePolicy.YieldAsync(ct).ConfigureAwait(false);
             return await Task.Run(() =>
@@ -215,6 +216,11 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                     try { text = new(Path.Combine(_model.Directory, ModelCatalog.GemmaTextFile), options); }
                     catch { vision.Dispose(); throw; }
                     _vision.Dispose(); _text.Dispose(); _vision = vision; _text = text;
+                    if (_outcome is { } failedOutcome)
+                    {
+                        _outcome = failedOutcome with { ActualBackend = ComputeBackend.Cpu, FallbackChain = [..failedOutcome.FallbackChain, new(failedOutcome.ActualBackend, error.Message)] };
+                        ComputeJobContext.Report(_outcome);
+                    }
                     Volatile.Write(ref _backend, "CPU"); FallbackReason = error.Message; ComputeRuntimeFormatter.Log("回退 CPU：Gemma 推理失败：" + error.Message);
                     return run();
                 }

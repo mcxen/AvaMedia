@@ -42,8 +42,12 @@ public sealed class ComputeRoute
         Log("计算候选：" + string.Join('>', candidates.Select(ComputeRuntimeFormatter.Name)) + "；偏好 " + request.Preference);
     }
     public ComputeOutcome Outcome(string detail = "") => new(Requested, Chosen, _failures.ToArray(), detail);
-    public void ReportSuccess(string detail = "") => Log("计算后端：" + ComputeRuntimeFormatter.Name(Chosen) + (detail.Length > 0 ? " " + detail : "")
-        + (Chosen == ComputeBackend.Cpu ? "（CPU）" : "（GPU）") + "；候选 " + string.Join('>', OrderedCandidates.Select(ComputeRuntimeFormatter.Name)));
+    public void ReportSuccess(string detail = "")
+    {
+        Log("计算后端：" + ComputeRuntimeFormatter.Name(Chosen) + (detail.Length > 0 ? " " + detail : "")
+            + (Chosen == ComputeBackend.Cpu ? "（CPU）" : "（GPU）") + "；候选 " + string.Join('>', OrderedCandidates.Select(ComputeRuntimeFormatter.Name)));
+        if (Requested.Capability != ComputeCapability.VideoDecode) ComputeJobContext.Report(Outcome(detail));
+    }
     public void ReportFailure(ComputeBackend backend, string reason, bool persist = true)
     {
         if (backend != Chosen) throw new InvalidOperationException("只能报告当前候选的失败。");

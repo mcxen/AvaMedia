@@ -141,6 +141,7 @@ public sealed class MediaEngine : IMediaEngine
                     System.Diagnostics.Trace.TraceInformation("Thumbnail {0} decoding failed for {1}; using software: {2}",decoding.Method,input,error.Message);
                 }
             }
+            ComputeRuntimeFormatter.Log("计算后端：CPU（缩略图软件解码）。");
             return await Extract(null).ConfigureAwait(false);
 
             async Task<byte[]> Extract(HardwareDecodePlan? plan)
@@ -328,6 +329,7 @@ public sealed class MediaEngine : IMediaEngine
     }
     public async Task Execute(Job job,Action<double> progress,CancellationToken ct)
     {
+        using var computeContext=ComputeJobContext.Enter(job);
         Validate(job);var f=Catalog.Find(job.FeatureId);
         if(job.Options.Orientation is not null){await new OrientationTaskService(this).Execute(job,progress,ct).ConfigureAwait(false);return;}
         if(AutomationTasks.Supports(job)){await AutomationTasks.ExecuteAsync(this,job,progress,ct).ConfigureAwait(false);return;}
@@ -336,7 +338,7 @@ public sealed class MediaEngine : IMediaEngine
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         if(File.Exists(job.Output) || Directory.Exists(job.Output)) throw new IOException("输出已存在，请重试以生成新的名称。");
         if(f.Operation==Operation.VideoSlim)
-        {await new VideoSlimming(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
+        {await ComputeSlimmingExecution.ExecuteAsync(this,job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.Transcribe)
         {await new SpeechSubtitleService(this).ExecuteAsync(job,progress,ct).ConfigureAwait(false);return;}
         if(f.Operation==Operation.VideoSummary)
@@ -548,6 +550,7 @@ public sealed class MediaEngine : IMediaEngine
                 else
                 {
                     hardwareLog.AppendLine(explicitHardware?$"指定硬件编码 {codec} 失败。":$"自动硬件编码 {codec} 失败，尝试其他可用编码器。").AppendLine(result.Error);
+                    ComputeEnvironment.Capabilities.ReportFailure(new(job.FeatureId,ComputeCapability.VideoEncode,codec,preference),FfmpegBackend.ForEncoder(codec),ComputeEnvironment.Fingerprint(FFmpeg),result.Error);
                     // A backend can have more than one compatible codec; advance only after its last candidate.
                     if(!hardware.SkipWhile(candidate=>candidate!=codec).Skip(1).Any(candidate=>FfmpegBackend.ForEncoder(candidate)==route.Chosen))
                         route.ReportFailure(route.Chosen,"编码失败："+result.Error);
@@ -562,7 +565,7 @@ public sealed class MediaEngine : IMediaEngine
             while(route.Chosen!=ComputeBackend.Cpu)route.ReportFailure(route.Chosen,"没有成功的硬件编码结果。",persist:false);
             effective.VideoCodec=effective.PreserveSourceAttributes?SourceVideoExport.Encoder(infos[0],sourceEncoderListing!):job.Options.VideoCodec;
             if(genericFormat is not null || HardwareTranscoding.Backend(effective.VideoCodec) is not null)
-                effective.VideoCodec=genericFormat switch { HardwareVideoFormat.Hevc=>"libx265",HardwareVideoFormat.Av1=>"libaom-av1",HardwareVideoFormat.Vp9=>"libvpx-vp9",_=>requestedCodec.StartsWith("hevc_",StringComparison.Ordinal)?"libx265":requestedCodec.StartsWith("av1_",StringComparison.Ordinal)?"libaom-av1":"libx264" };
+                effective.VideoCodec=FfmpegBackend.SoftwareEncoder(requestedCodec);
             if(effective.VideoCodec=="自动" && effective.VideoRateMode==VideoRateMode.Source && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
             {
                 var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
@@ -581,7 +584,7 @@ public sealed class MediaEngine : IMediaEngine
             var temporary=Catalog.DirectoryOutput(f.Operation)?null:Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,".AvaMedia-encode-"+Guid.NewGuid()+Path.GetExtension(job.Output));
             try
             {
-                progress(0);effectiveJob.Output=temporary??job.Output;result=await Encode(effectiveJob,null);
+                progress(0);effectiveJob.Output=temporary??job.Output;result=await EncodeWithDecoding(effectiveJob);
                 if(result.ExitCode==0)route.ReportSuccess(effective.VideoCodec);
                 if(result.ExitCode==0 && temporary is not null)
                 {
@@ -591,9 +594,10 @@ public sealed class MediaEngine : IMediaEngine
             }
             finally{if(temporary is not null && File.Exists(temporary))File.Delete(temporary);}
         }
-        var completed=result!;
+        if(result is null)throw new InvalidOperationException("指定硬件编码器没有可用候选。");
+        var completed=result;
         job.Log=hardwareLog+completed.Error;
-        job.SetComputeOutcome(route.Outcome(effective.VideoCodec));
+        job.SetComputeOutcome(route.Outcome(effective.VideoCodec) with { ActualBackend=FfmpegBackend.ForEncoder(effective.VideoCodec) });
         if(completed.ExitCode!=0) throw new InvalidOperationException(completed.Error);
         if(compressionPlan is not null)
         {
@@ -623,10 +627,31 @@ public sealed class MediaEngine : IMediaEngine
         {
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             var plans=HardwareTranscoding.DecodePlans(draft,infos).Where(plan=>!failedDecoders.Contains(plan.Value.Method)).ToDictionary(plan=>plan.Key,plan=>plan.Value);
+            if(preference==ComputePreference.ForceCpu)plans.Clear();
+            else if(!draft.Options.CopyStreams && !draft.Options.PreserveSourceAttributes && draft.Options.LosslessRotation is null)
+            {
+                for(var index=0;index<infos.Count;index++)
+                {
+                    var info=infos[index];
+                    if(!info.HasVideo || f.Operation==Operation.Mux && index!=0)continue;
+                    // Decode is routed independently, including exports using explicit software encoders.
+                    var decodeRoute=await FrameDecodeArguments.ForAsync(FFmpeg,info,preference,ct,log:line=>hardwareLog.AppendLine(line)).ConfigureAwait(false);
+                    var method=decodeRoute.Chosen switch { ComputeBackend.Cuda=>"cuda",ComputeBackend.Vaapi=>"vaapi",ComputeBackend.D3D11va=>"d3d11va",ComputeBackend.Qsv=>"qsv",ComputeBackend.VideoToolbox=>"videotoolbox",_=>"" };
+                    if(method.Length==0 || failedDecoders.Contains(method)){plans.Remove(index);continue;}
+                    // Keep hardware surfaces only when the routed decoder matches the encoder's native path.
+                    if(!plans.TryGetValue(index,out var existing) || existing.Method!=method)
+                        plans[index]=new(method,FrameDecodeArguments.InputArguments(decodeRoute.Chosen,info.VideoStreamIndex,HardwareTranscodingBackend.TransferFormat(info)));
+                }
+            }
             var encoded=await Encode(draft,plans);
             if(encoded.ExitCode!=0 && plans.Count>0)
             {
-                foreach(var method in plans.Values.Select(plan=>plan.Method))failedDecoders.Add(method);
+                foreach(var (index,plan) in plans)
+                {
+                    failedDecoders.Add(plan.Method);
+                    var backend=plan.Method switch { "cuda"=>ComputeBackend.Cuda,"vaapi"=>ComputeBackend.Vaapi,"d3d11va"=>ComputeBackend.D3D11va,"qsv"=>ComputeBackend.Qsv,_=>ComputeBackend.VideoToolbox };
+                    ComputeEnvironment.Capabilities.ReportFailure(new(job.FeatureId,ComputeCapability.VideoDecode,infos[index].VideoCodec,preference),backend,ComputeEnvironment.Fingerprint(FFmpeg),encoded.Error);
+                }
                 hardwareLog.AppendLine("硬件解码链路失败，保留当前硬件编码器并改用软件解码。").AppendLine(encoded.Error);
                 if(File.Exists(draft.Output))File.Delete(draft.Output);
                 progress(0);encoded=await Encode(draft,null);
@@ -641,22 +666,21 @@ public sealed class MediaEngine : IMediaEngine
         {
             var backend=FfmpegBackend.ForEncoder(draft.Options.VideoCodec);
             var key=new ThroughputKey(job.FeatureId,backend,ThroughputModel.ResolutionBand(effective.Width>0?effective.Width:infos[0].Width,effective.Height>0?effective.Height:infos[0].Height),draft.Options.VideoCodec);
-            var estimator=new PriorAwareProgressEstimator(_throughput,key,job.Duration);
             var watch=System.Diagnostics.Stopwatch.StartNew();
-            job.SetComputeEstimate(estimator.Update(0,TimeSpan.Zero));
+            using var computeProgress=new ComputeProgressScope(job,_throughput,key,job.Duration,()=>watch.Elapsed);
             hardwareLog.AppendLine($"计算吞吐先验：{ComputeRuntimeFormatter.Name(backend)} {_throughput.Rate(key):0.###} 媒体秒/秒；{job.GetComputeEstimate()?.Text}。");
             var encoded=await ProcessRunner.Run(FFmpeg,BuildArguments(draft,infos,decoding),ct,line=>
             {
                 if(line.StartsWith("out_time_us=") && long.TryParse(line[12..],out var us) && job.Duration>0)
                 {
                     var percent=Math.Clamp(us/1000000d/job.Duration*100,0,99.9);
-                    job.SetComputeEstimate(estimator.Update(percent,watch.Elapsed));progress(percent);
+                    computeProgress.Update(percent);progress(percent);
                 }
             },finalizeOnCancel:keepProcessedOutput).ConfigureAwait(false);
             if(encoded.ExitCode==0 && !encoded.Interrupted)
             {
                 _throughput.Observe(key,job.Duration,watch.Elapsed);
-                job.SetComputeEstimate(estimator.Update(100,watch.Elapsed));
+                computeProgress.Update(100);
                 hardwareLog.AppendLine($"计算实测吞吐：{ComputeRuntimeFormatter.Name(backend)} {job.Duration/Math.Max(.001,watch.Elapsed.TotalSeconds):0.###} 媒体秒/秒。");
             }
             return encoded;

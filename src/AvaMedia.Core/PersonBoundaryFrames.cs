@@ -32,7 +32,7 @@ internal sealed record PersonBoundaryFrames(double Start, double Step, byte[][] 
         using var output = FrameDecodeArguments.CreateSpool();
         // Resolve the selected stream so codec and bit-depth probes match this source.
         var info = await engine.Probe(path, ct, stream).ConfigureAwait(false);
-        var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+        var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct, frameBytes: size * size * 3, minimumFrames: count).ConfigureAwait(false);
         if (decoded.ExitCode != 0) throw new InvalidDataException("人物边界解码失败：" + decoded.Error);
         output.Position = 0;
         var frames = new byte[count][];

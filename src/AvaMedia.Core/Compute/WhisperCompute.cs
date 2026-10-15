@@ -21,11 +21,12 @@ public sealed class WhisperRuntimeProbe(Func<RuntimeLibrary, bool>? packaged = n
         ct.ThrowIfCancellationRequested(); var current = (loaded ?? (() => RuntimeOptions.LoadedLibrary))();
         var libraries = WhisperCompute.Libraries(backend);
         var available = libraries.Any(packaged ?? IsPackaged);
+        var failure = available ? ProbeFailure.None : ProbeFailure.Unavailable;
         var reason = available ? "已找到运行库；实际加载结果将在创建会话后核对。" : "当前架构未打包此 Whisper 运行库。";
         if (current is { } library && !libraries.Contains(library) && backend != ComputeBackend.Metal)
-        { available = false; reason = "进程已固定加载 " + library + " 运行库，需重启后才能切换。"; }
+        { available = false; failure = ProbeFailure.Runtime; reason = "进程已固定加载 " + library + " 运行库，需重启后才能切换。"; }
         return Task.FromResult(new CapabilityResult(request.Capability, backend, available, reason, default, fingerprint,
-            request.CodecOrModel, available ? ProbeFailure.None : ProbeFailure.Unavailable));
+            request.CodecOrModel, failure));
     }
 }
 
@@ -58,6 +59,16 @@ public static class WhisperCompute
                 RuntimeOptions.RuntimeLibraryOrder = route.OrderedCandidates.SkipWhile(backend => backend != route.Chosen).SelectMany(Libraries).Distinct().ToList();
         }
         return route;
+    }
+    public static T WithRuntimeOrder<T>(ComputeRoute route, Func<T> createSession)
+    {
+        // Native loading is process-wide. Serialize the order + first factory creation together.
+        lock (Gate)
+        {
+            if (RuntimeOptions.LoadedLibrary is null)
+                RuntimeOptions.RuntimeLibraryOrder = route.OrderedCandidates.SkipWhile(backend => backend != route.Chosen).SelectMany(Libraries).Distinct().ToList();
+            return createSession();
+        }
     }
     public static ComputeBackend ActualBackend(RuntimeLibrary? library, bool useGpu, ComputePlatform platform, bool metalObserved = false)
         => !useGpu ? ComputeBackend.Cpu : library switch

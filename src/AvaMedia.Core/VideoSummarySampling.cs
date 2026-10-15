@@ -41,7 +41,7 @@ internal static class VideoSummarySampling
             "-frames:v", MaximumScanFrames.ToString(), "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1" };
         using (var output = FrameDecodeArguments.CreateSpool())
         {
-            var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+            var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct, frameBytes: ScanSize * ScanSize * 3, minimumFrames: 1).ConfigureAwait(false);
             if (decoded.ExitCode != 0) throw new InvalidDataException("视频采样扫描失败：" + decoded.Error);
             output.Position = 0;
             var current = new byte[ScanSize * ScanSize * 3]; var previous = new byte[current.Length];

@@ -26,7 +26,7 @@ public sealed class ThroughputModel
         catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException)
         { ComputeRuntimeFormatter.Log("吞吐缓存不可读，使用保守先验：" + e.Message); }
     }
-    public static string ResolutionBand(int width, int height) => (long)width * height switch
+    public static string ResolutionBand(int width, int height) => ((long)width * height) switch
     { <= 1280L * 720 => "720p", <= 1920L * 1080 => "1080p", <= 3840L * 2160 => "2160p", _ => "above2160p" };
     public static double Prior(ThroughputKey key)
     {
