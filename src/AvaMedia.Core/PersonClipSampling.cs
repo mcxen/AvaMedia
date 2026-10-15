@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using System.Runtime.CompilerServices;
 
 namespace AvaMedia.Core;
@@ -68,31 +69,20 @@ internal static class PersonClipFrameSource
             args.AddRange(["-i", path, "-t", MediaEngine.Number(interval.End - interval.Start), "-map", $"0:v:{info.VideoStreamIndex}",
                 "-an", "-sn", "-vf", $"setpts=PTS-STARTPTS,fps={MediaEngine.Number(options.FramesPerSecond)}:start_time=0:eof_action=pass,{Filter(size)}",
                 "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]);
-            using var process = await ProcessRunner.StartAsync(engine.FFmpeg, args, ct).ConfigureAwait(false);
-            using var cancellation = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
-            var error = process.StandardError.ReadToEndAsync();
+            using var output = FrameDecodeArguments.CreateSpool();
+            var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+            if (decoded.ExitCode != 0) throw new InvalidDataException("视频分析解码失败：" + decoded.Error);
+            output.Position = 0;
             var frame = new byte[size * size * 3];
             var frames = 0;
-            try
+            while (await ReadFrameAsync(output, frame, ct).ConfigureAwait(false))
             {
-                while (await ReadFrameAsync(process.StandardOutput.BaseStream, frame, ct).ConfigureAwait(false))
-                {
-                    var seconds = interval.Start + frames / options.FramesPerSecond;
-                    if (seconds >= interval.End) break;
-                    frames++;
-                    yield return new(seconds, frame);
-                }
-                await process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, ct).ConfigureAwait(false);
-                await process.WaitForExitAsync(ct).ConfigureAwait(false);
-                if (process.ExitCode != 0) throw new InvalidDataException("视频分析解码失败：" + await error.ConfigureAwait(false));
-                if (frames == 0) throw new InvalidDataException($"无法解码 {PersonClipPresentation.Time(interval.Start)} – {PersonClipPresentation.Time(interval.End)} 的检测区间。");
+                var seconds = interval.Start + frames / options.FramesPerSecond;
+                if (seconds >= interval.End) break;
+                frames++;
+                yield return new(seconds, frame);
             }
-            finally
-            {
-                if (!process.HasExited) { try { process.Kill(true); } catch (InvalidOperationException) { } }
-                await process.WaitForExitAsync().ConfigureAwait(false);
-                await error.ConfigureAwait(false);
-            }
+            if (frames == 0) throw new InvalidDataException($"无法解码 {PersonClipPresentation.Time(interval.Start)} – {PersonClipPresentation.Time(interval.End)} 的检测区间。");
             lastEnd = interval.End;
         }
         if (lastEnd < info.Duration) yield return new(lastEnd, null);

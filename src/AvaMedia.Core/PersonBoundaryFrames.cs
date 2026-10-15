@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using System.Text;
 
 namespace AvaMedia.Core;
@@ -28,28 +29,19 @@ internal sealed record PersonBoundaryFrames(double Start, double Step, byte[][] 
             "-ss", MediaEngine.Number(start), "-t", MediaEngine.Number(width + .2), "-i", path,
             "-filter_complex", filter.ToString(), "-map", "[frames]", "-an", "-sn", "-frames:v", count.ToString(),
             "-fps_mode", "passthrough", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"];
-        using var process = await ProcessRunner.StartAsync(engine.FFmpeg, args, ct).ConfigureAwait(false);
-        using var cancellation = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
-        var error = process.StandardError.ReadToEndAsync();
+        using var output = FrameDecodeArguments.CreateSpool();
+        // Resolve the selected stream so codec and bit-depth probes match this source.
+        var info = await engine.Probe(path, ct, stream).ConfigureAwait(false);
+        var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+        if (decoded.ExitCode != 0) throw new InvalidDataException("人物边界解码失败：" + decoded.Error);
+        output.Position = 0;
         var frames = new byte[count][];
-        try
+        for (var index = 0; index < count; index++)
         {
-            for (var index = 0; index < count; index++)
-            {
-                frames[index] = new byte[checked(size * size * 3)];
-                if (!await PersonClipFrameSource.ReadFrameAsync(process.StandardOutput.BaseStream, frames[index], ct).ConfigureAwait(false))
-                    throw new InvalidDataException("人物边界画面不完整：" + await error.ConfigureAwait(false));
-            }
-            await process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, ct).ConfigureAwait(false);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            if (process.ExitCode != 0) throw new InvalidDataException("人物边界解码失败：" + await error.ConfigureAwait(false));
-            return new(start, step, frames);
+            frames[index] = new byte[checked(size * size * 3)];
+            if (!await PersonClipFrameSource.ReadFrameAsync(output, frames[index], ct).ConfigureAwait(false))
+                throw new InvalidDataException("人物边界画面不完整。");
         }
-        finally
-        {
-            if (!process.HasExited) { try { process.Kill(true); } catch (InvalidOperationException) { } }
-            await process.WaitForExitAsync().ConfigureAwait(false);
-            await error.ConfigureAwait(false);
-        }
+        return new(start, step, frames);
     }
 }

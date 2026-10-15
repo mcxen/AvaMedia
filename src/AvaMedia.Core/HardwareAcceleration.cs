@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 
 namespace AvaMedia.Core;
 
@@ -13,60 +11,21 @@ public static class HardwareAcceleration
 {
     public static IReadOnlyList<HardwareEncoder> Encoders { get; } = Array.AsReadOnly(HardwareTranscoding.Backends
         .Where(backend => backend.IsAvailableOnPlatform).SelectMany(backend => backend.Encoders).ToArray());
-    private static readonly ConcurrentDictionary<string, IReadOnlyList<HardwareEncoderResult>> Cache = new();
-    private static readonly SemaphoreSlim Gate = new(1);
-
     public static async Task<IReadOnlyList<HardwareEncoderResult>> TestAsync(string executable, CancellationToken token = default,
         bool refresh = true, Action<HardwareEncoderResult>? progress = null)
     {
-        var file = Path.GetFullPath(executable);
-        var key = file + "|" + (File.Exists(file) ? File.GetLastWriteTimeUtc(file).Ticks : 0);
-        await Gate.WaitAsync(token).ConfigureAwait(false);
-        try
+        var cache = Compute.ComputeEnvironment.Capabilities;
+        var fingerprint = Compute.ComputeEnvironment.Fingerprint(executable);
+        var probe = new Compute.FfmpegEncoderProbe(executable);
+        var results = new List<HardwareEncoderResult>();
+        foreach (var encoder in Encoders)
         {
-            if (!refresh && Cache.TryGetValue(key, out var cached)) return cached;
-            ProcessResult listing;
-            using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
-            {
-                timeout.CancelAfter(TimeSpan.FromSeconds(6));
-                try { listing = await ProcessRunner.Run(file, ["-hide_banner", "-encoders"], timeout.Token).ConfigureAwait(false); }
-                catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                { return Unavailable("读取 FFmpeg 编码器列表超时。", progress); }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                { return Unavailable("无法启动 FFmpeg：" + ex.Message, progress); }
-            }
-            if (listing.ExitCode != 0) return Unavailable("无法读取 FFmpeg 编码器列表：" + listing.Error, progress);
-            var available = Regex.Matches(listing.Output + "\n" + listing.Error, @"(?m)^\s*V[A-Z\.]{5}\s+(\S+)")
-                .Select(m => m.Groups[1].Value).ToHashSet(StringComparer.Ordinal);
-            var results = new List<HardwareEncoderResult>();
-            foreach (var encoder in Encoders)
-            {
-                token.ThrowIfCancellationRequested();
-                HardwareEncoderResult result;
-                if (!available.Contains(encoder.Codec)) result = new(encoder.Name, encoder.Codec, false, "当前 FFmpeg 构建不包含此编码器。");
-                else
-                {
-                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    timeout.CancelAfter(TimeSpan.FromSeconds(6));
-                    try
-                    {
-                        var backend = HardwareTranscoding.Backend(encoder.Codec)!;
-                        var test = await ProcessRunner.Run(file, ["-hide_banner", "-v", "error", "-nostdin", ..backend.InitializationArguments, "-f", "lavfi", "-i",
-                            "color=c=black:s=1280x720:r=25", "-frames:v", "3", "-an", "-c:v", encoder.Codec,
-                            "-pix_fmt", "nv12", ..backend.EncodingArguments(encoder, new(23, 1280, 720, 25)), "-f", "null", "-"], timeout.Token).ConfigureAwait(false);
-                        result = new(encoder.Name, encoder.Codec, test.ExitCode == 0,
-                            test.ExitCode == 0 ? "已成功编码 3 帧测试画面。" : test.Error.Trim());
-                    }
-                    catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                    { result = new(encoder.Name, encoder.Codec, false, "硬件编码测试超过 6 秒，已终止。"); }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    { result = new(encoder.Name, encoder.Codec, false, ex.Message); }
-                }
-                results.Add(result); progress?.Invoke(result);
-            }
-            Cache[key] = results.AsReadOnly(); return Cache[key];
+            var request = new Compute.ComputeRequest("FFmpeg 编码", Compute.ComputeCapability.VideoEncode, encoder.Codec);
+            var result = await cache.GetAsync(request, Compute.FfmpegBackend.ForEncoder(encoder.Codec), fingerprint, probe, token, refresh).ConfigureAwait(false);
+            var report = new HardwareEncoderResult(encoder.Name, encoder.Codec, result.Available, result.Reason);
+            results.Add(report); progress?.Invoke(report);
         }
-        finally { Gate.Release(); }
+        return results.AsReadOnly();
     }
 
     public static IReadOnlyList<string> CompatibleCodecs(string format) => Encoders

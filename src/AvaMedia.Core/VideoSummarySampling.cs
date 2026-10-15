@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using SkiaSharp;
 using System.Globalization;
 using System.Text.Json;
@@ -38,34 +39,25 @@ internal static class VideoSummarySampling
         var args = new[] { "-v", "error", "-nostdin", "-i", path, "-map", $"0:v:{info.VideoStreamIndex}",
             "-vf", $"setpts=PTS-STARTPTS,fps={fps.ToString("0.################", CultureInfo.InvariantCulture)}:start_time=0:eof_action=pass,scale={ScanSize}:{ScanSize}",
             "-frames:v", MaximumScanFrames.ToString(), "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1" };
-        using (var process = await ProcessRunner.StartAsync(engine.FFmpeg, args, ct).ConfigureAwait(false))
+        using (var output = FrameDecodeArguments.CreateSpool())
         {
-            using var cancellation = ct.Register(() => { try { process.Kill(true); } catch (InvalidOperationException) { } });
-            var error = process.StandardError.ReadToEndAsync();
+            var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+            if (decoded.ExitCode != 0) throw new InvalidDataException("视频采样扫描失败：" + decoded.Error);
+            output.Position = 0;
             var current = new byte[ScanSize * ScanSize * 3]; var previous = new byte[current.Length];
-            try
+            while (await ReadFrameAsync(output, current, ct).ConfigureAwait(false))
             {
-                while (await ReadFrameAsync(process.StandardOutput.BaseStream, current, ct).ConfigureAwait(false))
+                var seconds = videoStart + scanned * interval;
+                if (seconds < info.Duration && scanned > 0)
                 {
-                    var seconds = videoStart + scanned * interval;
-                    if (seconds < info.Duration && scanned > 0)
-                    {
-                        var score = Difference(current, previous);
-                        if (score >= .035) changes.Add(new(seconds, score));
-                    }
-                    scanned++;
-                    (current, previous) = (previous, current);
-                    report(Math.Min(.5, .5 * scanned * interval / span), "扫描画面变化");
+                    var score = Difference(current, previous);
+                    if (score >= .035) changes.Add(new(seconds, score));
                 }
-                await process.WaitForExitAsync(ct).ConfigureAwait(false);
-                if (process.ExitCode != 0) throw new InvalidDataException("视频采样扫描失败：" + await error.ConfigureAwait(false));
-                if (scanned == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
+                scanned++;
+                (current, previous) = (previous, current);
+                report(Math.Min(.5, .5 * scanned * interval / span), "扫描画面变化");
             }
-            finally
-            {
-                if (!process.HasExited) { try { process.Kill(true); } catch (InvalidOperationException) { } }
-                await process.WaitForExitAsync().ConfigureAwait(false); await error.ConfigureAwait(false);
-            }
+            if (scanned == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
         }
         var candidates = new List<Candidate>();
         var coverageCount = Math.Max(1, (count + 1) / 2);

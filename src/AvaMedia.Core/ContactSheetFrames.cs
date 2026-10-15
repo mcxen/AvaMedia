@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using SkiaSharp;
@@ -78,20 +79,11 @@ public static partial class BatchVideoTools
         filters.Add("format=rgb24");
         args.AddRange(["-vf", string.Join(',', filters), "-frames:v", "1", "-threads", "1",
             "-fps_mode", "passthrough", "-f", "image2pipe", "-c:v", "png", "pipe:1"]);
-        using var process = await ProcessRunner.StartAsync(engine.FFmpeg, args, ct).ConfigureAwait(false);
-        using var cancel = ct.Register(() =>
-        {
-            try { process.Kill(true); }
-            catch (InvalidOperationException) { }
-            catch (System.ComponentModel.Win32Exception) { }
-        });
-        var error = process.StandardError.ReadToEndAsync();
         using var output = new MemoryStream();
-        await process.StandardOutput.BaseStream.CopyToAsync(output, ct).ConfigureAwait(false);
-        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-        var diagnostic = await error.ConfigureAwait(false);
+        var decoded = await FrameDecodeArguments.RunAsync(engine, info, args, output, ct).ConfigureAwait(false);
+        var diagnostic = decoded.Error;
         ct.ThrowIfCancellationRequested();
-        if (process.ExitCode != 0 || output.Length == 0)
+        if (decoded.ExitCode != 0 || output.Length == 0)
             throw new InvalidDataException(string.IsNullOrWhiteSpace(diagnostic) ? "无法精确读取高清画面。" : diagnostic);
         var match = Regex.Match(diagnostic, @"showinfo[^\r\n]*\bn:\s*0\s+[^\r\n]*\bpts_time:([-+0-9.eE]+)");
         if (!match.Success || !double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var pts)

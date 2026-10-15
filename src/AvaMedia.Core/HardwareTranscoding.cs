@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace AvaMedia.Core;
 
-public enum HardwareBackendKind { VideoToolbox, Nvenc, QuickSync, Amf }
+public enum HardwareBackendKind { VideoToolbox, Nvenc, QuickSync, Amf, Vaapi }
 public enum HardwareVideoFormat { H264, Hevc, Av1, Vp9 }
 
 public sealed record HardwareEncodingContext(int Quality, int Width, int Height, double FrameRate);
@@ -23,7 +23,7 @@ public interface IHardwareTranscodingBackend
 public static class HardwareTranscoding
 {
     public static IReadOnlyList<IHardwareTranscodingBackend> Backends { get; } =
-        Array.AsReadOnly<IHardwareTranscodingBackend>([new VideoToolboxBackend(), new NvencBackend(), new AmfBackend(), new QuickSyncBackend()]);
+        Array.AsReadOnly<IHardwareTranscodingBackend>([new VideoToolboxBackend(), new NvencBackend(), new VaapiBackend(), new QuickSyncBackend(), new AmfBackend()]);
 
     public static IHardwareTranscodingBackend? Backend(string codec) =>
         Backends.FirstOrDefault(backend => backend.Encoders.Any(encoder => encoder.Codec == codec));
@@ -44,7 +44,7 @@ public static class HardwareTranscoding
         if (!input.HasVideo || VideoFormat(input.VideoCodec) is null) return null;
         // D3D11VA uses the Windows video decoder, including Intel Quick Sync, independently
         // of the selected export encoder. Download frames for rotation, scaling and PNG output.
-        var method = OperatingSystem.IsWindows() ? "d3d11va" : OperatingSystem.IsMacOS() ? "videotoolbox" : null;
+        var method = OperatingSystem.IsWindows() ? "d3d11va" : OperatingSystem.IsMacOS() ? "videotoolbox" : OperatingSystem.IsLinux() ? "vaapi" : null;
         return method is null ? null : new(method,
             HardwareTranscodingBackend.DecodeArguments(method, input, HardwareTranscodingBackend.TransferFormat(input)));
     }
@@ -206,4 +206,17 @@ internal sealed class AmfBackend : HardwareTranscodingBackend
     public override HardwareDecodePlan? Decoding(MediaInfo input, bool keepHardwareFrames) =>
         !OperatingSystem.IsWindows() || HardwareTranscoding.VideoFormat(input.VideoCodec) is null
             ? null : new("d3d11va", DecodeArguments("d3d11va", input, TransferFormat(input)));
+}
+
+internal sealed class VaapiBackend : HardwareTranscodingBackend
+{
+    public override HardwareBackendKind Kind => HardwareBackendKind.Vaapi;
+    public override string Name => "Linux VAAPI";
+    public override bool IsAvailableOnPlatform => OperatingSystem.IsLinux();
+    public override IReadOnlyList<string> InitializationArguments => ["-init_hw_device", "vaapi=avamedia_va:/dev/dri/renderD128", "-filter_hw_device", "avamedia_va"];
+    public override IReadOnlyList<HardwareEncoder> Encoders { get; } = Array.AsReadOnly<HardwareEncoder>(
+        [new("VAAPI H.264", "h264_vaapi", HardwareVideoFormat.H264), new("VAAPI HEVC", "hevc_vaapi", HardwareVideoFormat.Hevc), new("VAAPI AV1", "av1_vaapi", HardwareVideoFormat.Av1)]);
+    public override IReadOnlyList<string> EncodingArguments(HardwareEncoder encoder, HardwareEncodingContext context) => ["-qp", Qp(context.Quality)];
+    public override HardwareDecodePlan? Decoding(MediaInfo input, bool keepHardwareFrames) => HardwareTranscoding.VideoFormat(input.VideoCodec) is null ? null
+        : new("vaapi", Compute.FrameDecodeArguments.InputArguments(Compute.ComputeBackend.Vaapi, input.VideoStreamIndex, TransferFormat(input)));
 }

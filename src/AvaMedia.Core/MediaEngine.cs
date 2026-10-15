@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -10,7 +11,7 @@ public sealed class MediaEngine : IMediaEngine
     private readonly HashSet<string> _softwareThumbnailSources = new(StringComparer.Ordinal);
     private readonly Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>> _hardwareTest;
     public MediaEngine(AppSettings settings,Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>>? hardwareTest=null)
-    {Settings=settings;CpuResourcePolicy.Configure(settings);_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
+    {Settings=settings;ComputeSettings.Configure(settings);CpuResourcePolicy.Configure(settings);_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
     public string FFmpeg => Resolve(Settings.FFmpegPath,"ffmpeg");
     public string FFprobe => Resolve(Settings.FFprobePath,"ffprobe");
     public static string Number(double n) => n.ToString("0.######",CultureInfo.InvariantCulture);
@@ -109,11 +110,13 @@ public sealed class MediaEngine : IMediaEngine
             var tool=FFmpeg;
             HardwareDecodePlan? decoding=null;
             string? decoderIdentity=null;
-            if(Settings.AutoDetectGpu && !HeifImage.Supports(input) && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+            ComputeRoute? decodeRoute=null;
+            if(ComputeSettings.Load(Settings.AutoDetectGpu).Preference!=ComputePreference.ForceCpu && !HeifImage.Supports(input))
             {
                 var info=await Probe(input,ct,videoStreamIndex).ConfigureAwait(false);
                 videoStreamIndex=info.VideoStreamIndex;
-                decoding=HardwareTranscoding.PreviewDecoding(info);
+                decodeRoute=await FrameDecodeArguments.ForAsync(tool,info,ComputeSettings.Load(Settings.AutoDetectGpu).Preference,ct).ConfigureAwait(false);
+                decoding=decodeRoute.Chosen==ComputeBackend.Cpu?null:new(ComputeRuntimeFormatter.Name(decodeRoute.Chosen),FrameDecodeArguments.InputArguments(decodeRoute.Chosen,info.VideoStreamIndex,HardwareTranscodingBackend.TransferFormat(info)));
                 if(decoding is not null)
                 {
                     decoderIdentity=await _previews.IdentityAsync(input,new { Decoder=true, Stream=videoStreamIndex, Tool=tool },ct).ConfigureAwait(false);
@@ -123,10 +126,11 @@ public sealed class MediaEngine : IMediaEngine
             }
             if(decoding is not null)
             {
-                try{return await Extract(decoding).ConfigureAwait(false);}
+                try{var data=await Extract(decoding).ConfigureAwait(false);decodeRoute?.ReportSuccess();return data;}
                 catch(InvalidDataException error)
                 {
                     ct.ThrowIfCancellationRequested();
+                    decodeRoute?.ReportFailure(decodeRoute.Chosen,error.Message);
                     if(decoderIdentity is not null)
                         lock(_softwareThumbnailSources)
                         {
@@ -484,18 +488,39 @@ public sealed class MediaEngine : IMediaEngine
         }
         var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions?.Select(option=>option.Clone()).ToList(),Options=effective,Output=job.Output,Duration=job.Duration};
         using var subtitlePositioning=await SubtitlePositioning.PrepareAsync(this,effectiveJob,ct).ConfigureAwait(false);
+        var hardwareLog=new StringBuilder();
+        var preference=ComputeSettings.Load(Settings.AutoDetectGpu).Preference;
+        var requestedCodec=effective.VideoCodec;
+        var genericFormat=HardwareTranscoding.VideoFormat(requestedCodec);
+        var explicitHardware=!effective.CopyStreams && HardwareTranscoding.Backend(requestedCodec) is not null && preference!=ComputePreference.ForceCpu;
+        var route=new ComputeRouter(ComputeEnvironment.Platform,ComputeEnvironment.Capabilities,ComputeEnvironment.Fingerprint(FFmpeg))
+            .Plan(new(job.FeatureId,ComputeCapability.VideoEncode,requestedCodec,preference),line=>hardwareLog.AppendLine(line));
         IReadOnlyList<string> hardware=[];
-        if(Settings.AutoDetectGpu && effective.VideoCompression?.PreferGpu!=false && !effective.CopyStreams && effective.VideoCodec=="自动" &&
-            infos.Any(i=>i.HasVideo) && HardwareAcceleration.CompatibleCodecs(effective.Format).Count>0)
-            hardware=HardwareAcceleration.Candidates(effective.Format,await _hardwareTest(FFmpeg,ct),infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"");
-        var explicitHardware=!effective.CopyStreams && HardwareTranscoding.Backend(effective.VideoCodec) is not null;
-        if(explicitHardware)hardware=[effective.VideoCodec];
-        if(effective.VideoCompression is {} compression)
-            hardware=hardware.Where(codec=>HardwareTranscoding.VideoFormat(compression.Codec)==HardwareTranscoding.Encoder(codec)?.Format).ToArray();
-        if(effective.PreserveSourceAttributes)
-            hardware=hardware.Where(codec=>SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex)).ToArray();
+        if(preference!=ComputePreference.ForceCpu && effective.VideoCompression?.PreferGpu!=false && !effective.CopyStreams &&
+            (requestedCodec=="自动" || genericFormat is not null || explicitHardware) && infos.Any(i=>i.HasVideo))
+        {
+            var report=await _hardwareTest(FFmpeg,ct);
+            hardware=HardwareAcceleration.CompatibleCodecs(effective.Format)
+                .Where(codec=>explicitHardware?codec==requestedCodec:genericFormat is null || HardwareTranscoding.Encoder(codec)?.Format==genericFormat)
+                .Where(codec=>effective.VideoCompression is not {} compression || HardwareTranscoding.VideoFormat(compression.Codec)==HardwareTranscoding.Encoder(codec)?.Format)
+                .Where(codec=>!effective.PreserveSourceAttributes || SourceVideoGpu.CanEncode(codec,infos[0],effective.VideoStreamIndex))
+                .OrderBy(codec=>Array.IndexOf(route.OrderedCandidates.ToArray(),FfmpegBackend.ForEncoder(codec)))
+                .ThenBy(codec=>HardwareTranscoding.Encoder(codec)?.Format==HardwareTranscoding.VideoFormat(infos[0].VideoCodec)?0:1)
+                .ToArray();
+            // Preserve probe failures in the route, rather than silently dropping unsupported devices.
+            var supported=report.Where(item=>item.Supported).Select(item=>item.Codec).ToHashSet(StringComparer.Ordinal);
+            foreach(var backend in route.OrderedCandidates.Where(backend=>backend!=ComputeBackend.Cpu))
+            {
+                if(route.Chosen!=backend)continue;
+                if(hardware.Any(codec=>FfmpegBackend.ForEncoder(codec)==backend && supported.Contains(codec)))break;
+                var reason=string.Join("；",report.Where(item=>hardware.Contains(item.Codec) && FfmpegBackend.ForEncoder(item.Codec)==backend).Select(item=>item.Detail));
+                route.ReportFailure(backend,reason.Length==0?"此输出约束没有可用编码器。":reason,persist:false);
+            }
+            hardware=hardware.Where(supported.Contains).ToArray();
+        }
+        else while(route.Chosen!=ComputeBackend.Cpu)route.ReportFailure(route.Chosen,"按设置或显式软件编码器使用 CPU。",persist:false);
         var keepProcessedOutput=job.FeatureId is "voice-enhance" or "audio-enhance" or "delogo" or "rotate";
-        ProcessResult? result=null;var hardwareLog=new StringBuilder();
+        ProcessResult? result=null;
         if(!effective.CopyStreams && effective.VideoCodec!="copy" && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
         {
             var bitrate=VideoEncoding.TargetBitrate(effectiveJob,infos);
@@ -510,16 +535,21 @@ public sealed class MediaEngine : IMediaEngine
             var temporary=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,".AvaMedia-gpu-"+Guid.NewGuid()+Path.GetExtension(job.Output));
             try
             {
+                while(route.Chosen!=FfmpegBackend.ForEncoder(codec) && route.Chosen!=ComputeBackend.Cpu)
+                    route.ReportFailure(route.Chosen,"当前编码格式没有可用候选。",persist:false);
                 job.ProgressDetail="GPU 编码 · "+codec;progress(0);
                 effective.VideoCodec=codec;effectiveJob.Output=temporary;result=await EncodeWithDecoding(effectiveJob);
                 if(result.ExitCode==0)
                 {
                     if(!File.Exists(temporary) || new FileInfo(temporary).Length==0)throw new InvalidDataException("编码未生成有效文件。");
-                    if(!result.Interrupted)ct.ThrowIfCancellationRequested();await PreserveOutputAsync(temporary,result);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;
+                    if(!result.Interrupted)ct.ThrowIfCancellationRequested();await PreserveOutputAsync(temporary,result);route.ReportSuccess(codec);hardwareLog.AppendLine("使用硬件编码 "+codec+"（"+HardwareTranscoding.Backend(codec)!.Name+"）。");break;
                 }
                 else
                 {
                     hardwareLog.AppendLine(explicitHardware?$"指定硬件编码 {codec} 失败。":$"自动硬件编码 {codec} 失败，尝试其他可用编码器。").AppendLine(result.Error);
+                    // A backend can have more than one compatible codec; advance only after its last candidate.
+                    if(!hardware.SkipWhile(candidate=>candidate!=codec).Skip(1).Any(candidate=>FfmpegBackend.ForEncoder(candidate)==route.Chosen))
+                        route.ReportFailure(route.Chosen,"编码失败："+result.Error);
                     job.Log=hardwareLog.ToString();progress(0);
                 }
             }
@@ -528,7 +558,10 @@ public sealed class MediaEngine : IMediaEngine
         if(!explicitHardware && (result is null || result.ExitCode!=0))
         {
             if(hardware.Count>0)hardwareLog.AppendLine("可用硬件编码器均失败，回退软件编码。");
+            while(route.Chosen!=ComputeBackend.Cpu)route.ReportFailure(route.Chosen,"没有成功的硬件编码结果。",persist:false);
             effective.VideoCodec=effective.PreserveSourceAttributes?SourceVideoExport.Encoder(infos[0],sourceEncoderListing!):job.Options.VideoCodec;
+            if(genericFormat is not null || HardwareTranscoding.Backend(effective.VideoCodec) is not null)
+                effective.VideoCodec=genericFormat switch { HardwareVideoFormat.Hevc=>"libx265",HardwareVideoFormat.Av1=>"libaom-av1",HardwareVideoFormat.Vp9=>"libvpx-vp9",_=>requestedCodec.StartsWith("hevc_",StringComparison.Ordinal)?"libx265":requestedCodec.StartsWith("av1_",StringComparison.Ordinal)?"libaom-av1":"libx264" };
             if(effective.VideoCodec=="自动" && effective.VideoRateMode==VideoRateMode.Source && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
             {
                 var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
@@ -548,6 +581,7 @@ public sealed class MediaEngine : IMediaEngine
             try
             {
                 progress(0);effectiveJob.Output=temporary??job.Output;result=await Encode(effectiveJob,null);
+                if(result.ExitCode==0)route.ReportSuccess(effective.VideoCodec);
                 if(result.ExitCode==0 && temporary is not null)
                 {
                     if(!File.Exists(temporary) || new FileInfo(temporary).Length==0)throw new InvalidDataException("编码未生成有效文件。");
@@ -558,6 +592,7 @@ public sealed class MediaEngine : IMediaEngine
         }
         var completed=result!;
         job.Log=hardwareLog+completed.Error;
+        job.SetComputeOutcome(route.Outcome(effective.VideoCodec));
         if(completed.ExitCode!=0) throw new InvalidOperationException(completed.Error);
         if(compressionPlan is not null)
         {
@@ -717,6 +752,7 @@ public sealed class MediaEngine : IMediaEngine
             if(complex>=0 && mapping>=0){a[complex+1]+=";"+source+string.Join(",",filters)+target;a[mapping]=target;}
             else a.AddRange([option,string.Join(",",filters)]);
         }
+        if(hardwareBackend?.Kind==HardwareBackendKind.Vaapi)videoFilters.Add("format=nv12,hwupload");
         if(videoFilters.Count>0 && !IsAudio(o.Format))Filters(videoFilters,"[vout]","[vedited]","-vf");
         if(audioFilters.Count>0 && !o.Mute && infos.Any(i=>i.HasAudio) && !IsImage(o.Format) && o.Format!="gif" && f.Operation!=Operation.SplitVideo)Filters(audioFilters,"[aout]","[aedited]","-af");
         if(o.Mute || IsImage(o.Format) || o.Format=="gif")a.Add("-an");
@@ -739,11 +775,13 @@ public sealed class MediaEngine : IMediaEngine
             if(!IsAudio(o.Format))
             {
                 string codec=o.VideoCodec=="自动"?o.Format switch {"webm"=>"libvpx-vp9","avi"=>"mpeg4","wmv"=>"wmv2","flv"=>"flv","mpg"=>"mpeg2video","ts" or "mts" or "m2ts" or "m2t"=>"libx264",_=>"mpeg4"}:o.VideoCodec;
-                a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":"nv12")]);
+                a.AddRange(["-c:v",codec]);if(codec!="copy")a.AddRange(["-pix_fmt",hardwareDecoding?.Values.FirstOrDefault(plan=>plan.EncoderPixelFormat is not null)?.EncoderPixelFormat??(hardwareBackend is null?"yuv420p":hardwareBackend.Kind==HardwareBackendKind.Vaapi?"vaapi":"nv12")]);
                 if((codec.StartsWith("hevc_",StringComparison.Ordinal) || codec is "libx265" or "libkvazaar") && o.Format is "mp4" or "mov" or "m4v")a.AddRange(["-tag:v","hvc1"]);
                 if(o.VideoCompression is not null)a.AddRange(["-metadata:s:v:0","rotate=0"]);
                 if(compressionColor?.ToneMap==true)a.AddRange(["-colorspace","bt709","-color_trc","bt709","-color_primaries","bt709","-color_range","tv"]);
-                if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o));
+                if(o.VideoCompression is not null && hardwareBackend?.Kind==HardwareBackendKind.Vaapi && VideoCompression.UsesQuality(VideoCompression.Effective(o.VideoCompression).Mode))
+                    a.AddRange(hardwareBackend.EncodingArguments(HardwareTranscoding.Encoder(codec)!,HardwareTranscoding.Context(o,infos)));
+                else if(o.VideoCompression is not null)a.AddRange(VideoCompression.EncodingArguments(codec,o));
                 else a.AddRange(VideoEncoding.EncodingArguments(codec,o,infos,codec=="copy"?null:VideoEncoding.TargetBitrate(job,infos)));
                 if(o.Fps>0)a.AddRange(["-r",Number(o.Fps)]);
                 else if(!combined && codec!="copy")
