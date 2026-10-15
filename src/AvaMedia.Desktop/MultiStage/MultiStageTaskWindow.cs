@@ -35,11 +35,13 @@ internal sealed record MultiStageContentState(string SourceDetail, string Result
     string ErrorTitle, string ErrorRecovery, bool HasPrimaryResult);
 
 /// <summary>Independent multi-stage task window (UISPEC 10.16, variant B). Closing never stops the task.</summary>
-internal sealed class MultiStageTaskWindow : Window
+internal partial class MultiStageTaskWindow : TaskLifecycleWindow
 {
     private readonly IMultiStageTask _task;
     private readonly IMultiStageToolContent _content;
-    private readonly MultiStageTaskShell _shell = new();
+    private MultiStageTaskShell _shell => Shell;
+    protected readonly TaskPageViewModel ProcessingPage, ResultPage;
+    private readonly Panel _pageOutput = new();
     private readonly MultiStageLogView _log = new();
     private readonly TextBlock _runtimeValue = new(), _runtimeNote = new() { TextWrapping = TextWrapping.Wrap };
     private readonly Button _pause, _resume, _stop, _rerunAll, _retry, _rerun, _viewLog, _cancel, _close, _start;
@@ -61,19 +63,17 @@ internal sealed class MultiStageTaskWindow : Window
     public MultiStageTaskWindow(IMultiStageTask task, IMultiStageToolContent content, string toolLabel, IMediaEngine? engine = null)
     {
         _task = task; _content = content; _engine = engine;
-        Classes.Add("multistage-task-window");
-        Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new("avares://AvaMedia.Desktop/Styles/MultiStageStyles.axaml") });
         Title = Localization.Format($"任务 · {Localization.Key(toolLabel)}");
-        Width = 1040; Height = 652; MinWidth = 900; MinHeight = 600;
+        Width = 1240; Height = 800; MinWidth = 1000; MinHeight = 680;
         Bind(BackgroundProperty, new DynamicResourceExtension("UiCanvas"));
 
-        _pause = Lifecycle("暂停", "pause", async () => await task.PauseAsync());
-        _resume = Lifecycle("继续", "play", async () => await task.ResumeAsync());
-        _stop = Lifecycle("停止", "square", async () => await task.StopAsync()); _stop.Classes.Add("danger");
-        _rerunAll = Lifecycle("重新执行全部", "rotate-ccw", async () => await task.RerunAsync());
-        _retry = Lifecycle("从阶段重试", "rotate-ccw", async () => { if (_snapshot?.Commands.RetryStageId is { Length: > 0 } id) await task.RetryFromStageAsync(id); });
+        _pause = LifecycleButton("暂停", "pause", async () => await task.PauseAsync());
+        _resume = LifecycleButton("继续", "play", async () => await task.ResumeAsync());
+        _stop = LifecycleButton("停止", "square", async () => await task.StopAsync()); _stop.Classes.Add("danger");
+        _rerunAll = LifecycleButton("重新执行全部", "rotate-ccw", async () => await task.RerunAsync());
+        _retry = LifecycleButton("从阶段重试", "rotate-ccw", async () => { if (_snapshot?.Commands.RetryStageId is { Length: > 0 } id) await task.RetryFromStageAsync(id); });
         _retry.Classes.Add("primary");
-        _rerun = Lifecycle("重新执行", "rotate-ccw", async () => await task.RerunAsync());
+        _rerun = LifecycleButton("重新执行", "rotate-ccw", async () => await task.RerunAsync());
         foreach (var button in new[] { _pause, _resume, _stop, _rerunAll, _retry, _rerun }) _shell.HeaderActions.Children.Add(button);
 
         _viewLog = Ui.Button("查看日志", () => { _userChoseSection = true; _shell.ShowLog = true; _ = ReadLogAsync(); });
@@ -99,12 +99,18 @@ internal sealed class MultiStageTaskWindow : Window
         _shell.SetSectionLabels(Localization.Text("结果"), Localization.Text("处理日志"));
         _shell.ResultContent = content.Result; _shell.LogContent = _log;
         _outputLine.Content = content.Output;
-        _shell.OutputContent = new Panel { Children = { _outputLine, _outputChips } };
+        _pageOutput.Children.Add(_outputLine); _pageOutput.Children.Add(_outputChips);
         _sourceThumb = new MsFileThumb(40, 40, engine);
         BuildSourceChip();
         _shell.Stages.Footer = BuildRuntime();
         _shell.SectionChanged += (_, _) => { _userChoseSection = true; if (_shell.ShowLog) _ = ReadLogAsync(); RefreshNote(); };
-        Content = WindowChrome.WrapDialog(this, _shell);
+        _shell.Children.Remove(_shell.ProcessingContent);
+        _shell.ProcessingContent.Margin = new Thickness(0);
+        var actions = _shell.FooterActions.Children.ToArray(); _shell.FooterActions.Children.Clear();
+        ProcessingPage = new("process", () => _shell.ProcessingContent) { LeadingContent = _pageOutput, AdditionalActions = actions };
+        ResultPage = new("done", () => new ContentControl { Content = new TextBlock { Text = Localization.Text("处理完成，可回看处理页。") } })
+            { LeadingContent = _pageOutput, AdditionalActions = actions };
+        SetLifecycle(new ProcessingTaskPages(task), [ProcessingPage, ResultPage]);
 
         task.Changed += TaskChanged;
         _clock.Tick += (_, _) => { if (!_closed) { RefreshClock(); if (_shell.ShowLog && _snapshot?.State is MultiStageTaskState.Running && DateTime.UtcNow - _logReadUtc > TimeSpan.FromSeconds(2)) _ = ReadLogAsync(); } };
@@ -159,7 +165,7 @@ internal sealed class MultiStageTaskWindow : Window
         return panel;
     }
 
-    private Button Lifecycle(string text, string icon, Func<Task> action)
+    private Button LifecycleButton(string text, string icon, Func<Task> action)
     {
         var button = new Button { Classes = { "ac" } };
         var glyph = new LucideIcon { Kind = icon, Width = 13, Height = 13, VerticalAlignment = VerticalAlignment.Center };
@@ -229,6 +235,7 @@ internal sealed class MultiStageTaskWindow : Window
         RefreshNote(content);
         RefreshClock();
         RefreshActions(content);
+        RefreshPageActions();
     }
 
     private void RefreshStages(MultiStageTaskSnapshot snapshot)
