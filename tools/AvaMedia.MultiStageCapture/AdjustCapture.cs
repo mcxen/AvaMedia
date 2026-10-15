@@ -114,7 +114,7 @@ internal static class AdjustCapture
         session.SetBounds(session.Segments[13].Id, 155.6, 159.5);
         session.SetKeep(session.Segments[17].Id, false); session.Add(205, 207.6);
         await session.SaveAsync();
-        var host = new PersonClipAdjustHost(engine, Path.Combine(temporary, "保留片段"), false, PersonClipTaskOptions.DefaultExportPreset, _ => Task.CompletedTask, _ => Task.CompletedTask);
+        var host = new PersonClipAdjustHost(engine, Path.Combine(temporary, "保留片段"), false, PersonClipTaskOptions.DefaultExportPreset, _ => Task.FromResult(false), _ => Task.CompletedTask);
         var window = new PersonClipAdjustWindow(session, host) { Width = 1240, Height = 800, SizeToContent = SizeToContent.Manual };
         try
         {

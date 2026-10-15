@@ -70,7 +70,7 @@ internal sealed class PersonClipLifecycleWindow : MultiStageTaskWindow
             var session = await PersonClipEditing.OpenAsync(_job);
             if (_disposed) return;
             _editor = new(session, new(_engine, _folder, false, _job.Options.PersonClip?.ExportPreset ?? SourceOutput.Original,
-                _ => Task.CompletedTask, _ => Task.CompletedTask));
+                _ => Task.FromResult(false), _ => Task.CompletedTask));
             _editorView = _editor.Embed(this);
             _adjustSlot.Children.Clear(); _adjustSlot.Children.Add(_editorView);
             session.Changed += (_, _) => UpdatePages();
