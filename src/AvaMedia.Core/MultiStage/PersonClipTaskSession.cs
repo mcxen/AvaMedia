@@ -155,7 +155,7 @@ public sealed class PersonClipTaskSession : IPersonClipTask
             {
                 State = state switch { JobState.Waiting => MultiStageTaskState.Configuring, JobState.Running => MultiStageTaskState.Running,
                     JobState.Paused => MultiStageTaskState.Paused, JobState.Stopping => MultiStageTaskState.Stopping,
-                    JobState.Failed => MultiStageTaskState.Failed, JobState.Completed => MultiStageTaskState.Completed, _ => MultiStageTaskState.Cancelled },
+                    JobState.AwaitingUser => MultiStageTaskState.AwaitingUser, JobState.Failed => MultiStageTaskState.Failed, JobState.Completed => MultiStageTaskState.Completed, _ => MultiStageTaskState.Cancelled },
                 Stages = Array.AsReadOnly(statuses), CurrentStageIndex = current, Progress = _job.Progress,
                 Elapsed = TimeSpan.FromTicks(statuses.Sum(s => (s.Elapsed ?? TimeSpan.Zero).Ticks)), IsClockRunning = statuses.Any(s => s.IsClockRunning),
                 StartedUtc = configuring ? null : summary?.StartedUtc, CompletedUtc = configuring ? null : summary?.CompletedUtc, SnapshotUtc = snapshotUtc,

@@ -53,6 +53,7 @@ public partial class MainWindow
     private async Task ShowPersonClipResultAsync(Job job)
     {
         if (_closing) return;
+        if (job.Lifecycle is not null) { await ShowAiTaskAsync(job); return; }
         if (_personClipAdjustWindows.TryGetValue(job.Id, out var existing)) { WindowChrome.Present(existing); return; }
         if (!_jobs.Contains(job) || _queue.IsExecuting(job) || job.State is JobState.Running or JobState.Stopping
             || !_editingJobs.Add(job)) return;

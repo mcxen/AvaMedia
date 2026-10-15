@@ -7,7 +7,12 @@ public partial class MainWindow
     private void AddToolJobs(IEnumerable<Job> jobs, bool startImmediately)
     {
         var added = jobs.ToArray();
-        foreach (var job in added) _jobs.Add(job);
+        foreach (var job in added)
+        {
+            if (!_mcpBackgroundMode && job.FeatureId == "person-clip" && job.Options.PersonClip is not null)
+                using (new TaskLifecycle(job, PersonClipLifecycle.Pages)) { }
+            _jobs.Add(job);
+        }
         Save(); Refresh();
         if (startImmediately) _ = StartToolJobsAsync(added);
     }

@@ -8,7 +8,7 @@ namespace AvaMedia.Core;
 public enum StageState { Pending, Active, Paused, Done, Failed, Skipped, Cancelled }
 
 /// <summary>Task-level state shown by the window. Configuring is a queued task that has not started.</summary>
-public enum MultiStageTaskState { Configuring, Running, Paused, Stopping, Failed, Completed, Cancelled }
+public enum MultiStageTaskState { Configuring, Running, Paused, Stopping, Failed, Completed, Cancelled, AwaitingUser }
 
 /// <summary>Static stage declaration. Description is the generic plan text; real parameters go in <see cref="TaskStageStatus.Detail"/>.</summary>
 public sealed record TaskStageDescriptor(string Id, string Title, string Description, bool CanRetryFrom = false);

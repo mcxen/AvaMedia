@@ -23,7 +23,7 @@ public partial class MainWindow
     internal bool CanPauseRowTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_editingJobs.Contains(job)
         && job.State is JobState.Waiting or JobState.Running;
     internal bool CanStopRowTask(Job job) => CanManageTasks && _jobs.Contains(job) && !_editingJobs.Contains(job)
-        && job.State is JobState.Waiting or JobState.Running or JobState.Paused;
+        && job.State is JobState.Waiting or JobState.Running or JobState.Paused or JobState.AwaitingUser;
     internal bool CanRunRowTask(Job job) => _jobs.Contains(job) && (CanStartTask(job) || CanContinueTask(job)
         || job.State == JobState.Failed && CanRequeueTask(job));
     internal Task RunRowTaskAsync(Job job) => CanRunRowTask(job) ? RequestTaskRunAsync(job) : Task.CompletedTask;
@@ -177,6 +177,12 @@ public partial class MainWindow
         if (restarting.Length == 0) return;
         foreach (var job in restarting)
         {
+            if (job.Lifecycle?.Current.Page.Id == "merge" && fromStageId is not null)
+            {
+                if (File.Exists(job.Output)) job.Output = NextTaskOutput(job);
+                job.Error = ""; job.State = JobState.Waiting; continue;
+            }
+            if (job.Lifecycle is not null) using (var lifecycle = new TaskLifecycle(job, job.Lifecycle.Pages.Select(p => p.Page))) lifecycle.Reset();
             if (job.FeatureId == "person-clip")
             {
                 // A stage retry retains durable detection/summary files; an ordinary rerun starts afresh.

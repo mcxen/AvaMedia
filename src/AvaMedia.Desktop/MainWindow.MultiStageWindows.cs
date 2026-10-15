@@ -20,7 +20,11 @@ public partial class MainWindow
     private void ShowMultiStageWindow(Job job)
     {
         var (session, content, label) = CreateMultiStage(job);
-        var window = new MultiStageTaskWindow(session, content, label, Engine);
+        MultiStageTaskWindow window = job.Lifecycle is not null && job.FeatureId == "person-clip"
+            ? new PersonClipLifecycleWindow(job, session, content, Engine, job.HasInternalOutput ? _settings.OutputFolder : Path.GetDirectoryName(job.Output)!,
+                () => { Save(); Refresh(); return Task.CompletedTask; },
+                async () => { job.State = JobState.Waiting; Save(); Refresh(); await RequestTaskRunAsync(job); })
+            : new MultiStageTaskWindow(session, content, label, Engine);
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);

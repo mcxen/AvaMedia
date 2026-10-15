@@ -8,7 +8,7 @@ public static partial class PersonClipEditing
     {
         ArgumentNullException.ThrowIfNull(job);
         ct.ThrowIfCancellationRequested();
-        var path = job.Options.PersonClip?.AnalysisOnly == true ? job.Output : AiTaskResults.PathFor(job, "people");
+        var path = job.Options.PersonClip?.AnalysisOnly == true && job.Lifecycle is null ? job.Output : AiTaskResults.PathFor(job, "people");
         PersonDetectionTaskResult? result;
         try { result = job.PersonDetectionResult ?? await AiTaskResults.LoadAsync<PersonDetectionTaskResult>(path, ct).ConfigureAwait(false); }
         catch (Exception error) when (error is IOException or JsonException or UnauthorizedAccessException)

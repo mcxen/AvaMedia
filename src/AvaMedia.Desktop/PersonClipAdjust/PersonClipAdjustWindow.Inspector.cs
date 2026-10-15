@@ -48,7 +48,7 @@ internal sealed partial class PersonClipAdjustWindow
             var picture = new Border { CornerRadius = new(6), ClipToBounds = true, Child = frame, Height = 63 };
             MsUi.Brush(picture, Border.BackgroundProperty, "UiFill");
             picture.Tapped += (_, _) => { if (Selected is { } s) SeekTo(index == 0 ? s.Start : s.End); };
-            picture.DoubleTapped += (_, e) => { ImageViewerWindow.ShowPreview(this, _boundsImages[index].Source, Localization.Text(label)); e.Handled = true; };
+            picture.DoubleTapped += (_, e) => { ImageViewerWindow.ShowPreview(DialogOwner, _boundsImages[index].Source, Localization.Text(label)); e.Handled = true; };
             picture.SizeChanged += (_, e) => { if (e.NewSize.Width > 0) picture.Height = e.NewSize.Width * 9 / 16; };
             ToolTip.SetTip(picture, Localization.Text("点击跳转，双击查看大图"));
             var timeRow = new Grid { ColumnDefinitions = new("18,*,18"), ColumnSpacing = 2, Margin = new(0, 5, 0, 0) };
@@ -213,7 +213,7 @@ internal sealed partial class PersonClipAdjustWindow
         if (_session.Segments.FirstOrDefault(s => s.Id == id) is not { } segment) return;
         try
         {
-            var options = await new OptionsWindow(segment.Options.Clone(), kind: MediaOptionsKind.ClipEdit, previewEngine: _engine, previewSource: _session.SourcePath).ShowDialog<ConversionOptions?>(this);
+            var options = await new OptionsWindow(segment.Options.Clone(), kind: MediaOptionsKind.ClipEdit, previewEngine: _engine, previewSource: _session.SourcePath).ShowDialog<ConversionOptions?>(DialogOwner);
             if (options is not null && !_closed) Do(() => _session.SetEffects(id, options));
         }
         catch (Exception error) { Notify(error.Message); }
@@ -240,7 +240,7 @@ internal sealed partial class PersonClipAdjustWindow
         if (_session.Segments.FirstOrDefault(s => s.Id == id) is not { } segment) return;
         try
         {
-            var parts = await new ClipSplitWindow(segment.Options, _session.Duration, _engine, _session.SourcePath).ShowDialog<IReadOnlyList<ConversionOptions>?>(this);
+            var parts = await new ClipSplitWindow(segment.Options, _session.Duration, _engine, _session.SourcePath).ShowDialog<IReadOnlyList<ConversionOptions>?>(DialogOwner);
             if (parts is not null && !_closed) Do(() => _session.SplitMany(id, parts));
         }
         catch (Exception error) { Notify(error.Message); }

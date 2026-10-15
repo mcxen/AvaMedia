@@ -56,6 +56,13 @@ public sealed class PersonClipService(MediaEngine engine)
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
+        using var lifecycle = job.Lifecycle is null ? null : new TaskLifecycle(job, PersonClipLifecycle.Pages);
+        if (lifecycle?.CurrentPage.Page.Id == "merge")
+        {
+            await PersonClipLifecycle.MergeAsync(engine, job, lifecycle, progress, ct).ConfigureAwait(false);
+            return;
+        }
+        lifecycle?.StartProcessing("process");
         var store = new ModelStore();
         var stages = new PersonClipTaskState(job); job.PersonClipStages = stages;
         try
@@ -64,11 +71,12 @@ public sealed class PersonClipService(MediaEngine engine)
             if (retry.FallbackReason.Length > 0) stages.Log("", retry.FallbackReason, TaskLogLevel.Warning);
             await ExecuteStagesAsync(job, progress, ct, stages, retry).ConfigureAwait(false);
             stages.Finish(JobState.Completed);
+            lifecycle?.CompleteProcessing("process", $"检测到 {job.PersonDetectionResult?.Result.Segments.Count ?? 0} 个片段");
         }
-        catch (OperationCanceledException) { stages.Finish(JobState.Cancelled); throw; }
+        catch (OperationCanceledException) { lifecycle?.Fail("用户停止了任务。"); stages.Finish(JobState.Cancelled); throw; }
         catch (Exception error) when (ct.IsCancellationRequested)
         { stages.Finish(JobState.Cancelled); throw new OperationCanceledException("用户停止了任务。", error, ct); }
-        catch (Exception error) { stages.Finish(JobState.Failed, error.Message); throw; }
+        catch (Exception error) { lifecycle?.Fail(error.Message); stages.Finish(JobState.Failed, error.Message); throw; }
         finally { job.PersonClipStartStageId = null; }
     }
 
@@ -129,7 +137,7 @@ public sealed class PersonClipService(MediaEngine engine)
         job.PersonDetectionResult = detected;
         if (stages.Capture().Summary.Stages[3].Status.State is StageState.Active or StageState.Paused)
             stages.Complete(PersonClipStageIds.Refine, $"{stages.Capture().Summary.Stages[3].Status.Current ?? 0} 处边界 · 边界计算 {result.BoundaryFrames} 帧 · {result.Segments.Count} 段 · {PersonClipPresentation.Time(result.Segments.Sum(s => s.End - s.Start))}");
-        if (spec.AnalysisOnly)
+        if (spec.AnalysisOnly || job.Lifecycle is not null)
         {
             job.ProgressDetail = result.Segments.Count > 0 ? $"保留 {result.Segments.Count} 个片段 · 可调整后导出" : "没有可保留片段";
             stages.Complete(PersonClipStageIds.Export, "已跳过 · 仅检测，不导出", StageState.Skipped);

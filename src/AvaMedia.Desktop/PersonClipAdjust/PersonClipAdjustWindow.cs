@@ -28,6 +28,10 @@ internal sealed record PersonClipAdjustHost(
 /// </summary>
 internal sealed partial class PersonClipAdjustWindow : Window
 {
+    private Window? _embeddedHost;
+    private Grid _editorRoot = null!;
+    private Control _editorFooter = null!;
+    private Window DialogOwner => _embeddedHost ?? this;
     private readonly IPersonClipEditSession _session;
     private readonly PersonClipAdjustHost _host;
     private readonly IMediaEngine _engine;
@@ -82,7 +86,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         _format.SelectedItem = QuickClipBatch.Presets.Contains(host.Preset) ? host.Preset : PersonClipTaskOptions.DefaultExportPreset;
         Avalonia.Automation.AutomationProperties.SetName(_format, Localization.Text("输出格式"));
 
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto") };
+        var root = _editorRoot = new Grid { RowDefinitions = new("Auto,Auto,*,Auto") };
         root.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcMsGap"));
         root.Bind(MarginProperty, new DynamicResourceExtension("AcMsBodyMargin"));
         root.Children.Add(BuildHeader());
@@ -93,7 +97,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         Grid.SetRowSpan(_listSlot, 2);
         Grid.SetRow(_timelineSlot, 1); Grid.SetColumn(_timelineSlot, 1); Grid.SetColumnSpan(_timelineSlot, 2); body.Children.Add(_timelineSlot);
         Grid.SetRow(body, 2); root.Children.Add(body);
-        var footer = BuildFooter(); Grid.SetRow(footer, 3); root.Children.Add(footer);
+        var footer = _editorFooter = BuildFooter(); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = WindowChrome.WrapDialog(this, root);
         BuildListContent(); BuildPreviewContent(); BuildInspectorContent(); BuildTimelineContent();
 
@@ -103,11 +107,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         KeyDown += OnKeyDown;
         Opened += (_, _) => InitializeMedia();
         Closing += OnClosing;
-        Closed += (_, _) =>
-        {
-            _closed = true; _session.Changed -= SessionChanged; _saveTimer.Stop(); _noticeTimer.Stop();
-            _lifetime.Cancel(); DisposeMedia(); DisposeThumbnails(); DisposeTimeline(); DisposeInspector(); _lifetime.Dispose();
-        };
+        Closed += (_, _) => DisposeEditor();
         _selected = _session.Segments.FirstOrDefault(s => s.Keep)?.Id ?? _session.Segments.FirstOrDefault()?.Id;
         RefreshAll();
     }
@@ -115,6 +115,42 @@ internal sealed partial class PersonClipAdjustWindow : Window
     /// <summary>The job this window edits; the host keeps one window per job.</summary>
     public Job Job => _session.Job;
     internal void ShowIndependent() => WindowChrome.ShowIndependent(this);
+
+    /// <summary>Reuses the complete editor body in a lifecycle page; dialogs belong to the visible host.</summary>
+    internal Control Embed(Window host)
+    {
+        _embeddedHost = host;
+        if (_editorRoot.Parent is Decorator decorator) decorator.Child = null;
+        else if (_editorRoot.Parent is Panel panel) panel.Children.Remove(_editorRoot);
+        else Content = null;
+        _editorFooter.IsVisible = false; _redetect.IsVisible = false;
+        _editorRoot.Margin = new Thickness(0); Grid.SetRow(_editorRoot, 0);
+        _editorRoot.KeyDown += OnKeyDown;
+        _editorRoot.AttachedToVisualTree += (_, _) => { if (_player is null) InitializeMedia(); };
+        return _editorRoot;
+    }
+    internal async Task<ClipEditResult> SubmitEmbeddedAsync()
+    {
+        await StopPlaybackAsync();
+        if (_session.SourceChanged) throw new InvalidOperationException("源视频已更改，请重新检测。");
+        var edit = _session.ToClipEditResult();
+        _saveTimer.Stop(); await _saveTask; await SaveAsync();
+        if (!_saved) throw new IOException("片段尚未保存，请重试。");
+        return edit;
+    }
+    internal async Task FlushEmbeddedAsync()
+    {
+        _saveTimer.Stop(); await _saveTask; await SaveAsync();
+        if (!_saved) throw new IOException("片段尚未保存，请重试。");
+    }
+    internal Task RestoreEmbeddedAsync() => RestoreAllAsync();
+    internal Task PauseEmbeddedAsync() => StopPlaybackAsync();
+    internal void DisposeEditor()
+    {
+        if (_closed) return;
+        _closed = true; _session.Changed -= SessionChanged; _saveTimer.Stop(); _noticeTimer.Stop();
+        _lifetime.Cancel(); DisposeMedia(); DisposeThumbnails(); DisposeTimeline(); DisposeInspector(); _lifetime.Dispose();
+    }
 
     // ------------------------------------------------------------------ layout helpers
     internal static Button IconButton(string icon, string tip, Action action, double size = 16)
@@ -213,7 +249,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         var choose = new MenuItem { Header = Localization.Text("选择文件夹…") };
         choose.Click += async (_, _) =>
         {
-            if (await Ui.Folder(this, "保存位置") is { } folder) { _folder = folder; _toSource = false; RefreshOutput(); }
+            if (await Ui.Folder(DialogOwner, "保存位置") is { } folder) { _folder = folder; _toSource = false; RefreshOutput(); }
         };
         var current = new MenuItem { Header = Localization.Text("当前文件夹"), ToggleType = MenuItemToggleType.CheckBox, IsChecked = !_toSource };
         ToolTip.SetTip(current, _folder);
@@ -379,7 +415,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
     private async Task RestoreAllAsync()
     {
         if (_session.ModifiedCount == 0) return;
-        if (!await Ui.Confirm(this, "还原检测结果", Localization.Format($"放弃全部 {_session.ModifiedCount} 处调整，回到检测得到的片段？可以撤销。"), "还原")) return;
+        if (!await Ui.Confirm(DialogOwner, "还原检测结果", Localization.Format($"放弃全部 {_session.ModifiedCount} 处调整，回到检测得到的片段？可以撤销。"), "还原")) return;
         Do(_session.RestoreDetection);
     }
 
@@ -418,7 +454,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         _saveTimer.Stop(); await _saveTask; await SaveAsync();
         if (!_saved) return;
         try { await _host.Redetect(_session.RedetectOptions()); }
-        catch (Exception error) { await Ui.Message(this, "重新检测", error.Message); }
+        catch (Exception error) { await Ui.Message(DialogOwner, "重新检测", error.Message); }
     }
 
     // ------------------------------------------------------------------ keyboard

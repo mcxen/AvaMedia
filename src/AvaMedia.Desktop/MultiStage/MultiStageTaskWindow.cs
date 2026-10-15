@@ -37,6 +37,7 @@ internal sealed record MultiStageContentState(string SourceDetail, string Result
 /// <summary>Independent multi-stage task window (UISPEC 10.16, variant B). Closing never stops the task.</summary>
 internal partial class MultiStageTaskWindow : TaskLifecycleWindow
 {
+    protected event EventHandler? ContentRefreshed;
     private readonly IMultiStageTask _task;
     private readonly IMultiStageToolContent _content;
     private MultiStageTaskShell _shell => Shell;
@@ -225,6 +226,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         var (pill, pillText) = snapshot.State switch
         {
             MultiStageTaskState.Configuring => ("waiting", "待开始"),
+            MultiStageTaskState.AwaitingUser => ("running", "等待你操作"),
             MultiStageTaskState.Running => ("running", "进行中"),
             MultiStageTaskState.Paused => ("paused", "已暂停"),
             MultiStageTaskState.Stopping => ("running", "正在停止"),
@@ -232,6 +234,8 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
             MultiStageTaskState.Completed => ("completed", "已完成"),
             _ => ("waiting", "已取消")
         };
+        if (Lifecycle?.PageState == PageState.AwaitingUser && snapshot.State is not (MultiStageTaskState.Cancelled or MultiStageTaskState.Failed))
+            (pill, pillText) = ("running", "等待你操作");
         _shell.SetStatus(pill, Localization.Text(pillText));
         _shell.ProgressText = snapshot.State is MultiStageTaskState.Configuring or MultiStageTaskState.Completed ? ""
             : string.Create(CultureInfo.InvariantCulture, $"{Math.Floor(Math.Clamp(snapshot.Progress, 0, 100)):0}%");
@@ -255,6 +259,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         RefreshNote(content);
         RefreshClock();
         RefreshActions(content);
+        ContentRefreshed?.Invoke(this, EventArgs.Empty);
         RefreshPageActions();
     }
 
@@ -288,6 +293,15 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
     private void RefreshClock()
     {
         if (_snapshot is not { } snapshot) return;
+        if (Lifecycle is TaskLifecycle lifecycle)
+        {
+            var saved = lifecycle.Snapshot;
+            var active = saved.Pages.Sum(page => page.Elapsed.TotalSeconds)
+                + (saved.RunningSinceUtc is { } since ? Math.Max(0, (DateTime.UtcNow - since).TotalSeconds) : 0);
+            _shell.SetClock(Localization.Text("已用时"), AiActivity.FormatElapsed(active),
+                saved.AwaitingUser ? Localization.Text("等待期间不计时") : "");
+            return;
+        }
         var elapsed = snapshot.Elapsed + (snapshot.IsClockRunning ? Max(DateTime.UtcNow - snapshot.SnapshotUtc) : TimeSpan.Zero);
         var clock = AiActivity.FormatElapsed(elapsed.TotalSeconds);
         var interrupted = snapshot.Stages.FirstOrDefault(stage => stage.Stage.Id == snapshot.InterruptedStageId)?.Stage.Title ?? "";
@@ -322,7 +336,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         var commands = snapshot.Commands; var state = snapshot.State;
         _pause.IsVisible = state == MultiStageTaskState.Running && commands.CanPause;
         _resume.IsVisible = state == MultiStageTaskState.Paused && commands.CanResume;
-        _stop.IsVisible = state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping && (commands.CanStop || state == MultiStageTaskState.Stopping);
+        _stop.IsVisible = (state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping || Lifecycle?.PageState == PageState.AwaitingUser) && (commands.CanStop || state == MultiStageTaskState.Stopping);
         _stop.IsEnabled = commands.CanStop && !_busy;
         var retryStage = snapshot.Stages.FirstOrDefault(stage => stage.Stage.Id == commands.RetryStageId)?.Stage.Title ?? "";
         _retry.IsVisible = state == MultiStageTaskState.Failed && retryStage.Length > 0;

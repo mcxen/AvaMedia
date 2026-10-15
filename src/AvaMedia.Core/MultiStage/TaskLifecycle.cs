@@ -84,7 +84,7 @@ public sealed class TaskLifecycle : ITaskLifecycle, IDisposable
     {
         lock (_job.LifecycleGate)
         {
-            var state = Snapshot; RequireCurrent(state, pageId, PageKind.Processing);
+            var state = Snapshot; RequireWork(state, pageId);
             if (state.Current.State == PageState.Completed) throw new InvalidOperationException("此页已经完成。");
             if (state.Current.State == PageState.Running) return;
             Publish(state, state.Pages.Select((p, i) => i == state.CurrentIndex ? p with { State = PageState.Running, Detail = "" } : p).ToArray(), state.CurrentIndex, Now);
@@ -94,10 +94,28 @@ public sealed class TaskLifecycle : ITaskLifecycle, IDisposable
     {
         lock (_job.LifecycleGate)
         {
-            var state = Snapshot; RequireCurrent(state, pageId, PageKind.Processing);
+            var state = Snapshot; RequireWork(state, pageId);
             if (state.Current.State != PageState.Running) throw new InvalidOperationException("处理页尚未运行。");
             Advance(state, null, detail);
         }
+    }
+    /// <summary>Queue background work inside an interaction page (e.g. merge confirmation).</summary>
+    public void QueueInteractionWork(string pageId, object result)
+    {
+        var json = JsonSerializer.SerializeToElement(result);
+        lock (_job.LifecycleGate)
+        {
+            var state = Snapshot; RequireCurrent(state, pageId, PageKind.Interaction);
+            if (!state.AwaitingUser) throw new InvalidOperationException("此页尚未等待提交。");
+            Publish(state, state.Pages.Select((p, i) => i == state.CurrentIndex
+                ? p with { State = PageState.Pending, Result = json, Detail = "等待执行" } : p).ToArray(), state.CurrentIndex, null);
+        }
+    }
+    private static void RequireWork(TaskLifecycleSnapshot state, string id)
+    {
+        if (state.Current.Page.Id != id || state.Current.Page.Kind == PageKind.Result
+            || state.Current.Page.Kind == PageKind.Interaction && state.Current.Result is null)
+            throw new InvalidOperationException("此页没有已提交的处理任务。");
     }
     public void SubmitInteraction(string pageId, object result)
     {
