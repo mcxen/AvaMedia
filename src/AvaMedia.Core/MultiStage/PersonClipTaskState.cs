@@ -17,7 +17,8 @@ public sealed partial class Job
     [JsonIgnore] internal PersonClipTaskState? PersonClipStages
     { get => Volatile.Read(ref _personClipStages); set { Volatile.Write(ref _personClipStages, value); NotifyPersonClipStages(); } }
     // Persisted in the queue so an admitted retry keeps its requested entry point across a restart.
-    public string? PersonClipStartStageId { get; set; }
+    private string? _personClipStartStageId;
+    public string? PersonClipStartStageId { get => _personClipStartStageId; set => Set(ref _personClipStartStageId, value); }
     public void PersonClipStagesReset()
     {
         PersonClipStartStageId = null;

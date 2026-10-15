@@ -153,6 +153,7 @@ public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, S
 public enum JobCompletionKind { Default, Unchanged }
 public sealed partial class Job : Observable
 {
+    public Job() => JobStageSummaries.Attach(this);
     private string _downloadTitle="";
     public string DownloadTitle { get=>_downloadTitle; set { if(Set(ref _downloadTitle,value))Raise(nameof(Name)); } }
     private string _progressDetail="";
@@ -172,11 +173,30 @@ public sealed partial class Job : Observable
     public string[] Inputs { get=>_inputs;set{if(Set(ref _inputs,value)){Raise(nameof(Name));Raise(nameof(Source));}} }
     private string _output="";
     public string Output { get=>_output; set{if(Set(ref _output,value))Raise(nameof(Target));} }
-    public ConversionOptions Options { get; set; } = new();
+    private ConversionOptions _options = new();
+    public ConversionOptions Options { get => _options; set => Set(ref _options, value); }
     public List<ConversionOptions>? InputOptions { get; set; }
     public double Duration { get; set; }
     private JobState _state;
-    public JobState State { get=>_state; set {if(Set(ref _state,value)) {PersonClipStages?.Pause(value==JobState.Paused);if(value!=JobState.Running)Estimate=null;Raise(nameof(Status));Raise(nameof(RemainingTimeText));Raise(nameof(CanRetry));}} }
+    public JobState State
+    {
+        get => _state;
+        set
+        {
+            if (_state == value) return;
+            // Capture without the publisher gate: execution-owned state has its own locks.
+            var observation = StageSummaryPublisher?.Capture();
+            lock (StageSummaryGate)
+            {
+                if (_state == value) return;
+                _state = value;
+                if (observation is not null) StageSummaryPublisher?.StateChanged(observation);
+            }
+            PersonClipStages?.Pause(value == JobState.Paused);
+            if (value != JobState.Running) Estimate = null;
+            Raise(nameof(State)); Raise(nameof(Status)); Raise(nameof(RemainingTimeText)); Raise(nameof(CanRetry));
+        }
+    }
     private JobCompletionKind _completionKind;
     public JobCompletionKind CompletionKind
     {

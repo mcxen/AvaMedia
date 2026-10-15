@@ -59,7 +59,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                         if (job is null) break;
                         _pending.Remove(job);
                         var execution = new Execution(job, session.Token);
-                        _active.Add(job, execution); starting.Add(execution);
+                        _active.Add(job, execution); Interlocked.Increment(ref job.StageSummaryQueueExecutions); starting.Add(execution);
                     }
                     // Close admission before releasing the lock, without exposing an idle session early.
                     if (_pending.Count == 0 && _active.Count == 0) { _accepting = false; break; }
@@ -175,7 +175,8 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 job.Activity = null; job.Progress = 0; job.Estimate = null; job.DownloadSpeed = null;
                 job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
                 job.FileChangesCommitted = false; job.CommittedFileChanges = null; job.OutputIsPartial = false;
-                job.State = execution.Control.IsPaused ? JobState.Paused : JobState.Running; job.Error = ""; job.ProgressDetail = ""; job.Log = "";
+                job.Error = ""; job.ProgressDetail = ""; job.Log = "";
+                job.State = execution.Control.IsPaused ? JobState.Paused : JobState.Running;
             }
             Publish(0);
             using var timer = _time.CreateTimer(_ => Publish(job.Progress), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
@@ -223,7 +224,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
             finally
             {
                 job.CommittedFileChanges = null;
-                lock (_gate) { _active.Remove(job); WakeLocked(); }
+                lock (_gate) { _active.Remove(job); Interlocked.Decrement(ref job.StageSummaryQueueExecutions); WakeLocked(); }
                 execution.Cancellation.Dispose(); Changed?.Invoke(job);
             }
         }
