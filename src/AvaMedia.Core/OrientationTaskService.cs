@@ -2,7 +2,11 @@ namespace AvaMedia.Core;
 
 public sealed record OrientationTaskOptions(string Format, string OutputFolder, bool OutputToSource, bool SettingName);
 public sealed record OrientationTaskResult(VideoOrientationResult Detection, MediaInfo Info, long SourceLength, DateTime SourceWriteUtc)
-{ public bool IsPartial { get; init; } }
+{
+    public bool IsPartial { get; init; }
+    public string SourcePath { get; init; } = "";
+    public string OptionsKey { get; init; } = "";
+}
 
 /// <summary>Direction detection belongs to a queue job; opening a preview only reads its result.</summary>
 public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientationDetector? detector = null) : IJobExecutor
@@ -30,10 +34,21 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
             var activity = new AiActivityReporter(value => job.Activity = value, "YuNet · 自动转正", "帧", ["读取视频", "检测方向", "保存结果"]);
             activity.Stage("读取视频"); progress(0);
             var info = await engine.Probe(job.Inputs[0], ct, job.Options.VideoStreamIndex, job.Options.AudioStreamIndex).ConfigureAwait(false);
+            stages.Read(info);
             stages.Complete(OrientationStageIds.ReadVideo, $"{info.Width} × {info.Height} · {MediaEngine.Number(info.Duration)} 秒 · 视频轨 {info.VideoStreamIndex}");
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             stages.Start(OrientationStageIds.Sample);
             activity.Node("检测方向");
+            int? plannedFrames = null;
+            OrientationTaskResult Observation(VideoOrientationResult detection, bool partial) => new(
+                detection with { PlannedFrames = detection.PlannedFrames ?? plannedFrames }, info, length, write)
+            { IsPartial = partial, SourcePath = job.Inputs[0], OptionsKey = OrientationTaskState.OptionsKey(job) };
+            void Observe(VideoOrientationResult detection)
+            {
+                var observation = Observation(detection, true);
+                stages.Result(observation);
+                job.OrientationResult = observation;
+            }
             var deciding = false;
             void BeginDecision()
             {
@@ -45,14 +60,16 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
             var result = await (detector ?? new VideoOrientationDetector(engine)).DetectAsync(job.Inputs[0], info,
                 new InlineProgress(value =>
                 {
+                    plannedFrames = value.PlannedFrames ?? value.PreviewResult?.PlannedFrames ?? plannedFrames;
                     if (value.PreviewResult is { } partial)
-                        job.OrientationResult = new(partial, info, length, write) { IsPartial = true };
+                        Observe(partial);
                     stages.Update(value);
                     job.ProgressDetail = $"检测方向 {value.CompletedFrames}/{value.TotalFrames} 帧次";
                     activity.Stage("检测方向", value.CompletedFrames, value.TotalFrames, "帧");
                     progress(90d * value.CompletedFrames / Math.Max(1, value.TotalFrames));
                     if (value.IsFinalDecision) BeginDecision();
                 }), ct).ConfigureAwait(false);
+            Observe(result);
             BeginDecision();
             await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
             stages.Runtime(result);
@@ -68,9 +85,10 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
                 _ => "本任务仅检测方向；确认后由独立旋转任务导出"
             }, skipped: true);
             stages.Start(OrientationStageIds.SaveResult);
-            var saved = new OrientationTaskResult(result, info, length, write);
+            var saved = Observation(result, false);
             activity.Node("保存结果");
             await AiTaskResults.SaveAsync(job.Output, saved, ct).ConfigureAwait(false);
+            stages.Result(saved);
             job.OrientationResult = saved; job.Duration = info.Duration;
             job.ProgressDetail = result.IsCertain ? result.Description : "待确认 · 请手动选择方向";
             stages.Complete(OrientationStageIds.SaveResult, "已保存方向检测结果");

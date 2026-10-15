@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.ML.OnnxRuntime;
+using ImageMagick;
 
 namespace AvaMedia.Core;
 
@@ -12,6 +13,8 @@ public sealed record VideoOrientationResult(int? Rotation, OrientationReliabilit
     public bool IsCertain => Rotation is not null;
     public string Description => Rotation is { } angle ? BatchRotate.Direction(angle) : "无法确定";
     public IReadOnlyList<OrientationFrameEvidence> Evidence { get; init; } = [];
+    /// <summary>Actual unique sample positions selected by the detector, not inference passes.</summary>
+    public int? PlannedFrames { get; init; }
     public string Backend { get; init; } = "";
     public string? FallbackReason { get; init; }
 }
@@ -19,6 +22,7 @@ public sealed record VideoOrientationResult(int? Rotation, OrientationReliabilit
 public sealed record OrientationDetectionProgress(int CompletedFrames, int TotalFrames, double Seconds)
 {
     public VideoOrientationResult? PreviewResult { get; init; }
+    public int? PlannedFrames { get; init; }
     /// <summary>Emitted immediately before the final vote; counters remain actual processed frame passes.</summary>
     public bool IsFinalDecision { get; init; }
 }
@@ -33,12 +37,24 @@ public interface IVideoOrientationDetector
 public sealed record OrientationFrameEvidence(double Seconds, double Score0, double Score90,
     double Score180, double Score270)
 {
+    /// <summary>Encoded thumbnail of this sampled picture, cached with the evidence.</summary>
+    public byte[]? Image { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
     public double[] Scores => [Score0, Score90, Score180, Score270];
 }
 
 public static class VideoOrientationPolicy
 {
+    // Use the same abstention rule for frame views and the aggregate vote.
+    internal static int? FrameRotation(OrientationFrameEvidence frame)
+    {
+        var scores = frame.Scores;
+        if (scores.Any(s => !double.IsFinite(s) || s < 0 || s > 1)) return null;
+        var ranked = Enumerable.Range(0, 4).OrderByDescending(i => scores[i]).ToArray();
+        var best = scores[ranked[0]];
+        return best >= .5 && (best - scores[ranked[1]]) / best >= .18 ? ranked[0] * 90 : null;
+    }
+
     public static VideoOrientationResult Decide(IReadOnlyList<OrientationFrameEvidence> frames)
     {
         if (frames.Count == 0) return new(null, OrientationReliability.Unknown, 0, 0, 0, "未取得可分析的画面。");
@@ -53,7 +69,7 @@ public static class VideoOrientationPolicy
             if (best < .5) continue;
             valid++;
             // A face detected at several rotations is not itself evidence of an upright picture.
-            if ((best - scores[ranked[1]]) / best >= .18) votes[ranked[0]]++;
+            if (FrameRotation(frame) is { } rotation) votes[rotation / 90]++;
         }
         var winner = Enumerable.Range(0, 4).OrderByDescending(i => votes[i]).First();
         var agree = votes[winner];
@@ -95,6 +111,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
             var times = Enumerable.Range(0, count).Select(i => info.Duration * (.05 + .9 * i / Math.Max(1, count - 1)))
                 .Select(t => Math.Min(t, Math.Max(0, info.Duration - .001))).Distinct().ToArray();
             var completed = 0;
+            progress?.Report(new(0, times.Length * 2, times[0]) { PlannedFrames = times.Length });
             foreach (var size in new[] { 320, 640 })
             {
                 await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
@@ -113,11 +130,17 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                     {
                         var first = evidence[i].Scores;
                         for (var j = 0; j < 4; j++) scores[j] = Math.Max(first[j], scores[j]);
-                        evidence[i] = new(times[i], scores[0], scores[1], scores[2], scores[3]);
+                        evidence[i] = new(times[i], scores[0], scores[1], scores[2], scores[3]) { Image = evidence[i].Image };
                     }
-                    else evidence.Add(new(times[i], scores[0], scores[1], scores[2], scores[3]));
+                    else
+                    {
+                        using var image = new MagickImage();
+                        image.ReadPixels(pixels, new PixelReadSettings((uint)size, (uint)size, StorageType.Char, PixelMapping.BGR));
+                        evidence.Add(new(times[i], scores[0], scores[1], scores[2], scores[3])
+                        { Image = image.ToByteArray(MagickFormat.Png) });
+                    }
                     progress?.Report(new(++completed, times.Length * 2, times[i])
-                    { PreviewResult = VideoOrientationPolicy.Decide(evidence) with { Backend = session.Backend, FallbackReason = session.FallbackReason } });
+                    { PreviewResult = VideoOrientationPolicy.Decide(evidence) with { PlannedFrames = times.Length, Backend = session.Backend, FallbackReason = session.FallbackReason } });
                 }
                 var result = VideoOrientationPolicy.Decide(evidence);
                 // Higher resolution can resolve weak detections or nearly tied candidates;
@@ -125,7 +148,7 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                 if (result.IsCertain || size == 640)
                 {
                     progress?.Report(new(completed, completed, times[^1]) { IsFinalDecision = true });
-                    return VideoOrientationPolicy.Decide(evidence) with { Backend = session.Backend, FallbackReason = session.FallbackReason };
+                    return VideoOrientationPolicy.Decide(evidence) with { PlannedFrames = times.Length, Backend = session.Backend, FallbackReason = session.FallbackReason };
                 }
             }
             throw new InvalidOperationException("未完成方向检测。");

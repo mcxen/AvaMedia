@@ -4,13 +4,17 @@ using System.Text.Json;
 namespace AvaMedia.Core;
 
 /// <summary>Window-scoped observer of a direction-detection job. Disposing only stops observation.</summary>
-public sealed class OrientationTaskSession : IMultiStageTask
+public sealed class OrientationTaskSession : IOrientationTask
 {
     private readonly Job _job;
     private readonly IMultiStageQueueHost _host;
     private readonly object _gate = new();
     private readonly Timer _timer;
     private OrientationStageSummary? _restored;
+    private OrientationTaskResult? _restoredResult;
+    private bool _restoreAttempted;
+    private long _generation;
+    private OrientationTaskView _view = new();
     private MultiStageTaskSnapshot _snapshot = new();
     private long _revision;
     private int _publishing;
@@ -21,42 +25,37 @@ public sealed class OrientationTaskSession : IMultiStageTask
         if (job.FeatureId != "rotate" || job.Options.Orientation is null)
             throw new ArgumentException("需要方向检测任务。", nameof(job));
         _job = job; _host = host;
-        try
-        {
-            var path = AiTaskResults.PathFor(job, "orientation-stages");
-            if (File.Exists(path))
-            {
-                var summary = JsonSerializer.Deserialize<OrientationStageSummary>(File.ReadAllText(path));
-                if (job.State != JobState.Waiting && summary?.Stages is { Length: 5 } && summary.SourcePath == job.Inputs.FirstOrDefault()
-                    && summary.OptionsKey == OrientationTaskState.OptionsKey(job)
-                    && summary.Stages.Select(s => s.Stage.Id).SequenceEqual(Stages.Select(s => s.Id))) _restored = summary;
-            }
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
-        { System.Diagnostics.Trace.TraceWarning("Orientation session: {0}", e.Message); }
         _job.PropertyChanged += OnJobChanged;
-        Publish(false);
+        Publish(false, readDisk: false);
         _timer = new(_ => Publish(), null, 250, 250);
     }
     public string FeatureId => "rotate";
     public IReadOnlyList<TaskStageDescriptor> Stages => OrientationStageIds.All;
     public MultiStageTaskSnapshot Snapshot { get { lock (_gate) return _snapshot; } }
+    public OrientationTaskView View { get { lock (_gate) return _view; } }
     public event EventHandler? Changed;
     private void OnJobChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(Job.State) && _job.State == JobState.Waiting)
-            lock (_gate) _restored = null;
+            lock (_gate)
+            {
+                _generation++;
+                _restored = null; _restoredResult = null; _restoreAttempted = false;
+            }
     }
-    private void Publish(bool notify = true)
+    private void Publish(bool notify = true, bool readDisk = true)
     {
         if (Interlocked.Exchange(ref _publishing, 1) != 0) return;
         try
         {
-            lock (_gate) if (_disposed) return;
+            long generation;
+            lock (_gate) { if (_disposed) return; generation = _generation; }
+            if (readDisk) Restore(generation);
             var now = DateTime.UtcNow;
             var captured = _job.OrientationStages?.Capture();
             OrientationStageSummary? restored;
-            lock (_gate) restored = _restored;
+            OrientationTaskResult? restoredResult;
+            lock (_gate) { restored = _restored; restoredResult = _restoredResult; }
             var summary = captured ?? restored;
             var state = _job.State;
             var configuring = state == JobState.Waiting || state == JobState.Paused && summary?.StartedUtc is null;
@@ -96,9 +95,16 @@ public sealed class OrientationTaskSession : IMultiStageTask
                 },
                 Revision = Interlocked.Increment(ref _revision)
             };
+            var result = configuring ? null : captured is not null ? captured.Result
+                : _job.OrientationResult ?? restoredResult ?? restored?.Result;
+            // A job's input/options may have been edited since the saved observations were produced.
+            if (result is not null && !Matches(result)) result = null;
+            var view = Project(result, configuring ? null : summary, Output(readDisk),
+                readDisk && result is not null && SourceUnchanged(result));
             lock (_gate)
             {
-                if (_disposed) return;
+                if (_disposed || generation != _generation) return;
+                _view = view;
                 _snapshot = snapshot;
                 if (notify) Changed?.Invoke(this, EventArgs.Empty);
             }
@@ -107,7 +113,100 @@ public sealed class OrientationTaskSession : IMultiStageTask
         { System.Diagnostics.Trace.TraceWarning("Orientation snapshot: {0}", e.Message); }
         finally { Volatile.Write(ref _publishing, 0); }
     }
-    public async Task<IReadOnlyList<TaskLogEntry>> ReadLogAsync(CancellationToken ct = default)
+    // Called only by the worker timer. Constructors and View/Snapshot getters never read the disk.
+    private void Restore(long generation)
+    {
+        lock (_gate) if (_restoreAttempted || _job.State == JobState.Waiting) return;
+        OrientationStageSummary? summary = null;
+        OrientationTaskResult? result = null;
+        try
+        {
+            var path = AiTaskResults.PathFor(_job, "orientation-stages");
+            if (File.Exists(path))
+            {
+                var saved = JsonSerializer.Deserialize<OrientationStageSummary>(File.ReadAllText(path));
+                if (saved?.Stages is { Length: 5 } && saved.SourcePath == _job.Inputs.FirstOrDefault()
+                    && saved.OptionsKey == OrientationTaskState.OptionsKey(_job)
+                    && saved.Stages.Select(s => s.Stage.Id).SequenceEqual(Stages.Select(s => s.Id))) summary = saved;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        { System.Diagnostics.Trace.TraceWarning("Orientation stages: {0}", e.Message); }
+        try
+        {
+            var path = AiTaskResults.PathFor(_job, "orientation");
+            if (File.Exists(path))
+            {
+                var saved = JsonSerializer.Deserialize<OrientationTaskResult>(File.ReadAllText(path));
+                if (saved is not null && Matches(saved)) result = saved;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        { System.Diagnostics.Trace.TraceWarning("Orientation result: {0}", e.Message); }
+        lock (_gate)
+        {
+            if (_disposed || generation != _generation) return;
+            _restored = summary; _restoredResult = result; _restoreAttempted = true;
+        }
+    }
+    private bool Matches(OrientationTaskResult result) => result.SourcePath == _job.Inputs.FirstOrDefault()
+        && result.OptionsKey == OrientationTaskState.OptionsKey(_job);
+    private static bool SourceUnchanged(OrientationTaskResult result)
+    {
+        try
+        {
+            var source = new FileInfo(result.SourcePath);
+            return source.Exists && source.Length == result.SourceLength && source.LastWriteTimeUtc == result.SourceWriteUtc;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return false; }
+    }
+    private TaskOutputView Output(bool readDisk)
+    {
+        var path = _job.Output;
+        var output = new TaskOutputView
+        {
+            Path = path, Folder = Path.GetDirectoryName(path) ?? "",
+            IsFixedLocation = path.Length > 0 && BatchRename.PathComparer.Equals(Path.GetFullPath(path), AiTaskResults.PathFor(_job, "orientation"))
+        };
+        if (!readDisk) return output;
+        try
+        {
+            var file = new FileInfo(path);
+            return output with { Exists = file.Exists, Bytes = file.Exists ? file.Length : null };
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return output; }
+    }
+    private OrientationTaskView Project(OrientationTaskResult? result, OrientationStageSummary? summary,
+        TaskOutputView output, bool sourceUnchanged)
+    {
+        var detection = result?.Detection;
+        var samples = detection?.Evidence.Take(12).Select(frame =>
+        {
+            var rotation = VideoOrientationPolicy.FrameRotation(frame);
+            return new OrientationSampleView(frame.Seconds, Array.AsReadOnly(frame.Scores))
+            {
+                Rotation = rotation, Agrees = rotation is not null && rotation == detection.Rotation,
+                Image = frame.Image?.ToArray()
+            };
+        }).ToArray() ?? [];
+        return new()
+        {
+            SourcePath = _job.Inputs.FirstOrDefault() ?? "", Info = result?.Info ?? summary?.Info,
+            SampledFrames = detection?.SampledFrames ?? 0, ValidFrames = detection?.ValidFrames ?? 0,
+            AgreeingFrames = detection?.AgreeingFrames ?? 0, PlannedFrames = detection?.PlannedFrames ?? summary?.PlannedFrames,
+            Rotation = detection?.Rotation,
+            Decision = detection is null ? "" : detection.Rotation switch
+            {
+                0 => "方向正常", 90 => "顺时针旋转 90°", 180 => "旋转 180°", 270 => "逆时针旋转 90°", _ => "无法确定"
+            },
+            Reliability = detection is null ? "" : detection.Reliability switch
+            { OrientationReliability.High => "高", OrientationReliability.Medium => "中等", _ => "无法确定" },
+            Reason = detection?.Reason ?? "", Backend = detection?.Backend ?? summary?.Runtime.Backend ?? "",
+            Samples = Array.AsReadOnly(samples), HasResult = result is not null, IsPartial = result?.IsPartial ?? true,
+            CanConfirm = detection?.Rotation is not null && sourceUnchanged, Output = output
+        };
+    }
+    public Task<IReadOnlyList<TaskLogEntry>> ReadLogAsync(CancellationToken ct = default) => Task.Run(async () =>
     {
         ct.ThrowIfCancellationRequested();
         var entries = new List<TaskLogEntry>();
@@ -124,8 +223,8 @@ public sealed class OrientationTaskSession : IMultiStageTask
             }
         }
         catch (IOException e) when (e is FileNotFoundException or DirectoryNotFoundException) { }
-        return entries.AsReadOnly();
-    }
+        return (IReadOnlyList<TaskLogEntry>)entries.AsReadOnly();
+    }, ct);
     private void Ensure(bool allowed)
     {
         lock (_gate) ObjectDisposedException.ThrowIf(_disposed, this);

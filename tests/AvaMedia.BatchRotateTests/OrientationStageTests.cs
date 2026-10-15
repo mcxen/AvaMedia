@@ -1,7 +1,8 @@
 using AvaMedia.Core;
 
 #if ORIENTATION_STAGE_TESTS
-await OrientationStageTests.Run();
+if (args.Contains("--orientation-view-only")) await OrientationStageTests.RunViews();
+else await OrientationStageTests.Run();
 #endif
 
 internal static class OrientationStageTests
@@ -17,12 +18,155 @@ internal static class OrientationStageTests
     public static async Task Run()
     {
         await Commands();
-        TimingAndSnapshots();
+        await TimingAndSnapshots();
         foreach (int? angle in new int?[] { 0, 90, null }) await Completion(angle);
         await Interruption();
         await SourceChanged();
         await SaveFailure();
         Console.WriteLine($"PASS: {_checks} orientation stage unit checks (no media or UI execution).");
+    }
+    private static async Task ViewPublished(IOrientationTask session, Func<bool> ready)
+    {
+        var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Observe(object? sender, EventArgs args) { if (ready()) changed.TrySetResult(); }
+        session.Changed += Observe;
+        try { Observe(null, EventArgs.Empty); await changed.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+        finally { session.Changed -= Observe; }
+    }
+    public static async Task RunViews()
+    {
+        await QueuedAndReadView();
+        foreach (int? rotation in new int?[] { 0, 90, 180, 270, null }) await ResultView(rotation);
+        await PartialView();
+        Console.WriteLine($"PASS: {_checks} orientation View unit checks (no media or UI execution).");
+    }
+    private static async Task QueuedAndReadView()
+    {
+        using var files = new Files(); var job = files.Job();
+        using IOrientationTask session = new OrientationTaskSession(job, new Host());
+        var view = session.View;
+        Check(view.SourcePath == job.Inputs[0] && view.Info is null && view.PlannedFrames is null, "Queued source/unknown observations wrong");
+        Check(!view.HasResult && view.IsPartial && !view.CanConfirm && view.Rotation is null
+            && view.Decision == "" && view.Reliability == "" && view.Reason == "" && view.Backend == ""
+            && view.Samples.Count == 0 && view.SampledFrames == 0 && view.ValidFrames == 0 && view.AgreeingFrames == 0, "Queued result fabricated");
+        Check(view.Output.Path == job.Output && view.Output.Folder == Path.GetDirectoryName(job.Output)
+            && view.Output.IsFixedLocation && !view.Output.Exists && view.Output.Bytes is null, "Queued output wrong");
+        job.State = JobState.Running;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var run = new OrientationTaskService(new Engine(), new Detector(async (_, progress, _) =>
+        {
+            progress!.Report(new(0, 16, .4) { PlannedFrames = 8 });
+            await release.Task;
+            return new(null, OrientationReliability.Unknown, 0, 0, 0, "no samples");
+        })).Execute(job, _ => { }, default);
+        try
+        {
+            await ViewPublished(session, () => session.View.Info is not null);
+            Check(session.View.Info == await new Engine().Probe(job.Inputs[0]) && !session.View.HasResult
+                && session.View.PlannedFrames == 8 && session.View.Decision == "", "Read facts/actual plan not projected independently");
+        }
+        finally { release.TrySetResult(); await run; }
+        await ViewPublished(session, () => session.View.HasResult && !session.View.IsPartial);
+        Check(session.View.PlannedFrames == 8, "Known plan lost when final detector result omitted it");
+    }
+    private static async Task ResultView(int? rotation)
+    {
+        using var files = new Files(); var job = files.Job(); job.State = JobState.Running;
+        // A tiny encoded PNG fixture is passed through only; no image decoding or pixel validation.
+        var image = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        var frames = new List<OrientationFrameEvidence>();
+        for (var i = 0; i < 14; i++)
+        {
+            var scores = new[] { .01, .02, .03, .04 }; scores[(rotation ?? 90) / 90] = .9;
+            frames.Add(new(i * .5, scores[0], scores[1], scores[2], scores[3]) { Image = image });
+        }
+        frames[1] = new(.5, .49, .1, .2, .3); // unusable
+        frames[2] = new(1, .8, .79, .1, .1); // ambiguous, abstains in the vote
+        var expected = new VideoOrientationResult(rotation, rotation is null ? OrientationReliability.Unknown
+            : rotation == 180 ? OrientationReliability.Medium : OrientationReliability.High, 14, 13, 12, "fixture reason")
+        { Backend = "fixture backend", Evidence = frames, PlannedFrames = 14 };
+        using IOrientationTask session = new OrientationTaskSession(job, new Host());
+        var eventSawView = false;
+        session.Changed += (_, _) =>
+        {
+            if (session.Snapshot.State == MultiStageTaskState.Completed)
+                eventSawView = session.View.HasResult && !session.View.IsPartial && session.View.SampledFrames == 14;
+        };
+        await new OrientationTaskService(new Engine(), new Detector((_, _, _) => Task.FromResult(expected)))
+            .Execute(job, _ => { }, default);
+        job.State = JobState.Completed;
+        await ViewPublished(session, () => session.Snapshot.State == MultiStageTaskState.Completed);
+        var view = session.View;
+        Check(eventSawView && view.Info == job.OrientationResult!.Info && view.Rotation == rotation, "View not published with snapshot");
+        Check(view.SampledFrames == 14 && view.ValidFrames == 13 && view.AgreeingFrames == 12 && view.PlannedFrames == 14, "Observed counts changed");
+        var decision = rotation switch { 0 => "方向正常", 90 => "顺时针旋转 90°", 180 => "旋转 180°", 270 => "逆时针旋转 90°", _ => "无法确定" };
+        Check(view.Decision == decision && view.Reason == expected.Reason && view.Backend == expected.Backend
+            && view.Reliability == (rotation is null ? "无法确定" : rotation == 180 ? "中等" : "高"), "Decision labels/runtime wrong");
+        Check(view.CanConfirm == (rotation is not null) && view.HasResult && !view.IsPartial, "Final flags wrong");
+        Check(view.Output.Exists && view.Output.Bytes == new FileInfo(job.Output).Length && view.Output.IsFixedLocation, "Output facts wrong");
+        Check(view.Samples.Count == 12 && view.Samples[0].Seconds == frames[0].Seconds
+            && view.Samples[0].Scores.SequenceEqual(frames[0].Scores) && view.Samples[0].Image!.SequenceEqual(image)
+            && view.Samples[0].Rotation == (rotation ?? 90) && view.Samples[0].Agrees == (rotation is not null), "Frame facts/cap wrong");
+        Check(view.Samples[1].Rotation is null && !view.Samples[1].Agrees && view.Samples[1].Image is null
+            && view.Samples[2].Rotation is null && !view.Samples[2].Agrees, "Unusable/ambiguous frame invented a vote");
+        // Simulate application restart: neither live results nor stage state is available.
+        job.OrientationStages = null; job.OrientationResult = null;
+        File.Delete(AiTaskResults.PathFor(job, "orientation-stages"));
+        using IOrientationTask restored = new OrientationTaskSession(job, new Host());
+        await ViewPublished(restored, () => restored.View.HasResult);
+        Check(restored.View.Rotation == rotation && restored.View.Info == view.Info && restored.View.PlannedFrames == 14
+            && restored.View.Samples[0].Image!.SequenceEqual(image) && !restored.View.IsPartial, "Saved result not restored");
+        if (rotation is not null)
+        {
+            File.SetLastWriteTimeUtc(job.Inputs[0], DateTime.UtcNow.AddMinutes(1));
+            await ViewPublished(restored, () => !restored.View.CanConfirm);
+            Check(restored.View.HasResult && restored.View.Rotation == rotation, "Changed file hid historical evidence");
+        }
+        File.Delete(job.Inputs[0]);
+        await ViewPublished(restored, () => !restored.View.CanConfirm);
+        job.State = JobState.Waiting;
+        await ViewPublished(restored, () => restored.Snapshot.State == MultiStageTaskState.Configuring);
+        Check(!restored.View.HasResult && restored.View.Info is null && restored.View.Decision == ""
+            && restored.View.PlannedFrames is null && restored.View.Samples.Count == 0, "Requeue retained stale result");
+        job.State = JobState.Completed;
+        job.Options.VideoStreamIndex = 1;
+        using IOrientationTask mismatch = new OrientationTaskSession(job, new Host());
+        await ViewPublished(mismatch, () => mismatch.Snapshot.Revision > 1);
+        Check(!mismatch.View.HasResult && !mismatch.View.CanConfirm, "Restored result for different options");
+    }
+    private static async Task PartialView()
+    {
+        foreach (var cancelled in new[] { false, true })
+        {
+            using var files = new Files(); var job = files.Job(); job.State = JobState.Running;
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var preview = new VideoOrientationResult(90, OrientationReliability.Medium, 3, 3, 3, "partial reason")
+            { Evidence = [new(1.25, .1, .9, .2, .1)], Backend = "partial backend" };
+            using IOrientationTask session = new OrientationTaskSession(job, new Host());
+            var run = new OrientationTaskService(new Engine(), new Detector(async (_, progress, _) =>
+            {
+                progress!.Report(new(3, 16, 1.25) { PreviewResult = preview });
+                await release.Task;
+                if (cancelled) throw new OperationCanceledException();
+                throw new InvalidDataException("fixture interrupted");
+            })).Execute(job, _ => { }, default);
+            try
+            {
+                await ViewPublished(session, () => session.View.HasResult);
+                Check(session.View.IsPartial && session.View.CanConfirm && session.View.PlannedFrames is null
+                    && session.View.SampledFrames == 3 && session.View.Samples[0].Agrees, "Partial facts/unknown plan wrong");
+                Check(session.View.Backend == preview.Backend && session.View.Reason == preview.Reason, "Partial inference facts lost");
+            }
+            finally { release.TrySetResult(); await Reject<Exception>(() => run); }
+            job.State = cancelled ? JobState.Cancelled : JobState.Failed;
+            job.OrientationStages = null; job.OrientationResult = null;
+            using IOrientationTask restored = new OrientationTaskSession(job, new Host());
+            await ViewPublished(restored, () => restored.View.HasResult);
+            Check(restored.View.IsPartial && restored.View.Info is not null && restored.View.Rotation == 90
+                && restored.View.Samples[0].Seconds == 1.25 && !restored.View.Output.Exists, "Interrupted evidence not recovered from stages");
+            await File.AppendAllTextAsync(job.Inputs[0], "changed length");
+            await ViewPublished(restored, () => !restored.View.CanConfirm);
+        }
     }
     private static async Task Commands()
     {
@@ -46,7 +190,7 @@ internal static class OrientationStageTests
         Check(host.Command == files.Root && job.State == JobState.Waiting, "Dispose changed execution");
         await Reject<ArgumentException>(() => Task.FromResult(new OrientationTaskSession(new(), host)));
     }
-    private static void TimingAndSnapshots()
+    private static async Task TimingAndSnapshots()
     {
         using var files = new Files(); var job = files.Job(); job.State = JobState.Running;
         var time = new Clock(); var state = new OrientationTaskState(job, time); job.OrientationStages = state;
@@ -72,6 +216,7 @@ internal static class OrientationStageTests
             && session.Snapshot.Error == "detector failed", "Failure attribution is wrong");
         job.OrientationStages = null;
         using var restored = new OrientationTaskSession(job, new Host());
+        await ViewPublished(restored, () => restored.Snapshot.Stages[1].Current == 3);
         Check(restored.Snapshot.Stages[1].Current == 3 && !restored.Snapshot.IsClockRunning, "Persisted observations lost");
         job.State = JobState.Waiting;
         using var rerun = new OrientationTaskSession(job, new Host());
@@ -117,6 +262,7 @@ internal static class OrientationStageTests
         await Reject<OperationCanceledException>(() => session.ReadLogAsync(cancel.Token));
         job.OrientationStages = null;
         using var restored = new OrientationTaskSession(job, new Host());
+        await ViewPublished(restored, () => restored.Snapshot.Stages[4].State == StageState.Skipped);
         Check(restored.Snapshot.Stages[4].State == StageState.Skipped && restored.Snapshot.Runtime.Backend == expected.Backend, "Completed restore failed");
     }
     private static async Task Interruption()
@@ -138,6 +284,7 @@ internal static class OrientationStageTests
             Check(session.Snapshot.Stages.Skip(2).All(s => s.State == StageState.Pending), "Unexecuted stages fabricated");
             job.OrientationStages = null;
             using var restored = new OrientationTaskSession(job, new Host());
+            await ViewPublished(restored, () => restored.Snapshot.InterruptedStageId == OrientationStageIds.Sample);
             Check(restored.Snapshot.InterruptedStageId == OrientationStageIds.Sample, "Interrupted stage restore failed");
         }
         using var invalid = new Files(); var missing = invalid.Job(); File.Delete(missing.Inputs[0]);

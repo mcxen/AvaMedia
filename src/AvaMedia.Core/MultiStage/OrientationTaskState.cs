@@ -22,7 +22,12 @@ public sealed partial class Job
 }
 
 internal sealed record OrientationStageSummary(TaskStageStatus[] Stages, DateTime? StartedUtc,
-    DateTime? CompletedUtc, TaskRuntimeInfo Runtime, string SourcePath, string OptionsKey);
+    DateTime? CompletedUtc, TaskRuntimeInfo Runtime, string SourcePath, string OptionsKey)
+{
+    public MediaInfo? Info { get; init; }
+    public int? PlannedFrames { get; init; }
+    public OrientationTaskResult? Result { get; init; }
+}
 
 /// <summary>Execution-owned observations, independent of any observer window.</summary>
 internal sealed class OrientationTaskState
@@ -94,6 +99,7 @@ internal sealed class OrientationTaskState
         lock (_gate)
         {
             if (_active < 0) return;
+            _summary = _summary with { PlannedFrames = progress.PlannedFrames ?? _summary.PlannedFrames };
             var stage = _summary.Stages[_active];
             _summary.Stages[_active] = stage with
             {
@@ -104,6 +110,15 @@ internal sealed class OrientationTaskState
             if (progress.PreviewResult is { } preview) RuntimeLocked(preview);
             if (_time.GetElapsedTime(_lastLog) >= TimeSpan.FromSeconds(2))
             { LogLocked(stage.Stage.Id, _summary.Stages[_active].Detail); AccumulateLocked(); SaveLocked(); _lastLog = _time.GetTimestamp(); }
+        }
+    }
+    internal void Read(MediaInfo info) { lock (_gate) { _summary = _summary with { Info = info }; SaveLocked(); } }
+    internal void Result(OrientationTaskResult result)
+    {
+        lock (_gate)
+        {
+            _summary = _summary with { Info = result.Info, Result = result };
+            RuntimeLocked(result.Detection);
         }
     }
     internal void Runtime(VideoOrientationResult result) { lock (_gate) RuntimeLocked(result); }
