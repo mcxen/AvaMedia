@@ -17,7 +17,11 @@ public sealed record VideoOrientationResult(int? Rotation, OrientationReliabilit
 }
 
 public sealed record OrientationDetectionProgress(int CompletedFrames, int TotalFrames, double Seconds)
-{ public VideoOrientationResult? PreviewResult { get; init; } }
+{
+    public VideoOrientationResult? PreviewResult { get; init; }
+    /// <summary>Emitted immediately before the final vote; counters remain actual processed frame passes.</summary>
+    public bool IsFinalDecision { get; init; }
+}
 
 public interface IVideoOrientationDetector
 {
@@ -93,10 +97,11 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
             var completed = 0;
             foreach (var size in new[] { 320, 640 })
             {
+                await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                 using var session = new ModelInferenceSession("", ModelHash, modelData: Model.Value, imageSize: size);
                 for (var i = 0; i < times.Length; i++)
                 {
-                    ct.ThrowIfCancellationRequested();
+                    await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                     var pixels = await ReadFrame(path, info.VideoStreamIndex, times[i], size, ct);
                     var scores = new double[4];
                     for (var direction = 0; direction < 4; direction++)
@@ -119,8 +124,8 @@ public sealed class VideoOrientationDetector(IMediaEngine engine) : IVideoOrient
                 // strong temporal contradictions should remain uncertain.
                 if (result.IsCertain || size == 640)
                 {
-                    progress?.Report(new(times.Length * 2, times.Length * 2, times[^1]));
-                    return result with { Backend = session.Backend, FallbackReason = session.FallbackReason };
+                    progress?.Report(new(completed, completed, times[^1]) { IsFinalDecision = true });
+                    return VideoOrientationPolicy.Decide(evidence) with { Backend = session.Backend, FallbackReason = session.FallbackReason };
                 }
             }
             throw new InvalidOperationException("未完成方向检测。");

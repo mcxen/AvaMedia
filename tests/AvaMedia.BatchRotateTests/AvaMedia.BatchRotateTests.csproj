@@ -1,8 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
-    <ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" />
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" Condition="'$(OrientationUnitTestsOnly)' != 'true'" />
+    <ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" Condition="'$(OrientationUnitTestsOnly)' != 'true'" />
+    <ProjectReference Include="../../src/AvaMedia.Core/AvaMedia.Core.csproj" Condition="'$(OrientationUnitTestsOnly)' == 'true'" />
   </ItemGroup>
   <ItemGroup><None Update="Fixtures/astronaut.png" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <PropertyGroup Condition="'$(OrientationUnitTestsOnly)' == 'true'">
+    <DefineConstants>$(DefineConstants);ORIENTATION_STAGE_TESTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OrientationUnitTestsOnly)' == 'true'">
+    <Compile Remove="Program.cs;OrientationChecks.cs;SourceVideoExportChecks.cs" />
+  </ItemGroup>
 </Project>
