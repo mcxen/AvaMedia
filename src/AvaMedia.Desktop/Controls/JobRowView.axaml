@@ -29,8 +29,8 @@
           <local:LucideIcon Classes="modern-only queue-media-icon" Kind="{Binding MediaIcon}" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource UiTextSecondary}"/>
         </Panel>
         <Image x:Name="CoverImage" Classes="queue-cover" Source="{Binding Cover}" Stretch="Uniform"/>
-        <Border x:Name="CoverDragGrip" Classes="cover-grip" Background="{DynamicResource UiMediaOverlay}" CornerRadius="3" Padding="1,2" Margin="0,0,2,2" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False">
-          <local:LucideIcon Kind="grip-vertical" Width="10" Height="12" Foreground="{DynamicResource UiMediaText}"/>
+        <Border x:Name="CoverDragGrip" Classes="cover-grip" Background="{DynamicResource UiMediaOverlay}" CornerRadius="4" Padding="2,3" Margin="0,0,3,3" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False">
+          <local:LucideIcon Kind="grip-vertical" Width="12" Height="14" Foreground="{DynamicResource UiMediaText}"/>
         </Border>
       </Grid></Border>
     </Button>
