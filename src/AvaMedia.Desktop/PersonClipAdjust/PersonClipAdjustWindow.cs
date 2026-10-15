@@ -329,6 +329,8 @@ internal sealed partial class PersonClipAdjustWindow : Window
     partial void DisposeThumbnails();
     partial void DisposeTimeline();
     partial void HandleEditorKey(KeyEventArgs e);
+    partial void OpenSegmentMenu(Control anchor, int id);
+    partial void PlaySelected();
 
     // ------------------------------------------------------------------ saving, export, re-detect
     private Task SaveAsync()

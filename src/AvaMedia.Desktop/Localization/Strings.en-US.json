@@ -4164,5 +4164,14 @@
   "阈值 {0}": "Threshold {0}",
   "当前文件夹": "Current folder",
   "还原检测结果": "Restore detection result",
-  "重新检测…": "Detect again…"
+  "重新检测…": "Detect again…",
+  "片段筛选": "Segment filter",
+  "保留 {0}": "Kept {0}",
+  "已移除 {0}": "Removed {0}",
+  "保留片段 {0}": "Keep segment {0}",
+  "保留 {0} 段": "{0} segments kept",
+  "已调整": "Adjusted",
+  "手动": "Manual",
+  "低置信度": "Low confidence",
+  "检测结果": "Detection result"
 }
