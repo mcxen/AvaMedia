@@ -7,6 +7,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
     <ProjectReference Include="../../src/AvaMedia.Core/AvaMedia.Core.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(PersonClipCoreOnly)' == 'true'"><Compile Remove="Program.cs" /></ItemGroup>
-  <ItemGroup Condition="'$(PersonClipCoreOnly)' != 'true'"><ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" /></ItemGroup>
+  <!-- Default run is the backend editing suite; the existing media/UI harness is explicitly opt-in. -->
+  <ItemGroup Condition="'$(PersonClipCoreOnly)' == 'true' or '$(PersonClipE2E)' != 'true'"><Compile Remove="Program.cs" /></ItemGroup>
+  <ItemGroup Condition="'$(PersonClipCoreOnly)' == 'true' or '$(PersonClipE2E)' == 'true'"><Compile Remove="BackendProgram.cs" /></ItemGroup>
+  <ItemGroup Condition="'$(PersonClipE2E)' == 'true' and '$(PersonClipCoreOnly)' != 'true'"><ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj" /></ItemGroup>
 </Project>

@@ -172,10 +172,3 @@ public static partial class PersonClipEditing
     // Implemented by the backend in PersonClipEditSession.cs.
     private static partial Task<IPersonClipEditSession> OpenCoreAsync(Job job, CancellationToken ct);
 }
-
-public static partial class PersonClipEditing
-{
-    // Placeholder until the backend lands; replaced (deleted) by the PersonClipEditSession.cs implementation.
-    private static partial Task<IPersonClipEditSession> OpenCoreAsync(Job job, CancellationToken ct) =>
-        throw new NotImplementedException("调整片段后端尚未实现。");
-}
