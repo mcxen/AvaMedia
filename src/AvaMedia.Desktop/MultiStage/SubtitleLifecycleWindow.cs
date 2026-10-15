@@ -55,7 +55,7 @@ internal sealed class SubtitleLifecycleWindow : MultiStageTaskWindow
         if (!_ready || _closed) return;
         var state = _pages.Pages[1].State;
         var editable = state == PageState.AwaitingUser && _job.State == JobState.AwaitingUser;
-        var hasVideo = _task.View.Info?.HasVideo == true;
+        var hasVideo = _task.View.Info?.HasVideo != false;
         _outputOptions.SetVideoAvailable(hasVideo);
         _outputOptions.IsEnabled = editable;
         _options.IsEnabled = editable;
