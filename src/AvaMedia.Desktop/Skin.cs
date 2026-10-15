@@ -23,6 +23,7 @@ public sealed partial class Skin : AvaloniaObject
     {
         IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
         {
+            if (!WindowChrome.IsApplicationWindow(window)) return;
             if (change.NewValue is true) Windows.GetValue(window, w => new Registration(w)).RequestRefresh();
             else if (Windows.TryGetValue(window, out var registration)) { Windows.Remove(window); registration.Dispose(); }
         });

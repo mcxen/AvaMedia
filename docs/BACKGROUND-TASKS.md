@@ -26,3 +26,5 @@ macOS 点击 Dock 图标触发应用的 `ActivationKind.Reopen`，复用并恢�
 `IBackgroundTaskTray` 定义任务状态与托盘动作，`AppOptionsServices.Background` 实现原生菜单，`MainWindow.Background` 管理窗口与队列的生命周期。托盘右键菜单完全使用 Avalonia 11.3.22 的 `TrayIcon.Menu`、`NativeMenu`、`NativeMenuItem` 和 `NativeMenuItemSeparator`，由框架提供平台菜单；禁止创建自绘窗口、Popup、ContextMenu 或皮肤菜单替代，也不提供自绘降级方案。窗口关闭原因参考 [Avalonia WindowClosingEventArgs](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/WindowClosingEventArgs.cs)。Windows 的图标点击恢复窗口；macOS 通过菜单中的显示动作恢复。
 
 本次仅完成相关项目的本地编译与静态检查；原生托盘交互及 macOS 真机行为未运行回归验收。
+
+Windows 的 Avalonia 11.3.22 托盘菜单内部使用 `TrayPopupRoot` 承载并按鼠标位置显示。全局 `Window` 样式不能将这个框架窗口注册到业务皮肤与工具定位逻辑，否则菜单会被套上标题栏并移到主窗口旁或屏幕中间。皮肤、动效、平台外观及应用菜单注册均排除框架定义的窗口子类，菜单仍通过原有 `TrayIcon.Menu` 创建；本次未运行 Windows 交互验收。

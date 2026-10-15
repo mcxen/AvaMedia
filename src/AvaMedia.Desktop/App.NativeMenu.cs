@@ -39,6 +39,7 @@ public sealed partial class App
 
         Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
         {
+            if (!Controls.WindowChrome.IsApplicationWindow(window)) return;
             if (DesktopLifetime?.Args?.Any(argument => argument is "--mcp-background" or "--server") == true) return;
             // Each window retains the same headings when dialogs or editors gain focus.
             if (NativeMenu.GetMenu(window) is not null) return;

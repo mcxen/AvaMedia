@@ -26,6 +26,7 @@ public sealed class Motion : AvaloniaObject
     {
         IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
         {
+            if (!Controls.WindowChrome.IsApplicationWindow(window)) return;
             if (change.NewValue is true)
                 Registrations.GetValue(window, w => new WindowMotion(w));
             else if (Registrations.TryGetValue(window, out var registration))

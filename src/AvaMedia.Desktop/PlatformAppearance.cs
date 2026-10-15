@@ -15,7 +15,7 @@ internal static class PlatformAppearance
 
     static PlatformAppearance() => IsEnabledProperty.Changed.AddClassHandler<Window>((window, change) =>
     {
-        if (change.NewValue is not true) return;
+        if (change.NewValue is not true || !Controls.WindowChrome.IsApplicationWindow(window)) return;
         var queued = false;
         void Refresh()
         {

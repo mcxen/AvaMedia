@@ -10,6 +10,11 @@ namespace AvaMedia.Desktop.Controls;
 
 internal static partial class WindowChrome
 {
+    // Avalonia's Win32 tray menu uses its own Window subclass. Its chrome and cursor
+    // placement belong to the framework, not the application's tool-window policy.
+    internal static bool IsApplicationWindow(Window window) => window.GetType() == typeof(Window)
+        || window.GetType().Assembly == typeof(App).Assembly;
+
     // Awaiting a tool's close must not make it modal or create a native owner relationship.
     internal static void ShowIndependent(Window window)
     {

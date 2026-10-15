@@ -720,7 +720,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - **macOS**：客户区延伸到标题栏下方（主窗口标题行高 52）。使用 `NSWindow.standardWindowButton` 提供的原生红绿灯，保留系统尺寸、按钮间距、悬停 / 失焦及全屏行为，不重绘或替换按钮。红绿灯与实际标题行 / 右侧工具按钮共用垂直中心；位置使用逻辑点，不乘 Retina 缩放。主窗口红绿灯在侧栏卡片左边缘内缩 `UiMainTitleLightInset=20`，当前窗口左边距为 28pt；工具树使用独立的固定标题留白，滚动时不进入按钮区。工具及编辑器窗口左边距使用 `UiToolTitleLightInset` 的 Left（16pt），编辑器标题内容保留 `UiToolTitleGutter=88` 的按钮区域。打开、布局 / 尺寸 / 缩放变化、激活及退出全屏后统一重新对齐；全屏和经典皮肤交给系统。非 macOS 的 `AVAMEDIA_CHROME=mac` 仅绘制同位置的预览占位。
 - **Windows**：保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`；最小化 / 最大化 / 关闭按钮位于**右上角**标题行，按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Win11 显式请求 DWM `DWMWA_WINDOW_CORNER_PREFERENCE=DWMWCP_ROUND`，阴影由系统提供；Win10 保留原生直角与阴影，不伪造 Win11 圆角。最大化、全屏、贴靠时形状由系统决定。
 - **Linux**：主窗口、编辑器及所有工具窗口统一保留 `SystemDecorations.Full`，由窗口管理器和合成器提供边框、缩放及阴影；不单独去掉某个工具窗口的装饰。圆角、阴影能力取决于桌面环境。`AVAMEDIA_CHROME=mac` 只预览客户区布局，仍保留 Linux 原生装饰。
-- **整窗表面**：所有 `Window` 子类及临时 `new Window` 通过 `Skin` 的统一注册接入 `Controls/WindowChrome.cs`；已有主窗口、编辑器标题布局也调用同一平台策略。Windows / macOS 整窗使用不透明主题背景及 `TransparencyLevelHint=None`；禁止用透明整窗 + 自绘圆角边框或阴影替换系统形状。macOS 保留原生框架、圆角和阴影；内部卡片圆角不代表窗体圆角。
+- **整窗表面**：本应用定义的 `Window` 子类及临时 `new Window` 通过 `Skin` 的统一注册接入 `Controls/WindowChrome.cs`；已有主窗口、编辑器标题布局也调用同一平台策略。Windows / macOS 整窗使用不透明主题背景及 `TransparencyLevelHint=None`；禁止用透明整窗 + 自绘圆角边框或阴影替换系统形状。macOS 保留原生框架、圆角和阴影；内部卡片圆角不代表窗体圆角。
 - **独立顶层窗口**：所有非模态工具、设置、帮助、播放器、看图及封面预览统一使用 `WindowChrome.ShowIndependent`（内部无 Owner 的 `Show()`）并设置 `ShowInTaskbar=true`，启动位置按 1.3 优先主窗口旁或恢复最近位置；显式 Manual 坐标保留；主窗口最小化或隐藏时工具窗口继续显示，可在任务栏 / Dock 的窗口列表独立切换。不得为层级感设置 Owner、置顶或用 `ShowDialog` 打开非模态工具；层级感只由系统原生阴影体现。确实需要返回确认 / 编辑结果的模态提示和编辑表单可保留 `ShowDialog(owner)`，同样复用整窗外观策略。业务上下文显式传递或从应用主窗口取得，不能依赖工具的 Owner 链。设置（含模型管理、在线 AI 与软件更新）、帮助、GPU 加速检测、同一输出目录的视频总结结果，以及同一选择目标的词库窗口，再次打开时恢复最小化并激活已有窗口，不另建一份。播放器、看图，以及按文件或任务打开的工具窗口仍各自独立。
 - 窗口定位统一使用桌面坐标：现有窗口的边界尺寸乘 `DesktopScaling`，目标屏幕上的尺寸和间距乘该屏幕的 `Scaling`；不得将用于绘制的 `RenderScaling` 混入坐标计算。macOS Retina 的桌面坐标仍为逻辑点。未显式设置启动位置的窗口也接入公共定位，不能将默认枚举值 Manual 当成手动定位请求。
 - 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉、选择控件和分隔条不触发拖动，禁用控件的区域也不作为拖动留白。主窗口、编辑器和工具窗口统一通过 `WindowChrome.HookDrag` 在窗口隧道路由处理标题输入；顶部标题带覆盖客户区上边距和两侧留白，队列栏只覆盖自身行及外边距。全屏禁用标题拖动；标题拆卸时移除监听，原生拖动开始前释放隐式指针捕获。平台原生移动由 `BeginMoveDrag` 提供，不自行逐帧改写窗口位置。
@@ -728,6 +728,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。Windows / macOS 经典皮肤保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`、原生标题高度提示 0，只显示一套经典标题和控制按钮；Linux 保留 WM 装饰。设置及普通工具隐藏重复的纯标题行，带导航操作的标题区仍保留，编辑器保留模式切换而隐藏重复窗口标题。切换皮肤与退出全屏重新应用公共策略，不以 `SystemDecorations.None` 牺牲系统阴影。
 - 主窗口关闭行为按后台运行设置执行：选择“继续在托盘运行”时先保证托盘已建立，再隐藏窗口，任务继续运行；启动尚未完成或托盘创建失败不得把关闭误当退出。托盘不可用时保留 Dock / 任务栏入口并正常最小化，显示真实失败原因；托盘“显示窗口”恢复原窗口与最大化状态并展开经典收起状态。显式退出、系统关闭及 MCP / 截图生命周期继续走真正退出流程。
 - **托盘右键菜单**：完全使用 Avalonia `TrayIcon.Menu`、`NativeMenu`、`NativeMenuItem` 和 `NativeMenuItemSeparator`，由框架提供平台菜单与交互；禁止以应用自绘 `Window`、`Popup`、`ContextMenu` 或皮肤模板替代。原生托盘或菜单不可用时沿用上述窗口恢复与最小化策略，不创建自绘菜单作为降级方案。
+- 皮肤外框、业务窗口定位、开窗动效及应用菜单注册只作用于本应用定义的窗口与显式创建的普通对话框。Windows 托盘菜单由 Avalonia 内部窗口承载，必须保留框架的光标定位、无装饰与菜单布局；不得将其注册成工具窗口、居中、记忆位置或套用应用标题栏 / 经典皮肤外框。
 
 参考代码 `src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`：
 
