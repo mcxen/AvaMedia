@@ -42,6 +42,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
     private MultiStageTaskShell _shell => Shell;
     protected readonly TaskPageViewModel ProcessingPage, ResultPage;
     private readonly Panel _pageOutput = new();
+    private readonly TaskResultView _resultView;
     private readonly MultiStageLogView _log = new();
     private readonly TextBlock _runtimeValue = new(), _runtimeNote = new() { TextWrapping = TextWrapping.Wrap };
     private readonly Button _pause, _resume, _stop, _rerunAll, _retry, _rerun, _viewLog, _cancel, _close, _start;
@@ -108,8 +109,9 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         _shell.ProcessingContent.Margin = new Thickness(0);
         var actions = _shell.FooterActions.Children.ToArray(); _shell.FooterActions.Children.Clear();
         ProcessingPage = new("process", () => _shell.ProcessingContent) { LeadingContent = _pageOutput, AdditionalActions = actions };
-        ResultPage = new("done", () => new ContentControl { Content = new TextBlock { Text = Localization.Text("处理完成，可回看处理页。") } })
-            { LeadingContent = _pageOutput, AdditionalActions = actions };
+        _resultView = new TaskResultView(engine);
+        ResultPage = new("done", () => _resultView) { SecondaryAction = new("关闭", () => { Close(); return Task.CompletedTask; }) };
+        ViewedPageChanged += (_, _) => RefreshResult();
         SetLifecycle(new ProcessingTaskPages(task), [ProcessingPage, ResultPage]);
 
         task.Changed += TaskChanged;
@@ -118,7 +120,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         Closed += (_, _) =>
         {
             _closed = true; _clock.Stop(); task.Changed -= TaskChanged;
-            content.Dispose(); task.Dispose();
+            _resultView.Dispose(); content.Dispose(); task.Dispose();
         };
         Localization.Changed += LanguageChanged;
         Closed += (_, _) => Localization.Changed -= LanguageChanged;
@@ -151,6 +153,23 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         }
         _outputChips.IsVisible = outputs.Length > 0;
         _outputLine.IsVisible = outputs.Length == 0;
+    }
+
+    private void RefreshResult()
+    {
+        if (Lifecycle is null) return;
+        var paths = _content.OutputPaths.Where(path => File.Exists(path) || Directory.Exists(path)).ToArray();
+        _resultView.Update(paths, Lifecycle.Pages, _contentState?.ResultNote ?? "");
+        ResultPage.Hint = paths.Length > 0 ? Localization.Text("输出文件可拖拽到其他应用") : _contentState?.ResultNote ?? "";
+        ResultPage.PrimaryAction = paths.Length > 0 ? new("打开", () =>
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(paths[0]) { UseShellExecute = true });
+            return Task.CompletedTask;
+        }) : null;
+        ResultPage.AdditionalActions = paths.Length > 0
+            ? [_resultView.RevealAction]
+            : _content.TrailingActions.Cast<Control>().ToArray();
+        RefreshPageActions();
     }
 
     private Control BuildRuntime()
@@ -202,6 +221,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         var content = _contentState = _content.Update(snapshot);
         _shell.SourceDetail = Localization.Join(" · ", new[] { _inputSize, content.SourceDetail }.Where(text => text.Length > 0));
         RefreshOutputChips(snapshot);
+        RefreshResult();
         var (pill, pillText) = snapshot.State switch
         {
             MultiStageTaskState.Configuring => ("waiting", "待开始"),

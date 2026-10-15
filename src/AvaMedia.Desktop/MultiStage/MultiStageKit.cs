@@ -256,13 +256,14 @@ internal sealed class MsPreviewCard : Border, IDisposable
         _placeholder.Text = Localization.Text("暂无预览");
         _surface.PreviewContent = _frame;
         var stack = new StackPanel(); stack.Children.Add(_surface);
-        stack.SizeChanged += (_, e) => { if (e.NewSize.Width > 0) _surface.Height = Math.Round(e.NewSize.Width * 9 / 16); };
+        stack.SizeChanged += (_, e) => { if (e.NewSize.Width > 0) _surface.Height = Math.Round(e.NewSize.Width * (FollowSourceAspect && _image.Source is { } source ? source.Size.Height / source.Size.Width : 9d / 16)); };
         _captionRight.HorizontalAlignment = HorizontalAlignment.Right;
         var caption = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Margin = new(0, 10, 0, 0) };
         caption.Children.Add(_caption); Grid.SetColumn(_captionRight, 1); caption.Children.Add(_captionRight);
         stack.Children.Add(caption); Child = stack;
     }
     public bool Dimmed { set => _dim.IsVisible = value; }
+    public bool FollowSourceAspect { get; set; }
     /// <summary>Clockwise preview rotation applied to the image only (orientation correction preview).</summary>
     public int Rotation
     {
@@ -279,6 +280,7 @@ internal sealed class MsPreviewCard : Border, IDisposable
     {
         if (_image.Source is not { } source) { _surface.ClearValue(MediaPreviewSurface.ContentSizeProperty); return; }
         var size = source.Size;
+        if (FollowSourceAspect && _surface.Bounds.Width > 0) _surface.Height = _surface.Bounds.Width * size.Height / size.Width;
         _surface.ContentSize = _rotation is 90 or 270 ? new Size(size.Height, size.Width) : size;
     }
     public void SetChips(string left, string right = "") { _left.Text = left; _right.Text = right; }
