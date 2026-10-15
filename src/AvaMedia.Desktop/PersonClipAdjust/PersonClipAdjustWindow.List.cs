@@ -120,7 +120,7 @@ internal sealed partial class PersonClipAdjustWindow
     private Control BuildRow(Row row)
     {
         var segment = row.Segment;
-        var grid = new Grid { ColumnDefinitions = new("26,18,50,*,Auto"), ColumnSpacing = 8, Margin = new(12, 6, 12, 6) };
+        var grid = new Grid { ColumnDefinitions = new("26,18,50,*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 8, RowSpacing = 3, Margin = new(12, 6, 12, 6) };
         MsUi.Brush(grid, Grid.BackgroundProperty, "UiTransparent");
         var toggle = new ToggleSwitch { Classes = { "ac", "small" }, IsChecked = segment.Keep, OnContent = null, OffContent = null, VerticalAlignment = VerticalAlignment.Center };
         Avalonia.Automation.AutomationProperties.SetName(toggle, Localization.Format($"保留片段 {row.Number}"));
@@ -130,23 +130,23 @@ internal sealed partial class PersonClipAdjustWindow
             Do(() => _session.SetKeep(segment.Id, toggle.IsChecked == true));
             if (_session.Segments.FirstOrDefault(s => s.Id == segment.Id) is { } now && now.Keep != toggle.IsChecked) toggle.IsChecked = now.Keep;
         };
-        grid.Children.Add(toggle);
+        Grid.SetRowSpan(toggle, 2); grid.Children.Add(toggle);
         var number = new TextBlock { Classes = { "ms-small" }, Text = row.Number.ToString(CultureInfo.InvariantCulture), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
         MsUi.Brush(number, TextBlock.ForegroundProperty, "AcTextTertiary");
-        Grid.SetColumn(number, 1); grid.Children.Add(number);
+        Grid.SetRow(number, 1); Grid.SetColumn(number, 1); grid.Children.Add(number);
         var thumb = new Border { Width = 50, Height = 28.125, CornerRadius = new(4), ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center };
         thumb.Bind(Border.BackgroundProperty, new DynamicResourceExtension("UiFill"));
         var image = new Image { Stretch = Stretch.UniformToFill };
         thumb.Child = image;
         image.AttachedToVisualTree += (_, _) => RequestRowThumb((segment.Start + segment.End) / 2, bitmap => image.Source = bitmap);
-        Grid.SetColumn(thumb, 2); grid.Children.Add(thumb);
+        Grid.SetRow(thumb, 1); Grid.SetColumn(thumb, 2); grid.Children.Add(thumb);
 
-        var text = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
-        var range = new TextBlock { FontSize = 12, FontWeight = FontWeight.Medium, Text = AdjustTime.Clock(segment.Start, 1) + " – " + AdjustTime.Clock(segment.End, 1), TextTrimming = TextTrimming.CharacterEllipsis };
+        // Keep both boundaries independent of thumbnail, badges and duration widths.
+        var range = new TextBlock { FontSize = 12, FontWeight = FontWeight.Medium, Text = AdjustTime.Clock(segment.Start, 1) + " – " + AdjustTime.Clock(segment.End, 1), TextTrimming = TextTrimming.None, TextWrapping = TextWrapping.Wrap };
         range.FontFeatures = new FontFeatureCollection { FontFeature.Parse("tnum") };
         if (!segment.Keep) { range.TextDecorations = TextDecorations.Strikethrough; MsUi.Brush(range, TextBlock.ForegroundProperty, "AcTextTertiary"); }
-        text.Children.Add(range);
-        var sub = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        Grid.SetColumn(range, 1); Grid.SetColumnSpan(range, 4); grid.Children.Add(range);
+        var sub = new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 6, LineSpacing = 3, VerticalAlignment = VerticalAlignment.Center };
         if (!segment.Keep) sub.Children.Add(SegmentTag("已移除", "UiFill", "UiTextSecondary"));
         if (segment.Origin == PersonClipSegmentOrigin.Manual) sub.Children.Add(SegmentTag("手动", "AcWarningFill", "AcWarningText"));
         else if (segment.Adjusted) sub.Children.Add(SegmentTag("已调整", "AcWarningFill", "AcWarningText"));
@@ -155,14 +155,14 @@ internal sealed partial class PersonClipAdjustWindow
         {
             var bar = new ProgressBar { Classes = { "ac" }, Minimum = 0, Maximum = 1, Value = confidence, Width = 30, VerticalAlignment = VerticalAlignment.Center };
             bar.Bind(HeightProperty, new DynamicResourceExtension("AcProgressHeight"));
-            sub.Children.Add(bar);
-            sub.Children.Add(new TextBlock { Classes = { "ms-small" }, Text = confidence.ToString("0.00", CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center });
+            sub.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = {
+                bar, new TextBlock { Classes = { "ms-small" }, Text = confidence.ToString("0.00", CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center }
+            } });
         }
-        if (sub.Children.Count > 0) text.Children.Add(sub);
-        Grid.SetColumn(text, 3); grid.Children.Add(text);
+        Grid.SetRow(sub, 1); Grid.SetColumn(sub, 3); grid.Children.Add(sub);
         var duration = new TextBlock { Classes = { "ms-small" }, Text = Localization.Format($"{MsUi.Number(Math.Round(segment.Duration, 1))} 秒"), VerticalAlignment = VerticalAlignment.Center };
         if (!segment.Keep) { duration.TextDecorations = TextDecorations.Strikethrough; MsUi.Brush(duration, TextBlock.ForegroundProperty, "AcTextTertiary"); }
-        Grid.SetColumn(duration, 4); grid.Children.Add(duration);
+        Grid.SetRow(duration, 1); Grid.SetColumn(duration, 4); grid.Children.Add(duration);
         if (!segment.Keep) { thumb.Opacity = .4; number.Opacity = .6; }
         var tip = Localization.Format($"片段 {row.Number}") + " · " + EditorTime.FormatQuick(segment.Start) + " – " + EditorTime.FormatQuick(segment.End);
         ToolTip.SetTip(grid, tip);

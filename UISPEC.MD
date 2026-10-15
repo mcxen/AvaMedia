@@ -955,6 +955,7 @@ var card = new AvaMedia.Controls.Card { Child = content };
 
 ### 10.16 多阶段任务窗口（B 版）
 
+- 调整片段窗口左侧列表沿用方案 A 的开关、序号、缩略图、检测依据与时长；288 DIP 栏宽下，起止时间独占一行，使用 12 DIP、`tnum` 等宽数字并完整显示，不使用省略号。其余信息放在下一行，标签与置信度可换行，避免挤占时间范围。
 - 依据 `/workspace/AvaMedia-sidebar-review/multistage-shell/` 的 B 版与 `states/b-*-dark.png`：`AvaMedia.Controls.MultiStageTaskShell` 提供头部（来源标题与详情、唯一状态胶囊、总百分比、用时 / 剩余或中断说明、生命周期按钮）、正文（左侧 `StageList` 宽 `AcMsStageListWidth`（236），右侧错误横幅、“结果 / 处理日志”分段与内容插槽）和底栏（输出行与结果操作）。头高 `AcMsHeaderHeight`（60）、底栏高 `AcMsFooterHeight`（56），左右内边距 `AcMsPadding`（20,0），正文外边距 `AcMsBodyMargin`，栏间距 `AcMsGap`（12）。
 - 阶段列表为卡片：标题“处理阶段”与已完成数，阶段行圆角 `AcMsStageRowRadius`（8）、内边距 `AcMsStageRowPadding`；阶段图标 `StageGlyph` 尺寸 `AcMsGlyphSize`（18），完成绿勾、失败红叹号、暂停、跳过、取消、进行中转动圆弧（尊重减少动态效果）与待处理序号；连接线宽 `AcMsStageLineWidth`（1.5），已完成段为成功色。当前阶段行为选择底色并显示 `ProgressBar.ac` 进度；失败阶段使用危险色底与红色说明。底部发丝线下为“运行环境”：实际模型 · 推理后端与说明，开始前显示“开始后显示实际推理后端”。阶段时间与剩余时间只来自真实进度，开始前不估算。
 - 头部按钮：进行中“暂停 / 停止”（停止为 danger），暂停时“继续 / 停止”，失败为“重新执行全部”与主按钮“从某阶段重试”，完成或取消为“重新执行”。底栏左侧为输出位置（强调色文件夹图标 · 路径，开始前可“更改…”），右侧依次为次级结果操作、查看日志、取消、执行方式、关闭和唯一主按钮；配置态复用 10.15 的执行方式。按钮只用文字（`text-action`），快捷键不显示。
