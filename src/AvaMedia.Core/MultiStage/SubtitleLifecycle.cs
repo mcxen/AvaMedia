@@ -19,7 +19,7 @@ public static class SubtitleLifecycle
     }
 
     public static string OutputFormat(SubtitleOutputChoice choice) => choice.Mode switch
-    { "file" when choice.Format is "srt" or "ass" => choice.Format, "soft" or "hard" => "mp4", _ => throw new ArgumentException("请选择有效的字幕输出方式。") };
+    { "file" when choice.Format is "srt" or "ass" or "vtt" => choice.Format, "soft" or "hard" => "mp4", _ => throw new ArgumentException("请选择有效的字幕输出方式。") };
 
     internal static async Task GenerateAsync(IMediaEngine engine, Job job, TaskLifecycle lifecycle, Action<double> progress, CancellationToken ct)
     {

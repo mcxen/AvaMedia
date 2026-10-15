@@ -19,7 +19,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
     public static void Validate(Job job)
     {
         if (job.Inputs.Length != 1) throw new ArgumentException("每个字幕任务处理一个文件。");
-        if (job.Options.Format is not ("srt" or "ass") && !VideoFormats.OriginalOutputExtensions.Contains(job.Options.Format)) throw new ArgumentException("请选择支持的视频容器、SRT 或 ASS。");
+        if (job.Options.Format is not ("srt" or "ass" or "vtt") && !VideoFormats.OriginalOutputExtensions.Contains(job.Options.Format)) throw new ArgumentException("请选择支持的视频容器、SRT、ASS 或 VTT。");
         (job.Options.Transcription ?? new()).Validate();
         if (job.Options.Transcription?.RecognitionOnly == true && job.Options.Format != "srt")
             throw new ArgumentException("后台识别任务使用 SRT 草稿。");
@@ -111,8 +111,8 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         activity.Stage("读取音轨");
         var info = sourceInfo ?? await engine.Probe(job.Inputs[0], ct, options.VideoStreamIndex, options.AudioStreamIndex).ConfigureAwait(false);
         if (!info.HasAudio || info.Duration <= 0) throw new ArgumentException("文件没有可识别的音轨或有效时长。");
-        if (options.Format is not ("srt" or "ass") && !info.HasVideo) throw new ArgumentException("音频文件请选择 SRT 或 ASS 字幕输出。");
-        if (options.Format is not ("srt" or "ass"))
+        if (options.Format is not ("srt" or "ass" or "vtt") && !info.HasVideo) throw new ArgumentException("音频文件请选择 SRT、ASS 或 VTT 字幕输出。");
+        if (options.Format is not ("srt" or "ass" or "vtt"))
         {
             var filters = await ProcessRunner.Run(engine.FFmpeg, ["-hide_banner", "-filters"], ct).ConfigureAwait(false);
             if (filters.ExitCode != 0 || !System.Text.RegularExpressions.Regex.IsMatch(filters.Output + filters.Error, @"\bsubtitles\b"))
@@ -362,12 +362,16 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             if (saveTaskResult)
                 await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), transcript, ct).ConfigureAwait(false);
             activity.Node("保存结果");
-            if (options.Format is "srt" or "ass")
+            if (options.Format is "srt" or "ass" or "vtt")
             {
                 Detail("保存字幕");
                 stages.Update($"保存 {options.Format.ToUpperInvariant()} · {cues.Count} 条字幕", cues.Count, null, "条字幕");
                 activity.Stage("保存字幕");
-                await File.WriteAllTextAsync(output, options.Format == "srt" ? SpeechSubtitles.Srt(cues) : SpeechSubtitles.Ass(cues, options, info.Width, info.Height), new UTF8Encoding(false), ct).ConfigureAwait(false);
+                await File.WriteAllTextAsync(output, options.Format switch
+                {
+                    "srt" => SpeechSubtitles.Srt(cues), "vtt" => SpeechSubtitles.Vtt(cues),
+                    _ => SpeechSubtitles.Ass(cues, options, info.Width, info.Height)
+                }, new UTF8Encoding(false), ct).ConfigureAwait(false);
             }
             else
             {
@@ -418,6 +422,17 @@ public static class SpeechSubtitles
         foreach (var cue in cues)
             builder.Append(++index).Append('\n').Append(Time(cue.Start, false)).Append(" --> ").Append(Time(cue.End, false))
                 .Append('\n').Append(cue.Text.Replace("\r", "")).Append("\n\n");
+        return builder.ToString();
+    }
+
+    public static string Vtt(IEnumerable<SubtitleCue> cues)
+    {
+        var builder = new StringBuilder("WEBVTT\n\n");
+        foreach (var cue in cues)
+            builder.Append(Time(cue.Start, false).Replace(',', '.')).Append(" --> ")
+                .Append(Time(cue.End, false).Replace(',', '.')).Append('\n')
+                .Append(cue.Text.Replace("\r", "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;"))
+                .Append("\n\n");
         return builder.ToString();
     }
 
