@@ -39,6 +39,12 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
     private readonly TextBlock _placeholder = new() { Classes = { "ms-caption" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _caption = new() { Classes = { "ms-caption" }, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _captionRight = new() { Classes = { "ms-caption" }, HorizontalAlignment = HorizontalAlignment.Right };
+    private readonly Grid _replayNavigation = new() { ColumnDefinitions = new("Auto,*,Auto"), IsVisible = false };
+    private readonly TextBlock _replayPosition = new() { Classes = { "ms-small" }, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _replayDetail = new() { Classes = { "ms-caption" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    private readonly Button _previousFrame, _nextFrame;
+    private int _replayIndex;
+    private bool _processingCompleted;
     private readonly TextBlock _configNote = new() { Classes = { "ms-small" }, TextWrapping = TextWrapping.Wrap, LineHeight = 16 };
     // Timeline card
     private readonly StageTimeline _timeline = new() { Margin = new(0, 0, 0, 0) };
@@ -77,6 +83,13 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
     public PersonClipStageContent(IPersonClipTask task, IMediaEngine engine, PersonClipTaskActions actions)
     {
         _task = task; _engine = engine; _actions = actions;
+        _previousFrame = Ui.Button("上一帧", () => BrowseFrame(-1));
+        _nextFrame = Ui.Button("下一帧", () => BrowseFrame(1));
+        foreach (var button in new[] { _previousFrame, _nextFrame }) button.Classes.Add("text-action");
+        _replayNavigation.Bind(ColumnSpacingProperty, new DynamicResourceExtension("AcRowGap"));
+        _replayNavigation.Children.Add(_previousFrame);
+        Grid.SetColumn(_replayPosition, 1); _replayNavigation.Children.Add(_replayPosition);
+        Grid.SetColumn(_nextFrame, 2); _replayNavigation.Children.Add(_nextFrame);
         RowDefinitions = new("Auto,*");
         Bind(RowSpacingProperty, new DynamicResourceExtension("AcMsGap"));
         var top = new Grid { ColumnDefinitions = new("Auto,*"), VerticalAlignment = VerticalAlignment.Top };
@@ -131,6 +144,9 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
         var caption = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Margin = new(0, 10, 0, 0) };
         caption.Children.Add(_caption); Grid.SetColumn(_captionRight, 1); caption.Children.Add(_captionRight);
         stack.Children.Add(caption);
+        _replayDetail.Margin = new(0, 8, 0, 0);
+        _replayNavigation.Margin = new(0, 8, 0, 0);
+        stack.Children.Add(_replayDetail); stack.Children.Add(_replayNavigation);
         card.Child = stack; return card;
     }
 
@@ -247,13 +263,20 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
 
     public Task InitializeAsync() => Task.CompletedTask;
 
+    public void SetProcessingCompleted(bool completed)
+    {
+        if (_processingCompleted == completed) return;
+        _processingCompleted = completed;
+        Update(_snapshot);
+    }
+
     public MultiStageContentState Update(MultiStageTaskSnapshot snapshot)
     {
         _snapshot = snapshot; _view = _task.View;
         var view = _view; var state = snapshot.State;
         var configuring = state == MultiStageTaskState.Configuring;
-        var done = state == MultiStageTaskState.Completed;
-        var live = state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping;
+        var done = _processingCompleted || state == MultiStageTaskState.Completed;
+        var live = !done && state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping;
         var duration = view.Info?.Duration ?? 0;
         _runRight.IsVisible = _listCard.IsVisible = !configuring;
         _configRight.IsVisible = _configNote.IsVisible = configuring;
@@ -431,6 +454,13 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
 
     private void RefreshPreview(PersonClipTaskView view, MultiStageTaskState state)
     {
+        if (_processingCompleted || state == MultiStageTaskState.Completed)
+        {
+            RefreshReplay(view);
+            return;
+        }
+        _replayNavigation.IsVisible = _replayDetail.IsVisible = false;
+        _placeholder.Text = Localization.Text("暂无预览");
         var info = view.Info;
         var stream = info?.VideoStreamIndex ?? 0;
         _dim.IsVisible = state == MultiStageTaskState.Failed;
@@ -499,6 +529,57 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
         });
     }
 
+    private void BrowseFrame(int direction)
+    {
+        if (_view.ReplayFrames.Count == 0) return;
+        _replayIndex = Math.Clamp(_replayIndex + direction, 0, _view.ReplayFrames.Count - 1);
+        RefreshReplay(_view);
+    }
+
+    private void RefreshReplay(PersonClipTaskView view)
+    {
+        _dim.IsVisible = false;
+        _chipLeft.Text = _chipRight.Text = "";
+        _caption.Inlines = null; _caption.Text = Localization.Text("检测画面"); _captionRight.Text = "";
+        var count = view.ReplayFrames.Count;
+        _replayNavigation.IsVisible = _replayDetail.IsVisible = count > 0;
+        if (count == 0)
+        {
+            _previewKey = ""; _previewRequest.Cancel();
+            var old = _image.Source as Bitmap; _image.Source = null; old?.Dispose();
+            _boxes.IsVisible = false;
+            _placeholder.Text = Localization.Text("此任务未保存检测画面");
+            _placeholder.TextWrapping = TextWrapping.Wrap;
+            _placeholder.IsVisible = true;
+            return;
+        }
+        _replayIndex = Math.Clamp(_replayIndex, 0, count - 1);
+        var frame = view.ReplayFrames[_replayIndex];
+        _previousFrame.IsEnabled = _replayIndex > 0; _nextFrame.IsEnabled = _replayIndex < count - 1;
+        _replayPosition.Text = $"{_replayIndex + 1} / {count}";
+        var sample = frame.Sample;
+        _chipLeft.Text = PersonTaskView.Time(sample.Seconds, 3);
+        _replayDetail.Text = Localization.Format($"得分 {sample.Score:0.000}");
+        var flag = sample.Flags.HasFlag(PersonClipSampleFlags.Dark) ? "黑灯"
+            : sample.Flags.HasFlag(PersonClipSampleFlags.Blank) ? "无画面"
+            : sample.Flags.HasFlag(PersonClipSampleFlags.Uncertain) ? "待确认"
+            : sample.Flags.HasFlag(PersonClipSampleFlags.Person) ? "保留" : "跳过";
+        _replayDetail.Text += " · " + Localization.Text(flag);
+        if (sample.Flags.HasFlag(PersonClipSampleFlags.Boundary)) _replayDetail.Text += " · " + Localization.Text("边界画面");
+        if (sample.Flags.HasFlag(PersonClipSampleFlags.Reused)) _replayDetail.Text += " · " + Localization.Text("复用得分");
+        var key = "replay:" + frame.ThumbnailPath;
+        if (_previewKey == key) return;
+        _previewKey = key;
+        var previous = _image.Source as Bitmap; _image.Source = null; previous?.Dispose();
+        _boxes.IsVisible = false;
+        _placeholder.Text = Localization.Text("检测画面不可用"); _placeholder.IsVisible = true;
+        _ = LoadAsync(token =>
+        {
+            token.ThrowIfCancellationRequested();
+            return Task.FromResult(new Bitmap(frame.ThumbnailPath));
+        }, () => { _boxes.Update(frame.Boxes); _boxes.IsVisible = frame.Boxes.Count > 0; });
+    }
+
     private void LoadEncoded(byte[] image)
     {
         var key = "e:" + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(image).ToString(CultureInfo.InvariantCulture);
@@ -507,7 +588,7 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
         _ = LoadAsync(token => { using var memory = new MemoryStream(image); return Task.FromResult(new Bitmap(memory)); });
     }
 
-    private async Task LoadAsync(Func<CancellationToken, Task<Bitmap>> decode)
+    private async Task LoadAsync(Func<CancellationToken, Task<Bitmap>> decode, Action? loaded = null)
     {
         if (_disposed) return;
         var token = _previewRequest.Restart(_lifetime.Token);
@@ -517,6 +598,7 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
             var bitmap = await Task.Run(() => decode(token), token);
             if (_disposed || !_previewRequest.IsCurrent(token)) { bitmap.Dispose(); return; }
             var old = _image.Source as Bitmap; _image.Source = bitmap; old?.Dispose(); _placeholder.IsVisible = false;
+            loaded?.Invoke();
         }
         catch (OperationCanceledException) { }
         catch (Exception error)

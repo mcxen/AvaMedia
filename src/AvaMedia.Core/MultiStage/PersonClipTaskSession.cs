@@ -17,6 +17,8 @@ public sealed class PersonClipTaskSession : IPersonClipTask
     private PersonClipTaskView _view = new();
     private PersonClipStageSummary? _restored;
     private PersonDetectionTaskResult? _restoredResult;
+    private string? _replayPath;
+    private IReadOnlyList<PersonClipReplayFrame> _replayFrames = [];
     private MediaInfo? _info;
     private bool? _installed;
     private string _retryId = "";
@@ -77,6 +79,11 @@ public sealed class PersonClipTaskSession : IPersonClipTask
             var result = _job.PersonDetectionResult ?? await PersonClipRetry.LoadAsync<PersonDetectionTaskResult>(AiTaskResults.PathFor(_job, "people")).ConfigureAwait(false);
             if (result is null && _job.Options.PersonClip?.AnalysisOnly == true)
                 result = await PersonClipRetry.LoadAsync<PersonDetectionTaskResult>(_job.Output).ConfigureAwait(false);
+            var replayPath = result?.Result.ReplayPath;
+            IReadOnlyList<PersonClipReplayFrame> replayFrames;
+            lock (_gate) replayFrames = _replayFrames;
+            if (replayPath != _replayPath)
+                replayFrames = await PersonClipReplayArchive.ReadAsync(replayPath).ConfigureAwait(false);
             MediaInfo? info = summary?.Info;
             if (info is null || !PersonClipRetry.SourceMatches(_job, summary!))
             {
@@ -100,6 +107,7 @@ public sealed class PersonClipTaskSession : IPersonClipTask
             {
                 if (_disposed || version != Volatile.Read(ref _loadVersion) || _job.Inputs.FirstOrDefault() != sourceKey || PersonClipTaskState.OptionsKey(_job) != optionsKey) return;
                 _restored = summary; _restoredResult = result; _info = info; _installed = installed; _retryId = retryId;
+                _replayPath = replayPath; _replayFrames = replayFrames;
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
@@ -116,10 +124,12 @@ public sealed class PersonClipTaskSession : IPersonClipTask
             if (Environment.TickCount64 - _lastLoadTick >= 2000 && _job.State is not (JobState.Running or JobState.Stopping))
             { _lastLoadTick = Environment.TickCount64; RequestLoad(); }
             PersonClipStageSummary? restored; PersonDetectionTaskResult? restoredResult; MediaInfo? probed; bool? installed; string retryId;
+            IReadOnlyList<PersonClipReplayFrame> replayFrames;
             lock (_gate)
             {
                 if (_disposed) return;
                 restored = _restored; restoredResult = _restoredResult; probed = _info; installed = _installed; retryId = _retryId;
+                replayFrames = _replayFrames;
             }
             var snapshotUtc = DateTime.UtcNow;
             var captured = _job.PersonClipStages?.Capture();
@@ -170,6 +180,7 @@ public sealed class PersonClipTaskSession : IPersonClipTask
                 SampledFrames = people?.Result.SampledFrames ?? 0, PlannedFrames = info is null ? null : PersonClipTaskState.PlannedFrames(info, _job.Options.PersonClip!.Detection),
                 Segments = Array.AsReadOnly(segments), IsPartial = partial, HasResult = people is not null, KeptSeconds = segments.Sum(s => s.Duration),
                 LiveFrame = captured?.Frame, Settings = PersonClipTaskState.Settings(_job) with { ModelInstalled = statuses[1].State == StageState.Done ? true : installed },
+                ReplayFrames = replayFrames,
                 OutputPath = output, OutputFolder = Path.GetDirectoryName(output) ?? "", OutputExists = exists, OutputBytes = bytes,
                 CanAdjust = (state is JobState.Completed or JobState.Failed or JobState.Cancelled) && people is not null && !partial
                     && PersonClipRetry.SourceMatches(_job, people) && (summary is null || statuses[3].State is StageState.Done or StageState.Skipped)

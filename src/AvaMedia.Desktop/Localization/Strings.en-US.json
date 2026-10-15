@@ -4261,5 +4261,13 @@
   "SRT/VTT 只含文字和时间，字体与位置由播放器决定；ASS 会保留样式。": "SRT/VTT contain only text and timing; the player controls font and position. ASS preserves styling.",
   "SRT 不包含字体和位置，这些设置只在烧录到视频或导出 ASS 时生效": "SRT does not contain font or position. These settings apply when burning into video or exporting ASS.",
   "VTT 不包含字体和位置，这些设置只在烧录到视频或导出 ASS 时生效": "VTT does not contain font or position. These settings apply when burning into video or exporting ASS.",
+  "上一帧": "Previous frame",
+  "下一帧": "Next frame",
+  "检测画面": "Detection frame",
+  "此任务未保存检测画面": "No detection frames were saved for this task",
+  "检测画面不可用": "Detection frame unavailable",
+  "得分 {0}": "Score {0}",
+  "边界画面": "Boundary frame",
+  "复用得分": "Reused score",
   "音频源只能导出字幕文件，烧录到视频需要视频画面。": "Audio sources can only export subtitle files. Burning in subtitles requires video."
 }

@@ -37,6 +37,7 @@ public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList
 {
     [System.Text.Json.Serialization.JsonConverter(typeof(PersonClipSamplesJsonConverter))]
     public IReadOnlyList<PersonClipSample>? Samples { get; init; }
+    public string? ReplayPath { get; init; }
     public bool IsPartial { get; init; }
     public double AnalyzedSeconds { get; init; }
     public bool FromCache { get; init; }
@@ -112,15 +113,26 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         }
         if (retry?.StageId is null && string.IsNullOrEmpty(retry?.FallbackReason) && await cache.ReadAsync(info, options, ct).ConfigureAwait(false) is { } cached)
         {
-            observedSeconds = duration;
-            activity.Node("细化片段边界"); activity.Backend("检测缓存");
-            stages?.Complete(PersonClipStageIds.PrepareModel, "已跳过 · 复用检测缓存，无需加载模型", StageState.Skipped);
-            stages?.Complete(PersonClipStageIds.Detect, $"复用检测缓存 · {cached.SampledFrames} 帧 · {cached.Segments.Count} 段", StageState.Skipped);
-            stages?.Complete(PersonClipStageIds.Refine, $"复用检测缓存 · {cached.Segments.Count} 段", StageState.Skipped);
-            foreach (var segment in cached.Segments)
-                activity.Result($"确认片段 · {PersonClipPresentation.Time(segment.Start)} – {PersonClipPresentation.Time(segment.End)}", cached.Segments.Count);
-            activity.Finish("复用检测结果");
-            return cached;
+            var archived = await PersonClipReplayArchive.ReadAsync(cached.ReplayPath, ct).ConfigureAwait(false);
+            // A task cache hit must bring its own durable pictures. Expired/missing pictures require fresh detection.
+            if (job is null || archived.Count > 0 && archived.All(frame => File.Exists(frame.ThumbnailPath)))
+            {
+                if (job is not null)
+                {
+                    using var imported = new PersonClipReplayArchive(job);
+                    await imported.ImportAsync(archived, ct).ConfigureAwait(false);
+                    cached = cached with { ReplayPath = imported.ManifestPath };
+                }
+                observedSeconds = duration;
+                activity.Node("细化片段边界"); activity.Backend("检测缓存");
+                stages?.Complete(PersonClipStageIds.PrepareModel, "已跳过 · 复用检测缓存，无需加载模型", StageState.Skipped);
+                stages?.Complete(PersonClipStageIds.Detect, $"复用检测缓存 · {cached.SampledFrames} 帧 · {cached.Segments.Count} 段", StageState.Skipped);
+                stages?.Complete(PersonClipStageIds.Refine, $"复用检测缓存 · {cached.Segments.Count} 段", StageState.Skipped);
+                foreach (var segment in cached.Segments)
+                    activity.Result($"确认片段 · {PersonClipPresentation.Time(segment.Start)} – {PersonClipPresentation.Time(segment.End)}", cached.Segments.Count);
+                activity.Finish("复用检测结果");
+                return cached;
+            }
         }
         activity.Node("准备检测模型");
         if (reused is null) stages?.Start(PersonClipStageIds.PrepareModel);
@@ -151,6 +163,10 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         activity.Backend(detectors.Backend);
         var bounds = PersonFrameBounds.From(info, size);
         var content = PersonClipPreview.Content(info, size);
+        using var replay = job is null ? null : new PersonClipReplayArchive(job);
+        if (replay is not null && retry?.Detection is { } detection)
+            await replay.ImportAsync((await PersonClipReplayArchive.ReadAsync(detection.Result.ReplayPath, ct).ConfigureAwait(false))
+                .Where(frame => !frame.Sample.Flags.HasFlag(PersonClipSampleFlags.Boundary)), ct).ConfigureAwait(false);
         detectors.SetFrameGeometry(info);
         await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, stage => activity.Stage(stage)) : null;
         stages?.Model(_store, detectors.Backend);
@@ -244,6 +260,8 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                     if (skip != PersonFrameSkip.Excluded) sampledFrames++;
                     observedSeconds = Math.Min(duration, seconds + 1 / options.FramesPerSecond);
                     var decision = samples[^1];
+                    if (replay is not null && frame is not null)
+                        await replay.AppendAsync(decision.ToSample(), frame, size, content, decision.Evidence, ct).ConfigureAwait(false);
                     evidence = decision.Evidence;
                     // Keep short detection gaps inside one source range; only its outer edges need refinement.
                     if (candidateEnd >= 0 && seconds - samples[candidateEnd].Seconds > connectionGap) CompleteCandidate();
@@ -284,7 +302,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 {
                     var rough = new PersonClipResult(path, info, [], samples.Count(f => f.Skip != PersonFrameSkip.Excluded),
                         samples.Count(f => f.Uncertain), inferredFrames, 0, detectors.Backend)
-                    { Samples = StoredSamples(), DarkFrames = darkFrames, BlankFrames = blankFrames, ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration,
+                    { Samples = StoredSamples(), ReplayPath = replay?.ManifestPath, DarkFrames = darkFrames, BlankFrames = blankFrames, ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration,
                         DetectionMode = options.DetectionMode, Detectors = detectors.Statistics };
                     await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "people-detection"),
                         new PersonClipDetectionCheckpoint(rough, samples.Select(sample => sample with { Evidence = [] }).ToArray(), candidates.Select(c => new PersonClipCandidate(c.Start, c.End)).ToArray()), ct).ConfigureAwait(false);
@@ -327,6 +345,8 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                     var frame = decoded!.At(middle);
                     var result = await ClassifyAsync(detectors, frame, middle, options, bounds, embedding, ct);
                     boundarySamples.Add(result.ToSample(boundary: true));
+                    if (replay is not null)
+                        await replay.AppendAsync(result.ToSample(boundary: true), frame, size, content, result.Evidence, ct).ConfigureAwait(false);
                     evidence = result.Evidence;
                     stages?.Backend(detectors.Backend, PersonClipPresentation.Note(detectors.Statistics));
                     if (result.Skip == PersonFrameSkip.None && previewClock.Elapsed >= nextPreview)
@@ -373,7 +393,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             activity.Finish("分析完成");
             var result = new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
                 inferredFrames, boundaryFrames, detectors.Backend)
-            { Samples = StoredSamples(), Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
+            { Samples = StoredSamples(), ReplayPath = replay?.ManifestPath, Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
                 ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration };
             await cache.WriteAsync(result, ct).ConfigureAwait(false);
             return result;
