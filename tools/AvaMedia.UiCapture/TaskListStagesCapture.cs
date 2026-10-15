@@ -36,7 +36,24 @@ internal static partial class Program
         await Task.Delay(1200);
         TaskListStageFixtures.Apply(jobs);
         RefreshQueueForCapture(main);
+        await Settle(main);
+        // Grouping into 进行中 / 排队 / 已完成 recycles row containers; look the rows up again.
+        rows = main.GetVisualDescendants().OfType<JobRowView>().ToArray();
+        await Task.WhenAll(rows.Select(row => row.Ready)).WaitAsync(TimeSpan.FromSeconds(40));
         await Capture(main, "impl-tasklist-dark");
+
+        // Hover affordances: full-row highlight and the drag grip at the thumbnail's bottom-right.
+        var hoverRow = rows.Single(row => JobName(row) == "旅行vlog_成都.mp4");
+        hoverRow.PreviewHover(true);
+        await Settle(main);
+        await Capture(main, "impl-hover-grip-dark");
+        // Drag ghost and drop-target feedback (outline + hint) on the first visible tool that accepts the input.
+        var hoverJob = (Job)hoverRow.DataContext!;
+        main.PreviewFeatureDrop("video-compress", hoverJob, hoverRow.Details?.Cover, 3);
+        await Settle(main);
+        await Capture(main, "impl-drag-ghost-dark");
+        main.PreviewFeatureDrop(null, hoverJob, null, 0);
+        hoverRow.PreviewHover(false);
 
         await CaptureStageHover(main, rows, "我做了20年的拿手菜.mp4", "impl-hover-running-dark");
         await CaptureStageHover(main, rows, "访谈_第3集.mp4", "impl-hover-failed-dark");

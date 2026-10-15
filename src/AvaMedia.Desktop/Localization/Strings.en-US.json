@@ -4134,5 +4134,21 @@
   "已暂停于「{0}」，继续后从此阶段接着处理": "Paused at \"{0}\"; resuming continues from this stage",
   "已在「{0}」取消": "Cancelled at \"{0}\"",
   "从「{0}」重试": "Retry from \"{0}\"",
-  "任务进行中，进度见任务窗口": "Task in progress. Progress is shown in the task window."
+  "任务进行中，进度见任务窗口": "Task in progress. Progress is shown in the task window.",
+  "排队": "Queued",
+  "失败 {0}": "{0} failed",
+  "转换为 {0}": "Convert to {0}",
+  "拖拽文件": "Drag files",
+  "{0} 个来源": "{0} sources",
+  "超过 10000 个文件": "More than 10,000 files",
+  "源文件缺失或不可访问。": "The source files are missing or inaccessible.",
+  "拖拽源文件失败": "Could not drag the source files",
+  "文件缺失或不可访问。": "The file is missing or inaccessible.",
+  "拖拽文件失败": "Could not drag the file",
+  "拖拽源文件到工具或其他应用 · 单击编辑任务": "Drag the source file to a tool or another app · Click to edit the task",
+  "拖拽源文件到工具或其他应用 · 单击查看任务详情": "Drag the source file to a tool or another app · Click to view task details",
+  "拖拽源文件到工具或其他应用 · {0}": "Drag the source file to a tool or another app · {0}",
+  "拖拽到工具或其他应用以复制 · {0}": "Drag to a tool or another app to copy · {0}",
+  "新建「{0}」任务 · {1} 个文件": "New \"{0}\" task · {1} files",
+  "「{0}」不支持这些文件": "\"{0}\" does not accept these files"
 }

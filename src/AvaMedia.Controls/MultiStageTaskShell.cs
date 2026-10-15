@@ -29,9 +29,12 @@ public sealed class MultiStageTaskShell : Grid
     private readonly ContentControl _result = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
     private readonly ContentControl _log = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch, IsVisible = false };
     private readonly ContentControl _output = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Center };
+    private readonly ContentControl _sourceLeading = new() { VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private bool _syncing;
 
     public StageList Stages { get; } = new();
+    /// <summary>Source block (thumbnail, title, detail); hosts make it a draggable file chip.</summary>
+    public Border SourceArea { get; } = new() { Classes = { "ac-ms-source" }, Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left };
     /// <summary>Lifecycle actions (pause / continue / stop / retry / rerun); at most one primary button per window.</summary>
     public StackPanel HeaderActions { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Margin = new(4, 0, 0, 0) };
     /// <summary>Output and result actions (show in folder / adjust / close / open).</summary>
@@ -80,7 +83,10 @@ public sealed class MultiStageTaskShell : Grid
         var source = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         BindResource(_source, TextBlock.FontSizeProperty, "AcMsTitleFont"); BindResource(_source, TextBlock.ForegroundProperty, "UiText");
         BindResource(_detail, TextBlock.FontSizeProperty, "AcCaptionFont"); BindResource(_detail, TextBlock.ForegroundProperty, "UiTextSecondary");
-        source.Children.Add(_source); source.Children.Add(_detail); header.Children.Add(source);
+        source.Children.Add(_source); source.Children.Add(_detail);
+        var chip = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 10 };
+        chip.Children.Add(_sourceLeading); Grid.SetColumn(source, 1); chip.Children.Add(source);
+        SourceArea.Child = chip; header.Children.Add(SourceArea);
         var overall = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
         overall.Children.Add(_status);
         BindResource(_percent, TextBlock.FontSizeProperty, "AcMsPercentFont"); BindResource(_percent, TextBlock.ForegroundProperty, "UiText");
@@ -170,6 +176,8 @@ public sealed class MultiStageTaskShell : Grid
     public Control? ResultContent { get => _result.Content as Control; set => _result.Content = value; }
     public Control? LogContent { get => _log.Content as Control; set => _log.Content = value; }
     public Control? OutputContent { get => _output.Content as Control; set => _output.Content = value; }
+    /// <summary>Leading visual of the source block (the input thumbnail).</summary>
+    public Control? SourceLeading { get => _sourceLeading.Content as Control; set { _sourceLeading.Content = value; _sourceLeading.IsVisible = value is not null; } }
     /// <summary>Localized labels for the two sections (hosts pass already translated text).</summary>
     public void SetSectionLabels(string result, string log) { _resultTab.Content = result; _logTab.Content = log; }
 }

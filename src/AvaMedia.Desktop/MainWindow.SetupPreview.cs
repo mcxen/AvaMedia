@@ -28,7 +28,7 @@ public partial class MainWindow
                 Options = new() { Format = Catalog.Find(feature).Format }, State = state, Progress = progress
             });
         }
-        window.JobList.SelectedIndex = 1;
+        window.JobList.SelectedItem = window._jobs[1];
         window.Refresh();
         return window;
     }

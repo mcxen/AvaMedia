@@ -20,7 +20,7 @@ public partial class MainWindow
     private void ShowMultiStageWindow(Job job)
     {
         var (session, content, label) = CreateMultiStage(job);
-        var window = new MultiStageTaskWindow(session, content, label);
+        var window = new MultiStageTaskWindow(session, content, label, Engine);
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);

@@ -81,6 +81,8 @@ internal sealed class SubtitleStageContent : Grid, IMultiStageToolContent
     public IReadOnlyList<Button> TrailingActions => [_review];
     public string SourceTitle => Path.GetFileName(_task.View.SourcePath);
     public string SourceTooltip => _task.View.SourcePath;
+    public IReadOnlyList<string> InputPaths => _task.View.SourcePath.Length > 0 ? [_task.View.SourcePath] : [];
+    public IReadOnlyList<string> OutputPaths => _view.Output is { Exists: true, IsFixedLocation: false, Path.Length: > 0 } output && File.Exists(output.Path) ? [output.Path] : [];
     public Task InitializeAsync() => Task.CompletedTask;
 
     private Border BuildList()

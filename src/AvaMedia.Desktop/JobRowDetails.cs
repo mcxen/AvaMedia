@@ -29,7 +29,11 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
     public string Icon => Catalog.Find(Job.FeatureId).Icon;
     public string Extension => Path.GetExtension(Job.Inputs.FirstOrDefault() ?? "").TrimStart('.').ToUpperInvariant();
     public bool HasOutputPreview => Job.State == JobState.Completed && Job.CompletionKind != JobCompletionKind.Unchanged && !Job.HasInternalOutput && Job.FeatureId != "folder-classification";
-    public string PreviewExtension => HasOutputPreview ? Path.GetExtension(Job.Output).TrimStart('.').ToUpperInvariant() : Extension;
+    /// <summary>The row thumbnail shows the input in every state; only a finished download (whose input is a link) shows its file.</summary>
+    public bool CoverShowsOutput => HasOutputPreview && Job.FeatureId == "download";
+    public string PreviewExtension => CoverShowsOutput ? Path.GetExtension(Job.Output).TrimStart('.').ToUpperInvariant() : Extension;
+    /// <summary>Media-type fallback icon when the input has no thumbnail.</summary>
+    public string MediaIcon => Controls.FileDrag.MediaIcon(CoverShowsOutput ? Job.Output : Job.Inputs.FirstOrDefault() ?? "");
     public string Name => Job.FeatureId is "download" or "folder-classification" ? Job.Name : Job.Inputs.Length == 0 ? Localization.Text(Catalog.Find(Job.FeatureId).Label.Replace("\n", " ")) : Path.GetFileName(Job.Inputs[0]) + (Job.Inputs.Length > 1 ? "  +" + Localization.Format($"{Job.Inputs.Length - 1} 个文件") : "");
     public string OutputName => Job.CompletionKind == JobCompletionKind.Unchanged ? Localization.Text("保留原视频") : Job.HasInternalOutput ? Localization.Text("任务结果") : Path.GetFileName(Job.UserOutput.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
     public string FileSummary => _fileSummary;
@@ -44,7 +48,7 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             if (_media.HasVideo && _media.FrameRate > 0 && _media.Duration > 0) parts.Add(Number(_media.FrameRate) + " fps");
             if (parts.Count == 0) parts.Add("媒体信息已读取");
             var summary = Localization.Join(" · ", parts);
-            return HasOutputPreview ? Localization.Format($"产出：{summary}")
+            return CoverShowsOutput ? Localization.Format($"产出：{summary}")
                 : Job.Inputs.Length > 1 ? Localization.Format($"首个：{summary}") : summary;
         }
     }

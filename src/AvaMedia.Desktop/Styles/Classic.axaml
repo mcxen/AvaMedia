@@ -3,7 +3,6 @@
   <Style Selector="Border.app-toolbar"><Setter Property="BorderThickness" Value="0,0,0,1"/></Style>
   <Style Selector="Border.feature-sidebar"><Setter Property="BorderThickness" Value="0,0,1,0"/></Style>
   <Style Selector="Border.queue-heading"><Setter Property="BorderThickness" Value="1"/></Style>
-  <Style Selector="Border.completed-tasks-bar"><Setter Property="BorderThickness" Value="1,1,1,0"/></Style>
   <Style Selector="ListBox.task-list"><Setter Property="BorderThickness" Value="1,0,1,1"/></Style>
   <Style Selector="GridSplitter.workspace-splitter"><Setter Property="Background" Value="{DynamicResource UiDivider}"/></Style>
   <Style Selector="Grid.queue-row"><Setter Property="Margin" Value="0,8"/></Style>
@@ -33,7 +32,7 @@
   <Style Selector="Window:not(.mac-os9):not(.windows-xp) Border.app-toolbar">
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
-  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Border.queue-heading, Window:not(.mac-os9):not(.windows-xp) Border.completed-tasks-bar">
+  <Style Selector="Window:not(.mac-os9):not(.windows-xp) Border.queue-heading">
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="BorderBrush" Value="{DynamicResource UiDivider}"/>
   </Style>

@@ -75,6 +75,9 @@ internal sealed class MediaClassificationStageContent : Grid, IMultiStageToolCon
     public IReadOnlyList<Button> TrailingActions => [_open];
     public string SourceTitle => Path.GetFileName(_task.View.SourcePath.TrimEnd('/', '\\')) is { Length: > 0 } name ? name : _task.View.SourcePath;
     public string SourceTooltip => _task.View.SourcePath;
+    public IReadOnlyList<string> InputPaths => _task.View.SourcePath.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    // Like the task list: a tag report is a file to pass on; a classification run reorganizes folders and has no output to drag.
+    public IReadOnlyList<string> OutputPaths => _view.IsTagging && _view.Output is { Exists: true, Path.Length: > 0 } output && File.Exists(output.Path) ? [output.Path] : [];
     public Task InitializeAsync() => Task.CompletedTask;
 
     private Border BuildItems()

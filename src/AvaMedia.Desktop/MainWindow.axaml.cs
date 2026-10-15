@@ -247,7 +247,7 @@ public partial class MainWindow : Window
         }
         catch(Exception error){if(!_closing)await Ui.Message(this,"打开任务失败",error.Message);}
     }
-    private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e){if(!_refreshingTaskList)Refresh();}
+    private void JobSelectionChanged(object? sender,SelectionChangedEventArgs e){if(DropSectionSelection())return;if(!_refreshingTaskList)Refresh();}
     private async void ExportQueueClick(object? sender,Avalonia.Interactivity.RoutedEventArgs e)
     {
         var file=await ToolFilePicker.SaveAsync(this, new(){Title=Localization.Text("保存任务列表"),SuggestedFileName="AvaMedia-queue.json",DefaultExtension="json"});

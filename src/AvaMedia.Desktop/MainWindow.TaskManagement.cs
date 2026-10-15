@@ -104,7 +104,7 @@ public partial class MainWindow
         ClearCompletedTasksMenu.IsEnabled = ClearCompletedToolbarMenu.IsEnabled = CanClearCompletedTasks;
         ClearAllTasksMenu.IsEnabled = ClearAllToolbarMenu.IsEnabled = CanClearAllTasks;
         ClearButton.IsEnabled = CanClearCompletedTasks || CanClearAllTasks;
-        SelectAllTasksMenu.IsEnabled = _visibleJobs.Count > selected.Length;
+        SelectAllTasksMenu.IsEnabled = VisibleJobCount > selected.Length;
         DeselectTasksMenu.IsEnabled = selected.Length > 0;
     }
 

@@ -3,6 +3,9 @@
   <Styles.Resources>
     <ResourceDictionary>
       <GridLength x:Key="ShellQueueActionsWidth">220</GridLength>
+      <!-- Row hairline: 1px, inset to the thumbnail's right edge (cover margin 12 + artwork 56). -->
+      <sys:Double x:Key="ShellQueueSeparatorHeight">1</sys:Double>
+      <Thickness x:Key="ShellQueueSeparatorInset">68,0,0,0</Thickness>
       <sys:Double x:Key="ShellQueueRowHeight">56</sys:Double>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
@@ -12,7 +15,7 @@
           <SolidColorBrush x:Key="ShellHairline" Color="#1F000000"/>
           <SolidColorBrush x:Key="ShellListHeader" Color="#FAFAFA"/>
           <SolidColorBrush x:Key="ShellAltRow" Color="#FAFAFC"/>
-          <SolidColorBrush x:Key="ShellSeparator" Color="#F0F0F2"/>
+          <SolidColorBrush x:Key="ShellSeparator" Color="#E5E5EA"/>
           <SolidColorBrush x:Key="ShellHeaderLine" Color="#E5E5EA"/>
           <SolidColorBrush x:Key="ShellSelected" Color="#14007AFF"/>
           <SolidColorBrush x:Key="ShellRowHover" Color="#08000000"/>
@@ -37,7 +40,7 @@
           <SolidColorBrush x:Key="ShellHairline" Color="#33FFFFFF"/>
           <SolidColorBrush x:Key="ShellListHeader" Color="#2C2C2E"/>
           <SolidColorBrush x:Key="ShellAltRow" Color="#232325"/>
-          <SolidColorBrush x:Key="ShellSeparator" Color="#333336"/>
+          <SolidColorBrush x:Key="ShellSeparator" Color="#3D3D40"/>
           <SolidColorBrush x:Key="ShellHeaderLine" Color="#3A3A3C"/>
           <SolidColorBrush x:Key="ShellSelected" Color="#330A84FF"/>
           <SolidColorBrush x:Key="ShellRowHover" Color="#0FFFFFFF"/>
@@ -59,7 +62,6 @@
     </ResourceDictionary>
   </Styles.Resources>
   <!-- Shared defaults (all skins). -->
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected Border.queue-selection"><Setter Property="IsVisible" Value="True"/></Style>
   <Style Selector="Border.queue-heading TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Margin" Value="8,0"/></Style>
   <Style Selector=":is(Control).modern-only"><Setter Property="IsVisible" Value="False"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) :is(Control).modern-only"><Setter Property="IsVisible" Value="True"/></Style>
@@ -84,19 +86,20 @@
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary controls|ActionIcon, Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap.primary controls|ActionIcon.success"><Setter Property="Foreground" Value="White"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Button.cap:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-card"><Setter Property="Margin" Value="14,0,14,0"/><Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BoxShadow" Value="0 0 0 0.5 #1F000000"/><Setter Property="ClipToBounds" Value="True"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.completed-tasks-bar"><Setter Property="MinHeight" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="Background" Value="{DynamicResource ShellDoneBar}"/><Setter Property="BorderBrush" Value="{DynamicResource ShellHeaderLine}"/><Setter Property="BorderThickness" Value="0,0,0,0.5"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.completed-tasks-bar Button"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="Medium"/><Setter Property="Foreground" Value="{DynamicResource ShellCapText}"/><Setter Property="Padding" Value="12,0"/><Setter Property="MinHeight" Value="{DynamicResource AcButtonHeight}"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.completed-tasks-bar Path"><Setter Property="Stroke" Value="{DynamicResource ShellCapText}"/><Setter Property="Width" Value="10"/><Setter Property="Height" Value="10"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-heading"><Setter Property="Height" Value="26"/><Setter Property="Background" Value="{DynamicResource ShellListHeader}"/><Setter Property="BorderBrush" Value="{DynamicResource ShellHeaderLine}"/><Setter Property="BorderThickness" Value="0,0,0,0.5"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-heading Border"><Setter Property="BorderThickness" Value="0"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.queue-heading TextBlock"><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/><Setter Property="Margin" Value="0"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list"><Setter Property="Theme" Value="{DynamicResource AcListBox}"/><Setter Property="ItemContainerTheme" Value="{DynamicResource AcListBoxItem}"/><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcListBoxItem}"/><Setter Property="Margin" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{DynamicResource ShellSeparator}"/><Setter Property="BorderThickness" Value="0,0,0,0.5"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:pointerover"><Setter Property="Background" Value="{DynamicResource ShellRowHover}"/><Setter Property="BorderBrush" Value="{DynamicResource ShellSeparator}"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:pointerover /template/ Border#listFace"><Setter Property="Background" Value="{DynamicResource ShellRowHover}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem"><Setter Property="Theme" Value="{DynamicResource AcListBoxItem}"/><Setter Property="Margin" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:pointerover, Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem.hover-preview"><Setter Property="Background" Value="{DynamicResource ShellRowHover}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:pointerover /template/ Border#listFace, Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem.hover-preview /template/ Border#listFace"><Setter Property="Background" Value="{DynamicResource ShellRowHover}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected /template/ Border#listFace, Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected:pointerover /template/ Border#listFace, Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected:focus /template/ Border#listFace"><Setter Property="Background" Value="{DynamicResource ShellSelected}"/></Style>
-  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource ShellSelected}"/><Setter Property="BorderBrush" Value="{DynamicResource ShellSeparator}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource ShellSelected}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+  <!-- Section headers (进行中 / 排队 / 已完成) are list items that never highlight; the last row of a section drops its hairline. -->
+  <Style Selector="ListBox.task-list ListBoxItem.task-section, ListBox.task-list ListBoxItem.task-section:pointerover, ListBox.task-list ListBoxItem.task-section.hover-preview"><Setter Property="Background" Value="Transparent"/><Setter Property="Focusable" Value="False"/><Setter Property="MinHeight" Value="0"/></Style>
+  <Style Selector="ListBox.task-list ListBoxItem.task-section /template/ Border#listFace, ListBox.task-list ListBoxItem.task-section:pointerover /template/ Border#listFace"><Setter Property="Background" Value="Transparent"/></Style>
+  <Style Selector="ListBox.task-list ListBoxItem.section-end Border.queue-separator"><Setter Property="IsVisible" Value="False"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Grid.queue-row"><Setter Property="Margin" Value="0"/><Setter Property="MinHeight" Value="{DynamicResource ShellQueueRowHeight}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list StackPanel.queue-details"><Setter Property="Spacing" Value="3"/><Setter Property="Margin" Value="0,0,12,0"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list Button#CoverButton"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="12,0,0,0"/><Setter Property="Height" Value="34"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalAlignment" Value="Left"/></Style>

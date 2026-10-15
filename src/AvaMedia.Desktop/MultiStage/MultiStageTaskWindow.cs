@@ -22,6 +22,10 @@ internal interface IMultiStageToolContent : IDisposable
     IReadOnlyList<Button> TrailingActions { get; }
     string SourceTitle { get; }
     string SourceTooltip { get; }
+    /// <summary>Files or folders the task reads; draggable from the header in every state.</summary>
+    IReadOnlyList<string> InputPaths { get; }
+    /// <summary>Produced files or folders that exist; the window offers them as drag chips only once the task completed.</summary>
+    IReadOnlyList<string> OutputPaths { get; }
     Task InitializeAsync();
     /// <summary>Refresh the slot; returns header detail, section note and runtime/plan summaries for the shell.</summary>
     MultiStageContentState Update(MultiStageTaskSnapshot snapshot);
@@ -48,10 +52,15 @@ internal sealed class MultiStageTaskWindow : Window
     private bool _closed, _busy, _userChoseSection;
     private string _actionError = "";
     private DateTime _logReadUtc;
+    private readonly IMediaEngine? _engine;
+    private readonly MsFileThumb _sourceThumb;
+    private readonly ContentControl _outputLine = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly StackPanel _outputChips = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+    private string _inputSize = "";
 
-    public MultiStageTaskWindow(IMultiStageTask task, IMultiStageToolContent content, string toolLabel)
+    public MultiStageTaskWindow(IMultiStageTask task, IMultiStageToolContent content, string toolLabel, IMediaEngine? engine = null)
     {
-        _task = task; _content = content;
+        _task = task; _content = content; _engine = engine;
         Classes.Add("multistage-task-window");
         Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new("avares://AvaMedia.Desktop/Styles/MultiStageStyles.axaml") });
         Title = Localization.Format($"任务 · {Localization.Key(toolLabel)}");
@@ -88,7 +97,11 @@ internal sealed class MultiStageTaskWindow : Window
         Localization.SetIsUserText(_shell.SourceTitleBlock, true); ToolTip.SetTip(_shell.SourceTitleBlock, content.SourceTooltip);
         _shell.Stages.Title = Localization.Text("处理阶段");
         _shell.SetSectionLabels(Localization.Text("结果"), Localization.Text("处理日志"));
-        _shell.ResultContent = content.Result; _shell.LogContent = _log; _shell.OutputContent = content.Output;
+        _shell.ResultContent = content.Result; _shell.LogContent = _log;
+        _outputLine.Content = content.Output;
+        _shell.OutputContent = new Panel { Children = { _outputLine, _outputChips } };
+        _sourceThumb = new MsFileThumb(40, 40, engine);
+        BuildSourceChip();
         _shell.Stages.Footer = BuildRuntime();
         _shell.SectionChanged += (_, _) => { _userChoseSection = true; if (_shell.ShowLog) _ = ReadLogAsync(); RefreshNote(); };
         Content = WindowChrome.WrapDialog(this, _shell);
@@ -104,6 +117,34 @@ internal sealed class MultiStageTaskWindow : Window
         Localization.Changed += LanguageChanged;
         Closed += (_, _) => Localization.Changed -= LanguageChanged;
         Refresh();
+    }
+
+    /// <summary>Header source as a file chip: thumbnail + name + size, draggable (copy) in every state.</summary>
+    private void BuildSourceChip()
+    {
+        var inputs = _content.InputPaths.Where(path => path.Length > 0).ToArray();
+        if (inputs.Length == 0) return;
+        _sourceThumb.SetPath(inputs[0]);
+        _shell.SourceLeading = _sourceThumb;
+        _inputSize = inputs.Length == 1 ? MsFileChip.FileSize(inputs[0]) : Localization.Format($"{inputs.Length} 个来源");
+        _shell.SourceArea.Classes.Add("ms-file-drag");
+        _shell.SourceArea.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+        MsFileDrag.Attach(_shell.SourceArea, () => _content.InputPaths, () => new FileDragVisual(_sourceThumb.Thumbnail, _sourceThumb.Icon));
+        ToolTip.SetTip(_shell.SourceArea, Localization.Format($"拖拽源文件到工具或其他应用 · {_content.SourceTooltip}"));
+    }
+
+    /// <summary>Finished outputs replace the "输出到" line with draggable file chips.</summary>
+    private void RefreshOutputChips(MultiStageTaskSnapshot snapshot)
+    {
+        var outputs = snapshot.State == MultiStageTaskState.Completed ? _content.OutputPaths.Where(path => File.Exists(path) || Directory.Exists(path)).Take(3).ToArray() : [];
+        var chips = _outputChips.Children.OfType<MsFileChip>().ToArray();
+        if (!chips.Select(chip => chip.Path).SequenceEqual(outputs))
+        {
+            _outputChips.Children.Clear();
+            foreach (var output in outputs) { var chip = new MsFileChip(_engine); chip.SetFile(output); _outputChips.Children.Add(chip); }
+        }
+        _outputChips.IsVisible = outputs.Length > 0;
+        _outputLine.IsVisible = outputs.Length == 0;
     }
 
     private Control BuildRuntime()
@@ -153,7 +194,8 @@ internal sealed class MultiStageTaskWindow : Window
         var stateChanged = _shownState != snapshot.State;
         _snapshot = snapshot;
         var content = _contentState = _content.Update(snapshot);
-        _shell.SourceDetail = content.SourceDetail;
+        _shell.SourceDetail = Localization.Join(" · ", new[] { _inputSize, content.SourceDetail }.Where(text => text.Length > 0));
+        RefreshOutputChips(snapshot);
         var (pill, pillText) = snapshot.State switch
         {
             MultiStageTaskState.Configuring => ("waiting", "待开始"),

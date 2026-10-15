@@ -15,7 +15,7 @@ public partial class MainWindow
         {
             var outputs = SelectedJobs().Where(CanDragOutput).Select(job => job.Output).ToArray();
             if (outputs.Length > 0)
-                await RouteFilesAsync(await Task.Run(() => ExpandOutputs(outputs)));
+                await RouteFilesAsync(await Task.Run(() => Controls.FileDrag.Expand(outputs)));
             else
                 await ShowFileRouterAsync([]);
         }

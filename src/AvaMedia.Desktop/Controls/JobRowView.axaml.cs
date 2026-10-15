@@ -20,10 +20,11 @@ public partial class JobRowView : UserControl
     private CancellationTokenSource? _load;
     private PreviewKey? _key;
     private int _refreshPosted, _fullRefresh;
-    private Point? _outputPressed;
-    private IPointer? _outputPointer;
-    private Control? _outputDragSource;
-    private bool _draggingOutput;
+    private Point? _dragPressed;
+    private IPointer? _dragPointer;
+    private Control? _dragSource;
+    private RowDrag _dragKind;
+    private bool _dragging;
     private bool _suppressCoverClick;
     private Task _previewReady = Task.CompletedTask;
     public Task Ready { get; private set; } = Task.CompletedTask;
@@ -34,19 +35,43 @@ public partial class JobRowView : UserControl
         DataContextChanged += (_, _) => BindJob();
         AttachedToVisualTree += (_, _) => BindJob();
         DetachedFromVisualTree += (_, _) => Release();
-        EnableOutputDrag(OutputDragHandle);
-        EnableOutputDrag(CoverButton);
+        EnableRowDrag(OutputDragHandle);
+        EnableRowDrag(CoverButton);
+        EnableRowDrag(InputDragHandle);
         CoverButton.KeyDown += (_, _) => _suppressCoverClick = false;
-        OutputDragHandle.DoubleTapped += (_, e) => { if (OutputDragGrip.IsVisible) e.Handled = true; };
+        OutputDragHandle.DoubleTapped += (_, e) => { if (_details is { } details && _owner?.CanDragOutput(details.Job) == true) e.Handled = true; };
         ToolTip.AddToolTipOpeningHandler(StatusArea, (_, _) => UpdateStageCard());
     }
-    private void EnableOutputDrag(Control source)
+    private void EnableRowDrag(Control source)
     {
         // Let the cover button handle a normal press before preventing row selection changes.
-        source.AddHandler(PointerPressedEvent, OutputPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true);
-        source.AddHandler(PointerMovedEvent, OutputPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true);
-        source.AddHandler(PointerReleasedEvent, (_, _) => ResetOutputPointer(), RoutingStrategies.Bubble, handledEventsToo: true);
-        source.PointerCaptureLost += (_, _) => ResetOutputPointer();
+        source.AddHandler(PointerPressedEvent, DragPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true);
+        source.AddHandler(PointerMovedEvent, DragPointerMoved, RoutingStrategies.Bubble, handledEventsToo: true);
+        source.AddHandler(PointerReleasedEvent, (_, _) =>
+        {
+            // A plain click (no drag) on a column of a multi-selected row selects just that row, like any list click.
+            if (_dragPressed is not null && source != CoverButton && _details is { } details) _owner?.SelectSingleRow(details.Job);
+            ResetDragPointer();
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
+        source.PointerCaptureLost += (_, _) => ResetDragPointer();
+    }
+    private enum RowDrag { None, Input, Output }
+    /// <summary>Which files a press on <paramref name="source"/> drags: the thumbnail and output column carry the
+    /// outputs of a finished task; the thumbnail (otherwise) and the file column carry the inputs in every state.</summary>
+    private RowDrag DragKindAt(Control source)
+    {
+        if (_owner is null || _details is null) return RowDrag.None;
+        var job = _details.Job;
+        var output = _owner.CanDragOutput(job);
+        if (source == OutputDragHandle) return output ? RowDrag.Output : RowDrag.None;
+        if (source == CoverButton && output) return RowDrag.Output;
+        return _owner.CanDragInput(job) ? RowDrag.Input : RowDrag.None;
+    }
+    /// <summary>Design captures: show the hover affordances (row highlight and thumbnail grip) without a pointer.</summary>
+    internal void PreviewHover(bool hover)
+    {
+        RowRoot.Classes.Set("show-grip", hover);
+        this.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault()?.Classes.Set("hover-preview", hover);
     }
     private void BindJob()
     {
@@ -91,22 +116,25 @@ public partial class JobRowView : UserControl
         RefreshStatus();
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
         var job = _details.Job;
-        var canDrag = _owner.CanDragOutput(job);
-        OutputDragGrip.IsVisible = canDrag;
-        CoverDragGrip.IsVisible = canDrag;
-        OutputDragHandle.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
-        CoverButton.Cursor = canDrag ? new Cursor(StandardCursorType.Hand) : null;
-        var tip = Localization.Text(canDrag
-            ? "拖拽产出到工具或文件路由 · 单击查看任务详情"
+        var canDragOutput = _owner.CanDragOutput(job);
+        var canDragInput = _owner.CanDragInput(job);
+        RowRoot.Classes.Set("can-drag", canDragOutput || canDragInput);
+        Cursor? Hand(bool on) => on ? new Cursor(StandardCursorType.Hand) : null;
+        OutputDragHandle.Cursor = Hand(canDragOutput);
+        InputDragHandle.Cursor = Hand(canDragInput);
+        CoverButton.Cursor = Hand(canDragOutput || canDragInput);
+        var tip = Localization.Text(canDragOutput ? "拖拽产出到工具或文件路由 · 单击查看任务详情"
+            : canDragInput ? "拖拽源文件到工具或其他应用 · 单击" + _details.PreviewTip
             : _details.PreviewTip);
         ToolTip.SetTip(CoverButton, tip);
         AutomationProperties.SetName(CoverButton, tip);
-        ToolTip.SetTip(OutputDragHandle, canDrag ? Localization.Text("拖拽产出到工具或文件路由") : null);
+        ToolTip.SetTip(OutputDragHandle, canDragOutput ? Localization.Text("拖拽产出到工具或文件路由") : null);
 
         RefreshRowActions(job);
         ViewResultButton.IsVisible = _owner.CanViewTaskDetails(job);
-        CoverButton.IsEnabled = canDrag || _owner.CanViewTaskDetails(job);
-        var outputPreview = _details.HasOutputPreview;
+        CoverButton.IsEnabled = canDragOutput || canDragInput || _owner.CanViewTaskDetails(job);
+        // The thumbnail is the row's fixed identity: the input media in every state (a download shows its file once done).
+        var outputPreview = _details.CoverShowsOutput;
         var path = outputPreview ? job.Output : job.FeatureId == "download" ? "" : job.Inputs.FirstOrDefault() ?? "";
         var o = job.InputOptions?.FirstOrDefault() ?? job.Options;
         var directory = outputPreview && Directory.Exists(path);
@@ -212,7 +240,7 @@ public partial class JobRowView : UserControl
     private async void CoverClick(object? sender, RoutedEventArgs e)
     {
         e.Handled = true;
-        if (_draggingOutput || _suppressCoverClick) return;
+        if (_dragging || _suppressCoverClick) return;
         if (_owner is null || _details is null) return;
         var job = _details.Job;
         if (job.State is JobState.Completed or JobState.Failed or JobState.Cancelled) await _owner.ShowTaskDetailsAsync(job);
@@ -253,42 +281,63 @@ public partial class JobRowView : UserControl
     { e.Handled = true; if (_details is not null) _owner?.PauseRowTask(_details.Job); }
     private void StopTaskClick(object? sender, RoutedEventArgs e)
     { e.Handled = true; if (_details is not null) _owner?.StopRowTask(_details.Job); }
-    private void OutputPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void DragPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         _suppressCoverClick = false;
-        if (_draggingOutput || _owner is null || _details is null || !_owner.CanDragOutput(_details.Job)
-            || sender is not Control source || e.KeyModifiers != KeyModifiers.None || !e.GetCurrentPoint(source).Properties.IsLeftButtonPressed) return;
-        _outputDragSource = source;
-        _outputPressed = e.GetPosition(source);
-        _outputPointer = e.Pointer;
+        if (_dragging || _owner is null || _details is null || sender is not Control source || e.KeyModifiers != KeyModifiers.None
+            || !e.GetCurrentPoint(source).Properties.IsLeftButtonPressed) return;
+        var kind = DragKindAt(source);
+        if (kind == RowDrag.None) return;
+        _dragKind = kind;
+        _dragSource = source;
+        _dragPressed = e.GetPosition(source);
+        _dragPointer = e.Pointer;
         e.Pointer.Capture(source);
         e.Handled = true;
-        _owner.SelectOutputForDrag(_details.Job);
+        _owner.SelectRowForDrag(_details.Job);
     }
-    private async void OutputPointerMoved(object? sender, PointerEventArgs e)
+    private async void DragPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_outputPressed is not {} start || _outputDragSource is not {} source || _draggingOutput || _owner is null || _details is null) return;
-        if (!e.GetCurrentPoint(source).Properties.IsLeftButtonPressed) { ResetOutputPointer(); return; }
+        if (_dragPressed is not {} start || _dragSource is not {} source || _dragging || _owner is null || _details is null) return;
+        if (!e.GetCurrentPoint(source).Properties.IsLeftButtonPressed) { ResetDragPointer(); return; }
         var delta = e.GetPosition(source) - start;
         if (delta.X * delta.X + delta.Y * delta.Y < 36) return;
-        var owner = _owner; var job = _details.Job;
+        var owner = _owner; var job = _details.Job; var kind = _dragKind;
         _suppressCoverClick = source == CoverButton;
-        _draggingOutput = true; _outputPressed = null; e.Handled = true;
+        _dragging = true; _dragPressed = null; e.Handled = true;
         try
         {
-            await owner.DragOutputsAsync(job, e, () =>
+            bool Begin()
             {
-                var pressed = _outputPointer is not null && ReferenceEquals(_details?.Job, job);
-                ResetOutputPointer(); return pressed;
-            });
+                var pressed = _dragPointer is not null && ReferenceEquals(_details?.Job, job);
+                ResetDragPointer(); return pressed;
+            }
+            if (kind == RowDrag.Input)
+                await owner.DragInputsAsync(job, e, new FileDragVisual(_details.Cover, FileDrag.MediaIcon(job.Inputs.FirstOrDefault() ?? "")), Begin);
+            else
+                await owner.DragOutputsAsync(job, e, new FileDragVisual(await OutputThumbnailAsync(job.Output), FileDrag.MediaIcon(job.Output)), Begin);
         }
-        finally { ResetOutputPointer(); _draggingOutput = false; }
+        finally { ResetDragPointer(); _dragging = false; }
     }
-    private void ResetOutputPointer()
+    /// <summary>Output thumbnail for the drag ghost when it is ready quickly; otherwise the ghost shows the media-type icon.</summary>
+    private async Task<Avalonia.Media.IImage?> OutputThumbnailAsync(string output)
     {
-        _outputPressed = null;
-        var pointer = _outputPointer; _outputPointer = null;
-        var source = _outputDragSource; _outputDragSource = null;
+        if (_owner is null || !File.Exists(output) || !IsPreviewMedia(output)) return null;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(400));
+            var preview = await TaskPreviewCache.Shared.GetAsync(_owner.Engine, output, 0, 0, 0, 0, timeout.Token);
+            if (preview.Cover is not { Length: > 0 } bytes) return null;
+            using var stream = new MemoryStream(bytes);
+            return Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, 160);
+        }
+        catch (Exception error) when (error is OperationCanceledException or IOException or InvalidOperationException or ArgumentException) { return null; }
+    }
+    private void ResetDragPointer()
+    {
+        _dragPressed = null;
+        var pointer = _dragPointer; _dragPointer = null;
+        var source = _dragSource; _dragSource = null;
         if (source is not null && pointer?.Captured == source) pointer.Capture(null);
     }
     private void PresentationChanged(bool visible) { if (visible) Refresh(); else SuspendPreview(); }
@@ -300,7 +349,7 @@ public partial class JobRowView : UserControl
     }
     private void Release()
     {
-        ResetOutputPointer();
+        ResetDragPointer();
         _load?.Cancel(); _load = null; _key = null;
         _previewReady = Task.CompletedTask;
         if (_owner is not null)

@@ -111,6 +111,8 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
     public IReadOnlyList<Button> TrailingActions => [_open, _adjustPrimary];
     public string SourceTitle => Path.GetFileName(_task.View.SourcePath);
     public string SourceTooltip => _task.View.SourcePath;
+    public IReadOnlyList<string> InputPaths => _task.View.SourcePath.Length > 0 ? [_task.View.SourcePath] : [];
+    public IReadOnlyList<string> OutputPaths => _view.OutputExists && File.Exists(_view.OutputPath) ? [_view.OutputPath] : [];
 
     private Control BuildPreview()
     {

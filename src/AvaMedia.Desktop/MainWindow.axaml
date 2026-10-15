@@ -2,7 +2,7 @@
   <Window.Styles>
     <StyleInclude Source="avares://AvaMedia.Desktop/Styles/ToolbarMenus.axaml"/>
     <Style Selector="Border.tool-drop-indicator"><Setter Property="IsVisible" Value="False"/></Style>
-    <Style Selector="Button.feature-menu.drop-target Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/></Style>
+    <Style Selector="Button.feature-menu.drop-target Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiAccent}"/><Setter Property="Background" Value="{DynamicResource UiAccentSoft}"/></Style>
     <Style Selector="Button.feature-menu.drop-invalid Border.tool-drop-indicator"><Setter Property="IsVisible" Value="True"/><Setter Property="BorderBrush" Value="{DynamicResource UiDanger}"/></Style>
     <Style Selector="Button.notification-status"><Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="8,0"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
   </Window.Styles>
@@ -67,14 +67,6 @@
         </Grid>
         <Border x:Name="QueueCard" Grid.Row="2" Classes="queue-card">
       <Grid x:Name="TaskArea" RowDefinitions="Auto,Auto,*,Auto">
-        <Border Classes="completed-tasks-bar" x:Name="CompletedTasksBar" IsVisible="False" MinHeight="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" Background="{DynamicResource UiSurfaceRaised}">
-          <Button x:Name="CompletedTasksToggle" Classes="tool" HorizontalAlignment="Left" Click="ToggleCompletedTasksClick">
-            <StackPanel Orientation="Horizontal" Spacing="{DynamicResource UiSpacingSmall}">
-              <Path x:Name="CompletedTasksChevron" Width="12" Height="12" Stroke="{DynamicResource UiText}" StrokeThickness="1.5" VerticalAlignment="Center"/>
-              <TextBlock x:Name="CompletedTasksLabel" VerticalAlignment="Center"/>
-            </StackPanel>
-          </Button>
-        </Border>
         <Border Grid.Row="1" Classes="platinum-list-heading queue-heading" Height="{DynamicResource UiTableHeaderHeight}" BorderBrush="{DynamicResource UiBorder}" Background="{DynamicResource UiSurfaceRaised}">
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/><ColumnDefinition Width="{DynamicResource ShellQueueActionsWidth}"/></Grid.ColumnDefinitions>
@@ -88,7 +80,10 @@
         </Border>
         <ListBox Classes="task-list" Grid.Row="2" x:Name="JobList" Padding="0" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="JobSelectionChanged">
           <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style></ListBox.Styles>
-          <ListBox.ItemTemplate><DataTemplate><local:JobRowView/></DataTemplate></ListBox.ItemTemplate>
+          <ListBox.DataTemplates>
+            <DataTemplate DataType="core:Job"><local:JobRowView/></DataTemplate>
+            <DataTemplate DataType="local:TaskSection"><local:TaskSectionHeader/></DataTemplate>
+          </ListBox.DataTemplates>
           <ListBox.ContextMenu>
             <ContextMenu Opening="JobContextMenuOpening">
               <MenuItem x:Name="StartTaskMenu" Header="开始任务" Click="StartSelectedClick"/>

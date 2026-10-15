@@ -466,7 +466,10 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 - 每行包含名称（粗体）、“工具 · 来源”、状态列（状态图标 + 文字 + 进度条 + 当前活动）和右对齐的操作按钮。列宽固定，状态列和操作列逐行对齐。行高 ≥ 56。
 - 每种状态只显示该状态可用的操作：运行中“暂停 / 停止”，等待“开始 / 暂停 / 停止”，已暂停“恢复 / 停止”，失败“重试”，全部带“详情”。
-- 选中行浅蓝底并在左侧显示 3 px 蓝色强调条。
+- 行分隔：行与行之间是 1 px 发丝线（`ShellQueueSeparatorHeight`），颜色只用主题的 `ShellSeparator`；线从缩略图右缘开始（`ShellQueueSeparatorInset`，封面左边距 12 + 封面宽 56），不通栏。每组最后一行不画线，分组标题本身不加线。
+- 每行左侧固定显示输入媒体缩略图，作为该行的身份锚点：任何状态都显示输入，不随完成切换为产出（只有下载任务完成后显示下载到的文件）；没有缩略图时按媒体类型显示 Lucide 图标（视频 film、音频 music、图片 image、文档 file-text、文件夹 folder、在线来源 globe），颜色 `UiTextSecondary`，底色 `UiSurfaceRaised`；经典皮肤保留原工具图标。
+- 悬停整行用 `ShellRowHover` 轻微提亮；选中整行用 `ShellSelected` 浅强调色底（随强调色变化），不再显示左侧强调条。
+- 列表按“进行中（运行 / 暂停 / 停止中）→ 排队（等待）→ 已完成（完成 / 失败 / 取消）”分组，组内保持队列顺序，分组不改变执行顺序。组标题为小号（11）次级文字 + 数量，`TaskSectionHeader` 列表项不可选中、不高亮；“已完成”标题左侧带折叠箭头并在有失败时追加危险色“失败 n”，点击折叠或展开整组，与“视图 → 折叠已完成任务”同一设置；不再使用单独的“已完成 N 个任务”横条。
 - 独立任务详情窗口：文件名、类型图标、唯一状态和操作，使用“结果 / 文件与参数 / 处理日志”三个分段。结果保留完整原因及真实体积、编码、画质等指标；文件与参数按键值列表显示来源、实际产出与所选参数；处理日志可滚动、选择、复制并显示读取状态。复用 Card、StatusPill、SegmentedControl、TextBox.ac 和公共窗口框架，颜色、间距与字号引用现有动态令牌。
 - 所有任务行及右键菜单均提供“查看任务详情”；已完成、失败、取消和进行中的普通任务双击进入详情，等待或暂停且可编辑的任务保留编辑路径。AI 专项任务界面保留原有入口。查看日志直接切到任务详情的日志区，通知只承载简短结果与进入详情的操作，清除通知不影响详情与日志。
 - 视频瘦身在无法安全减小体积时显示“无需瘦身”和真实原因，作为已完成的信息结果；明确显示“保留原视频，未生成新文件”。没有实际产出时不显示输出预览、播放、打开输出或拖拽产出操作；预估体积与实际体积分开标注，没有指标显示“—”，不伪造体积或画质评分。
@@ -477,7 +480,10 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ```xml
 <ListBox Classes="task-list" Grid.Row="2" x:Name="JobList" Padding="0" Background="{DynamicResource UiSurface}" BorderBrush="{DynamicResource UiBorder}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="JobSelectionChanged">
-  <ListBox.ItemTemplate><DataTemplate><local:JobRowView/></DataTemplate></ListBox.ItemTemplate>
+  <ListBox.DataTemplates>
+    <DataTemplate DataType="core:Job"><local:JobRowView/></DataTemplate>
+    <DataTemplate DataType="local:TaskSection"><local:TaskSectionHeader/></DataTemplate>
+  </ListBox.DataTemplates>
 ```
 
 `src/AvaMedia.Desktop/Controls/JobRowView.axaml`（固定列宽）：
@@ -511,6 +517,15 @@ private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds
 - 悬停状态区显示阶段卡片（宽 340）：“处理阶段 n/N”、总进度 · 已用 / 用时 · 剩余，逐阶段 `StageGlyph`（14）、标题、一行细节与阶段用时；当前阶段 `AcRunningFill` 底，失败阶段 `AcDangerFill` 底与红色原因；底部发丝线下说明重试点、暂停点或取消点。卡片只在打开时刷新。
 - 失败且摘要给出 `RetryStageId` 时，行内重试按钮提示改为“从「阶段名」重试”并从该阶段续跑，右键菜单增加同名项；“重试任务”仍为全部重新执行。其余操作按 9.2。
 - 进度通知由后端按任务节流（≤ 4 次 / 秒，尾值必达）、状态变化立即发布；行只合并到一次 UI 刷新，不整表重建。
+
+#### 7.4.2 文件拖拽
+
+- 拖拽一律是复制：只提供 `DragDropEffects.Copy`，从不移动或删除源文件与产出。实现集中在 `Controls/FileDrag.cs`。
+- 任务行：缩略图在任务完成且有可用产出时拖出产出（多选时带上所选各行的产出），否则拖出输入；“文件 / 媒体信息”列在任何状态拖出输入（排队、进行中、暂停、失败、取消、完成均可）；“工具 → 产出”列只在完成后拖出产出。在线来源（下载链接）不可拖为输入，分类整理任务与无新文件的结果不可拖为产出。
+- 可拖拽提示：悬停可拖拽的行时，缩略图右下角出现小抓手（Lucide grip-vertical，`UiMediaOverlay` 底、`UiMediaText` 图标），指针变为手形；不显示文字说明或快捷键提示。
+- 拖拽影像：拖动时在 AvaMedia 各窗口内跟随指针显示文件缩略图（无缩略图时显示媒体类型图标）；多个文件显示两层错位叠放与强调色数量角标（`UiAccent` 底、`UiAccentText` 字）。Avalonia 11.3 没有自定义平台拖拽图像的接口，因此该影像画在窗口的装饰层中；拖出应用外时使用系统默认拖拽图像。
+- 工具投放目标：可接收时整块工具行显示 2 px 实线 `UiAccent` 描边 + `UiAccentSoft` 底，不可接收时为 `UiDanger` 描边；指针旁显示一行简短提示“新建「工具名」任务 · n 个文件”或“「工具名」不支持这些文件”。不使用虚线框。
+- 多阶段任务窗口（10.16）：头部来源区是文件块（40 px 缩略图 + 文件名 + 体积与媒体信息），任何状态都可拖出输入；完成后底栏的“输出到”行换成产出文件块（28 px 缩略图 + 文件名 + 体积，`AcCardFace` 底、`AcHairline` 发丝边），只在完成且文件存在时可拖。悬停时同样显示缩略图右下角抓手并使用 `UiFill` 底。
 
 ### 7.5 侧栏工具树
 

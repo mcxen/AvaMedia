@@ -34,4 +34,11 @@
   <Style Selector="TextBlock.ms-stat"><Setter Property="FontSize" Value="{DynamicResource AcMsStatFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
   <Style Selector="TextBlock.ms-body"><Setter Property="FontSize" Value="{DynamicResource AcBodyFont}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
   <Style Selector="ms|MultiStageTaskWindow TextBlock"><Setter Property="FontFeatures" Value="tnum"/></Style>
+  <!-- File chips (UISPEC 7.4.2): header input and finished outputs drag as copies; the grip shows on hover. -->
+  <Style Selector="Border.ms-grip"><Setter Property="IsVisible" Value="False"/></Style>
+  <Style Selector="Border.ms-file-drag:pointerover Border.ms-grip, Border.ms-file-drag.show-grip Border.ms-grip"><Setter Property="IsVisible" Value="True"/></Style>
+  <Style Selector="Border.ms-file-chip"><Setter Property="Padding" Value="4,4,10,4"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="BorderBrush" Value="{DynamicResource AcHairline}"/><Setter Property="BorderThickness" Value="0.5"/></Style>
+  <Style Selector="Border.ms-file-chip:pointerover, Border.ms-file-chip.show-grip"><Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
+  <Style Selector="Border.ac-ms-source.ms-file-drag"><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="4"/><Setter Property="Margin" Value="-4,0,0,0"/></Style>
+  <Style Selector="Border.ac-ms-source.ms-file-drag:pointerover, Border.ac-ms-source.ms-file-drag.show-grip"><Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
 </Styles>
