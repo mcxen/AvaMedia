@@ -61,7 +61,7 @@ public sealed partial class SettingsWindow
         LastUpdateCheckText.Text = (ApplicationUpdater.Shared.CheckState.CheckedAt ?? _settings.LastUpdateCheck) is { } time
             ? Localization.Text("上次检查：") + time.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : Localization.Text("尚未检查更新");
         // Do not repeat the status title (e.g. "尚未检查更新") on a second line.
-        LastUpdateCheckText.IsVisible = LastUpdateCheckText.Text != UpdateStatusTitle.Text;
+        LastUpdateCheckText.Opacity = LastUpdateCheckText.Text != UpdateStatusTitle.Text ? 1 : 0;
     }
     private void ModelLibraryClick(object? sender, RoutedEventArgs args)
     {
