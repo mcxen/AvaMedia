@@ -27,6 +27,7 @@ internal static partial class Program
     private static bool _reviewOnly;
     private static bool _pickerOnly;
     private static bool _ambientOnly;
+    private static bool _tasklistStagesOnly;
     private static bool _ambientSharedOnly;
     private static int _reviewTheme = Themes.Length - 1;
     private static readonly List<object> Captures = [];
@@ -40,6 +41,7 @@ internal static partial class Program
         _reviewOnly = args.Contains("--review-only");
         _pickerOnly = args.Contains("--picker");
         _ambientOnly = args.Contains("--ambient");
+        _tasklistStagesOnly = args.Contains("--tasklist-stages");
         _ambientSharedOnly = args.Contains("--ambient-shared-only");
         if (_pickerOnly) _reviewTheme = 0;
         var themeArgument = args.FirstOrDefault(arg => arg.StartsWith("--theme=", StringComparison.Ordinal));
@@ -83,6 +85,7 @@ internal static partial class Program
     {
         if (_ambientOnly) { await CaptureAmbient(); Lifetime.Cancel(); return; }
         if (_pickerOnly) { await CapturePicker(); Lifetime.Cancel(); return; }
+        if (_tasklistStagesOnly) { await CaptureTaskListStages(); Lifetime.Cancel(); return; }
         var video = Path.Combine(_samples, "航天员.mp4");
         var audio = Path.Combine(_samples, "示例音轨.wav");
         var image = Path.Combine(_samples, "航天员.png");
