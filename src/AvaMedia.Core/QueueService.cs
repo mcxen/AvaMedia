@@ -190,7 +190,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 {
                     if (execution.Control.IsPaused) continue;
                     if (!job.FileChangesCommitted) token.ThrowIfCancellationRequested();
-                    Finish(JobState.Completed); break;
+                    Finish(job.Lifecycle?.AwaitingUser == true ? JobState.AwaitingUser : JobState.Completed); break;
                 }
             }
         }
@@ -237,7 +237,7 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
         {
             if (!_active.TryGetValue(job, out execution))
             {
-                if (job.State is not (JobState.Waiting or JobState.Paused)) return false;
+                if (job.State is not (JobState.Waiting or JobState.Paused or JobState.AwaitingUser)) return false;
                 _pending.Remove(job); job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = "";
                 if (job.FeatureId == "person-clip" && job.Options.PersonClip is not null)
                 {

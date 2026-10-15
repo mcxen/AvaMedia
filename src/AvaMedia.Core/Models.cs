@@ -149,7 +149,7 @@ public sealed partial class ConversionOptions
     public double? SubtitlePositionY { get; set; }
     public ConversionOptions Clone() {var copy=(ConversionOptions)MemberwiseClone();copy.Pdf=Pdf?.Clone();copy.Transcription=Transcription?.Clone();copy.VideoSummary=VideoSummary?.Clone();copy.PersonClip=PersonClip?.Copy();copy.MediaTag=MediaTag?.Clone();copy.FolderClassification=FolderClassification?.Clone();copy.DelogoRegions=DelogoRegions?.ToArray();copy.Rename=Rename is null ? null : new(Rename.Plan.ToArray());copy.VlRename=VlRename?.Clone();copy.ImportModelPaths=ImportModelPaths?.ToArray();copy.FolderOrganization=FolderOrganization is null ? null : FolderOrganization with { Plan = FolderOrganization.Plan.ToArray() };return copy;}
 }
-public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping }
+public enum JobState { Waiting, Running, Completed, Failed, Cancelled, Paused, Stopping, AwaitingUser }
 public enum JobCompletionKind { Default, Unchanged }
 public sealed partial class Job : Observable
 {
@@ -218,6 +218,7 @@ public sealed partial class Job : Observable
     public string Status => State switch
     {
         JobState.Waiting => "等待中",
+        JobState.AwaitingUser => "等待你操作",
         JobState.Running => $"{(Options.VlRename is not null ? "分析中" : FeatureId == "download" ? "下载中" : FeatureId is "media-ai" or "folder-classification" or "person-clip" or "video-summary" ? "分析中" : FeatureId == "auto-subtitle" ? "识别中" : "转换中")}  {Progress:0.0}%"
             + (ProgressDetail.Length > 0 ? " · " + ProgressDetail : "") + (RemainingTimeText.Length > 0 ? " · " + RemainingTimeText : ""),
         JobState.Completed when CompletionKind == JobCompletionKind.Unchanged => FeatureId == "video-slim" ? "无需瘦身" : "保留原文件",

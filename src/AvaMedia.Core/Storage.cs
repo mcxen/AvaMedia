@@ -29,6 +29,12 @@ public sealed partial class Storage
     {
         var jobs=Read<List<Job>>("queue.json") ?? [];
         foreach (var job in jobs) job.AttachLogs(_logs);
+        foreach (var job in jobs.Where(j => j.Lifecycle?.Current.State == PageState.Running))
+        {
+            var saved = job.Lifecycle!;
+            job.Lifecycle = saved with { RunningSinceUtc = null, Pages = saved.Pages.Select((p, i) =>
+                i == saved.CurrentIndex ? p with { State = PageState.Failed, Detail = "应用在任务完成前退出，可重试。" } : p).ToArray() };
+        }
         foreach(var j in jobs.Where(j=>j.State is JobState.Running or JobState.Stopping)) {j.State=JobState.Cancelled;j.Error="应用在任务完成前退出，可重试。";}
         foreach (var job in jobs.Where(job => job.State != JobState.Completed))
         { job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = ""; }
