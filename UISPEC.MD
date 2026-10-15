@@ -727,6 +727,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 - `AVAMEDIA_CHROME=mac|win|system` 可覆盖平台检测；`system` 及 Mac OS 9 / XP 皮肤使用各自框架。
 - Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。Windows / macOS 经典皮肤保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`、原生标题高度提示 0，只显示一套经典标题和控制按钮；Linux 保留 WM 装饰。设置及普通工具隐藏重复的纯标题行，带导航操作的标题区仍保留，编辑器保留模式切换而隐藏重复窗口标题。切换皮肤与退出全屏重新应用公共策略，不以 `SystemDecorations.None` 牺牲系统阴影。
 - 主窗口关闭行为按后台运行设置执行：选择“继续在托盘运行”时先保证托盘已建立，再隐藏窗口，任务继续运行；启动尚未完成或托盘创建失败不得把关闭误当退出。托盘不可用时保留 Dock / 任务栏入口并正常最小化，显示真实失败原因；托盘“显示窗口”恢复原窗口与最大化状态并展开经典收起状态。显式退出、系统关闭及 MCP / 截图生命周期继续走真正退出流程。
+- **托盘右键菜单**：完全使用 Avalonia `TrayIcon.Menu`、`NativeMenu`、`NativeMenuItem` 和 `NativeMenuItemSeparator`，由框架提供平台菜单与交互；禁止以应用自绘 `Window`、`Popup`、`ContextMenu` 或皮肤模板替代。原生托盘或菜单不可用时沿用上述窗口恢复与最小化策略，不创建自绘菜单作为降级方案。
 
 参考代码 `src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`：
 

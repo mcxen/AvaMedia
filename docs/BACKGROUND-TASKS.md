@@ -23,6 +23,6 @@ macOS 点击 Dock 图标触发应用的 `ActivationKind.Reopen`，复用并恢�
 
 队列序列化和写盘由 `Storage.SaveJobsAsync` 在后台执行，写入临时文件后替换 `queue.json`。保存有顺序版本，较旧的保存不能覆盖较新的编辑、清空或退出快照。真正退出时等待最终保存完成；保存失败显示实际错误并保留窗口。少量选项字段仍使用独立的设置保存。
 
-`IBackgroundTaskTray` 定义任务状态与托盘动作，`AppOptionsServices.Background` 实现原生菜单，`MainWindow.Background` 管理窗口与队列的生命周期。使用 Avalonia 11.3.22 的原生 TrayIcon / NativeMenu，窗口关闭原因参考 [Avalonia WindowClosingEventArgs](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/WindowClosingEventArgs.cs)。Windows 的图标点击恢复窗口；macOS 通过菜单中的显示动作恢复。
+`IBackgroundTaskTray` 定义任务状态与托盘动作，`AppOptionsServices.Background` 实现原生菜单，`MainWindow.Background` 管理窗口与队列的生命周期。托盘右键菜单完全使用 Avalonia 11.3.22 的 `TrayIcon.Menu`、`NativeMenu`、`NativeMenuItem` 和 `NativeMenuItemSeparator`，由框架提供平台菜单；禁止创建自绘窗口、Popup、ContextMenu 或皮肤菜单替代，也不提供自绘降级方案。窗口关闭原因参考 [Avalonia WindowClosingEventArgs](https://github.com/AvaloniaUI/Avalonia/blob/11.3.22/src/Avalonia.Controls/WindowClosingEventArgs.cs)。Windows 的图标点击恢复窗口；macOS 通过菜单中的显示动作恢复。
 
 本次仅完成相关项目的本地编译与静态检查；原生托盘交互及 macOS 真机行为未运行回归验收。
