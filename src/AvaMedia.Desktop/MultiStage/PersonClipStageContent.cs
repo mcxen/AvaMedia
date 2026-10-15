@@ -393,7 +393,7 @@ internal sealed class PersonClipStageContent : Grid, IMultiStageToolContent, ISe
             for (var i = 0; i < count; i++) Mark((Border)_strip.Children[i], keys[i] == _selected);
             return;
         }
-        _strip.Tag = keys; _strip.Children.Clear(); _strip.Columns = count;
+        _strip.Tag = keys; _strip.Children.Clear(); _strip.Columns = 8; // fixed cells: short results stay thumbnail-sized
         foreach (var index in keys)
         {
             var segment = view.Segments[index];

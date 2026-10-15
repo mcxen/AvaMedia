@@ -6,7 +6,7 @@ namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    private readonly Dictionary<Guid, AiTaskWindow> _aiTaskWindows = [];
+    private readonly Dictionary<Guid, Window> _aiTaskWindows = [];
     private readonly HashSet<PersonClipWindow> _personClipWindows = [];
     private readonly HashSet<SubtitleReviewWindow> _subtitleReviewWindows = [];
     internal static bool IsAiFeature(Feature feature) => feature.Operation is Operation.MediaTag or Operation.FolderClassify
@@ -96,6 +96,7 @@ public partial class MainWindow
         if (job.Options.VlRename is not null) return OpenExclusiveRenamerAsync(this, job);
         if (CanViewClassificationTask(job)) return ShowClassificationTaskAsync(job);
         if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { Controls.WindowChrome.Present(existing); return Task.CompletedTask; }
+        if (job.FeatureId == "person-clip" && job.Inputs.Length == 1 && job.Options.PersonClip is not null) { ShowPersonClipStageWindow(job); return Task.CompletedTask; }
         var rotation = job.FeatureId == "rotate" && job.Inputs.Length == 1 ? new RotationTaskView(Engine, job) : null;
         var window = new AiTaskWindow(job, () => rotation?.IsReview == true ? rotation.CanExport : HasAiResult(job),
             rotation?.IsReview == true ? () => SubmitReviewedRotationAsync(rotation) : () => ShowAiResultAsync(job),
@@ -106,6 +107,21 @@ public partial class MainWindow
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);
         return Task.CompletedTask;
+    }
+
+    /// <summary>保留有人片段 uses the multi-stage task window (UISPEC 10.16) backed by the queue-hosted session.</summary>
+    private void ShowPersonClipStageWindow(Job job)
+    {
+        var session = new PersonClipTaskSession(job, MultiStageQueueHost);
+        var actions = new MultiStage.PersonClipTaskActions(
+            OpenOutput: () => { if (File.Exists(job.Output)) Open(job.Output); return Task.CompletedTask; },
+            AdjustSegments: () => ShowPersonClipResultAsync(job),
+            EditParameters: () => CanEditTask(job) ? EditJob(job) : Task.CompletedTask);
+        var content = new MultiStage.PersonClipStageContent(session, Engine, actions);
+        var window = new MultiStage.MultiStageTaskWindow(session, content, "保留有人片段");
+        _aiTaskWindows[job.Id] = window;
+        window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
+        Controls.WindowChrome.ShowIndependent(window);
     }
 
     private Task SubmitReviewedRotationAsync(RotationTaskView review)

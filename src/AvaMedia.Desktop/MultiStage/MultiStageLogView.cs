@@ -36,7 +36,8 @@ internal sealed class MultiStageLogView : AvaMedia.Controls.Card
     private static Control Row(TaskLogEntry entry)
     {
         var grid = new Grid { ColumnDefinitions = new("64,92,*"), ColumnSpacing = 10, Margin = new(14, 5) };
-        var time = Text(entry.TimeUtc.ToLocalTime().ToString("HH:mm:ss"), "AcTextTertiary");
+        // Legacy log lines carry no timestamp (DateTime.MinValue); leave the time column empty for them.
+        var time = Text(entry.TimeUtc == DateTime.MinValue ? "" : DateTime.SpecifyKind(entry.TimeUtc, DateTimeKind.Utc).ToLocalTime().ToString("HH:mm:ss"), "AcTextTertiary");
         var stage = Text(Localization.Text(entry.Title), entry.Level == TaskLogLevel.Error ? "UiDanger" : entry.Level == TaskLogLevel.Warning ? "UiWarning" : "UiTextSecondary");
         stage.TextTrimming = TextTrimming.CharacterEllipsis; ToolTip.SetTip(stage, stage.Text);
         var message = Text(entry.Message, entry.Level == TaskLogLevel.Error ? "UiDanger" : "UiText");
