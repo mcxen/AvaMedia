@@ -38,6 +38,7 @@ public partial class MainWindow
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);
+        Controls.WindowChrome.Present(window);
     }
 
     private (IMultiStageTask Session, IMultiStageToolContent Content, string Label) CreateMultiStage(Job job)
