@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ms="using:AvaMedia.Desktop.MultiStage">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ms="using:AvaMedia.Desktop.MultiStage" xmlns:ac="using:AvaMedia.Controls">
   <!-- Multi-stage task window (UISPEC 10.16). Sizes reference AcMs* defaults from AvaMedia.Controls. -->
   <Styles.Resources>
     <ControlTheme x:Key="MsListItem" TargetType="ListBoxItem">
@@ -19,13 +19,15 @@
       <Style Selector="^:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
     </ControlTheme>
   </Styles.Resources>
+  <!-- Retain a visible scroll affordance in bounded result and log viewports. -->
+  <Style Selector="ScrollViewer /template/ ScrollBar"><Setter Property="ac:ScrollVisibility.Pinned" Value="True"/></Style>
   <!-- An empty log section is disabled before the task starts; dim it like the demo instead of looking selectable. -->
   <Style Selector="ms|MultiStageTaskWindow ListBoxItem:disabled"><Setter Property="Foreground" Value="{DynamicResource AcTextTertiary}"/><Setter Property="Opacity" Value="0.55"/></Style>
   <Style Selector="ListBox.ms-log"><Setter Property="ItemContainerTheme" Value="{StaticResource MsLogItem}"/></Style>
   <Style Selector="ListBox.ms-segments"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="ItemContainerTheme" Value="{StaticResource MsListItem}"/></Style>
-  <Style Selector="Border.ms-card"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcMsCardRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/></Style>
-  <Style Selector="Border.ms-section"><Setter Property="Padding" Value="{DynamicResource AcMsSectionPadding}"/></Style>
-  <Style Selector="Border.ms-group"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcGroupRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/><Setter Property="ClipToBounds" Value="True"/></Style>
+  <Style Selector=":is(Border).ms-card"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcMsCardRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/></Style>
+  <Style Selector=":is(Border).ms-section"><Setter Property="Padding" Value="{DynamicResource AcMsSectionPadding}"/></Style>
+  <Style Selector=":is(Border).ms-group"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcGroupRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/><Setter Property="ClipToBounds" Value="True"/></Style>
   <Style Selector="Border.ms-row-line"><Setter Property="BorderBrush" Value="{DynamicResource AcHairline}"/></Style>
   <Style Selector="TextBlock.ms-heading"><Setter Property="FontSize" Value="{DynamicResource AcCaptionFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
   <Style Selector="TextBlock.ms-caption"><Setter Property="FontSize" Value="{DynamicResource AcCaptionFont}"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>

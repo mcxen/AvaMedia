@@ -27,7 +27,7 @@ internal sealed class OrientationStageContent : Grid, IMultiStageToolContent
     private readonly TextBlock _reliability = MsUi.Small();
     private readonly TextBlock _reason = new() { Classes = { "ms-small" }, TextWrapping = TextWrapping.Wrap, LineHeight = 16, MaxLines = 3, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly (TextBlock Label, ProgressBar Bar, TextBlock Value)[] _scores;
-    private readonly MsStatGrid _stats = new();
+    private readonly MsStatGrid _stats = new(compact: true);
     private readonly StackPanel _runRight = new() { Spacing = 12 }, _configRight = new() { Spacing = 9 };
     private readonly MsSettingsGroup _settings = new();
     private readonly TextBlock _configNote = new() { Classes = { "ms-small" }, TextWrapping = TextWrapping.Wrap, LineHeight = 16 };
@@ -43,10 +43,11 @@ internal sealed class OrientationStageContent : Grid, IMultiStageToolContent
     {
         _task = task; _engine = engine; _actions = actions;
         RowDefinitions = new("Auto,*");
+        Margin = new(0, 0, 0, 12);
         MsUi.Brush(this, RowSpacingProperty, "AcMsGap");
         var left = new StackPanel { Spacing = 10 };
         MsUi.Brush(left, WidthProperty, "AcMsPreviewWidth");
-        left.Children.Add(_preview); left.Children.Add(_configNote);
+        left.Children.Add(_preview); left.Children.Add(_reason); left.Children.Add(_configNote);
         _configNote.Text = Localization.Text("开始后按采样帧逐一判定方向，结果只在全部采样完成后给出。");
         _scores = Directions.Select(_ => (MsUi.Small(), new ProgressBar { Classes = { "ac" }, Minimum = 0, Maximum = 1, VerticalAlignment = VerticalAlignment.Center }, MsUi.Small())).ToArray();
         _runRight.Children.Add(BuildDecision()); _runRight.Children.Add(_stats);
@@ -75,7 +76,7 @@ internal sealed class OrientationStageContent : Grid, IMultiStageToolContent
         var stack = new StackPanel();
         stack.Children.Add(MsUi.HeadRow(MsUi.Heading("方向判定"), _reliability, 6));
         stack.Children.Add(_decision);
-        var bars = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10, RowSpacing = 6, Margin = new(0, 10, 0, 8) };
+        var bars = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 10, RowSpacing = 4, Margin = new(0, 6, 0, 6) };
         for (var i = 0; i < Directions.Length; i++)
         {
             bars.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
@@ -86,7 +87,7 @@ internal sealed class OrientationStageContent : Grid, IMultiStageToolContent
             SetRow(label, i); SetRow(bar, i); SetColumn(bar, 1); SetRow(value, i); SetColumn(value, 2);
             bars.Children.Add(label); bars.Children.Add(bar); bars.Children.Add(value);
         }
-        stack.Children.Add(bars); stack.Children.Add(_reason);
+        stack.Children.Add(bars);
         return MsUi.Card(stack);
     }
 
@@ -95,11 +96,13 @@ internal sealed class OrientationStageContent : Grid, IMultiStageToolContent
         var grid = new Grid { RowDefinitions = new("Auto,*") };
         var head = MsUi.HeadRow(_samplesTitle, _samplesNote, 6); head.Margin = new(14, 11, 14, 6);
         grid.Children.Add(head);
-        var scroll = new ScrollViewer { Content = _samples, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        var scroll = MsUi.Scroll(_samples);
         var area = new Panel(); area.Children.Add(scroll); area.Children.Add(_samplesEmpty);
         SetRow(area, 1); grid.Children.Add(area);
         Avalonia.Automation.AutomationProperties.SetName(_samples, Localization.Text("采样帧"));
-        return MsUi.Card(grid, padded: false);
+        var card = MsUi.Card(grid, padded: false);
+        card.VerticalAlignment = VerticalAlignment.Top;
+        return card;
     }
 
     private static string Direction(int degrees) => Localization.Text(degrees switch { 0 => "保持原样", 90 => "顺时针 90°", 180 => "旋转 180°", _ => "逆时针 90°" });

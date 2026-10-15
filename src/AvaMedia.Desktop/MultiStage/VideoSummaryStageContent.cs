@@ -43,6 +43,7 @@ internal sealed class VideoSummaryStageContent : Grid, IMultiStageToolContent
     {
         _task = task; _engine = engine; _actions = actions;
         RowDefinitions = new("Auto,*");
+        Margin = new(0, 0, 0, 12);
         MsUi.Brush(this, RowSpacingProperty, "AcMsGap");
         var left = new StackPanel { Spacing = 10 };
         MsUi.Brush(left, WidthProperty, "AcMsPreviewWidth");
@@ -79,10 +80,12 @@ internal sealed class VideoSummaryStageContent : Grid, IMultiStageToolContent
         var grid = new Grid { RowDefinitions = new("Auto,*") };
         var head = MsUi.HeadRow(_resultTitle, _resultNote, 6); head.Margin = new(14, 11, 14, 6);
         grid.Children.Add(head);
-        var scroll = new ScrollViewer { Content = _result, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        var scroll = MsUi.Scroll(_result);
         var area = new Panel(); area.Children.Add(scroll); area.Children.Add(_resultEmpty);
         SetRow(area, 1); grid.Children.Add(area);
-        return MsUi.Card(grid, padded: false);
+        var card = MsUi.Card(grid, padded: false);
+        card.VerticalAlignment = VerticalAlignment.Top;
+        return card;
     }
 
     public MultiStageContentState Update(MultiStageTaskSnapshot snapshot)

@@ -16,7 +16,9 @@ internal sealed class MultiStageLogView : AvaMedia.Controls.Card
 
     public MultiStageLogView()
     {
-        Padding = new(0); ClipToBounds = true;
+        Padding = new(0); ClipToBounds = true; VerticalAlignment = VerticalAlignment.Top;
+        Margin = new(0, 0, 0, 12);
+        MsUi.ListViewport(_list);
         _list.ItemTemplate = new FuncDataTemplate<TaskLogEntry>((entry, _) => entry is null ? null : Row(entry));
         Avalonia.Automation.AutomationProperties.SetName(_list, Localization.Text("处理日志"));
         var root = new Panel(); root.Children.Add(_list); root.Children.Add(_empty);

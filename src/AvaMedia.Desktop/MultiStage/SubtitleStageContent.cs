@@ -54,6 +54,7 @@ internal sealed class SubtitleStageContent : Grid, IMultiStageToolContent
         _subtitle.Child = _subtitleText;
         _preview = new MsPreviewCard(_subtitle);
         RowDefinitions = new("Auto,*");
+        Margin = new(0, 0, 0, 12);
         MsUi.Brush(this, RowSpacingProperty, "AcMsGap");
         var left = new StackPanel { Spacing = 10 };
         MsUi.Brush(left, WidthProperty, "AcMsPreviewWidth");
@@ -91,17 +92,20 @@ internal sealed class SubtitleStageContent : Grid, IMultiStageToolContent
         var head = MsUi.HeadRow(_listTitle, _listNote, 6); head.Margin = new(14, 11, 14, 6);
         grid.Children.Add(head);
         _list.ItemsSource = _rows;
+        MsUi.ListViewport(_list);
         _list.ItemTemplate = new FuncDataTemplate<LineRow>((row, _) => row is null ? null : Row(row));
         Avalonia.Automation.AutomationProperties.SetName(_list, Localization.Text("字幕"));
         var area = new Panel(); area.Children.Add(_list); area.Children.Add(_listEmpty);
         SetRow(area, 1); grid.Children.Add(area);
-        return MsUi.Card(grid, padded: false);
+        var card = MsUi.Card(grid, padded: false);
+        card.VerticalAlignment = VerticalAlignment.Top;
+        return card;
     }
 
     private static Control Row(LineRow row)
     {
         var line = row.Line;
-        var grid = new Grid { ColumnDefinitions = new("30,Auto,*"), ColumnSpacing = 12, Margin = new(14, 6) };
+        var grid = new Grid { ColumnDefinitions = new("30,Auto,*"), ColumnSpacing = 12, Margin = new(14, 3) };
         var number = new TextBlock { Text = line.Number.ToString(CultureInfo.InvariantCulture), FontSize = 12, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
         MsUi.Brush(number, TextBlock.ForegroundProperty, "AcTextTertiary");
         grid.Children.Add(number);

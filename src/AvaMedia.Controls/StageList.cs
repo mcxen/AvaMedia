@@ -155,7 +155,18 @@ public sealed class StageList : Border
         _footerFace.Child = _footer;
         var layout = new Grid { RowDefinitions = new("Auto,*,Auto") };
         layout.Children.Add(header);
-        var scroll = new ScrollViewer { Content = _rows, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        _rows.Margin = new(0, 0, 0, 12);
+        var scroll = new ScrollViewer
+        {
+            Content = _rows, AllowAutoHide = false, Margin = new(0, 0, 0, 8),
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+        };
+        scroll.TemplateApplied += (_, e) =>
+        {
+            if (e.NameScope.Find<Avalonia.Controls.Primitives.ScrollBar>("PART_VerticalScrollBar") is { } bar)
+                ScrollVisibility.SetPinned(bar, true);
+        };
         Grid.SetRow(scroll, 1); layout.Children.Add(scroll);
         Grid.SetRow(_footerFace, 2); layout.Children.Add(_footerFace);
         Child = layout;
@@ -215,7 +226,7 @@ public sealed class StageList : Border
         {
             _glyph.State = item.State; _glyph.Number = number;
             _title.Text = item.Title; _time.Text = item.Time; _time.IsVisible = item.Time.Length > 0;
-            _detail.Text = item.Detail; _detail.IsVisible = item.Detail.Length > 0; ToolTip.SetTip(_detail, item.Detail.Length > 0 ? item.Detail : null);
+            _detail.Text = item.Detail; _detail.IsVisible = item.State != "pending" && item.Detail.Length > 0; ToolTip.SetTip(_detail, item.Detail.Length > 0 ? item.Detail : null);
             ToolTip.SetTip(this, item.Detail.Length > 0 ? item.Title + "\n" + item.Detail : item.Title);
             _bar.IsVisible = item.Progress is not null || item.IsIndeterminate;
             _bar.IsIndeterminate = item.IsIndeterminate && item.Progress is null;

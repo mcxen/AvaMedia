@@ -45,6 +45,7 @@ internal sealed class MediaClassificationStageContent : Grid, IMultiStageToolCon
     {
         _task = task; _actions = actions;
         RowDefinitions = new("Auto,*");
+        Margin = new(0, 0, 0, 12);
         MsUi.Brush(this, RowSpacingProperty, "AcMsGap");
         var left = new StackPanel { Spacing = 10 };
         MsUi.Brush(left, WidthProperty, "AcMsPreviewWidth");
@@ -86,11 +87,14 @@ internal sealed class MediaClassificationStageContent : Grid, IMultiStageToolCon
         var head = MsUi.HeadRow(_itemsTitle, _itemsNote, 6); head.Margin = new(14, 11, 14, 6);
         grid.Children.Add(head);
         _items.ItemsSource = _itemRows;
+        MsUi.ListViewport(_items);
         _items.ItemTemplate = new FuncDataTemplate<MediaClassificationItemView>((item, _) => item is null ? null : ItemRow(item));
         Avalonia.Automation.AutomationProperties.SetName(_items, Localization.Text("文件"));
         var area = new Panel(); area.Children.Add(_items); area.Children.Add(_itemsEmpty);
         SetRow(area, 1); grid.Children.Add(area);
-        return MsUi.Card(grid, padded: false);
+        var card = MsUi.Card(grid, padded: false);
+        card.VerticalAlignment = VerticalAlignment.Top;
+        return card;
     }
 
     private Border BuildGroups()
@@ -98,10 +102,12 @@ internal sealed class MediaClassificationStageContent : Grid, IMultiStageToolCon
         var grid = new Grid { RowDefinitions = new("Auto,*") };
         var head = MsUi.HeadRow(_groupsTitle, _groupsNote, 6); head.Margin = new(14, 11, 14, 6);
         grid.Children.Add(head);
-        var scroll = new ScrollViewer { Content = _groups, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        var scroll = MsUi.Scroll(_groups);
         var area = new Panel(); area.Children.Add(scroll); area.Children.Add(_groupsEmpty);
         SetRow(area, 1); grid.Children.Add(area);
-        return MsUi.Card(grid, padded: false);
+        var card = MsUi.Card(grid, padded: false);
+        card.VerticalAlignment = VerticalAlignment.Top;
+        return card;
     }
 
     private static Control ItemRow(MediaClassificationItemView item)

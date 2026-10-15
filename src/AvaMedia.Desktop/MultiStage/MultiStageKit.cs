@@ -23,6 +23,23 @@ internal static class MsUi
         if (padded) card.Classes.Add("ms-section");
         return card;
     }
+    /// <summary>Keep overflow discoverable and clear of the card's rounded bottom edge.</summary>
+    public static ScrollViewer Scroll(Control content) => new()
+    {
+        Classes = { "ms-scroll" }, Content = content, AllowAutoHide = false,
+        HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+        VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        Margin = new(0, 0, 0, 12)
+    };
+
+    public static void ListViewport(ListBox list)
+    {
+        list.Classes.Add("ms-scroll");
+        ScrollViewer.SetAllowAutoHide(list, false);
+        ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        ScrollViewer.SetVerticalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        list.Padding = new(0, 0, 0, 12);
+    }
     public static TextBlock Heading(string text) => new() { Classes = { "ms-heading" }, Text = Localization.Text(text), VerticalAlignment = VerticalAlignment.Center };
     public static TextBlock Caption(string text = "") => new() { Classes = { "ms-caption" }, Text = text, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     public static TextBlock Small(string text = "") => new() { Classes = { "ms-small" }, Text = text, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -120,13 +137,13 @@ internal sealed class MsStatGrid : Border
 {
     private readonly TextBlock[] _labels = Enumerable.Range(0, 4).Select(_ => new TextBlock { Classes = { "ms-small" } }).ToArray();
     private readonly TextBlock[] _values = Enumerable.Range(0, 4).Select(_ => new TextBlock { Classes = { "ms-stat" }, TextTrimming = TextTrimming.CharacterEllipsis }).ToArray();
-    public MsStatGrid()
+    public MsStatGrid(bool compact = false)
     {
         Classes.Add("ms-card"); ClipToBounds = true;
         var grid = new Grid { ColumnDefinitions = new("*,*"), RowDefinitions = new("Auto,Auto") };
         for (var i = 0; i < 4; i++)
         {
-            var cell = new Border { Classes = { "ms-row-line" }, Padding = new(14, 9), BorderThickness = new(i % 2 == 1 ? .5 : 0, i >= 2 ? .5 : 0, 0, 0) };
+            var cell = new Border { Classes = { "ms-row-line" }, Padding = new(14, compact ? 5 : 9), BorderThickness = new(i % 2 == 1 ? .5 : 0, i >= 2 ? .5 : 0, 0, 0) };
             var stack = new StackPanel { Spacing = 1 }; stack.Children.Add(_labels[i]); stack.Children.Add(_values[i]);
             cell.Child = stack; Grid.SetRow(cell, i / 2); Grid.SetColumn(cell, i % 2); grid.Children.Add(cell);
         }
