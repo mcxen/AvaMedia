@@ -191,11 +191,11 @@ public sealed class PersonClipEditTests
     }
 
     [Fact]
-    public async Task Minimum_length_uses_detection_setting_with_point_one_floor()
+    public async Task Minimum_length_uses_detection_setting_including_zero()
     {
         using var files = new Files(options: new(MinimumSeconds: 0)); var s = await files.Open();
-        Assert.Equal(.1, s.MinimumSeconds); s.Add(15, 15.1);
-        Assert.Throws<ArgumentException>(() => s.Add(16, 16.09));
+        Assert.Equal(0, s.MinimumSeconds); s.Add(15, 15.05);
+        Assert.Throws<ArgumentException>(() => s.Add(16, 16));
         using var longer = new Files(options: new(MinimumSeconds: 1)); var s2 = await longer.Open();
         Assert.Equal(1, s2.MinimumSeconds); Assert.Throws<ArgumentException>(() => s2.Split(1, 1.5));
     }
@@ -299,6 +299,42 @@ public sealed class PersonClipEditTests
             files.Job.PersonDetectionResult = null; Assert.Equal(2, (await files.Open()).KeptCount);
         }
         finally { Directory.Delete(Path.GetDirectoryName(path)!, true); }
+    }
+
+    [Fact]
+    public async Task Zero_minimum_allows_short_detected_segments_to_be_edited_saved_and_exported()
+    {
+        using var files = new Files(options: new(MinimumSeconds: 0));
+        files.Job.PersonDetectionResult = files.Detection with { Result = files.Detection.Result with
+            { Segments = [new() { Start = 1, End = 1.05 }] } };
+        var session = await files.Open();
+        Assert.Equal(0, session.MinimumSeconds);
+        session.SetBounds(1, 1.01, 1.05);
+        session.Split(1, 1.03);
+        Assert.Equal(2, session.ToClipEditResult().Segments.Count);
+        await session.SaveAsync(); files.Job.PersonDetectionResult = null;
+        var reopened = await files.Open();
+        Assert.Equal(State(session), State(reopened));
+        Assert.Equal(2, reopened.ToClipEditResult().Segments.Count);
+        Assert.Throws<ArgumentException>(() => reopened.SetBounds(1, 1.01, 1.01));
+        Assert.Throws<ArgumentException>(() => reopened.SetBounds(1, 1.02, 1.01));
+    }
+
+    [Theory]
+    [InlineData(.02)]
+    [InlineData(.05)]
+    public async Task Short_segments_respect_the_configured_detection_minimum(double minimum)
+    {
+        using var files = new Files(options: new(MinimumSeconds: minimum));
+        files.Job.PersonDetectionResult = files.Detection with { Result = files.Detection.Result with
+            { Segments = [new() { Start = 1, End = 1.05 }] } };
+        var session = await files.Open();
+        Assert.Equal(minimum, session.MinimumSeconds);
+        Assert.Single(session.ToClipEditResult().Segments);
+        session.SetBounds(1, 1, 1 + minimum);
+        Assert.Throws<ArgumentException>(() => session.SetBounds(1, 1, 1 + minimum / 2));
+        await session.SaveAsync(); files.Job.PersonDetectionResult = null;
+        Assert.Single((await files.Open()).ToClipEditResult().Segments);
     }
 
     [Fact]

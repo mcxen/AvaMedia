@@ -43,7 +43,7 @@ public sealed class PersonClipEditSession : IPersonClipEditSession
         if (!double.IsFinite(Duration) || Duration <= 0 || detected.Result.Segments is null)
             throw new InvalidOperationException("人物检测结果无效，请重新检测。");
         var detection = job.Options.PersonClip?.Detection ?? new();
-        Threshold = detection.Threshold; MinimumSeconds = Math.Max(.1, detection.MinimumSeconds);
+        Threshold = detection.Threshold; MinimumSeconds = detection.MinimumSeconds;
         var edits = detected.Edits;
         _original = (edits?.DetectionSegments ?? detected.Result.Segments).Select(option => option.Clone()).ToArray();
         _originalExclusions = PersonClipExclusions.Normalize(edits?.DetectionExclusions ?? detection.ExcludedRanges ?? []);
@@ -124,7 +124,7 @@ public sealed class PersonClipEditSession : IPersonClipEditSession
         foreach (var entry in entries.OrderBy(entry => entry.Segment.Start))
         {
             var segment = entry.Segment;
-            if (!double.IsFinite(segment.Start) || !double.IsFinite(segment.End) || segment.Start < 0 || segment.End > Duration)
+            if (!double.IsFinite(segment.Start) || !double.IsFinite(segment.End) || segment.Start < 0 || segment.End > Duration || segment.End <= segment.Start)
                 throw new ArgumentException("片段时间必须位于视频时长范围内。");
             if (segment.End - segment.Start < MinimumSeconds - 1e-9)
                 throw new ArgumentException($"片段长度不能少于 {MinimumSeconds:0.###} 秒。");
