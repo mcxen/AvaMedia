@@ -1,11 +1,16 @@
 using Avalonia.Controls;
 using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
+using AvaMedia.Desktop.PersonClipAdjust;
 
 namespace AvaMedia.Desktop;
 
 public partial class MainWindow
 {
-    private PersonClipWindow CreatePersonClipWindow(string[]? files, Job? editing = null, bool review = false)
+    private readonly Dictionary<Guid, PersonClipAdjustWindow> _personClipAdjustWindows = [];
+    private readonly HashSet<Guid> _personClipAdjustOpening = [];
+
+    private PersonClipWindow CreatePersonClipWindow(string[]? files, Job? editing = null, bool review = false, PersonClipOptions? redetect = null)
     {
         async Task ManageModels(Window owner, string? modelId)
         {
@@ -13,7 +18,7 @@ public partial class MainWindow
         }
         var folder = editing is null || editing.HasInternalOutput ? _settings.OutputFolder : Path.GetDirectoryName(editing.Output)!;
         var window = new PersonClipWindow(Engine, _settings, files, ManageModels, folder,
-            editing?.Options.PersonClip, editing is not null && !editing.HasInternalOutput && !review,
+            redetect is null ? editing?.Options.PersonClip : new PersonClipTaskOptions { Detection = redetect, ExportPreset = editing?.Options.PersonClip?.ExportPreset ?? PersonClipTaskOptions.DefaultExportPreset }, editing is not null && !editing.HasInternalOutput && !review,
             enqueue: (jobs, start) => AddToolJobs(jobs, start), stopTask: job => { _queue.Stop(job); Save(); Refresh(); },
             newTask: () => { _ = ConfigurePersonClipAsync(null); }, pauseTask: PauseTask, resumeTask: job => { _ = RequestTaskRunAsync(job); });
         _personClipWindows.Add(window); window.Closed += (_, _) => _personClipWindows.Remove(window);
@@ -46,11 +51,30 @@ public partial class MainWindow
 
     private async Task ShowPersonClipResultAsync(Job job)
     {
-        var window = CreatePersonClipWindow(job.Inputs, job, review: true);
-        var completion = ToolExecution.ShowAsync<PersonClipRequest>(this, window);
-        try { await window.ObserveTaskAsync(job); }
-        catch { window.Close(); throw; }
-        var request = await completion;
-        if (request is not null && !_closing) await SubmitPersonClipsAsync(request);
+        if (_closing) return;
+        if (_personClipAdjustWindows.TryGetValue(job.Id, out var existing)) { WindowChrome.Present(existing); return; }
+        if (!_personClipAdjustOpening.Add(job.Id)) return;
+        try
+        {
+            var session = await PersonClipEditing.OpenAsync(job);
+            if (_closing) return;
+            var folder = job.HasInternalOutput ? _settings.OutputFolder : Path.GetDirectoryName(job.Output) ?? _settings.OutputFolder;
+            var host = new PersonClipAdjustHost(Engine, folder, _settings.OutputToSource,
+                job.Options.PersonClip?.ExportPreset ?? PersonClipTaskOptions.DefaultExportPreset,
+                Export: request => SubmitPersonClipsAsync(request),
+                Redetect: async options =>
+                {
+                    var form = CreatePersonClipWindow(job.Inputs, job, review: true, redetect: options);
+                    var request = await ToolExecution.ShowAsync<PersonClipRequest>(this, form);
+                    if (request is not null && !_closing) await SubmitPersonClipsAsync(request);
+                });
+            var window = new PersonClipAdjustWindow(session, host);
+            _personClipAdjustWindows[job.Id] = window;
+            window.Closed += (_, _) => _personClipAdjustWindows.Remove(job.Id);
+            try { window.ShowIndependent(); }
+            catch { _personClipAdjustWindows.Remove(job.Id); window.Close(); throw; }
+        }
+        catch (Exception error) { if (!_closing) await Ui.Message(this, "调整片段", error.Message); }
+        finally { _personClipAdjustOpening.Remove(job.Id); }
     }
 }
