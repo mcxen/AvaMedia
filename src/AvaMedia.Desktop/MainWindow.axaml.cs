@@ -108,7 +108,7 @@ public partial class MainWindow : Window
         }
         if(feature.Id=="rotate")
         {
-            await ConfigureRotateAsync(files); return;
+            await ConfigureLifecycleEntryAsync(feature, files); return;
         }
         if(feature.Id=="crop")
         {

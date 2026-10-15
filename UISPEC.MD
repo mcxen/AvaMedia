@@ -1089,7 +1089,7 @@ if (change.NewValue is string text && !block.Classes.Contains("raw") && _english
 | 卡片默认与窗口专项圆角 | 通用 Card 以 `AcCardRadius=12` / `AcCardPadding=16` 为准；平台覆盖见 5.1，窗口专项值使用自己的令牌（6、10）。 |
 | 手机大标题：规范 26，网页 `largeTitle` 为 28 | 桌面大标题 26，手机网页大标题 28。 |
 | 强调色预设 | 已有八色预设及跟随系统主题，Skin 通过资源覆盖；经典强调色保留（4.2、10.10）。 |
-| 部分代码仍硬编码颜色（如 `ClassificationSubmitStyles.axaml`、`Classification/ClassifyUi.cs`、`RemoteTheme.axaml` 中的样式） | **已修复（所列文件）**：提交样式与 `ClassifyUi` 及其调用界面使用动态主题资源，网页样式 / 模板也使用资源；新资源提供四种皮肤对应值，真实媒体采样色保留。 |
+| 部分代码仍硬编码颜色（如 `ClassificationStyles.axaml`、`Classification/ClassifyUi.cs`、`RemoteTheme.axaml` 中的样式） | **已修复（所列文件）**：提交样式与 `ClassifyUi` 及其调用界面使用动态主题资源，网页样式 / 模板也使用资源；新资源提供四种皮肤对应值，真实媒体采样色保留。 |
 | 直接显示快捷键的键帽、播放器 / 看图帮助及菜单右侧提示 | **已修复**：删除键帽和提示行，帮助改为 tooltip，菜单提示仅在 tooltip；现有键盘命令与 HotKey 保留。全仓未发现虚线拖放框；图表虚线、流程连线与 XP 焦点框保留。 |
 
 

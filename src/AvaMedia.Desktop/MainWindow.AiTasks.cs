@@ -24,7 +24,8 @@ public partial class MainWindow
         }
     }
 
-    private Task ConfigureSpeechAsync(Feature feature, string[]? files) => StartToolWorkflow(async () =>
+    private Task ConfigureSpeechAsync(Feature feature, string[]? files) => feature.Id == "auto-subtitle"
+        ? ConfigureLifecycleEntryAsync(feature, files) : StartToolWorkflow(async () =>
     {
         var window = new SpeechToolsWindow(Engine, feature, _settings.OutputFolder, files);
         var request = await ToolExecution.ShowAsync<ConversionRequest>(this, window);
@@ -46,12 +47,6 @@ public partial class MainWindow
 
     private BatchRotateWindow CreateRotateWindow(string[]? files, string? output = null) =>
         new(Engine, output ?? _settings.OutputFolder, files, submitDetection: AddToolJobs, stopDetection: job => _queue.Stop(job), pauseDetection: PauseTask, resumeDetection: job => { _ = RequestTaskRunAsync(job); });
-
-    private Task ConfigureRotateAsync(string[]? files) => StartToolWorkflow(async () =>
-    {
-        var window = CreateRotateWindow(files);
-        await SubmitRotationAsync(window);
-    });
 
     private async Task SubmitRotationAsync(BatchRotateWindow window)
     {

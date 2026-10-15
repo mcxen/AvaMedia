@@ -9,20 +9,7 @@ public partial class MainWindow
     private readonly Dictionary<Guid, Classification.ClassificationRunWindow> _classificationRuns = [];
 
     private Task ConfigureFolderClassificationAsync(string[]? files)
-    {
-        if (_closing) return Task.CompletedTask;
-        var submit = new Classification.ClassificationSubmitWindow(Engine, _settings, files, job =>
-        {
-            AddToolJobs([job], startImmediately: true); _ = ShowAiTaskAsync(job);
-        }, async owner =>
-        {
-            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
-        }, ShowClassificationTasks);
-        Controls.WindowChrome.ShowIndependent(submit); return Task.CompletedTask;
-    }
-
-    /// <summary>Full rule editor (custom groups, manual review); opened from the compact submit window.</summary>
-    internal void OpenAdvancedClassification(string[] files) => OpenClassificationWindow(files.Length == 0 ? null : files);
+        => ConfigureLifecycleEntryAsync(Catalog.Find("folder-classification"), files);
 
     private void OpenClassificationRun(Job job)
     {
