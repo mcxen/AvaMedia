@@ -366,7 +366,9 @@ internal sealed partial class PersonClipAdjustWindow : Window
     private bool _closingAfterSave;
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_closingAfterSave || _saved && !_saving) return;
+        if (_closingAfterSave) return;
+        EndCrop();
+        if (_saved && !_saving) return;
         e.Cancel = true; _saveTimer.Stop();
         await SaveAsync();
         if (_saved) { _closingAfterSave = true; Close(); }
@@ -381,6 +383,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
 
     private async Task ExportAsync()
     {
+        EndCrop();
         await StopPlaybackAsync();
         ClipEditResult edit;
         try { edit = _session.ToClipEditResult(); }
@@ -402,6 +405,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
 
     private async Task RedetectAsync()
     {
+        EndCrop();
         await StopPlaybackAsync();
         _saveTimer.Stop(); await _saveTask; await SaveAsync();
         if (!_saved) return;
