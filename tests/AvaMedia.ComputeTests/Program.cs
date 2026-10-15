@@ -144,6 +144,13 @@ foreach (var incomplete in new[] { "", "x" })
     var recovered = await FrameDecodeArguments.ExecuteAsync("fake", ["-i", "source"], incompleteBuffer, incompleteRoute, default, incompleteRunner, frameBytes: 4);
     Check(recovered.ExitCode == 0 && incompleteRunner.StreamCalls.Count == 2 && Encoding.UTF8.GetString(incompleteBuffer.ToArray()) == "complete-cpu", "零退出码但空/不完整 GPU 帧仍整段重跑 " + incomplete.Length);
 }
+using (var malformedCpuOutput = new MemoryStream())
+{
+    var malformedCpu = await FrameDecodeArguments.ExecuteAsync("fake", ["-i", "source"], malformedCpuOutput,
+        new ComputeRouter(ComputePlatform.Linux).Plan(new("抽帧", ComputeCapability.VideoDecode)), default,
+        new FakeRunner { FailFirstStream = true, LaterStreamData = "x" }, frameBytes: 4);
+    Check(malformedCpu.ExitCode != 0, "软件重跑仍不完整则明确失败");
+}
 using var canceled = new CancellationTokenSource(); canceled.Cancel();
 var canceledRunner = new FakeRunner();
 try { await FrameDecodeArguments.ExecuteAsync("fake", ["-i", "source"], new MemoryStream(), new ComputeRouter(ComputePlatform.Linux).Plan(new("抽帧", ComputeCapability.VideoDecode)), canceled.Token, canceledRunner); Check(false, "取消必须抛出"); }
@@ -269,6 +276,7 @@ sealed class FakeRunner : IComputeProcessRunner
     public readonly List<IReadOnlyList<string>> Calls = [], StreamCalls = [];
     public bool FailFirstStream;
     public string? FirstStreamData;
+    public string LaterStreamData = "complete-cpu";
     public string RunOutput = "";
     public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments, TimeSpan timeout, CancellationToken ct)
     { ct.ThrowIfCancellationRequested(); Calls.Add(arguments.ToArray()); return Task.FromResult(new ProcessResult(0, RunOutput, "")); }
@@ -276,7 +284,7 @@ sealed class FakeRunner : IComputeProcessRunner
     {
         ct.ThrowIfCancellationRequested(); StreamCalls.Add(arguments.ToArray());
         var fail = FailFirstStream && StreamCalls.Count == 1;
-        await output.WriteAsync(Encoding.UTF8.GetBytes(StreamCalls.Count == 1 && FirstStreamData is not null ? FirstStreamData : fail ? "partial-gpu" : "complete-cpu"), ct);
+        await output.WriteAsync(Encoding.UTF8.GetBytes(StreamCalls.Count == 1 && FirstStreamData is not null ? FirstStreamData : fail ? "partial-gpu" : LaterStreamData), ct);
         return new(fail ? 1 : 0, "", fail ? "fake decoder failed" : "");
     }
 }

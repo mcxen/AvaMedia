@@ -49,18 +49,18 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     {
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, OwnedModelProcess.Lifetime);
         ct = lifetime.Token;
-        var preferGpu = ComputeSettings.CurrentPreference != ComputePreference.ForceCpu;
+        var preference = ComputeSettings.CurrentPreference;
+        var preferGpu = preference != ComputePreference.ForceCpu;
         try
         {
             try { return await StartCoreAsync(store, id, preferGpu, ct, status, preparation).ConfigureAwait(false); }
-            catch (Exception error) when (preferGpu && !ct.IsCancellationRequested
-                && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
+            catch (LocalGpuStartupException error) when (preferGpu && !ct.IsCancellationRequested)
             {
                 ComputeRuntimeFormatter.Log("回退 CPU：llama.cpp GPU 启动失败：" + error.Message, status);
                 var cpu = await StartCoreAsync(store, id, false, ct, status, preparation).ConfigureAwait(false);
                 cpu.FallbackReason = error.Message;
                 if (cpu._computeOutcome is { } outcome)
-                    cpu._computeOutcome = outcome with { FallbackChain = [new(OperatingSystem.IsMacOS() ? ComputeBackend.Metal : ComputeBackend.Vulkan, error.Message)] };
+                    cpu._computeOutcome = outcome with { Requested = outcome.Requested with { Preference = preference }, FallbackChain = [new(OperatingSystem.IsMacOS() ? ComputeBackend.Metal : ComputeBackend.Vulkan, error.Message)] };
                 if (cpu._computeOutcome is { } updated) ComputeJobContext.Report(updated);
                 return cpu;
             }
@@ -153,14 +153,15 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         }
         catch (Exception error)
         {
-            if (gpu && !ct.IsCancellationRequested && computeRoute is { Chosen: not ComputeBackend.Cpu })
-                computeRoute.ReportFailure(computeRoute.Chosen, "llama.cpp 启动失败：" + error.Message);
+            var failedGpu = gpu && !ct.IsCancellationRequested && computeRoute is { Chosen: not ComputeBackend.Cpu };
+            if (failedGpu) computeRoute!.ReportFailure(computeRoute.Chosen, "llama.cpp 启动失败：" + error.Message);
             if (backend is not null) await backend.DisposeAsync().ConfigureAwait(false);
             else
             {
                 try { if (owner is not null) await owner.DisposeAsync().ConfigureAwait(false); }
                 finally { client?.Dispose(); model?.Dispose(); runtime?.Dispose(); }
             }
+            if (failedGpu) throw new LocalGpuStartupException(error.Message, error);
             throw;
         }
     }
@@ -233,6 +234,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
         { Trace.TraceInformation("Model process priority: {0}", error.Message); }
     }
+    private sealed class LocalGpuStartupException(string message, Exception inner) : InvalidOperationException(message, inner);
     private sealed class LocalBackendException(string message) : InvalidOperationException(message);
 
     private async Task<JsonDocument> SendCoreAsync(Dictionary<string, object> request, CancellationToken ct)

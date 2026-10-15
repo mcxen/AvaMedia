@@ -47,15 +47,17 @@ public static class FrameDecodeArguments
         try { result = await runner.RunToStreamAsync(executable, Apply(args, backend, stream, pixels), output, ct).ConfigureAwait(false); }
         catch (Exception e) when (backend != ComputeBackend.Cpu && !ct.IsCancellationRequested && e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         { result = new(-1, "", e.Message); }
-        if (result.ExitCode == 0 && (output.Length == 0 || frameBytes > 0 && (output.Length % frameBytes != 0 || output.Length < (long)frameBytes * minimumFrames)))
-            result = new(-1, "", "硬件解码输出为空或帧数据不完整。");
+        ProcessResult Validate(ProcessResult value) => value.ExitCode == 0 && (output.Length == 0 || frameBytes > 0 &&
+            (output.Length % frameBytes != 0 || output.Length < (long)frameBytes * minimumFrames))
+            ? new(-1, "", "解码输出为空或帧数据不完整。") : value;
+        result = Validate(result);
         if (result.ExitCode != 0 && backend != ComputeBackend.Cpu)
         {
             route.ReportFailure(backend, "硬件解码失败，整段使用软件重跑：" + result.Error);
             // Software retry is deliberate: filters may be incompatible with all hardware download paths.
             while (route.Chosen != ComputeBackend.Cpu) route.ReportFailure(route.Chosen, "本段选择软件解码重跑。", persist: false);
             output.Position = 0; output.SetLength(0);
-            result = await runner.RunToStreamAsync(executable, args, output, ct).ConfigureAwait(false);
+            result = Validate(await runner.RunToStreamAsync(executable, args, output, ct).ConfigureAwait(false));
         }
         if (result.ExitCode == 0) route.ReportSuccess();
         return result;
