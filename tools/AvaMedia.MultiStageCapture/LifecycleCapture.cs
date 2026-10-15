@@ -97,7 +97,7 @@ internal static class LifecycleCapture
     private static async Task<Window> PersonAsync(string state, string source, MediaInfo info, byte[] frame, IMediaEngine engine, string folder)
     {
         var job = new Job { FeatureId = "person-clip", Inputs = [source], Output = Path.Combine(folder, "保留片段 · 截图夹具.mp4"),
-            Options = new() { Format = "mp4", PersonClip = new() { Detection = new(DetectorIds: [ModelCatalog.NanoDetId]) } },
+            Options = new() { Format = "mp4", PersonClip = new() { ExportPreset = QuickClipBatch.DefaultPreset, Detection = new(DetectorIds: [ModelCatalog.NanoDetId]) } },
             State = state == "process" ? JobState.Running : state == "done" ? JobState.Completed : JobState.AwaitingUser };
         var design = new DesignPersonClipTask(state == "process" ? DesignPersonClipTask.Scenario.Running : DesignPersonClipTask.Scenario.Completed, source, info, frame, folder);
         var segments = design.View.Segments.Select(segment => new ConversionOptions { Start = segment.Start, End = segment.End }).ToArray();
@@ -160,8 +160,12 @@ internal static class LifecycleCapture
         public string FeatureId => design.FeatureId;
         public IReadOnlyList<TaskStageDescriptor> Stages => design.Stages;
         public PersonClipTaskView View => design.View with { OutputPath = job.Output, OutputExists = job.State == JobState.Completed, OutputBytes = File.Exists(job.Output) ? new FileInfo(job.Output).Length : null };
-        public MultiStageTaskSnapshot Snapshot => design.Snapshot with { State = job.State switch { JobState.AwaitingUser => MultiStageTaskState.AwaitingUser, JobState.Completed => MultiStageTaskState.Completed, _ => MultiStageTaskState.Running },
-            Commands = new() { CanStop = job.State != JobState.Completed, CanRerun = job.State == JobState.Completed } };
+        public MultiStageTaskSnapshot Snapshot => design.Snapshot with { // Overall lifecycle state comes from the job, not the completed analysis fixture.
+            State = job.State switch { JobState.AwaitingUser => MultiStageTaskState.AwaitingUser, JobState.Completed => MultiStageTaskState.Completed, _ => MultiStageTaskState.Running },
+            Progress = job.State == JobState.AwaitingUser ? 0 : design.Snapshot.Progress,
+            IsClockRunning = job.State == JobState.Running,
+            CompletedUtc = job.State == JobState.Completed ? design.Snapshot.CompletedUtc : null,
+            Commands = new() { CanStop = job.State is JobState.Running or JobState.AwaitingUser, CanRerun = job.State == JobState.Completed } };
         public event EventHandler? Changed { add { } remove { } }
         public Task<IReadOnlyList<TaskLogEntry>> ReadLogAsync(CancellationToken ct = default) => design.ReadLogAsync(ct);
         public Task StartAsync() => Task.CompletedTask;

@@ -137,15 +137,15 @@ internal sealed class MsStatGrid : Border
 {
     private readonly TextBlock[] _labels = Enumerable.Range(0, 4).Select(_ => new TextBlock { Classes = { "ms-small" } }).ToArray();
     private readonly TextBlock[] _values = Enumerable.Range(0, 4).Select(_ => new TextBlock { Classes = { "ms-stat" }, TextTrimming = TextTrimming.CharacterEllipsis }).ToArray();
-    public MsStatGrid(bool compact = false)
+    public MsStatGrid(bool compact = false, bool horizontal = false)
     {
         Classes.Add("ms-card"); ClipToBounds = true;
-        var grid = new Grid { ColumnDefinitions = new("*,*"), RowDefinitions = new("Auto,Auto") };
+        var grid = new Grid { ColumnDefinitions = new(horizontal ? "*,*,*,*" : "*,*"), RowDefinitions = new(horizontal ? "Auto" : "Auto,Auto") };
         for (var i = 0; i < 4; i++)
         {
-            var cell = new Border { Classes = { "ms-row-line" }, Padding = new(14, compact ? 5 : 9), BorderThickness = new(i % 2 == 1 ? .5 : 0, i >= 2 ? .5 : 0, 0, 0) };
+            var cell = new Border { Classes = { "ms-row-line" }, Padding = new(14, compact ? 5 : 9), BorderThickness = new((horizontal ? i > 0 : i % 2 == 1) ? .5 : 0, !horizontal && i >= 2 ? .5 : 0, 0, 0) };
             var stack = new StackPanel { Spacing = 1 }; stack.Children.Add(_labels[i]); stack.Children.Add(_values[i]);
-            cell.Child = stack; Grid.SetRow(cell, i / 2); Grid.SetColumn(cell, i % 2); grid.Children.Add(cell);
+            cell.Child = stack; Grid.SetRow(cell, horizontal ? 0 : i / 2); Grid.SetColumn(cell, horizontal ? i : i % 2); grid.Children.Add(cell);
         }
         Child = grid;
     }
@@ -166,17 +166,17 @@ internal sealed class MsSettingsGroup : Border
 {
     private readonly StackPanel _rows = new();
     public MsSettingsGroup() { Classes.Add("ms-group"); Child = _rows; }
-    public void Update(IReadOnlyList<(string Label, string Value, string Unit)> rows)
+    public void Update(IReadOnlyList<(string Label, string Value, string Unit)> rows, double rowHeight = 30)
     {
-        var key = string.Join("|", rows.Select(row => row.Label + row.Value + row.Unit));
+        var key = rowHeight + ":" + string.Join("|", rows.Select(row => row.Label + row.Value + row.Unit));
         if (Tag as string == key) return;
         Tag = key; _rows.Children.Clear();
         for (var i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
-            var grid = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12, MinHeight = 30, Margin = new(14, 0) };
+            var grid = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 12, MinHeight = rowHeight, Margin = new(14, 0) };
             grid.Children.Add(new TextBlock { Classes = { "ms-body" }, Text = Localization.Text(row.Label), VerticalAlignment = VerticalAlignment.Center });
-            var text = new TextBlock { Classes = { "ms-caption" }, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Right, TextTrimming = TextTrimming.CharacterEllipsis };
+            var text = new TextBlock { Classes = { "ms-caption" }, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
             text.Inlines = [new Run(row.Value.Length > 0 ? Localization.Text(row.Value) : "—") { FontWeight = FontWeight.Medium, [!TextElement.ForegroundProperty] = new DynamicResourceExtension("UiText") }];
             if (row.Unit.Length > 0) text.Inlines.Add(new Run(Localization.Text(row.Unit)));
             ToolTip.SetTip(text, row.Value);
@@ -244,9 +244,9 @@ internal sealed class MsPreviewCard : Border, IDisposable
     private readonly Grid _frame = new();
     private string _key = "";
     private bool _disposed;
-    public MsPreviewCard(Control? overlay = null)
+    public MsPreviewCard(Control? overlay = null, bool strip = false)
     {
-        Classes.Add("ms-card"); Classes.Add("ms-section");
+        if (!strip) { Classes.Add("ms-card"); Classes.Add("ms-section"); }
         MsUi.Brush(_frame, Panel.BackgroundProperty, "AcPreviewFill");
         _rotated.Child = _image;
         _frame.Children.Add(_rotated); _frame.Children.Add(_placeholder);
@@ -258,8 +258,13 @@ internal sealed class MsPreviewCard : Border, IDisposable
         var stack = new StackPanel(); stack.Children.Add(_surface);
         stack.SizeChanged += (_, e) => { if (e.NewSize.Width > 0) _surface.Height = Math.Round(e.NewSize.Width * (FollowSourceAspect && _image.Source is { } source ? source.Size.Height / source.Size.Width : 9d / 16)); };
         _captionRight.HorizontalAlignment = HorizontalAlignment.Right;
-        var caption = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8, Margin = new(0, 10, 0, 0) };
+        var caption = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = strip ? 4 : 8, Margin = new(0, strip ? 5 : 10, 0, 0) };
         caption.Children.Add(_caption); Grid.SetColumn(_captionRight, 1); caption.Children.Add(_captionRight);
+        if (strip)
+        {
+            _caption.Classes.Clear(); _caption.Classes.Add("ms-small");
+            _captionRight.Classes.Clear(); _captionRight.Classes.Add("ms-small");
+        }
         stack.Children.Add(caption); Child = stack;
     }
     public bool Dimmed { set => _dim.IsVisible = value; }

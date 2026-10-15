@@ -234,10 +234,8 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
             MultiStageTaskState.Completed => ("completed", "已完成"),
             _ => ("waiting", "已取消")
         };
-        if (Lifecycle?.PageState == PageState.AwaitingUser && snapshot.State is not (MultiStageTaskState.Cancelled or MultiStageTaskState.Failed))
-            (pill, pillText) = ("running", "等待你操作");
         _shell.SetStatus(pill, Localization.Text(pillText));
-        _shell.ProgressText = snapshot.State is MultiStageTaskState.Configuring or MultiStageTaskState.Completed ? ""
+        _shell.ProgressText = snapshot.State is MultiStageTaskState.Configuring or MultiStageTaskState.Completed or MultiStageTaskState.AwaitingUser ? ""
             : string.Create(CultureInfo.InvariantCulture, $"{Math.Floor(Math.Clamp(snapshot.Progress, 0, 100)):0}%");
         RefreshStages(snapshot);
         var runtime = snapshot.Runtime;
@@ -336,7 +334,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         var commands = snapshot.Commands; var state = snapshot.State;
         _pause.IsVisible = state == MultiStageTaskState.Running && commands.CanPause;
         _resume.IsVisible = state == MultiStageTaskState.Paused && commands.CanResume;
-        _stop.IsVisible = (state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping || Lifecycle?.PageState == PageState.AwaitingUser) && (commands.CanStop || state == MultiStageTaskState.Stopping);
+        _stop.IsVisible = (state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping or MultiStageTaskState.AwaitingUser) && (commands.CanStop || state == MultiStageTaskState.Stopping);
         _stop.IsEnabled = commands.CanStop && !_busy;
         var retryStage = snapshot.Stages.FirstOrDefault(stage => stage.Stage.Id == commands.RetryStageId)?.Stage.Title ?? "";
         _retry.IsVisible = state == MultiStageTaskState.Failed && retryStage.Length > 0;
