@@ -17,6 +17,7 @@ internal sealed partial class PersonClipLifecycleWindow : MultiStageTaskWindow
     private readonly IMediaEngine _engine;
     private readonly Func<Task> _save, _run;
     private readonly TaskPageViewModel _adjustPage, _mergePage;
+    private readonly PersonClipStageContent? _processingContent;
     private readonly Grid _adjustSlot = new();
     private PersonClipAdjustWindow? _editor;
     private Control? _editorView;
@@ -27,6 +28,7 @@ internal sealed partial class PersonClipLifecycleWindow : MultiStageTaskWindow
         string folder, Func<Task> save, Func<Task> run) : base(task, content, "保留有人片段", engine)
     {
         _job = job; _engine = engine; _folder = folder; _save = save; _run = run;
+        _processingContent = content as PersonClipStageContent;
         _pages = new(job, PersonClipLifecycle.Pages);
         _adjustPage = new("adjust", () => { _ = LoadEditorAsync(); return _adjustSlot; });
         _mergePage = new("merge", BuildMerge);
@@ -77,6 +79,7 @@ internal sealed partial class PersonClipLifecycleWindow : MultiStageTaskWindow
     private void UpdatePages()
     {
         if (_disposed) return;
+        _processingContent?.SetProcessingCompleted(_pages.Pages[0].State == PageState.Completed);
         var adjust = _pages.Pages[1]; var merge = _pages.Pages[2];
         if (_pages.Pages[0].State != PageState.Completed && _editor is not null)
         {

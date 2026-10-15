@@ -112,7 +112,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         ProcessingPage = new("process", () => _shell.ProcessingContent) { LeadingContent = _pageOutput, AdditionalActions = actions };
         _resultView = new TaskResultView(engine);
         ResultPage = new("done", () => _resultView) { SecondaryAction = new("关闭", () => { Close(); return Task.CompletedTask; }) };
-        ViewedPageChanged += (_, _) => RefreshResult();
+        ViewedPageChanged += (_, _) => { RefreshResult(); if (_snapshot is { } snapshot) RefreshHeader(snapshot); };
         SetLifecycle(new ProcessingTaskPages(task), [ProcessingPage, ResultPage]);
 
         task.Changed += TaskChanged;
@@ -223,20 +223,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         _shell.SourceDetail = Localization.Join(" · ", new[] { _inputSize, content.SourceDetail }.Where(text => text.Length > 0));
         RefreshOutputChips(snapshot);
         RefreshResult();
-        var (pill, pillText) = snapshot.State switch
-        {
-            MultiStageTaskState.Configuring => ("waiting", "待开始"),
-            MultiStageTaskState.AwaitingUser => ("running", "等待你操作"),
-            MultiStageTaskState.Running => ("running", "进行中"),
-            MultiStageTaskState.Paused => ("paused", "已暂停"),
-            MultiStageTaskState.Stopping => ("running", "正在停止"),
-            MultiStageTaskState.Failed => ("failed", "失败"),
-            MultiStageTaskState.Completed => ("completed", "已完成"),
-            _ => ("waiting", "已取消")
-        };
-        _shell.SetStatus(pill, Localization.Text(pillText));
-        _shell.ProgressText = snapshot.State is MultiStageTaskState.Configuring or MultiStageTaskState.Completed or MultiStageTaskState.AwaitingUser ? ""
-            : string.Create(CultureInfo.InvariantCulture, $"{Math.Floor(Math.Clamp(snapshot.Progress, 0, 100)):0}%");
+        RefreshHeader(snapshot);
         RefreshStages(snapshot);
         var runtime = snapshot.Runtime;
         _runtimeValue.Text = Localization.Join(" · ", new[] { runtime.Model, runtime.Backend }.Where(s => s.Length > 0));
@@ -259,6 +246,27 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         RefreshActions(content);
         ContentRefreshed?.Invoke(this, EventArgs.Empty);
         RefreshPageActions();
+    }
+
+    private void RefreshHeader(MultiStageTaskSnapshot snapshot)
+    {
+        var processingCompleted = ViewedPageId == "process"
+            && Lifecycle?.Pages.FirstOrDefault(page => page.Page.Id == "process")?.State == PageState.Completed;
+        var state = processingCompleted ? MultiStageTaskState.Completed : snapshot.State;
+        var (pill, pillText) = state switch
+        {
+            MultiStageTaskState.Configuring => ("waiting", "待开始"),
+            MultiStageTaskState.AwaitingUser => ("running", "等待你操作"),
+            MultiStageTaskState.Running => ("running", "进行中"),
+            MultiStageTaskState.Paused => ("paused", "已暂停"),
+            MultiStageTaskState.Stopping => ("running", "正在停止"),
+            MultiStageTaskState.Failed => ("failed", "失败"),
+            MultiStageTaskState.Completed => ("completed", "已完成"),
+            _ => ("waiting", "已取消")
+        };
+        _shell.SetStatus(pill, Localization.Text(pillText));
+        _shell.ProgressText = state is MultiStageTaskState.Configuring or MultiStageTaskState.Completed or MultiStageTaskState.AwaitingUser ? ""
+            : string.Create(CultureInfo.InvariantCulture, $"{Math.Floor(Math.Clamp(snapshot.Progress, 0, 100)):0}%");
     }
 
     private void RefreshStages(MultiStageTaskSnapshot snapshot)

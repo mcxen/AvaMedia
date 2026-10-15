@@ -4254,5 +4254,13 @@
   "1 秒": "1 second",
   "缩小": "Zoom out",
   "放大": "Zoom in",
-  "不确定": "Uncertain"
+  "不确定": "Uncertain",
+  "上一帧": "Previous frame",
+  "下一帧": "Next frame",
+  "检测画面": "Detection frame",
+  "此任务未保存检测画面": "No detection frames were saved for this task",
+  "检测画面不可用": "Detection frame unavailable",
+  "得分 {0}": "Score {0}",
+  "边界画面": "Boundary frame",
+  "复用得分": "Reused score"
 }
