@@ -111,6 +111,8 @@ internal sealed class MultiStageTaskWindow : Window
         var panel = new StackPanel { Spacing = 2 };
         var title = new TextBlock { Text = Localization.Text("运行环境"), Classes = { "ms-small" } };
         _runtimeValue.Classes.Add("ms-body"); _runtimeValue.FontSize = 12; _runtimeValue.FontWeight = FontWeight.Medium;
+        // Real runtimes can be long ("Whisper Base · Whisper: GPU 优先 · CUDA …"); wrap to two lines in the narrow stage column.
+        _runtimeValue.TextWrapping = TextWrapping.Wrap; _runtimeValue.MaxLines = 2; _runtimeValue.TextTrimming = TextTrimming.CharacterEllipsis;
         _runtimeNote.Classes.Add("ms-small");
         panel.Children.Add(title); panel.Children.Add(_runtimeValue); panel.Children.Add(_runtimeNote);
         return panel;
@@ -168,7 +170,7 @@ internal sealed class MultiStageTaskWindow : Window
         RefreshStages(snapshot);
         var runtime = snapshot.Runtime;
         _runtimeValue.Text = Localization.Join(" · ", new[] { runtime.Model, runtime.Backend }.Where(s => s.Length > 0));
-        _runtimeValue.IsVisible = _runtimeValue.Text.Length > 0;
+        _runtimeValue.IsVisible = _runtimeValue.Text.Length > 0; ToolTip.SetTip(_runtimeValue, _runtimeValue.IsVisible ? _runtimeValue.Text : null);
         _runtimeNote.Text = runtime.Note.Length > 0 ? Localization.Text(runtime.Note)
             : snapshot.State == MultiStageTaskState.Configuring && runtime.Backend.Length == 0 ? Localization.Text("开始后显示实际推理后端") : "";
         _runtimeNote.IsVisible = _runtimeNote.Text.Length > 0;
