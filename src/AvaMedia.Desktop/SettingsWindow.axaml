@@ -789,23 +789,27 @@
                   </Border>
                   <Border x:Name="UpdateStatusCard" Classes="ac-setting-row settingsRow">
                     <StackPanel Spacing="{DynamicResource StControlGap}">
-                      <TextBlock x:Name="UpdateStatusTitle" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                      <TextBlock x:Name="UpdateMetadataText" Classes="settingsDescription" TextWrapping="Wrap"/>
-                      <SelectableTextBlock x:Name="UpdateStatusMessage" TextWrapping="Wrap"/>
+                      <TextBlock x:Name="UpdateStatusTitle" FontWeight="SemiBold" Height="{DynamicResource StUpdateLineHeight}"/>
+                      <TextBlock x:Name="UpdateMetadataText" Classes="settingsDescription" Height="{DynamicResource StUpdateLineHeight}"/>
+                      <ScrollViewer Height="{DynamicResource StUpdateMessageHeight}" HorizontalScrollBarVisibility="Disabled">
+                        <SelectableTextBlock x:Name="UpdateStatusMessage" TextWrapping="Wrap" Padding="{DynamicResource StUpdateNotesPadding}"/>
+                      </ScrollViewer>
                       <ProgressBar x:Name="UpdateProgressBar" Minimum="0" Maximum="100" Classes="ac"
-                                   Foreground="{DynamicResource UiAccent}" Background="{DynamicResource UiTrack}" IsVisible="False"/>
-                      <TextBlock x:Name="LastUpdateCheckText" Classes="settingsDescription" TextWrapping="Wrap"/>
-                      <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                   Height="{DynamicResource StModelProgressHeight}" Foreground="{DynamicResource UiAccent}" Background="{DynamicResource UiTrack}" Opacity="0"/>
+                      <TextBlock x:Name="LastUpdateCheckText" Classes="settingsDescription" Height="{DynamicResource StUpdateLineHeight}"/>
+                      <Grid Classes="updateActions" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
                         <Button x:Name="CheckUpdatesButton" Content="立即检查" Click="CheckUpdatesClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}"/>
-                        <Button x:Name="UpdateReleaseButton" Content="打开发布页" Click="UpdateReleaseClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
-                        <Button x:Name="UpdateLogButton" Content="查看日志" Click="UpdateLogClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
-                        <Button x:Name="UpdatePrimaryButton" Click="UpdatePrimaryClick" Classes="ac small primary" Margin="{DynamicResource StUpdateActionMargin}" IsVisible="False"/>
-                      </WrapPanel>
-                      <Expander x:Name="UpdateReleaseNotes" Header="更新说明" Classes="ac" IsExpanded="True" IsVisible="False">
-                        <ScrollViewer MaxHeight="{DynamicResource StUpdateNotesHeight}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <Button x:Name="UpdateReleaseButton" Grid.Column="1" Content="打开发布页" Click="UpdateReleaseClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" Opacity="0" IsEnabled="False"/>
+                        <Button x:Name="UpdateLogButton" Grid.Row="1" Content="查看日志" Click="UpdateLogClick" Classes="ac small" Margin="{DynamicResource StUpdateActionMargin}" Opacity="0" IsEnabled="False"/>
+                        <Button x:Name="UpdatePrimaryButton" Grid.Row="1" Grid.Column="1" Content="下载更新" Click="UpdatePrimaryClick" Classes="ac small primary" Margin="{DynamicResource StUpdateActionMargin}" Opacity="0" IsEnabled="False"/>
+                      </Grid>
+                      <Border Height="{DynamicResource StUpdateNotesSlotHeight}">
+                      <Expander x:Name="UpdateReleaseNotes" Header="更新说明" Classes="ac" IsExpanded="True" Opacity="0" IsEnabled="False" VerticalAlignment="Top">
+                        <ScrollViewer Height="{DynamicResource StUpdateNotesHeight}" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                           <ContentControl x:Name="UpdateReleaseNotesContent" Classes="release-notes" Padding="{DynamicResource StUpdateNotesPadding}" HorizontalContentAlignment="Stretch"/>
                         </ScrollViewer>
                       </Expander>
+                      </Border>
                     </StackPanel>
                   </Border>
                 </StackPanel>

@@ -51,24 +51,24 @@ public sealed partial class SettingsWindow
         UpdateMetadataText.Text = version is not null && size > 0
             ? Localization.Format($"版本 {version} · {size / 1048576d:0.0} MB")
             : Localization.Format($"当前版本 {AppIdentity.Version}。");
-        UpdateProgressBar.IsVisible = status.Busy;
+        UpdateProgressBar.Opacity = status.Busy ? 1 : 0;
         UpdateProgressBar.IsIndeterminate = status.Busy && status.Percent is null;
         UpdateProgressBar.Value = status.Percent ?? 0;
-        UpdatePrimaryButton.IsVisible = status.Action is not null;
-        UpdatePrimaryButton.Content = status.Action is null ? "" : Localization.Text(status.Action);
+        SetUpdateSlotActive(UpdatePrimaryButton, status.Action is not null);
+        UpdatePrimaryButton.Content = Localization.Text(status.Action ?? "下载更新");
         UpdatePrimaryButton.Classes.Set("primary", status.Action != "停止下载");
-        UpdatePrimaryButton.IsEnabled = !_updateActionBusy && (status.Action switch
+        UpdatePrimaryButton.IsEnabled = status.Action is not null && !_updateActionBusy && (status.Action switch
         {
             "重启并更新" => updater.CanRestart,
             "停止下载" => updater.CanCancelDownload,
             _ => !updater.IsDownloading
         });
         CheckUpdatesButton.IsEnabled = !_updateActionBusy && !updater.CheckState.Checking && !updater.IsDownloading;
-        UpdateReleaseButton.IsVisible = updater.ReleasePage is not null;
-        UpdateLogButton.IsVisible = updater.HasLog && (status.Error || File.Exists(updater.LogPath));
+        SetUpdateSlotActive(UpdateReleaseButton, updater.ReleasePage is not null);
+        SetUpdateSlotActive(UpdateLogButton, updater.HasLog && (status.Error || File.Exists(updater.LogPath)));
         var notes = updater.LatestResult?.ReleaseNotes;
         if (updater.IsPrepared && updater.LatestResult?.LatestVersion?.ToString(3) != updater.PreparedVersion) notes = null;
-        UpdateReleaseNotes.IsVisible = !string.IsNullOrWhiteSpace(notes);
+        SetUpdateSlotActive(UpdateReleaseNotes, !string.IsNullOrWhiteSpace(notes));
         if (_renderedReleaseNotes != notes)
         {
             _renderedReleaseNotes = notes;
@@ -81,6 +81,15 @@ public sealed partial class SettingsWindow
             }
         }
         RefreshLastUpdateCheck();
+    }
+
+    // Transparent slots retain their measured size, but unavailable actions must
+    // not respond to pointer input, keyboard navigation, or accessibility actions.
+    private static void SetUpdateSlotActive(Control control, bool active)
+    {
+        control.Opacity = active ? 1 : 0;
+        control.IsHitTestVisible = active;
+        control.IsEnabled = active;
     }
 
     private async void UpdatePrimaryClick(object? sender, RoutedEventArgs args)

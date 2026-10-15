@@ -60,6 +60,10 @@
     <x:Double x:Key="StEndpointWidth">250</x:Double>
     <x:Double x:Key="StModelProgressHeight">4</x:Double>
     <x:Double x:Key="StUpdateNotesHeight">200</x:Double>
+    <x:Double x:Key="StUpdateLineHeight">20</x:Double>
+    <x:Double x:Key="StUpdateMessageHeight">72</x:Double>
+    <x:Double x:Key="StUpdateNotesSlotHeight">240</x:Double>
+    <x:Double x:Key="StUpdateActionMinWidth">160</x:Double>
     <x:Double x:Key="StUpdateNotesLineHeight">20</x:Double>
     <Thickness x:Key="StUpdateNotesPadding">0,8,8,4</Thickness>
     <Thickness x:Key="StUpdateNotesInsetPadding">8,6</Thickness>
@@ -142,6 +146,7 @@
   <Style Selector="Window.windows-xp.settings Border.ac-group"><Setter Property="CornerRadius" Value="3"/></Style>
   <Style Selector="Window.settings ListBox.ac-segmented ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
   <Style Selector="Window.settings TextBlock#UpdateStatusTitle.error"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
+  <Style Selector="Window.settings Grid.updateActions > Button"><Setter Property="MinWidth" Value="{DynamicResource StUpdateActionMinWidth}"/></Style>
   <Style Selector="Window.settings .release-notes SelectableTextBlock.summary-prose">
     <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/><Setter Property="FontSize" Value="{DynamicResource UiFontBody}"/>
     <Setter Property="LineHeight" Value="{DynamicResource StUpdateNotesLineHeight}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/>
