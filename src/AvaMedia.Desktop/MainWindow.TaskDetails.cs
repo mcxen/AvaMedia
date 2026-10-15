@@ -12,8 +12,8 @@ public partial class MainWindow
     internal Task ShowTaskDetailsAsync(Job job, bool showLog = false)
     {
         if (!CanViewTaskDetails(job)) return Task.CompletedTask;
-        // 保留有人片段 keeps one multi-stage window for every state, including finished, failed and cancelled runs.
-        if (job.FeatureId == "person-clip" && job.Inputs.Length == 1 && job.Options.PersonClip is not null && CanViewAiTask(job)) return ShowAiTaskAsync(job);
+        // Multi-stage tools keep one window for every state, including finished, failed and cancelled runs.
+        if (UsesMultiStageWindow(job) && CanViewAiTask(job)) return ShowAiTaskAsync(job);
         if (_taskDetailsWindows.TryGetValue(job.Id, out var existing))
         {
             Controls.WindowChrome.Present(existing);

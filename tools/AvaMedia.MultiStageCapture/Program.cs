@@ -17,7 +17,9 @@ internal static class Program
     {
         if (args.Length >= 3 && args[0] == "seed") return Seed(args[1], args[2..]);
         if (args.Length >= 3 && args[0] == "real") return Real(args[1..]);
-        if (args.Length < 2) { Console.Error.WriteLine("Usage: AvaMedia.MultiStageCapture <output> <video> [Dark|Light] [state...] | seed <output-folder> <video...>"); return 2; }
+        if (args.Length >= 3 && args[0] == "tools") return Tools(args[1..]);
+        if (args.Length >= 4 && args[0] == "real-tool") return RealTool(args[1], Path.GetFullPath(args[2]), Path.GetFullPath(args[3]));
+        if (args.Length < 2) { Console.Error.WriteLine("Usage: AvaMedia.MultiStageCapture <output> <video> [Dark|Light] [state...] | seed <output-folder> <video...> | tools <output> <video> [Dark|Light] [tool...] | real-tool <rotate|auto-subtitle> <output> <video>"); return 2; }
         var output = Path.GetFullPath(args[0]); Directory.CreateDirectory(output);
         AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace().SetupWithoutStarting();
         Localization.Apply("zh-CN");
@@ -157,6 +159,112 @@ internal static class Program
         public Task RerunAsync(Job job, string? fromStageId) => throw new NotSupportedException("Capture host does not re-run tasks.");
         public bool CanChangeOutput(Job job) => job.State == JobState.Waiting;
         public Task ChangeOutputFolderAsync(Job job, string folder) => Task.CompletedTask;
+    }
+
+    // Design fixtures for the other multi-stage tools: tool ∈ orientation, subtitle, summary, tagging, classification.
+    private static int Tools(string[] args)
+    {
+        var output = Path.GetFullPath(args[0]); Directory.CreateDirectory(output);
+        var theme = args.ElementAtOrDefault(2) ?? "Dark";
+        string[] all = ["orientation", "subtitle", "summary", "tagging", "classification"];
+        var tools = args.Length > 3 ? args[3..] : all;
+        AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace().SetupWithoutStarting();
+        Localization.Apply("zh-CN"); Skin.Apply(theme);
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try { await ToolsAsync(output, Path.GetFullPath(args[1]), theme.ToLowerInvariant(), tools); }
+            catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; }
+            finally { Lifetime.Cancel(); }
+        });
+        Dispatcher.UIThread.MainLoop(Lifetime.Token); return Environment.ExitCode;
+    }
+
+    private static async Task ToolsAsync(string output, string video, string theme, string[] tools)
+    {
+        var ffmpeg = Environment.GetEnvironmentVariable("AVAMEDIA_CAPTURE_FFMPEG") ?? "";
+        var engine = new MediaEngine(new AppSettings { Language = "zh-CN", CheckForUpdates = false, AutoUpdate = false, FFmpegPath = ffmpeg });
+        var info = await engine.Probe(video, CancellationToken.None);
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var folder = Path.Combine(home, "Movies", "AvaMedia");
+        // Sideways frames (transposed counter-clockwise) so the 顺时针旋转 90° decision and corrected preview read correctly.
+        var sideways = new List<byte[]>();
+        if (tools.Contains("orientation"))
+            for (var i = 0; i < 6; i++)
+            {
+                var file = Path.Combine(output, $".orientation-frame-{i}.png");
+                await CommandAsync(ffmpeg.Length > 0 ? ffmpeg : "ffmpeg", "-y", "-loglevel", "error", "-ss", (info.Duration * (i + .5) / 6).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+                    "-i", video, "-frames:v", "1", "-vf", "scale=320:-2,transpose=2", file);
+                sideways.Add(await File.ReadAllBytesAsync(file)); File.Delete(file);
+            }
+        var still = await engine.Thumbnail(video, info.Duration * .3, 640, 360, CancellationToken.None, pad: false);
+        var photos = Path.Combine(home, "Pictures", "旅行 2026-09");
+        foreach (var tool in tools)
+            foreach (var state in Enum.GetValues<DesignStage>())
+            {
+                (IMultiStageTask task, IMultiStageToolContent content, string label) = tool switch
+                {
+                    "orientation" => Create(new DesignOrientationTask(state, video, info, sideways, Path.Combine(folder, "旋转")), t => new OrientationStageContent(t, engine, new(() => Task.CompletedTask)), "自动旋转"),
+                    "subtitle" => Create(new DesignSubtitleTask(state, video, info, Path.Combine(folder, "字幕")), t => new SubtitleStageContent(t, engine, new(() => Task.CompletedTask)), "自动字幕"),
+                    "summary" => Create(new DesignVideoSummaryTask(state, video, info, Path.Combine(folder, "视频总结")), t => new VideoSummaryStageContent(t, engine, new(() => Task.CompletedTask)), "视频总结"),
+                    "tagging" => Create(new DesignMediaClassificationTask(state, true, photos, still, ""), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动标签分类"),
+                    "classification" => Create(new DesignMediaClassificationTask(state, false, photos, still, Path.Combine(home, "Pictures", "已整理")), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动媒体整理"),
+                    _ => throw new ArgumentException("Unknown tool " + tool)
+                };
+                var window = new MultiStageTaskWindow(task, content, label);
+                await CaptureAsync(window, Path.Combine(output, $"{tool}-{state.ToString().ToLowerInvariant()}-{theme}.png"));
+            }
+        static (IMultiStageTask, IMultiStageToolContent, string) Create<T>(T task, Func<T, IMultiStageToolContent> content, string label) where T : IMultiStageTask => (task, content(task), label);
+    }
+
+    // Real backend for single-file tools: configuring → running → final state, using the real session and QueueService.
+    private static int RealTool(string tool, string output, string video)
+    {
+        Directory.CreateDirectory(output);
+        AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace().SetupWithoutStarting();
+        Localization.Apply("zh-CN"); Skin.Apply("Dark");
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try { await RealToolAsync(tool, output, video); }
+            catch (Exception e) { Console.Error.WriteLine(e); Environment.ExitCode = 1; }
+            finally { Lifetime.Cancel(); }
+        });
+        Dispatcher.UIThread.MainLoop(Lifetime.Token); return Environment.ExitCode;
+    }
+
+    private static async Task RealToolAsync(string tool, string output, string video)
+    {
+        var engine = new MediaEngine(new AppSettings { Language = "zh-CN", CheckForUpdates = false, AutoUpdate = false, FFmpegPath = Environment.GetEnvironmentVariable("AVAMEDIA_CAPTURE_FFMPEG") ?? "" });
+        var results = Path.Combine(output, "real-output"); Directory.CreateDirectory(results);
+        var source = Path.Combine(results, tool + "-source" + Path.GetExtension(video));
+        File.Copy(video, source, true); File.SetLastWriteTimeUtc(source, DateTime.UtcNow);
+        var host = new CaptureHost(new QueueService(engine));
+        IMultiStageTask session; IMultiStageToolContent content; string label;
+        if (tool == "rotate")
+        {
+            var job = new Job { FeatureId = "rotate", Inputs = [source], Options = new() { Format = "json", Orientation = new(SourceVideoExport.Original, results, false, false) } };
+            job.Output = AiTaskResults.InternalOutputFor(job);
+            var task = new OrientationTaskSession(job, host); session = task; content = new OrientationStageContent(task, engine, new(() => Task.CompletedTask)); label = "自动旋转";
+        }
+        else if (tool == "auto-subtitle")
+        {
+            var job = new Job { FeatureId = "auto-subtitle", Inputs = [source], Output = Path.Combine(results, tool + ".srt"),
+                Options = new() { Format = "srt", Transcription = new() { Model = SpeechModel.Base, Language = "zh" } } };
+            var task = new SubtitleTaskSession(job, host); session = task; content = new SubtitleStageContent(task, engine, new(() => Task.CompletedTask)); label = "自动字幕";
+        }
+        else throw new ArgumentException("real-tool supports rotate and auto-subtitle");
+        var window = new MultiStageTaskWindow(session, content, label);
+        window.Show(); window.Activate();
+        await Task.Delay(3000); await Grab(window, Path.Combine(output, $"real-{tool}-configuring-dark.png"));
+        await session.StartAsync();
+        try
+        {
+            await Until(() => session.Snapshot.State == MultiStageTaskState.Running && session.Snapshot.CurrentStageIndex >= 2 || session.Snapshot.State is MultiStageTaskState.Completed or MultiStageTaskState.Failed, 900);
+            if (session.Snapshot.State == MultiStageTaskState.Running) { await Task.Delay(800); await Grab(window, Path.Combine(output, $"real-{tool}-running-dark.png")); }
+        }
+        catch (TimeoutException) { Console.Error.WriteLine("Running state not reached"); }
+        await Until(() => session.Snapshot.State is MultiStageTaskState.Completed or MultiStageTaskState.Failed or MultiStageTaskState.Cancelled, 1800);
+        await Task.Delay(3000); await Grab(window, Path.Combine(output, $"real-{tool}-{session.Snapshot.State.ToString().ToLowerInvariant()}-dark.png"));
+        window.Close(); await host.Finished;
     }
 
     private static async Task RunAsync(string output, string video, string theme, DesignPersonClipTask.Scenario[] states)

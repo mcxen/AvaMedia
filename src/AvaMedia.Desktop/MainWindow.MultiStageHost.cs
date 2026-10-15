@@ -26,12 +26,21 @@ public partial class MainWindow
         public Task RerunAsync(Job job, string? fromStageId) => UiAsync(() =>
         {
             if (!CanRerun(job)) return Task.CompletedTask;
-            if (fromStageId is not null && (job.FeatureId != "person-clip"
-                || fromStageId is not (PersonClipStageIds.Detect or PersonClipStageIds.Refine or PersonClipStageIds.Export)))
+            if (fromStageId is not null && !CanRetryFrom(job, fromStageId))
                 throw new ArgumentException("不支持从该阶段重试。", nameof(fromStageId));
+            // 视频总结 resumes from retained segment checkpoints; the service validates them and otherwise runs every stage.
+            if (job.FeatureId == "video-summary") job.VideoSummaryStartStageId = fromStageId;
             return owner.StartToolWorkflow(() => owner.RestartTasksAsync([job], fromStageId));
         });
-        public bool CanChangeOutput(Job job) => Ui(() => CanStart(job) && !job.HasInternalOutput);
+        private static bool CanRetryFrom(Job job, string stageId) => job.FeatureId switch
+        {
+            "person-clip" => stageId is PersonClipStageIds.Detect or PersonClipStageIds.Refine or PersonClipStageIds.Export,
+            "video-summary" => stageId == VideoSummaryStageIds.UnderstandSegments,
+            _ => false
+        };
+        /// <summary>Results kept in app-managed locations (tags, classification runs, internal drafts) cannot be redirected.</summary>
+        private static bool HasFixedOutput(Job job) => job.HasInternalOutput || job.FeatureId is "media-ai" or "folder-classification";
+        public bool CanChangeOutput(Job job) => Ui(() => CanStart(job) && !HasFixedOutput(job));
         public Task ChangeOutputFolderAsync(Job job, string folder) => UiAsync(() =>
         {
             if (!CanChangeOutput(job)) return Task.CompletedTask;
