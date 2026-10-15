@@ -4173,5 +4173,11 @@
   "已调整": "Adjusted",
   "手动": "Manual",
   "低置信度": "Low confidence",
-  "检测结果": "Detection result"
+  "检测结果": "Detection result",
+  "只播放保留的片段，按输出顺序": "Play only kept segments in output order",
+  "播放 / 暂停": "Play / Pause",
+  "循环播放片段": "Loop current segment",
+  "微调精度": "Adjustment precision",
+  "正在读取视频…": "Loading video…",
+  "在预览上拖动裁剪框，完成后再次点击「裁剪」": "Drag the crop frame in the preview, then click Crop again to finish."
 }

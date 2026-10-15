@@ -147,10 +147,10 @@ internal sealed partial class PersonClipAdjustWindow
         if (!segment.Keep) { range.TextDecorations = TextDecorations.Strikethrough; MsUi.Brush(range, TextBlock.ForegroundProperty, "AcTextTertiary"); }
         text.Children.Add(range);
         var sub = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        if (!segment.Keep) sub.Children.Add(Tag("已移除", "UiFill", "UiTextSecondary"));
-        if (segment.Origin == PersonClipSegmentOrigin.Manual) sub.Children.Add(Tag("手动", "AcWarningFill", "AcWarningText"));
-        else if (segment.Adjusted) sub.Children.Add(Tag("已调整", "AcWarningFill", "AcWarningText"));
-        if (segment.LowConfidence) sub.Children.Add(Tag("低置信度", "UiFill", "UiTextSecondary"));
+        if (!segment.Keep) sub.Children.Add(SegmentTag("已移除", "UiFill", "UiTextSecondary"));
+        if (segment.Origin == PersonClipSegmentOrigin.Manual) sub.Children.Add(SegmentTag("手动", "AcWarningFill", "AcWarningText"));
+        else if (segment.Adjusted) sub.Children.Add(SegmentTag("已调整", "AcWarningFill", "AcWarningText"));
+        if (segment.LowConfidence) sub.Children.Add(SegmentTag("低置信度", "UiFill", "UiTextSecondary"));
         if (segment.Confidence is { } confidence)
         {
             var bar = new ProgressBar { Classes = { "ac" }, Minimum = 0, Maximum = 1, Value = confidence, Width = 30, VerticalAlignment = VerticalAlignment.Center };
@@ -179,7 +179,7 @@ internal sealed partial class PersonClipAdjustWindow
         _rowThumbs.Clear(); _pendingThumbs.Clear();
     }
 
-    private static Border Tag(string text, string background, string foreground)
+    private static Border SegmentTag(string text, string background, string foreground)
     {
         var label = new TextBlock { Text = Localization.Text(text), FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
         MsUi.Brush(label, TextBlock.ForegroundProperty, foreground);

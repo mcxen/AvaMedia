@@ -377,6 +377,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
 
     private async Task ExportAsync()
     {
+        await StopPlaybackAsync();
         ClipEditResult edit;
         try { edit = _session.ToClipEditResult(); }
         catch (ArgumentException error) { Notify(error.Message); return; }
@@ -397,6 +398,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
 
     private async Task RedetectAsync()
     {
+        await StopPlaybackAsync();
         _saveTimer.Stop(); await _saveTask; await SaveAsync();
         if (!_saved) return;
         try { await _host.Redetect(_session.RedetectOptions()); }
