@@ -1,9 +1,9 @@
 using System.Reflection;
 using Xunit;
 
-// dotnet run --project tests/AvaMedia.PersonClipTests: backend editing only, no models/media/UI.
+// dotnet run --project tests/AvaMedia.PersonClipTests -p:PersonClipEditSuite=true: backend editing only, no models/media/UI.
 // dotnet test -p:PersonClipCoreOnly=true retains the project's xUnit entry point.
-// The original media/UI harness is available with -p:PersonClipE2E=true -- core|ui|Balanced|Recall|Consensus.
+// The default media/UI harness accepts -- core|ui|Balanced|Recall|Consensus.
 internal static class BackendProgram
 {
     public static async Task<int> Main()
