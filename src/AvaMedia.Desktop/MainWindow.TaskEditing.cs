@@ -54,6 +54,14 @@ public partial class MainWindow
         original.Output = replacement.Output; original.DownloadTitle = replacement.DownloadTitle;
         original.Duration = replacement.Duration;
         ResetTask(original);
+        original.Lifecycle = null;
+        if (original.FeatureId == "person-clip" && original.Options.PersonClip is not null)
+            using (new TaskLifecycle(original, PersonClipLifecycle.Pages)) { }
+        if (original.FeatureId == "auto-subtitle")
+        {
+            SubtitleLifecycle.PrepareRecognition(original);
+            using (new TaskLifecycle(original, SubtitleLifecycle.Pages)) { }
+        }
         if (paused) original.State = JobState.Paused;
         var index = _jobs.IndexOf(original);
         foreach (var additional in replacements.Skip(1))

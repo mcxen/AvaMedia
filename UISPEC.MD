@@ -969,7 +969,7 @@ var card = new AvaMedia.Controls.Card { Child = content };
 
 ---
 
-### 10.17 多页任务框架（布局依据）
+### 10.17 多页任务框架
 
 - 依据 `/workspace/AvaMedia-sidebar-review/interactive-stages/v2/demo.html` 与深色五张参考图：一个任务使用一个无 Owner 窗口，头部复用 10.16，下面居中放带状态标记的 `SegmentedControl`，整页内容由页 id 对应的 DataTemplate 呈现。
 - 页签使用已有分段尺寸与圆角；页标记使用 `StageGlyph`，等待用户为主题 accent 空心环，不旋转。Pending 灰色序号且禁用；Running 转圈；Completed 绿色勾；Failed 危险色。
@@ -980,6 +980,29 @@ var card = new AvaMedia.Controls.Card { Child = content };
 - 字幕输出方式使用两个主题卡片（导出字幕文件 / 嵌入到视频），选中卡片使用主题 accent 描边；嵌入选项使用现有分段控件（软字幕 / 硬字幕）。完成页使用按媒体比例的输出预览、文件拖出与真实页记录；输出不存在时只显示已有结果说明。
 
 - 主队列将 AwaitingUser 归入“进行中”并稳定排序到组内最前；页阶段条的当前等待段为主题 accent 空心描边，状态为“等待你操作”，行尾“去处理”为小型次按钮，打开同一任务窗口并定位当前等待页。任务行仍只显示一个状态胶囊，不填满整行。
+
+#### 页契约与队列
+
+- 一个 `Job` 对应一个任务窗口和有序页计划。`PageKind.Processing` 执行后台工作，内部继续复用 `IMultiStageTask` / `StageList`；`Interaction` 收集用户提交，也允许在页内执行已确认的后台工作；最后一个 `Result` 页展示输出与处理记录，不再次执行任务。
+- `PageState` 为 Pending / Running / AwaitingUser / Completed / Failed；计划 id 唯一且稳定，Result 必须在末尾。当前 Pending 页在等待队列时允许查看，其余 Pending 页禁用。查看已完成页只改变展示，不改变执行游标。修改交互页通过 `Revise` 回到该页并重置后续页，运行或排队期间禁用修改。
+- `TaskLifecycle` 只管理持久游标、页状态、运行用时和 JSON 提交结果，保存在现有 queue JSON。处理器开始时调用 `StartProcessing`，完成后调用 `CompleteProcessing` 并返回队列；下一页为 Interaction 时队列标为 `JobState.AwaitingUser`，释放执行器与模型租约。等待没有运行计时；重启后等待页及已提交结果原样恢复，中断处理页显示失败并复用队列重试。
+- 普通交互通过 `SubmitInteraction` 提交并进入下一页；下一页为 Processing 时由宿主保存任务并交还同一个队列 Job。需要在当前交互页显示进度（人物合并确认）时用 `QueueInteractionWork` 保存选择、保留当前页，队列执行时仍用 `StartProcessing` / `CompleteProcessing`。处理成功保留该页的提交结果，失败保留错误和前序产出。
+
+#### 操作栏与当前接入
+
+- `TaskPageViewModel` 提供 `PrimaryAction`、`SecondaryAction`、`Hint`，底部 `PageActionBar` 负责唯一主按钮、禁用与异步执行状态。工具正文不重复提交按钮；`AdditionalActions` 仅放打开位置、日志等次操作，原有纯处理工具复用其现有操作。对已完成 Interaction 页显示“修改”，正文只读；关闭窗口不停止后台任务，编辑草稿先保存。
+- 人物流程为“分析处理 / 调整片段 / 合并确认 / 完成”。调整栏为“恢复检测结果 / 下一步：合并确认”；确认栏为“返回调整 / 开始合并”。缩略图按输出顺序每页 8 段，结果只从真实源与编辑会话派生。淡入淡出使用现有片段淡入 / 淡出，会重新编码；无测量依据时不显示预计耗时，直接拷贝的体积只作为比例估计。
+- 字幕流程为“识别处理 / 输出方式 / 生成 / 完成”。选择页为“跳过 / 继续”，“跳过”默认导出 SRT；字幕文件支持 SRT / ASS，视频输出支持 MP4 软字幕或硬字幕。音频源禁用嵌入，变速时使用硬字幕。生成复用已识别字幕，不重复模型推断。
+- 完成页使用 `TaskResultView`，预览按输出媒体实际比例显示，文件名 / 时长 / 大小来自输出文件；文件 chip 可拖出，操作为“关闭 / 在访达中显示（其他系统为在文件夹中显示）/ 打开”。固定位置的标签或报告复用工具结果入口，不制造视频预览。下方逐页展示真实状态、提交说明与计算用时。
+
+#### 新工具接入步骤
+
+1. 在 Core 声明唯一且有序的 `PageDescriptor` 计划；创建 Job 时初始化 `TaskLifecycle`。只有处理与结果的工具直接用 `ProcessingTaskPages`，沿用原有阶段持久化。
+2. 将处理器拆到页边界，使用同一个 Job 在每次运行内开始 / 完成当前处理页；进入等待页后返回，不在执行器里等待 UI。异常写入当前页，重试保留需要复用的阶段产出。
+3. 继承 `MultiStageTaskWindow`（复用处理正文、头部与结果页）或 `TaskLifecycleWindow`；为每个 id 提供一个 `TaskPageViewModel` 和 `CreateView`，由共享 DataTemplate 选择视图。正文只保留工具控件和编辑命令，提交动作交给 PageActionBar。
+4. 提交前校验并保存草稿；调用 `SubmitInteraction` 或 `QueueInteractionWork` 后保存 queue JSON，后台页通过宿主设为 Waiting 并调用现有队列入口。修改用 `Revise`，不创建另一个任务；输出重用现有命名、导出与防覆盖逻辑。
+5. 任务列表仅消费 `JobStageSummary.Pages` / `CurrentPageId` 的展示快照，不携带第二份 JSON 提交结果；“去处理”复用现有窗口并调用 `ShowCurrentPage`。按任务涉及的项目编译，不默认执行截图、功能回归或媒体输出验证。
+6. 需要设计截图时在 `tools/AvaMedia.MultiStageCapture` 增加隔离夹具。`lifecycle` 模式提供 process / adjust / merge / done / subtitle 五种状态，固定深色 zh-CN；示意检测 / 字幕必须标记为截图夹具，输出留在仓库外，临时媒体与状态退出即清理。
 
 ## 11. 远程网页与手机
 

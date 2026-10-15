@@ -15,6 +15,11 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == "lifecycle")
+        {
+            if (args.Length < 2) { Console.Error.WriteLine("Usage: AvaMedia.MultiStageCapture lifecycle <output-directory> [process|adjust|merge|done|subtitle...]"); return 2; }
+            return LifecycleCapture.Run(args[1], args[2..]);
+        }
         if (args.FirstOrDefault() == "adjust")
         {
             if (args.Length is < 2 or > 3)

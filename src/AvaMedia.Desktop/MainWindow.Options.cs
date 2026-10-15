@@ -118,7 +118,7 @@ public partial class MainWindow
             if (preferences.OpenOutputFolderOnComplete)
                 foreach (var folder in completion.OutputFolders) _optionServices.OpenFolder(folder);
             if (preferences.NotifyComplete && !token.IsCancellationRequested) NotifyQueueResults(batch);
-            if (completion.AllSucceeded && preferences.ShutdownOnComplete && !_jobs.Any(j => j.State is JobState.Waiting or JobState.Running or JobState.Paused or JobState.Stopping))
+            if (completion.AllSucceeded && preferences.ShutdownOnComplete && !_jobs.Any(j => j.State is JobState.Waiting or JobState.Running or JobState.Paused or JobState.Stopping or JobState.AwaitingUser))
             {
                 if (await Notifications.ShutdownNotifications.WaitAsync(this, token) && !token.IsCancellationRequested) await _optionServices.ShutdownAsync(token);
                 return;

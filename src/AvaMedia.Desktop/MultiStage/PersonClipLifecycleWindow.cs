@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -40,6 +41,8 @@ internal sealed class PersonClipLifecycleWindow : MultiStageTaskWindow
         _adjustPage = new("adjust", () => { _ = LoadEditorAsync(); return _adjustSlot; });
         _mergePage = new("merge", BuildMerge);
         _format.SelectedItem = job.Options.PersonClip?.ExportPreset ?? SourceOutput.Original;
+        if (_pages.Pages[2].Result?.Deserialize<PersonClipMergeChoice>() is { } choice)
+        { _format.SelectedItem = choice.Preset; _transition.SelectedIndex = choice.Fade ? 1 : 0; }
         _folderButton = MsUi.Action("更改输出位置…", async () =>
         {
             if (await Ui.Folder(this, "输出位置") is { } selected) { _folder = selected; UpdatePages(); }

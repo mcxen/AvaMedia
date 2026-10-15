@@ -57,3 +57,20 @@ done
 ```
 
 工具会进一步使用自己的临时 XDG 目录，并临时覆盖 `AVAMEDIA_STATE_DIRECTORY`；退出时还原环境变量并自动删除测试视频、任务结果、设置和缓存，输出 PNG 留在指定位置。预览、检查器起止帧和当前可见时间线缩略图加载完成后才截图，拖动状态还会等待真实吸附及对应预览帧；等待超过 45 秒会报出未就绪的阶段并失败。评审结束后删除 `/tmp/ava-adjust-review`。本模式只提供截图夹具，不运行功能回归、检测模型或像素对比。与 demo 的插画不同，预览采用 FFmpeg 合成测试画面；系统字体及平台控件尺寸以当前运行环境为准。
+
+
+## 多页任务框架
+
+`lifecycle <输出目录> [process|adjust|merge|done|subtitle ...]` 渲染 T1–T8 的实际窗口与页视图，省略状态生成五张图：`lifecycle-process-dark.png`、`lifecycle-adjust-dark.png`、`lifecycle-merge-dark.png`、`lifecycle-done-dark.png`、`lifecycle-subtitle-dark.png`。固定 Avalonia Headless、深色、zh-CN、1240×800 客户区，无需 DISPLAY / Xvfb。
+
+```sh
+/home/box/.dotnet/dotnet build tools/AvaMedia.MultiStageCapture/AvaMedia.MultiStageCapture.csproj --no-restore
+AVAMEDIA_CAPTURE_FFMPEG=/tmp/ffmpeg-n9.0-latest-linux64-gpl-9.0/bin/ffmpeg \
+AVAMEDIA_CAPTURE_FFPROBE=/tmp/ffmpeg-n9.0-latest-linux64-gpl-9.0/bin/ffprobe \
+  /home/box/.dotnet/dotnet run --no-build --project tools/AvaMedia.MultiStageCapture -- \
+  lifecycle /workspace/AvaMedia-sidebar-review/interactive-stages/lifecycle-captures process adjust merge done subtitle
+```
+
+本模式生成一段合成视频，人物片段与字幕使用标注的示意数据；调整页真实打开编辑会话，完成页只复制合成源作为预览夹具，**不把它当作合并输出验证**。不运行队列、检测、语音模型、功能回归或像素对比。输出方式截图包含示意字幕，即使合成源没有音轨也不启动识别。各页等待短暂异步布局 / 预览后渲染，不以截图工具断言媒体正确性。
+
+每次运行隔离 XDG 与 `AVAMEDIA_STATE_DIRECTORY`，退出恢复环境并清理临时视频、结果、设置和缓存；PNG 只留在指定输出目录。添加状态只需编译，实际生成截图须按用户要求的范围执行，不默认扩展验收。

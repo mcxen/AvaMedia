@@ -167,7 +167,7 @@ public sealed class TaskLifecycle : ITaskLifecycle, IDisposable
     private void Advance(TaskLifecycleSnapshot state, JsonElement? result, string detail)
     {
         var pages = state.Pages.ToArray();
-        pages[state.CurrentIndex] = state.Current with { State = PageState.Completed, Result = result, Detail = detail, Elapsed = Elapsed(state) };
+        pages[state.CurrentIndex] = state.Current with { State = PageState.Completed, Result = result ?? state.Current.Result, Detail = detail, Elapsed = Elapsed(state) };
         var next = state.CurrentIndex + 1;
         pages[next] = pages[next] with { State = pages[next].Page.Kind switch
         { PageKind.Interaction => PageState.AwaitingUser, PageKind.Result => PageState.Completed, _ => PageState.Pending } };

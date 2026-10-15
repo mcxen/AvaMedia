@@ -156,6 +156,11 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                 if (state != JobState.Completed) { job.CompletionKind = JobCompletionKind.Default; job.CompletionMessage = ""; }
                 if (state == JobState.Completed) job.Progress = 100;
                 job.PersonClipStages?.Finish(state, error);
+                if (state is JobState.Failed or JobState.Cancelled && job.Lifecycle is { } pages)
+                {
+                    using var lifecycle = new TaskLifecycle(job, pages.Pages.Select(page => page.Page));
+                    lifecycle.Fail(error);
+                }
                 job.State = state;
                 if (job.Activity is { } activity) job.Activity = activity with { UpdatedUtc = DateTime.UtcNow, State = state switch
                 { JobState.Completed or JobState.AwaitingUser => AiActivityState.Completed, JobState.Cancelled => AiActivityState.Cancelled, _ => AiActivityState.Failed } };

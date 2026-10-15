@@ -150,6 +150,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         if (_closed) return;
         _closed = true; _session.Changed -= SessionChanged; _saveTimer.Stop(); _noticeTimer.Stop();
         _lifetime.Cancel(); DisposeMedia(); DisposeThumbnails(); DisposeTimeline(); DisposeInspector(); _lifetime.Dispose();
+        if (_embeddedHost is not null) { _closingAfterSave = true; Close(); }
     }
 
     // ------------------------------------------------------------------ layout helpers
