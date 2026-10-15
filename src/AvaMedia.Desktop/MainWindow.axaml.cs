@@ -79,36 +79,16 @@ public partial class MainWindow : Window
         {
             var viewer = CreateImageViewerWindow(files); viewer.ShowForViewing(this); return;
         }
-        if(feature.Id=="folder-classification")
-        {
-            await ConfigureFolderClassificationAsync(files);
-            return;
-        }
-        if(feature.Id=="media-ai")
-        {
-            await ConfigureMediaAiAsync(files);
-            return;
-        }
-        if(feature.Id=="person-clip")
-        {
-            if(_settings.EnableBetaFeatures)await ConfigurePersonClipAsync(files);
-            return;
-        }
         _last=feature;
         if(feature.Operation==Operation.BatchTools){await ConfigureBatchToolsAsync(files,feature.Id=="contact-sheet");return;}
         if(feature.Operation==Operation.Download){await ConfigureDownloadAsync(files);return;}
         if(feature.Operation==Operation.VideoCompress){await ConfigureVideoCompressionAsync(files);return;}
         if(feature.Operation==Operation.VideoSlim){await ConfigureVideoSlimmingAsync(files);return;}
-        if(feature.Operation==Operation.VideoSummary){await ConfigureVideoSummaryAsync(files);return;}
         if(feature.Operation==Operation.ImageCompress){await ConfigureImageCompressionAsync(files);return;}
         if(feature.Id=="clip")
         {
             if(files is null)await PickQuickClipVideos();else await EditQuickClipAsync(files);
             return;
-        }
-        if(feature.Id=="rotate")
-        {
-            await ConfigureLifecycleEntryAsync(feature, files); return;
         }
         if(feature.Id=="crop")
         {
