@@ -64,7 +64,7 @@ public partial class MainWindow
             status.ColumnDefinitions[6].Width = modern ? GridLength.Auto : new GridLength(142);
         }
         FeatureSidebar.Bind(BackgroundProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(modern ? "ShellSidebar" : "UiFeaturePanel"));
-        ApplyWindowFrame(modern);
+        Controls.WindowChrome.ApplyPlatformFrame(this);
         RefreshTaskList();
         if (_visibleJobs.Count > 0) JobDisplayChanged?.Invoke();
     }

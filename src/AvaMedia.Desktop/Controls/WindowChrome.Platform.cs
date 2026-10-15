@@ -53,14 +53,15 @@ internal static partial class WindowChrome
         var pending = false;
         window.SizeChanged += (_, _) =>
         {
-            if (!OperatingSystem.IsWindows() || pending) return;
+            if (!OperatingSystem.IsWindows() || !Skin.UsesCustomChrome(window.ActualThemeVariant) || pending) return;
             pending = true;
             // Win32 reapplies its composition margins during WM_SIZE. Restore the native
             // shadow edge after that message has finished, including maximize/restore.
             Dispatcher.UIThread.Post(() =>
             {
                 pending = false;
-                ApplyWindowsFrame(window, window.ExtendClientAreaToDecorationsHint);
+                if (Skin.UsesCustomChrome(window.ActualThemeVariant))
+                    ApplyWindowsFrame(window, window.ExtendClientAreaToDecorationsHint);
             });
         };
     }
@@ -84,28 +85,11 @@ internal static partial class WindowChrome
         DialogUpdaters.GetValue(window, w => new DialogUpdater(w)).Apply = apply;
         apply();
     }
-    internal static bool UsesClientTitleBar(Window window) =>
-        !Skin.UsesCustomChrome(window.ActualThemeVariant)
-        && MainWindow.FrameKind != MainWindow.WindowFrameKind.System
-        && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS());
-
-    internal static bool IsMacPreview(Window window) =>
-        !Skin.UsesCustomChrome(window.ActualThemeVariant)
-        && MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac && !OperatingSystem.IsMacOS();
-
-    // Skin registers every Window, including temporary dialogs which have no specialized title layout.
-    internal static void EnsureToolFrame(Window window)
-    {
-        if (window is MainWindow or EditorWindow || Skin.UsesCustomChrome(window.ActualThemeVariant)
-            || window.Content is not Control content || content.Classes.Contains("window-chrome")) return;
-        window.Content = null;
-        window.Content = WrapDialog(window, content);
-    }
-
     internal static void ApplyPlatformFrame(Window window)
     {
         var classic = Skin.UsesCustomChrome(window.ActualThemeVariant);
-        var extended = (UsesClientTitleBar(window) || classic && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+        var wasExtended = window.ExtendClientAreaToDecorationsHint;
+        var extended = classic && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
             && window.WindowState != WindowState.FullScreen;
         // Keep WS_CAPTION/WS_THICKFRAME on Windows, NSWindow on macOS and WM decorations on Linux.
         // A transparent, region-shaped window cannot receive native DWM corners and shadows.
@@ -115,14 +99,11 @@ internal static partial class WindowChrome
             || window.Background is ISolidColorBrush brush && brush.Color.A < 255)
             window.Bind(TopLevel.BackgroundProperty, new DynamicResourceExtension("UiCanvas"));
         window.ExtendClientAreaToDecorationsHint = extended;
-        window.ExtendClientAreaTitleBarHeightHint = extended ? classic ? 0 : window is MainWindow ? 52 : window is EditorWindow ? 44 : 48 : -1;
-        window.ExtendClientAreaChromeHints = extended
-            ? classic ? ExtendClientAreaChromeHints.NoChrome
-                : OperatingSystem.IsMacOS() ? ExtendClientAreaChromeHints.PreferSystemChrome | ExtendClientAreaChromeHints.OSXThickTitleBar
-                : ExtendClientAreaChromeHints.NoChrome
-            : ExtendClientAreaChromeHints.Default;
-        ApplyWindowsFrame(window, extended);
-        RequestMacTrafficLights(window);
+        window.ExtendClientAreaTitleBarHeightHint = extended ? 0 : -1;
+        window.ExtendClientAreaChromeHints = extended ? ExtendClientAreaChromeHints.NoChrome : ExtendClientAreaChromeHints.Default;
+        // Modern windows retain the system frame. Only classic skins need DWM margins;
+        // undo those margins when changing from a classic skin back to a native window.
+        if (classic || wasExtended) ApplyWindowsFrame(window, extended);
     }
 
     private static void ApplyWindowsFrame(Window window, bool extended)
@@ -137,7 +118,7 @@ internal static partial class WindowChrome
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
         {
             const int windowCornerPreference = 33, round = 2, systemDefault = 0;
-            var preference = window.WindowState == WindowState.Normal ? round : systemDefault;
+            var preference = extended && window.WindowState == WindowState.Normal ? round : systemDefault;
             _ = DwmSetWindowAttribute(handle.Handle, windowCornerPreference, ref preference, sizeof(int));
         }
     }

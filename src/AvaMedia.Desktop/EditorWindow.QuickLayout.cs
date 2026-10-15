@@ -77,7 +77,6 @@ public partial class EditorWindow
         Restyle(RedoSegmentButton, "ib"); RedoSegmentButton.Content = QuickIcon("redo-2");
         ToolTip.SetTip(UndoSegmentButton, Localization.Text("撤销") + " (Ctrl Z)"); ToolTip.SetTip(RedoSegmentButton, Localization.Text("重做") + " (Ctrl Y)");
         Avalonia.Automation.AutomationProperties.SetName(UndoSegmentButton, "撤销"); Avalonia.Automation.AutomationProperties.SetName(RedoSegmentButton, "重做");
-        WindowChrome.HookDrag(this, QuickTitleBar, () => ModernFrame);
 
         // Preview card and transport.
         Move(PreviewArea, QuickPreviewSlot); PreviewArea.Background = null; PreviewArea.Margin = new Thickness(0);

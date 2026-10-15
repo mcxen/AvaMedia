@@ -39,8 +39,7 @@
 7. 只有图标的按钮必须有 ToolTip 和无障碍名称（`AutomationProperties.Name`）。
 8. 快捷键全部保留且照常可用，只写在悬停提示（tooltip）中。
 9. 其他皮肤（深色、Mac OS 9 Platinum、Windows XP Luna）必须保持可用，不能出现不可读文字或错位。
-10. 窗口外观统一通过 `MainWindow.WindowChrome` / `Controls/WindowChrome.cs` 复用，不另写标题栏。
-   现代皮肤主窗口顶部整行留白（包括侧栏红绿灯周围、标题和工具栏之间）可按住左键拖动窗口；“任务列表”行内留白同样可拖动。双击沿用缩放窗口行为，按钮、输入控件和侧栏分隔条保留自身操作。
+10. 现代皮肤（浅色、深色与跟随系统）的所有普通窗口，包括主窗口、编辑器、工具、设置、对话框和非全屏媒体窗口，使用 Avalonia 标准窗口与系统标题栏；不扩展客户区到标题栏，不自绘标题按钮、红绿灯或窗口外框。Mac OS 9 与 Windows XP 继续使用现有经典皮肤外框。窗口定位和独立生命周期仍复用 `Controls/WindowChrome`。
 11. 只显示真实数据；没有数据时显示简短空状态文字。
 12. 单帧图片统一从播放器“截取当前帧”导出；主窗口、首页、新建任务、菜单、原生菜单、媒体路由及远程网页 / MCP 不提供独立的“导出帧”工具或任务类型。播放器按钮、菜单与 Ctrl+E / Cmd+E 保留，多宫格截图继续使用共享抽帧与图标资源。参考图中的旧工具入口不再显示；视频分类按当前目录和 Beta 设置动态计数。
 
@@ -283,7 +282,7 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 
 ### 5.1 平台字体、渲染与尺寸令牌
 
-桌面保持一套布局和控件模板。启动按真实操作系统加载 `Styles/Platform/Platform.macOS.axaml`、`Platform.Windows.axaml` 或 `Platform.Linux.axaml`；平台层位于 UiStyles 之后、ComponentSkins 和经典皮肤之前，经典皮肤可覆盖同名资源。`AVAMEDIA_CHROME=mac` 不影响字体与平台令牌。
+桌面保持一套布局和控件模板。启动按真实操作系统加载 `Styles/Platform/Platform.macOS.axaml`、`Platform.Windows.axaml` 或 `Platform.Linux.axaml`；平台层位于 UiStyles 之后、ComponentSkins 和经典皮肤之前，经典皮肤可覆盖同名资源。现代窗口框架由系统提供，平台层只决定客户区字体与控件令牌。
 
 | 令牌 / 规则 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
@@ -508,7 +507,7 @@ private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds
 - 按“视频 / 音频 / 图片 / 文档 / 工具集”分类的手风琴，**同时只展开一个分类**；展开一个分类时其他分类自动收起。光盘作为工具集内的用途分组，目录原分类和工具 ID 保持不变；侧栏映射以 `FeatureNavigation` 为准。
 - 分类行显示图标、名称和数量；展开后按小节列出工具“胶囊”，选中为蓝底白字（`UiTreeSelection` / `UiTreeSelectionText`），图标用 `UiTreeIcon`。
 - 不提供搜索框。
-- macOS 下工具树从红绿灯下方开始（见第 8 节）。
+- 现代皮肤的工具树从客户区顶部开始，不为系统标题栏按钮预留额外空白（见第 8 节）。
 - Beta 标记使用 `beta-badge`（浅橙底），Platinum 下为灰底黑框。
 
 参考代码 `src/AvaMedia.Desktop/MainWindow.Categories.cs`（单分类展开）：
@@ -703,7 +702,7 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 | 状态 | `AcStatusHeight=20`、`AcStatusRadius=10`、`AcStatusPadding=8,0`、`AcStatusDotSize=6`、`AcStatusGap=4` | `StatusPill` 的 State 驱动画刷；显示文字由调用方本地化，单区域只放一个状态。 |
 | Sheet | `AcSheetRadius=16`、`AcSheetPadding=18,20,18,16`、`AcSheetFace` | 浮层使用默认圆角 / 阴影；顶层窗口正文加 `window`，清除额外圆角 / 阴影。Ui 确认及列表提示共用此角色。 |
 | 空 / 错误态 | `AcEmptyIconSize=40`、`AcEmptyGap=6`、`AcEmptyDetailWidth=220`、`AcEmptyPadding=16`、`AcEmptyActionMargin=0,8,0,0` | 与列表同层；`IsError` 同时对应 `error` 类与失败符号，Actions 只放真实操作。 |
-| 工具标题 / 位置 | `UiToolTitleBarHeight=48`、`UiToolTitleGutter=88`、`UiToolTitleLightInset=16,0,0,0`、`UiToolWindowGap=12` | WrapDialog 只显示一处窗口标题；不改主窗口 52 / 编辑器 44 或原生 DWM 策略。Skin 注册独立窗口的位置记忆。 |
+| 工具栏 / 位置 | `UiToolTitleBarHeight=48`、`UiToolWindowGap=12` | WrapDialog 只排列显式业务工具栏与内容；窗口标题由系统显示。Skin 注册独立窗口的位置记忆。 |
 
 - 原生浏览器等依赖能力必须在附着宿主前判断；不可用时用 EmptyState.error 替代，不以 `IsVisible=False` 掩盖仍会初始化的原生控件。Linux 下载窗口隐藏“网页视频识别”及“内嵌浏览器”登录态选项，解析失败不自动打开内嵌浏览器；链接解析、外部浏览器 CDP 识别及其登录态选项继续提供。Linux 不附着原生浏览器适配器，直接创建嗅探窗口时保留真实不可用原因及关闭操作；Windows 运行时缺失 / 能力查询失败同样兜底，保留入口以便安装运行时。公共宿主先保底，业务列表 / 重试及完整接入在专项任务完成。
 - 加载顺序：组件 Defaults / ControlThemes → UiStyles → PlatformTokenLayer → 宿主角色 / ComponentSkins → 窗口专项与经典皮肤。窗口局部资源覆盖同名 Ac 键仅影响该窗口；新专项样式先写入本规范。
@@ -716,78 +715,18 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 
 ## 8. 窗口与标题栏（按平台）
 
-- 统一通过 `MainWindow.WindowChrome`（`src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`）和 `Controls/WindowChrome.cs` 复用，不另写标题栏。
-- **macOS**：客户区延伸到标题栏下方（主窗口标题行高 52）。使用 `NSWindow.standardWindowButton` 提供的原生红绿灯，保留系统尺寸、按钮间距、悬停 / 失焦及全屏行为，不重绘或替换按钮。红绿灯与实际标题行 / 右侧工具按钮共用垂直中心；位置使用逻辑点，不乘 Retina 缩放。主窗口红绿灯在侧栏卡片左边缘内缩 `UiMainTitleLightInset=20`，当前窗口左边距为 28pt；工具树使用独立的固定标题留白，滚动时不进入按钮区。工具及编辑器窗口左边距使用 `UiToolTitleLightInset` 的 Left（16pt），编辑器标题内容保留 `UiToolTitleGutter=88` 的按钮区域。打开、布局 / 尺寸 / 缩放变化、激活及退出全屏后统一重新对齐；全屏和经典皮肤交给系统。非 macOS 的 `AVAMEDIA_CHROME=mac` 仅绘制同位置的预览占位。
-- **Windows**：保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`；最小化 / 最大化 / 关闭按钮位于**右上角**标题行，按钮 46 × 32、Lucide 12 px 图标，关闭悬停为 `#C42B1C` 红底白图标；最大化后图标切换为还原。Win11 显式请求 DWM `DWMWA_WINDOW_CORNER_PREFERENCE=DWMWCP_ROUND`，阴影由系统提供；Win10 保留原生直角与阴影，不伪造 Win11 圆角。最大化、全屏、贴靠时形状由系统决定。
-- **Linux**：主窗口、编辑器及所有工具窗口统一保留 `SystemDecorations.Full`，由窗口管理器和合成器提供边框、缩放及阴影；不单独去掉某个工具窗口的装饰。圆角、阴影能力取决于桌面环境。`AVAMEDIA_CHROME=mac` 只预览客户区布局，仍保留 Linux 原生装饰。
-- **整窗表面**：本应用定义的 `Window` 子类及临时 `new Window` 通过 `Skin` 的统一注册接入 `Controls/WindowChrome.cs`；已有主窗口、编辑器标题布局也调用同一平台策略。Windows / macOS 整窗使用不透明主题背景及 `TransparencyLevelHint=None`；禁止用透明整窗 + 自绘圆角边框或阴影替换系统形状。macOS 保留原生框架、圆角和阴影；内部卡片圆角不代表窗体圆角。
+- **现代皮肤**：主窗口、编辑器、工具、设置、帮助、临时对话框及非全屏媒体窗口统一保留 Avalonia `Window` 的系统标题栏和 `SystemDecorations.Full`，`ExtendClientAreaToDecorationsHint=false`，ChromeHints 使用默认值。系统负责标题文字、最小化 / 最大化 / 关闭、拖动、缩放、贴靠、圆角和阴影。
+- **客户区**：不加自定义窗口外框、标题栏、标题按钮、红绿灯、交通灯占位或为标题控件预留的侧栏空白；不重定位 macOS 系统窗口按钮。纯窗口标题只显示在系统标题栏；编辑模式、导航、任务状态与操作按钮作为业务工具栏保留，不承担窗口拖动或最大化行为。
+- **整窗表面**：Windows / macOS 保留不透明主题背景及 `TransparencyLevelHint=None`；不以透明整窗、自绘圆角 Border 或额外阴影窗口替代系统形状。Linux 继续由窗口管理器与合成器提供标题栏、边框、阴影和缩放。内部卡片的圆角与投影不改变整窗框架。
 - **独立顶层窗口**：所有非模态工具、设置、帮助、播放器、看图及封面预览统一使用 `WindowChrome.ShowIndependent`（内部无 Owner 的 `Show()`）并设置 `ShowInTaskbar=true`，启动位置按 1.3 优先主窗口旁或恢复最近位置；显式 Manual 坐标保留；主窗口最小化或隐藏时工具窗口继续显示，可在任务栏 / Dock 的窗口列表独立切换。不得为层级感设置 Owner、置顶或用 `ShowDialog` 打开非模态工具；层级感只由系统原生阴影体现。确实需要返回确认 / 编辑结果的模态提示和编辑表单可保留 `ShowDialog(owner)`，同样复用整窗外观策略。业务上下文显式传递或从应用主窗口取得，不能依赖工具的 Owner 链。设置（含模型管理、在线 AI 与软件更新）、帮助、GPU 加速检测、同一输出目录的视频总结结果，以及同一选择目标的词库窗口，再次打开时恢复最小化并激活已有窗口，不另建一份。播放器、看图，以及按文件或任务打开的工具窗口仍各自独立。
 - 窗口定位统一使用桌面坐标：现有窗口的边界尺寸乘 `DesktopScaling`，目标屏幕上的尺寸和间距乘该屏幕的 `Scaling`；不得将用于绘制的 `RenderScaling` 混入坐标计算。macOS Retina 的桌面坐标仍为逻辑点。未显式设置启动位置的窗口也接入公共定位，不能将默认枚举值 Manual 当成手动定位请求。
-- 标题行和队列栏可拖动窗口，双击切换最大化；按钮、输入框、菜单、滑条、下拉、选择控件和分隔条不触发拖动，禁用控件的区域也不作为拖动留白。主窗口、编辑器和工具窗口统一通过 `WindowChrome.HookDrag` 在窗口隧道路由处理标题输入；顶部标题带覆盖客户区上边距和两侧留白，队列栏只覆盖自身行及外边距。全屏禁用标题拖动；标题拆卸时移除监听，原生拖动开始前释放隐式指针捕获。平台原生移动由 `BeginMoveDrag` 提供，不自行逐帧改写窗口位置。
-- `AVAMEDIA_CHROME=mac|win|system` 可覆盖平台检测；`system` 及 Mac OS 9 / XP 皮肤使用各自框架。
+- 现代皮肤的窗口拖动与双击缩放完全由系统标题栏处理，客户区工具栏和队列栏不安装自定义窗口拖动处理；不再提供 `AVAMEDIA_CHROME` 自绘标题栏预览入口。
 - Mac OS 9 使用 `PlatinumWindowFrame`（关闭 / 缩放 / 收起标题栏按钮、标题横纹、右下缩放块）；XP 使用 `WindowsXPWindowFrame`。Windows / macOS 经典皮肤保留 `SystemDecorations.Full`，扩展客户区并使用 `NoChrome`、原生标题高度提示 0，只显示一套经典标题和控制按钮；Linux 保留 WM 装饰。设置及普通工具隐藏重复的纯标题行，带导航操作的标题区仍保留，编辑器保留模式切换而隐藏重复窗口标题。切换皮肤与退出全屏重新应用公共策略，不以 `SystemDecorations.None` 牺牲系统阴影。
 - 主窗口关闭行为按后台运行设置执行：选择“继续在托盘运行”时先保证托盘已建立，再隐藏窗口，任务继续运行；启动尚未完成或托盘创建失败不得把关闭误当退出。托盘不可用时保留 Dock / 任务栏入口并正常最小化，显示真实失败原因；托盘“显示窗口”恢复原窗口与最大化状态并展开经典收起状态。显式退出、系统关闭及 MCP / 截图生命周期继续走真正退出流程。
 - **托盘右键菜单**：完全使用 Avalonia `TrayIcon.Menu`、`NativeMenu`、`NativeMenuItem` 和 `NativeMenuItemSeparator`，由框架提供平台菜单与交互；禁止以应用自绘 `Window`、`Popup`、`ContextMenu` 或皮肤模板替代。原生托盘或菜单不可用时沿用上述窗口恢复与最小化策略，不创建自绘菜单作为降级方案。
 - 皮肤外框、业务窗口定位、开窗动效及应用菜单注册只作用于本应用定义的窗口与显式创建的普通对话框。Windows 托盘菜单由 Avalonia 内部窗口承载，必须保留框架的光标定位、无装饰与菜单布局；不得将其注册成工具窗口、居中、记忆位置或套用应用标题栏 / 经典皮肤外框。
 
-参考代码 `src/AvaMedia.Desktop/MainWindow.WindowChrome.cs`：
-
-```csharp
-internal static WindowFrameKind FrameKind => Environment.GetEnvironmentVariable("AVAMEDIA_CHROME")?.ToLowerInvariant() switch
-{
-    "mac" => WindowFrameKind.Mac,
-    "win" or "windows" or "linux" => WindowFrameKind.WinLinux,
-    "system" => WindowFrameKind.System,
-#if MACOS
-    _ => WindowFrameKind.Mac
-#else
-    _ => OperatingSystem.IsMacOS() ? WindowFrameKind.Mac : WindowFrameKind.WinLinux
-#endif
-};
-```
-
-当前平台实现见 `Controls/WindowChrome.Platform.cs`：保留 `SystemDecorations.Full` 和不透明背景，Windows / macOS 扩展客户区；Linux 保留 WM 装饰，mac 预览只改变客户区布局。不要复制去掉系统装饰的旧参考片段。
-
-macOS 原生按钮定位见 `Controls/WindowChrome.Mac.cs`：由共享入口读取实际标题行中心，必要时扩展原生标题宿主的点击范围，保留系统按钮视图层级。主窗口固定标题留白及非 macOS 占位见 `MainWindow.WindowChrome.cs`；占位只在预览模式显示，位置与原生布局使用同一基准。
-
-`src/AvaMedia.Desktop/Controls/WindowChrome.cs`（右上角按钮与拖动）：
-
-```csharp
-panel.Children.Add(Caption("minus", "最小化窗口", () => window.WindowState = WindowState.Minimized));
-panel.Children.Add(maximize = Caption("square", "最大化", () => ToggleMaximize(window)));
-panel.Children.Add(Caption("x", "关闭", window.Close, close: true));
-```
-
-```csharp
-public static bool IsInteractive(Visual? visual)
-{
-    for (var c = visual; c is not null && c is not Window; c = c.GetVisualParent())
-        if (c is Button or TextBox or Menu or MenuItem or RangeBase or SelectingItemsControl
-            or AutoCompleteBox or DatePicker or TimePicker or Calendar or GridSplitter or SelectableTextBlock) return true;
-    return false;
-}
-
-/// <summary>Drag the window from a title region; double-click toggles maximize.</summary>
-public static void HookDrag(Window window, Control region, Func<bool> enabled,
-    Func<PointerPressedEventArgs, bool>? hitTest = null)
-```
-
-`src/AvaMedia.Desktop/Styles/MainShell.axaml`：
-
-```xml
-<Style Selector="Window.main-window Button.caption"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="32"/><Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
-<Style Selector="Window.main-window Button.caption.close:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#C42B1C"/></Style>
-```
-
-`src/AvaMedia.Desktop/Controls/PlatinumWindowFrame.cs`：
-
-```csharp
-var close = CaptionButton("close", "关闭窗口", "PlatinumClose", () => window.Close()); titleBar.Children.Add(close);
-var zoom = CaptionButton("zoom", "缩放窗口", "PlatinumZoom", Zoom, window.CanResize && window.CanMaximize);
-var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade", ToggleShade);
-```
-
----
+共享窗口策略位于 `src/AvaMedia.Desktop/Controls/WindowChrome.Platform.cs`；经典外框继续通过 `Skin.Registration` 切换，不改变已有功能与窗口位置记忆。
 
 ## 9. 状态
 
@@ -837,9 +776,9 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 - 底部导出栏：左侧摘要，右侧主按钮。
 - 所有已有功能和快捷键必须保留；快捷键只在 tooltip 中。
 - **快速剪辑尺寸**：侧栏宽 330，片段行高 40，首尾帧高 75；时间字段为居中的 12 半粗 `mm:ss.fff`（超过一小时为 `h:mm:ss.fff`）。属性行高 34，值用 `#6E6E73`（`QcValue`），无框下拉加细灰箭头。时间线工具按钮高 30，标尺高 14，胶片条高 52，底部仅显示 11 px 次文字摘要；缩放轨宽 70、蓝色填充、白色阴影滑块。
-- **快速剪辑结构**：三种模式始终显示公共标题栏、预览、传输控制、胶片条时间线与底栏。画面裁剪使用右侧检查器放置比例、精确坐标、重置与去水印选区；自动转正卡片追加在时间线下方，预览可适度缩小，卡片圆角 14、内边距上 12 / 左右与下 14，高约 148，保留方向胶囊、镜像、识别状态与操作。1280 × 800 下时间线不得被模式卡片替代。
+- **快速剪辑结构**：三种模式始终显示模式工具栏、预览、传输控制、胶片条时间线与底栏。画面裁剪使用右侧检查器放置比例、精确坐标、重置与去水印选区；自动转正卡片追加在时间线下方，预览可适度缩小，卡片圆角 14、内边距上 12 / 左右与下 14，高约 148，保留方向胶囊、镜像、识别状态与操作。1280 × 800 下时间线不得被模式卡片替代。
 - **底栏**：提供输出配置、下一个视频和进入导出选项。进入导出选项前，其他勾选的视频必须已有剪辑，否则保留编辑器与草稿，弹出“还有视频未剪辑”模态提示，逐行列出文件名，说明需先剪辑或取消勾选（对话框规则见 7.6）。
-- **媒体信息**：标题栏文件名 / 副标题之后放置带提示与无障碍名称的小型媒体信息图标；悬停和点击均打开卡片式浮层，显示文件名、时长、分辨率、视频与音频编码。信息行高 32，标签灰色、值右对齐且数字等宽；长文件名省略并提供完整悬停提示。
+- **媒体信息**：业务工具栏文件名 / 副标题之后放置带提示与无障碍名称的小型媒体信息图标；悬停和点击均打开卡片式浮层，显示文件名、时长、分辨率、视频与音频编码。信息行高 32，标签灰色、值右对齐且数字等宽；长文件名省略并提供完整悬停提示。
 - **选项归属**：不再显示快速剪辑选项页卡片。“输出配置…”打开完整片段设置弹窗，预览摘要区显示实时音频状态与输出说明；音量、静音、音频效果和字幕等仍在此处。旋转 / 镜像在自动转正可达，速度 / 视频淡入淡出在剪辑侧栏可达，裁剪与去水印选区在画面裁剪可达，均读写同一片段选项。
 - 皮肤：深色使用 Qc 令牌；Platinum 保留原生浮雕按钮、原生控件外观及清晰文字。
 
@@ -947,10 +886,10 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 
 ### 10.9 窗口内工具栏菜单栏（B 版）
 
-- 参考 `/workspace/AvaMedia-sidebar-review/menubar/menubar.html` 的 B 区域及浅深色截图；使用已有 52px 平台标题行，不另建标题栏，不实现 A / C 方案。菜单放在标题行左侧，标题居中；任务计数放在下方任务栏，为中文菜单和 Windows 窗口按钮留出空间。文字菜单高 26、字 13、左右内边距 10、间距 6、圆角 7。正常透明，悬停 Fill，展开 FillHover 与 Medium 字重，禁用使用三级文字色。
+- 参考 `/workspace/AvaMedia-sidebar-review/menubar/menubar.html` 的 B 区域及浅深色截图；菜单放在客户区业务工具栏左侧，分区标题居中；任务计数放在下方任务栏。窗口标题与按钮由系统提供，客户区不为它们留出空位。文字菜单高 26、字 13、左右内边距 10、间距 6、圆角 7。正常透明，悬停 Fill，展开 FillHover 与 Medium 字重，禁用使用三级文字色。
 - 下拉菜单位于工具栏底边下方 4px，最小宽 220、内边距 5、圆角 10；行高 24、圆角 5、左内边距 6、右 10、勾选列 14、列间距 6。选择行使用强调色与强调文字色；禁用项使用三级文字色，分隔线 0.5、上下间距 5、左右缩进 10。子菜单沿用同一模板与右箭头；快捷键只在提示中显示。跨平台弹出表面使用 demo 玻璃色与页面底色合成后的实色（浅色 `#F5F5F8`、深色 `#2A2A2E`），避免没有背景模糊的弹窗透出任务文字。
 - `Styles/ToolbarMenus.axaml` 提供 `Mb*` 颜色、尺寸、圆角与阴影资源；浅色 / 深色按 demo，Platinum / XP 沿用各自原生菜单主题。菜单和 macOS 原生菜单共用命令树，保留 ff28d81 的文件、编辑、窗口、帮助及其命令顺序；原有队列、显示、转换等操作追加到相应分组。
-- macOS 原生菜单已导出时隐藏窗口内菜单，避免同一命令占据两处菜单栏；未导出时保留窗口内菜单保证命令可达。`AVAMEDIA_CHROME=mac` 仅预览窗口框架，不代表原生菜单已经存在。
+- macOS 原生菜单已导出时隐藏窗口内菜单，避免同一命令占据两处菜单栏；未导出时保留窗口内菜单保证命令可达。现代皮肤直接使用系统窗口框架，菜单导出仍按实际平台判断。
 
 ### 10.10 设置窗口（v2）
 
@@ -964,9 +903,9 @@ var shade = CaptionButton("collapse", "收起 / 展开标题栏", "PlatinumShade
 
 ### 10.11 天池独立媒体窗口
 
-- 天池播放器与天池看图共用 `WindowChrome.WrapDialog` 平台标题栏及独立窗口行为；非模态、无 owner，主窗口任务区保持原布局并可操作。每次从外部入口打开均新建窗口；窗口内部的文件选择与拖放替换当前内容，连续定位片段的结果窗口可复用其播放器。
+- 天池播放器与天池看图共用 Avalonia 标准窗口、系统标题栏及独立窗口行为；非模态、无 owner，主窗口任务区保持原布局并可操作。播放器的外部与应用内入口复用唯一播放器窗口；窗口内部的文件选择与拖放替换当前内容。看图窗口继续保留各自独立行为。
 - 两者默认 1120×780、最小 760×500；各自记忆最近的普通窗口尺寸，最大化、最小化和全屏不覆盖尺寸。首次打开在来源窗口所在屏幕居中，已打开窗口恢复最小化后激活。
-- macOS 保留原生红绿灯与独立全屏空间；全屏隐藏共享标题栏，退出恢复先前窗口状态。播放器保留快捷键、播放列表、VR 和截取当前帧，快捷键仅写在 tooltip。控制栏采用 AvaMedia.Controls 的传输按钮、滑块、下拉与菜单主题。
+- macOS 保留原生红绿灯与独立全屏空间；全屏由系统隐藏标题栏，退出恢复先前窗口状态。播放器保留快捷键、播放列表、VR 和截取当前帧，快捷键仅写在 tooltip。控制栏采用 AvaMedia.Controls 的传输按钮、滑块、下拉与菜单主题。
 - 播放画面按原比例等比缩放、至少铺满一轴，留主题底色；全屏沿用等比播放，不添加静态预览光晕或投影。文件名仅显示在窗口标题栏。
 
 ### 10.12 阶段、纸页与媒体舞台边界

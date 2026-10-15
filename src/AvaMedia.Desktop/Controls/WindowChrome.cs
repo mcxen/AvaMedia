@@ -1,73 +1,36 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Markup.Xaml.MarkupExtensions;
-using Avalonia.Controls.Shapes;
-using Avalonia.VisualTree;
 using Avalonia.Controls.ApplicationLifetimes;
 using AvaMedia.Core;
 
 namespace AvaMedia.Desktop.Controls;
 
 /// <summary>
-/// Shared pieces of the modern platform frame (see MainWindow.WindowChrome / docs/WINDOW-CHROME.md):
-/// native platform policy, shared min / max / close caption buttons and title-row dragging.
-/// Skin connects every tool window; MainWindow and EditorWindow retain their specialized layouts.
+/// Shared native-window policy, independent lifetime and tool placement.
+/// Custom window frames are supplied only by the classic skins.
 /// </summary>
 internal static partial class WindowChrome
 {
-    /// <summary>Wrap a tool dialog with the same platform detection, drag and resize behavior as the shell.</summary>
+    /// <summary>Arrange dialog content and an optional business toolbar, without window chrome.</summary>
     public static Grid WrapDialog(Window window, Control content, Control? titleContent = null)
     {
-        var root = new Grid { RowDefinitions = new("Auto,*"), Classes = { "window-chrome" } };
-        var titleBar = new Grid { ColumnDefinitions = new("Auto,*,Auto") };
-        titleBar.Bind(Control.HeightProperty, new DynamicResourceExtension("UiToolTitleBarHeight"));
-        if (titleContent is not null) titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("UiSurface"));
-        var title = new TextBlock { FontWeight = FontWeight.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        title.Bind(TextBlock.TextProperty, new Avalonia.Data.Binding(nameof(Window.Title)) { Source = window });
-        title.Bind(ToolTip.TipProperty, new Avalonia.Data.Binding(nameof(Window.Title)) { Source = window });
-        title.Bind(TextBlock.FontSizeProperty, new DynamicResourceExtension("AcSectionFont"));
-        var headerContent = titleContent ?? title;
-        Grid.SetColumn(headerContent, 1); titleBar.Children.Add(headerContent);
-        var lights = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
-        lights.Bind(StackPanel.SpacingProperty, new DynamicResourceExtension("AcRowGap"));
-        lights.Bind(Control.MarginProperty, new DynamicResourceExtension("UiToolTitleLightInset"));
-        foreach (var key in new[] { "UiDanger", "UiWarning", "UiSuccessFill" })
+        var root = new Grid { RowDefinitions = new("Auto,*") };
+        if (titleContent is not null)
         {
-            var light = new Ellipse { Width = 12, Height = 12 };
-            light.Bind(Shape.FillProperty, new DynamicResourceExtension(key)); lights.Children.Add(light);
+            var toolbar = new Grid { Children = { titleContent } };
+            root.Children.Add(toolbar);
+            void Apply()
+            {
+                var classic = Skin.UsesCustomChrome(window.ActualThemeVariant);
+                toolbar.IsVisible = window.WindowState != WindowState.FullScreen
+                    && (!classic || titleContent is not TextBlock);
+                toolbar.Bind(Control.HeightProperty, new DynamicResourceExtension(classic ? "UiClassicToolbarHeight" : "UiToolTitleBarHeight"));
+            }
+            UpdateDialog(window, Apply);
         }
-        titleBar.Children.Add(lights);
-        var captions = CreateCaptionButtons(window, out _); Grid.SetColumn(captions, 2); titleBar.Children.Add(captions);
-        root.Children.Add(titleBar); Grid.SetRow(content, 1); root.Children.Add(content);
-        void Apply()
-        {
-            var modern = UsesClientTitleBar(window);
-            var mac = MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
-            var fullscreen = window.WindowState == WindowState.FullScreen;
-            var preview = IsMacPreview(window);
-            var classic = Skin.UsesCustomChrome(window.ActualThemeVariant);
-            // Page-title labels duplicate the classic frame. Navigation/action rows remain available.
-            var functionalHeader = titleContent is not null && titleContent is not TextBlock;
-            titleBar.IsVisible = !fullscreen && (modern || preview || titleContent is not null && (!classic || functionalHeader));
-            titleBar.Bind(Control.HeightProperty, new DynamicResourceExtension(classic && functionalHeader ? "UiClassicToolbarHeight" : "UiToolTitleBarHeight"));
-            var gutter = Metric(window, "UiToolTitleGutter", 88);
-            titleBar.ColumnDefinitions[0].Width = new GridLength(modern || preview ? gutter : 0);
-            lights.IsVisible = preview; captions.IsVisible = modern && !mac;
-            title.Margin = new(0, 0, modern && mac || preview ? gutter : 0, 0);
-            ApplyPlatformFrame(window);
-            if (modern && !fullscreen)
-                window.ExtendClientAreaTitleBarHeightHint = Metric(window, "UiToolTitleBarHeight", 48);
-        }
-        HookDrag(window, titleBar, () => !Skin.UsesCustomChrome(window.ActualThemeVariant));
-        HookMacTrafficLights(window, () => titleBar, () =>
-            window.TryFindResource("UiToolTitleLightInset", window.ActualThemeVariant, out var inset)
-                && inset is Thickness thickness ? thickness.Left : 16);
-        UpdateDialog(window, Apply);
+        Grid.SetRow(content, 1); root.Children.Add(content);
+        ApplyPlatformFrame(window);
         return root;
     }
 
@@ -160,108 +123,10 @@ internal static partial class WindowChrome
         return ClampPosition(window, preferred, area.CenterRect(new PixelRect(size)).Position);
     }
 
-    public static StackPanel CreateCaptionButtons(Window window, out Button maximize)
-    {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, Classes = { "caption-buttons" } };
-        Button Caption(string glyph, string name, Action click, bool close = false)
-        {
-            var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, Height = 14 }, Classes = { "caption" }, Focusable = false };
-            if (close) button.Classes.Add("close");
-            ToolTip.SetTip(button, Localization.Text(name));
-            Avalonia.Automation.AutomationProperties.SetName(button, Localization.Text(name));
-            button.Click += (_, _) => click();
-            return button;
-        }
-        var minimize = Caption("minus", "最小化窗口", () => window.WindowState = WindowState.Minimized);
-        minimize.Bind(Button.IsEnabledProperty, new Avalonia.Data.Binding(nameof(Window.CanMinimize)) { Source = window });
-        panel.Children.Add(minimize);
-        panel.Children.Add(maximize = Caption("square", "最大化", () => ToggleMaximize(window)));
-        maximize.Bind(Button.IsEnabledProperty, new Avalonia.Data.MultiBinding
-        {
-            Converter = Avalonia.Data.Converters.BoolConverters.And,
-            Bindings = { new Avalonia.Data.Binding(nameof(Window.CanResize)) { Source = window },
-                new Avalonia.Data.Binding(nameof(Window.CanMaximize)) { Source = window } }
-        });
-        panel.Children.Add(Caption("x", "关闭", window.Close, close: true));
-        var max = maximize;
-        void Glyph() { if (max.Content is LucideIcon icon) icon.Kind = window.WindowState == WindowState.Maximized ? "copy" : "square"; }
-        window.PropertyChanged += (_, e) => { if (e.Property == Window.WindowStateProperty) Glyph(); };
-        Glyph();
-        return panel;
-    }
-
     public static void ToggleMaximize(Window window)
     {
         if (window.CanResize && window.CanMaximize)
             window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    }
-
-    public static bool IsInteractive(Visual? visual)
-    {
-        for (var c = visual; c is not null && c is not Window; c = c.GetVisualParent())
-            if (c is Button or TextBox or Menu or MenuItem or RangeBase or SelectingItemsControl
-                or AutoCompleteBox or DatePicker or TimePicker or Calendar or GridSplitter or SelectableTextBlock) return true;
-        return false;
-    }
-
-    internal static bool ContainsTitlePoint(Control region, PointerEventArgs args) =>
-        region.IsEffectivelyVisible && region.Bounds.Width > 0 && region.Bounds.Height > 0
-        && new Rect(region.Bounds.Size).Inflate(region.Margin).Contains(args.GetPosition(region));
-
-    private static bool ContainsTopTitlePoint(Window window, Control region, PointerEventArgs args)
-    {
-        if (region.Bounds.Width <= 0 || region.Bounds.Height <= 0
-            || region.TranslatePoint(default, window) is not { } origin) return false;
-        var bottom = origin.Y + region.Bounds.Height + region.Margin.Bottom;
-        // Include editor page padding and macOS traffic-light gutters above/beside
-        // the title control. These belong to the top title band, not the body.
-        return bottom > 0 && new Rect(0, 0, window.Bounds.Width, bottom).Contains(args.GetPosition(window));
-    }
-
-    /// <summary>Drag the window from a title region; double-click toggles maximize.</summary>
-    public static void HookDrag(Window window, Control region, Func<bool> enabled,
-        Func<PointerPressedEventArgs, bool>? hitTest = null)
-    {
-        // PointerPressed normally bubbles. A title's transparent gaps can hit a sibling
-        // or its parent instead, and a ScrollViewer can handle the press before it bubbles.
-        // Listen at the window's tunnel stage and restrict input to the laid-out title.
-        void Pressed(object? sender, PointerPressedEventArgs args)
-        {
-            if (args.Handled || !enabled() || !region.IsEffectivelyVisible
-                || window.WindowState == WindowState.FullScreen) return;
-            if (args.GetCurrentPoint(window).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed) return;
-            if (!(hitTest?.Invoke(args) ?? ContainsTopTitlePoint(window, region, args))) return;
-            if (IsInteractive(args.Source as Visual)) return;
-            // Input routing skips disabled controls. Hit-test the visuals too so a
-            // disabled caption/button is not mistaken for title-bar blank space.
-            var visual = window.GetVisualAt(args.GetPosition(window), v => v.IsVisible
-                && (v is not IInputElement input || input.IsHitTestVisible));
-            if (IsInteractive(visual)) return;
-            args.Handled = true;
-            if (args.ClickCount == 2) ToggleMaximize(window);
-            else
-            {
-                // MouseDevice implicitly captures the press target. Hand input to the
-                // native move loop, which may consume the release event (notably on macOS).
-                args.Pointer.Capture(null);
-                window.BeginMoveDrag(args);
-            }
-        }
-
-        var attached = false;
-        void Attach()
-        {
-            if (attached || region.GetVisualRoot() != window) return;
-            window.AddHandler(InputElement.PointerPressedEvent, Pressed, RoutingStrategies.Tunnel);
-            attached = true;
-        }
-        region.AttachedToVisualTree += (_, _) => Attach();
-        region.DetachedFromVisualTree += (_, _) =>
-        {
-            window.RemoveHandler(InputElement.PointerPressedEvent, Pressed);
-            attached = false;
-        };
-        Attach();
     }
 
 }

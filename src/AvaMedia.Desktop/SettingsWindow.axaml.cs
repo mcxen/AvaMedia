@@ -73,8 +73,8 @@ public sealed partial class SettingsWindow : Window
         var frame = Controls.WindowChrome.WrapDialog(this, SettingsRoot, _settingsPageTitle);
         if (frame.Children[0] is Grid titleBar)
         {
-            // The settings sidebar runs to the top edge (v2 demo): the title row floats over the content
-            // and only keeps a transparent hit surface for dragging.
+            // Keep the selected settings category above its page content;
+            // window caption and movement are handled by the system title bar.
             titleBar.Bind(Panel.BackgroundProperty, new DynamicResourceExtension("StTitleBar")); titleBar.ZIndex = 1;
             Grid.SetRow(SettingsRoot, 0); Grid.SetRowSpan(SettingsRoot, 2);
         }

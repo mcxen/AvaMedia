@@ -44,9 +44,7 @@
     <Thickness x:Key="StIndentedRowPadding">30,7,12,7</Thickness>
     <Thickness x:Key="StHeadingMargin">10,18,0,6</Thickness>
     <Thickness x:Key="StContentMargin">26,40,26,52</Thickness>
-    <Thickness x:Key="StTitleMargin">184,12,0,0</Thickness>
-    <!-- Traffic lights sit inside the floating sidebar (sidebar margin 8 + padding 10 + 6). -->
-    <Thickness x:Key="UiToolTitleLightInset">24,12,0,0</Thickness>
+    <Thickness x:Key="StTitleMargin">272,12,0,0</Thickness>
     <Thickness x:Key="StSidebarMargin">8</Thickness>
     <Thickness x:Key="StSidebarPadding">10</Thickness>
     <Thickness x:Key="StBrandMargin">8,38,8,12</Thickness>

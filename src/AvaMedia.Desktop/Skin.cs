@@ -155,7 +155,6 @@ public sealed partial class Skin : AvaloniaObject
                     _window.Content = null;
                     _window.Content = content;
                 }
-                WindowChrome.EnsureToolFrame(_window);
                 WindowChrome.ApplyPlatformFrame(_window);
             }
             finally { _changing = false; }

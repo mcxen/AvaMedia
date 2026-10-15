@@ -4,48 +4,22 @@ using AvaMedia.Desktop.Controls;
 
 namespace AvaMedia.Desktop;
 
-// Editor title bar reuses the shared platform frame (Controls/WindowChrome) on modern skins;
-// Mac OS 9 / XP skins draw their own frame, so the bar is then a plain toolbar row.
+// Editing modes remain a business toolbar; the window caption belongs to the OS.
 public partial class EditorWindow
 {
-    private StackPanel? _editorCaption;
-
-    private bool ModernFrame => !Skin.UsesCustomChrome(ActualThemeVariant) && MainWindow.FrameKind != MainWindow.WindowFrameKind.System;
-
     private void InitializeChrome()
     {
-        WindowChrome.HookDrag(this, EditorTitleBar, () => ModernFrame);
-        WindowChrome.HookMacTrafficLights(this, () => QuickRoot.IsVisible ? QuickTitleBar : EditorTitleBar, () =>
-            this.TryFindResource("UiToolTitleLightInset", ActualThemeVariant, out var inset)
-                && inset is Thickness thickness ? thickness.Left : 16);
         ActualThemeVariantChanged += (_, _) => ApplyEditorFrame();
         Opened += (_, _) => ApplyEditorFrame();
+        ApplyEditorFrame();
     }
 
     private void ApplyEditorFrame()
     {
         WindowChrome.ApplyPlatformFrame(this);
-        var mac = ModernFrame && MainWindow.FrameKind == MainWindow.WindowFrameKind.Mac;
         var classic = Skin.UsesCustomChrome(ActualThemeVariant);
-        EditorTitleText.IsVisible = !classic;
-        // The remaining row contains editing modes rather than a second window caption.
+        QuickIdentityIcon.IsVisible = QuickIdentityTitle.IsVisible = classic;
         EditorTitleBar.Bind(MinHeightProperty, new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension(classic ? "UiClassicToolbarHeight" : "UiEditorTitleBarHeight"));
-        var gutter = this.TryFindResource("UiToolTitleGutter", ActualThemeVariant, out var value) && value is double width ? width : 88;
-        EditorTitleText.Margin = new Thickness(mac ? Math.Max(0, gutter - EditorLayout.Margin.Left) : 0, 0, 0, 0);
-        QuickTitleBar.Margin = mac ? new Thickness(gutter, 0, gutter, 0) : new Thickness(0);
-        SetEditorFrameParts(WindowChrome.UsesClientTitleBar(this) && !mac);
-    }
-
-    private void SetEditorFrameParts(bool caption)
-    {
-        if (caption && _editorCaption is null)
-        {
-            _editorCaption = WindowChrome.CreateCaptionButtons(this, out _);
-            _editorCaption.Margin = new Thickness(8, -4, -8, 0);
-            if (QuickRoot.IsVisible) { _editorCaption.Margin = new Thickness(6, 0, 0, 0); QuickCaptionSlot.Children.Add(_editorCaption); }
-            else { Grid.SetColumn(_editorCaption, 3); EditorTitleBar.Children.Add(_editorCaption); }
-        }
-        if (_editorCaption is not null) _editorCaption.IsVisible = caption;
     }
 
     private void RefreshInspector()
