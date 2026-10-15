@@ -3515,7 +3515,7 @@
   },
   {
     "width": 1216,
-    "height": 595.390625,
+    "height": 196,
     "nodes": [
       {
         "x": 22,
@@ -3644,108 +3644,6 @@
         "kind": "control"
       },
       {
-        "x": 22,
-        "y": 226.9375,
-        "w": 1172,
-        "h": 64,
-        "cls": "stages",
-        "text": "导入素材\n已读取 24 个文件\n00:08\n2\n分析画面\n识别场景与人物，生成片段标记，预计还需 2 分钟\n12/24\n3\n生成剪辑\n按节奏自动组装\n4\n导出\nH.265 · 1080p",
-        "tag": "DIV",
-        "html": "\n<div class=\"sc done\"><span class=\"n\"><svg viewBox=\"0 0 12 12\"><use href=\"#ck\"></use></svg></span><div><div class=\"tt\">导入素材</div><div class=\"ds\">已读取 24 个文件</div></div><span class=\"tm\">00:08</span></div>\n<div class=\"arrow\"><svg class=\"ic\" style=\"width:12px;height:12px\"><use href=\"#arr\"></use></svg></div>\n<div class=\"sc cur\"><span class=\"n\">2</span><div><div class=\"tt\">分析画面</div><div class=\"ds\">识别场景与人物，生成片段标记，预计还需 2 分钟</div></div><span class=\"tm\">12/24</span></div>\n<div class=\"arrow\"><svg class=\"ic\" style=\"width:12px;height:12px\"><use href=\"#arr\"></use></svg></div>\n<div class=\"sc\"><span class=\"n\">3</span><div><div class=\"tt\">生成剪辑</div><div class=\"ds\">按节奏自动组装</div></div></div>\n<div class=\"arrow\"><svg class=\"ic\" style=\"width:12px;height:12px\"><use href=\"#arr\"></use></svg></div>\n<div class=\"sc\"><span class=\"n\">4</span><div><div class=\"tt\">导出</div><div class=\"ds\">H.265 · 1080p</div></div></div>\n",
-        "value": null,
-        "icon": "#ck",
-        "font": 13,
-        "weight": "400",
-        "opacity": 1,
-        "background": "none",
-        "items": [
-          {
-            "cls": "sc done",
-            "text": "导入素材\n已读取 24 个文件\n00:08",
-            "html": "<span class=\"n\"><svg viewBox=\"0 0 12 12\"><use href=\"#ck\"></use></svg></span><div><div class=\"tt\">导入素材</div><div class=\"ds\">已读取 24 个文件</div></div><span class=\"tm\">00:08</span>",
-            "title": "导入素材",
-            "detail": "已读取 24 个文件",
-            "count": "00:08"
-          },
-          {
-            "cls": "sc cur",
-            "text": "2\n分析画面\n识别场景与人物，生成片段标记，预计还需 2 分钟\n12/24",
-            "html": "<span class=\"n\">2</span><div><div class=\"tt\">分析画面</div><div class=\"ds\">识别场景与人物，生成片段标记，预计还需 2 分钟</div></div><span class=\"tm\">12/24</span>",
-            "title": "分析画面",
-            "detail": "识别场景与人物，生成片段标记，预计还需 2 分钟",
-            "count": "12/24"
-          },
-          {
-            "cls": "sc",
-            "text": "3\n生成剪辑\n按节奏自动组装",
-            "html": "<span class=\"n\">3</span><div><div class=\"tt\">生成剪辑</div><div class=\"ds\">按节奏自动组装</div></div>",
-            "title": "生成剪辑",
-            "detail": "按节奏自动组装",
-            "count": null
-          },
-          {
-            "cls": "sc",
-            "text": "4\n导出\nH.265 · 1080p",
-            "html": "<span class=\"n\">4</span><div><div class=\"tt\">导出</div><div class=\"ds\">H.265 · 1080p</div></div>",
-            "title": "导出",
-            "detail": "H.265 · 1080p",
-            "count": null
-          }
-        ],
-        "kind": "control"
-      },
-      {
-        "x": 22,
-        "y": 357.90625,
-        "w": 520,
-        "h": 193.3125,
-        "cls": "subs",
-        "text": "提取关键帧\n共 1,284 帧，用时 6 秒\n完成\n识别场景\n正在处理 IMG_2041.MOV 第 3 段，共 7 段\n42%\n生成字幕\n等待上一步完成\n等待\n读取 IMG_2050.MOV\n文件已损坏或编码不受支持\n失败",
-        "tag": "DIV",
-        "html": "\n<div class=\"sr\"><svg class=\"si\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"var(--green)\"></circle><path d=\"m7.5 12.5 3 3 6-6.5\" stroke=\"#fff\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"></path></svg><div><div class=\"l1\">提取关键帧</div><div class=\"l2\">共 1,284 帧，用时 6 秒</div></div><span class=\"rt\">完成</span></div>\n<div class=\"sr\"><span class=\"spin b si\" style=\"border-width:2px\"></span><div><div class=\"l1\">识别场景</div><div class=\"l2\">正在处理 IMG_2041.MOV 第 3 段，共 7 段</div></div><span class=\"rt\">42%</span></div>\n<div class=\"sr\"><svg class=\"si\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"var(--text3)\" stroke-width=\"2\" fill=\"none\"></circle></svg><div><div class=\"l1\">生成字幕</div><div class=\"l2\">等待上一步完成</div></div><span class=\"rt\">等待</span></div>\n<div class=\"sr\"><svg class=\"si\" style=\"color:var(--red)\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><use href=\"#alert\"></use></svg><div><div class=\"l1\">读取 IMG_2050.MOV</div><div class=\"l2\" style=\"color:var(--red)\">文件已损坏或编码不受支持</div></div><span class=\"rt\" style=\"color:var(--red)\">失败</span></div>\n",
-        "value": null,
-        "icon": "#alert",
-        "font": 13,
-        "weight": "400",
-        "opacity": 1,
-        "background": "none",
-        "items": [
-          {
-            "cls": "sr",
-            "text": "提取关键帧\n共 1,284 帧，用时 6 秒\n完成",
-            "html": "<svg class=\"si\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"var(--green)\"></circle><path d=\"m7.5 12.5 3 3 6-6.5\" stroke=\"#fff\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"></path></svg><div><div class=\"l1\">提取关键帧</div><div class=\"l2\">共 1,284 帧，用时 6 秒</div></div><span class=\"rt\">完成</span>",
-            "title": "提取关键帧",
-            "detail": "共 1,284 帧，用时 6 秒",
-            "count": "完成"
-          },
-          {
-            "cls": "sr",
-            "text": "识别场景\n正在处理 IMG_2041.MOV 第 3 段，共 7 段\n42%",
-            "html": "<span class=\"spin b si\" style=\"border-width:2px\"></span><div><div class=\"l1\">识别场景</div><div class=\"l2\">正在处理 IMG_2041.MOV 第 3 段，共 7 段</div></div><span class=\"rt\">42%</span>",
-            "title": "识别场景",
-            "detail": "正在处理 IMG_2041.MOV 第 3 段，共 7 段",
-            "count": "42%"
-          },
-          {
-            "cls": "sr",
-            "text": "生成字幕\n等待上一步完成\n等待",
-            "html": "<svg class=\"si\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8.5\" stroke=\"var(--text3)\" stroke-width=\"2\" fill=\"none\"></circle></svg><div><div class=\"l1\">生成字幕</div><div class=\"l2\">等待上一步完成</div></div><span class=\"rt\">等待</span>",
-            "title": "生成字幕",
-            "detail": "等待上一步完成",
-            "count": "等待"
-          },
-          {
-            "cls": "sr",
-            "text": "读取 IMG_2050.MOV\n文件已损坏或编码不受支持\n失败",
-            "html": "<svg class=\"si\" style=\"color:var(--red)\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><use href=\"#alert\"></use></svg><div><div class=\"l1\">读取 IMG_2050.MOV</div><div class=\"l2\" style=\"color:var(--red)\">文件已损坏或编码不受支持</div></div><span class=\"rt\" style=\"color:var(--red)\">失败</span>",
-            "title": "读取 IMG_2050.MOV",
-            "detail": "文件已损坏或编码不受支持",
-            "count": "失败"
-          }
-        ],
-        "kind": "control"
-      },
-      {
         "kind": "text",
         "text": "7 进度 Progress",
         "x": 22,
@@ -3847,54 +3745,6 @@
         "x": 144,
         "y": 159.140625,
         "w": 176.65625,
-        "h": 15,
-        "font": 10.5,
-        "weight": "400",
-        "ink": "UiTextSecondary",
-        "cls": "cap"
-      },
-      {
-        "kind": "text",
-        "text": "阶段指示器 StageIndicator",
-        "x": 22,
-        "y": 199.140625,
-        "w": 149.265625,
-        "h": 17,
-        "font": 12,
-        "weight": "600",
-        "ink": "UiTextSecondary",
-        "cls": ""
-      },
-      {
-        "kind": "text",
-        "text": "卡片高 64（固定） · 圆角 10 · 内边距 10,12 · 序号 18 圆 10.5/Semibold · 当前 1.5px UiAccent 内描边 + UiAccentSoft 底 · 箭头区 24 宽 图标 12 · 计时 11 等宽 右上",
-        "x": 22,
-        "y": 297.9375,
-        "w": 788.515625,
-        "h": 15,
-        "font": 10.5,
-        "weight": "400",
-        "ink": "UiTextSecondary",
-        "cls": "cap"
-      },
-      {
-        "kind": "text",
-        "text": "子步骤行 SubStepRow",
-        "x": 22,
-        "y": 330.109375,
-        "w": 126.046875,
-        "h": 17,
-        "font": 12,
-        "weight": "600",
-        "ink": "UiTextSecondary",
-        "cls": ""
-      },
-      {
-        "kind": "text",
-        "text": "行内边距 7,0 · 图标 14 · 间距 9 · 主行 13 · 说明 11 次文字单行省略 · 行间 0.5px Hairline",
-        "x": 22,
-        "y": 558.21875,
-        "w": 435.4375,
         "h": 15,
         "font": 10.5,
         "weight": "400",

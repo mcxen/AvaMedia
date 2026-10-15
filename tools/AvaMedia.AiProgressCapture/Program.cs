@@ -48,7 +48,7 @@ internal static class Program
             else builder.UsePlatformDetect();
             builder.LogToTrace().SetupWithoutStarting();
             Localization.Apply("zh-CN");
-            Skin.Apply("Light");
+            Skin.Apply(args.Contains("--gallery-view") ? "Light" : "Dark");
             Motion.SetReducedMotion(true);
             Dispatcher.UIThread.Post(async () =>
             {
@@ -79,7 +79,7 @@ internal static class Program
 
     private static async Task CaptureGalleryAsync()
     {
-        foreach (var theme in new[] { "Light", "Dark" })
+        foreach (var theme in new[] { "Dark" })
         {
             Skin.Apply(theme);
             for (var i = 0; i < 12; i++)

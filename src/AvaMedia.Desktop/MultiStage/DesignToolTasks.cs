@@ -282,7 +282,9 @@ internal sealed class DesignMediaClassificationTask : DesignStageTask, IMediaCla
         ("IMG_2050.jpg", "街景 · 早市"), ("IMG_2052.heic", ""), ("IMG_2055.jpg", "风景 · 海湾"), ("IMG_2058.jpg", "美食 · 早餐")
     ];
     private readonly bool _tagging;
-    public DesignMediaClassificationTask(DesignStage scenario, bool tagging, string folder, byte[]? preview, string outputFolder) : base(scenario)
+    public static IEnumerable<string> ImageFileNames => Files.Select(file => file.Name).Where(name => Path.GetExtension(name) == ".jpg");
+
+    public DesignMediaClassificationTask(DesignStage scenario, bool tagging, string folder, string outputFolder) : base(scenario)
     {
         _tagging = tagging;
         var total = 48;
@@ -299,12 +301,15 @@ internal sealed class DesignMediaClassificationTask : DesignStageTask, IMediaCla
         }).ToArray();
         var groups = scenario == DesignStage.Configuring ? [] : new (string Name, int Count)[] { ("风景", 17), ("人物", 12), ("美食", 10), ("街景", 6), ("其他", 2) }
             .Select(g => new MediaClassificationGroupView(g.Name, Math.Max(1, g.Count * done / total)) { Target = tagging ? "" : Path.Combine(outputFolder, g.Name) }).ToArray();
+        // Load the actual JPEG named by the preview caption, never a video thumbnail with a JPG label.
+        var previewItem = items.LastOrDefault(item => item.State == StageState.Done && Path.GetExtension(item.Path) == ".jpg");
+        var previewPath = previewItem?.Path ?? Path.Combine(folder, ImageFileNames.First());
         View = new MediaClassificationTaskView
         {
             SourcePath = folder, IsTagging = tagging, TotalItems = scenario == DesignStage.Configuring ? total : total, DoneItems = done, FailedItems = items.Count(i => i.State == StageState.Failed),
             Items = items, Groups = tagging || scenario is DesignStage.Completed or DesignStage.Failed or DesignStage.Cancelled ? groups : groups.Take(3).ToArray(),
-            ModelName = "SigLIP 2 · Qwen2.5-VL 3B", Preview = scenario == DesignStage.Configuring ? null : preview,
-            PreviewCaption = items.LastOrDefault(i => i.State == StageState.Done) is { } last ? $"{Path.GetFileName(last.Path)} · {last.Result}" : "",
+            ModelName = "SigLIP 2 · Qwen2.5-VL 3B", Preview = File.ReadAllBytes(previewPath),
+            PreviewCaption = Path.GetFileName(previewPath) + (previewItem is null ? "" : " · " + previewItem.Result),
             HasResult = done > 0, IsPartial = !IsDone,
             Output = new TaskOutputView { Folder = tagging ? "" : outputFolder, Path = tagging ? "" : outputFolder, Exists = IsDone && !tagging, IsFixedLocation = tagging }
         };

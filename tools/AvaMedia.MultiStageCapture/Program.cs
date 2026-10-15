@@ -196,8 +196,17 @@ internal static class Program
                     "-i", video, "-frames:v", "1", "-vf", "scale=320:-2,transpose=2", file);
                 sideways.Add(await File.ReadAllBytesAsync(file)); File.Delete(file);
             }
-        var still = await engine.Thumbnail(video, info.Duration * .3, 640, 360, CancellationToken.None, pad: false);
-        var photos = Path.Combine(home, "Pictures", "旅行 2026-09");
+        // Small on-disk JPEG fixtures belong to the capture output, not the repository or the user's photo library.
+        var photos = Path.Combine(output, "fixtures", "旅行 2026-09");
+        if (tools.Any(tool => tool is "tagging" or "classification"))
+        {
+            Directory.CreateDirectory(photos);
+            var names = DesignMediaClassificationTask.ImageFileNames.ToArray();
+            for (var i = 0; i < names.Length; i++)
+                await CommandAsync(ffmpeg.Length > 0 ? ffmpeg : "ffmpeg", "-y", "-loglevel", "error",
+                    "-ss", (info.Duration * (i + .5) / names.Length).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+                    "-i", video, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "3", Path.Combine(photos, names[i]));
+        }
         foreach (var tool in tools)
             foreach (var state in Enum.GetValues<DesignStage>())
             {
@@ -206,8 +215,8 @@ internal static class Program
                     "orientation" => Create(new DesignOrientationTask(state, video, info, sideways, Path.Combine(folder, "旋转")), t => new OrientationStageContent(t, engine, new(() => Task.CompletedTask)), "自动旋转"),
                     "subtitle" => Create(new DesignSubtitleTask(state, video, info, Path.Combine(folder, "字幕")), t => new SubtitleStageContent(t, engine, new(() => Task.CompletedTask)), "自动字幕"),
                     "summary" => Create(new DesignVideoSummaryTask(state, video, info, Path.Combine(folder, "视频总结")), t => new VideoSummaryStageContent(t, engine, new(() => Task.CompletedTask)), "视频总结"),
-                    "tagging" => Create(new DesignMediaClassificationTask(state, true, photos, still, ""), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动标签分类"),
-                    "classification" => Create(new DesignMediaClassificationTask(state, false, photos, still, Path.Combine(home, "Pictures", "已整理")), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动媒体整理"),
+                    "tagging" => Create(new DesignMediaClassificationTask(state, true, photos, ""), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动标签分类"),
+                    "classification" => Create(new DesignMediaClassificationTask(state, false, photos, Path.Combine(home, "Pictures", "已整理")), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动媒体整理"),
                     _ => throw new ArgumentException("Unknown tool " + tool)
                 };
                 var window = new MultiStageTaskWindow(task, content, label);
@@ -285,10 +294,13 @@ internal static class Program
 
     private static async Task CaptureAsync(Window window, string path)
     {
+        // Raise only our own window on the shared display; never interact with another process's windows.
+        window.Topmost = true;
         window.Show(); window.Activate(); await Task.Delay(2500); window.UpdateLayout(); await Task.Delay(300);
-        // Crop the native frame Avalonia reports; xdotool geometry of reparented windows can be frame-relative.
-        var scale = window.RenderScaling; var position = window.Position;
-        var size = window.FrameSize ?? window.ClientSize;
+        window.Topmost = false; window.Topmost = true; window.Activate(); await Task.Delay(100);
+        var scale = window.RenderScaling;
+        var position = window.PointToScreen(default);
+        var size = window.ClientSize;
         var (w, h) = ((int)Math.Round(size.Width * scale), (int)Math.Round(size.Height * scale));
         await CommandAsync("python3", "-c", "from PIL import ImageGrab; import sys; x,y,w,h=map(int,sys.argv[1:5]); ImageGrab.grab(xdisplay=':11').crop((x,y,x+w,y+h)).save(sys.argv[5])",
             position.X.ToString(), position.Y.ToString(), w.ToString(), h.ToString(), path);
