@@ -19,7 +19,7 @@ internal sealed record PersonClipAdjustHost(
     string OutputFolder,
     bool OutputToSource,
     string Preset,
-    Func<PersonClipRequest, Task> Export,
+    Func<PersonClipRequest, Task<bool>> Export,
     Func<PersonClipOptions, Task> Redetect);
 
 /// <summary>
@@ -399,7 +399,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
             QuickClipWorkflow.ValidateJoinedExports([edit], preset);
             var folder = OutputFolder;
             if (string.IsNullOrWhiteSpace(folder)) { Notify(Localization.Text("请选择输出目录。")); return; }
-            await _host.Export(new PersonClipRequest([edit], Path.GetFullPath(folder), _toSource, preset, _mode.SelectedIndex == 0));
+            if (!await _host.Export(new PersonClipRequest([edit], Path.GetFullPath(folder), _toSource, preset, _mode.SelectedIndex == 0))) return;
             _closingAfterSave = true;
             Close();
         }

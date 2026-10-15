@@ -34,9 +34,9 @@ public partial class MainWindow
         if (request is not null && !_closing) await SubmitPersonClipsAsync(request, editing);
     }
 
-    private async Task SubmitPersonClipsAsync(PersonClipRequest request, Job? editing = null)
+    private async Task<bool> SubmitPersonClipsAsync(PersonClipRequest request, Job? editing = null)
     {
-        if (!_settings.EnableBetaFeatures) return;
+        if (_closing || !_settings.EnableBetaFeatures) return false;
         try
         {
             var reserved = (editing is null ? _jobs.Select(job => job.Output) : EditingReservations(editing)).ToArray();
@@ -44,8 +44,10 @@ public partial class MainWindow
                 request.OutputToSource, "People", reserved);
             if (editing is not null) ApplyEditedJobs(editing, jobs);
             else AddToolJobs(jobs, request.StartImmediately);
+            return true;
         }
         catch (Exception error) { await Ui.Message(this, "人物检测参数错误", error.Message); }
+        return false;
     }
 
     private async Task ShowPersonClipResultAsync(Job job)
